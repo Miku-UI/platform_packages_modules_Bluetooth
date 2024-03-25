@@ -33,15 +33,11 @@
 #define MSG_SUB_EVT_MASK 0x00FF /* eq. BT_SUB_EVT_MASK */
 
 /* Message event ID passed from Host/Controller lib to stack */
-#define MSG_HC_TO_STACK_HCI_ACL 0x1100      /* eq. BT_EVT_TO_BTU_HCI_ACL */
-#define MSG_HC_TO_STACK_HCI_SCO 0x1200      /* eq. BT_EVT_TO_BTU_HCI_SCO */
 #define MSG_HC_TO_STACK_HCI_ERR 0x1300      /* eq. BT_EVT_TO_BTU_HCIT_ERR */
 #define MSG_HC_TO_STACK_HCI_ISO 0x1700      /* eq. BT_EVT_TO_BTU_HCI_ISO */
 #define MSG_HC_TO_STACK_HCI_EVT 0x1000      /* eq. BT_EVT_TO_BTU_HCI_EVT */
 
 /* Message event ID passed from stack to vendor lib */
-#define MSG_STACK_TO_HC_HCI_ACL 0x2100 /* eq. BT_EVT_TO_LM_HCI_ACL */
-#define MSG_STACK_TO_HC_HCI_SCO 0x2200 /* eq. BT_EVT_TO_LM_HCI_SCO */
 #define MSG_STACK_TO_HC_HCI_ISO 0x2d00 /* eq. BT_EVT_TO_LM_HCI_ISO */
 #define MSG_STACK_TO_HC_HCI_CMD 0x2000 /* eq. BT_EVT_TO_LM_HCI_CMD */
 
@@ -65,8 +61,6 @@ typedef struct hci_t {
   void (*transmit_command)(const BT_HDR* command,
                            command_complete_cb complete_callback,
                            command_status_cb status_cb, void* context);
-
-  future_t* (*transmit_command_futured)(const BT_HDR* command);
 
   // Send some data downward through the HCI layer
   void (*transmit_downward)(uint16_t type, void* data);
