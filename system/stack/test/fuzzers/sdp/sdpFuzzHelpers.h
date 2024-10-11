@@ -79,7 +79,8 @@ void cleanupSdpFuzz() {
   sdp_protolist_elem_vect.clear();
 
   // Delete all records
-  get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(0);
+  [[maybe_unused]] bool rc =
+      get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(0);
   sdp_record_handles.clear();
 
   // Delete Databases
@@ -275,7 +276,7 @@ SDP_Sequence_Helper generateArbitrarySdpElemSequence(FuzzedDataProvider* fdp) {
 
 // Define our callback functions we'll be using within our functions
 void sdp_disc_cmpl_cb(const RawAddress& bd_addr, tSDP_STATUS result) {}
-void sdp_disc_cmpl_cb2(const RawAddress& bd_addr, tSDP_STATUS result,
-                       const void* user_data) {}
+void sdp_disc_cmpl_cb2(std::vector<uint8_t> data, const RawAddress& bd_addr,
+                       tSDP_STATUS result) {}
 
 #endif  // FUZZER_SDP_HELPERS_H_

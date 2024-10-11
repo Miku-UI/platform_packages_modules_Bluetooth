@@ -16,15 +16,13 @@
 
 #include "test/headless/get_options.h"
 
-#include <base/logging.h>
 #include <getopt.h>
-#include <stdio.h>
 #include <unistd.h>
 
 #include <list>
+#include <sstream>
 #include <string>
 
-#include "include/check.h"
 #include "os/log.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -73,7 +71,7 @@ void bluetooth::test::headless::GetOpt::Usage() const {
 
 void bluetooth::test::headless::GetOpt::ParseValue(
     char* optarg, std::list<std::string>& string_list) {
-  CHECK(optarg != nullptr);
+  log::assert_that(optarg != nullptr, "assert failed: optarg != nullptr");
   char* p = optarg;
   char* pp = optarg;
   while (*p != '\0') {
@@ -154,7 +152,8 @@ void bluetooth::test::headless::GetOpt::ProcessOption(int option_index,
 void bluetooth::test::headless::GetOpt::ParseStackInitFlags() {
   if (init_flags_.size() == 0) return;
 
-  ASSERT(stack_init_flags_ == nullptr);
+  log::assert_that(stack_init_flags_ == nullptr,
+                   "assert failed: stack_init_flags_ == nullptr");
 
   unsigned idx = 0;
   stack_init_flags_ = (const char**)calloc(sizeof(char*), init_flags_.size());

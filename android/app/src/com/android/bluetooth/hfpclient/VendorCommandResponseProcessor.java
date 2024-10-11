@@ -36,43 +36,30 @@ import java.util.Objects;
 
 class VendorCommandResponseProcessor {
 
-    private static final String TAG = "VendorCommandResponseProcessor";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = VendorCommandResponseProcessor.class.getSimpleName();
 
     private final HeadsetClientService mService;
     private final NativeInterface mNativeInterface;
 
     // Keys are AT commands (without payload), and values are the company IDs.
     private static final Map<String, Integer> SUPPORTED_VENDOR_AT_COMMANDS;
+
     static {
         SUPPORTED_VENDOR_AT_COMMANDS = new HashMap<>();
-        SUPPORTED_VENDOR_AT_COMMANDS.put(
-                "+XAPL=",
-                BluetoothAssignedNumbers.APPLE);
-        SUPPORTED_VENDOR_AT_COMMANDS.put(
-                "+IPHONEACCEV=",
-                BluetoothAssignedNumbers.APPLE);
-        SUPPORTED_VENDOR_AT_COMMANDS.put(
-                "+APLSIRI?",
-                BluetoothAssignedNumbers.APPLE);
-        SUPPORTED_VENDOR_AT_COMMANDS.put(
-                "+APLEFM",
-                BluetoothAssignedNumbers.APPLE);
+        SUPPORTED_VENDOR_AT_COMMANDS.put("+XAPL=", BluetoothAssignedNumbers.APPLE);
+        SUPPORTED_VENDOR_AT_COMMANDS.put("+IPHONEACCEV=", BluetoothAssignedNumbers.APPLE);
+        SUPPORTED_VENDOR_AT_COMMANDS.put("+APLSIRI?", BluetoothAssignedNumbers.APPLE);
+        SUPPORTED_VENDOR_AT_COMMANDS.put("+APLEFM", BluetoothAssignedNumbers.APPLE);
     }
 
     // Keys are AT events (without payload), and values are the company IDs.
     private static final Map<String, Integer> SUPPORTED_VENDOR_EVENTS;
+
     static {
         SUPPORTED_VENDOR_EVENTS = new HashMap<>();
-        SUPPORTED_VENDOR_EVENTS.put(
-                "+APLSIRI:",
-                BluetoothAssignedNumbers.APPLE);
-        SUPPORTED_VENDOR_EVENTS.put(
-                "+XAPL=",
-                BluetoothAssignedNumbers.APPLE);
-        SUPPORTED_VENDOR_EVENTS.put(
-                "+ANDROID:",
-                BluetoothAssignedNumbers.GOOGLE);
+        SUPPORTED_VENDOR_EVENTS.put("+APLSIRI:", BluetoothAssignedNumbers.APPLE);
+        SUPPORTED_VENDOR_EVENTS.put("+XAPL=", BluetoothAssignedNumbers.APPLE);
+        SUPPORTED_VENDOR_EVENTS.put("+ANDROID:", BluetoothAssignedNumbers.GOOGLE);
     }
 
     VendorCommandResponseProcessor(HeadsetClientService context, NativeInterface nativeInterface) {
@@ -90,8 +77,7 @@ class VendorCommandResponseProcessor {
         // We simplify and say no ; allowed as well.
         int indexOfSemicolon = atCommand.indexOf(';');
         if (indexOfSemicolon > 0) {
-            Log.e(TAG, "Do not support ; and more than one command:"
-                    + atCommand);
+            Log.e(TAG, "Do not support ; and more than one command:" + atCommand);
             return false;
         }
 
@@ -111,19 +97,20 @@ class VendorCommandResponseProcessor {
         commandWord = commandWord.replaceAll("\\s+", "");
 
         if (!Objects.equals(SUPPORTED_VENDOR_AT_COMMANDS.get(commandWord), vendorId)) {
-            Log.e(TAG, "Invalid command " + atCommand + ", " + vendorId + ". Cand="
-                    + commandWord);
+            Log.e(TAG, "Invalid command " + atCommand + ", " + vendorId + ". Cand=" + commandWord);
             return false;
         }
 
-        if (!mNativeInterface.sendATCmd(device,
-                                        HeadsetClientHalConstants
-                                        .HANDSFREECLIENT_AT_CMD_VENDOR_SPECIFIC_CMD,
-                                        0, 0, atCommand)) {
+        if (!mNativeInterface.sendATCmd(
+                device,
+                HeadsetClientHalConstants.HANDSFREECLIENT_AT_CMD_VENDOR_SPECIFIC_CMD,
+                0,
+                0,
+                atCommand)) {
             Log.e(TAG, "Failed to send vendor specific at command");
             return false;
         }
-        logD("Send vendor command: " + atCommand);
+        Log.d(TAG, "Send vendor command: " + atCommand);
         return true;
     }
 
@@ -168,28 +155,30 @@ class VendorCommandResponseProcessor {
             return false;
         } else {
             broadcastVendorSpecificEventIntent(vendorId, eventCode, atString, device);
-            logD("process vendor event " + vendorId + ", " + eventCode + ", "
-                    + atString + " for device" + device);
+            Log.d(
+                    TAG,
+                    "process vendor event "
+                            + vendorId
+                            + ", "
+                            + eventCode
+                            + ", "
+                            + atString
+                            + " for device"
+                            + device);
         }
         return true;
     }
 
-    private void broadcastVendorSpecificEventIntent(int vendorId, String vendorEventCode,
-            String vendorResponse, BluetoothDevice device) {
-        logD("broadcastVendorSpecificEventIntent(" + vendorResponse + ")");
-        Intent intent = new Intent(BluetoothHeadsetClient
-                                   .ACTION_VENDOR_SPECIFIC_HEADSETCLIENT_EVENT);
+    private void broadcastVendorSpecificEventIntent(
+            int vendorId, String vendorEventCode, String vendorResponse, BluetoothDevice device) {
+        Log.d(TAG, "broadcastVendorSpecificEventIntent(" + vendorResponse + ")");
+        Intent intent =
+                new Intent(BluetoothHeadsetClient.ACTION_VENDOR_SPECIFIC_HEADSETCLIENT_EVENT);
         intent.putExtra(BluetoothHeadsetClient.EXTRA_VENDOR_ID, vendorId);
         intent.putExtra(BluetoothHeadsetClient.EXTRA_VENDOR_EVENT_CODE, vendorEventCode);
         intent.putExtra(BluetoothHeadsetClient.EXTRA_VENDOR_EVENT_FULL_ARGS, vendorResponse);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-        Utils.sendBroadcast(mService, intent, BLUETOOTH_CONNECT,
-                Utils.getTempAllowlistBroadcastOptions());
-    }
-
-    private void logD(String msg) {
-        if (DBG) {
-            Log.d(TAG, msg);
-        }
+        mService.sendBroadcast(
+                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
     }
 }

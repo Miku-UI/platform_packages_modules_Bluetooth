@@ -25,8 +25,6 @@
 #include <vector>
 
 // Original included files, if any
-#include <base/logging.h>
-#include <base/strings/stringprintf.h>
 
 #include <cstdint>
 
@@ -49,11 +47,11 @@ struct l2c_get_transport_from_fixed_cid {
   tBT_TRANSPORT operator()(uint16_t fixed_cid) { return body(fixed_cid); };
 };
 extern struct l2c_get_transport_from_fixed_cid l2c_get_transport_from_fixed_cid;
-// Name: L2CA_Register2
+// Name: L2CA_RegisterWithSecurity
 // Params: uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
 // tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
 // uint16_t sec_level Returns: uint16_t
-struct L2CA_Register2 {
+struct L2CA_RegisterWithSecurity {
   std::function<uint16_t(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info,
                          bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info,
                          uint16_t my_mtu, uint16_t required_remote_mtu,
@@ -70,7 +68,7 @@ struct L2CA_Register2 {
                 required_remote_mtu, sec_level);
   };
 };
-extern struct L2CA_Register2 L2CA_Register2;
+extern struct L2CA_RegisterWithSecurity L2CA_RegisterWithSecurity;
 // Name: L2CA_Register
 // Params: uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
 // tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
@@ -117,10 +115,10 @@ struct L2CA_FreeLePSM {
   void operator()(uint16_t psm) { body(psm); };
 };
 extern struct L2CA_FreeLePSM L2CA_FreeLePSM;
-// Name: L2CA_ConnectReq2
+// Name: L2CA_ConnectReqWithSecurity
 // Params: uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level
 // Returns: uint16_t
-struct L2CA_ConnectReq2 {
+struct L2CA_ConnectReqWithSecurity {
   std::function<uint16_t(uint16_t psm, const RawAddress& p_bd_addr,
                          uint16_t sec_level)>
       body{[](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
@@ -130,7 +128,7 @@ struct L2CA_ConnectReq2 {
     return body(psm, p_bd_addr, sec_level);
   };
 };
-extern struct L2CA_ConnectReq2 L2CA_ConnectReq2;
+extern struct L2CA_ConnectReqWithSecurity L2CA_ConnectReqWithSecurity;
 // Name: L2CA_ConnectReq
 // Params: uint16_t psm, const RawAddress& p_bd_addr
 // Returns: uint16_t
@@ -258,15 +256,15 @@ struct L2CA_DisconnectLECocReq {
   bool operator()(uint16_t cid) { return body(cid); };
 };
 extern struct L2CA_DisconnectLECocReq L2CA_DisconnectLECocReq;
-// Name: L2CA_GetRemoteCid
+// Name: L2CA_GetRemoteChannelId
 // Params: uint16_t lcid, uint16_t* rcid
 // Returns: bool
-struct L2CA_GetRemoteCid {
+struct L2CA_GetRemoteChannelId {
   std::function<bool(uint16_t lcid, uint16_t* rcid)> body{
       [](uint16_t /* lcid */, uint16_t* /* rcid */) { return false; }};
   bool operator()(uint16_t lcid, uint16_t* rcid) { return body(lcid, rcid); };
 };
-extern struct L2CA_GetRemoteCid L2CA_GetRemoteCid;
+extern struct L2CA_GetRemoteChannelId L2CA_GetRemoteChannelId;
 // Name: L2CA_SetIdleTimeoutByBdAddr
 // Params: const RawAddress& bd_addr, uint16_t timeout, tBT_TRANSPORT transport
 // Returns: bool

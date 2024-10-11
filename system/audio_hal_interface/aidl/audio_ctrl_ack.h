@@ -16,6 +16,10 @@
 
 #pragma once
 
+#include <bluetooth/log.h>
+
+#include "audio_aidl_interfaces.h"
+
 namespace bluetooth {
 namespace audio {
 namespace aidl {
@@ -57,3 +61,9 @@ inline BluetoothAudioStatus BluetoothAudioCtrlAckToHalStatus(
 }  // namespace aidl
 }  // namespace audio
 }  // namespace bluetooth
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::audio::aidl::BluetoothAudioCtrlAck>
+    : ostream_formatter {};
+}  // namespace fmt

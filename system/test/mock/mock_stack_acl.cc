@@ -43,7 +43,6 @@ namespace stack_acl {
 struct BTM_BLE_IS_RESOLVE_BDA BTM_BLE_IS_RESOLVE_BDA;
 struct BTM_IsAclConnectionUp BTM_IsAclConnectionUp;
 struct BTM_IsAclConnectionUpAndHandleValid BTM_IsAclConnectionUpAndHandleValid;
-struct BTM_IsAclConnectionUpFromHandle BTM_IsAclConnectionUpFromHandle;
 struct BTM_IsBleConnection BTM_IsBleConnection;
 struct BTM_IsPhy2mSupported BTM_IsPhy2mSupported;
 struct BTM_ReadRemoteConnectionAddr BTM_ReadRemoteConnectionAddr;
@@ -59,6 +58,8 @@ struct acl_peer_supports_ble_coded_phy acl_peer_supports_ble_coded_phy;
 struct acl_send_data_packet_br_edr acl_send_data_packet_br_edr;
 struct acl_peer_supports_ble_connection_parameters_request
     acl_peer_supports_ble_connection_parameters_request;
+struct acl_ble_connection_parameters_request
+    acl_ble_connection_parameters_request;
 struct acl_peer_supports_ble_packet_extension
     acl_peer_supports_ble_packet_extension;
 struct acl_peer_supports_sniff_subrating acl_peer_supports_sniff_subrating;
@@ -69,7 +70,6 @@ struct acl_peer_supports_ble_connection_subrating_host
 struct acl_refresh_remote_address acl_refresh_remote_address;
 struct acl_set_peer_le_features_from_handle
     acl_set_peer_le_features_from_handle;
-struct acl_create_classic_connection acl_create_classic_connection;
 struct acl_get_connection_from_address acl_get_connection_from_address;
 struct btm_acl_for_bda btm_acl_for_bda;
 struct acl_get_connection_from_handle acl_get_connection_from_handle;
@@ -99,7 +99,6 @@ struct BTM_acl_after_controller_started BTM_acl_after_controller_started;
 struct BTM_block_role_switch_for BTM_block_role_switch_for;
 struct BTM_block_sniff_mode_for BTM_block_sniff_mode_for;
 struct btm_connection_request btm_connection_request;
-struct BTM_default_block_role_switch BTM_default_block_role_switch;
 struct BTM_default_unblock_role_switch BTM_default_unblock_role_switch;
 struct BTM_unblock_role_switch_for BTM_unblock_role_switch_for;
 struct BTM_unblock_sniff_mode_for BTM_unblock_sniff_mode_for;
@@ -116,6 +115,7 @@ struct btm_acl_connected btm_acl_connected;
 struct btm_acl_created btm_acl_created;
 struct btm_acl_device_down btm_acl_device_down;
 struct btm_acl_disconnected btm_acl_disconnected;
+struct btm_acl_flush btm_acl_flush;
 struct btm_acl_encrypt_change btm_acl_encrypt_change;
 struct btm_acl_notif_conn_collision btm_acl_notif_conn_collision;
 struct btm_acl_process_sca_cmpl_pkt btm_acl_process_sca_cmpl_pkt;
@@ -134,8 +134,6 @@ struct btm_read_failed_contact_counter_complete
     btm_read_failed_contact_counter_complete;
 struct btm_read_failed_contact_counter_timeout
     btm_read_failed_contact_counter_timeout;
-struct btm_read_link_quality_complete btm_read_link_quality_complete;
-struct btm_read_link_quality_timeout btm_read_link_quality_timeout;
 struct btm_read_remote_ext_features btm_read_remote_ext_features;
 struct btm_read_remote_ext_features_complete
     btm_read_remote_ext_features_complete;
@@ -176,10 +174,6 @@ bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda,
   inc_func_call_count(__func__);
   return test::mock::stack_acl::BTM_IsAclConnectionUpAndHandleValid(remote_bda,
                                                                     transport);
-}
-bool BTM_IsAclConnectionUpFromHandle(uint16_t hci_handle) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::BTM_IsAclConnectionUpFromHandle(hci_handle);
 }
 bool BTM_IsBleConnection(uint16_t hci_handle) {
   inc_func_call_count(__func__);
@@ -245,6 +239,15 @@ bool acl_peer_supports_ble_connection_parameters_request(
   return test::mock::stack_acl::
       acl_peer_supports_ble_connection_parameters_request(remote_bda);
 }
+void acl_ble_connection_parameters_request(
+    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
+    uint16_t max_ce_len) {
+  inc_func_call_count(__func__);
+  test::mock::stack_acl::acl_ble_connection_parameters_request(
+      handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
+      min_ce_len, max_ce_len);
+}
 bool acl_peer_supports_ble_packet_extension(uint16_t hci_handle) {
   inc_func_call_count(__func__);
   return test::mock::stack_acl::acl_peer_supports_ble_packet_extension(
@@ -283,13 +286,6 @@ bool acl_set_peer_le_features_from_handle(uint16_t hci_handle,
 void acl_send_data_packet_br_edr(const RawAddress& bd_addr, BT_HDR* p_buf) {
   inc_func_call_count(__func__);
   test::mock::stack_acl::acl_send_data_packet_br_edr(bd_addr, p_buf);
-}
-void acl_create_classic_connection(const RawAddress& bd_addr,
-                                   bool there_are_high_priority_channels,
-                                   bool is_bonding) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_acl::acl_create_classic_connection(
-      bd_addr, there_are_high_priority_channels, is_bonding);
 }
 tACL_CONN* acl_get_connection_from_address(const RawAddress& bd_addr,
                                            tBT_TRANSPORT transport) {
@@ -401,9 +397,9 @@ void BTM_RequestPeerSCA(const RawAddress& remote_bda, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
   test::mock::stack_acl::BTM_RequestPeerSCA(remote_bda, transport);
 }
-void BTM_acl_after_controller_started(const controller_t* controller) {
+void BTM_acl_after_controller_started() {
   inc_func_call_count(__func__);
-  test::mock::stack_acl::BTM_acl_after_controller_started(controller);
+  test::mock::stack_acl::BTM_acl_after_controller_started();
 }
 void BTM_block_role_switch_for(const RawAddress& peer_addr) {
   inc_func_call_count(__func__);
@@ -412,10 +408,6 @@ void BTM_block_role_switch_for(const RawAddress& peer_addr) {
 void BTM_block_sniff_mode_for(const RawAddress& peer_addr) {
   inc_func_call_count(__func__);
   test::mock::stack_acl::BTM_block_sniff_mode_for(peer_addr);
-}
-void BTM_default_block_role_switch() {
-  inc_func_call_count(__func__);
-  test::mock::stack_acl::BTM_default_block_role_switch();
 }
 void BTM_default_unblock_role_switch() {
   inc_func_call_count(__func__);
@@ -508,6 +500,10 @@ void btm_acl_removed(uint16_t handle) {
   inc_func_call_count(__func__);
   test::mock::stack_acl::btm_acl_removed(handle);
 }
+void btm_acl_flush(uint16_t handle) {
+  inc_func_call_count(__func__);
+  test::mock::stack_acl::btm_acl_flush(handle);
+}
 void btm_acl_role_changed(tHCI_STATUS hci_status, const RawAddress& bd_addr,
                           tHCI_ROLE new_role) {
   inc_func_call_count(__func__);
@@ -557,14 +553,6 @@ void btm_read_failed_contact_counter_complete(uint8_t* p) {
 void btm_read_failed_contact_counter_timeout(void* data) {
   inc_func_call_count(__func__);
   test::mock::stack_acl::btm_read_failed_contact_counter_timeout(data);
-}
-void btm_read_link_quality_complete(uint8_t* p, uint16_t evt_len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_acl::btm_read_link_quality_complete(p, evt_len);
-}
-void btm_read_link_quality_timeout(void* data) {
-  inc_func_call_count(__func__);
-  test::mock::stack_acl::btm_read_link_quality_timeout(data);
 }
 void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number) {
   inc_func_call_count(__func__);

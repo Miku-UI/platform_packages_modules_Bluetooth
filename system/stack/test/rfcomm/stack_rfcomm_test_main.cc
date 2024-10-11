@@ -17,13 +17,10 @@
  ******************************************************************************/
 
 #include <base/command_line.h>
-#include <base/logging.h>
 #include <base/strings/string_piece.h>
 #include <base/strings/string_util.h>
 #include <bluetooth/log.h>
 #include <gtest/gtest.h>
-
-#include <string>
 
 using namespace bluetooth;
 

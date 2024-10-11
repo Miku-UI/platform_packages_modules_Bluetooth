@@ -49,7 +49,7 @@ constexpr uint16_t kLeMaximumDataLength = 64;
 constexpr uint16_t kLeMaximumDataTime = 0x148;
 constexpr uint8_t kTransmitPowerLevel = -20;
 
-constexpr bool kLeApcfTransportDiscoveryDataFilterSupported = true;
+constexpr bool kLeApcfTransportDiscoveryDataFilterSupported = false;
 constexpr bool kLeApcfAdTypeFilterSupported = true;
 
 #define CHECK_PACKET_VIEW(view)                                              \
@@ -3107,6 +3107,20 @@ void DualModeController::LeApcf(CommandView command) {
           apcf_available_spaces));
       break;
     }
+    case bluetooth::hci::ApcfOpcode::TRANSPORT_DISCOVERY_SERVICE: {
+      auto subcommand_view =
+          bluetooth::hci::LeApcfTransportDiscoveryServiceView::Create(command_view);
+      CHECK_PACKET_VIEW(subcommand_view);
+
+      DEBUG(id_, "<< LE APCF Transport Discovery Service");
+      DEBUG(id_, "   action={}",
+            bluetooth::hci::ApcfActionText(subcommand_view.GetApcfAction()));
+
+      send_event_(bluetooth::hci::LeApcfTransportDiscoveryServiceCompleteBuilder::Create(
+          kNumCommandPackets, ErrorCode::INVALID_HCI_COMMAND_PARAMETERS,
+          subcommand_view.GetApcfAction(), 0));
+      break;
+    }
     case bluetooth::hci::ApcfOpcode::AD_TYPE_FILTER: {
       auto subcommand_view =
           bluetooth::hci::LeApcfAdTypeFilterView::Create(command_view);
@@ -3141,8 +3155,18 @@ void DualModeController::LeApcf(CommandView command) {
       break;
     }
     default:
-      FATAL(id_, "unknown APCF opcode {}",
+      ERROR(id_, "unknown APCF opcode {:#x}",
             static_cast<uint8_t>(command_view.GetApcfOpcode()));
+
+      send_event_(bluetooth::hci::LeApcfCompleteBuilder::Create(
+          kNumCommandPackets, ErrorCode::INVALID_HCI_COMMAND_PARAMETERS,
+          command_view.GetApcfOpcode(), std::vector<uint8_t>{}));
+
+      invalid_packet_handler_(
+          id_, InvalidPacketReason::kUnsupported,
+          fmt::format("unsupported APCF opcode {:#x}",
+                      static_cast<uint8_t>(command_view.GetApcfOpcode())),
+          command_view.bytes().bytes());
   }
 }
 

@@ -74,54 +74,42 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         implements BluetoothOppObexSession {
 
     private static final String TAG = "BtOppObexServer";
-    private static final boolean D = Constants.DEBUG;
-    private static final boolean V = Constants.VERBOSE;
 
-    @VisibleForTesting
-    public ObexTransport mTransport;
+    @VisibleForTesting public ObexTransport mTransport;
 
-    @VisibleForTesting
-    public Context mContext;
+    @VisibleForTesting public Context mContext;
 
-    @VisibleForTesting
-    public Handler mCallback = null;
+    @VisibleForTesting public Handler mCallback = null;
 
     /* status when server is blocking for user/auto confirmation */
-    @VisibleForTesting
-    public boolean mServerBlocking = true;
+    @VisibleForTesting public boolean mServerBlocking = true;
 
     /* the current transfer info */
-    @VisibleForTesting
-    public BluetoothOppShareInfo mInfo;
+    @VisibleForTesting public BluetoothOppShareInfo mInfo;
 
     /* info id when we insert the record */
     private int mLocalShareInfoId;
 
-    @VisibleForTesting
-    public int mAccepted = BluetoothShare.USER_CONFIRMATION_PENDING;
+    @VisibleForTesting public int mAccepted = BluetoothShare.USER_CONFIRMATION_PENDING;
 
     private boolean mInterrupted = false;
 
-    @VisibleForTesting
-    public ServerSession mSession;
+    @VisibleForTesting public ServerSession mSession;
 
     private long mTimestamp;
 
-    @VisibleForTesting
-    BluetoothOppReceiveFileInfo mFileInfo;
+    @VisibleForTesting BluetoothOppReceiveFileInfo mFileInfo;
 
     private WakeLock mPartialWakeLock;
 
-    @VisibleForTesting
-    boolean mTimeoutMsgSent = false;
+    @VisibleForTesting boolean mTimeoutMsgSent = false;
 
-    @VisibleForTesting
-    public BluetoothOppService mBluetoothOppService;
+    @VisibleForTesting public BluetoothOppService mBluetoothOppService;
 
     private int mNumFilesAttemptedToReceive;
 
-    public BluetoothOppObexServerSession(Context context, ObexTransport transport,
-            BluetoothOppService service) {
+    public BluetoothOppObexServerSession(
+            Context context, ObexTransport transport, BluetoothOppService service) {
         mContext = context;
         mTransport = transport;
         mBluetoothOppService = service;
@@ -136,14 +124,12 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
     }
 
     /**
-     * Called when connection is accepted from remote, to retrieve the first
-     * Header then wait for user confirmation
+     * Called when connection is accepted from remote, to retrieve the first Header then wait for
+     * user confirmation
      */
     public void preStart() {
         try {
-            if (D) {
-                Log.d(TAG, "Create ServerSession with transport " + mTransport.toString());
-            }
+            Log.d(TAG, "Create ServerSession with transport " + mTransport.toString());
             mSession = new ServerSession(mTransport, this, null);
         } catch (IOException e) {
             ContentProfileErrorReportUtils.report(
@@ -155,21 +141,16 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         }
     }
 
-    /**
-     * Called from BluetoothOppTransfer to start the "Transfer"
-     */
+    /** Called from BluetoothOppTransfer to start the "Transfer" */
     @Override
     public void start(Handler handler, int numShares) {
-        if (D) {
-            Log.d(TAG, "Start!");
-        }
+        Log.d(TAG, "Start!");
         mCallback = handler;
-
     }
 
     /**
-     * Called from BluetoothOppTransfer to cancel the "Transfer" Otherwise,
-     * server should end by itself.
+     * Called from BluetoothOppTransfer to cancel the "Transfer" Otherwise, server should end by
+     * itself.
      */
     @Override
     public void stop() {
@@ -177,9 +158,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
          * TODO now we implement in a tough way, just close the socket.
          * maybe need nice way
          */
-        if (D) {
-            Log.d(TAG, "Stop!");
-        }
+        Log.d(TAG, "Stop!");
         mInterrupted = true;
         if (mSession != null) {
             try {
@@ -200,18 +179,14 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
 
     @Override
     public void addShare(BluetoothOppShareInfo info) {
-        if (D) {
-            Log.d(TAG, "addShare for id " + info.mId);
-        }
+        Log.d(TAG, "addShare for id " + info.mId);
         mInfo = info;
         mFileInfo = processShareInfo();
     }
 
     @Override
     public int onPut(Operation op) {
-        if (D) {
-            Log.d(TAG, "onPut " + op.toString());
-        }
+        Log.d(TAG, "onPut " + op.toString());
 
         /* For multiple objects, reject further objects after the user denies the first one */
         if (mAccepted == BluetoothShare.USER_CONFIRMATION_DENIED) {
@@ -232,9 +207,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         Long length;
         try {
             request = op.getReceivedHeader();
-            if (V) {
-                Constants.logHeader(request);
-            }
+            Constants.logHeader(request);
             name = (String) request.getHeader(HeaderSet.NAME);
             length = (Long) request.getHeader(HeaderSet.LENGTH);
             mimeType = (String) request.getHeader(HeaderSet.TYPE);
@@ -249,9 +222,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         }
 
         if (length == 0) {
-            if (D) {
-                Log.w(TAG, "length is 0, reject the transfer");
-            }
+            Log.w(TAG, "length is 0, reject the transfer");
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.OPP,
                     BluetoothProtoEnums.BLUETOOTH_OPP_OBEX_SERVER_SESSION,
@@ -261,9 +232,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         }
 
         if (name == null || name.isEmpty()) {
-            if (D) {
-                Log.w(TAG, "name is null or empty, reject the transfer");
-            }
+            Log.w(TAG, "name is null or empty, reject the transfer");
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.OPP,
                     BluetoothProtoEnums.BLUETOOTH_OPP_OBEX_SERVER_SESSION,
@@ -276,9 +245,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         String extension, type;
         int dotIndex = name.lastIndexOf(".");
         if (dotIndex < 0 && mimeType == null) {
-            if (D) {
-                Log.w(TAG, "There is no file extension or mime type, reject the transfer");
-            }
+            Log.w(TAG, "There is no file extension or mime type, reject the transfer");
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.OPP,
                     BluetoothProtoEnums.BLUETOOTH_OPP_OBEX_SERVER_SESSION,
@@ -289,16 +256,12 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
             extension = name.substring(dotIndex + 1).toLowerCase();
             MimeTypeMap map = MimeTypeMap.getSingleton();
             type = map.getMimeTypeFromExtension(extension);
-            if (V) {
-                Log.v(TAG, "Mimetype guessed from extension " + extension + " is " + type);
-            }
+            Log.v(TAG, "Mimetype guessed from extension " + extension + " is " + type);
             if (type != null) {
                 mimeType = type;
             } else {
                 if (mimeType == null) {
-                    if (D) {
-                        Log.w(TAG, "Can't get mimetype, reject the transfer");
-                    }
+                    Log.w(TAG, "Can't get mimetype, reject the transfer");
                     ContentProfileErrorReportUtils.report(
                             BluetoothProfile.OPP,
                             BluetoothProtoEnums.BLUETOOTH_OPP_OBEX_SERVER_SESSION,
@@ -312,11 +275,11 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         }
 
         // Reject anything outside the "acceptlist" plus unspecified MIME Types.
-        if (mimeType == null || (!isAcceptlisted && !Constants.mimeTypeMatches(mimeType,
-                Constants.ACCEPTABLE_SHARE_INBOUND_TYPES))) {
-            if (D) {
-                Log.w(TAG, "mimeType is null or in unacceptable list, reject the transfer");
-            }
+        if (mimeType == null
+                || (!isAcceptlisted
+                        && !Constants.mimeTypeMatches(
+                                mimeType, Constants.ACCEPTABLE_SHARE_INBOUND_TYPES))) {
+            Log.w(TAG, "mimeType is null or in unacceptable list, reject the transfer");
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.OPP,
                     BluetoothProtoEnums.BLUETOOTH_OPP_OBEX_SERVER_SESSION,
@@ -334,25 +297,28 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         values.put(BluetoothShare.TIMESTAMP, mTimestamp);
 
         // It's not first put if !serverBlocking, so we auto accept it
-        if (!mServerBlocking && (mAccepted == BluetoothShare.USER_CONFIRMATION_CONFIRMED
-                || mAccepted == BluetoothShare.USER_CONFIRMATION_AUTO_CONFIRMED)) {
-            values.put(BluetoothShare.USER_CONFIRMATION,
+        if (!mServerBlocking
+                && (mAccepted == BluetoothShare.USER_CONFIRMATION_CONFIRMED
+                        || mAccepted == BluetoothShare.USER_CONFIRMATION_AUTO_CONFIRMED)) {
+            values.put(
+                    BluetoothShare.USER_CONFIRMATION,
                     BluetoothShare.USER_CONFIRMATION_AUTO_CONFIRMED);
         }
 
         if (isAcceptlisted) {
-            values.put(BluetoothShare.USER_CONFIRMATION,
+            values.put(
+                    BluetoothShare.USER_CONFIRMATION,
                     BluetoothShare.USER_CONFIRMATION_HANDOVER_CONFIRMED);
         }
 
-        Uri contentUri = BluetoothMethodProxy.getInstance().contentResolverInsert(
-                mContext.getContentResolver(), BluetoothShare.CONTENT_URI, values);
+        Uri contentUri =
+                BluetoothMethodProxy.getInstance()
+                        .contentResolverInsert(
+                                mContext.getContentResolver(), BluetoothShare.CONTENT_URI, values);
         mLocalShareInfoId = Integer.parseInt(contentUri.getPathSegments().get(1));
 
-        if (V) {
-            Log.v(TAG, "insert contentUri: " + contentUri);
-            Log.v(TAG, "mLocalShareInfoId = " + mLocalShareInfoId);
-        }
+        Log.v(TAG, "insert contentUri: " + contentUri);
+        Log.v(TAG, "mLocalShareInfoId = " + mLocalShareInfoId);
 
         synchronized (this) {
             mPartialWakeLock.acquire();
@@ -363,12 +329,11 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                     wait(1000);
                     if (mCallback != null && !mTimeoutMsgSent) {
                         mTimeoutMsgSent = true;
-                        mCallback.sendMessageDelayed(mCallback.obtainMessage(
+                        mCallback.sendMessageDelayed(
+                                mCallback.obtainMessage(
                                         BluetoothOppObexSession.MSG_CONNECT_TIMEOUT),
                                 BluetoothOppObexSession.SESSION_TIMEOUT);
-                        if (V) {
-                            Log.v(TAG, "MSG_CONNECT_TIMEOUT sent");
-                        }
+                        Log.v(TAG, "MSG_CONNECT_TIMEOUT sent");
                     }
                 }
             } catch (InterruptedException e) {
@@ -377,14 +342,10 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                         BluetoothProtoEnums.BLUETOOTH_OPP_OBEX_SERVER_SESSION,
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                         8);
-                if (V) {
-                    Log.v(TAG, "Interrupted in onPut blocking");
-                }
+                Log.v(TAG, "Interrupted in onPut blocking");
             }
         }
-        if (D) {
-            Log.d(TAG, "Server unblocked ");
-        }
+        Log.d(TAG, "Server unblocked ");
         synchronized (this) {
             if (mCallback != null && mTimeoutMsgSent) {
                 mCallback.removeMessages(BluetoothOppObexSession.MSG_CONNECT_TIMEOUT);
@@ -407,9 +368,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         }
         mAccepted = mInfo.mConfirm;
 
-        if (V) {
-            Log.v(TAG, "after confirm: userAccepted=" + mAccepted);
-        }
+        Log.v(TAG, "after confirm: userAccepted=" + mAccepted);
         int status = BluetoothShare.STATUS_SUCCESS;
 
         int obexResponse = ResponseCodes.OBEX_HTTP_OK;
@@ -426,7 +385,6 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                 mInfo.mStatus = mFileInfo.mStatus;
                 Constants.updateShareStatus(mContext, mInfo.mId, status);
                 obexResponse = ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
-
             }
 
             if (mFileInfo.mFileName != null && mFileInfo.mInsertUri != null) {
@@ -436,8 +394,13 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                 updateValues.put(BluetoothShare._DATA, mFileInfo.mFileName);
                 updateValues.put(BluetoothShare.STATUS, BluetoothShare.STATUS_RUNNING);
                 updateValues.put(BluetoothShare.URI, mFileInfo.mInsertUri.toString());
-                BluetoothMethodProxy.getInstance().contentResolverUpdate(
-                        mContext.getContentResolver(), contentUri, updateValues, null, null);
+                BluetoothMethodProxy.getInstance()
+                        .contentResolverUpdate(
+                                mContext.getContentResolver(),
+                                contentUri,
+                                updateValues,
+                                null,
+                                null);
 
                 mInfo.mUri = mFileInfo.mInsertUri;
                 status = receiveFile(mFileInfo, op);
@@ -462,6 +425,16 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                     msg.obj = mInfo;
                     msg.sendToTarget();
                 }
+
+                if (mFileInfo.mInsertUri != null) {
+                    Log.d(TAG, "Download failed. Removing the file. Uri=" + mFileInfo.mInsertUri);
+                    BluetoothMethodProxy.getInstance()
+                            .contentResolverDelete(
+                                    mContext.getContentResolver(),
+                                    mFileInfo.mInsertUri,
+                                    null,
+                                    null);
+                }
             }
         } else if (mAccepted == BluetoothShare.USER_CONFIRMATION_DENIED
                 || mAccepted == BluetoothShare.USER_CONFIRMATION_TIMEOUT) {
@@ -475,9 +448,9 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
 
             Log.i(TAG, "Rejected incoming request");
             if (mFileInfo.mInsertUri != null) {
-                BluetoothMethodProxy.getInstance().contentResolverDelete(
-                        mContext.getContentResolver(), mFileInfo.mInsertUri, null,
-                        null);
+                BluetoothMethodProxy.getInstance()
+                        .contentResolverDelete(
+                                mContext.getContentResolver(), mFileInfo.mInsertUri, null, null);
             }
             // set status as local cancel
             status = BluetoothShare.STATUS_CANCELED;
@@ -519,8 +492,9 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         if (!error) {
             ContentValues updateValues = new ContentValues();
             updateValues.put(BluetoothShare._DATA, fileInfo.mFileName);
-            BluetoothMethodProxy.getInstance().contentResolverUpdate(mContext.getContentResolver(),
-                    contentUri, updateValues, null, null);
+            BluetoothMethodProxy.getInstance()
+                    .contentResolverUpdate(
+                            mContext.getContentResolver(), contentUri, updateValues, null, null);
         }
 
         long position = 0;
@@ -529,8 +503,10 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
 
         if (!error) {
             try {
-                os = BluetoothMethodProxy.getInstance().contentResolverOpenOutputStream(
-                        mContext.getContentResolver(), fileInfo.mInsertUri);
+                os =
+                        BluetoothMethodProxy.getInstance()
+                                .contentResolverOpenOutputStream(
+                                        mContext.getContentResolver(), fileInfo.mInsertUri);
             } catch (FileNotFoundException e) {
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.OPP,
@@ -552,16 +528,12 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
             try {
                 while ((!mInterrupted) && (position != fileInfo.mLength)) {
 
-                    if (V) {
-                        timestamp = SystemClock.elapsedRealtime();
-                    }
+                    timestamp = SystemClock.elapsedRealtime();
 
                     readLength = is.read(b);
 
                     if (readLength == -1) {
-                        if (D) {
-                            Log.d(TAG, "Receive file reached stream end at position" + position);
-                        }
+                        Log.d(TAG, "Receive file reached stream end at position" + position);
                         break;
                     }
 
@@ -570,11 +542,15 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                     percent = position * 100 / fileInfo.mLength;
                     currentTime = SystemClock.elapsedRealtime();
 
-                    if (V) {
-                        Log.v(TAG,
-                                "Receive file position = " + position + " readLength " + readLength
-                                        + " bytes took " + (currentTime - timestamp) + " ms");
-                    }
+                    Log.v(
+                            TAG,
+                            "Receive file position = "
+                                    + position
+                                    + " readLength "
+                                    + readLength
+                                    + " bytes took "
+                                    + (currentTime - timestamp)
+                                    + " ms");
 
                     // Update the Progress Bar only if there is change in percentage
                     // or once per a period to notify NFC of this transfer is still alive
@@ -582,9 +558,13 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                             || currentTime - prevTimestamp > Constants.NFC_ALIVE_CHECK_MS) {
                         ContentValues updateValues = new ContentValues();
                         updateValues.put(BluetoothShare.CURRENT_BYTES, position);
-                        BluetoothMethodProxy.getInstance().contentResolverUpdate(
-                                mContext.getContentResolver(), contentUri, updateValues, null,
-                                null);
+                        BluetoothMethodProxy.getInstance()
+                                .contentResolverUpdate(
+                                        mContext.getContentResolver(),
+                                        contentUri,
+                                        updateValues,
+                                        null,
+                                        null);
                         prevPercent = percent;
                         prevTimestamp = currentTime;
                     }
@@ -607,20 +587,14 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
         }
 
         if (mInterrupted) {
-            if (D) {
-                Log.d(TAG, "receiving file interrupted by user.");
-            }
+            Log.d(TAG, "receiving file interrupted by user.");
             status = BluetoothShare.STATUS_CANCELED;
         } else {
             if (position == fileInfo.mLength) {
-                if (D) {
-                    Log.d(TAG, "Receiving file completed for " + fileInfo.mFileName);
-                }
+                Log.d(TAG, "Receiving file completed for " + fileInfo.mFileName);
                 status = BluetoothShare.STATUS_SUCCESS;
             } else {
-                if (D) {
-                    Log.d(TAG, "Reading file failed at " + position + " of " + fileInfo.mLength);
-                }
+                Log.d(TAG, "Reading file failed at " + position + " of " + fileInfo.mLength);
                 if (status == -1) {
                     status = BluetoothShare.STATUS_UNKNOWN_ERROR;
                 }
@@ -645,35 +619,25 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
     }
 
     private BluetoothOppReceiveFileInfo processShareInfo() {
-        if (D) {
-            Log.d(TAG, "processShareInfo() " + mInfo.mId);
-        }
+        Log.d(TAG, "processShareInfo() " + mInfo.mId);
         BluetoothOppReceiveFileInfo fileInfo =
                 BluetoothOppReceiveFileInfo.generateFileInfo(mContext, mInfo.mId);
-        if (V) {
-            Log.v(TAG, "Generate BluetoothOppReceiveFileInfo:");
-            Log.v(TAG, "filename  :" + fileInfo.mFileName);
-            Log.v(TAG, "length    :" + fileInfo.mLength);
-            Log.v(TAG, "status    :" + fileInfo.mStatus);
-        }
+        Log.v(TAG, "Generate BluetoothOppReceiveFileInfo:");
+        Log.v(TAG, "filename  :" + fileInfo.mFileName);
+        Log.v(TAG, "length    :" + fileInfo.mLength);
+        Log.v(TAG, "status    :" + fileInfo.mStatus);
         return fileInfo;
     }
 
     @Override
     public int onConnect(HeaderSet request, HeaderSet reply) {
 
-        if (D) {
-            Log.d(TAG, "onConnect");
-        }
-        if (V) {
-            Constants.logHeader(request);
-        }
+        Log.d(TAG, "onConnect");
+        Constants.logHeader(request);
         Long objectCount = null;
         try {
             byte[] uuid = (byte[]) request.getHeader(HeaderSet.TARGET);
-            if (V) {
-                Log.v(TAG, "onConnect(): uuid =" + Arrays.toString(uuid));
-            }
+            Log.v(TAG, "onConnect(): uuid =" + Arrays.toString(uuid));
             if (uuid != null) {
                 return ResponseCodes.OBEX_HTTP_NOT_ACCEPTABLE;
             }
@@ -701,12 +665,14 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
             if (objectCount != null) {
                 intent.putExtra(Constants.EXTRA_BT_OPP_OBJECT_COUNT, objectCount.intValue());
             } else {
-                intent.putExtra(Constants.EXTRA_BT_OPP_OBJECT_COUNT,
-                        Constants.COUNT_HEADER_UNAVAILABLE);
+                intent.putExtra(
+                        Constants.EXTRA_BT_OPP_OBJECT_COUNT, Constants.COUNT_HEADER_UNAVAILABLE);
             }
             intent.putExtra(Constants.EXTRA_BT_OPP_ADDRESS, destination);
-            Utils.sendBroadcast(mContext, intent, Constants.HANDOVER_STATUS_PERMISSION,
-                    Utils.getTempAllowlistBroadcastOptions());
+            mContext.sendBroadcast(
+                    intent,
+                    Constants.HANDOVER_STATUS_PERMISSION,
+                    Utils.getTempBroadcastOptions().toBundle());
         }
         mTimestamp = System.currentTimeMillis();
         mNumFilesAttemptedToReceive = 0;
@@ -715,9 +681,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
 
     @Override
     public void onDisconnect(HeaderSet req, HeaderSet resp) {
-        if (D) {
-            Log.d(TAG, "onDisconnect");
-        }
+        Log.d(TAG, "onDisconnect");
         if (mNumFilesAttemptedToReceive > 0) {
             // Log incoming OPP transfer if more than one file is accepted by user
             MetricsLogger.logProfileConnectionEvent(BluetoothMetricsProto.ProfileId.OPP);
@@ -733,9 +697,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
 
     @Override
     public void onClose() {
-        if (D) {
-            Log.d(TAG, "onClose");
-        }
+        Log.d(TAG, "onClose");
         releaseWakeLocks();
         mBluetoothOppService.acceptNewConnections();
         BluetoothOppUtility.cancelNotification(mContext);

@@ -99,8 +99,6 @@ typedef struct {
  ******************************************************************************/
 
 bt_status_t do_in_jni_thread(base::OnceClosure task);
-bt_status_t do_in_jni_thread(const base::Location& from_here,
-                             base::OnceClosure task);
 bool is_on_jni_thread();
 
 using BtJniClosure = std::function<void()>;
@@ -111,15 +109,12 @@ void post_on_bt_jni(BtJniClosure closure);
  * thread
  */
 template <typename R, typename... Args>
-base::Callback<R(Args...)> jni_thread_wrapper(const base::Location& from_here,
-                                              base::Callback<R(Args...)> cb) {
+base::Callback<R(Args...)> jni_thread_wrapper(base::Callback<R(Args...)> cb) {
   return base::Bind(
-      [](const base::Location& from_here, base::Callback<R(Args...)> cb,
-         Args... args) {
-        do_in_jni_thread(from_here,
-                         base::BindOnce(cb, std::forward<Args>(args)...));
+      [](base::Callback<R(Args...)> cb, Args... args) {
+        do_in_jni_thread(base::BindOnce(cb, std::forward<Args>(args)...));
       },
-      from_here, std::move(cb));
+      std::move(cb));
 }
 
 tBTA_SERVICE_MASK btif_get_enabled_services_mask(void);
@@ -154,8 +149,7 @@ void invoke_device_found_cb(int num_properties, bt_property_t* properties);
 void invoke_discovery_state_changed_cb(bt_discovery_state_t state);
 void invoke_pin_request_cb(RawAddress bd_addr, bt_bdname_t bd_name,
                            uint32_t cod, bool min_16_digit);
-void invoke_ssp_request_cb(RawAddress bd_addr, bt_bdname_t bd_name,
-                           uint32_t cod, bt_ssp_variant_t pairing_variant,
+void invoke_ssp_request_cb(RawAddress bd_addr, bt_ssp_variant_t pairing_variant,
                            uint32_t pass_key);
 void invoke_oob_data_request_cb(tBT_TRANSPORT t, bool valid, Octet16 c,
                                 Octet16 r, RawAddress raw_address,

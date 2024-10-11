@@ -34,18 +34,6 @@ TEST(InitFlagsTest, test_leaudio_targeted_announcement_reconnection_mode) {
   ASSERT_TRUE(InitFlags::IsTargetedAnnouncementReconnectionMode());
 }
 
-TEST(InitFlagsTest, test_device_iot_config_logging_is_enabled) {
-  const char* input[] = {"INIT_device_iot_config_logging=true", nullptr};
-  InitFlags::Load(input);
-  ASSERT_TRUE(InitFlags::IsDeviceIotConfigLoggingEnabled());
-}
-
-TEST(InitFlagsTest, test_enable_bluetooth_quality_report_callback) {
-  const char* input[] = {"INIT_bluetooth_quality_report_callback=true", nullptr};
-  InitFlags::Load(input);
-  ASSERT_TRUE(InitFlags::IsBluetoothQualityReportCallbackEnabled());
-}
-
 TEST(InitFlagsTest, test_enable_use_rsi_from_cached_inqiry_results) {
   const char* input[] = {"INIT_use_rsi_from_cached_inqiry_results=true", nullptr};
   InitFlags::Load(input);

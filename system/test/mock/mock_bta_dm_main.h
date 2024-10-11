@@ -30,9 +30,6 @@
 //       still applies, but crafting proper inclusion is out of scope
 //       for this effort.  This compilation unit may compile as-is, or
 //       may need attention to prune from (or add to ) the inclusion set.
-#include <base/strings/stringprintf.h>
-
-#include "stack/include/bt_hdr.h"
 
 // Original usings
 
@@ -47,30 +44,10 @@ namespace bta_dm_main {
 // Params: int fd
 // Return: void
 struct DumpsysBtaDm {
-  std::function<void(int fd)> body{[](int fd) {}};
+  std::function<void(int fd)> body{[](int /* fd */) {}};
   void operator()(int fd) { body(fd); };
 };
 extern struct DumpsysBtaDm DumpsysBtaDm;
-
-// Name: bta_dm_search_sm_disable
-// Params:
-// Return: void
-struct bta_dm_search_sm_disable {
-  std::function<void()> body{[]() {}};
-  void operator()() { body(); };
-};
-extern struct bta_dm_search_sm_disable bta_dm_search_sm_disable;
-
-// Name: bta_dm_search_sm_execute
-// Params: const BT_HDR_RIGID* p_msg
-// Return: bool
-struct bta_dm_search_sm_execute {
-  static bool return_value;
-  std::function<bool(const BT_HDR_RIGID* p_msg)> body{
-      [](const BT_HDR_RIGID* p_msg) { return return_value; }};
-  bool operator()(const BT_HDR_RIGID* p_msg) { return body(p_msg); };
-};
-extern struct bta_dm_search_sm_execute bta_dm_search_sm_execute;
 
 }  // namespace bta_dm_main
 }  // namespace mock

@@ -20,7 +20,6 @@
 #pragma once
 
 #include "osi/include/config.h"
-#include "osi/include/osi.h"
 
 #define PROPERTY_ENABLE_LOGGING \
   "persist.bluetooth.device_iot_config.enablelogging"
@@ -62,12 +61,6 @@ static const uint64_t CONFIG_SETTLE_PERIOD_MS = 12000;
 
 enum ConfigSource { NOT_LOADED, ORIGINAL, BACKUP, NEW_FILE, RESET };
 
-#define CHECK_LOGGING_ENABLED(return_value)                               \
-  do {                                                                    \
-    if (!bluetooth::common::InitFlags::IsDeviceIotConfigLoggingEnabled()) \
-      return (return_value);                                              \
-  } while (0)
-
 struct config_t;
 struct future_t;
 
@@ -90,7 +83,7 @@ void device_iot_config_save_async(void);
 int device_iot_config_get_device_num(const config_t& config);
 void device_iot_config_restrict_device_num(config_t& config);
 bool device_iot_config_compare_key(const entry_t& first, const entry_t& second);
-void device_iot_config_timer_save_cb(UNUSED_ATTR void* data);
+void device_iot_config_timer_save_cb(void* /* data */);
 void device_iot_config_set_modified_time();
 bool device_iot_config_is_factory_reset(void);
 void device_iot_config_delete_files(void);

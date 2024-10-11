@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "l2cap/classic/internal/link_manager.h"
+
+#include <bluetooth/log.h>
+
 #include <memory>
 #include <unordered_map>
 
@@ -22,8 +26,6 @@
 #include "l2cap/classic/internal/link.h"
 #include "l2cap/internal/scheduler_fifo.h"
 #include "os/log.h"
-
-#include "l2cap/classic/internal/link_manager.h"
 
 namespace bluetooth {
 namespace l2cap {
@@ -105,7 +107,7 @@ void LinkManager::ConnectDynamicChannelServices(
 void LinkManager::InitiateConnectionForSecurity(hci::Address remote) {
   auto* link = GetLink(remote);
   if (link != nullptr) {
-    LOG_ERROR("Link already exists for %s", ADDRESS_TO_LOGGABLE_CSTR(remote));
+    log::error("Link already exists for {}", remote);
   }
   acl_manager_->CreateConnection(remote);
 }
@@ -145,7 +147,7 @@ Link* LinkManager::GetLink(const hci::Address device) {
 void LinkManager::handle_link_security_hold(hci::Address remote) {
   auto link = GetLink(remote);
   if (link == nullptr) {
-    LOG_WARN("Remote is disconnected");
+    log::warn("Remote is disconnected");
     return;
   }
   link->AcquireSecurityHold();
@@ -154,7 +156,7 @@ void LinkManager::handle_link_security_hold(hci::Address remote) {
 void LinkManager::handle_link_security_release(hci::Address remote) {
   auto link = GetLink(remote);
   if (link == nullptr) {
-    LOG_WARN("Remote is disconnected");
+    log::warn("Remote is disconnected");
     return;
   }
   link->ReleaseSecurityHold();
@@ -163,7 +165,7 @@ void LinkManager::handle_link_security_release(hci::Address remote) {
 void LinkManager::handle_link_security_disconnect(hci::Address remote) {
   auto link = GetLink(remote);
   if (link == nullptr) {
-    LOG_WARN("Remote is disconnected");
+    log::warn("Remote is disconnected");
     return;
   }
   link->Disconnect();
@@ -172,7 +174,7 @@ void LinkManager::handle_link_security_disconnect(hci::Address remote) {
 void LinkManager::handle_link_security_ensure_authenticated(hci::Address remote) {
   auto link = GetLink(remote);
   if (link == nullptr) {
-    LOG_WARN("Remote is disconnected");
+    log::warn("Remote is disconnected");
     return;
   }
   link->Authenticate();
@@ -181,7 +183,7 @@ void LinkManager::handle_link_security_ensure_authenticated(hci::Address remote)
 void LinkManager::handle_link_security_ensure_encrypted(hci::Address remote) {
   auto link = GetLink(remote);
   if (link == nullptr) {
-    LOG_WARN("Remote is disconnected");
+    log::warn("Remote is disconnected");
     return;
   }
   link->Encrypt();
@@ -240,14 +242,14 @@ class LinkSecurityInterfaceImpl : public LinkSecurityInterface {
 void LinkManager::OnConnectSuccess(std::unique_ptr<hci::acl_manager::ClassicAclConnection> acl_connection) {
   // Same link should not be connected twice
   hci::Address device = acl_connection->GetAddress();
-  ASSERT_LOG(
+  log::assert_that(
       GetLink(device) == nullptr,
-      "%s is connected twice without disconnection",
+      "{} is connected twice without disconnection",
       ADDRESS_TO_LOGGABLE_CSTR(acl_connection->GetAddress()));
   links_.try_emplace(device, l2cap_handler_, std::move(acl_connection), parameter_provider_,
                      dynamic_channel_service_manager_, fixed_channel_service_manager_, this);
   auto* link = GetLink(device);
-  ASSERT(link != nullptr);
+  log::assert_that(link != nullptr, "assert failed: link != nullptr");
   link->SendInformationRequest(InformationRequestInfoType::EXTENDED_FEATURES_SUPPORTED);
   link->SendInformationRequest(InformationRequestInfoType::FIXED_CHANNELS_SUPPORTED);
   link->ReadRemoteVersionInformation();
@@ -287,7 +289,7 @@ void LinkManager::OnConnectSuccess(std::unique_ptr<hci::acl_manager::ClassicAclC
 }
 
 void LinkManager::OnConnectRequest(hci::Address /* device */, hci::ClassOfDevice /* cod */) {
-  LOG_ERROR("Remote connect request unimplemented");
+  log::error("Remote connect request unimplemented");
 }
 
 void LinkManager::OnConnectFail(hci::Address device, hci::ErrorCode reason, bool) {
@@ -295,13 +297,13 @@ void LinkManager::OnConnectFail(hci::Address device, hci::ErrorCode reason, bool
   auto pending_link = pending_links_.find(device);
   if (pending_link == pending_links_.end()) {
     // There is no pending link, exit
-    LOG_INFO(
-        "Connection to %s failed without a pending link; reason: %s",
-        ADDRESS_TO_LOGGABLE_CSTR(device),
-        hci::ErrorCodeText(reason).c_str());
+    log::info(
+        "Connection to {} failed without a pending link; reason: {}",
+        device,
+        hci::ErrorCodeText(reason));
     if (pending_dynamic_channels_callbacks_.find(device) != pending_dynamic_channels_callbacks_.end()) {
       for (Link::PendingDynamicChannelConnection& callbacks : pending_dynamic_channels_callbacks_[device]) {
-        callbacks.on_fail_callback_.Invoke(DynamicChannelManager::ConnectionResult{
+        callbacks.on_fail_callback_(DynamicChannelManager::ConnectionResult{
             .hci_error = hci::ErrorCode::CONNECTION_TIMEOUT,
         });
       }
@@ -322,9 +324,9 @@ void LinkManager::OnConnectFail(hci::Address device, hci::ErrorCode reason, bool
 
 void LinkManager::OnDisconnect(hci::Address device, hci::ErrorCode status) {
   auto* link = GetLink(device);
-  ASSERT_LOG(
+  log::assert_that(
       link != nullptr,
-      "Device %s is disconnected with reason 0x%x, but not in local database",
+      "Device {} is disconnected with reason 0x{:x}, but not in local database",
       ADDRESS_TO_LOGGABLE_CSTR(device),
       static_cast<uint8_t>(status));
   if (link_security_interface_listener_handler_ != nullptr) {

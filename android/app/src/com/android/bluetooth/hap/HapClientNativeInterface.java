@@ -23,7 +23,6 @@ import android.bluetooth.BluetoothHapPresetInfo;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
@@ -32,39 +31,13 @@ import java.util.Arrays;
 /** Hearing Access Profile Client Native Interface to/from JNI. */
 public class HapClientNativeInterface {
     private static final String TAG = HapClientNativeInterface.class.getSimpleName();
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
     private final BluetoothAdapter mAdapter;
 
-    @GuardedBy("INSTANCE_LOCK")
-    private static HapClientNativeInterface sInstance;
-
-    private static final Object INSTANCE_LOCK = new Object();
-
-    private HapClientNativeInterface() {
+    public HapClientNativeInterface() {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mAdapter == null) {
             Log.wtf(TAG, "No Bluetooth Adapter Available");
-        }
-    }
-
-    /**
-     * Get singleton instance.
-     */
-    public static HapClientNativeInterface getInstance() {
-        synchronized (INSTANCE_LOCK) {
-            if (sInstance == null) {
-                sInstance = new HapClientNativeInterface();
-            }
-            return sInstance;
-        }
-    }
-
-    /** Set singleton instance. */
-    @VisibleForTesting
-    public static void setInstance(HapClientNativeInterface instance) {
-        synchronized (INSTANCE_LOCK) {
-            sInstance = instance;
         }
     }
 
@@ -118,17 +91,13 @@ public class HapClientNativeInterface {
         }
     }
 
-    /**
-     * Initializes the native interface.
-     */
+    /** Initializes the native interface. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void init() {
         initNative();
     }
 
-    /**
-     * Cleanup the native interface.
-     */
+    /** Cleanup the native interface. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void cleanup() {
         cleanupNative();
@@ -207,7 +176,7 @@ public class HapClientNativeInterface {
         getPresetInfoNative(getByteAddress(device), presetIndex);
     }
 
-     /**
+    /**
      * Sets the preset name
      *
      * @param device is the device for which we want to get the preset name
@@ -238,191 +207,178 @@ public class HapClientNativeInterface {
     @VisibleForTesting
     void onConnectionStateChanged(int state, byte[] address) {
         HapClientStackEvent event =
-                new HapClientStackEvent(
-                        HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         event.device = getDevice(address);
         event.valueInt1 = state;
 
-        if (DBG) {
-            Log.d(TAG, "onConnectionStateChanged: " + event);
-        }
+        Log.d(TAG, "onConnectionStateChanged: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onDeviceAvailable(byte[] address, int features) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
         event.device = getDevice(address);
         event.valueInt1 = features;
 
-        if (DBG) {
-            Log.d(TAG, "onDeviceAvailable: " + event);
-        }
+        Log.d(TAG, "onDeviceAvailable: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onFeaturesUpdate(byte[] address, int features) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_DEVICE_FEATURES);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_DEVICE_FEATURES);
         event.device = getDevice(address);
         event.valueInt1 = features;
 
-        if (DBG) {
-            Log.d(TAG, "onFeaturesUpdate: " + event);
-        }
+        Log.d(TAG, "onFeaturesUpdate: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onActivePresetSelected(byte[] address, int presetIndex) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
         event.device = getDevice(address);
         event.valueInt1 = presetIndex;
 
-        if (DBG) {
-            Log.d(TAG, "onActivePresetSelected: " + event);
-        }
+        Log.d(TAG, "onActivePresetSelected: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onActivePresetGroupSelected(int groupId, int presetIndex) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
         event.valueInt1 = presetIndex;
         event.valueInt2 = groupId;
 
-        if (DBG) {
-            Log.d(TAG, "onActivePresetGroupSelected: " + event);
-        }
+        Log.d(TAG, "onActivePresetGroupSelected: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onActivePresetSelectError(byte[] address, int resultCode) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
+        HapClientStackEvent event =
+                new HapClientStackEvent(
+                        HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
         event.device = getDevice(address);
         event.valueInt1 = resultCode;
 
-        if (DBG) {
-            Log.d(TAG, "onActivePresetSelectError: " + event);
-        }
+        Log.d(TAG, "onActivePresetSelectError: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onActivePresetGroupSelectError(int groupId, int resultCode) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
+        HapClientStackEvent event =
+                new HapClientStackEvent(
+                        HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
         event.valueInt1 = resultCode;
         event.valueInt2 = groupId;
 
-        if (DBG) {
-            Log.d(TAG, "onActivePresetGroupSelectError: " + event);
-        }
+        Log.d(TAG, "onActivePresetGroupSelectError: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onPresetInfo(byte[] address, int infoReason, BluetoothHapPresetInfo[] presets) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
         event.device = getDevice(address);
         event.valueInt2 = infoReason;
         event.valueList = new ArrayList<>(Arrays.asList(presets));
 
-        if (DBG) {
-            Log.d(TAG, "onPresetInfo: " + event);
-        }
+        Log.d(TAG, "onPresetInfo: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onGroupPresetInfo(int groupId, int infoReason, BluetoothHapPresetInfo[] presets) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
         event.valueInt2 = infoReason;
         event.valueInt3 = groupId;
         event.valueList = new ArrayList<>(Arrays.asList(presets));
 
-        if (DBG) {
-            Log.d(TAG, "onGroupPresetInfo: " + event);
-        }
+        Log.d(TAG, "onGroupPresetInfo: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onPresetNameSetError(byte[] address, int presetIndex, int resultCode) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
         event.device = getDevice(address);
         event.valueInt1 = resultCode;
         event.valueInt2 = presetIndex;
 
-        if (DBG) {
-            Log.d(TAG, "onPresetNameSetError: " + event);
-        }
+        Log.d(TAG, "onPresetNameSetError: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onGroupPresetNameSetError(int groupId, int presetIndex, int resultCode) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
         event.valueInt1 = resultCode;
         event.valueInt2 = presetIndex;
         event.valueInt3 = groupId;
 
-        if (DBG) {
-            Log.d(TAG, "onGroupPresetNameSetError: " + event);
-        }
+        Log.d(TAG, "onGroupPresetNameSetError: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onPresetInfoError(byte[] address, int presetIndex, int resultCode) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
         event.device = getDevice(address);
         event.valueInt1 = resultCode;
         event.valueInt2 = presetIndex;
 
-        if (DBG) {
-            Log.d(TAG, "onPresetInfoError: " + event);
-        }
+        Log.d(TAG, "onPresetInfoError: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onGroupPresetInfoError(int groupId, int presetIndex, int resultCode) {
-        HapClientStackEvent event = new HapClientStackEvent(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
+        HapClientStackEvent event =
+                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
         event.valueInt1 = resultCode;
         event.valueInt2 = presetIndex;
         event.valueInt3 = groupId;
 
-        if (DBG) {
-            Log.d(TAG, "onGroupPresetInfoError: " + event);
-        }
+        Log.d(TAG, "onGroupPresetInfoError: " + event);
         sendMessageToService(event);
     }
 
     // Native methods that call into the JNI interface
     private native void initNative();
+
     private native void cleanupNative();
+
     private native boolean connectHapClientNative(byte[] address);
+
     private native boolean disconnectHapClientNative(byte[] address);
+
     private native void selectActivePresetNative(byte[] byteAddress, int presetIndex);
+
     private native void groupSelectActivePresetNative(int groupId, int presetIndex);
+
     private native void nextActivePresetNative(byte[] byteAddress);
+
     private native void groupNextActivePresetNative(int groupId);
+
     private native void previousActivePresetNative(byte[] byteAddress);
+
     private native void groupPreviousActivePresetNative(int groupId);
+
     private native void getPresetInfoNative(byte[] byteAddress, int presetIndex);
+
     private native void setPresetNameNative(byte[] byteAddress, int presetIndex, String name);
+
     private native void groupSetPresetNameNative(int groupId, int presetIndex, String name);
 }

@@ -32,7 +32,6 @@
 #include "bta/sys/bta_sys.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
@@ -42,6 +41,18 @@ using namespace bluetooth;
 /*****************************************************************************
  *  Constants
  ****************************************************************************/
+
+/**
+ * Android Headtracker Service UUIDs
+ */
+const Uuid ANDROID_HEADTRACKER_SERVICE_UUID =
+    Uuid::FromString(ANDROID_HEADTRACKER_SERVICE_UUID_STRING);
+const Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID =
+    Uuid::FromString(ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING);
+const Uuid ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID =
+    Uuid::FromString(ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING);
+const Uuid ANDROID_HEADTRACKER_REPORT_CHARAC_UUID =
+    Uuid::FromString(ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING);
 
 static const tBTA_SYS_REG bta_hh_reg = {bta_hh_hdl_event, BTA_HhDisable};
 
@@ -260,8 +271,8 @@ void BTA_HhSendCtrl(uint8_t dev_handle, tBTA_HH_TRANS_CTRL_TYPE c_type) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhSendData(uint8_t dev_handle,
-                    UNUSED_ATTR const tAclLinkSpec& link_spec, BT_HDR* p_data) {
+void BTA_HhSendData(uint8_t dev_handle, const tAclLinkSpec& /* link_spec */,
+                    BT_HDR* p_data) {
   if (p_data->layer_specific != BTA_HH_RPTT_OUTPUT) {
     log::error(
         "ERROR! Wrong report type! Write Command only valid for output "

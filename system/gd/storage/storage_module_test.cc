@@ -16,6 +16,7 @@
 
 #include "storage/storage_module.h"
 
+#include <bluetooth/log.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -107,10 +108,8 @@ class StorageModuleTest : public Test {
   void SetUp() override {
     temp_dir_ = std::filesystem::temp_directory_path();
     temp_config_ = temp_dir_ / "temp_config.txt";
-    temp_backup_config_ = temp_dir_ / "temp_config.bak";
     DeleteConfigFiles();
     ASSERT_FALSE(std::filesystem::exists(temp_config_));
-    ASSERT_FALSE(std::filesystem::exists(temp_backup_config_));
   }
 
   void TearDown() override {
@@ -121,9 +120,6 @@ class StorageModuleTest : public Test {
   void DeleteConfigFiles() {
     if (std::filesystem::exists(temp_config_)) {
       ASSERT_TRUE(std::filesystem::remove(temp_config_));
-    }
-    if (std::filesystem::exists(temp_backup_config_)) {
-      ASSERT_TRUE(std::filesystem::remove(temp_backup_config_));
     }
   }
 
@@ -146,7 +142,6 @@ class StorageModuleTest : public Test {
   TestModuleRegistry test_registry_;
   std::filesystem::path temp_dir_;
   std::filesystem::path temp_config_;
-  std::filesystem::path temp_backup_config_;
 };
 
 TEST_F(StorageModuleTest, empty_config_no_op_test) {
@@ -165,14 +160,10 @@ TEST_F(StorageModuleTest, empty_config_no_op_test) {
   auto config = LegacyConfigFile::FromPath(temp_config_.string()).Read(kTestTempDevicesCapacity);
   ASSERT_TRUE(config);
   ASSERT_TRUE(config->HasSection(StorageModule::kInfoSection));
-  ASSERT_THAT(
-      config->GetProperty(StorageModule::kInfoSection, StorageModule::kFileSourceProperty),
-      Optional(StrEq("Empty")));
 }
 
 static const std::string kReadTestConfig =
     "[Info]\n"
-    "FileSource = Empty\n"
     "TimeCreated = 2020-05-20 01:20:56\n"
     "\n"
     "[Metrics]\n"
@@ -246,7 +237,7 @@ TEST_F(StorageModuleTest, save_config_test) {
   // Remove a property
   storage->RemovePropertyPublic("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME);
   ASSERT_TRUE(WaitForReactorIdle(kTestConfigSaveDelay));
-  LOG_INFO("After waiting 2");
+  bluetooth::log::info("After waiting 2");
   config = LegacyConfigFile::FromPath(temp_config_.string()).Read(kTestTempDevicesCapacity);
   ASSERT_TRUE(config);
   ASSERT_FALSE(config->HasProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME));
@@ -254,7 +245,7 @@ TEST_F(StorageModuleTest, save_config_test) {
   // Remove a section
   storage->RemoveSectionPublic("01:02:03:ab:cd:ea");
   ASSERT_TRUE(WaitForReactorIdle(kTestConfigSaveDelay));
-  LOG_INFO("After waiting 3");
+  bluetooth::log::info("After waiting 3");
   config = LegacyConfigFile::FromPath(temp_config_.string()).Read(kTestTempDevicesCapacity);
   ASSERT_TRUE(config);
   ASSERT_FALSE(config->HasSection("01:02:03:ab:cd:ea"));

@@ -28,7 +28,7 @@ using namespace bluetooth::property;
 
 namespace {
 
-constexpr size_t kNumberTestedProperties = 22;
+constexpr size_t kNumberTestedProperties = 21;
 
 constexpr size_t kBdPropNameLength = kBdNameLength + sizeof(kBdNameDelim);
 
@@ -120,10 +120,8 @@ constexpr bt_local_le_features_t kLocalLeFeatures{
     .le_isochronous_broadcast_supported = true,
     .le_periodic_advertising_sync_transfer_recipient_supported = true,
     .adv_filter_extended_features_mask = 0x3366,
+    .le_channel_sounding_supported = true,
 };
-
-// BT_PROPERTY_LOCAL_IO_CAPS
-constexpr bt_io_cap_t kLocalIoCaps{BT_IO_CAP_UNKNOWN};
 
 // BT_PROPERTY_RESERVED_0F
 // BT_PROPERTY_DYNAMIC_AUDIO_BUFFER
@@ -141,8 +139,6 @@ constexpr bt_vendor_product_info_t kVendorProductInfo{
     .product_id = 0x5679,
     .version = 0x9abd,
 };
-
-// BT_PROPERTY_WL_MEDIA_PLAYERS_LIST
 
 // BT_PROPERTY_REMOTE_ASHA_CAPABILITY
 constexpr int16_t kRemoteAshaCapability{0x89};
@@ -231,11 +227,7 @@ void fill_property(
       ASSERT_EQ(sizeof(kLocalLeFeatures), properties.back()->Size());
       break;
 
-    case BT_PROPERTY_LOCAL_IO_CAPS:
-      properties.push_back(LocalIOCaps::Create(kLocalIoCaps));
-      ASSERT_EQ(sizeof(kLocalIoCaps), properties.back()->Size());
-      break;
-
+    case BT_PROPERTY_RESERVED_0E:
     case BT_PROPERTY_RESERVED_0F:
     case BT_PROPERTY_DYNAMIC_AUDIO_BUFFER:
       break;
@@ -253,9 +245,6 @@ void fill_property(
     case BT_PROPERTY_VENDOR_PRODUCT_INFO:
       properties.push_back(VendorProductInfo::Create(kVendorProductInfo));
       ASSERT_EQ(sizeof(kVendorProductInfo), properties.back()->Size());
-      break;
-
-    case BT_PROPERTY_WL_MEDIA_PLAYERS_LIST:
       break;
 
     case BT_PROPERTY_REMOTE_ASHA_CAPABILITY:
@@ -438,13 +427,12 @@ void verify_property(const bt_property_type_t& type, const bt_property_t& proper
       ASSERT_EQ(
           kLocalLeFeatures.adv_filter_extended_features_mask,
           ((bt_local_le_features_t*)property.val)->adv_filter_extended_features_mask);
+      ASSERT_EQ(
+          kLocalLeFeatures.le_channel_sounding_supported,
+          ((bt_local_le_features_t*)property.val)->le_channel_sounding_supported);
       break;
 
-    case BT_PROPERTY_LOCAL_IO_CAPS:
-      ASSERT_EQ((int)sizeof(bt_io_cap_t), property.len);
-      ASSERT_EQ(kLocalIoCaps, *((bt_io_cap_t*)property.val));
-      break;
-
+    case BT_PROPERTY_RESERVED_0E:
     case BT_PROPERTY_RESERVED_0F:
     case BT_PROPERTY_DYNAMIC_AUDIO_BUFFER:
       break;
@@ -468,9 +456,6 @@ void verify_property(const bt_property_type_t& type, const bt_property_t& proper
       ASSERT_EQ(
           kVendorProductInfo.product_id, ((bt_vendor_product_info_t*)property.val)->product_id);
       ASSERT_EQ(kVendorProductInfo.version, ((bt_vendor_product_info_t*)property.val)->version);
-      break;
-
-    case BT_PROPERTY_WL_MEDIA_PLAYERS_LIST:
       break;
 
     case BT_PROPERTY_REMOTE_ASHA_CAPABILITY:
@@ -519,7 +504,6 @@ void fill_properties(std::vector<std::shared_ptr<BtProperty>>& properties) {
   fill_property(BT_PROPERTY_REMOTE_RSSI, properties);
   fill_property(BT_PROPERTY_REMOTE_VERSION_INFO, properties);
   fill_property(BT_PROPERTY_LOCAL_LE_FEATURES, properties);
-  fill_property(BT_PROPERTY_LOCAL_IO_CAPS, properties);
   fill_property(BT_PROPERTY_REMOTE_IS_COORDINATED_SET_MEMBER, properties);
   fill_property(BT_PROPERTY_APPEARANCE, properties);
   fill_property(BT_PROPERTY_VENDOR_PRODUCT_INFO, properties);
@@ -635,7 +619,7 @@ TEST_F(BtPropertyTest, bt_property_text_test) {
 
   {
     bt_bdname_t bd_name;
-    bd_name_copy(bd_name.name, kRemoteFriendlyName);
+    bd_name_from_char_pointer(bd_name.name, (const char*)kRemoteFriendlyName);
     bt_property_t prop = {
         .type = BT_PROPERTY_REMOTE_FRIENDLY_NAME,
         .len = (int)sizeof(bd_name.name),
@@ -683,18 +667,9 @@ TEST_F(BtPropertyTest, bt_property_text_test) {
         "le_periodic_advertising_sync_transfer_sender_supported:1 "
         "le_connected_isochronous_stream_central_supported:1 le_isochronous_broadcast_supported:1 "
         "le_periodic_advertising_sync_transfer_recipient_supported:1 "
-        "adv_filter_extended_features_mask:13158",
+        "adv_filter_extended_features_mask:13158"
+        "le_channel_sounding_supported:1 ",
         bt_property_text(prop).c_str());
-  }
-
-  {
-    bt_property_t prop = {
-        .type = BT_PROPERTY_LOCAL_IO_CAPS,
-        .len = (int)sizeof(kLocalIoCaps),
-        .val = (void*)&kLocalIoCaps,
-    };
-    ASSERT_STREQ(
-        "type:BT_PROPERTY_LOCAL_IO_CAPS local_io_caps:255", bt_property_text(prop).c_str());
   }
 
   {
@@ -895,7 +870,8 @@ class BtPropertyMultiAllocationTest : public testing::Test {
   void TearDown() override {}
 
   std::vector<std::future<std::vector<std::shared_ptr<BtProperty>>>> future_vector;
-  bt_property_t bt_properties[kNumberTestedProperties][kNumThreads] = {};
+
+  bt_property_t bt_properties[kNumThreads][kNumberTestedProperties] = {};
 
   std::vector<std::shared_ptr<BtProperty>> properties;
 };
@@ -904,7 +880,7 @@ TEST_F(BtPropertyMultiAllocationTest, async_data_multi) {
   for (size_t i = 0; i < kNumThreads; i++) {
     future_vector.push_back(std::async(std::launch::async, [i]() {
       std::vector<std::shared_ptr<BtProperty>> properties;
-      properties.push_back(RemoteDeviceTimestamp::Create((uint32_t)i));
+      properties.emplace_back(RemoteDeviceTimestamp::Create((uint32_t)i));
       return properties;
     }));
   }

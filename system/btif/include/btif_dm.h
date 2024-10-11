@@ -22,6 +22,7 @@
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_sec_api.h"
 #include "btif_uid.h"
+#include "hci/le_rand_callback.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bte_appl.h"
 #include "types/raw_address.h"
@@ -97,6 +98,8 @@ bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c,
                           Octet16* p_r);
 void btif_dm_generate_local_oob_data(tBT_TRANSPORT transport);
 
+void btif_check_device_in_inquiry_db(const RawAddress& address);
+
 void btif_dm_clear_event_filter();
 
 void btif_dm_clear_event_mask();
@@ -105,7 +108,7 @@ void btif_dm_clear_filter_accept_list();
 
 void btif_dm_disconnect_all_acls();
 
-void btif_dm_le_rand(LeRandCallback callback);
+void btif_dm_le_rand(bluetooth::hci::LeRandCallback callback);
 void btif_dm_set_event_filter_connection_setup_all_devices();
 void btif_dm_allow_wake_by_hid(
     std::vector<RawAddress> classic_addrs,
@@ -151,4 +154,5 @@ void btif_dm_update_ble_remote_properties(const RawAddress& bd_addr,
 bool check_cod_hid(const RawAddress& bd_addr);
 bool check_cod_hid_major(const RawAddress& bd_addr, uint32_t cod);
 bool is_device_le_audio_capable(const RawAddress bd_addr);
+bool is_le_audio_capable_during_service_discovery(const RawAddress& bd_addr);
 #endif

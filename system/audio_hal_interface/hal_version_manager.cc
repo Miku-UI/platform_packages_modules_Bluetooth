@@ -18,13 +18,12 @@
 
 #include <android/binder_manager.h>
 #include <android/hidl/manager/1.2/IServiceManager.h>
-#include <base/logging.h>
+#include <bluetooth/log.h>
 #include <hidl/ServiceManagement.h>
 
 #include <memory>
 
 #include "aidl/audio_aidl_interfaces.h"
-#include "include/check.h"
 #include "os/log.h"
 
 namespace bluetooth {
@@ -79,15 +78,15 @@ BluetoothAudioHalVersion GetAidlInterfaceVersion() {
             kDefaultAudioProviderFactoryInterface.c_str())));
 
     if (provider_factory == nullptr) {
-      LOG_ERROR(
+      log::error(
           "getInterfaceVersion: Can't get aidl version from unknown factory");
       return BluetoothAudioHalVersion::VERSION_UNAVAILABLE;
     }
 
     auto aidl_retval = provider_factory->getInterfaceVersion(&version);
     if (!aidl_retval.isOk()) {
-      LOG_ERROR("BluetoothAudioHal::getInterfaceVersion failure: %s",
-                aidl_retval.getDescription().c_str());
+      log::error("BluetoothAudioHal::getInterfaceVersion failure: {}",
+                 aidl_retval.getDescription());
       return BluetoothAudioHalVersion::VERSION_UNAVAILABLE;
     }
 
@@ -115,12 +114,13 @@ HalVersionManager::GetProvidersFactory_2_1() {
   }
   android::sp<IBluetoothAudioProvidersFactory_2_1> providers_factory =
       IBluetoothAudioProvidersFactory_2_1::getService();
-  CHECK(providers_factory)
-      << "V2_1::IBluetoothAudioProvidersFactory::getService() failed";
+  log::assert_that(
+      providers_factory != nullptr,
+      "V2_1::IBluetoothAudioProvidersFactory::getService() failed");
 
-  LOG(INFO) << "V2_1::IBluetoothAudioProvidersFactory::getService() returned "
-            << providers_factory.get()
-            << (providers_factory->isRemote() ? " (remote)" : " (local)");
+  log::info("V2_1::IBluetoothAudioProvidersFactory::getService() returned {}{}",
+            fmt::ptr(providers_factory.get()),
+            (providers_factory->isRemote() ? " (remote)" : " (local)"));
   return providers_factory;
 }
 
@@ -133,12 +133,13 @@ HalVersionManager::GetProvidersFactory_2_0() {
   }
   android::sp<IBluetoothAudioProvidersFactory_2_0> providers_factory =
       IBluetoothAudioProvidersFactory_2_0::getService();
-  CHECK(providers_factory)
-      << "V2_0::IBluetoothAudioProvidersFactory::getService() failed";
+  log::assert_that(
+      providers_factory != nullptr,
+      "V2_0::IBluetoothAudioProvidersFactory::getService() failed");
 
-  LOG(INFO) << "V2_0::IBluetoothAudioProvidersFactory::getService() returned "
-            << providers_factory.get()
-            << (providers_factory->isRemote() ? " (remote)" : " (local)");
+  log::info("V2_0::IBluetoothAudioProvidersFactory::getService() returned {}{}",
+            fmt::ptr(providers_factory.get()),
+            (providers_factory->isRemote() ? " (remote)" : " (local)"));
   guard.unlock();
   return providers_factory;
 }
@@ -153,7 +154,8 @@ HalVersionManager::HalVersionManager() {
   }
 
   auto service_manager = android::hardware::defaultServiceManager1_2();
-  CHECK(service_manager != nullptr);
+  log::assert_that(service_manager != nullptr,
+                   "assert failed: service_manager != nullptr");
   size_t instance_count = 0;
   auto listManifestByInterface_cb =
       [&instance_count](
@@ -163,8 +165,8 @@ HalVersionManager::HalVersionManager() {
   auto hidl_retval = service_manager->listManifestByInterface(
       kFullyQualifiedInterfaceName_2_1, listManifestByInterface_cb);
   if (!hidl_retval.isOk()) {
-    LOG(FATAL) << __func__ << ": IServiceManager::listByInterface failure: "
-               << hidl_retval.description();
+    log::fatal("IServiceManager::listByInterface failure: {}",
+               hidl_retval.description());
     return;
   }
 
@@ -177,8 +179,8 @@ HalVersionManager::HalVersionManager() {
   hidl_retval = service_manager->listManifestByInterface(
       kFullyQualifiedInterfaceName_2_0, listManifestByInterface_cb);
   if (!hidl_retval.isOk()) {
-    LOG(FATAL) << __func__ << ": IServiceManager::listByInterface failure: "
-               << hidl_retval.description();
+    log::fatal("IServiceManager::listByInterface failure: {}",
+               hidl_retval.description());
     return;
   }
 
@@ -189,7 +191,7 @@ HalVersionManager::HalVersionManager() {
   }
 
   hal_version_ = BluetoothAudioHalVersion::VERSION_UNAVAILABLE;
-  LOG(ERROR) << __func__ << " No supported HAL version";
+  log::error("No supported HAL version");
 }
 
 }  // namespace audio

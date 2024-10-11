@@ -1,5 +1,4 @@
 #include <android_bluetooth_sysprop.h>
-#include <base/logging.h>
 #include <gtest/gtest.h>
 
 #include "bta_hfp_api.h"
@@ -35,9 +34,7 @@ bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
   return BT_STATUS_SUCCESS;
 }
 void btif_queue_advance() {}
-const char* dump_hf_client_event(uint16_t event) {
-  return "UNKNOWN MSG ID";
-}
+std::string dump_hf_client_event(uint16_t event) { return "UNKNOWN MSG ID"; }
 
 class BtifHfClientTest : public ::testing::Test {
  protected:

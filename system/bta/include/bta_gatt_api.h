@@ -66,7 +66,6 @@ typedef enum : uint8_t {
   BTA_GATTC_SRVC_DISC_DONE_EVT = 8, /* GATT service discovery done event */
   BTA_GATTC_NOTIF_EVT = 10,         /* GATT attribute notification event */
   BTA_GATTC_EXEC_EVT = 12,          /* execute write complete event */
-  BTA_GATTC_ACL_EVT = 13,           /* ACL up event */
   BTA_GATTC_CANCEL_OPEN_EVT = 14,   /* cancel open event */
   BTA_GATTC_SRVC_CHG_EVT = 15,      /* service change event */
   BTA_GATTC_ENC_CMPL_CB_EVT = 17,   /* encryption complete callback event */
@@ -87,7 +86,6 @@ inline std::string gatt_client_event_text(const tBTA_GATTC_EVT& event) {
     CASE_RETURN_TEXT(BTA_GATTC_SRVC_DISC_DONE_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_NOTIF_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_EXEC_EVT);
-    CASE_RETURN_TEXT(BTA_GATTC_ACL_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_CANCEL_OPEN_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_SRVC_CHG_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_ENC_CMPL_CB_EVT);
@@ -298,6 +296,33 @@ typedef void(tBTA_GATTC_CBACK)(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 #define BTA_GATTS_SUBRATE_CHG_EVT 23
 
 typedef uint8_t tBTA_GATTS_EVT;
+
+inline std::string gatt_server_event_text(const tBTA_GATTS_EVT& event) {
+  switch (event) {
+    CASE_RETURN_TEXT(BTA_GATTS_REG_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_READ_CHARACTERISTIC_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_READ_DESCRIPTOR_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_WRITE_CHARACTERISTIC_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_WRITE_DESCRIPTOR_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_EXEC_WRITE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_MTU_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONF_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_DEREG_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_DELELTE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_STOP_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONNECT_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_DISCONNECT_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_OPEN_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CANCEL_OPEN_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CLOSE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONGEST_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_PHY_UPDATE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_CONN_UPDATE_EVT);
+    CASE_RETURN_TEXT(BTA_GATTS_SUBRATE_CHG_EVT);
+    default:
+      return base::StringPrintf("UNKNOWN[%hhu]", event);
+  }
+}
 
 #define BTA_GATTS_INVALID_APP 0xff
 
@@ -514,6 +539,22 @@ void BTA_GATTC_Close(uint16_t conn_id);
 
 /*******************************************************************************
  *
+ * Function         BTA_GATTC_ServiceSearchAllRequest
+ *
+ * Description      This function is called to request a GATT service discovery
+ *                  of all services on a GATT server. This function report
+ *                  service search result by a callback event, and followed by a
+ *                  service search complete event.
+ *
+ * Parameters       conn_id: connection ID.
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void BTA_GATTC_ServiceSearchAllRequest(uint16_t conn_id);
+
+/*******************************************************************************
+ *
  * Function         BTA_GATTC_ServiceSearchRequest
  *
  * Description      This function is called to request a GATT service discovery
@@ -523,13 +564,12 @@ void BTA_GATTC_Close(uint16_t conn_id);
  *
  * Parameters       conn_id: connection ID.
  *                  p_srvc_uuid: a UUID of the service application is interested
- *                               in. If Null, discover for all services.
- *
+ *                               in.
  * Returns          None
  *
  ******************************************************************************/
 void BTA_GATTC_ServiceSearchRequest(uint16_t conn_id,
-                                    const bluetooth::Uuid* p_srvc_uuid);
+                                    bluetooth::Uuid p_srvc_uuid);
 
 /**
  * This function is called to send "Find service by UUID" request. Used only for
@@ -990,13 +1030,16 @@ void BTA_GATTS_SendRsp(uint16_t conn_id, uint32_t trans_id, tGATT_STATUS status,
  *
  * Parameters       server_if: server interface.
  *                  remote_bda: remote device BD address.
+ *                  addr_type: remote device address type
  *                  is_direct: direct connection or background auto connection
+ *                  transport: transport to use in this connection
  *
  * Returns          void
  *
  ******************************************************************************/
 void BTA_GATTS_Open(tGATT_IF server_if, const RawAddress& remote_bda,
-                    bool is_direct, tBT_TRANSPORT transport);
+                    tBLE_ADDR_TYPE addr_type, bool is_direct,
+                    tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *

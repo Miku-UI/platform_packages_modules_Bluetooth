@@ -22,7 +22,7 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "a2dp_api"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "a2dp_api.h"
 
@@ -33,7 +33,6 @@
 #include "avdt_api.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "sdpdefs.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -71,7 +70,7 @@ static uint16_t a2dp_attr_list[] = {
  * Returns          Nothing.
  *
  *****************************************************************************/
-static void a2dp_sdp_cback(UNUSED_ATTR const RawAddress& bd_addr,
+static void a2dp_sdp_cback(const RawAddress& /* bd_addr */,
                            tSDP_STATUS status) {
   tSDP_DISC_REC* p_rec = NULL;
   tSDP_DISC_ATTR* p_attr;
@@ -149,8 +148,8 @@ static void a2dp_sdp_cback(UNUSED_ATTR const RawAddress& bd_addr,
   a2dp_cb.find.service_uuid = 0;
   osi_free_and_reset((void**)&a2dp_cb.find.p_db);
   /* return info from sdp record in app callback function */
-  if (a2dp_cb.find.p_cback != NULL) {
-    (*a2dp_cb.find.p_cback)(found, &a2dp_svc, peer_address);
+  if (!a2dp_cb.find.p_cback.is_null()) {
+    a2dp_cb.find.p_cback.Run(found, &a2dp_svc, peer_address);
   }
 
   return;
@@ -305,21 +304,21 @@ tA2DP_STATUS A2DP_AddRecord(uint16_t service_uuid, char* p_service_name,
  *****************************************************************************/
 tA2DP_STATUS A2DP_FindService(uint16_t service_uuid, const RawAddress& bd_addr,
                               tA2DP_SDP_DB_PARAMS* p_db,
-                              tA2DP_FIND_CBACK* p_cback) {
+                              tA2DP_FIND_CBACK p_cback) {
   if ((service_uuid != UUID_SERVCLASS_AUDIO_SOURCE &&
        service_uuid != UUID_SERVCLASS_AUDIO_SINK) ||
-      p_db == NULL || p_cback == NULL) {
+      p_db == NULL || p_cback.is_null()) {
     log::error(
         "Cannot find service for peer {} UUID 0x{:04x}: invalid parameters",
-        ADDRESS_TO_LOGGABLE_CSTR(bd_addr), service_uuid);
+        bd_addr, service_uuid);
     return A2DP_INVALID_PARAMS;
   }
 
   if (a2dp_cb.find.service_uuid == UUID_SERVCLASS_AUDIO_SOURCE ||
       a2dp_cb.find.service_uuid == UUID_SERVCLASS_AUDIO_SINK ||
       a2dp_cb.find.p_db != NULL) {
-    log::error("Cannot find service for peer {} UUID 0x{:04x}: busy",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr), service_uuid);
+    log::error("Cannot find service for peer {} UUID 0x{:04x}: busy", bd_addr,
+               service_uuid);
     return A2DP_BUSY;
   }
 
@@ -336,7 +335,7 @@ tA2DP_STATUS A2DP_FindService(uint16_t service_uuid, const RawAddress& bd_addr,
           p_db->p_attrs)) {
     osi_free_and_reset((void**)&a2dp_cb.find.p_db);
     log::error("Unable to initialize SDP discovery for peer {} UUID 0x{:04X}",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr), service_uuid);
+               bd_addr, service_uuid);
     return A2DP_FAIL;
   }
 
@@ -348,15 +347,15 @@ tA2DP_STATUS A2DP_FindService(uint16_t service_uuid, const RawAddress& bd_addr,
   if (!get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest(
           bd_addr, a2dp_cb.find.p_db, a2dp_sdp_cback)) {
     a2dp_cb.find.service_uuid = 0;
-    a2dp_cb.find.p_cback = NULL;
+    a2dp_cb.find.p_cback.Reset();
     osi_free_and_reset((void**)&a2dp_cb.find.p_db);
     log::error("Cannot find service for peer {} UUID 0x{:04x}: SDP error",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr), service_uuid);
+               bd_addr, service_uuid);
     return A2DP_FAIL;
   }
   log::info(
       "A2DP service discovery for peer {} UUID 0x{:04x}: SDP search started",
-      ADDRESS_TO_LOGGABLE_CSTR(bd_addr), service_uuid);
+      bd_addr, service_uuid);
   return A2DP_SUCCESS;
 }
 

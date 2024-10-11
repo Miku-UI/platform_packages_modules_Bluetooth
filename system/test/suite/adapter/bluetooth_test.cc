@@ -19,7 +19,6 @@
 #include "adapter/bluetooth_test.h"
 
 #include <binder/ProcessState.h>
-#include <stdio.h>
 
 #include <mutex>
 
@@ -95,7 +94,6 @@ void BluetoothTest::SetUp() {
   bond_state_ = BT_BOND_STATE_NONE;
 
   remove("/data/misc/bluedroid/bt_config.conf.encrypted-checksum");
-  remove("/data/misc/bluedroid/bt_config.bak.encrypted-checksum");
 
   instance = this;
   int status = bluetoothInterface.init(&callbacks, false, false, 0, nullptr,

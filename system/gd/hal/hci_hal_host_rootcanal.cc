@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#include "hal/hci_hal_host.h"
-
+#include <bluetooth/log.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -29,6 +28,7 @@
 #include <queue>
 
 #include "hal/hci_hal.h"
+#include "hal/hci_hal_host.h"
 #include "hal/snoop_logger.h"
 #include "metrics/counter_metrics.h"
 #include "os/log.h"
@@ -58,14 +58,14 @@ int ConnectToSocket() {
 
   int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (socket_fd < 1) {
-    LOG_ERROR("can't create socket: %s", strerror(errno));
+    bluetooth::log::error("can't create socket: {}", strerror(errno));
     return INVALID_FD;
   }
 
   struct hostent* host;
   host = gethostbyname(server.c_str());
   if (host == nullptr) {
-    LOG_ERROR("can't get server name");
+    bluetooth::log::error("can't get server name");
     return INVALID_FD;
   }
 
@@ -77,7 +77,7 @@ int ConnectToSocket() {
 
   int result = connect(socket_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
   if (result < 0) {
-    LOG_ERROR("can't connect: %s", strerror(errno));
+    bluetooth::log::error("can't connect: {}", strerror(errno));
     return INVALID_FD;
   }
 
@@ -87,7 +87,7 @@ int ConnectToSocket() {
   };
   int ret = setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &socket_timeout, sizeof(socket_timeout));
   if (ret == -1) {
-    LOG_ERROR("can't control socket fd: %s", strerror(errno));
+    bluetooth::log::error("can't control socket fd: {}", strerror(errno));
     return INVALID_FD;
   }
   return socket_fd;
@@ -101,28 +101,30 @@ class HciHalHost : public HciHal {
  public:
   void registerIncomingPacketCallback(HciHalCallbacks* callback) override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    LOG_INFO("%s before", __func__);
+    log::info("before");
     {
       std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
-      ASSERT(incoming_packet_callback_ == nullptr && callback != nullptr);
+      log::assert_that(
+          incoming_packet_callback_ == nullptr && callback != nullptr,
+          "assert failed: incoming_packet_callback_ == nullptr && callback != nullptr");
       incoming_packet_callback_ = callback;
     }
-    LOG_INFO("%s after", __func__);
+    log::info("after");
   }
 
   void unregisterIncomingPacketCallback() override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    LOG_INFO("%s before", __func__);
+    log::info("before");
     {
       std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
       incoming_packet_callback_ = nullptr;
     }
-    LOG_INFO("%s after", __func__);
+    log::info("after");
   }
 
   void sendHciCommand(HciPacket command) override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    ASSERT(sock_fd_ != INVALID_FD);
+    log::assert_that(sock_fd_ != INVALID_FD, "assert failed: sock_fd_ != INVALID_FD");
     std::vector<uint8_t> packet = std::move(command);
     btsnoop_logger_->Capture(packet, SnoopLogger::Direction::OUTGOING, SnoopLogger::PacketType::CMD);
     packet.insert(packet.cbegin(), kH4Command);
@@ -131,7 +133,7 @@ class HciHalHost : public HciHal {
 
   void sendAclData(HciPacket data) override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    ASSERT(sock_fd_ != INVALID_FD);
+    log::assert_that(sock_fd_ != INVALID_FD, "assert failed: sock_fd_ != INVALID_FD");
     std::vector<uint8_t> packet = std::move(data);
     btsnoop_logger_->Capture(packet, SnoopLogger::Direction::OUTGOING, SnoopLogger::PacketType::ACL);
     packet.insert(packet.cbegin(), kH4Acl);
@@ -140,7 +142,7 @@ class HciHalHost : public HciHal {
 
   void sendScoData(HciPacket data) override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    ASSERT(sock_fd_ != INVALID_FD);
+    log::assert_that(sock_fd_ != INVALID_FD, "assert failed: sock_fd_ != INVALID_FD");
     std::vector<uint8_t> packet = std::move(data);
     btsnoop_logger_->Capture(packet, SnoopLogger::Direction::OUTGOING, SnoopLogger::PacketType::SCO);
     packet.insert(packet.cbegin(), kH4Sco);
@@ -149,7 +151,7 @@ class HciHalHost : public HciHal {
 
   void sendIsoData(HciPacket data) override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    ASSERT(sock_fd_ != INVALID_FD);
+    log::assert_that(sock_fd_ != INVALID_FD, "assert failed: sock_fd_ != INVALID_FD");
     std::vector<uint8_t> packet = std::move(data);
     btsnoop_logger_->Capture(packet, SnoopLogger::Direction::OUTGOING, SnoopLogger::PacketType::ISO);
     packet.insert(packet.cbegin(), kH4Iso);
@@ -164,28 +166,28 @@ class HciHalHost : public HciHal {
 
   void Start() override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    ASSERT(sock_fd_ == INVALID_FD);
+    log::assert_that(sock_fd_ == INVALID_FD, "assert failed: sock_fd_ == INVALID_FD");
     sock_fd_ = ConnectToSocket();
-    ASSERT(sock_fd_ != INVALID_FD);
+    log::assert_that(sock_fd_ != INVALID_FD, "assert failed: sock_fd_ != INVALID_FD");
     reactable_ = hci_incoming_thread_.GetReactor()->Register(
         sock_fd_,
         common::Bind(&HciHalHost::incoming_packet_received, common::Unretained(this)),
         common::Bind(&HciHalHost::send_packet_ready, common::Unretained(this)));
     hci_incoming_thread_.GetReactor()->ModifyRegistration(reactable_, os::Reactor::REACT_ON_READ_ONLY);
     btsnoop_logger_ = GetDependency<SnoopLogger>();
-    LOG_INFO("HAL opened successfully");
+    log::info("HAL opened successfully");
   }
 
   void Stop() override {
     std::lock_guard<std::mutex> lock(api_mutex_);
-    LOG_INFO("HAL is closing");
+    log::info("HAL is closing");
     if (reactable_ != nullptr) {
       hci_incoming_thread_.GetReactor()->Unregister(reactable_);
-      LOG_INFO("HAL is stopping, start waiting for last callback");
+      log::info("HAL is stopping, start waiting for last callback");
       // Wait up to 1 second for the last incoming packet callback to finish
       hci_incoming_thread_.GetReactor()->WaitForUnregisteredReactable(std::chrono::milliseconds(1000));
-      LOG_INFO("HAL is stopping, finished waiting for last callback");
-      ASSERT(sock_fd_ != INVALID_FD);
+      log::info("HAL is stopping, finished waiting for last callback");
+      log::assert_that(sock_fd_ != INVALID_FD, "assert failed: sock_fd_ != INVALID_FD");
     }
     reactable_ = nullptr;
     {
@@ -194,7 +196,7 @@ class HciHalHost : public HciHal {
     }
     ::close(sock_fd_);
     sock_fd_ = INVALID_FD;
-    LOG_INFO("HAL is closed");
+    log::info("HAL is closed");
   }
 
   std::string ToString() const override {
@@ -253,7 +255,7 @@ class HciHalHost : public HciHal {
     {
       std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
       if (incoming_packet_callback_ == nullptr) {
-        LOG_INFO("Dropping a packet");
+        log::info("Dropping a packet");
         return;
       }
     }
@@ -261,21 +263,23 @@ class HciHalHost : public HciHal {
 
     ssize_t received_size;
     RUN_NO_INTR(received_size = recv(sock_fd_, buf, kH4HeaderSize, 0));
-    ASSERT_LOG(received_size != -1, "Can't receive from socket: %s", strerror(errno));
+    log::assert_that(received_size != -1, "Can't receive from socket: {}", strerror(errno));
     if (received_size == 0) {
-      LOG_WARN("Can't read H4 header. EOF received");
+      log::warn("Can't read H4 header. EOF received");
       raise(SIGINT);
       return;
     }
 
     if (buf[0] == kH4Event) {
-      ASSERT_LOG(
-          socketRecvAll(buf + kH4HeaderSize, kHciEvtHeaderSize), "Can't receive from socket: %s", strerror(errno));
+      log::assert_that(
+          socketRecvAll(buf + kH4HeaderSize, kHciEvtHeaderSize),
+          "Can't receive from socket: {}",
+          strerror(errno));
 
       uint8_t hci_evt_parameter_total_length = buf[2];
-      ASSERT_LOG(
+      log::assert_that(
           socketRecvAll(buf + kH4HeaderSize + kHciEvtHeaderSize, hci_evt_parameter_total_length),
-          "Can't receive from socket: %s",
+          "Can't receive from socket: {}",
           strerror(errno));
 
       HciPacket receivedHciPacket;
@@ -285,7 +289,7 @@ class HciHalHost : public HciHal {
       {
         std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
         if (incoming_packet_callback_ == nullptr) {
-          LOG_INFO("Dropping an event after processing");
+          log::info("Dropping an event after processing");
           return;
         }
         incoming_packet_callback_->hciEventReceived(receivedHciPacket);
@@ -293,13 +297,15 @@ class HciHalHost : public HciHal {
     }
 
     if (buf[0] == kH4Acl) {
-      ASSERT_LOG(
-          socketRecvAll(buf + kH4HeaderSize, kHciAclHeaderSize), "Can't receive from socket: %s", strerror(errno));
+      log::assert_that(
+          socketRecvAll(buf + kH4HeaderSize, kHciAclHeaderSize),
+          "Can't receive from socket: {}",
+          strerror(errno));
 
       uint16_t hci_acl_data_total_length = (buf[4] << 8) + buf[3];
-      ASSERT_LOG(
+      log::assert_that(
           socketRecvAll(buf + kH4HeaderSize + kHciAclHeaderSize, hci_acl_data_total_length),
-          "Can't receive from socket: %s",
+          "Can't receive from socket: {}",
           strerror(errno));
 
       HciPacket receivedHciPacket;
@@ -309,7 +315,7 @@ class HciHalHost : public HciHal {
       {
         std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
         if (incoming_packet_callback_ == nullptr) {
-          LOG_INFO("Dropping an ACL packet after processing");
+          log::info("Dropping an ACL packet after processing");
           return;
         }
         incoming_packet_callback_->aclDataReceived(receivedHciPacket);
@@ -317,13 +323,15 @@ class HciHalHost : public HciHal {
     }
 
     if (buf[0] == kH4Sco) {
-      ASSERT_LOG(
-          socketRecvAll(buf + kH4HeaderSize, kHciScoHeaderSize), "Can't receive from socket: %s", strerror(errno));
+      log::assert_that(
+          socketRecvAll(buf + kH4HeaderSize, kHciScoHeaderSize),
+          "Can't receive from socket: {}",
+          strerror(errno));
 
       uint8_t hci_sco_data_total_length = buf[3];
-      ASSERT_LOG(
+      log::assert_that(
           socketRecvAll(buf + kH4HeaderSize + kHciScoHeaderSize, hci_sco_data_total_length),
-          "Can't receive from socket: %s",
+          "Can't receive from socket: {}",
           strerror(errno));
 
       HciPacket receivedHciPacket;
@@ -333,7 +341,7 @@ class HciHalHost : public HciHal {
       {
         std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
         if (incoming_packet_callback_ == nullptr) {
-          LOG_INFO("Dropping a SCO packet after processing");
+          log::info("Dropping a SCO packet after processing");
           return;
         }
         incoming_packet_callback_->scoDataReceived(receivedHciPacket);
@@ -341,13 +349,15 @@ class HciHalHost : public HciHal {
     }
 
     if (buf[0] == kH4Iso) {
-      ASSERT_LOG(
-          socketRecvAll(buf + kH4HeaderSize, kHciIsoHeaderSize), "Can't receive from socket: %s", strerror(errno));
+      log::assert_that(
+          socketRecvAll(buf + kH4HeaderSize, kHciIsoHeaderSize),
+          "Can't receive from socket: {}",
+          strerror(errno));
 
       uint16_t hci_iso_data_total_length = ((buf[4] & 0x3f) << 8) + buf[3];
-      ASSERT_LOG(
+      log::assert_that(
           socketRecvAll(buf + kH4HeaderSize + kHciIsoHeaderSize, hci_iso_data_total_length),
-          "Can't receive from socket: %s",
+          "Can't receive from socket: {}",
           strerror(errno));
 
       HciPacket receivedHciPacket;
@@ -357,7 +367,7 @@ class HciHalHost : public HciHal {
       {
         std::lock_guard<std::mutex> incoming_packet_callback_lock(incoming_packet_callback_mutex_);
         if (incoming_packet_callback_ == nullptr) {
-          LOG_INFO("Dropping a ISO packet after processing");
+          log::info("Dropping a ISO packet after processing");
           return;
         }
         incoming_packet_callback_->isoDataReceived(receivedHciPacket);

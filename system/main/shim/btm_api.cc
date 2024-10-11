@@ -19,28 +19,26 @@
 #include "main/shim/btm_api.h"
 
 #include <base/functional/callback.h>
-#include <base/logging.h>
 
-#include "main/shim/btm.h"
-#include "main/shim/controller.h"
+#include "hci/controller.h"
+#include "hci/controller_interface.h"
+#include "hci/le_advertising_manager.h"
+#include "main/shim/acl.h"
+#include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "main/shim/stack.h"
 #include "stack/btm/btm_ble_sec.h"
 #include "stack/btm/btm_dev.h"
 #include "types/raw_address.h"
 
-uint16_t bluetooth::shim::BTM_GetHCIConnHandle(const RawAddress& remote_bda,
-                                               tBT_TRANSPORT transport) {
-  return Stack::GetInstance()->GetBtm()->GetAclHandle(remote_bda, transport);
-}
-
 tBTM_STATUS bluetooth::shim::BTM_ClearEventFilter() {
-  controller_get_interface()->clear_event_filter();
+  GetController()->SetEventFilterClearAll();
   return BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_ClearEventMask() {
-  controller_get_interface()->clear_event_mask();
+  GetController()->SetEventMask(0);
+  GetController()->LeSetEventMask(0);
   return BTM_SUCCESS;
 }
 
@@ -55,14 +53,10 @@ tBTM_STATUS bluetooth::shim::BTM_DisconnectAllAcls() {
   return BTM_SUCCESS;
 }
 
-tBTM_STATUS bluetooth::shim::BTM_LeRand(LeRandCallback cb) {
-  Stack::GetInstance()->GetAcl()->LeRand(std::move(cb));
-  return BTM_SUCCESS;
-}
-
 tBTM_STATUS bluetooth::shim::BTM_SetEventFilterConnectionSetupAllDevices() {
   // Autoplumbed
-  controller_get_interface()->set_event_filter_connection_setup_all_devices();
+  GetController()->SetEventFilterConnectionSetupAllDevices(
+      bluetooth::hci::AutoAcceptFlag::AUTO_ACCEPT_ON_ROLE_SWITCH_ENABLED);
   return BTM_SUCCESS;
 }
 
@@ -73,8 +67,11 @@ tBTM_STATUS bluetooth::shim::BTM_AllowWakeByHid(
   Stack::GetInstance()->GetAcl()->SetSystemSuspendState(/*suspended=*/true);
 
   // Allow classic HID wake.
-  controller_get_interface()->set_event_filter_allow_device_connection(
-      std::move(classic_hid_devices));
+  auto controller = GetController();
+  for (auto device : classic_hid_devices) {
+    controller->SetEventFilterConnectionSetupAddress(
+        bluetooth::ToGdAddress(device), hci::AutoAcceptFlag::AUTO_ACCEPT_OFF);
+  }
 
   // Allow BLE HID
   for (auto hid_address : le_hid_devices) {
@@ -116,14 +113,18 @@ tBTM_STATUS bluetooth::shim::BTM_RestoreFilterAcceptList(
 
 tBTM_STATUS bluetooth::shim::BTM_SetDefaultEventMaskExcept(uint64_t mask,
                                                            uint64_t le_mask) {
-  // Autoplumbed
-  controller_get_interface()->set_default_event_mask_except(mask, le_mask);
+  uint64_t applied_mask =
+      bluetooth::hci::Controller::kDefaultEventMask & ~(mask);
+  uint64_t applied_le_mask =
+      bluetooth::hci::Controller::kDefaultLeEventMask & ~(le_mask);
+  GetController()->SetEventMask(applied_mask);
+  GetController()->LeSetEventMask(applied_le_mask);
   return BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_SetEventFilterInquiryResultAllDevices() {
   // Autoplumbed
-  controller_get_interface()->set_event_filter_inquiry_result_all_devices();
+  GetController()->SetEventFilterInquiryResultAllDevices();
   return BTM_SUCCESS;
 }
 
@@ -133,5 +134,5 @@ tBTM_STATUS bluetooth::shim::BTM_BleResetId() {
 }
 
 size_t bluetooth::shim::BTM_BleGetNumberOfAdvertisingInstancesInUse(void) {
-  return Stack::GetInstance()->GetBtm()->GetNumberOfAdvertisingInstancesInUse();
+  return GetAdvertising()->GetNumberOfAdvertisingInstancesInUse();
 }

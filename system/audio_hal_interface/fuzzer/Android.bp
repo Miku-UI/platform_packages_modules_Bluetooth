@@ -37,6 +37,7 @@ cc_defaults {
     shared_libs: [
         "libPlatformProperties",
         "libaaudio",
+        "libaconfig_storage_read_api_cc",
         "libbinder_ndk",
         "libcrypto",
         "libfmq",
@@ -151,6 +152,12 @@ cc_fuzz {
     ],
     srcs: [
         "libbt_audio_hal_hearing_aid_software_encoding_fuzzer.cpp",
+    ],
+    static_libs: [
+        "libbinder_random_parcel",
+    ],
+    shared_libs: [
+        "libbinder",
     ],
 }
 

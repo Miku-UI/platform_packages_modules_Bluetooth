@@ -34,7 +34,8 @@ use super::{
 
 enum AttRequestState<T: AttDatabase> {
     Idle(AttRequestHandler<T>),
-    Pending(Option<OwnedHandle<()>>),
+    Pending { _task: OwnedHandle<()> },
+    Replacing,
 }
 
 /// The errors that can occur while trying to send a packet
@@ -153,7 +154,7 @@ impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
     }
 
     fn handle_request(&self, packet: AttView<'_>) {
-        let curr_request = self.curr_request.replace(AttRequestState::Pending(None));
+        let curr_request = self.curr_request.replace(AttRequestState::Replacing);
         self.curr_request.replace(match curr_request {
             AttRequestState::Idle(mut request_handler) => {
                 // even if the MTU is updated afterwards, 5.3 3F 3.4.2.2 states that the
@@ -187,12 +188,15 @@ impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
                         })
                     });
                 });
-                AttRequestState::Pending(Some(task.into()))
+                AttRequestState::Pending { _task: task.into() }
             }
-            AttRequestState::Pending(_) => {
+            AttRequestState::Pending { .. } => {
                 warn!("multiple ATT operations cannot simultaneously take place, dropping one");
                 // TODO(aryarahul) - disconnect connection here;
                 curr_request
+            }
+            AttRequestState::Replacing => {
+              panic!("Replacing is an ephemeral state");
             }
         });
     }
@@ -234,11 +238,11 @@ mod test {
             },
         },
         packets::{
-            AttAttributeDataChild, AttHandleValueConfirmationBuilder, AttOpcode,
-            AttReadRequestBuilder, AttReadResponseBuilder,
+            AttAttributeDataBuilder, AttAttributeDataChild, AttHandleValueConfirmationBuilder,
+            AttOpcode, AttReadRequestBuilder, AttReadResponseBuilder,
         },
         utils::{
-            packet::{build_att_data, build_att_view_or_crash},
+            packet::build_att_view_or_crash,
             task::{block_on_locally, try_await},
         },
     };
@@ -352,7 +356,7 @@ mod test {
             Ok(())
         };
         let conn = SharedBox::new(AttServerBearer::new(db.get_att_database(TCB_IDX), send_packet));
-        let data = AttAttributeDataChild::RawData([1, 2].into());
+        let data = [1, 2];
 
         // act: send two read requests before replying to either read
         // first request
@@ -367,11 +371,16 @@ mod test {
             });
             conn.as_ref().handle_packet(req2.view());
             // handle first reply
-            let MockDatastoreEvents::Read(TCB_IDX, VALID_HANDLE, AttributeBackingType::Characteristic, data_resp) =
-                data_rx.recv().await.unwrap() else {
-                    unreachable!();
+            let MockDatastoreEvents::Read(
+                TCB_IDX,
+                VALID_HANDLE,
+                AttributeBackingType::Characteristic,
+                data_resp,
+            ) = data_rx.recv().await.unwrap()
+            else {
+                unreachable!();
             };
-            data_resp.send(Ok(data.clone())).unwrap();
+            data_resp.send(Ok(data.to_vec())).unwrap();
             trace!("reply sent from upper tester");
 
             // assert: that the first reply was made
@@ -380,7 +389,14 @@ mod test {
                 resp,
                 AttBuilder {
                     opcode: AttOpcode::READ_RESPONSE,
-                    _child_: AttReadResponseBuilder { value: build_att_data(data) }.into(),
+                    _child_: AttReadResponseBuilder {
+                        value: AttAttributeDataBuilder {
+                            _child_: AttAttributeDataChild::RawData(
+                                data.to_vec().into_boxed_slice()
+                            )
+                        },
+                    }
+                    .into()
                 }
             );
             // assert no other replies were made

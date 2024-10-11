@@ -14,16 +14,22 @@
  * limitations under the License.
  */
 
+#include <bluetooth/log.h>
+#include <fcntl.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <sys/socket.h>
 
+#include "bt_psm_types.h"
 #include "common/init_flags.h"
-#include "device/include/controller.h"
+#include "hci/controller_interface_mock.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
+#include "test/mock/mock_main_shim_entry.h"
 
 tBTM_CB btm_cb;
 extern tL2C_CB l2cb;
@@ -31,9 +37,12 @@ extern tL2C_CB l2cb;
 void l2c_link_send_to_lower_br_edr(tL2C_LCB* p_lcb, BT_HDR* p_buf);
 void l2c_link_send_to_lower_ble(tL2C_LCB* p_lcb, BT_HDR* p_buf);
 
+using testing::Return;
+
 namespace {
 constexpr uint16_t kAclBufferCountClassic = 123;
-constexpr uint8_t kAclBufferCountBle = 45;
+constexpr uint16_t kAclBufferCountBle = 45;
+constexpr uint16_t kAclBufferSizeBle = 45;
 
 }  // namespace
 
@@ -41,20 +50,24 @@ class StackL2capTest : public ::testing::Test {
  protected:
   void SetUp() override {
     bluetooth::common::InitFlags::SetAllForTesting();
-    controller_.get_acl_buffer_count_classic = []() {
-      return kAclBufferCountClassic;
-    };
-    controller_.get_acl_buffer_count_ble = []() { return kAclBufferCountBle; };
-    controller_.SupportsBle = []() -> bool { return true; };
+    bluetooth::hci::testing::mock_controller_ = &controller_interface_;
+    ON_CALL(controller_interface_, GetNumAclPacketBuffers)
+        .WillByDefault(Return(kAclBufferCountClassic));
+    bluetooth::hci::LeBufferSize le_sizes;
+    le_sizes.total_num_le_packets_ = kAclBufferCountBle;
+    le_sizes.le_data_packet_length_ = kAclBufferSizeBle;
+    ON_CALL(controller_interface_, GetLeBufferSize)
+        .WillByDefault(Return(le_sizes));
+    ON_CALL(controller_interface_, SupportsBle).WillByDefault(Return(true));
     l2c_init();
   }
 
   void TearDown() override {
     l2c_free();
-    controller_ = {};
+    bluetooth::hci::testing::mock_controller_ = nullptr;
   }
 
-  controller_t controller_;
+  bluetooth::hci::testing::MockControllerInterface controller_interface_;
 };
 
 TEST_F(StackL2capTest, l2cble_process_data_length_change_event) {
@@ -194,12 +207,10 @@ TEST_F(StackL2capChannelTest, l2c_lcc_proc_pdu__NextSegment) {
 TEST_F(StackL2capChannelTest, l2c_link_init) {
   l2cb.num_lm_acl_bufs = 0;
   l2cb.controller_xmit_window = 0;
+  l2c_link_init(kAclBufferCountClassic);
 
-  l2c_link_init(controller_.get_acl_buffer_count_classic());
-
-  ASSERT_EQ(controller_.get_acl_buffer_count_classic(), l2cb.num_lm_acl_bufs);
-  ASSERT_EQ(controller_.get_acl_buffer_count_classic(),
-            l2cb.controller_xmit_window);
+  ASSERT_EQ(kAclBufferCountClassic, l2cb.num_lm_acl_bufs);
+  ASSERT_EQ(kAclBufferCountClassic, l2cb.controller_xmit_window);
 }
 
 TEST_F(StackL2capTest, l2cap_result_code_text) {
@@ -245,4 +256,42 @@ TEST_F(StackL2capTest, l2cap_result_code_text) {
       l2cap_result_code_text(
           static_cast<tL2CAP_CONN>(std::numeric_limits<std::uint16_t>::max()))
           .c_str());
+}
+
+TEST_F(StackL2capTest, L2CA_Dumpsys) {
+  int sv[2];
+  char buf[32];
+  ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, sv));
+  ASSERT_EQ(0, fcntl(sv[1], F_SETFL, fcntl(sv[1], F_GETFL, 0) | O_NONBLOCK));
+
+  L2CA_Dumpsys(sv[0]);
+  while (read(sv[1], buf, sizeof(buf)) != -1) {
+  }
+}
+
+TEST_F(StackL2capTest, bt_psm_text) {
+  std::map<tBT_PSM, std::string> map = {
+      {BT_PSM_SDP, "BT_PSM_SDP"},
+      {BT_PSM_RFCOMM, "BT_PSM_RFCOMM"},
+      {BT_PSM_TCS, "BT_PSM_TCS"},
+      {BT_PSM_CTP, "BT_PSM_CTP"},
+      {BT_PSM_BNEP, "BT_PSM_BNEP"},
+      {BT_PSM_HIDC, "BT_PSM_HIDC"},
+      {HID_PSM_CONTROL, "HID_PSM_CONTROL"},
+      {BT_PSM_HIDI, "BT_PSM_HIDI"},
+      {HID_PSM_INTERRUPT, "HID_PSM_INTERRUPT"},
+      {BT_PSM_UPNP, "BT_PSM_UPNP"},
+      {BT_PSM_AVCTP, "BT_PSM_AVCTP"},
+      {BT_PSM_AVDTP, "BT_PSM_AVDTP"},
+      {BT_PSM_AVCTP_13, "BT_PSM_AVCTP_13"},
+      {BT_PSM_UDI_CP, "BT_PSM_UDI_CP"},
+      {BT_PSM_ATT, "BT_PSM_ATT"},
+      {BT_PSM_EATT, "BT_PSM_EATT"},
+      {BRCM_RESERVED_PSM_START, "BRCM_RESERVED_PSM_START"},
+      {BRCM_RESERVED_PSM_END, "BRCM_RESERVED_PSM_END"},
+  };
+
+  for (const auto& it : map) {
+    bluetooth::log::info("{} {} ", bt_psm_text(it.first), it.second);
+  }
 }

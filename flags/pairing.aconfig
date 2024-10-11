@@ -7,3 +7,50 @@ flag {
     description: "Clear authentication collision state on pairing conclusion"
     bug: "327208896"
 }
+
+flag {
+    name: "cleanup_le_only_device_type"
+    namespace: "bluetooth"
+    description: "Cleanup the duplicate bond records only if the device type is LE-only"
+    bug: "333949759"
+}
+
+flag {
+    name: "pairing_on_unknown_transport"
+    namespace: "bluetooth"
+    description: "Allow pairing on transport not known to be supported by the remote device"
+    bug: "335239971"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "cancel_pairing_only_on_disconnected_transport"
+    namespace: "bluetooth"
+    description: "Cancel pairing due to unexpected disconnection only if the transport matches"
+    bug: "338152239"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "temporary_pairing_device_properties"
+    namespace: "bluetooth"
+    description: "Do not remove the device properties immediately after insecure pairing"
+    bug: "342202557"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "use_local_oob_extended_command"
+    namespace: "bluetooth"
+    description: "Use HCI Read Local OOB Extended Data command to generate local OOB when Secure Connections is supported by the controller"
+    bug: "342250775"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

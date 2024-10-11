@@ -21,20 +21,9 @@
 #include <memory>
 #include <vector>
 
+#include "common/message_loop_thread.h"
+
 namespace bluetooth::audio::asrc {
-
-class ClockHandler {
- public:
-  virtual ~ClockHandler() = default;
-  virtual void OnEvent(uint32_t timestamp, int link_id,
-                       int num_of_completed_packets) = 0;
-};
-
-class ClockSource {
- public:
-  virtual ~ClockSource() = default;
-  virtual void Bind(ClockHandler*) = 0;
-};
 
 class SourceAudioHalAsrc {
  public:
@@ -49,7 +38,7 @@ class SourceAudioHalAsrc {
   // `burst_delay_ms` helps to ensure that the synchronization with the
   // transmission intervals is done.
 
-  SourceAudioHalAsrc(std::shared_ptr<ClockSource> clock_source, int channels,
+  SourceAudioHalAsrc(bluetooth::common::MessageLoopThread* thread, int channels,
                      int sample_rate, int bit_depth, int interval_us,
                      int num_burst_buffers = 2, int burst_delay_ms = 500);
 
@@ -87,7 +76,6 @@ class SourceAudioHalAsrc {
 
   class ClockRecovery;
   std::unique_ptr<ClockRecovery> clock_recovery_;
-  std::shared_ptr<ClockSource> clock_source_;
 
   class Resampler;
   std::unique_ptr<std::vector<Resampler>> resamplers_;

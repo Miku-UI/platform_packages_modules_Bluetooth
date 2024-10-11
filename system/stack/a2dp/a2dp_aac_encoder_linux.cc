@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "a2dp_aac_encoder"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <string>
@@ -26,7 +25,6 @@
 #include "a2dp_aac.h"
 #include "a2dp_aac_encoder.h"
 #include "common/time_util.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "mmc/codec_client/codec_client.h"
 #include "mmc/proto/mmc_config.pb.h"
@@ -38,6 +36,8 @@ const int A2DP_AAC_HEADER_LEN = 9;
 const int A2DP_AAC_MAX_LEN_REPR = 4;
 const int A2DP_AAC_MAX_PREFIX_SIZE =
     AVDT_MEDIA_HDR_SIZE + A2DP_AAC_HEADER_LEN + A2DP_AAC_MAX_LEN_REPR;
+
+using namespace bluetooth;
 
 class FFmpegInterface {
  public:
@@ -157,7 +157,7 @@ void a2dp_aac_encoder_init(const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
   uint8_t codec_info[AVDT_CODEC_SIZE];
   if (!a2dp_codec_config->copyOutOtaCodecConfig(codec_info)) {
     log::error("Cannot update the codec encoder for {}: invalid codec config",
-               a2dp_codec_config->name().c_str());
+               a2dp_codec_config->name());
     return;
   }
 
@@ -306,7 +306,9 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
                             a2dp_aac_encoder_cb.feeding_params.channel_count *
                             a2dp_aac_encoder_cb.feeding_params.bits_per_sample /
                             8;
-  CHECK(pcm_bytes_per_frame <= static_cast<int>(sizeof(read_buffer)));
+  log::assert_that(pcm_bytes_per_frame <= static_cast<int>(sizeof(read_buffer)),
+                   "assert failed: pcm_bytes_per_frame <= "
+                   "static_cast<int>(sizeof(read_buffer))");
 
   while (nb_frame) {
     a2dp_aac_encoder_cb.stats.media_read_total_expected_packets++;

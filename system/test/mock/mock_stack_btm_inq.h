@@ -26,9 +26,8 @@
 #include <functional>
 
 // Original included files, if any
-#include <base/logging.h>
+
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -291,16 +290,6 @@ struct BTM_WriteEIR {
 };
 extern struct BTM_WriteEIR BTM_WriteEIR;
 
-// Name: SendRemoteNameRequest
-// Params: const RawAddress& raw_address
-// Return: void
-struct SendRemoteNameRequest {
-  std::function<void(const RawAddress& raw_address)> body{
-      [](const RawAddress& /* raw_address */) {}};
-  void operator()(const RawAddress& raw_address) { body(raw_address); };
-};
-extern struct SendRemoteNameRequest SendRemoteNameRequest;
-
 // Name: btm_clear_all_pending_le_entry
 // Params: void
 // Return: void
@@ -329,15 +318,6 @@ struct btm_clr_inq_result_flt {
 };
 extern struct btm_clr_inq_result_flt btm_clr_inq_result_flt;
 
-// Name: btm_inq_clear_ssp
-// Params: void
-// Return: void
-struct btm_inq_clear_ssp {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
-};
-extern struct btm_inq_clear_ssp btm_inq_clear_ssp;
-
 // Name: btm_inq_db_find
 // Params: const RawAddress& p_bda
 // Return: tINQ_DB_ENT*
@@ -348,24 +328,6 @@ struct btm_inq_db_find {
   tINQ_DB_ENT* operator()(const RawAddress& p_bda) { return body(p_bda); };
 };
 extern struct btm_inq_db_find btm_inq_db_find;
-
-// Name: btm_inq_db_free
-// Params: void
-// Return: void
-struct btm_inq_db_free {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
-};
-extern struct btm_inq_db_free btm_inq_db_free;
-
-// Name: btm_inq_db_init
-// Params: void
-// Return: void
-struct btm_inq_db_init {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
-};
-extern struct btm_inq_db_init btm_inq_db_init;
 
 // Name: btm_inq_db_new
 // Params: const RawAddress& p_bda
@@ -419,15 +381,6 @@ struct btm_inq_rmt_name_failed_cancelled {
 };
 extern struct btm_inq_rmt_name_failed_cancelled
     btm_inq_rmt_name_failed_cancelled;
-
-// Name: btm_inq_stop_on_ssp
-// Params: void
-// Return: void
-struct btm_inq_stop_on_ssp {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
-};
-extern struct btm_inq_stop_on_ssp btm_inq_stop_on_ssp;
 
 // Name: btm_process_inq_complete
 // Params: tHCI_STATUS status, uint8_t mode

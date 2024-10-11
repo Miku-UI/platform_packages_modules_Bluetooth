@@ -16,11 +16,12 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
-#include "bta/include/bta_api.h"
 #include "bta/include/bta_sec_api.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
+#include "stack/include/bt_hdr.h"
+#include "stack/include/btm_sec_api_types.h"
 
 typedef struct {
   RawAddress bd_addr;
@@ -43,17 +44,6 @@ typedef struct {
   Octet16 r;
   bool accept;
 } tBTA_DM_CI_RMT_OOB;
-
-typedef struct {
-  RawAddress bd_addr;
-  DEV_CLASS dc;
-  LinkKey link_key;
-  uint8_t key_type;
-  bool link_key_known;
-  bool dc_known;
-  BD_NAME bd_name;
-  uint8_t pin_length;
-} tBTA_DM_API_ADD_DEVICE;
 
 typedef struct {
   tBTA_DM_SEC_CBACK* p_sec_cback;
@@ -80,7 +70,6 @@ void bta_dm_add_ble_device(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                            tBT_DEVICE_TYPE dev_type);
 void bta_dm_add_blekey(const RawAddress& bd_addr, tBTA_LE_KEY_VALUE blekey,
                        tBTM_LE_KEY_TYPE key_type);
-void bta_dm_add_device(std::unique_ptr<tBTA_DM_API_ADD_DEVICE> msg);
 void bta_dm_ble_config_local_privacy(bool privacy_enable);
 void bta_dm_ble_confirm_reply(const RawAddress& bd_addr, bool accept);
 void bta_dm_ble_passkey_reply(const RawAddress& bd_addr, bool accept,
@@ -97,7 +86,7 @@ void bta_dm_confirm(const RawAddress& bd_addr, bool accept);
 void bta_dm_consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
 void bta_dm_enable(tBTA_DM_SEC_CBACK* p_sec_cback);
 void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
-                          UNUSED_ATTR void* p_ref_data, tBTM_STATUS result);
+                          void* /* p_ref_data */, tBTM_STATUS result);
 void bta_dm_pin_reply(std::unique_ptr<tBTA_DM_API_PIN_REPLY> msg);
 void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
                            tBTA_DM_ENCRYPT_CBACK* p_callback,

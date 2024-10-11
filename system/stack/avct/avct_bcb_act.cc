@@ -27,13 +27,13 @@
 
 #define LOG_TAG "bluetooth"
 
-#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 #include <string.h>
 
 #include "avct_api.h"
 #include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
+#include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
@@ -74,7 +74,7 @@ const tAVCT_BCB_ACTION avct_bcb_action[] = {
  *                  available.
  *
  ******************************************************************************/
-static BT_HDR* avct_bcb_msg_asmbl(UNUSED_ATTR tAVCT_BCB* p_bcb, BT_HDR* p_buf) {
+static BT_HDR* avct_bcb_msg_asmbl(tAVCT_BCB* /* p_bcb */, BT_HDR* p_buf) {
   uint8_t* p;
   uint8_t pkt_type;
 
@@ -105,7 +105,7 @@ static BT_HDR* avct_bcb_msg_asmbl(UNUSED_ATTR tAVCT_BCB* p_bcb, BT_HDR* p_buf) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
   tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
   tL2CAP_ERTM_INFO ertm_info;
@@ -115,8 +115,8 @@ void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
 
   /* call l2cap connect req */
   p_bcb->ch_state = AVCT_CH_CONN;
-  p_bcb->ch_lcid =
-      L2CA_ConnectReq2(AVCT_BR_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  p_bcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_BR_PSM, p_lcb->peer_addr,
+                                               BTA_SEC_AUTHENTICATE);
   if (p_bcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -135,7 +135,7 @@ void avct_bcb_chnl_open(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_unbind_disc(UNUSED_ATTR tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
+void avct_bcb_unbind_disc(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
   p_data->p_ccb->p_bcb = NULL;
   (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
                                     AVCT_BROWSE_DISCONN_CFM_EVT, 0, NULL);
@@ -220,7 +220,7 @@ void avct_bcb_open_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_open_fail(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_open_fail(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
 
   for (int idx = 0; idx < AVCT_NUM_CONN; idx++, p_ccb++) {
@@ -241,7 +241,7 @@ void avct_bcb_open_fail(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_close_ind(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_close_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
   tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
 
@@ -349,7 +349,7 @@ void avct_bcb_chk_disc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_chnl_disc(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_chnl_disc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   avct_l2c_br_disconnect(p_bcb->ch_lcid, 0);
 }
 
@@ -364,7 +364,7 @@ void avct_bcb_chnl_disc(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_bind_fail(UNUSED_ATTR tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
+void avct_bcb_bind_fail(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
   p_data->p_ccb->p_bcb = NULL;
   (*p_data->p_ccb->cc.p_ctrl_cback)(avct_ccb_to_idx(p_data->p_ccb),
                                     AVCT_BROWSE_CONN_CFM_EVT, AVCT_RESULT_FAIL,
@@ -476,7 +476,10 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   p_buf->layer_specific = AVCT_DATA_BROWSE;
 
   /* send message to L2CAP */
-  L2CA_DataWrite(p_bcb->ch_lcid, p_buf);
+  if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+    log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr,
+              p_bcb->ch_lcid);
+  }
 }
 
 /*******************************************************************************
@@ -489,8 +492,7 @@ void avct_bcb_send_msg(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_bcb_free_msg_ind(UNUSED_ATTR tAVCT_BCB* p_bcb,
-                           tAVCT_LCB_EVT* p_data) {
+void avct_bcb_free_msg_ind(tAVCT_BCB* /* p_bcb */, tAVCT_LCB_EVT* p_data) {
   if (p_data) osi_free_and_reset((void**)&p_data->p_buf);
 }
 
@@ -550,7 +552,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
   }
 
   bool bind = false;
-  if (GET_SYSPROP(A2dp, src_sink_coexist, false)) {
+  if (btif_av_src_sink_coexist_enabled()) {
     bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid);
     osi_free_and_reset((void**)&p_data->p_buf);
     if (bind) return;
@@ -580,7 +582,10 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
     p_buf->layer_specific = AVCT_DATA_BROWSE;
-    L2CA_DataWrite(p_bcb->ch_lcid, p_buf);
+    if (L2CA_DataWrite(p_bcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+      log::warn("Unable to write L2CAP data peer:{} cid:{}", p_bcb->peer_addr,
+                p_bcb->ch_lcid);
+    }
   }
 }
 
@@ -594,7 +599,7 @@ void avct_bcb_msg_ind(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* p_data) {
  * Returns          void.
  *
  ******************************************************************************/
-void avct_bcb_dealloc(tAVCT_BCB* p_bcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_bcb_dealloc(tAVCT_BCB* p_bcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
 
   log::verbose("{}", p_bcb->allocated);

@@ -18,7 +18,6 @@ package com.android.bluetooth.avrcp;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.Context;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothObexTransport;
@@ -34,22 +33,19 @@ import java.util.HashMap;
 /**
  * The AVRCP Cover Art Service
  *
- * This service handles allocation of image handles and storage of images. It also owns the
- * BIP OBEX server that handles requests to get AVRCP cover artwork.
+ * <p>This service handles allocation of image handles and storage of images. It also owns the BIP
+ * OBEX server that handles requests to get AVRCP cover artwork.
  */
 public class AvrcpCoverArtService {
-    private static final String TAG = "AvrcpCoverArtService";
-    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = AvrcpCoverArtService.class.getSimpleName();
 
     private static final int COVER_ART_STORAGE_MAX_ITEMS = 32;
 
     /**
-     * Limiting transmit packet size because some carkits are disconnected if
-     * AVRCP Cover Art OBEX packet size exceed 1024 bytes.
+     * Limiting transmit packet size because some carkits are disconnected if AVRCP Cover Art OBEX
+     * packet size exceed 1024 bytes.
      */
     private static final int MAX_TRANSMIT_PACKET_SIZE = 1024;
-
-    private final Context mContext;
 
     // Cover Art and Image Handle objects
     private final AvrcpCoverArtStorage mStorage;
@@ -66,8 +62,7 @@ public class AvrcpCoverArtService {
     // Native interface
     private AvrcpNativeInterface mNativeInterface;
 
-    public AvrcpCoverArtService(Context context) {
-        mContext = context;
+    public AvrcpCoverArtService() {
         mNativeInterface = AvrcpNativeInterface.getInstance();
         mAcceptThread = new SocketAcceptor();
         mStorage = new AvrcpCoverArtStorage(COVER_ART_STORAGE_MAX_ITEMS);
@@ -76,7 +71,7 @@ public class AvrcpCoverArtService {
     /**
      * Start the AVRCP Cover Art Service.
      *
-     * This will start up a BIP OBEX server and record the l2cap psm in the SDP record, and begin
+     * <p>This will start up a BIP OBEX server and record the l2cap psm in the SDP record, and begin
      * accepting connections.
      */
     public boolean start() {
@@ -92,7 +87,7 @@ public class AvrcpCoverArtService {
     /**
      * Stop the AVRCP Cover Art Service.
      *
-     * Tear down existing connections, remove ourselved from the SDP record.
+     * <p>Tear down existing connections, remove ourselved from the SDP record.
      */
     public boolean stop() {
         debug("Stopping service");
@@ -147,46 +142,36 @@ public class AvrcpCoverArtService {
         }
     }
 
-    /**
-     * Store an image with the service and gets the image handle it's associated with.
-     */
+    /** Store an image with the service and gets the image handle it's associated with. */
     public String storeImage(Image image) {
         debug("storeImage(image='" + image + "')");
         if (image == null || image.getImage() == null) return null;
         return mStorage.storeImage(new CoverArt(image));
     }
 
-    /**
-     * Get the image stored at the given image handle, if it exists
-     */
+    /** Get the image stored at the given image handle, if it exists */
     public CoverArt getImage(String imageHandle) {
         debug("getImage(" + imageHandle + ")");
         return mStorage.getImage(imageHandle);
     }
 
-    /**
-     * Add a BIP L2CAP PSM to the AVRCP Target SDP Record
-     */
+    /** Add a BIP L2CAP PSM to the AVRCP Target SDP Record */
     private void registerBipServer(int psm) {
         debug("Add our PSM (" + psm + ") to the AVRCP Target SDP record");
         mNativeInterface.registerBipServer(psm);
-        return;
     }
 
-    /**
-     * Remove any BIP L2CAP PSM from the AVRCP Target SDP Record
-     */
+    /** Remove any BIP L2CAP PSM from the AVRCP Target SDP Record */
     private void unregisterBipServer() {
         debug("Remove the PSM remove the AVRCP Target SDP record");
         mNativeInterface.unregisterBipServer();
-        return;
     }
 
     /**
      * Connect a device with the server
      *
-     * Since the server cannot explicitly make clients connect, this function is internal only and
-     * provides a place for us to do required book keeping when we've decided to accept a client
+     * <p>Since the server cannot explicitly make clients connect, this function is internal only
+     * and provides a place for us to do required book keeping when we've decided to accept a client
      */
     private boolean connect(BluetoothDevice device, BluetoothSocket socket) {
         debug("Connect '" + device + "'");
@@ -199,22 +184,27 @@ public class AvrcpCoverArtService {
             if (mClients.containsKey(device)) return false;
 
             // Create a BIP OBEX Server session for the client and connect
-            AvrcpBipObexServer s = new AvrcpBipObexServer(this, new AvrcpBipObexServer.Callback() {
-                public void onConnected() {
-                    mNativeInterface.setBipClientStatus(device.getAddress(), true);
-                }
+            AvrcpBipObexServer s =
+                    new AvrcpBipObexServer(
+                            this,
+                            new AvrcpBipObexServer.Callback() {
+                                public void onConnected() {
+                                    mNativeInterface.setBipClientStatus(device, true);
+                                }
 
-                public void onDisconnected() {
-                    mNativeInterface.setBipClientStatus(device.getAddress(), false);
-                }
+                                public void onDisconnected() {
+                                    mNativeInterface.setBipClientStatus(device, false);
+                                }
 
-                public void onClose() {
-                    disconnect(device);
-                }
-            });
-            BluetoothObexTransport transport = new BluetoothObexTransport(socket,
-                    MAX_TRANSMIT_PACKET_SIZE,
-                    BluetoothObexTransport.PACKET_SIZE_UNSPECIFIED);
+                                public void onClose() {
+                                    disconnect(device);
+                                }
+                            });
+            BluetoothObexTransport transport =
+                    new BluetoothObexTransport(
+                            socket,
+                            MAX_TRANSMIT_PACKET_SIZE,
+                            BluetoothObexTransport.PACKET_SIZE_UNSPECIFIED);
             transport.setConnectionForCoverArt(true);
             try {
                 ServerSession session = new ServerSession(transport, s, null);
@@ -227,16 +217,14 @@ public class AvrcpCoverArtService {
         }
     }
 
-    /**
-     * Explicitly disconnect a device from our BIP server if its connected.
-     */
+    /** Explicitly disconnect a device from our BIP server if its connected. */
     public void disconnect(BluetoothDevice device) {
         debug("disconnect '" + device + "'");
         // Closing the server session closes the underlying transport, which closes the underlying
         // socket as well. No need to maintain and close anything else.
         synchronized (mClientsLock) {
             if (mClients.containsKey(device)) {
-                mNativeInterface.setBipClientStatus(device.getAddress(), false);
+                mNativeInterface.setBipClientStatus(device, false);
                 ServerSession session = mClients.get(device);
                 mClients.remove(device);
                 session.close();
@@ -247,7 +235,7 @@ public class AvrcpCoverArtService {
     /**
      * A Socket Acceptor to handle incoming connections to our BIP Server.
      *
-     * If we are accepting connections and the device is permitted, then this class will create a
+     * <p>If we are accepting connections and the device is permitted, then this class will create a
      * session with our AvrcpBipObexServer.
      */
     private class SocketAcceptor implements IObexConnectionHandler {
@@ -271,9 +259,7 @@ public class AvrcpCoverArtService {
         }
     }
 
-    /**
-     * Dump useful debug information about this service to a string
-     */
+    /** Dump useful debug information about this service to a string */
     public void dump(StringBuilder sb) {
         int psm = getL2capPsm();
         sb.append("AvrcpCoverArtService:");
@@ -285,18 +271,12 @@ public class AvrcpCoverArtService {
         sb.append("\n");
     }
 
-    /**
-     * Print a message to DEBUG if debug output is enabled
-     */
+    /** Print a message to DEBUG if debug output is enabled */
     private void debug(String msg) {
-        if (DEBUG) {
-            Log.d(TAG, msg);
-        }
+        Log.d(TAG, msg);
     }
 
-    /**
-     * Print a message to ERROR
-     */
+    /** Print a message to ERROR */
     private void error(String msg) {
         Log.e(TAG, msg);
     }

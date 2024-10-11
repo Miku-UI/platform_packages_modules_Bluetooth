@@ -154,6 +154,12 @@ enum tBTA_HH_SERVICE_STATE {
   BTA_HH_SERVICE_DISCOVERED,
 };
 
+enum tBTA_HH_AVAILABLE {
+  BTA_HH_UNKNOWN = 0,
+  BTA_HH_AVAILABLE,
+  BTA_HH_UNAVAILABLE
+};
+
 typedef struct {
   tBTA_HH_SERVICE_STATE state;
   uint8_t srvc_inst_id;
@@ -168,7 +174,7 @@ typedef struct {
   uint8_t* rpt_map;
   uint16_t ext_rpt_ref;
   tBTA_HH_DEV_DESCR descriptor;
-
+  tBTA_HH_AVAILABLE headtracker_support;
 } tBTA_HH_LE_HID_SRVC;
 
 /* convert a HID handle to the LE CB index */
@@ -208,7 +214,6 @@ typedef struct {
   uint8_t disc_active;
   tBTA_HH_STATUS status;
   tBTM_STATUS btm_status;
-  bool is_le_device;
   tBTA_HH_LE_HID_SRVC hid_srvc;
   uint16_t conn_id;
   bool in_bg_conn;
@@ -314,6 +319,22 @@ void bta_hh_start_security(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_buf);
 void bta_hh_security_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_buf);
 void bta_hh_le_notify_enc_cmpl(tBTA_HH_DEV_CB* p_cb,
                                const tBTA_HH_DATA* p_data);
+
+tBTA_HH_LE_RPT* bta_hh_le_find_alloc_report_entry(tBTA_HH_DEV_CB* p_cb,
+                                                  uint8_t srvc_inst_id,
+                                                  uint16_t rpt_uuid,
+                                                  uint16_t inst_id);
+void bta_hh_le_save_report_ref(tBTA_HH_DEV_CB* p_dev_cb, tBTA_HH_LE_RPT* p_rpt,
+                               uint8_t rpt_type, uint8_t rpt_id);
+void bta_hh_le_srvc_init(tBTA_HH_DEV_CB* p_dev_cb, uint16_t handle);
+void bta_hh_le_save_report_map(tBTA_HH_DEV_CB* p_dev_cb, uint16_t len,
+                               uint8_t* desc);
+void bta_hh_le_service_parsed(tBTA_HH_DEV_CB* p_dev_cb, tGATT_STATUS status);
+
+void bta_hh_headtracker_parse_service(tBTA_HH_DEV_CB* p_dev_cb,
+                                      const gatt::Service* service);
+bool bta_hh_headtracker_supported(tBTA_HH_DEV_CB* p_dev_cb);
+uint16_t bta_hh_get_uuid16(tBTA_HH_DEV_CB* p_dev_cb, bluetooth::Uuid uuid);
 
 #if (BTA_HH_DEBUG == TRUE)
 void bta_hh_trace_dev_db(void);

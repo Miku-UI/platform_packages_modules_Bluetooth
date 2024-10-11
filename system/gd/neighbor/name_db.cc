@@ -17,6 +17,8 @@
 
 #include "neighbor/name_db.h"
 
+#include <bluetooth/log.h>
+
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -70,7 +72,7 @@ neighbor::NameDbModule::impl::impl(const neighbor::NameDbModule& module) : modul
 void neighbor::NameDbModule::impl::ReadRemoteNameRequest(
     hci::Address address, ReadRemoteNameDbCallback callback, os::Handler* handler) {
   if (address_to_pending_read_map_.find(address) != address_to_pending_read_map_.end()) {
-    LOG_WARN("Already have remote read db in progress; adding callback to callback list");
+    log::warn("Already have remote read db in progress; adding callback to callback list");
     address_to_pending_read_map_[address].push_back({std::move(callback), handler});
     return;
   }
@@ -89,14 +91,17 @@ void neighbor::NameDbModule::impl::ReadRemoteNameRequest(
           address, page_scan_repetition_mode, clock_offset, clock_offset_valid),
       handler_->BindOnce([](hci::ErrorCode /* status */) {}),
       handler_->BindOnce([&](uint64_t /* features */) {
-        LOG_WARN("UNIMPLEMENTED: ignoring host supported features");
+        log::warn("UNIMPLEMENTED: ignoring host supported features");
       }),
       handler_->BindOnceOn(this, &NameDbModule::impl::OnRemoteNameResponse, address));
 }
 
 void neighbor::NameDbModule::impl::OnRemoteNameResponse(
     hci::Address address, hci::ErrorCode status, RemoteName name) {
-  ASSERT(address_to_pending_read_map_.find(address) != address_to_pending_read_map_.end());
+  log::assert_that(
+      address_to_pending_read_map_.find(address) != address_to_pending_read_map_.end(),
+      "assert failed: address_to_pending_read_map_.find(address) != "
+      "address_to_pending_read_map_.end()");
   if (status == hci::ErrorCode::SUCCESS) {
     address_to_name_map_[address] = name;
   }
@@ -112,7 +117,7 @@ bool neighbor::NameDbModule::impl::IsNameCached(hci::Address address) const {
 }
 
 RemoteName neighbor::NameDbModule::impl::ReadCachedRemoteName(hci::Address address) const {
-  ASSERT(IsNameCached(address));
+  log::assert_that(IsNameCached(address), "assert failed: IsNameCached(address)");
   return address_to_name_map_.at(address);
 }
 

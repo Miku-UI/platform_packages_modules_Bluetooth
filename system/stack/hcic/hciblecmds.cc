@@ -24,6 +24,7 @@
  ******************************************************************************/
 
 #include <base/functional/bind.h>
+#include <bluetooth/log.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -31,7 +32,6 @@
 
 #include "hcidefs.h"
 #include "hcimsgs.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
@@ -225,33 +225,6 @@ void btsnd_hcic_ble_set_scan_enable(uint8_t scan_enable, uint8_t duplicate) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_ble_upd_ll_conn_params(uint16_t handle, uint16_t conn_int_min,
-                                       uint16_t conn_int_max,
-                                       uint16_t conn_latency,
-                                       uint16_t conn_timeout,
-                                       uint16_t min_ce_len,
-                                       uint16_t max_ce_len) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_UPD_LL_CONN_PARAMS;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_BLE_UPD_LL_CONN_PARAMS);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_UPD_LL_CONN_PARAMS);
-
-  UINT16_TO_STREAM(pp, handle);
-
-  UINT16_TO_STREAM(pp, conn_int_min);
-  UINT16_TO_STREAM(pp, conn_int_max);
-  UINT16_TO_STREAM(pp, conn_latency);
-  UINT16_TO_STREAM(pp, conn_timeout);
-  UINT16_TO_STREAM(pp, min_ce_len);
-  UINT16_TO_STREAM(pp, max_ce_len);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
 void btsnd_hcic_ble_read_remote_feat(uint16_t handle) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -271,9 +244,10 @@ void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb) {
   btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_BLE_RAND, nullptr, 0,
                             base::Bind(
                                 [](base::Callback<void(BT_OCTET8)> cb,
-                                   uint8_t* param, uint16_t param_len) {
-                                  CHECK(param[0] == 0)
-                                      << "LE Rand return status must be zero";
+                                   uint8_t* param, uint16_t /* param_len */) {
+                                  bluetooth::log::assert_that(
+                                      param[0] == 0,
+                                      "LE Rand return status must be zero");
                                   cb.Run(param + 1 /* skip status */);
                                 },
                                 std::move(cb)));
@@ -376,48 +350,6 @@ void btsnd_hcic_ble_test_end(void) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_ble_rc_param_req_reply(uint16_t handle, uint16_t conn_int_min,
-                                       uint16_t conn_int_max,
-                                       uint16_t conn_latency,
-                                       uint16_t conn_timeout,
-                                       uint16_t min_ce_len,
-                                       uint16_t max_ce_len) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_RC_PARAM_REQ_REPLY;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_BLE_RC_PARAM_REQ_REPLY);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_RC_PARAM_REQ_REPLY);
-
-  UINT16_TO_STREAM(pp, handle);
-  UINT16_TO_STREAM(pp, conn_int_min);
-  UINT16_TO_STREAM(pp, conn_int_max);
-  UINT16_TO_STREAM(pp, conn_latency);
-  UINT16_TO_STREAM(pp, conn_timeout);
-  UINT16_TO_STREAM(pp, min_ce_len);
-  UINT16_TO_STREAM(pp, max_ce_len);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_ble_rc_param_req_neg_reply(uint16_t handle, uint8_t reason) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_RC_PARAM_REQ_NEG_REPLY;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_BLE_RC_PARAM_REQ_NEG_REPLY);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_RC_PARAM_REQ_NEG_REPLY);
-
-  UINT16_TO_STREAM(pp, handle);
-  UINT8_TO_STREAM(pp, reason);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
 void btsnd_hcic_ble_read_resolvable_addr_peer(uint8_t addr_type_peer,
                                               const RawAddress& bda_peer) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
@@ -462,42 +394,6 @@ void btsnd_hcic_ble_set_data_length(uint16_t conn_handle, uint16_t tx_octets,
   UINT16_TO_STREAM(pp, conn_handle);
   UINT16_TO_STREAM(pp, tx_octets);
   UINT16_TO_STREAM(pp, tx_time);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_ble_enh_rx_test(uint8_t rx_chan, uint8_t phy,
-                                uint8_t mod_index) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_ENH_RX_TEST;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_BLE_ENH_RECEIVER_TEST);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_ENH_RX_TEST);
-
-  UINT8_TO_STREAM(pp, rx_chan);
-  UINT8_TO_STREAM(pp, phy);
-  UINT8_TO_STREAM(pp, mod_index);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_ble_enh_tx_test(uint8_t tx_chan, uint8_t data_len,
-                                uint8_t payload, uint8_t phy) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_ENH_TX_TEST;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_BLE_ENH_TRANSMITTER_TEST);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_BLE_ENH_TX_TEST);
-  UINT8_TO_STREAM(pp, tx_chan);
-  UINT8_TO_STREAM(pp, data_len);
-  UINT8_TO_STREAM(pp, payload);
-  UINT8_TO_STREAM(pp, phy);
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
@@ -613,35 +509,6 @@ void btsnd_hcic_remove_cig(uint8_t cig_id,
   UINT8_TO_STREAM(pp, cig_id);
 
   btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_LE_REMOVE_CIG, param, params_len,
-                            std::move(cb));
-}
-
-void btsnd_hcic_accept_cis_req(uint16_t conn_handle) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-
-  const int param_len = 2;
-  p->len = HCIC_PREAMBLE_SIZE + param_len;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_LE_ACCEPT_CIS_REQ);
-  UINT8_TO_STREAM(pp, param_len);
-
-  UINT16_TO_STREAM(pp, conn_handle);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_rej_cis_req(uint16_t conn_handle, uint8_t reason,
-                            base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
-  const int params_len = 3;
-  uint8_t param[params_len];
-  uint8_t* pp = param;
-
-  UINT16_TO_STREAM(pp, conn_handle);
-  UINT8_TO_STREAM(pp, reason);
-
-  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_LE_REJ_CIS_REQ, param, params_len,
                             std::move(cb));
 }
 

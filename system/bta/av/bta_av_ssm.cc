@@ -22,7 +22,7 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bt_bta_av"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
 
@@ -424,15 +424,14 @@ static void bta_av_better_stream_state_machine(tBTA_AV_SCB* p_scb,
   if (previous_state != p_scb->state) {
     log::info(
         "peer {} p_scb={:#x}({}) AV event=0x{:x}({}) state={}({}) -> {}({})",
-        ADDRESS_TO_LOGGABLE_CSTR(p_scb->PeerAddress()), p_scb->hndl,
-        fmt::ptr(p_scb), event, bta_av_evt_code(event), previous_state,
-        bta_av_sst_code(previous_state), p_scb->state,
-        bta_av_sst_code(p_scb->state));
+        p_scb->PeerAddress(), p_scb->hndl, fmt::ptr(p_scb), event,
+        bta_av_evt_code(event), previous_state, bta_av_sst_code(previous_state),
+        p_scb->state, bta_av_sst_code(p_scb->state));
 
   } else {
     log::verbose("peer {} p_scb={:#x}({}) AV event=0x{:x}({}) state={}({})",
-                 ADDRESS_TO_LOGGABLE_CSTR(p_scb->PeerAddress()), p_scb->hndl,
-                 fmt::ptr(p_scb), event, bta_av_evt_code(event), p_scb->state,
+                 p_scb->PeerAddress(), p_scb->hndl, fmt::ptr(p_scb), event,
+                 bta_av_evt_code(event), p_scb->state,
                  bta_av_sst_code(p_scb->state));
   }
 
@@ -524,47 +523,11 @@ void bta_av_set_scb_sst_init(tBTA_AV_SCB* p_scb) {
 
   log::verbose(
       "peer {} AV (hndl=0x{:x}) state={}({}) next state={}({}) p_scb={}",
-      ADDRESS_TO_LOGGABLE_CSTR(p_scb->PeerAddress()), p_scb->hndl, p_scb->state,
+      p_scb->PeerAddress(), p_scb->hndl, p_scb->state,
       bta_av_sst_code(p_scb->state), next_state, bta_av_sst_code(next_state),
       fmt::ptr(p_scb));
 
   p_scb->state = next_state;
-}
-
-/*******************************************************************************
- *
- * Function         bta_av_is_scb_init
- *
- * Description      Returns true is scb is in init state.
- *
- *
- * Returns          true if scb is in incoming state.
- *
- ******************************************************************************/
-bool bta_av_is_scb_init(tBTA_AV_SCB* p_scb) {
-  bool is_init = false;
-
-  if (p_scb) {
-    if (p_scb->state == BTA_AV_INIT_SST) is_init = true;
-  }
-
-  return is_init;
-}
-
-/*******************************************************************************
- *
- * Function         bta_av_set_scb_sst_incoming
- *
- * Description      Set SST state to incoming.
- *                  Use this function to change SST outside of state machine.
- *
- * Returns          None
- *
- ******************************************************************************/
-void bta_av_set_scb_sst_incoming(tBTA_AV_SCB* p_scb) {
-  if (p_scb) {
-    p_scb->state = BTA_AV_INCOMING_SST;
-  }
 }
 
 /*****************************************************************************

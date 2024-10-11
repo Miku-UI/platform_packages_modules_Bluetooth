@@ -44,7 +44,6 @@ EventCallbacks mock_event_callbacks = {
                                 bt_bdname_t /* bd_name */, uint32_t /* cod */,
                                 bool /* min_16_digit */) {},
     .invoke_ssp_request_cb = [](RawAddress /* bd_addr */,
-                                bt_bdname_t /* bd_name */, uint32_t /* cod */,
                                 bt_ssp_variant_t /* pairing_variant */,
                                 uint32_t /* pass_key */) {},
     .invoke_oob_data_request_cb = [](tBT_TRANSPORT /* t */, bool /* valid */,
@@ -73,6 +72,7 @@ EventCallbacks mock_event_callbacks = {
            int /* snr */, int /* retransmission_count */,
            int /* packets_not_receive_count */,
            int /* negative_acknowledgement_count */) {},
+    .invoke_key_missing_cb = [](RawAddress /* bd_addr */) {},
 };
 
 // This interface lets us query for configuration properties of the stack that
@@ -96,10 +96,10 @@ MockCodecInterface mock_codec_msbcCodec;
 MockCodecInterface mock_codec_lc3Codec;
 
 HACK_ProfileInterface mock_HACK_profile_interface = {
-    .btif_hh_connect = [](const tAclLinkSpec* /* link_spec */) -> bt_status_t {
+    .btif_hh_connect = [](const tAclLinkSpec& /* link_spec */) -> bt_status_t {
       return BT_STATUS_SUCCESS;
     },
-    .btif_hh_virtual_unplug = [](const tAclLinkSpec* /* link_spec */)
+    .btif_hh_virtual_unplug = [](const tAclLinkSpec& /* link_spec */)
         -> bt_status_t { return BT_STATUS_SUCCESS; },
     .bta_hh_read_ssr_param =
         [](const tAclLinkSpec& /* link_spec */, uint16_t* /* p_max_ssr_lat */,

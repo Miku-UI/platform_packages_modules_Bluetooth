@@ -60,7 +60,7 @@ class TestController : public Controller {
   }
 
   void SendCompletedAclPacketsCallback(uint16_t handle, uint16_t credits) {
-    acl_credits_callback_.Invoke(handle, credits);
+    acl_credits_callback_(handle, credits);
   }
 
   void UnregisterCompletedAclPacketsCallback() {
@@ -97,8 +97,10 @@ class RoundRobinSchedulerTest : public ::testing::Test {
   }
 
   void sync_handler() {
-    ASSERT(thread_ != nullptr);
-    ASSERT(thread_->GetReactor()->WaitForIdle(2s));
+    log::assert_that(thread_ != nullptr, "assert failed: thread_ != nullptr");
+    log::assert_that(
+        thread_->GetReactor()->WaitForIdle(2s),
+        "assert failed: thread_->GetReactor()->WaitForIdle(2s)");
   }
 
   void EnqueueAclUpEnd(AclConnection::QueueUpEnd* queue_up_end, std::vector<uint8_t> packet) {

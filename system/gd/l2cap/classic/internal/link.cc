@@ -16,6 +16,8 @@
 
 #include "l2cap/classic/internal/link.h"
 
+#include <bluetooth/log.h>
+
 #include <chrono>
 #include <memory>
 
@@ -58,9 +60,9 @@ Link::Link(
           &dynamic_channel_allocator_,
           fixed_service_manager_),
       acl_handle_(acl_connection_->GetHandle()) {
-  ASSERT(l2cap_handler_ != nullptr);
-  ASSERT(acl_connection_ != nullptr);
-  ASSERT(parameter_provider_ != nullptr);
+  log::assert_that(l2cap_handler_ != nullptr, "assert failed: l2cap_handler_ != nullptr");
+  log::assert_that(acl_connection_ != nullptr, "assert failed: acl_connection_ != nullptr");
+  log::assert_that(parameter_provider_ != nullptr, "assert failed: parameter_provider_ != nullptr");
   link_idle_disconnect_alarm_.Schedule(common::BindOnce(&Link::Disconnect, common::Unretained(this)),
                                        parameter_provider_->GetClassicLinkIdleDisconnectTimeout());
   acl_connection_->RegisterCallbacks(this, l2cap_handler_);
@@ -152,17 +154,17 @@ void Link::SendConnectionRequest(Psm psm, Cid local_cid,
       !remote_extended_feature_received_) {
     pending_dynamic_psm_list_.push_back(psm);
     pending_dynamic_channel_callback_list_.push_back(std::move(pending_dynamic_channel_connection));
-    LOG_INFO("Will connect after information response ERTM feature support is received");
+    log::info("Will connect after information response ERTM feature support is received");
     dynamic_channel_allocator_.FreeChannel(local_cid);
     return;
   } else if (pending_dynamic_channel_connection.configuration_.channel_mode ==
                  RetransmissionAndFlowControlMode::ENHANCED_RETRANSMISSION &&
              !GetRemoteSupportsErtm()) {
-    LOG_WARN("Remote doesn't support ERTM. Dropping connection request");
+    log::warn("Remote doesn't support ERTM. Dropping connection request");
     ConnectionResult result{
         .connection_result_code = ConnectionResultCode::FAIL_REMOTE_NOT_SUPPORT,
     };
-    pending_dynamic_channel_connection.on_fail_callback_.Invoke(result);
+    pending_dynamic_channel_connection.on_fail_callback_(result);
     dynamic_channel_allocator_.FreeChannel(local_cid);
     return;
   } else {
@@ -177,7 +179,9 @@ void Link::SetChannelTxPriority(Cid local_cid, bool high_priority) {
 
 void Link::SetPendingDynamicChannels(std::list<Psm> psm_list,
                                      std::list<Link::PendingDynamicChannelConnection> callback_list) {
-  ASSERT(psm_list.size() == callback_list.size());
+  log::assert_that(
+      psm_list.size() == callback_list.size(),
+      "assert failed: psm_list.size() == callback_list.size()");
   pending_dynamic_psm_list_ = std::move(psm_list);
   pending_dynamic_channel_callback_list_ = std::move(callback_list);
 }
@@ -243,8 +247,11 @@ std::shared_ptr<l2cap::internal::DynamicChannelImpl> Link::AllocateReservedDynam
 }
 
 classic::DynamicChannelConfigurationOption Link::GetConfigurationForInitialConfiguration(Cid cid) {
-  ASSERT(local_cid_to_pending_dynamic_channel_connection_map_.find(cid) !=
-         local_cid_to_pending_dynamic_channel_connection_map_.end());
+  log::assert_that(
+      local_cid_to_pending_dynamic_channel_connection_map_.find(cid) !=
+          local_cid_to_pending_dynamic_channel_connection_map_.end(),
+      "assert failed: local_cid_to_pending_dynamic_channel_connection_map_.find(cid) != "
+      "local_cid_to_pending_dynamic_channel_connection_map_.end()");
   return local_cid_to_pending_dynamic_channel_connection_map_[cid].configuration_;
 }
 
@@ -263,7 +270,7 @@ void Link::RefreshRefCount() {
   if (used_by_security_module_) {
     ref_count += 1;
   }
-  ASSERT_LOG(ref_count >= 0, "ref_count %d is less than 0", ref_count);
+  log::assert_that(ref_count >= 0, "ref_count {} is less than 0", ref_count);
   if (ref_count > 0) {
     link_idle_disconnect_alarm_.Cancel();
   } else {
@@ -273,18 +280,24 @@ void Link::RefreshRefCount() {
 }
 
 void Link::NotifyChannelCreation(Cid cid, std::unique_ptr<DynamicChannel> user_channel) {
-  ASSERT(local_cid_to_pending_dynamic_channel_connection_map_.find(cid) !=
-         local_cid_to_pending_dynamic_channel_connection_map_.end());
+  log::assert_that(
+      local_cid_to_pending_dynamic_channel_connection_map_.find(cid) !=
+          local_cid_to_pending_dynamic_channel_connection_map_.end(),
+      "assert failed: local_cid_to_pending_dynamic_channel_connection_map_.find(cid) != "
+      "local_cid_to_pending_dynamic_channel_connection_map_.end()");
   auto& pending_dynamic_channel_connection = local_cid_to_pending_dynamic_channel_connection_map_[cid];
-  pending_dynamic_channel_connection.on_open_callback_.Invoke(std::move(user_channel));
+  pending_dynamic_channel_connection.on_open_callback_(std::move(user_channel));
   local_cid_to_pending_dynamic_channel_connection_map_.erase(cid);
 }
 
 void Link::NotifyChannelFail(Cid cid, ConnectionResult result) {
-  ASSERT(local_cid_to_pending_dynamic_channel_connection_map_.find(cid) !=
-         local_cid_to_pending_dynamic_channel_connection_map_.end());
+  log::assert_that(
+      local_cid_to_pending_dynamic_channel_connection_map_.find(cid) !=
+          local_cid_to_pending_dynamic_channel_connection_map_.end(),
+      "assert failed: local_cid_to_pending_dynamic_channel_connection_map_.find(cid) != "
+      "local_cid_to_pending_dynamic_channel_connection_map_.end()");
   auto& pending_dynamic_channel_connection = local_cid_to_pending_dynamic_channel_connection_map_[cid];
-  pending_dynamic_channel_connection.on_fail_callback_.Invoke(result);
+  pending_dynamic_channel_connection.on_fail_callback_(result);
   local_cid_to_pending_dynamic_channel_connection_map_.erase(cid);
 }
 
@@ -313,7 +326,7 @@ void Link::OnRemoteExtendedFeatureReceived(bool ertm_supported, bool fcs_support
 }
 
 void Link::OnConnectionPacketTypeChanged(uint16_t packet_type) {
-  LOG_INFO("UNIMPLEMENTED %s packet_type:%x", __func__, packet_type);
+  log::info("UNIMPLEMENTED packet_type:{:x}", packet_type);
 }
 
 void Link::OnAuthenticationComplete(hci::ErrorCode hci_status) {
@@ -333,7 +346,7 @@ void Link::OnEncryptionChange(hci::EncryptionEnabled enabled) {
 }
 
 void Link::OnChangeConnectionLinkKeyComplete() {
-  LOG_INFO("UNIMPLEMENTED %s", __func__);
+  log::info("UNIMPLEMENTED");
 }
 
 void Link::OnReadClockOffsetComplete(uint16_t clock_offset) {
@@ -361,10 +374,10 @@ void Link::OnSniffSubrating(
 
 void Link::OnQosSetupComplete(hci::ServiceType service_type, uint32_t token_rate, uint32_t peak_bandwidth,
                               uint32_t latency, uint32_t delay_variation) {
-  LOG_INFO(
-      "UNIMPLEMENTED %s service_type:%s token_rate:%d peak_bandwidth:%d latency:%d delay_varitation:%d",
-      __func__,
-      hci::ServiceTypeText(service_type).c_str(),
+  log::info(
+      "UNIMPLEMENTED service_type:{} token_rate:{} peak_bandwidth:{} latency:{} "
+      "delay_varitation:{}",
+      hci::ServiceTypeText(service_type),
       token_rate,
       peak_bandwidth,
       latency,
@@ -373,53 +386,52 @@ void Link::OnQosSetupComplete(hci::ServiceType service_type, uint32_t token_rate
 void Link::OnFlowSpecificationComplete(hci::FlowDirection flow_direction, hci::ServiceType service_type,
                                        uint32_t token_rate, uint32_t token_bucket_size, uint32_t peak_bandwidth,
                                        uint32_t access_latency) {
-  LOG_INFO(
-      "UNIMPLEMENTED %s flow_direction:%s service_type:%s token_rate:%d token_bucket_size:%d peak_bandwidth:%d "
-      "access_latency:%d",
-      __func__,
-      hci::FlowDirectionText(flow_direction).c_str(),
-      hci::ServiceTypeText(service_type).c_str(),
+  log::info(
+      "UNIMPLEMENTED flow_direction:{} service_type:{} token_rate:{} token_bucket_size:{} "
+      "peak_bandwidth:{} access_latency:{}",
+      hci::FlowDirectionText(flow_direction),
+      hci::ServiceTypeText(service_type),
       token_rate,
       token_bucket_size,
       peak_bandwidth,
       access_latency);
 }
 void Link::OnFlushOccurred() {
-  LOG_INFO("UNIMPLEMENTED %s", __func__);
+  log::info("UNIMPLEMENTED");
 }
 void Link::OnRoleDiscoveryComplete(hci::Role current_role) {
   role_ = current_role;
 }
 void Link::OnReadLinkPolicySettingsComplete(uint16_t link_policy_settings) {
-  LOG_INFO("UNIMPLEMENTED %s link_policy_settings:0x%x", __func__, link_policy_settings);
+  log::info("UNIMPLEMENTED link_policy_settings:0x{:x}", link_policy_settings);
 }
 void Link::OnReadAutomaticFlushTimeoutComplete(uint16_t flush_timeout) {
-  LOG_INFO("UNIMPLEMENTED %s flush_timeout:%d", __func__, flush_timeout);
+  log::info("UNIMPLEMENTED flush_timeout:{}", flush_timeout);
 }
 void Link::OnReadTransmitPowerLevelComplete(uint8_t transmit_power_level) {
-  LOG_INFO("UNIMPLEMENTED %s transmit_power_level:%d", __func__, transmit_power_level);
+  log::info("UNIMPLEMENTED transmit_power_level:{}", transmit_power_level);
 }
 void Link::OnReadLinkSupervisionTimeoutComplete(uint16_t link_supervision_timeout) {
-  LOG_INFO("UNIMPLEMENTED %s link_supervision_timeout:%d", __func__, link_supervision_timeout);
+  log::info("UNIMPLEMENTED link_supervision_timeout:{}", link_supervision_timeout);
 }
 void Link::OnReadFailedContactCounterComplete(uint16_t failed_contact_counter) {
-  LOG_INFO("UNIMPLEMENTED %sfailed_contact_counter:%hu", __func__, failed_contact_counter);
+  log::info("UNIMPLEMENTED failed_contact_counter:{}", failed_contact_counter);
 }
 void Link::OnReadLinkQualityComplete(uint8_t link_quality) {
-  LOG_INFO("UNIMPLEMENTED %s link_quality:%hhu", __func__, link_quality);
+  log::info("UNIMPLEMENTED link_quality:{}", link_quality);
 }
 void Link::OnReadAfhChannelMapComplete(
     hci::AfhMode afh_mode, std::array<uint8_t, 10> /* afh_channel_map */) {
-  LOG_INFO("UNIMPLEMENTED %s afh_mode:%s", __func__, hci::AfhModeText(afh_mode).c_str());
+  log::info("UNIMPLEMENTED afh_mode:{}", hci::AfhModeText(afh_mode));
 }
 void Link::OnReadRssiComplete(uint8_t rssi) {
-  LOG_INFO("UNIMPLEMENTED %s rssi:%hhd", __func__, rssi);
+  log::info("UNIMPLEMENTED rssi:{}", rssi);
 }
 void Link::OnReadClockComplete(uint32_t clock, uint16_t accuracy) {
-  LOG_INFO("UNIMPLEMENTED %s clock:%u accuracy:%hu", __func__, clock, accuracy);
+  log::info("UNIMPLEMENTED clock:{} accuracy:{}", clock, accuracy);
 }
 void Link::OnCentralLinkKeyComplete(hci::KeyFlag key_flag) {
-  LOG_INFO("UNIMPLEMENTED key_flag:%s", hci::KeyFlagText(key_flag).c_str());
+  log::info("UNIMPLEMENTED key_flag:{}", hci::KeyFlagText(key_flag));
 }
 void Link::OnRoleChange(hci::ErrorCode hci_status, hci::Role new_role) {
   role_ = new_role;
@@ -431,9 +443,9 @@ void Link::OnDisconnection(hci::ErrorCode reason) {
 }
 void Link::OnReadRemoteVersionInformationComplete(
     hci::ErrorCode hci_status, uint8_t lmp_version, uint16_t manufacturer_name, uint16_t sub_version) {
-  LOG_INFO(
-      "UNIMPLEMENTED hci_status:%s lmp_version:%hhu manufacturer_name:%hu sub_version:%hu",
-      ErrorCodeText(hci_status).c_str(),
+  log::info(
+      "UNIMPLEMENTED hci_status:{} lmp_version:{} manufacturer_name:{} sub_version:{}",
+      ErrorCodeText(hci_status),
       lmp_version,
       manufacturer_name,
       sub_version);
@@ -441,13 +453,16 @@ void Link::OnReadRemoteVersionInformationComplete(
       hci_status, GetDevice().GetAddress(), lmp_version, manufacturer_name, sub_version);
 }
 void Link::OnReadRemoteSupportedFeaturesComplete(uint64_t features) {
-  LOG_INFO("page_number:%hhu features:0x%lx", static_cast<uint8_t>(0), static_cast<unsigned long>(features));
+  log::info(
+      "page_number:{} features:0x{:x}",
+      static_cast<uint8_t>(0),
+      static_cast<unsigned long>(features));
   link_manager_->OnReadRemoteSupportedFeatures(GetDevice().GetAddress(), features);
 }
 
 void Link::OnReadRemoteExtendedFeaturesComplete(uint8_t page_number, uint8_t max_page_number, uint64_t features) {
-  LOG_INFO(
-      "page_number:%hhu max_page_number:%hhu features:0x%lx",
+  log::info(
+      "page_number:{} max_page_number:{} features:0x{:x}",
       page_number,
       max_page_number,
       static_cast<unsigned long>(features));

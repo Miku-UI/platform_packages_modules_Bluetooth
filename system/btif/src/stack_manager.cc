@@ -19,11 +19,13 @@
 #define LOG_TAG "bt_stack_manager"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 
 #include <cstdlib>
 #include <cstring>
 
+#include "bta/include/bta_ras_api.h"
 #include "btcore/include/module.h"
 #include "btcore/include/osi_module.h"
 #include "btif/include/stack_manager_t.h"
@@ -31,7 +33,6 @@
 #include "btif_common.h"
 #include "common/message_loop_thread.h"
 #include "core_callbacks.h"
-#include "include/check.h"
 #include "main/shim/shim.h"
 #include "os/log.h"
 #include "stack/include/acl_api.h"
@@ -61,7 +62,6 @@
 #include "bta/dm/bta_dm_int.h"
 #include "device/include/interop.h"
 #include "internal_include/stack_config.h"
-#include "main/shim/controller.h"
 #include "rust/src/core/ffi/module.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/include/smp_api.h"
@@ -193,9 +193,7 @@ static bool get_stack_is_running() { return stack_is_running; }
 
 // Internal functions
 extern const module_t bt_utils_module;
-extern const module_t bte_logmsg_module;
 extern const module_t btif_config_module;
-extern const module_t gd_controller_module;
 extern const module_t gd_shim_module;
 extern const module_t interop_module;
 extern const module_t osi_module;
@@ -209,9 +207,7 @@ struct module_lookup {
 };
 
 const struct module_lookup module_table[] = {
-    {BTE_LOGMSG_MODULE, &bte_logmsg_module},
     {BTIF_CONFIG_MODULE, &btif_config_module},
-    {GD_CONTROLLER_MODULE, &gd_controller_module},
     {GD_SHIM_MODULE, &gd_shim_module},
     {INTEROP_MODULE, &interop_module},
     {OSI_MODULE, &osi_module},
@@ -312,14 +308,11 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
 
   bta_sys_init();
 
-  module_init(get_local_module(BTE_LOGMSG_MODULE));
-
   btif_init_ok();
   BTA_dm_init();
   bta_dm_enable(btif_dm_sec_evt, btif_dm_acl_evt);
 
   btm_acl_device_down();
-  CHECK(module_start_up(get_local_module(GD_CONTROLLER_MODULE)));
   BTM_reset_complete();
 
   BTA_dm_on_hw_on();
@@ -332,10 +325,14 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
   }
 
   module_start_up(get_local_module(RUST_MODULE));
+  if (com::android::bluetooth::flags::channel_sounding_in_stack()) {
+    bluetooth::ras::GetRasServer()->Initialize();
+    bluetooth::ras::GetRasClient()->Initialize();
+  }
 
   stack_is_running = true;
   log::info("finished");
-  do_in_jni_thread(FROM_HERE, base::BindOnce(event_signal_stack_up, nullptr));
+  do_in_jni_thread(base::BindOnce(event_signal_stack_up, nullptr));
 }
 
 // Synchronous function to shut down the stack
@@ -373,17 +370,15 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
 
   future_await(local_hack_future);
 
-  module_clean_up(get_local_module(BTE_LOGMSG_MODULE));
-
   gatt_free();
-  l2c_free();
   sdp_free();
+  l2c_free();
   get_btm_client_interface().lifecycle.btm_ble_free();
 
   get_btm_client_interface().lifecycle.btm_free();
 
   hack_future = future_new();
-  do_in_jni_thread(FROM_HERE, base::BindOnce(event_signal_stack_down, nullptr));
+  do_in_jni_thread(base::BindOnce(event_signal_stack_down, nullptr));
   future_await(hack_future);
   log::info("finished");
 }

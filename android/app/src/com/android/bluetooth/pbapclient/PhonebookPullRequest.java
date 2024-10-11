@@ -15,7 +15,6 @@
  */
 package com.android.bluetooth.pbapclient;
 
-import android.accounts.Account;
 import android.content.ContentProviderOperation;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -31,21 +30,16 @@ import java.util.ArrayList;
 
 public class PhonebookPullRequest extends PullRequest {
     private static final String TAG = "PhonebookPullRequest";
-    private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
 
-    @VisibleForTesting
-    static final int MAX_OPS = 250;
+    @VisibleForTesting static final int MAX_OPS = 250;
 
-    private final Account mAccount;
     private final Context mContext;
     public boolean complete = false;
 
-    public PhonebookPullRequest(Context context, Account account) {
+    public PhonebookPullRequest(Context context) {
         mContext = context;
-        mAccount = account;
         path = PbapClientConnectionHandler.PB_PATH;
     }
-
 
     @Override
     public void onPullComplete() {
@@ -53,14 +47,11 @@ public class PhonebookPullRequest extends PullRequest {
             Log.e(TAG, "onPullComplete entries is null.");
             return;
         }
-        if (VDBG) {
-            Log.d(TAG, "onPullComplete with " + mEntries.size() + " count.");
-        }
+        Log.v(TAG, "onPullComplete with " + mEntries.size() + " count.");
 
         try {
             ContentResolver contactsProvider = mContext.getContentResolver();
             ArrayList<ContentProviderOperation> insertOperations = new ArrayList<>();
-            ArrayList<ContentProviderOperation> currentContactOperations;
             // Group insert operations together to minimize inter process communication and improve
             // processing time.
             for (VCardEntry e : mEntries) {
@@ -88,11 +79,9 @@ public class PhonebookPullRequest extends PullRequest {
                 contactsProvider.applyBatch(ContactsContract.AUTHORITY, insertOperations);
                 insertOperations.clear();
             }
-            if (VDBG) {
-                Log.d(TAG, "Sync complete: add=" + mEntries.size());
-            }
+            Log.v(TAG, "Sync complete: add=" + mEntries.size());
         } catch (OperationApplicationException | RemoteException | NumberFormatException e) {
-            Log.e(TAG, "Got exception: ", e);
+            Log.e(TAG, "Exception occurred while processing phonebook pull: ", e);
         } finally {
             complete = true;
         }

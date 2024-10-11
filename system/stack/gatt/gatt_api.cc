@@ -25,18 +25,15 @@
 
 #include "stack/include/gatt_api.h"
 
-#include <base/logging.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <string>
 
-#include "device/include/controller.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
 #include "internal_include/stack_config.h"
 #include "l2c_api.h"
-#include "os/log.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
 #include "rust/src/connection/ffi/connection_shim.h"
@@ -45,8 +42,9 @@
 #include "stack/gatt/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
@@ -58,7 +56,7 @@ using namespace bluetooth;
 using bluetooth::Uuid;
 
 /**
- * Add an service handle range to the list in decending order of the start
+ * Add a service handle range to the list in descending order of the start
  * handle. Return reference to the newly added element.
  **/
 tGATT_HDL_LIST_ELEM& gatt_add_an_item_to_list(uint16_t s_handle) {
@@ -85,7 +83,7 @@ tGATT_HDL_LIST_ELEM& gatt_add_an_item_to_list(uint16_t s_handle) {
  *                  NV save callback function.  There can be one and only one
  *                  NV save callback function.
  *
- * Parameter        p_cb_info : callback informaiton
+ * Parameter        p_cb_info : callback information
  *
  * Returns          true if registered OK, else false
  *
@@ -180,7 +178,7 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
   log::info("");
 
   if (!p_reg) {
-    log::error("Inavlid gatt_if={}", gatt_if);
+    log::error("Invalid gatt_if={}", gatt_if);
     return GATT_INTERNAL_ERROR;
   }
 
@@ -227,10 +225,10 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
 
   gatts_init_service_db(list.svc_db, svc_uuid, is_pri, s_hdl, num_handles);
 
-  log::verbose("handles needed={}, s_hdl={}, e_hdl={}, uuid={}, is_primary={}",
-               num_handles, loghex(list.asgn_range.s_handle),
-               loghex(list.asgn_range.e_handle), list.asgn_range.svc_uuid,
-               list.asgn_range.is_primary);
+  log::verbose(
+      "handles needed={}, s_hdl=0x{:x}, e_hdl=0x{:x}, uuid={}, is_primary={}",
+      num_handles, list.asgn_range.s_handle, list.asgn_range.e_handle,
+      list.asgn_range.svc_uuid, list.asgn_range.is_primary);
 
   service->attribute_handle = s_hdl;
 
@@ -244,14 +242,14 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
            !(el->permissions & GATT_WRITE_SIGNED_PERM)) ||
           ((el->permissions & GATT_WRITE_SIGNED_PERM) &&
            !(el->properties & GATT_CHAR_PROP_BIT_AUTH))) {
-        log::verbose("Invalid configuration property={}, perm={}",
-                     loghex(el->properties), loghex(el->permissions));
+        log::verbose("Invalid configuration property=0x{:x}, perm=0x{:x}",
+                     el->properties, el->permissions);
         return GATT_INTERNAL_ERROR;
       }
 
       if (is_gatt_attr_type(uuid)) {
         log::error(
-            "attept to add characteristic with UUID equal to GATT Attribute "
+            "attempt to add characteristic with UUID equal to GATT Attribute "
             "Type {}",
             uuid);
         return GATT_INTERNAL_ERROR;
@@ -268,7 +266,7 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
     } else if (el->type == BTGATT_DB_DESCRIPTOR) {
       if (is_gatt_attr_type(uuid)) {
         log::error(
-            "attept to add descriptor with UUID equal to GATT Attribute Type "
+            "attempt to add descriptor with UUID equal to GATT Attribute Type "
             "{}",
             uuid);
         return GATT_INTERNAL_ERROR;
@@ -327,9 +325,9 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service,
 
   gatt_update_last_srv_info();
 
-  log::verbose("allocated el s_hdl={}, e_hdl={}, type={}, sdp_hdl={}",
-               loghex(elem.s_hdl), loghex(elem.e_hdl), loghex(elem.type),
-               loghex(elem.sdp_handle));
+  log::verbose(
+      "allocated el s_hdl=0x{:x}, e_hdl=0x{:x}, type=0x{:x}, sdp_hdl=0x{:x}",
+      elem.s_hdl, elem.e_hdl, elem.type, elem.sdp_handle);
 
   gatt_update_for_database_change();
   gatt_proc_srv_chg();
@@ -371,7 +369,7 @@ bool GATTS_DeleteService(tGATT_IF gatt_if, Uuid* p_svc_uuid,
 
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   if (p_reg == NULL) {
-    log::error("Applicaiton not foud");
+    log::error("Application not found");
     return false;
   }
 
@@ -389,9 +387,8 @@ bool GATTS_DeleteService(tGATT_IF gatt_if, Uuid* p_svc_uuid,
   gatt_update_for_database_change();
   gatt_proc_srv_chg();
 
-  log::verbose("released handles s_hdl={}, e_hdl={}",
-               loghex(it->asgn_range.s_handle),
-               loghex(it->asgn_range.e_handle));
+  log::verbose("released handles s_hdl=0x{:x}, e_hdl=0x{:x}",
+               it->asgn_range.s_handle, it->asgn_range.e_handle);
 
   if ((it->asgn_range.s_handle >= gatt_cb.hdl_cfg.app_start_hdl) &&
       gatt_cb.cb_info.p_nv_save_callback)
@@ -413,16 +410,18 @@ bool GATTS_DeleteService(tGATT_IF gatt_if, Uuid* p_svc_uuid,
  *
  ******************************************************************************/
 void GATTS_StopService(uint16_t service_handle) {
-  log::info("service = {}", loghex(service_handle));
+  log::info("service = 0x{:x}", service_handle);
 
   auto it = gatt_sr_find_i_rcb_by_handle(service_handle);
   if (it == gatt_cb.srv_list_info->end()) {
-    log::error("service_handle={} is not in use", loghex(service_handle));
+    log::error("service_handle=0x{:x} is not in use", service_handle);
     return;
   }
 
   if (it->sdp_handle) {
-    get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(it->sdp_handle);
+    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(it->sdp_handle)) {
+      log::warn("Unable to delete record handle:{}", it->sdp_handle);
+    }
   }
 
   gatt_cb.srv_list_info->erase(it);
@@ -440,7 +439,7 @@ void GATTS_StopService(uint16_t service_handle) {
  *                  val_len: Length of the indicated attribute value.
  *                  p_val: Pointer to the indicated attribute value data.
  *
- * Returns          GATT_SUCCESS if sucessfully sent or queued; otherwise error
+ * Returns          GATT_SUCCESS if successfully sent or queued; otherwise error
  *                  code.
  *
  ******************************************************************************/
@@ -453,7 +452,7 @@ tGATT_STATUS GATTS_HandleValueIndication(uint16_t conn_id, uint16_t attr_handle,
 
   log::verbose("");
   if ((p_reg == NULL) || (p_tcb == NULL)) {
-    log::error("Unknown  conn_id={}", loghex(conn_id));
+    log::error("Unknown  conn_id=0x{:x}", conn_id);
     return (tGATT_STATUS)GATT_INVALID_CONN_ID;
   }
 
@@ -493,7 +492,7 @@ tGATT_STATUS GATTS_HandleValueIndication(uint16_t conn_id, uint16_t attr_handle,
 }
 
 #if (GATT_UPPER_TESTER_MULT_VARIABLE_LENGTH_NOTIF == TRUE)
-static tGATT_STATUS GATTS_HandleMultileValueNotification(
+static tGATT_STATUS GATTS_HandleMultipleValueNotification(
     tGATT_TCB* p_tcb, std::vector<tGATT_VALUE> gatt_notif_vector) {
   log::info("");
 
@@ -536,7 +535,7 @@ static tGATT_STATUS GATTS_HandleMultileValueNotification(
  *                  val_len: Length of the indicated attribute value.
  *                  p_val: Pointer to the indicated attribute value data.
  *
- * Returns          GATT_SUCCESS if sucessfully sent; otherwise error code.
+ * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  ******************************************************************************/
 tGATT_STATUS GATTS_HandleValueNotification(uint16_t conn_id,
@@ -593,7 +592,7 @@ tGATT_STATUS GATTS_HandleValueNotification(uint16_t conn_id,
 
       notif.auth_req = GATT_AUTH_REQ_NONE;
 
-      return GATTS_HandleMultileValueNotification(p_tcb, gatt_notif_vector);
+      return GATTS_HandleMultipleValueNotification(p_tcb, gatt_notif_vector);
     }
 
     log::error("PTS Mode: Invalid tcb_idx: {}, cached_tcb_idx: {}", tcb_idx,
@@ -635,7 +634,7 @@ tGATT_STATUS GATTS_HandleValueNotification(uint16_t conn_id,
  *                  status: response status
  *                  p_msg: pointer to message parameters structure.
  *
- * Returns          GATT_SUCCESS if sucessfully sent; otherwise error code.
+ * Returns          GATT_SUCCESS if successfully sent; otherwise error code.
  *
  ******************************************************************************/
 tGATT_STATUS GATTS_SendRsp(uint16_t conn_id, uint32_t trans_id,
@@ -645,18 +644,18 @@ tGATT_STATUS GATTS_SendRsp(uint16_t conn_id, uint32_t trans_id,
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
 
-  log::verbose("conn_id={}, trans_id={}, status={}", loghex(conn_id),
-               loghex(trans_id), loghex(static_cast<uint8_t>(status)));
+  log::verbose("conn_id=0x{:x}, trans_id=0x{:x}, status=0x{:x}", conn_id,
+               trans_id, static_cast<uint8_t>(status));
 
   if ((p_reg == NULL) || (p_tcb == NULL)) {
-    log::error("Unknown  conn_id={}", loghex(conn_id));
+    log::error("Unknown  conn_id=0x{:x}", conn_id);
     return (tGATT_STATUS)GATT_INVALID_CONN_ID;
   }
 
   tGATT_SR_CMD* sr_res_p = gatt_sr_get_cmd_by_trans_id(p_tcb, trans_id);
 
   if (!sr_res_p) {
-    log::error("conn_id={} waiting for other op_code ", loghex(conn_id));
+    log::error("conn_id=0x{:x} waiting for other op_code", conn_id);
     return (GATT_WRONG_STATE);
   }
 
@@ -742,7 +741,7 @@ tGATT_STATUS GATTC_ConfigureMTU(uint16_t conn_id, uint16_t mtu) {
  * Function         GATTC_TryMtuRequest
  *
  * Description      This function shall be called before calling
- *                  GATTC_ConfgureMTU in order to check if operation is
+ *                  GATTC_ConfigureMTU in order to check if operation is
  *                  available to do.
  *
  * Parameters        remote_bda : peer device address. (input)
@@ -767,19 +766,17 @@ tGATTC_TryMtuRequestResult GATTC_TryMtuRequest(const RawAddress& remote_bda,
                                                tBT_TRANSPORT transport,
                                                uint16_t conn_id,
                                                uint16_t* current_mtu) {
-  log::info("{} conn_id=0x{:04x}", remote_bda.ToString(), conn_id);
+  log::info("{} conn_id=0x{:04x}", remote_bda, conn_id);
   *current_mtu = GATT_DEF_BLE_MTU_SIZE;
 
   if (transport == BT_TRANSPORT_BR_EDR) {
-    log::error("Device {} connected over BR/EDR",
-               ADDRESS_TO_LOGGABLE_CSTR(remote_bda));
+    log::error("Device {} connected over BR/EDR", remote_bda);
     return MTU_EXCHANGE_NOT_ALLOWED;
   }
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, transport);
   if (!p_tcb) {
-    log::error("Device {} is not connected ",
-               ADDRESS_TO_LOGGABLE_CSTR(remote_bda));
+    log::error("Device {} is not connected", remote_bda);
     return MTU_EXCHANGE_DEVICE_DISCONNECTED;
   }
 
@@ -794,8 +791,7 @@ tGATTC_TryMtuRequestResult GATTC_TryMtuRequest(const RawAddress& remote_bda,
 
   uint16_t mtu = gatt_get_mtu(remote_bda, transport);
   if (mtu == GATT_DEF_BLE_MTU_SIZE || mtu == 0) {
-    log::debug("MTU not yet updated for {}",
-               ADDRESS_TO_LOGGABLE_CSTR(remote_bda));
+    log::debug("MTU not yet updated for {}", remote_bda);
     return MTU_EXCHANGE_NOT_DONE_YET;
   }
 
@@ -819,16 +815,15 @@ tGATTC_TryMtuRequestResult GATTC_TryMtuRequest(const RawAddress& remote_bda,
 void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda,
                                     tBT_TRANSPORT transport,
                                     uint16_t user_mtu) {
-  log::info("{}, mtu={}", ADDRESS_TO_LOGGABLE_CSTR(remote_bda), user_mtu);
+  log::info("{}, mtu={}", remote_bda, user_mtu);
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, transport);
   if (!p_tcb) {
     log::warn("Transport control block not found");
     return;
   }
 
-  log::info("{}, current mtu: {}, max_user_mtu:{}, user_mtu: {}",
-            ADDRESS_TO_LOGGABLE_CSTR(remote_bda), p_tcb->payload_size,
-            p_tcb->max_user_mtu, user_mtu);
+  log::info("{}, current mtu: {}, max_user_mtu:{}, user_mtu: {}", remote_bda,
+            p_tcb->payload_size, p_tcb->max_user_mtu, user_mtu);
 
   if (p_tcb->payload_size < user_mtu) {
     log::info("User requested more than what GATT can handle. Trim it.");
@@ -881,8 +876,8 @@ tGATT_STATUS GATTC_Discover(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
   if ((p_tcb == NULL) || (p_reg == NULL) || (disc_type >= GATT_DISC_MAX)) {
-    log::error("Illegal param: disc_type={} conn_id={}", disc_type,
-               loghex(conn_id));
+    log::error("Illegal param: disc_type={} conn_id=0x{:x}", disc_type,
+               conn_id);
     return GATT_ILLEGAL_PARAMETER;
   }
 
@@ -891,16 +886,18 @@ tGATT_STATUS GATTC_Discover(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
       /* search by type does not have a valid UUID param */
       (disc_type == GATT_DISC_SRVC_BY_UUID && uuid.IsEmpty())) {
     log::warn(
-        "Illegal parameter conn_id={}, disc_type={}, s_handle={}, e_handle={}",
-        loghex(conn_id), disc_type, loghex(start_handle), loghex(end_handle));
+        "Illegal parameter conn_id=0x{:x}, disc_type={}, s_handle=0x{:x}, "
+        "e_handle=0x{:x}",
+        conn_id, disc_type, start_handle, end_handle);
     return GATT_ILLEGAL_PARAMETER;
   }
 
   tGATT_CLCB* p_clcb = gatt_clcb_alloc(conn_id);
   if (!p_clcb) {
-    log::warn("No resources conn_id={}, disc_type={}, s_handle={}, e_handle={}",
-              loghex(conn_id), disc_type, loghex(start_handle),
-              loghex(end_handle));
+    log::warn(
+        "No resources conn_id=0x{:x}, disc_type={}, s_handle=0x{:x}, "
+        "e_handle=0x{:x}",
+        conn_id, disc_type, start_handle, end_handle);
     return GATT_NO_RESOURCES;
   }
 
@@ -910,9 +907,8 @@ tGATT_STATUS GATTC_Discover(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
   p_clcb->e_handle = end_handle;
   p_clcb->uuid = uuid;
 
-  log::info("conn_id={}, disc_type={}, s_handle={}, e_handle={}",
-            loghex(conn_id), disc_type, loghex(start_handle),
-            loghex(end_handle));
+  log::info("conn_id=0x{:x}, disc_type={}, s_handle=0x{:x}, e_handle=0x{:x}",
+            conn_id, disc_type, start_handle, end_handle);
 
   gatt_act_discovery(p_clcb);
   return GATT_SUCCESS;
@@ -949,12 +945,11 @@ tGATT_STATUS GATTC_Read(uint16_t conn_id, tGATT_READ_TYPE type,
   static int cached_tcb_idx = -1;
 #endif
 
-  log::verbose("conn_id={}, type={}", loghex(conn_id), loghex(type));
+  log::verbose("conn_id=0x{:x}, type=0x{:x}", conn_id, type);
 
   if ((p_tcb == NULL) || (p_reg == NULL) || (p_read == NULL) ||
       ((type >= GATT_READ_MAX) || (type == 0))) {
-    log::error("illegal param: conn_id={}, type={}", loghex(conn_id),
-               loghex(type));
+    log::error("illegal param: conn_id=0x{:x}, type=0x{:x}", conn_id, type);
     return GATT_ILLEGAL_PARAMETER;
   }
 
@@ -1056,8 +1051,7 @@ tGATT_STATUS GATTC_Write(uint16_t conn_id, tGATT_WRITE_TYPE type,
   if ((p_tcb == NULL) || (p_reg == NULL) || (p_write == NULL) ||
       ((type != GATT_WRITE) && (type != GATT_WRITE_PREPARE) &&
        (type != GATT_WRITE_NO_RSP))) {
-    log::error("Illegal param: conn_id={}, type={}", loghex(conn_id),
-               loghex(type));
+    log::error("Illegal param: conn_id=0x{:x}, type=0x{:x}", conn_id, type);
     return GATT_ILLEGAL_PARAMETER;
   }
 
@@ -1102,10 +1096,10 @@ tGATT_STATUS GATTC_ExecuteWrite(uint16_t conn_id, bool is_execute) {
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
 
-  log::verbose("conn_id={}, is_execute={}", loghex(conn_id), is_execute);
+  log::verbose("conn_id=0x{:x}, is_execute={}", conn_id, is_execute);
 
   if ((p_tcb == NULL) || (p_reg == NULL)) {
-    log::error(" Illegal param: conn_id={}", loghex(conn_id));
+    log::error("Illegal param: conn_id=0x{:x}", conn_id);
     return GATT_ILLEGAL_PARAMETER;
   }
 
@@ -1137,12 +1131,12 @@ tGATT_STATUS GATTC_SendHandleValueConfirm(uint16_t conn_id, uint16_t cid) {
 
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(GATT_GET_TCB_IDX(conn_id));
   if (!p_tcb) {
-    log::error("Unknown conn_id={}", loghex(conn_id));
+    log::error("Unknown conn_id=0x{:x}", conn_id);
     return GATT_ILLEGAL_PARAMETER;
   }
 
   if (p_tcb->ind_count == 0) {
-    log::info("conn_id: 0x{:04x} ignored not waiting for indicaiton ack",
+    log::info("conn_id: 0x{:04x} ignored not waiting for indication ack",
               conn_id);
     return GATT_SUCCESS;
   }
@@ -1168,7 +1162,7 @@ tGATT_STATUS GATTC_SendHandleValueConfirm(uint16_t conn_id, uint16_t cid) {
  * Function         GATT_SetIdleTimeout
  *
  * Description      This function (common to both client and server) sets the
- *                  idle timeout for a tansport connection
+ *                  idle timeout for a transport connection
  *
  * Parameter        bd_addr:   target device bd address.
  *                  idle_tout: timeout value in seconds.
@@ -1195,8 +1189,12 @@ void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout,
     }
 
     if (idle_tout == GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP) {
-      L2CA_SetIdleTimeoutByBdAddr(
-          p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP, BT_TRANSPORT_LE);
+      if (!L2CA_SetIdleTimeoutByBdAddr(p_tcb->peer_bda,
+                                       GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP,
+                                       BT_TRANSPORT_LE)) {
+        log::warn("Unable to set L2CAP link idle timeout peer:{} transport:{}",
+                  p_tcb->peer_bda, bt_transport_text(transport));
+      }
     }
   }
 
@@ -1267,13 +1265,13 @@ tGATT_IF GATT_Register(const Uuid& app_uuid128, const std::string& name,
  *
  * Description      This function deregistered the application from GATT.
  *
- * Parameters       gatt_if: applicaiton interface.
+ * Parameters       gatt_if: application interface.
  *
  * Returns          None.
  *
  ******************************************************************************/
 void GATT_Deregister(tGATT_IF gatt_if) {
-  log::info("gatt_if={}", +gatt_if);
+  log::info("gatt_if={}", gatt_if);
 
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   /* Index 0 is GAP and is never deregistered */
@@ -1283,9 +1281,9 @@ void GATT_Deregister(tGATT_IF gatt_if) {
   }
 
   /* stop all services  */
-  /* todo an applcaiton can not be deregistered if its services is also used by
+  /* todo an application can not be deregistered if its services is also used by
     other application
-    deregisteration need to bed performed in an orderly fashion
+    deregistration need to be performed in an orderly fashion
     no check for now */
   for (auto it = gatt_cb.srv_list_info->begin();
        it != gatt_cb.srv_list_info->end();) {
@@ -1341,7 +1339,7 @@ void GATT_Deregister(tGATT_IF gatt_if) {
  *                  receiving callbacks for registered interface.  Function may
  *                  call back with connection status and queued notifications
  *
- * Parameter        gatt_if: applicaiton interface.
+ * Parameter        gatt_if: application interface.
  *
  * Returns          None.
  *
@@ -1363,7 +1361,7 @@ void GATT_StartIf(tGATT_IF gatt_if) {
         gatt_find_the_connected_bda(start_idx, bda, &found_idx, &transport)) {
       p_tcb = gatt_find_tcb_by_addr(bda, transport);
       log::info("GATT interface {} already has connected device {}", gatt_if,
-                ADDRESS_TO_LOGGABLE_CSTR(bda));
+                bda);
       if (p_reg->app_cb.p_conn_cb && p_tcb) {
         conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, gatt_if);
         log::info("Invoking callback with connection id {}", conn_id);
@@ -1381,12 +1379,12 @@ void GATT_StartIf(tGATT_IF gatt_if) {
  *
  * Function         GATT_Connect
  *
- * Description      This function initiate a connecttion to a remote device on
+ * Description      This function initiate a connection to a remote device on
  *                  GATT channel.
  *
- * Parameters       gatt_if: applicaiton interface
+ * Parameters       gatt_if: application interface
  *                  bd_addr: peer device address.
- *                  connection_type: is a direct conenection or a background
+ *                  connection_type: is a direct connection or a background
  *                  auto connection or targeted announcements
  *
  * Returns          true if connection started; false if connection start
@@ -1396,7 +1394,8 @@ void GATT_StartIf(tGATT_IF gatt_if) {
 bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
                   tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport,
                   bool opportunistic) {
-  uint8_t phy = controller_get_interface()->get_le_all_initiating_phys();
+  constexpr uint8_t kPhyLe1M = 0x01;  // From the old controller shim.
+  uint8_t phy = kPhyLe1M;
   return GATT_Connect(gatt_if, bd_addr, connection_type, transport,
                       opportunistic, phy);
 }
@@ -1427,23 +1426,40 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
 
   bool ret = false;
   if (is_direct) {
-    log::debug("Starting direct connect gatt_if={} address={}", gatt_if,
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
-    ret =
-        gatt_act_connect(p_reg, bd_addr, addr_type, transport, initiating_phys);
+    log::debug("Starting direct connect gatt_if={} address={} transport={}", gatt_if, bd_addr,
+               transport);
+    bool tcb_exist = !!gatt_find_tcb_by_addr(bd_addr, transport);
+
+    if (!com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix() || tcb_exist ||
+        transport == BT_TRANSPORT_BR_EDR) {
+      /* Consider to remove gatt_act_connect at all */
+      ret = gatt_act_connect(p_reg, bd_addr, addr_type, transport,
+                             initiating_phys);
+    } else {
+      log::verbose("Connecting without tcb address: {}", bd_addr);
+
+      if (p_reg->direct_connect_request.count(bd_addr) == 0) {
+        p_reg->direct_connect_request.insert(bd_addr);
+      } else {
+        log::warn("{} already added to gatt_if {} direct conn list", bd_addr,
+                  gatt_if);
+      }
+
+      ret = acl_create_le_connection_with_id(gatt_if, bd_addr, addr_type);
+    }
+
   } else {
     log::debug("Starting background connect gatt_if={} address={}", gatt_if,
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+               bd_addr);
     if (!BTM_Sec_AddressKnown(bd_addr)) {
       //  RPA can rotate, causing address to "expire" in the background
       //  connection list. RPA is allowed for direct connect, as such request
       //  times out after 30 seconds
       log::warn("Unable to add RPA {} to background connection gatt_if={}",
-                ADDRESS_TO_LOGGABLE_CSTR(bd_addr), gatt_if);
+                bd_addr, gatt_if);
       ret = false;
     } else {
-      log::debug("Adding to background connect to device:{}",
-                 ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+      log::debug("Adding to background connect to device:{}", bd_addr);
       if (bluetooth::common::init_flags::
               use_unified_connection_manager_is_enabled()) {
         if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
@@ -1483,6 +1499,15 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
 }
 
 bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
+                  tBLE_ADDR_TYPE addr_type, tBTM_BLE_CONN_TYPE connection_type,
+                  tBT_TRANSPORT transport, bool opportunistic) {
+  constexpr uint8_t kPhyLe1M = 0x01;  // From the old controller shim.
+  uint8_t phy = kPhyLe1M;
+  return GATT_Connect(gatt_if, bd_addr, addr_type, connection_type, transport,
+                      opportunistic, phy);
+}
+
+bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
                   tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport,
                   bool opportunistic, uint8_t initiating_phys) {
   return GATT_Connect(gatt_if, bd_addr, BLE_ADDR_PUBLIC, connection_type,
@@ -1493,7 +1518,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
  *
  * Function         GATT_CancelConnect
  *
- * Description      This function terminate the connection initaition to a
+ * Description      This function terminates the connection initiation to a
  *                  remote device on GATT channel.
  *
  * Parameters       gatt_if: client interface. If 0 used as unconditionally
@@ -1506,8 +1531,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
  ******************************************************************************/
 bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr,
                         bool is_direct) {
-  log::info("gatt_if:{}, address: {}, direct:{}", gatt_if,
-            ADDRESS_TO_LOGGABLE_CSTR(bd_addr), is_direct);
+  log::info("gatt_if:{}, address: {}, direct:{}", gatt_if, bd_addr, is_direct);
 
   tGATT_REG* p_reg;
   if (gatt_if) {
@@ -1524,7 +1548,7 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr,
     }
   }
 
-  log::verbose(" unconditional");
+  log::verbose("unconditional");
 
   /* only LE connection can be cancelled */
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, BT_TRANSPORT_LE);
@@ -1590,10 +1614,10 @@ tGATT_STATUS GATT_Disconnect(uint16_t conn_id) {
  *                  and application interface
  *
  * Parameters        conn_id: connection id  (input)
- *                   p_gatt_if: applicaiton interface (output)
+ *                   p_gatt_if: application interface (output)
  *                   bd_addr: peer device address. (output)
  *
- * Returns          true the ligical link information is found for conn_id
+ * Returns          true the logical link information is found for conn_id
  *
  ******************************************************************************/
 bool GATT_GetConnectionInfor(uint16_t conn_id, tGATT_IF* p_gatt_if,
@@ -1603,7 +1627,7 @@ bool GATT_GetConnectionInfor(uint16_t conn_id, tGATT_IF* p_gatt_if,
   uint8_t tcb_idx = GATT_GET_TCB_IDX(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
 
-  log::verbose("conn_id={}", loghex(conn_id));
+  log::verbose("conn_id=0x{:x}", conn_id);
 
   if (!p_tcb || !p_reg) return false;
 
@@ -1617,10 +1641,10 @@ bool GATT_GetConnectionInfor(uint16_t conn_id, tGATT_IF* p_gatt_if,
  *
  * Function         GATT_GetConnIdIfConnected
  *
- * Description      This function find the conn_id if the logical link for BD
- *                  address and applciation interface is connected
+ * Description      This function finds the conn_id if the logical link for BD
+ *                  address and application interface is connected
  *
- * Parameters        gatt_if: applicaiton interface (input)
+ * Parameters        gatt_if: application interface (input)
  *                   bd_addr: peer device address. (input)
  *                   p_conn_id: connection id  (output)
  *                   transport: transport option
@@ -1662,7 +1686,7 @@ static bool gatt_load_bonded_is_enabled() {
 
 /* Initialize GATTS list of bonded device service change updates.
  *
- * Addresses for bonded devices (publict for BR/EDR or pseudo for BLE) are added
+ * Addresses for bonded devices (public for BR/EDR or pseudo for BLE) are added
  * to GATTS service change control list so that updates are sent to bonded
  * devices on next connect after any handles for GATTS services change due to
  * services added/removed.
@@ -1675,13 +1699,11 @@ void gatt_load_bonded(void) {
   }
   for (tBTM_SEC_DEV_REC* p_dev_rec : btm_get_sec_dev_rec()) {
     if (p_dev_rec->sec_rec.is_link_key_known()) {
-      log::verbose("Add bonded BR/EDR transport {}",
-                   ADDRESS_TO_LOGGABLE_CSTR(p_dev_rec->bd_addr));
+      log::verbose("Add bonded BR/EDR transport {}", p_dev_rec->bd_addr);
       gatt_bonded_check_add_address(p_dev_rec->bd_addr);
     }
     if (p_dev_rec->sec_rec.is_le_link_key_known()) {
-      log::verbose("Add bonded BLE {}",
-                   ADDRESS_TO_LOGGABLE_CSTR(p_dev_rec->ble.pseudo_addr));
+      log::verbose("Add bonded BLE {}", p_dev_rec->ble.pseudo_addr);
       gatt_bonded_check_add_address(p_dev_rec->ble.pseudo_addr);
     }
   }

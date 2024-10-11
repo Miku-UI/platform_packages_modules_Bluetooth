@@ -1,0 +1,22 @@
+package: "com.android.bluetooth.flags"
+container: "com.android.btservices"
+
+flag {
+    name: "randomize_device_level_media_ids"
+    namespace: "bluetooth"
+    description: "Randomize the media id of device level nodes in our browse tree by attaching a randomized string after the UUID, each time a device connects"
+    bug: "332367017"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "uncache_player_when_browsed_player_changes"
+    namespace: "bluetooth"
+    description: "Uncache media player items when changing to a new player so updated player contents can be fetched if we change back to the previous player"
+    bug: "337259487"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

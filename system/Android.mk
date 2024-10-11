@@ -14,7 +14,6 @@ LOCAL_cert_test_sources := \
 
 LOCAL_host_executables := \
 	$(HOST_OUT_EXECUTABLES)/bluetooth_stack_with_facade \
-	$(HOST_OUT_EXECUTABLES)/bluetooth_with_facades \
 	$(HOST_OUT_EXECUTABLES)/bt_topshim_facade \
 	$(HOST_OUT_EXECUTABLES)/root-canal
 
@@ -23,9 +22,6 @@ LOCAL_host_python_hci_packets_library := \
 
 LOCAL_host_python_smp_packets_library := \
 	$(SOONG_OUT_DIR)/.intermediates/packages/modules/Bluetooth/system/pdl/security/gd_smp_packets_python3_gen/gen/smp_packets.py
-
-LOCAL_host_python_extension_libraries := \
-	$(HOST_OUT_SHARED_LIBRARIES)/bluetooth_packets_python3.so
 
 LOCAL_host_libraries := \
 	$(HOST_OUT_SHARED_LIBRARIES)/libbase.so \
@@ -70,7 +66,6 @@ LOCAL_target_libraries := \
 	$(TARGET_OUT_SHARED_LIBRARIES)/liblzma.so \
 	$(TARGET_OUT_SHARED_LIBRARIES)/libprotobuf-cpp-full.so \
 	$(TARGET_OUT_SHARED_LIBRARIES)/libssl.so \
-	$(TARGET_OUT_SHARED_LIBRARIES)/libstatslog_bt.so \
 	$(TARGET_OUT_SHARED_LIBRARIES)/libunwindstack.so \
 	$(TARGET_OUT_SHARED_LIBRARIES)/libutils.so \
 	$(TARGET_OUT_SHARED_LIBRARIES)/libz.so \
@@ -98,14 +93,12 @@ $(bluetooth_cert_src_and_bin_zip): PRIVATE_bluetooth_project_dir := $(LOCAL_blue
 $(bluetooth_cert_src_and_bin_zip): PRIVATE_cert_test_sources := $(LOCAL_cert_test_sources)
 $(bluetooth_cert_src_and_bin_zip): PRIVATE_host_executables := $(LOCAL_host_executables)
 $(bluetooth_cert_src_and_bin_zip): PRIVATE_host_libraries := $(LOCAL_host_libraries)
-$(bluetooth_cert_src_and_bin_zip): PRIVATE_host_python_extension_libraries := $(LOCAL_host_python_extension_libraries)
 $(bluetooth_cert_src_and_bin_zip): PRIVATE_host_python_hci_packets_library := $(LOCAL_host_python_hci_packets_library)
 $(bluetooth_cert_src_and_bin_zip): PRIVATE_host_python_smp_packets_library := $(LOCAL_host_python_smp_packets_library)
 $(bluetooth_cert_src_and_bin_zip): PRIVATE_target_executables := $(LOCAL_target_executables)
 $(bluetooth_cert_src_and_bin_zip): PRIVATE_target_libraries := $(LOCAL_target_libraries)
 $(bluetooth_cert_src_and_bin_zip): $(SOONG_ZIP) $(LOCAL_cert_test_sources) \
 		$(LOCAL_host_executables) $(LOCAL_host_libraries) $(LOCAL_host_python_libraries) \
-		$(LOCAL_host_python_extension_libraries) \
 		$(LOCAL_host_python_hci_packets_library) \
 		$(LOCAL_host_python_smp_packets_library) \
 		$(LOCAL_target_executables) $(LOCAL_target_libraries)
@@ -114,7 +107,6 @@ $(bluetooth_cert_src_and_bin_zip): $(SOONG_ZIP) $(LOCAL_cert_test_sources) \
 		-C $(dir $(PRIVATE_host_python_hci_packets_library)) -f $(PRIVATE_host_python_hci_packets_library) \
 		-C $(dir $(PRIVATE_host_python_smp_packets_library)) -f $(PRIVATE_host_python_smp_packets_library) \
 		-C $(HOST_OUT_EXECUTABLES) $(addprefix -f ,$(PRIVATE_host_executables)) \
-		-C $(HOST_OUT_SHARED_LIBRARIES) $(addprefix -f ,$(PRIVATE_host_python_extension_libraries)) \
 		-P lib64 \
 		-C $(HOST_OUT_SHARED_LIBRARIES) $(addprefix -f ,$(PRIVATE_host_libraries)) \
 		-P target \
@@ -125,7 +117,7 @@ $(call declare-container-license-metadata,$(bluetooth_cert_src_and_bin_zip),\
     SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-BSD SPDX-license-identifier-MIT legacy_unencumbered,\
     notice, $(LOCAL_PATH)/../NOTICE,,packages/modules/Bluetooth)
 $(call declare-container-license-deps,$(bluetooth_cert_src_and_bin_zip),\
-    $(LOCAL_host_python_extension_libraries) $(LOCAL_target_executables) $(LOCAL_target_libraries),$(bluetooth_cert_src_and_bin_zip):)
+    $(LOCAL_target_executables) $(LOCAL_target_libraries),$(bluetooth_cert_src_and_bin_zip):)
 
 # TODO: Find a better way to locate output from SOONG genrule()
 LOCAL_facade_generated_py_zip := \

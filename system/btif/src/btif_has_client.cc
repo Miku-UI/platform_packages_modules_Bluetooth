@@ -17,7 +17,6 @@
 
 #include <base/functional/bind.h>
 #include <base/location.h>
-#include <base/logging.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_has.h>
 
@@ -41,7 +40,7 @@ using bluetooth::has::HasClientInterface;
 using bluetooth::has::PresetInfo;
 using bluetooth::has::PresetInfoReason;
 
-using le_audio::has::HasClient;
+using bluetooth::le_audio::has::HasClient;
 
 namespace {
 std::unique_ptr<HasClientInterface> has_client_instance;
@@ -54,11 +53,9 @@ class HearingAaccessClientServiceInterfaceImpl : public HasClientInterface,
     this->callbacks_ = callbacks;
 
     do_in_main_thread(
-        FROM_HERE,
-        Bind(&HasClient::Initialize, this,
-             jni_thread_wrapper(
-                 FROM_HERE,
-                 Bind(&btif_storage_load_bonded_leaudio_has_devices))));
+        FROM_HERE, Bind(&HasClient::Initialize, this,
+                        jni_thread_wrapper(Bind(
+                            &btif_storage_load_bonded_leaudio_has_devices))));
   }
 
   void Connect(const RawAddress& addr) override {
@@ -66,7 +63,7 @@ class HearingAaccessClientServiceInterfaceImpl : public HasClientInterface,
                                       Unretained(HasClient::Get()), addr));
 
     do_in_jni_thread(
-        FROM_HERE, Bind(&btif_storage_set_leaudio_has_acceptlist, addr, true));
+        Bind(&btif_storage_set_leaudio_has_acceptlist, addr, true));
   }
 
   void Disconnect(const RawAddress& addr) override {
@@ -74,7 +71,7 @@ class HearingAaccessClientServiceInterfaceImpl : public HasClientInterface,
                                       Unretained(HasClient::Get()), addr));
 
     do_in_jni_thread(
-        FROM_HERE, Bind(&btif_storage_set_leaudio_has_acceptlist, addr, false));
+        Bind(&btif_storage_set_leaudio_has_acceptlist, addr, false));
   }
 
   void SelectActivePreset(std::variant<RawAddress, int> addr_or_group_id,
@@ -120,7 +117,7 @@ class HearingAaccessClientServiceInterfaceImpl : public HasClientInterface,
                                         Unretained(HasClient::Get()), addr));
     }
 
-    do_in_jni_thread(FROM_HERE, Bind(&btif_storage_remove_leaudio_has, addr));
+    do_in_jni_thread(Bind(&btif_storage_remove_leaudio_has, addr));
   }
 
   void Cleanup(void) override {
@@ -129,60 +126,55 @@ class HearingAaccessClientServiceInterfaceImpl : public HasClientInterface,
 
   void OnConnectionState(ConnectionState state,
                          const RawAddress& addr) override {
-    do_in_jni_thread(FROM_HERE, Bind(&HasClientCallbacks::OnConnectionState,
-                                     Unretained(callbacks_), state, addr));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnConnectionState,
+                          Unretained(callbacks_), state, addr));
   }
 
   void OnDeviceAvailable(const RawAddress& addr, uint8_t features) override {
-    do_in_jni_thread(FROM_HERE, Bind(&HasClientCallbacks::OnDeviceAvailable,
-                                     Unretained(callbacks_), addr, features));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnDeviceAvailable,
+                          Unretained(callbacks_), addr, features));
   }
 
   void OnFeaturesUpdate(const RawAddress& addr, uint8_t features) override {
-    do_in_jni_thread(FROM_HERE, Bind(&HasClientCallbacks::OnFeaturesUpdate,
-                                     Unretained(callbacks_), addr, features));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnFeaturesUpdate,
+                          Unretained(callbacks_), addr, features));
   }
 
   void OnActivePresetSelected(std::variant<RawAddress, int> addr_or_group_id,
                               uint8_t preset_index) override {
-    do_in_jni_thread(FROM_HERE,
-                     Bind(&HasClientCallbacks::OnActivePresetSelected,
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnActivePresetSelected,
                           Unretained(callbacks_), std::move(addr_or_group_id),
                           preset_index));
   }
 
   void OnActivePresetSelectError(std::variant<RawAddress, int> addr_or_group_id,
                                  ErrorCode result_code) override {
-    do_in_jni_thread(
-        FROM_HERE,
-        Bind(&HasClientCallbacks::OnActivePresetSelectError,
-             Unretained(callbacks_), std::move(addr_or_group_id), result_code));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnActivePresetSelectError,
+                          Unretained(callbacks_), std::move(addr_or_group_id),
+                          result_code));
   }
 
   void OnPresetInfo(std::variant<RawAddress, int> addr_or_group_id,
                     PresetInfoReason change_id,
                     std::vector<PresetInfo> detail_records) override {
-    do_in_jni_thread(FROM_HERE,
-                     Bind(&HasClientCallbacks::OnPresetInfo,
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnPresetInfo,
                           Unretained(callbacks_), std::move(addr_or_group_id),
                           change_id, std::move(detail_records)));
   }
 
   void OnPresetInfoError(std::variant<RawAddress, int> addr_or_group_id,
                          uint8_t preset_index, ErrorCode result_code) override {
-    do_in_jni_thread(
-        FROM_HERE,
-        Bind(&HasClientCallbacks::OnPresetInfoError, Unretained(callbacks_),
-             std::move(addr_or_group_id), preset_index, result_code));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnPresetInfoError,
+                          Unretained(callbacks_), std::move(addr_or_group_id),
+                          preset_index, result_code));
   }
 
   void OnSetPresetNameError(std::variant<RawAddress, int> addr_or_group_id,
                             uint8_t preset_index,
                             ErrorCode result_code) override {
-    do_in_jni_thread(
-        FROM_HERE,
-        Bind(&HasClientCallbacks::OnSetPresetNameError, Unretained(callbacks_),
-             std::move(addr_or_group_id), preset_index, result_code));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnSetPresetNameError,
+                          Unretained(callbacks_), std::move(addr_or_group_id),
+                          preset_index, result_code));
   }
 
  private:

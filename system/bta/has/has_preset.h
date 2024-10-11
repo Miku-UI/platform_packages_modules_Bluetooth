@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include <base/logging.h>
+#include <bluetooth/log.h>
 
 #include <optional>
 #include <string>
 
 #include "hardware/bt_has.h"
 
-namespace le_audio {
+namespace bluetooth::le_audio {
 namespace has {
 /* Represents preset instance. It stores properties such as preset name,
  * preset index and if it supports renaming. Also stores all the needed
@@ -61,8 +61,8 @@ class HasPreset {
   bool IsAvailable() const { return properties_ & kPropertyAvailable; }
 
   HasPreset& operator=(const HasPreset& other) {
-    LOG_ASSERT(index_ == other.GetIndex())
-        << "Assigning immutable preset index!";
+    log::assert_that(index_ == other.GetIndex(),
+                     "Assigning immutable preset index!");
 
     if ((this != &other) && (*this != other)) {
       index_ = other.GetIndex();
@@ -112,4 +112,9 @@ class HasPreset {
 };
 
 }  // namespace has
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::le_audio::has::HasPreset> : ostream_formatter {};
+}  // namespace fmt

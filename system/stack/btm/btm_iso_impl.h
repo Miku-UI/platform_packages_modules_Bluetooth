@@ -24,14 +24,14 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/logging.h"
 #include "btm_dev.h"
 #include "btm_iso_api.h"
 #include "common/time_util.h"
-#include "device/include/controller.h"
+#include "hci/controller_interface.h"
 #include "hci/include/hci_layer.h"
 #include "internal_include/bt_trace.h"
 #include "internal_include/stack_config.h"
+#include "main/shim/entry.h"
 #include "main/shim/hci_layer.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
@@ -92,8 +92,12 @@ typedef iso_base iso_bis;
 
 struct iso_impl {
   iso_impl() {
-    iso_credits_ = controller_get_interface()->get_iso_buffer_count();
-    iso_buffer_size_ = controller_get_interface()->get_iso_data_size();
+    iso_credits_ = shim::GetController()
+                       ->GetControllerIsoBufferSize()
+                       .total_num_le_packets_;
+    iso_buffer_size_ = shim::GetController()
+                           ->GetControllerIsoBufferSize()
+                           .le_data_packet_length_;
     log::info("{} created, iso credits: {}, buffer size: {}.", fmt::ptr(this),
               iso_credits_.load(), iso_buffer_size_);
   }
@@ -101,17 +105,18 @@ struct iso_impl {
   ~iso_impl() { log::info("{} removed.", fmt::ptr(this)); }
 
   void handle_register_cis_callbacks(CigCallbacks* callbacks) {
-    LOG_ASSERT(callbacks != nullptr) << "Invalid CIG callbacks";
+    log::assert_that(callbacks != nullptr, "Invalid CIG callbacks");
     cig_callbacks_ = callbacks;
   }
 
   void handle_register_big_callbacks(BigCallbacks* callbacks) {
-    LOG_ASSERT(callbacks != nullptr) << "Invalid BIG callbacks";
+    log::assert_that(callbacks != nullptr, "Invalid BIG callbacks");
     big_callbacks_ = callbacks;
   }
 
   void handle_register_on_iso_traffic_active_callback(void callback(bool)) {
-    LOG_ASSERT(callback != nullptr) << "Invalid OnIsoTrafficActive callback";
+    log::assert_that(callback != nullptr,
+                     "Invalid OnIsoTrafficActive callback");
     const std::lock_guard<std::mutex> lock(
         on_iso_traffic_active_callbacks_list_mutex_);
     on_iso_traffic_active_callbacks_list_.push_back(callback);
@@ -123,8 +128,8 @@ struct iso_impl {
     uint16_t conn_handle;
     cig_create_cmpl_evt evt;
 
-    LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
-    LOG_ASSERT(len >= 3) << "Invalid packet length: " << +len;
+    log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
+    log::assert_that(len >= 3, "Invalid packet length: {}", len);
 
     STREAM_TO_UINT8(evt.status, stream);
     STREAM_TO_UINT8(evt.cig_id, stream);
@@ -140,8 +145,8 @@ struct iso_impl {
             hci_status_code_text((tHCI_STATUS)(evt.status)).c_str()));
 
     if (evt.status == HCI_SUCCESS) {
-      LOG_ASSERT(len >= (3) + (cis_cnt * sizeof(uint16_t)))
-          << "Invalid CIS count: " << +cis_cnt;
+      log::assert_that(len >= (3) + (cis_cnt * sizeof(uint16_t)),
+                       "Invalid CIS count: {}", cis_cnt);
 
       /* Remove entries for the reconfigured CIG */
       if (evt_code == kIsoEventCigOnReconfigureCmpl) {
@@ -183,8 +188,8 @@ struct iso_impl {
 
   void create_cig(uint8_t cig_id,
                   struct iso_manager::cig_create_params cig_params) {
-    LOG_ASSERT(!IsCigKnown(cig_id))
-        << "Invalid cig - already exists: " << +cig_id;
+    log::assert_that(!IsCigKnown(cig_id), "Invalid cig - already exists: {}",
+                     cig_id);
 
     btsnd_hcic_set_cig_params(
         cig_id, cig_params.sdu_itv_mtos, cig_params.sdu_itv_stom,
@@ -202,7 +207,7 @@ struct iso_impl {
 
   void reconfigure_cig(uint8_t cig_id,
                        struct iso_manager::cig_create_params cig_params) {
-    LOG_ASSERT(IsCigKnown(cig_id)) << "No such cig: " << +cig_id;
+    log::assert_that(IsCigKnown(cig_id), "No such cig: {}", cig_id);
 
     btsnd_hcic_set_cig_params(
         cig_id, cig_params.sdu_itv_mtos, cig_params.sdu_itv_stom,
@@ -216,8 +221,8 @@ struct iso_impl {
   void on_remove_cig(uint8_t* stream, uint16_t len) {
     cig_remove_cmpl_evt evt;
 
-    LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
-    LOG_ASSERT(len == 2) << "Invalid packet length: " << +len;
+    log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
+    log::assert_that(len == 2, "Invalid packet length: {}", len);
 
     STREAM_TO_UINT8(evt.status, stream);
     STREAM_TO_UINT8(evt.cig_id, stream);
@@ -251,7 +256,7 @@ struct iso_impl {
 
   void remove_cig(uint8_t cig_id, bool force) {
     if (!force) {
-      LOG_ASSERT(IsCigKnown(cig_id)) << "No such cig: " << +cig_id;
+      log::assert_that(IsCigKnown(cig_id), "No such cig: {}", cig_id);
     } else {
       log::warn("Forcing to remove CIG {}", cig_id);
     }
@@ -267,7 +272,7 @@ struct iso_impl {
       uint16_t len) {
     uint8_t status;
 
-    LOG_ASSERT(len == 2) << "Invalid packet length: " << +len;
+    log::assert_that(len == 2, "Invalid packet length: {}", len);
 
     STREAM_TO_UINT16(status, stream);
 
@@ -276,12 +281,12 @@ struct iso_impl {
 
       if (status != HCI_SUCCESS) {
         auto cis = GetCisIfKnown(cis_param.cis_conn_handle);
-        LOG_ASSERT(cis != nullptr)
-            << "No such cis: " << +cis_param.cis_conn_handle;
+        log::assert_that(cis != nullptr, "No such cis: {}",
+                         cis_param.cis_conn_handle);
 
         evt.status = status;
         evt.cis_conn_hdl = cis_param.cis_conn_handle;
-        evt.cig_id = 0xFF;
+        evt.cig_id = cis->cig_id;
         cis->state_flags &= ~kStateFlagIsConnecting;
         cig_callbacks_->OnCisEvent(kIsoEventCisEstablishCmpl, &evt);
 
@@ -299,12 +304,13 @@ struct iso_impl {
   void establish_cis(struct iso_manager::cis_establish_params conn_params) {
     for (auto& el : conn_params.conn_pairs) {
       auto cis = GetCisIfKnown(el.cis_conn_handle);
-      LOG_ASSERT(cis) << "No such cis: " << +el.cis_conn_handle;
-      LOG_ASSERT(!(cis->state_flags &
-                   (kStateFlagIsConnected | kStateFlagIsConnecting)))
-          << "cis: " << +el.cis_conn_handle
-          << " is already connected or connecting flags: " << +cis->state_flags
-          << ", num of cis params: " << +conn_params.conn_pairs.size();
+      log::assert_that(cis, "No such cis: {}", el.cis_conn_handle);
+      log::assert_that(!(cis->state_flags &
+                         (kStateFlagIsConnected | kStateFlagIsConnecting)),
+                       "cis: {} is already connected or connecting flags: {}, "
+                       "num of cis params: {}",
+                       el.cis_conn_handle, cis->state_flags,
+                       conn_params.conn_pairs.size());
 
       cis->state_flags |= kStateFlagIsConnecting;
 
@@ -323,10 +329,10 @@ struct iso_impl {
 
   void disconnect_cis(uint16_t cis_handle, uint8_t reason) {
     auto cis = GetCisIfKnown(cis_handle);
-    LOG_ASSERT(cis) << "No such cis: " << +cis_handle;
-    LOG_ASSERT(cis->state_flags & kStateFlagIsConnected ||
-               cis->state_flags & kStateFlagIsConnecting)
-        << "Not connected";
+    log::assert_that(cis, "No such cis: {}", cis_handle);
+    log::assert_that(cis->state_flags & kStateFlagIsConnected ||
+                         cis->state_flags & kStateFlagIsConnecting,
+                     "Not connected");
     bluetooth::legacy::hci::GetInterface().Disconnect(
         cis_handle, static_cast<tHCI_STATUS>(reason));
 
@@ -336,7 +342,7 @@ struct iso_impl {
                        hci_reason_code_text((tHCI_REASON)(reason)).c_str()));
   }
 
-  void on_setup_iso_data_path(uint8_t* stream, uint16_t len) {
+  void on_setup_iso_data_path(uint8_t* stream, uint16_t /* len */) {
     uint8_t status;
     uint16_t conn_handle;
 
@@ -347,7 +353,7 @@ struct iso_impl {
     if (iso == nullptr) {
       /* That can happen when ACL has been disconnected while ISO patch was
        * creating */
-      log::warn("Invalid connection handle: {}", +conn_handle);
+      log::warn("Invalid connection handle: {}", conn_handle);
       return;
     }
 
@@ -359,10 +365,10 @@ struct iso_impl {
 
     if (status == HCI_SUCCESS) iso->state_flags |= kStateFlagHasDataPathSet;
     if (iso->state_flags & kStateFlagIsBroadcast) {
-      LOG_ASSERT(big_callbacks_ != nullptr) << "Invalid BIG callbacks";
+      log::assert_that(big_callbacks_ != nullptr, "Invalid BIG callbacks");
       big_callbacks_->OnSetupIsoDataPath(status, conn_handle, iso->big_handle);
     } else {
-      LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
+      log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
       cig_callbacks_->OnSetupIsoDataPath(status, conn_handle, iso->cig_id);
     }
   }
@@ -371,11 +377,11 @@ struct iso_impl {
       uint16_t conn_handle,
       struct iso_manager::iso_data_path_params path_params) {
     iso_base* iso = GetIsoIfKnown(conn_handle);
-    LOG_ASSERT(iso != nullptr) << "No such iso connection: " << +conn_handle;
+    log::assert_that(iso != nullptr, "No such iso connection: {}", conn_handle);
 
     if (!(iso->state_flags & kStateFlagIsBroadcast)) {
-      LOG_ASSERT(iso->state_flags & kStateFlagIsConnected)
-          << "CIS not established";
+      log::assert_that(iso->state_flags & kStateFlagIsConnected,
+                       "CIS not established");
     }
 
     btsnd_hcic_setup_iso_data_path(
@@ -408,7 +414,7 @@ struct iso_impl {
     if (iso == nullptr) {
       /* That could happen when ACL has been disconnected while removing data
        * path */
-      log::warn("Invalid connection handle: {}", +conn_handle);
+      log::warn("Invalid connection handle: {}", conn_handle);
       return;
     }
 
@@ -421,20 +427,21 @@ struct iso_impl {
     if (status == HCI_SUCCESS) iso->state_flags &= ~kStateFlagHasDataPathSet;
 
     if (iso->state_flags & kStateFlagIsBroadcast) {
-      LOG_ASSERT(big_callbacks_ != nullptr) << "Invalid BIG callbacks";
+      log::assert_that(big_callbacks_ != nullptr, "Invalid BIG callbacks");
       big_callbacks_->OnRemoveIsoDataPath(status, conn_handle, iso->big_handle);
     } else {
-      LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
+      log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
       cig_callbacks_->OnRemoveIsoDataPath(status, conn_handle, iso->cig_id);
     }
   }
 
   void remove_iso_data_path(uint16_t iso_handle, uint8_t data_path_dir) {
     iso_base* iso = GetIsoIfKnown(iso_handle);
-    LOG_ASSERT(iso != nullptr) << "No such iso connection: " << loghex(iso_handle);
-    LOG_ASSERT((iso->state_flags & kStateFlagHasDataPathSet) ==
-               kStateFlagHasDataPathSet)
-        << "Data path not set";
+    log::assert_that(iso != nullptr, "No such iso connection: {}",
+                     loghex(iso_handle));
+    log::assert_that((iso->state_flags & kStateFlagHasDataPathSet) ==
+                         kStateFlagHasDataPathSet,
+                     "Data path not set");
 
     btsnd_hcic_remove_iso_data_path(
         iso_handle, data_path_dir,
@@ -466,7 +473,7 @@ struct iso_impl {
 
     STREAM_TO_UINT8(status, stream);
     if (status != HCI_SUCCESS) {
-      log::error("Failed to Read ISO Link Quality, status: {}", loghex(status));
+      log::error("Failed to Read ISO Link Quality, status: 0x{:x}", status);
       return;
     }
 
@@ -476,7 +483,7 @@ struct iso_impl {
     if (iso == nullptr) {
       /* That could happen when ACL has been disconnected while waiting on the
        * read respose */
-      log::warn("Invalid connection handle: {}", +conn_handle);
+      log::warn("Invalid connection handle: {}", conn_handle);
       return;
     }
 
@@ -488,7 +495,7 @@ struct iso_impl {
     STREAM_TO_UINT32(rxUnreceivedPackets, stream);
     STREAM_TO_UINT32(duplicatePackets, stream);
 
-    LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
+    log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
     cig_callbacks_->OnIsoLinkQualityRead(
         conn_handle, iso->cig_id, txUnackedPackets, txFlushedPackets,
         txLastSubeventPackets, retransmittedPackets, crcErrorPackets,
@@ -498,7 +505,7 @@ struct iso_impl {
   void read_iso_link_quality(uint16_t iso_handle) {
     iso_base* iso = GetIsoIfKnown(iso_handle);
     if (iso == nullptr) {
-      log::error("No such iso connection: {}", loghex(iso_handle));
+      log::error("No such iso connection: 0x{:x}", iso_handle);
       return;
     }
 
@@ -533,12 +540,12 @@ struct iso_impl {
   void send_iso_data(uint16_t iso_handle, const uint8_t* data,
                      uint16_t data_len) {
     iso_base* iso = GetIsoIfKnown(iso_handle);
-    LOG_ASSERT(iso != nullptr)
-        << "No such iso connection handle: " << loghex(iso_handle);
+    log::assert_that(iso != nullptr, "No such iso connection handle: {}",
+                     loghex(iso_handle));
 
     if (!(iso->state_flags & kStateFlagIsBroadcast)) {
       if (!(iso->state_flags & kStateFlagIsConnected)) {
-        log::warn("Cis handle: {} not established", loghex(iso_handle));
+        log::warn("Cis handle: 0x{:x} not established", iso_handle);
         return;
       }
     }
@@ -561,9 +568,9 @@ struct iso_impl {
           bluetooth::common::time_get_os_boottime_us();
 
       log::warn(
-          ", dropping ISO packet, len: {}, iso credits: {}, iso handle: {}",
+          ", dropping ISO packet, len: {}, iso credits: {}, iso handle: 0x{:x}",
           static_cast<int>(data_len), static_cast<int>(iso_credits_),
-          loghex(iso_handle));
+          iso_handle);
       return;
     }
 
@@ -580,14 +587,14 @@ struct iso_impl {
   void process_cis_est_pkt(uint8_t len, uint8_t* data) {
     cis_establish_cmpl_evt evt;
 
-    LOG_ASSERT(len == 28) << "Invalid packet length: " << +len;
-    LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
+    log::assert_that(len == 28, "Invalid packet length: {}", len);
+    log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
 
     STREAM_TO_UINT8(evt.status, data);
     STREAM_TO_UINT16(evt.cis_conn_hdl, data);
 
     auto cis = GetCisIfKnown(evt.cis_conn_hdl);
-    LOG_ASSERT(cis != nullptr) << "No such cis: " << +evt.cis_conn_hdl;
+    log::assert_that(cis != nullptr, "No such cis: {}", evt.cis_conn_hdl);
 
     BTM_LogHistory(kBtmLogTag, cis_hdl_to_addr[evt.cis_conn_hdl],
                    "CIS established event",
@@ -627,9 +634,9 @@ struct iso_impl {
     auto cis = GetCisIfKnown(handle);
     if (cis == nullptr) return;
 
-    LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
+    log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
 
-    log::info("flags: {}", +cis->state_flags);
+    log::info("flags: {}", cis->state_flags);
 
     BTM_LogHistory(
         kBtmLogTag, cis_hdl_to_addr[handle], "CIS disconnected",
@@ -657,35 +664,6 @@ struct iso_impl {
     }
   }
 
-  void handle_num_completed_pkts(uint8_t* p, uint8_t evt_len) {
-    uint8_t num_handles;
-
-    STREAM_TO_UINT8(num_handles, p);
-
-    LOG_ASSERT(evt_len == num_handles * 4 + 1);
-
-    for (int i = 0; i < num_handles; i++) {
-      uint16_t handle, num_sent;
-
-      STREAM_TO_UINT16(handle, p);
-      STREAM_TO_UINT16(num_sent, p);
-
-      auto iter = conn_hdl_to_cis_map_.find(handle);
-      if (iter != conn_hdl_to_cis_map_.end()) {
-        iter->second->used_credits -= num_sent;
-        iso_credits_ += num_sent;
-        continue;
-      }
-
-      iter = conn_hdl_to_bis_map_.find(handle);
-      if (iter != conn_hdl_to_bis_map_.end()) {
-        iter->second->used_credits -= num_sent;
-        iso_credits_ += num_sent;
-        continue;
-      }
-    }
-  }
-
   void handle_gd_num_completed_pkts(uint16_t handle, uint16_t credits) {
     auto iter = conn_hdl_to_cis_map_.find(handle);
     if (iter != conn_hdl_to_cis_map_.end()) {
@@ -704,8 +682,8 @@ struct iso_impl {
   void process_create_big_cmpl_pkt(uint8_t len, uint8_t* data) {
     struct big_create_cmpl_evt evt;
 
-    LOG_ASSERT(len >= 18) << "Invalid packet length: " << +len;
-    LOG_ASSERT(big_callbacks_ != nullptr) << "Invalid BIG callbacks";
+    log::assert_that(len >= 18, "Invalid packet length: {}", len);
+    log::assert_that(big_callbacks_ != nullptr, "Invalid BIG callbacks");
 
     STREAM_TO_UINT8(evt.status, data);
     STREAM_TO_UINT8(evt.big_id, data);
@@ -722,15 +700,16 @@ struct iso_impl {
     uint8_t num_bis;
     STREAM_TO_UINT8(num_bis, data);
 
-    LOG_ASSERT(num_bis != 0) << "Bis count is 0";
-    LOG_ASSERT(len == (18 + num_bis * sizeof(uint16_t)))
-        << "Invalid packet length: " << len << ". Number of bis: " << +num_bis;
+    log::assert_that(num_bis != 0, "Bis count is 0");
+    log::assert_that(len == (18 + num_bis * sizeof(uint16_t)),
+                     "Invalid packet length: {}. Number of bis: {}", len,
+                     num_bis);
 
     for (auto i = 0; i < num_bis; ++i) {
       uint16_t conn_handle;
       STREAM_TO_UINT16(conn_handle, data);
       evt.conn_handles.push_back(conn_handle);
-      log::info(" received BIS conn_hdl {}", +conn_handle);
+      log::info("received BIS conn_hdl {}", conn_handle);
 
       if (evt.status == HCI_SUCCESS) {
         auto bis = std::unique_ptr<iso_bis>(new iso_bis());
@@ -757,8 +736,8 @@ struct iso_impl {
   void process_terminate_big_cmpl_pkt(uint8_t len, uint8_t* data) {
     struct big_terminate_cmpl_evt evt;
 
-    LOG_ASSERT(len == 2) << "Invalid packet length: " << +len;
-    LOG_ASSERT(big_callbacks_ != nullptr) << "Invalid BIG callbacks";
+    log::assert_that(len == 2, "Invalid packet length: {}", len);
+    log::assert_that(big_callbacks_ != nullptr, "Invalid BIG callbacks");
 
     STREAM_TO_UINT8(evt.big_id, data);
     STREAM_TO_UINT8(evt.reason, data);
@@ -774,7 +753,7 @@ struct iso_impl {
       }
     }
 
-    LOG_ASSERT(is_known_handle) << "No such big: " << +evt.big_id;
+    log::assert_that(is_known_handle, "No such big: {}", evt.big_id);
     big_callbacks_->OnBigEvent(kIsoEventBigOnTerminateCmpl, &evt);
 
     {
@@ -787,8 +766,8 @@ struct iso_impl {
   }
 
   void create_big(uint8_t big_id, struct big_create_params big_params) {
-    LOG_ASSERT(!IsBigKnown(big_id))
-        << "Invalid big - already exists: " << +big_id;
+    log::assert_that(!IsBigKnown(big_id), "Invalid big - already exists: {}",
+                     big_id);
 
     if (stack_config_get_interface()->get_pts_unencrypt_broadcast()) {
       log::info("Force create broadcst without encryption for PTS test");
@@ -805,7 +784,7 @@ struct iso_impl {
   }
 
   void terminate_big(uint8_t big_id, uint8_t reason) {
-    LOG_ASSERT(IsBigKnown(big_id)) << "No such big: " << +big_id;
+    log::assert_that(IsBigKnown(big_id), "No such big: {}", big_id);
 
     btsnd_hcic_term_big(big_id, reason);
   }
@@ -831,7 +810,7 @@ struct iso_impl {
         /* Not supported */
         break;
       default:
-        log::error("Unhandled event code {}", +code);
+        log::error("Unhandled event code {}", code);
     }
   }
 
@@ -845,7 +824,7 @@ struct iso_impl {
                            : kIsoHeaderWithoutTsLen))
       return;
 
-    LOG_ASSERT(cig_callbacks_ != nullptr) << "Invalid CIG callbacks";
+    log::assert_that(cig_callbacks_ != nullptr, "Invalid CIG callbacks");
 
     STREAM_TO_UINT16(handle, stream);
     evt.cis_conn_hdl = HCID_GET_HANDLE(handle);

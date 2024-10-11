@@ -24,11 +24,7 @@ import android.os.UserHandle;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Helper class identifying a client that has requested LE scan results.
- *
- * @hide
- */
+/** Helper class identifying a client that has requested LE scan results. */
 public class ScanClient {
     public int scannerId;
     public ScanSettings settings;
@@ -90,8 +86,10 @@ public class ScanClient {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(" [ScanClient")
-                .append(" scanModeApp ").append(scanModeApp)
-                .append(" scanModeUsed ").append(settings.getScanMode());
+                .append(" scanModeApp ")
+                .append(scanModeApp)
+                .append(" scanModeUsed ")
+                .append(settings.getScanMode());
         if (stats != null && stats.appName != null) {
             sb.append(" [appScanStats ").append(stats.appName).append("]");
         }
@@ -101,7 +99,7 @@ public class ScanClient {
 
     /**
      * Update scan settings with the new scan mode.
-     * @param newScanMode
+     *
      * @return true if scan settings are updated, false otherwise.
      */
     boolean updateScanMode(int newScanMode) {
@@ -110,15 +108,16 @@ public class ScanClient {
         }
 
         ScanSettings.Builder builder = new ScanSettings.Builder();
-        settings = builder.setScanMode(newScanMode)
-                .setCallbackType(settings.getCallbackType())
-                .setScanResultType(settings.getScanResultType())
-                .setReportDelay(settings.getReportDelayMillis())
-                .setNumOfMatches(settings.getNumOfMatches())
-                .setMatchMode(settings.getMatchMode())
-                .setLegacy(settings.getLegacy())
-                .setPhy(settings.getPhy())
-                .build();
+        settings =
+                builder.setScanMode(newScanMode)
+                        .setCallbackType(settings.getCallbackType())
+                        .setScanResultType(settings.getScanResultType())
+                        .setReportDelay(settings.getReportDelayMillis())
+                        .setNumOfMatches(settings.getNumOfMatches())
+                        .setMatchMode(settings.getMatchMode())
+                        .setLegacy(settings.getLegacy())
+                        .setPhy(settings.getPhy())
+                        .build();
         return true;
     }
 }

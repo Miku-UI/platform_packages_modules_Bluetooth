@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <bluetooth/log.h>
 #include <unistd.h>
 
 #include <functional>
@@ -132,7 +133,7 @@ class EnqueueBuffer {
 
   void NotifyOnEmpty(common::OnceClosure callback) {
     std::lock_guard<std::mutex> lock(mutex_);
-    ASSERT(callback_on_empty_.is_null());
+    log::assert_that(callback_on_empty_.is_null(), "assert failed: callback_on_empty_.is_null()");
     callback_on_empty_ = std::move(callback);
   }
 
@@ -157,7 +158,106 @@ class EnqueueBuffer {
   common::OnceClosure callback_on_empty_;
 };
 
-#include "os/linux_generic/queue.tpp"
+template <typename T>
+Queue<T>::Queue(size_t capacity) : enqueue_(capacity), dequeue_(0){};
+
+template <typename T>
+Queue<T>::~Queue() {
+  log::assert_that(enqueue_.handler_ == nullptr, "Enqueue is not unregistered");
+  log::assert_that(dequeue_.handler_ == nullptr, "Dequeue is not unregistered");
+};
+
+template <typename T>
+void Queue<T>::RegisterEnqueue(Handler* handler, EnqueueCallback callback) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  log::assert_that(enqueue_.handler_ == nullptr, "assert failed: enqueue_.handler_ == nullptr");
+  log::assert_that(enqueue_.reactable_ == nullptr, "assert failed: enqueue_.reactable_ == nullptr");
+  enqueue_.handler_ = handler;
+  enqueue_.reactable_ = enqueue_.handler_->thread_->GetReactor()->Register(
+      enqueue_.reactive_semaphore_.GetFd(),
+      base::Bind(&Queue<T>::EnqueueCallbackInternal, base::Unretained(this), std::move(callback)),
+      base::Closure());
+}
+
+template <typename T>
+void Queue<T>::UnregisterEnqueue() {
+  Reactor* reactor = nullptr;
+  Reactor::Reactable* to_unregister = nullptr;
+  bool wait_for_unregister = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    log::assert_that(
+        enqueue_.reactable_ != nullptr, "assert failed: enqueue_.reactable_ != nullptr");
+    reactor = enqueue_.handler_->thread_->GetReactor();
+    wait_for_unregister = (!enqueue_.handler_->thread_->IsSameThread());
+    to_unregister = enqueue_.reactable_;
+    enqueue_.reactable_ = nullptr;
+    enqueue_.handler_ = nullptr;
+  }
+  reactor->Unregister(to_unregister);
+  if (wait_for_unregister) {
+    reactor->WaitForUnregisteredReactable(std::chrono::milliseconds(1000));
+  }
+}
+
+template <typename T>
+void Queue<T>::RegisterDequeue(Handler* handler, DequeueCallback callback) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  log::assert_that(dequeue_.handler_ == nullptr, "assert failed: dequeue_.handler_ == nullptr");
+  log::assert_that(dequeue_.reactable_ == nullptr, "assert failed: dequeue_.reactable_ == nullptr");
+  dequeue_.handler_ = handler;
+  dequeue_.reactable_ = dequeue_.handler_->thread_->GetReactor()->Register(
+      dequeue_.reactive_semaphore_.GetFd(), callback, base::Closure());
+}
+
+template <typename T>
+void Queue<T>::UnregisterDequeue() {
+  Reactor* reactor = nullptr;
+  Reactor::Reactable* to_unregister = nullptr;
+  bool wait_for_unregister = false;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    log::assert_that(
+        dequeue_.reactable_ != nullptr, "assert failed: dequeue_.reactable_ != nullptr");
+    reactor = dequeue_.handler_->thread_->GetReactor();
+    wait_for_unregister = (!dequeue_.handler_->thread_->IsSameThread());
+    to_unregister = dequeue_.reactable_;
+    dequeue_.reactable_ = nullptr;
+    dequeue_.handler_ = nullptr;
+  }
+  reactor->Unregister(to_unregister);
+  if (wait_for_unregister) {
+    reactor->WaitForUnregisteredReactable(std::chrono::milliseconds(1000));
+  }
+}
+
+template <typename T>
+std::unique_ptr<T> Queue<T>::TryDequeue() {
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  if (queue_.empty()) {
+    return nullptr;
+  }
+
+  dequeue_.reactive_semaphore_.Decrease();
+
+  std::unique_ptr<T> data = std::move(queue_.front());
+  queue_.pop();
+
+  enqueue_.reactive_semaphore_.Increase();
+
+  return data;
+}
+
+template <typename T>
+void Queue<T>::EnqueueCallbackInternal(EnqueueCallback callback) {
+  std::unique_ptr<T> data = callback.Run();
+  log::assert_that(data != nullptr, "assert failed: data != nullptr");
+  std::lock_guard<std::mutex> lock(mutex_);
+  enqueue_.reactive_semaphore_.Decrease();
+  queue_.push(std::move(data));
+  dequeue_.reactive_semaphore_.Increase();
+}
 
 }  // namespace os
 }  // namespace bluetooth

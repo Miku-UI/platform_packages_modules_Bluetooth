@@ -23,10 +23,8 @@
  *  This file contains SDP utility functions
  *
  ******************************************************************************/
-
-#include <base/logging.h>
 #include <bluetooth/log.h>
-#include <log/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <array>
 #include <cstdint>
@@ -42,7 +40,6 @@
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "stack/include/avrc_api.h"
@@ -54,6 +51,7 @@
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/include/stack_metrics_logging.h"
+#include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
 #include "storage/config_keys.h"
 #include "types/bluetooth/uuid.h"
@@ -61,15 +59,6 @@
 
 using bluetooth::Uuid;
 using namespace bluetooth;
-
-bool SDP_FindProtocolListElemInRec(const tSDP_DISC_REC* p_rec,
-                                   uint16_t layer_uuid,
-                                   tSDP_PROTOCOL_ELEM* p_elem);
-tSDP_DISC_ATTR* SDP_FindAttributeInRec(const tSDP_DISC_REC* p_rec,
-                                       uint16_t attr_id);
-uint16_t SDP_GetDiRecord(uint8_t getRecordIndex,
-                         tSDP_DI_GET_RECORD* device_info,
-                         const tSDP_DISCOVERY_DB* p_db);
 
 static const uint8_t sdp_base_uuid[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                         0x10, 0x00, 0x80, 0x00, 0x00, 0x80,
@@ -109,8 +98,8 @@ static std::vector<std::pair<uint16_t, uint16_t>> sdpu_find_profile_version(
       // Safety check - each entry should itself be a sequence
       if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) !=
           DATA_ELE_SEQ_DESC_TYPE) {
-        log::warn("Descriptor type is not sequence: {}",
-                  loghex(SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type)));
+        log::warn("Descriptor type is not sequence: 0x{:x}",
+                  SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type));
         return std::vector<std::pair<uint16_t, uint16_t>>();
       }
       // Now, see if the entry contains the profile UUID we are interested in
@@ -129,8 +118,8 @@ static std::vector<std::pair<uint16_t, uint16_t>> sdpu_find_profile_version(
           if (version_attr == nullptr) {
             log::warn("version attr not found");
           } else {
-            log::warn("Bad version type {}, or length {}",
-                      loghex(SDP_DISC_ATTR_TYPE(version_attr->attr_len_type)),
+            log::warn("Bad version type 0x{:x}, or length {}",
+                      SDP_DISC_ATTR_TYPE(version_attr->attr_len_type),
                       SDP_DISC_ATTR_LEN(version_attr->attr_len_type));
           }
           return std::vector<std::pair<uint16_t, uint16_t>>();
@@ -194,14 +183,13 @@ static uint16_t sdpu_find_most_specific_service_uuid(tSDP_DISC_REC* p_rec) {
 
 void sdpu_log_attribute_metrics(const RawAddress& bda,
                                 tSDP_DISCOVERY_DB* p_db) {
-  CHECK_NE(p_db, nullptr);
+  log::assert_that(p_db != nullptr, "assert failed: p_db != nullptr");
   bool has_di_record = false;
   for (tSDP_DISC_REC* p_rec = p_db->p_first_rec; p_rec != nullptr;
        p_rec = p_rec->p_next_rec) {
     uint16_t service_uuid = sdpu_find_most_specific_service_uuid(p_rec);
     if (service_uuid == 0) {
-      log::info("skipping record without service uuid {}",
-                ADDRESS_TO_LOGGABLE_STR(bda));
+      log::info("skipping record without service uuid {}", bda);
       continue;
     }
     // Log the existence of a profile role
@@ -402,7 +390,7 @@ tCONN_CB* sdpu_allocate_ccb(void) {
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if (p_ccb->con_state == SDP_STATE_IDLE) {
       alarm_t* alarm = p_ccb->sdp_conn_timer;
-      memset(p_ccb, 0, sizeof(tCONN_CB));
+      *p_ccb = {};
       p_ccb->sdp_conn_timer = alarm;
       return (p_ccb);
     }
@@ -424,8 +412,8 @@ tCONN_CB* sdpu_allocate_ccb(void) {
 void sdpu_callback(tCONN_CB& ccb, tSDP_REASON reason) {
   if (ccb.p_cb) {
     (ccb.p_cb)(ccb.device_address, reason);
-  } else if (ccb.p_cb2) {
-    (ccb.p_cb2)(ccb.device_address, reason, ccb.user_data);
+  } else if (ccb.complete_callback) {
+    ccb.complete_callback.Run(ccb.device_address, reason);
   }
 }
 
@@ -463,7 +451,7 @@ void sdpu_release_ccb(tCONN_CB& ccb) {
  * Returns          returns cid if any active sdp connection, else 0.
  *
  ******************************************************************************/
-uint16_t sdpu_get_active_ccb_cid(const RawAddress& remote_bd_addr) {
+uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr) {
   uint16_t xx;
   tCONN_CB* p_ccb;
 
@@ -473,7 +461,7 @@ uint16_t sdpu_get_active_ccb_cid(const RawAddress& remote_bd_addr) {
         (p_ccb->con_state == SDP_STATE_CFG_SETUP) ||
         (p_ccb->con_state == SDP_STATE_CONNECTED)) {
       if (p_ccb->con_flags & SDP_FLAGS_IS_ORIG &&
-          p_ccb->device_address == remote_bd_addr) {
+          p_ccb->device_address == bd_addr) {
         return p_ccb->connection_id;
       }
     }
@@ -539,8 +527,8 @@ bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb) {
       if (!new_conn) {
         // Only change state of the first ccb
         p_ccb->con_state = SDP_STATE_CONN_SETUP;
-        new_cid =
-            L2CA_ConnectReq2(BT_PSM_SDP, p_ccb->device_address, BTM_SEC_NONE);
+        new_cid = L2CA_ConnectReqWithSecurity(BT_PSM_SDP, p_ccb->device_address,
+                                              BTM_SEC_NONE);
         new_conn = true;
       }
       // Check if L2CAP started the connection process
@@ -751,7 +739,9 @@ void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num,
   p_buf->len = p_rsp - p_rsp_start;
 
   /* Send the buffer through L2CAP */
-  L2CA_DataWrite(p_ccb->connection_id, p_buf);
+  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) != L2CAP_DW_SUCCESS) {
+    log::warn("Unable to write L2CAP data cid:{}", p_ccb->connection_id);
+  }
 }
 
 /*******************************************************************************
@@ -979,9 +969,15 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
  *
  * Function         sdpu_get_len_from_type
  *
- * Description      This function gets the length
+ * Description      This function gets the data length given the element
+ *                  header.
  *
- * Returns          void
+ * @param           p      Start of the SDP attribute bytestream
+ *                  p_end  End of the SDP attribute bytestream
+ *                  type   Attribute element header
+ *                  p_len  Data size indicated by element header
+ *
+ * @return          pointer to the start of the data or nullptr on failure
  *
  ******************************************************************************/
 uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type,
@@ -992,7 +988,13 @@ uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type,
 
   switch (type & 7) {
     case SIZE_ONE_BYTE:
-      *p_len = 1;
+      if (com::android::bluetooth::flags::
+              stack_sdp_detect_nil_property_type()) {
+        // Return NIL type if appropriate
+        *p_len = (type == 0) ? 0 : sizeof(uint8_t);
+      } else {
+        *p_len = 1;
+      }
       break;
     case SIZE_TWO_BYTES:
       *p_len = 2;
@@ -1147,7 +1149,7 @@ bool sdpu_compare_uuid_with_attr(const Uuid& uuid, tSDP_DISC_ATTR* p_attr) {
     if (SDP_DISC_ATTR_LEN(p_attr->attr_len_type) == Uuid::kNumBytes16) {
       return uuid.As16Bit() == p_attr->attr_value.v.u16;
     } else {
-      LOG_ERROR("invalid length for discovery attribute");
+      log::error("invalid length for 16bit discovery attribute len:{}", len);
       return (false);
     }
   }
@@ -1155,13 +1157,13 @@ bool sdpu_compare_uuid_with_attr(const Uuid& uuid, tSDP_DISC_ATTR* p_attr) {
     if (SDP_DISC_ATTR_LEN(p_attr->attr_len_type) == Uuid::kNumBytes32) {
       return uuid.As32Bit() == p_attr->attr_value.v.u32;
     } else {
-      LOG_ERROR("invalid length for discovery attribute");
+      log::error("invalid length for 32bit discovery attribute len:{}", len);
       return (false);
     }
   }
 
   if (SDP_DISC_ATTR_LEN(p_attr->attr_len_type) != Uuid::kNumBytes128) {
-    LOG_ERROR("invalid length for discovery attribute");
+    log::error("invalid length for 128bit discovery attribute len:{}", len);
     return (false);
   }
 
@@ -1473,7 +1475,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
   log::info("SDP AVRCP DB Version {:x}", avrcp_version);
   if (avrcp_version == 0) {
     log::info("Not AVRCP version attribute or version not valid for device {}",
-              ADDRESS_TO_LOGGABLE_CSTR(*bdaddr));
+              *bdaddr);
     return;
   }
 
@@ -1501,7 +1503,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
     log::info(
         "device={} is in IOP database. Reply AVRC Target version {:x} instead "
         "of {:x}.",
-        ADDRESS_TO_LOGGABLE_CSTR(*bdaddr), iop_version, avrcp_version);
+        *bdaddr, iop_version, avrcp_version);
     uint8_t* p_version = p_attr->value_ptr + 6;
     UINT16_TO_BE_FIELD(p_version, iop_version);
     return;
@@ -1521,8 +1523,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
       bdaddr->ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION);
   if (version_value_size != sizeof(cached_version)) {
     log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.",
-               ADDRESS_TO_LOGGABLE_CSTR(*bdaddr), version_value_size,
-               sizeof(cached_version));
+               *bdaddr, version_value_size, sizeof(cached_version));
     return;
   }
 
@@ -1532,7 +1533,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
     log::info(
         "no cached AVRC Controller version for {}. Reply default AVRC Target "
         "version {:x}.DUT AVRC Target version {:x}.",
-        ADDRESS_TO_LOGGABLE_CSTR(*bdaddr), avrcp_version, dut_avrcp_version);
+        *bdaddr, avrcp_version, dut_avrcp_version);
     return;
   }
 
@@ -1540,7 +1541,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
     log::error(
         "cached AVRC Controller version {:x} of {} is not valid. Reply default "
         "AVRC Target version {:x}.",
-        cached_version, ADDRESS_TO_LOGGABLE_CSTR(*bdaddr), avrcp_version);
+        cached_version, *bdaddr, avrcp_version);
     return;
   }
 
@@ -1555,8 +1556,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
   log::info(
       "read cached AVRC Controller version {:x} of {}. DUT AVRC Target version "
       "{:x}.Negotiated AVRCP version to update peer {:x}.",
-      cached_version, ADDRESS_TO_LOGGABLE_CSTR(*bdaddr), dut_avrcp_version,
-      negotiated_avrcp_version);
+      cached_version, *bdaddr, dut_avrcp_version, negotiated_avrcp_version);
   uint8_t* p_version = p_attr->value_ptr + 6;
   UINT16_TO_BE_FIELD(p_version, negotiated_avrcp_version);
 }
@@ -1585,8 +1585,7 @@ void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr,
   }
 
   if (avrcp_version == 0) {
-    log::info("AVRCP version not valid for device {}",
-              ADDRESS_TO_LOGGABLE_CSTR(*bdaddr));
+    log::info("AVRCP version not valid for device {}", *bdaddr);
     return;
   }
 
@@ -1603,8 +1602,7 @@ void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr,
       bdaddr->ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES);
   if (version_value_size != sizeof(avrcp_peer_features)) {
     log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.",
-               ADDRESS_TO_LOGGABLE_CSTR(*bdaddr), version_value_size,
-               sizeof(avrcp_peer_features));
+               *bdaddr, version_value_size, sizeof(avrcp_peer_features));
     return;
   }
 
@@ -1651,4 +1649,24 @@ void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr,
     p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION - 1] |=
         AVRCP_CA_SUPPORT_BITMASK;
   }
+}
+
+size_t sdp_get_num_records(const tSDP_DISCOVERY_DB& db) {
+  size_t num_sdp_records{0};
+  const tSDP_DISC_REC* p_rec = db.p_first_rec;
+  while (p_rec != nullptr) {
+    num_sdp_records++;
+    p_rec = p_rec->p_next_rec;
+  }
+  return num_sdp_records;
+}
+
+size_t sdp_get_num_attributes(const tSDP_DISC_REC& sdp_disc_rec) {
+  size_t num_sdp_attributes{0};
+  tSDP_DISC_ATTR* p_attr = sdp_disc_rec.p_first_attr;
+  while (p_attr != nullptr) {
+    num_sdp_attributes++;
+    p_attr = p_attr->p_next_attr;
+  }
+  return num_sdp_attributes;
 }

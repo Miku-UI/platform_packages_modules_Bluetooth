@@ -77,10 +77,8 @@ pub fn parse_at_command_data(at_string: String) -> Result<AtCommand, String> {
     };
     // We want to keep the flow of this method consistent, but AtCommandType::Execute commands do
     // not have arguments. To resolve this we split those commands differently.
-    let mut command_parts = match at_type {
-        AtCommandType::Execute => clean_at_string.splitn(1, at_type_delimiter),
-        _ => clean_at_string.splitn(2, at_type_delimiter),
-    };
+    let mut command_parts = clean_at_string
+        .splitn(if at_type == AtCommandType::Execute { 1 } else { 2 }, at_type_delimiter);
     let command = match command_parts.next() {
         Some(command) => command,
         // In practice this cannot happen as parse_at_command_type already found the delimiter.
@@ -130,7 +128,14 @@ pub fn calculate_battery_percent(at_command: AtCommand) -> Result<u32, String> {
         Some(data) => {
             match data.get(&AtCommandDataType::IPhoneAccevBatteryLevel) {
                 Some(battery_level) => match battery_level.parse::<u32>() {
-                    Ok(level) => return Ok(level * 10),
+                    // The Apple Accessory Design Guidelines indicate
+                    // this will be a value in the range [0, 9]. The
+                    // guidelines do not specify that this maps to
+                    // [10, 100] but that is how other Bluetooth
+                    // stacks interpret it so we do so as well.
+                    // See https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf
+                    // Section 27.1 HFP Command AT+IPHONEACCEV
+                    Ok(level) => return Ok((level + 1) * 10),
                     Err(e) => return Err(e.to_string()),
                 },
                 None => (),
@@ -428,7 +433,7 @@ mod tests {
         let at_command = parse_at_command_data("AT+IPHONEACCEV=1,1,2".to_string());
         assert!(!at_command.is_err());
         let battery_level = calculate_battery_percent(at_command.unwrap()).unwrap();
-        assert_eq!(battery_level, 20);
+        assert_eq!(battery_level, 30);
 
         // Plantronics - missing args
         let at_command = parse_at_command_data("AT+XEVENT=BATTERY".to_string());

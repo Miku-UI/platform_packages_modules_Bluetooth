@@ -19,16 +19,16 @@
 #include "le_scanning_manager.h"
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/threading/thread.h>
+#include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
-#include <stdio.h>
 
-#include "advertise_data_parser.h"
 #include "btif/include/btif_common.h"
 #include "hci/address.h"
 #include "hci/le_scanning_manager.h"
+#if TARGET_FLOSS
 #include "hci/msft.h"
+#endif
 #include "include/hardware/ble_scanner.h"
 #include "main/shim/ble_scanner_interface_impl.h"
 #include "main/shim/entry.h"
@@ -37,6 +37,7 @@
 #include "main/shim/shim.h"
 #include "os/log.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/include/advertise_data_parser.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/btm_log_history.h"
 #include "storage/device.h"
@@ -48,6 +49,7 @@
 
 using bluetooth::ToGdAddress;
 using bluetooth::ToRawAddress;
+using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
 
@@ -118,7 +120,7 @@ class DefaultScanningCallback : public ::ScanningCallbacks {
 
  private:
   static void LogUnused() {
-    LOG_WARN("BLE Scanning callbacks have not been registered");
+    log::warn("BLE Scanning callbacks have not been registered");
   }
 } default_scanning_callback_;
 
@@ -127,8 +129,6 @@ class DefaultScanningCallback : public ::ScanningCallbacks {
 ::ScanningCallbacks* bluetooth::shim::default_scanning_callback =
     static_cast<::ScanningCallbacks*>(&default_scanning_callback_);
 extern ::ScanningCallbacks* bluetooth::shim::default_scanning_callback;
-
-extern tBTM_CB btm_cb;
 
 void btm_ble_process_adv_pkt_cont_for_inquiry(
     uint16_t event_type, tBLE_ADDR_TYPE address_type,
@@ -150,31 +150,33 @@ extern DEV_CLASS btm_ble_get_appearance_as_cod(
 using bluetooth::shim::BleScannerInterfaceImpl;
 
 void BleScannerInterfaceImpl::Init() {
-  LOG_INFO("init BleScannerInterfaceImpl");
+  log::info("init BleScannerInterfaceImpl");
   bluetooth::shim::GetScanning()->RegisterScanningCallback(this);
 
+#if TARGET_FLOSS
   if (bluetooth::shim::GetMsftExtensionManager()) {
     bluetooth::shim::GetMsftExtensionManager()->SetScanningCallback(this);
   }
+#endif
 }
 
 /** Registers a scanner with the stack */
 void BleScannerInterfaceImpl::RegisterScanner(const bluetooth::Uuid& uuid,
                                               RegisterCallback) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   auto app_uuid = bluetooth::hci::Uuid::From128BitBE(uuid.To128BitBE());
   bluetooth::shim::GetScanning()->RegisterScanner(app_uuid);
 }
 
 /** Unregister a scanner from the stack */
 void BleScannerInterfaceImpl::Unregister(int scanner_id) {
-  LOG(INFO) << __func__ << " in shim layer, scanner_id:" << scanner_id;
+  log::info("in shim layer, scannerId={}", scanner_id);
   bluetooth::shim::GetScanning()->Unregister(scanner_id);
 }
 
   /** Start or stop LE device scanning */
 void BleScannerInterfaceImpl::Scan(bool start) {
-  LOG(INFO) << __func__ << " in shim layer " <<  ((start) ? "started" : "stopped");
+  log::info("in shim layer {}", (start) ? "started" : "stopped");
   bluetooth::shim::GetScanning()->Scan(start);
   if (start && !btm_cb.ble_ctr_cb.is_ble_observe_active()) {
     btm_cb.neighbor.le_scan = {
@@ -195,13 +197,12 @@ void BleScannerInterfaceImpl::Scan(bool start) {
     btm_cb.ble_ctr_cb.reset_ble_observe();
     btm_cb.neighbor.le_scan = {};
   } else {
-    LOG_WARN("Invalid state: start:%d, current scan state: %d", start,
-             btm_cb.ble_ctr_cb.is_ble_observe_active());
+    log::warn("Invalid state: start:{}, current scan state: {}", start,
+              btm_cb.ble_ctr_cb.is_ble_observe_active());
     return;
   }
 
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(&BleScannerInterfaceImpl::AddressCache::init,
+  do_in_jni_thread(base::BindOnce(&BleScannerInterfaceImpl::AddressCache::init,
                                   base::Unretained(&address_cache_)));
 }
 
@@ -210,7 +211,7 @@ void BleScannerInterfaceImpl::ScanFilterParamSetup(
     uint8_t client_if, uint8_t action, uint8_t filter_index,
     std::unique_ptr<btgatt_filt_param_setup_t> filt_param,
     FilterParamSetupCallback cb) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer, clientIf={}", client_if);
 
   auto apcf_action = static_cast<bluetooth::hci::ApcfAction>(action);
   bluetooth::hci::AdvertisingFilterParameter advertising_filter_parameter;
@@ -241,50 +242,48 @@ void BleScannerInterfaceImpl::ScanFilterParamSetup(
   bluetooth::shim::GetScanning()->ScanFilterParameterSetup(
       apcf_action, filter_index, advertising_filter_parameter);
   // TODO refactor callback mechanism
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(cb, 0, 0, btm_status_value(BTM_SUCCESS)));
+  do_in_jni_thread(base::BindOnce(cb, 0, 0, btm_status_value(BTM_SUCCESS)));
 }
 
 /** Configure a scan filter condition  */
 void BleScannerInterfaceImpl::ScanFilterAdd(int filter_index,
                                             std::vector<ApcfCommand> filters,
                                             FilterConfigCallback cb) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   std::vector<bluetooth::hci::AdvertisingPacketContentFilterCommand>
       new_filters = {};
   for (size_t i = 0; i < filters.size(); i++) {
     bluetooth::hci::AdvertisingPacketContentFilterCommand command{};
     if (!parse_filter_command(command, filters[i])) {
-      LOG_ERROR("invalid apcf command");
+      log::error("invalid apcf command");
       return;
     }
     new_filters.push_back(command);
   }
   bluetooth::shim::GetScanning()->ScanFilterAdd(filter_index, new_filters);
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(cb, 0, 0, 0, btm_status_value(BTM_SUCCESS)));
+  do_in_jni_thread(base::BindOnce(cb, 0, 0, 0, btm_status_value(BTM_SUCCESS)));
 }
 
 /** Clear all scan filter conditions for specific filter index*/
 void BleScannerInterfaceImpl::ScanFilterClear(int /* filter_index */,
                                               FilterConfigCallback /* cb */) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   // This function doesn't used in java layer
 }
 
 /** Enable / disable scan filter feature*/
 void BleScannerInterfaceImpl::ScanFilterEnable(bool enable, EnableCallback cb) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   bluetooth::shim::GetScanning()->ScanFilterEnable(enable);
 
   uint8_t action = enable ? 1 : 0;
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(cb, action, btm_status_value(BTM_SUCCESS)));
+  do_in_jni_thread(base::BindOnce(cb, action, btm_status_value(BTM_SUCCESS)));
 }
 
+#if TARGET_FLOSS
 /** Is MSFT Extension supported? */
 bool BleScannerInterfaceImpl::IsMsftSupported() {
-  LOG_INFO("in shim layer");
+  log::info("in shim layer");
 
   return bluetooth::shim::GetMsftExtensionManager()->SupportsMsftExtensions();
 }
@@ -292,7 +291,7 @@ bool BleScannerInterfaceImpl::IsMsftSupported() {
 /** Adds MSFT filter */
 void BleScannerInterfaceImpl::MsftAdvMonitorAdd(MsftAdvMonitor monitor,
                                                 MsftAdvMonitorAddCallback cb) {
-  LOG_INFO("in shim layer");
+  log::info("in shim layer");
   msft_callbacks_.Add = cb;
   bluetooth::shim::GetMsftExtensionManager()->MsftAdvMonitorAdd(
       monitor, base::Bind(&BleScannerInterfaceImpl::OnMsftAdvMonitorAdd,
@@ -302,7 +301,7 @@ void BleScannerInterfaceImpl::MsftAdvMonitorAdd(MsftAdvMonitor monitor,
 /** Removes MSFT filter */
 void BleScannerInterfaceImpl::MsftAdvMonitorRemove(
     uint8_t monitor_handle, MsftAdvMonitorRemoveCallback cb) {
-  LOG_INFO("in shim layer");
+  log::info("in shim layer");
   msft_callbacks_.Remove = cb;
   bluetooth::shim::GetMsftExtensionManager()->MsftAdvMonitorRemove(
       monitor_handle,
@@ -313,7 +312,7 @@ void BleScannerInterfaceImpl::MsftAdvMonitorRemove(
 /** Enable / disable MSFT scan filter */
 void BleScannerInterfaceImpl::MsftAdvMonitorEnable(
     bool enable, MsftAdvMonitorEnableCallback cb) {
-  LOG_INFO("in shim layer");
+  log::info("in shim layer");
   msft_callbacks_.Enable = cb;
   bluetooth::shim::GetMsftExtensionManager()->MsftAdvMonitorEnable(
       enable, base::Bind(&BleScannerInterfaceImpl::OnMsftAdvMonitorEnable,
@@ -323,21 +322,21 @@ void BleScannerInterfaceImpl::MsftAdvMonitorEnable(
 /** Callback of adding MSFT filter */
 void BleScannerInterfaceImpl::OnMsftAdvMonitorAdd(
     uint8_t monitor_handle, bluetooth::hci::ErrorCode status) {
-  LOG_INFO("in shim layer");
+  log::info("in shim layer");
   msft_callbacks_.Add.Run(monitor_handle, (uint8_t)status);
 }
 
 /** Callback of removing MSFT filter */
 void BleScannerInterfaceImpl::OnMsftAdvMonitorRemove(
     bluetooth::hci::ErrorCode status) {
-  LOG_INFO("in shim layer");
+  log::info("in shim layer");
   msft_callbacks_.Remove.Run((uint8_t)status);
 }
 
 /** Callback of enabling / disabling MSFT scan filter */
 void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(
     bool enable, bluetooth::hci::ErrorCode status) {
-  LOG_INFO("in shim layer");
+  log::info("in shim layer");
 
   if (status == bluetooth::hci::ErrorCode::SUCCESS) {
     bluetooth::shim::GetScanning()->SetScanFilterPolicy(
@@ -347,14 +346,15 @@ void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(
 
   msft_callbacks_.Enable.Run((uint8_t)status);
 }
+#endif
 
 /** Sets the LE scan interval and window in units of N*0.625 msec */
 void BleScannerInterfaceImpl::SetScanParameters(int scanner_id,
                                                 uint8_t scan_type,
                                                 int scan_interval,
-                                                int scan_window,
+                                                int scan_window, int scan_phy,
                                                 Callback /* cb */) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer, scannerId={}", scanner_id);
   if (BTM_BLE_ISVALID_PARAM(scan_interval, BTM_BLE_SCAN_INT_MIN,
                             BTM_BLE_EXT_SCAN_INT_MAX) &&
       BTM_BLE_ISVALID_PARAM(scan_window, BTM_BLE_SCAN_WIN_MIN,
@@ -362,23 +362,23 @@ void BleScannerInterfaceImpl::SetScanParameters(int scanner_id,
     btm_cb.ble_ctr_cb.inq_var.scan_type = BTM_BLE_SCAN_MODE_ACTI;
     btm_cb.ble_ctr_cb.inq_var.scan_interval = scan_interval;
     btm_cb.ble_ctr_cb.inq_var.scan_window = scan_window;
+    btm_cb.ble_ctr_cb.inq_var.scan_phy = scan_phy;
   }
 
   bluetooth::shim::GetScanning()->SetScanParameters(
       scanner_id, static_cast<bluetooth::hci::LeScanType>(scan_type),
-      scan_interval, scan_window);
+      scan_interval, scan_window, scan_phy);
 }
 
 /* Configure the batchscan storage */
 void BleScannerInterfaceImpl::BatchscanConfigStorage(
     int client_if, int batch_scan_full_max, int batch_scan_trunc_max,
     int batch_scan_notify_threshold, Callback cb) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   bluetooth::shim::GetScanning()->BatchScanConifgStorage(
       batch_scan_full_max, batch_scan_trunc_max, batch_scan_notify_threshold,
       client_if);
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(cb, btm_status_value(BTM_SUCCESS)));
+  do_in_jni_thread(base::BindOnce(cb, btm_status_value(BTM_SUCCESS)));
 }
 
 /* Enable batchscan */
@@ -386,28 +386,26 @@ void BleScannerInterfaceImpl::BatchscanEnable(int scan_mode, int scan_interval,
                                               int scan_window,
                                               int /* addr_type */,
                                               int discard_rule, Callback cb) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   auto batch_scan_mode = static_cast<bluetooth::hci::BatchScanMode>(scan_mode);
   auto batch_scan_discard_rule =
       static_cast<bluetooth::hci::BatchScanDiscardRule>(discard_rule);
   bluetooth::shim::GetScanning()->BatchScanEnable(
       batch_scan_mode, scan_window, scan_interval, batch_scan_discard_rule);
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(cb, btm_status_value(BTM_SUCCESS)));
+  do_in_jni_thread(base::BindOnce(cb, btm_status_value(BTM_SUCCESS)));
 }
 
 /* Disable batchscan */
 void BleScannerInterfaceImpl::BatchscanDisable(Callback cb) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   bluetooth::shim::GetScanning()->BatchScanDisable();
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(cb, btm_status_value(BTM_SUCCESS)));
+  do_in_jni_thread(base::BindOnce(cb, btm_status_value(BTM_SUCCESS)));
 }
 
 /* Read out batchscan reports */
 void BleScannerInterfaceImpl::BatchscanReadReports(int client_if,
                                                    int scan_mode) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   auto batch_scan_mode = static_cast<bluetooth::hci::BatchScanMode>(scan_mode);
   auto scanner_id = static_cast<bluetooth::hci::ScannerId>(client_if);
   bluetooth::shim::GetScanning()->BatchScanReadReport(scanner_id,
@@ -427,7 +425,7 @@ extern tACL_CONN* btm_acl_for_bda(const RawAddress& bd_addr,
 void BleScannerInterfaceImpl::StartSync(uint8_t sid, RawAddress address,
                                         uint16_t skip, uint16_t timeout,
                                         int reg_id) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   tBLE_ADDR_TYPE address_type = BLE_ADDR_RANDOM;
   tINQ_DB_ENT* p_i = btm_inq_db_find(address);
   if (p_i) {
@@ -440,13 +438,13 @@ void BleScannerInterfaceImpl::StartSync(uint8_t sid, RawAddress address,
 }
 
 void BleScannerInterfaceImpl::StopSync(uint16_t handle) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   bluetooth::shim::GetScanning()->StopSync(handle);
 }
 
 void BleScannerInterfaceImpl::CancelCreateSync(uint8_t sid,
                                                RawAddress address) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   bluetooth::shim::GetScanning()->CancelCreateSync(sid, ToGdAddress(address));
 }
 
@@ -454,11 +452,11 @@ void BleScannerInterfaceImpl::TransferSync(RawAddress address,
                                            uint16_t service_data,
                                            uint16_t sync_handle,
                                            int pa_source) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   tACL_CONN* p_acl = btm_acl_for_bda(address, BT_TRANSPORT_LE);
   if (p_acl == NULL || !HCI_LE_PERIODIC_ADVERTISING_SYNC_TRANSFER_RECIPIENT(
                            p_acl->peer_le_features)) {
-    LOG_ERROR("[PAST] Remote doesn't support PAST");
+    log::error("[PAST] Remote doesn't support PAST");
     scanning_callbacks_->OnPeriodicSyncTransferred(
         pa_source, BTM_MODE_UNSUPPORTED, address);
     return;
@@ -473,11 +471,11 @@ void BleScannerInterfaceImpl::TransferSetInfo(RawAddress address,
                                               uint16_t service_data,
                                               uint8_t adv_handle,
                                               int pa_source) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   tACL_CONN* p_acl = btm_acl_for_bda(address, BT_TRANSPORT_LE);
   if (p_acl == NULL || !HCI_LE_PERIODIC_ADVERTISING_SYNC_TRANSFER_RECIPIENT(
                            p_acl->peer_le_features)) {
-    LOG_ERROR("[PAST] Remote doesn't support PAST");
+    log::error("[PAST] Remote doesn't support PAST");
     scanning_callbacks_->OnPeriodicSyncTransferred(
         pa_source, BTM_MODE_UNSUPPORTED, address);
     return;
@@ -491,13 +489,13 @@ void BleScannerInterfaceImpl::TransferSetInfo(RawAddress address,
 void BleScannerInterfaceImpl::SyncTxParameters(RawAddress addr, uint8_t mode,
                                                uint16_t skip, uint16_t timeout,
                                                int reg_id) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   bluetooth::shim::GetScanning()->SyncTxParameters(ToGdAddress(addr), mode,
                                                    skip, timeout, reg_id);
 }
 
 void BleScannerInterfaceImpl::RegisterCallbacks(ScanningCallbacks* callbacks) {
-  LOG(INFO) << __func__ << " in shim layer";
+  log::info("in shim layer");
   scanning_callbacks_ = callbacks;
 }
 
@@ -505,19 +503,16 @@ void BleScannerInterfaceImpl::OnScannerRegistered(
     const bluetooth::hci::Uuid app_uuid, bluetooth::hci::ScannerId scanner_id,
     ScanningStatus status) {
   auto uuid = bluetooth::Uuid::From128BitBE(app_uuid.To128BitBE());
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(&ScanningCallbacks::OnScannerRegistered,
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnScannerRegistered,
                                   base::Unretained(scanning_callbacks_), uuid,
                                   scanner_id, status));
 }
 
 void BleScannerInterfaceImpl::OnSetScannerParameterComplete(
     bluetooth::hci::ScannerId scanner_id, ScanningStatus status) {
-  do_in_jni_thread(
-      FROM_HERE,
-      base::BindOnce(&ScanningCallbacks::OnSetScannerParameterComplete,
-                     base::Unretained(scanning_callbacks_), scanner_id,
-                     status));
+  do_in_jni_thread(base::BindOnce(
+      &ScanningCallbacks::OnSetScannerParameterComplete,
+      base::Unretained(scanning_callbacks_), scanner_id, status));
 }
 
 void BleScannerInterfaceImpl::OnScanResult(
@@ -533,19 +528,15 @@ void BleScannerInterfaceImpl::OnScanResult(
     btm_ble_process_adv_addr(raw_address, &ble_addr_type);
   }
 
-  do_in_jni_thread(
-      FROM_HERE,
-      base::BindOnce(&BleScannerInterfaceImpl::handle_remote_properties,
-                     base::Unretained(this), raw_address, ble_addr_type,
-                     advertising_data));
+  do_in_jni_thread(base::BindOnce(
+      &BleScannerInterfaceImpl::handle_remote_properties,
+      base::Unretained(this), raw_address, ble_addr_type, advertising_data));
 
-  do_in_jni_thread(
-      FROM_HERE,
-      base::BindOnce(&ScanningCallbacks::OnScanResult,
-                     base::Unretained(scanning_callbacks_), event_type,
-                     static_cast<uint8_t>(address_type), raw_address,
-                     primary_phy, secondary_phy, advertising_sid, tx_power,
-                     rssi, periodic_advertising_interval, advertising_data));
+  do_in_jni_thread(base::BindOnce(
+      &ScanningCallbacks::OnScanResult, base::Unretained(scanning_callbacks_),
+      event_type, static_cast<uint8_t>(address_type), raw_address, primary_phy,
+      secondary_phy, advertising_sid, tx_power, rssi,
+      periodic_advertising_interval, advertising_data));
 
   // TODO: Remove when StartInquiry in GD part implemented
   btm_ble_process_adv_pkt_cont_for_inquiry(
@@ -590,26 +581,23 @@ void BleScannerInterfaceImpl::OnTrackAdvFoundLost(
     track_info.scan_response.insert(track_info.scan_response.end(),
                                     scan_rsp_data.begin(), scan_rsp_data.end());
   }
-  do_in_jni_thread(
-      FROM_HERE,
-      base::BindOnce(&ScanningCallbacks::OnTrackAdvFoundLost,
-                     base::Unretained(scanning_callbacks_), track_info));
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnTrackAdvFoundLost,
+                                  base::Unretained(scanning_callbacks_),
+                                  track_info));
 }
 
 void BleScannerInterfaceImpl::OnBatchScanReports(int client_if, int status,
                                                  int report_format,
                                                  int num_records,
                                                  std::vector<uint8_t> data) {
-  do_in_jni_thread(
-      FROM_HERE,
-      base::BindOnce(&ScanningCallbacks::OnBatchScanReports,
-                     base::Unretained(scanning_callbacks_), client_if, status,
-                     report_format, num_records, data));
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnBatchScanReports,
+                                  base::Unretained(scanning_callbacks_),
+                                  client_if, status, report_format, num_records,
+                                  data));
 }
 
 void BleScannerInterfaceImpl::OnBatchScanThresholdCrossed(int client_if) {
   do_in_jni_thread(
-      FROM_HERE,
       base::BindOnce(&ScanningCallbacks::OnBatchScanThresholdCrossed,
                      base::Unretained(scanning_callbacks_), client_if));
 }
@@ -625,8 +613,7 @@ void BleScannerInterfaceImpl::OnPeriodicSyncStarted(
     btm_identity_addr_to_random_pseudo(&raw_address, &ble_addr_type, true);
   }
 
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(&ScanningCallbacks::OnPeriodicSyncStarted,
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnPeriodicSyncStarted,
                                   base::Unretained(scanning_callbacks_), reg_id,
                                   status, sync_handle, advertising_sid,
                                   static_cast<int>(ble_addr_type), raw_address,
@@ -637,32 +624,29 @@ void BleScannerInterfaceImpl::OnPeriodicSyncReport(uint16_t sync_handle,
                                                    int8_t tx_power, int8_t rssi,
                                                    uint8_t status,
                                                    std::vector<uint8_t> data) {
-  do_in_jni_thread(
-      FROM_HERE,
-      base::BindOnce(&ScanningCallbacks::OnPeriodicSyncReport,
-                     base::Unretained(scanning_callbacks_), sync_handle,
-                     tx_power, rssi, status, std::move(data)));
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnPeriodicSyncReport,
+                                  base::Unretained(scanning_callbacks_),
+                                  sync_handle, tx_power, rssi, status,
+                                  std::move(data)));
 }
 
 void BleScannerInterfaceImpl::OnPeriodicSyncLost(uint16_t sync_handle) {
-  do_in_jni_thread(
-      FROM_HERE,
-      base::BindOnce(&ScanningCallbacks::OnPeriodicSyncLost,
-                     base::Unretained(scanning_callbacks_), sync_handle));
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnPeriodicSyncLost,
+                                  base::Unretained(scanning_callbacks_),
+                                  sync_handle));
 }
 
 void BleScannerInterfaceImpl::OnPeriodicSyncTransferred(
     int pa_source, uint8_t status, bluetooth::hci::Address address) {
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(&ScanningCallbacks::OnPeriodicSyncTransferred,
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnPeriodicSyncTransferred,
                                   base::Unretained(scanning_callbacks_),
                                   pa_source, status, ToRawAddress(address)));
 }
 
 void BleScannerInterfaceImpl::OnBigInfoReport(uint16_t sync_handle, bool encrypted) {
-  do_in_jni_thread(FROM_HERE,
-                   base::BindOnce(&ScanningCallbacks::OnBigInfoReport,
-                   base::Unretained(scanning_callbacks_), sync_handle, encrypted));
+  do_in_jni_thread(base::BindOnce(&ScanningCallbacks::OnBigInfoReport,
+                                  base::Unretained(scanning_callbacks_),
+                                  sync_handle, encrypted));
 }
 
 void BleScannerInterfaceImpl::OnTimeout() {}
@@ -704,7 +688,7 @@ bool BleScannerInterfaceImpl::parse_filter_command(
             bluetooth::hci::Uuid::From128BitBE(apcf_command.uuid.To128BitBE());
       } break;
       default:
-        LOG_WARN("illegal UUID length %d", (uint16_t)uuid_len);
+        log::warn("illegal UUID length {}", (uint16_t)uuid_len);
         return false;
     }
   }
@@ -726,7 +710,7 @@ bool BleScannerInterfaceImpl::parse_filter_command(
                 apcf_command.uuid_mask.To128BitBE());
       } break;
       default:
-        LOG_WARN("illegal UUID length %d", (uint16_t)uuid_len);
+        log::warn("illegal UUID length {}", (uint16_t)uuid_len);
         return false;
     }
   }
@@ -758,7 +742,7 @@ void BleScannerInterfaceImpl::handle_remote_properties(
     RawAddress bd_addr, tBLE_ADDR_TYPE addr_type,
     std::vector<uint8_t> advertising_data) {
   if (!bluetooth::shim::is_gd_stack_started_up()) {
-    LOG_WARN("Gd stack is stopped, return");
+    log::warn("Gd stack is stopped, return");
     return;
   }
 
@@ -797,8 +781,8 @@ void BleScannerInterfaceImpl::handle_remote_properties(
       if (remote_name_len > BD_NAME_LEN + 1 ||
           (remote_name_len == BD_NAME_LEN + 1 &&
            p_eir_remote_name[BD_NAME_LEN] != '\0')) {
-        LOG_INFO("%s dropping invalid packet - device name too long: %d",
-                 __func__, remote_name_len);
+        log::info("dropping invalid packet - device name too long: {}",
+                  remote_name_len);
         return;
       }
 
@@ -917,7 +901,7 @@ void bluetooth::shim::set_empty_filter(bool enable) {
 void bluetooth::shim::set_target_announcements_filter(bool enable) {
   uint8_t filter_index = 0x03;
 
-  LOG_DEBUG(" enable %d", enable);
+  log::debug("enable {}", enable);
 
   bluetooth::hci::AdvertisingFilterParameter advertising_filter_parameter = {};
   bluetooth::shim::GetScanning()->ScanFilterParameterSetup(

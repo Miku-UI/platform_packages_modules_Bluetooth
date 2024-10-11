@@ -25,7 +25,6 @@ static_library("osi") {
     "src/hash_map_utils.cc",
     "src/list.cc",
     "src/mutex.cc",
-    "src/osi.cc",
     "src/properties.cc",
     "src/reactor.cc",
     "src/ringbuffer.cc",
@@ -55,6 +54,7 @@ static_library("osi") {
   ]
 
   deps = [
+    "//bt/flags:bluetooth_flags_c_lib",
     "//bt/system/common",
     "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
@@ -75,7 +75,6 @@ if (use.test) {
       "test/hash_map_utils_test.cc",
       "test/list_test.cc",
       "test/properties_test.cc",
-      "test/rand_test.cc",
       "test/reactor_test.cc",
       "test/ringbuffer_test.cc",
       "test/thread_test.cc",

@@ -49,14 +49,12 @@ static_library("btif") {
     "src/btif_bqr.cc",
     "src/btif_csis_client.cc",
     "src/btif_config.cc",
-    "src/btif_config_cache.cc",
     "src/btif_core.cc",
     "src/btif_debug_conn.cc",
     "src/btif_dm.cc",
     "src/btif_gatt.cc",
     "src/btif_gatt_client.cc",
     "src/btif_gatt_server.cc",
-    "src/btif_gatt_test.cc",
     "src/btif_gatt_util.cc",
     "src/btif_hd.cc",
     "src/btif_vc.cc",
@@ -79,6 +77,7 @@ static_library("btif") {
     "src/btif_sdp_server.cc",
     "src/btif_sock.cc",
     "src/btif_sock_l2cap.cc",
+    "src/btif_sock_logging.cc",
     "src/btif_sock_rfc.cc",
     "src/btif_sock_sco.cc",
     "src/btif_sock_sdp.cc",
@@ -113,6 +112,8 @@ static_library("btif") {
   ]
 
   deps = [
+    "//bt/flags:bluetooth_flags_c_lib",
+    "//bt/sysprop:libcom.android.sysprop.bluetooth",
     "//bt/system:libbt-platform-protos-lite",
     "//bt/system/common",
     "//bt/system/gd/rust/shim:init_flags_bridge_header",

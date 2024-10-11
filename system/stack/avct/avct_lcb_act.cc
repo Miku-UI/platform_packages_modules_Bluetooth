@@ -21,17 +21,17 @@
  *  This module contains action functions of the link control state machine.
  *
  ******************************************************************************/
-#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avct_api.h"
 #include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
+#include "btif/include/btif_av.h"
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -180,12 +180,12 @@ static BT_HDR* avct_lcb_msg_asmbl(tAVCT_LCB* p_lcb, BT_HDR* p_buf) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
 
   p_lcb->ch_state = AVCT_CH_CONN;
-  p_lcb->ch_lcid =
-      L2CA_ConnectReq2(AVCT_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
+  p_lcb->ch_lcid = L2CA_ConnectReqWithSecurity(AVCT_PSM, p_lcb->peer_addr,
+                                               BTA_SEC_AUTHENTICATE);
   if (p_lcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -204,7 +204,7 @@ void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_unbind_disc(UNUSED_ATTR tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
+void avct_lcb_unbind_disc(tAVCT_LCB* /* p_lcb */, tAVCT_LCB_EVT* p_data) {
   avct_ccb_dealloc(p_data->p_ccb, AVCT_DISCONNECT_CFM_EVT, 0, NULL);
 }
 
@@ -226,7 +226,7 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
   int i;
   bool bind = false;
 
-  if (GET_SYSPROP(A2dp, src_sink_coexist, false)) {
+  if (btif_av_src_sink_coexist_enabled()) {
     bool is_originater = false;
 
     for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
@@ -250,7 +250,11 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
         if (p_ccb->cc.role == AVCT_INT) {
           /** @} */
           bind = true;
-          L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
+          if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+            log::warn(
+                "Unable to set L2CAP transmit high priority peer:{} cid:{}",
+                p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
+          }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT,
                                  0, &p_lcb->peer_addr);
         }
@@ -267,7 +271,11 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
           } else {
             bind = true;
             p_ccb->p_lcb = p_lcb;
-            L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
+            if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+              log::warn(
+                  "Unable to set L2CAP transmit high priority peer:{} cid:{}",
+                  p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
+            }
             p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_IND_EVT,
                                    0, &p_lcb->peer_addr);
           }
@@ -281,7 +289,11 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
         /* if bound to this lcb send connect confirm event */
         if (p_ccb->p_lcb == p_lcb) {
           bind = true;
-          L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
+          if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+            log::warn(
+                "Unable to set L2CAP transmit high priority peer:{} cid:{}",
+                p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
+          }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT,
                                  0, &p_lcb->peer_addr);
         }
@@ -292,7 +304,11 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
           /* bind ccb to lcb and send connect ind event */
           bind = true;
           p_ccb->p_lcb = p_lcb;
-          L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH);
+          if (!L2CA_SetTxPriority(p_lcb->ch_lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+            log::warn(
+                "Unable to set L2CAP transmit high priority peer:{} cid:{}",
+                p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
+          }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_IND_EVT,
                                  0, &p_lcb->peer_addr);
         }
@@ -344,7 +360,7 @@ void avct_lcb_open_fail(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_close_ind(tAVCT_LCB* p_lcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_lcb_close_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
   int i;
 
@@ -448,7 +464,7 @@ void avct_lcb_chk_disc(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_chnl_disc(tAVCT_LCB* p_lcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_lcb_chnl_disc(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   avct_l2c_disconnect(p_lcb->ch_lcid, 0);
 }
 
@@ -463,7 +479,7 @@ void avct_lcb_chnl_disc(tAVCT_LCB* p_lcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_bind_fail(UNUSED_ATTR tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
+void avct_lcb_bind_fail(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
   avct_ccb_dealloc(p_data->p_ccb, AVCT_CONNECT_CFM_EVT, AVCT_RESULT_FAIL, NULL);
   DEVICE_IOT_CONFIG_ADDR_INT_ADD_ONE(p_lcb->peer_addr,
                                      IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
@@ -516,7 +532,7 @@ void avct_lcb_cong_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_discard_msg(UNUSED_ATTR tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
+void avct_lcb_discard_msg(tAVCT_LCB* /* p_lcb */, tAVCT_LCB_EVT* p_data) {
   log::warn("Dropping message");
   osi_free_and_reset((void**)&p_data->ul_msg.p_buf);
 }
@@ -629,8 +645,7 @@ void avct_lcb_send_msg(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avct_lcb_free_msg_ind(UNUSED_ATTR tAVCT_LCB* p_lcb,
-                           tAVCT_LCB_EVT* p_data) {
+void avct_lcb_free_msg_ind(tAVCT_LCB* /* p_lcb */, tAVCT_LCB_EVT* p_data) {
   if (p_data == NULL) return;
 
   osi_free_and_reset((void**)&p_data->p_buf);
@@ -679,7 +694,7 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
   }
 
   bool bind = false;
-  if (GET_SYSPROP(A2dp, src_sink_coexist, false)) {
+  if (btif_av_src_sink_coexist_enabled()) {
     bind = avct_msg_ind_for_src_sink_coexist(p_lcb, p_data, label, cr_ipid);
     osi_free_and_reset((void**)&p_data->p_buf);
     if (bind) return;
@@ -708,7 +723,10 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
     p = (uint8_t*)(p_buf + 1) + p_buf->offset;
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
-    L2CA_DataWrite(p_lcb->ch_lcid, p_buf);
+    if (L2CA_DataWrite(p_lcb->ch_lcid, p_buf) != L2CAP_DW_SUCCESS) {
+      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
+                p_lcb->peer_addr, p_lcb->ch_lcid, p_buf->len);
+    }
   }
 }
 
@@ -718,9 +736,12 @@ bool avct_msg_ind_for_src_sink_coexist(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data,
   tAVCT_CCB* p_ccb;
   int p_buf_len;
   uint8_t* p;
-  uint16_t pid;
+  uint16_t pid, type;
 
   p = (uint8_t*)(p_data->p_buf + 1) + p_data->p_buf->offset;
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
+    AVCT_PARSE_HDR(p, label, type, cr_ipid);
+  }
 
   BE_STREAM_TO_UINT16(pid, p);
 

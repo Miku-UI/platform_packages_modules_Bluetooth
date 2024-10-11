@@ -18,14 +18,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <cstddef>
 #include <iostream>
 #include <sstream>
 
 #include "common/init_flags.h"
 #include "hci/controller_interface_mock.h"
 #include "hci/hci_layer_mock.h"
-#include "internal_include/bt_target.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sco.h"
@@ -35,6 +33,7 @@
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/l2cap/l2c_int.h"
+#include "stack/test/btm/btm_test_fixtures.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_legacy_hci_interface.h"
 #include "test/mock/mock_main_shim_entry.h"
@@ -56,15 +55,16 @@ namespace {
 using testing::Return;
 using testing::Test;
 
-class StackBtmTest : public Test {
+class StackBtmTest : public BtmWithMocksTest {
  public:
  protected:
   void SetUp() override {
-    reset_mock_function_count_map();
+    BtmWithMocksTest::SetUp();
     bluetooth::hci::testing::mock_controller_ = &controller_;
   }
   void TearDown() override {
     bluetooth::hci::testing::mock_controller_ = nullptr;
+    BtmWithMocksTest::TearDown();
   }
   bluetooth::hci::testing::MockControllerInterface controller_;
 };
@@ -229,17 +229,17 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr,
 struct {
   RawAddress bd_addr;
   DEV_CLASS dc;
-  tBTM_BD_NAME bd_name;
+  BD_NAME bd_name;
 } btm_test;
 
 TEST_F(StackBtmWithInitFreeTest, btm_sec_rmt_name_request_complete) {
   bluetooth::common::InitFlags::SetAllForTesting();
 
   ASSERT_TRUE(BTM_SecAddRmtNameNotifyCallback(
-      [](const RawAddress& bd_addr, DEV_CLASS dc, tBTM_BD_NAME bd_name) {
+      [](const RawAddress& bd_addr, DEV_CLASS dc, BD_NAME bd_name) {
         btm_test.bd_addr = bd_addr;
         btm_test.dc = dc;
-        memcpy(btm_test.bd_name, bd_name, BTM_MAX_REM_BD_NAME_LEN);
+        memcpy(btm_test.bd_name, bd_name, BD_NAME_LEN);
       }));
 
   RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});

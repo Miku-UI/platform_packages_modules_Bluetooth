@@ -34,7 +34,6 @@ namespace mock {
 namespace stack_hcic_hcicmds {
 
 // Function state capture and return values, if needed
-struct btsnd_hcic_accept_conn btsnd_hcic_accept_conn;
 struct btsnd_hcic_accept_esco_conn btsnd_hcic_accept_esco_conn;
 struct btsnd_hcic_add_SCO_conn btsnd_hcic_add_SCO_conn;
 struct btsnd_hcic_auth_request btsnd_hcic_auth_request;
@@ -44,7 +43,6 @@ struct btsnd_hcic_delete_stored_key btsnd_hcic_delete_stored_key;
 struct btsnd_hcic_enable_test_mode btsnd_hcic_enable_test_mode;
 struct btsnd_hcic_enhanced_accept_synchronous_connection
     btsnd_hcic_enhanced_accept_synchronous_connection;
-struct btsnd_hcic_enhanced_flush btsnd_hcic_enhanced_flush;
 struct btsnd_hcic_enhanced_set_up_synchronous_connection
     btsnd_hcic_enhanced_set_up_synchronous_connection;
 struct btsnd_hcic_exit_park_mode btsnd_hcic_exit_park_mode;
@@ -61,6 +59,8 @@ struct btsnd_hcic_read_encryption_key_size btsnd_hcic_read_encryption_key_size;
 struct btsnd_hcic_read_failed_contact_counter
     btsnd_hcic_read_failed_contact_counter;
 struct btsnd_hcic_read_local_oob_data btsnd_hcic_read_local_oob_data;
+struct btsnd_hcic_read_local_oob_extended_data
+    btsnd_hcic_read_local_oob_extended_data;
 struct btsnd_hcic_read_name btsnd_hcic_read_name;
 struct btsnd_hcic_read_rmt_clk_offset btsnd_hcic_read_rmt_clk_offset;
 struct btsnd_hcic_read_rssi btsnd_hcic_read_rssi;
@@ -70,8 +70,6 @@ struct btsnd_hcic_reject_esco_conn btsnd_hcic_reject_esco_conn;
 struct btsnd_hcic_rem_oob_neg_reply btsnd_hcic_rem_oob_neg_reply;
 struct btsnd_hcic_rem_oob_reply btsnd_hcic_rem_oob_reply;
 struct btsnd_hcic_rmt_ext_features btsnd_hcic_rmt_ext_features;
-struct btsnd_hcic_rmt_name_req btsnd_hcic_rmt_name_req;
-struct btsnd_hcic_rmt_name_req_cancel btsnd_hcic_rmt_name_req_cancel;
 struct btsnd_hcic_rmt_ver_req btsnd_hcic_rmt_ver_req;
 struct btsnd_hcic_set_conn_encrypt btsnd_hcic_set_conn_encrypt;
 struct btsnd_hcic_set_event_filter btsnd_hcic_set_event_filter;
@@ -106,10 +104,6 @@ struct btsnd_hcic_write_voice_settings btsnd_hcic_write_voice_settings;
 }  // namespace test
 
 // Mocked functions, if any
-void btsnd_hcic_accept_conn(const RawAddress& dest, uint8_t role) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hcicmds::btsnd_hcic_accept_conn(dest, role);
-}
 void btsnd_hcic_accept_esco_conn(const RawAddress& bd_addr,
                                  uint32_t transmit_bandwidth,
                                  uint32_t receive_bandwidth,
@@ -152,11 +146,6 @@ void btsnd_hcic_enhanced_accept_synchronous_connection(
   inc_func_call_count(__func__);
   test::mock::stack_hcic_hcicmds::
       btsnd_hcic_enhanced_accept_synchronous_connection(bd_addr, p_params);
-}
-void btsnd_hcic_enhanced_flush(uint16_t handle, uint8_t packet_type) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hcicmds::btsnd_hcic_enhanced_flush(handle,
-                                                            packet_type);
 }
 void btsnd_hcic_enhanced_set_up_synchronous_connection(
     uint16_t conn_handle, enh_esco_params_t* p_params) {
@@ -230,6 +219,10 @@ void btsnd_hcic_read_local_oob_data(void) {
   inc_func_call_count(__func__);
   test::mock::stack_hcic_hcicmds::btsnd_hcic_read_local_oob_data();
 }
+void btsnd_hcic_read_local_oob_extended_data(void) {
+  inc_func_call_count(__func__);
+  test::mock::stack_hcic_hcicmds::btsnd_hcic_read_local_oob_extended_data();
+}
 void btsnd_hcic_read_name(void) {
   inc_func_call_count(__func__);
   test::mock::stack_hcic_hcicmds::btsnd_hcic_read_name();
@@ -266,17 +259,6 @@ void btsnd_hcic_rem_oob_reply(const RawAddress& bd_addr, const Octet16& c,
 void btsnd_hcic_rmt_ext_features(uint16_t handle, uint8_t page_num) {
   inc_func_call_count(__func__);
   test::mock::stack_hcic_hcicmds::btsnd_hcic_rmt_ext_features(handle, page_num);
-}
-void btsnd_hcic_rmt_name_req(const RawAddress& bd_addr,
-                             uint8_t page_scan_rep_mode, uint8_t page_scan_mode,
-                             uint16_t clock_offset) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hcicmds::btsnd_hcic_rmt_name_req(
-      bd_addr, page_scan_rep_mode, page_scan_mode, clock_offset);
-}
-void btsnd_hcic_rmt_name_req_cancel(const RawAddress& bd_addr) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hcicmds::btsnd_hcic_rmt_name_req_cancel(bd_addr);
 }
 void btsnd_hcic_rmt_ver_req(uint16_t handle) {
   inc_func_call_count(__func__);

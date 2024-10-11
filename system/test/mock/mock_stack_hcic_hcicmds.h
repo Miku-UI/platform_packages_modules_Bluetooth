@@ -39,16 +39,6 @@ namespace test {
 namespace mock {
 namespace stack_hcic_hcicmds {
 
-// Name: btsnd_hcic_accept_conn
-// Params: const RawAddress& dest, uint8_t role
-// Return: void
-struct btsnd_hcic_accept_conn {
-  std::function<void(const RawAddress& dest, uint8_t role)> body{
-      [](const RawAddress& /* dest */, uint8_t /* role */) {}};
-  void operator()(const RawAddress& dest, uint8_t role) { body(dest, role); };
-};
-extern struct btsnd_hcic_accept_conn btsnd_hcic_accept_conn;
-
 // Name: btsnd_hcic_accept_esco_conn
 // Params: const RawAddress& bd_addr, uint32_t transmit_bandwidth, uint32_t
 // receive_bandwidth, uint16_t max_latency, uint16_t content_fmt, uint8_t
@@ -147,18 +137,6 @@ struct btsnd_hcic_enhanced_accept_synchronous_connection {
 };
 extern struct btsnd_hcic_enhanced_accept_synchronous_connection
     btsnd_hcic_enhanced_accept_synchronous_connection;
-
-// Name: btsnd_hcic_enhanced_flush
-// Params: uint16_t handle, uint8_t packet_type
-// Return: void
-struct btsnd_hcic_enhanced_flush {
-  std::function<void(uint16_t handle, uint8_t packet_type)> body{
-      [](uint16_t /* handle */, uint8_t /* packet_type */) {}};
-  void operator()(uint16_t handle, uint8_t packet_type) {
-    body(handle, packet_type);
-  };
-};
-extern struct btsnd_hcic_enhanced_flush btsnd_hcic_enhanced_flush;
 
 // Name: btsnd_hcic_enhanced_set_up_synchronous_connection
 // Params: uint16_t conn_handle, enh_esco_params_t* p_params
@@ -327,6 +305,16 @@ struct btsnd_hcic_read_local_oob_data {
 };
 extern struct btsnd_hcic_read_local_oob_data btsnd_hcic_read_local_oob_data;
 
+// Name: btsnd_hcic_read_local_oob_extended_data
+// Params: void
+// Return: void
+struct btsnd_hcic_read_local_oob_extended_data {
+  std::function<void(void)> body{[](void) {}};
+  void operator()(void) { body(); };
+};
+extern struct btsnd_hcic_read_local_oob_extended_data
+    btsnd_hcic_read_local_oob_extended_data;
+
 // Name: btsnd_hcic_read_name
 // Params: void
 // Return: void
@@ -424,31 +412,6 @@ struct btsnd_hcic_rmt_ext_features {
   };
 };
 extern struct btsnd_hcic_rmt_ext_features btsnd_hcic_rmt_ext_features;
-
-// Name: btsnd_hcic_rmt_name_req
-// Params: const RawAddress& bd_addr, uint8_t page_scan_rep_mode, uint8_t
-// page_scan_mode, uint16_t clock_offset Return: void
-struct btsnd_hcic_rmt_name_req {
-  std::function<void(const RawAddress& bd_addr, uint8_t page_scan_rep_mode,
-                     uint8_t page_scan_mode, uint16_t clock_offset)>
-      body{[](const RawAddress& /* bd_addr */, uint8_t /* page_scan_rep_mode */,
-              uint8_t /* page_scan_mode */, uint16_t /* clock_offset */) {}};
-  void operator()(const RawAddress& bd_addr, uint8_t page_scan_rep_mode,
-                  uint8_t page_scan_mode, uint16_t clock_offset) {
-    body(bd_addr, page_scan_rep_mode, page_scan_mode, clock_offset);
-  };
-};
-extern struct btsnd_hcic_rmt_name_req btsnd_hcic_rmt_name_req;
-
-// Name: btsnd_hcic_rmt_name_req_cancel
-// Params: const RawAddress& bd_addr
-// Return: void
-struct btsnd_hcic_rmt_name_req_cancel {
-  std::function<void(const RawAddress& bd_addr)> body{
-      [](const RawAddress& /* bd_addr */) {}};
-  void operator()(const RawAddress& bd_addr) { body(bd_addr); };
-};
-extern struct btsnd_hcic_rmt_name_req_cancel btsnd_hcic_rmt_name_req_cancel;
 
 // Name: btsnd_hcic_rmt_ver_req
 // Params: uint16_t handle

@@ -17,32 +17,19 @@
 
 #pragma once
 
-#include <base/logging.h>
-
-#include <map>
 #include <memory>
-#include <optional>
-#include <tuple>
 #include <utility>  // for std::pair
 #include <vector>
 
-#ifdef __ANDROID__
-#include <android/sysprop/BluetoothProperties.sysprop.h>
-#endif
-
 #include "audio_hal_client/audio_hal_client.h"
 #include "bta_groups.h"
-#include "btm_iso_api_types.h"
-#include "common/strings.h"
 #include "gatt_api.h"
-#include "le_audio_log_history.h"
 #include "le_audio_types.h"
 #include "os/log.h"
 #include "osi/include/alarm.h"
-#include "osi/include/properties.h"
 #include "raw_address.h"
 
-namespace le_audio {
+namespace bluetooth::le_audio {
 
 // Maps to BluetoothProfile#LE_AUDIO
 #define LE_AUDIO_PROFILE_CONSTANT 22
@@ -119,6 +106,8 @@ class LeAudioDevice {
   uint16_t tmap_role_hdl_;
   std::string model_name_;
   bool allowlist_flag_;
+  bool acl_asymmetric_;
+  bool acl_phy_update_done_;
 
   alarm_t* link_quality_timer;
   uint16_t link_quality_timer_data;
@@ -140,6 +129,8 @@ class LeAudioDevice {
         audio_directions_(0),
         model_name_(""),
         allowlist_flag_(false),
+        acl_asymmetric_(false),
+        acl_phy_update_done_(false),
         link_quality_timer(nullptr),
         dsa_({{DsaMode::DISABLED},
               types::DataPathState::IDLE,
@@ -182,26 +173,24 @@ class LeAudioDevice {
   bool IsReadyToSuspendStream(void);
   bool HaveAllActiveAsesCisEst(void) const;
   bool HaveAnyCisConnected(void);
-  const struct types::acs_ac_record* GetCodecConfigurationSupportedPac(
-      uint8_t direction,
-      const set_configurations::CodecConfigSetting& codec_capability_setting);
   uint8_t GetSupportedAudioChannelCounts(uint8_t direction) const;
-  uint8_t GetPhyBitmask(void);
+  uint8_t GetPhyBitmask(void) const;
+  uint8_t GetPreferredPhyBitmask(uint8_t preferred_phy) const;
+  bool IsAudioSetConfigurationSupported(
+      const set_configurations::AudioSetConfiguration* audio_set_conf) const;
   bool ConfigureAses(
-      const le_audio::set_configurations::SetConfiguration& ent,
+      const set_configurations::AudioSetConfiguration* audio_set_conf,
+      uint8_t group_size, uint8_t direction,
       types::LeAudioContextType context_type,
       uint8_t* number_of_already_active_group_ase,
-      types::BidirectionalPair<types::AudioLocations>&
-          group_audio_locations_out,
-      const types::BidirectionalPair<types::AudioContexts>&
-          metadata_context_types,
-      const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists,
-      bool reuse_cis_id);
+      types::AudioLocations& group_audio_locations_out,
+      const types::AudioContexts& metadata_context_types,
+      const std::vector<uint8_t>& ccid_lists, bool reuse_cis_id);
 
   inline types::AudioContexts GetSupportedContexts(
       int direction = types::kLeAudioDirectionBoth) const {
-    ASSERT_LOG(direction <= (types::kLeAudioDirectionBoth),
-               "Invalid direction used.");
+    log::assert_that(direction <= (types::kLeAudioDirectionBoth),
+                     "Invalid direction used.");
 
     if (direction < types::kLeAudioDirectionBoth)
       return supp_contexts_.get(direction);
@@ -215,8 +204,8 @@ class LeAudioDevice {
 
   inline types::AudioContexts GetAvailableContexts(
       int direction = types::kLeAudioDirectionBoth) const {
-    ASSERT_LOG(direction <= (types::kLeAudioDirectionBoth),
-               "Invalid direction used.");
+    log::assert_that(direction <= (types::kLeAudioDirectionBoth),
+                     "Invalid direction used.");
 
     if (direction < types::kLeAudioDirectionBoth)
       return avail_contexts_.get(direction);
@@ -232,11 +221,9 @@ class LeAudioDevice {
       const types::BidirectionalPair<types::AudioContexts>&
           metadata_context_types,
       types::BidirectionalPair<std::vector<uint8_t>> ccid_lists);
-  void SetMetadataToAse(
-      struct types::ase* ase,
-      const types::BidirectionalPair<types::AudioContexts>&
-          metadata_context_types,
-      types::BidirectionalPair<std::vector<uint8_t>> ccid_lists);
+  void SetMetadataToAse(struct types::ase* ase,
+                        const types::AudioContexts& metadata_context_types,
+                        const std::vector<uint8_t>& ccid_lists);
 
   void PrintDebugState(void);
   void DumpPacsDebugState(std::stringstream& stream);
@@ -271,6 +258,7 @@ class LeAudioDevice {
 
   void DumpPacsDebugState(std::stringstream& stream,
                           types::PublishedAudioCapabilities pacs);
+  void ParseHeadtrackingCodec(const struct types::acs_ac_record& pac);
 };
 
 /* LeAudioDevices class represents a wraper helper over all devices in le audio
@@ -279,7 +267,8 @@ class LeAudioDevice {
  */
 class LeAudioDevices {
  public:
-  void Add(const RawAddress& address, le_audio::DeviceConnectState state,
+  void Add(const RawAddress& address,
+           bluetooth::le_audio::DeviceConnectState state,
            int group_id = bluetooth::groups::kGroupUnknown);
   void Remove(const RawAddress& address);
   LeAudioDevice* FindByAddress(const RawAddress& address) const;
@@ -297,4 +286,4 @@ class LeAudioDevices {
   std::vector<std::shared_ptr<LeAudioDevice>> leAudioDevices_;
 };
 
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio

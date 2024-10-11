@@ -29,7 +29,6 @@ import java.util.ArrayList;
 
 final class BluetoothPbapRequestPullPhoneBook extends BluetoothPbapRequest {
     private static final String TAG = "PbapClient.PullPb";
-    private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
 
     private static final String TYPE = "x-bt/phonebook";
 
@@ -41,8 +40,13 @@ final class BluetoothPbapRequestPullPhoneBook extends BluetoothPbapRequest {
 
     private final byte mFormat;
 
-    BluetoothPbapRequestPullPhoneBook(String pbName, Account account, long filter, byte format,
-            int maxListCount, int listStartOffset) {
+    BluetoothPbapRequestPullPhoneBook(
+            String pbName,
+            Account account,
+            long filter,
+            byte format,
+            int maxListCount,
+            int listStartOffset) {
         mAccount = account;
         if (maxListCount < 0 || maxListCount > 65535) {
             throw new IllegalArgumentException("maxListCount should be [0..65535]");
@@ -91,17 +95,15 @@ final class BluetoothPbapRequestPullPhoneBook extends BluetoothPbapRequest {
 
     @Override
     protected void readResponse(InputStream stream) throws IOException {
-        if (VDBG) Log.v(TAG, "readResponse");
+        Log.v(TAG, "readResponse");
 
         mResponse = new BluetoothPbapVcardList(mAccount, stream, mFormat);
-        if (VDBG) {
-            Log.d(TAG, "Read " + mResponse.getCount() + " entries.");
-        }
+        Log.d(TAG, "Read " + mResponse.getCount() + " entries");
     }
 
     @Override
     protected void readResponseHeaders(HeaderSet headerset) {
-        if (VDBG) Log.v(TAG, "readResponseHeaders");
+        Log.v(TAG, "readResponseHeaders");
 
         ObexAppParameters oap = ObexAppParameters.fromHeaderSet(headerset);
 

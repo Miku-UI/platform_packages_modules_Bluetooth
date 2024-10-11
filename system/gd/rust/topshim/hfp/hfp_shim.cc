@@ -16,6 +16,8 @@
 
 #include "rust/topshim/hfp/hfp_shim.h"
 
+#include <bluetooth/log.h>
+
 #include "btif/include/btif_hf.h"
 #include "common/strings.h"
 #include "device/include/interop.h"
@@ -92,7 +94,7 @@ static void call_hold_cb(bluetooth::headset::bthf_chld_type_t chld, RawAddress* 
       chld_rs = rusty::CallHoldCommand::AddHeldToConf;
       break;
     default:
-      ASSERT_LOG(false, "Unhandled enum value from C++");
+      log::fatal("Unhandled enum value from C++");
   }
   rusty::hfp_call_hold_callback(chld_rs, *addr);
 }
@@ -112,7 +114,7 @@ static headset::bthf_call_state_t from_rust_call_state(rusty::CallState state) {
     case rusty::CallState::Held:
       return headset::BTHF_CALL_STATE_HELD;
     default:
-      ASSERT_LOG(false, "Unhandled enum value from Rust");
+      log::fatal("Unhandled enum value from Rust");
   }
 }
 
@@ -148,12 +150,12 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
 
   // headset::Callbacks
   void ConnectionStateCallback(headset::bthf_connection_state_t state, RawAddress* bd_addr) override {
-    LOG_INFO("ConnectionStateCallback from %s", ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::info("ConnectionStateCallback from {}", *bd_addr);
     topshim::rust::internal::connection_state_cb(state, bd_addr);
   }
 
   void AudioStateCallback(headset::bthf_audio_state_t state, RawAddress* bd_addr) override {
-    LOG_INFO("AudioStateCallback %u from %s", state, ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::info("AudioStateCallback {} from {}", state, *bd_addr);
     topshim::rust::internal::audio_state_cb(state, bd_addr);
   }
 
@@ -172,12 +174,10 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
     if (volume < 0) return;
     if (volume > 15) volume = 15;
     if (type == headset::bthf_volume_type_t::BTHF_VOLUME_TYPE_SPK) {
-      LOG_INFO(
-          "VolumeControlCallback (Spk) %d from %s", volume, ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+      log::info("VolumeControlCallback (Spk) {} from {}", volume, *bd_addr);
       topshim::rust::internal::volume_update_cb(volume, bd_addr);
     } else if (type == headset::bthf_volume_type_t::BTHF_VOLUME_TYPE_MIC) {
-      LOG_INFO(
-          "VolumeControlCallback (Mic) %d from %s", volume, ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+      log::info("VolumeControlCallback (Mic) {} from {}", volume, *bd_addr);
       topshim::rust::internal::mic_volume_update_cb(volume, bd_addr);
     }
   }
@@ -192,13 +192,13 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
       [[maybe_unused]] headset::bthf_nrec_t nrec, [[maybe_unused]] RawAddress* bd_addr) override {}
 
   void WbsCallback(headset::bthf_wbs_config_t wbs, RawAddress* addr) override {
-    LOG_INFO("WbsCallback %d from %s", wbs, ADDRESS_TO_LOGGABLE_CSTR(*addr));
+    log::info("WbsCallback {} from {}", wbs, *addr);
     rusty::hfp_wbs_caps_update_callback(wbs == headset::BTHF_WBS_YES, *addr);
   }
 
   void SwbCallback(
       headset::bthf_swb_codec_t codec, headset::bthf_swb_config_t swb, RawAddress* addr) override {
-    LOG_INFO("SwbCallback codec:%d, swb:%d from %s", codec, swb, ADDRESS_TO_LOGGABLE_CSTR(*addr));
+    log::info("SwbCallback codec:{}, swb:{} from {}", codec, swb, *addr);
     rusty::hfp_swb_caps_update_callback(
         (codec == headset::BTHF_SWB_CODEC_LC3 && swb == headset::BTHF_SWB_YES), *addr);
   }
@@ -218,8 +218,7 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
   }
 
   void AtCopsCallback(RawAddress* bd_addr) override {
-    LOG_WARN("Respond +COPS: 0 to AT+COPS? from %s",
-             ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::warn("Respond +COPS: 0 to AT+COPS? from {}", *bd_addr);
     headset_->CopsResponse("", bd_addr);
   }
 
@@ -235,7 +234,7 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
     const bool is_iphoneaccev = at_command.find("+IPHONEACCEV") != std::string::npos;
     const bool is_xevent = at_command.find("+XEVENT") != std::string::npos;
     if (!is_xapl && !is_iphoneaccev && !is_xevent) {
-      LOG_WARN("Reply Error to UnknownAtCallback:%s", at_string);
+      log::warn("Reply Error to UnknownAtCallback:{}", at_string);
       headset_->AtResponse(headset::BTHF_AT_RESPONSE_ERROR, 0, bd_addr);
       return;
     }
@@ -254,10 +253,8 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
   void KeyPressedCallback([[maybe_unused]] RawAddress* bd_addr) override {}
 
   void AtBindCallback(char* at_string, RawAddress* bd_addr) override {
-    LOG_WARN(
-        "AT+BIND %s from addr %s: Bluetooth HF Indicators is not supported.",
-        at_string,
-        ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::warn(
+        "AT+BIND {} from addr {}: Bluetooth HF Indicators is not supported.", at_string, *bd_addr);
   }
 
   void AtBievCallback(headset::bthf_hf_ind_type_t ind_id, int ind_value, RawAddress* bd_addr) override {
@@ -271,18 +268,13 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
         headset_->AtResponse(headset::BTHF_AT_RESPONSE_OK, 0, bd_addr);
         break;
       default:
-        LOG_WARN(
-            "AT+BIEV indicator %i with value %i from addr %s",
-            ind_id,
-            ind_value,
-            ADDRESS_TO_LOGGABLE_CSTR(*bd_addr) );
+        log::warn("AT+BIEV indicator {} with value {} from addr {}", ind_id, ind_value, *bd_addr);
         return;
     }
   }
 
   void AtBiaCallback(bool service, bool roam, bool signal, bool battery, RawAddress* bd_addr) override {
-    LOG_WARN("AT+BIA=,,%d,%d,%d,%d,from addr %s", service, signal, roam,
-             battery, ADDRESS_TO_LOGGABLE_CSTR(*bd_addr));
+    log::warn("AT+BIA=,,{},{},{},{},from addr {}", service, signal, roam, battery, *bd_addr);
   }
 
   void DebugDumpCallback(
@@ -294,8 +286,8 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
       uint64_t end_ts,
       const char* pkt_status_in_hex,
       const char* pkt_status_in_binary) override {
-    LOG_WARN(
-        "DebugDumpCallback %d %u %d %f %llu %llu %s %s",
+    log::warn(
+        "DebugDumpCallback {} {} {} {:f} {} {} {} {}",
         active,
         codec_id,
         total_num_decoded_frames,

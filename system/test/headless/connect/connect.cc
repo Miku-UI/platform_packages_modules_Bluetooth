@@ -18,22 +18,17 @@
 
 #include "test/headless/connect/connect.h"
 
+#include <bluetooth/log.h>
 #include <inttypes.h>
 
 #include <chrono>
 #include <cstdint>
-#include <cstdio>
-#include <future>
 #include <string>
 
-#include "base/logging.h"  // LOG() stdout and android log
 #include "btif/include/stack_manager_t.h"
-#include "os/log.h"  // android log only
+#include "main/shim/acl_api.h"
 #include "stack/include/acl_api.h"
-#include "stack/include/btm_api.h"
-#include "stack/include/btm_api_types.h"
 #include "stack/include/hci_error_code.h"
-#include "stack/include/l2cap_acl_interface.h"
 #include "test/headless/get_options.h"
 #include "test/headless/headless.h"
 #include "test/headless/interface.h"
@@ -41,6 +36,7 @@
 #include "types/raw_address.h"
 
 using namespace bluetooth::test;
+using namespace bluetooth;
 using namespace std::chrono_literals;
 
 const stack_manager_t* stack_manager_get_interface();
@@ -62,7 +58,7 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
       if (v[0] == "wait") disconnect_wait_time = std::stoi(v[1]);
     }
   }
-  ASSERT_LOG(disconnect_wait_time >= 0, "Time cannot go backwards");
+  log::assert_that(disconnect_wait_time >= 0, "Time cannot go backwards");
 
   headless::messenger::Context context{
       .stop_watch = Stopwatch("Connect_timeout"),
@@ -72,8 +68,8 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
   };
 
   LOG_CONSOLE("Creating connection to:%s", bd_addr.ToString().c_str());
-  LOG(INFO) << "Creating classic connection to " << bd_addr.ToString();
-  acl_create_classic_connection(bd_addr, false, false);
+  log::info("Creating classic connection to {}", bd_addr.ToString());
+  bluetooth::shim::ACL_CreateClassicConnection(bd_addr);
 
   std::shared_ptr<callback_params_t> acl{nullptr};
   while (context.stop_watch.LapMs() < 10000) {
@@ -106,7 +102,7 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
 
   if (f_simulate_stack_crash) {
     LOG_CONSOLE("Just crushing stack");
-    LOG(INFO) << "Just crushing stack";
+    log::info("Just crushing stack");
     bluetoothInterface.disable();
   }
   std::shared_ptr<callback_params_t> acl2{nullptr};

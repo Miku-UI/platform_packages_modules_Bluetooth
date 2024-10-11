@@ -24,7 +24,6 @@
 #define LOG_TAG "l2c_csm"
 
 #include <base/functional/callback.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
@@ -141,9 +140,13 @@ void l2c_csm_execute(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
     return;
   }
 
-  log::verbose("Entry chnl_state={} [{}], event={} [{}]",
-               channel_state_text(p_ccb->chnl_state), p_ccb->chnl_state,
-               l2c_csm_get_event_name(event), event);
+  // Log all but data events
+  if (event != L2CEVT_L2CAP_DATA && event != L2CEVT_L2CA_DATA_READ &&
+      event != L2CEVT_L2CA_DATA_WRITE) {
+    log::info("Enter CSM, chnl_state:{} [{}], event:{} [{}]",
+              channel_state_text(p_ccb->chnl_state), p_ccb->chnl_state,
+              l2c_csm_get_event_name(event), event);
+  }
 
   switch (p_ccb->chnl_state) {
     case CST_CLOSED:
@@ -716,8 +719,8 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event,
       break;
 
     case L2CEVT_L2CAP_CONNECT_RSP_NEG: /* Peer rejected connection */
-      log::warn("L2CAP connection rejected, lcid={}, reason={}",
-                loghex(p_ccb->local_cid), loghex(p_ci->l2cap_result));
+      log::warn("L2CAP connection rejected, lcid=0x{:x}, reason=0x{:x}",
+                p_ccb->local_cid, p_ci->l2cap_result);
       l2cu_release_ccb(p_ccb);
       if (p_lcb->transport == BT_TRANSPORT_LE) {
         (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(
@@ -736,7 +739,7 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event,
         for (int i = 0; i < p_lcb->pending_ecoc_conn_cnt; i++) {
           uint16_t cid = p_lcb->pending_ecoc_connection_cids[i];
           tL2C_CCB* temp_p_ccb = l2cu_find_ccb_by_cid(p_lcb, cid);
-          log::warn("lcid= {}", loghex(cid));
+          log::warn("lcid= 0x{:x}", cid);
           (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(p_ccb->local_cid,
                                               L2CAP_CONN_TIMEOUT);
           bluetooth::shim::CountCounterMetrics(
@@ -750,7 +753,7 @@ static void l2c_csm_w4_l2cap_connect_rsp(tL2C_CCB* p_ccb, tL2CEVT event,
                L2CAP_CREDIT_BASED_MAX_CIDS);
 
       } else {
-        log::warn("lcid= {}", loghex(p_ccb->local_cid));
+        log::warn("lcid= 0x{:x}", p_ccb->local_cid);
         l2cu_release_ccb(p_ccb);
         (*p_ccb->p_rcb->api.pL2CA_Error_Cb)(local_cid, L2CAP_CONN_OTHER_ERROR);
         bluetooth::shim::CountCounterMetrics(
@@ -1018,8 +1021,7 @@ static void l2c_csm_config(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data) {
       cfg_result = l2cu_process_peer_cfg_req(p_ccb, p_cfg);
       if (cfg_result == L2CAP_PEER_CFG_OK) {
         log::debug("Calling Config_Req_Cb(), CID: 0x{:04x}, C-bit {}",
-                   p_ccb->local_cid,
-                   (p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT));
+                   p_ccb->local_cid, p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT);
         l2c_csm_send_config_rsp_ok(p_ccb,
                                    p_cfg->flags & L2CAP_CFG_FLAGS_MASK_CONT);
         if (p_ccb->config_done & OB_CFG_DONE) {
@@ -1720,7 +1722,7 @@ static const char* l2c_csm_get_event_name(tL2CEVT event) {
  *
  ******************************************************************************/
 void l2c_enqueue_peer_data(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
-  CHECK(p_ccb != nullptr);
+  log::assert_that(p_ccb != nullptr, "assert failed: p_ccb != nullptr");
 
   p_ccb->metrics.tx(p_buf->len);
 

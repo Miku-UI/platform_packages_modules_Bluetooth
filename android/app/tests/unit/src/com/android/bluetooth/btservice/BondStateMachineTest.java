@@ -40,11 +40,13 @@ import com.android.bluetooth.Utils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -52,8 +54,14 @@ public class BondStateMachineTest {
     private static final int TEST_BOND_REASON = 0;
     private static final byte[] TEST_BT_ADDR_BYTES = {00, 11, 22, 33, 44, 55};
     private static final byte[] TEST_BT_ADDR_BYTES_2 = {00, 11, 22, 33, 44, 66};
-    private static final ParcelUuid[] TEST_UUIDS =
-            {ParcelUuid.fromString("0000111E-0000-1000-8000-00805F9B34FB")};
+    private static final int[] DEVICE_TYPES = {
+        BluetoothDevice.DEVICE_TYPE_CLASSIC,
+        BluetoothDevice.DEVICE_TYPE_DUAL,
+        BluetoothDevice.DEVICE_TYPE_LE
+    };
+    private static final ParcelUuid[] TEST_UUIDS = {
+        ParcelUuid.fromString("0000111E-0000-1000-8000-00805F9B34FB")
+    };
 
     private static final int BOND_NONE = BluetoothDevice.BOND_NONE;
     private static final int BOND_BONDING = BluetoothDevice.BOND_BONDING;
@@ -69,13 +77,14 @@ public class BondStateMachineTest {
     private RemoteDevices.DeviceProperties mDeviceProperties;
     private int mVerifyCount = 0;
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private AdapterService mAdapterService;
     @Mock private AdapterNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
         doReturn(mNativeInterface).when(mAdapterService).getNative();
         mHandlerThread = new HandlerThread("BondStateMachineTestHandlerThread");
@@ -89,12 +98,11 @@ public class BondStateMachineTest {
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
         mRemoteDevices.reset();
-        when(mAdapterService.getResources()).thenReturn(
-                mTargetContext.getResources());
+        when(mAdapterService.getResources()).thenReturn(mTargetContext.getResources());
         mAdapterProperties = new AdapterProperties(mAdapterService);
         mAdapterProperties.init(mRemoteDevices);
-        mBondStateMachine = BondStateMachine.make(mAdapterService, mAdapterProperties,
-                mRemoteDevices);
+        mBondStateMachine =
+                BondStateMachine.make(mAdapterService, mAdapterProperties, mRemoteDevices);
     }
 
     @After
@@ -134,11 +142,11 @@ public class BondStateMachineTest {
         verify(mNativeInterface, times(1)).removeBond(eq(TEST_BT_ADDR_BYTES));
         verify(mNativeInterface, times(1)).removeBond(eq(TEST_BT_ADDR_BYTES_2));
 
-        mBondStateMachine.bondStateChangeCallback(AbstractionLayer.BT_STATUS_SUCCESS,
-                TEST_BT_ADDR_BYTES, BOND_NONE, 0);
+        mBondStateMachine.bondStateChangeCallback(
+                AbstractionLayer.BT_STATUS_SUCCESS, TEST_BT_ADDR_BYTES, BOND_NONE, 0);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
-        mBondStateMachine.bondStateChangeCallback(AbstractionLayer.BT_STATUS_SUCCESS,
-                TEST_BT_ADDR_BYTES_2, BOND_NONE, 0);
+        mBondStateMachine.bondStateChangeCallback(
+                AbstractionLayer.BT_STATUS_SUCCESS, TEST_BT_ADDR_BYTES_2, BOND_NONE, 0);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
 
         // Try to pair these two devices again, createBondNative() should be invoked.
@@ -165,12 +173,16 @@ public class BondStateMachineTest {
         mRemoteDevices.reset();
         mBondStateMachine.mPendingBondedDevices.clear();
 
-        BluetoothDevice device1 = BluetoothAdapter.getDefaultAdapter().getRemoteLeDevice(
-                        Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES),
-                        BluetoothDevice.ADDRESS_TYPE_PUBLIC);
-        BluetoothDevice device2 = BluetoothAdapter.getDefaultAdapter().getRemoteLeDevice(
-                        Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES_2),
-                        BluetoothDevice.ADDRESS_TYPE_RANDOM);
+        BluetoothDevice device1 =
+                BluetoothAdapter.getDefaultAdapter()
+                        .getRemoteLeDevice(
+                                Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES),
+                                BluetoothDevice.ADDRESS_TYPE_PUBLIC);
+        BluetoothDevice device2 =
+                BluetoothAdapter.getDefaultAdapter()
+                        .getRemoteLeDevice(
+                                Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES_2),
+                                BluetoothDevice.ADDRESS_TYPE_RANDOM);
 
         // The createBond() request for two devices with different address types.
         Message createBondMsg1 = mBondStateMachine.obtainMessage(BondStateMachine.CREATE_BOND);
@@ -230,248 +242,366 @@ public class BondStateMachineTest {
         Assert.assertTrue(mBondStateMachine.mPendingBondedDevices.isEmpty());
     }
 
-    @Test
-    public void testSendIntent() {
-        int badBondState = 42;
-        mVerifyCount = 0;
-
+    private void resetRemoteDevice(int deviceType) {
         // Reset mRemoteDevices for the test.
         mRemoteDevices.reset();
         mDeviceProperties = mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
         mDevice = mDeviceProperties.getDevice();
         Assert.assertNotNull(mDevice);
-
-        // Uuid not available, mPendingBondedDevice is empty.
-        testSendIntentNoPendingDevice(BOND_NONE, BOND_NONE, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_NONE, BOND_BONDING, false, BOND_BONDING,
-                true, BOND_NONE, BOND_BONDING, false);
-        testSendIntentNoPendingDevice(BOND_NONE, BOND_BONDED, false, BOND_BONDED,
-                true, BOND_NONE, BOND_BONDING, true);
-        testSendIntentNoPendingDevice(BOND_NONE, badBondState, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDING, BOND_NONE, false, BOND_NONE,
-                true, BOND_BONDING, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDING, BOND_BONDING, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDING, BOND_BONDED, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, true);
-        testSendIntentNoPendingDevice(BOND_BONDING, badBondState, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, BOND_NONE, false, BOND_NONE,
-                true, BOND_BONDED, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, BOND_BONDING, false, BOND_BONDING,
-                true, BOND_BONDED, BOND_BONDING, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, BOND_BONDED, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, badBondState, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-
-        testSendIntentNoPendingDevice(BOND_NONE, BOND_NONE, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_NONE, BOND_BONDING, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_NONE, BOND_BONDED, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_NONE, badBondState, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDING, BOND_NONE, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDING, BOND_BONDING, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDING, BOND_BONDED, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDING, badBondState, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, BOND_NONE, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, BOND_BONDING, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, BOND_BONDED, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDevice(BOND_BONDED, badBondState, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-
-        // Uuid not available, mPendingBondedDevice contains a remote device.
-        testSendIntentPendingDevice(BOND_NONE, BOND_NONE, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_NONE, BOND_BONDING, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_NONE, BOND_BONDED, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_NONE, badBondState, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, BOND_NONE, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, BOND_BONDING, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, BOND_BONDED, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, badBondState, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDED, BOND_NONE, false, BOND_NONE,
-                true, BOND_BONDING, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDED, BOND_BONDING, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDED, BOND_BONDED, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, true);
-        testSendIntentPendingDevice(BOND_BONDED, badBondState, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-
-        testSendIntentPendingDevice(BOND_NONE, BOND_NONE, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_NONE, BOND_BONDING, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_NONE, BOND_BONDED, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_NONE, badBondState, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, BOND_NONE, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, BOND_BONDING, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, BOND_BONDED, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDING, badBondState, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDED, BOND_NONE, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDED, BOND_BONDING, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(BOND_BONDED, BOND_BONDED, true, BOND_BONDED,
-                true, BOND_BONDING, BOND_BONDED, false);
-        testSendIntentPendingDevice(BOND_BONDED, badBondState, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-
-        // Uuid available, mPendingBondedDevice is empty.
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, BOND_NONE, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, BOND_BONDING, false, BOND_BONDING,
-                true, BOND_NONE, BOND_BONDING, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, BOND_BONDED, false, BOND_BONDED,
-                true, BOND_NONE, BOND_BONDED, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, badBondState, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, BOND_NONE, false, BOND_NONE,
-                true, BOND_BONDING, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, BOND_BONDING, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, BOND_BONDED, false, BOND_BONDED,
-                true, BOND_BONDING, BOND_BONDED, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, badBondState, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, BOND_NONE, false, BOND_NONE,
-                true, BOND_BONDED, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, BOND_BONDING, false, BOND_BONDING,
-                true, BOND_BONDED, BOND_BONDING, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, BOND_BONDED, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, badBondState, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, BOND_NONE, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, BOND_BONDING, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, BOND_BONDED, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_NONE, badBondState, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, BOND_NONE, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, BOND_BONDING, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, BOND_BONDED, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDING, badBondState, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, BOND_NONE, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, BOND_BONDING, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, BOND_BONDED, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentNoPendingDeviceWithUuid(BOND_BONDED, badBondState, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-
-        // Uuid available, mPendingBondedDevice contains a remote device.
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, BOND_NONE, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, BOND_BONDING, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, BOND_BONDED, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, badBondState, false, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, BOND_NONE, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, BOND_BONDING, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, BOND_BONDED, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, badBondState, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, BOND_NONE, false, BOND_NONE,
-                true, BOND_BONDING, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, BOND_BONDING, false, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, BOND_BONDED, false, BOND_BONDED,
-                true, BOND_BONDING, BOND_BONDED, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, badBondState, false, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, BOND_NONE, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, BOND_BONDING, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, BOND_BONDED, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_NONE, badBondState, true, BOND_NONE,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, BOND_NONE, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, BOND_BONDING, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, BOND_BONDED, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDING, badBondState, true, BOND_BONDING,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, BOND_NONE, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, BOND_BONDING, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, BOND_BONDED, true, BOND_BONDED,
-                true, BOND_BONDING, BOND_BONDED, false);
-        testSendIntentPendingDeviceWithUuid(BOND_BONDED, badBondState, true, BOND_BONDED,
-                false, BOND_NONE, BOND_NONE, false);
+        mDeviceProperties.mDeviceType = deviceType;
+        mBondStateMachine.mPendingBondedDevices.clear();
     }
 
-    private void testSendIntentCase(int oldState, int newState, boolean isTriggerFromDelayMessage,
-            int expectedNewState, boolean shouldBroadcast, int broadcastOldState,
-            int broadcastNewState, boolean shouldDelayMessageExist) {
+    @Test
+    public void testSendIntent() {
+        int badBondState = 42;
+        mVerifyCount = 0;
+
+        // Uuid not available, mPendingBondedDevice is empty.
+        testSendIntentNoPendingDevice(
+                BOND_NONE, BOND_NONE, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+
+        testSendIntentNoPendingDevice(
+                BOND_NONE, BOND_BONDING, false, BOND_BONDING, true, BOND_NONE, BOND_BONDING, false);
+        testSendIntentNoPendingDevice(
+                BOND_NONE, BOND_BONDED, false, BOND_BONDED, true, BOND_NONE, BOND_BONDING, true);
+        testSendIntentNoPendingDevice(
+                BOND_NONE, badBondState, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING, BOND_NONE, false, BOND_NONE, true, BOND_BONDING, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING,
+                BOND_BONDING,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING, BOND_BONDED, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, true);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING,
+                badBondState,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED, BOND_NONE, false, BOND_NONE, true, BOND_BONDED, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED,
+                BOND_BONDING,
+                false,
+                BOND_BONDING,
+                true,
+                BOND_BONDED,
+                BOND_BONDING,
+                false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED, BOND_BONDED, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED, badBondState, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+
+        testSendIntentNoPendingDevice(
+                BOND_NONE, BOND_NONE, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_NONE, BOND_BONDING, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_NONE, BOND_BONDED, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_NONE, badBondState, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING, BOND_NONE, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING, BOND_BONDING, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING, BOND_BONDED, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDING, badBondState, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED, BOND_NONE, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED, BOND_BONDING, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED, BOND_BONDED, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDevice(
+                BOND_BONDED, badBondState, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+
+        // Uuid not available, mPendingBondedDevice contains a remote device.
+        testSendIntentPendingDevice(
+                BOND_NONE, BOND_NONE, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_NONE, BOND_BONDING, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_NONE, BOND_BONDED, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_NONE, badBondState, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDING, BOND_NONE, false, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDING,
+                BOND_BONDING,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentPendingDevice(
+                BOND_BONDING, BOND_BONDED, false, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDING,
+                badBondState,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentPendingDevice(
+                BOND_BONDED, BOND_NONE, false, BOND_NONE, true, BOND_BONDING, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDED, BOND_BONDING, false, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDED, BOND_BONDED, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, true);
+        testSendIntentPendingDevice(
+                BOND_BONDED, badBondState, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+
+        testSendIntentPendingDevice(
+                BOND_NONE, BOND_NONE, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_NONE, BOND_BONDING, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_NONE, BOND_BONDED, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_NONE, badBondState, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDING, BOND_NONE, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDING, BOND_BONDING, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDING, BOND_BONDED, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDING, badBondState, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDED, BOND_NONE, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDED, BOND_BONDING, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDevice(
+                BOND_BONDED,
+                BOND_BONDED,
+                true,
+                BOND_BONDED,
+                true,
+                BOND_BONDING,
+                BOND_BONDED,
+                false);
+        testSendIntentPendingDevice(
+                BOND_BONDED, badBondState, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+
+        // Uuid available, mPendingBondedDevice is empty.
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, BOND_NONE, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDING, false, BOND_BONDING, true, BOND_NONE, BOND_BONDING, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDED, false, BOND_BONDED, true, BOND_NONE, BOND_BONDED, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, badBondState, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING, BOND_NONE, false, BOND_NONE, true, BOND_BONDING, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING,
+                BOND_BONDING,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING,
+                BOND_BONDED,
+                false,
+                BOND_BONDED,
+                true,
+                BOND_BONDING,
+                BOND_BONDED,
+                false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING,
+                badBondState,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED, BOND_NONE, false, BOND_NONE, true, BOND_BONDED, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED,
+                BOND_BONDING,
+                false,
+                BOND_BONDING,
+                true,
+                BOND_BONDED,
+                BOND_BONDING,
+                false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED, BOND_BONDED, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED, badBondState, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, BOND_NONE, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDING, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDED, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_NONE, badBondState, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING, BOND_NONE, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING, BOND_BONDING, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING, BOND_BONDED, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDING, badBondState, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED, BOND_NONE, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED, BOND_BONDING, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED, BOND_BONDED, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentNoPendingDeviceWithUuid(
+                BOND_BONDED, badBondState, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+
+        // Uuid available, mPendingBondedDevice contains a remote device.
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, BOND_NONE, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDING, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDED, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, badBondState, false, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING, BOND_NONE, false, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING,
+                BOND_BONDING,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING, BOND_BONDED, false, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING,
+                badBondState,
+                false,
+                BOND_BONDING,
+                false,
+                BOND_NONE,
+                BOND_NONE,
+                false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED, BOND_NONE, false, BOND_NONE, true, BOND_BONDING, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED, BOND_BONDING, false, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED,
+                BOND_BONDED,
+                false,
+                BOND_BONDED,
+                true,
+                BOND_BONDING,
+                BOND_BONDED,
+                false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED, badBondState, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, BOND_NONE, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDING, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, BOND_BONDED, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_NONE, badBondState, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING, BOND_NONE, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING, BOND_BONDING, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING, BOND_BONDED, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDING, badBondState, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED, BOND_NONE, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED, BOND_BONDING, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED,
+                BOND_BONDED,
+                true,
+                BOND_BONDED,
+                true,
+                BOND_BONDING,
+                BOND_BONDED,
+                false);
+        testSendIntentPendingDeviceWithUuid(
+                BOND_BONDED, badBondState, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+    }
+
+    private void testSendIntentCase(
+            int oldState,
+            int newState,
+            boolean isTriggerFromDelayMessage,
+            int expectedNewState,
+            boolean shouldBroadcast,
+            int broadcastOldState,
+            int broadcastNewState,
+            boolean shouldDelayMessageExist) {
         ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
 
         // Setup old state before start test.
         mDeviceProperties.mBondState = oldState;
 
         try {
-            mBondStateMachine.sendIntent(mDevice, newState, TEST_BOND_REASON,
-                    isTriggerFromDelayMessage);
+            mBondStateMachine.sendIntent(
+                    mDevice, newState, TEST_BOND_REASON, isTriggerFromDelayMessage);
         } catch (IllegalArgumentException e) {
             // Do nothing.
         }
-        Assert.assertEquals(expectedNewState, mDeviceProperties.getBondState());
+
+        // Properties are removed when bond is removed
+        if (newState != BluetoothDevice.BOND_NONE) {
+            Assert.assertEquals(expectedNewState, mDeviceProperties.getBondState());
+        }
 
         // Check for bond state Intent status.
         if (shouldBroadcast) {
-            verify(mAdapterService, times(++mVerifyCount)).sendBroadcastAsUser(
-                    intentArgument.capture(), eq(UserHandle.ALL),
-                    eq(BLUETOOTH_CONNECT), any(Bundle.class));
-            verifyBondStateChangeIntent(broadcastOldState, broadcastNewState,
-                    intentArgument.getValue());
+            verify(mAdapterService, times(++mVerifyCount))
+                    .sendBroadcastAsUser(
+                            intentArgument.capture(), eq(UserHandle.ALL),
+                            eq(BLUETOOTH_CONNECT), any(Bundle.class));
+            verifyBondStateChangeIntent(
+                    broadcastOldState, broadcastNewState, intentArgument.getValue());
         } else {
-            verify(mAdapterService, times(mVerifyCount)).sendBroadcastAsUser(any(Intent.class),
-                    any(UserHandle.class), anyString(), any(Bundle.class));
+            verify(mAdapterService, times(mVerifyCount))
+                    .sendBroadcastAsUser(
+                            any(Intent.class),
+                            any(UserHandle.class),
+                            anyString(),
+                            any(Bundle.class));
         }
 
         if (shouldDelayMessageExist) {
@@ -482,70 +612,124 @@ public class BondStateMachineTest {
         }
     }
 
-    private void testSendIntentNoPendingDeviceWithUuid(int oldState, int newState,
-            boolean isTriggerFromDelayMessage, int expectedNewState, boolean shouldBroadcast,
-            int broadcastOldState, int broadcastNewState, boolean shouldDelayMessageExist) {
-        // Add dummy UUID for the device.
-        mDeviceProperties.mUuids = TEST_UUIDS;
-        testSendIntentNoPendingDevice(oldState, newState, isTriggerFromDelayMessage,
-                expectedNewState, shouldBroadcast, broadcastOldState, broadcastNewState,
-                shouldDelayMessageExist);
+    private void testSendIntentForAllDeviceTypes(
+            int oldState,
+            int newState,
+            boolean isTriggerFromDelayMessage,
+            int expectedNewState,
+            boolean shouldBroadcast,
+            int broadcastOldState,
+            int broadcastNewState,
+            boolean shouldDelayMessageExist,
+            BluetoothDevice pendingBondedDevice,
+            ParcelUuid[] uuids) {
+        for (int deviceType : DEVICE_TYPES) {
+            resetRemoteDevice(deviceType);
+            if (pendingBondedDevice != null) {
+                mBondStateMachine.mPendingBondedDevices.add(mDevice);
+            }
+            if (uuids != null) {
+                // Add dummy UUID for the device.
+                mDeviceProperties.mUuids = TEST_UUIDS;
+            }
+            testSendIntentCase(
+                    oldState,
+                    newState,
+                    isTriggerFromDelayMessage,
+                    expectedNewState,
+                    shouldBroadcast,
+                    broadcastOldState,
+                    broadcastNewState,
+                    shouldDelayMessageExist);
+        }
     }
 
-    private void testSendIntentPendingDeviceWithUuid(int oldState, int newState,
-            boolean isTriggerFromDelayMessage, int expectedNewState, boolean shouldBroadcast,
-            int broadcastOldState, int broadcastNewState, boolean shouldDelayMessageExist) {
-        // Add dummy UUID for the device.
-        mDeviceProperties.mUuids = TEST_UUIDS;
-        testSendIntentPendingDevice(oldState, newState, isTriggerFromDelayMessage, expectedNewState,
-                shouldBroadcast, broadcastOldState, broadcastNewState, shouldDelayMessageExist);
+    private void testSendIntentNoPendingDeviceWithUuid(
+            int oldState,
+            int newState,
+            boolean isTriggerFromDelayMessage,
+            int expectedNewState,
+            boolean shouldBroadcast,
+            int broadcastOldState,
+            int broadcastNewState,
+            boolean shouldDelayMessageExist) {
+        testSendIntentForAllDeviceTypes(
+                oldState,
+                newState,
+                isTriggerFromDelayMessage,
+                expectedNewState,
+                shouldBroadcast,
+                broadcastOldState,
+                broadcastNewState,
+                shouldDelayMessageExist,
+                null,
+                TEST_UUIDS);
     }
 
-    private void testSendIntentPendingDevice(int oldState, int newState,
-            boolean isTriggerFromDelayMessage, int expectedNewState, boolean shouldBroadcast,
-            int broadcastOldState, int broadcastNewState, boolean shouldDelayMessageExist) {
-        // Test for classic remote device.
-        mDeviceProperties.mDeviceType = BluetoothDevice.DEVICE_TYPE_CLASSIC;
-        mBondStateMachine.mPendingBondedDevices.clear();
-        mBondStateMachine.mPendingBondedDevices.add(mDevice);
-        testSendIntentCase(oldState, newState, isTriggerFromDelayMessage, expectedNewState,
-                shouldBroadcast, broadcastOldState, broadcastNewState, shouldDelayMessageExist);
-
-        // Test for dual-mode remote device.
-        mDeviceProperties.mDeviceType = BluetoothDevice.DEVICE_TYPE_DUAL;
-        mBondStateMachine.mPendingBondedDevices.clear();
-        mBondStateMachine.mPendingBondedDevices.add(mDevice);
-        testSendIntentCase(oldState, newState, isTriggerFromDelayMessage, expectedNewState,
-                shouldBroadcast, broadcastOldState, broadcastNewState, shouldDelayMessageExist);
-
-        // Test for low energy remote device.
-        mDeviceProperties.mDeviceType = BluetoothDevice.DEVICE_TYPE_LE;
-        mBondStateMachine.mPendingBondedDevices.clear();
-        mBondStateMachine.mPendingBondedDevices.add(mDevice);
-        testSendIntentCase(oldState, newState, isTriggerFromDelayMessage, expectedNewState,
-                shouldBroadcast, broadcastOldState, broadcastNewState, shouldDelayMessageExist);
+    private void testSendIntentPendingDeviceWithUuid(
+            int oldState,
+            int newState,
+            boolean isTriggerFromDelayMessage,
+            int expectedNewState,
+            boolean shouldBroadcast,
+            int broadcastOldState,
+            int broadcastNewState,
+            boolean shouldDelayMessageExist) {
+        testSendIntentForAllDeviceTypes(
+                oldState,
+                newState,
+                isTriggerFromDelayMessage,
+                expectedNewState,
+                shouldBroadcast,
+                broadcastOldState,
+                broadcastNewState,
+                shouldDelayMessageExist,
+                mDevice,
+                TEST_UUIDS);
     }
 
-    private void testSendIntentNoPendingDevice(int oldState, int newState,
-            boolean isTriggerFromDelayMessage, int expectedNewState, boolean shouldBroadcast,
-            int broadcastOldState, int broadcastNewState, boolean shouldDelayMessageExist) {
-        // Test for classic remote device.
-        mDeviceProperties.mDeviceType = BluetoothDevice.DEVICE_TYPE_CLASSIC;
-        mBondStateMachine.mPendingBondedDevices.clear();
-        testSendIntentCase(oldState, newState, isTriggerFromDelayMessage, expectedNewState,
-                shouldBroadcast, broadcastOldState, broadcastNewState, shouldDelayMessageExist);
+    private void testSendIntentPendingDevice(
+            int oldState,
+            int newState,
+            boolean isTriggerFromDelayMessage,
+            int expectedNewState,
+            boolean shouldBroadcast,
+            int broadcastOldState,
+            int broadcastNewState,
+            boolean shouldDelayMessageExist) {
+        testSendIntentForAllDeviceTypes(
+                oldState,
+                newState,
+                isTriggerFromDelayMessage,
+                expectedNewState,
+                shouldBroadcast,
+                broadcastOldState,
+                broadcastNewState,
+                shouldDelayMessageExist,
+                mDevice,
+                null);
+    }
 
-        // Test for dual-mode remote device.
-        mDeviceProperties.mDeviceType = BluetoothDevice.DEVICE_TYPE_DUAL;
-        mBondStateMachine.mPendingBondedDevices.clear();
-        testSendIntentCase(oldState, newState, isTriggerFromDelayMessage, expectedNewState,
-                shouldBroadcast, broadcastOldState, broadcastNewState, shouldDelayMessageExist);
-
-        // Test for low energy remote device.
-        mDeviceProperties.mDeviceType = BluetoothDevice.DEVICE_TYPE_LE;
-        mBondStateMachine.mPendingBondedDevices.clear();
-        testSendIntentCase(oldState, newState, isTriggerFromDelayMessage, expectedNewState,
-                shouldBroadcast, broadcastOldState, broadcastNewState, shouldDelayMessageExist);
+    private void testSendIntentNoPendingDevice(
+            int oldState,
+            int newState,
+            boolean isTriggerFromDelayMessage,
+            int expectedNewState,
+            boolean shouldBroadcast,
+            int broadcastOldState,
+            int broadcastNewState,
+            boolean shouldDelayMessageExist) {
+        testSendIntentForAllDeviceTypes(
+                oldState,
+                newState,
+                isTriggerFromDelayMessage,
+                expectedNewState,
+                shouldBroadcast,
+                broadcastOldState,
+                broadcastNewState,
+                shouldDelayMessageExist,
+                null,
+                null);
     }
 
     private void verifyBondStateChangeIntent(int oldState, int newState, Intent intent) {
@@ -553,11 +737,11 @@ public class BondStateMachineTest {
         Assert.assertEquals(BluetoothDevice.ACTION_BOND_STATE_CHANGED, intent.getAction());
         Assert.assertEquals(mDevice, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
         Assert.assertEquals(newState, intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1));
-        Assert.assertEquals(oldState, intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE,
-                                                          -1));
+        Assert.assertEquals(
+                oldState, intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1));
         if (newState == BOND_NONE) {
-            Assert.assertEquals(TEST_BOND_REASON,
-                    intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1));
+            Assert.assertEquals(
+                    TEST_BOND_REASON, intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1));
         } else {
             Assert.assertEquals(-1, intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1));
         }

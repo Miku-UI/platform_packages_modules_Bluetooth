@@ -17,6 +17,8 @@
 
 #include "module.h"
 
+#include <bluetooth/log.h>
+
 #include "common/init_flags.h"
 
 using ::bluetooth::os::Handler;
@@ -30,7 +32,7 @@ ModuleFactory::ModuleFactory(std::function<Module*()> ctor) : ctor_(ctor) {
 }
 
 Handler* Module::GetHandler() const {
-  ASSERT_LOG(handler_ != nullptr, "Can't get handler when it's not started");
+  log::assert_that(handler_ != nullptr, "Can't get handler when it's not started");
   return handler_;
 }
 
@@ -45,12 +47,21 @@ Module* Module::GetDependency(const ModuleFactory* module) const {
     }
   }
 
-  ASSERT_LOG(false, "Module was not listed as a dependency in ListDependencies");
+  log::fatal("Module was not listed as a dependency in ListDependencies");
+}
+
+bluetooth::DumpsysDataFinisher EmptyDumpsysDataFinisher =
+    [](bluetooth::DumpsysDataBuilder* /* dumpsys_data_builder */) {};
+
+DumpsysDataFinisher Module::GetDumpsysData(flatbuffers::FlatBufferBuilder* /* builder */) const {
+  return EmptyDumpsysDataFinisher;
 }
 
 Module* ModuleRegistry::Get(const ModuleFactory* module) const {
   auto instance = started_modules_.find(module);
-  ASSERT_LOG(instance != started_modules_.end(), "Request for module not started up, maybe not in Start(ModuleList)?");
+  log::assert_that(
+      instance != started_modules_.end(),
+      "Request for module not started up, maybe not in Start(ModuleList)?");
   return instance->second;
 }
 
@@ -75,21 +86,21 @@ Module* ModuleRegistry::Start(const ModuleFactory* module, Thread* thread) {
     return started_instance->second;
   }
 
-  LOG_INFO("Constructing next module");
+  log::info("Constructing next module");
   Module* instance = module->ctor_();
   set_registry_and_handler(instance, thread);
 
-  LOG_INFO("Starting dependencies of %s", instance->ToString().c_str());
+  log::info("Starting dependencies of {}", instance->ToString());
   instance->ListDependencies(&instance->dependencies_);
   Start(&instance->dependencies_, thread);
 
-  LOG_INFO("Finished starting dependencies and calling Start() of %s", instance->ToString().c_str());
+  log::info("Finished starting dependencies and calling Start() of {}", instance->ToString());
 
   last_instance_ = "starting " + instance->ToString();
   instance->Start();
   start_order_.push_back(module);
   started_modules_[module] = instance;
-  LOG_INFO("Started %s", instance->ToString().c_str());
+  log::info("Started {}", instance->ToString());
   return instance;
 }
 
@@ -97,25 +108,27 @@ void ModuleRegistry::StopAll() {
   // Since modules were brought up in dependency order, it is safe to tear down by going in reverse order.
   for (auto it = start_order_.rbegin(); it != start_order_.rend(); it++) {
     auto instance = started_modules_.find(*it);
-    ASSERT(instance != started_modules_.end());
+    log::assert_that(
+        instance != started_modules_.end(), "assert failed: instance != started_modules_.end()");
     last_instance_ = "stopping " + instance->second->ToString();
 
     // Clear the handler before stopping the module to allow it to shut down gracefully.
-    LOG_INFO("Stopping Handler of Module %s", instance->second->ToString().c_str());
+    log::info("Stopping Handler of Module {}", instance->second->ToString());
     instance->second->handler_->Clear();
     instance->second->handler_->WaitUntilStopped(kModuleStopTimeout);
-    LOG_INFO("Stopping Module %s", instance->second->ToString().c_str());
+    log::info("Stopping Module {}", instance->second->ToString());
     instance->second->Stop();
   }
   for (auto it = start_order_.rbegin(); it != start_order_.rend(); it++) {
     auto instance = started_modules_.find(*it);
-    ASSERT(instance != started_modules_.end());
+    log::assert_that(
+        instance != started_modules_.end(), "assert failed: instance != started_modules_.end()");
     delete instance->second->handler_;
     delete instance->second;
     started_modules_.erase(instance);
   }
 
-  ASSERT(started_modules_.empty());
+  log::assert_that(started_modules_.empty(), "assert failed: started_modules_.empty()");
   start_order_.clear();
 }
 

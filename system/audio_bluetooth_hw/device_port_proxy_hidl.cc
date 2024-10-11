@@ -22,7 +22,6 @@
 #include <android-base/stringprintf.h>
 #include <audio_utils/primitives.h>
 #include <inttypes.h>
-#include <log/log.h>
 #include <stdlib.h>
 
 #include "BluetoothAudioSessionControl_2_1.h"
@@ -475,8 +474,8 @@ bool BluetoothAudioPortHidl::GetPresentationPosition(
   }
   bool retval = BluetoothAudioSessionControl_2_1::GetPresentationPosition(
       session_type_hidl_, delay_ns, bytes, timestamp);
-  LOG(VERBOSE) << __func__
-               << ": session_type=" << StringPrintf("%#hhx", session_type_hidl_)
+  LOG(VERBOSE) << __func__ << ": session_type="
+               << StringPrintf("%#x", static_cast<unsigned>(session_type_hidl_))
                << ", cookie=" << StringPrintf("%#hx", cookie_)
                << ", state=" << state_ << ", delay=" << *delay_ns
                << "ns, data=" << *bytes

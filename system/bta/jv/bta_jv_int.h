@@ -110,12 +110,11 @@ typedef struct {
 } tBTA_JV_RFC_CB;
 
 /* JV control block */
-typedef struct {
+struct tBTA_JV_CB {
   /* the SDP handle reported to JV user is the (index + 1) to sdp_handle[].
    * if sdp_handle[i]==0, it's not used.
    * otherwise sdp_handle[i] is the stack SDP handle. */
   uint32_t sdp_handle[BTA_JV_MAX_SDP_REC]; /* SDP records created */
-  uint8_t* p_sel_raw_data; /* the raw data of last service select */
   tBTA_JV_DM_CBACK* p_dm_cback;
   tBTA_JV_L2C_CB l2c_cb[BTA_JV_MAX_L2C_CONN]; /* index is GAP handle (index) */
   tBTA_JV_RFC_CB rfc_cb[BTA_JV_MAX_RFC_CONN];
@@ -127,17 +126,16 @@ typedef struct {
   bool scn_in_use[RFCOMM_MAX_SCN];
   uint8_t scn_search_index; /* used to search for free scns */
 
-  uint8_t sdp_active;                          /* see BTA_JV_SDP_ACT_* */
-  bluetooth::Uuid uuid;                   /* current uuid of sdp discovery*/
+  struct sdp_cb {
+    bool sdp_active{false};
+    RawAddress bd_addr{RawAddress::kEmpty};  // current bd_addr of sdp discovery
+    bluetooth::Uuid uuid{
+        bluetooth::Uuid::kEmpty};  // current uuid of sdp discovery
+  } sdp_cb;
+
   tBTA_JV_PM_CB pm_cb[BTA_JV_PM_MAX_NUM]; /* PM on a per JV handle bases */
 
   uint16_t dyn_psm; /* Next dynamic PSM value to try to assign */
-} tBTA_JV_CB;
-
-enum {
-  BTA_JV_SDP_ACT_NONE = 0,
-  BTA_JV_SDP_ACT_YES,   /* waiting for SDP result */
-  BTA_JV_SDP_ACT_CANCEL /* waiting for cancel complete */
 };
 
 /* JV control block */
@@ -147,15 +145,15 @@ extern std::unordered_set<uint16_t> used_l2cap_classic_dynamic_psm;
 
 void bta_jv_enable(tBTA_JV_DM_CBACK* p_cback);
 void bta_jv_disable();
-void bta_jv_get_channel_id(int32_t type, int32_t channel,
+void bta_jv_get_channel_id(tBTA_JV_CONN_TYPE type, int32_t channel,
                            uint32_t l2cap_socket_id, uint32_t rfcomm_slot_id);
-void bta_jv_free_scn(int32_t type, uint16_t scn);
+void bta_jv_free_scn(tBTA_JV_CONN_TYPE type, uint16_t scn);
 void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
                             bluetooth::Uuid* uuid_list,
                             uint32_t rfcomm_slot_id);
 void bta_jv_create_record(uint32_t rfcomm_slot_id);
 void bta_jv_delete_record(uint32_t handle);
-void bta_jv_l2cap_connect(int32_t type, tBTA_SEC sec_mask, tBTA_JV_ROLE role,
+void bta_jv_l2cap_connect(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask,
                           uint16_t remote_psm, uint16_t rx_mtu,
                           const RawAddress& peer_bd_addr,
                           std::unique_ptr<tL2CAP_CFG_INFO> cfg,
@@ -163,9 +161,8 @@ void bta_jv_l2cap_connect(int32_t type, tBTA_SEC sec_mask, tBTA_JV_ROLE role,
                           tBTA_JV_L2CAP_CBACK* p_cback,
                           uint32_t l2cap_socket_id);
 void bta_jv_l2cap_close(uint32_t handle, tBTA_JV_L2C_CB* p_cb);
-void bta_jv_l2cap_start_server(int32_t type, tBTA_SEC sec_mask,
-                               tBTA_JV_ROLE role, uint16_t local_psm,
-                               uint16_t rx_mtu,
+void bta_jv_l2cap_start_server(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask,
+                               uint16_t local_psm, uint16_t rx_mtu,
                                std::unique_ptr<tL2CAP_CFG_INFO> cfg_param,
                                std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info,
                                tBTA_JV_L2CAP_CBACK* p_cback,

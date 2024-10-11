@@ -18,6 +18,7 @@ package com.android.bluetooth.gatt;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.Context;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.IInterface;
@@ -27,10 +28,11 @@ import android.os.UserHandle;
 import android.os.WorkSource;
 import android.util.Log;
 
-import androidx.annotation.VisibleForTesting;
-
 import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_scan.AppScanStats;
+import com.android.bluetooth.le_scan.TransitionalScanHelper;
+import com.android.bluetooth.le_scan.TransitionalScanHelper.PendingIntentInfo;
 import com.android.internal.annotations.GuardedBy;
 
 import com.google.common.collect.EvictingQueue;
@@ -44,18 +46,16 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
- * Helper class that keeps track of registered GATT applications.
- * This class manages application callbacks and keeps track of GATT connections.
- * @hide
+ * Helper class that keeps track of registered GATT applications. This class manages application
+ * callbacks and keeps track of GATT connections.
  */
 public class ContextMap<C, T> {
     private static final String TAG = GattServiceConfig.TAG_PREFIX + "ContextMap";
 
-    /**
-     * Connection class helps map connection IDs to device addresses.
-     */
+    /** Connection class helps map connection IDs to device addresses. */
     public static class Connection {
         public int connId;
         public String address;
@@ -70,9 +70,7 @@ public class ContextMap<C, T> {
         }
     }
 
-    /**
-     * Application entry mapping UUIDs to appIDs and callbacks.
-     */
+    /** Application entry mapping UUIDs to appIDs and callbacks. */
     public class App {
         /** The UUID of the application */
         public UUID uuid;
@@ -91,43 +89,42 @@ public class ContextMap<C, T> {
 
         /** Context information */
         public T info;
-        /** Death receipient */
+
+        /** Death recipient */
         private IBinder.DeathRecipient mDeathRecipient;
 
         /** Flag to signal that transport is congested */
         public Boolean isCongested = false;
 
         /** Whether the calling app has location permission */
-        boolean hasLocationPermission;
+        public boolean hasLocationPermission;
 
         /** Whether the calling app has bluetooth privileged permission */
-        boolean hasBluetoothPrivilegedPermission;
+        public boolean hasBluetoothPrivilegedPermission;
 
         /** The user handle of the app that started the scan */
-        UserHandle mUserHandle;
+        public UserHandle mUserHandle;
 
         /** Whether the calling app has the network settings permission */
-        boolean mHasNetworkSettingsPermission;
+        public boolean mHasNetworkSettingsPermission;
 
         /** Whether the calling app has the network setup wizard permission */
-        boolean mHasNetworkSetupWizardPermission;
+        public boolean mHasNetworkSetupWizardPermission;
 
         /** Whether the calling app has the network setup wizard permission */
-        boolean mHasScanWithoutLocationPermission;
+        public boolean mHasScanWithoutLocationPermission;
 
         /** Whether the calling app has disavowed the use of bluetooth for location */
-        boolean mHasDisavowedLocation;
+        public boolean mHasDisavowedLocation;
 
-        boolean mEligibleForSanitizedExposureNotification;
+        public boolean mEligibleForSanitizedExposureNotification;
 
         public List<String> mAssociatedDevices;
 
         /** Internal callback info queue, waiting to be send on congestion clear */
         private List<CallbackInfo> mCongestionQueue = new ArrayList<CallbackInfo>();
 
-        /**
-         * Creates a new app context.
-         */
+        /** Creates a new app context. */
         App(UUID uuid, C callback, T info, String name, AppScanStats appScanStats) {
             this.uuid = uuid;
             this.callback = callback;
@@ -136,19 +133,15 @@ public class ContextMap<C, T> {
             this.appScanStats = appScanStats;
         }
 
-        /**
-         * Creates a new app context for advertiser.
-         */
+        /** Creates a new app context for advertiser. */
         App(int id, C callback, String name) {
             this.id = id;
             this.callback = callback;
             this.name = name;
         }
 
-        /**
-         * Link death recipient
-         */
-        void linkToDeath(IBinder.DeathRecipient deathRecipient) {
+        /** Link death recipient */
+        public void linkToDeath(IBinder.DeathRecipient deathRecipient) {
             // It might not be a binder object
             if (callback == null) {
                 return;
@@ -162,10 +155,8 @@ public class ContextMap<C, T> {
             }
         }
 
-        /**
-         * Unlink death recipient
-         */
-        void unlinkToDeath() {
+        /** Unlink death recipient */
+        public void unlinkToDeath() {
             if (mDeathRecipient != null) {
                 try {
                     IBinder binder = ((IInterface) callback).asBinder();
@@ -176,11 +167,11 @@ public class ContextMap<C, T> {
             }
         }
 
-        void queueCallback(CallbackInfo callbackInfo) {
+        public void queueCallback(CallbackInfo callbackInfo) {
             mCongestionQueue.add(callbackInfo);
         }
 
-        CallbackInfo popQueuedCallback() {
+        public CallbackInfo popQueuedCallback() {
             if (mCongestionQueue.size() == 0) {
                 return null;
             }
@@ -190,6 +181,7 @@ public class ContextMap<C, T> {
 
     /** Our internal application list */
     private final Object mAppsLock = new Object();
+
     @GuardedBy("mAppsLock")
     private List<App> mApps = new ArrayList<App>();
 
@@ -205,17 +197,19 @@ public class ContextMap<C, T> {
     private final EvictingQueue<AppAdvertiseStats> mLastAdvertises =
             EvictingQueue.create(ADVERTISE_STATE_MAX_SIZE);
 
-    /** Internal list of connected devices **/
-    private Set<Connection> mConnections = new HashSet<Connection>();
+    /** Internal list of connected devices */
+    private List<Connection> mConnections = new ArrayList<Connection>();
+
     private final Object mConnectionsLock = new Object();
 
     /** Add an entry to the application context list. */
-    protected App add(
+    public App add(
             UUID uuid,
             WorkSource workSource,
             C callback,
-            GattService.PendingIntentInfo piInfo,
-            GattService service) {
+            PendingIntentInfo piInfo,
+            Context context,
+            TransitionalScanHelper scanHelper) {
         int appUid;
         String appName = null;
         if (piInfo != null) {
@@ -223,16 +217,18 @@ public class ContextMap<C, T> {
             appName = piInfo.callingPackage;
         } else {
             appUid = Binder.getCallingUid();
-            appName = service.getPackageManager().getNameForUid(appUid);
+            appName = context.getPackageManager().getNameForUid(appUid);
         }
         if (appName == null) {
             // Assign an app name if one isn't found
             appName = "Unknown App (UID: " + appUid + ")";
         }
         synchronized (mAppsLock) {
+            // TODO(b/327849650): AppScanStats appears to be only needed for the ScannerMap.
+            //                    Consider refactoring this.
             AppScanStats appScanStats = mAppScanStats.get(appUid);
             if (appScanStats == null) {
-                appScanStats = new AppScanStats(appName, workSource, this, service);
+                appScanStats = new AppScanStats(appName, workSource, this, context, scanHelper);
                 mAppScanStats.put(appUid, appScanStats);
             }
             App app = new App(uuid, callback, (T) piInfo, appName, appScanStats);
@@ -242,10 +238,8 @@ public class ContextMap<C, T> {
         }
     }
 
-    /**
-     * Add an entry to the application context list for advertiser.
-     */
-    App add(int id, C callback, GattService service) {
+    /** Add an entry to the application context list for advertiser. */
+    public App add(int id, C callback, GattService service) {
         int appUid = Binder.getCallingUid();
         String appName = service.getPackageManager().getNameForUid(appUid);
         if (appName == null) {
@@ -256,8 +250,9 @@ public class ContextMap<C, T> {
         synchronized (mAppsLock) {
             synchronized (this) {
                 if (!mAppAdvertiseStats.containsKey(id)) {
-                    AppAdvertiseStats appAdvertiseStats = BluetoothMethodProxy.getInstance()
-                            .createAppAdvertiseStats(appUid, id, appName, this, service);
+                    AppAdvertiseStats appAdvertiseStats =
+                            BluetoothMethodProxy.getInstance()
+                                    .createAppAdvertiseStats(id, appName, this, service);
                     mAppAdvertiseStats.put(id, appAdvertiseStats);
                 }
             }
@@ -270,10 +265,8 @@ public class ContextMap<C, T> {
         }
     }
 
-    /**
-     * Remove the context for a given UUID
-     */
-    void remove(UUID uuid) {
+    /** Remove the context for a given UUID */
+    public void remove(UUID uuid) {
         synchronized (mAppsLock) {
             Iterator<App> i = mApps.iterator();
             while (i.hasNext()) {
@@ -288,10 +281,8 @@ public class ContextMap<C, T> {
         }
     }
 
-    /**
-     * Remove the context for a given application ID.
-     */
-    protected void remove(int id) {
+    /** Remove the context for a given application ID. */
+    public void remove(int id) {
         boolean find = false;
         synchronized (mAppsLock) {
             Iterator<App> i = mApps.iterator();
@@ -311,21 +302,17 @@ public class ContextMap<C, T> {
         }
     }
 
-    protected List<Integer> getAllAppsIds() {
+    public List<Integer> getAllAppsIds() {
         List<Integer> appIds = new ArrayList();
         synchronized (mAppsLock) {
-            Iterator<App> i = mApps.iterator();
-            while (i.hasNext()) {
-                App entry = i.next();
+            for (App entry : mApps) {
                 appIds.add(entry.id);
             }
         }
         return appIds;
     }
 
-    /**
-     * Add a new connection for a given application ID.
-     */
+    /** Add a new connection for a given application ID. */
     void addConnection(int id, int connId, String address) {
         synchronized (mConnectionsLock) {
             App entry = getById(id);
@@ -335,109 +322,81 @@ public class ContextMap<C, T> {
         }
     }
 
-    /**
-     * Remove a connection with the given ID.
-     */
+    /** Remove a connection with the given ID. */
     void removeConnection(int id, int connId) {
         synchronized (mConnectionsLock) {
-            Iterator<Connection> i = mConnections.iterator();
-            while (i.hasNext()) {
-                Connection connection = i.next();
-                if (connection.connId == connId) {
-                    i.remove();
-                    break;
+            if (Flags.bleContextMapRemoveFix()) {
+                mConnections.removeIf(conn -> conn.appId == id && conn.connId == connId);
+            } else {
+                Iterator<Connection> i = mConnections.iterator();
+                while (i.hasNext()) {
+                    Connection connection = i.next();
+                    if (connection.connId == connId) {
+                        i.remove();
+                        break;
+                    }
                 }
             }
         }
     }
 
-    /**
-     * Remove all connections for a given application ID.
-     */
+    /** Remove all connections for a given application ID. */
     void removeConnectionsByAppId(int appId) {
         synchronized (mConnectionsLock) {
-            Iterator<Connection> i = mConnections.iterator();
-            while (i.hasNext()) {
-                Connection connection = i.next();
-                if (connection.appId == appId) {
-                    i.remove();
-                }
-            }
+            mConnections.removeIf(conn -> conn.appId == appId);
         }
     }
 
-    /**
-     * Get an application context by ID.
-     */
-    protected App getById(int id) {
+    private App getAppByPredicate(Predicate<App> predicate) {
         synchronized (mAppsLock) {
-            Iterator<App> i = mApps.iterator();
-            while (i.hasNext()) {
-                App entry = i.next();
-                if (entry.id == id) {
-                    return entry;
+            // Intentionally using a for-loop over a stream for performance.
+            for (App app : mApps) {
+                if (predicate.test(app)) {
+                    return app;
                 }
             }
+            return null;
         }
-        Log.e(TAG, "Context not found for ID " + id);
-        return null;
     }
 
-    /**
-     * Get an application context by UUID.
-     */
-    protected App getByUuid(UUID uuid) {
-        synchronized (mAppsLock) {
-            Iterator<App> i = mApps.iterator();
-            while (i.hasNext()) {
-                App entry = i.next();
-                if (entry.uuid.equals(uuid)) {
-                    return entry;
-                }
-            }
+    /** Get an application context by ID. */
+    public App getById(int id) {
+        App app = getAppByPredicate(entry -> entry.id == id);
+        if (app == null) {
+            Log.e(TAG, "Context not found for ID " + id);
         }
-        Log.e(TAG, "Context not found for UUID " + uuid);
-        return null;
+        return app;
     }
 
-    /**
-     * Get an application context by the calling Apps name.
-     */
+    /** Get an application context by UUID. */
+    public App getByUuid(UUID uuid) {
+        App app = getAppByPredicate(entry -> entry.uuid.equals(uuid));
+        if (app == null) {
+            Log.e(TAG, "Context not found for UUID " + uuid);
+        }
+        return app;
+    }
+
+    /** Get an application context by the calling Apps name. */
     public App getByName(String name) {
-        synchronized (mAppsLock) {
-            Iterator<App> i = mApps.iterator();
-            while (i.hasNext()) {
-                App entry = i.next();
-                if (entry.name.equals(name)) {
-                    return entry;
-                }
-            }
+        App app = getAppByPredicate(entry -> entry.name.equals(name));
+        if (app == null) {
+            Log.e(TAG, "Context not found for name " + name);
         }
-        Log.e(TAG, "Context not found for name " + name);
-        return null;
+        return app;
     }
 
-    /**
-     * Get an application context by the context info object.
-     */
-    protected App getByContextInfo(T contextInfo) {
-        synchronized (mAppsLock) {
-            Iterator<App> i = mApps.iterator();
-            while (i.hasNext()) {
-                App entry = i.next();
-                if (entry.info != null && entry.info.equals(contextInfo)) {
-                    return entry;
-                }
-            }
+    /** Get an application context by the context info object. */
+    public App getByContextInfo(T contextInfo) {
+        App app = getAppByPredicate(entry -> entry.info != null && entry.info.equals(contextInfo));
+        if (app == null) {
+            Log.e(TAG, "Context not found for info " + contextInfo);
         }
-        Log.e(TAG, "Context not found for info " + contextInfo);
-        return null;
+        return app;
     }
 
-    /**
-     * Get Logging info by ID
-     */
-    protected AppScanStats getAppScanStatsById(int id) {
+    /** Get Logging info by ID */
+    public AppScanStats getAppScanStatsById(int id) {
         App temp = getById(id);
         if (temp != null) {
             return temp.appScanStats;
@@ -445,34 +404,26 @@ public class ContextMap<C, T> {
         return null;
     }
 
-    /**
-     * Get Logging info by application UID
-     */
+    /** Get Logging info by application UID */
     public AppScanStats getAppScanStatsByUid(int uid) {
         return mAppScanStats.get(uid);
     }
 
-    /**
-     * Remove the context for a given application ID.
-     */
+    /** Remove the context for a given application ID. */
     void removeAppAdvertiseStats(int id) {
         synchronized (this) {
             mAppAdvertiseStats.remove(id);
         }
     }
 
-    /**
-     * Get Logging info by ID
-     */
+    /** Get Logging info by ID */
     AppAdvertiseStats getAppAdvertiseStatsById(int id) {
         synchronized (this) {
             return mAppAdvertiseStats.get(id);
         }
     }
 
-    /**
-     * update the advertiser ID by the regiseter ID
-     */
+    /** update the advertiser ID by the regiseter ID */
     void setAdvertiserIdByRegId(int regId, int advertiserId) {
         synchronized (this) {
             AppAdvertiseStats stats = mAppAdvertiseStats.get(regId);
@@ -485,17 +436,28 @@ public class ContextMap<C, T> {
         }
     }
 
-    void recordAdvertiseStart(int id, AdvertisingSetParameters parameters,
-            AdvertiseData advertiseData, AdvertiseData scanResponse,
-            PeriodicAdvertisingParameters periodicParameters, AdvertiseData periodicData,
-            int duration, int maxExtAdvEvents) {
+    void recordAdvertiseStart(
+            int id,
+            AdvertisingSetParameters parameters,
+            AdvertiseData advertiseData,
+            AdvertiseData scanResponse,
+            PeriodicAdvertisingParameters periodicParameters,
+            AdvertiseData periodicData,
+            int duration,
+            int maxExtAdvEvents) {
         synchronized (this) {
             AppAdvertiseStats stats = mAppAdvertiseStats.get(id);
             if (stats == null) {
                 return;
             }
-            stats.recordAdvertiseStart(parameters, advertiseData, scanResponse,
-                    periodicParameters, periodicData, duration, maxExtAdvEvents);
+            stats.recordAdvertiseStart(
+                    parameters,
+                    advertiseData,
+                    scanResponse,
+                    periodicParameters,
+                    periodicData,
+                    duration,
+                    maxExtAdvEvents);
             int advertiseInstanceCount = mAppAdvertiseStats.size();
             Log.d(TAG, "advertiseInstanceCount is " + advertiseInstanceCount);
             AppAdvertiseStats.recordAdvertiseInstanceCount(advertiseInstanceCount);
@@ -584,30 +546,22 @@ public class ContextMap<C, T> {
         }
     }
 
-    /**
-     * Get the device addresses for all connected devices
-     */
+    /** Get the device addresses for all connected devices */
     Set<String> getConnectedDevices() {
         Set<String> addresses = new HashSet<String>();
         synchronized (mConnectionsLock) {
-            Iterator<Connection> i = mConnections.iterator();
-            while (i.hasNext()) {
-                Connection connection = i.next();
+            for (Connection connection : mConnections) {
                 addresses.add(connection.address);
             }
         }
         return addresses;
     }
 
-    /**
-     * Get an application context by a connection ID.
-     */
+    /** Get an application context by a connection ID. */
     App getByConnId(int connId) {
         int appId = -1;
         synchronized (mConnectionsLock) {
-            Iterator<Connection> ii = mConnections.iterator();
-            while (ii.hasNext()) {
-                Connection connection = ii.next();
+            for (Connection connection : mConnections) {
                 if (connection.connId == connId) {
                     appId = connection.appId;
                     break;
@@ -620,18 +574,14 @@ public class ContextMap<C, T> {
         return null;
     }
 
-    /**
-     * Returns a connection ID for a given device address.
-     */
+    /** Returns a connection ID for a given device address. */
     Integer connIdByAddress(int id, String address) {
         App entry = getById(id);
         if (entry == null) {
             return null;
         }
         synchronized (mConnectionsLock) {
-            Iterator<Connection> i = mConnections.iterator();
-            while (i.hasNext()) {
-                Connection connection = i.next();
+            for (Connection connection : mConnections) {
                 if (connection.address.equalsIgnoreCase(address) && connection.appId == id) {
                     return connection.connId;
                 }
@@ -640,14 +590,10 @@ public class ContextMap<C, T> {
         return null;
     }
 
-    /**
-     * Returns the device address for a given connection ID.
-     */
+    /** Returns the device address for a given connection ID. */
     String addressByConnId(int connId) {
         synchronized (mConnectionsLock) {
-            Iterator<Connection> i = mConnections.iterator();
-            while (i.hasNext()) {
-                Connection connection = i.next();
+            for (Connection connection : mConnections) {
                 if (connection.connId == connId) {
                     return connection.address;
                 }
@@ -659,9 +605,7 @@ public class ContextMap<C, T> {
     public List<Connection> getConnectionByApp(int appId) {
         List<Connection> currentConnections = new ArrayList<Connection>();
         synchronized (mConnectionsLock) {
-            Iterator<Connection> i = mConnections.iterator();
-            while (i.hasNext()) {
-                Connection connection = i.next();
+            for (Connection connection : mConnections) {
                 if (connection.appId == appId) {
                     currentConnections.add(connection);
                 }
@@ -670,20 +614,16 @@ public class ContextMap<C, T> {
         return currentConnections;
     }
 
-    /**
-     * Erases all application context entries.
-     */
-    protected void clear() {
+    /** Erases all application context entries. */
+    public void clear() {
         synchronized (mAppsLock) {
-            Iterator<App> i = mApps.iterator();
-            while (i.hasNext()) {
-                App entry = i.next();
+            for (App entry : mApps) {
                 entry.unlinkToDeath();
                 if (entry.appScanStats != null) {
                     entry.appScanStats.isRegistered = false;
                 }
-                i.remove();
             }
+            mApps.clear();
         }
 
         synchronized (mConnectionsLock) {
@@ -696,9 +636,7 @@ public class ContextMap<C, T> {
         }
     }
 
-    /**
-     * Returns connect device map with addr and appid
-     */
+    /** Returns connect device map with addr and appid */
     Map<Integer, String> getConnectedMap() {
         Map<Integer, String> connectedmap = new HashMap<Integer, String>();
         synchronized (mConnectionsLock) {
@@ -709,24 +647,15 @@ public class ContextMap<C, T> {
         return connectedmap;
     }
 
-    /**
-     * Logs debug information.
-     */
+    /** Logs debug information. */
     protected void dump(StringBuilder sb) {
         sb.append("  Entries: " + mAppScanStats.size() + "\n\n");
-
-        Iterator<Map.Entry<Integer, AppScanStats>> it = mAppScanStats.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<Integer, AppScanStats> entry = it.next();
-
-            AppScanStats appScanStats = entry.getValue();
+        for (AppScanStats appScanStats : mAppScanStats.values()) {
             appScanStats.dumpToString(sb);
         }
     }
 
-    /**
-     * Logs advertiser debug information.
-     */
+    /** Logs advertiser debug information. */
     void dumpAdvertiser(StringBuilder sb) {
         synchronized (this) {
             if (!mLastAdvertises.isEmpty()) {
@@ -738,8 +667,9 @@ public class ContextMap<C, T> {
             }
 
             if (!mAppAdvertiseStats.isEmpty()) {
-                sb.append("  Total number of ongoing advertising                   : "
-                        + mAppAdvertiseStats.size());
+                sb.append(
+                        "  Total number of ongoing advertising                   : "
+                                + mAppAdvertiseStats.size());
                 sb.append("\n  Ongoing advertising:");
                 for (Integer key : mAppAdvertiseStats.keySet()) {
                     AppAdvertiseStats stats = mAppAdvertiseStats.get(key);

@@ -18,7 +18,6 @@
 
 #define LOG_TAG "bt_srvc"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include "gatt_api.h"
@@ -111,7 +110,7 @@ bool dis_valid_handle_range(uint16_t handle) {
  *
  *   Process write DIS attribute request.
  ******************************************************************************/
-uint8_t dis_write_attr_value(UNUSED_ATTR tGATT_WRITE_REQ* p_data,
+uint8_t dis_write_attr_value(tGATT_WRITE_REQ* /* p_data */,
                              tGATT_STATUS* p_status) {
   *p_status = GATT_WRITE_NOT_PERMIT;
   return SRVC_ACT_RSP;
@@ -119,7 +118,7 @@ uint8_t dis_write_attr_value(UNUSED_ATTR tGATT_WRITE_REQ* p_data,
 /*******************************************************************************
  *   DIS Attributes Database Server Request callback
  ******************************************************************************/
-uint8_t dis_read_attr_value(UNUSED_ATTR uint8_t clcb_idx, uint16_t handle,
+uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t handle,
                             tGATT_VALUE* p_value, bool is_long,
                             tGATT_STATUS* p_status) {
   tDIS_DB_ENTRY* p_db_attr = dis_cb.dis_attr;
@@ -266,7 +265,7 @@ void dis_c_cmpl_cback(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
   uint16_t conn_id = p_clcb->conn_id;
 
   if (dis_cb.dis_read_uuid_idx >= (sizeof(dis_attr_uuid)/sizeof(dis_attr_uuid[0]))) {
-    LOG(ERROR) << "invalid dis_cb.dis_read_uuid_idx";
+    log::error("invalid dis_cb.dis_read_uuid_idx");
     return;
   }
 
@@ -455,8 +454,7 @@ bool DIS_ReadDISInfo(const RawAddress& peer_bda, tDIS_READ_CBACK* p_cback,
 
   dis_cb.request_mask = mask;
 
-  log::verbose("BDA: {} cl_read_uuid: 0x{:04x}",
-               ADDRESS_TO_LOGGABLE_STR(peer_bda),
+  log::verbose("BDA: {} cl_read_uuid: 0x{:04x}", peer_bda,
                dis_attr_uuid[dis_cb.dis_read_uuid_idx]);
 
   if (!GATT_GetConnIdIfConnected(srvc_eng_cb.gatt_if, peer_bda, &conn_id,

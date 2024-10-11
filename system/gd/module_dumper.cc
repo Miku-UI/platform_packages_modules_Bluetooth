@@ -28,8 +28,8 @@ using ::bluetooth::os::WakelockManager;
 
 namespace bluetooth {
 
-void ModuleDumper::DumpState(std::string* output, std::ostringstream& oss) const {
-  ASSERT(output != nullptr);
+void ModuleDumper::DumpState(std::string* output, std::ostringstream& /*oss*/) const {
+  log::assert_that(output != nullptr, "assert failed: output != nullptr");
 
   flatbuffers::FlatBufferBuilder builder(1024);
   auto title = builder.CreateString(title_);
@@ -52,11 +52,12 @@ void ModuleDumper::DumpState(std::string* output, std::ostringstream& oss) const
   for (auto it = module_registry_.start_order_.rbegin(); it != module_registry_.start_order_.rend();
        it++) {
     auto instance = module_registry_.started_modules_.find(*it);
-    ASSERT(instance != module_registry_.started_modules_.end());
-    instance->second->GetDumpsysData();
-    instance->second->GetDumpsysData(fd_);
-    instance->second->GetDumpsysData(oss);
+    log::assert_that(
+        instance != module_registry_.started_modules_.end(),
+        "assert failed: instance != module_registry_.started_modules_.end()");
+    log::verbose("Starting dumpsys module:{}", instance->second->ToString());
     queue.push(instance->second->GetDumpsysData(&builder));
+    log::verbose("Finished dumpsys module:{}", instance->second->ToString());
   }
 
   DumpsysDataBuilder data_builder(builder);

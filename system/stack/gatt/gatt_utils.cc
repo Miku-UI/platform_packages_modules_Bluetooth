@@ -23,9 +23,9 @@
  ******************************************************************************/
 #define LOG_TAG "gatt_utils"
 
-#include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <deque>
@@ -34,6 +34,7 @@
 #include "internal_include/bt_target.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
+#include "osi/include/properties.h"
 #include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/eatt/eatt.h"
@@ -54,8 +55,8 @@ using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
 
 using bluetooth::Uuid;
-using bluetooth::eatt::EattExtension;
 using bluetooth::eatt::EattChannel;
+using bluetooth::eatt::EattExtension;
 
 /* check if [x, y] and [a, b] have overlapping range */
 #define GATT_VALIDATE_HANDLE_RANGE(x, y, a, b) ((y) >= (a) && (x) <= (b))
@@ -98,11 +99,20 @@ const char* const op_code_name[] = {"UNKNOWN",
 uint16_t gatt_get_local_mtu(void) {
   /* Default ATT MTU must not be greater than GATT_MAX_MTU_SIZE, nor smaller
    * than GATT_DEF_BLE_MTU_SIZE */
-  const static uint16_t ATT_MTU_DEFAULT =
+  static const uint16_t ATT_MTU_DEFAULT =
       std::max(std::min(bluetooth::common::init_flags::get_att_mtu_default(),
                         GATT_MAX_MTU_SIZE),
                GATT_DEF_BLE_MTU_SIZE);
   return ATT_MTU_DEFAULT;
+}
+
+uint16_t gatt_get_max_phy_channel() {
+  static const uint16_t MAX_PHY_CHANNEL = std::min(
+      std::max(osi_property_get_int32(
+                   "bluetooth.core.le.max_number_of_concurrent_connections", 0),
+               GATT_MAX_PHY_CHANNEL_FLOOR),
+      GATT_MAX_PHY_CHANNEL);
+  return MAX_PHY_CHANNEL;
 }
 
 /*******************************************************************************
@@ -279,13 +289,13 @@ bool gatt_find_the_connected_bda(uint8_t start_idx, RawAddress& bda,
   bool found = false;
   log::debug("start_idx={}", start_idx);
 
-  for (i = start_idx; i < GATT_MAX_PHY_CHANNEL; i++) {
+  for (i = start_idx; i < gatt_get_max_phy_channel(); i++) {
     if (gatt_cb.tcb[i].in_use && gatt_cb.tcb[i].ch_state == GATT_CH_OPEN) {
       bda = gatt_cb.tcb[i].peer_bda;
       *p_found_idx = i;
       *p_transport = gatt_cb.tcb[i].transport;
       found = true;
-      log::debug("bda: {}", ADDRESS_TO_LOGGABLE_CSTR(bda));
+      log::debug("bda: {}", bda);
       break;
     }
   }
@@ -337,7 +347,7 @@ bool gatt_is_srv_chg_ind_pending(tGATT_TCB* p_tcb) {
  *
  ******************************************************************************/
 tGATTS_SRV_CHG* gatt_is_bda_in_the_srv_chg_clt_list(const RawAddress& bda) {
-  log::verbose("{}", ADDRESS_TO_LOGGABLE_STR(bda));
+  log::verbose("{}", bda);
 
   if (fixed_queue_is_empty(gatt_cb.srv_chg_clt_q)) return NULL;
 
@@ -367,7 +377,7 @@ bool gatt_is_bda_connected(const RawAddress& bda) {
   uint8_t i = 0;
   bool connected = false;
 
-  for (i = 0; i < GATT_MAX_PHY_CHANNEL; i++) {
+  for (i = 0; i < gatt_get_max_phy_channel(); i++) {
     if (gatt_cb.tcb[i].in_use && gatt_cb.tcb[i].peer_bda == bda) {
       connected = true;
       break;
@@ -389,7 +399,7 @@ uint8_t gatt_find_i_tcb_by_addr(const RawAddress& bda,
                                 tBT_TRANSPORT transport) {
   uint8_t i = 0;
 
-  for (; i < GATT_MAX_PHY_CHANNEL; i++) {
+  for (; i < gatt_get_max_phy_channel(); i++) {
     if (gatt_cb.tcb[i].peer_bda == bda &&
         gatt_cb.tcb[i].transport == transport) {
       return i;
@@ -410,7 +420,7 @@ uint8_t gatt_find_i_tcb_by_addr(const RawAddress& bda,
 tGATT_TCB* gatt_get_tcb_by_idx(uint8_t tcb_idx) {
   tGATT_TCB* p_tcb = NULL;
 
-  if ((tcb_idx < GATT_MAX_PHY_CHANNEL) && gatt_cb.tcb[tcb_idx].in_use)
+  if ((tcb_idx < gatt_get_max_phy_channel()) && gatt_cb.tcb[tcb_idx].in_use)
     p_tcb = &gatt_cb.tcb[tcb_idx];
 
   return p_tcb;
@@ -449,7 +459,7 @@ void gatt_tcb_dump(int fd) {
   std::stringstream stream;
   int in_use_cnt = 0;
 
-  for (int i = 0; i < GATT_MAX_PHY_CHANNEL; i++) {
+  for (int i = 0; i < gatt_get_max_phy_channel(); i++) {
     tGATT_TCB* p_tcb = &gatt_cb.tcb[i];
 
     if (p_tcb->in_use) {
@@ -463,7 +473,7 @@ void gatt_tcb_dump(int fd) {
   }
 
   dprintf(fd, "TCB (GATT_MAX_PHY_CHANNEL: %d) in_use: %d\n%s\n",
-          GATT_MAX_PHY_CHANNEL, in_use_cnt, stream.str().c_str());
+          gatt_get_max_phy_channel(), in_use_cnt, stream.str().c_str());
 }
 
 /*******************************************************************************
@@ -482,7 +492,7 @@ tGATT_TCB* gatt_allocate_tcb_by_bdaddr(const RawAddress& bda,
   if (j != GATT_INDEX_INVALID) return &gatt_cb.tcb[j];
 
   /* find free tcb */
-  for (int i = 0; i < GATT_MAX_PHY_CHANNEL; i++) {
+  for (int i = 0; i < gatt_get_max_phy_channel(); i++) {
     tGATT_TCB* p_tcb = &gatt_cb.tcb[i];
     if (p_tcb->in_use) continue;
 
@@ -647,7 +657,8 @@ void gatt_stop_rsp_timer(tGATT_CLCB* p_clcb) {
 void gatt_start_conf_timer(tGATT_TCB* p_tcb, uint16_t cid) {
   /* start notification cache timer */
   if (p_tcb->eatt && cid != L2CAP_ATT_CID)
-    EattExtension::GetInstance()->StartIndicationConfirmationTimer(p_tcb->peer_bda, cid);
+    EattExtension::GetInstance()->StartIndicationConfirmationTimer(
+        p_tcb->peer_bda, cid);
   else
     alarm_set_on_mloop(p_tcb->conf_timer, GATT_WAIT_FOR_RSP_TIMEOUT_MS,
                        gatt_indication_confirmation_timeout, p_tcb);
@@ -665,7 +676,8 @@ void gatt_start_conf_timer(tGATT_TCB* p_tcb, uint16_t cid) {
 void gatt_stop_conf_timer(tGATT_TCB& tcb, uint16_t cid) {
   /* start notification cache timer */
   if (tcb.eatt && cid != L2CAP_ATT_CID)
-    EattExtension::GetInstance()->StopIndicationConfirmationTimer(tcb.peer_bda, cid);
+    EattExtension::GetInstance()->StopIndicationConfirmationTimer(tcb.peer_bda,
+                                                                  cid);
   else
     alarm_cancel(tcb.conf_timer);
 }
@@ -796,9 +808,9 @@ void gatt_indication_confirmation_timeout(void* data) {
  * Returns          void
  *
  ******************************************************************************/
-void  gatt_ind_ack_timeout(void* data) {
+void gatt_ind_ack_timeout(void* data) {
   tGATT_TCB* p_tcb = (tGATT_TCB*)data;
-  CHECK(p_tcb);
+  log::assert_that(p_tcb != nullptr, "assert failed: p_tcb != nullptr");
 
   log::warn("send ack now");
   p_tcb->ind_count = 0;
@@ -903,8 +915,7 @@ tGATT_STATUS gatt_send_error_rsp(tGATT_TCB& tcb, uint16_t cid, uint8_t err_code,
   } else
     status = GATT_INSUF_RESOURCE;
 
-  if (deq)
-      gatt_dequeue_sr_cmd(tcb, cid);
+  if (deq) gatt_dequeue_sr_cmd(tcb, cid);
 
   return status;
 }
@@ -931,8 +942,10 @@ uint32_t gatt_add_sdp_record(const Uuid& uuid, uint16_t start_hdl,
   switch (uuid.GetShortestRepresentationSize()) {
     case Uuid::kNumBytes16: {
       uint16_t tmp = uuid.As16Bit();
-      get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle,
-                                                                   1, &tmp);
+      if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
+              sdp_handle, 1, &tmp)) {
+        log::warn("Unable to add SDP attribute for 16 bit uuid");
+      }
       break;
     }
 
@@ -940,18 +953,24 @@ uint32_t gatt_add_sdp_record(const Uuid& uuid, uint16_t start_hdl,
       UINT8_TO_BE_STREAM(p, (UUID_DESC_TYPE << 3) | SIZE_FOUR_BYTES);
       uint32_t tmp = uuid.As32Bit();
       UINT32_TO_BE_STREAM(p, tmp);
-      get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          sdp_handle, ATTR_ID_SERVICE_CLASS_ID_LIST, DATA_ELE_SEQ_DESC_TYPE,
-          (uint32_t)(p - buff), buff);
+      if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+              sdp_handle, ATTR_ID_SERVICE_CLASS_ID_LIST, DATA_ELE_SEQ_DESC_TYPE,
+              (uint32_t)(p - buff), buff)) {
+        log::warn("Unable to add SDP attribute for 32 bit uuid handle:{}",
+                  sdp_handle);
+      }
       break;
     }
 
     case Uuid::kNumBytes128:
       UINT8_TO_BE_STREAM(p, (UUID_DESC_TYPE << 3) | SIZE_SIXTEEN_BYTES);
       ARRAY_TO_BE_STREAM(p, uuid.To128BitBE().data(), (int)Uuid::kNumBytes128);
-      get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          sdp_handle, ATTR_ID_SERVICE_CLASS_ID_LIST, DATA_ELE_SEQ_DESC_TYPE,
-          (uint32_t)(p - buff), buff);
+      if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+              sdp_handle, ATTR_ID_SERVICE_CLASS_ID_LIST, DATA_ELE_SEQ_DESC_TYPE,
+              (uint32_t)(p - buff), buff)) {
+        log::warn("Unable to add SDP attribute for 128 bit uuid handle:{}",
+                  sdp_handle);
+      }
       break;
   }
 
@@ -965,13 +984,17 @@ uint32_t gatt_add_sdp_record(const Uuid& uuid, uint16_t start_hdl,
   proto_elem_list[1].params[0] = start_hdl;
   proto_elem_list[1].params[1] = end_hdl;
 
-  get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(sdp_handle, 2,
-                                                         proto_elem_list);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
+          sdp_handle, 2, proto_elem_list)) {
+    log::warn("Unable to add SDP protocol list for l2cap and att");
+  }
 
   /* Make the service browseable */
   uint16_t list = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
-  get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &list);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &list)) {
+    log::warn("Unable to add SDP uuid sequence public browse group");
+  }
 
   return (sdp_handle);
 }
@@ -1040,8 +1063,7 @@ bool gatt_tcb_is_cid_busy(tGATT_TCB& tcb, uint16_t cid) {
   EattChannel* channel =
       EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
   if (channel == nullptr) {
-    log::warn("{}, cid 0x{:02x} already disconnected",
-              ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+    log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
     return false;
   }
 
@@ -1073,15 +1095,6 @@ tGATT_CLCB* gatt_clcb_alloc(uint16_t conn_id) {
   gatt_cb.clcb_queue.emplace_back(clcb);
   auto p_clcb = &(gatt_cb.clcb_queue.back());
 
-  if (gatt_cb.clcb_queue.size() > GATT_CL_MAX_LCB) {
-    /* GATT_CL_MAX_LCB is here from the historical reasons. We believe this
-     * limitation is not needed. In addition, number of clcb should not be
-     * bigger than that and also if it is bigger, we  believe it should not
-     * cause the problem. This WARN is just to monitor number of CLCB and will
-     * help in debugging in case we are wrong */
-    log::warn("Number of CLCB: {} > {}", gatt_cb.clcb_queue.size(),
-              GATT_CL_MAX_LCB);
-  }
   return p_clcb;
 }
 
@@ -1101,7 +1114,8 @@ bool gatt_tcb_get_cid_available_for_indication(tGATT_TCB* p_tcb,
                                                uint16_t* cid_p) {
   if (p_tcb->eatt && eatt_support) {
     EattChannel* channel =
-        EattExtension::GetInstance()->GetChannelAvailableForIndication(p_tcb->peer_bda);
+        EattExtension::GetInstance()->GetChannelAvailableForIndication(
+            p_tcb->peer_bda);
     if (channel) {
       *indicated_handle_p = &channel->indicate_handle_;
       *cid_p = channel->cid_;
@@ -1161,7 +1175,8 @@ bool gatt_tcb_find_indicate_handle(tGATT_TCB& tcb, uint16_t cid,
 uint16_t gatt_tcb_get_att_cid(tGATT_TCB& tcb, bool eatt_support) {
   if (eatt_support && tcb.eatt) {
     EattChannel* channel =
-        EattExtension::GetInstance()->GetChannelAvailableForClientRequest(tcb.peer_bda);
+        EattExtension::GetInstance()->GetChannelAvailableForClientRequest(
+            tcb.peer_bda);
     if (channel) {
       return channel->cid_;
     }
@@ -1184,8 +1199,7 @@ uint16_t gatt_tcb_get_payload_size(tGATT_TCB& tcb, uint16_t cid) {
   EattChannel* channel =
       EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
   if (channel == nullptr) {
-    log::warn("{}, cid 0x{:02x} already disconnected",
-              ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+    log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
     return 0;
   }
 
@@ -1248,8 +1262,7 @@ void gatt_clcb_invalidate(tGATT_TCB* p_tcb, const tGATT_CLCB* p_clcb) {
     EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByCid(
         p_tcb->peer_bda, cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(p_tcb->peer_bda), cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", p_tcb->peer_bda, cid);
       return;
     }
     cl_cmd_q_p = &channel->cl_cmd_q_;
@@ -1294,34 +1307,16 @@ tGATT_TCB* gatt_find_tcb_by_cid(uint16_t lcid) {
   uint16_t xx = 0;
   tGATT_TCB* p_tcb = NULL;
 
-  for (xx = 0; xx < GATT_MAX_PHY_CHANNEL; xx++) {
+  for (xx = 0; xx < gatt_get_max_phy_channel(); xx++) {
     if (gatt_cb.tcb[xx].in_use &&
         ((gatt_cb.tcb[xx].att_lcid == lcid) ||
-         ((EattExtension::GetInstance()->FindEattChannelByCid(gatt_cb.tcb[xx].peer_bda,
-                                                      lcid) != nullptr)))) {
+         ((EattExtension::GetInstance()->FindEattChannelByCid(
+               gatt_cb.tcb[xx].peer_bda, lcid) != nullptr)))) {
       p_tcb = &gatt_cb.tcb[xx];
       break;
     }
   }
   return p_tcb;
-}
-
-/*******************************************************************************
- *
- * Function         gatt_num_clcb_by_bd_addr
- *
- * Description      The function searches all LCB with macthing bd address
- *
- * Returns          total number of clcb found.
- *
- ******************************************************************************/
-uint8_t gatt_num_clcb_by_bd_addr(const RawAddress& bda) {
-  uint8_t num = 0;
-
-  for (auto const& clcb : gatt_cb.clcb_queue) {
-    if (clcb.p_tcb->peer_bda == bda) num++;
-  }
-  return num;
 }
 
 void gatt_sr_copy_prep_cnt_to_cback_cnt(tGATT_TCB& tcb) {
@@ -1338,8 +1333,8 @@ tGATT_SR_CMD* gatt_sr_get_cmd_by_trans_id(tGATT_TCB* p_tcb, uint32_t trans_id) {
 
   if (!p_tcb->eatt) return nullptr;
 
-  EattChannel* channel =
-      EattExtension::GetInstance()->FindEattChannelByTransId(p_tcb->peer_bda, trans_id);
+  EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByTransId(
+      p_tcb->peer_bda, trans_id);
   if (!channel) return nullptr;
 
   return &channel->server_outstanding_cmd_;
@@ -1397,8 +1392,7 @@ void gatt_sr_reset_cback_cnt(tGATT_TCB& tcb, uint16_t cid) {
       EattChannel* channel =
           EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
       if (channel == nullptr) {
-        log::warn("{}, cid 0x{:02x} already disconnected",
-                  ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+        log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
         return;
       }
       channel->server_outstanding_cmd_.cback_cnt[i] = 0;
@@ -1432,8 +1426,7 @@ tGATT_SR_CMD* gatt_sr_get_cmd_by_cid(tGATT_TCB& tcb, uint16_t cid) {
     EattChannel* channel =
         EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
       return nullptr;
     }
 
@@ -1454,8 +1447,7 @@ tGATT_READ_MULTI* gatt_sr_get_read_multi(tGATT_TCB& tcb, uint16_t cid) {
     EattChannel* channel =
         EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
       return nullptr;
     }
     read_multi_p = &channel->server_outstanding_cmd_.multi_req;
@@ -1484,8 +1476,7 @@ void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if,
     EattChannel* channel =
         EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
       return;
     }
     sr_cmd_p = &channel->server_outstanding_cmd_;
@@ -1535,8 +1526,24 @@ void gatt_sr_update_prep_cnt(tGATT_TCB& tcb, tGATT_IF gatt_if, bool is_inc,
 bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, BT_TRANSPORT_LE);
   if (!p_tcb) {
+    if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
+      /* TCB is not allocated when trying to connect under this flag.
+       * but device address is storred in the tGATT_REG. Make sure to remove
+       * the address from the list when cancel is called.
+       */
+
+      tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
+      if (!p_reg) {
+        log::error("Unable to find registered app gatt_if={}", gatt_if);
+      } else {
+        log::info("Removing {} from direct list", bda);
+        p_reg->direct_connect_request.erase(bda);
+      }
+      return true;
+    }
+
     log::warn("Unable to cancel open for unknown connection gatt_if:{} peer:{}",
-              gatt_if, ADDRESS_TO_LOGGABLE_CSTR(bda));
+              gatt_if, bda);
     return true;
   }
 
@@ -1551,7 +1558,7 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
     log::debug(
         "Client reference count is zero disconnecting device gatt_if:{} "
         "peer:{}",
-        gatt_if, ADDRESS_TO_LOGGABLE_CSTR(bda));
+        gatt_if, bda);
     gatt_disconnect(p_tcb);
   }
 
@@ -1566,12 +1573,12 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
         log::info(
             "Gatt connection manager has no background record but  removed "
             "filter acceptlist gatt_if:{} peer:{}",
-            gatt_if, ADDRESS_TO_LOGGABLE_CSTR(bda));
+            gatt_if, bda);
       } else {
         log::info(
             "Gatt connection manager maintains a background record preserving "
             "filter acceptlist gatt_if:{} peer:{}",
-            gatt_if, ADDRESS_TO_LOGGABLE_CSTR(bda));
+            gatt_if, bda);
       }
     }
   }
@@ -1592,11 +1599,10 @@ bool gatt_cmd_enq(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, bool to_send,
   if (p_clcb->cid == tcb.att_lcid) {
     tcb.cl_cmd_q.push_back(cmd);
   } else {
-    EattChannel* channel =
-        EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cmd.cid);
+    EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByCid(
+        tcb.peer_bda, cmd.cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cmd.cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cmd.cid);
       return false;
     }
     channel->cl_cmd_q_.push_back(cmd);
@@ -1615,8 +1621,7 @@ tGATT_CLCB* gatt_cmd_dequeue(tGATT_TCB& tcb, uint16_t cid, uint8_t* p_op_code) {
     EattChannel* channel =
         EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
       return nullptr;
     }
 
@@ -1744,6 +1749,32 @@ void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
               fmt::ptr(p_disc_cmpl_cb), fmt::ptr(p_cmpl_cb));
 }
 
+static void gatt_le_disconnect_complete_notify_user(const RawAddress& bda,
+                                                    tGATT_DISCONN_REASON reason,
+                                                    tBT_TRANSPORT transport) {
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, transport);
+
+  for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
+    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
+    if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
+      uint16_t conn_id =
+          p_tcb ? GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if)
+                : GATT_INVALID_CONN_ID;
+      (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id,
+                                 kGattDisconnected, reason, transport);
+    }
+
+    if (com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
+      if (p_reg->direct_connect_request.count(bda) > 0) {
+        log::info(
+            "Removing device {} from the direct connect list of gatt_if {}",
+            bda, p_reg->gatt_if);
+        p_reg->direct_connect_request.erase(bda);
+      }
+    }
+  }
+}
+
 /** This function cleans up the control blocks when L2CAP channel disconnect */
 void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
                             tBT_TRANSPORT transport) {
@@ -1751,10 +1782,20 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
 
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, transport);
   if (!p_tcb) {
-    log::error(
-        "Disconnect for unknown connection bd_addr:{} reason:{} transport:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(bda), gatt_disconnection_reason_text(reason),
-        bt_transport_text(transport));
+    if (!com::android::bluetooth::flags::gatt_reconnect_on_bt_on_fix()) {
+      log::error(
+          "Disconnect for unknown connection bd_addr:{} reason:{} transport:{}",
+          bda, gatt_disconnection_reason_text(reason),
+          bt_transport_text(transport));
+      return;
+    }
+
+    log::info("Connection timeout bd_addr:{} reason:{} transport:{}", bda,
+              gatt_disconnection_reason_text(reason),
+              bt_transport_text(transport));
+
+    /* Notify about timeout on direct connect */
+    gatt_le_disconnect_complete_notify_user(bda, reason, transport);
     return;
   }
 
@@ -1793,14 +1834,7 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
   fixed_queue_free(p_tcb->sr_cmd.multi_rsp_q, NULL);
   p_tcb->sr_cmd.multi_rsp_q = NULL;
 
-  for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
-    if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
-      uint16_t conn_id = GATT_CREATE_CONN_ID(p_tcb->tcb_idx, p_reg->gatt_if);
-      (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id,
-                                 kGattDisconnected, reason, transport);
-    }
-  }
+  gatt_le_disconnect_complete_notify_user(bda, reason, transport);
 
   *p_tcb = tGATT_TCB();
   log::verbose("exit");
@@ -1825,7 +1859,7 @@ char const* gatt_dbg_op_name(uint8_t op_code) {
     pseduo_op_code_idx = 0x15; /* just an index to op_code_name */
   }
 
-  #define ARR_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#define ARR_SIZE(a) (sizeof(a) / sizeof(a[0]))
   if (pseduo_op_code_idx < ARR_SIZE(op_code_name))
     return op_code_name[pseduo_op_code_idx];
   else

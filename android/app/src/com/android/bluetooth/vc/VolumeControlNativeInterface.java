@@ -27,7 +27,6 @@ import com.android.internal.annotations.VisibleForTesting;
 
 public class VolumeControlNativeInterface {
     private static final String TAG = "VolumeControlNativeInterface";
-    private static final boolean DBG = true;
     private BluetoothAdapter mAdapter;
 
     @GuardedBy("INSTANCE_LOCK")
@@ -42,9 +41,7 @@ public class VolumeControlNativeInterface {
         }
     }
 
-    /**
-     * Get singleton instance.
-     */
+    /** Get singleton instance. */
     public static VolumeControlNativeInterface getInstance() {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
@@ -65,16 +62,14 @@ public class VolumeControlNativeInterface {
     /**
      * Initializes the native interface.
      *
-     * priorities to configure.
+     * <p>priorities to configure.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void init() {
         initNative();
     }
 
-    /**
-     * Cleanup the native interface.
-     */
+    /** Cleanup the native interface. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void cleanup() {
         cleanupNative();
@@ -102,59 +97,37 @@ public class VolumeControlNativeInterface {
         return disconnectVolumeControlNative(getByteAddress(device));
     }
 
-    /**
-     * Sets the VolumeControl volume
-     * @param device
-     * @param volume
-     */
+    /** Sets the VolumeControl volume */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void setVolume(BluetoothDevice device, int volume) {
         setVolumeNative(getByteAddress(device), volume);
     }
 
-    /**
-     * Sets the VolumeControl volume for the group
-     * @param groupId
-     * @param volume
-     */
+    /** Sets the VolumeControl volume for the group */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void setGroupVolume(int groupId, int volume) {
         setGroupVolumeNative(groupId, volume);
     }
 
-     /**
-     * Mute the VolumeControl volume
-     * @param device
-     * @param unmute
-     */
+    /** Mute the VolumeControl volume */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void mute(BluetoothDevice device) {
         muteNative(getByteAddress(device));
     }
 
-    /**
-     * Mute the VolumeControl volume in the group
-     * @param groupId
-     * @param unmute
-     */
+    /** Mute the VolumeControl volume in the group */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void muteGroup(int groupId) {
         muteGroupNative(groupId);
     }
 
-    /**
-     * Unmute the VolumeControl volume
-     */
+    /** Unmute the VolumeControl volume */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void unmute(BluetoothDevice device) {
         unmuteNative(getByteAddress(device));
     }
 
-     /**
-     * Unmute the VolumeControl volume group
-     * @param groupId
-     * @param unmute
-     */
+    /** Unmute the VolumeControl volume group */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void unmuteGroup(int groupId) {
         unmuteGroupNative(groupId);
@@ -181,8 +154,8 @@ public class VolumeControlNativeInterface {
      * @return true on success, otherwise false.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean setExtAudioOutVolumeOffset(BluetoothDevice device, int externalOutputId,
-                                                    int offset) {
+    public boolean setExtAudioOutVolumeOffset(
+            BluetoothDevice device, int externalOutputId, int offset) {
         if (Utils.isPtsTestMode()) {
             setVolumeNative(getByteAddress(device), offset);
             return true;
@@ -211,8 +184,8 @@ public class VolumeControlNativeInterface {
      * @return true on success, otherwise false.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean setExtAudioOutLocation(BluetoothDevice device, int externalOutputId,
-                                            int location) {
+    public boolean setExtAudioOutLocation(
+            BluetoothDevice device, int externalOutputId, int location) {
         return setExtAudioOutLocationNative(getByteAddress(device), externalOutputId, location);
     }
 
@@ -237,8 +210,8 @@ public class VolumeControlNativeInterface {
      * @return true on success, otherwise false.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean setExtAudioOutDescription(BluetoothDevice device, int externalOutputId,
-                                                    String descr) {
+    public boolean setExtAudioOutDescription(
+            BluetoothDevice device, int externalOutputId, String descr) {
         return setExtAudioOutDescriptionNative(getByteAddress(device), externalOutputId, descr);
     }
 
@@ -273,15 +246,12 @@ public class VolumeControlNativeInterface {
         event.device = getDevice(address);
         event.valueInt1 = state;
 
-        if (DBG) {
-            Log.d(TAG, "onConnectionStateChanged: " + event);
-        }
+        Log.d(TAG, "onConnectionStateChanged: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
-    void onVolumeStateChanged(int volume, boolean mute, byte[] address,
-            boolean isAutonomous) {
+    void onVolumeStateChanged(int volume, boolean mute, byte[] address, boolean isAutonomous) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(
                         VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED);
@@ -291,15 +261,12 @@ public class VolumeControlNativeInterface {
         event.valueBool1 = mute;
         event.valueBool2 = isAutonomous;
 
-        if (DBG) {
-            Log.d(TAG, "onVolumeStateChanged: " + event);
-        }
+        Log.d(TAG, "onVolumeStateChanged: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
-    void onGroupVolumeStateChanged(int volume, boolean mute, int groupId,
-            boolean isAutonomous) {
+    void onGroupVolumeStateChanged(int volume, boolean mute, int groupId, boolean isAutonomous) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(
                         VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED);
@@ -309,93 +276,93 @@ public class VolumeControlNativeInterface {
         event.valueBool1 = mute;
         event.valueBool2 = isAutonomous;
 
-        if (DBG) {
-            Log.d(TAG, "onGroupVolumeStateChanged: " + event);
-        }
+        Log.d(TAG, "onGroupVolumeStateChanged: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
-    void onDeviceAvailable(int numOfExternalOutputs,
-                                   byte[] address) {
+    void onDeviceAvailable(int numOfExternalOutputs, byte[] address) {
         VolumeControlStackEvent event =
-                new VolumeControlStackEvent(
-                        VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
+                new VolumeControlStackEvent(VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
         event.device = getDevice(address);
         event.valueInt1 = numOfExternalOutputs;
 
-        if (DBG) {
-            Log.d(TAG, "onDeviceAvailable: " + event);
-        }
+        Log.d(TAG, "onDeviceAvailable: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
-    void onExtAudioOutVolumeOffsetChanged(int externalOutputId, int offset,
-                                               byte[] address) {
+    void onExtAudioOutVolumeOffsetChanged(int externalOutputId, int offset, byte[] address) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(
-                    VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_VOL_OFFSET_CHANGED);
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_VOL_OFFSET_CHANGED);
         event.device = getDevice(address);
         event.valueInt1 = externalOutputId;
         event.valueInt2 = offset;
 
-        if (DBG) {
-            Log.d(TAG, "onExtAudioOutVolumeOffsetChanged: " + event);
-        }
+        Log.d(TAG, "onExtAudioOutVolumeOffsetChanged: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
-    void onExtAudioOutLocationChanged(int externalOutputId, int location,
-                                               byte[] address) {
+    void onExtAudioOutLocationChanged(int externalOutputId, int location, byte[] address) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(
-                    VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED);
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED);
         event.device = getDevice(address);
         event.valueInt1 = externalOutputId;
         event.valueInt2 = location;
 
-        if (DBG) {
-            Log.d(TAG, "onExtAudioOutLocationChanged: " + event);
-        }
+        Log.d(TAG, "onExtAudioOutLocationChanged: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
-    void onExtAudioOutDescriptionChanged(int externalOutputId, String descr,
-                                               byte[] address) {
+    void onExtAudioOutDescriptionChanged(int externalOutputId, String descr, byte[] address) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(
-                    VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED);
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED);
         event.device = getDevice(address);
         event.valueInt1 = externalOutputId;
         event.valueString1 = descr;
 
-        if (DBG) {
-            Log.d(TAG, "onExtAudioOutLocationChanged: " + event);
-        }
+        Log.d(TAG, "onExtAudioOutLocationChanged: " + event);
         sendMessageToService(event);
     }
 
     // Native methods that call into the JNI interface
     private native void initNative();
+
     private native void cleanupNative();
+
     private native boolean connectVolumeControlNative(byte[] address);
+
     private native boolean disconnectVolumeControlNative(byte[] address);
+
     private native void setVolumeNative(byte[] address, int volume);
+
     private native void setGroupVolumeNative(int groupId, int volume);
+
     private native void muteNative(byte[] address);
+
     private native void muteGroupNative(int groupId);
+
     private native void unmuteNative(byte[] address);
+
     private native void unmuteGroupNative(int groupId);
+
     private native boolean getExtAudioOutVolumeOffsetNative(byte[] address, int externalOutputId);
-    private native boolean setExtAudioOutVolumeOffsetNative(byte[] address, int externalOutputId,
-                                                                int offset);
+
+    private native boolean setExtAudioOutVolumeOffsetNative(
+            byte[] address, int externalOutputId, int offset);
+
     private native boolean getExtAudioOutLocationNative(byte[] address, int externalOutputId);
-    private native boolean setExtAudioOutLocationNative(byte[] address, int externalOutputId,
-                                                            int location);
+
+    private native boolean setExtAudioOutLocationNative(
+            byte[] address, int externalOutputId, int location);
+
     private native boolean getExtAudioOutDescriptionNative(byte[] address, int externalOutputId);
-    private native boolean setExtAudioOutDescriptionNative(byte[] address, int externalOutputId,
-                                                                String descr);
+
+    private native boolean setExtAudioOutDescriptionNative(
+            byte[] address, int externalOutputId, String descr);
 }

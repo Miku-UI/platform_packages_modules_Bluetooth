@@ -16,7 +16,6 @@
 
 static_library("device") {
   sources = [
-    "src/controller.cc",
     "src/esco_parameters.cc",
     "src/interop.cc",
     "src/device_iot_config.cc",
@@ -34,6 +33,7 @@ static_library("device") {
   ]
 
   deps = [
+    "//bt/flags:bluetooth_flags_c_lib",
     "//bt/system/gd/rust/shim:init_flags_bridge_header",
     "//bt/system/gd/rust/shim:libbluetooth_rust_interop",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",

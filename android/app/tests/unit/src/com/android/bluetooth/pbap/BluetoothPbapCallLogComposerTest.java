@@ -42,11 +42,13 @@ import com.android.bluetooth.BluetoothMethodProxy;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -62,18 +64,18 @@ public class BluetoothPbapCallLogComposerTest {
 
     private BluetoothPbapCallLogComposer mComposer;
 
-    @Spy
-    BluetoothMethodProxy mPbapCallProxy = BluetoothMethodProxy.getInstance();
+    @Spy BluetoothMethodProxy mPbapCallProxy = BluetoothMethodProxy.getInstance();
 
-    @Mock
-    Cursor mMockCursor;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock Cursor mMockCursor;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         BluetoothMethodProxy.setInstanceForTesting(mPbapCallProxy);
 
-        doReturn(mMockCursor).when(mPbapCallProxy)
+        doReturn(mMockCursor)
+                .when(mPbapCallProxy)
                 .contentResolverQuery(any(), any(), any(), any(), any(), any());
         final int validRowCount = 5;
         when(mMockCursor.getCount()).thenReturn(validRowCount);
@@ -89,8 +91,7 @@ public class BluetoothPbapCallLogComposerTest {
 
     @Test
     public void testInit_success() {
-        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER))
-                .isTrue();
+        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER)).isTrue();
         assertThat(mComposer.getErrorReason()).isEqualTo(NO_ERROR);
     }
 
@@ -106,11 +107,11 @@ public class BluetoothPbapCallLogComposerTest {
 
     @Test
     public void testInit_failWhenCursorIsNull() {
-        doReturn(null).when(mPbapCallProxy)
+        doReturn(null)
+                .when(mPbapCallProxy)
                 .contentResolverQuery(any(), any(), any(), any(), any(), any());
 
-        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER))
-                .isFalse();
+        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER)).isFalse();
         assertThat(mComposer.getErrorReason())
                 .isEqualTo(FAILURE_REASON_FAILED_TO_GET_DATABASE_INFO);
     }
@@ -119,8 +120,7 @@ public class BluetoothPbapCallLogComposerTest {
     public void testInit_failWhenCursorRowCountIsZero() {
         when(mMockCursor.getCount()).thenReturn(0);
 
-        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER))
-                .isFalse();
+        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER)).isFalse();
         assertThat(mComposer.getErrorReason()).isEqualTo(FAILURE_REASON_NO_ENTRY);
         verify(mMockCursor).close();
     }
@@ -129,8 +129,7 @@ public class BluetoothPbapCallLogComposerTest {
     public void testInit_failWhenCursorMoveToFirstFails() {
         when(mMockCursor.moveToFirst()).thenReturn(false);
 
-        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER))
-                .isFalse();
+        assertThat(mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER)).isFalse();
         assertThat(mComposer.getErrorReason()).isEqualTo(FAILURE_REASON_NO_ENTRY);
         verify(mMockCursor).close();
     }
@@ -156,8 +155,12 @@ public class BluetoothPbapCallLogComposerTest {
         final String testPhoneName = "test_phone_name";
         final String testPhoneNumber = "0123456789";
 
-        assertThat(BluetoothPbapCallLogComposer.composeVCardForPhoneOwnNumber(
-                testPhoneType, testPhoneName, testPhoneNumber, /*vcardVer21=*/ true))
+        assertThat(
+                        BluetoothPbapCallLogComposer.composeVCardForPhoneOwnNumber(
+                                testPhoneType,
+                                testPhoneName,
+                                testPhoneNumber,
+                                /* vcardVer21= */ true))
                 .contains(testPhoneNumber);
     }
 

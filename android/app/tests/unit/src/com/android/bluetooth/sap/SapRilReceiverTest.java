@@ -63,12 +63,14 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.Arrays;
 
@@ -81,20 +83,18 @@ public class SapRilReceiverTest {
     private HandlerThread mHandlerThread;
     private Handler mServerMsgHandler;
 
-    @Spy
-    private TestHandlerCallback mCallback = new TestHandlerCallback();
+    @Spy private TestHandlerCallback mCallback = new TestHandlerCallback();
 
-    @Mock
-    private Handler mServiceHandler;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private ISap mSapProxy;
+    @Mock private Handler mServiceHandler;
+
+    @Mock private ISap mSapProxy;
 
     private SapRilReceiver mReceiver;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         mHandlerThread = new HandlerThread("SapRilReceiverTest");
         mHandlerThread.start();
@@ -146,9 +146,9 @@ public class SapRilReceiverTest {
         mReceiver.mSapProxyDeathRecipient.binderDied();
 
         verify(mCallback, timeout(ISAP_GET_SERVICE_DELAY_MILLIS + TIMEOUT_MS))
-                .receiveMessage(eq(SAP_PROXY_DEAD), argThat(
-                        arg -> (arg instanceof Long) && ((Long) arg == 0)
-                ));
+                .receiveMessage(
+                        eq(SAP_PROXY_DEAD),
+                        argThat(arg -> (arg instanceof Long) && ((Long) arg == 0)));
     }
 
     @Test
@@ -158,19 +158,21 @@ public class SapRilReceiverTest {
         int maxMsgSize = 512;
         mReceiver.mSapCallback.connectResponse(token, sapConnectRsp, maxMsgSize);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_CONNECT_RESP
-                                && sapMsg.getConnectionStatus() == sapConnectRsp;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_CONNECT_RESP
+                                                && sapMsg.getConnectionStatus() == sapConnectRsp;
+                                    }
+                                }));
     }
 
     @Test
@@ -178,18 +180,20 @@ public class SapRilReceiverTest {
         int token = 1;
         mReceiver.mSapCallback.disconnectResponse(token);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_DISCONNECT_RESP;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_DISCONNECT_RESP;
+                                    }
+                                }));
     }
 
     @Test
@@ -198,67 +202,73 @@ public class SapRilReceiverTest {
         int disconnectType = DISC_GRACEFULL;
         mReceiver.mSapCallback.disconnectIndication(token, disconnectType);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RIL_IND), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_RIL_UNSOL_DISCONNECT_IND
-                                && sapMsg.getDisconnectionType() == disconnectType;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RIL_IND),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_RIL_UNSOL_DISCONNECT_IND
+                                                && sapMsg.getDisconnectionType() == disconnectType;
+                                    }
+                                }));
     }
 
     @Test
     public void callback_apduResponse() throws Exception {
         int token = 1;
         int resultCode = RESULT_OK;
-        byte[] apduRsp = new byte[]{0x03, 0x04};
+        byte[] apduRsp = new byte[] {0x03, 0x04};
 
         mReceiver.mSapCallback.apduResponse(token, resultCode, apduRsp);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_TRANSFER_APDU_RESP
-                                && sapMsg.getResultCode() == resultCode
-                                && Arrays.equals(sapMsg.getApduResp(), apduRsp);
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_TRANSFER_APDU_RESP
+                                                && sapMsg.getResultCode() == resultCode
+                                                && Arrays.equals(sapMsg.getApduResp(), apduRsp);
+                                    }
+                                }));
     }
 
     @Test
     public void callback_transferAtrResponse() throws Exception {
         int token = 1;
         int resultCode = RESULT_OK;
-        byte[] atr = new byte[]{0x03, 0x04};
+        byte[] atr = new byte[] {0x03, 0x04};
 
         mReceiver.mSapCallback.transferAtrResponse(token, resultCode, atr);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_TRANSFER_ATR_RESP
-                                && sapMsg.getResultCode() == resultCode
-                                && Arrays.equals(sapMsg.getAtr(), atr);
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_TRANSFER_ATR_RESP
+                                                && sapMsg.getResultCode() == resultCode
+                                                && Arrays.equals(sapMsg.getAtr(), atr);
+                                    }
+                                }));
     }
 
     @Test
@@ -271,19 +281,21 @@ public class SapRilReceiverTest {
 
         mReceiver.mSapCallback.powerResponse(token, resultCode);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_POWER_SIM_OFF_RESP
-                                && sapMsg.getResultCode() == resultCode;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_POWER_SIM_OFF_RESP
+                                                && sapMsg.getResultCode() == resultCode;
+                                    }
+                                }));
     }
 
     @Test
@@ -296,19 +308,21 @@ public class SapRilReceiverTest {
 
         mReceiver.mSapCallback.powerResponse(token, resultCode);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_POWER_SIM_ON_RESP
-                                && sapMsg.getResultCode() == resultCode;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_POWER_SIM_ON_RESP
+                                                && sapMsg.getResultCode() == resultCode;
+                                    }
+                                }));
     }
 
     @Test
@@ -318,19 +332,21 @@ public class SapRilReceiverTest {
 
         mReceiver.mSapCallback.resetSimResponse(token, resultCode);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_RESET_SIM_RESP
-                                && sapMsg.getResultCode() == resultCode;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_RESET_SIM_RESP
+                                                && sapMsg.getResultCode() == resultCode;
+                                    }
+                                }));
     }
 
     @Test
@@ -340,19 +356,21 @@ public class SapRilReceiverTest {
 
         mReceiver.mSapCallback.statusIndication(token, statusChange);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_STATUS_IND
-                                && sapMsg.getStatusChange() == statusChange;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_STATUS_IND
+                                                && sapMsg.getStatusChange() == statusChange;
+                                    }
+                                }));
     }
 
     @Test
@@ -364,19 +382,22 @@ public class SapRilReceiverTest {
         mReceiver.mSapCallback.transferCardReaderStatusResponse(
                 token, resultCode, cardReaderStatus);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_TRANSFER_CARD_READER_STATUS_RESP
-                                && sapMsg.getResultCode() == resultCode;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType()
+                                                        == ID_TRANSFER_CARD_READER_STATUS_RESP
+                                                && sapMsg.getResultCode() == resultCode;
+                                    }
+                                }));
     }
 
     @Test
@@ -385,18 +406,20 @@ public class SapRilReceiverTest {
 
         mReceiver.mSapCallback.errorResponse(token);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RIL_IND), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_RIL_UNKNOWN;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RIL_IND),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_RIL_UNKNOWN;
+                                    }
+                                }));
     }
 
     @Test
@@ -406,19 +429,21 @@ public class SapRilReceiverTest {
 
         mReceiver.mSapCallback.transferProtocolResponse(token, resultCode);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        if (!(arg instanceof SapMessage)) {
-                            return false;
-                        }
-                        SapMessage sapMsg = (SapMessage) arg;
-                        return sapMsg.getMsgType() == ID_SET_TRANSPORT_PROTOCOL_RESP
-                                && sapMsg.getResultCode() == resultCode;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        if (!(arg instanceof SapMessage)) {
+                                            return false;
+                                        }
+                                        SapMessage sapMsg = (SapMessage) arg;
+                                        return sapMsg.getMsgType() == ID_SET_TRANSPORT_PROTOCOL_RESP
+                                                && sapMsg.getResultCode() == resultCode;
+                                    }
+                                }));
     }
 
     public static class TestHandlerCallback implements Handler.Callback {
@@ -429,7 +454,6 @@ public class SapRilReceiverTest {
             return true;
         }
 
-        public void receiveMessage(int what, Object obj) {
-        }
+        public void receiveMessage(int what, Object obj) {}
     }
 }

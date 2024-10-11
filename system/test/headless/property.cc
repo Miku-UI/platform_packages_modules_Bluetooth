@@ -93,11 +93,6 @@ std::map<::bt_property_type_t, std::function<headless::bt_property_t*(
            return new headless::property::void_t(data, len,
                                                  BT_PROPERTY_LOCAL_LE_FEATURES);
          }},
-        {BT_PROPERTY_LOCAL_IO_CAPS,
-         [](const uint8_t* data, const size_t len) -> headless::bt_property_t* {
-           return new headless::property::void_t(data, len,
-                                                 BT_PROPERTY_LOCAL_IO_CAPS);
-         }},
         {BT_PROPERTY_DYNAMIC_AUDIO_BUFFER,
          [](const uint8_t* data, const size_t len) -> headless::bt_property_t* {
            return new headless::property::void_t(
@@ -124,7 +119,7 @@ headless::bt_property_t* bluetooth::test::headless::property_factory(
   const size_t size = static_cast<size_t>(bt_property.len);
 
   if (size > 0) {
-    ASSERT_LOG(data != nullptr, "Property value pointer is null");
+    log::assert_that(data != nullptr, "Property value pointer is null");
   }
 
   const auto factory = property_map.find(bt_property.type);

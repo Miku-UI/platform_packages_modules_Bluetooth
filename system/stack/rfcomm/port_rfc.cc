@@ -26,21 +26,18 @@
 #define LOG_TAG "rfcomm"
 
 #include <base/functional/callback.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
 #include <cstdint>
-#include <string>
 
 #include "hal/snoop_logger.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/mutex.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/stack_metrics_logging.h"
@@ -85,19 +82,29 @@ int port_open_continue(tPORT* p_port) {
   /* Connection is up and we know local and remote features, select MTU */
   port_select_mtu(p_port);
 
-  if (p_mcb->state == RFC_MX_STATE_CONNECTED) {
-    RFCOMM_ParameterNegotiationRequest(p_mcb, p_port->dlci, p_port->mtu);
-  } else if ((p_mcb->state == RFC_MX_STATE_IDLE) ||
-             (p_mcb->state == RFC_MX_STATE_DISC_WAIT_UA)) {
-    // In RFC_MX_STATE_IDLE state, MX state machine will create connection
-    // In RFC_MX_STATE_DISC_WAIT_UA state, MX state machine will recreate
-    // connection after disconnecting is completed
-    RFCOMM_StartReq(p_mcb);
-  } else {
-    // MX state machine ignores RFC_MX_EVENT_START_REQ in these states
-    // When it enters RFC_MX_STATE_CONNECTED, it will check any openning ports
-    log::verbose("port_open_continue: mx state({}) mx channel is opening",
-                 p_mcb->state);
+  switch (p_mcb->state) {
+    case RFC_MX_STATE_CONNECTED:
+      RFCOMM_ParameterNegotiationRequest(p_mcb, p_port->dlci, p_port->mtu);
+      log::verbose("Multiplexer already connected peer:{} state:{} cid:{}",
+                   p_port->bd_addr, p_mcb->state, p_mcb->lcid);
+      break;
+
+    case RFC_MX_STATE_IDLE:
+    case RFC_MX_STATE_DISC_WAIT_UA:
+      // In RFC_MX_STATE_IDLE state, MX state machine will create connection
+      // In RFC_MX_STATE_DISC_WAIT_UA state, MX state machine will recreate
+      // connection after disconnecting is completed
+      RFCOMM_StartReq(p_mcb);
+      log::verbose("Starting multiplexer connect peer:{} state:{} cid:{}",
+                   p_port->bd_addr, p_mcb->state, p_mcb->lcid);
+      break;
+
+    default:
+      // MX state machine ignores RFC_MX_EVENT_START_REQ in these states
+      // When it enters RFC_MX_STATE_CONNECTED, it will check any opening ports
+      log::verbose("Ignoring RFC_MX_EVENT_START_REQ peer:{} state:{} cid:{}",
+                   p_port->bd_addr, p_mcb->state, p_mcb->lcid);
+      break;
   }
   return (PORT_SUCCESS);
 }
@@ -207,15 +214,8 @@ void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
         log::verbose("dlci {}", p_port->dlci);
         RFCOMM_ParameterNegotiationRequest(p_mcb, p_port->dlci, p_port->mtu);
       } else {
-        log::warn("failed result:{}", result);
-
-        /* Warning: result is also set to 4 when l2cap connection
-           fails due to l2cap connect cnf (no_resources) */
-        if (result == HCI_ERR_PAGE_TIMEOUT) {
-          p_port->error = PORT_PAGE_TIMEOUT;
-        } else {
-          p_port->error = PORT_START_FAILED;
-        }
+        log::warn("Unable start configuration dlci:{} result:{}", p_port->dlci,
+                  result);
 
         rfc_release_multiplexer_channel(p_mcb);
 
@@ -282,8 +282,7 @@ void PORT_StartInd(tRFC_MCB* p_mcb) {
  ******************************************************************************/
 void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl,
                     uint8_t k) {
-  log::verbose("bd_addr={}, dlci={}, mtu={}",
-               ADDRESS_TO_LOGGABLE_CSTR(p_mcb->bd_addr), dlci, mtu);
+  log::verbose("bd_addr={}, dlci={}, mtu={}", p_mcb->bd_addr, dlci, mtu);
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   if (!p_port) {
     /* This can be a first request for this port */
@@ -291,7 +290,7 @@ void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl,
     if (!p_port) {
       log::error(
           "Disconnect RFCOMM, port not found, dlci={}, p_mcb={}, bd_addr={}",
-          dlci, fmt::ptr(p_mcb), ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr));
+          dlci, fmt::ptr(p_mcb), p_mcb->bd_addr);
       /* If the port cannot be opened, send a DM.  Per Errata 1205 */
       rfc_send_dm(p_mcb, dlci, false);
       /* check if this is the last port open, some headsets have
@@ -320,8 +319,7 @@ void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl,
    */
   /* already defined for this mux, we respond with that value. */
   if (p_mcb->flow == PORT_FC_UNDEFINED) {
-    if ((PORT_FC_DEFAULT == PORT_FC_TS710) ||
-        (cl == RFCOMM_PN_CONV_LAYER_TYPE_1)) {
+    if (cl == RFCOMM_PN_CONV_LAYER_TYPE_1) {
       p_mcb->flow = PORT_FC_TS710;
     } else {
       p_mcb->flow = PORT_FC_CREDIT;
@@ -374,22 +372,13 @@ void PORT_ParNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl,
   log::verbose("PORT_ParNegCnf dlci:{} mtu:{} cl: {} k: {}", dlci, mtu, cl, k);
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   if (!p_port) {
-    log::warn("port is null for {}", ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr));
+    log::warn("port is null for {}", p_mcb->bd_addr);
     return;
   }
 
   /* Flow control mechanism not set yet.  Negotiate flow control mechanism. */
   if (p_mcb->flow == PORT_FC_UNDEFINED) {
-    /* Our stack is configured for TS07.10 and they responded with credit-based.
-     */
-    /* This is illegal-- negotiation fails. */
-    if ((PORT_FC_DEFAULT == PORT_FC_TS710) &&
-        (cl == RFCOMM_PN_CONV_LAYER_CBFC_R)) {
-      log::warn("negotiation fails, index={}", p_port->handle);
-      rfc_send_disc(p_mcb, p_port->dlci);
-      rfc_port_closed(p_port);
-      return;
-    } else if (cl == RFCOMM_PN_CONV_LAYER_CBFC_R) {
+    if (cl == RFCOMM_PN_CONV_LAYER_CBFC_R) {
       // Our stack is configured for credit-based and they responded with
       // credit-based.
       p_mcb->flow = PORT_FC_CREDIT;
@@ -431,8 +420,7 @@ void PORT_DlcEstablishInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu) {
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
 
   log::verbose("p_mcb:{}, dlci:{} mtu:{}i, p_port:{}, bd_addr:{}",
-               fmt::ptr(p_mcb), dlci, mtu, fmt::ptr(p_port),
-               ADDRESS_TO_LOGGABLE_CSTR(p_mcb->bd_addr));
+               fmt::ptr(p_mcb), dlci, mtu, fmt::ptr(p_port), p_mcb->bd_addr);
 
   if (!p_port) {
     /* This can be a first request for this port */
@@ -487,7 +475,8 @@ void PORT_DlcEstablishCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu,
   if (!p_port) return;
 
   if (result != RFCOMM_SUCCESS) {
-    p_port->error = PORT_START_FAILED;
+    log::warn("Unable to establish configuration dlci:{} result:{}", dlci,
+              result);
     port_rfc_closed(p_port, PORT_START_FAILED);
     log_counter_metrics(
         android::bluetooth::CodePathCounterKeyEnum::RFCOMM_PORT_START_FAILED,
@@ -562,8 +551,8 @@ void PORT_PortNegInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars,
  *                  state for the port.  Propagate change to the user.
  *
  ******************************************************************************/
-void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci,
-                     UNUSED_ATTR tPORT_STATE* p_pars, uint16_t result) {
+void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* /* p_pars */,
+                     uint16_t result) {
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
 
   log::verbose("PORT_PortNegCnf");
@@ -574,8 +563,7 @@ void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci,
   }
   /* Port negotiation failed. Drop the connection */
   if (result != RFCOMM_SUCCESS) {
-    p_port->error = PORT_PORT_NEG_FAILED;
-
+    log::warn("Unable to negotiate port state dlci:{} result:{}", dlci, result);
     RFCOMM_DlcReleaseReq(p_mcb, p_port->dlci);
 
     port_rfc_closed(p_port, PORT_PORT_NEG_FAILED);
@@ -636,10 +624,10 @@ void PORT_ControlInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars) {
   if (event && p_port->p_callback) (p_port->p_callback)(event, p_port->handle);
 
   log::verbose("PORT_ControlInd DTR_DSR : {}, RTS_CTS : {}, RI : {}, DCD : {}",
-               ((p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_DTRDSR) ? 1 : 0),
-               ((p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_RTSCTS) ? 1 : 0),
-               ((p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_RI) ? 1 : 0),
-               ((p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_DCD) ? 1 : 0));
+               (p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_DTRDSR) ? 1 : 0,
+               (p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_RTSCTS) ? 1 : 0,
+               (p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_RI) ? 1 : 0,
+               (p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_DCD) ? 1 : 0);
 }
 
 /*******************************************************************************
@@ -650,8 +638,7 @@ void PORT_ControlInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars) {
  *                  peer acknowleges change of the modem signals.
  *
  ******************************************************************************/
-void PORT_ControlCnf(tRFC_MCB* p_mcb, uint8_t dlci,
-                     UNUSED_ATTR tPORT_CTRL* p_pars) {
+void PORT_ControlCnf(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* /* p_pars */) {
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   uint32_t event = 0;
 
@@ -712,8 +699,7 @@ void PORT_LineStatusInd(tRFC_MCB* p_mcb, uint8_t dlci, uint8_t line_status) {
  *
  ******************************************************************************/
 void PORT_DlcReleaseInd(tRFC_MCB* p_mcb, uint8_t dlci) {
-  log::verbose("dlci:{}, bd_addr:{}", dlci,
-               ADDRESS_TO_LOGGABLE_CSTR(p_mcb->bd_addr));
+  log::verbose("dlci:{}, bd_addr:{}", dlci, p_mcb->bd_addr);
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   if (!p_port) return;
   port_rfc_closed(p_port, PORT_CLOSED);
@@ -1031,16 +1017,19 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
   if ((p_port->p_callback != NULL) && events)
     p_port->p_callback(events, p_port->handle);
 
-  if (p_port->p_mgmt_callback) p_port->p_mgmt_callback(res, p_port->handle);
+  if (p_port->p_mgmt_callback) {
+    uint32_t res2 = res;
+    if (res2 >= PORT_ERR_MAX) res2 = PORT_ERR_MAX;
+    p_port->p_mgmt_callback(static_cast<tPORT_RESULT>(res2), p_port->handle);
+  }
 
   p_port->rfc.state = RFC_STATE_CLOSED;
 
   log::info(
-      "RFCOMM connection closed, index={}, state={}, reason={}[{}], UUID={}, "
-      "bd_addr={}, is_server={}",
+      "RFCOMM connection closed, index={}, state={}, reason={}[{}], "
+      "UUID=0x{:x}, bd_addr={}, is_server={}",
       p_port->handle, p_port->state, PORT_GetResultString(res), res,
-      loghex(p_port->uuid), ADDRESS_TO_LOGGABLE_STR(p_port->bd_addr),
-      p_port->is_server);
+      p_port->uuid, p_port->bd_addr, p_port->is_server);
 
   port_release_port(p_port);
 }

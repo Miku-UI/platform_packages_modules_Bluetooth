@@ -81,6 +81,8 @@ enum class ProfilesFloss {
   A2dpSink = 0,
   A2dpSource,
   AdvAudioDist,
+  Bas,
+  Dis,
   Hsp,
   HspAg,
   Hfp,
@@ -447,6 +449,10 @@ static std::pair<uint32_t, uint32_t> ToProfileConnectionState(uint32_t profile, 
           break;
         case BthhConnectionState::BTHH_CONN_STATE_DISCONNECTING:
           output.second = (uint32_t)ProfilesConnectionState::DISCONNECTING;
+          break;
+        case BthhConnectionState::BTHH_CONN_STATE_ACCEPTING:
+          // For metric purpose, we map accepting to connecting.
+          output.second = (uint32_t)ProfilesConnectionState::CONNECTING;
           break;
         case BthhConnectionState::BTHH_CONN_STATE_UNKNOWN:
           output.second = (uint32_t)ProfilesConnectionState::UNKNOWN;

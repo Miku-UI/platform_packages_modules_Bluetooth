@@ -35,12 +35,12 @@ namespace stack_l2cap_api {
 
 // Function state capture and return values, if needed
 struct l2c_get_transport_from_fixed_cid l2c_get_transport_from_fixed_cid;
-struct L2CA_Register2 L2CA_Register2;
+struct L2CA_RegisterWithSecurity L2CA_RegisterWithSecurity;
 struct L2CA_Register L2CA_Register;
 struct L2CA_Deregister L2CA_Deregister;
 struct L2CA_AllocateLePSM L2CA_AllocateLePSM;
 struct L2CA_FreeLePSM L2CA_FreeLePSM;
-struct L2CA_ConnectReq2 L2CA_ConnectReq2;
+struct L2CA_ConnectReqWithSecurity L2CA_ConnectReqWithSecurity;
 struct L2CA_ConnectReq L2CA_ConnectReq;
 struct L2CA_RegisterLECoc L2CA_RegisterLECoc;
 struct L2CA_DeregisterLECoc L2CA_DeregisterLECoc;
@@ -51,7 +51,7 @@ struct L2CA_ConnectCreditBasedReq L2CA_ConnectCreditBasedReq;
 struct L2CA_ReconfigCreditBasedConnsReq L2CA_ReconfigCreditBasedConnsReq;
 struct L2CA_DisconnectReq L2CA_DisconnectReq;
 struct L2CA_DisconnectLECocReq L2CA_DisconnectLECocReq;
-struct L2CA_GetRemoteCid L2CA_GetRemoteCid;
+struct L2CA_GetRemoteChannelId L2CA_GetRemoteChannelId;
 struct L2CA_SetIdleTimeoutByBdAddr L2CA_SetIdleTimeoutByBdAddr;
 struct L2CA_UseLatencyMode L2CA_UseLatencyMode;
 struct L2CA_SetAclPriority L2CA_SetAclPriority;
@@ -84,12 +84,12 @@ tBT_TRANSPORT l2c_get_transport_from_fixed_cid(uint16_t fixed_cid) {
   return test::mock::stack_l2cap_api::l2c_get_transport_from_fixed_cid(
       fixed_cid);
 }
-uint16_t L2CA_Register2(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info,
-                        bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info,
-                        uint16_t my_mtu, uint16_t required_remote_mtu,
-                        uint16_t sec_level) {
+uint16_t L2CA_RegisterWithSecurity(
+    uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
+    tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
+    uint16_t required_remote_mtu, uint16_t sec_level) {
   inc_func_call_count(__func__);
-  return test::mock::stack_l2cap_api::L2CA_Register2(
+  return test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity(
       psm, p_cb_info, enable_snoop, p_ertm_info, my_mtu, required_remote_mtu,
       sec_level);
 }
@@ -114,11 +114,11 @@ void L2CA_FreeLePSM(uint16_t psm) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_api::L2CA_FreeLePSM(psm);
 }
-uint16_t L2CA_ConnectReq2(uint16_t psm, const RawAddress& p_bd_addr,
-                          uint16_t sec_level) {
+uint16_t L2CA_ConnectReqWithSecurity(uint16_t psm, const RawAddress& p_bd_addr,
+                                     uint16_t sec_level) {
   inc_func_call_count(__func__);
-  return test::mock::stack_l2cap_api::L2CA_ConnectReq2(psm, p_bd_addr,
-                                                       sec_level);
+  return test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity(
+      psm, p_bd_addr, sec_level);
 }
 uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& p_bd_addr) {
   inc_func_call_count(__func__);
@@ -173,9 +173,9 @@ bool L2CA_DisconnectLECocReq(uint16_t cid) {
   inc_func_call_count(__func__);
   return test::mock::stack_l2cap_api::L2CA_DisconnectLECocReq(cid);
 }
-bool L2CA_GetRemoteCid(uint16_t lcid, uint16_t* rcid) {
+bool L2CA_GetRemoteChannelId(uint16_t lcid, uint16_t* rcid) {
   inc_func_call_count(__func__);
-  return test::mock::stack_l2cap_api::L2CA_GetRemoteCid(lcid, rcid);
+  return test::mock::stack_l2cap_api::L2CA_GetRemoteChannelId(lcid, rcid);
 }
 bool L2CA_SetIdleTimeoutByBdAddr(const RawAddress& bd_addr, uint16_t timeout,
                                  tBT_TRANSPORT transport) {
@@ -278,3 +278,5 @@ uint16_t L2CA_LeCreditThreshold() {
 }
 
 // END mockcify generation
+
+void L2CA_Dumpsys(int /* fd */) { inc_func_call_count(__func__); }

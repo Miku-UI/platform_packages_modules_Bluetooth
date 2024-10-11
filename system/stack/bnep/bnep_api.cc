@@ -137,7 +137,7 @@ tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid,
   uint16_t cid;
   tBNEP_CONN* p_bcb = bnepu_find_bcb_by_bd_addr(p_rem_bda);
 
-  log::verbose("BDA:{}", ADDRESS_TO_LOGGABLE_STR(p_rem_bda));
+  log::verbose("BDA:{}", p_rem_bda);
 
   if (!bnep_cb.profile_registered) return BNEP_WRONG_STATE;
 
@@ -164,7 +164,7 @@ tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid,
     p_bcb->con_state = BNEP_STATE_SEC_CHECKING;
 
     log::verbose("BNEP initiating security procedures for src uuid {}",
-                 p_bcb->src_uuid.ToString().c_str());
+                 p_bcb->src_uuid.ToString());
 
     bnep_sec_check_complete(&p_bcb->rem_bda, BT_TRANSPORT_BR_EDR, p_bcb);
   } else {
@@ -172,8 +172,8 @@ tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid,
      */
     p_bcb->con_state = BNEP_STATE_CONN_START;
 
-    cid = L2CA_ConnectReq2(BT_PSM_BNEP, p_bcb->rem_bda,
-                           BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+    cid = L2CA_ConnectReqWithSecurity(BT_PSM_BNEP, p_bcb->rem_bda,
+                                      BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
     if (cid != 0) {
       p_bcb->l2cap_cid = cid;
 
@@ -297,7 +297,10 @@ tBNEP_RESULT BNEP_Disconnect(uint16_t handle) {
 
   log::verbose("BNEP_Disconnect()  for handle {}", handle);
 
-  L2CA_DisconnectReq(p_bcb->l2cap_cid);
+  if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+    log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}",
+              p_bcb->rem_bda, p_bcb->l2cap_cid);
+  }
 
   bnepu_release_bcb(p_bcb);
 

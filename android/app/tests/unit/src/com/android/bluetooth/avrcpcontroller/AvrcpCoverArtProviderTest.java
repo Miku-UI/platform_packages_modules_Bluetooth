@@ -38,7 +38,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.io.FileNotFoundException;
 
@@ -47,21 +48,21 @@ import java.io.FileNotFoundException;
 public class AvrcpCoverArtProviderTest {
     private static final String TEST_MODE = "test_mode";
 
-    private final byte[] mTestAddress = new byte[]{01, 01, 01, 01, 01, 01};
+    private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
 
     private BluetoothAdapter mAdapter;
     private BluetoothDevice mTestDevice = null;
     private AvrcpCoverArtProvider mArtProvider;
 
-    @Rule
-    public final ServiceTestRule mServiceRule = new ServiceTestRule();
+    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private Uri mUri;
     @Mock private AdapterService mAdapterService;
     @Mock private AvrcpControllerNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
         AvrcpControllerNativeInterface.setInstance(mNativeInterface);
         mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -109,8 +110,12 @@ public class AvrcpCoverArtProviderTest {
     @Test
     public void getImageUri_withValidImageUuid() {
         String uuid = "1111";
-        Uri expectedUri = AvrcpCoverArtProvider.CONTENT_URI.buildUpon().appendQueryParameter(
-                "device", mTestDevice.getAddress()).appendQueryParameter("uuid", uuid).build();
+        Uri expectedUri =
+                AvrcpCoverArtProvider.CONTENT_URI
+                        .buildUpon()
+                        .appendQueryParameter("device", mTestDevice.getAddress())
+                        .appendQueryParameter("uuid", uuid)
+                        .build();
 
         assertThat(AvrcpCoverArtProvider.getImageUri(mTestDevice, uuid)).isEqualTo(expectedUri);
     }

@@ -19,7 +19,6 @@
 #include <base/functional/callback.h>
 #include <base/functional/callback_forward.h>
 #include <base/functional/callback_helpers.h>
-#include <base/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -30,18 +29,13 @@
 #include "types/raw_address.h"
 
 using bluetooth::groups::kGroupUnknown;
+using bluetooth::le_audio::DeviceConnectState;
+using bluetooth::le_audio::LeAudioDevice;
+using bluetooth::le_audio::LeAudioDeviceGroup;
 using bluetooth::le_audio::LeAudioHealthBasedAction;
-using le_audio::DeviceConnectState;
-using le_audio::LeAudioDevice;
-using le_audio::LeAudioDeviceGroup;
-using le_audio::LeAudioHealthDeviceStatType;
-using le_audio::LeAudioHealthGroupStatType;
-using le_audio::LeAudioHealthStatus;
-
-static const char* test_flags[] = {
-    "INIT_logging_debug_enabled_for_all=true",
-    nullptr,
-};
+using bluetooth::le_audio::LeAudioHealthDeviceStatType;
+using bluetooth::le_audio::LeAudioHealthGroupStatType;
+using bluetooth::le_audio::LeAudioHealthStatus;
 
 LeAudioHealthBasedAction recommendation_in_callback =
     LeAudioHealthBasedAction::NONE;
@@ -60,7 +54,6 @@ class LeAudioHealthStatusTest : public ::testing::Test {
   void SetUp() override {
     reset_mock_function_count_map();
     group_ = new LeAudioDeviceGroup(group_id_);
-    bluetooth::common::InitFlags::Load(test_flags);
     le_audio_health_status_instance_ = LeAudioHealthStatus::Get();
     le_audio_health_status_instance_->RegisterCallback(
         base::BindRepeating(healthCallback));
@@ -79,7 +72,7 @@ class LeAudioHealthStatusTest : public ::testing::Test {
 };
 
 RawAddress GetTestAddress(uint8_t index) {
-  CHECK_LT(index, UINT8_MAX);
+  EXPECT_LT(index, UINT8_MAX);
   RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, index}};
   return result;
 }

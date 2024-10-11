@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <bluetooth/log.h>
+
 #include <memory>
 #include <vector>
 
@@ -104,6 +106,7 @@ class LeAdvertisingManager : public bluetooth::Module {
   static constexpr AdvertiserId kInvalidId = 0xFF;
   static constexpr uint8_t kInvalidHandle = 0xFF;
   static constexpr uint8_t kAdvertisingSetIdMask = 0x0F;
+  static constexpr uint16_t kLeMaximumLegacyAdvertisingDataLength = 31;
   static constexpr uint16_t kLeMaximumFragmentLength = 251;
   static constexpr uint16_t kLeMaximumPeriodicDataFragmentLength = 252;
   static constexpr uint16_t kLeMaximumGapDataLength = 255;
@@ -178,3 +181,9 @@ class LeAdvertisingManager : public bluetooth::Module {
 
 }  // namespace hci
 }  // namespace bluetooth
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::hci::AdvertiserAddressType>
+    : enum_formatter<bluetooth::hci::AdvertiserAddressType> {};
+}  // namespace fmt

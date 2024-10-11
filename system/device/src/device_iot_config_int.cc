@@ -20,8 +20,8 @@
 #define LOG_TAG "device_iot_config"
 #include "device_iot_config_int.h"
 
-#include <base/logging.h>
-#include <stdio.h>
+#include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -31,14 +31,11 @@
 
 #include "btcore/include/module.h"
 #include "btif/include/btif_common.h"
-#include "common/init_flags.h"
 #include "device/include/device_iot_config.h"
-#include "include/check.h"
 #include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/config.h"
 #include "osi/include/future.h"
-#include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "types/raw_address.h"
 
@@ -51,7 +48,7 @@ extern std::mutex config_lock;  // protects operations on |config|.
 extern std::unique_ptr<config_t> config;
 extern alarm_t* config_timer;
 
-using bluetooth::common::InitFlags;
+using namespace bluetooth;
 
 static void cleanup() {
   alarm_free(config_timer);
@@ -63,7 +60,7 @@ static void cleanup() {
 
 // Module lifecycle functions
 future_t* device_iot_config_module_init(void) {
-  LOG_INFO("");
+  log::info("");
 
   std::unique_lock<std::mutex> lock(config_lock);
 
@@ -77,20 +74,20 @@ future_t* device_iot_config_module_init(void) {
   config = config_new(IOT_CONFIG_FILE_PATH);
   device_iot_config_source = ORIGINAL;
   if (!config) {
-    LOG_WARN("Unable to load config file: %s; using backup.",
-             IOT_CONFIG_FILE_PATH);
+    log::warn("Unable to load config file: {}; using backup.",
+              IOT_CONFIG_FILE_PATH);
     config = config_new(IOT_CONFIG_BACKUP_PATH);
     device_iot_config_source = BACKUP;
   }
 
   if (!config) {
-    LOG_ERROR("Unable to load bak file; creating empty config.");
+    log::error("Unable to load bak file; creating empty config.");
     config = config_new_empty();
     device_iot_config_source = NEW_FILE;
   }
 
   if (!config) {
-    LOG_ERROR("Unable to allocate a config object.");
+    log::error("Unable to allocate a config object.");
     cleanup();
     return future_new_immediate(FUTURE_FAIL);
   }
@@ -108,14 +105,14 @@ future_t* device_iot_config_module_init(void) {
   }
 
   if (version != DEVICE_IOT_INFO_CURRENT_VERSION) {
-    LOG_INFO("Version in file is %d, CURRENT_VERSION is %d ", version,
-             DEVICE_IOT_INFO_CURRENT_VERSION);
+    log::info("Version in file is {}, CURRENT_VERSION is {}", version,
+              DEVICE_IOT_INFO_CURRENT_VERSION);
     remove(IOT_CONFIG_FILE_PATH);
     remove(IOT_CONFIG_BACKUP_PATH);
     config.reset();
     config = config_new_empty();
     if (!config) {
-      LOG_ERROR("Unable to allocate a config object.");
+      log::error("Unable to allocate a config object.");
       cleanup();
       return future_new_immediate(FUTURE_FAIL);
     }
@@ -125,7 +122,7 @@ future_t* device_iot_config_module_init(void) {
   }
 
   device_iot_config_devices_loaded = device_iot_config_get_device_num(*config);
-  LOG_INFO("Devices loaded %d", device_iot_config_devices_loaded);
+  log::info("Devices loaded {}", device_iot_config_devices_loaded);
 
   // Read or set config file creation timestamp
   const std::string* time_str =
@@ -150,7 +147,7 @@ future_t* device_iot_config_module_init(void) {
   // write back to disk.
   config_timer = alarm_new("btif.iot.config");
   if (!config_timer) {
-    LOG_ERROR("Unable to create alarm.");
+    log::error("Unable to create alarm.");
     cleanup();
     return future_new_immediate(FUTURE_FAIL);
   }
@@ -159,18 +156,18 @@ future_t* device_iot_config_module_init(void) {
 }
 
 future_t* device_iot_config_module_start_up(void) {
-  LOG_INFO("");
+  log::info("");
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
 future_t* device_iot_config_module_shut_down(void) {
-  LOG_INFO("");
+  log::info("");
   device_iot_config_flush();
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
 future_t* device_iot_config_module_clean_up(void) {
-  LOG_INFO("");
+  log::info("");
   if (config_timer != NULL && alarm_is_scheduled(config_timer))
     device_iot_config_flush();
 
@@ -191,12 +188,12 @@ EXPORT_SYMBOL module_t device_iot_config_module = {
     .clean_up = device_iot_config_module_clean_up};
 
 void device_iot_config_write(uint16_t event, UNUSED_ATTR char* p_param) {
-  if (!InitFlags::IsDeviceIotConfigLoggingEnabled()) return;
+  if (!com::android::bluetooth::flags::device_iot_config_logging()) return;
 
-  CHECK(config != NULL);
-  CHECK(config_timer != NULL);
+  log::assert_that(config != NULL, "assert failed: config != NULL");
+  log::assert_that(config_timer != NULL, "assert failed: config_timer != NULL");
 
-  LOG_INFO("evt=%d", event);
+  log::info("evt={}", event);
   std::unique_lock<std::mutex> lock(config_lock);
   if (event == IOT_CONFIG_SAVE_TIMER_FIRED_EVT) {
     device_iot_config_set_modified_time();
@@ -219,7 +216,7 @@ void device_iot_config_sections_sort_by_entry_key(config_t& config,
 bool device_iot_config_has_key_value(const std::string& section,
                                      const std::string& key,
                                      const std::string& value_str) {
-  CHECK(config != NULL);
+  log::assert_that(config != NULL, "assert failed: config != NULL");
 
   const std::string* stored_value =
       config_get_string(*config, section, key, NULL);
@@ -230,18 +227,18 @@ bool device_iot_config_has_key_value(const std::string& section,
 }
 
 void device_iot_config_save_async(void) {
-  if (!InitFlags::IsDeviceIotConfigLoggingEnabled()) return;
+  if (!com::android::bluetooth::flags::device_iot_config_logging()) return;
 
-  CHECK(config != NULL);
-  CHECK(config_timer != NULL);
+  log::assert_that(config != NULL, "assert failed: config != NULL");
+  log::assert_that(config_timer != NULL, "assert failed: config_timer != NULL");
 
-  LOG_VERBOSE("");
+  log::verbose("");
   alarm_set(config_timer, CONFIG_SETTLE_PERIOD_MS,
             device_iot_config_timer_save_cb, NULL);
 }
 
 int device_iot_config_get_device_num(const config_t& conf) {
-  if (!InitFlags::IsDeviceIotConfigLoggingEnabled()) return 0;
+  if (!com::android::bluetooth::flags::device_iot_config_logging()) return 0;
 
   int devices = 0;
 
@@ -264,8 +261,8 @@ void device_iot_config_restrict_device_num(config_t& config) {
 
   need_remove_devices_num =
       curr_num - DEVICES_MAX_NUM_IN_IOT_INFO_FILE + DEVICES_NUM_MARGIN;
-  LOG_INFO("curr_num=%d, need_remove_num=%d", curr_num,
-           need_remove_devices_num);
+  log::info("curr_num={}, need_remove_num={}", curr_num,
+            need_remove_devices_num);
 
   std::list<section_t>::iterator i = config.sections.begin();
   while (i != config.sections.end()) {
@@ -295,11 +292,11 @@ bool device_iot_config_compare_key(const entry_t& first,
   }
 }
 
-void device_iot_config_timer_save_cb(UNUSED_ATTR void* data) {
+void device_iot_config_timer_save_cb(void* /* data */) {
   // Moving file I/O to btif context instead of timer callback because
   // it usually takes a lot of time to be completed, introducing
   // delays during A2DP playback causing blips or choppiness.
-  LOG_VERBOSE("");
+  log::verbose("");
   btif_transfer_context(device_iot_config_write,
                         IOT_CONFIG_SAVE_TIMER_FIRED_EVT, NULL, 0, NULL);
 }

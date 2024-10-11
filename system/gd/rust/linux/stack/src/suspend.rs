@@ -1,12 +1,10 @@
 //! Suspend/Resume API.
 
-use crate::bluetooth::{
-    Bluetooth, BluetoothDevice, BtifBluetoothCallbacks, DelayedActions, IBluetooth,
-};
+use crate::bluetooth::{Bluetooth, BluetoothDevice, BtifBluetoothCallbacks, DelayedActions};
 use crate::bluetooth_media::BluetoothMedia;
 use crate::callbacks::Callbacks;
 use crate::{BluetoothGatt, Message, RPCProxy};
-use bt_topshim::btif::{BluetoothInterface, BtDiscMode};
+use bt_topshim::btif::BluetoothInterface;
 use bt_topshim::metrics;
 use log::warn;
 use num_derive::{FromPrimitive, ToPrimitive};
@@ -145,11 +143,6 @@ pub struct Suspend {
 
     suspend_timeout_joinhandle: Option<tokio::task::JoinHandle<()>>,
     suspend_state: Arc<Mutex<SuspendState>>,
-
-    /// Bluetooth adapter connectable state before suspending.
-    connectable_to_restore: bool,
-    /// Bluetooth adapter discoverable mode before suspending.
-    discoverable_mode_to_restore: BtDiscMode,
 }
 
 impl Suspend {
@@ -171,8 +164,6 @@ impl Suspend {
             audio_reconnect_joinhandle: None,
             suspend_timeout_joinhandle: None,
             suspend_state: Arc::new(Mutex::new(SuspendState::new())),
-            connectable_to_restore: false,
-            discoverable_mode_to_restore: BtDiscMode::NonDiscoverable,
         }
     }
 
@@ -231,13 +222,12 @@ impl ISuspend for Suspend {
     }
 
     fn suspend(&mut self, suspend_type: SuspendType, suspend_id: i32) {
+        // Set suspend state as true, prevent an early resume.
+        self.suspend_state.lock().unwrap().suspend_expected = true;
         // Set suspend event mask
         self.intf.lock().unwrap().set_default_event_mask_except(MASKED_EVENTS_FOR_SUSPEND, 0u64);
 
-        self.connectable_to_restore = self.bt.lock().unwrap().get_connectable_internal();
-        self.discoverable_mode_to_restore =
-            self.bt.lock().unwrap().get_discoverable_mode_internal();
-        self.bt.lock().unwrap().set_connectable_internal(false);
+        self.bt.lock().unwrap().scan_mode_enter_suspend();
         self.intf.lock().unwrap().clear_event_filter();
         self.intf.lock().unwrap().clear_filter_accept_list();
 
@@ -269,9 +259,7 @@ impl ISuspend for Suspend {
             _ => {}
         }
         self.suspend_state.lock().unwrap().le_rand_expected = true;
-        self.suspend_state.lock().unwrap().suspend_expected = true;
         self.suspend_state.lock().unwrap().suspend_id = Some(suspend_id);
-        self.bt.lock().unwrap().le_rand();
 
         if let Some(join_handle) = &self.suspend_timeout_joinhandle {
             join_handle.abort();
@@ -283,16 +271,25 @@ impl ISuspend for Suspend {
         self.suspend_timeout_joinhandle = Some(tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
             log::error!("Suspend did not complete in 2 seconds, continuing anyway.");
-
             suspend_state.lock().unwrap().le_rand_expected = false;
             suspend_state.lock().unwrap().suspend_expected = false;
             tokio::spawn(async move {
                 let _result = tx.send(Message::SuspendReady(suspend_id)).await;
             });
         }));
+
+        // Call LE Rand at the end of suspend. The callback of LE Rand will reset the
+        // suspend state, cancel the suspend timeout and send suspend ready signal.
+        self.bt.lock().unwrap().le_rand();
     }
 
     fn resume(&mut self) -> bool {
+        // Suspend is not ready (e.g. aborted early), delay cleanup after SuspendReady.
+        if self.suspend_state.lock().unwrap().suspend_expected == true {
+            log::error!("Suspend is expected but not ready, abort resume.");
+            return false;
+        }
+
         // Suspend ID state 0: NoRecord, 1: Recorded
         let suspend_id_state = match self.suspend_state.lock().unwrap().suspend_id {
             None => {
@@ -318,10 +315,7 @@ impl ISuspend for Suspend {
         self.intf.lock().unwrap().clear_event_filter();
         self.intf.lock().unwrap().clear_filter_accept_list();
         self.intf.lock().unwrap().restore_filter_accept_list();
-        self.bt.lock().unwrap().set_connectable_internal(self.connectable_to_restore);
-        if self.discoverable_mode_to_restore != BtDiscMode::NonDiscoverable {
-            self.bt.lock().unwrap().set_discoverable(self.discoverable_mode_to_restore.clone(), 0);
-        }
+        self.bt.lock().unwrap().scan_mode_exit_suspend();
 
         if !self.audio_reconnect_list.is_empty() {
             let reconnect_list = self.audio_reconnect_list.clone();
@@ -362,7 +356,6 @@ impl ISuspend for Suspend {
 
         self.suspend_state.lock().unwrap().le_rand_expected = true;
         self.suspend_state.lock().unwrap().resume_expected = true;
-        self.bt.lock().unwrap().le_rand();
 
         let tx = self.tx.clone();
         let suspend_state = self.suspend_state.clone();
@@ -377,6 +370,10 @@ impl ISuspend for Suspend {
                 let _result = tx.send(Message::ResumeReady(suspend_id)).await;
             });
         }));
+
+        // Call LE Rand at the end of resume. The callback of LE Rand will reset the
+        // resume state and send resume ready signal.
+        self.bt.lock().unwrap().le_rand();
 
         true
     }
@@ -400,13 +397,19 @@ impl BtifBluetoothCallbacks for Suspend {
         let suspend_id = self.suspend_state.lock().unwrap().suspend_id.unwrap();
 
         if self.suspend_state.lock().unwrap().suspend_expected {
-            self.suspend_state.lock().unwrap().suspend_expected = false;
+            let suspend_state = self.suspend_state.clone();
             let tx = self.tx.clone();
             tokio::spawn(async move {
+                // TODO(b/286268874) Add a short delay because HCI commands are not
+                // synchronized. LE Rand is the last command, so wait for other
+                // commands to finish. Remove after synchronization is fixed.
                 tokio::time::sleep(tokio::time::Duration::from_millis(
                     LE_RAND_CB_SUSPEND_READY_DELAY_MS,
                 ))
                 .await;
+                // TODO(b/286268874) Reset suspend state after the delay. Prevent
+                // resume until the suspend ready signal is sent.
+                suspend_state.lock().unwrap().suspend_expected = false;
                 let _result = tx.send(Message::SuspendReady(suspend_id)).await;
             });
         }

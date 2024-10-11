@@ -179,22 +179,6 @@ struct l2c_ble_link_adjust_allocation {
   void operator()(void) { body(); };
 };
 extern struct l2c_ble_link_adjust_allocation l2c_ble_link_adjust_allocation;
-// Name: l2cble_process_rc_param_request_evt
-// Params: uint16_t handle, uint16_t int_min, uint16_t int_max, uint16_t
-// latency, uint16_t timeout Returns: void
-struct l2cble_process_rc_param_request_evt {
-  std::function<void(uint16_t handle, uint16_t int_min, uint16_t int_max,
-                     uint16_t latency, uint16_t timeout)>
-      body{[](uint16_t /* handle */, uint16_t /* int_min */,
-              uint16_t /* int_max */, uint16_t /* latency */,
-              uint16_t /* timeout */) {}};
-  void operator()(uint16_t handle, uint16_t int_min, uint16_t int_max,
-                  uint16_t latency, uint16_t timeout) {
-    body(handle, int_min, int_max, latency, timeout);
-  };
-};
-extern struct l2cble_process_rc_param_request_evt
-    l2cble_process_rc_param_request_evt;
 // Name: l2cble_update_data_length
 // Params: tL2C_LCB* p_lcb
 // Returns: void
@@ -299,6 +283,15 @@ struct L2CA_AdjustConnectionIntervals {
   };
 };
 extern struct L2CA_AdjustConnectionIntervals L2CA_AdjustConnectionIntervals;
+// Name: L2CA_SetEcosystemBaseInterval
+// Params: uint16_t* min_interval, uint16_t* max_interval, uint16_t
+// floor_interval Returns: void
+struct L2CA_SetEcosystemBaseInterval {
+  std::function<void(uint32_t base_interval)> body{
+      [](uint32_t /* base_interval */) {}};
+  void operator()(uint32_t base_interval) { body(base_interval); };
+};
+extern struct L2CA_SetEcosystemBaseInterval L2CA_SetEcosystemBaseInterval;
 // Name: l2cble_use_preferred_conn_params
 // Params: const RawAddress& bda
 // Returns: void

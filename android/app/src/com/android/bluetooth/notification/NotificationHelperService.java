@@ -23,9 +23,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.bluetooth.BluetoothManager;
 import android.content.Intent;
-import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.IBinder;
 import android.provider.Settings;
@@ -36,6 +34,8 @@ import android.util.Pair;
 import com.android.bluetooth.R;
 import com.android.internal.messages.SystemMessageProto.SystemMessage;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Map;
 
 public class NotificationHelperService extends Service {
@@ -58,11 +58,6 @@ public class NotificationHelperService extends Service {
             "android.bluetooth.notification.action.SEND_TOGGLE_NOTIFICATION";
     private static final String NOTIFICATION_EXTRA =
             "android.bluetooth.notification.extra.NOTIFICATION_REASON";
-
-    private static final String AUTO_ON_USER_ACTION =
-            "android.bluetooth.notification.action.AUTO_ON_USER_ACTION";
-    private static final String AUTO_ON_USER_EXTRA =
-            "android.bluetooth.notification.extra.AUTO_ON_DISABLE";
 
     private static final Map<String, Pair<Integer /* titleId */, Integer /* messageId */>>
             NOTIFICATION_MAP =
@@ -95,9 +90,6 @@ public class NotificationHelperService extends Service {
             case NOTIFICATION_ACTION -> {
                 sendToggleNotification(intent.getStringExtra(NOTIFICATION_EXTRA));
             }
-            case AUTO_ON_USER_ACTION -> {
-                autoOnUserAction(intent.getBooleanExtra(AUTO_ON_USER_EXTRA, false));
-            }
         }
         return Service.START_NOT_STICKY;
     }
@@ -110,13 +102,9 @@ public class NotificationHelperService extends Service {
             return;
         }
 
-        if (!isFirstTimeNotification(notificationReason)) {
-            Log.d(TAG, logHeader + "already displayed");
+        if (!shouldDisplayNotification(notificationReason)) {
             return;
         }
-        Settings.Secure.putInt(getContentResolver(), notificationReason, 1);
-
-        Log.d(TAG, logHeader + "sending");
 
         NotificationManager notificationManager =
                 requireNonNull(getSystemService(NotificationManager.class));
@@ -131,7 +119,7 @@ public class NotificationHelperService extends Service {
                 new NotificationChannel(
                         NOTIFICATION_CHANNEL,
                         getString(NOTIFICATION_GROUP),
-                        NotificationManager.IMPORTANCE_HIGH));
+                        NotificationManager.IMPORTANCE_LOW));
 
         String title = getString(notificationContent.first);
         String message = getString(notificationContent.second);
@@ -158,36 +146,50 @@ public class NotificationHelperService extends Service {
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                             PendingIntent.FLAG_IMMUTABLE));
         } else {
-            Intent baseIntent =
-                    new Intent()
-                            .setAction(AUTO_ON_USER_ACTION)
-                            .setClass(this, NotificationHelperService.class);
-            PendingIntent disablePendingIntent =
-                    PendingIntent.getService(
+            // Open the setting page when the notification is clicked
+            builder.setContentIntent(
+                    PendingIntent.getActivity(
                             this,
-                            0,
-                            new Intent(baseIntent).putExtra(AUTO_ON_USER_EXTRA, true),
-                            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_ONE_SHOT);
-            builder.addAction(
-                    new Notification.Action.Builder(
-                                    Icon.createWithResource(this, R.drawable.ic_bluetooth_settings),
-                                    getString(R.string.bluetooth_disable_auto_on),
-                                    disablePendingIntent)
-                            .build());
+                            PendingIntent.FLAG_UPDATE_CURRENT,
+                            new Intent("android.settings.BLUETOOTH_DASHBOARD_SETTINGS"),
+                            PendingIntent.FLAG_IMMUTABLE));
         }
 
         notificationManager.notify(
                 tag, SystemMessage.ID.NOTE_BT_APM_NOTIFICATION_VALUE, builder.build());
     }
 
-    /** Return whether the notification has been shown */
-    private boolean isFirstTimeNotification(String name) {
-        return Settings.Secure.getInt(getContentResolver(), name, 0) == 0;
-    }
+    private boolean shouldDisplayNotification(String countKey) {
+        final LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+        final String dateKey = countKey + "_date";
+        final String date = Settings.Secure.getString(getContentResolver(), dateKey);
+        final int countShown = Settings.Secure.getInt(getContentResolver(), countKey, 0);
 
-    private void autoOnUserAction(boolean disableAutoOn) {
-        if (disableAutoOn) {
-            getSystemService(BluetoothManager.class).getAdapter().setAutoOnEnabled(false);
+        // The notification is always displayed the first time and if it has been at least…:
+        //  * … 1 week since the first display (aka recurring only once)
+        //  * … 6 months since the last display (aka recurring forever)
+
+        LocalDateTime savedDate = null;
+        if (date != null) {
+            savedDate = LocalDateTime.parse(date);
+            if ((countShown == 1 && now.isBefore(savedDate.plusWeeks(1)))
+                    || now.isBefore(savedDate.plusMonths(6))) {
+                Log.i(
+                        TAG,
+                        ("shouldDisplayNotification(" + countKey + "): Notification discarded.")
+                                + (" countShown=" + countShown)
+                                + (" savedDate=" + savedDate));
+                return false;
+            }
         }
+
+        Settings.Secure.putInt(getContentResolver(), countKey, Math.min(3, countShown + 1));
+        Settings.Secure.putString(getContentResolver(), dateKey, now.toString());
+        Log.i(
+                TAG,
+                ("shouldDisplayNotification(" + countKey + "): Notification is being shown.")
+                        + (" countShown=" + countShown)
+                        + (" savedDate=" + savedDate));
+        return true;
     }
 }

@@ -34,36 +34,19 @@ class PlayerApplicationSettings {
     /*
      * Values for SetPlayerApplicationSettings from AVRCP Spec V1.6 Appendix F.
      */
-    static final byte EQUALIZER_STATUS = 0x01;
     static final byte REPEAT_STATUS = 0x02;
     static final byte SHUFFLE_STATUS = 0x03;
-    static final byte SCAN_STATUS = 0x04;
 
-    private static final byte JNI_EQUALIZER_STATUS_OFF = 0x01;
-    private static final byte JNI_EQUALIZER_STATUS_ON = 0x02;
+    @VisibleForTesting static final byte JNI_REPEAT_STATUS_OFF = 0x01;
+    @VisibleForTesting static final byte JNI_REPEAT_STATUS_SINGLE_TRACK_REPEAT = 0x02;
+    @VisibleForTesting static final byte JNI_REPEAT_STATUS_ALL_TRACK_REPEAT = 0x03;
+    @VisibleForTesting static final byte JNI_REPEAT_STATUS_GROUP_REPEAT = 0x04;
 
-    @VisibleForTesting
-    static final byte JNI_REPEAT_STATUS_OFF = 0x01;
-    @VisibleForTesting
-    static final byte JNI_REPEAT_STATUS_SINGLE_TRACK_REPEAT = 0x02;
-    @VisibleForTesting
-    static final byte JNI_REPEAT_STATUS_ALL_TRACK_REPEAT = 0x03;
-    @VisibleForTesting
-    static final byte JNI_REPEAT_STATUS_GROUP_REPEAT = 0x04;
+    @VisibleForTesting static final byte JNI_SHUFFLE_STATUS_OFF = 0x01;
+    @VisibleForTesting static final byte JNI_SHUFFLE_STATUS_ALL_TRACK_SHUFFLE = 0x02;
+    @VisibleForTesting static final byte JNI_SHUFFLE_STATUS_GROUP_SHUFFLE = 0x03;
 
-    @VisibleForTesting
-    static final byte JNI_SHUFFLE_STATUS_OFF = 0x01;
-    @VisibleForTesting
-    static final byte JNI_SHUFFLE_STATUS_ALL_TRACK_SHUFFLE = 0x02;
-    @VisibleForTesting
-    static final byte JNI_SHUFFLE_STATUS_GROUP_SHUFFLE = 0x03;
-
-    private static final byte JNI_SCAN_STATUS_OFF = 0x01;
-    private static final byte JNI_SCAN_STATUS_ALL_TRACK_SCAN = 0x02;
-    private static final byte JNI_SCAN_STATUS_GROUP_SCAN = 0x03;
-
-    @VisibleForTesting
-    static final byte JNI_STATUS_INVALID = -1;
+    @VisibleForTesting static final byte JNI_STATUS_INVALID = -1;
 
     /*
      * Hash map of current settings.
@@ -105,7 +88,8 @@ class PlayerApplicationSettings {
             for (int i = 0; i < btAvrcpAttributeList.length; ) {
                 byte attrId = btAvrcpAttributeList[i++];
 
-                newObj.mSettings.put(attrId,
+                newObj.mSettings.put(
+                        attrId,
                         mapAttribIdValtoAvrcpPlayerSetting(attrId, btAvrcpAttributeList[i++]));
             }
         } catch (ArrayIndexOutOfBoundsException exception) {
@@ -183,5 +167,43 @@ class PlayerApplicationSettings {
             }
         }
         return JNI_STATUS_INVALID;
+    }
+
+    public static String repeatStatusToString(int repeatMode) {
+        switch (repeatMode) {
+            case PlaybackStateCompat.REPEAT_MODE_ALL:
+                return "ALL";
+            case PlaybackStateCompat.REPEAT_MODE_GROUP:
+                return "GROUP";
+            case PlaybackStateCompat.REPEAT_MODE_NONE:
+                return "NONE";
+            case PlaybackStateCompat.REPEAT_MODE_ONE:
+                return "ONE";
+            default:
+                return "Unsupported";
+        }
+    }
+
+    public static String shuffleStatusToString(int shuffleMode) {
+        switch (shuffleMode) {
+            case PlaybackStateCompat.SHUFFLE_MODE_NONE:
+                return "NONE";
+            case PlaybackStateCompat.SHUFFLE_MODE_ALL:
+                return "ALL";
+            case PlaybackStateCompat.SHUFFLE_MODE_GROUP:
+                return "GROUP";
+            default:
+                return "Unsupported";
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "<PlayerApplicationSettings"
+                + " repeat="
+                + repeatStatusToString(getSetting(REPEAT_STATUS))
+                + " shuffle="
+                + shuffleStatusToString(getSetting(SHUFFLE_STATUS))
+                + ">";
     }
 }

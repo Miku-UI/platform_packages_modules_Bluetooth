@@ -24,10 +24,9 @@
 
 #define LOG_TAG "l2c_ble"
 
-#include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
-#include <log/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #ifdef __ANDROID__
 #include <android/sysprop/BluetoothProperties.sysprop.h>
@@ -35,15 +34,13 @@
 
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
-#include "device/include/controller.h"
+#include "hci/controller_interface.h"
+#include "hci/hci_layer.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/stack_config.h"
-#include "main/shim/acl_api.h"
-#include "os/log.h"
+#include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_ble_sec.h"
-#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/btm_sec_int_types.h"
@@ -55,6 +52,7 @@
 #include "stack/include/l2c_api.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cdefs.h"
+#include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
@@ -78,9 +76,7 @@ void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {
     return;
   }
 
-  log::info("consolidating l2c_lcb record {} -> {}",
-            ADDRESS_TO_LOGGABLE_CSTR(rpa),
-            ADDRESS_TO_LOGGABLE_CSTR(identity_addr));
+  log::info("consolidating l2c_lcb record {} -> {}", rpa, identity_addr);
   p_lcb->remote_bd_addr = identity_addr;
 }
 
@@ -128,8 +124,8 @@ void l2cble_notify_le_connection(const RawAddress& bda) {
 
 /** This function is called when an HCI Connection Complete event is received.
  */
-bool l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
-                      tBLE_ADDR_TYPE type, uint16_t conn_interval,
+bool l2cble_conn_comp(uint16_t handle, tHCI_ROLE role, const RawAddress& bda,
+                      tBLE_ADDR_TYPE /* type */, uint16_t conn_interval,
                       uint16_t conn_latency, uint16_t conn_timeout) {
   // role == HCI_ROLE_CENTRAL => scanner completed connection
   // role == HCI_ROLE_PERIPHERAL => advertiser completed connection
@@ -193,7 +189,7 @@ bool l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
                              L2CAP_FIXED_CHNL_SMP_BIT;
 
   if (role == HCI_ROLE_PERIPHERAL) {
-    if (!controller_get_interface()
+    if (!bluetooth::shim::GetController()
              ->SupportsBlePeripheralInitiatedFeaturesExchange()) {
       p_lcb->link_state = LST_CONNECTED;
       l2cu_process_fixed_chnl_resp(p_lcb);
@@ -451,8 +447,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           if (!lead_cid_set) {
             p_ccb = temp_p_ccb;
             p_ccb->local_conn_cfg.mtu = L2CAP_SDU_LENGTH_LE_MAX;
-            p_ccb->local_conn_cfg.mps =
-                controller_get_interface()->get_acl_data_size_ble();
+            p_ccb->local_conn_cfg.mps = bluetooth::shim::GetController()
+                                            ->GetLeBufferSize()
+                                            .le_data_packet_length_;
             p_lcb->pending_lead_cid = p_ccb->local_cid;
             lead_cid_set = true;
           }
@@ -775,8 +772,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       p_ccb->remote_cid = rcid;
 
       p_ccb->local_conn_cfg.mtu = L2CAP_SDU_LENGTH_LE_MAX;
-      p_ccb->local_conn_cfg.mps =
-          controller_get_interface()->get_acl_data_size_ble();
+      p_ccb->local_conn_cfg.mps = bluetooth::shim::GetController()
+                                      ->GetLeBufferSize()
+                                      .le_data_packet_length_;
       p_ccb->local_conn_cfg.credits = L2CA_LeCreditDefault();
       p_ccb->remote_credit_count = L2CA_LeCreditDefault();
 
@@ -1116,7 +1114,7 @@ static bool is_legal_tx_data_len(const uint16_t& tx_data_len) {
 
 void l2cble_process_data_length_change_event(uint16_t handle,
                                              uint16_t tx_data_len,
-                                             uint16_t rx_data_len) {
+                                             uint16_t /* rx_data_len */) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
   if (p_lcb == nullptr) {
     log::warn(
@@ -1130,8 +1128,7 @@ void l2cble_process_data_length_change_event(uint16_t handle,
       log::debug(
           "Received data length change event for device:{} tx_data_len:{} => "
           "{}",
-          ADDRESS_TO_LOGGABLE_CSTR(p_lcb->remote_bd_addr), p_lcb->tx_data_len,
-          tx_data_len);
+          p_lcb->remote_bd_addr, p_lcb->tx_data_len, tx_data_len);
       BTM_LogHistory(kBtmLogTag, p_lcb->remote_bd_addr, "LE Data length change",
                      base::StringPrintf("tx_octets:%hu => %hu",
                                         p_lcb->tx_data_len, tx_data_len));
@@ -1140,13 +1137,13 @@ void l2cble_process_data_length_change_event(uint16_t handle,
       log::debug(
           "Received duplicated data length change event for device:{} "
           "tx_data_len:{}",
-          ADDRESS_TO_LOGGABLE_CSTR(p_lcb->remote_bd_addr), tx_data_len);
+          p_lcb->remote_bd_addr, tx_data_len);
     }
   } else {
     log::warn(
         "Received illegal data length change event for device:{} "
         "tx_data_len:{}",
-        ADDRESS_TO_LOGGABLE_CSTR(p_lcb->remote_bd_addr), tx_data_len);
+        p_lcb->remote_bd_addr, tx_data_len);
   }
   /* ignore rx_data len for now */
 }
@@ -1254,16 +1251,14 @@ void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
  * Returns          void
  *
  ******************************************************************************/
-void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport,
-                     void* p_ref_data, tBTM_STATUS status) {
-  const RawAddress& p_bda = *bda;
-  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(p_bda, BT_TRANSPORT_LE);
+void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport,
+                     void* /* p_ref_data */, tBTM_STATUS status) {
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
   tL2CAP_SEC_DATA* p_buf = NULL;
   uint8_t sec_act;
 
   if (!p_lcb) {
-    log::warn("security complete for unknown device. bda={}",
-              ADDRESS_TO_LOGGABLE_CSTR(*bda));
+    log::warn("security complete for unknown device. bda={}", bda);
     return;
   }
 
@@ -1282,7 +1277,7 @@ void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport,
       osi_free(p_buf);
     } else {
       if (sec_act == BTM_SEC_ENCRYPT_MITM) {
-        if (BTM_IsLinkKeyAuthed(p_bda, transport))
+        if (BTM_IsLinkKeyAuthed(bda, transport))
           (*(p_buf->p_callback))(bda, BT_TRANSPORT_LE, p_buf->p_ref_data,
                                  status);
         else {
@@ -1311,8 +1306,8 @@ void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport,
       osi_free(p_buf);
     }
     else {
-      l2ble_sec_access_req(p_bda, p_buf->psm, p_buf->is_originator,
-          p_buf->p_callback, p_buf->p_ref_data);
+      l2ble_sec_access_req(bda, p_buf->psm, p_buf->is_originator,
+                           p_buf->p_callback, p_buf->p_ref_data);
 
       osi_free(p_buf);
       break;
@@ -1345,7 +1340,7 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr,
 
   if (!p_lcb) {
     log::error("Security check for unknown device");
-    p_callback(&bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_UNKNOWN_ADDR);
+    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_UNKNOWN_ADDR);
     return L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
@@ -1353,7 +1348,7 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr,
       (tL2CAP_SEC_DATA*)osi_malloc((uint16_t)sizeof(tL2CAP_SEC_DATA));
   if (!p_buf) {
     log::error("No resources for connection");
-    p_callback(&bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_NO_RESOURCES);
+    p_callback(bd_addr, BT_TRANSPORT_LE, p_ref_data, BTM_NO_RESOURCES);
     return L2CAP_LE_RESULT_NO_RESOURCES;
   }
 
@@ -1411,7 +1406,8 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                  phone_min_interval);
   }
 
-  if (*min_interval < phone_min_interval) {
+  if (!com::android::bluetooth::flags::l2cap_le_do_not_adjust_min_interval() &&
+      *min_interval < phone_min_interval) {
     log::verbose("requested min_interval={} too small. Set to {}",
                  *min_interval, phone_min_interval);
     *min_interval = phone_min_interval;
@@ -1426,4 +1422,28 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                  *max_interval, phone_min_interval);
     *max_interval = phone_min_interval;
   }
+}
+
+void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
+  if (!com::android::bluetooth::flags::le_audio_base_ecosystem_interval()) {
+    return;
+  }
+
+  log::info("base_interval: {}ms", base_interval);
+  bluetooth::shim::GetHciLayer()->EnqueueCommand(
+      bluetooth::hci::SetEcosystemBaseIntervalBuilder::Create(base_interval),
+      get_main_thread()->BindOnce([](bluetooth::hci::CommandCompleteView view) {
+        ASSERT(view.IsValid());
+        auto status_view =
+            bluetooth::hci::SetEcosystemBaseIntervalCompleteView::Create(
+                bluetooth::hci::SetEcosystemBaseIntervalCompleteView::Create(
+                    view));
+        ASSERT(status_view.IsValid());
+
+        if (status_view.GetStatus() != bluetooth::hci::ErrorCode::SUCCESS) {
+          log::warn("Set Ecosystem Base Interval status {}",
+                    ErrorCodeText(status_view.GetStatus()));
+          return;
+        }
+      }));
 }

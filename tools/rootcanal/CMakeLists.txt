@@ -6,7 +6,6 @@ corrosion_import_crate(
     MANIFEST_PATH ${PDL_ROOT}/Cargo.toml
     FLAGS --offline --verbose --verbose)
 
-corrosion_set_env_vars(generate-canonical-tests CARGO_HOME=${Rust_CARGO_HOME})
 corrosion_set_env_vars(pdlc CARGO_HOME=${Rust_CARGO_HOME})
 corrosion_set_hostbuild(pdlc)
 
@@ -15,7 +14,6 @@ get_property(pdlc_EXECUTABLE TARGET pdlc PROPERTY EXECUTABLE_PATH)
 # These tests depend on the tempfile crate which was not imported because
 # the crate remove_dir_all does not have a compatible version.
 set_tests_properties(cargo-test_pdlc PROPERTIES DISABLED True)
-set_tests_properties(cargo-test_generate-canonical-tests PROPERTIES DISABLED True)
 
 android_license(
     TARGET pdlc
@@ -55,12 +53,12 @@ function(pdl_gen)
 
   file(MAKE_DIRECTORY ${pdl_OUTPUT_DIR})
 
-  if(pdl_LANG STREQUAL "rust")
+  if((pdl_LANG STREQUAL "rust") OR (pdl_LANG STREQUAL "rust_legacy"))
     add_custom_command(
         OUTPUT "${pdl_OUTPUT_ABSOLUTE}"
         COMMAND
         ${pdlc_EXECUTABLE}
-                --output-format rust
+                --output-format "${pdl_LANG}"
                 "${pdl_INPUT_ABSOLUTE}"
                     > "${pdl_OUTPUT_ABSOLUTE}"
         COMMENT "Generating rust module from ${pdl_INPUT}"
@@ -130,7 +128,7 @@ pdl_gen(
   NAME RootCanalGeneratedPackets_rs
   INPUT ${ROOTCANAL_ROOT}/packets/link_layer_packets.pdl
   OUTPUT link_layer_packets.rs
-  LANG rust)
+  LANG rust_legacy)
 
 android_add_library(
   TARGET libscriptedbeaconpayload-protos-lite LICENSE Apache-2.0

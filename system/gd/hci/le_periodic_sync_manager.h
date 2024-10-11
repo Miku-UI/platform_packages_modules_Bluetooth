@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <android_bluetooth_flags.h>
+#include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <chrono>
 #include <memory>
@@ -37,7 +38,7 @@
 namespace bluetooth {
 namespace hci {
 
-constexpr std::chrono::duration kPeriodicSyncTimeout = std::chrono::seconds(30);
+constexpr std::chrono::duration kPeriodicSyncTimeout = std::chrono::seconds(5);
 constexpr int kMaxSyncTransactions = 16;
 
 enum PeriodicSyncState : int {
@@ -102,24 +103,23 @@ class PeriodicSyncManager {
       return;
     }
     auto address_type = request.address_with_type.GetAddressType();
-    ASSERT_LOG(
-        (address_type == AddressType::PUBLIC_DEVICE_ADDRESS || address_type == AddressType::RANDOM_DEVICE_ADDRESS),
-        "Invalid address type %s",
-        AddressTypeText(address_type).c_str());
+    log::assert_that(
+        (address_type == AddressType::PUBLIC_DEVICE_ADDRESS ||
+         address_type == AddressType::RANDOM_DEVICE_ADDRESS),
+        "Invalid address type {}",
+        AddressTypeText(address_type));
     periodic_syncs_.emplace_back(request);
-    LOG_DEBUG("address = %s, sid = %d",
-              ADDRESS_TO_LOGGABLE_CSTR(request.address_with_type),
-              request.advertiser_sid);
+    log::debug("address = {}, sid = {}", request.address_with_type, request.advertiser_sid);
     pending_sync_requests_.emplace_back(
         request.advertiser_sid, request.address_with_type, skip, sync_timeout, handler_);
     HandleNextRequest();
   }
 
   void StopSync(uint16_t handle) {
-    LOG_DEBUG("[PSync]: handle = %u", handle);
+    log::debug("[PSync]: handle = {}", handle);
     auto periodic_sync = GetEstablishedSyncFromHandle(handle);
     if (periodic_sync == periodic_syncs_.end()) {
-      LOG_ERROR("[PSync]: invalid index for handle %u", handle);
+      log::error("[PSync]: invalid index for handle {}", handle);
       le_scanning_interface_->EnqueueCommand(
           hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(handle),
           handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
@@ -132,20 +132,23 @@ class PeriodicSyncManager {
   }
 
   void CancelCreateSync(uint8_t adv_sid, Address address) {
-    LOG_DEBUG("[PSync]");
+    log::debug("[PSync]");
     auto periodic_sync = GetSyncFromAddressAndSid(address, adv_sid);
     if (periodic_sync == periodic_syncs_.end()) {
-      LOG_ERROR("[PSync]:Invalid index for sid=%u", adv_sid);
+      log::error("[PSync]:Invalid index for sid={}", adv_sid);
       return;
     }
 
     if (periodic_sync->sync_state == PERIODIC_SYNC_STATE_PENDING) {
-      LOG_WARN("[PSync]: Sync state is pending");
+      log::warn("[PSync]: Sync state is pending");
       le_scanning_interface_->EnqueueCommand(
           hci::LePeriodicAdvertisingCreateSyncCancelBuilder::Create(),
-          handler_->BindOnceOn(this, &PeriodicSyncManager::HandlePeriodicAdvertisingCreateSyncCancelStatus));
+          handler_->BindOnceOn(
+              this,
+              &PeriodicSyncManager::HandlePeriodicAdvertisingCreateSyncCancelStatus<
+                  LePeriodicAdvertisingCreateSyncCancelCompleteView>));
     } else if (periodic_sync->sync_state == PERIODIC_SYNC_STATE_IDLE) {
-      LOG_DEBUG("[PSync]: Removing Sync request from queue");
+      log::debug("[PSync]: Removing Sync request from queue");
       CleanUpRequest(adv_sid, address);
     }
     periodic_syncs_.erase(periodic_sync);
@@ -190,7 +193,7 @@ class PeriodicSyncManager {
 
   void SyncTxParameters(
       const Address& /* address */, uint8_t mode, uint16_t skip, uint16_t timeout, int reg_id) {
-    LOG_DEBUG("[PAST]: mode=%u, skip=%u, timeout=%u", mode, skip, timeout);
+    log::debug("[PAST]: mode={}, skip={}, timeout={}", mode, skip, timeout);
     auto sync_cte_type = static_cast<CteType>(
         static_cast<uint8_t>(PeriodicSyncCteType::AVOID_AOA_CONSTANT_TONE_EXTENSION) |
         static_cast<uint8_t>(PeriodicSyncCteType::AVOID_AOD_CONSTANT_TONE_EXTENSION_WITH_ONE_US_SLOTS) |
@@ -205,32 +208,85 @@ class PeriodicSyncManager {
             check_complete<LeSetDefaultPeriodicAdvertisingSyncTransferParametersCompleteView>));
   }
 
-  void HandlePeriodicAdvertisingCreateSyncStatus(CommandStatusView) {}
+  template <class View>
+  void HandlePeriodicAdvertisingCreateSyncStatus(CommandStatusView view) {
+    if (!com::android::bluetooth::flags::leaudio_broadcast_assistant_handle_command_statuses()) {
+      return;
+    }
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
+    auto status_view = View::Create(view);
+    log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
+    auto status = status_view.GetStatus();
+    if (status != ErrorCode::SUCCESS) {
+      auto& request = pending_sync_requests_.front();
+      request.sync_timeout_alarm.Cancel();
+      log::warn(
+          "Got a Command status {}, status {}, SID={:04X}, bd_addr={}",
+          OpCodeText(view.GetCommandOpCode()),
+          ErrorCodeText(status),
+          request.advertiser_sid,
+          request.address_with_type);
 
-  void HandlePeriodicAdvertisingCreateSyncCancelStatus(CommandCompleteView) {}
+      uint8_t adv_sid = request.advertiser_sid;
+      AddressWithType address_with_type = request.address_with_type;
+      auto sync = GetSyncFromAddressWithTypeAndSid(address_with_type, adv_sid);
+      callbacks_->OnPeriodicSyncStarted(
+          sync->request_id,
+          (uint8_t)status,
+          0,
+          sync->advertiser_sid,
+          request.address_with_type,
+          0,
+          0);
+      periodic_syncs_.erase(sync);
+      AdvanceRequest();
+    }
+  }
+
+  template <class View>
+  void HandlePeriodicAdvertisingCreateSyncCancelStatus(CommandCompleteView view) {
+    if (!com::android::bluetooth::flags::leaudio_broadcast_assistant_handle_command_statuses()) {
+      return;
+    }
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
+    auto status_view = View::Create(view);
+    log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
+    auto status = status_view.GetStatus();
+    if (status != ErrorCode::SUCCESS) {
+      auto& request = pending_sync_requests_.front();
+      request.sync_timeout_alarm.Cancel();
+      log::warn(
+          "Got a Command complete {}, status {}, SID={:04X}, bd_addr={}",
+          OpCodeText(view.GetCommandOpCode()),
+          ErrorCodeText(status),
+          request.advertiser_sid,
+          request.address_with_type);
+      AdvanceRequest();
+    }
+  }
 
   template <class View>
   void HandlePeriodicAdvertisingSyncTransferComplete(uint16_t connection_handle, CommandCompleteView view) {
-    ASSERT(view.IsValid());
+    log::assert_that(view.IsValid(), "assert failed: view.IsValid()");
     auto status_view = View::Create(view);
-    ASSERT(status_view.IsValid());
+    log::assert_that(status_view.IsValid(), "assert failed: status_view.IsValid()");
     if (status_view.GetStatus() != ErrorCode::SUCCESS) {
-      LOG_WARN(
-          "Got a Command complete %s, status %s, connection_handle %d",
-          OpCodeText(view.GetCommandOpCode()).c_str(),
-          ErrorCodeText(status_view.GetStatus()).c_str(),
+      log::warn(
+          "Got a Command complete {}, status {}, connection_handle {}",
+          OpCodeText(view.GetCommandOpCode()),
+          ErrorCodeText(status_view.GetStatus()),
           connection_handle);
     } else {
-      LOG_DEBUG(
-          "Got a Command complete %s, status %s, connection_handle %d",
-          OpCodeText(view.GetCommandOpCode()).c_str(),
-          ErrorCodeText(status_view.GetStatus()).c_str(),
+      log::debug(
+          "Got a Command complete {}, status {}, connection_handle {}",
+          OpCodeText(view.GetCommandOpCode()),
+          ErrorCodeText(status_view.GetStatus()),
           connection_handle);
     }
 
     auto periodic_sync_transfer = GetSyncTransferRequestFromConnectionHandle(connection_handle);
     if (periodic_sync_transfer == periodic_sync_transfers_.end()) {
-      LOG_ERROR("[PAST]:Invalid, conn_handle %u not found in DB", connection_handle);
+      log::error("[PAST]:Invalid, conn_handle {} not found in DB", connection_handle);
       return;
     };
 
@@ -240,12 +296,13 @@ class PeriodicSyncManager {
   }
 
   void HandleLePeriodicAdvertisingSyncEstablished(LePeriodicAdvertisingSyncEstablishedView event_view) {
-    ASSERT(event_view.IsValid());
-    LOG_DEBUG(
-        "[PSync]: status=%d, sync_handle=%d, s_id=%d, "
-        "address_type=%d, adv_phy=%d,adv_interval=%d, clock_acc=%d",
+    log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
+    log::debug(
+        "[PSync]: status={}, sync_handle={}, address={}, s_id={}, address_type={}, adv_phy={}, "
+        "adv_interval={}, clock_acc={}",
         (uint16_t)event_view.GetStatus(),
         event_view.GetSyncHandle(),
+        AddressWithType(event_view.GetAdvertiserAddress(), event_view.GetAdvertiserAddressType()),
         event_view.GetAdvertisingSid(),
         (uint16_t)event_view.GetAdvertiserAddressType(),
         (uint16_t)event_view.GetAdvertiserPhy(),
@@ -275,9 +332,9 @@ class PeriodicSyncManager {
     auto periodic_sync = GetSyncFromAddressWithTypeAndSid(
         AddressWithType(event_view.GetAdvertiserAddress(), temp_address_type), event_view.GetAdvertisingSid());
     if (periodic_sync == periodic_syncs_.end()) {
-      LOG_WARN("[PSync]: Invalid address and sid for sync established");
+      log::warn("[PSync]: Invalid address and sid for sync established");
       if (event_view.GetStatus() == ErrorCode::SUCCESS) {
-        LOG_WARN("Terminate sync");
+        log::warn("Terminate sync");
         le_scanning_interface_->EnqueueCommand(
             hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(event_view.GetSyncHandle()),
             handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
@@ -295,14 +352,21 @@ class PeriodicSyncManager {
         address_with_type,
         (uint16_t)event_view.GetAdvertiserPhy(),
         event_view.GetPeriodicAdvertisingInterval());
+
+    if (com::android::bluetooth::flags::leaudio_broadcast_feature_support()) {
+      if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+        periodic_syncs_.erase(periodic_sync);
+      }
+    }
+
     AdvanceRequest();
   }
 
   void HandleLePeriodicAdvertisingReport(LePeriodicAdvertisingReportView event_view) {
-    ASSERT(event_view.IsValid());
-    LOG_DEBUG(
-        "[PSync]: sync_handle = %u, tx_power = %d, rssi = %d,"
-        "cte_type = %u, data_status = %u, data_len = %u",
+    log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
+    log::debug(
+        "[PSync]: sync_handle = {}, tx_power = {}, rssi = {},cte_type = {}, data_status = {}, "
+        "data_len = {}",
         event_view.GetSyncHandle(),
         event_view.GetTxPower(),
         event_view.GetRssi(),
@@ -313,12 +377,12 @@ class PeriodicSyncManager {
     uint16_t sync_handle = event_view.GetSyncHandle();
     auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
     if (periodic_sync == periodic_syncs_.end()) {
-      LOG_ERROR("[PSync]: index not found for handle %u", sync_handle);
+      log::error("[PSync]: index not found for handle {}", sync_handle);
       return;
     }
 
     auto complete_advertising_data =
-        IS_FLAG_ENABLED(le_periodic_scanning_reassembler)
+        com::android::bluetooth::flags::le_periodic_scanning_reassembler()
             ? scanning_reassembler_.ProcessPeriodicAdvertisingReport(
                   sync_handle, DataStatus(event_view.GetDataStatus()), event_view.GetData())
             : event_view.GetData();
@@ -326,7 +390,7 @@ class PeriodicSyncManager {
       return;
     }
 
-    LOG_DEBUG("%s", "[PSync]: invoking callback");
+    log::debug("{}", "[PSync]: invoking callback");
     callbacks_->OnPeriodicSyncReport(
         sync_handle,
         event_view.GetTxPower(),
@@ -336,33 +400,33 @@ class PeriodicSyncManager {
   }
 
   void HandleLePeriodicAdvertisingSyncLost(LePeriodicAdvertisingSyncLostView event_view) {
-    ASSERT(event_view.IsValid());
+    log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
     uint16_t sync_handle = event_view.GetSyncHandle();
-    LOG_DEBUG("[PSync]: sync_handle = %d", sync_handle);
+    log::debug("[PSync]: sync_handle = {}", sync_handle);
     callbacks_->OnPeriodicSyncLost(sync_handle);
     auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
     if (periodic_sync == periodic_syncs_.end()) {
-      LOG_ERROR("[PSync]: index not found for handle %u", sync_handle);
+      log::error("[PSync]: index not found for handle {}", sync_handle);
       return;
     }
     periodic_syncs_.erase(periodic_sync);
   }
 
   void HandleLePeriodicAdvertisingSyncTransferReceived(LePeriodicAdvertisingSyncTransferReceivedView event_view) {
-    ASSERT(event_view.IsValid());
+    log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
     uint8_t status = (uint8_t)event_view.GetStatus();
     uint8_t advertiser_phy = (uint8_t)event_view.GetAdvertiserPhy();
-    LOG_DEBUG(
-        "[PAST]: status = %u, connection_handle = %u, service_data = %u,"
-        " sync_handle = %u, adv_sid = %u, address_type = %u, address = %s,"
-        " advertiser_phy = %u, periodic_advertising_interval = %u, clock_accuracy = %u",
+    log::debug(
+        "[PAST]: status = {}, connection_handle = {}, service_data = {}, sync_handle = {}, adv_sid "
+        "= {}, address_type = {}, address = {}, advertiser_phy = {}, periodic_advertising_interval "
+        "= {}, clock_accuracy = {}",
         status,
         event_view.GetConnectionHandle(),
         event_view.GetServiceData(),
         event_view.GetSyncHandle(),
         event_view.GetAdvertisingSid(),
         (uint8_t)event_view.GetAdvertiserAddressType(),
-        ADDRESS_TO_LOGGABLE_CSTR(event_view.GetAdvertiserAddress()),
+        event_view.GetAdvertiserAddress(),
         advertiser_phy,
         event_view.GetPeriodicAdvertisingInterval(),
         (uint8_t)event_view.GetAdvertiserClockAccuracy());
@@ -380,43 +444,50 @@ class PeriodicSyncManager {
 
   void OnStartSyncTimeout() {
     auto& request = pending_sync_requests_.front();
-    LOG_WARN(
-        "%s: sync timeout SID=%04X, bd_addr=%s",
-        __func__,
-        request.advertiser_sid,
-        ADDRESS_TO_LOGGABLE_CSTR(request.address_with_type));
+    log::warn(
+        "sync timeout SID={:04X}, bd_addr={}", request.advertiser_sid, request.address_with_type);
     uint8_t adv_sid = request.advertiser_sid;
     AddressWithType address_with_type = request.address_with_type;
     auto sync = GetSyncFromAddressWithTypeAndSid(address_with_type, adv_sid);
     le_scanning_interface_->EnqueueCommand(
         hci::LePeriodicAdvertisingCreateSyncCancelBuilder::Create(),
-        handler_->BindOnceOn(this, &PeriodicSyncManager::HandlePeriodicAdvertisingCreateSyncCancelStatus));
+        handler_->BindOnceOn(
+            this,
+            &PeriodicSyncManager::HandlePeriodicAdvertisingCreateSyncCancelStatus<
+                LePeriodicAdvertisingCreateSyncCancelCompleteView>));
     int status = static_cast<int>(ErrorCode::ADVERTISING_TIMEOUT);
     callbacks_->OnPeriodicSyncStarted(
         sync->request_id, status, 0, sync->advertiser_sid, request.address_with_type, 0, 0);
-    RemoveSyncRequest(sync);
+    periodic_syncs_.erase(sync);
   }
 
   void HandleLeBigInfoAdvertisingReport(LeBigInfoAdvertisingReportView event_view) {
-    ASSERT(event_view.IsValid());
-    LOG_DEBUG(
-        "[PAST]:sync_handle %u, num_bises = %u, nse = %u,"
-        "iso_interval = %d, bn = %u, pto = %u, irc = %u, max_pdu = %u "
-        "sdu_interval = %d, max_sdu = %u, phy = %u, framing = %u, encryption  = "
-        "%u",
-        event_view.GetSyncHandle(), event_view.GetNumBis(), event_view.GetNse(),
-        event_view.GetIsoInterval(), event_view.GetBn(), event_view.GetPto(), event_view.GetIrc(),
-        event_view.GetMaxPdu(), event_view.GetSduInterval(), event_view.GetMaxSdu(),
-        static_cast<uint32_t>(event_view.GetPhy()), static_cast<uint32_t>(event_view.GetFraming()),
+    log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
+    log::debug(
+        "[PAST]:sync_handle {}, num_bises = {}, nse = {},iso_interval = {}, bn = {}, pto = {}, irc "
+        "= {}, max_pdu = {} sdu_interval = {}, max_sdu = {}, phy = {}, framing = {}, encryption  = "
+        "{}",
+        event_view.GetSyncHandle(),
+        event_view.GetNumBis(),
+        event_view.GetNse(),
+        event_view.GetIsoInterval(),
+        event_view.GetBn(),
+        event_view.GetPto(),
+        event_view.GetIrc(),
+        event_view.GetMaxPdu(),
+        event_view.GetSduInterval(),
+        event_view.GetMaxSdu(),
+        static_cast<uint32_t>(event_view.GetPhy()),
+        static_cast<uint32_t>(event_view.GetFraming()),
         static_cast<uint32_t>(event_view.GetEncryption()));
 
     uint16_t sync_handle = event_view.GetSyncHandle();
     auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
     if (periodic_sync == periodic_syncs_.end()) {
-      LOG_ERROR("[PSync]: index not found for handle %u", sync_handle);
+      log::error("[PSync]: index not found for handle {}", sync_handle);
       return;
     }
-    LOG_DEBUG("%s", "[PSync]: invoking callback");
+    log::debug("{}", "[PSync]: invoking callback");
     callbacks_->OnBigInfoReport(sync_handle, event_view.GetEncryption() == Enable::ENABLED ? true : false);
   }
 
@@ -459,10 +530,6 @@ class PeriodicSyncManager {
     return pending_sync_requests_.end();
   }
 
-  void RemoveSyncRequest(std::list<PeriodicSyncStates>::iterator it) {
-    periodic_syncs_.erase(it);
-  }
-
   std::list<PeriodicSyncTransferStates>::iterator GetSyncTransferRequestFromConnectionHandle(
       uint16_t connection_handle) {
     for (auto it = periodic_sync_transfers_.begin(); it != periodic_sync_transfers_.end(); it++) {
@@ -487,22 +554,31 @@ class PeriodicSyncManager {
         static_cast<AdvertisingAddressType>(address_with_type.GetAddressType());
     le_scanning_interface_->EnqueueCommand(
         hci::LePeriodicAdvertisingCreateSyncBuilder::Create(
-            options, sid, advertisingAddressType, address_with_type.GetAddress(), skip, timeout, sync_cte_type),
-        handler_->BindOnceOn(this, &PeriodicSyncManager::HandlePeriodicAdvertisingCreateSyncStatus));
+            options,
+            sid,
+            advertisingAddressType,
+            address_with_type.GetAddress(),
+            skip,
+            timeout,
+            sync_cte_type),
+        handler_->BindOnceOn(
+            this,
+            &PeriodicSyncManager::HandlePeriodicAdvertisingCreateSyncStatus<
+                LePeriodicAdvertisingCreateSyncStatusView>));
   }
 
   void HandleNextRequest() {
     if (pending_sync_requests_.empty()) {
-      LOG_DEBUG("pending_sync_requests_ empty");
+      log::debug("pending_sync_requests_ empty");
       return;
     }
     auto& request = pending_sync_requests_.front();
-    LOG_INFO(
-        "executing sync request SID=%04X, bd_addr=%s",
+    log::info(
+        "executing sync request SID={:04X}, bd_addr={}",
         request.advertiser_sid,
-        ADDRESS_TO_LOGGABLE_CSTR(request.address_with_type));
+        request.address_with_type);
     if (request.busy) {
-      LOG_INFO("Request is already busy");
+      log::info("Request is already busy");
       return;
     }
     request.busy = true;
@@ -513,9 +589,9 @@ class PeriodicSyncManager {
   }
 
   void AdvanceRequest() {
-    LOG_DEBUG("AdvanceRequest");
+    log::debug("AdvanceRequest");
     if (pending_sync_requests_.empty()) {
-      LOG_DEBUG("pending_sync_requests_ empty");
+      log::debug("pending_sync_requests_ empty");
       return;
     }
     auto it = pending_sync_requests_.begin();
@@ -527,10 +603,10 @@ class PeriodicSyncManager {
     auto it = pending_sync_requests_.begin();
     while (it != pending_sync_requests_.end()) {
       if (it->advertiser_sid == advertiser_sid && it->address_with_type.GetAddress() == address) {
-        LOG_INFO(
-            "removing connection request SID=%04X, bd_addr=%s, busy=%d",
+        log::info(
+            "removing connection request SID={:04X}, bd_addr={}, busy={}",
             it->advertiser_sid,
-            ADDRESS_TO_LOGGABLE_CSTR(it->address_with_type),
+            it->address_with_type,
             it->busy);
         it = pending_sync_requests_.erase(it);
       } else {

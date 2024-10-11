@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include <bluetooth/log.h>
 #include <unistd.h>
 
 #include <unordered_map>
 
-#include "base/logging.h"  // LOG() stdout and android log
 #include "include/hardware/bluetooth.h"
 #include "test/headless/bt_stack_info.h"
 #include "test/headless/get_options.h"
@@ -70,9 +70,9 @@ class HeadlessRun : public HeadlessStack {
 
   template <typename T>
   T RunOnHeadlessStack(ExecutionUnit<T> func) {
-    LOG(INFO) << kHeadlessInitialSentinel;
+    log::info("{}", kHeadlessInitialSentinel);
     SetUp();
-    LOG(INFO) << kHeadlessStartSentinel;
+    log::info("{}", kHeadlessStartSentinel);
 
     T rc;
     for (loop_ = 0; loop_ < options_.loop_; loop_++) {
@@ -87,16 +87,14 @@ class HeadlessRun : public HeadlessStack {
       LOG_CONSOLE("Loop completed: %lu", loop_);
     }
     if (rc) {
-      LOG(ERROR) << "FAIL:" << rc << " loop/loops:" << loop_ << "/"
-                 << options_.loop_;
+      log::error("FAIL:{} loop/loops:{}/{}", rc, loop_, options_.loop_);
     } else {
-      LOG(INFO) << "PASS:" << rc << " loop/loops:" << loop_ << "/"
-                << options_.loop_;
+      log::info("PASS:{} loop/loops:{}/{}", rc, loop_, options_.loop_);
     }
 
-    LOG(INFO) << kHeadlessStopSentinel;
+    log::info("{}", kHeadlessStopSentinel);
     TearDown();
-    LOG(INFO) << kHeadlessFinalSentinel;
+    log::info("{}", kHeadlessFinalSentinel);
     return rc;
   }
   virtual ~HeadlessRun() = default;

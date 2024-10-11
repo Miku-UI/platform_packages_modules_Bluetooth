@@ -54,10 +54,8 @@ from blueberry.facade.hci import le_initiator_address_facade_pb2_grpc
 from blueberry.facade.hci import le_scanning_manager_facade_pb2_grpc
 from blueberry.facade.l2cap.classic import facade_pb2_grpc as l2cap_facade_pb2_grpc
 from blueberry.facade.l2cap.le import facade_pb2_grpc as l2cap_le_facade_pb2_grpc
-from blueberry.facade.iso import facade_pb2_grpc as iso_facade_pb2_grpc
 from blueberry.facade.neighbor import facade_pb2_grpc as neighbor_facade_pb2_grpc
 from blueberry.facade.security import facade_pb2_grpc as security_facade_pb2_grpc
-from blueberry.facade.shim import facade_pb2_grpc as shim_facade_pb2_grpc
 
 from mobly import utils
 from mobly.controllers.android_device_lib.adb import AdbError
@@ -196,28 +194,24 @@ class GdDeviceBase(ABC):
         """
         # Start backing process
         logging.debug("[%s] Running %s %s" % (self.type_identifier, self.label, " ".join(self.cmd)))
-        self.backing_process = subprocess.Popen(
-            self.cmd,
-            cwd=get_gd_root(),
-            env=self.environment,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True)
+        self.backing_process = subprocess.Popen(self.cmd,
+                                                cwd=get_gd_root(),
+                                                env=self.environment,
+                                                stdout=subprocess.PIPE,
+                                                stderr=subprocess.STDOUT,
+                                                universal_newlines=True)
 
-        self.backing_process_logger = AsyncSubprocessLogger(
-            self.backing_process, [self.backing_process_log_path],
-            log_to_stdout=self.verbose_mode,
-            tag=self.label,
-            color=self.terminal_color)
+        self.backing_process_logger = AsyncSubprocessLogger(self.backing_process, [self.backing_process_log_path],
+                                                            log_to_stdout=self.verbose_mode,
+                                                            tag=self.label,
+                                                            color=self.terminal_color)
 
-        asserts.assert_true(
-            self.backing_process, msg="[%s] failed to open backing process for %s" % (self.type_identifier, self.label))
+        asserts.assert_true(self.backing_process,
+                            msg="[%s] failed to open backing process for %s" % (self.type_identifier, self.label))
         self.is_backing_process_alive = is_subprocess_alive(self.backing_process)
 
-        asserts.assert_true(
-            self.is_backing_process_alive,
-            msg="[%s] backing process for %s died after starting" % (self.type_identifier, self.label))
-
+        asserts.assert_true(self.is_backing_process_alive,
+                            msg="[%s] backing process for %s died after starting" % (self.type_identifier, self.label))
 
         # If gRPC root server port is not specified, we can skip settings up the root server
         if self.grpc_root_server_port != -1:
@@ -230,14 +224,14 @@ class GdDeviceBase(ABC):
                 logging.info("[%s] Waiting to connect to gRPC root server for %s, timeout is %d seconds" %
                              (self.type_identifier, self.label, GRPC_START_TIMEOUT_SEC))
                 grpc.channel_ready_future(self.grpc_root_server_channel).result(timeout=GRPC_START_TIMEOUT_SEC)
-                logging.info(
-                    "[%s] Successfully connected to gRPC root server for %s" % (self.type_identifier, self.label))
+                logging.info("[%s] Successfully connected to gRPC root server for %s" %
+                             (self.type_identifier, self.label))
                 self.grpc_root_server_ready = True
             except grpc.FutureTimeoutError:
                 logging.error("[%s] Failed to connect to gRPC root server for %s" % (self.type_identifier, self.label))
 
-            asserts.assert_true(
-                self.grpc_root_server_ready, msg="gRPC root server did not start after running " + " ".join(self.cmd))
+            asserts.assert_true(self.grpc_root_server_ready,
+                                msg="gRPC root server did not start after running " + " ".join(self.cmd))
 
         self.grpc_channel = grpc.insecure_channel("localhost:%d" % self.grpc_port)
 
@@ -253,7 +247,6 @@ class GdDeviceBase(ABC):
         self.hci = hci_facade_pb2_grpc.HciFacadeStub(self.grpc_channel)
         self.l2cap = l2cap_facade_pb2_grpc.L2capClassicModuleFacadeStub(self.grpc_channel)
         self.l2cap_le = l2cap_le_facade_pb2_grpc.L2capLeModuleFacadeStub(self.grpc_channel)
-        self.iso = iso_facade_pb2_grpc.IsoModuleFacadeStub(self.grpc_channel)
         self.hci_acl_manager = acl_manager_facade_pb2_grpc.AclManagerFacadeStub(self.grpc_channel)
         self.hci_le_acl_manager = le_acl_manager_facade_pb2_grpc.LeAclManagerFacadeStub(self.grpc_channel)
         self.hci_le_initiator_address = le_initiator_address_facade_pb2_grpc.LeInitiatorAddressFacadeStub(
@@ -267,7 +260,6 @@ class GdDeviceBase(ABC):
             self.grpc_channel)
         self.neighbor = neighbor_facade_pb2_grpc.NeighborFacadeStub(self.grpc_channel)
         self.security = security_facade_pb2_grpc.SecurityModuleFacadeStub(self.grpc_channel)
-        self.shim = shim_facade_pb2_grpc.ShimFacadeStub(self.grpc_channel)
 
     def get_crash_snippet_and_log_tail(self):
         if is_subprocess_alive(self.backing_process):
@@ -342,10 +334,10 @@ class GdHostOnlyDevice(GdDeviceBase):
         # Only check on host only test, for Android devices, these ports will
         # be opened on Android device and host machine ports will be occupied
         # by sshd or adb forwarding
-        ports_needed = [self.grpc_port,
-                        self.grpc_root_server_port] if self.grpc_root_server_port != -1 else [self.grpc_port]
-        asserts.assert_true(
-            make_ports_available(ports_needed), "[%s] Failed to make backing process ports available" % self.label)
+        ports_needed = [self.grpc_port, self.grpc_root_server_port
+                       ] if self.grpc_root_server_port != -1 else [self.grpc_port]
+        asserts.assert_true(make_ports_available(ports_needed),
+                            "[%s] Failed to make backing process ports available" % self.label)
         super().setup()
 
     def teardown(self):
@@ -366,8 +358,8 @@ class GdHostOnlyDevice(GdDeviceBase):
         }
 
     def get_coverage_profdata_path_for_host(self, test_runner_base_path, type_identifier, label) -> pathlib.Path:
-        return pathlib.Path(test_runner_base_path).parent.parent.joinpath(
-            "%s_%s_backing_process_coverage.profdata" % (type_identifier, label))
+        return pathlib.Path(test_runner_base_path).parent.parent.joinpath("%s_%s_backing_process_coverage.profdata" %
+                                                                          (type_identifier, label))
 
     def merge_coverage_profdata_for_host(self, backing_process_profraw_path, profdata_path: pathlib.Path, label):
         if not backing_process_profraw_path.is_file():
@@ -425,11 +417,10 @@ class GdHostOnlyDevice(GdDeviceBase):
                 str(stack_bin)
             ]
             logging.debug("Running llvm_cov export: %s" % " ".join(llvm_cov_export_cmd))
-            result = subprocess.run(
-                llvm_cov_export_cmd,
-                stderr=subprocess.PIPE,
-                stdout=coverage_result_file,
-                cwd=os.path.join(get_gd_root()))
+            result = subprocess.run(llvm_cov_export_cmd,
+                                    stderr=subprocess.PIPE,
+                                    stdout=coverage_result_file,
+                                    cwd=os.path.join(get_gd_root()))
         if result.returncode != 0:
             logging.warning("[%s] Failed to generated coverage report, cmd result: %r" % (label, result))
             coverage_result_path.unlink(missing_ok=True)
@@ -444,11 +435,10 @@ class GdHostOnlyDevice(GdDeviceBase):
                 str(stack_bin)
             ]
             logging.debug("Running llvm_cov report: %s" % " ".join(llvm_cov_report_cmd))
-            result = subprocess.run(
-                llvm_cov_report_cmd,
-                stderr=subprocess.PIPE,
-                stdout=coverage_summary_file,
-                cwd=os.path.join(get_gd_root()))
+            result = subprocess.run(llvm_cov_report_cmd,
+                                    stderr=subprocess.PIPE,
+                                    stdout=coverage_summary_file,
+                                    cwd=os.path.join(get_gd_root()))
         if result.returncode != 0:
             logging.warning("[%s] Failed to generated coverage summary, cmd result: %r" % (label, result))
             coverage_summary_path.unlink(missing_ok=True)
@@ -483,9 +473,8 @@ class GdAndroidDevice(GdDeviceBase):
         logging.info("Confirmed that verity is disabled on device %s %s" % (self.label, self.serial_number))
 
         # Try freeing ports and ignore results
-        asserts.assert_true(
-            make_ports_available((self.grpc_port, self.grpc_root_server_port, self.signal_port)),
-            "[%s] Failed to make backing process ports available" % self.label)
+        asserts.assert_true(make_ports_available((self.grpc_port, self.grpc_root_server_port, self.signal_port)),
+                            "[%s] Failed to make backing process ports available" % self.label)
         self.cleanup_port_forwarding()
         self.sync_device_time()
         logging.info("Ports cleaned up and clock is set for device %s %s" % (self.label, self.serial_number))
@@ -505,17 +494,15 @@ class GdAndroidDevice(GdDeviceBase):
 
         # Do not override exist libraries shared by other binaries on the Android device to avoid corrupting the Android device
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_BIN_DIR, "bluetooth_stack_with_facade"))
-        self.push_or_die(
-            *generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "android.hardware.bluetooth@1.0.so"),
-            overwrite_existing=False)
-        self.push_or_die(
-            *generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "android.hardware.bluetooth@1.1.so"),
-            overwrite_existing=False)
-        self.push_or_die(
-            *generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libandroid_runtime_lazy.so"), overwrite_existing=False)
+        self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "android.hardware.bluetooth@1.0.so"),
+                         overwrite_existing=False)
+        self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "android.hardware.bluetooth@1.1.so"),
+                         overwrite_existing=False)
+        self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libandroid_runtime_lazy.so"),
+                         overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libbase.so"), overwrite_existing=False)
-        self.push_or_die(
-            *generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libbinder_ndk.so"), overwrite_existing=False)
+        self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libbinder_ndk.so"),
+                         overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libbinder.so"), overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libc++.so"), overwrite_existing=False)
         # libclang_rt.asan-aarch64-android.so is only needed for ASAN build and is automatically included on device
@@ -524,8 +511,8 @@ class GdAndroidDevice(GdDeviceBase):
         #    overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libcrypto.so"), overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libcutils.so"), overwrite_existing=False)
-        self.push_or_die(
-            *generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libgrpc_wrap.so"), overwrite_existing=False)
+        self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libgrpc_wrap.so"),
+                         overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libgrpc++.so"))
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libhidlbase.so"), overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "liblog.so"), overwrite_existing=False)
@@ -533,9 +520,8 @@ class GdAndroidDevice(GdDeviceBase):
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libprotobuf-cpp-full.so"))
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libssl.so"), overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libgrpc++.so"))
-        self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libstatslog_bt.so"))
-        self.push_or_die(
-            *generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libunwindstack.so"), overwrite_existing=False)
+        self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libunwindstack.so"),
+                         overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libutils.so"), overwrite_existing=False)
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libgrpc++.so"))
         self.push_or_die(*generate_dir_pair(local_dir, self.DEVICE_LIB_DIR, "libz.so"), overwrite_existing=False)
@@ -560,11 +546,6 @@ class GdAndroidDevice(GdDeviceBase):
             if ADB_FILE_NOT_EXIST_ERROR not in str(error):
                 logging.error("Error during setup: " + str(error))
 
-        try:
-            self.adb.shell("rm /data/misc/bluedroid/bt_config.bak")
-        except AdbError as error:
-            if ADB_FILE_NOT_EXIST_ERROR not in str(error):
-                logging.error("Error during setup: " + str(error))
         logging.info("Old logs removed from device %s %s" % (self.label, self.serial_number))
 
         # Ensure Bluetooth is disabled
@@ -580,17 +561,17 @@ class GdAndroidDevice(GdDeviceBase):
             self.log_path_base, '%s_%s_%s_logcat_logs.txt' % (self.type_identifier, self.label, self.serial_number))
         self.logcat_cmd = ["adb", "-s", self.serial_number, "logcat", "-T", "1", "-v", "year", "-v", "uid"]
         logging.debug("Running %s", " ".join(self.logcat_cmd))
-        self.logcat_process = subprocess.Popen(
-            self.logcat_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        self.logcat_process = subprocess.Popen(self.logcat_cmd,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.STDOUT,
+                                               universal_newlines=True)
         asserts.assert_true(self.logcat_process, msg="Cannot start logcat_process at " + " ".join(self.logcat_cmd))
-        asserts.assert_true(
-            is_subprocess_alive(self.logcat_process),
-            msg="logcat_process stopped immediately after running " + " ".join(self.logcat_cmd))
-        self.logcat_logger = AsyncSubprocessLogger(
-            self.logcat_process, [self.logcat_output_path],
-            log_to_stdout=self.verbose_mode,
-            tag="%s_%s" % (self.label, self.serial_number),
-            color=self.terminal_color)
+        asserts.assert_true(is_subprocess_alive(self.logcat_process),
+                            msg="logcat_process stopped immediately after running " + " ".join(self.logcat_cmd))
+        self.logcat_logger = AsyncSubprocessLogger(self.logcat_process, [self.logcat_output_path],
+                                                   log_to_stdout=self.verbose_mode,
+                                                   tag="%s_%s" % (self.label, self.serial_number),
+                                                   color=self.terminal_color)
 
         # Done run parent setup
         logging.info("Done preparation for %s, starting backing process" % self.serial_number)
@@ -636,14 +617,6 @@ class GdAndroidDevice(GdDeviceBase):
             # Some tests have no config file, and that's OK
             if ADB_FILE_NOT_EXIST_ERROR not in str(error):
                 logging.error(PULL_LOG_FILE_ERROR_MSG_PREFIX + str(error))
-        try:
-            self.adb.pull(
-                ["/data/misc/bluedroid/bt_config.bak",
-                 str(os.path.join(base_dir, "%s_bt_config.bak" % self.label))])
-        except AdbError as error:
-            # Some tests have no config.bak file, and that's OK
-            if ADB_FILE_NOT_EXIST_ERROR not in str(error):
-                logging.error(PULL_LOG_FILE_ERROR_MSG_PREFIX + str(error))
 
     def cleanup_port_forwarding(self):
         try:
@@ -679,8 +652,8 @@ class GdAndroidDevice(GdDeviceBase):
         """
         Ensure a command has not output
         """
-        asserts.assert_true(
-            result is None or len(result) == 0, msg="command returned something when it shouldn't: %s" % result)
+        asserts.assert_true(result is None or len(result) == 0,
+                            msg="command returned something when it shouldn't: %s" % result)
 
     def sync_device_time(self):
         self.adb.shell("settings put global auto_time 0")
@@ -711,12 +684,11 @@ class GdAndroidDevice(GdDeviceBase):
         # Include ADB delay that might be longer in SSH environment
         max_delta_seconds = 3
         host_time = datetime.now(tz=device_time.tzinfo)
-        asserts.assert_almost_equal(
-            (device_time - host_time).total_seconds(),
-            0,
-            msg="Device time %s and host time %s off by >%dms after sync" %
-            (device_time.isoformat(), host_time.isoformat(), int(max_delta_seconds * 1000)),
-            delta=max_delta_seconds)
+        asserts.assert_almost_equal((device_time - host_time).total_seconds(),
+                                    0,
+                                    msg="Device time %s and host time %s off by >%dms after sync" %
+                                    (device_time.isoformat(), host_time.isoformat(), int(max_delta_seconds * 1000)),
+                                    delta=max_delta_seconds)
 
     def push_or_die(self, src_file_path, dst_file_path, push_timeout=300, overwrite_existing=True):
         """Pushes a file to the Android device
@@ -749,14 +721,14 @@ class GdAndroidDevice(GdDeviceBase):
             if num_retry > 0:
                 # If requested, reboot an retry
                 num_retry -= 1
-                logging.warning(
-                    "[%s] Failed to TCP forward host port %d to "
-                    "device port %d, num_retries left is %d" % (self.label, host_port, device_port, num_retry))
+                logging.warning("[%s] Failed to TCP forward host port %d to "
+                                "device port %d, num_retries left is %d" %
+                                (self.label, host_port, device_port, num_retry))
                 self.reboot()
                 self.adb.remount()
                 return self.tcp_forward_or_die(host_port, device_port, num_retry=num_retry)
-            asserts.fail(
-                'Unable to forward host port %d to device port %d, error %s' % (host_port, device_port, error_or_port))
+            asserts.fail('Unable to forward host port %d to device port %d, error %s' %
+                         (host_port, device_port, error_or_port))
         return error_or_port
 
     def tcp_reverse_or_die(self, device_port, host_port, num_retry=1):
@@ -777,14 +749,14 @@ class GdAndroidDevice(GdDeviceBase):
             if num_retry > 0:
                 # If requested, reboot an retry
                 num_retry -= 1
-                logging.warning(
-                    "[%s] Failed to TCP reverse device port %d to "
-                    "host port %d, num_retries left is %d" % (self.label, device_port, host_port, num_retry))
+                logging.warning("[%s] Failed to TCP reverse device port %d to "
+                                "host port %d, num_retries left is %d" %
+                                (self.label, device_port, host_port, num_retry))
                 self.reboot()
                 self.adb.remount()
                 return self.tcp_reverse_or_die(device_port, host_port, num_retry=num_retry)
-            asserts.fail(
-                'Unable to reverse device port %d to host port %d, error %s' % (device_port, host_port, error_or_port))
+            asserts.fail('Unable to reverse device port %d to host port %d, error %s' %
+                         (device_port, host_port, error_or_port))
         return error_or_port
 
     def ensure_verity_disabled(self):

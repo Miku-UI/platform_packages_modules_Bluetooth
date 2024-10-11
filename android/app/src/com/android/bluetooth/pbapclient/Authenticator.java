@@ -26,7 +26,6 @@ import android.util.Log;
 
 public class Authenticator extends AbstractAccountAuthenticator {
     private static final String TAG = "PbapClientAuthenticator";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
     public Authenticator(Context context) {
         super(context);
@@ -35,15 +34,16 @@ public class Authenticator extends AbstractAccountAuthenticator {
     // Editing properties is not supported
     @Override
     public Bundle editProperties(AccountAuthenticatorResponse r, String s) {
-        if (DBG) Log.d(TAG, "got call", new Exception());
+        Log.d(TAG, "got call", new Exception());
         throw new UnsupportedOperationException();
     }
 
     // Don't add additional accounts
     @Override
-    public Bundle addAccount(AccountAuthenticatorResponse r, String s, String s2, String[] strings,
-            Bundle bundle) throws NetworkErrorException {
-        if (DBG) Log.d(TAG, "got call", new Exception());
+    public Bundle addAccount(
+            AccountAuthenticatorResponse r, String s, String s2, String[] strings, Bundle bundle)
+            throws NetworkErrorException {
+        Log.d(TAG, "got call", new Exception());
         // Don't allow accounts to be added.
         throw new UnsupportedOperationException();
     }
@@ -52,30 +52,32 @@ public class Authenticator extends AbstractAccountAuthenticator {
     @Override
     public Bundle confirmCredentials(AccountAuthenticatorResponse r, Account account, Bundle bundle)
             throws NetworkErrorException {
-        if (DBG) Log.d(TAG, "got call", new Exception());
+        Log.d(TAG, "got call", new Exception());
         return null;
     }
 
     // Getting an authentication token is not supported
     @Override
-    public Bundle getAuthToken(AccountAuthenticatorResponse r, Account account, String s,
-            Bundle bundle) throws NetworkErrorException {
-        if (DBG) Log.d(TAG, "got call", new Exception());
+    public Bundle getAuthToken(
+            AccountAuthenticatorResponse r, Account account, String s, Bundle bundle)
+            throws NetworkErrorException {
+        Log.d(TAG, "got call", new Exception());
         throw new UnsupportedOperationException();
     }
 
     // Getting a label for the auth token is not supported
     @Override
     public String getAuthTokenLabel(String s) {
-        if (DBG) Log.d(TAG, "got call", new Exception());
+        Log.d(TAG, "got call", new Exception());
         return null;
     }
 
     // Updating user credentials is not supported
     @Override
-    public Bundle updateCredentials(AccountAuthenticatorResponse r, Account account, String s,
-            Bundle bundle) throws NetworkErrorException {
-        if (DBG) Log.d(TAG, "got call", new Exception());
+    public Bundle updateCredentials(
+            AccountAuthenticatorResponse r, Account account, String s, Bundle bundle)
+            throws NetworkErrorException {
+        Log.d(TAG, "got call", new Exception());
         return null;
     }
 
@@ -83,7 +85,7 @@ public class Authenticator extends AbstractAccountAuthenticator {
     @Override
     public Bundle hasFeatures(AccountAuthenticatorResponse r, Account account, String[] strings)
             throws NetworkErrorException {
-        if (DBG) Log.d(TAG, "got call", new Exception());
+        Log.d(TAG, "got call", new Exception());
 
         final Bundle result = new Bundle();
         result.putBoolean(AccountManager.KEY_BOOLEAN_RESULT, false);

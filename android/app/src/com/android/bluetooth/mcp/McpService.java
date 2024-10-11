@@ -30,35 +30,36 @@ import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Provides Media Control Profile, as a service in the Bluetooth application.
- * @hide
- */
+/** Provides Media Control Profile, as a service in the Bluetooth application. */
 public class McpService extends ProfileService {
-    private static final boolean DBG = true;
-    private static final boolean VDBG = false;
     private static final String TAG = "BluetoothMcpService";
 
     private static McpService sMcpService;
-    private static MediaControlProfile sGmcsForTesting;
 
-    private final Object mLock = new Object();
-    @GuardedBy("mLock")
-    private MediaControlProfile mGmcs;
-    private Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
-    private Handler mHandler = new Handler(Looper.getMainLooper());
+    private final MediaControlProfile mGmcs;
+    private final Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     public McpService(Context ctx) {
+        this(ctx, null);
+    }
+
+    @VisibleForTesting
+    McpService(Context ctx, MediaControlProfile mediaControlProfile) {
         super(ctx);
+        if (mediaControlProfile == null) {
+            mGmcs = new MediaControlProfile(this);
+        } else {
+            mGmcs = mediaControlProfile;
+        }
     }
 
     public static boolean isEnabled() {
@@ -66,9 +67,7 @@ public class McpService extends ProfileService {
     }
 
     private static synchronized void setMcpService(McpService instance) {
-        if (VDBG) {
-            Log.d(TAG, "setMcpService(): set to: " + instance);
-        }
+        Log.d(TAG, "setMcpService(): set to: " + instance);
         sMcpService = instance;
     }
 
@@ -85,16 +84,6 @@ public class McpService extends ProfileService {
         return sMcpService;
     }
 
-    @VisibleForTesting
-    public static MediaControlProfile getMediaControlProfile() {
-        return sGmcsForTesting;
-    }
-
-    @VisibleForTesting
-    public static void setMediaControlProfileForTesting(MediaControlProfile mediaControlProfile) {
-        sGmcsForTesting = mediaControlProfile;
-    }
-
     @Override
     protected IProfileServiceBinder initBinder() {
         return new BluetoothMcpServiceBinder(this);
@@ -102,9 +91,7 @@ public class McpService extends ProfileService {
 
     @Override
     public void start() {
-        if (DBG) {
-            Log.d(TAG, "start()");
-        }
+        Log.d(TAG, "start()");
 
         if (sMcpService != null) {
             throw new IllegalStateException("start() called twice");
@@ -113,48 +100,28 @@ public class McpService extends ProfileService {
         // Mark service as started
         setMcpService(this);
 
-        synchronized (mLock) {
-            if (getGmcsLocked() == null) {
-                // Initialize the Media Control Service Server
-                if (mGmcs != null) {
-                    mGmcs.cleanup();
-                }
-                mGmcs = new MediaControlProfile(this);
-                // Requires this service to be already started thus we have to make it an async call
-                mHandler.post(() -> {
-                    synchronized (mLock) {
-                        if (mGmcs != null) {
-                            mGmcs.init();
-                        }
+        if (Flags.leaudioSynchronizeStart()) {
+            mGmcs.init();
+            return;
+        }
+        mHandler.post(
+                () -> {
+                    if (isAvailable()) {
+                        mGmcs.init();
                     }
                 });
-            }
-        }
     }
 
     @Override
     public void stop() {
-        if (DBG) {
-            Log.d(TAG, "stop()");
-        }
+        Log.d(TAG, "stop()");
 
         if (sMcpService == null) {
             Log.w(TAG, "stop() called before start()");
             return;
         }
 
-        synchronized (mLock) {
-            // A runnable for calling mGmcs.init() could be pending on mHandler
-            mHandler.removeCallbacksAndMessages(null);
-            if (mGmcs != null) {
-                mGmcs.cleanup();
-                mGmcs = null;
-            }
-            if (sGmcsForTesting != null) {
-                sGmcsForTesting.cleanup();
-                sGmcsForTesting = null;
-            }
-        }
+        mGmcs.cleanup();
 
         // Mark service as stopped
         setMcpService(null);
@@ -162,20 +129,13 @@ public class McpService extends ProfileService {
 
     @Override
     public void cleanup() {
-        if (DBG) {
-            Log.d(TAG, "cleanup()");
-        }
+        Log.d(TAG, "cleanup()");
     }
 
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        synchronized (mLock) {
-            MediaControlProfile gmcs = getGmcsLocked();
-            if (gmcs != null) {
-                gmcs.dump(sb);
-            }
-        }
+        mGmcs.dump(sb);
 
         for (Map.Entry<BluetoothDevice, Integer> entry : mDeviceAuthorizations.entrySet()) {
             String accessString;
@@ -204,7 +164,6 @@ public class McpService extends ProfileService {
      * Remove authorization information for the device.
      *
      * @param device device to remove from the service information
-     * @hide
      */
     public void removeDeviceAuthorizationInfo(BluetoothDevice device) {
         Log.i(TAG, "removeDeviceAuthorizationInfo(): device: " + device);
@@ -212,18 +171,14 @@ public class McpService extends ProfileService {
     }
 
     public void setDeviceAuthorized(BluetoothDevice device, boolean isAuthorized) {
-        Log.i(TAG, "\tsetDeviceAuthorized(): device: " + device + ", isAuthorized: "
-                + isAuthorized);
-        int authorization = isAuthorized ? BluetoothDevice.ACCESS_ALLOWED
-                : BluetoothDevice.ACCESS_REJECTED;
+        Log.i(
+                TAG,
+                "\tsetDeviceAuthorized(): device: " + device + ", isAuthorized: " + isAuthorized);
+        int authorization =
+                isAuthorized ? BluetoothDevice.ACCESS_ALLOWED : BluetoothDevice.ACCESS_REJECTED;
         mDeviceAuthorizations.put(device, authorization);
 
-        synchronized (mLock) {
-            MediaControlProfile gmcs = getGmcsLocked();
-            if (gmcs != null) {
-                gmcs.onDeviceAuthorizationSet(device);
-            }
-        }
+        mGmcs.onDeviceAuthorizationSet(device);
     }
 
     public int getDeviceAuthorization(BluetoothDevice device) {
@@ -232,72 +187,52 @@ public class McpService extends ProfileService {
          * 2. authorized devices
          * 3. Any LeAudio devices which are allowed to connect
          */
-        int authorization = mDeviceAuthorizations.getOrDefault(device, Utils.isPtsTestMode()
-                ? BluetoothDevice.ACCESS_ALLOWED : BluetoothDevice.ACCESS_UNKNOWN);
+        int authorization =
+                mDeviceAuthorizations.getOrDefault(
+                        device,
+                        Utils.isPtsTestMode()
+                                ? BluetoothDevice.ACCESS_ALLOWED
+                                : BluetoothDevice.ACCESS_UNKNOWN);
         if (authorization != BluetoothDevice.ACCESS_UNKNOWN) {
             return authorization;
         }
 
         LeAudioService leAudioService = LeAudioService.getLeAudioService();
         if (leAudioService == null) {
-            Log.e(TAG, "MCS access not permited. LeAudioService not available");
+            Log.e(TAG, "MCS access not permitted. LeAudioService not available");
             return BluetoothDevice.ACCESS_UNKNOWN;
         }
 
         if (leAudioService.getConnectionPolicy(device)
                 > BluetoothProfile.CONNECTION_POLICY_FORBIDDEN) {
-            if (DBG) {
-                Log.d(TAG, "MCS authorization allowed based on supported LeAudio service");
-            }
+            Log.d(TAG, "MCS authorization allowed based on supported LeAudio service");
             setDeviceAuthorized(device, true);
             return BluetoothDevice.ACCESS_ALLOWED;
         }
 
-        Log.e(TAG, "MCS access not permited");
+        Log.e(TAG, "MCS access not permitted");
         return BluetoothDevice.ACCESS_UNKNOWN;
     }
 
     List<ParcelUuid> getNotificationSubscriptions(int ccid, BluetoothDevice device) {
-        synchronized (mLock) {
-            MediaControlProfile gmcs = getGmcsLocked();
-            if (gmcs != null) {
-                return gmcs.getNotificationSubscriptions(ccid, device);
-            }
-        }
-        return Collections.emptyList();
+        return mGmcs.getNotificationSubscriptions(ccid, device);
     }
 
     void setNotificationSubscription(
             int ccid, BluetoothDevice device, ParcelUuid charUuid, boolean doNotify) {
-        synchronized (mLock) {
-            MediaControlProfile gmcs = getGmcsLocked();
-            if (gmcs != null) {
-                gmcs.setNotificationSubscription(ccid, device, charUuid, doNotify);
-            }
-        }
+        mGmcs.setNotificationSubscription(ccid, device, charUuid, doNotify);
     }
 
-    @GuardedBy("mLock")
-    private MediaControlProfile getGmcsLocked() {
-        if (sGmcsForTesting != null) {
-            return sGmcsForTesting;
-        } else {
-            return mGmcs;
-        }
-    }
-
-    /**
-     * Binder object: must be a static class or memory leak may occur
-     */
-    static class BluetoothMcpServiceBinder
-            extends IBluetoothMcpServiceManager.Stub implements IProfileServiceBinder {
+    /** Binder object: must be a static class or memory leak may occur */
+    static class BluetoothMcpServiceBinder extends IBluetoothMcpServiceManager.Stub
+            implements IProfileServiceBinder {
         private McpService mService;
 
         BluetoothMcpServiceBinder(McpService svc) {
             mService = svc;
         }
 
-        private McpService getService(AttributionSource source) {
+        private McpService getService() {
             if (mService != null && mService.isAvailable()) {
                 return mService;
             }
@@ -306,9 +241,9 @@ public class McpService extends ProfileService {
         }
 
         @Override
-        public void setDeviceAuthorized(BluetoothDevice device, boolean isAuthorized,
-                AttributionSource source) {
-            McpService service = getService(source);
+        public void setDeviceAuthorized(
+                BluetoothDevice device, boolean isAuthorized, AttributionSource source) {
+            McpService service = getService();
             if (service == null) {
                 return;
             }

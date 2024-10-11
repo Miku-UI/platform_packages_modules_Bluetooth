@@ -19,8 +19,6 @@
  *   Functions generated:20
  */
 
-#include <base/logging.h>
-
 #include "port_api.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
@@ -60,12 +58,9 @@ int PORT_SetDataCOCallback(uint16_t /* port_handle */,
   inc_func_call_count(__func__);
   return 0;
 }
-int PORT_SetEventCallback(uint16_t /* port_handle */,
-                          tPORT_CALLBACK* /* p_port_cb */) {
-  inc_func_call_count(__func__);
-  return 0;
-}
-int PORT_SetEventMask(uint16_t /* port_handle */, uint32_t /* mask */) {
+int PORT_SetEventMaskAndCallback(uint16_t /* port_handle */,
+                                 uint32_t /* mask */,
+                                 tPORT_CALLBACK* /* p_port_cb */) {
   inc_func_call_count(__func__);
   return 0;
 }
@@ -82,13 +77,11 @@ int PORT_WriteDataCO(uint16_t /* handle */, int* /* p_len */) {
   inc_func_call_count(__func__);
   return 0;
 }
-int RFCOMM_CreateConnectionWithSecurity(uint16_t /* uuid */, uint8_t /* scn */,
-                                        bool /* is_server */,
-                                        uint16_t /* mtu */,
-                                        const RawAddress& /* bd_addr */,
-                                        uint16_t* /* p_handle */,
-                                        tPORT_CALLBACK* /* p_mgmt_cb */,
-                                        uint16_t /* sec_mask */) {
+int RFCOMM_CreateConnectionWithSecurity(
+    uint16_t /* uuid */, uint8_t /* scn */, bool /* is_server */,
+    uint16_t /* mtu */, const RawAddress& /* bd_addr */,
+    uint16_t* /* p_handle */, tPORT_MGMT_CALLBACK* /* p_mgmt_callback */,
+    uint16_t /* sec_mask */) {
   inc_func_call_count(__func__);
   return 0;
 }

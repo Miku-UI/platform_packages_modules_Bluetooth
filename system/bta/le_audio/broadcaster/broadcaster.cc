@@ -16,7 +16,7 @@
  */
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
+#include <bluetooth/log.h>
 #include <lc3.h>
 
 #include <mutex>
@@ -28,10 +28,11 @@
 #include "bta/le_audio/le_audio_types.h"
 #include "bta/le_audio/le_audio_utils.h"
 #include "bta/le_audio/metrics_collector.h"
+#include "bta_le_audio_api.h"
 #include "common/strings.h"
-#include "device/include/controller.h"
-#include "include/check.h"
+#include "hci/controller_interface.h"
 #include "internal_include/stack_config.h"
+#include "main/shim/entry.h"
 #include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_types.h"
@@ -46,24 +47,27 @@ using bluetooth::hci::iso_manager::BigCallbacks;
 using bluetooth::le_audio::BasicAudioAnnouncementData;
 using bluetooth::le_audio::BasicAudioAnnouncementSubgroup;
 using bluetooth::le_audio::BroadcastId;
+using bluetooth::le_audio::CodecManager;
+using bluetooth::le_audio::ContentControlIdKeeper;
+using bluetooth::le_audio::DsaMode;
+using bluetooth::le_audio::LeAudioCodecConfiguration;
+using bluetooth::le_audio::LeAudioSourceAudioHalClient;
 using bluetooth::le_audio::PublicBroadcastAnnouncementData;
-using le_audio::CodecManager;
-using le_audio::ContentControlIdKeeper;
-using le_audio::DsaMode;
-using le_audio::LeAudioCodecConfiguration;
-using le_audio::LeAudioSourceAudioHalClient;
-using le_audio::broadcaster::BigConfig;
-using le_audio::broadcaster::BroadcastCodecWrapper;
-using le_audio::broadcaster::BroadcastQosConfig;
-using le_audio::broadcaster::BroadcastStateMachine;
-using le_audio::broadcaster::BroadcastStateMachineConfig;
-using le_audio::broadcaster::IBroadcastStateMachineCallbacks;
-using le_audio::types::AudioContexts;
-using le_audio::types::CodecLocation;
-using le_audio::types::kLeAudioCodingFormatLC3;
-using le_audio::types::LeAudioContextType;
-using le_audio::types::LeAudioLtvMap;
-using le_audio::utils::GetAudioContextsFromSourceMetadata;
+using bluetooth::le_audio::broadcaster::BigConfig;
+using bluetooth::le_audio::broadcaster::BroadcastConfiguration;
+using bluetooth::le_audio::broadcaster::BroadcastQosConfig;
+using bluetooth::le_audio::broadcaster::BroadcastStateMachine;
+using bluetooth::le_audio::broadcaster::BroadcastStateMachineConfig;
+using bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig;
+using bluetooth::le_audio::broadcaster::IBroadcastStateMachineCallbacks;
+using bluetooth::le_audio::types::AudioContexts;
+using bluetooth::le_audio::types::CodecLocation;
+using bluetooth::le_audio::types::kLeAudioCodingFormatLC3;
+using bluetooth::le_audio::types::LeAudioContextType;
+using bluetooth::le_audio::types::LeAudioLtvMap;
+using bluetooth::le_audio::utils::GetAudioContextsFromSourceMetadata;
+
+using namespace bluetooth;
 
 namespace {
 class LeAudioBroadcasterImpl;
@@ -92,7 +96,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
         current_phy_(PHY_LE_2M),
         audio_data_path_state_(AudioDataPathState::INACTIVE),
         le_audio_source_hal_client_(nullptr) {
-    LOG_INFO();
+    log::info("");
 
     /* Register State machine callbacks */
     BroadcastStateMachine::Initialize(&state_machine_callbacks_,
@@ -118,27 +122,35 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       }
 
       if (instance->available_broadcast_ids_.empty()) {
-        LOG_ALWAYS_FATAL("Unable to generate proper broadcast identifiers.");
+        log::fatal("Unable to generate proper broadcast identifiers.");
       }
     }));
   }
 
   void CleanUp() {
-    LOG_INFO("Broadcaster");
+    log::info("Broadcaster");
     broadcasts_.clear();
     callbacks_ = nullptr;
     is_iso_running_ = false;
+
+    if (!LeAudioClient::IsLeAudioClientRunning())
+      IsoManager::GetInstance()->Stop();
+
     queued_start_broadcast_request_ = std::nullopt;
     queued_create_broadcast_request_ = std::nullopt;
 
     if (le_audio_source_hal_client_) {
       le_audio_source_hal_client_->Stop();
+      auto result =
+          CodecManager::GetInstance()->UpdateActiveBroadcastAudioHalClient(
+              le_audio_source_hal_client_.get(), false);
+      log::assert_that(result, "Could not update session in codec manager");
       le_audio_source_hal_client_.reset();
     }
   }
 
   void Stop() {
-    LOG_INFO("Broadcaster");
+    log::info("Broadcaster");
 
     for (auto& sm_pair : broadcasts_) {
       StopAudioBroadcast(sm_pair.first);
@@ -156,16 +168,30 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
   }
 
   static BasicAudioAnnouncementData prepareBasicAnnouncement(
-      const BroadcastCodecWrapper& codec_config,
+      const std::vector<BroadcastSubgroupCodecConfig>& subgroup_configs,
       const std::vector<LeAudioLtvMap>& metadata_group) {
     BasicAudioAnnouncementData announcement;
 
     /* Prepare the announcement */
     announcement.presentation_delay_us = 40000; /* us */
 
-    auto const& codec_id = codec_config.GetLeAudioCodecId();
+    log::assert_that(subgroup_configs.size() == metadata_group.size(),
+                     "The number of metadata subgroups {} does not match the "
+                     "number of subgroup configurations {}.",
+                     metadata_group.size(), subgroup_configs.size());
 
-    for (const LeAudioLtvMap& metadata : metadata_group) {
+    uint8_t subgroup_idx = 0;
+    uint8_t bis_index = 0;
+    while (subgroup_idx < subgroup_configs.size() &&
+           subgroup_idx < metadata_group.size()) {
+      const auto& subgroup_config = subgroup_configs.at(subgroup_idx);
+      const auto& metadata = metadata_group.at(subgroup_idx);
+
+      auto const& codec_id = subgroup_config.GetLeAudioCodecId();
+      auto const subgroup_codec_spec =
+          subgroup_config.GetCommonBisCodecSpecData();
+      auto opt_vendor_spec_data = subgroup_config.GetVendorCodecSpecData();
+
       /* Note: Currently we have a single audio source configured with a one
        *       set of codec/pcm parameters thus we can use a single subgroup
        *       for all the BISes. Configure common BIS codec params at the
@@ -178,32 +204,62 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
                   .vendor_company_id = codec_id.vendor_company_id,
                   .vendor_codec_id = codec_id.vendor_codec_id,
                   .codec_specific_params =
-                      codec_config.GetSubgroupCodecSpecData().Values(),
+                      opt_vendor_spec_data.has_value()
+                          ? std::map<uint8_t, std::vector<uint8_t>>{}
+                          : subgroup_codec_spec.Values(),
+                  .vendor_codec_specific_params =
+                      std::move(opt_vendor_spec_data),
               },
           .metadata = metadata.Values(),
           .bis_configs = {},
       };
-      /* BIS indices range is [1-31] - BASS, Sec.3.2 Broadcast Receive State. */
-      for (size_t i = 0; i < codec_config.GetNumChannels(); ++i) {
-        config.bis_configs.push_back(
-            {.codec_specific_params =
-                 codec_config.GetBisCodecSpecData(i + 1).Values(),
-             .bis_index = static_cast<uint8_t>(i + 1)});
+
+      for (uint8_t bis_cfg_idx = 0;
+           bis_cfg_idx < subgroup_config.GetAllBisConfigCount();
+           ++bis_cfg_idx) {
+        auto bis_cfg_num_of_bises = subgroup_config.GetNumBis(bis_cfg_idx);
+        for (uint8_t bis_num = 0; bis_num < bis_cfg_num_of_bises; ++bis_num) {
+          // Internally BISes are indexed from 0 in each subgroup, but the BT
+          // spec requires the indices to start from 1 in the entire BIG.
+          ++bis_index;
+
+          // Check for vendor byte array
+          bluetooth::le_audio::BasicAudioAnnouncementBisConfig bis_config;
+          auto vendor_config =
+              subgroup_config.GetBisVendorCodecSpecData(bis_num);
+          if (vendor_config) {
+            bis_config.vendor_codec_specific_params = vendor_config.value();
+          }
+
+          // Check for non vendor LTVs
+          auto config_ltv =
+              subgroup_config.GetBisCodecSpecData(bis_num, bis_cfg_idx);
+          if (config_ltv) {
+            // Remove the part which is common with the parent subgroup
+            // parameters
+            config_ltv->RemoveAllTypes(subgroup_codec_spec);
+            bis_config.codec_specific_params = config_ltv->Values();
+          }
+
+          bis_config.bis_index = bis_index;
+          config.bis_configs.push_back(std::move(bis_config));
+        }
       }
 
       announcement.subgroup_configs.push_back(config);
+      ++subgroup_idx;
     }
 
     return announcement;
   }
 
   void UpdateStreamingContextTypeOnAllSubgroups(const AudioContexts& contexts) {
-    LOG_DEBUG("%s context_type_map=%s", __func__, contexts.to_string().c_str());
+    log::debug("context_type_map={}", contexts.to_string());
 
     auto ccids = ContentControlIdKeeper::GetInstance()->GetAllCcids(contexts);
     if (ccids.empty()) {
-      LOG_WARN("%s No content providers available for context_type_map=%s.",
-               __func__, contexts.to_string().c_str());
+      log::warn("No content providers available for context_type_map={}.",
+                contexts.to_string());
     }
 
     std::vector<uint8_t> stream_context_vec(2);
@@ -221,40 +277,43 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
           auto subgroup_ltv = LeAudioLtvMap(subgroup.metadata);
           bool subgroup_update = false;
 
-          auto existing_context = subgroup_ltv.Find(
-              le_audio::types::kLeAudioMetadataTypeStreamingAudioContext);
+          auto existing_context =
+              subgroup_ltv.Find(bluetooth::le_audio::types::
+                                    kLeAudioMetadataTypeStreamingAudioContext);
           if (existing_context) {
             if (memcmp(stream_context_vec.data(), existing_context->data(),
                        existing_context->size()) != 0) {
-              subgroup_ltv.Add(
-                  le_audio::types::kLeAudioMetadataTypeStreamingAudioContext,
-                  stream_context_vec);
+              subgroup_ltv.Add(bluetooth::le_audio::types::
+                                   kLeAudioMetadataTypeStreamingAudioContext,
+                               stream_context_vec);
               subgroup_update = true;
             }
           } else {
-            subgroup_ltv.Add(
-                le_audio::types::kLeAudioMetadataTypeStreamingAudioContext,
-                stream_context_vec);
+            subgroup_ltv.Add(bluetooth::le_audio::types::
+                                 kLeAudioMetadataTypeStreamingAudioContext,
+                             stream_context_vec);
             subgroup_update = true;
           }
 
-          auto existing_ccid_list =
-              subgroup_ltv.Find(le_audio::types::kLeAudioMetadataTypeCcidList);
+          auto existing_ccid_list = subgroup_ltv.Find(
+              bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
           if (existing_ccid_list) {
             if (ccids.empty()) {
               subgroup_ltv.Remove(
-                  le_audio::types::kLeAudioMetadataTypeCcidList);
+                  bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList);
               subgroup_update = true;
 
             } else if (!std::is_permutation(ccids.begin(), ccids.end(),
                                             existing_ccid_list->begin())) {
-              subgroup_ltv.Add(le_audio::types::kLeAudioMetadataTypeCcidList,
-                               ccids);
+              subgroup_ltv.Add(
+                  bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList,
+                  ccids);
               subgroup_update = true;
             }
           } else if (!ccids.empty()) {
-            subgroup_ltv.Add(le_audio::types::kLeAudioMetadataTypeCcidList,
-                             ccids);
+            subgroup_ltv.Add(
+                bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList,
+                ccids);
             subgroup_update = true;
           }
 
@@ -278,20 +337,18 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     std::vector<LeAudioLtvMap> subgroup_ltvs;
 
     if (broadcasts_.count(broadcast_id) == 0) {
-      LOG_ERROR("No such broadcast_id=%d", broadcast_id);
+      log::error("No such broadcast_id={}", broadcast_id);
       return;
     }
 
-    LOG_INFO("For broadcast_id=%d", broadcast_id);
-
-    auto& codec_config = broadcasts_[broadcast_id]->GetCodecConfig();
+    log::info("For broadcast_id={}", broadcast_id);
 
     for (const std::vector<uint8_t>& metadata : subgroup_metadata) {
       /* Prepare the announcement format */
       bool is_metadata_valid;
       auto ltv = LeAudioLtvMap::Parse(metadata.data(), metadata.size(), is_metadata_valid);
       if (!is_metadata_valid) {
-        LOG_ERROR("Invalid metadata provided.");
+        log::error("Invalid metadata provided.");
         return;
       }
 
@@ -306,12 +363,13 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
               ->get_pts_force_le_audio_multiple_contexts_metadata()) {
         context_type =
             LeAudioContextType::MEDIA | LeAudioContextType::CONVERSATIONAL;
-        auto stream_context_vec = ltv.Find(
-            le_audio::types::kLeAudioMetadataTypeStreamingAudioContext);
+        auto stream_context_vec =
+            ltv.Find(bluetooth::le_audio::types::
+                         kLeAudioMetadataTypeStreamingAudioContext);
         if (stream_context_vec) {
           auto pp = stream_context_vec.value().data();
           if (stream_context_vec.value().size() < 2) {
-            LOG_ERROR("stream_context_vec.value() size < 2");
+            log::error("stream_context_vec.value() size < 2");
             return;
           }
           UINT16_TO_STREAM(pp, context_type.value());
@@ -319,11 +377,12 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       }
 
       auto stream_context_vec =
-          ltv.Find(le_audio::types::kLeAudioMetadataTypeStreamingAudioContext);
+          ltv.Find(bluetooth::le_audio::types::
+                       kLeAudioMetadataTypeStreamingAudioContext);
       if (stream_context_vec) {
         auto pp = stream_context_vec.value().data();
         if (stream_context_vec.value().size() < 2) {
-          LOG_ERROR("stream_context_vec.value() size < 2");
+          log::error("stream_context_vec.value() size < 2");
           return;
         }
         STREAM_TO_UINT16(context_type.value_ref(), pp);
@@ -333,7 +392,8 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       auto ccid_vec =
           ContentControlIdKeeper::GetInstance()->GetAllCcids(context_type);
       if (!ccid_vec.empty()) {
-        ltv.Add(le_audio::types::kLeAudioMetadataTypeCcidList, ccid_vec);
+        ltv.Add(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList,
+                ccid_vec);
       }
 
       // Push to subgroup ltvs
@@ -348,7 +408,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
           LeAudioLtvMap::Parse(public_metadata.data(), public_metadata.size(),
                                is_public_metadata_valid);
       if (!is_public_metadata_valid) {
-        LOG_ERROR("Invalid public metadata provided.");
+        log::error("Invalid public metadata provided.");
         return;
       }
       PublicBroadcastAnnouncementData pb_announcement =
@@ -361,11 +421,39 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
           broadcast_id, broadcast_name, pb_announcement);
     }
 
+    auto& subgroup_configs = broadcasts_[broadcast_id]->GetCodecConfig();
     BasicAudioAnnouncementData announcement =
-        prepareBasicAnnouncement(codec_config, subgroup_ltvs);
+        prepareBasicAnnouncement(subgroup_configs, subgroup_ltvs);
 
     broadcasts_[broadcast_id]->UpdateBroadcastAnnouncement(
         std::move(announcement));
+  }
+
+  /* Choose the dominating audio context when multiple contexts are mixed */
+  LeAudioContextType ChooseConfigurationContextType(
+      AudioContexts audio_contexts) {
+    log::debug("Got contexts={}", bluetooth::common::ToString(audio_contexts));
+
+    /* Prioritize the most common use cases. */
+    if (audio_contexts.any()) {
+      LeAudioContextType context_priority_list[] = {
+          LeAudioContextType::LIVE,          LeAudioContextType::GAME,
+          LeAudioContextType::MEDIA,         LeAudioContextType::EMERGENCYALARM,
+          LeAudioContextType::ALERTS,        LeAudioContextType::INSTRUCTIONAL,
+          LeAudioContextType::NOTIFICATIONS, LeAudioContextType::SOUNDEFFECTS,
+      };
+      for (auto ct : context_priority_list) {
+        if (audio_contexts.test(ct)) {
+          log::debug("Selecting configuration context type: {}", ToString(ct));
+          return ct;
+        }
+      }
+    }
+
+    auto fallback_config = LeAudioContextType::MEDIA;
+    log::debug("Selecting configuration context type: {}",
+               ToString(fallback_config));
+    return fallback_config;
   }
 
   void CreateAudioBroadcast(
@@ -379,7 +467,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     std::vector<LeAudioLtvMap> subgroup_ltvs;
 
     if (queued_create_broadcast_request_) {
-      LOG_ERROR("Not processed yet queued broadcast");
+      log::error("Not processed yet queued broadcast");
       callbacks_->OnBroadcastCreated(bluetooth::le_audio::kBroadcastIdInvalid,
                                      false);
       return;
@@ -391,7 +479,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       public_ltv = LeAudioLtvMap::Parse(
           public_metadata.data(), public_metadata.size(), is_metadata_valid);
       if (!is_metadata_valid) {
-        LOG_ERROR("Invalid metadata provided.");
+        log::error("Invalid metadata provided.");
         callbacks_->OnBroadcastCreated(bluetooth::le_audio::kBroadcastIdInvalid,
                                        false);
         return;
@@ -434,7 +522,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       bool is_metadata_valid;
       auto ltv = LeAudioLtvMap::Parse(metadata.data(), metadata.size(), is_metadata_valid);
       if (!is_metadata_valid) {
-        LOG_ERROR("Invalid metadata provided.");
+        log::error("Invalid metadata provided.");
         callbacks_->OnBroadcastCreated(bluetooth::le_audio::kBroadcastIdInvalid,
                                        false);
         return;
@@ -442,11 +530,12 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
 
       if (stack_config_get_interface()
               ->get_pts_force_le_audio_multiple_contexts_metadata()) {
-        auto stream_context_vec = ltv.Find(
-            le_audio::types::kLeAudioMetadataTypeStreamingAudioContext);
+        auto stream_context_vec =
+            ltv.Find(bluetooth::le_audio::types::
+                         kLeAudioMetadataTypeStreamingAudioContext);
         if (stream_context_vec) {
           if (stream_context_vec.value().size() < 2) {
-            LOG_ERROR("kLeAudioMetadataTypeStreamingAudioContext size < 2");
+            log::error("kLeAudioMetadataTypeStreamingAudioContext size < 2");
             callbacks_->OnBroadcastCreated(
                 bluetooth::le_audio::kBroadcastIdInvalid, false);
             return;
@@ -457,10 +546,11 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       }
 
       auto stream_context_vec =
-          ltv.Find(le_audio::types::kLeAudioMetadataTypeStreamingAudioContext);
+          ltv.Find(bluetooth::le_audio::types::
+                       kLeAudioMetadataTypeStreamingAudioContext);
       if (stream_context_vec) {
         if (stream_context_vec.value().size() < 2) {
-          LOG_ERROR("kLeAudioMetadataTypeStreamingAudioContext size < 2");
+          log::error("kLeAudioMetadataTypeStreamingAudioContext size < 2");
           callbacks_->OnBroadcastCreated(
               bluetooth::le_audio::kBroadcastIdInvalid, false);
           return;
@@ -474,46 +564,51 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       auto ccid_vec =
           ContentControlIdKeeper::GetInstance()->GetAllCcids(context_type);
       if (!ccid_vec.empty()) {
-        ltv.Add(le_audio::types::kLeAudioMetadataTypeCcidList, ccid_vec);
+        ltv.Add(bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList,
+                ccid_vec);
       }
 
       // Push to subgroup ltvs
       subgroup_ltvs.push_back(ltv);
     }
 
-    auto codec_qos_pair = [](AudioContexts context_type)
-        -> std::optional<
-            std::pair<const BroadcastCodecWrapper, const BroadcastQosConfig>> {
-      if (CodecManager::GetInstance()->GetCodecLocation() ==
-          CodecLocation::ADSP) {
-        auto offload_config =
-            CodecManager::GetInstance()->GetBroadcastOffloadConfig();
-        if (offload_config == nullptr) {
-          return std::nullopt;
-        }
-        return std::make_pair(
-            BroadcastCodecWrapper(
-                {.coding_format = le_audio::types::kLeAudioCodingFormatLC3,
-                 .vendor_company_id =
-                     le_audio::types::kLeAudioVendorCompanyIdUndefined,
-                 .vendor_codec_id =
-                     le_audio::types::kLeAudioVendorCodecIdUndefined},
-                {.num_channels =
-                     static_cast<uint8_t>(offload_config->stream_map.size()),
-                 .sample_rate = offload_config->sampling_rate,
-                 .bits_per_sample = offload_config->bits_per_sample,
-                 .data_interval_us = offload_config->frame_duration},
-                offload_config->octets_per_frame),
-            BroadcastQosConfig(offload_config->retransmission_number,
-                               offload_config->max_transport_latency));
-      } else {
-        return le_audio::broadcaster::getStreamConfigForContext(context_type);
-      }
-    }(context_type);
+    // Prepare the configuration requirements for each subgroup.
+    // Note: For now, each subgroup contains exactly the same content, but
+    // differs in codec configuration.
+    CodecManager::BroadcastConfigurationRequirements requirements;
+    for (auto& idx : subgroup_quality) {
+      requirements.subgroup_quality.push_back(
+          {ChooseConfigurationContextType(context_type), idx});
+    }
 
-    if (!codec_qos_pair) {
-      LOG_ERROR("No valid broadcast offload config");
+    if (!le_audio_source_hal_client_) {
+      le_audio_source_hal_client_ =
+          LeAudioSourceAudioHalClient::AcquireBroadcast();
+      if (!le_audio_source_hal_client_) {
+        log::error("Could not acquire le audio");
+        return;
+      }
+      auto result =
+          CodecManager::GetInstance()->UpdateActiveBroadcastAudioHalClient(
+              le_audio_source_hal_client_.get(), true);
+      log::assert_that(result, "Could not update session in codec manager");
+    }
+
+    auto config = CodecManager::GetInstance()->GetBroadcastConfig(requirements);
+    if (!config) {
+      log::error("No valid broadcast offload config");
+      callbacks_->OnBroadcastCreated(bluetooth::le_audio::kBroadcastIdInvalid,
+                                     false);
       return;
+    }
+
+    if (public_features & bluetooth::le_audio::kLeAudioQualityHigh &&
+        config->GetSamplingFrequencyHzMax() < 48000) {
+      log::warn(
+          "Preferred quality isn't supported. Fallback to standard audio "
+          "quality");
+      public_features &= (0xFFFF & ~bluetooth::le_audio::kLeAudioQualityHigh);
+      public_features |= bluetooth::le_audio::kLeAudioQualityStandard;
     }
 
     BroadcastStateMachineConfig msg = {
@@ -521,10 +616,9 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
         .broadcast_id = broadcast_id,
         .broadcast_name = broadcast_name,
         .streaming_phy = GetStreamingPhy(),
-        .codec_wrapper = codec_qos_pair->first,
-        .qos_config = codec_qos_pair->second,
+        .config = *config,
         .announcement =
-            prepareBasicAnnouncement(codec_qos_pair->first, subgroup_ltvs),
+            prepareBasicAnnouncement(config->subgroups, subgroup_ltvs),
         .broadcast_code = std::move(broadcast_code)};
     if (is_public) {
       msg.public_announcement =
@@ -533,9 +627,9 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
 
     // If there is ongoing ISO traffic, it might be a unicast stream
     if (is_iso_running_) {
-      LOG_INFO("Iso is still active. Queueing broadcast creation for later.");
+      log::info("Iso is still active. Queueing broadcast creation for later.");
       if (queued_create_broadcast_request_) {
-        LOG_WARN(
+        log::warn(
             "Already queued. Updating queued broadcast creation with the new "
             "configuration.");
       }
@@ -547,7 +641,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
   }
 
   void InstantiateBroadcast(BroadcastStateMachineConfig msg) {
-    LOG_INFO("CreateAudioBroadcast");
+    log::info("CreateAudioBroadcast");
 
     /* Put the new broadcast on the initialization queue, notify the error and
      * drop the pending broadcast data if init fails.
@@ -562,16 +656,16 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
   }
 
   void SuspendAudioBroadcast(uint32_t broadcast_id) override {
-    LOG_INFO("broadcast_id=%d", broadcast_id);
+    log::info("broadcast_id={}", broadcast_id);
 
     if (broadcasts_.count(broadcast_id) != 0) {
-      LOG_INFO("Stopping AudioHalClient");
+      log::info("Stopping AudioHalClient");
       if (le_audio_source_hal_client_) le_audio_source_hal_client_->Stop();
       broadcasts_[broadcast_id]->SetMuted(true);
       broadcasts_[broadcast_id]->ProcessMessage(
           BroadcastStateMachine::Message::SUSPEND, nullptr);
     } else {
-      LOG_ERROR("No such broadcast_id=%d", broadcast_id);
+      log::error("No such broadcast_id={}", broadcast_id);
     }
   }
 
@@ -588,10 +682,10 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
   }
 
   void StartAudioBroadcast(uint32_t broadcast_id) override {
-    LOG_INFO("Starting broadcast_id=%d", broadcast_id);
+    log::info("Starting broadcast_id={}", broadcast_id);
 
     if (queued_start_broadcast_request_) {
-      LOG_ERROR("Not processed yet start broadcast request");
+      log::error("Not processed yet start broadcast request");
       return;
     }
 
@@ -601,7 +695,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     }
 
     if (IsAnyoneStreaming()) {
-      LOG_ERROR("Stop the other broadcast first!");
+      log::error("Stop the other broadcast first!");
       return;
     }
 
@@ -610,37 +704,52 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
         le_audio_source_hal_client_ =
             LeAudioSourceAudioHalClient::AcquireBroadcast();
         if (!le_audio_source_hal_client_) {
-          LOG_ERROR("Could not acquire le audio");
+          log::error("Could not acquire le audio");
           return;
         }
+
+        auto result =
+            CodecManager::GetInstance()->UpdateActiveBroadcastAudioHalClient(
+                le_audio_source_hal_client_.get(), true);
+        log::assert_that(result, "Could not update session in codec manager");
       }
 
       broadcasts_[broadcast_id]->ProcessMessage(
           BroadcastStateMachine::Message::START, nullptr);
-      le_audio::MetricsCollector::Get()->OnBroadcastStateChanged(true);
+      bluetooth::le_audio::MetricsCollector::Get()->OnBroadcastStateChanged(
+          true);
     } else {
-      LOG_ERROR("No such broadcast_id=%d", broadcast_id);
+      log::error("No such broadcast_id={}", broadcast_id);
     }
   }
 
   void StopAudioBroadcast(uint32_t broadcast_id) override {
     if (broadcasts_.count(broadcast_id) == 0) {
-      LOG_ERROR("no such broadcast_id=%d", broadcast_id);
+      log::error("no such broadcast_id={}", broadcast_id);
       return;
     }
 
-    LOG_INFO("Stopping AudioHalClient, broadcast_id=%d", broadcast_id);
+    log::info("Stopping AudioHalClient, broadcast_id={}", broadcast_id);
 
     if (le_audio_source_hal_client_) le_audio_source_hal_client_->Stop();
     broadcasts_[broadcast_id]->SetMuted(true);
     broadcasts_[broadcast_id]->ProcessMessage(
         BroadcastStateMachine::Message::STOP, nullptr);
-    le_audio::MetricsCollector::Get()->OnBroadcastStateChanged(false);
+    bluetooth::le_audio::MetricsCollector::Get()->OnBroadcastStateChanged(
+        false);
   }
 
   void DestroyAudioBroadcast(uint32_t broadcast_id) override {
-    LOG_INFO("Destroying broadcast_id=%d", broadcast_id);
+    log::info("Destroying broadcast_id={}", broadcast_id);
     broadcasts_.erase(broadcast_id);
+
+    if (broadcasts_.empty() && le_audio_source_hal_client_) {
+      auto result =
+          CodecManager::GetInstance()->UpdateActiveBroadcastAudioHalClient(
+              le_audio_source_hal_client_.get(), false);
+      log::assert_that(result, "Could not update session in codec manager");
+      le_audio_source_hal_client_.reset();
+    }
   }
 
   std::optional<bluetooth::le_audio::BroadcastMetadata> GetBroadcastMetadataOpt(
@@ -668,13 +777,13 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
 
   void GetBroadcastMetadata(uint32_t broadcast_id) override {
     if (broadcasts_.count(broadcast_id) == 0) {
-      LOG_ERROR("No such broadcast_id=%d", broadcast_id);
+      log::error("No such broadcast_id={}", broadcast_id);
       return;
     }
 
     auto meta = GetBroadcastMetadataOpt(broadcast_id);
     if (!meta) {
-      LOG_ERROR("No metadata for broadcast_id=%d", broadcast_id);
+      log::error("No metadata for broadcast_id={}", broadcast_id);
       return;
     }
     callbacks_->OnBroadcastMetadataChanged(broadcast_id,
@@ -696,7 +805,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
                           RawAddress /* addr */, bool /* is_local */)>
           cb) override {
     if (broadcasts_.count(broadcast_id) == 0) {
-      LOG_ERROR("No such broadcast_id=%d", broadcast_id);
+      log::error("No such broadcast_id={}", broadcast_id);
       std::move(cb).Run(broadcast_id, addr_type, addr, false);
       return;
     }
@@ -736,14 +845,16 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
   void OnSetupIsoDataPath(uint8_t status, uint16_t conn_handle,
                           uint8_t big_handle) override {
     auto broadcast_id = BroadcastIdFromBigHandle(big_handle);
-    CHECK(broadcasts_.count(broadcast_id) != 0);
+    log::assert_that(broadcasts_.count(broadcast_id) != 0,
+                     "assert failed: broadcasts_.count(broadcast_id) != 0");
     broadcasts_[broadcast_id]->OnSetupIsoDataPath(status, conn_handle);
   }
 
   void OnRemoveIsoDataPath(uint8_t status, uint16_t conn_handle,
                            uint8_t big_handle) override {
     auto broadcast_id = BroadcastIdFromBigHandle(big_handle);
-    CHECK(broadcasts_.count(broadcast_id) != 0);
+    log::assert_that(broadcasts_.count(broadcast_id) != 0,
+                     "assert failed: broadcasts_.count(broadcast_id) != 0");
     broadcasts_[broadcast_id]->OnRemoveIsoDataPath(status, conn_handle);
   }
 
@@ -752,7 +863,8 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       case bluetooth::hci::iso_manager::kIsoEventBigOnCreateCmpl: {
         auto* evt = static_cast<big_create_cmpl_evt*>(data);
         auto broadcast_id = BroadcastIdFromBigHandle(evt->big_id);
-        CHECK(broadcasts_.count(broadcast_id) != 0);
+        log::assert_that(broadcasts_.count(broadcast_id) != 0,
+                         "assert failed: broadcasts_.count(broadcast_id) != 0");
         broadcasts_[broadcast_id]->HandleHciEvent(HCI_BLE_CREATE_BIG_CPL_EVT,
                                                   evt);
 
@@ -760,32 +872,37 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       case bluetooth::hci::iso_manager::kIsoEventBigOnTerminateCmpl: {
         auto* evt = static_cast<big_terminate_cmpl_evt*>(data);
         auto broadcast_id = BroadcastIdFromBigHandle(evt->big_id);
-        CHECK(broadcasts_.count(broadcast_id) != 0);
+        log::assert_that(broadcasts_.count(broadcast_id) != 0,
+                         "assert failed: broadcasts_.count(broadcast_id) != 0");
         broadcasts_[broadcast_id]->HandleHciEvent(HCI_BLE_TERM_BIG_CPL_EVT,
                                                   evt);
+        auto result =
+            CodecManager::GetInstance()->UpdateActiveBroadcastAudioHalClient(
+                le_audio_source_hal_client_.get(), false);
+        log::assert_that(result, "Could not update session in codec manager");
         le_audio_source_hal_client_.reset();
       } break;
       default:
-        LOG_ERROR("Invalid event=%d", event);
+        log::error("Invalid event={}", event);
     }
   }
 
   void IsoTrafficEventCb(bool is_active) {
     is_iso_running_ = is_active;
-    LOG_INFO("is_iso_running: %d", is_iso_running_);
+    log::info("is_iso_running: {}", is_iso_running_);
     if (!is_iso_running_) {
       if (queued_start_broadcast_request_) {
         auto broadcast_id = *queued_start_broadcast_request_;
         queued_start_broadcast_request_ = std::nullopt;
 
-        LOG_INFO("Start queued broadcast.");
+        log::info("Start queued broadcast.");
         StartAudioBroadcast(broadcast_id);
       }
       if (queued_create_broadcast_request_) {
         auto broadcast_msg = std::move(*queued_create_broadcast_request_);
         queued_create_broadcast_request_ = std::nullopt;
 
-        LOG_INFO("Create queued broadcast.");
+        log::info("Create queued broadcast.");
         InstantiateBroadcast(std::move(broadcast_msg));
       }
     }
@@ -813,17 +930,21 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
           instance->pending_broadcasts_.end(), [broadcast_id](auto& sm) {
             return (sm->GetBroadcastId() == broadcast_id);
           });
-      LOG_ASSERT(pending_broadcast != instance->pending_broadcasts_.end());
-      LOG_ASSERT(instance->broadcasts_.count(broadcast_id) == 0);
+      log::assert_that(pending_broadcast != instance->pending_broadcasts_.end(),
+                       "assert failed: pending_broadcast != "
+                       "instance->pending_broadcasts_.end()");
+      log::assert_that(
+          instance->broadcasts_.count(broadcast_id) == 0,
+          "assert failed: instance->broadcasts_.count(broadcast_id) == 0");
 
       if (initialized) {
         const uint32_t broadcast_id = (*pending_broadcast)->GetBroadcastId();
-        LOG_INFO("broadcast_id=%d state=%s", broadcast_id,
-                 ToString((*pending_broadcast)->GetState()).c_str());
+        log::info("broadcast_id={} state={}", broadcast_id,
+                  ToString((*pending_broadcast)->GetState()));
 
         instance->broadcasts_[broadcast_id] = std::move(*pending_broadcast);
       } else {
-        LOG_ERROR("Failed creating broadcast!");
+        log::error("Failed creating broadcast!");
       }
       instance->pending_broadcasts_.erase(pending_broadcast);
       instance->callbacks_->OnBroadcastCreated(broadcast_id, initialized);
@@ -841,10 +962,9 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     static int getStreamerCount() {
       return std::count_if(instance->broadcasts_.begin(),
                            instance->broadcasts_.end(), [](auto const& sm) {
-                             LOG_VERBOSE(
-                                 "broadcast_id=%d, state=%s",
-                                 sm.second->GetBroadcastId(),
-                                 ToString(sm.second->GetState()).c_str());
+                             log::verbose("broadcast_id={}, state={}",
+                                          sm.second->GetBroadcastId(),
+                                          ToString(sm.second->GetState()));
                              return sm.second->GetState() ==
                                     BroadcastStateMachine::State::STREAMING;
                            });
@@ -853,8 +973,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     void OnStateMachineEvent(uint32_t broadcast_id,
                              BroadcastStateMachine::State state,
                              const void* data) override {
-      LOG_INFO("broadcast_id=%d state=%s", broadcast_id,
-               ToString(state).c_str());
+      log::info("broadcast_id={} state={}", broadcast_id, ToString(state));
 
       switch (state) {
         case BroadcastStateMachine::State::STOPPED:
@@ -868,20 +987,18 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
           break;
         case BroadcastStateMachine::State::STREAMING:
           if (getStreamerCount() == 1) {
-            LOG_INFO("Starting AudioHalClient");
+            log::info("Starting AudioHalClient");
 
             if (instance->broadcasts_.count(broadcast_id) != 0) {
               const auto& broadcast = instance->broadcasts_.at(broadcast_id);
+              const auto& broadcast_config = broadcast->GetBroadcastConfig();
 
-              // Reconfigure encoder instance for the new stream requirements
-              audio_receiver_.setCurrentCodecConfig(
-                  broadcast->GetCodecConfig());
-              audio_receiver_.CheckAndReconfigureEncoders();
+              // Reconfigure encoder instances for the new stream requirements
+              audio_receiver_.CheckAndReconfigureEncoders(broadcast_config);
 
               broadcast->SetMuted(false);
-              auto cfg = static_cast<const LeAudioCodecConfiguration*>(data);
               auto is_started = instance->le_audio_source_hal_client_->Start(
-                  *cfg, &audio_receiver_);
+                  broadcast_config.GetAudioHalClientConfig(), &audio_receiver_);
               if (!is_started) {
                 /* Audio Source setup failed - stop the broadcast */
                 instance->StopAudioBroadcast(broadcast_id);
@@ -924,9 +1041,9 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
         instance->pending_broadcasts_.back()->OnCreateAnnouncement(
             advertiser_id, tx_power, status);
       } else {
-        LOG_WARN(
-            "Ignored OnAdvertisingSetStarted callback reg_id:%d "
-            "advertiser_id:%d",
+        log::warn(
+            "Ignored OnAdvertisingSetStarted callback reg_id:{} "
+            "advertiser_id:{}",
             reg_id, advertiser_id);
       }
     }
@@ -943,60 +1060,60 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
       if (iter != instance->broadcasts_.cend()) {
         iter->second->OnEnableAnnouncement(enable, status);
       } else {
-        LOG_WARN("Ignored OnAdvertisingEnabled callback advertiser_id:%d",
-                 advertiser_id);
+        log::warn("Ignored OnAdvertisingEnabled callback advertiser_id:{}",
+                  advertiser_id);
       }
     }
 
     void OnAdvertisingDataSet(uint8_t advertiser_id, uint8_t status) {
-      LOG_WARN(
+      log::warn(
           "Not being used, ignored OnAdvertisingDataSet callback "
-          "advertiser_id:%d",
+          "advertiser_id:{}",
           advertiser_id);
     }
 
     void OnScanResponseDataSet(uint8_t advertiser_id, uint8_t status) {
-      LOG_WARN(
+      log::warn(
           "Not being used, ignored OnScanResponseDataSet callback "
-          "advertiser_id:%d",
+          "advertiser_id:{}",
           advertiser_id);
     }
 
     void OnAdvertisingParametersUpdated(uint8_t advertiser_id, int8_t tx_power,
                                         uint8_t status) {
-      LOG_WARN(
+      log::warn(
           "Not being used, ignored OnAdvertisingParametersUpdated callback "
-          "advertiser_id:%d",
+          "advertiser_id:{}",
           advertiser_id);
     }
 
     void OnPeriodicAdvertisingParametersUpdated(uint8_t advertiser_id,
                                                 uint8_t status) {
-      LOG_WARN(
+      log::warn(
           "Not being used, ignored OnPeriodicAdvertisingParametersUpdated "
-          "callback advertiser_id:%d",
+          "callback advertiser_id:{}",
           advertiser_id);
     }
 
     void OnPeriodicAdvertisingDataSet(uint8_t advertiser_id, uint8_t status) {
-      LOG_WARN(
+      log::warn(
           "Not being used, ignored OnPeriodicAdvertisingDataSet callback "
-          "advertiser_id:%d",
+          "advertiser_id:{}",
           advertiser_id);
     }
 
     void OnPeriodicAdvertisingEnabled(uint8_t advertiser_id, bool enable,
                                       uint8_t status) {
-      LOG_WARN(
+      log::warn(
           "Not being used, ignored OnPeriodicAdvertisingEnabled callback "
-          "advertiser_id:%d",
+          "advertiser_id:{}",
           advertiser_id);
     }
 
     void OnOwnAddressRead(uint8_t advertiser_id, uint8_t address_type,
                           RawAddress address) {
-      LOG_WARN(
-          "Not being used, ignored OnOwnAddressRead callback advertiser_id:%d",
+      log::warn(
+          "Not being used, ignored OnOwnAddressRead callback advertiser_id:{}",
           advertiser_id);
     }
   } state_machine_adv_callbacks_;
@@ -1004,54 +1121,59 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
   static class LeAudioSourceCallbacksImpl
       : public LeAudioSourceAudioHalClient::Callbacks {
    public:
-    LeAudioSourceCallbacksImpl()
-        : codec_wrapper_(le_audio::broadcaster::getStreamConfigForContext(
-                             AudioContexts(LeAudioContextType::UNSPECIFIED))
-                             .first) {}
+    LeAudioSourceCallbacksImpl() = default;
+    void CheckAndReconfigureEncoders(
+        const BroadcastConfiguration& broadcast_config) {
+      /* TODO: Move software codec instance management to the Codec Manager */
+      if (CodecManager::GetInstance()->GetCodecLocation() ==
+          CodecLocation::ADSP) {
+        return;
+      }
 
-    void CheckAndReconfigureEncoders() {
-      auto const& codec_id = codec_wrapper_.GetLeAudioCodecId();
+      auto codec_config = broadcast_config.GetAudioHalClientConfig();
+
+      /* Note: Currently we support only a single subgroup software encoding.
+       * In future consider mirroring the same data in a different quality
+       * subgroups.
+       */
+      auto const& subgroup_config = broadcast_config.subgroups.at(0);
+
+      auto const& codec_id = subgroup_config.GetLeAudioCodecId();
       /* TODO: We should act smart and reuse current configurations */
       sw_enc_.clear();
-      while (sw_enc_.size() != codec_wrapper_.GetNumChannels()) {
-        auto codec = le_audio::CodecInterface::CreateInstance(codec_id);
+      while (sw_enc_.size() != subgroup_config.GetNumChannelsTotal()) {
+        auto codec =
+            bluetooth::le_audio::CodecInterface::CreateInstance(codec_id);
 
-        auto codec_status =
-            codec->InitEncoder(codec_wrapper_.GetLeAudioCodecConfiguration(),
-                               codec_wrapper_.GetLeAudioCodecConfiguration());
-        if (codec_status != le_audio::CodecInterface::Status::STATUS_OK) {
-          LOG_ERROR("Channel %d codec setup failed with err: %d",
-                    (uint32_t)sw_enc_.size(), codec_status);
+        auto codec_status = codec->InitEncoder(codec_config, codec_config);
+        if (codec_status !=
+            bluetooth::le_audio::CodecInterface::Status::STATUS_OK) {
+          log::error("Channel {} codec setup failed with err: {}",
+                     (uint32_t)sw_enc_.size(), codec_status);
           return;
         }
 
         sw_enc_.emplace_back(std::move(codec));
       }
-    }
 
-    const BroadcastCodecWrapper& getCurrentCodecConfig(void) const {
-      return codec_wrapper_;
-    }
-
-    void setCurrentCodecConfig(BroadcastCodecWrapper const& config) {
-      codec_wrapper_ = config;
+      broadcast_config_ = broadcast_config;
     }
 
     static void sendBroadcastData(
         const std::unique_ptr<BroadcastStateMachine>& broadcast,
-        std::vector<std::unique_ptr<le_audio::CodecInterface>>& encoders) {
+        std::vector<std::unique_ptr<bluetooth::le_audio::CodecInterface>>&
+            encoders) {
       auto const& config = broadcast->GetBigConfig();
       if (config == std::nullopt) {
-        LOG_ERROR(
-            "Broadcast broadcast_id=%d has no valid BIS configurations in "
-            "state=%s",
-            broadcast->GetBroadcastId(),
-            ToString(broadcast->GetState()).c_str());
+        log::error(
+            "Broadcast broadcast_id={} has no valid BIS configurations in "
+            "state={}",
+            broadcast->GetBroadcastId(), ToString(broadcast->GetState()));
         return;
       }
 
       if (config->connection_handles.size() < encoders.size()) {
-        LOG_ERROR("Not enough BIS'es to broadcast all channels!");
+        log::error("Not enough BIS'es to broadcast all channels!");
         return;
       }
 
@@ -1066,18 +1188,30 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     virtual void OnAudioDataReady(const std::vector<uint8_t>& data) override {
       if (!instance) return;
 
-      LOG_VERBOSE("Received %zu bytes.", data.size());
+      log::verbose("Received {} bytes.", data.size());
+
+      if (!broadcast_config_.has_value() ||
+          (broadcast_config_->subgroups.size() == 0)) {
+        log::error("Codec was not configured properly");
+        return;
+      }
+
+      /* Note: Currently we support only a single subgroup.
+       * In future consider mirroring the same data in a different quality
+       * subgroups.
+       */
+      auto const& subgroup_config = broadcast_config_->subgroups.at(0);
 
       /* Constants for the channel data configuration */
-      const auto num_channels = codec_wrapper_.GetNumChannels();
-      const auto bytes_per_sample = (codec_wrapper_.GetBitsPerSample() / 8);
+      const auto num_bis = subgroup_config.GetNumBis();
+      const auto bytes_per_sample = (subgroup_config.GetBitsPerSample() / 8);
 
       /* Prepare encoded data for all channels */
-      for (uint8_t chan = 0; chan < num_channels; ++chan) {
-        auto initial_channel_offset = chan * bytes_per_sample;
-        sw_enc_[chan]->Encode(data.data() + initial_channel_offset,
-                              num_channels,
-                              codec_wrapper_.GetOctetsPerCodecFrame());
+      for (uint8_t bis_idx = 0; bis_idx < num_bis; ++bis_idx) {
+        auto initial_channel_offset = bis_idx * bytes_per_sample;
+        sw_enc_[bis_idx]->Encode(
+            data.data() + initial_channel_offset, num_bis,
+            subgroup_config.GetBisOctetsPerCodecFrame(bis_idx));
       }
 
       /* Currently there is no way to broadcast multiple distinct streams.
@@ -1091,18 +1225,18 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
             !broadcast->IsMuted())
           sendBroadcastData(broadcast, sw_enc_);
       }
-      LOG_VERBOSE("All data sent.");
+      log::verbose("All data sent.");
     }
 
     virtual void OnAudioSuspend(void) override {
-      LOG_INFO();
+      log::info("");
       /* TODO: Should we suspend all broadcasts - remove BIGs? */
       if (instance)
         instance->audio_data_path_state_ = AudioDataPathState::SUSPENDED;
     }
 
     virtual void OnAudioResume(void) override {
-      LOG_INFO();
+      log::info("");
       if (!instance) return;
 
       /* TODO: Should we resume all broadcasts - recreate BIGs? */
@@ -1119,7 +1253,7 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     virtual void OnAudioMetadataUpdate(
         const std::vector<struct playback_track_metadata_v7> source_metadata,
         DsaMode dsa_mode) override {
-      LOG_INFO();
+      log::info("");
       if (!instance) return;
 
       /* TODO: Should we take supported contexts from ASCS? */
@@ -1136,8 +1270,8 @@ class LeAudioBroadcasterImpl : public LeAudioBroadcaster, public BigCallbacks {
     }
 
    private:
-    BroadcastCodecWrapper codec_wrapper_;
-    std::vector<std::unique_ptr<le_audio::CodecInterface>> sw_enc_;
+    std::optional<BroadcastConfiguration> broadcast_config_;
+    std::vector<std::unique_ptr<bluetooth::le_audio::CodecInterface>> sw_enc_;
   } audio_receiver_;
 
   bluetooth::le_audio::LeAudioBroadcasterCallbacks* callbacks_;
@@ -1169,20 +1303,20 @@ void LeAudioBroadcaster::Initialize(
     bluetooth::le_audio::LeAudioBroadcasterCallbacks* callbacks,
     base::Callback<bool()> audio_hal_verifier) {
   std::scoped_lock<std::mutex> lock(instance_mutex);
-  LOG_INFO();
+  log::info("");
   if (instance) {
-    LOG_ERROR("Already initialized");
+    log::error("Already initialized");
     return;
   }
 
-  if (!controller_get_interface()->SupportsBleIsochronousBroadcaster() &&
+  if (!bluetooth::shim::GetController()->SupportsBleIsochronousBroadcaster() &&
       !osi_property_get_bool("persist.bluetooth.fake_iso_support", false)) {
-    LOG_WARN("Isochronous Broadcast not supported by the controller!");
+    log::warn("Isochronous Broadcast not supported by the controller!");
     return;
   }
 
   if (!std::move(audio_hal_verifier).Run()) {
-    LOG_ALWAYS_FATAL("HAL requirements not met. Init aborted.");
+    log::fatal("HAL requirements not met. Init aborted.");
   }
 
   IsoManager::GetInstance()->Start();
@@ -1200,13 +1334,13 @@ void LeAudioBroadcaster::Initialize(
 bool LeAudioBroadcaster::IsLeAudioBroadcasterRunning() { return instance; }
 
 LeAudioBroadcaster* LeAudioBroadcaster::Get(void) {
-  LOG_INFO();
-  CHECK(instance);
+  log::info("");
+  log::assert_that(instance != nullptr, "assert failed: instance != nullptr");
   return instance;
 }
 
 void LeAudioBroadcaster::Stop(void) {
-  LOG_INFO();
+  log::info("");
 
   if (instance) {
     instance->Stop();
@@ -1215,7 +1349,7 @@ void LeAudioBroadcaster::Stop(void) {
 
 void LeAudioBroadcaster::Cleanup(void) {
   std::scoped_lock<std::mutex> lock(instance_mutex);
-  LOG_INFO();
+  log::info("");
 
   if (instance == nullptr) return;
 

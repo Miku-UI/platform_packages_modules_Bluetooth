@@ -24,14 +24,12 @@
 
 #define LOG_TAG "rfcomm"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
-#include <log/log.h>
 
 #include <cstdint>
 
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2c_api.h"
@@ -203,7 +201,10 @@ void rfc_send_buf_uih(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   if (dlci == RFCOMM_MX_DLCI) {
     rfc_check_send_cmd(p_mcb, p_buf);
   } else {
-    L2CA_DataWrite(p_mcb->lcid, p_buf);
+    if (L2CA_DataWrite(p_mcb->lcid, p_buf) != L2CAP_DW_SUCCESS) {
+      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
+                p_mcb->bd_addr, p_mcb->lcid, p_buf->len);
+    }
   }
 }
 
@@ -654,7 +655,7 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
 
   if (!p_rx_frame->ea || !length) {
     log::error("Invalid MX frame ea={}, len={}, bd_addr={}", p_rx_frame->ea,
-               length, ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr));
+               length, p_mcb->bd_addr);
     osi_free(p_buf);
     return;
   }
@@ -680,18 +681,17 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
 
   if (mx_len != length) {
     log::error("Bad MX frame, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb),
-               ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr));
+               p_mcb->bd_addr);
     osi_free(p_buf);
     return;
   }
 
-  log::verbose("type=0x{:02x}, bd_addr={}", p_rx_frame->type,
-               ADDRESS_TO_LOGGABLE_CSTR(p_mcb->bd_addr));
+  log::verbose("type=0x{:02x}, bd_addr={}", p_rx_frame->type, p_mcb->bd_addr);
   switch (p_rx_frame->type) {
     case RFCOMM_MX_PN:
       if (length != RFCOMM_MX_PN_LEN) {
         log::error("Invalid PN length, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb),
-                   ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr));
+                   p_mcb->bd_addr);
         break;
       }
 
@@ -709,7 +709,7 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
           (p_rx_frame->u.pn.mtu < RFCOMM_MIN_MTU) ||
           (p_rx_frame->u.pn.mtu > RFCOMM_MAX_MTU)) {
         log::error("Bad PN frame, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb),
-                   ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr));
+                   p_mcb->bd_addr);
         break;
       }
 

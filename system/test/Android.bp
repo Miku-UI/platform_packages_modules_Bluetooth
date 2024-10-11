@@ -135,6 +135,13 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockBtaRas",
+    srcs: [
+        "mock/mock_bta_ras*.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockBtaScn",
     srcs: [
         "mock/mock_bta_scn.cc",
@@ -181,6 +188,7 @@ filegroup {
         ":TestMockBtaLeAudio",
         ":TestMockBtaLeAudioHalVerifier",
         ":TestMockBtaPan",
+        ":TestMockBtaRas",
         ":TestMockBtaSdp",
         ":TestMockBtaSys",
         ":TestMockBtaVc",
@@ -203,10 +211,8 @@ filegroup {
         "mock/mock_main_shim_acl_api.cc",
         "mock/mock_main_shim_acl_legacy_interface.cc",
         "mock/mock_main_shim_btm_api.cc",
-        "mock/mock_main_shim_controller.cc",
         "mock/mock_main_shim_distance_measurement_manager.cc",
         "mock/mock_main_shim_hci_layer.cc",
-        "mock/mock_main_shim_l2cap_api.cc",
         "mock/mock_main_shim_le_advertising_manager.cc",
         "mock/mock_main_shim_le_scanning_manager.cc",
         "mock/mock_main_shim_metric_id_api.cc",
@@ -334,6 +340,13 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockMainShimStack",
+    srcs: [
+        "mock/mock_main_shim_stack.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockMainShimLeScanning",
     srcs: [
         "mock/mock_main_shim.cc",
@@ -390,6 +403,20 @@ filegroup {
     name: "TestMockStackBtm",
     srcs: [
         "mock/mock_stack_btm*.cc",
+    ],
+}
+
+filegroup {
+    name: "TestMockStackBtmInterface",
+    srcs: [
+        "mock/mock_stack_btm_interface.cc",
+    ],
+}
+
+filegroup {
+    name: "TestMockStackBtmIso",
+    srcs: [
+        "mock/mock_stack_btm_iso.cc",
     ],
 }
 
@@ -628,6 +655,7 @@ cc_test {
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.common-V2-ndk",
         "android.hardware.common.fmq-V1-ndk",
+        "libbluetooth_log",
         "libbt-audio-hal-interface",
     ],
     test_suites: ["general-tests"],

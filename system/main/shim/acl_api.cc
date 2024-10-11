@@ -18,16 +18,20 @@
 
 #include <android_bluetooth_sysprop.h>
 #include <base/location.h>
+#include <com_android_bluetooth_flags.h>
+
 #include <cstdint>
 #include <future>
 #include <optional>
 
 #include "hci/acl_manager.h"
 #include "hci/remote_name_request.h"
+#include "main/shim/acl.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "main/shim/stack.h"
 #include "osi/include/allocator.h"
+#include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/bt_hdr.h"
@@ -35,6 +39,10 @@
 #include "stack/include/main_thread.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
+#ifndef PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED
+#define PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED \
+  "bluetooth.core.gap.le.privacy.own_address_type.enabled"
+#endif
 
 void bluetooth::shim::ACL_CreateClassicConnection(
     const RawAddress& raw_address) {
@@ -72,11 +80,36 @@ void bluetooth::shim::ACL_WriteData(uint16_t handle, BT_HDR* p_buf) {
   osi_free(p_buf);
 }
 
+void bluetooth::shim::ACL_Flush(uint16_t handle) {
+  Stack::GetInstance()->GetAcl()->Flush(handle);
+}
+
+void bluetooth::shim::ACL_SendConnectionParameterUpdateRequest(
+    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
+    uint16_t max_ce_len) {
+  Stack::GetInstance()->GetAcl()->UpdateConnectionParameters(
+      handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
+      min_ce_len, max_ce_len);
+}
+
 void bluetooth::shim::ACL_ConfigureLePrivacy(bool is_le_privacy_enabled) {
   hci::LeAddressManager::AddressPolicy address_policy =
       is_le_privacy_enabled
           ? hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS
           : hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
+  /* This is a Floss only flag. Android determines address policy according to
+   * privacy mode, hence it is not necessary to enable resolvable address with
+   * another sysprop */
+  if (com::android::bluetooth::flags::
+          floss_separate_host_privacy_and_llprivacy()) {
+    address_policy = hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
+    if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED,
+                              is_le_privacy_enabled))
+      address_policy =
+          hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
+  }
+
   hci::AddressWithType empty_address_with_type(
       hci::Address{}, hci::AddressType::RANDOM_DEVICE_ADDRESS);
 
@@ -227,13 +260,10 @@ void bluetooth::shim::ACL_RemoteNameRequest(const RawAddress& addr,
                 base::BindOnce(
                     [](RawAddress addr, hci::ErrorCode status,
                        std::array<uint8_t, 248> name) {
-                      auto p = (uint8_t*)osi_malloc(name.size());
-                      std::copy(name.begin(), name.end(), p);
-
-                      btm_process_remote_name(&addr, p, name.size(),
+                      btm_process_remote_name(&addr, name.data(), name.size(),
                                               static_cast<tHCI_STATUS>(status));
                       btm_sec_rmt_name_request_complete(
-                          &addr, p, static_cast<tHCI_STATUS>(status));
+                          &addr, name.data(), static_cast<tHCI_STATUS>(status));
                     },
                     addr, status, name));
           },

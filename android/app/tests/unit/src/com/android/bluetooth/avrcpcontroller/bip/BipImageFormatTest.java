@@ -22,9 +22,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/**
- * A test suite for the BipImageFormat class
- */
+/** A test suite for the BipImageFormat class */
 @RunWith(AndroidJUnit4.class)
 public class BipImageFormatTest {
     @Test
@@ -81,16 +79,16 @@ public class BipImageFormatTest {
 
     @Test
     public void testParseVariant_withTransformation() {
-        String expected = "<variant encoding=\"JPEG\" pixel=\"1280*1024\""
-                + " transformation=\"stretch fill crop\" />";
+        String expected =
+                "<variant encoding=\"JPEG\" pixel=\"1280*1024\""
+                        + " transformation=\"stretch fill crop\" />";
         BipTransformation trans = new BipTransformation();
         trans.addTransformation(BipTransformation.STRETCH);
         trans.addTransformation(BipTransformation.FILL);
         trans.addTransformation(BipTransformation.CROP);
 
-        BipImageFormat format = null;
-
-        format = BipImageFormat.parseVariant("JPEG", "1280*1024", null, "stretch fill crop");
+        BipImageFormat format =
+                BipImageFormat.parseVariant("JPEG", "1280*1024", null, "stretch fill crop");
         Assert.assertEquals(trans, format.getTransformation());
         Assert.assertEquals(expected, format.toString());
 
@@ -105,16 +103,16 @@ public class BipImageFormatTest {
 
     @Test
     public void testParseVariant_allFields() {
-        String expected = "<variant encoding=\"JPEG\" pixel=\"1280*1024\""
-                + " transformation=\"stretch fill crop\" maxsize=\"1048576\" />";
+        String expected =
+                "<variant encoding=\"JPEG\" pixel=\"1280*1024\""
+                        + " transformation=\"stretch fill crop\" maxsize=\"1048576\" />";
         BipTransformation trans = new BipTransformation();
         trans.addTransformation(BipTransformation.STRETCH);
         trans.addTransformation(BipTransformation.FILL);
         trans.addTransformation(BipTransformation.CROP);
 
-        BipImageFormat format = null;
-
-        format = BipImageFormat.parseVariant("JPEG", "1280*1024", "1048576", "stretch fill crop");
+        BipImageFormat format =
+                BipImageFormat.parseVariant("JPEG", "1280*1024", "1048576", "stretch fill crop");
         Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
         Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
         Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
@@ -145,8 +143,11 @@ public class BipImageFormatTest {
     @Test
     public void testCreateNative_requiredOnly() {
         String expected = "<native encoding=\"JPEG\" pixel=\"1280*1024\" />";
-        BipImageFormat format = BipImageFormat.createNative(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(1280, 1024), -1);
+        BipImageFormat format =
+                BipImageFormat.createNative(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(1280, 1024),
+                        -1);
         Assert.assertEquals(BipImageFormat.FORMAT_NATIVE, format.getType());
         Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
         Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
@@ -159,8 +160,11 @@ public class BipImageFormatTest {
     @Test
     public void testCreateNative_withSize() {
         String expected = "<native encoding=\"JPEG\" pixel=\"1280*1024\" size=\"1048576\" />";
-        BipImageFormat format = BipImageFormat.createNative(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(1280, 1024), 1048576);
+        BipImageFormat format =
+                BipImageFormat.createNative(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(1280, 1024),
+                        1048576);
         Assert.assertEquals(BipImageFormat.FORMAT_NATIVE, format.getType());
         Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
         Assert.assertEquals(BipPixel.createFixed(1280, 1024), format.getPixel());
@@ -173,8 +177,12 @@ public class BipImageFormatTest {
     @Test
     public void testCreateVariant_requiredOnly() {
         String expected = "<variant encoding=\"JPEG\" pixel=\"32*32\" />";
-        BipImageFormat format = BipImageFormat.createVariant(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(32, 32), -1, null);
+        BipImageFormat format =
+                BipImageFormat.createVariant(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(32, 32),
+                        -1,
+                        null);
         Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
         Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
         Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
@@ -186,12 +194,22 @@ public class BipImageFormatTest {
 
     @Test
     public void testCreateVariant_withTransformations() {
-        BipTransformation trans = new BipTransformation(new int[]{BipTransformation.STRETCH,
-                BipTransformation.CROP, BipTransformation.FILL});
-        String expected = "<variant encoding=\"JPEG\" pixel=\"32*32\" "
-                + "transformation=\"stretch fill crop\" />";
-        BipImageFormat format = BipImageFormat.createVariant(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(32, 32), -1, trans);
+        BipTransformation trans =
+                new BipTransformation(
+                        new int[] {
+                            BipTransformation.STRETCH,
+                            BipTransformation.CROP,
+                            BipTransformation.FILL
+                        });
+        String expected =
+                "<variant encoding=\"JPEG\" pixel=\"32*32\" "
+                        + "transformation=\"stretch fill crop\" />";
+        BipImageFormat format =
+                BipImageFormat.createVariant(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(32, 32),
+                        -1,
+                        trans);
         Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
         Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
         Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
@@ -204,8 +222,12 @@ public class BipImageFormatTest {
     @Test
     public void testCreateVariant_withMaxsize() {
         String expected = "<variant encoding=\"JPEG\" pixel=\"32*32\" maxsize=\"123\" />";
-        BipImageFormat format = BipImageFormat.createVariant(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(32, 32), 123, null);
+        BipImageFormat format =
+                BipImageFormat.createVariant(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(32, 32),
+                        123,
+                        null);
         Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
         Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
         Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
@@ -217,12 +239,22 @@ public class BipImageFormatTest {
 
     @Test
     public void testCreateVariant_allFields() {
-        BipTransformation trans = new BipTransformation(new int[]{BipTransformation.STRETCH,
-                BipTransformation.CROP, BipTransformation.FILL});
-        String expected = "<variant encoding=\"JPEG\" pixel=\"32*32\" "
-                + "transformation=\"stretch fill crop\" maxsize=\"123\" />";
-        BipImageFormat format = BipImageFormat.createVariant(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(32, 32), 123, trans);
+        BipTransformation trans =
+                new BipTransformation(
+                        new int[] {
+                            BipTransformation.STRETCH,
+                            BipTransformation.CROP,
+                            BipTransformation.FILL
+                        });
+        String expected =
+                "<variant encoding=\"JPEG\" pixel=\"32*32\" "
+                        + "transformation=\"stretch fill crop\" maxsize=\"123\" />";
+        BipImageFormat format =
+                BipImageFormat.createVariant(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(32, 32),
+                        123,
+                        trans);
         Assert.assertEquals(BipImageFormat.FORMAT_VARIANT, format.getType());
         Assert.assertEquals(new BipEncoding(BipEncoding.JPEG, null), format.getEncoding());
         Assert.assertEquals(BipPixel.createFixed(32, 32), format.getPixel());
@@ -234,58 +266,62 @@ public class BipImageFormatTest {
 
     @Test(expected = ParseException.class)
     public void testParseNative_noEncoding() {
-        BipImageFormat format = BipImageFormat.parseNative(null, "1024*960", "1048576");
+        BipImageFormat.parseNative(null, "1024*960", "1048576");
     }
 
     @Test(expected = ParseException.class)
     public void testParseNative_emptyEncoding() {
-        BipImageFormat format = BipImageFormat.parseNative("", "1024*960", "1048576");
+        BipImageFormat.parseNative("", "1024*960", "1048576");
     }
 
     @Test(expected = ParseException.class)
     public void testParseNative_badEncoding() {
-        BipImageFormat format = BipImageFormat.parseNative("JIF", "1024*960", "1048576");
+        BipImageFormat.parseNative("JIF", "1024*960", "1048576");
     }
 
     @Test(expected = ParseException.class)
     public void testParseNative_noPixel() {
-        BipImageFormat format = BipImageFormat.parseNative("JPEG", null, "1048576");
+        BipImageFormat.parseNative("JPEG", null, "1048576");
     }
 
     @Test(expected = ParseException.class)
     public void testParseNative_emptyPixel() {
-        BipImageFormat format = BipImageFormat.parseNative("JPEG", "", "1048576");
+        BipImageFormat.parseNative("JPEG", "", "1048576");
     }
 
     @Test(expected = ParseException.class)
     public void testParseNative_badPixel() {
-        BipImageFormat format = BipImageFormat.parseNative("JPEG", "abc*123", "1048576");
+        BipImageFormat.parseNative("JPEG", "abc*123", "1048576");
     }
 
     @Test(expected = NullPointerException.class)
     public void testCreateFormat_noEncoding() {
-        BipImageFormat format = BipImageFormat.createNative(null, BipPixel.createFixed(1280, 1024),
-                -1);
+        BipImageFormat.createNative(null, BipPixel.createFixed(1280, 1024), -1);
     }
 
     @Test(expected = NullPointerException.class)
     public void testCreateFormat_noPixel() {
-        BipImageFormat format = BipImageFormat.createNative(new BipEncoding(BipEncoding.JPEG, null),
-                null, -1);
+        BipImageFormat.createNative(new BipEncoding(BipEncoding.JPEG, null), null, -1);
     }
 
     @Test
     public void testEquals_withSameInstance() {
-        BipImageFormat format = BipImageFormat.createNative(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(1280, 1024), -1);
+        BipImageFormat format =
+                BipImageFormat.createNative(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(1280, 1024),
+                        -1);
 
         Assert.assertTrue(format.equals(format));
     }
 
     @Test
     public void testEquals_withDifferentClass() {
-        BipImageFormat format = BipImageFormat.createNative(
-                new BipEncoding(BipEncoding.JPEG, null), BipPixel.createFixed(1280, 1024), -1);
+        BipImageFormat format =
+                BipImageFormat.createNative(
+                        new BipEncoding(BipEncoding.JPEG, null),
+                        BipPixel.createFixed(1280, 1024),
+                        -1);
         String notFormat = "notFormat";
 
         Assert.assertFalse(format.equals(notFormat));

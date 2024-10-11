@@ -47,11 +47,15 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+
+import java.util.concurrent.TimeUnit;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -63,6 +67,9 @@ public class HeadsetClientServiceTest {
     private boolean mIsHeadsetClientServiceStarted;
 
     private static final int STANDARD_WAIT_MILLIS = 1000;
+    private static final int SERVICE_START_WAIT_MILLIS = 100;
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private HeadsetClientStateMachine mStateMachine;
@@ -73,7 +80,6 @@ public class HeadsetClientServiceTest {
     @Before
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
 
         TestUtils.setAdapterService(mAdapterService);
         mIsAdapterServiceSet = true;
@@ -114,16 +120,15 @@ public class HeadsetClientServiceTest {
 
         // Expect send BIEV to state machine
         verify(mStateMachine, timeout(STANDARD_WAIT_MILLIS).times(1))
-                .sendMessage(
-                    eq(HeadsetClientStateMachine.SEND_BIEV),
-                    eq(2),
-                    anyInt());
+                .sendMessage(eq(HeadsetClientStateMachine.SEND_BIEV), eq(2), anyInt());
     }
 
     @Test
     public void testUpdateBatteryLevel() throws Exception {
         startService();
 
+        // Adding a wait to prevent potential failure caused by delayed broadcast intent.
+        TimeUnit.MILLISECONDS.sleep(SERVICE_START_WAIT_MILLIS);
         // Put mock state machine
         BluetoothDevice device =
                 BluetoothAdapter.getDefaultAdapter().getRemoteDevice("00:01:02:03:04:05");
@@ -133,10 +138,7 @@ public class HeadsetClientServiceTest {
 
         // Expect send BIEV to state machine
         verify(mStateMachine, timeout(STANDARD_WAIT_MILLIS).times(1))
-                .sendMessage(
-                    eq(HeadsetClientStateMachine.SEND_BIEV),
-                    eq(2),
-                    anyInt());
+                .sendMessage(eq(HeadsetClientStateMachine.SEND_BIEV), eq(2), anyInt());
     }
 
     @Test

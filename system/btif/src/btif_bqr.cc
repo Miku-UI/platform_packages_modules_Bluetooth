@@ -14,32 +14,35 @@
  * limitations under the License.
  */
 
-#include <base/logging.h>
+#include <bluetooth/log.h>
 #include <fcntl.h>
 #ifdef __ANDROID__
 #include <statslog_bt.h>
 #endif
-#include <bluetooth/log.h>
-#include <stdio.h>
 #include <sys/stat.h>
 
 #include <cerrno>
+#include <cstdint>
 
 #include "btif/include/stack_manager_t.h"
 #include "btif_bqr.h"
 #include "btif_common.h"
 #include "btif_storage.h"
-#include "btm_api.h"
-#include "btm_ble_api.h"
-#include "common/init_flags.h"
 #include "common/leaky_bonded_queue.h"
+#include "common/postable_context.h"
 #include "common/time_util.h"
 #include "core_callbacks.h"
+#include "hci/hci_interface.h"
+#include "hci/hci_packets.h"
 #include "internal_include/bt_trace.h"
+#include "main/shim/entry.h"
 #include "osi/include/properties.h"
+#include "packet/raw_builder.h"
 #include "raw_address.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_api.h"
+#include "stack/include/btm_ble_api.h"
 
 namespace bluetooth {
 namespace bqr {
@@ -48,13 +51,16 @@ using bluetooth::common::LeakyBondedQueue;
 using std::chrono::system_clock;
 
 // The instance of BQR event queue
-static std::unique_ptr<LeakyBondedQueue<BqrVseSubEvt>> kpBqrEventQueue(
-    new LeakyBondedQueue<BqrVseSubEvt>(kBqrEventQueueSize));
+static LeakyBondedQueue<BqrVseSubEvt> kpBqrEventQueue{kBqrEventQueueSize};
 
 static uint16_t vendor_cap_supported_version;
 
 class BluetoothQualityReportInterfaceImpl;
 std::unique_ptr<BluetoothQualityReportInterface> bluetoothQualityReportInstance;
+
+namespace {
+common::PostableContext* to_bind_ = nullptr;
+}
 
 void BqrVseSubEvt::ParseBqrLinkQualityEvt(uint8_t length,
                                           const uint8_t* p_param_buf) {
@@ -126,6 +132,23 @@ void BqrVseSubEvt::ParseBqrLinkQualityEvt(uint8_t length,
     }
   }
 
+  if (vendor_cap_supported_version >= kBqrVersion6_0) {
+    if (length < kLinkQualityParamTotalLen + kISOLinkQualityParamTotalLen +
+                     kVersion5_0ParamsTotalLen + kVersion6_0ParamsTotalLen) {
+      log::warn(
+          "Parameter total length: {} is abnormal. "
+          "vendor_cap_supported_version: {}  (>= kBqrVersion6_0={}), It should "
+          "not be shorter than: {}",
+          length, vendor_cap_supported_version, kBqrVersion6_0,
+          kLinkQualityParamTotalLen + kISOLinkQualityParamTotalLen +
+              kVersion5_0ParamsTotalLen + kVersion6_0ParamsTotalLen);
+    } else {
+      STREAM_TO_UINT32(bqr_link_quality_event_.rx_unreceived_packets,
+                       p_param_buf);
+      STREAM_TO_UINT16(bqr_link_quality_event_.coex_info_mask, p_param_buf);
+    }
+  }
+
   const auto now = system_clock::to_time_t(system_clock::now());
   localtime_r(&now, &tm_timestamp_);
 }
@@ -174,6 +197,9 @@ void BqrVseSubEvt::WriteBtSchedulingTraceLogFile(int fd, uint8_t length,
   BtSchedulingTraceCounter++;
 }
 
+static std::string QualityReportIdToString(uint8_t quality_report_id);
+static std::string PacketTypeToString(uint8_t packet_type);
+
 std::string BqrVseSubEvt::ToString() const {
   std::stringstream ss;
   ss << QualityReportIdToString(bqr_link_quality_event_.quality_report_id)
@@ -221,7 +247,11 @@ std::string BqrVseSubEvt::ToString() const {
   return ss.str();
 }
 
-std::string QualityReportIdToString(uint8_t quality_report_id) {
+// Get a string representation of the Quality Report ID.
+//
+// @param quality_report_id The quality report ID to convert.
+// @return a string representation of the Quality Report ID.
+static std::string QualityReportIdToString(uint8_t quality_report_id) {
   switch (quality_report_id) {
     case QUALITY_REPORT_ID_MONITOR_MODE:
       return "Monitoring";
@@ -240,7 +270,11 @@ std::string QualityReportIdToString(uint8_t quality_report_id) {
   }
 }
 
-std::string PacketTypeToString(uint8_t packet_type) {
+// Get a string representation of the Packet Type.
+//
+// @param packet_type The packet type to convert.
+// @return a string representation of the Packet Type.
+static std::string PacketTypeToString(uint8_t packet_type) {
   switch (packet_type) {
     case PACKET_TYPE_ID:
       return "ID";
@@ -305,17 +339,27 @@ std::string PacketTypeToString(uint8_t packet_type) {
   }
 }
 
-void EnableBtQualityReport(bool is_enable) {
-  log::info("is_enable: {}", logbool(is_enable));
+void register_vse();
+void unregister_vse();
+
+static void ConfigureBqr(const BqrConfiguration& bqr_config);
+
+void EnableBtQualityReport(common::PostableContext* to_bind) {
+  log::info("is_enable: {}", to_bind != nullptr);
+  if (to_bind != nullptr) {
+    to_bind_ = to_bind;
+  }
 
   char bqr_prop_evtmask[PROPERTY_VALUE_MAX] = {0};
   char bqr_prop_interval_ms[PROPERTY_VALUE_MAX] = {0};
   char bqr_prop_vnd_quality_mask[PROPERTY_VALUE_MAX] = {0};
   char bqr_prop_vnd_trace_mask[PROPERTY_VALUE_MAX] = {0};
+  char bqr_prop_interval_multiple[PROPERTY_VALUE_MAX] = {0};
   osi_property_get(kpPropertyEventMask, bqr_prop_evtmask, "");
   osi_property_get(kpPropertyMinReportIntervalMs, bqr_prop_interval_ms, "");
   osi_property_get(kpPropertyVndQualityMask, bqr_prop_vnd_quality_mask, "");
   osi_property_get(kpPropertyVndTraceMask, bqr_prop_vnd_trace_mask, "");
+  osi_property_get(kpPropertyIntervalMultiple, bqr_prop_interval_multiple, "");
 
   if (strlen(bqr_prop_evtmask) == 0 || strlen(bqr_prop_interval_ms) == 0) {
     log::warn(
@@ -327,7 +371,7 @@ void EnableBtQualityReport(bool is_enable) {
 
   BqrConfiguration bqr_config = {};
 
-  if (is_enable) {
+  if (to_bind) {
     bqr_config.report_action = REPORT_ACTION_ADD;
     bqr_config.quality_event_mask =
         static_cast<uint32_t>(atoi(bqr_prop_evtmask));
@@ -337,55 +381,101 @@ void EnableBtQualityReport(bool is_enable) {
         static_cast<uint32_t>(atoi(bqr_prop_vnd_quality_mask));
     bqr_config.vnd_trace_mask =
         static_cast<uint32_t>(atoi(bqr_prop_vnd_trace_mask));
+    bqr_config.report_interval_multiple =
+        static_cast<uint32_t>(atoi(bqr_prop_interval_multiple));
+    register_vse();
+    kpBqrEventQueue.Clear();
   } else {
     bqr_config.report_action = REPORT_ACTION_CLEAR;
     bqr_config.quality_event_mask = kQualityEventMaskAllOff;
     bqr_config.minimum_report_interval_ms = kMinReportIntervalNoLimit;
     bqr_config.vnd_quality_mask = 0;
     bqr_config.vnd_trace_mask = 0;
+    bqr_config.report_interval_multiple = 0;
+    unregister_vse();
   }
 
   tBTM_BLE_VSC_CB cmn_vsc_cb;
   BTM_BleGetVendorCapabilities(&cmn_vsc_cb);
   vendor_cap_supported_version = cmn_vsc_cb.version_supported;
 
-  log::info("Event Mask: {}, Interval: {}, vendor_cap_supported_version: {}",
-            loghex(bqr_config.quality_event_mask),
-            bqr_config.minimum_report_interval_ms,
-            vendor_cap_supported_version);
+  log::info(
+      "Event Mask: 0x{:x}, Interval: {}, Multiple: {}, "
+      "vendor_cap_supported_version: {}",
+      bqr_config.quality_event_mask, bqr_config.minimum_report_interval_ms,
+      bqr_config.report_interval_multiple, vendor_cap_supported_version);
   ConfigureBqr(bqr_config);
 }
 
+static void BqrVscCompleteCallback(hci::CommandCompleteView complete);
+
+// Configure Bluetooth Quality Report setting to the Bluetooth controller.
+//
+// @param bqr_config The struct of configuration parameters.
 void ConfigureBqr(const BqrConfiguration& bqr_config) {
-  if (bqr_config.report_action > REPORT_ACTION_CLEAR ||
-      bqr_config.quality_event_mask > kQualityEventMaskAll ||
-      bqr_config.minimum_report_interval_ms > kMinReportIntervalMaxMs) {
-    log::fatal("Invalid Parameter, Action: {}, Mask: {}, Interval: {}",
-               bqr_config.report_action, loghex(bqr_config.quality_event_mask),
-               bqr_config.minimum_report_interval_ms);
-    return;
+  if (vendor_cap_supported_version >= kBqrVersion6_0) {
+    if (bqr_config.report_action > REPORT_ACTION_QUERY ||
+        bqr_config.quality_event_mask > kQualityEventMaskAll ||
+        bqr_config.minimum_report_interval_ms > kMinReportIntervalMaxMs) {
+      log::fatal(
+          "Invalid Parameter, Action: {}, Mask: 0x{:x}, Interval: {} Multiple: "
+          "{}",
+          bqr_config.report_action, bqr_config.quality_event_mask,
+          bqr_config.minimum_report_interval_ms,
+          bqr_config.report_interval_multiple);
+      return;
+    } else {
+      if (bqr_config.report_action > REPORT_ACTION_CLEAR ||
+          bqr_config.quality_event_mask > kQualityEventMaskAll ||
+          bqr_config.minimum_report_interval_ms > kMinReportIntervalMaxMs) {
+        log::fatal("Invalid Parameter, Action: {}, Mask: 0x{:x}, Interval: {}",
+                   bqr_config.report_action, bqr_config.quality_event_mask,
+                   bqr_config.minimum_report_interval_ms);
+        return;
+      }
+    }
   }
 
-  log::info("Action: {}, Mask: {}, Interval: {}",
-            loghex(static_cast<uint8_t>(bqr_config.report_action)),
-            loghex(bqr_config.quality_event_mask),
-            bqr_config.minimum_report_interval_ms);
+  log::info("Action: 0x{:x}, Mask: 0x{:x}, Interval: {} Multiple: {}",
+            static_cast<uint8_t>(bqr_config.report_action),
+            bqr_config.quality_event_mask,
+            bqr_config.minimum_report_interval_ms,
+            bqr_config.report_interval_multiple);
 
-  uint8_t param[sizeof(BqrConfiguration)];
-  uint8_t* p_param = param;
-  UINT8_TO_STREAM(p_param, bqr_config.report_action);
-  UINT32_TO_STREAM(p_param, bqr_config.quality_event_mask);
-  UINT16_TO_STREAM(p_param, bqr_config.minimum_report_interval_ms);
+  auto payload = std::make_unique<packet::RawBuilder>();
+  payload->AddOctets1(bqr_config.report_action);
+  payload->AddOctets4(bqr_config.quality_event_mask);
+  payload->AddOctets2(bqr_config.minimum_report_interval_ms);
   if (vendor_cap_supported_version >= kBqrVndLogVersion) {
-    UINT32_TO_STREAM(p_param, bqr_config.vnd_quality_mask);
-    UINT32_TO_STREAM(p_param, bqr_config.vnd_trace_mask);
+    payload->AddOctets4(bqr_config.vnd_quality_mask);
+    payload->AddOctets4(bqr_config.vnd_trace_mask);
+  }
+  if (vendor_cap_supported_version >= kBqrVersion6_0) {
+    payload->AddOctets4(bqr_config.report_interval_multiple);
   }
 
-  BTM_VendorSpecificCommand(HCI_CONTROLLER_BQR, p_param - param, param,
-                            BqrVscCompleteCallback);
+  shim::GetHciLayer()->EnqueueCommand(
+      hci::CommandBuilder::Create(hci::OpCode::CONTROLLER_BQR,
+                                  std::move(payload)),
+      to_bind_->BindOnce(BqrVscCompleteCallback));
 }
 
-void BqrVscCompleteCallback(tBTM_VSC_CMPL* p_vsc_cmpl_params) {
+static void ConfigureBqrCmpl(uint32_t current_evt_mask);
+
+// Callback invoked on completion of vendor specific Bluetooth Quality Report
+// command.
+//
+// @param p_vsc_cmpl_params A pointer to the parameters contained in the vendor
+//   specific command complete event.
+static void BqrVscCompleteCallback(hci::CommandCompleteView complete) {
+  std::vector<uint8_t> payload_vector{complete.GetPayload().begin(),
+                                      complete.GetPayload().end()};
+  tBTM_VSC_CMPL vsc_cmpl_params = {
+      .opcode = static_cast<uint16_t>(complete.GetCommandOpCode()),
+      .param_len = static_cast<uint16_t>(payload_vector.size()),
+      .p_param_buf = payload_vector.data()};
+  tBTM_VSC_CMPL* p_vsc_cmpl_params = &vsc_cmpl_params;
+
   if (p_vsc_cmpl_params->param_len < 1) {
     log::error("The length of returned parameters is less than 1");
     return;
@@ -396,19 +486,26 @@ void BqrVscCompleteCallback(tBTM_VSC_CMPL* p_vsc_cmpl_params) {
   uint8_t command_complete_param_len = 5;
   uint32_t current_vnd_quality_mask = 0;
   uint32_t current_vnd_trace_mask = 0;
+  uint32_t bqr_report_interval = 0;
   // [Return Parameter]         | [Size]   | [Purpose]
   // Status                     | 1 octet  | Command complete status
   // Current_Quality_Event_Mask | 4 octets | Indicates current bit mask setting
   // Vendor_Specific_Quality_Mask | 4 octets | vendor quality bit mask setting
   // Vendor_Specific_Trace_Mask | 4 octets | vendor trace bit mask setting
+  // bqr_report_interval | 4 octets | report interval from controller setting
+
   STREAM_TO_UINT8(status, p_event_param_buf);
   if (status != HCI_SUCCESS) {
-    log::error("Fail to configure BQR. status: {}", loghex(status));
+    log::error("Fail to configure BQR. status: 0x{:x}", status);
     return;
   }
 
   if (vendor_cap_supported_version >= kBqrVndLogVersion) {
     command_complete_param_len = 13;
+  }
+
+  if (vendor_cap_supported_version >= kBqrVersion6_0) {
+    command_complete_param_len = 17;
   }
 
   if (p_vsc_cmpl_params->param_len != command_complete_param_len) {
@@ -425,17 +522,21 @@ void BqrVscCompleteCallback(tBTM_VSC_CMPL* p_vsc_cmpl_params) {
     STREAM_TO_UINT32(current_vnd_trace_mask, p_event_param_buf);
   }
 
-  log::info("current event mask: {}, vendor quality: {}, vendor trace: {}",
-            loghex(current_quality_event_mask),
-            loghex(current_vnd_quality_mask), loghex(current_vnd_trace_mask));
+  if (vendor_cap_supported_version >= kBqrVersion6_0) {
+    STREAM_TO_UINT32(bqr_report_interval, p_event_param_buf);
+  }
+
+  log::info(
+      "current event mask: 0x{:x}, vendor quality: 0x{:x}, vendor trace: "
+      "0x{:x}, report interval: 0x{:x}",
+      current_quality_event_mask, current_vnd_quality_mask,
+      current_vnd_trace_mask, bqr_report_interval);
 
   ConfigureBqrCmpl(current_quality_event_mask);
 }
 
 void ConfigBqrA2dpScoThreshold() {
-  uint8_t param[20] = {0};
   uint8_t sub_opcode = 0x16;
-  uint8_t* p_param = param;
   uint16_t a2dp_choppy_threshold = 0;
   uint16_t sco_choppy_threshold = 0;
 
@@ -445,47 +546,42 @@ void ConfigBqrA2dpScoThreshold() {
   sscanf(bqr_prop_threshold, "%hu,%hu", &a2dp_choppy_threshold,
          &sco_choppy_threshold);
 
-  log::warn("a2dp_choppy_threshold: {}, sco_choppy_threshold: {}",
+  log::info("a2dp_choppy_threshold: {}, sco_choppy_threshold: {}",
             a2dp_choppy_threshold, sco_choppy_threshold);
 
-  UINT8_TO_STREAM(p_param, sub_opcode);
+  auto payload = std::make_unique<packet::RawBuilder>();
+  payload->AddOctets1(sub_opcode);
 
   // A2dp glitch ID
-  UINT8_TO_STREAM(p_param, QUALITY_REPORT_ID_A2DP_AUDIO_CHOPPY);
+  payload->AddOctets1(QUALITY_REPORT_ID_A2DP_AUDIO_CHOPPY);
   // A2dp glitch config data length
-  UINT8_TO_STREAM(p_param, 2);
+  payload->AddOctets1(2);
   // A2dp glitch threshold
-  UINT16_TO_STREAM(p_param,
-                   a2dp_choppy_threshold == 0 ? 1 : a2dp_choppy_threshold);
+  payload->AddOctets2(a2dp_choppy_threshold == 0 ? 1 : a2dp_choppy_threshold);
 
   // Sco glitch ID
-  UINT8_TO_STREAM(p_param, QUALITY_REPORT_ID_SCO_VOICE_CHOPPY);
+  payload->AddOctets1(QUALITY_REPORT_ID_SCO_VOICE_CHOPPY);
   // Sco glitch config data length
-  UINT8_TO_STREAM(p_param, 2);
+  payload->AddOctets1(2);
   // Sco glitch threshold
-  UINT16_TO_STREAM(p_param,
-                   sco_choppy_threshold == 0 ? 1 : sco_choppy_threshold);
+  payload->AddOctets2(sco_choppy_threshold == 0 ? 1 : sco_choppy_threshold);
 
-  BTM_VendorSpecificCommand(HCI_VS_HOST_LOG_OPCODE, p_param - param, param,
-                            NULL);
+  shim::GetHciLayer()->EnqueueCommand(
+      hci::CommandBuilder::Create(
+          static_cast<hci::OpCode>(HCI_VS_HOST_LOG_OPCODE), std::move(payload)),
+      to_bind_->BindOnce([](hci::CommandCompleteView) {}));
 }
 
-void ConfigureBqrCmpl(uint32_t current_evt_mask) {
-  log::info("current_evt_mask: {}", loghex(current_evt_mask));
-  // (Un)Register for VSE of Bluetooth Quality Report sub event
-  tBTM_STATUS btm_status = BTM_BT_Quality_Report_VSE_Register(
-      current_evt_mask > kQualityEventMaskAllOff, CategorizeBqrEvent);
+// Invoked on completion of Bluetooth Quality Report configuration. Then it will
+// Register/Unregister for receiving VSE - Bluetooth Quality Report sub-event.
+//
+// @param current_evt_mask Indicates current quality event bit mask setting in
+//   the Bluetooth controller.
+static void ConfigureBqrCmpl(uint32_t current_evt_mask) {
+  log::info("current_evt_mask: 0x{:x}", current_evt_mask);
 
-  bool isBqrEnabled =
-      bluetooth::common::InitFlags::IsBluetoothQualityReportCallbackEnabled();
-  if (isBqrEnabled && current_evt_mask > kQualityEventMaskAllOff) {
+  if (current_evt_mask > kQualityEventMaskAllOff) {
     ConfigBqrA2dpScoThreshold();
-  }
-
-  if (btm_status != BTM_SUCCESS) {
-    log::error("Fail to (un)register VSE of BQR sub event. status: {}",
-               btm_status);
-    return;
   }
 
   if (LmpLlMessageTraceLogFd != INVALID_FD &&
@@ -502,7 +598,15 @@ void ConfigureBqrCmpl(uint32_t current_evt_mask) {
   }
 }
 
-void CategorizeBqrEvent(uint8_t length, const uint8_t* p_bqr_event) {
+static void AddLinkQualityEventToQueue(uint8_t length,
+                                       const uint8_t* p_link_quality_event);
+// Categorize the incoming Bluetooth Quality Report.
+//
+// @param length Lengths of the quality report sent from the Bluetooth
+//   controller.
+// @param p_bqr_event A pointer to the BQR VSE sub-event which is sent from the
+//   Bluetooth controller.
+static void CategorizeBqrEvent(uint8_t length, const uint8_t* p_bqr_event) {
   if (length == 0) {
     log::warn("Lengths of all of the parameters are zero.");
     return;
@@ -535,23 +639,26 @@ void CategorizeBqrEvent(uint8_t length, const uint8_t* p_bqr_event) {
     case QUALITY_REPORT_ID_BT_SCHEDULING_TRACE:
     case QUALITY_REPORT_ID_CONTROLLER_DBG_INFO:
     case QUALITY_REPORT_ID_VENDOR_SPECIFIC_TRACE:
-      log::warn("Unexpected ID: {}", loghex(quality_report_id));
+      log::warn("Unexpected ID: 0x{:x}", quality_report_id);
       break;
 
     default:
-      log::warn("Unknown ID: {}", loghex(quality_report_id));
+      log::warn("Unknown ID: 0x{:x}", quality_report_id);
       break;
   }
 }
 
-void AddLinkQualityEventToQueue(uint8_t length,
-                                const uint8_t* p_link_quality_event) {
+// Record a new incoming Link Quality related BQR event in quality event queue.
+//
+// @param length Lengths of the Link Quality related BQR event.
+// @param p_link_quality_event A pointer to the Link Quality related BQR event.
+static void AddLinkQualityEventToQueue(uint8_t length,
+                                       const uint8_t* p_link_quality_event) {
   std::unique_ptr<BqrVseSubEvt> p_bqr_event = std::make_unique<BqrVseSubEvt>();
   RawAddress bd_addr;
 
   p_bqr_event->ParseBqrLinkQualityEvt(length, p_link_quality_event);
 
-  log::warn("{}", *p_bqr_event);
   GetInterfaceToProfiles()->events->invoke_link_quality_report_cb(
       bluetooth::common::time_get_os_boottime_ms(),
       p_bqr_event->bqr_link_quality_event_.quality_report_id,
@@ -589,37 +696,40 @@ void AddLinkQualityEventToQueue(uint8_t length,
 #else
   // TODO(abps) Metrics for non-Android build
 #endif
-  bool isBqrEnabled =
-      bluetooth::common::InitFlags::IsBluetoothQualityReportCallbackEnabled();
-  if (isBqrEnabled) {
-    BluetoothQualityReportInterface* bqrItf =
-        getBluetoothQualityReportInterface();
+  BluetoothQualityReportInterface* bqrItf =
+      getBluetoothQualityReportInterface();
 
-    if (bqrItf != NULL) {
-      bd_addr = p_bqr_event->bqr_link_quality_event_.bdaddr;
-      if (bd_addr.IsEmpty()) {
-        tBTM_SEC_DEV_REC* dev = btm_find_dev_by_handle(
-            p_bqr_event->bqr_link_quality_event_.connection_handle);
-        if (dev != NULL) {
-          bd_addr = dev->RemoteAddress();
-        }
+  if (bqrItf != NULL) {
+    bd_addr = p_bqr_event->bqr_link_quality_event_.bdaddr;
+    if (bd_addr.IsEmpty()) {
+      tBTM_SEC_DEV_REC* dev = btm_find_dev_by_handle(
+          p_bqr_event->bqr_link_quality_event_.connection_handle);
+      if (dev != NULL) {
+        bd_addr = dev->RemoteAddress();
       }
-
-      if (!bd_addr.IsEmpty()) {
-        bqrItf->bqr_delivery_event(bd_addr, (uint8_t*)p_link_quality_event,
-                                   length);
-      } else {
-        log::warn("failed to deliver BQR, bdaddr is empty");
-      }
-    } else {
-      log::warn("failed to deliver BQR, bqrItf is NULL");
     }
+
+    if (!bd_addr.IsEmpty()) {
+      bqrItf->bqr_delivery_event(bd_addr, (uint8_t*)p_link_quality_event,
+                                 length);
+    } else {
+      log::warn("failed to deliver BQR, bdaddr is empty");
+    }
+  } else {
+    log::warn("failed to deliver BQR, bqrItf is NULL");
   }
 
-  kpBqrEventQueue->Enqueue(p_bqr_event.release());
+  kpBqrEventQueue.Enqueue(p_bqr_event.release());
 }
 
-void DumpLmpLlMessage(uint8_t length, const uint8_t* p_lmp_ll_message_event) {
+static int OpenLmpLlTraceLogFile();
+
+// Dump the LMP/LL message handshaking with the remote device to a log file.
+//
+// @param length Lengths of the LMP/LL message trace event.
+// @param p_lmp_ll_message_event A pointer to the LMP/LL message trace event.
+static void DumpLmpLlMessage(uint8_t length,
+                             const uint8_t* p_lmp_ll_message_event) {
   std::unique_ptr<BqrVseSubEvt> p_bqr_event = std::make_unique<BqrVseSubEvt>();
 
   if (LmpLlMessageTraceLogFd == INVALID_FD ||
@@ -632,7 +742,10 @@ void DumpLmpLlMessage(uint8_t length, const uint8_t* p_lmp_ll_message_event) {
   }
 }
 
-int OpenLmpLlTraceLogFile() {
+// Open the LMP/LL message trace log file.
+//
+// @return a file descriptor of the LMP/LL message trace log file.
+static int OpenLmpLlTraceLogFile() {
   if (rename(kpLmpLlMessageTraceLogPath, kpLmpLlMessageTraceLastLogPath) != 0 &&
       errno != ENOENT) {
     log::error("Unable to rename '{}' to '{}' : {}", kpLmpLlMessageTraceLogPath,
@@ -653,7 +766,16 @@ int OpenLmpLlTraceLogFile() {
   return logfile_fd;
 }
 
-void DumpBtScheduling(uint8_t length, const uint8_t* p_bt_scheduling_event) {
+static int OpenBtSchedulingTraceLogFile();
+
+// Dump the Bluetooth Multi-profile/Coex scheduling information to a log file.
+//
+// @param length Lengths of the Bluetooth Multi-profile/Coex scheduling trace
+//   event.
+// @param p_bt_scheduling_event A pointer to the Bluetooth Multi-profile/Coex
+//   scheduling trace event.
+static void DumpBtScheduling(uint8_t length,
+                             const uint8_t* p_bt_scheduling_event) {
   std::unique_ptr<BqrVseSubEvt> p_bqr_event = std::make_unique<BqrVseSubEvt>();
 
   if (BtSchedulingTraceLogFd == INVALID_FD ||
@@ -666,7 +788,11 @@ void DumpBtScheduling(uint8_t length, const uint8_t* p_bt_scheduling_event) {
   }
 }
 
-int OpenBtSchedulingTraceLogFile() {
+// Open the Bluetooth Multi-profile/Coex scheduling trace log file.
+//
+// @return a file descriptor of the Bluetooth Multi-profile/Coex scheduling
+//   trace log file.
+static int OpenBtSchedulingTraceLogFile() {
   if (rename(kpBtSchedulingTraceLogPath, kpBtSchedulingTraceLastLogPath) != 0 &&
       errno != ENOENT) {
     log::error("Unable to rename '{}' to '{}' : {}", kpBtSchedulingTraceLogPath,
@@ -690,13 +816,13 @@ int OpenBtSchedulingTraceLogFile() {
 void DebugDump(int fd) {
   dprintf(fd, "\nBT Quality Report Events: \n");
 
-  if (kpBqrEventQueue->Empty()) {
+  if (kpBqrEventQueue.Empty()) {
     dprintf(fd, "Event queue is empty.\n");
     return;
   }
 
-  while (!kpBqrEventQueue->Empty()) {
-    std::unique_ptr<BqrVseSubEvt> p_event(kpBqrEventQueue->Dequeue());
+  while (!kpBqrEventQueue.Empty()) {
+    std::unique_ptr<BqrVseSubEvt> p_event(kpBqrEventQueue.Dequeue());
 
     bool warning = (p_event->bqr_link_quality_event_.rssi < kCriWarnRssi ||
                     p_event->bqr_link_quality_event_.unused_afh_channel_count >
@@ -785,20 +911,17 @@ class BluetoothQualityReportInterfaceImpl
 
     log::info(
         "len: {}, addr: {}, lmp_ver: {}, manufacturer_id: {}, lmp_subver: {}",
-        bqr_raw_data_len, ADDRESS_TO_LOGGABLE_CSTR(bd_addr), lmp_ver,
-        manufacturer_id, lmp_subver);
+        bqr_raw_data_len, bd_addr, lmp_ver, manufacturer_id, lmp_subver);
 
     if (callbacks == nullptr) {
       log::error("callbacks is nullptr");
       return;
     }
 
-    do_in_jni_thread(
-        FROM_HERE,
-        base::BindOnce(&bluetooth::bqr::BluetoothQualityReportCallbacks::
-                           bqr_delivery_callback,
-                       base::Unretained(callbacks), bd_addr, lmp_ver,
-                       lmp_subver, manufacturer_id, std::move(raw_data)));
+    do_in_jni_thread(base::BindOnce(
+        &bluetooth::bqr::BluetoothQualityReportCallbacks::bqr_delivery_callback,
+        base::Unretained(callbacks), bd_addr, lmp_ver, lmp_subver,
+        manufacturer_id, std::move(raw_data)));
   }
 
  private:
@@ -813,6 +936,62 @@ BluetoothQualityReportInterface* getBluetoothQualityReportInterface() {
 
   return bluetoothQualityReportInstance.get();
 }
+
+static void vendor_specific_event_callback(
+    hci::VendorSpecificEventView vendor_specific_event_view) {
+  auto bqr = hci::BqrEventView::CreateOptional(vendor_specific_event_view);
+  if (!bqr) {
+    return;
+  }
+  auto payload = vendor_specific_event_view.GetPayload();
+  std::vector<uint8_t> bytes{payload.begin(), payload.end()};
+
+  uint8_t quality_report_id = static_cast<uint8_t>(bqr->GetQualityReportId());
+  uint8_t bqr_parameter_length = bytes.size();
+  const uint8_t* p_bqr_event = bytes.data();
+
+  // The stream currently points to the BQR sub-event parameters
+  switch (quality_report_id) {
+    case bluetooth::bqr::QUALITY_REPORT_ID_LMP_LL_MESSAGE_TRACE: {
+      auto lmp_view = hci::BqrLogDumpEventView::Create(*bqr);
+    }
+      if (bqr_parameter_length >= bluetooth::bqr::kLogDumpParamTotalLen) {
+        bluetooth::bqr::DumpLmpLlMessage(bqr_parameter_length, p_bqr_event);
+      } else {
+        log::info("Malformed LMP event of length {}", bqr_parameter_length);
+      }
+
+      break;
+
+    case bluetooth::bqr::QUALITY_REPORT_ID_BT_SCHEDULING_TRACE:
+      if (bqr_parameter_length >= bluetooth::bqr::kLogDumpParamTotalLen) {
+        bluetooth::bqr::DumpBtScheduling(bqr_parameter_length, p_bqr_event);
+      } else {
+        log::info("Malformed TRACE event of length {}", bqr_parameter_length);
+      }
+      break;
+
+    default:
+      log::info("Unhandled BQR subevent 0x{:02x}", quality_report_id);
+  }
+
+  CategorizeBqrEvent(bytes.size(), bytes.data());
+}
+
+void register_vse() {
+  bluetooth::shim::GetHciLayer()->RegisterVendorSpecificEventHandler(
+      hci::VseSubeventCode::BQR_EVENT,
+      to_bind_->Bind(vendor_specific_event_callback));
+}
+
+void unregister_vse() {
+  bluetooth::shim::GetHciLayer()->UnregisterVendorSpecificEventHandler(
+      hci::VseSubeventCode::BQR_EVENT);
+}
+
+namespace testing {
+void set_lmp_trace_log_fd(int fd) { LmpLlMessageTraceLogFd = fd; }
+}  // namespace testing
 
 }  // namespace bqr
 }  // namespace bluetooth

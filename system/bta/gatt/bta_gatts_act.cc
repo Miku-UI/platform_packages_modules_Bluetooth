@@ -23,8 +23,8 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -236,8 +236,7 @@ void bta_gatts_register(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
  * Returns          none.
  *
  ******************************************************************************/
-void bta_gatts_start_if(UNUSED_ATTR tBTA_GATTS_CB* p_cb,
-                        tBTA_GATTS_DATA* p_msg) {
+void bta_gatts_start_if(tBTA_GATTS_CB* /* p_cb */, tBTA_GATTS_DATA* p_msg) {
   if (bta_gatts_find_app_rcb_by_app_if(p_msg->int_start_if.server_if)) {
     GATT_StartIf(p_msg->int_start_if.server_if);
   } else {
@@ -324,7 +323,7 @@ void bta_gatts_delete_service(tBTA_GATTS_SRVC_CB* p_srvc_cb,
  *
  ******************************************************************************/
 void bta_gatts_stop_service(tBTA_GATTS_SRVC_CB* p_srvc_cb,
-                            UNUSED_ATTR tBTA_GATTS_DATA* p_msg) {
+                            tBTA_GATTS_DATA* /* p_msg */) {
   tBTA_GATTS_RCB* p_rcb = &bta_gatts_cb.rcb[p_srvc_cb->rcb_idx];
   tBTA_GATTS cb_data;
 
@@ -345,8 +344,7 @@ void bta_gatts_stop_service(tBTA_GATTS_SRVC_CB* p_srvc_cb,
  * Returns          none.
  *
  ******************************************************************************/
-void bta_gatts_send_rsp(UNUSED_ATTR tBTA_GATTS_CB* p_cb,
-                        tBTA_GATTS_DATA* p_msg) {
+void bta_gatts_send_rsp(tBTA_GATTS_CB* /* p_cb */, tBTA_GATTS_DATA* p_msg) {
   if (GATTS_SendRsp(p_msg->api_rsp.hdr.layer_specific, p_msg->api_rsp.trans_id,
                     p_msg->api_rsp.status,
                     (tGATTS_RSP*)p_msg->api_rsp.p_rsp) != GATT_SUCCESS) {
@@ -395,8 +393,8 @@ void bta_gatts_indicate_handle(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
         bta_sys_idle(BTA_ID_GATTS, BTA_ALL_APP_ID, remote_bda);
       }
     } else {
-      log::error("Unknown connection_id={} fail sending notification",
-                 loghex(p_msg->api_indicate.hdr.layer_specific));
+      log::error("Unknown connection_id=0x{:x} fail sending notification",
+                 p_msg->api_indicate.hdr.layer_specific);
     }
 
     if ((status != GATT_SUCCESS || !p_msg->api_indicate.need_confirm) &&
@@ -407,8 +405,8 @@ void bta_gatts_indicate_handle(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
       (*p_rcb->p_cback)(BTA_GATTS_CONF_EVT, &cb_data);
     }
   } else {
-    log::error("Not an registered servce attribute ID: {}",
-               loghex(p_msg->api_indicate.attr_id));
+    log::error("Not an registered servce attribute ID: 0x{:x}",
+               p_msg->api_indicate.attr_id);
   }
 }
 
@@ -421,7 +419,7 @@ void bta_gatts_indicate_handle(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
  * Returns          none.
  *
  ******************************************************************************/
-void bta_gatts_open(UNUSED_ATTR tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
+void bta_gatts_open(tBTA_GATTS_CB* /* p_cb */, tBTA_GATTS_DATA* p_msg) {
   tBTA_GATTS_RCB* p_rcb = NULL;
   tGATT_STATUS status = GATT_ERROR;
   uint16_t conn_id;
@@ -429,11 +427,21 @@ void bta_gatts_open(UNUSED_ATTR tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
   p_rcb = bta_gatts_find_app_rcb_by_app_if(p_msg->api_open.server_if);
   if (p_rcb != NULL) {
     /* should always get the connection ID */
-    if (GATT_Connect(p_rcb->gatt_if, p_msg->api_open.remote_bda,
-                     p_msg->api_open.connection_type, p_msg->api_open.transport,
-                     false)) {
-      status = GATT_SUCCESS;
+    bool success = false;
+    if (com::android::bluetooth::flags::
+            ble_gatt_server_use_address_type_in_connection()) {
+      success = GATT_Connect(p_rcb->gatt_if, p_msg->api_open.remote_bda,
+                             p_msg->api_open.remote_addr_type,
+                             p_msg->api_open.connection_type,
+                             p_msg->api_open.transport, false);
+    } else {
+      success = GATT_Connect(p_rcb->gatt_if, p_msg->api_open.remote_bda,
+                             p_msg->api_open.connection_type,
+                             p_msg->api_open.transport, false);
+    }
 
+    if (success) {
+      status = GATT_SUCCESS;
       if (GATT_GetConnIdIfConnected(p_rcb->gatt_if, p_msg->api_open.remote_bda,
                                     &conn_id, p_msg->api_open.transport)) {
         status = GATT_ALREADY_OPEN;
@@ -458,8 +466,7 @@ void bta_gatts_open(UNUSED_ATTR tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
  * Returns          none.
  *
  ******************************************************************************/
-void bta_gatts_cancel_open(UNUSED_ATTR tBTA_GATTS_CB* p_cb,
-                           tBTA_GATTS_DATA* p_msg) {
+void bta_gatts_cancel_open(tBTA_GATTS_CB* /* p_cb */, tBTA_GATTS_DATA* p_msg) {
   tBTA_GATTS_RCB* p_rcb;
   tGATT_STATUS status = GATT_ERROR;
 
@@ -490,7 +497,7 @@ void bta_gatts_cancel_open(UNUSED_ATTR tBTA_GATTS_CB* p_cb,
  * Returns          none.
  *
  ******************************************************************************/
-void bta_gatts_close(UNUSED_ATTR tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
+void bta_gatts_close(tBTA_GATTS_CB* /* p_cb */, tBTA_GATTS_DATA* p_msg) {
   tBTA_GATTS_RCB* p_rcb;
   tGATT_STATUS status = GATT_ERROR;
   tGATT_IF gatt_if;
@@ -500,7 +507,7 @@ void bta_gatts_close(UNUSED_ATTR tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
   if (GATT_GetConnectionInfor(p_msg->hdr.layer_specific, &gatt_if, remote_bda,
                               &transport)) {
     log::debug("Disconnecting gatt_if={}, remote_bda={}, transport={}", gatt_if,
-               remote_bda.ToString(), transport);
+               remote_bda, transport);
     status = GATT_Disconnect(p_msg->hdr.layer_specific);
     if (status != GATT_SUCCESS) {
       log::error("fail conn_id={}", p_msg->hdr.layer_specific);
@@ -519,7 +526,7 @@ void bta_gatts_close(UNUSED_ATTR tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
       (*p_rcb->p_cback)(BTA_GATTS_CLOSE_EVT, &bta_gatts);
     }
   } else {
-    log::error("Unknown connection_id={}", loghex(p_msg->hdr.layer_specific));
+    log::error("Unknown connection_id=0x{:x}", p_msg->hdr.layer_specific);
   }
 }
 
@@ -546,8 +553,8 @@ static void bta_gatts_send_request_cback(uint16_t conn_id, uint32_t trans_id,
                               &transport)) {
     p_rcb = bta_gatts_find_app_rcb_by_app_if(gatt_if);
 
-    log::verbose("conn_id={}, trans_id={}, req_type={}", loghex(conn_id),
-                 trans_id, req_type);
+    log::verbose("conn_id=0x{:x}, trans_id={}, req_type={}", conn_id, trans_id,
+                 req_type);
 
     if (p_rcb && p_rcb->p_cback) {
       /* if over BR_EDR, inform PM for mode change */
@@ -565,7 +572,7 @@ static void bta_gatts_send_request_cback(uint16_t conn_id, uint32_t trans_id,
       log::error("connection request on gatt_if={} is not interested", gatt_if);
     }
   } else {
-    log::error("request received on unknown conn_id={}", loghex(conn_id));
+    log::error("request received on unknown conn_id=0x{:x}", conn_id);
   }
 }
 
@@ -586,9 +593,8 @@ static void bta_gatts_conn_cback(tGATT_IF gatt_if, const RawAddress& bdaddr,
   uint8_t evt = connected ? BTA_GATTS_CONNECT_EVT : BTA_GATTS_DISCONNECT_EVT;
   tBTA_GATTS_RCB* p_reg;
 
-  log::verbose("bda={} gatt_if= {}, conn_id={} connected={}",
-               ADDRESS_TO_LOGGABLE_STR(bdaddr), gatt_if, loghex(conn_id),
-               connected);
+  log::verbose("bda={} gatt_if= {}, conn_id=0x{:x} connected={}", bdaddr,
+               gatt_if, conn_id, connected);
 
   if (connected)
     btif_debug_conn_state(bdaddr, BTIF_DEBUG_CONNECTED, GATT_CONN_OK);

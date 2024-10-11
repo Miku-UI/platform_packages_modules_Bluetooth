@@ -18,12 +18,11 @@
 
 #define LOG_TAG "bt_headless_mode"
 
-#include <base/strings/stringprintf.h>
+#include <bluetooth/log.h>
 
 #include <future>
 #include <mutex>
 
-#include "base/logging.h"  // LOG() stdout and android log
 #include "bta/dm/bta_dm_int.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
@@ -31,6 +30,7 @@
 #include "types/raw_address.h"
 
 using namespace std::chrono_literals;
+using namespace bluetooth;
 
 namespace {
 const tBTM_PM_PWR_MD default_mandatory_sniff_mode = {
@@ -66,10 +66,9 @@ struct power_mode_callback_t {
   tHCI_STATUS hci_status;
 
   std::string ToString() const {
-    return base::StringPrintf("bd_addr:%s pm_status:%s value:%hu hci_status:%s",
-                              bd_addr.ToString().c_str(),
-                              power_mode_status_text(status).c_str(), value,
-                              hci_status_code_text(hci_status).c_str());
+    return fmt::format("bd_addr:{} pm_status:{} value:{} hci_status:{}",
+                       bd_addr.ToString(), power_mode_status_text(status),
+                       value, hci_status_code_text(hci_status));
   }
 };
 
@@ -89,12 +88,11 @@ namespace {
 class Queue {
  public:
   void CallbackReceived(const power_mode_callback_t& data) {
-    LOG_INFO("Power mode callback cnt:%zu data:%s", cnt++,
-             data.ToString().c_str());
+    log::info("Power mode callback cnt:{} data:{}", cnt++, data.ToString());
     std::unique_lock<std::mutex> lk(mutex);
     if (promises_map_[data.bd_addr].empty()) {
-      LOG_INFO("Received unsolicited power mode callback: %s",
-               data.ToString().c_str());
+      log::info("Received unsolicited power mode callback: {}",
+                data.ToString());
       return;
     }
     promises_map_[data.bd_addr].front().set_value(data);
@@ -109,8 +107,8 @@ class Queue {
 
   void PopFront(const RawAddress& bd_addr) {
     std::unique_lock<std::mutex> lk(mutex);
-    ASSERT_LOG(!promises_map_[bd_addr].empty(),
-               "Unable to remove promise from empty bag of promises");
+    log::assert_that(!promises_map_[bd_addr].empty(),
+                     "Unable to remove promise from empty bag of promises");
     promises_map_[bd_addr].pop_front();
   }
 
@@ -193,17 +191,20 @@ class PowerMode {
               });
             });
 
-    ASSERT_LOG(BTM_SUCCESS == btm_status, "Failed to register power mode:%s",
-               btm_status_text(btm_status).c_str());
+    log::assert_that(BTM_SUCCESS == btm_status,
+                     "Failed to register power mode:{}",
+                     btm_status_text(btm_status));
   }
 
   ~PowerMode() {
-    ASSERT(BTM_SUCCESS == get_btm_client_interface().lifecycle.BTM_PmRegister(
-                              BTM_PM_DEREG, &pm_id_,
-                              []([[maybe_unused]] const RawAddress& bd_addr,
-                                 [[maybe_unused]] tBTM_PM_STATUS status,
-                                 [[maybe_unused]] uint16_t value,
-                                 [[maybe_unused]] tHCI_STATUS hci_status) {}));
+    auto status = get_btm_client_interface().lifecycle.BTM_PmRegister(
+        BTM_PM_DEREG, &pm_id_,
+        []([[maybe_unused]] const RawAddress& bd_addr,
+           [[maybe_unused]] tBTM_PM_STATUS status,
+           [[maybe_unused]] uint16_t value,
+           [[maybe_unused]] tHCI_STATUS hci_status) {});
+    log::assert_that(BTM_SUCCESS == status,
+                     "assert failed: BTM_SUCCESS == status");
   }
 
   Client GetClient(const RawAddress bd_addr) { return Client(pm_id_, bd_addr); }

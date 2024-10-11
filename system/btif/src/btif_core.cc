@@ -28,11 +28,12 @@
 
 #define LOG_TAG "bt_btif_core"
 
+#include <android_bluetooth_sysprop.h>
 #include <base/at_exit.h>
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/threading/platform_thread.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <signal.h>
 #include <sys/types.h>
 
@@ -48,12 +49,12 @@
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
 #include "common/message_loop_thread.h"
-#include "device/include/controller.h"
 #include "device/include/device_iot_config.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "main/shim/entry.h"
+#include "main/shim/helpers.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/future.h"
@@ -177,7 +178,8 @@ bt_status_t btif_init_bluetooth() {
 
 void btif_enable_bluetooth_evt() {
   /* Fetch the local BD ADDR */
-  RawAddress local_bd_addr = *controller_get_interface()->get_address();
+  RawAddress local_bd_addr = bluetooth::ToRawAddress(
+      bluetooth::shim::GetController()->GetMacAddress());
 
   std::string bdstr = local_bd_addr.ToString();
 
@@ -192,8 +194,7 @@ void btif_enable_bluetooth_evt() {
       strcmp(bdstr.c_str(), val) != 0) {
     // We failed to get an address or the one in the config file does not match
     // the address given by the controller interface. Update the config cache
-    log::info("Storing '{}' into the config file",
-              ADDRESS_TO_LOGGABLE_CSTR(local_bd_addr));
+    log::info("Storing '{}' into the config file", local_bd_addr);
     btif_config_set_str(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_ADDRESS,
                         bdstr.c_str());
 
@@ -216,8 +217,25 @@ void btif_enable_bluetooth_evt() {
 
   GetInterfaceToProfiles()->onBluetoothEnabled();
 
-  /* load did configuration */
-  bte_load_did_conf(BTE_DID_CONF_FILE);
+  if (!com::android::bluetooth::flags::load_did_config_from_sysprops()) {
+    bte_load_did_conf(BTE_DID_CONF_FILE);
+  } else {
+    tSDP_DI_RECORD record = {
+        .vendor = uint16_t(
+            GET_SYSPROP(DeviceIDProperties, vendor_id, LMP_COMPID_GOOGLE)),
+        .vendor_id_source = uint16_t(GET_SYSPROP(
+            DeviceIDProperties, vendor_id_source, DI_VENDOR_ID_SOURCE_BTSIG)),
+        .product = uint16_t(GET_SYSPROP(DeviceIDProperties, product_id, 0)),
+        .primary_record = true,
+    };
+
+    uint32_t record_handle;
+    tBTA_STATUS status = BTA_DmSetLocalDiRecord(&record, &record_handle);
+    if (status != BTA_SUCCESS) {
+      log::error("unable to set device ID record error {}.",
+                 bta_status_text(status));
+    }
+  }
 
   btif_dm_load_local_oob();
 
@@ -288,7 +306,7 @@ void btif_dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
  ****************************************************************************/
 
 static bt_status_t btif_in_get_adapter_properties(void) {
-  const static uint32_t NUM_ADAPTER_PROPERTIES = 7;
+  const static uint32_t NUM_ADAPTER_PROPERTIES = 6;
   bt_property_t properties[NUM_ADAPTER_PROPERTIES];
   uint32_t num_props = 0;
 
@@ -299,7 +317,6 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   RawAddress bonded_devices[BTM_SEC_MAX_DEVICE_RECORDS];
   Uuid local_uuids[BT_MAX_NUM_UUIDS];
   bt_status_t status;
-  bt_io_cap_t local_bt_io_cap;
 
   /* RawAddress */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_BDADDR,
@@ -341,12 +358,6 @@ static bt_status_t btif_in_get_adapter_properties(void) {
   /* LOCAL UUIDs */
   BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_UUIDS,
                              sizeof(local_uuids), local_uuids);
-  btif_storage_get_adapter_property(&properties[num_props]);
-  num_props++;
-
-  /* LOCAL IO Capabilities */
-  BTIF_STORAGE_FILL_PROPERTY(&properties[num_props], BT_PROPERTY_LOCAL_IO_CAPS,
-                             sizeof(bt_io_cap_t), &local_bt_io_cap);
   btif_storage_get_adapter_property(&properties[num_props]);
   num_props++;
 
@@ -481,11 +492,11 @@ void btif_get_adapter_property(bt_property_type_t type) {
         cmn_vsc_cb.extended_scan_support > 0;
     local_le_features.debug_logging_supported =
         cmn_vsc_cb.debug_logging_supported > 0;
-    const controller_t* controller = controller_get_interface();
+    auto controller = bluetooth::shim::GetController();
 
     if (controller->SupportsBleExtendedAdvertising()) {
       local_le_features.max_adv_instance =
-          controller->get_ble_number_of_supported_advertising_sets();
+          controller->GetLeNumberOfSupportedAdverisingSets();
     }
     local_le_features.le_2m_phy_supported = controller->SupportsBle2mPhy();
     local_le_features.le_coded_phy_supported =
@@ -495,7 +506,7 @@ void btif_get_adapter_property(bt_property_type_t type) {
     local_le_features.le_periodic_advertising_supported =
         controller->SupportsBlePeriodicAdvertising();
     local_le_features.le_maximum_advertising_data_length =
-        controller->get_ble_maximum_advertising_data_length();
+        controller->GetLeMaximumAdvertisingDataLength();
 
     local_le_features.dynamic_audio_buffer_supported =
         cmn_vsc_cb.dynamic_audio_buffer_support;
@@ -511,6 +522,8 @@ void btif_get_adapter_property(bt_property_type_t type) {
         controller->SupportsBlePeriodicAdvertisingSyncTransferRecipient();
     local_le_features.adv_filter_extended_features_mask =
         cmn_vsc_cb.adv_filter_extended_features_mask;
+    local_le_features.le_channel_sounding_supported =
+        controller->SupportsBleChannelSounding();
 
     memcpy(prop.val, &local_le_features, prop.len);
   } else if (prop.type == BT_PROPERTY_DYNAMIC_AUDIO_BUFFER) {
@@ -584,10 +597,9 @@ void btif_set_adapter_property(bt_property_t* property) {
 
   switch (property->type) {
     case BT_PROPERTY_BDNAME: {
-      char bd_name[BTM_MAX_LOC_BD_NAME_LEN + 1];
-      uint16_t name_len = property->len > BTM_MAX_LOC_BD_NAME_LEN
-                              ? BTM_MAX_LOC_BD_NAME_LEN
-                              : property->len;
+      char bd_name[BD_NAME_LEN + 1];
+      uint16_t name_len =
+          property->len > BD_NAME_LEN ? BD_NAME_LEN : property->len;
       memcpy(bd_name, property->val, name_len);
       bd_name[name_len] = '\0';
 
@@ -610,12 +622,6 @@ void btif_set_adapter_property(bt_property_t* property) {
       /* Nothing to do beside store the value in NV.  Java
          will change the SCAN_MODE property after setting timeout,
          if required */
-      btif_core_storage_adapter_write(property);
-    } break;
-    case BT_PROPERTY_LOCAL_IO_CAPS: {
-      // Changing IO Capability of stack at run-time is not currently supported.
-      // This call changes the stored value which will affect the stack next
-      // time it starts up.
       btif_core_storage_adapter_write(property);
     } break;
     default:

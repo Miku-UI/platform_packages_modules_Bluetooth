@@ -36,10 +36,12 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -53,15 +55,15 @@ public class CallInfoTest {
     private static final String TEST_ACCOUNT_ADDRESS = "https://foo.com/";
     private static final int TEST_ACCOUNT_INDEX = 0;
 
-    @Mock
-    private TelecomManager mMockTelecomManager;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private TelecomManager mMockTelecomManager;
 
     private BluetoothInCallService mBluetoothInCallService;
     private BluetoothInCallService.CallInfo mMockCallInfo;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         mBluetoothInCallService = new BluetoothInCallService();
         mMockCallInfo = spy(mBluetoothInCallService.new CallInfo());
@@ -266,8 +268,8 @@ public class CallInfoTest {
         List<PhoneAccountHandle> handles = new ArrayList<>();
         PhoneAccountHandle testHandle = makeQuickAccountHandle(testId);
         handles.add(testHandle);
-        when(mMockTelecomManager.getPhoneAccountsSupportingScheme(
-                PhoneAccount.SCHEME_TEL)).thenReturn(handles);
+        when(mMockTelecomManager.getPhoneAccountsSupportingScheme(PhoneAccount.SCHEME_TEL))
+                .thenReturn(handles);
 
         PhoneAccount fakePhoneAccount = makeQuickAccount(testId, TEST_ACCOUNT_INDEX);
         when(mMockTelecomManager.getPhoneAccount(testHandle)).thenReturn(fakePhoneAccount);
@@ -277,13 +279,14 @@ public class CallInfoTest {
     }
 
     private static ComponentName makeQuickConnectionServiceComponentName() {
-        return new ComponentName("com.placeholder.connectionservice.package.name",
+        return new ComponentName(
+                "com.placeholder.connectionservice.package.name",
                 "com.placeholder.connectionservice.class.name");
     }
 
     private static PhoneAccountHandle makeQuickAccountHandle(String id) {
-        return new PhoneAccountHandle(makeQuickConnectionServiceComponentName(), id,
-                Process.myUserHandle());
+        return new PhoneAccountHandle(
+                makeQuickConnectionServiceComponentName(), id, Process.myUserHandle());
     }
 
     private PhoneAccount.Builder makeQuickAccountBuilder(String id, int idx) {

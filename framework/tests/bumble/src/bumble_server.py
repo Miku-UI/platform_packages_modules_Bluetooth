@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import asyncio
-import click
 import logging
 import json
 
@@ -23,10 +23,12 @@ from bumble.pandora import PandoraDevice, Config, serve
 from bumble_experimental.asha import AshaService
 from bumble_experimental.dck import DckService
 from bumble_experimental.gatt import GATTService
+from bumble_experimental.rfcomm import RFCOMMService
 
 from pandora_experimental.asha_grpc_aio import add_AshaServicer_to_server
 from pandora_experimental.dck_grpc_aio import add_DckServicer_to_server
 from pandora_experimental.gatt_grpc_aio import add_GATTServicer_to_server
+from pandora_experimental.rfcomm_grpc_aio import add_RFCOMMServicer_to_server
 
 from typing import Dict, Any
 
@@ -34,26 +36,8 @@ BUMBLE_SERVER_GRPC_PORT = 7999
 ROOTCANAL_PORT_CUTTLEFISH = 7300
 
 
-@click.command()
-@click.option('--grpc-port', help='gRPC port to serve', default=BUMBLE_SERVER_GRPC_PORT)
-@click.option('--rootcanal-port', help='Rootcanal TCP port', default=ROOTCANAL_PORT_CUTTLEFISH)
-@click.option(
-    '--transport',
-    help='HCI transport',
-    default=f'tcp-client:127.0.0.1:<rootcanal-port>',
-)
-@click.option(
-    '--config',
-    help='Bumble json configuration file',
-)
 def main(grpc_port: int, rootcanal_port: int, transport: str, config: str) -> None:
-    bumble_server.register_servicer_hook(
-        lambda bumble, _, server: add_AshaServicer_to_server(AshaService(bumble.device), server))
-    bumble_server.register_servicer_hook(
-        lambda bumble, _, server: add_DckServicer_to_server(DckService(bumble.device), server))
-    bumble_server.register_servicer_hook(
-        lambda bumble, _, server: add_GATTServicer_to_server(GATTService(bumble.device), server))
-
+    register_experimental_services()
     if '<rootcanal-port>' in transport:
         transport = transport.replace('<rootcanal-port>', str(rootcanal_port))
 
@@ -64,8 +48,35 @@ def main(grpc_port: int, rootcanal_port: int, transport: str, config: str) -> No
     server_config = Config()
     server_config.load_from_dict(bumble_config.get('server', {}))
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s.%(msecs).03d %(levelname)-8s %(message)s',
+                        datefmt='%m-%d %H:%M:%S')
     asyncio.run(serve(device, config=server_config, port=grpc_port))
+
+
+def args_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Bumble command-line tool")
+
+    parser.add_argument('--grpc-port', type=int, default=BUMBLE_SERVER_GRPC_PORT, help='gRPC port to serve')
+    parser.add_argument('--rootcanal-port', type=int, default=ROOTCANAL_PORT_CUTTLEFISH, help='Rootcanal TCP port')
+    parser.add_argument('--transport',
+                        type=str,
+                        default='tcp-client:127.0.0.1:<rootcanal-port>',
+                        help='HCI transport (default: tcp-client:127.0.0.1:<rootcanal-port>)')
+    parser.add_argument('--config', type=str, help='Bumble json configuration file')
+
+    return parser
+
+
+def register_experimental_services():
+    bumble_server.register_servicer_hook(
+        lambda bumble, _, server: add_AshaServicer_to_server(AshaService(bumble.device), server))
+    bumble_server.register_servicer_hook(
+        lambda bumble, _, server: add_DckServicer_to_server(DckService(bumble.device), server))
+    bumble_server.register_servicer_hook(
+        lambda bumble, _, server: add_GATTServicer_to_server(GATTService(bumble.device), server))
+    bumble_server.register_servicer_hook(
+        lambda bumble, _, server: add_RFCOMMServicer_to_server(RFCOMMService(bumble.device), server))
 
 
 def retrieve_config(config: str) -> Dict[str, Any]:
@@ -77,4 +88,5 @@ def retrieve_config(config: str) -> Dict[str, Any]:
 
 
 if __name__ == '__main__':
-    main()  # pylint: disable=no-value-for-parameter
+    args = args_parser().parse_args()
+    main(**vars(args))

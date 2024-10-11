@@ -37,10 +37,12 @@ import com.android.bluetooth.btservice.storage.DatabaseManager;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,15 +58,15 @@ public class MapClientTest {
     private boolean mIsAdapterServiceSet;
     private boolean mIsMapClientServiceStarted;
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private AdapterService mAdapterService;
     @Mock private MnsService mMockMnsService;
     @Mock private DatabaseManager mDatabaseManager;
 
-
     @Before
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
         mIsAdapterServiceSet = true;
         when(mAdapterService.getDatabase()).thenReturn(mDatabaseManager);
@@ -105,9 +107,7 @@ public class MapClientTest {
         Assert.assertNotNull(MapClientService.getMapClientService());
     }
 
-    /**
-     * Test connection of one device.
-     */
+    /** Test connection of one device. */
     @Test
     public void testConnect() {
         // make sure there is no statemachine already defined for this device
@@ -131,9 +131,7 @@ public class MapClientTest {
         Assert.assertNull(mService.getInstanceMap().get(device));
     }
 
-    /**
-     * Test that a PRIORITY_OFF device is not connected to
-     */
+    /** Test that a PRIORITY_OFF device is not connected to */
     @Test
     public void testConnectPriorityOffDevice() {
         // make sure there is no statemachine already defined for this device
@@ -150,9 +148,7 @@ public class MapClientTest {
         Assert.assertNull(map.get(device));
     }
 
-    /**
-     * Test connecting MAXIMUM_CONNECTED_DEVICES devices.
-     */
+    /** Test connecting MAXIMUM_CONNECTED_DEVICES devices. */
     @Test
     public void testConnectMaxDevices() {
         // Create bluetoothdevice & mock statemachine objects to be used in this test
@@ -185,9 +181,7 @@ public class MapClientTest {
         Assert.assertFalse(mService.connect(last));
     }
 
-    /**
-     * Test calling connect via Binder
-     */
+    /** Test calling connect via Binder */
     @Test
     public void testConnectViaBinder() {
         BluetoothDevice device = makeBluetoothDevice("11:11:11:11:11:11");

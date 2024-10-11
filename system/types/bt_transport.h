@@ -16,23 +16,22 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
-
 #include <string>
-
-#include "macros.h"
 
 #define BT_TRANSPORT_AUTO 0
 #define BT_TRANSPORT_BR_EDR 1
 #define BT_TRANSPORT_LE 2
 typedef uint8_t tBT_TRANSPORT;
 
+#if __has_include(<bluetooth/log.h>)
+#include "macros.h"
+
 inline std::string bt_transport_text(const tBT_TRANSPORT& transport) {
   switch (transport) {
     CASE_RETURN_TEXT(BT_TRANSPORT_AUTO);
     CASE_RETURN_TEXT(BT_TRANSPORT_BR_EDR);
     CASE_RETURN_TEXT(BT_TRANSPORT_LE);
-    default:
-      return base::StringPrintf("UNKNOWN[%hhu]", transport);
   }
+  RETURN_UNKNOWN_TYPE_STRING(tBT_TRANSPORT, transport);
 }
+#endif

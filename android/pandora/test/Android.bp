@@ -22,6 +22,11 @@ python_test_host {
     srcs: [
         "**/*.py",
     ],
+    version: {
+        py3: {
+            embedded_launcher: false,
+        },
+    },
     libs: [
         "bumble_services_experimental-python",
         "libavatar",
@@ -47,6 +52,5 @@ sh_binary_host {
         "pandora-python-gen-src",
         "pandora_experimental-python-gen-src",
         "tradefed",
-        "tradefed-test-framework",
     ],
 }

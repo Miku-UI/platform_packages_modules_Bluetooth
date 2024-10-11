@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "a2dp_vendor_opus_encoder"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "a2dp_vendor_opus_encoder.h"
 
 #include <bluetooth/log.h>
 #include <dlfcn.h>
 #include <opus.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_opus.h"
 #include "common/time_util.h"
-#include "include/check.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
@@ -173,7 +171,7 @@ bool A2dpCodecConfigOpusSource::updateEncoderUserConfig(
     bool* p_restart_output, bool* p_config_updated) {
   if (a2dp_opus_encoder_cb.peer_mtu == 0) {
     log::error("Cannot update the codec encoder for {}: invalid peer MTU",
-               name().c_str());
+               name());
     return false;
   }
 
@@ -201,11 +199,13 @@ static bool a2dp_vendor_opus_encoder_update(uint16_t peer_mtu,
     log::error("Cannot get Opus encoder handle");
     return false;
   }
-  CHECK(a2dp_opus_encoder_cb.opus_handle != nullptr);
+  log::assert_that(
+      a2dp_opus_encoder_cb.opus_handle != nullptr,
+      "assert failed: a2dp_opus_encoder_cb.opus_handle != nullptr");
 
   if (!a2dp_codec_config->copyOutOtaCodecConfig(codec_info)) {
     log::error("Cannot update the codec encoder for {}: invalid codec config",
-               a2dp_codec_config->name().c_str());
+               a2dp_codec_config->name());
     return false;
   }
   const uint8_t* p_codec_info = codec_info;
@@ -432,7 +432,12 @@ static void a2dp_opus_encode_frames(uint8_t nb_frame) {
        */
       *((uint32_t*)(p_buf + 1)) = a2dp_opus_encoder_cb.timestamp;
 
-      a2dp_opus_encoder_cb.timestamp += p_buf->layer_specific * opus_frame_size;
+      // Timestamp will wrap over to 0 if stream continues on long enough
+      // (>25H @ 48KHz). The parameters are promoted to 64bit to ensure that
+      // no unsigned overflow is triggered as ubsan is always enabled.
+      a2dp_opus_encoder_cb.timestamp =
+          ((uint64_t)a2dp_opus_encoder_cb.timestamp +
+           (p_buf->layer_specific * opus_frame_size)) & UINT32_MAX;
 
       uint8_t done_nb_frame = remain_nb_frame - nb_frame;
       remain_nb_frame = nb_frame;

@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "a2dp_vendor_aptx_hd_encoder"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "a2dp_vendor_aptx_hd_encoder.h"
 
 #include <bluetooth/log.h>
 #include <dlfcn.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "a2dp_vendor.h"
@@ -170,7 +169,7 @@ static void a2dp_vendor_aptx_hd_encoder_update(
   *p_config_updated = false;
   if (!a2dp_codec_config->copyOutOtaCodecConfig(codec_info)) {
     log::error("Cannot update the codec encoder for {}: invalid codec config",
-               a2dp_codec_config->name().c_str());
+               a2dp_codec_config->name());
     return;
   }
   const uint8_t* p_codec_info = codec_info;
@@ -209,7 +208,7 @@ static void aptx_hd_init_framing_params(
 
   framing_params->sleep_time_ns = 9000000;
 
-  log::info("{}: sleep_time_ns = %", PRIu64);
+  log::info("sleep_time_ns={}", framing_params->sleep_time_ns);
 }
 
 //
@@ -259,9 +258,11 @@ static void aptx_hd_update_framing_params(
   }
 
   log::verbose(
-      "{}: sleep_time_ns = %", PRIu64
-      " aptx_hd_bytes = %u "
-      "pcm_bytes_per_read = %u pcm_reads = %u frame_size_counter = %u");
+      "sleep_time_ns={} aptx_hd_bytes={} pcm_bytes_per_read={} pcm_reads={} "
+      "frame_size_counter={}",
+      framing_params->sleep_time_ns, framing_params->aptx_hd_bytes,
+      framing_params->pcm_bytes_per_read, framing_params->pcm_reads,
+      framing_params->frame_size_counter);
 }
 
 void a2dp_vendor_aptx_hd_feeding_reset(void) {
@@ -346,7 +347,12 @@ void a2dp_vendor_aptx_hd_send_frames(uint64_t timestamp_us) {
       (pcm_bytes_encoded /
        a2dp_aptx_hd_encoder_cb.feeding_params.channel_count) /
       BYTES_PER_FRAME;
-  a2dp_aptx_hd_encoder_cb.timestamp += rtp_timestamp;
+
+  // Timestamp will wrap over to 0 if stream continues on long enough
+  // (>25H @ 48KHz). The parameters are promoted to 64bit to ensure that
+  // no unsigned overflow is triggered as ubsan is always enabled.
+  a2dp_aptx_hd_encoder_cb.timestamp =
+      ((uint64_t)a2dp_aptx_hd_encoder_cb.timestamp + rtp_timestamp) & UINT32_MAX;
 
   if (p_buf->len > 0) {
     a2dp_aptx_hd_encoder_cb.enqueue_callback(p_buf, 1, bytes_read);

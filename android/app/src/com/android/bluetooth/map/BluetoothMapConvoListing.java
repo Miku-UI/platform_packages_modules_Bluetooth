@@ -1,17 +1,17 @@
 /*
-* Copyright (C) 2015 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2015 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.map;
 
 import android.bluetooth.BluetoothProfile;
@@ -40,7 +40,6 @@ import java.util.List;
 public class BluetoothMapConvoListing {
     private boolean mHasUnread = false;
     private static final String TAG = "BluetoothMapConvoListing";
-    private static final boolean D = BluetoothMapService.DEBUG;
     private static final String XML_TAG = "MAP-convo-listing";
 
     private List<BluetoothMapConvoListingElement> mList;
@@ -59,6 +58,7 @@ public class BluetoothMapConvoListing {
 
     /**
      * Used to fetch the number of BluetoothMapConvoListingElement elements in the list.
+     *
      * @return the number of elements in the list.
      */
     public int getCount() {
@@ -70,15 +70,16 @@ public class BluetoothMapConvoListing {
 
     /**
      * does the list contain any unread messages
+     *
      * @return true if unread messages have been added to the list, else false
      */
     public boolean hasUnread() {
         return mHasUnread;
     }
 
-
     /**
-     *  returns the entire list as a list
+     * returns the entire list as a list
+     *
      * @return list
      */
     public List<BluetoothMapConvoListingElement> getList() {
@@ -86,12 +87,11 @@ public class BluetoothMapConvoListing {
     }
 
     /**
-     * Encode the list of BluetoothMapMessageListingElement(s) into a UTF-8
-     * formatted XML-string in a trimmed byte array
+     * Encode the list of BluetoothMapMessageListingElement(s) into a UTF-8 formatted XML-string in
+     * a trimmed byte array
      *
      * @return a reference to the encoded byte array.
-     * @throws UnsupportedEncodingException
-     *             if UTF-8 encoding is unsupported on the platform.
+     * @throws UnsupportedEncodingException if UTF-8 encoding is unsupported on the platform.
      */
     public byte[] encode() throws UnsupportedEncodingException {
         StringWriter sw = new StringWriter();
@@ -99,8 +99,8 @@ public class BluetoothMapConvoListing {
         try {
             xmlConvoElement.setOutput(sw);
             xmlConvoElement.startDocument("UTF-8", true);
-            xmlConvoElement.setFeature("http://xmlpull.org/v1/doc/features.html#indent-output",
-                    true);
+            xmlConvoElement.setFeature(
+                    "http://xmlpull.org/v1/doc/features.html#indent-output", true);
             xmlConvoElement.startTag(null, XML_TAG);
             xmlConvoElement.attribute(null, "version", "1.0");
             // Do the XML encoding of list
@@ -172,9 +172,7 @@ public class BluetoothMapConvoListing {
                 // Skip until we get a folder-listing tag
                 String name = parser.getName();
                 if (!name.equalsIgnoreCase(XML_TAG)) {
-                    if (D) {
-                        Log.i(TAG, "Unknown XML tag: " + name);
-                    }
+                    Log.w(TAG, "Unknown XML tag: " + name);
                     Utils.skipCurrentTag(parser);
                 }
                 readConversations(parser);
@@ -186,17 +184,13 @@ public class BluetoothMapConvoListing {
 
     /**
      * Parses folder elements, and add to mSubFolders.
+     *
      * @param parser the Xml Parser currently pointing to an folder-listing tag.
-     * @throws XmlPullParserException
-     * @throws IOException
-     * @throws
      */
     private void readConversations(XmlPullParser parser)
             throws XmlPullParserException, IOException, ParseException {
         int type;
-        if (D) {
-            Log.i(TAG, "readConversations(): ");
-        }
+        Log.d(TAG, "readConversations");
         while ((type = parser.next()) != XmlPullParser.END_TAG
                 && type != XmlPullParser.END_DOCUMENT) {
             // Skip until we get a start tag
@@ -207,9 +201,7 @@ public class BluetoothMapConvoListing {
             String name = parser.getName();
             if (!name.trim()
                     .equalsIgnoreCase(BluetoothMapConvoListingElement.XML_TAG_CONVERSATION)) {
-                if (D) {
-                    Log.i(TAG, "Unknown XML tag: " + name);
-                }
+                Log.w(TAG, "Unknown XML tag: " + name);
                 Utils.skipCurrentTag(parser);
                 continue;
             }
@@ -217,7 +209,6 @@ public class BluetoothMapConvoListing {
             add(BluetoothMapConvoListingElement.createFromXml(parser));
         }
     }
-
 
     @Override
     public boolean equals(Object obj) {
@@ -243,5 +234,4 @@ public class BluetoothMapConvoListing {
         }
         return true;
     }
-
 }

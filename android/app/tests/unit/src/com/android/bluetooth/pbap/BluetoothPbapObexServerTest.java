@@ -67,11 +67,13 @@ import com.android.obex.ResponseCodes;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -82,35 +84,38 @@ public class BluetoothPbapObexServerTest {
 
     private static final String TAG = BluetoothPbapObexServerTest.class.getSimpleName();
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock Handler mMockHandler;
     @Mock PbapStateMachine mMockStateMachine;
 
-    @Spy
-    BluetoothMethodProxy mPbapMethodProxy = BluetoothMethodProxy.getInstance();
+    @Spy BluetoothMethodProxy mPbapMethodProxy = BluetoothMethodProxy.getInstance();
 
     BluetoothPbapObexServer mServer;
 
-    private static final byte[] WRONG_UUID = new byte[] {
-            0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00,
-    };
+    private static final byte[] WRONG_UUID =
+            new byte[] {
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00,
+            };
 
-    private static final byte[] WRONG_LENGTH_UUID = new byte[] {
-            0x79,
-            0x61,
-            0x35,
-    };
+    private static final byte[] WRONG_LENGTH_UUID =
+            new byte[] {
+                0x79, 0x61, 0x35,
+            };
 
     private static final String ILLEGAL_PATH = "some/random/path";
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         BluetoothMethodProxy.setInstanceForTesting(mPbapMethodProxy);
-        mServer = new BluetoothPbapObexServer(
-                mMockHandler, InstrumentationRegistry.getTargetContext(), mMockStateMachine);
+        mServer =
+                new BluetoothPbapObexServer(
+                        mMockHandler,
+                        InstrumentationRegistry.getTargetContext(),
+                        mMockStateMachine);
     }
 
     @After
@@ -119,8 +124,7 @@ public class BluetoothPbapObexServerTest {
     }
 
     @Test
-    public void testOnConnect_whenIoExceptionIsThrownFromGettingTargetHeader()
-            throws Exception {
+    public void testOnConnect_whenIoExceptionIsThrownFromGettingTargetHeader() throws Exception {
         HeaderSet request = new HeaderSet();
         HeaderSet reply = new HeaderSet();
 
@@ -161,8 +165,7 @@ public class BluetoothPbapObexServerTest {
     }
 
     @Test
-    public void testOnConnect_whenIoExceptionIsThrownFromGettingWhoHeader()
-            throws Exception {
+    public void testOnConnect_whenIoExceptionIsThrownFromGettingWhoHeader() throws Exception {
         HeaderSet request = new HeaderSet();
         request.setHeader(HeaderSet.TARGET, BluetoothPbapObexServer.PBAP_TARGET);
         HeaderSet reply = new HeaderSet();
@@ -180,7 +183,8 @@ public class BluetoothPbapObexServerTest {
         request.setHeader(HeaderSet.TARGET, BluetoothPbapObexServer.PBAP_TARGET);
         HeaderSet reply = new HeaderSet();
 
-        doThrow(IOException.class).when(mPbapMethodProxy)
+        doThrow(IOException.class)
+                .when(mPbapMethodProxy)
                 .getHeader(request, HeaderSet.APPLICATION_PARAMETER);
 
         assertThat(mServer.onConnect(request, reply))
@@ -249,7 +253,7 @@ public class BluetoothPbapObexServerTest {
     }
 
     @Test
-    public void testCloseStream_success() throws Exception{
+    public void testCloseStream_success() throws Exception {
         OutputStream outputStream = mock(OutputStream.class);
         Operation operation = mock(Operation.class);
 
@@ -287,7 +291,7 @@ public class BluetoothPbapObexServerTest {
     }
 
     @Test
-    public void testLogHeader() throws Exception{
+    public void testLogHeader() throws Exception {
         HeaderSet headerSet = new HeaderSet();
         try {
             BluetoothPbapObexServer.logHeader(headerSet);
@@ -297,15 +301,13 @@ public class BluetoothPbapObexServerTest {
     }
 
     @Test
-    public void testOnSetPath_whenIoExceptionIsThrownFromGettingNameHeader()
-            throws Exception {
+    public void testOnSetPath_whenIoExceptionIsThrownFromGettingNameHeader() throws Exception {
         HeaderSet request = new HeaderSet();
         HeaderSet reply = new HeaderSet();
         boolean backup = true;
         boolean create = true;
 
-        doThrow(IOException.class).when(mPbapMethodProxy)
-                .getHeader(request, HeaderSet.NAME);
+        doThrow(IOException.class).when(mPbapMethodProxy).getHeader(request, HeaderSet.NAME);
 
         assertThat(mServer.onSetPath(request, reply, backup, create))
                 .isEqualTo(ResponseCodes.OBEX_HTTP_INTERNAL_ERROR);
@@ -358,7 +360,8 @@ public class BluetoothPbapObexServerTest {
         HeaderSet headerSet = new HeaderSet();
         when(operation.getReceivedHeader()).thenReturn(headerSet);
 
-        doThrow(IOException.class).when(mPbapMethodProxy)
+        doThrow(IOException.class)
+                .when(mPbapMethodProxy)
                 .getHeader(headerSet, HeaderSet.APPLICATION_PARAMETER);
 
         assertThat(mServer.onGet(operation)).isEqualTo(ResponseCodes.OBEX_HTTP_INTERNAL_ERROR);
@@ -623,8 +626,12 @@ public class BluetoothPbapObexServerTest {
         BluetoothPbapObexServer.writeVCardEntry(vcfIndex, nameWithSpecialChars, stringBuilder);
         String result = stringBuilder.toString();
 
-        String expectedResult = "<card handle=\"" + vcfIndex + ".vcf\" name=\"" +
-                "Name&lt;&gt;&quot;&#039;&amp;" + "\"/>";
+        String expectedResult =
+                "<card handle=\""
+                        + vcfIndex
+                        + ".vcf\" name=\""
+                        + "Name&lt;&gt;&quot;&#039;&amp;"
+                        + "\"/>";
         assertThat(result).isEqualTo(expectedResult);
     }
 
@@ -632,8 +639,7 @@ public class BluetoothPbapObexServerTest {
     public void getDatabaseIdentifier() {
         long databaseIdentifierLow = 1;
         BluetoothPbapUtils.sDbIdentifier.set(databaseIdentifierLow);
-        byte[] expected = new byte[] {0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 1}; // Big-endian
+        byte[] expected = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}; // Big-endian
 
         assertThat(mServer.getDatabaseIdentifier()).isEqualTo(expected);
     }
@@ -642,8 +648,7 @@ public class BluetoothPbapObexServerTest {
     public void getPBPrimaryFolderVersion() {
         long primaryVersion = 5;
         BluetoothPbapUtils.sPrimaryVersionCounter = primaryVersion;
-        byte[] expected = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 5}; // Big-endian
+        byte[] expected = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5}; // Big-endian
 
         assertThat(BluetoothPbapObexServer.getPBPrimaryFolderVersion()).isEqualTo(expected);
     }
@@ -652,8 +657,7 @@ public class BluetoothPbapObexServerTest {
     public void getPBSecondaryFolderVersion() {
         long secondaryVersion = 5;
         BluetoothPbapUtils.sSecondaryVersionCounter = secondaryVersion;
-        byte[] expected = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 5}; // Big-endian
+        byte[] expected = new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5}; // Big-endian
 
         assertThat(BluetoothPbapObexServer.getPBSecondaryFolderVersion()).isEqualTo(expected);
     }
@@ -678,8 +682,11 @@ public class BluetoothPbapObexServerTest {
 
         byte[] result = param.getHeader();
         assertThat(result).isNotNull();
-        int expectedLength = 2 + ApplicationParameter.TRIPLET_LENGTH.PRIMARYVERSIONCOUNTER_LENGTH
-                + 2 + ApplicationParameter.TRIPLET_LENGTH.SECONDARYVERSIONCOUNTER_LENGTH;
+        int expectedLength =
+                2
+                        + ApplicationParameter.TRIPLET_LENGTH.PRIMARYVERSIONCOUNTER_LENGTH
+                        + 2
+                        + ApplicationParameter.TRIPLET_LENGTH.SECONDARYVERSIONCOUNTER_LENGTH;
         assertThat(result.length).isEqualTo(expectedLength);
     }
 
@@ -687,17 +694,50 @@ public class BluetoothPbapObexServerTest {
     public void setCallversionCounters() {
         ApplicationParameter param = new ApplicationParameter();
         AppParamValue value = new AppParamValue();
-        value.callHistoryVersionCounter = new byte[]
-                {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        value.callHistoryVersionCounter =
+                new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
         BluetoothPbapObexServer.setCallversionCounters(param, value);
 
-        byte[] expectedResult = new byte[] {
-                PRIMARYVERSIONCOUNTER_TAGID, PRIMARYVERSIONCOUNTER_LENGTH,
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-                SECONDARYVERSIONCOUNTER_TAGID, SECONDARYVERSIONCOUNTER_LENGTH,
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-        };
+        byte[] expectedResult =
+                new byte[] {
+                    PRIMARYVERSIONCOUNTER_TAGID,
+                    PRIMARYVERSIONCOUNTER_LENGTH,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    SECONDARYVERSIONCOUNTER_TAGID,
+                    SECONDARYVERSIONCOUNTER_LENGTH,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16
+                };
         assertThat(param.getHeader()).isEqualTo(expectedResult);
     }
 
@@ -747,8 +787,19 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withPropertySelectorTagid() {
-        byte[] rawBytes = new byte[] {PROPERTY_SELECTOR_TAGID, PROPERTY_SELECTOR_LENGTH,
-                0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}; // non-zero value uses filter
+        byte[] rawBytes =
+                new byte[] {
+                    PROPERTY_SELECTOR_TAGID,
+                    PROPERTY_SELECTOR_LENGTH,
+                    0x01,
+                    0x02,
+                    0x03,
+                    0x04,
+                    0x05,
+                    0x06,
+                    0x07,
+                    0x08
+                }; // non-zero value uses filter
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -757,8 +808,10 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withSupportedFeatureTagid() {
-        byte[] rawBytes = new byte[] {SUPPORTEDFEATURE_TAGID, SUPPORTEDFEATURE_LENGTH,
-                0x01, 0x02, 0x03, 0x04};
+        byte[] rawBytes =
+                new byte[] {
+                    SUPPORTEDFEATURE_TAGID, SUPPORTEDFEATURE_LENGTH, 0x01, 0x02, 0x03, 0x04
+                };
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -768,8 +821,7 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withOrderTagid() {
-        byte[] rawBytes = new byte[] {ORDER_TAGID, ORDER_LENGTH,
-                ORDER_BY_ALPHANUMERIC};
+        byte[] rawBytes = new byte[] {ORDER_TAGID, ORDER_LENGTH, ORDER_BY_ALPHANUMERIC};
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -779,8 +831,7 @@ public class BluetoothPbapObexServerTest {
     @Test
     public void parseApplicationParameter_withSearchValueTagid() {
         int searchLength = 4;
-        byte[] rawBytes = new byte[] {SEARCH_VALUE_TAGID, (byte) searchLength,
-                'a', 'b', 'c', 'd' };
+        byte[] rawBytes = new byte[] {SEARCH_VALUE_TAGID, (byte) searchLength, 'a', 'b', 'c', 'd'};
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -789,8 +840,7 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withSearchAttributeTagid() {
-        byte[] rawBytes = new byte[] {SEARCH_ATTRIBUTE_TAGID, SEARCH_ATTRIBUTE_LENGTH,
-                0x05};
+        byte[] rawBytes = new byte[] {SEARCH_ATTRIBUTE_TAGID, SEARCH_ATTRIBUTE_LENGTH, 0x05};
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -799,8 +849,7 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withMaxListCountTagid() {
-        byte[] rawBytes = new byte[] {MAXLISTCOUNT_TAGID, SEARCH_ATTRIBUTE_LENGTH,
-                0x01, 0x02};
+        byte[] rawBytes = new byte[] {MAXLISTCOUNT_TAGID, SEARCH_ATTRIBUTE_LENGTH, 0x01, 0x02};
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -809,8 +858,7 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withListStartOffsetTagid() {
-        byte[] rawBytes = new byte[] {LISTSTARTOFFSET_TAGID, LISTSTARTOFFSET_LENGTH,
-                0x01, 0x02};
+        byte[] rawBytes = new byte[] {LISTSTARTOFFSET_TAGID, LISTSTARTOFFSET_LENGTH, 0x01, 0x02};
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -819,8 +867,7 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withFormatTagid() {
-        byte[] rawBytes = new byte[] {FORMAT_TAGID, FORMAT_LENGTH,
-                0x01};
+        byte[] rawBytes = new byte[] {FORMAT_TAGID, FORMAT_LENGTH, 0x01};
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -829,8 +876,19 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withVCardSelectorTagid() {
-        byte[] rawBytes = new byte[] {VCARDSELECTOR_TAGID, VCARDSELECTOR_LENGTH,
-                0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+        byte[] rawBytes =
+                new byte[] {
+                    VCARDSELECTOR_TAGID,
+                    VCARDSELECTOR_LENGTH,
+                    0x01,
+                    0x02,
+                    0x03,
+                    0x04,
+                    0x05,
+                    0x06,
+                    0x07,
+                    0x08
+                };
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -840,8 +898,8 @@ public class BluetoothPbapObexServerTest {
 
     @Test
     public void parseApplicationParameter_withVCardSelectorOperatorTagid() {
-        byte[] rawBytes = new byte[] {VCARDSELECTOROPERATOR_TAGID, VCARDSELECTOROPERATOR_LENGTH,
-                0x01};
+        byte[] rawBytes =
+                new byte[] {VCARDSELECTOROPERATOR_TAGID, VCARDSELECTOROPERATOR_LENGTH, 0x01};
         AppParamValue appParamValue = new AppParamValue();
 
         assertThat(mServer.parseApplicationParameter(rawBytes, appParamValue)).isTrue();
@@ -849,8 +907,8 @@ public class BluetoothPbapObexServerTest {
     }
 
     @Test
-    public void appParamValueDump_doesNotCrash() {
+    public void appParamValueToString_doesNotCrash() {
         AppParamValue appParamValue = new AppParamValue();
-        appParamValue.dump();
+        assertThat(appParamValue.toString()).isNotNull();
     }
 }

@@ -60,69 +60,37 @@ const Interface& GetInterface();
 /* Add SCO Connection */
 void btsnd_hcic_add_SCO_conn(uint16_t handle, uint16_t packet_types);
 
-/* Add SCO Connection */
-
 /* Create Connection Cancel */
 void btsnd_hcic_create_conn_cancel(const RawAddress& dest);
 
-/* Create Connection Cancel */
-
-/* Accept Connection Request */
-void btsnd_hcic_accept_conn(const RawAddress& bd_addr, uint8_t role);
-
-/* Accept Connection Request */
-
 /* Reject Connection Request */
 void btsnd_hcic_reject_conn(const RawAddress& bd_addr, uint8_t reason);
-
-/* Reject Connection Request */
 
 /* Link Key Request Reply */
 void btsnd_hcic_link_key_req_reply(const RawAddress& bd_addr,
                                    const LinkKey& link_key);
 
-/* Link Key Request Reply  */
-
 /* Link Key Request Neg Reply */
 void btsnd_hcic_link_key_neg_reply(const RawAddress& bd_addr);
-
-/* Link Key Request Neg Reply  */
 
 /* PIN Code Request Reply */
 void btsnd_hcic_pin_code_req_reply(const RawAddress& bd_addr,
                                    uint8_t pin_code_len, PIN_CODE pin_code);
 
-/* PIN Code Request Reply  */
-
 /* Link Key Request Neg Reply */
 void btsnd_hcic_pin_code_neg_reply(const RawAddress& bd_addr);
-
-/* Link Key Request Neg Reply  */
 
 /* Change Connection Type */
 void btsnd_hcic_change_conn_type(uint16_t handle, uint16_t packet_types);
 
 /* Change Connection Type */
-
 void btsnd_hcic_auth_request(uint16_t handle); /* Authentication Request */
 
 /* Set Connection Encryption */
 void btsnd_hcic_set_conn_encrypt(uint16_t handle, bool enable);
-/* Set Connection Encryption */
-
-/* Remote Name Request */
-void btsnd_hcic_rmt_name_req(const RawAddress& bd_addr,
-                             uint8_t page_scan_rep_mode, uint8_t page_scan_mode,
-                             uint16_t clock_offset);
-/* Remote Name Request */
-
-/* Remote Name Request Cancel */
-void btsnd_hcic_rmt_name_req_cancel(const RawAddress& bd_addr);
-/* Remote Name Request Cancel */
 
 /* Remote Extended Features */
 void btsnd_hcic_rmt_ext_features(uint16_t handle, uint8_t page_num);
-/* Remote Extended Features */
 
 void btsnd_hcic_rmt_ver_req(uint16_t handle); /* Remote Version Info Request */
 void btsnd_hcic_read_rmt_clk_offset(uint16_t handle); /* Remote Clock Offset */
@@ -147,24 +115,22 @@ void btsnd_hcic_hold_mode(uint16_t handle, uint16_t max_hold_period,
 void btsnd_hcic_sniff_mode(uint16_t handle, uint16_t max_sniff_period,
                            uint16_t min_sniff_period, uint16_t sniff_attempt,
                            uint16_t sniff_timeout);
-/* Sniff Mode */
 
-void btsnd_hcic_exit_sniff_mode(uint16_t handle); /* Exit Sniff Mode */
+/* Exit Sniff Mode */
+void btsnd_hcic_exit_sniff_mode(uint16_t handle);
 
 /* Park Mode */
 void btsnd_hcic_park_mode(uint16_t handle, uint16_t beacon_max_interval,
                           uint16_t beacon_min_interval);
-/* Park Mode */
 
-void btsnd_hcic_exit_park_mode(uint16_t handle); /* Exit Park Mode */
+/* Exit Park Mode */
+void btsnd_hcic_exit_park_mode(uint16_t handle);
 
 /* Write Policy Settings */
 void btsnd_hcic_write_policy_set(uint16_t handle, uint16_t settings);
-/* Write Policy Settings */
 
 /* Write Default Policy Settings */
 void btsnd_hcic_write_def_policy_set(uint16_t settings);
-/* Write Default Policy Settings */
 
 /******************************************
  *    Lisbon Features
@@ -185,6 +151,9 @@ void btsnd_hcic_io_cap_req_neg_reply(const RawAddress& bd_addr,
 /* Read Local OOB Data */
 void btsnd_hcic_read_local_oob_data(void);
 
+/* Read Local OOB Extended Data */
+void btsnd_hcic_read_local_oob_extended_data(void);
+
 void btsnd_hcic_user_conf_reply(const RawAddress& bd_addr, bool is_yes);
 
 void btsnd_hcic_user_passkey_reply(const RawAddress& bd_addr, uint32_t value);
@@ -200,8 +169,6 @@ void btsnd_hcic_rem_oob_neg_reply(const RawAddress& bd_addr);
 
 /* Read Default Erroneous Data Reporting */
 void btsnd_hcic_read_default_erroneous_data_rpt(void);
-
-void btsnd_hcic_enhanced_flush(uint16_t handle, uint8_t packet_type);
 
 /**** end of Simple Pairing Commands ****/
 
@@ -329,12 +296,6 @@ void btsnd_hcic_ble_set_scan_enable(uint8_t scan_enable, uint8_t duplicate);
 
 void btsnd_hcic_ble_read_acceptlist_size(void);
 
-void btsnd_hcic_ble_upd_ll_conn_params(uint16_t handle, uint16_t conn_int_min,
-                                       uint16_t conn_int_max,
-                                       uint16_t conn_latency,
-                                       uint16_t conn_timeout, uint16_t min_len,
-                                       uint16_t max_len);
-
 void btsnd_hcic_ble_read_remote_feat(uint16_t handle);
 
 void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb);
@@ -354,15 +315,6 @@ void btsnd_hcic_ble_receiver_test(uint8_t rx_freq);
 void btsnd_hcic_ble_transmitter_test(uint8_t tx_freq, uint8_t test_data_len,
                                      uint8_t payload);
 void btsnd_hcic_ble_test_end(void);
-
-void btsnd_hcic_ble_rc_param_req_reply(uint16_t handle, uint16_t conn_int_min,
-                                       uint16_t conn_int_max,
-                                       uint16_t conn_latency,
-                                       uint16_t conn_timeout,
-                                       uint16_t min_ce_len,
-                                       uint16_t max_ce_len);
-
-void btsnd_hcic_ble_rc_param_req_neg_reply(uint16_t handle, uint8_t reason);
 
 void btsnd_hcic_ble_set_data_length(uint16_t conn_handle, uint16_t tx_octets,
                                     uint16_t tx_time);
@@ -446,11 +398,6 @@ void btsnd_hcic_create_cis(uint8_t num_cis,
 
 void btsnd_hcic_remove_cig(uint8_t cig_id,
                            base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hcic_accept_cis_req(uint16_t conn_handle);
-
-void btsnd_hcic_rej_cis_req(uint16_t conn_handle, uint8_t reason,
-                            base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
 void btsnd_hcic_req_peer_sca(uint16_t conn_handle);
 

@@ -29,12 +29,9 @@ import com.android.bluetooth.Utils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
-/**
- * HearingAid Native Interface to/from JNI.
- */
+/** HearingAid Native Interface to/from JNI. */
 public class HearingAidNativeInterface {
     private static final String TAG = "HearingAidNativeInterface";
-    private static final boolean DBG = true;
     private BluetoothAdapter mAdapter;
 
     @GuardedBy("INSTANCE_LOCK")
@@ -49,9 +46,7 @@ public class HearingAidNativeInterface {
         }
     }
 
-    /**
-     * Get singleton instance.
-     */
+    /** Get singleton instance. */
     public static HearingAidNativeInterface getInstance() {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
@@ -72,16 +67,14 @@ public class HearingAidNativeInterface {
     /**
      * Initializes the native interface.
      *
-     * priorities to configure.
+     * <p>priorities to configure.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void init() {
         initNative();
     }
 
-    /**
-     * Cleanup the native interface.
-     */
+    /** Cleanup the native interface. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void cleanup() {
         cleanupNative();
@@ -120,10 +113,7 @@ public class HearingAidNativeInterface {
         return addToAcceptlistNative(getByteAddress(device));
     }
 
-    /**
-     * Sets the HearingAid volume
-     * @param volume
-     */
+    /** Sets the HearingAid volume */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void setVolume(int volume) {
         setVolumeNative(volume);
@@ -162,31 +152,32 @@ public class HearingAidNativeInterface {
         event.device = getDevice(address);
         event.valueInt1 = state;
 
-        if (DBG) {
-            Log.d(TAG, "onConnectionStateChanged: " + event);
-        }
+        Log.d(TAG, "onConnectionStateChanged: " + event);
         sendMessageToService(event);
     }
 
     @VisibleForTesting
     void onDeviceAvailable(byte capabilities, long hiSyncId, byte[] address) {
-        HearingAidStackEvent event = new HearingAidStackEvent(
-                HearingAidStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
+        HearingAidStackEvent event =
+                new HearingAidStackEvent(HearingAidStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
         event.device = getDevice(address);
         event.valueInt1 = capabilities;
         event.valueLong2 = hiSyncId;
 
-        if (DBG) {
-            Log.d(TAG, "onDeviceAvailable: " + event);
-        }
+        Log.d(TAG, "onDeviceAvailable: " + event);
         sendMessageToService(event);
     }
 
     // Native methods that call into the JNI interface
     private native void initNative();
+
     private native void cleanupNative();
+
     private native boolean connectHearingAidNative(byte[] address);
+
     private native boolean disconnectHearingAidNative(byte[] address);
+
     private native boolean addToAcceptlistNative(byte[] address);
+
     private native void setVolumeNative(int volume);
 }

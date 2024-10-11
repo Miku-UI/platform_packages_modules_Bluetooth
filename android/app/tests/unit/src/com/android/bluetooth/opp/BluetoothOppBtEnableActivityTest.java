@@ -29,6 +29,7 @@ import static org.mockito.Mockito.mock;
 
 import android.content.Context;
 import android.content.Intent;
+import android.sysprop.BluetoothProperties;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.espresso.action.ViewActions;
@@ -39,10 +40,10 @@ import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.MockitoAnnotations;
 
 public class BluetoothOppBtEnableActivityTest {
 
@@ -56,7 +57,8 @@ public class BluetoothOppBtEnableActivityTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+        Assume.assumeTrue(BluetoothProperties.isProfileOppEnabled().orElse(false));
+
         mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mIntent = new Intent();
         mIntent.setClass(mTargetContext, BluetoothOppBtEnableActivity.class);
@@ -66,21 +68,26 @@ public class BluetoothOppBtEnableActivityTest {
 
     @After
     public void tearDown() throws Exception {
+        if (!BluetoothProperties.isProfileOppEnabled().orElse(false)) {
+            return;
+        }
         TestUtils.tearDownUiTest();
         Intents.release();
     }
 
     @Test
     public void onCreate_clickOnEnable_launchEnablingActivity() {
-        ActivityScenario<BluetoothOppBtEnableActivity> activityScenario = ActivityScenario.launch(
-                mIntent);
+        ActivityScenario<BluetoothOppBtEnableActivity> activityScenario =
+                ActivityScenario.launch(mIntent);
         activityScenario.onActivity(
                 activity -> activity.mOppManager = mock(BluetoothOppManager.class));
         onView(withText(mTargetContext.getText(R.string.bt_enable_ok).toString()))
                 .inRoot(isDialog())
                 .perform(ViewActions.scrollTo());
-        onView(withText(mTargetContext.getText(R.string.bt_enable_ok).toString())).inRoot(
-                isDialog()).check(matches(isDisplayed())).perform(click());
+        onView(withText(mTargetContext.getText(R.string.bt_enable_ok).toString()))
+                .inRoot(isDialog())
+                .check(matches(isDisplayed()))
+                .perform(click());
         intended(hasComponent(BluetoothOppBtEnablingActivity.class.getName()));
     }
 }

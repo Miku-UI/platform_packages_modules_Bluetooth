@@ -30,12 +30,10 @@
 #include <cstdint>
 #include <unordered_map>
 
-#include "internal_include/bt_target.h"
-#include "os/log.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_hdr.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_int.h"
+#include "stack/rfcomm/rfc_state.h"
 
 using namespace bluetooth;
 
@@ -80,8 +78,7 @@ void RFCOMM_StartRsp(tRFC_MCB* p_mcb, uint16_t result) {
  *                  machine.
  *
  ******************************************************************************/
-void RFCOMM_DlcEstablishReq(tRFC_MCB* p_mcb, uint8_t dlci,
-                            UNUSED_ATTR uint16_t mtu) {
+void RFCOMM_DlcEstablishReq(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t /* mtu */) {
   if (p_mcb->state != RFC_MX_STATE_CONNECTED) {
     PORT_DlcEstablishCnf(p_mcb, dlci, 0, RFCOMM_ERROR);
     return;
@@ -104,8 +101,8 @@ void RFCOMM_DlcEstablishReq(tRFC_MCB* p_mcb, uint8_t dlci,
  *                  acks Establish Indication.
  *
  ******************************************************************************/
-void RFCOMM_DlcEstablishRsp(tRFC_MCB* p_mcb, uint8_t dlci,
-                            UNUSED_ATTR uint16_t mtu, uint16_t result) {
+void RFCOMM_DlcEstablishRsp(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t /* mtu */,
+                            uint16_t result) {
   if ((p_mcb->state != RFC_MX_STATE_CONNECTED) && (result == RFCOMM_SUCCESS)) {
     PORT_DlcReleaseInd(p_mcb, dlci);
     return;
@@ -143,14 +140,15 @@ void RFCOMM_ParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci,
   }
 
   if (p_mcb->state != RFC_MX_STATE_CONNECTED) {
-    p_port->error = PORT_PAR_NEG_FAILED;
+    log::warn("Multiplexer is in unexpected dlci:{} state:{}", dlci,
+              rfcomm_mx_state_text(p_mcb->state).c_str());
     return;
   }
 
-  /* Negotiate the flow control mechanism.  If flow control mechanism for */
-  /* mux has not been set yet, use our default value.  If it has been set, */
-  /* use that value. */
-  flow = (p_mcb->flow == PORT_FC_UNDEFINED) ? PORT_FC_DEFAULT : p_mcb->flow;
+  /* Negotiate the flow control mechanism.  If flow control mechanism for the
+   * mux has not been set yet, use credits.  If it has been set, use that value.
+   */
+  flow = (p_mcb->flow == PORT_FC_UNDEFINED) ? PORT_FC_CREDIT : p_mcb->flow;
 
   /* Set convergence layer and number of credits (k) */
   if (flow == PORT_FC_CREDIT) {

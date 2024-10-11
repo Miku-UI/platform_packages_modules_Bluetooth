@@ -25,7 +25,6 @@
 #define LOG_TAG "bt_bta_sys_main"
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstring>
@@ -195,7 +194,7 @@ void bta_sys_start_timer(alarm_t* alarm, uint64_t interval_ms, uint16_t event,
  *
  ******************************************************************************/
 void bta_sys_disable() {
-  int bta_id = BTA_ID_DM_SEARCH;
+  int bta_id = BTA_ID_DM_SEC;
   int bta_id_max = BTA_ID_BLUETOOTH_MAX;
 
   for (; bta_id <= bta_id_max; bta_id++) {

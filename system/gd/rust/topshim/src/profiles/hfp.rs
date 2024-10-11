@@ -79,7 +79,7 @@ impl From<u32> for BthfAudioState {
 // This is used for codec-negotiation related methods that do not
 // concern with the coding format. Do not confuse this with |HfpCodecFormat|.
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Debug, Default)]
     pub struct HfpCodecBitId: i32 {
         const NONE = 0b000;
         const CVSD = 0b001;
@@ -110,7 +110,7 @@ impl TryFrom<i32> for HfpCodecBitId {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub struct HfpCodecFormat: i32 {
         const NONE =             0b0000;
         const CVSD =             0b0001;
@@ -137,7 +137,8 @@ impl TryFrom<i32> for HfpCodecFormat {
 #[cxx::bridge(namespace = bluetooth::topshim::rust)]
 pub mod ffi {
     unsafe extern "C++" {
-        include!("gd/rust/topshim/common/type_alias.h");
+        include!("types/raw_address.h");
+        #[namespace = ""]
         type RawAddress = crate::btif::RawAddress;
     }
 
@@ -159,24 +160,10 @@ pub mod ffi {
         Held,   // Only used by CLCC response
     }
 
-    #[derive(Debug, Copy, Clone)]
-    /*
-    When a SCO is created, it is necessary to have at least one call in the call list.
-    Otherwise, some headsets may not be able to output sound.
-
-    Therefore, we need to separate the call for CRAS from the call for the application so that
-    we can have a correct life cycle for the call list status.
-    */
-    pub enum CallSource {
-        CRAS,
-        HID,
-    }
-
     #[derive(Debug, Clone)]
     pub struct CallInfo {
         index: i32,
         dir_incoming: bool,
-        source: CallSource,
         state: CallState,
         number: String,
     }
@@ -292,10 +279,24 @@ impl TelephonyDeviceStatus {
 }
 
 pub type CallState = ffi::CallState;
-pub type CallSource = ffi::CallSource;
 pub type CallInfo = ffi::CallInfo;
 pub type PhoneState = ffi::PhoneState;
 pub type CallHoldCommand = ffi::CallHoldCommand;
+
+// CallState (non-primitive) cannot be directly cast to u8.
+impl From<CallState> for u8 {
+    fn from(state: CallState) -> u8 {
+        match state {
+            CallState::Idle => 0,
+            CallState::Incoming => 1,
+            CallState::Dialing => 2,
+            CallState::Alerting => 3,
+            CallState::Active => 4,
+            CallState::Held => 5,
+            CallState { repr: 6_u8..=u8::MAX } => todo!(),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum HfpCallbacks {

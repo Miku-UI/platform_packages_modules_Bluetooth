@@ -17,13 +17,13 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bt_btif_a2dp_sink"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "btif/include/btif_a2dp_sink.h"
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <atomic>
 #include <mutex>
@@ -34,7 +34,6 @@
 #include "btif/include/btif_avrcp_audio_track.h"
 #include "btif/include/btif_util.h"  // CASE_RETURN_STR
 #include "common/message_loop_thread.h"
-#include "include/check.h"
 #include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
@@ -225,15 +224,14 @@ static void btif_a2dp_sink_startup_delayed() {
 
 bool btif_a2dp_sink_start_session(const RawAddress& peer_address,
                                   std::promise<void> peer_ready_promise) {
-  log::info("peer_address={}", ADDRESS_TO_LOGGABLE_STR(peer_address));
+  log::info("peer_address={}", peer_address);
   if (btif_a2dp_sink_cb.worker_thread.DoInThread(
           FROM_HERE, base::BindOnce(btif_a2dp_sink_start_session_delayed,
                                     std::move(peer_ready_promise)))) {
     return true;
   } else {
     // cannot set promise but triggers crash
-    log::fatal("peer_address={} fails to context switch",
-               ADDRESS_TO_LOGGABLE_STR(peer_address));
+    log::fatal("peer_address={} fails to context switch", peer_address);
     return false;
   }
 }
@@ -249,21 +247,29 @@ static void btif_a2dp_sink_start_session_delayed(
 bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
                                     const RawAddress& new_peer_address,
                                     std::promise<void> peer_ready_promise) {
-  log::info("old_peer_address={} new_peer_address={}",
-            ADDRESS_TO_LOGGABLE_STR(old_peer_address),
-            ADDRESS_TO_LOGGABLE_STR(new_peer_address));
+  log::info("old_peer_address={} new_peer_address={}", old_peer_address,
+            new_peer_address);
 
-  CHECK(!new_peer_address.IsEmpty());
+  log::assert_that(!new_peer_address.IsEmpty(),
+                   "assert failed: !new_peer_address.IsEmpty()");
 
   if (!old_peer_address.IsEmpty()) {
     btif_a2dp_sink_end_session(old_peer_address);
   }
-
-  if (!bta_av_co_set_active_peer(new_peer_address)) {
-    log::error("Cannot stream audio: cannot set active peer to {}",
-               ADDRESS_TO_LOGGABLE_STR(new_peer_address));
-    peer_ready_promise.set_value();
-    return false;
+  if (com::android::bluetooth::flags::a2dp_concurrent_source_sink()) {
+    if (!bta_av_co_set_active_sink_peer(new_peer_address)) {
+      log::error("Cannot stream audio: cannot set active peer to {}",
+                 new_peer_address);
+      peer_ready_promise.set_value();
+      return false;
+    }
+  } else {
+    if (!bta_av_co_set_active_peer(new_peer_address)) {
+      log::error("Cannot stream audio: cannot set active peer to {}",
+                 new_peer_address);
+      peer_ready_promise.set_value();
+      return false;
+    }
   }
 
   if (old_peer_address.IsEmpty()) {
@@ -275,7 +281,7 @@ bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
 }
 
 bool btif_a2dp_sink_end_session(const RawAddress& peer_address) {
-  log::info("peer_address={}", ADDRESS_TO_LOGGABLE_CSTR(peer_address));
+  log::info("peer_address={}", peer_address);
   btif_a2dp_sink_cb.worker_thread.DoInThread(
       FROM_HERE, base::BindOnce(btif_a2dp_sink_end_session_delayed));
   return true;
@@ -525,13 +531,15 @@ static void btif_a2dp_sink_on_decode_complete(uint8_t* data, uint32_t len) {
 
 // Must be called while locked.
 static void btif_a2dp_sink_handle_inc_media(BT_HDR* p_msg) {
-  if ((btif_av_get_peer_sep() == AVDT_TSEP_SNK) ||
+  if ((btif_av_get_peer_sep(A2dpType::kSink) == AVDT_TSEP_SNK) ||
       (btif_a2dp_sink_cb.rx_flush)) {
     log::verbose("state changed happened in this tick");
     return;
   }
 
-  CHECK(btif_a2dp_sink_cb.decoder_interface != nullptr);
+  log::assert_that(
+      btif_a2dp_sink_cb.decoder_interface != nullptr,
+      "assert failed: btif_a2dp_sink_cb.decoder_interface != nullptr");
   if (!btif_a2dp_sink_cb.decoder_interface->decode_packet(p_msg)) {
     log::error("decoding failed");
   }
@@ -575,7 +583,7 @@ static void btif_a2dp_sink_avk_handle_timer() {
 
 /* when true media task discards any rx frames */
 void btif_a2dp_sink_set_rx_flush(bool enable) {
-  log::info("enable={}", (enable) ? "true" : "false");
+  log::info("enable={}", enable);
   LockGuard lock(g_mutex);
 
   btif_a2dp_sink_cb.rx_flush = enable;

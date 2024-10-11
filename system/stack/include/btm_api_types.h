@@ -40,12 +40,6 @@ typedef struct {
 /**************************************************
  *  Device Control and General Callback Functions
  **************************************************/
-/* Callback function for when a vendor specific event occurs. The length and
- * array of returned parameter bytes are included. This asynchronous event
- * is enabled/disabled by calling BTM_RegisterForVSEvents().
-*/
-typedef void(tBTM_VS_EVT_CB)(uint8_t len, const uint8_t* p);
-
 /* General callback function for notifying an application that a synchronous
  * BTM function is complete. The pointer contains the address of any returned
  * data.
@@ -58,43 +52,6 @@ typedef void(tBTM_CMPL_CB)(void* p1);
  */
 typedef void(tBTM_VSC_CMPL_CB)(tBTM_VSC_CMPL* p1);
 
-/*****************************************************************************
- *  DEVICE DISCOVERY - Inquiry, Remote Name, Discovery, Class of Device
- ****************************************************************************/
-/*******************************
- *  Device Discovery Constants
- *******************************/
-/****************************
- * minor device class field
- ****************************/
-
-/* BTM service definitions
- * Used for storing EIR data to bit mask
-*/
-#define BTM_EIR_MAX_SERVICES 46
-
-/*******************************************************************************
- * BTM Services MACROS handle array of uint32_t bits for more than 32 services
- ******************************************************************************/
-/* Determine the number of uint32_t's necessary for services */
-#define BTM_EIR_ARRAY_BITS 32 /* Number of bits in each array element */
-#define BTM_EIR_SERVICE_ARRAY_SIZE                         \
-  (((uint32_t)BTM_EIR_MAX_SERVICES / BTM_EIR_ARRAY_BITS) + \
-   (((uint32_t)BTM_EIR_MAX_SERVICES % BTM_EIR_ARRAY_BITS) ? 1 : 0))
-
-/* start of EIR in HCI buffer, 4 bytes = HCI Command(2) + Length(1) + FEC_Req(1)
- */
-#define BTM_HCI_EIR_OFFSET (BT_HDR_SIZE + 4)
-
-/***************************
- *  Device Discovery Types
- ***************************/
-constexpr uint8_t BLE_EVT_CONNECTABLE_BIT = 0;
-constexpr uint8_t BLE_EVT_SCANNABLE_BIT = 1;
-constexpr uint8_t BLE_EVT_DIRECTED_BIT = 2;
-constexpr uint8_t BLE_EVT_SCAN_RESPONSE_BIT = 3;
-constexpr uint8_t BLE_EVT_LEGACY_BIT = 4;
-
 constexpr uint8_t PHY_LE_NO_PACKET = 0x00;
 constexpr uint8_t PHY_LE_1M = 0x01;
 constexpr uint8_t PHY_LE_2M = 0x02;
@@ -103,14 +60,6 @@ constexpr uint8_t PHY_LE_CODED = 0x04;
 constexpr uint8_t NO_ADI_PRESENT = 0xFF;
 constexpr uint8_t TX_POWER_NOT_PRESENT = 0x7F;
 
-/*****************************************************************************
- *  ACL CHANNEL MANAGEMENT
- ****************************************************************************/
-// NOTE: Moved to stack/include/acl_api_types.h
-
-/*****************************************************************************
- *  SCO CHANNEL MANAGEMENT
- ****************************************************************************/
 /******************
  *  SCO Constants
  ******************/
@@ -145,13 +94,6 @@ typedef uint8_t tBTM_SCO_TYPE;
 #define BTA_AG_SCO_APTX_SWB_SETTINGS_Q3_MASK 0x0064
 typedef uint16_t tBTM_SCO_CODEC_TYPE;
 
-/*******************
- * SCO Voice Settings
- *******************/
-
-/*******************
- * SCO Data Status
- *******************/
 /***************************
  *  SCO Callback Functions
  ***************************/
@@ -232,23 +174,4 @@ inline uint16_t sco_codec_type_to_id(tBTM_SCO_CODEC_TYPE codec_type) {
       return 0;
   }
 }
-
-/*****************************************************************************
- *  POWER MANAGEMENT
- ****************************************************************************/
-/****************************
- *  Power Manager Constants
- ****************************/
-
-/************************
- *  Power Manager Types
- ************************/
-
-/*************************************
- *  Power Manager Callback Functions
- *************************************/
-
-// Bluetooth Quality Report - Report receiver
-typedef void(tBTM_BT_QUALITY_REPORT_RECEIVER)(uint8_t len,
-                                              const uint8_t* p_stream);
 #endif  // BTM_API_TYPES_H

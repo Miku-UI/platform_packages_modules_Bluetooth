@@ -19,9 +19,9 @@ use crate::{
         ids::{AttHandle, TransportIndex},
     },
     packets::{
-        AttAttributeDataChild, AttAttributeDataView, AttErrorCode,
-        GattCharacteristicDeclarationValueBuilder, GattCharacteristicPropertiesBuilder,
-        GattServiceDeclarationValueBuilder, UuidBuilder,
+        AttErrorCode, GattCharacteristicDeclarationValueBuilder,
+        GattCharacteristicPropertiesBuilder, GattServiceDeclarationValueBuilder, Serializable,
+        UuidBuilder,
     },
 };
 
@@ -98,7 +98,7 @@ struct GattDatabaseSchema {
 
 #[derive(Clone)]
 enum AttAttributeBackingValue {
-    Static(AttAttributeDataChild),
+    Static(Vec<u8>),
     DynamicCharacteristic(Rc<dyn RawGattDatastore>),
     DynamicDescriptor(Rc<dyn RawGattDatastore>),
 }
@@ -187,7 +187,10 @@ impl GattDatabase {
             },
             AttAttributeBackingValue::Static(
                 GattServiceDeclarationValueBuilder { uuid: UuidBuilder::from(service.type_) }
-                    .into(),
+                    .to_vec()
+                    .map_err(|e| {
+                        anyhow::anyhow!("failed to encode primary service declaration: {e:?}")
+                    })?,
             ),
         );
 
@@ -224,7 +227,10 @@ impl GattDatabase {
                         handle: characteristic.handle.into(),
                         uuid: characteristic.type_.into(),
                     }
-                    .into(),
+                    .to_vec()
+                    .map_err(|e| {
+                        anyhow::anyhow!("failed to encode characteristic declaration: {e:?}")
+                    })?,
                 ),
             );
 
@@ -341,10 +347,7 @@ pub struct AttDatabaseImpl {
 
 #[async_trait(?Send)]
 impl AttDatabase for AttDatabaseImpl {
-    async fn read_attribute(
-        &self,
-        handle: AttHandle,
-    ) -> Result<AttAttributeDataChild, AttErrorCode> {
+    async fn read_attribute(&self, handle: AttHandle) -> Result<Vec<u8>, AttErrorCode> {
         let value = self.gatt_db.with(|gatt_db| {
             let Some(gatt_db) = gatt_db else {
                 // db must have been closed
@@ -385,11 +388,7 @@ impl AttDatabase for AttDatabaseImpl {
         }
     }
 
-    async fn write_attribute(
-        &self,
-        handle: AttHandle,
-        data: AttAttributeDataView<'_>,
-    ) -> Result<(), AttErrorCode> {
+    async fn write_attribute(&self, handle: AttHandle, data: &[u8]) -> Result<(), AttErrorCode> {
         let value = self.gatt_db.with(|gatt_db| {
             let Some(gatt_db) = gatt_db else {
                 // db must have been closed
@@ -435,7 +434,7 @@ impl AttDatabase for AttDatabaseImpl {
         }
     }
 
-    fn write_no_response_attribute(&self, handle: AttHandle, data: AttAttributeDataView<'_>) {
+    fn write_no_response_attribute(&self, handle: AttHandle, data: &[u8]) {
         let value = self.gatt_db.with(|gatt_db| {
             let Some(gatt_db) = gatt_db else {
                 // db must have been closed
@@ -522,11 +521,8 @@ mod test {
             mock_datastore::{MockDatastore, MockDatastoreEvents},
             mock_raw_datastore::{MockRawDatastore, MockRawDatastoreEvents},
         },
-        packets::Packet,
-        utils::{
-            packet::{build_att_data, build_view_or_crash},
-            task::block_on_locally,
-        },
+        packets::AttAttributeDataChild,
+        utils::task::block_on_locally,
     };
 
     use super::*;
@@ -582,9 +578,11 @@ mod test {
         );
         assert_eq!(
             service_value,
-            Ok(AttAttributeDataChild::GattServiceDeclarationValue(
+            AttAttributeDataChild::GattServiceDeclarationValue(
                 GattServiceDeclarationValueBuilder { uuid: SERVICE_TYPE.into() }
-            ))
+            )
+            .to_vec()
+            .map_err(|_| AttErrorCode::UNLIKELY_ERROR)
         );
     }
 
@@ -719,7 +717,7 @@ mod test {
 
         assert_eq!(
             characteristic_decl,
-            Ok(AttAttributeDataChild::GattCharacteristicDeclarationValue(
+            AttAttributeDataChild::GattCharacteristicDeclarationValue(
                 GattCharacteristicDeclarationValueBuilder {
                     properties: GattCharacteristicPropertiesBuilder {
                         read: 1,
@@ -734,7 +732,9 @@ mod test {
                     handle: CHARACTERISTIC_VALUE_HANDLE.into(),
                     uuid: CHARACTERISTIC_TYPE.into()
                 }
-            ))
+            )
+            .to_vec()
+            .map_err(|_| AttErrorCode::UNLIKELY_ERROR)
         );
     }
 
@@ -767,7 +767,7 @@ mod test {
             tokio_test::block_on(att_db.read_attribute(CHARACTERISTIC_DECLARATION_HANDLE));
         assert_eq!(
             characteristic_decl,
-            Ok(AttAttributeDataChild::GattCharacteristicDeclarationValue(
+            AttAttributeDataChild::GattCharacteristicDeclarationValue(
                 GattCharacteristicDeclarationValueBuilder {
                     properties: GattCharacteristicPropertiesBuilder {
                         read: 1,
@@ -782,7 +782,9 @@ mod test {
                     handle: CHARACTERISTIC_VALUE_HANDLE.into(),
                     uuid: CHARACTERISTIC_TYPE.into()
                 }
-            ))
+            )
+            .to_vec()
+            .map_err(|_| AttErrorCode::UNLIKELY_ERROR)
         );
     }
 
@@ -807,21 +809,22 @@ mod test {
             )
             .unwrap();
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data = AttAttributeDataChild::RawData(Box::new([1, 2]));
+        let data = [1, 2];
 
         // act: read from the database, and supply a value from the backing datastore
         let characteristic_value = tokio_test::block_on(async {
             join!(
                 async {
                     let MockDatastoreEvents::Read(
-                    TCB_IDX,
-                    CHARACTERISTIC_VALUE_HANDLE,
-                    AttributeBackingType::Characteristic,
-                    reply,
-                ) = data_evts.recv().await.unwrap() else {
-                    unreachable!()
-                };
-                    reply.send(Ok(data.clone())).unwrap();
+                        TCB_IDX,
+                        CHARACTERISTIC_VALUE_HANDLE,
+                        AttributeBackingType::Characteristic,
+                        reply,
+                    ) = data_evts.recv().await.unwrap()
+                    else {
+                        unreachable!()
+                    };
+                    reply.send(Ok(data.to_vec())).unwrap();
                 },
                 att_db.read_attribute(CHARACTERISTIC_VALUE_HANDLE)
             )
@@ -829,7 +832,7 @@ mod test {
         });
 
         // assert: the supplied value matches what the att datastore returned
-        assert_eq!(characteristic_value, Ok(data));
+        assert_eq!(characteristic_value, Ok(data.to_vec()));
     }
 
     #[test]
@@ -931,18 +934,13 @@ mod test {
             )
             .unwrap();
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data =
-            build_view_or_crash(build_att_data(AttAttributeDataChild::RawData(Box::new([1, 2]))));
+        let data = [1, 2];
 
         // act: write to the database
         let recv_data = block_on_locally(async {
             // start write task
-            let cloned_data = data.view().to_owned_packet();
             spawn_local(async move {
-                att_db
-                    .write_attribute(CHARACTERISTIC_VALUE_HANDLE, cloned_data.view())
-                    .await
-                    .unwrap();
+                att_db.write_attribute(CHARACTERISTIC_VALUE_HANDLE, &data).await.unwrap();
             });
 
             let MockDatastoreEvents::Write(
@@ -951,17 +949,15 @@ mod test {
                 AttributeBackingType::Characteristic,
                 recv_data,
                 _,
-            ) = data_evts.recv().await.unwrap() else {
+            ) = data_evts.recv().await.unwrap()
+            else {
                 unreachable!();
             };
             recv_data
         });
 
         // assert: the received value matches what we supplied
-        assert_eq!(
-            recv_data.view().get_raw_payload().collect::<Vec<_>>(),
-            data.view().get_raw_payload().collect::<Vec<_>>()
-        );
+        assert_eq!(recv_data, data);
     }
 
     #[test]
@@ -985,19 +981,20 @@ mod test {
             )
             .unwrap();
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data =
-            build_view_or_crash(build_att_data(AttAttributeDataChild::RawData(Box::new([1, 2]))));
+        let data = [1, 2];
 
         // act: write to the database
         let res = tokio_test::block_on(async {
             join!(
                 async {
-                    let MockDatastoreEvents::Write(_,_,_,_,reply) = data_evts.recv().await.unwrap() else {
+                    let MockDatastoreEvents::Write(_, _, _, _, reply) =
+                        data_evts.recv().await.unwrap()
+                    else {
                         unreachable!();
                     };
                     reply.send(Err(AttErrorCode::UNLIKELY_ERROR)).unwrap();
                 },
-                att_db.write_attribute(CHARACTERISTIC_VALUE_HANDLE, data.view())
+                att_db.write_attribute(CHARACTERISTIC_VALUE_HANDLE, &data)
             )
             .1
         });
@@ -1025,13 +1022,10 @@ mod test {
                 Rc::new(gatt_datastore),
             )
             .unwrap();
-        let data =
-            build_view_or_crash(build_att_data(AttAttributeDataChild::RawData(Box::new([1, 2]))));
+        let data = [1, 2];
 
         let characteristic_value = tokio_test::block_on(
-            gatt_db
-                .get_att_database(TCB_IDX)
-                .write_attribute(CHARACTERISTIC_VALUE_HANDLE, data.view()),
+            gatt_db.get_att_database(TCB_IDX).write_attribute(CHARACTERISTIC_VALUE_HANDLE, &data),
         );
 
         assert_eq!(characteristic_value, Err(AttErrorCode::WRITE_NOT_PERMITTED));
@@ -1061,7 +1055,7 @@ mod test {
             )
             .unwrap();
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data = AttAttributeDataChild::RawData(Box::new([1, 2]));
+        let data = [1, 2];
 
         let descriptor_value = block_on_locally(async {
             // start write task
@@ -1073,11 +1067,12 @@ mod test {
                 DESCRIPTOR_HANDLE,
                 AttributeBackingType::Descriptor,
                 reply,
-            ) = data_evts.recv().await.unwrap() else {
+            ) = data_evts.recv().await.unwrap()
+            else {
                 unreachable!();
             };
 
-            reply.send(Ok(data.clone())).unwrap();
+            reply.send(Ok(data.to_vec())).unwrap();
 
             pending_read.await.unwrap()
         });
@@ -1110,15 +1105,14 @@ mod test {
             )
             .unwrap();
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data =
-            build_view_or_crash(build_att_data(AttAttributeDataChild::RawData(Box::new([1, 2]))));
+        let data = [1, 2];
 
         // act: write, and wait for the callback to be invoked
         block_on_locally(async {
             // start write task
-            spawn_local(async move {
-                att_db.write_attribute(DESCRIPTOR_HANDLE, data.view()).await.unwrap()
-            });
+            spawn_local(
+                async move { att_db.write_attribute(DESCRIPTOR_HANDLE, &data).await.unwrap() },
+            );
 
             let MockDatastoreEvents::Write(
                 TCB_IDX,
@@ -1126,7 +1120,8 @@ mod test {
                 AttributeBackingType::Descriptor,
                 _,
                 _,
-            ) = data_evts.recv().await.unwrap() else {
+            ) = data_evts.recv().await.unwrap()
+            else {
                 unreachable!();
             };
         });
@@ -1245,21 +1240,22 @@ mod test {
             .unwrap();
 
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data = AttAttributeDataChild::RawData(Box::new([1, 2]));
+        let data = [1, 2];
 
         // act: read from the second characteristic and supply a response from the second datastore
         let characteristic_value = tokio_test::block_on(async {
             join!(
                 async {
                     let MockDatastoreEvents::Read(
-                    TCB_IDX,
-                    AttHandle(6),
-                    AttributeBackingType::Characteristic,
-                    reply,
-                ) = data_evts_2.recv().await.unwrap() else {
-                    unreachable!()
-                };
-                    reply.send(Ok(data.clone())).unwrap();
+                        TCB_IDX,
+                        AttHandle(6),
+                        AttributeBackingType::Characteristic,
+                        reply,
+                    ) = data_evts_2.recv().await.unwrap()
+                    else {
+                        unreachable!()
+                    };
+                    reply.send(Ok(data.to_vec())).unwrap();
                 },
                 att_db.read_attribute(AttHandle(6))
             )
@@ -1267,7 +1263,7 @@ mod test {
         });
 
         // assert: the supplied value matches what the att datastore returned
-        assert_eq!(characteristic_value, Ok(data));
+        assert_eq!(characteristic_value, Ok(data.to_vec()));
         // the first datastore received no events
         assert_eq!(data_evts_1.try_recv().unwrap_err(), TryRecvError::Empty);
         // the second datastore has no remaining events
@@ -1503,21 +1499,23 @@ mod test {
             )
             .unwrap();
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data =
-            build_view_or_crash(build_att_data(AttAttributeDataChild::RawData(Box::new([1, 2]))));
+        let data = [1, 2];
 
         // act: write without response to the database
-        att_db.write_no_response_attribute(CHARACTERISTIC_VALUE_HANDLE, data.view());
+        att_db.write_no_response_attribute(CHARACTERISTIC_VALUE_HANDLE, &data);
 
         // assert: we got a callback
         let event = data_evts.blocking_recv().unwrap();
-        let MockRawDatastoreEvents::WriteNoResponse(TCB_IDX, CHARACTERISTIC_VALUE_HANDLE, AttributeBackingType::Characteristic, recv_data) = event else {
+        let MockRawDatastoreEvents::WriteNoResponse(
+            TCB_IDX,
+            CHARACTERISTIC_VALUE_HANDLE,
+            AttributeBackingType::Characteristic,
+            recv_data,
+        ) = event
+        else {
             unreachable!("{event:?}");
         };
-        assert_eq!(
-            recv_data.view().get_raw_payload().collect::<Vec<_>>(),
-            data.view().get_raw_payload().collect::<Vec<_>>()
-        );
+        assert_eq!(recv_data, data);
     }
 
     #[test]
@@ -1542,11 +1540,10 @@ mod test {
             )
             .unwrap();
         let att_db = gatt_db.get_att_database(TCB_IDX);
-        let data =
-            build_view_or_crash(build_att_data(AttAttributeDataChild::RawData(Box::new([1, 2]))));
+        let data = [1, 2];
 
         // act: try writing without response to this characteristic
-        att_db.write_no_response_attribute(CHARACTERISTIC_VALUE_HANDLE, data.view());
+        att_db.write_no_response_attribute(CHARACTERISTIC_VALUE_HANDLE, &data);
 
         // assert: no callback was sent
         assert_eq!(data_events.try_recv().unwrap_err(), TryRecvError::Empty);

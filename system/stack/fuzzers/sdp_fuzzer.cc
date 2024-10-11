@@ -22,6 +22,7 @@
 
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cdefs.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
@@ -82,7 +83,7 @@ class FakeL2cap {
   FakeL2cap() {
     test::mock::stack_l2cap_api::L2CA_ConnectReq.body =
         [](uint16_t psm, const RawAddress& raw_address) { return kDummyCID; };
-    test::mock::stack_l2cap_api::L2CA_ConnectReq2.body =
+    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
         [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
           return L2CA_ConnectReq(psm, p_bd_addr);
         };
@@ -95,7 +96,7 @@ class FakeL2cap {
     test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t lcid) {
       return true;
     };
-    test::mock::stack_l2cap_api::L2CA_Register2.body =
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
         [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
            tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
            uint16_t required_remote_mtu, uint16_t sec_level) {
@@ -106,10 +107,10 @@ class FakeL2cap {
 
   ~FakeL2cap() {
     test::mock::stack_l2cap_api::L2CA_ConnectReq = {};
-    test::mock::stack_l2cap_api::L2CA_ConnectReq2 = {};
+    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity = {};
     test::mock::stack_l2cap_api::L2CA_DataWrite = {};
     test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
-    test::mock::stack_l2cap_api::L2CA_Register2 = {};
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
   }
 };
 
@@ -147,8 +148,7 @@ class Fakes {
 
 }  // namespace
 
-static void FuzzAsServer(const uint8_t* data, size_t size) {
-  FuzzedDataProvider fdp(data, size);
+static void FuzzAsServer(FuzzedDataProvider& fdp) {
   std::vector<std::vector<uint8_t>> attrs;
 
   sdp_init();
@@ -191,8 +191,7 @@ static void FuzzAsServer(const uint8_t* data, size_t size) {
   sdp_free();
 }
 
-static void FuzzAsClient(const uint8_t* data, size_t size) {
-  FuzzedDataProvider fdp(data, size);
+static void FuzzAsClient(FuzzedDataProvider& fdp) {
   std::shared_ptr<tSDP_DISCOVERY_DB> p_db(
       (tSDP_DISCOVERY_DB*)malloc(SDP_DB_SIZE), free);
 
@@ -246,10 +245,16 @@ static void FuzzAsClient(const uint8_t* data, size_t size) {
   sdp_free();
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto fakes = std::make_unique<Fakes>();
 
-  FuzzAsServer(Data, Size);
-  FuzzAsClient(Data, Size);
+  FuzzedDataProvider fdp(data, size);
+
+  if (fdp.ConsumeBool()) {
+    FuzzAsServer(fdp);
+  } else {
+    FuzzAsClient(fdp);
+  }
+
   return 0;
 }

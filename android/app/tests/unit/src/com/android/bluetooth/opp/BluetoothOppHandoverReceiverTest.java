@@ -39,10 +39,12 @@ import com.android.bluetooth.BluetoothMethodProxy;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,17 +54,18 @@ import java.util.List;
 public class BluetoothOppHandoverReceiverTest {
     Context mContext;
 
-    @Spy
-    BluetoothMethodProxy mCallProxy = BluetoothMethodProxy.getInstance();
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Spy BluetoothMethodProxy mCallProxy = BluetoothMethodProxy.getInstance();
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         BluetoothMethodProxy.setInstanceForTesting(mCallProxy);
         doReturn(0).when(mCallProxy).contentResolverDelete(any(), any(Uri.class), any(), any());
-        doReturn(null).when(mCallProxy).contentResolverInsert(
-          any(), eq(BluetoothShare.CONTENT_URI), any());
+        doReturn(null)
+                .when(mCallProxy)
+                .contentResolverInsert(any(), eq(BluetoothShare.CONTENT_URI), any());
     }
 
     @After
@@ -75,8 +78,10 @@ public class BluetoothOppHandoverReceiverTest {
         Intent intent = new Intent(Constants.ACTION_HANDOVER_SEND);
         String address = "AA:BB:CC:DD:EE:FF";
         Uri uri = Uri.parse("content:///abc/xyz.txt");
-        BluetoothDevice device = (mContext.getSystemService(BluetoothManager.class))
-                .getAdapter().getRemoteDevice(address);
+        BluetoothDevice device =
+                (mContext.getSystemService(BluetoothManager.class))
+                        .getAdapter()
+                        .getRemoteDevice(address);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(Intent.EXTRA_STREAM, uri);
         intent.setType("text/plain");
@@ -89,8 +94,9 @@ public class BluetoothOppHandoverReceiverTest {
 
         // this will run BluetoothOppManager#startTransfer, which will then make
         // InsertShareInfoThread insert into content resolver
-        verify(mCallProxy, timeout(3_000).times(1)).contentResolverInsert(any(),
-                eq(BluetoothShare.CONTENT_URI), nullable(ContentValues.class));
+        verify(mCallProxy, timeout(3_000).times(1))
+                .contentResolverInsert(
+                        any(), eq(BluetoothShare.CONTENT_URI), nullable(ContentValues.class));
         BluetoothOppManager.setInstance(null);
     }
 
@@ -98,12 +104,16 @@ public class BluetoothOppHandoverReceiverTest {
     public void onReceive_withActionHandoverSendMultiple_startTransfer() {
         Intent intent = new Intent(Constants.ACTION_HANDOVER_SEND_MULTIPLE);
         String address = "AA:BB:CC:DD:EE:FF";
-        ArrayList<Uri> uris = new ArrayList<Uri>(
-                List.of(Uri.parse("content:///abc/xyz.txt"),
-                        Uri.parse("content:///a/b/c/d/x/y/z.txt"),
-                        Uri.parse("content:///123/456.txt")));
-        BluetoothDevice device = (mContext.getSystemService(BluetoothManager.class))
-                .getAdapter().getRemoteDevice(address);
+        ArrayList<Uri> uris =
+                new ArrayList<Uri>(
+                        List.of(
+                                Uri.parse("content:///abc/xyz.txt"),
+                                Uri.parse("content:///a/b/c/d/x/y/z.txt"),
+                                Uri.parse("content:///123/456.txt")));
+        BluetoothDevice device =
+                (mContext.getSystemService(BluetoothManager.class))
+                        .getAdapter()
+                        .getRemoteDevice(address);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(Intent.EXTRA_STREAM, uris);
         intent.setType("text/plain");
@@ -116,8 +126,9 @@ public class BluetoothOppHandoverReceiverTest {
 
         // this will run BluetoothOppManager#startTransfer, which will then make
         // InsertShareInfoThread insert into content resolver
-        verify(mCallProxy, timeout(3_000).times(3)).contentResolverInsert(any(),
-                eq(BluetoothShare.CONTENT_URI), nullable(ContentValues.class));
+        verify(mCallProxy, timeout(3_000).times(3))
+                .contentResolverInsert(
+                        any(), eq(BluetoothShare.CONTENT_URI), nullable(ContentValues.class));
         BluetoothOppManager.setInstance(null);
     }
 
@@ -125,14 +136,17 @@ public class BluetoothOppHandoverReceiverTest {
     public void onReceive_withActionStopHandover_triggerContentResolverDelete() {
         Intent intent = new Intent(Constants.ACTION_STOP_HANDOVER);
         String address = "AA:BB:CC:DD:EE:FF";
-        BluetoothDevice device = (mContext.getSystemService(BluetoothManager.class))
-                .getAdapter().getRemoteDevice(address);
+        BluetoothDevice device =
+                (mContext.getSystemService(BluetoothManager.class))
+                        .getAdapter()
+                        .getRemoteDevice(address);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(Constants.EXTRA_BT_OPP_TRANSFER_ID, 0);
 
         new BluetoothOppHandoverReceiver().onReceive(mContext, intent);
 
-        verify(mCallProxy).contentResolverDelete(any(), any(),
-                nullable(String.class), nullable(String[].class));
+        verify(mCallProxy)
+                .contentResolverDelete(
+                        any(), any(), nullable(String.class), nullable(String[].class));
     }
 }

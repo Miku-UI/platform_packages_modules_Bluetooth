@@ -17,8 +17,6 @@
 
 #include "mock_device_groups.h"
 
-#include <base/logging.h>
-
 static MockDeviceGroups* mock_groups = nullptr;
 
 void MockDeviceGroups::SetMockInstanceForTesting(MockDeviceGroups* groups) {
@@ -31,7 +29,7 @@ bluetooth::groups::DeviceGroups* bluetooth::groups::DeviceGroups::Get() {
 
 void bluetooth::groups::DeviceGroups::Initialize(
     bluetooth::groups::DeviceGroupsCallbacks* callbacks) {
-  LOG_ASSERT(mock_groups) << "Mock Device Groups not set!";
+  log::assert_that(mock_groups, "Mock Device Groups not set!");
   mock_groups->Initialize(callbacks);
 };
 
@@ -39,6 +37,6 @@ void bluetooth::groups::DeviceGroups::DebugDump(int) {}
 
 void bluetooth::groups::DeviceGroups::CleanUp(
     bluetooth::groups::DeviceGroupsCallbacks* callbacks) {
-  LOG_ASSERT(mock_groups) << "Mock Device Groups not set!";
+  log::assert_that(mock_groups, "Mock Device Groups not set!");
   mock_groups->CleanUp(callbacks);
 }

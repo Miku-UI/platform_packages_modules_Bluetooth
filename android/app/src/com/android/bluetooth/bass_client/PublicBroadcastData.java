@@ -21,9 +21,7 @@ import android.util.Log;
 
 import java.util.Arrays;
 
-/**
- * Helper class to parse the Public Broadcast Announcement data
- */
+/** Helper class to parse the Public Broadcast Announcement data */
 class PublicBroadcastData {
     private static final String TAG = "Bassclient.PublicBroadcastData";
     private static final int FEATURES_ENCRYPTION_BIT = 0x01 << 0;
@@ -35,7 +33,7 @@ class PublicBroadcastData {
     private final PublicBroadcastInfo mPublicBroadcastInfo;
 
     public static class PublicBroadcastInfo {
-        public byte metaDataLength;
+        public int metaDataLength;
         public byte[] metaData;
         public boolean isEncrypted;
         public int audioConfigQuality;
@@ -53,7 +51,7 @@ class PublicBroadcastData {
             log("encrypted: " + isEncrypted);
             log("audio config quality: " + audioConfigQuality);
             log("metaDataLength: " + metaDataLength);
-            if (metaDataLength != (byte) 0) {
+            if (metaDataLength != 0) {
                 log("metaData: " + Arrays.toString(metaData));
             }
             log("**END: Public Broadcast Information****");
@@ -66,8 +64,8 @@ class PublicBroadcastData {
 
     static PublicBroadcastData parsePublicBroadcastData(byte[] serviceData) {
         if (serviceData == null || serviceData.length < PUBLIC_BROADCAST_SERVICE_DATA_LEN_MIN) {
-            Log.e(TAG, "Invalid service data for PublicBroadcastData construction");
-            throw new IllegalArgumentException("PublicBroadcastData: serviceData is invalid");
+            Log.w(TAG, "Invalid service data for PublicBroadcastData construction");
+            return null;
         }
         PublicBroadcastInfo publicBroadcastInfo = new PublicBroadcastInfo();
 
@@ -90,16 +88,20 @@ class PublicBroadcastData {
         }
 
         // Parse Public broadcast announcement metadata
-        publicBroadcastInfo.metaDataLength = serviceData[offset++];
+        publicBroadcastInfo.metaDataLength = serviceData[offset++] & 0xff;
         if (serviceData.length
                 != (publicBroadcastInfo.metaDataLength + PUBLIC_BROADCAST_SERVICE_DATA_LEN_MIN)) {
-            Log.e(TAG, "Invalid meta data length for PublicBroadcastData construction");
-            throw new IllegalArgumentException("PublicBroadcastData: metaData is invalid");
+            Log.w(TAG, "Invalid meta data length for PublicBroadcastData construction");
+            return null;
         }
         if (publicBroadcastInfo.metaDataLength != 0) {
-            publicBroadcastInfo.metaData = new byte[(int) publicBroadcastInfo.metaDataLength];
-            System.arraycopy(serviceData, offset,
-                    publicBroadcastInfo.metaData, 0, (int) publicBroadcastInfo.metaDataLength);
+            publicBroadcastInfo.metaData = new byte[publicBroadcastInfo.metaDataLength];
+            System.arraycopy(
+                    serviceData,
+                    offset,
+                    publicBroadcastInfo.metaData,
+                    0,
+                    publicBroadcastInfo.metaDataLength);
             offset += publicBroadcastInfo.metaDataLength;
         }
         publicBroadcastInfo.print();
@@ -127,8 +129,6 @@ class PublicBroadcastData {
     }
 
     static void log(String msg) {
-        if (BassConstants.BASS_DBG) {
-            Log.d(TAG, msg);
-        }
+        Log.d(TAG, msg);
     }
 }

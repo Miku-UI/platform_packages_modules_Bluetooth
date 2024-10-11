@@ -23,14 +23,12 @@ import android.util.Log;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Bass Utility functions
- */
+/** Bass Utility functions */
 class BassUtils {
     private static final String TAG = "BassUtils";
 
     static boolean containUuid(List<ScanFilter> filters, ParcelUuid uuid) {
-        for (ScanFilter filter: filters) {
+        for (ScanFilter filter : filters) {
             if (filter.getServiceUuid().equals(uuid)) {
                 return true;
             }
@@ -47,9 +45,7 @@ class BassUtils {
     }
 
     static void log(String msg) {
-        if (BassConstants.BASS_DBG) {
-            Log.d(TAG, msg);
-        }
+        Log.d(TAG, msg);
     }
 
     static void printByteArray(byte[] array) {

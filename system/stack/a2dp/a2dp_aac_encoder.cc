@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "a2dp_aac_encoder"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "a2dp_aac_encoder.h"
 
 #include <aacenc_lib.h>
 #include <bluetooth/log.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "a2dp_aac.h"
 #include "common/time_util.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
@@ -178,7 +176,7 @@ static void a2dp_aac_encoder_update(A2dpCodecConfig* a2dp_codec_config,
 
   if (!a2dp_codec_config->copyOutOtaCodecConfig(codec_info)) {
     log::error("Cannot update the codec encoder for {}: invalid codec config",
-               a2dp_codec_config->name().c_str());
+               a2dp_codec_config->name());
     return;
   }
   const uint8_t* p_codec_info = codec_info;
@@ -203,7 +201,7 @@ static void a2dp_aac_encoder_update(A2dpCodecConfig* a2dp_codec_config,
   a2dp_aac_encoder_cb.TxAaMtuSize = adjust_effective_mtu(peer_params);
   log::info("MTU={}, peer_mtu={}", a2dp_aac_encoder_cb.TxAaMtuSize,
             peer_params.peer_mtu);
-  log::info("sample_rate: {} channel_mode: {} ", p_encoder_params->sample_rate,
+  log::info("sample_rate: {} channel_mode: {}", p_encoder_params->sample_rate,
             p_encoder_params->channel_mode);
 
   // Set the encoder's parameters: Audio Object Type - MANDATORY
@@ -526,7 +524,9 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
   int pcm_bytes_per_frame = p_encoder_params->frame_length *
                             p_feeding_params->channel_count *
                             p_feeding_params->bits_per_sample / 8;
-  CHECK(pcm_bytes_per_frame <= static_cast<int>(sizeof(read_buffer)));
+  log::assert_that(pcm_bytes_per_frame <= static_cast<int>(sizeof(read_buffer)),
+                   "assert failed: pcm_bytes_per_frame <= "
+                   "static_cast<int>(sizeof(read_buffer))");
 
   // Setup the input buffer
   AACENC_BufDesc in_buf_desc;
@@ -552,8 +552,11 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
   out_buf_desc.bufferIdentifiers = out_buf_identifiers;
   out_buf_desc.bufSizes = out_buf_sizes;
   out_buf_desc.bufElSizes = out_buf_element_sizes;
-  CHECK(p_encoder_params->max_encoded_buffer_bytes <=
-        static_cast<int>(BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR)));
+  log::assert_that(
+      p_encoder_params->max_encoded_buffer_bytes <=
+          static_cast<int>(BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR)),
+      "assert failed: p_encoder_params->max_encoded_buffer_bytes <= "
+      "static_cast<int>(BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR))");
 
   AACENC_InArgs aac_in_args;
   aac_in_args.numInSamples =
@@ -628,8 +631,12 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
        */
       *((uint32_t*)(p_buf + 1)) = a2dp_aac_encoder_cb.timestamp;
 
-      a2dp_aac_encoder_cb.timestamp +=
-          p_buf->layer_specific * p_encoder_params->frame_length;
+      // Timestamp will wrap over to 0 if stream continues on long enough
+      // (>25H @ 48KHz). The parameters are promoted to 64bit to ensure that
+      // no unsigned overflow is triggered as ubsan is always enabled.
+      a2dp_aac_encoder_cb.timestamp =
+          ((uint64_t)a2dp_aac_encoder_cb.timestamp +
+           (p_buf->layer_specific * p_encoder_params->frame_length)) & UINT32_MAX;
 
       uint8_t done_nb_frame = remain_nb_frame - nb_frame;
       remain_nb_frame = nb_frame;

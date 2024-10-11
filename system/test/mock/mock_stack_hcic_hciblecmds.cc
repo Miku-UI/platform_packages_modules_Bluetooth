@@ -39,9 +39,6 @@ struct btsnd_hci_ble_clear_periodic_advertiser_list
     btsnd_hci_ble_clear_periodic_advertiser_list;
 struct btsnd_hci_ble_remove_device_from_periodic_advertiser_list
     btsnd_hci_ble_remove_device_from_periodic_advertiser_list;
-struct btsnd_hcic_accept_cis_req btsnd_hcic_accept_cis_req;
-struct btsnd_hcic_ble_enh_rx_test btsnd_hcic_ble_enh_rx_test;
-struct btsnd_hcic_ble_enh_tx_test btsnd_hcic_ble_enh_tx_test;
 struct btsnd_hcic_ble_ltk_req_neg_reply btsnd_hcic_ble_ltk_req_neg_reply;
 struct btsnd_hcic_ble_ltk_req_reply btsnd_hcic_ble_ltk_req_reply;
 struct btsnd_hcic_ble_periodic_advertising_create_sync
@@ -55,9 +52,6 @@ struct btsnd_hcic_ble_periodic_advertising_sync_transfer
 struct btsnd_hcic_ble_periodic_advertising_terminate_sync
     btsnd_hcic_ble_periodic_advertising_terminate_sync;
 struct btsnd_hcic_ble_rand btsnd_hcic_ble_rand;
-struct btsnd_hcic_ble_rc_param_req_neg_reply
-    btsnd_hcic_ble_rc_param_req_neg_reply;
-struct btsnd_hcic_ble_rc_param_req_reply btsnd_hcic_ble_rc_param_req_reply;
 struct btsnd_hcic_ble_read_adv_chnl_tx_power
     btsnd_hcic_ble_read_adv_chnl_tx_power;
 struct btsnd_hcic_ble_read_remote_feat btsnd_hcic_ble_read_remote_feat;
@@ -85,12 +79,10 @@ struct btsnd_hcic_ble_set_scan_params btsnd_hcic_ble_set_scan_params;
 struct btsnd_hcic_ble_start_enc btsnd_hcic_ble_start_enc;
 struct btsnd_hcic_ble_test_end btsnd_hcic_ble_test_end;
 struct btsnd_hcic_ble_transmitter_test btsnd_hcic_ble_transmitter_test;
-struct btsnd_hcic_ble_upd_ll_conn_params btsnd_hcic_ble_upd_ll_conn_params;
 struct btsnd_hcic_ble_write_adv_params btsnd_hcic_ble_write_adv_params;
 struct btsnd_hcic_create_big btsnd_hcic_create_big;
 struct btsnd_hcic_create_cis btsnd_hcic_create_cis;
 struct btsnd_hcic_read_iso_link_quality btsnd_hcic_read_iso_link_quality;
-struct btsnd_hcic_rej_cis_req btsnd_hcic_rej_cis_req;
 struct btsnd_hcic_remove_cig btsnd_hcic_remove_cig;
 struct btsnd_hcic_remove_iso_data_path btsnd_hcic_remove_iso_data_path;
 struct btsnd_hcic_req_peer_sca btsnd_hcic_req_peer_sca;
@@ -131,22 +123,6 @@ void btsnd_hci_ble_remove_device_from_periodic_advertiser_list(
   test::mock::stack_hcic_hciblecmds::
       btsnd_hci_ble_remove_device_from_periodic_advertiser_list(
           adv_addr_type, adv_addr, adv_sid, std::move(cb));
-}
-void btsnd_hcic_accept_cis_req(uint16_t conn_handle) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hciblecmds::btsnd_hcic_accept_cis_req(conn_handle);
-}
-void btsnd_hcic_ble_enh_rx_test(uint8_t rx_chan, uint8_t phy,
-                                uint8_t mod_index) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hciblecmds::btsnd_hcic_ble_enh_rx_test(rx_chan, phy,
-                                                                mod_index);
-}
-void btsnd_hcic_ble_enh_tx_test(uint8_t tx_chan, uint8_t data_len,
-                                uint8_t payload, uint8_t phy) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hciblecmds::btsnd_hcic_ble_enh_tx_test(
-      tx_chan, data_len, payload, phy);
 }
 void btsnd_hcic_ble_ltk_req_neg_reply(uint16_t handle) {
   inc_func_call_count(__func__);
@@ -198,22 +174,6 @@ void btsnd_hcic_ble_periodic_advertising_terminate_sync(
 void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb) {
   inc_func_call_count(__func__);
   test::mock::stack_hcic_hciblecmds::btsnd_hcic_ble_rand(std::move(cb));
-}
-void btsnd_hcic_ble_rc_param_req_neg_reply(uint16_t handle, uint8_t reason) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hciblecmds::btsnd_hcic_ble_rc_param_req_neg_reply(
-      handle, reason);
-}
-void btsnd_hcic_ble_rc_param_req_reply(uint16_t handle, uint16_t conn_int_min,
-                                       uint16_t conn_int_max,
-                                       uint16_t conn_latency,
-                                       uint16_t conn_timeout,
-                                       uint16_t min_ce_len,
-                                       uint16_t max_ce_len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hciblecmds::btsnd_hcic_ble_rc_param_req_reply(
-      handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
-      min_ce_len, max_ce_len);
 }
 void btsnd_hcic_ble_read_adv_chnl_tx_power(void) {
   inc_func_call_count(__func__);
@@ -329,17 +289,6 @@ void btsnd_hcic_ble_transmitter_test(uint8_t tx_freq, uint8_t test_data_len,
   test::mock::stack_hcic_hciblecmds::btsnd_hcic_ble_transmitter_test(
       tx_freq, test_data_len, payload);
 }
-void btsnd_hcic_ble_upd_ll_conn_params(uint16_t handle, uint16_t conn_int_min,
-                                       uint16_t conn_int_max,
-                                       uint16_t conn_latency,
-                                       uint16_t conn_timeout,
-                                       uint16_t min_ce_len,
-                                       uint16_t max_ce_len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hciblecmds::btsnd_hcic_ble_upd_ll_conn_params(
-      handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
-      min_ce_len, max_ce_len);
-}
 void btsnd_hcic_ble_write_adv_params(uint16_t adv_int_min, uint16_t adv_int_max,
                                      uint8_t adv_type,
                                      tBLE_ADDR_TYPE addr_type_own,
@@ -374,12 +323,6 @@ void btsnd_hcic_read_iso_link_quality(
   inc_func_call_count(__func__);
   test::mock::stack_hcic_hciblecmds::btsnd_hcic_read_iso_link_quality(
       iso_handle, std::move(cb));
-}
-void btsnd_hcic_rej_cis_req(uint16_t conn_handle, uint8_t reason,
-                            base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
-  inc_func_call_count(__func__);
-  test::mock::stack_hcic_hciblecmds::btsnd_hcic_rej_cis_req(conn_handle, reason,
-                                                            std::move(cb));
 }
 void btsnd_hcic_remove_cig(uint8_t cig_id,
                            base::OnceCallback<void(uint8_t*, uint16_t)> cb) {

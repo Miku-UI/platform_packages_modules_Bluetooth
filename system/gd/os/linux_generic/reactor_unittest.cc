@@ -16,6 +16,7 @@
 
 #include "os/reactor.h"
 
+#include <bluetooth/log.h>
 #include <sys/eventfd.h>
 
 #include <chrono>
@@ -92,10 +93,10 @@ class FakeReactable {
   }
 
   void OnReadReady() {
-    LOG_INFO();
+    log::info("");
     uint64_t value = 0;
     auto read_result = eventfd_read(fd_, &value);
-    LOG_INFO("value = %d", (int)value);
+    log::info("value = {}", (int)value);
     EXPECT_EQ(read_result, 0);
     if (value == kSetPromise && g_promise != nullptr) {
       g_promise->set_value(kReadReadyValue);
@@ -329,14 +330,14 @@ TEST_F(ReactorTest, hot_unregister_from_same_thread) {
   auto write_result = eventfd_write(fake_reactable.fd_, FakeReactable::kRegisterSampleReactable);
   EXPECT_EQ(write_result, 0);
   EXPECT_EQ(future.get(), kReadReadyValue);
-  LOG_INFO();
+  log::info("");
   delete g_promise;
   g_promise = new std::promise<int>;
   future = g_promise->get_future();
   write_result = eventfd_write(fake_reactable.fd_, FakeReactable::kUnregisterSampleReactable);
   EXPECT_EQ(write_result, 0);
   EXPECT_EQ(future.get(), kReadReadyValue);
-  LOG_INFO();
+  log::info("");
   reactor_->Stop();
   reactor_thread.join();
 

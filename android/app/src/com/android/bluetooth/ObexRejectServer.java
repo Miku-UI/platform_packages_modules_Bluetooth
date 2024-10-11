@@ -1,17 +1,17 @@
 /*
-* Copyright (C) 2015 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2015 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package com.android.bluetooth;
 
@@ -28,16 +28,15 @@ import com.android.obex.ServerRequestHandler;
 import java.io.IOException;
 
 /**
- * A simple ObexServer used to handle connection rejection in two cases:
- *  - A profile cannot handle a new connection, as it is already connected to another device.
- *  - The user rejected access to the resources needed by the profile.
+ * A simple ObexServer used to handle connection rejection in two cases: - A profile cannot handle a
+ * new connection, as it is already connected to another device. - The user rejected access to the
+ * resources needed by the profile.
  *
- * Will reject the OBEX connection, start a timer, and at timeout close the socket.
+ * <p>Will reject the OBEX connection, start a timer, and at timeout close the socket.
  */
 public class ObexRejectServer extends ServerRequestHandler implements Handler.Callback {
 
     private static final String TAG = "ObexRejectServer";
-    private static final boolean V = true;
     private final int mResult;
     private final HandlerThread mHandlerThread;
     private final Handler mMessageHandler;
@@ -52,8 +51,9 @@ public class ObexRejectServer extends ServerRequestHandler implements Handler.Ca
         super();
         mResult = result;
         mSocket = socket;
-        mHandlerThread = new HandlerThread("TestTimeoutHandler",
-                android.os.Process.THREAD_PRIORITY_BACKGROUND);
+        mHandlerThread =
+                new HandlerThread(
+                        "TestTimeoutHandler", android.os.Process.THREAD_PRIORITY_BACKGROUND);
         mHandlerThread.start();
         Looper timeoutLooper = mHandlerThread.getLooper();
         mMessageHandler = new Handler(timeoutLooper, this);
@@ -64,9 +64,7 @@ public class ObexRejectServer extends ServerRequestHandler implements Handler.Ca
     // OBEX operation handlers
     @Override
     public int onConnect(HeaderSet request, HeaderSet reply) {
-        if (V) {
-            Log.i(TAG, "onConnect() returning error");
-        }
+        Log.i(TAG, "onConnect() returning error");
         return mResult;
     }
 
@@ -83,9 +81,7 @@ public class ObexRejectServer extends ServerRequestHandler implements Handler.Ca
 
     @Override
     public boolean handleMessage(Message msg) {
-        if (V) {
-            Log.i(TAG, "Handling message ID: " + msg.what);
-        }
+        Log.i(TAG, "Handling message ID: " + msg.what);
         switch (msg.what) {
             case MSG_ID_TIMEOUT:
                 shutdown();

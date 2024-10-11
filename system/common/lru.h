@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <bluetooth/log.h>
+
 #include <functional>
 #include <iterator>
 #include <list>
@@ -25,10 +27,6 @@
 #include <optional>
 #include <thread>
 #include <unordered_map>
-
-#include <base/logging.h>
-
-#include "check.h"
 
 namespace bluetooth {
 
@@ -48,7 +46,7 @@ class LegacyLruCache {
       : capacity_(capacity) {
     if (capacity_ == 0) {
       // don't allow invalid capacity
-      LOG(FATAL) << log_tag << " unable to have 0 LRU Cache capacity";
+      log::fatal("{} unable to have 0 LRU Cache capacity", log_tag);
     }
   }
 
@@ -95,7 +93,7 @@ class LegacyLruCache {
    * @return true if the cache has the key
    */
   bool Get(const K& key, V* value) {
-    CHECK(value != nullptr);
+    log::assert_that(value != nullptr, "assert failed: value != nullptr");
     std::lock_guard<std::recursive_mutex> lock(lru_mutex_);
     auto value_ptr = Find(key);
     if (value_ptr == nullptr) {

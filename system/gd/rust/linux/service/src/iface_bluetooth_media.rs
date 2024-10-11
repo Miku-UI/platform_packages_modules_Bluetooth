@@ -1,9 +1,15 @@
+use bt_topshim::btif::RawAddress;
 use bt_topshim::profiles::a2dp::{
     A2dpCodecBitsPerSample, A2dpCodecChannelMode, A2dpCodecConfig, A2dpCodecIndex,
     A2dpCodecSampleRate, PresentationPosition,
 };
 use bt_topshim::profiles::avrcp::PlayerMetadata;
 use bt_topshim::profiles::hfp::{HfpCodecBitId, HfpCodecFormat};
+use bt_topshim::profiles::le_audio::{
+    BtLeAudioContentType, BtLeAudioDirection, BtLeAudioGroupNodeStatus, BtLeAudioGroupStatus,
+    BtLeAudioGroupStreamStatus, BtLeAudioSource, BtLeAudioUnicastMonitorModeStatus, BtLeAudioUsage,
+    BtLePcmConfig, BtLeStreamStartedStatus,
+};
 use btstack::bluetooth_media::{BluetoothAudioDevice, IBluetoothMedia, IBluetoothMediaCallback};
 use btstack::RPCProxy;
 
@@ -40,15 +46,32 @@ pub struct A2dpCodecConfigDBus {
 
 #[dbus_propmap(BluetoothAudioDevice)]
 pub struct BluetoothAudioDeviceDBus {
-    address: String,
+    address: RawAddress,
     name: String,
     a2dp_caps: Vec<A2dpCodecConfig>,
     hfp_cap: HfpCodecFormat,
     absolute_volume: bool,
 }
 
+#[dbus_propmap(BtLePcmConfig)]
+pub struct BtLePcmConfigDBus {
+    data_interval_us: u32,
+    sample_rate: u32,
+    bits_per_sample: u8,
+    channels_count: u8,
+}
+
 impl_dbus_arg_from_into!(HfpCodecBitId, i32);
 impl_dbus_arg_from_into!(HfpCodecFormat, i32);
+impl_dbus_arg_from_into!(BtLeAudioUsage, i32);
+impl_dbus_arg_from_into!(BtLeAudioContentType, i32);
+impl_dbus_arg_from_into!(BtLeAudioSource, i32);
+impl_dbus_arg_from_into!(BtLeAudioGroupStatus, i32);
+impl_dbus_arg_from_into!(BtLeAudioGroupNodeStatus, i32);
+impl_dbus_arg_from_into!(BtLeAudioUnicastMonitorModeStatus, i32);
+impl_dbus_arg_from_into!(BtLeStreamStartedStatus, i32);
+impl_dbus_arg_from_into!(BtLeAudioDirection, i32);
+impl_dbus_arg_from_into!(BtLeAudioGroupStreamStatus, i32);
 impl_dbus_arg_enum!(A2dpCodecIndex);
 impl_dbus_arg_from_into!(A2dpCodecSampleRate, i32);
 impl_dbus_arg_from_into!(A2dpCodecBitsPerSample, i32);
@@ -62,7 +85,7 @@ impl IBluetoothMediaCallback for BluetoothMediaCallbackDBus {
     }
 
     #[dbus_method("OnBluetoothAudioDeviceRemoved")]
-    fn on_bluetooth_audio_device_removed(&mut self, addr: String) {
+    fn on_bluetooth_audio_device_removed(&mut self, addr: RawAddress) {
         dbus_generated!()
     }
 
@@ -77,12 +100,12 @@ impl IBluetoothMediaCallback for BluetoothMediaCallbackDBus {
     }
 
     #[dbus_method("OnHfpVolumeChanged")]
-    fn on_hfp_volume_changed(&mut self, volume: u8, addr: String) {
+    fn on_hfp_volume_changed(&mut self, volume: u8, addr: RawAddress) {
         dbus_generated!()
     }
 
     #[dbus_method("OnHfpAudioDisconnected")]
-    fn on_hfp_audio_disconnected(&mut self, addr: String) {
+    fn on_hfp_audio_disconnected(&mut self, addr: RawAddress) {
         dbus_generated!()
     }
 
@@ -98,6 +121,67 @@ impl IBluetoothMediaCallback for BluetoothMediaCallbackDBus {
         pkt_status_in_hex: String,
         pkt_status_in_binary: String,
     ) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaGroupConnected")]
+    fn on_lea_group_connected(&mut self, group_id: i32, name: String) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaGroupDisconnected")]
+    fn on_lea_group_disconnected(&mut self, group_id: i32) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaGroupStatus")]
+    fn on_lea_group_status(&mut self, group_id: i32, status: BtLeAudioGroupStatus) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaGroupNodeStatus")]
+    fn on_lea_group_node_status(
+        &mut self,
+        addr: RawAddress,
+        group_id: i32,
+        status: BtLeAudioGroupNodeStatus,
+    ) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaAudioConf")]
+    fn on_lea_audio_conf(
+        &mut self,
+        direction: u8,
+        group_id: i32,
+        snk_audio_location: u32,
+        src_audio_location: u32,
+        avail_cont: u16,
+    ) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaUnicastMonitorModeStatus")]
+    fn on_lea_unicast_monitor_mode_status(
+        &mut self,
+        direction: BtLeAudioDirection,
+        status: BtLeAudioUnicastMonitorModeStatus,
+    ) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaGroupStreamStatus")]
+    fn on_lea_group_stream_status(&mut self, group_id: i32, status: BtLeAudioGroupStreamStatus) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaVcConnected")]
+    fn on_lea_vc_connected(&mut self, addr: RawAddress, group_id: i32) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("OnLeaGroupVolumeChanged")]
+    fn on_lea_group_volume_changed(&mut self, group_id: i32, volume: u8) {
         dbus_generated!()
     }
 }
@@ -167,7 +251,7 @@ impl DBusArg for PlayerMetadata {
     }
 
     fn log(metadata: &PlayerMetadata) -> String {
-        String::from(format!("{:?}", metadata))
+        format!("{:?}", metadata)
     }
 }
 
@@ -189,17 +273,57 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("Connect")]
-    fn connect(&mut self, address: String) {
+    fn connect(&mut self, address: RawAddress) {
         dbus_generated!()
     }
 
     #[dbus_method("Disconnect")]
-    fn disconnect(&mut self, address: String) {
+    fn disconnect(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("ConnectLeaGroupByMemberAddress")]
+    fn connect_lea_group_by_member_address(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("DisconnectLeaGroupByMemberAddress")]
+    fn disconnect_lea_group_by_member_address(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("ConnectLea")]
+    fn connect_lea(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("DisconnectLea")]
+    fn disconnect_lea(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("ConnectVc")]
+    fn connect_vc(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("DisconnectVc")]
+    fn disconnect_vc(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("ConnectCsis")]
+    fn connect_csis(&mut self, address: RawAddress) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("DisconnectCsis")]
+    fn disconnect_csis(&mut self, address: RawAddress) {
         dbus_generated!()
     }
 
     #[dbus_method("SetActiveDevice")]
-    fn set_active_device(&mut self, address: String) {
+    fn set_active_device(&mut self, address: RawAddress) {
         dbus_generated!()
     }
 
@@ -209,14 +333,14 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("SetHfpActiveDevice", DBusLog::Disable)]
-    fn set_hfp_active_device(&mut self, address: String) {
+    fn set_hfp_active_device(&mut self, address: RawAddress) {
         dbus_generated!()
     }
 
     #[dbus_method("SetAudioConfig")]
     fn set_audio_config(
         &mut self,
-        address: String,
+        address: RawAddress,
         codec_type: A2dpCodecIndex,
         sample_rate: A2dpCodecSampleRate,
         bits_per_sample: A2dpCodecBitsPerSample,
@@ -231,7 +355,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("SetHfpVolume")]
-    fn set_hfp_volume(&mut self, volume: u8, address: String) {
+    fn set_hfp_volume(&mut self, volume: u8, address: RawAddress) {
         dbus_generated!()
     }
 
@@ -241,7 +365,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("GetA2dpAudioStarted", DBusLog::Disable)]
-    fn get_a2dp_audio_started(&mut self, address: String) -> bool {
+    fn get_a2dp_audio_started(&mut self, address: RawAddress) -> bool {
         dbus_generated!()
     }
 
@@ -253,7 +377,7 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     #[dbus_method("StartScoCall")]
     fn start_sco_call(
         &mut self,
-        address: String,
+        address: RawAddress,
         sco_offload: bool,
         disabled_codecs: HfpCodecBitId,
     ) -> bool {
@@ -261,12 +385,12 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
     }
 
     #[dbus_method("GetHfpAudioFinalCodecs")]
-    fn get_hfp_audio_final_codecs(&mut self, address: String) -> u8 {
+    fn get_hfp_audio_final_codecs(&mut self, address: RawAddress) -> u8 {
         dbus_generated!()
     }
 
     #[dbus_method("StopScoCall")]
-    fn stop_sco_call(&mut self, address: String) {
+    fn stop_sco_call(&mut self, address: RawAddress) {
         dbus_generated!()
     }
 
@@ -295,6 +419,89 @@ impl IBluetoothMedia for IBluetoothMediaDBus {
 
     #[dbus_method("TriggerDebugDump")]
     fn trigger_debug_dump(&mut self) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GroupSetActive")]
+    fn group_set_active(&mut self, group_id: i32) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("HostStartAudioRequest")]
+    fn host_start_audio_request(&mut self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("HostStopAudioRequest")]
+    fn host_stop_audio_request(&mut self) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("PeerStartAudioRequest")]
+    fn peer_start_audio_request(&mut self) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("PeerStopAudioRequest")]
+    fn peer_stop_audio_request(&mut self) {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetHostPcmConfig")]
+    fn get_host_pcm_config(&mut self) -> BtLePcmConfig {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetPeerPcmConfig")]
+    fn get_peer_pcm_config(&mut self) -> BtLePcmConfig {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetHostStreamStarted")]
+    fn get_host_stream_started(&mut self) -> BtLeStreamStartedStatus {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetPeerStreamStarted")]
+    fn get_peer_stream_started(&mut self) -> BtLeStreamStartedStatus {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SourceMetadataChanged")]
+    fn source_metadata_changed(
+        &mut self,
+        usage: BtLeAudioUsage,
+        content_type: BtLeAudioContentType,
+        gain: f64,
+    ) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SinkMetadataChanged")]
+    fn sink_metadata_changed(&mut self, source: BtLeAudioSource, gain: f64) -> bool {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetUnicastMonitorModeStatus")]
+    fn get_unicast_monitor_mode_status(
+        &mut self,
+        direction: BtLeAudioDirection,
+    ) -> BtLeAudioUnicastMonitorModeStatus {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetGroupStreamStatus")]
+    fn get_group_stream_status(&mut self, group_id: i32) -> BtLeAudioGroupStreamStatus {
+        dbus_generated!()
+    }
+
+    #[dbus_method("GetGroupStatus")]
+    fn get_group_status(&mut self, group_id: i32) -> BtLeAudioGroupStatus {
+        dbus_generated!()
+    }
+
+    #[dbus_method("SetGroupVolume")]
+    fn set_group_volume(&mut self, group_id: i32, volume: u8) {
         dbus_generated!()
     }
 }

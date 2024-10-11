@@ -39,30 +39,30 @@ import java.lang.ref.WeakReference;
  * construction.  After use shutdown() must be called to properly clean up.
  */
 public class MasClient {
+    private static final String TAG = MasClient.class.getSimpleName();
+
     private static final int CONNECT = 0;
     private static final int DISCONNECT = 1;
     private static final int REQUEST = 2;
-    private static final String TAG = "MasClient";
-    private static final boolean DBG = MapClientService.DBG;
-    private static final boolean VDBG = MapClientService.VDBG;
-    private static final byte[] BLUETOOTH_UUID_OBEX_MAS = new byte[]{
-            (byte) 0xbb,
-            0x58,
-            0x2b,
-            0x40,
-            0x42,
-            0x0c,
-            0x11,
-            (byte) 0xdb,
-            (byte) 0xb0,
-            (byte) 0xde,
-            0x08,
-            0x00,
-            0x20,
-            0x0c,
-            (byte) 0x9a,
-            0x66
-    };
+    private static final byte[] BLUETOOTH_UUID_OBEX_MAS =
+            new byte[] {
+                (byte) 0xbb,
+                0x58,
+                0x2b,
+                0x40,
+                0x42,
+                0x0c,
+                0x11,
+                (byte) 0xdb,
+                (byte) 0xb0,
+                (byte) 0xde,
+                0x08,
+                0x00,
+                0x20,
+                0x0c,
+                (byte) 0x9a,
+                0x66
+            };
     private static final byte OAP_TAGID_MAP_SUPPORTED_FEATURES = 0x29;
     private static final int L2CAP_INVALID_PSM = -1;
     private static final int MAP_FEATURE_NOTIFICATION_REGISTRATION = 0x00000001;
@@ -71,9 +71,11 @@ public class MasClient {
     private static final int MAP_FEATURE_UPLOADING = 0x00000008;
     private static final int MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1 = 0x00000040;
     static final int MAP_SUPPORTED_FEATURES =
-            MAP_FEATURE_NOTIFICATION_REGISTRATION | MAP_FEATURE_NOTIFICATION
-            | MAP_FEATURE_BROWSING | MAP_FEATURE_UPLOADING
-            | MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1;
+            MAP_FEATURE_NOTIFICATION_REGISTRATION
+                    | MAP_FEATURE_NOTIFICATION
+                    | MAP_FEATURE_BROWSING
+                    | MAP_FEATURE_UPLOADING
+                    | MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1;
 
     private final StateMachine mCallback;
     private Handler mHandler;
@@ -85,8 +87,8 @@ public class MasClient {
     private boolean mConnected = false;
     SdpMasRecord mSdpMasRecord;
 
-    public MasClient(BluetoothDevice remoteDevice, StateMachine callback,
-            SdpMasRecord sdpMasRecord) {
+    public MasClient(
+            BluetoothDevice remoteDevice, StateMachine callback, SdpMasRecord sdpMasRecord) {
         if (remoteDevice == null) {
             throw new NullPointerException("Obex transport is null");
         }
@@ -96,7 +98,7 @@ public class MasClient {
         mThread = new HandlerThread("Client");
         mThread.start();
         /* This will block until the looper have started, hence it will be safe to use it,
-           when the constructor completes */
+        when the constructor completes */
         Looper looper = mThread.getLooper();
         mHandler = new MasClientHandler(looper, this);
 
@@ -108,18 +110,16 @@ public class MasClient {
             int l2capSocket = mSdpMasRecord.getL2capPsm();
 
             if (l2capSocket != L2CAP_INVALID_PSM) {
-                if (DBG) {
-                    Log.d(TAG, "Connecting to OBEX on L2CAP channel " + l2capSocket);
-                }
+                Log.d(TAG, "Connecting to OBEX on L2CAP channel " + l2capSocket);
                 mSocket = mRemoteDevice.createL2capSocket(l2capSocket);
             } else {
-                if (DBG) {
-                    Log.d(TAG, "Connecting to OBEX on RFCOM channel "
-                            + mSdpMasRecord.getRfcommCannelNumber());
-                }
+                Log.d(
+                        TAG,
+                        "Connecting to OBEX on RFCOM channel "
+                                + mSdpMasRecord.getRfcommCannelNumber());
                 mSocket = mRemoteDevice.createRfcommSocket(mSdpMasRecord.getRfcommCannelNumber());
             }
-            if (DBG) Log.d(TAG, mRemoteDevice.toString() + "Socket: " + mSocket.toString());
+            Log.d(TAG, mRemoteDevice.toString() + "Socket: " + mSocket.toString());
             mSocket.connect();
             mTransport = new BluetoothObexTransport(mSocket);
 
@@ -133,12 +133,10 @@ public class MasClient {
             oap.addToHeaderSet(headerset);
 
             headerset = mSession.connect(headerset);
-            if (DBG) Log.d(TAG, "Connection results" + headerset.getResponseCode());
+            Log.d(TAG, "Connection results" + headerset.getResponseCode());
 
             if (headerset.getResponseCode() == ResponseCodes.OBEX_HTTP_OK) {
-                if (DBG) {
-                    Log.d(TAG, "Connection Successful");
-                }
+                Log.d(TAG, "Connection Successful");
                 mConnected = true;
                 mCallback.sendMessage(MceStateMachine.MSG_MAS_CONNECTED);
             } else {
@@ -175,18 +173,14 @@ public class MasClient {
             request.execute(mSession);
             mCallback.sendMessage(MceStateMachine.MSG_MAS_REQUEST_COMPLETED, request);
         } catch (IOException e) {
-            if (DBG) {
-                Log.d(TAG, "Request failed: " + request);
-            }
+            Log.d(TAG, "Request failed: " + request);
             // Disconnect to cleanup.
             disconnect();
         }
     }
 
     public boolean makeRequest(Request request) {
-        if (DBG) {
-            Log.d(TAG, "makeRequest called with: " + request);
-        }
+        Log.d(TAG, "makeRequest called with: " + request);
 
         boolean status = mHandler.sendMessage(mHandler.obtainMessage(REQUEST, request));
         if (!status) {
@@ -202,9 +196,7 @@ public class MasClient {
      * @param request The {@link Request} to abort.
      */
     public void abortRequest(Request request) {
-        if (DBG) {
-            Log.d(TAG, "abortRequest called with: " + request);
-        }
+        Log.d(TAG, "abortRequest called with: " + request);
 
         request.abort();
         mHandler.removeMessages(REQUEST, request);
@@ -216,7 +208,8 @@ public class MasClient {
     }
 
     public enum CharsetType {
-        NATIVE, UTF_8;
+        NATIVE,
+        UTF_8;
     }
 
     SdpMasRecord getSdpMasRecord() {
@@ -255,5 +248,4 @@ public class MasClient {
             }
         }
     }
-
 }

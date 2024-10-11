@@ -27,22 +27,24 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @RunWith(AndroidJUnit4.class)
 public class LeAudioBroadcasterNativeInterfaceTest {
-    @Mock
-    private LeAudioService mMockService;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private LeAudioService mMockService;
 
     private LeAudioBroadcasterNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         when(mMockService.isAvailable()).thenReturn(true);
         LeAudioService.setLeAudioService(mMockService);
         mNativeInterface = LeAudioBroadcasterNativeInterface.getInstance();
@@ -60,11 +62,9 @@ public class LeAudioBroadcasterNativeInterfaceTest {
 
         mNativeInterface.onBroadcastCreated(broadcastId, success);
 
-        ArgumentCaptor<LeAudioStackEvent> event =
-                ArgumentCaptor.forClass(LeAudioStackEvent.class);
+        ArgumentCaptor<LeAudioStackEvent> event = ArgumentCaptor.forClass(LeAudioStackEvent.class);
         verify(mMockService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                LeAudioStackEvent.EVENT_TYPE_BROADCAST_CREATED);
+        assertThat(event.getValue().type).isEqualTo(LeAudioStackEvent.EVENT_TYPE_BROADCAST_CREATED);
     }
 
     @Test
@@ -73,11 +73,10 @@ public class LeAudioBroadcasterNativeInterfaceTest {
 
         mNativeInterface.onBroadcastDestroyed(broadcastId);
 
-        ArgumentCaptor<LeAudioStackEvent> event =
-                ArgumentCaptor.forClass(LeAudioStackEvent.class);
+        ArgumentCaptor<LeAudioStackEvent> event = ArgumentCaptor.forClass(LeAudioStackEvent.class);
         verify(mMockService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                LeAudioStackEvent.EVENT_TYPE_BROADCAST_DESTROYED);
+        assertThat(event.getValue().type)
+                .isEqualTo(LeAudioStackEvent.EVENT_TYPE_BROADCAST_DESTROYED);
     }
 
     @Test
@@ -87,11 +86,9 @@ public class LeAudioBroadcasterNativeInterfaceTest {
 
         mNativeInterface.onBroadcastStateChanged(broadcastId, state);
 
-        ArgumentCaptor<LeAudioStackEvent> event =
-                ArgumentCaptor.forClass(LeAudioStackEvent.class);
+        ArgumentCaptor<LeAudioStackEvent> event = ArgumentCaptor.forClass(LeAudioStackEvent.class);
         verify(mMockService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                LeAudioStackEvent.EVENT_TYPE_BROADCAST_STATE);
+        assertThat(event.getValue().type).isEqualTo(LeAudioStackEvent.EVENT_TYPE_BROADCAST_STATE);
     }
 
     @Test
@@ -101,10 +98,9 @@ public class LeAudioBroadcasterNativeInterfaceTest {
 
         mNativeInterface.onBroadcastMetadataChanged(broadcastId, metadata);
 
-        ArgumentCaptor<LeAudioStackEvent> event =
-                ArgumentCaptor.forClass(LeAudioStackEvent.class);
+        ArgumentCaptor<LeAudioStackEvent> event = ArgumentCaptor.forClass(LeAudioStackEvent.class);
         verify(mMockService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                LeAudioStackEvent.EVENT_TYPE_BROADCAST_METADATA_CHANGED);
+        assertThat(event.getValue().type)
+                .isEqualTo(LeAudioStackEvent.EVENT_TYPE_BROADCAST_METADATA_CHANGED);
     }
 }

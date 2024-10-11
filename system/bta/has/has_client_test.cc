@@ -36,7 +36,6 @@
 #include "gatt/database_builder.h"
 #include "hardware/bt_gatt_types.h"
 #include "has_types.h"
-#include "mock_controller.h"
 #include "mock_csis_client.h"
 #include "stack/include/bt_uuid16.h"
 #include "test/common/mock_functions.h"
@@ -57,11 +56,11 @@ using ::bluetooth::has::ErrorCode;
 using ::bluetooth::has::HasClientCallbacks;
 using ::bluetooth::has::PresetInfo;
 
-using ::le_audio::has::HasClient;
-using ::le_audio::has::HasCtpGroupOpCoordinator;
-using ::le_audio::has::HasCtpOp;
-using ::le_audio::has::HasDevice;
-using ::le_audio::has::HasPreset;
+using ::bluetooth::le_audio::has::HasClient;
+using ::bluetooth::le_audio::has::HasCtpGroupOpCoordinator;
+using ::bluetooth::le_audio::has::HasCtpOp;
+using ::bluetooth::le_audio::has::HasDevice;
+using ::bluetooth::le_audio::has::HasPreset;
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -82,7 +81,7 @@ using ::testing::WithArg;
 // }
 
 RawAddress GetTestAddress(int index) {
-  CHECK_LT(index, UINT8_MAX);
+  EXPECT_LT(index, UINT8_MAX);
   RawAddress result = {
       {0xC0, 0xDE, 0xC0, 0xDE, 0x00, static_cast<uint8_t>(index)}};
   return result;
@@ -176,12 +175,13 @@ class HasClientTestBase : public ::testing::Test {
       /* 0x0004-0x000f left empty on purpose */
       if (has) {
         bob.AddService(kSvcStartHdl, kSvcEndHdl,
-                       ::le_audio::has::kUuidHearingAccessService, true);
+                       ::bluetooth::le_audio::has::kUuidHearingAccessService,
+                       true);
 
         if (features) {
           bob.AddCharacteristic(
               kFeaturesValHdl - 1, kFeaturesValHdl,
-              ::le_audio::has::kUuidHearingAidFeatures,
+              ::bluetooth::le_audio::has::kUuidHearingAidFeatures,
               GATT_CHAR_PROP_BIT_READ |
                   (features_ntf ? GATT_CHAR_PROP_BIT_NOTIFY : 0));
 
@@ -194,7 +194,7 @@ class HasClientTestBase : public ::testing::Test {
         if (preset_cp) {
           bob.AddCharacteristic(
               kPresetsCtpValHdl - 1, kPresetsCtpValHdl,
-              ::le_audio::has::kUuidHearingAidPresetControlPoint,
+              ::bluetooth::le_audio::has::kUuidHearingAidPresetControlPoint,
               GATT_CHAR_PROP_BIT_WRITE |
                   (preset_cp_ntf ? GATT_CHAR_PROP_BIT_NOTIFY : 0) |
                   (preset_cp_ind ? GATT_CHAR_PROP_BIT_INDICATE : 0));
@@ -208,7 +208,7 @@ class HasClientTestBase : public ::testing::Test {
         if (active_preset_idx) {
           bob.AddCharacteristic(
               kActivePresetIndexValHdl - 1, kActivePresetIndexValHdl,
-              ::le_audio::has::kUuidActivePresetIndex,
+              ::bluetooth::le_audio::has::kUuidActivePresetIndex,
               GATT_CHAR_PROP_BIT_READ |
                   (active_preset_idx_ntf ? GATT_CHAR_PROP_BIT_NOTIFY : 0));
 
@@ -323,10 +323,9 @@ class HasClientTestBase : public ::testing::Test {
 
           STREAM_TO_UINT8(op, pp)
           --len;
-          if (op >
-              static_cast<
-                  std::underlying_type_t<::le_audio::has::PresetCtpOpcode>>(
-                  ::le_audio::has::PresetCtpOpcode::OP_MAX_)) {
+          if (op > static_cast<std::underlying_type_t<
+                       ::bluetooth::le_audio::has::PresetCtpOpcode>>(
+                       ::bluetooth::le_audio::has::PresetCtpOpcode::OP_MAX_)) {
             /* Invalid Opcode */
             if (cb)
               cb(conn_id, (tGATT_STATUS)0x80, handle, value.size(),
@@ -334,8 +333,9 @@ class HasClientTestBase : public ::testing::Test {
             return;
           }
 
-          switch (static_cast<::le_audio::has::PresetCtpOpcode>(op)) {
-            case ::le_audio::has::PresetCtpOpcode::READ_PRESETS:
+          switch (
+              static_cast<::bluetooth::le_audio::has::PresetCtpOpcode>(op)) {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::READ_PRESETS:
               if (len < 2) {
                 if (cb)
                   cb(conn_id, GATT_INVALID_ATTR_LEN, handle, value.size(),
@@ -353,7 +353,8 @@ class HasClientTestBase : public ::testing::Test {
               }
               break;
 
-            case ::le_audio::has::PresetCtpOpcode::SET_ACTIVE_PRESET: {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::
+                SET_ACTIVE_PRESET: {
               if (len < 1) {
                 if (cb)
                   cb(conn_id, GATT_INVALID_ATTR_LEN, handle, value.size(),
@@ -381,7 +382,8 @@ class HasClientTestBase : public ::testing::Test {
               }
             } break;
 
-            case ::le_audio::has::PresetCtpOpcode::SET_ACTIVE_PRESET_SYNC: {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::
+                SET_ACTIVE_PRESET_SYNC: {
               auto features = current_peer_features_val_.at(conn_id);
               if ((features & ::bluetooth::has::
                                   kFeatureBitPresetSynchronizationSupported) ==
@@ -407,7 +409,7 @@ class HasClientTestBase : public ::testing::Test {
               int group_id = bluetooth::groups::kGroupUnknown;
               if (csis_api != nullptr) {
                 group_id = csis_api->GetGroupId(
-                    address, ::le_audio::uuid::kCapServiceUuid);
+                    address, ::bluetooth::le_audio::uuid::kCapServiceUuid);
               }
 
               if (group_id != bluetooth::groups::kGroupUnknown) {
@@ -429,7 +431,7 @@ class HasClientTestBase : public ::testing::Test {
               }
             } break;
 
-            case ::le_audio::has::PresetCtpOpcode::SET_NEXT_PRESET: {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::SET_NEXT_PRESET: {
               ASSERT_EQ(0u, len);
               ASSERT_NE(0u, current_peer_active_preset_idx_.count(conn_id));
               ASSERT_NE(0u, current_peer_presets_.count(conn_id));
@@ -455,7 +457,7 @@ class HasClientTestBase : public ::testing::Test {
               }
             } break;
 
-            case ::le_audio::has::PresetCtpOpcode::SET_PREV_PRESET: {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::SET_PREV_PRESET: {
               ASSERT_EQ(0u, len);
               ASSERT_NE(0u, current_peer_active_preset_idx_.count(conn_id));
               ASSERT_NE(0u, current_peer_presets_.count(conn_id));
@@ -491,7 +493,8 @@ class HasClientTestBase : public ::testing::Test {
               }
             } break;
 
-            case ::le_audio::has::PresetCtpOpcode::SET_NEXT_PRESET_SYNC: {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::
+                SET_NEXT_PRESET_SYNC: {
               ASSERT_EQ(0u, len);
               auto features = current_peer_features_val_.at(conn_id);
               if ((features & ::bluetooth::has::
@@ -521,7 +524,8 @@ class HasClientTestBase : public ::testing::Test {
 
               if (rit != presets.end()) {
                 auto synced_group = mock_csis_client_module_.GetGroupId(
-                    GetTestAddress(conn_id), ::le_audio::uuid::kCapServiceUuid);
+                    GetTestAddress(conn_id),
+                    ::bluetooth::le_audio::uuid::kCapServiceUuid);
                 auto addresses =
                     mock_csis_client_module_.GetDeviceList(synced_group);
 
@@ -545,7 +549,8 @@ class HasClientTestBase : public ::testing::Test {
               }
             } break;
 
-            case ::le_audio::has::PresetCtpOpcode::SET_PREV_PRESET_SYNC: {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::
+                SET_PREV_PRESET_SYNC: {
               ASSERT_EQ(0u, len);
               auto features = current_peer_features_val_.at(conn_id);
               if ((features & ::bluetooth::has::
@@ -575,7 +580,8 @@ class HasClientTestBase : public ::testing::Test {
 
               if (rit != presets.rend()) {
                 auto synced_group = mock_csis_client_module_.GetGroupId(
-                    GetTestAddress(conn_id), ::le_audio::uuid::kCapServiceUuid);
+                    GetTestAddress(conn_id),
+                    ::bluetooth::le_audio::uuid::kCapServiceUuid);
                 auto addresses =
                     mock_csis_client_module_.GetDeviceList(synced_group);
 
@@ -599,7 +605,8 @@ class HasClientTestBase : public ::testing::Test {
               }
             } break;
 
-            case ::le_audio::has::PresetCtpOpcode::WRITE_PRESET_NAME: {
+            case ::bluetooth::le_audio::has::PresetCtpOpcode::
+                WRITE_PRESET_NAME: {
               STREAM_TO_UINT8(index, pp);
               --len;
               auto name = std::string(pp, pp + len);
@@ -630,10 +637,11 @@ class HasClientTestBase : public ::testing::Test {
               presets.erase(current->GetIndex());
               presets.insert(new_preset);
 
-              InjectPresetChanged(
-                  conn_id, address, indicate, new_preset, prev_index,
-                  ::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
-                  true);
+              InjectPresetChanged(conn_id, address, indicate, new_preset,
+                                  prev_index,
+                                  ::bluetooth::le_audio::has::
+                                      PresetCtpChangeId::PRESET_GENERIC_UPDATE,
+                                  true);
             } break;
 
             default:
@@ -647,7 +655,6 @@ class HasClientTestBase : public ::testing::Test {
 
   void SetUp(void) override {
     reset_mock_function_count_map();
-    controller::SetMockControllerInterface(&controller_interface_);
     bluetooth::manager::SetMockBtmInterface(&btm_interface);
     bluetooth::storage::SetMockBtifStorageInterface(&btif_storage_interface_);
     gatt::SetMockBtaGattInterface(&gatt_interface);
@@ -655,6 +662,9 @@ class HasClientTestBase : public ::testing::Test {
     callbacks.reset(new MockHasCallbacks());
 
     encryption_result = true;
+
+    ON_CALL(btm_interface, IsLinkKeyKnown(_, _))
+        .WillByDefault(DoAll(Return(true)));
 
     ON_CALL(btm_interface, SetEncryption(_, _, _, _, _))
         .WillByDefault(
@@ -752,7 +762,6 @@ class HasClientTestBase : public ::testing::Test {
     gatt::SetMockBtaGattInterface(nullptr);
     bluetooth::storage::SetMockBtifStorageInterface(nullptr);
     bluetooth::manager::SetMockBtmInterface(nullptr);
-    controller::SetMockControllerInterface(nullptr);
     callbacks.reset();
 
     current_peer_active_preset_idx_.clear();
@@ -904,36 +913,35 @@ class HasClientTestBase : public ::testing::Test {
                                       bool indicate, bool is_last) {
     std::vector<uint8_t> value;
 
-    value.push_back(
-        static_cast<std::underlying_type_t<::le_audio::has::PresetCtpOpcode>>(
-            ::le_audio::has::PresetCtpOpcode::READ_PRESET_RESPONSE));
+    value.push_back(static_cast<std::underlying_type_t<
+                        ::bluetooth::le_audio::has::PresetCtpOpcode>>(
+        ::bluetooth::le_audio::has::PresetCtpOpcode::READ_PRESET_RESPONSE));
     value.push_back(is_last ? 0x01 : 0x00);
 
     preset.ToCharacteristicValue(value);
     InjectNotificationEvent(address, conn_id, handle, value, indicate);
   }
 
-  void InjectPresetChanged(uint16_t conn_id, RawAddress const& address,
-                           bool indicate, const HasPreset& preset,
-                           uint8_t prev_index,
-                           ::le_audio::has::PresetCtpChangeId change_id,
-                           bool is_last) {
+  void InjectPresetChanged(
+      uint16_t conn_id, RawAddress const& address, bool indicate,
+      const HasPreset& preset, uint8_t prev_index,
+      ::bluetooth::le_audio::has::PresetCtpChangeId change_id, bool is_last) {
     std::vector<uint8_t> value;
 
-    value.push_back(
-        static_cast<std::underlying_type_t<::le_audio::has::PresetCtpOpcode>>(
-            ::le_audio::has::PresetCtpOpcode::PRESET_CHANGED));
+    value.push_back(static_cast<std::underlying_type_t<
+                        ::bluetooth::le_audio::has::PresetCtpOpcode>>(
+        ::bluetooth::le_audio::has::PresetCtpOpcode::PRESET_CHANGED));
     value.push_back(static_cast<uint8_t>(change_id));
     value.push_back(is_last ? 0x01 : 0x00);
 
     switch (change_id) {
-      case ::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE:
+      case ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE:
         value.push_back(prev_index);
         preset.ToCharacteristicValue(value);
         break;
-      case ::le_audio::has::PresetCtpChangeId::PRESET_DELETED:
-      case ::le_audio::has::PresetCtpChangeId::PRESET_AVAILABLE:
-      case ::le_audio::has::PresetCtpChangeId::PRESET_UNAVAILABLE:
+      case ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_DELETED:
+      case ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_AVAILABLE:
+      case ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_UNAVAILABLE:
       default:
         value.push_back(preset.GetIndex());
         break;
@@ -948,13 +956,13 @@ class HasClientTestBase : public ::testing::Test {
       std::vector<uint8_t> value, bool indicate, int index, int num_of_indices,
       GATT_WRITE_OP_CB cb, void* cb_data) {
     auto presets = current_peer_presets_.at(conn_id);
-    LOG_ASSERT(!presets.empty()) << __func__ << " Mocking error!";
+    log::assert_that(!presets.empty(), "Mocking error!");
 
     /* Index is a start index, not necessary is a valid index for the
      * peer device */
     auto preset = presets.find(index);
     while (preset == presets.end() &&
-           index++ <= ::le_audio::has::kMaxNumOfPresets) {
+           index++ <= ::bluetooth::le_audio::has::kMaxNumOfPresets) {
       preset = presets.find(index);
     }
 
@@ -990,7 +998,7 @@ class HasClientTestBase : public ::testing::Test {
                                       uint8_t index, GATT_WRITE_OP_CB cb,
                                       void* cb_data) {
     auto presets = current_peer_presets_.at(conn_id);
-    LOG_ASSERT(!presets.empty()) << __func__ << " Mocking error!";
+    log::assert_that(!presets.empty(), "Mocking error!");
 
     auto preset = presets.find(index);
     if (preset == presets.end()) {
@@ -1164,7 +1172,6 @@ class HasClientTestBase : public ::testing::Test {
   std::unique_ptr<MockHasCallbacks> callbacks;
   bluetooth::manager::MockBtmInterface btm_interface;
   bluetooth::storage::MockBtifStorageInterface btif_storage_interface_;
-  controller::MockControllerInterface controller_interface_;
   gatt::MockBtaGattInterface gatt_interface;
   gatt::MockBtaGattQueue gatt_queue;
   MockCsisClient mock_csis_client_module_;
@@ -1225,6 +1232,27 @@ TEST_F(HasClientTest, test_connect) { TestConnect(GetTestAddress(1)); }
 TEST_F(HasClientTest, test_add_from_storage) {
   TestAddFromStorage(GetTestAddress(1), 0, true);
   TestAddFromStorage(GetTestAddress(2), 0, false);
+}
+
+TEST_F(HasClientTest, test_connect_after_remove) {
+  const RawAddress test_address = GetTestAddress(1);
+
+  /* Override the default action to prevent us sendind the connected event */
+  EXPECT_CALL(gatt_interface,
+              Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _))
+      .WillOnce(Return());
+  HasClient::Get()->Connect(test_address);
+  TestDisconnect(test_address, GATT_INVALID_CONN_ID);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+
+  EXPECT_CALL(*callbacks,
+              OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+
+  // Device has no Link Key
+  ON_CALL(btm_interface, IsLinkKeyKnown(test_address, _))
+      .WillByDefault(DoAll(Return(true)));
+  HasClient::Get()->Connect(test_address);
+  Mock::VerifyAndClearExpectations(&callbacks);
 }
 
 TEST_F(HasClientTest, test_disconnect_non_connected) {
@@ -1955,11 +1983,13 @@ TEST_F(HasClientTest, test_preset_group_set_name) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(not_synced_group))
       .WillByDefault(
           Return(std::vector<RawAddress>({{test_address1, test_address2}})));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address1, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address1, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address2, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address2, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
 
   std::vector<PresetInfo> preset_details;
@@ -2085,10 +2115,10 @@ TEST_F(HasClientTest, test_presets_changed_generic_update_no_add_or_delete) {
   ASSERT_NE(*current_peer_presets_.at(test_conn_id).find(preset_index),
             new_test_preset);
 
-  InjectPresetChanged(test_conn_id, test_address, false, new_test_preset,
-                      1 /* prev_index */,
-                      ::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
-                      true /* is_last */);
+  InjectPresetChanged(
+      test_conn_id, test_address, false, new_test_preset, 1 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
+      true /* is_last */);
 
   /* Verify received preset info update on the 2nd preset */
   ASSERT_EQ(1u, preset_details.size());
@@ -2147,22 +2177,28 @@ TEST_F(HasClientTest, test_presets_changed_generic_update_add_and_delete) {
    */
   auto new_test_preset1 =
       HasPreset(8, HasPreset::kPropertyAvailable, "props new name9");
-  InjectPresetChanged(test_conn_id, test_address, false, new_test_preset1,
-                      1 /* prev_index */,
-                      ::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
-                      false /* is_last */);
+  InjectPresetChanged(
+      test_conn_id, test_address, false, new_test_preset1, 1 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
+      false /* is_last */);
 
   /* Second event adds preset 9 to the already existing presets 1 and 8 */
   auto new_test_preset2 =
       HasPreset(9, HasPreset::kPropertyAvailable | HasPreset::kPropertyWritable,
                 "props new name11");
-  InjectPresetChanged(test_conn_id, test_address, false, new_test_preset2,
-                      8 /* prev_index */,
-                      ::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
-                      true /* is_last */);
+  InjectPresetChanged(
+      test_conn_id, test_address, false, new_test_preset2, 8 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
+      false /* is_last */);
+
+  /* Third event deletes preset 1 with the generic update */
+  InjectPresetChanged(
+      test_conn_id, test_address, false, new_test_preset1, 0 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_GENERIC_UPDATE,
+      true /* is_last */);
 
   /* Verify received preset info - expect presets 1, 32 unchanged, 8, 9
-   * updated, and 2, 4, 5 deleted.
+   * updated, and 1, 2, 4, 5 deleted.
    */
   ASSERT_EQ(2u, updated_preset_details.size());
   ASSERT_EQ(new_test_preset1.GetIndex(),
@@ -2178,10 +2214,11 @@ TEST_F(HasClientTest, test_presets_changed_generic_update_add_and_delete) {
   ASSERT_EQ(new_test_preset2.IsWritable(), updated_preset_details[1].writable);
   ASSERT_EQ(new_test_preset2.GetName(), updated_preset_details[1].preset_name);
 
-  ASSERT_EQ(3u, deleted_preset_details.size());
+  ASSERT_EQ(4u, deleted_preset_details.size());
   ASSERT_EQ(2, deleted_preset_details[0].preset_index);
   ASSERT_EQ(4, deleted_preset_details[1].preset_index);
   ASSERT_EQ(5, deleted_preset_details[2].preset_index);
+  ASSERT_EQ(1, deleted_preset_details[3].preset_index);
 }
 
 TEST_F(HasClientTest, test_presets_changed_deleted) {
@@ -2220,10 +2257,11 @@ TEST_F(HasClientTest, test_presets_changed_deleted) {
 
   /* Inject preset deletion of index 2 */
   auto deleted_index = preset_details[1].preset_index;
-  InjectPresetChanged(test_conn_id, test_address, false,
-                      *presets.find(deleted_index), 0 /* prev_index */,
-                      ::le_audio::has::PresetCtpChangeId::PRESET_DELETED,
-                      true /* is_last */);
+  InjectPresetChanged(
+      test_conn_id, test_address, false, *presets.find(deleted_index),
+      0 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_DELETED,
+      true /* is_last */);
 
   ASSERT_EQ(2u, preset_details.size());
   ASSERT_EQ(1u, deleted_preset_details.size());
@@ -2271,10 +2309,11 @@ TEST_F(HasClientTest, test_presets_changed_available) {
 
   /* Inject preset deletion of index 2 */
   auto changed_index = preset_details[0].preset_index;
-  InjectPresetChanged(test_conn_id, test_address, false,
-                      *presets.find(changed_index), 0 /* prev_index */,
-                      ::le_audio::has::PresetCtpChangeId::PRESET_AVAILABLE,
-                      true /* is_last */);
+  InjectPresetChanged(
+      test_conn_id, test_address, false, *presets.find(changed_index),
+      0 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_AVAILABLE,
+      true /* is_last */);
 
   ASSERT_EQ(2u, preset_details.size());
   ASSERT_EQ(1u, changed_preset_details.size());
@@ -2324,10 +2363,11 @@ TEST_F(HasClientTest, test_presets_changed_unavailable) {
 
   /* Inject preset deletion of index 2 */
   auto changed_index = preset_details[0].preset_index;
-  InjectPresetChanged(test_conn_id, test_address, false,
-                      *presets.find(changed_index), 0 /* prev_index */,
-                      ::le_audio::has::PresetCtpChangeId::PRESET_UNAVAILABLE,
-                      true /* is_last */);
+  InjectPresetChanged(
+      test_conn_id, test_address, false, *presets.find(changed_index),
+      0 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_UNAVAILABLE,
+      true /* is_last */);
 
   ASSERT_EQ(2u, preset_details.size());
   ASSERT_EQ(1u, changed_preset_details.size());
@@ -2415,11 +2455,13 @@ TEST_F(HasClientTest, test_select_group_preset_valid_no_preset_sync_supported) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(not_synced_group))
       .WillByDefault(
           Return(std::vector<RawAddress>({{test_address1, test_address2}})));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address1, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address1, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address2, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address2, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
 
   uint8_t group_active_preset_index = 0;
@@ -2480,11 +2522,13 @@ TEST_F(HasClientTest, test_select_group_preset_valid_preset_sync_supported) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(synced_group))
       .WillByDefault(
           Return(std::vector<RawAddress>({{test_address1, test_address2}})));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address1, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address1, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(synced_group));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address2, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address2, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(synced_group));
 
   EXPECT_CALL(*callbacks, OnActivePresetSelectError(
@@ -2552,10 +2596,11 @@ TEST_F(HasClientTest, test_select_preset_invalid) {
 
   /* Inject preset deletion of index 2 */
   auto deleted_index = preset_details[1].preset_index;
-  InjectPresetChanged(test_conn_id, test_address, false,
-                      *presets.find(deleted_index), 0 /* prev_index */,
-                      ::le_audio::has::PresetCtpChangeId::PRESET_DELETED,
-                      true /* is_last */);
+  InjectPresetChanged(
+      test_conn_id, test_address, false, *presets.find(deleted_index),
+      0 /* prev_index */,
+      ::bluetooth::le_audio::has::PresetCtpChangeId::PRESET_DELETED,
+      true /* is_last */);
 
   EXPECT_CALL(*callbacks, OnActivePresetSelectError(
                               std::variant<RawAddress, int>(test_address),
@@ -2621,11 +2666,13 @@ TEST_F(HasClientTest, test_select_group_preset_next_no_preset_sync_supported) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(not_synced_group))
       .WillByDefault(
           Return(std::vector<RawAddress>({{test_address1, test_address2}})));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address1, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address1, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address2, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address2, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
 
   uint8_t group_active_preset_index = 0;
@@ -2686,11 +2733,13 @@ TEST_F(HasClientTest, test_select_group_preset_next_preset_sync_supported) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(synced_group))
       .WillByDefault(
           Return(std::vector<RawAddress>({{test_address1, test_address2}})));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address1, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address1, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(synced_group));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address2, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address2, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(synced_group));
 
   EXPECT_CALL(*callbacks, OnActivePresetSelectError(
@@ -2778,11 +2827,13 @@ TEST_F(HasClientTest, test_select_group_preset_prev_no_preset_sync_supported) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(not_synced_group))
       .WillByDefault(
           Return(std::vector<RawAddress>({{test_address1, test_address2}})));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address1, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address1, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address2, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address2, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(not_synced_group));
 
   uint8_t group_active_preset_index = 0;
@@ -2843,11 +2894,13 @@ TEST_F(HasClientTest, test_select_group_preset_prev_preset_sync_supported) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(synced_group))
       .WillByDefault(
           Return(std::vector<RawAddress>({{test_address1, test_address2}})));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address1, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address1, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(synced_group));
-  ON_CALL(mock_csis_client_module_,
-          GetGroupId(test_address2, ::le_audio::uuid::kCapServiceUuid))
+  ON_CALL(
+      mock_csis_client_module_,
+      GetGroupId(test_address2, ::bluetooth::le_audio::uuid::kCapServiceUuid))
       .WillByDefault(Return(synced_group));
 
   EXPECT_CALL(*callbacks, OnActivePresetSelectError(
@@ -3172,7 +3225,8 @@ TEST_F(HasTypesTest, test_group_op_coordinator_init) {
 
   HasCtpGroupOpCoordinator wrapper(
       {address1, address2},
-      HasCtpOp(0x01, ::le_audio::has::PresetCtpOpcode::READ_PRESETS, 6));
+      HasCtpOp(0x01, ::bluetooth::le_audio::has::PresetCtpOpcode::READ_PRESETS,
+               6));
   ASSERT_EQ(2u, wrapper.ref_cnt);
 
   HasCtpGroupOpCoordinator::Cleanup();
@@ -3192,10 +3246,12 @@ TEST_F(HasTypesTest, test_group_op_coordinator_copy) {
 
   HasCtpGroupOpCoordinator wrapper(
       {address1, address2},
-      HasCtpOp(0x01, ::le_audio::has::PresetCtpOpcode::READ_PRESETS, 6));
+      HasCtpOp(0x01, ::bluetooth::le_audio::has::PresetCtpOpcode::READ_PRESETS,
+               6));
   HasCtpGroupOpCoordinator wrapper2(
       {address1},
-      HasCtpOp(0x01, ::le_audio::has::PresetCtpOpcode::READ_PRESETS, 6));
+      HasCtpOp(0x01, ::bluetooth::le_audio::has::PresetCtpOpcode::READ_PRESETS,
+               6));
   ASSERT_EQ(3u, wrapper.ref_cnt);
   HasCtpGroupOpCoordinator wrapper3 = wrapper2;
   auto* wrapper4 =
@@ -3224,10 +3280,12 @@ TEST_F(HasTypesTest, test_group_op_coordinator_completion) {
 
   HasCtpGroupOpCoordinator wrapper(
       {address1, address3},
-      HasCtpOp(0x01, ::le_audio::has::PresetCtpOpcode::READ_PRESETS, 6));
+      HasCtpOp(0x01, ::bluetooth::le_audio::has::PresetCtpOpcode::READ_PRESETS,
+               6));
   HasCtpGroupOpCoordinator wrapper2(
       {address2},
-      HasCtpOp(0x01, ::le_audio::has::PresetCtpOpcode::READ_PRESETS, 6));
+      HasCtpOp(0x01, ::bluetooth::le_audio::has::PresetCtpOpcode::READ_PRESETS,
+               6));
   ASSERT_EQ(3u, wrapper.ref_cnt);
 
   ASSERT_FALSE(wrapper.IsFullyCompleted());

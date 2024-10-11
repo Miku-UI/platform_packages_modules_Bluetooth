@@ -48,9 +48,8 @@ Level GetDefaultLogLevel() { return gDefaultLogLevel; }
 // Default value for $MaxMessageSize for rsyslog.
 static constexpr size_t kBufferSize = 8192;
 
-void vlog(Level level, char const* tag, char const* file_name, int line,
-          char const* function_name, fmt::string_view fmt,
-          fmt::format_args vargs) {
+void vlog(Level level, char const* tag, source_location location,
+          fmt::string_view fmt, fmt::format_args vargs) {
   // Filter out logs that don't meet level requirement.
   Level current_level = GetLogLevelForTag(tag);
   if (level < current_level) {
@@ -84,13 +83,19 @@ void vlog(Level level, char const* tag, char const* file_name, int line,
 
   // Format file, line.
   fmt::format_to(std::back_insert_iterator(buffer), "{} {}:{} {}: ", tag,
-                 file_name, line, function_name);
+                 location.file_name, location.line, location.function_name);
 
   // Format message.
   fmt::vformat_to(std::back_insert_iterator(buffer), fmt, vargs);
 
   // Print to vsyslog.
   syslog(LOG_USER | severity, "%s", buffer.c_str());
+
+  // abort if the message was fatal.
+  // syslog does not independently abort on CRIT logs.
+  if (level == Level::kFatal) {
+    std::abort();
+  }
 }
 
 }  // namespace bluetooth::log_internal

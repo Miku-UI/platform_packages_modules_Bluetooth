@@ -25,6 +25,7 @@
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
+#include "test/fake/fake_osi.h"
 #include "test/mock/mock_osi_allocator.h"
 #include "test/mock/mock_stack_l2cap_api.h"
 
@@ -32,58 +33,70 @@
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
 #endif
 
-static int L2CA_ConnectReq2_cid = 0x42;
+namespace {
+
+static int L2CA_ConnectReqWithSecurity_cid = 0x42;
 static RawAddress addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
 static tSDP_DISCOVERY_DB* sdp_db = nullptr;
 
-class StackSdpMainTest : public ::testing::Test {
+class StackSdpWithMocksTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    sdp_init();
-    test::mock::stack_l2cap_api::L2CA_ConnectReq2.body =
-        [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
-          return ++L2CA_ConnectReq2_cid;
+    fake_osi_ = std::make_unique<test::fake::FakeOsi>();
+
+    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
+        [](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
+           uint16_t /* sec_level */) {
+          return ++L2CA_ConnectReqWithSecurity_cid;
         };
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid,
+    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t /* cid */,
                                                           BT_HDR* p_data) {
       osi_free_and_reset((void**)&p_data);
       return 0;
     };
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t cid) {
-      return true;
-    };
-    test::mock::stack_l2cap_api::L2CA_Register2.body =
-        [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
-           tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
-           uint16_t required_remote_mtu, uint16_t sec_level) {
-          return 42;  // return non zero
-        };
-    test::mock::osi_allocator::osi_malloc.body = [](size_t size) {
-      return malloc(size);
-    };
-    test::mock::osi_allocator::osi_free.body = [](void* ptr) { free(ptr); };
-    test::mock::osi_allocator::osi_free_and_reset.body = [](void** ptr) {
-      free(*ptr);
-      *ptr = nullptr;
-    };
+    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body =
+        [](uint16_t /* cid */) { return true; };
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
+        [](uint16_t psm, const tL2CAP_APPL_INFO& /* p_cb_info */,
+           bool /* enable_snoop */, tL2CAP_ERTM_INFO* /* p_ertm_info */,
+           uint16_t /* my_mtu */, uint16_t /* required_remote_mtu */,
+           uint16_t /* sec_level */) { return psm; };
+  }
+
+  void TearDown() override {
+    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity = {};
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
+    test::mock::stack_l2cap_api::L2CA_DataWrite = {};
+    test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
+
+    fake_osi_.reset();
+  }
+
+  std::unique_ptr<test::fake::FakeOsi> fake_osi_;
+};
+
+class StackSdpInitTest : public StackSdpWithMocksTest {
+ protected:
+  void SetUp() override {
+    StackSdpWithMocksTest::SetUp();
+    sdp_init();
     sdp_db = (tSDP_DISCOVERY_DB*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
   }
 
   void TearDown() override {
     osi_free(sdp_db);
-    test::mock::stack_l2cap_api::L2CA_ConnectReq2 = {};
-    test::mock::stack_l2cap_api::L2CA_Register2 = {};
-    test::mock::stack_l2cap_api::L2CA_DataWrite = {};
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
-    test::mock::osi_allocator::osi_malloc = {};
-    test::mock::osi_allocator::osi_free = {};
-    test::mock::osi_allocator::osi_free_and_reset = {};
+    sdp_free();
+    StackSdpWithMocksTest::TearDown();
   }
 };
 
-TEST_F(StackSdpMainTest, sdp_service_search_request) {
+}  // namespace
+
+TEST_F(StackSdpInitTest, nop) {}
+
+TEST_F(StackSdpInitTest, sdp_service_search_request) {
   ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
-  int cid = L2CA_ConnectReq2_cid;
+  int cid = L2CA_ConnectReqWithSecurity_cid;
   tCONN_CB* p_ccb = sdpu_find_ccb_by_cid(cid);
   ASSERT_NE(p_ccb, nullptr);
   ASSERT_EQ(p_ccb->con_state, SDP_STATE_CONN_SETUP);
@@ -112,9 +125,9 @@ tCONN_CB* find_ccb(uint16_t cid, uint8_t state) {
   return nullptr;  // not found
 }
 
-TEST_F(StackSdpMainTest, sdp_service_search_request_queuing) {
+TEST_F(StackSdpInitTest, sdp_service_search_request_queuing) {
   ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
-  const int cid = L2CA_ConnectReq2_cid;
+  const int cid = L2CA_ConnectReqWithSecurity_cid;
   tCONN_CB* p_ccb1 = find_ccb(cid, SDP_STATE_CONN_SETUP);
   ASSERT_NE(p_ccb1, nullptr);
   ASSERT_EQ(p_ccb1->con_state, SDP_STATE_CONN_SETUP);
@@ -144,16 +157,16 @@ TEST_F(StackSdpMainTest, sdp_service_search_request_queuing) {
   ASSERT_EQ(p_ccb2->con_state, SDP_STATE_IDLE);
 }
 
-void sdp_callback(const RawAddress& bd_addr, tSDP_RESULT result) {
+void sdp_callback(const RawAddress& /* bd_addr */, tSDP_RESULT result) {
   if (result == SDP_SUCCESS) {
     ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
   }
 }
 
-TEST_F(StackSdpMainTest, sdp_service_search_request_queuing_race_condition) {
+TEST_F(StackSdpInitTest, sdp_service_search_request_queuing_race_condition) {
   // start first request
   ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, sdp_callback));
-  const int cid1 = L2CA_ConnectReq2_cid;
+  const int cid1 = L2CA_ConnectReqWithSecurity_cid;
   tCONN_CB* p_ccb1 = find_ccb(cid1, SDP_STATE_CONN_SETUP);
   ASSERT_NE(p_ccb1, nullptr);
   ASSERT_EQ(p_ccb1->con_state, SDP_STATE_CONN_SETUP);
@@ -166,7 +179,7 @@ TEST_F(StackSdpMainTest, sdp_service_search_request_queuing_race_condition) {
   sdp_disconnect(p_ccb1, SDP_SUCCESS);
   sdp_cb.reg_info.pL2CA_DisconnectCfm_Cb(p_ccb1->connection_id, 0);
 
-  const int cid2 = L2CA_ConnectReq2_cid;
+  const int cid2 = L2CA_ConnectReqWithSecurity_cid;
   ASSERT_NE(cid1, cid2);  // The callback a queued a new request
   tCONN_CB* p_ccb2 = find_ccb(cid2, SDP_STATE_CONN_SETUP);
   ASSERT_NE(p_ccb2, nullptr);
@@ -176,7 +189,7 @@ TEST_F(StackSdpMainTest, sdp_service_search_request_queuing_race_condition) {
   sdp_disconnect(p_ccb2, SDP_SUCCESS);
 }
 
-TEST_F(StackSdpMainTest, sdp_disc_wait_text) {
+TEST_F(StackSdpInitTest, sdp_disc_wait_text) {
   std::vector<std::pair<tSDP_DISC_WAIT, std::string>> states = {
       std::make_pair(SDP_DISC_WAIT_CONN, "SDP_DISC_WAIT_CONN"),
       std::make_pair(SDP_DISC_WAIT_HANDLES, "SDP_DISC_WAIT_HANDLES"),
@@ -195,7 +208,7 @@ TEST_F(StackSdpMainTest, sdp_disc_wait_text) {
                    .c_str());
 }
 
-TEST_F(StackSdpMainTest, sdp_state_text) {
+TEST_F(StackSdpInitTest, sdp_state_text) {
   std::vector<std::pair<tSDP_STATE, std::string>> states = {
       std::make_pair(SDP_STATE_IDLE, "SDP_STATE_IDLE"),
       std::make_pair(SDP_STATE_CONN_SETUP, "SDP_STATE_CONN_SETUP"),
@@ -214,7 +227,7 @@ TEST_F(StackSdpMainTest, sdp_state_text) {
                    .c_str());
 }
 
-TEST_F(StackSdpMainTest, sdp_flags_text) {
+TEST_F(StackSdpInitTest, sdp_flags_text) {
   std::vector<std::pair<tSDP_DISC_WAIT, std::string>> flags = {
       std::make_pair(SDP_FLAGS_IS_ORIG, "SDP_FLAGS_IS_ORIG"),
       std::make_pair(SDP_FLAGS_HIS_CFG_DONE, "SDP_FLAGS_HIS_CFG_DONE"),
@@ -231,7 +244,7 @@ TEST_F(StackSdpMainTest, sdp_flags_text) {
                    .c_str());
 }
 
-TEST_F(StackSdpMainTest, sdp_status_text) {
+TEST_F(StackSdpInitTest, sdp_status_text) {
   std::vector<std::pair<tSDP_STATUS, std::string>> status = {
       std::make_pair(SDP_SUCCESS, "SDP_SUCCESS"),
       std::make_pair(SDP_INVALID_VERSION, "SDP_INVALID_VERSION"),

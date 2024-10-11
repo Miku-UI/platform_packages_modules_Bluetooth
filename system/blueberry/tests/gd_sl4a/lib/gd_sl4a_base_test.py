@@ -74,8 +74,8 @@ class GdSl4aBaseTestClass(BaseTestClass):
 
     def setup_test(self):
         self.cert.rootservice.StartStack(
-            facade_rootservice.StartStackRequest(
-                module_under_test=facade_rootservice.BluetoothModule.Value(self.cert_module),))
+            facade_rootservice.StartStackRequest(module_under_test=facade_rootservice.BluetoothModule.Value(
+                self.cert_module),))
         self.cert.wait_channel_ready()
 
         self.timer_list = []
@@ -87,7 +87,7 @@ class GdSl4aBaseTestClass(BaseTestClass):
         self.dut.sl4a.bluetoothDisableBLE()
         disable_bluetooth(self.dut.sl4a, self.dut.ed)
         # Enable full verbose logging for Bluetooth
-        self.dut.adb.shell("device_config put bluetooth INIT_logging_debug_enabled_for_all true")
+        self.dut.adb.shell("setprop log.tag.bluetooth VERBOSE")
         # Then enable Bluetooth
         enable_bluetooth(self.dut.sl4a, self.dut.ed)
         self.dut.sl4a.bluetoothDisableBLE()
@@ -122,10 +122,6 @@ class GdSl4aBaseTestClass(BaseTestClass):
             self.dut.adb.pull([
                 "/data/misc/bluedroid/bt_config.conf",
                 os.path.join(base_dir, "DUT_%s_bt_config.conf" % self.dut.serial)
-            ])
-            self.dut.adb.pull([
-                "/data/misc/bluedroid/bt_config.bak",
-                os.path.join(base_dir, "DUT_%s_bt_config.bak" % self.dut.serial)
             ])
         except AdbError as error:
             logging.warning("Failed to pull logs from DUT: " + str(error))

@@ -23,13 +23,14 @@
  *
  ******************************************************************************/
 
+#define LOG_TAG "bluetooth-a2dp"
+
 #include <bluetooth/log.h>
 #include <string.h>
 
 #include "avdt_api.h"
 #include "avdt_int.h"
 #include "avdtc_api.h"
-#include "check.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/osi.h"
 
@@ -851,7 +852,8 @@ void avdt_scb_init(void) {
  ******************************************************************************/
 AvdtpScb* avdt_scb_alloc(uint8_t peer_id,
                          const AvdtpStreamConfig& avdtp_stream_config) {
-  CHECK(peer_id < AVDT_NUM_LINKS);
+  log::assert_that(peer_id < AVDT_NUM_LINKS,
+                   "assert failed: peer_id < AVDT_NUM_LINKS");
 
   // Find available entry
   AvdtpScb* p_scb = &avdtp_cb.ccb[peer_id].scb[0];
@@ -888,7 +890,7 @@ void AvdtpScb::Allocate(AvdtpCcb* p_avdtp_ccb,
  * Returns          void.
  *
  ******************************************************************************/
-void avdt_scb_dealloc(AvdtpScb* p_scb, UNUSED_ATTR tAVDT_SCB_EVT* p_data) {
+void avdt_scb_dealloc(AvdtpScb* p_scb, tAVDT_SCB_EVT* /* p_data */) {
   log::verbose("hdl={}", avdt_scb_to_hdl(p_scb));
   p_scb->Recycle();
 }

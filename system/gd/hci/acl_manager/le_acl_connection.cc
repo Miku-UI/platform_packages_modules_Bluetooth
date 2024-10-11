@@ -16,7 +16,10 @@
 
 #include "hci/acl_manager/le_acl_connection.h"
 
+#include <bluetooth/log.h>
+
 #include "hci/acl_manager/le_connection_management_callbacks.h"
+#include "hci/event_checkers.h"
 #include "os/metrics.h"
 
 using bluetooth::hci::Address;
@@ -30,7 +33,7 @@ class LeAclConnectionTracker : public LeConnectionManagementCallbacks {
   LeAclConnectionTracker(LeAclConnectionInterface* le_acl_connection_interface, uint16_t connection_handle)
       : le_acl_connection_interface_(le_acl_connection_interface), connection_handle_(connection_handle) {}
   ~LeAclConnectionTracker() {
-    ASSERT(queued_callbacks_.empty());
+    log::assert_that(queued_callbacks_.empty(), "assert failed: queued_callbacks_.empty()");
   }
   void RegisterCallbacks(LeConnectionManagementCallbacks* callbacks, os::Handler* handler) {
     client_handler_ = handler;
@@ -100,7 +103,8 @@ struct LeAclConnection::impl {
   impl(LeAclConnectionInterface* le_acl_connection_interface, std::shared_ptr<Queue> queue, uint16_t connection_handle)
       : queue_(std::move(queue)), tracker(le_acl_connection_interface, connection_handle) {}
   LeConnectionManagementCallbacks* GetEventCallbacks(std::function<void(uint16_t)> invalidate_callbacks) {
-    ASSERT_LOG(!invalidate_callbacks_, "Already returned event callbacks for this connection");
+    log::assert_that(
+        !invalidate_callbacks_, "Already returned event callbacks for this connection");
     invalidate_callbacks_ = std::move(invalidate_callbacks);
     return &tracker;
   }
@@ -141,7 +145,7 @@ AddressWithType LeAclConnection::GetLocalAddress() const {
         if constexpr (std::is_same_v<T, DataAsUninitializedPeripheral>) {
           // This case should never happen outside of acl_manager.cc, since once the connection is
           // passed into the OnConnectSuccess callback, it should be fully initialized.
-          LOG_ALWAYS_FATAL("Attempted to read the local address of an uninitialized connection");
+          log::fatal("Attempted to read the local address of an uninitialized connection");
           return AddressWithType{};
         } else {
           return data.local_address;
@@ -179,23 +183,26 @@ void LeAclConnection::Disconnect(DisconnectReason reason) {
   pimpl_->tracker.le_acl_connection_interface_->EnqueueCommand(
       DisconnectBuilder::Create(handle_, reason),
       pimpl_->tracker.client_handler_->BindOnce([](CommandStatusView status) {
-        ASSERT(status.IsValid());
-        ASSERT(status.GetCommandOpCode() == OpCode::DISCONNECT);
+        log::assert_that(status.IsValid(), "assert failed: status.IsValid()");
+        log::assert_that(
+            status.GetCommandOpCode() == OpCode::DISCONNECT,
+            "assert failed: status.GetCommandOpCode() == OpCode::DISCONNECT");
         auto disconnect_status = DisconnectStatusView::Create(status);
-        ASSERT(disconnect_status.IsValid());
+        log::assert_that(disconnect_status.IsValid(), "assert failed: disconnect_status.IsValid()");
         auto error_code = disconnect_status.GetStatus();
         if (error_code != ErrorCode::SUCCESS) {
-          LOG_INFO("Disconnect status %s", ErrorCodeText(error_code).c_str());
+          log::info("Disconnect status {}", ErrorCodeText(error_code));
         }
       }));
 }
 
 void LeAclConnection::OnLeSubrateRequestStatus(CommandStatusView status) {
   auto subrate_request_status = LeSubrateRequestStatusView::Create(status);
-  ASSERT(subrate_request_status.IsValid());
+  log::assert_that(
+      subrate_request_status.IsValid(), "assert failed: subrate_request_status.IsValid()");
   auto hci_status = subrate_request_status.GetStatus();
   if (hci_status != ErrorCode::SUCCESS) {
-    LOG_INFO("LeSubrateRequest status %s", ErrorCodeText(hci_status).c_str());
+    log::info("LeSubrateRequest status {}", ErrorCodeText(hci_status));
     pimpl_->tracker.OnLeSubrateChange(hci_status, 0, 0, 0, 0);
   }
 }
@@ -220,7 +227,7 @@ bool LeAclConnection::LeConnectionUpdate(
     uint16_t min_ce_length,
     uint16_t max_ce_length) {
   if (!check_connection_parameters(conn_interval_min, conn_interval_max, conn_latency, supervision_timeout)) {
-    LOG_ERROR("Invalid parameter");
+    log::error("Invalid parameter");
     return false;
   }
   pimpl_->tracker.le_acl_connection_interface_->EnqueueCommand(
@@ -232,10 +239,7 @@ bool LeAclConnection::LeConnectionUpdate(
           supervision_timeout,
           min_ce_length,
           max_ce_length),
-      pimpl_->tracker.client_handler_->BindOnce([](CommandStatusView status) {
-        ASSERT(status.IsValid());
-        ASSERT(status.GetCommandOpCode() == OpCode::LE_CONNECTION_UPDATE);
-      }));
+      pimpl_->tracker.client_handler_->BindOnce(check_status<LeConnectionUpdateStatusView>));
   return true;
 }
 
@@ -243,8 +247,10 @@ bool LeAclConnection::ReadRemoteVersionInformation() {
   pimpl_->tracker.le_acl_connection_interface_->EnqueueCommand(
       ReadRemoteVersionInformationBuilder::Create(handle_),
       pimpl_->tracker.client_handler_->BindOnce([](CommandStatusView status) {
-        ASSERT(status.IsValid());
-        ASSERT(status.GetCommandOpCode() == OpCode::READ_REMOTE_VERSION_INFORMATION);
+        log::assert_that(status.IsValid(), "assert failed: status.IsValid()");
+        log::assert_that(
+            status.GetCommandOpCode() == OpCode::READ_REMOTE_VERSION_INFORMATION,
+            "assert failed: status.GetCommandOpCode() == OpCode::READ_REMOTE_VERSION_INFORMATION");
       }));
   return true;
 }
@@ -253,8 +259,10 @@ bool LeAclConnection::LeReadRemoteFeatures() {
   pimpl_->tracker.le_acl_connection_interface_->EnqueueCommand(
       LeReadRemoteFeaturesBuilder::Create(handle_),
       pimpl_->tracker.client_handler_->BindOnce([](CommandStatusView status) {
-        ASSERT(status.IsValid());
-        ASSERT(status.GetCommandOpCode() == OpCode::LE_READ_REMOTE_FEATURES);
+        log::assert_that(status.IsValid(), "assert failed: status.IsValid()");
+        log::assert_that(
+            status.GetCommandOpCode() == OpCode::LE_READ_REMOTE_FEATURES,
+            "assert failed: status.GetCommandOpCode() == OpCode::LE_READ_REMOTE_FEATURES");
       }));
   return true;
 }
@@ -264,7 +272,7 @@ bool LeAclConnection::check_connection_parameters(
   if (conn_interval_min < 0x0006 || conn_interval_min > 0x0C80 || conn_interval_max < 0x0006 ||
       conn_interval_max > 0x0C80 || conn_latency > 0x01F3 || supervision_timeout < 0x000A ||
       supervision_timeout > 0x0C80) {
-    LOG_ERROR("Invalid parameter");
+    log::error("Invalid parameter");
     return false;
   }
   // The Maximum interval in milliseconds will be conn_interval_max * 1.25 ms
@@ -273,7 +281,7 @@ bool LeAclConnection::check_connection_parameters(
   // milliseconds.
   uint32_t supervision_timeout_min = (uint32_t)(1 + conn_latency) * conn_interval_max * 2 + 1;
   if (supervision_timeout * 8 < supervision_timeout_min || conn_interval_max < conn_interval_min) {
-    LOG_ERROR("Invalid parameter");
+    log::error("Invalid parameter");
     return false;
   }
 

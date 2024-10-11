@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <bluetooth/log.h>
+
 #include <fstream>
 #include <string>
 #include <unordered_map>
@@ -221,7 +223,7 @@ class SnoopLogger : public ::bluetooth::Module {
     OUTGOING,
   };
 
-  void Capture(HciPacket& packet, Direction direction, PacketType type);
+  void Capture(const HciPacket& packet, Direction direction, PacketType type);
 
   // Set a L2CAP channel as acceptlisted, allowing packets with that L2CAP CID
   // to show up in the snoop logs.
@@ -353,3 +355,9 @@ class SnoopLogger : public ::bluetooth::Module {
 
 }  // namespace hal
 }  // namespace bluetooth
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::hal::profile_type_t> : enum_formatter<bluetooth::hal::profile_type_t> {
+};
+}  // namespace fmt

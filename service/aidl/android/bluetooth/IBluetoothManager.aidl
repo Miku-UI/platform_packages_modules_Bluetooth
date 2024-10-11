@@ -16,7 +16,6 @@
 
 package android.bluetooth;
 
-import android.bluetooth.IBluetooth;
 import android.bluetooth.IBluetoothManagerCallback;
 import android.content.AttributionSource;
 
@@ -28,7 +27,7 @@ import android.content.AttributionSource;
 interface IBluetoothManager
 {
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    IBluetooth registerAdapter(in IBluetoothManagerCallback callback);
+    IBinder registerAdapter(in IBluetoothManagerCallback callback);
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     void unregisterAdapter(in IBluetoothManagerCallback callback);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
@@ -49,13 +48,11 @@ interface IBluetoothManager
     boolean onFactoryReset(in AttributionSource attributionSource);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    boolean isBleScanAlwaysAvailable();
+    boolean isBleScanAvailable();
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     boolean enableBle(in AttributionSource attributionSource, IBinder b);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     boolean disableBle(in AttributionSource attributionSource, IBinder b);
-    @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    boolean isBleAppPresent();
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     boolean isHearingAidProfileSupported();
 

@@ -1,8 +1,8 @@
-#include "osi/include/stack_power_telemetry.h"
+#include "osi/src/stack_power_telemetry.cc"
 
 #include <gtest/gtest.h>
 
-#include "osi/src/stack_power_telemetry.cc"
+#include "osi/include/stack_power_telemetry.h"
 #include "types/raw_address.h"
 
 class PowerTelemetryTest : public ::testing::Test {
@@ -21,8 +21,8 @@ class PowerTelemetryTest : public ::testing::Test {
   }
 
   void SetUp() override {
-    // Enable the feature flag
-    power_telemerty_enabled_ = true;
+    power_telemetry::GetInstance();   // Init the object.
+    power_telemerty_enabled_ = true;  // Enable the feature flag
     RawAddress::FromString("00:00:00:00:00:00", bdaddr);
   }
 };

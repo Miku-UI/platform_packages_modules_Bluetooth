@@ -22,16 +22,17 @@
  *
  ******************************************************************************/
 
-#include <android_bluetooth_flags.h>
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <vector>
 
+#include "bta/dm/bta_dm_device_search.h"
 #include "bta/dm/bta_dm_disc.h"
 #include "bta/dm/bta_dm_int.h"
 #include "bta/dm/bta_dm_sec_int.h"
-#include "osi/include/compat.h"
+#include "hci/le_rand_callback.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_api.h"
 #include "stack/include/btm_client_interface.h"
@@ -49,11 +50,7 @@ using bluetooth::Uuid;
  *  Constants
  ****************************************************************************/
 
-static const tBTA_SYS_REG bta_dm_search_reg = {bta_dm_search_sm_execute,
-                                               bta_dm_search_sm_disable};
-
 void BTA_dm_init() {
-  bta_sys_register(BTA_ID_DM_SEARCH, &bta_dm_search_reg);
   /* if UUID list is not provided as static data */
   bta_sys_eir_register(bta_dm_eir_update_uuid);
   bta_sys_cust_eir_register(bta_dm_eir_update_cust_uuid);
@@ -69,7 +66,7 @@ void BTA_EnableTestMode(void) {
 /** This function sets the Bluetooth name of local device */
 void BTA_DmSetDeviceName(const char* p_name) {
   std::vector<uint8_t> name(BD_NAME_LEN + 1);
-  strlcpy((char*)name.data(), p_name, BD_NAME_LEN + 1);
+  bd_name_from_char_pointer(name.data(), p_name);
 
   do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_set_dev_name, name));
 }
@@ -111,54 +108,10 @@ void BTA_DmSearchCancel(void) { bta_dm_disc_stop_device_discovery(); }
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmDiscover(const RawAddress& bd_addr, tBTA_DM_SEARCH_CBACK* p_cback,
+void BTA_DmDiscover(const RawAddress& bd_addr,
+                    service_discovery_callbacks cbacks,
                     tBT_TRANSPORT transport) {
-  bta_dm_disc_start_service_discovery(p_cback, bd_addr, transport);
-}
-
-/*******************************************************************************
- *
- * Function         BTA_GetEirService
- *
- * Description      This function is called to get BTA service mask from EIR.
- *
- * Parameters       p_eir - pointer of EIR significant part
- *                  p_services - return the BTA service mask
- *
- * Returns          None
- *
- ******************************************************************************/
-extern const uint16_t bta_service_id_to_uuid_lkup_tbl[];
-void BTA_GetEirService(const uint8_t* p_eir, size_t eir_len,
-                       tBTA_SERVICE_MASK* p_services) {
-  uint8_t xx, yy;
-  uint8_t num_uuid, max_num_uuid = 32;
-  uint8_t uuid_list[32 * Uuid::kNumBytes16];
-  uint16_t* p_uuid16 = (uint16_t*)uuid_list;
-  tBTA_SERVICE_MASK mask;
-
-  get_btm_client_interface().eir.BTM_GetEirUuidList(
-      p_eir, eir_len, Uuid::kNumBytes16, &num_uuid, uuid_list, max_num_uuid);
-  for (xx = 0; xx < num_uuid; xx++) {
-    mask = 1;
-    for (yy = 0; yy < BTA_MAX_SERVICE_ID; yy++) {
-      if (*(p_uuid16 + xx) == bta_service_id_to_uuid_lkup_tbl[yy]) {
-        *p_services |= mask;
-        break;
-      }
-      mask <<= 1;
-    }
-
-    /* for HSP v1.2 only device */
-    if (*(p_uuid16 + xx) == UUID_SERVCLASS_HEADSET_HS)
-      *p_services |= BTA_HSP_SERVICE_MASK;
-
-    if (*(p_uuid16 + xx) == UUID_SERVCLASS_HDP_SOURCE)
-      *p_services |= BTA_HL_SERVICE_MASK;
-
-    if (*(p_uuid16 + xx) == UUID_SERVCLASS_HDP_SINK)
-      *p_services |= BTA_HL_SERVICE_MASK;
-  }
+  bta_dm_disc_start_service_discovery(cbacks, bd_addr, transport);
 }
 
 /*******************************************************************************
@@ -172,7 +125,7 @@ void BTA_GetEirService(const uint8_t* p_eir, size_t eir_len,
  ******************************************************************************/
 bool BTA_DmGetConnectionState(const RawAddress& bd_addr) {
   tBTA_DM_PEER_DEVICE* p_dev = bta_dm_find_peer_device(bd_addr);
-  return (p_dev && p_dev->conn_state == BTA_DM_CONNECTED);
+  return (p_dev && p_dev->conn_state == tBTA_DM_CONN_STATE::BTA_DM_CONNECTED);
 }
 
 /*******************************************************************************
@@ -276,7 +229,7 @@ void BTA_DmBleUpdateConnectionParams(const RawAddress& bd_addr,
  *
  ******************************************************************************/
 void BTA_DmBleConfigLocalPrivacy(bool privacy_enable) {
-  if (IS_FLAG_ENABLED(synchronous_bta_sec)) {
+  if (com::android::bluetooth::flags::synchronous_bta_sec()) {
     bta_dm_ble_config_local_privacy(privacy_enable);
   } else {
     do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_ble_config_local_privacy,
@@ -308,51 +261,9 @@ void BTA_DmBleRequestMaxTxDataLength(const RawAddress& remote_device) {
 
 /*******************************************************************************
  *
- * Function         BTA_DmCloseACL
- *
- * Description      This function force to close an ACL connection and remove
- *                  the device from the security database list of known devices.
- *
- * Parameters:      bd_addr       - Address of the peer device
- *                  remove_dev    - remove device or not after link down
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_DmCloseACL(const RawAddress& bd_addr, bool remove_dev,
-                    tBT_TRANSPORT transport) {
-  do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_close_acl, bd_addr,
-                                              remove_dev, transport));
-}
-
-/*******************************************************************************
- *
- * Function         BTA_DmBleObserve
- *
- * Description      This procedure keep the device listening for advertising
- *                  events from a broadcast device.
- *
- * Parameters       start: start or stop observe.
- *
- * Returns          void
-
- *
- * Returns          void.
- *
- ******************************************************************************/
-void BTA_DmBleObserve(bool start, uint8_t duration,
-                      tBTA_DM_SEARCH_CBACK* p_results_cb) {
-  log::verbose("start = {}", start);
-  do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_ble_observe, start,
-                                              duration, p_results_cb));
-}
-
-/*******************************************************************************
- *
  * Function         BTA_DmBleScan
  *
- * Description      Start or stop the scan procedure if it's not already started
- *                  with BTA_DmBleObserve().
+ * Description      Start or stop the scan procedure.
  *
  * Parameters       start: start or stop the scan procedure,
  *                  duration_sec: Duration of the scan. Continuous scan if 0 is
@@ -387,17 +298,6 @@ void BTA_DmBleCsisObserve(bool observe, tBTA_DM_SEARCH_CBACK* p_results_cb) {
   do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_ble_csis_observe, observe,
                                               p_results_cb));
 }
-
-/*******************************************************************************
- *
- * Function         BTA_VendorInit
- *
- * Description      This function initializes vendor specific
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_VendorInit(void) { log::verbose("BTA_VendorInit"); }
 
 /*******************************************************************************
  *
@@ -450,7 +350,7 @@ void BTA_DmClearFilterAcceptList(void) {
  * Returns          cb: callback to receive the resulting random number
  *
  ******************************************************************************/
-void BTA_DmLeRand(LeRandCallback cb) {
+void BTA_DmLeRand(bluetooth::hci::LeRandCallback cb) {
   log::verbose("BTA_DmLeRand");
   do_in_main_thread(FROM_HERE, base::BindOnce(bta_dm_le_rand, std::move(cb)));
 }

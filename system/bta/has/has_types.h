@@ -33,7 +33,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/gatt_api.h"
 
-namespace le_audio {
+namespace bluetooth::le_audio {
 namespace has {
 
 /* Helper class to pass some minimal context through the GATT operation API. */
@@ -284,7 +284,7 @@ class HasDevice : public GattServiceDevice {
     all_info.reserve(has_presets.size());
 
     for (auto const& preset : has_presets) {
-      DLOG(INFO) << __func__ << " preset: " << preset;
+      log::verbose("preset: {}", preset);
       all_info.push_back({.preset_index = preset.GetIndex(),
                           .writable = preset.IsWritable(),
                           .available = preset.IsAvailable(),
@@ -422,9 +422,9 @@ class HasDevice : public GattServiceDevice {
 };
 
 }  // namespace has
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio
 
 namespace fmt {
 template <>
-struct formatter<le_audio::has::HasDevice> : ostream_formatter {};
+struct formatter<bluetooth::le_audio::has::HasDevice> : ostream_formatter {};
 }  // namespace fmt

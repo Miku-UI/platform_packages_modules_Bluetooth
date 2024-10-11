@@ -26,7 +26,6 @@
 #include <string>
 
 // Original included files, if any
-#include "device/include/controller.h"
 #include "hci/class_of_device.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/security_device_record.h"
@@ -73,15 +72,6 @@ struct BTM_IsAclConnectionUpAndHandleValid {
 };
 extern struct BTM_IsAclConnectionUpAndHandleValid
     BTM_IsAclConnectionUpAndHandleValid;
-// Name: BTM_IsAclConnectionUpFromHandle
-// Params: uint16_t hci_handle
-// Returns: bool
-struct BTM_IsAclConnectionUpFromHandle {
-  std::function<bool(uint16_t hci_handle)> body{
-      [](uint16_t /* hci_handle */) { return false; }};
-  bool operator()(uint16_t hci_handle) { return body(hci_handle); };
-};
-extern struct BTM_IsAclConnectionUpFromHandle BTM_IsAclConnectionUpFromHandle;
 // Name: BTM_IsBleConnection
 // Params: uint16_t hci_handle
 // Returns: bool
@@ -235,6 +225,27 @@ struct acl_peer_supports_ble_connection_parameters_request {
 };
 extern struct acl_peer_supports_ble_connection_parameters_request
     acl_peer_supports_ble_connection_parameters_request;
+// Name: acl_peer_supports_ble_connection_parameters_request
+// Params:  const RawAddress& remote_bda
+// Returns: bool
+struct acl_ble_connection_parameters_request {
+  std::function<void(uint16_t handle, uint16_t conn_int_min,
+                     uint16_t conn_int_max, uint16_t conn_latency,
+                     uint16_t conn_timeout, uint16_t min_ce_len,
+                     uint16_t max_ce_len)>
+      body{[](uint16_t /* handle */, uint16_t /* conn_int_min */,
+              uint16_t /* conn_int_max */, uint16_t /* conn_latency */,
+              uint16_t /* conn_timeout */, uint16_t /* min_ce_len */,
+              uint16_t /* max_ce_len */) {}};
+  void operator()(uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
+                  uint16_t conn_latency, uint16_t conn_timeout,
+                  uint16_t min_ce_len, uint16_t max_ce_len) {
+    body(handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
+         min_ce_len, max_ce_len);
+  };
+};
+extern struct acl_ble_connection_parameters_request
+    acl_ble_connection_parameters_request;
 // Name: acl_peer_supports_ble_packet_extension
 // Params: uint16_t hci_handle
 // Returns: bool
@@ -307,24 +318,6 @@ struct acl_set_peer_le_features_from_handle {
 };
 extern struct acl_set_peer_le_features_from_handle
     acl_set_peer_le_features_from_handle;
-// Name: acl_create_classic_connection
-// Params: const RawAddress& bd_addr, bool there_are_high_priority_channels,
-// bool is_bonding Returns: constexpr uint16_t kDefaultPacketTypes =
-// HCI_PKT_TYPES_MASK_DM1 | HCI_PKT_TYPES_MASK_DH1 | HCI_PKT_TYPES_MASK_DM3 |
-// HCI_PKT_TYPES_MASK_DH3 | HCI_PKT_TYPES_MASK_DM5 | HCI_PKT_TYPES_MASK_DH5;
-// void
-struct acl_create_classic_connection {
-  std::function<void(const RawAddress& bd_addr,
-                     bool there_are_high_priority_channels, bool is_bonding)>
-      body{[](const RawAddress& /* bd_addr */,
-              bool /* there_are_high_priority_channels */,
-              bool /* is_bonding */) { return 0; }};
-  void operator()(const RawAddress& bd_addr,
-                  bool there_are_high_priority_channels, bool is_bonding) {
-    return body(bd_addr, there_are_high_priority_channels, is_bonding);
-  };
-};
-extern struct acl_create_classic_connection acl_create_classic_connection;
 // Name: acl_get_connection_from_address
 // Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
 // Returns: tACL_CONN*
@@ -602,12 +595,10 @@ struct BTM_RequestPeerSCA {
 };
 extern struct BTM_RequestPeerSCA BTM_RequestPeerSCA;
 // Name: BTM_acl_after_controller_started
-// Params: const controller_t* controller
 // Returns: void
 struct BTM_acl_after_controller_started {
-  std::function<void(const controller_t* controller)> body{
-      [](const controller_t* /* controller */) { ; }};
-  void operator()(const controller_t* controller) { body(controller); };
+  std::function<void()> body{[]() { ; }};
+  void operator()() { body(); };
 };
 extern struct BTM_acl_after_controller_started BTM_acl_after_controller_started;
 // Name: BTM_block_role_switch_for
@@ -628,14 +619,6 @@ struct BTM_block_sniff_mode_for {
   void operator()(const RawAddress& peer_addr) { body(peer_addr); };
 };
 extern struct BTM_block_sniff_mode_for BTM_block_sniff_mode_for;
-// Name: BTM_default_block_role_switch
-// Params:
-// Returns: void
-struct BTM_default_block_role_switch {
-  std::function<void()> body{[]() { ; }};
-  void operator()() { body(); };
-};
-extern struct BTM_default_block_role_switch BTM_default_block_role_switch;
 // Name: BTM_default_unblock_role_switch
 // Params:
 // Returns: void
@@ -864,6 +847,14 @@ struct btm_acl_removed {
   void operator()(uint16_t handle) { body(handle); };
 };
 extern struct btm_acl_removed btm_acl_removed;
+// Name: btm_acl_flush
+// Params: uint16_t handle
+// Returns: void
+struct btm_acl_flush {
+  std::function<void(uint16_t handle)> body{[](uint16_t /* handle */) { ; }};
+  void operator()(uint16_t handle) { body(handle); };
+};
+extern struct btm_acl_flush btm_acl_flush;
 // Name: btm_acl_role_changed
 // Params: tHCI_STATUS hci_status, const RawAddress& bd_addr, tHCI_ROLE
 // new_role Returns: void
@@ -978,23 +969,6 @@ struct btm_read_failed_contact_counter_timeout {
 };
 extern struct btm_read_failed_contact_counter_timeout
     btm_read_failed_contact_counter_timeout;
-// Name: btm_read_link_quality_complete
-// Params: uint8_t* p
-// Returns: void
-struct btm_read_link_quality_complete {
-  std::function<void(uint8_t* p, uint16_t evt_len)> body{
-      [](uint8_t* /* p */, uint16_t /* evt_len */) { ; }};
-  void operator()(uint8_t* p, uint16_t evt_len) { body(p, evt_len); };
-};
-extern struct btm_read_link_quality_complete btm_read_link_quality_complete;
-// Name: btm_read_link_quality_timeout
-// Params: void* data
-// Returns: void
-struct btm_read_link_quality_timeout {
-  std::function<void(void* data)> body{[](void* /* data */) { ; }};
-  void operator()(void* data) { body(data); };
-};
-extern struct btm_read_link_quality_timeout btm_read_link_quality_timeout;
 // Name: btm_read_remote_ext_features
 // Params: uint16_t handle, uint8_t page_number
 // Returns: void

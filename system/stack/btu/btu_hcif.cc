@@ -37,8 +37,10 @@
 
 #include "common/init_flags.h"
 #include "common/metrics.h"
-#include "device/include/controller.h"
+#include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "internal_include/bt_trace.h"
+#include "main/shim/entry.h"
 #include "main/shim/hci_layer.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
@@ -77,8 +79,6 @@ void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason,
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /******************************************************************************/
 static void btu_hcif_authentication_comp_evt(uint8_t* p);
-static void btu_hcif_rmt_name_request_comp_evt(const uint8_t* p,
-                                               uint16_t evt_len);
 static void btu_hcif_encryption_change_evt(uint8_t* p);
 static void btu_hcif_read_rmt_ext_features_comp_evt(uint8_t* p,
                                                     uint8_t evt_len);
@@ -104,6 +104,8 @@ static void btu_hcif_create_conn_cancel_complete(const uint8_t* p,
                                                  uint16_t evt_len);
 static void btu_hcif_read_local_oob_complete(const uint8_t* p,
                                              uint16_t evt_len);
+static void btu_hcif_read_local_oob_extended_complete(const uint8_t* p,
+                                                      uint16_t evt_len);
 
 /* Simple Pairing Events */
 static void btu_hcif_io_cap_request_evt(const uint8_t* p);
@@ -213,8 +215,7 @@ static void btu_hcif_log_event_metrics(uint8_t evt_code,
  * Returns          void
  *
  ******************************************************************************/
-void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id,
-                            const BT_HDR* p_msg) {
+void btu_hcif_process_event(uint8_t /* controller_id */, const BT_HDR* p_msg) {
   uint8_t* p = (uint8_t*)(p_msg + 1) + p_msg->offset;
   uint8_t hci_evt_code, hci_evt_len;
   uint8_t ble_sub_code;
@@ -233,9 +234,6 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id,
   switch (hci_evt_code) {
     case HCI_AUTHENTICATION_COMP_EVT:
       btu_hcif_authentication_comp_evt(p);
-      break;
-    case HCI_RMT_NAME_REQUEST_COMP_EVT:
-      btu_hcif_rmt_name_request_comp_evt(p, hci_evt_len);
       break;
     case HCI_ENCRYPTION_CHANGE_EVT:
       btu_hcif_encryption_change_evt(p);
@@ -350,6 +348,7 @@ void btu_hcif_process_event(UNUSED_ATTR uint8_t controller_id,
     case HCI_READ_RMT_VERSION_COMP_EVT:  // EventCode::READ_REMOTE_VERSION_INFORMATION_COMPLETE
     case HCI_ROLE_CHANGE_EVT:            // EventCode::ROLE_CHANGE
     case HCI_DISCONNECTION_COMP_EVT:     // EventCode::DISCONNECTION_COMPLETE
+    case HCI_RMT_NAME_REQUEST_COMP_EVT:  // EventCode::REMOTE_NAME_REQUEST_COMPLETE
     default:
       log::error(
           "Unexpectedly received event_code:0x{:02x} that should not be "
@@ -497,6 +496,7 @@ static void btu_hcif_log_command_metrics(uint16_t opcode, const uint8_t* p_cmd,
       }
       break;
     case HCI_READ_LOCAL_OOB_DATA:
+    case HCI_READ_LOCAL_OOB_EXTENDED_DATA:
       log_classic_pairing_event(RawAddress::kEmpty,
                                 bluetooth::common::kUnknownConnectionHandle,
                                 opcode, hci_event, cmd_status,
@@ -581,7 +581,7 @@ static void btu_hcif_log_command_metrics(uint16_t opcode, const uint8_t* p_cmd,
  * Returns          void
  *
  ******************************************************************************/
-void btu_hcif_send_cmd(UNUSED_ATTR uint8_t controller_id, const BT_HDR* p_buf) {
+void btu_hcif_send_cmd(uint8_t /* controller_id */, const BT_HDR* p_buf) {
   if (!p_buf) return;
 
   uint16_t opcode;
@@ -631,6 +631,7 @@ static void btu_hcif_log_command_complete_metrics(
   switch (opcode) {
     case HCI_DELETE_STORED_LINK_KEY:
     case HCI_READ_LOCAL_OOB_DATA:
+    case HCI_READ_LOCAL_OOB_EXTENDED_DATA:
     case HCI_WRITE_SIMPLE_PAIRING_MODE:
     case HCI_WRITE_SECURE_CONNS_SUPPORT:
       STREAM_TO_UINT8(status, p_return_params);
@@ -703,7 +704,7 @@ static void btu_hcif_command_status_evt_with_cb_on_task(uint8_t status,
   uint8_t* stream = event->data + event->offset;
   STREAM_TO_UINT16(opcode, stream);
 
-  CHECK(status != 0);
+  log::assert_that(status != 0, "assert failed: status != 0");
 
   // stream + 1 to skip parameter length field
   // No need to check length since stream is written by us
@@ -786,30 +787,6 @@ static void btu_hcif_authentication_comp_evt(uint8_t* p) {
 
 /*******************************************************************************
  *
- * Function         btu_hcif_rmt_name_request_comp_evt
- *
- * Description      Process event HCI_RMT_NAME_REQUEST_COMP_EVT
- *
- * Returns          void
- *
- ******************************************************************************/
-static void btu_hcif_rmt_name_request_comp_evt(const uint8_t* p,
-                                               uint16_t evt_len) {
-  uint8_t status;
-  RawAddress bd_addr;
-
-  STREAM_TO_UINT8(status, p);
-  STREAM_TO_BDADDR(bd_addr, p);
-
-  evt_len -= (1 + BD_ADDR_LEN);
-
-  btm_process_remote_name(&bd_addr, p, evt_len, to_hci_status_code(status));
-
-  btm_sec_rmt_name_request_complete(&bd_addr, p, to_hci_status_code(status));
-}
-
-/*******************************************************************************
- *
  * Function         btu_hcif_encryption_change_evt
  *
  * Description      Process event HCI_ENCRYPTION_CHANGE_EVT
@@ -882,14 +859,12 @@ static void btu_hcif_esco_connection_comp_evt(const uint8_t* p) {
   STREAM_SKIP_UINT8(p);   // air_mode
 
   handle = HCID_GET_HANDLE(handle);
-  ASSERT_LOG(
-      handle <= HCI_HANDLE_MAX,
-      "Received eSCO connection complete event with invalid handle: 0x%X "
-      "that should be <= 0x%X",
-      handle, HCI_HANDLE_MAX);
-
   data.bd_addr = bda;
   if (status == HCI_SUCCESS) {
+    log::assert_that(handle <= HCI_HANDLE_MAX,
+                     "Received eSCO connection complete event with invalid "
+                     "handle: 0x{:X} that should be <= 0x{:X}",
+                     handle, HCI_HANDLE_MAX);
     btm_sco_connected(bda, handle, &data);
   } else {
     btm_sco_connection_failed(static_cast<tHCI_STATUS>(status), bda, handle,
@@ -948,10 +923,6 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
       btm_read_local_name_complete(p, evt_len);
       break;
 
-    case HCI_GET_LINK_QUALITY:
-      btm_read_link_quality_complete(p, evt_len);
-      break;
-
     case HCI_READ_RSSI:
       btm_read_rssi_complete(p, evt_len);
       break;
@@ -974,6 +945,10 @@ static void btu_hcif_hdl_command_complete(uint16_t opcode, uint8_t* p,
 
     case HCI_READ_LOCAL_OOB_DATA:
       btu_hcif_read_local_oob_complete(p, evt_len);
+      break;
+
+    case HCI_READ_LOCAL_OOB_EXTENDED_DATA:
+      btu_hcif_read_local_oob_extended_complete(p, evt_len);
       break;
 
     case HCI_READ_INQ_TX_POWER_LEVEL:
@@ -1085,7 +1060,7 @@ static void btu_hcif_command_complete_evt(BT_HDR* response,
  ******************************************************************************/
 static void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
                                         const uint8_t* p_cmd) {
-  ASSERT_LOG(p_cmd != nullptr, "Null command for opcode 0x%x", opcode);
+  log::assert_that(p_cmd != nullptr, "Null command for opcode 0x{:x}", opcode);
   p_cmd++;  // Skip parameter total length
 
   const tHCI_STATUS hci_status = to_hci_status_code(status);
@@ -1314,7 +1289,7 @@ void btu_hcif_create_conn_cancel_complete(const uint8_t* p, uint16_t evt_len) {
   btm_create_conn_cancel_complete(status, bd_addr);
 }
 void btu_hcif_read_local_oob_complete(const uint8_t* p, uint16_t evt_len) {
-  tBTM_SP_LOC_OOB evt_data;
+  tBTM_SP_LOC_OOB evt_data = {};
   uint8_t status;
   if (evt_len < 1) {
     goto err_out;
@@ -1328,13 +1303,36 @@ void btu_hcif_read_local_oob_complete(const uint8_t* p, uint16_t evt_len) {
   if (evt_len < 32 + 1) {
     goto err_out;
   }
-  STREAM_TO_ARRAY16(evt_data.c.data(), p);
-  STREAM_TO_ARRAY16(evt_data.r.data(), p);
+  STREAM_TO_ARRAY16(evt_data.c_192.data(), p);
+  STREAM_TO_ARRAY16(evt_data.r_192.data(), p);
   btm_read_local_oob_complete(evt_data);
   return;
 
 err_out:
   log::error("bogus event packet, too short");
+}
+
+void btu_hcif_read_local_oob_extended_complete(const uint8_t* p,
+                                               uint16_t evt_len) {
+  if (evt_len < 64 + 1) {
+    log::error("Invalid event length: {}", evt_len);
+    return;
+  }
+
+  tBTM_SP_LOC_OOB evt_data = {};
+  uint8_t status;
+  STREAM_TO_UINT8(status, p);
+  if (status == HCI_SUCCESS) {
+    evt_data.status = BTM_SUCCESS;
+  } else {
+    evt_data.status = BTM_ERR_PROCESSING;
+  }
+
+  STREAM_TO_ARRAY16(evt_data.c_192.data(), p);
+  STREAM_TO_ARRAY16(evt_data.r_192.data(), p);
+  STREAM_TO_ARRAY16(evt_data.c_256.data(), p);
+  STREAM_TO_ARRAY16(evt_data.r_256.data(), p);
+  btm_read_local_oob_complete(evt_data);
 }
 
 /*******************************************************************************

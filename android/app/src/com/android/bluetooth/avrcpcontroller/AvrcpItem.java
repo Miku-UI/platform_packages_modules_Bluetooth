@@ -29,12 +29,11 @@ import java.util.Objects;
 /**
  * An object representing a single item returned from an AVRCP folder listing in the VFS scope.
  *
- * This object knows how to turn itself into each of the Android Media Framework objects so the
+ * <p>This object knows how to turn itself into each of the Android Media Framework objects so the
  * metadata can easily be shared with the system.
  */
 public class AvrcpItem {
-    private static final String TAG = "AvrcpItem";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = AvrcpItem.class.getSimpleName();
 
     // AVRCP Specification defined item types
     public static final int TYPE_PLAYER = 0x1;
@@ -95,8 +94,7 @@ public class AvrcpItem {
     // Our own internal Uri value that points to downloaded cover art image
     private Uri mImageUri;
 
-    private AvrcpItem() {
-    }
+    private AvrcpItem() {}
 
     public BluetoothDevice getDevice() {
         return mDevice;
@@ -178,9 +176,7 @@ public class AvrcpItem {
         mImageUri = uri;
     }
 
-    /**
-     * Convert this item an Android Media Framework MediaMetadata
-     */
+    /** Convert this item an Android Media Framework MediaMetadata */
     public MediaMetadataCompat toMediaMetadata() {
         MediaMetadataCompat.Builder metaDataBuilder = new MediaMetadataCompat.Builder();
         Uri coverArtUri = getCoverArtLocation();
@@ -203,9 +199,7 @@ public class AvrcpItem {
         return metaDataBuilder.build();
     }
 
-    /**
-     * Convert this item an Android Media Framework MediaItem
-     */
+    /** Convert this item an Android Media Framework MediaItem */
     public MediaItem toMediaItem() {
         MediaDescriptionCompat.Builder descriptionBuilder = new MediaDescriptionCompat.Builder();
 
@@ -238,12 +232,35 @@ public class AvrcpItem {
 
     @Override
     public String toString() {
-        return "AvrcpItem{mUuid=" + mUuid + ", mUid=" + mUid + ", mItemType=" + mItemType
-                + ", mType=" + mType + ", mDisplayableName=" + mDisplayableName
-                + ", mTitle=" + mTitle + " mPlayingTime=" + mPlayingTime + " mTrack="
-                + mTrackNumber + "/" + mTotalNumberOfTracks + ", mPlayable=" + mPlayable
-                + ", mBrowsable=" + mBrowsable + ", mCoverArtHandle=" + getCoverArtHandle()
-                + ", mImageUuid=" + mImageUuid + ", mImageUri" + mImageUri + "}";
+        return "AvrcpItem{mUuid="
+                + mUuid
+                + ", mUid="
+                + mUid
+                + ", mItemType="
+                + mItemType
+                + ", mType="
+                + mType
+                + ", mDisplayableName="
+                + mDisplayableName
+                + ", mTitle="
+                + mTitle
+                + " mPlayingTime="
+                + mPlayingTime
+                + " mTrack="
+                + mTrackNumber
+                + "/"
+                + mTotalNumberOfTracks
+                + ", mPlayable="
+                + mPlayable
+                + ", mBrowsable="
+                + mBrowsable
+                + ", mCoverArtHandle="
+                + getCoverArtHandle()
+                + ", mImageUuid="
+                + mImageUuid
+                + ", mImageUri"
+                + mImageUri
+                + "}";
     }
 
     @Override
@@ -276,12 +293,9 @@ public class AvrcpItem {
                 && Objects.equals(mImageUri, other.getCoverArtLocation());
     }
 
-    /**
-     * Builder for an AvrcpItem
-     */
+    /** Builder for an AvrcpItem */
     public static class Builder {
         private static final String TAG = "AvrcpItem.Builder";
-        private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
         // Attribute ID Values from AVRCP Specification
         private static final int MEDIA_ATTRIBUTE_TITLE = 0x01;
@@ -300,14 +314,14 @@ public class AvrcpItem {
          * item attributes
          *
          * @param attrIds The array of AVRCP specification defined IDs in the order they match to
-         *                the value string attrMap
+         *     the value string attrMap
          * @param attrMap The mapped values for each ID
          * @return This object so you can continue building
          */
         public Builder fromAvrcpAttributeArray(int[] attrIds, String[] attrMap) {
             int attributeCount = Math.max(attrIds.length, attrMap.length);
             for (int i = 0; i < attributeCount; i++) {
-                if (DBG) Log.d(TAG, attrIds[i] + " = " + attrMap[i]);
+                Log.d(TAG, attrIds[i] + " = " + attrMap[i]);
                 switch (attrIds[i]) {
                     case MEDIA_ATTRIBUTE_TITLE:
                         mAvrcpItem.mTitle = attrMap[i];
@@ -353,7 +367,7 @@ public class AvrcpItem {
         /**
          * Set the item type for the AvrcpItem you are building
          *
-         * Type can be one of PLAYER, FOLDER, or MEDIA
+         * <p>Type can be one of PLAYER, FOLDER, or MEDIA
          *
          * @param itemType The item type as an AvrcpItem.* type value
          * @return This object, so you can continue building
@@ -366,7 +380,7 @@ public class AvrcpItem {
         /**
          * Set the type for the AvrcpItem you are building
          *
-         * This is the type of the PLAYER, FOLDER, or MEDIA item.
+         * <p>This is the type of the PLAYER, FOLDER, or MEDIA item.
          *
          * @param type The type as one of the AvrcpItem.MEDIA_* or FOLDER_* types
          * @return This object, so you can continue building

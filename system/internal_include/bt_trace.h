@@ -21,23 +21,14 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
-extern "C" {
-#endif
 
-static const char BTE_LOGMSG_MODULE[] = "bte_logmsg_module";
-
-#ifdef __cplusplus
-}
-#endif
-
-#ifdef __cplusplus
+#include <bluetooth/log.h>
 
 #include <array>
 #include <iomanip>
 #include <sstream>
 #include <type_traits>
 
-#include "check.h"
 #include "os/logging/log_adapter.h"
 
 /* Prints integral parameter x as hex string, with '0' fill */
@@ -65,18 +56,6 @@ std::string loghex(std::array<T, N> array) {
 }
 
 /**
- * Obtains the string representation of a boolean value.
- *
- * @param value the boolean value to use
- * @return the string representation of the boolean value: "true" or "false"
- */
-inline std::string logbool(bool value) {
-  std::stringstream tmp;
-  tmp << std::boolalpha << value;
-  return tmp.str();
-}
-
-/**
  * Append a field name to a string.
  *
  * The field names are added to the string with "|" in between.
@@ -88,11 +67,12 @@ inline std::string logbool(bool value) {
  */
 inline std::string& AppendField(std::string* p_result, bool append,
                                 const std::string& name) {
-  CHECK(p_result != nullptr);
+  bluetooth::log::assert_that(p_result != nullptr,
+                              "assert failed: p_result != nullptr");
   if (!append) return *p_result;
   if (!p_result->empty()) *p_result += "|";
   *p_result += name;
   return *p_result;
 }
 
-#endif
+#endif  // __cplusplus

@@ -38,7 +38,6 @@ import android.util.Log;
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.BluetoothObexTransport;
 import com.android.bluetooth.BluetoothStatsLog;
-import com.android.bluetooth.IObexConnectionHandler;
 import com.android.bluetooth.ObexRejectServer;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
@@ -55,24 +54,13 @@ import com.android.obex.ServerSession;
 import java.io.IOException;
 
 /**
- * Bluetooth PBAP StateMachine
- *              (New connection socket)
- *                 WAITING FOR AUTH
- *                        |
- *                        |    (request permission from Settings UI)
- *                        |
- *           (Accept)    / \   (Reject)
- *                      /   \
- *                     v     v
- *          CONNECTED   ----->  FINISHED
- *                (OBEX Server done)
+ * Bluetooth PBAP StateMachine (New connection socket) WAITING FOR AUTH | | (request permission from
+ * Settings UI) | (Accept) / \ (Reject) / \ v v CONNECTED -----> FINISHED (OBEX Server done)
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
 @VisibleForTesting(visibility = Visibility.PACKAGE)
 public class PbapStateMachine extends StateMachine {
     private static final String TAG = "PbapStateMachine";
-    private static final boolean DEBUG = true;
-    private static final boolean VERBOSE = true;
     private static final String PBAP_OBEX_NOTIFICATION_CHANNEL = "pbap_obex_notification_channel";
 
     static final int AUTHORIZED = 1;
@@ -84,14 +72,10 @@ public class PbapStateMachine extends StateMachine {
     static final int AUTH_KEY_INPUT = 7;
     static final int AUTH_CANCELLED = 8;
 
-    /**
-     * Used to limit PBAP OBEX maximum packet size in order to reduce
-     * transaction time.
-     */
+    /** Used to limit PBAP OBEX maximum packet size in order to reduce transaction time. */
     private static final int PBAP_OBEX_MAXIMUM_PACKET_SIZE = 8192;
 
     private BluetoothPbapService mService;
-    private IObexConnectionHandler mIObexConnectionHandler;
 
     private final WaitingForAuth mWaitingForAuth = new WaitingForAuth();
     private final Finished mFinished = new Finished();
@@ -105,12 +89,20 @@ public class PbapStateMachine extends StateMachine {
     private ServerSession mServerSession;
     private int mNotificationId;
 
-    private PbapStateMachine(@NonNull BluetoothPbapService service, Looper looper,
-            @NonNull BluetoothDevice device, @NonNull BluetoothSocket connSocket,
-            IObexConnectionHandler obexConnectionHandler, Handler pbapHandler, int notificationId) {
+    private PbapStateMachine(
+            @NonNull BluetoothPbapService service,
+            Looper looper,
+            @NonNull BluetoothDevice device,
+            @NonNull BluetoothSocket connSocket,
+            Handler pbapHandler,
+            int notificationId) {
         super(TAG, looper);
+
+        // Let the logging framework enforce the log level. TAG is set above in the parent
+        // constructor.
+        setDbg(true);
+
         mService = service;
-        mIObexConnectionHandler = obexConnectionHandler;
         mRemoteDevice = device;
         mServiceHandler = pbapHandler;
         mConnSocket = connSocket;
@@ -122,12 +114,16 @@ public class PbapStateMachine extends StateMachine {
         setInitialState(mWaitingForAuth);
     }
 
-    static PbapStateMachine make(BluetoothPbapService service, Looper looper,
-            BluetoothDevice device, BluetoothSocket connSocket,
-            IObexConnectionHandler obexConnectionHandler, Handler pbapHandler, int notificationId) {
+    static PbapStateMachine make(
+            BluetoothPbapService service,
+            Looper looper,
+            BluetoothDevice device,
+            BluetoothSocket connSocket,
+            Handler pbapHandler,
+            int notificationId) {
         PbapStateMachine stateMachine =
-                new PbapStateMachine(service, looper, device, connSocket, obexConnectionHandler,
-                        pbapHandler, notificationId);
+                new PbapStateMachine(
+                        service, looper, device, connSocket, pbapHandler, notificationId);
         stateMachine.start();
         return stateMachine;
     }
@@ -141,9 +137,9 @@ public class PbapStateMachine extends StateMachine {
          * Get a state value from {@link BluetoothProfile} that represents the connection state of
          * this headset state
          *
-         * @return a value in {@link BluetoothProfile#STATE_DISCONNECTED},
-         * {@link BluetoothProfile#STATE_CONNECTING}, {@link BluetoothProfile#STATE_CONNECTED}, or
-         * {@link BluetoothProfile#STATE_DISCONNECTING}
+         * @return a value in {@link BluetoothProfile#STATE_DISCONNECTED}, {@link
+         *     BluetoothProfile#STATE_CONNECTING}, {@link BluetoothProfile#STATE_CONNECTED}, or
+         *     {@link BluetoothProfile#STATE_DISCONNECTING}
          */
         abstract int getConnectionStateInt();
 
@@ -175,21 +171,27 @@ public class PbapStateMachine extends StateMachine {
             intent.putExtra(BluetoothProfile.EXTRA_STATE, toState);
             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
             intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            mService.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    BLUETOOTH_CONNECT, Utils.getTempAllowlistBroadcastOptions());
+            mService.sendBroadcastAsUser(
+                    intent,
+                    UserHandle.ALL,
+                    BLUETOOTH_CONNECT,
+                    Utils.getTempBroadcastOptions().toBundle());
         }
 
-        /**
-         * Broadcast connection state change for this state machine
-         */
+        /** Broadcast connection state change for this state machine */
         void broadcastStateTransitions() {
             int prevStateInt = BluetoothProfile.STATE_DISCONNECTED;
             if (mPrevState != null) {
                 prevStateInt = mPrevState.getConnectionStateInt();
             }
             if (getConnectionStateInt() != prevStateInt) {
-                stateLogD("connection state changed: " + mRemoteDevice + ": " + mPrevState + " -> "
-                        + this);
+                stateLogD(
+                        "connection state changed: "
+                                + mRemoteDevice
+                                + ": "
+                                + mPrevState
+                                + " -> "
+                                + this);
                 broadcastConnectionState(mRemoteDevice, prevStateInt, getConnectionStateInt());
             }
         }
@@ -198,9 +200,8 @@ public class PbapStateMachine extends StateMachine {
          * Verify if the current state transition is legal by design. This is called from enter()
          * method and crash if the state transition is not expected by the state machine design.
          *
-         * Note:
-         * This method uses state objects to verify transition because these objects should be final
-         * and any other instances are invalid
+         * <p>Note: This method uses state objects to verify transition because these objects should
+         * be final and any other instances are invalid
          */
         private void enforceValidConnectionStateTransition() {
             boolean isValidTransition = false;
@@ -213,13 +214,17 @@ public class PbapStateMachine extends StateMachine {
             }
             if (!isValidTransition) {
                 throw new IllegalStateException(
-                        "Invalid state transition from " + mPrevState + " to " + this
-                                + " for device " + mRemoteDevice);
+                        "Invalid state transition from "
+                                + mPrevState
+                                + " to "
+                                + this
+                                + " for device "
+                                + mRemoteDevice);
             }
         }
 
         void stateLogD(String msg) {
-            log(getName() + ": currentDevice=" + mRemoteDevice + ", msg=" + msg);
+            Log.d(TAG, getName() + ": currentDevice=" + mRemoteDevice + ", msg=" + msg);
         }
     }
 
@@ -249,10 +254,11 @@ public class PbapStateMachine extends StateMachine {
                     transitionTo(mFinished);
                     break;
                 case DISCONNECT:
-                    mServiceHandler.removeMessages(BluetoothPbapService.USER_TIMEOUT,
-                            PbapStateMachine.this);
-                    mServiceHandler.obtainMessage(BluetoothPbapService.USER_TIMEOUT,
-                            PbapStateMachine.this).sendToTarget();
+                    mServiceHandler.removeMessages(
+                            BluetoothPbapService.USER_TIMEOUT, PbapStateMachine.this);
+                    mServiceHandler
+                            .obtainMessage(BluetoothPbapService.USER_TIMEOUT, PbapStateMachine.this)
+                            .sendToTarget();
                     transitionTo(mFinished);
                     break;
             }
@@ -262,8 +268,11 @@ public class PbapStateMachine extends StateMachine {
         private void rejectConnection() {
             mPbapServer =
                     new BluetoothPbapObexServer(mServiceHandler, mService, PbapStateMachine.this);
-            BluetoothObexTransport transport = new BluetoothObexTransport(mConnSocket,
-                    PBAP_OBEX_MAXIMUM_PACKET_SIZE, BluetoothObexTransport.PACKET_SIZE_UNSPECIFIED);
+            BluetoothObexTransport transport =
+                    new BluetoothObexTransport(
+                            mConnSocket,
+                            PBAP_OBEX_MAXIMUM_PACKET_SIZE,
+                            BluetoothObexTransport.PACKET_SIZE_UNSPECIFIED);
             ObexRejectServer server =
                     new ObexRejectServer(ResponseCodes.OBEX_HTTP_UNAVAILABLE, mConnSocket);
             try {
@@ -307,8 +316,10 @@ public class PbapStateMachine extends StateMachine {
                 Log.e(TAG, "Close Connection Socket error: " + e.toString());
             }
 
-            mServiceHandler.obtainMessage(BluetoothPbapService.MSG_STATE_MACHINE_DONE,
-                    PbapStateMachine.this).sendToTarget();
+            mServiceHandler
+                    .obtainMessage(
+                            BluetoothPbapService.MSG_STATE_MACHINE_DONE, PbapStateMachine.this)
+                    .sendToTarget();
             broadcastStateTransitions();
         }
     }
@@ -333,8 +344,7 @@ public class PbapStateMachine extends StateMachine {
             }
             broadcastStateTransitions();
             MetricsLogger.logProfileConnectionEvent(BluetoothMetricsProto.ProfileId.PBAP);
-            mService.setConnectionPolicy(
-                    mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+            mService.setConnectionPolicy(mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
         }
 
         @Override
@@ -364,9 +374,7 @@ public class PbapStateMachine extends StateMachine {
         }
 
         private void startObexServerSession() throws IOException {
-            if (VERBOSE) {
-                Log.v(TAG, "Pbap Service startObexServerSession");
-            }
+            Log.v(TAG, "Pbap Service startObexServerSession");
 
             // acquire the wakeLock before start Obex transaction thread
             mServiceHandler.sendMessage(
@@ -379,24 +387,26 @@ public class PbapStateMachine extends StateMachine {
                 mObexAuth.setChallenged(false);
                 mObexAuth.setCancelled(false);
             }
-            BluetoothObexTransport transport = new BluetoothObexTransport(mConnSocket,
-                    PBAP_OBEX_MAXIMUM_PACKET_SIZE, BluetoothObexTransport.PACKET_SIZE_UNSPECIFIED);
+            BluetoothObexTransport transport =
+                    new BluetoothObexTransport(
+                            mConnSocket,
+                            PBAP_OBEX_MAXIMUM_PACKET_SIZE,
+                            BluetoothObexTransport.PACKET_SIZE_UNSPECIFIED);
             mServerSession = new ServerSession(transport, mPbapServer, mObexAuth);
             // It's ok to just use one wake lock
             // Message MSG_ACQUIRE_WAKE_LOCK is always surrounded by RELEASE. safe.
         }
 
         private void stopObexServerSession() {
-            if (VERBOSE) {
-                Log.v(TAG, "Pbap Service stopObexServerSession");
-            }
+            Log.v(TAG, "Pbap Service stopObexServerSession");
             transitionTo(mFinished);
         }
 
         private void createPbapNotification() {
             NotificationManager nm = mService.getSystemService(NotificationManager.class);
             NotificationChannel notificationChannel =
-                    new NotificationChannel(PBAP_OBEX_NOTIFICATION_CHANNEL,
+                    new NotificationChannel(
+                            PBAP_OBEX_NOTIFICATION_CHANNEL,
                             mService.getString(R.string.pbap_notification_group),
                             NotificationManager.IMPORTANCE_HIGH);
             nm.createNotificationChannel(notificationChannel);
@@ -417,25 +427,29 @@ public class PbapStateMachine extends StateMachine {
             String name = Utils.getName(mRemoteDevice);
 
             Notification notification =
-                    new Notification.Builder(mService, PBAP_OBEX_NOTIFICATION_CHANNEL).setWhen(
-                            System.currentTimeMillis())
+                    new Notification.Builder(mService, PBAP_OBEX_NOTIFICATION_CHANNEL)
+                            .setWhen(System.currentTimeMillis())
                             .setContentTitle(mService.getString(R.string.auth_notif_title))
                             .setContentText(mService.getString(R.string.auth_notif_message, name))
                             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
                             .setTicker(mService.getString(R.string.auth_notif_ticker))
-                            .setColor(mService.getResources()
-                                    .getColor(
-                                            android.R.color
-                                                    .system_notification_accent_color,
-                                            mService.getTheme()))
+                            .setColor(
+                                    mService.getResources()
+                                            .getColor(
+                                                    android.R.color
+                                                            .system_notification_accent_color,
+                                                    mService.getTheme()))
                             .setFlag(Notification.FLAG_AUTO_CANCEL, true)
                             .setFlag(Notification.FLAG_ONLY_ALERT_ONCE, true)
                             .setContentIntent(
-                                    PendingIntent.getActivity(mService, 0, clickIntent,
-                                        PendingIntent.FLAG_IMMUTABLE))
+                                    PendingIntent.getActivity(
+                                            mService, 0, clickIntent, PendingIntent.FLAG_IMMUTABLE))
                             .setDeleteIntent(
-                                    PendingIntent.getBroadcast(mService, 0, deleteIntent,
-                                        PendingIntent.FLAG_IMMUTABLE))
+                                    PendingIntent.getBroadcast(
+                                            mService,
+                                            0,
+                                            deleteIntent,
+                                            PendingIntent.FLAG_IMMUTABLE))
                             .setLocalOnly(true)
                             .build();
             nm.notify(mNotificationId, notification);
@@ -461,9 +475,9 @@ public class PbapStateMachine extends StateMachine {
     /**
      * Get the current connection state of this state machine
      *
-     * @return current connection state, one of {@link BluetoothProfile#STATE_DISCONNECTED},
-     * {@link BluetoothProfile#STATE_CONNECTING}, {@link BluetoothProfile#STATE_CONNECTED}, or
-     * {@link BluetoothProfile#STATE_DISCONNECTING}
+     * @return current connection state, one of {@link BluetoothProfile#STATE_DISCONNECTED}, {@link
+     *     BluetoothProfile#STATE_CONNECTING}, {@link BluetoothProfile#STATE_CONNECTED}, or {@link
+     *     BluetoothProfile#STATE_DISCONNECTING}
      */
     synchronized int getConnectionState() {
         PbapStateBase state = (PbapStateBase) getCurrentState();
@@ -471,12 +485,5 @@ public class PbapStateMachine extends StateMachine {
             return BluetoothProfile.STATE_DISCONNECTED;
         }
         return state.getConnectionStateInt();
-    }
-
-    @Override
-    protected void log(String msg) {
-        if (DEBUG) {
-            super.log(msg);
-        }
     }
 }

@@ -35,12 +35,14 @@ import com.android.bluetooth.le_audio.LeAudioService;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,6 +58,8 @@ public class TbsGenericTest {
 
     private TbsGeneric mTbsGeneric;
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     private @Mock TbsGatt mTbsGatt;
     private @Mock IBluetoothLeCallControlCallback mIBluetoothLeCallControlCallback;
     private @Captor ArgumentCaptor<Integer> mGtbsCcidCaptor;
@@ -70,7 +74,6 @@ public class TbsGenericTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mContext = getInstrumentation().getTargetContext();
@@ -78,10 +81,17 @@ public class TbsGenericTest {
         getInstrumentation().getUiAutomation().adoptShellPermissionIdentity();
 
         // Default TbsGatt mock behavior
-        doReturn(true).when(mTbsGatt).init(mGtbsCcidCaptor.capture(), mGtbsUciCaptor.capture(),
-                mDefaultGtbsUriSchemesCaptor.capture(), anyBoolean(), anyBoolean(),
-                mDefaultGtbsProviderNameCaptor.capture(), mDefaultGtbsTechnologyCaptor.capture(),
-                mTbsGattCallback.capture());
+        doReturn(true)
+                .when(mTbsGatt)
+                .init(
+                        mGtbsCcidCaptor.capture(),
+                        mGtbsUciCaptor.capture(),
+                        mDefaultGtbsUriSchemesCaptor.capture(),
+                        anyBoolean(),
+                        anyBoolean(),
+                        mDefaultGtbsProviderNameCaptor.capture(),
+                        mDefaultGtbsTechnologyCaptor.capture(),
+                        mTbsGattCallback.capture());
         doReturn(true).when(mTbsGatt).setBearerProviderName(anyString());
         doReturn(true).when(mTbsGatt).setBearerTechnology(anyInt());
         doReturn(true).when(mTbsGatt).setBearerUriSchemesSupportedList(any());
@@ -111,12 +121,21 @@ public class TbsGenericTest {
         String uci = "testUci";
         List<String> uriSchemes = Arrays.asList("tel", "xmpp");
         Integer capabilities =
-                BluetoothLeCallControl.CAPABILITY_HOLD_CALL | BluetoothLeCallControl.CAPABILITY_JOIN_CALLS;
+                BluetoothLeCallControl.CAPABILITY_HOLD_CALL
+                        | BluetoothLeCallControl.CAPABILITY_JOIN_CALLS;
         String providerName = "testProviderName";
         int technology = 0x02;
 
-        assertThat(mTbsGeneric.addBearer("testBearer", mIBluetoothLeCallControlCallback, uci, uriSchemes,
-                capabilities, providerName, technology)).isTrue();
+        assertThat(
+                        mTbsGeneric.addBearer(
+                                "testBearer",
+                                mIBluetoothLeCallControlCallback,
+                                uci,
+                                uriSchemes,
+                                capabilities,
+                                providerName,
+                                technology))
+                .isTrue();
 
         ArgumentCaptor<Integer> ccidCaptor = ArgumentCaptor.forClass(Integer.class);
         try {
@@ -177,8 +196,13 @@ public class TbsGenericTest {
         Integer ccid = prepareTestBearer();
         reset(mTbsGatt);
 
-        BluetoothLeCall tbsCall = new BluetoothLeCall(UUID.randomUUID(), "tel:987654321",
-                "aFriendlyCaller", BluetoothLeCall.STATE_INCOMING, 0);
+        BluetoothLeCall tbsCall =
+                new BluetoothLeCall(
+                        UUID.randomUUID(),
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_INCOMING,
+                        0);
         mTbsGeneric.callAdded(ccid, tbsCall);
 
         ArgumentCaptor<Integer> callIndexCaptor = ArgumentCaptor.forClass(Integer.class);
@@ -204,8 +228,13 @@ public class TbsGenericTest {
         reset(mTbsGatt);
 
         UUID callUuid = UUID.randomUUID();
-        BluetoothLeCall tbsCall = new BluetoothLeCall(callUuid, "tel:987654321",
-                "aFriendlyCaller", BluetoothLeCall.STATE_INCOMING, 0);
+        BluetoothLeCall tbsCall =
+                new BluetoothLeCall(
+                        callUuid,
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_INCOMING,
+                        0);
 
         mTbsGeneric.callAdded(ccid, tbsCall);
         ArgumentCaptor<Integer> callIndexCaptor = ArgumentCaptor.forClass(Integer.class);
@@ -233,8 +262,13 @@ public class TbsGenericTest {
         reset(mTbsGatt);
 
         UUID callUuid = UUID.randomUUID();
-        BluetoothLeCall tbsCall = new BluetoothLeCall(callUuid, "tel:987654321",
-                "aFriendlyCaller", BluetoothLeCall.STATE_INCOMING, 0);
+        BluetoothLeCall tbsCall =
+                new BluetoothLeCall(
+                        callUuid,
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_INCOMING,
+                        0);
 
         mTbsGeneric.callAdded(ccid, tbsCall);
         ArgumentCaptor<Integer> callIndexCaptor = ArgumentCaptor.forClass(Integer.class);
@@ -270,10 +304,20 @@ public class TbsGenericTest {
         reset(mTbsGatt);
 
         List<BluetoothLeCall> tbsCalls = new ArrayList<>();
-        tbsCalls.add(new BluetoothLeCall(UUID.randomUUID(), "tel:987654321", "anIncomingCaller",
-                BluetoothLeCall.STATE_INCOMING, 0));
-        tbsCalls.add(new BluetoothLeCall(UUID.randomUUID(), "tel:123456789", "anOutgoingCaller",
-                BluetoothLeCall.STATE_ALERTING, BluetoothLeCall.FLAG_OUTGOING_CALL));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        UUID.randomUUID(),
+                        "tel:987654321",
+                        "anIncomingCaller",
+                        BluetoothLeCall.STATE_INCOMING,
+                        0));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        UUID.randomUUID(),
+                        "tel:123456789",
+                        "anOutgoingCaller",
+                        BluetoothLeCall.STATE_ALERTING,
+                        BluetoothLeCall.FLAG_OUTGOING_CALL));
 
         mTbsGeneric.currentCallsList(ccid, tbsCalls);
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -296,8 +340,13 @@ public class TbsGenericTest {
         // Prepare the incoming call
         UUID callUuid = UUID.randomUUID();
         List<BluetoothLeCall> tbsCalls = new ArrayList<>();
-        tbsCalls.add(new BluetoothLeCall(callUuid, "tel:987654321", "aFriendlyCaller",
-                BluetoothLeCall.STATE_INCOMING, 0));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        callUuid,
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_INCOMING,
+                        0));
         mTbsGeneric.currentCallsList(ccid, tbsCalls);
 
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -309,14 +358,16 @@ public class TbsGenericTest {
 
         byte args[] = new byte[1];
         args[0] = (byte) (callIndex & 0xFF);
-        mTbsGattCallback.getValue().onCallControlPointRequest(mCurrentDevice,
-                TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT, args);
+        mTbsGattCallback
+                .getValue()
+                .onCallControlPointRequest(
+                        mCurrentDevice, TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT, args);
 
         ArgumentCaptor<Integer> requestIdCaptor = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<ParcelUuid> callUuidCaptor = ArgumentCaptor.forClass(ParcelUuid.class);
         try {
-            verify(mIBluetoothLeCallControlCallback).onAcceptCall(requestIdCaptor.capture(),
-                    callUuidCaptor.capture());
+            verify(mIBluetoothLeCallControlCallback)
+                    .onAcceptCall(requestIdCaptor.capture(), callUuidCaptor.capture());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -325,13 +376,17 @@ public class TbsGenericTest {
         verify(leAudioService).setActiveDevice(mCurrentDevice);
 
         // Respond with requestComplete...
-        mTbsGeneric.requestResult(ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
+        mTbsGeneric.requestResult(
+                ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
         mTbsGeneric.callStateChanged(ccid, callUuid, BluetoothLeCall.STATE_ACTIVE);
 
         // ..and verify if GTBS control point is updated to notifier the peer about the result
-        verify(mTbsGatt).setCallControlPointResult(eq(mCurrentDevice),
-                eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT), eq(callIndex),
-                eq(BluetoothLeCallControl.RESULT_SUCCESS));
+        verify(mTbsGatt)
+                .setCallControlPointResult(
+                        eq(mCurrentDevice),
+                        eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_ACCEPT),
+                        eq(callIndex),
+                        eq(BluetoothLeCallControl.RESULT_SUCCESS));
     }
 
     @Test
@@ -343,8 +398,13 @@ public class TbsGenericTest {
         // Prepare the incoming call
         UUID callUuid = UUID.randomUUID();
         List<BluetoothLeCall> tbsCalls = new ArrayList<>();
-        tbsCalls.add(new BluetoothLeCall(callUuid, "tel:987654321", "aFriendlyCaller",
-                BluetoothLeCall.STATE_ACTIVE, 0));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        callUuid,
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_ACTIVE,
+                        0));
         mTbsGeneric.currentCallsList(ccid, tbsCalls);
 
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -356,27 +416,33 @@ public class TbsGenericTest {
 
         byte args[] = new byte[1];
         args[0] = (byte) (callIndex & 0xFF);
-        mTbsGattCallback.getValue().onCallControlPointRequest(mCurrentDevice,
-                TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE, args);
+        mTbsGattCallback
+                .getValue()
+                .onCallControlPointRequest(
+                        mCurrentDevice, TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE, args);
 
         ArgumentCaptor<Integer> requestIdCaptor = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<ParcelUuid> callUuidCaptor = ArgumentCaptor.forClass(ParcelUuid.class);
         try {
-            verify(mIBluetoothLeCallControlCallback).onTerminateCall(requestIdCaptor.capture(),
-                    callUuidCaptor.capture());
+            verify(mIBluetoothLeCallControlCallback)
+                    .onTerminateCall(requestIdCaptor.capture(), callUuidCaptor.capture());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
         assertThat(callUuidCaptor.getValue().getUuid()).isEqualTo(callUuid);
 
         // Respond with requestComplete...
-        mTbsGeneric.requestResult(ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
+        mTbsGeneric.requestResult(
+                ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
         mTbsGeneric.callRemoved(ccid, callUuid, 0x01);
 
         // ..and verify if GTBS control point is updated to notifier the peer about the result
-        verify(mTbsGatt).setCallControlPointResult(eq(mCurrentDevice),
-                eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE), eq(callIndex),
-                eq(BluetoothLeCallControl.RESULT_SUCCESS));
+        verify(mTbsGatt)
+                .setCallControlPointResult(
+                        eq(mCurrentDevice),
+                        eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_TERMINATE),
+                        eq(callIndex),
+                        eq(BluetoothLeCallControl.RESULT_SUCCESS));
     }
 
     @Test
@@ -388,8 +454,13 @@ public class TbsGenericTest {
         // Prepare the incoming call
         UUID callUuid = UUID.randomUUID();
         List<BluetoothLeCall> tbsCalls = new ArrayList<>();
-        tbsCalls.add(new BluetoothLeCall(callUuid, "tel:987654321", "aFriendlyCaller",
-                BluetoothLeCall.STATE_ACTIVE, 0));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        callUuid,
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_ACTIVE,
+                        0));
         mTbsGeneric.currentCallsList(ccid, tbsCalls);
 
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -401,27 +472,33 @@ public class TbsGenericTest {
 
         byte args[] = new byte[1];
         args[0] = (byte) (callIndex & 0xFF);
-        mTbsGattCallback.getValue().onCallControlPointRequest(mCurrentDevice,
-                TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD, args);
+        mTbsGattCallback
+                .getValue()
+                .onCallControlPointRequest(
+                        mCurrentDevice, TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD, args);
 
         ArgumentCaptor<Integer> requestIdCaptor = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<ParcelUuid> callUuidCaptor = ArgumentCaptor.forClass(ParcelUuid.class);
         try {
-            verify(mIBluetoothLeCallControlCallback).onHoldCall(requestIdCaptor.capture(),
-                    callUuidCaptor.capture());
+            verify(mIBluetoothLeCallControlCallback)
+                    .onHoldCall(requestIdCaptor.capture(), callUuidCaptor.capture());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
         assertThat(callUuidCaptor.getValue().getUuid()).isEqualTo(callUuid);
 
         // Respond with requestComplete...
-        mTbsGeneric.requestResult(ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
+        mTbsGeneric.requestResult(
+                ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
         mTbsGeneric.callStateChanged(ccid, callUuid, BluetoothLeCall.STATE_LOCALLY_HELD);
 
         // ..and verify if GTBS control point is updated to notifier the peer about the result
-        verify(mTbsGatt).setCallControlPointResult(eq(mCurrentDevice),
-                eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD), eq(callIndex),
-                eq(BluetoothLeCallControl.RESULT_SUCCESS));
+        verify(mTbsGatt)
+                .setCallControlPointResult(
+                        eq(mCurrentDevice),
+                        eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_HOLD),
+                        eq(callIndex),
+                        eq(BluetoothLeCallControl.RESULT_SUCCESS));
     }
 
     @Test
@@ -433,8 +510,13 @@ public class TbsGenericTest {
         // Prepare the incoming call
         UUID callUuid = UUID.randomUUID();
         List<BluetoothLeCall> tbsCalls = new ArrayList<>();
-        tbsCalls.add(new BluetoothLeCall(callUuid, "tel:987654321", "aFriendlyCaller",
-                BluetoothLeCall.STATE_LOCALLY_HELD, 0));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        callUuid,
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_LOCALLY_HELD,
+                        0));
         mTbsGeneric.currentCallsList(ccid, tbsCalls);
 
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -446,27 +528,33 @@ public class TbsGenericTest {
 
         byte args[] = new byte[1];
         args[0] = (byte) (callIndex & 0xFF);
-        mTbsGattCallback.getValue().onCallControlPointRequest(mCurrentDevice,
-                TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE, args);
+        mTbsGattCallback
+                .getValue()
+                .onCallControlPointRequest(
+                        mCurrentDevice, TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE, args);
 
         ArgumentCaptor<Integer> requestIdCaptor = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<ParcelUuid> callUuidCaptor = ArgumentCaptor.forClass(ParcelUuid.class);
         try {
-            verify(mIBluetoothLeCallControlCallback).onUnholdCall(requestIdCaptor.capture(),
-                    callUuidCaptor.capture());
+            verify(mIBluetoothLeCallControlCallback)
+                    .onUnholdCall(requestIdCaptor.capture(), callUuidCaptor.capture());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
         assertThat(callUuidCaptor.getValue().getUuid()).isEqualTo(callUuid);
 
         // Respond with requestComplete...
-        mTbsGeneric.requestResult(ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
+        mTbsGeneric.requestResult(
+                ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
         mTbsGeneric.callStateChanged(ccid, callUuid, BluetoothLeCall.STATE_ACTIVE);
 
         // ..and verify if GTBS control point is updated to notifier the peer about the result
-        verify(mTbsGatt).setCallControlPointResult(eq(mCurrentDevice),
-                eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE), eq(callIndex),
-                eq(BluetoothLeCallControl.RESULT_SUCCESS));
+        verify(mTbsGatt)
+                .setCallControlPointResult(
+                        eq(mCurrentDevice),
+                        eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_LOCAL_RETRIEVE),
+                        eq(callIndex),
+                        eq(BluetoothLeCallControl.RESULT_SUCCESS));
     }
 
     @Test
@@ -480,14 +568,18 @@ public class TbsGenericTest {
 
         // Act as if peer originates a call via Gtbs
         String uri = "xmpp:123456789";
-        mTbsGattCallback.getValue().onCallControlPointRequest(mCurrentDevice,
-                TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE, uri.getBytes());
+        mTbsGattCallback
+                .getValue()
+                .onCallControlPointRequest(
+                        mCurrentDevice,
+                        TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE,
+                        uri.getBytes());
 
         ArgumentCaptor<Integer> requestIdCaptor = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<ParcelUuid> callUuidCaptor = ArgumentCaptor.forClass(ParcelUuid.class);
         try {
-            verify(mIBluetoothLeCallControlCallback).onPlaceCall(requestIdCaptor.capture(),
-                    callUuidCaptor.capture(), eq(uri));
+            verify(mIBluetoothLeCallControlCallback)
+                    .onPlaceCall(requestIdCaptor.capture(), callUuidCaptor.capture(), eq(uri));
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -496,15 +588,24 @@ public class TbsGenericTest {
         verify(leAudioService).setActiveDevice(mCurrentDevice);
 
         // Respond with requestComplete...
-        mTbsGeneric.requestResult(ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
-        mTbsGeneric.callAdded(ccid,
-                new BluetoothLeCall(callUuidCaptor.getValue().getUuid(), uri, "anOutgoingCaller",
-                        BluetoothLeCall.STATE_ALERTING, BluetoothLeCall.FLAG_OUTGOING_CALL));
+        mTbsGeneric.requestResult(
+                ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
+        mTbsGeneric.callAdded(
+                ccid,
+                new BluetoothLeCall(
+                        callUuidCaptor.getValue().getUuid(),
+                        uri,
+                        "anOutgoingCaller",
+                        BluetoothLeCall.STATE_ALERTING,
+                        BluetoothLeCall.FLAG_OUTGOING_CALL));
 
         // ..and verify if GTBS control point is updated to notifier the peer about the result
-        verify(mTbsGatt).setCallControlPointResult(eq(mCurrentDevice),
-                eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE), anyInt(),
-                eq(BluetoothLeCallControl.RESULT_SUCCESS));
+        verify(mTbsGatt)
+                .setCallControlPointResult(
+                        eq(mCurrentDevice),
+                        eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_ORIGINATE),
+                        anyInt(),
+                        eq(BluetoothLeCallControl.RESULT_SUCCESS));
     }
 
     @Test
@@ -516,10 +617,20 @@ public class TbsGenericTest {
         // Prepare the incoming call
         List<UUID> callUuids = Arrays.asList(UUID.randomUUID(), UUID.randomUUID());
         List<BluetoothLeCall> tbsCalls = new ArrayList<>();
-        tbsCalls.add(new BluetoothLeCall(callUuids.get(0), "tel:987654321", "aFriendlyCaller",
-                BluetoothLeCall.STATE_LOCALLY_HELD, 0));
-        tbsCalls.add(new BluetoothLeCall(callUuids.get(1), "tel:123456789", "a2ndFriendlyCaller",
-                BluetoothLeCall.STATE_ACTIVE, 0));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        callUuids.get(0),
+                        "tel:987654321",
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_LOCALLY_HELD,
+                        0));
+        tbsCalls.add(
+                new BluetoothLeCall(
+                        callUuids.get(1),
+                        "tel:123456789",
+                        "a2ndFriendlyCaller",
+                        BluetoothLeCall.STATE_ACTIVE,
+                        0));
         mTbsGeneric.currentCallsList(ccid, tbsCalls);
 
         ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -533,14 +644,16 @@ public class TbsGenericTest {
         for (Integer callIndex : capturedCurrentCalls.keySet()) {
             args[i++] = (byte) (callIndex & 0xFF);
         }
-        mTbsGattCallback.getValue().onCallControlPointRequest(mCurrentDevice,
-                TbsGatt.CALL_CONTROL_POINT_OPCODE_JOIN, args);
+        mTbsGattCallback
+                .getValue()
+                .onCallControlPointRequest(
+                        mCurrentDevice, TbsGatt.CALL_CONTROL_POINT_OPCODE_JOIN, args);
 
         ArgumentCaptor<Integer> requestIdCaptor = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<List<ParcelUuid>> callUuidCaptor = ArgumentCaptor.forClass(List.class);
         try {
-            verify(mIBluetoothLeCallControlCallback).onJoinCalls(requestIdCaptor.capture(),
-                    callUuidCaptor.capture());
+            verify(mIBluetoothLeCallControlCallback)
+                    .onJoinCalls(requestIdCaptor.capture(), callUuidCaptor.capture());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -551,12 +664,16 @@ public class TbsGenericTest {
         }
 
         // // Respond with requestComplete...
-        mTbsGeneric.requestResult(ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
+        mTbsGeneric.requestResult(
+                ccid, requestIdCaptor.getValue(), BluetoothLeCallControl.RESULT_SUCCESS);
         mTbsGeneric.callStateChanged(ccid, callUuids.get(0), BluetoothLeCall.STATE_ACTIVE);
 
         // ..and verify if GTBS control point is updated to notifier the peer about the result
-        verify(mTbsGatt).setCallControlPointResult(eq(mCurrentDevice),
-                eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_JOIN), anyInt(),
-                eq(BluetoothLeCallControl.RESULT_SUCCESS));
+        verify(mTbsGatt)
+                .setCallControlPointResult(
+                        eq(mCurrentDevice),
+                        eq(TbsGatt.CALL_CONTROL_POINT_OPCODE_JOIN),
+                        anyInt(),
+                        eq(BluetoothLeCallControl.RESULT_SUCCESS));
     }
 }

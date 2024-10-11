@@ -88,16 +88,6 @@ struct btsnd_hci_ble_remove_device_from_periodic_advertiser_list {
 extern struct btsnd_hci_ble_remove_device_from_periodic_advertiser_list
     btsnd_hci_ble_remove_device_from_periodic_advertiser_list;
 
-// Name: btsnd_hcic_accept_cis_req
-// Params: uint16_t conn_handle
-// Return: void
-struct btsnd_hcic_accept_cis_req {
-  std::function<void(uint16_t conn_handle)> body{
-      [](uint16_t /* conn_handle */) {}};
-  void operator()(uint16_t conn_handle) { body(conn_handle); };
-};
-extern struct btsnd_hcic_accept_cis_req btsnd_hcic_accept_cis_req;
-
 // Name: btsnd_hcic_ble_add_device_resolving_list
 // Params: uint8_t addr_type_peer, const RawAddress& bda_peer, const Octet16&
 // irk_peer, const Octet16& irk_local Return: void
@@ -124,33 +114,6 @@ struct btsnd_hcic_ble_clear_resolving_list {
 };
 extern struct btsnd_hcic_ble_clear_resolving_list
     btsnd_hcic_ble_clear_resolving_list;
-
-// Name: btsnd_hcic_ble_enh_rx_test
-// Params: uint8_t rx_chan, uint8_t phy, uint8_t mod_index
-// Return: void
-struct btsnd_hcic_ble_enh_rx_test {
-  std::function<void(uint8_t rx_chan, uint8_t phy, uint8_t mod_index)> body{
-      [](uint8_t /* rx_chan */, uint8_t /* phy */, uint8_t /* mod_index */) {}};
-  void operator()(uint8_t rx_chan, uint8_t phy, uint8_t mod_index) {
-    body(rx_chan, phy, mod_index);
-  };
-};
-extern struct btsnd_hcic_ble_enh_rx_test btsnd_hcic_ble_enh_rx_test;
-
-// Name: btsnd_hcic_ble_enh_tx_test
-// Params: uint8_t tx_chan, uint8_t data_len, uint8_t payload, uint8_t phy
-// Return: void
-struct btsnd_hcic_ble_enh_tx_test {
-  std::function<void(uint8_t tx_chan, uint8_t data_len, uint8_t payload,
-                     uint8_t phy)>
-      body{[](uint8_t /* tx_chan */, uint8_t /* data_len */,
-              uint8_t /* payload */, uint8_t /* phy */) {}};
-  void operator()(uint8_t tx_chan, uint8_t data_len, uint8_t payload,
-                  uint8_t phy) {
-    body(tx_chan, data_len, payload, phy);
-  };
-};
-extern struct btsnd_hcic_ble_enh_tx_test btsnd_hcic_ble_enh_tx_test;
 
 // Name: btsnd_hcic_ble_ltk_req_neg_reply
 // Params: uint16_t handle
@@ -266,40 +229,6 @@ struct btsnd_hcic_ble_rand {
   void operator()(base::Callback<void(BT_OCTET8)> cb) { body(std::move(cb)); };
 };
 extern struct btsnd_hcic_ble_rand btsnd_hcic_ble_rand;
-
-// Name: btsnd_hcic_ble_rc_param_req_neg_reply
-// Params: uint16_t handle, uint8_t reason
-// Return: void
-struct btsnd_hcic_ble_rc_param_req_neg_reply {
-  std::function<void(uint16_t handle, uint8_t reason)> body{
-      [](uint16_t /* handle */, uint8_t /* reason */) {}};
-  void operator()(uint16_t handle, uint8_t reason) { body(handle, reason); };
-};
-extern struct btsnd_hcic_ble_rc_param_req_neg_reply
-    btsnd_hcic_ble_rc_param_req_neg_reply;
-
-// Name: btsnd_hcic_ble_rc_param_req_reply
-// Params: uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
-// uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len, uint16_t
-// max_ce_len Return: void
-struct btsnd_hcic_ble_rc_param_req_reply {
-  std::function<void(uint16_t handle, uint16_t conn_int_min,
-                     uint16_t conn_int_max, uint16_t conn_latency,
-                     uint16_t conn_timeout, uint16_t min_ce_len,
-                     uint16_t max_ce_len)>
-      body{[](uint16_t /* handle */, uint16_t /* conn_int_min */,
-              uint16_t /* conn_int_max */, uint16_t /* conn_latency */,
-              uint16_t /* conn_timeout */, uint16_t /* min_ce_len */,
-              uint16_t /* max_ce_len */) {}};
-  void operator()(uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
-                  uint16_t conn_latency, uint16_t conn_timeout,
-                  uint16_t min_ce_len, uint16_t max_ce_len) {
-    body(handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
-         min_ce_len, max_ce_len);
-  };
-};
-extern struct btsnd_hcic_ble_rc_param_req_reply
-    btsnd_hcic_ble_rc_param_req_reply;
 
 // Name: btsnd_hcic_ble_read_adv_chnl_tx_power
 // Params: void
@@ -571,29 +500,6 @@ struct btsnd_hcic_ble_transmitter_test {
 };
 extern struct btsnd_hcic_ble_transmitter_test btsnd_hcic_ble_transmitter_test;
 
-// Name: btsnd_hcic_ble_upd_ll_conn_params
-// Params: uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
-// uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len, uint16_t
-// max_ce_len Return: void
-struct btsnd_hcic_ble_upd_ll_conn_params {
-  std::function<void(uint16_t handle, uint16_t conn_int_min,
-                     uint16_t conn_int_max, uint16_t conn_latency,
-                     uint16_t conn_timeout, uint16_t min_ce_len,
-                     uint16_t max_ce_len)>
-      body{[](uint16_t /* handle */, uint16_t /* conn_int_min */,
-              uint16_t /* conn_int_max */, uint16_t /* conn_latency */,
-              uint16_t /* conn_timeout */, uint16_t /* min_ce_len */,
-              uint16_t /* max_ce_len */) {}};
-  void operator()(uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
-                  uint16_t conn_latency, uint16_t conn_timeout,
-                  uint16_t min_ce_len, uint16_t max_ce_len) {
-    body(handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
-         min_ce_len, max_ce_len);
-  };
-};
-extern struct btsnd_hcic_ble_upd_ll_conn_params
-    btsnd_hcic_ble_upd_ll_conn_params;
-
 // Name: btsnd_hcic_ble_write_adv_params
 // Params: uint16_t adv_int_min, uint16_t adv_int_max, uint8_t adv_type,
 // tBLE_ADDR_TYPE addr_type_own, tBLE_ADDR_TYPE addr_type_dir, const RawAddress&
@@ -674,21 +580,6 @@ struct btsnd_hcic_read_iso_link_quality {
   };
 };
 extern struct btsnd_hcic_read_iso_link_quality btsnd_hcic_read_iso_link_quality;
-
-// Name: btsnd_hcic_rej_cis_req
-// Params: uint16_t conn_handle, uint8_t reason,
-// base::OnceCallback<void(uint8_t*, uint16_t Return: void
-struct btsnd_hcic_rej_cis_req {
-  std::function<void(uint16_t, uint8_t,
-                     base::OnceCallback<void(uint8_t*, uint16_t)>)>
-      body{[](uint16_t /* conn_handle */, uint8_t /* reason */,
-              base::OnceCallback<void(uint8_t*, uint16_t)> /* cb */) {}};
-  void operator()(uint16_t conn_handle, uint8_t reason,
-                  base::OnceCallback<void(uint8_t*, uint16_t)> cb) {
-    body(conn_handle, reason, std::move(cb));
-  };
-};
-extern struct btsnd_hcic_rej_cis_req btsnd_hcic_rej_cis_req;
 
 // Name: btsnd_hcic_remove_cig
 // Params: uint8_t cig_id, base::OnceCallback<void(uint8_t*, uint16_t

@@ -19,7 +19,10 @@
 #ifndef L2CDEFS_H
 #define L2CDEFS_H
 
+#include <bluetooth/log.h>
+
 #include <cstdint>
+#include <string>
 
 #include "internal_include/bt_target.h"  // L2CAP_EXTFEA_SUPPORTED_MASK
 #include "macros.h"
@@ -264,7 +267,7 @@ inline std::string l2cap_le_result_code_text(
 
 /* L2CAP Predefined CIDs
 */
-enum : uint16_t {
+enum tL2CAP_CID_FIXED : uint16_t {
   L2CAP_SIGNALLING_CID = 1,
   L2CAP_CONNECTIONLESS_CID = 2,
   L2CAP_AMP_CID = 3,
@@ -274,6 +277,20 @@ enum : uint16_t {
   L2CAP_SMP_BR_CID = 7,
   L2CAP_BASE_APPL_CID = 0x0040,
 };
+
+inline std::string l2cap_cid_fixed_text(const tL2CAP_CID_FIXED& cid) {
+  switch (cid) {
+    CASE_RETURN_STRING_HEX04(L2CAP_SIGNALLING_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_CONNECTIONLESS_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_AMP_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_ATT_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_BLE_SIGNALLING_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_SMP_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_SMP_BR_CID);
+    CASE_RETURN_STRING_HEX04(L2CAP_BASE_APPL_CID);
+  };
+  RETURN_UNKNOWN_TYPE_STRING(type, cid);
+}
 
 /* Fixed Channels mask bits */
 
@@ -297,15 +314,13 @@ enum : uint16_t {
 
 /* Define the L2CAP configuration result codes
 */
-#define L2CAP_CFG_OK 0
-#define L2CAP_CFG_UNACCEPTABLE_PARAMS 1
-#define L2CAP_CFG_FAILED_NO_REASON 2
-#define L2CAP_CFG_UNKNOWN_OPTIONS 3
-#define L2CAP_CFG_PENDING 4
-
-static_assert(L2CAP_CONN_OTHER_ERROR != L2CAP_CFG_FAILED_NO_REASON,
-              "Different error code should be provided for Connect error and "
-              "Config error");
+typedef enum : uint16_t {
+  L2CAP_CFG_OK = 0,
+  L2CAP_CFG_UNACCEPTABLE_PARAMS = 1,
+  L2CAP_CFG_FAILED_NO_REASON = 2,
+  L2CAP_CFG_UNKNOWN_OPTIONS = 3,
+  L2CAP_CFG_PENDING = 4,
+} tL2CAP_CFG_RESULT;
 
 /* Define the L2CAP configuration option types
 */
@@ -484,6 +499,8 @@ constexpr uint16_t L2CAP_SDU_LENGTH_LE_MAX = 0xffff;
 namespace fmt {
 template <>
 struct formatter<tL2CAP_CONN> : enum_formatter<tL2CAP_CONN> {};
+template <>
+struct formatter<tL2CAP_CID_FIXED> : enum_formatter<tL2CAP_CID_FIXED> {};
 }  // namespace fmt
 
 #endif

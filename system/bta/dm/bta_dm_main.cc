@@ -24,6 +24,7 @@
 #include <base/strings/stringprintf.h>
 #include <stddef.h>
 
+#include "bta/dm/bta_dm_device_search.h"
 #include "bta/dm/bta_dm_disc.h"
 #include "bta/dm/bta_dm_gatt_client.h"
 #include "bta/dm/bta_dm_int.h"
@@ -40,6 +41,7 @@ tBTA_DM_SEC_CB bta_dm_sec_cb;
 void DumpsysBtaDm(int fd) {
   LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
   DumpsysBtaDmDisc(fd);
+  DumpsysBtaDmSearch(fd);
   DumpsysBtaDmGattClient(fd);
 }
 #undef DUMPSYS_TAG

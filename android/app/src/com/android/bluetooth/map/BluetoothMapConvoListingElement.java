@@ -1,17 +1,17 @@
 /*
-* Copyright (C) 2013 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2013 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.map;
 
 import android.bluetooth.BluetoothProfile;
@@ -48,11 +48,9 @@ public class BluetoothMapConvoListingElement
     private static final String XML_ATT_VERSION_COUNTER = "version_counter";
     private static final String XML_ATT_SUMMARY = "summary";
     private static final String TAG = "BluetoothMapConvoListingElement";
-    private static final boolean D = BluetoothMapService.DEBUG;
-    private static final boolean V = BluetoothMapService.VERBOSE;
 
     private SignedLongLong mId = null;
-    private String mName = ""; //title of the conversation #REQUIRED, but allowed empty
+    private String mName = ""; // title of the conversation #REQUIRED, but allowed empty
     private long mLastActivity = -1;
     private boolean mRead = false;
     private boolean mReportRead = false; // TODO: Is this needed? - false means UNKNOWN
@@ -71,9 +69,7 @@ public class BluetoothMapConvoListingElement
 
     public void setCursorIndex(int cursorIndex) {
         this.mCursorIndex = cursorIndex;
-        if (D) {
-            Log.d(TAG, "setCursorIndex: " + cursorIndex);
-        }
+        Log.d(TAG, "setCursorIndex: " + cursorIndex);
     }
 
     public long getVersionCounter() {
@@ -81,9 +77,7 @@ public class BluetoothMapConvoListingElement
     }
 
     public void setVersionCounter(long vcount) {
-        if (D) {
-            Log.d(TAG, "setVersionCounter: " + vcount);
-        }
+        Log.d(TAG, "setVersionCounter: " + vcount);
         this.mVersionCounter = vcount;
     }
 
@@ -92,9 +86,7 @@ public class BluetoothMapConvoListingElement
     }
 
     private void setVersionCounter(String vcount) {
-        if (D) {
-            Log.d(TAG, "setVersionCounter: " + vcount);
-        }
+        Log.d(TAG, "setVersionCounter: " + vcount);
         try {
             this.mVersionCounter = Long.parseLong(vcount);
         } catch (NumberFormatException e) {
@@ -113,9 +105,7 @@ public class BluetoothMapConvoListingElement
     }
 
     public void setName(String name) {
-        if (D) {
-            Log.d(TAG, "setName: " + name);
-        }
+        Log.d(TAG, "setName: " + name);
         this.mName = name;
     }
 
@@ -150,7 +140,6 @@ public class BluetoothMapConvoListingElement
         mContacts.remove(index);
     }
 
-
     public long getLastActivity() {
         return mLastActivity;
     }
@@ -162,9 +151,7 @@ public class BluetoothMapConvoListingElement
     }
 
     public void setLastActivity(long last) {
-        if (D) {
-            Log.d(TAG, "setLastActivity: " + last);
-        }
+        Log.d(TAG, "setLastActivity: " + last);
         this.mLastActivity = last;
     }
 
@@ -188,9 +175,7 @@ public class BluetoothMapConvoListingElement
 
     public void setRead(boolean read, boolean reportRead) {
         this.mRead = read;
-        if (D) {
-            Log.d(TAG, "setRead: " + read);
-        }
+        Log.d(TAG, "setRead: " + read);
         this.mReportRead = reportRead;
     }
 
@@ -205,15 +190,14 @@ public class BluetoothMapConvoListingElement
 
     /**
      * Set the conversation ID
-     * @param type 0 if the thread ID is valid across all message types in the instance - else
-     * use one of the CONVO_ID_xxx types.
+     *
+     * @param type 0 if the thread ID is valid across all message types in the instance - else use
+     *     one of the CONVO_ID_xxx types.
      * @param threadId the conversation ID
      */
     public void setConvoId(long type, long threadId) {
         this.mId = new SignedLongLong(threadId, type);
-        if (D) {
-            Log.d(TAG, "setConvoId: " + threadId + " type:" + type);
-        }
+        Log.d(TAG, "setConvoId: " + threadId + " type:" + type);
     }
 
     public String getConvoId() {
@@ -279,8 +263,8 @@ public class BluetoothMapConvoListingElement
         xmlConvoElement.startTag(null, XML_TAG_CONVERSATION);
         xmlConvoElement.attribute(null, XML_ATT_ID, mId.toHexString());
         if (mName != null) {
-            xmlConvoElement.attribute(null, XML_ATT_NAME,
-                    BluetoothMapUtils.stripInvalidChars(mName));
+            xmlConvoElement.attribute(
+                    null, XML_ATT_NAME, BluetoothMapUtils.stripInvalidChars(mName));
         }
         if (mLastActivity != -1) {
             xmlConvoElement.attribute(null, XML_ATT_LAST_ACTIVITY, getLastActivityString());
@@ -290,8 +274,8 @@ public class BluetoothMapConvoListingElement
             xmlConvoElement.attribute(null, XML_ATT_READ, getRead());
         }
         if (mVersionCounter != -1) {
-            xmlConvoElement.attribute(null, XML_ATT_VERSION_COUNTER,
-                    Long.toString(getVersionCounter()));
+            xmlConvoElement.attribute(
+                    null, XML_ATT_VERSION_COUNTER, Long.toString(getVersionCounter()));
         }
         if (mSummary != null) {
             xmlConvoElement.attribute(null, XML_ATT_SUMMARY, getSummary());
@@ -302,16 +286,11 @@ public class BluetoothMapConvoListingElement
             }
         }
         xmlConvoElement.endTag(null, XML_TAG_CONVERSATION);
-
     }
 
     /**
      * Consumes a conversation tag. It is expected that the parser is beyond the start-tag event,
      * with the name "conversation".
-     * @param parser
-     * @return
-     * @throws XmlPullParserException
-     * @throws IOException
      */
     public static BluetoothMapConvoListingElement createFromXml(XmlPullParser parser)
             throws XmlPullParserException, IOException, ParseException {
@@ -334,9 +313,7 @@ public class BluetoothMapConvoListingElement
             } else if (attributeName.equalsIgnoreCase(XML_ATT_SUMMARY)) {
                 newElement.setSummary(attributeValue);
             } else {
-                if (D) {
-                    Log.i(TAG, "Unknown XML attribute: " + parser.getAttributeName(i));
-                }
+                Log.w(TAG, "Unknown XML attribute: " + parser.getAttributeName(i));
             }
         }
 
@@ -352,9 +329,7 @@ public class BluetoothMapConvoListingElement
             if (name.equalsIgnoreCase(BluetoothMapConvoContactElement.XML_TAG_CONVOCONTACT)) {
                 newElement.addContact(BluetoothMapConvoContactElement.createFromXml(parser));
             } else {
-                if (D) {
-                    Log.i(TAG, "Unknown XML tag: " + name);
-                }
+                Log.w(TAG, "Unknown XML tag: " + name);
                 Utils.skipCurrentTag(parser);
                 continue;
             }
@@ -410,7 +385,7 @@ public class BluetoothMapConvoListingElement
         return true;
     }
 
-/*    @Override
+    /*    @Override
     public boolean equals(Object o) {
 
         return true;
@@ -418,5 +393,3 @@ public class BluetoothMapConvoListingElement
     */
 
 }
-
-

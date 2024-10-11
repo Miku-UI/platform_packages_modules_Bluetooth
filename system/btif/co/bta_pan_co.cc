@@ -26,7 +26,6 @@
  ******************************************************************************/
 #include "bta_pan_co.h"
 
-#include <base/logging.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_pan.h>
 #include <string.h>
@@ -39,7 +38,6 @@
 #include "btif_util.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "pan_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
@@ -141,8 +139,7 @@ void bta_pan_co_tx_path(uint16_t handle, uint8_t app_id) {
                    p_buf->len, p_buf->offset);
       if (is_empty_eth_addr(conn->eth_addr) && is_valid_bt_eth_addr(src)) {
         log::verbose("pan bt peer addr: {} update its ethernet addr: {}",
-                     ADDRESS_TO_LOGGABLE_STR(conn->peer),
-                     ADDRESS_TO_LOGGABLE_STR(src));
+                     conn->peer, src);
         conn->eth_addr = src;
       }
       btpan_tap_send(btpan_cb.tap_fd, src, dst, protocol,
@@ -166,8 +163,7 @@ void bta_pan_co_tx_path(uint16_t handle, uint8_t app_id) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_co_rx_path(UNUSED_ATTR uint16_t handle,
-                        UNUSED_ATTR uint8_t app_id) {
+void bta_pan_co_rx_path(uint16_t /* handle */, uint8_t /* app_id */) {
   log::verbose("bta_pan_co_rx_path not used");
 }
 
@@ -185,8 +181,7 @@ void bta_pan_co_rx_path(UNUSED_ATTR uint16_t handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_co_rx_flow(UNUSED_ATTR uint16_t handle, UNUSED_ATTR uint8_t app_id,
-                        UNUSED_ATTR bool enable) {
+void bta_pan_co_rx_flow(uint16_t handle, uint8_t /* app_id */, bool enable) {
   log::verbose("bta_pan_co_rx_flow, enabled:{}, not used", enable);
   btpan_conn_t* conn = btpan_find_conn_handle(handle);
   if (!conn || conn->state != PAN_STATE_OPEN) return;
@@ -202,11 +197,9 @@ void bta_pan_co_rx_flow(UNUSED_ATTR uint16_t handle, UNUSED_ATTR uint8_t app_id,
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_co_pfilt_ind(UNUSED_ATTR uint16_t handle,
-                          UNUSED_ATTR bool indication,
-                          UNUSED_ATTR tBTA_PAN_STATUS result,
-                          UNUSED_ATTR uint16_t len,
-                          UNUSED_ATTR uint8_t* p_filters) {
+void bta_pan_co_pfilt_ind(uint16_t /* handle */, bool /* indication */,
+                          tBTA_PAN_STATUS /* result */, uint16_t /* len */,
+                          uint8_t* /* p_filters */) {
   log::verbose("bta_pan_co_pfilt_ind");
 }
 
@@ -219,10 +212,8 @@ void bta_pan_co_pfilt_ind(UNUSED_ATTR uint16_t handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_co_mfilt_ind(UNUSED_ATTR uint16_t handle,
-                          UNUSED_ATTR bool indication,
-                          UNUSED_ATTR tBTA_PAN_STATUS result,
-                          UNUSED_ATTR uint16_t len,
-                          UNUSED_ATTR uint8_t* p_filters) {
+void bta_pan_co_mfilt_ind(uint16_t /* handle */, bool /* indication */,
+                          tBTA_PAN_STATUS /* result */, uint16_t /* len */,
+                          uint8_t* /* p_filters */) {
   log::verbose("bta_pan_co_mfilt_ind");
 }

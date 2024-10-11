@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.gatt;
 
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -37,46 +36,41 @@ import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
-/**
- * Test cases for {@link AdvertiseManager}.
- */
+/** Test cases for {@link AdvertiseManager}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AdvertiseManagerTest {
 
-    @Mock
-    private AdapterService mAdapterService;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private GattService mService;
+    @Mock private AdapterService mAdapterService;
 
-    @Mock
-    private GattService.AdvertiserMap mAdvertiserMap;
+    @Mock private GattService mService;
+
+    @Mock private GattService.AdvertiserMap mAdvertiserMap;
 
     @Mock private AdvertiseManagerNativeInterface mNativeInterface;
 
-    @Mock
-    private IAdvertisingSetCallback mCallback;
+    @Mock private IAdvertisingSetCallback mCallback;
 
-    @Mock
-    private IBinder mBinder;
+    @Mock private IBinder mBinder;
 
     private AdvertiseManager mAdvertiseManager;
     private int mAdvertiserId;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         TestUtils.setAdapterService(mAdapterService);
 
-        mAdvertiseManager =
-                new AdvertiseManager(mService, mNativeInterface, mAdapterService, mAdvertiserMap);
+        mAdvertiseManager = new AdvertiseManager(mService, mNativeInterface, mAdvertiserMap);
 
         AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
         AdvertiseData advertiseData = new AdvertiseData.Builder().build();
@@ -90,8 +84,16 @@ public class AdvertiseManagerTest {
         doReturn(mBinder).when(mCallback).asBinder();
         doNothing().when(mBinder).linkToDeath(any(), eq(0));
 
-        mAdvertiseManager.startAdvertisingSet(parameters, advertiseData, scanResponse,
-                periodicParameters, periodicData, duration, maxExtAdvEvents, 0, mCallback);
+        mAdvertiseManager.startAdvertisingSet(
+                parameters,
+                advertiseData,
+                scanResponse,
+                periodicParameters,
+                periodicData,
+                duration,
+                maxExtAdvEvents,
+                0,
+                mCallback);
 
         mAdvertiserId = AdvertiseManager.sTempRegistrationId;
     }
@@ -109,8 +111,8 @@ public class AdvertiseManagerTest {
 
         mAdvertiseManager.enableAdvertisingSet(mAdvertiserId, enable, duration, maxExtAdvEvents);
 
-        verify(mAdvertiserMap).enableAdvertisingSet(mAdvertiserId, enable, duration,
-                maxExtAdvEvents);
+        verify(mAdvertiserMap)
+                .enableAdvertisingSet(mAdvertiserId, enable, duration, maxExtAdvEvents);
     }
 
     @Test

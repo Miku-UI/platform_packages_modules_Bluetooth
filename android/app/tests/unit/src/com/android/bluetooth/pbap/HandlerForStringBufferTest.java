@@ -30,10 +30,12 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.obex.Operation;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -42,15 +44,14 @@ import java.io.OutputStream;
 @RunWith(AndroidJUnit4.class)
 public class HandlerForStringBufferTest {
 
-    @Mock
-    private Operation mOperation;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private OutputStream mOutputStream;
+    @Mock private Operation mOperation;
+
+    @Mock private OutputStream mOutputStream;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         when(mOperation.openOutputStream()).thenReturn(mOutputStream);
     }
 
@@ -107,7 +108,8 @@ public class HandlerForStringBufferTest {
     @Test
     public void writeVCard_withIOExceptionWhenWritingToStream_returnsFalse() throws Exception {
         doThrow(new IOException()).when(mOutputStream).write(any(byte[].class));
-        HandlerForStringBuffer buffer = new HandlerForStringBuffer(mOperation, /*ownerVcard=*/null);
+        HandlerForStringBuffer buffer =
+                new HandlerForStringBuffer(mOperation, /* ownerVcard= */ null);
         buffer.init();
 
         String newVCard = "newVCard";

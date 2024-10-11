@@ -1936,6 +1936,13 @@ TEST(GeneratedPacketTest, testToStringOutput) {
       view.ToString());
 }
 
+TEST(GeneratedPacketTest, testEnumText) {
+  EXPECT_EQ("FIVE(0x5)", FourBitsText(FourBits::FIVE));
+  EXPECT_EQ("THREE(0x3)", TwoBitsText(TwoBits::THREE));
+  EXPECT_EQ("FOUR_BYTE(0x04)", StructTypeText(StructType::FOUR_BYTE));
+  EXPECT_EQ("TWO_THREE(0x0302)", ForArraysText(ForArrays::TWO_THREE));
+}
+
 TEST(GeneratedPacketTest, testToStringOneFixedTypesStruct) {
   StructWithFixedTypes swf;
   swf.four_bits_ = FourBits::FIVE;
@@ -1960,8 +1967,8 @@ TEST(GeneratedPacketTest, testToStringOneFixedTypesStruct) {
   ASSERT_TRUE(view.IsValid());
 
   ASSERT_EQ(
-      "OneFixedTypesStruct { one = StructWithFixedTypes { four_bits = FIVE, id = 0xd, array = ARRAY[0x1, 0x2, 0x3], "
-      "example_checksum = CHECKSUM, six_bytes = SixBytes } }",
+      "OneFixedTypesStruct { one = StructWithFixedTypes { four_bits = FIVE(0x5), id = 0xd, "
+      "array = ARRAY[0x1, 0x2, 0x3], example_checksum = CHECKSUM, six_bytes = SixBytes } }",
       view.ToString());
 }
 
@@ -1997,6 +2004,38 @@ TEST(GeneratedPacketTest, testStructWithShadowedNames) {
   ASSERT_EQ(ebs.struct_type_, struct_type);
 }
 
+TEST(GeneratedPacketTest, testArrays) {
+  std::vector<uint8_t> bytes({1, 2, 3});
+  std::vector<uint16_t> sixteens({0x0111, 0x0212, 0x0313});
+  std::vector<uint32_t> thirtytwos({0x01112131, 0x02122232, 0x03132333});
+  auto packet = ArraysBuilder::Create(bytes, sixteens, thirtytwos);
+
+  std::shared_ptr<std::vector<uint8_t>> packet_bytes = std::make_shared<std::vector<uint8_t>>();
+  BitInserter it(*packet_bytes);
+  packet->Serialize(it);
+
+  PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
+  auto view = ArraysView::Create(packet_bytes_view);
+  ASSERT_TRUE(view.IsValid());
+
+  auto bytes_from_packet = view.GetBytes();
+  ASSERT_EQ(bytes.size(), bytes_from_packet.size());
+  for (size_t i = 0; i < bytes.size(); i++) {
+    ASSERT_EQ(bytes[i], bytes_from_packet[i]);
+  }
+
+  auto sixteens_from_packet = view.GetSixteens();
+  ASSERT_EQ(sixteens.size(), sixteens_from_packet.size());
+  for (size_t i = 0; i < sixteens.size(); i++) {
+    ASSERT_EQ(sixteens[i], sixteens_from_packet[i]);
+  }
+
+  auto thirtytwos_from_packet = view.GetThirtytwos();
+  ASSERT_EQ(thirtytwos.size(), thirtytwos_from_packet.size());
+  for (size_t i = 0; i < thirtytwos.size(); i++) {
+    ASSERT_EQ(thirtytwos[i], thirtytwos_from_packet[i]);
+  }
+}
 }  // namespace parser
 }  // namespace packet
 }  // namespace bluetooth

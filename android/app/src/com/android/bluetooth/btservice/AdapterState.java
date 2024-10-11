@@ -22,41 +22,23 @@ import android.os.Message;
 import android.os.SystemProperties;
 import android.util.Log;
 
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
 /**
- * This state machine handles Bluetooth Adapter State.
- * Stable States:
- *      {@link OffState}: Initial State
- *      {@link BleOnState} : Bluetooth Low Energy, Including GATT, is on
- *      {@link OnState} : Bluetooth is on (All supported profiles)
+ * This state machine handles Bluetooth Adapter State. Stable States: {@link OffState}: Initial
+ * State {@link BleOnState} : Bluetooth Low Energy, Including GATT, is on {@link OnState} :
+ * Bluetooth is on (All supported profiles)
  *
- * Transition States:
- *      {@link TurningBleOnState} : OffState to BleOnState
- *      {@link TurningBleOffState} : BleOnState to OffState
- *      {@link TurningOnState} : BleOnState to OnState
- *      {@link TurningOffState} : OnState to BleOnState
+ * <p>Transition States: {@link TurningBleOnState} : OffState to BleOnState {@link
+ * TurningBleOffState} : BleOnState to OffState {@link TurningOnState} : BleOnState to OnState
+ * {@link TurningOffState} : OnState to BleOnState
  *
- *        +------   Off  <-----+
- *        |                    |
- *        v                    |
- * TurningBleOn   TO--->   TurningBleOff
- *        |                  ^ ^
- *        |                  | |
- *        +----->        ----+ |
- *                 BleOn       |
- *        +------        <---+ O
- *        v                  | T
- *    TurningOn  TO---->  TurningOff
- *        |                    ^
- *        |                    |
- *        +----->   On   ------+
- *
+ * <p>+------ Off <-----+ | | v | TurningBleOn TO---> TurningBleOff | ^ ^ | | | +-----> ----+ |
+ * BleOn | +------ <---+ O v | T TurningOn TO----> TurningOff | ^ | | +-----> On ------+
  */
-
 final class AdapterState extends StateMachine {
-    private static final boolean DBG = true;
     private static final String TAG = AdapterState.class.getSimpleName();
 
     static final int USER_TURN_ON = 1;
@@ -72,19 +54,17 @@ final class AdapterState extends StateMachine {
     static final int BLE_STOP_TIMEOUT = 11;
     static final int BLE_START_TIMEOUT = 12;
 
-    static final String BLE_START_TIMEOUT_DELAY_PROPERTY =
-            "ro.bluetooth.ble_start_timeout_delay";
-    static final String BLE_STOP_TIMEOUT_DELAY_PROPERTY =
-            "ro.bluetooth.ble_stop_timeout_delay";
+    static final String BLE_START_TIMEOUT_DELAY_PROPERTY = "ro.bluetooth.ble_start_timeout_delay";
+    static final String BLE_STOP_TIMEOUT_DELAY_PROPERTY = "ro.bluetooth.ble_stop_timeout_delay";
 
     static final int BLE_START_TIMEOUT_DELAY =
-        4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
+            4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
     static final int BLE_STOP_TIMEOUT_DELAY =
-        4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
+            4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
     static final int BREDR_START_TIMEOUT_DELAY =
-        4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
+            4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
     static final int BREDR_STOP_TIMEOUT_DELAY =
-        4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
+            4000 * SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
 
     private AdapterService mAdapterService;
     private TurningOnState mTurningOnState = new TurningOnState();
@@ -113,19 +93,32 @@ final class AdapterState extends StateMachine {
 
     private String messageString(int message) {
         switch (message) {
-            case BLE_TURN_ON: return "BLE_TURN_ON";
-            case USER_TURN_ON: return "USER_TURN_ON";
-            case BREDR_STARTED: return "BREDR_STARTED";
-            case BLE_STARTED: return "BLE_STARTED";
-            case USER_TURN_OFF: return "USER_TURN_OFF";
-            case BLE_TURN_OFF: return "BLE_TURN_OFF";
-            case BLE_STOPPED: return "BLE_STOPPED";
-            case BREDR_STOPPED: return "BREDR_STOPPED";
-            case BLE_START_TIMEOUT: return "BLE_START_TIMEOUT";
-            case BLE_STOP_TIMEOUT: return "BLE_STOP_TIMEOUT";
-            case BREDR_START_TIMEOUT: return "BREDR_START_TIMEOUT";
-            case BREDR_STOP_TIMEOUT: return "BREDR_STOP_TIMEOUT";
-            default: return "Unknown message (" + message + ")";
+            case BLE_TURN_ON:
+                return "BLE_TURN_ON";
+            case USER_TURN_ON:
+                return "USER_TURN_ON";
+            case BREDR_STARTED:
+                return "BREDR_STARTED";
+            case BLE_STARTED:
+                return "BLE_STARTED";
+            case USER_TURN_OFF:
+                return "USER_TURN_OFF";
+            case BLE_TURN_OFF:
+                return "BLE_TURN_OFF";
+            case BLE_STOPPED:
+                return "BLE_STOPPED";
+            case BREDR_STOPPED:
+                return "BREDR_STOPPED";
+            case BLE_START_TIMEOUT:
+                return "BLE_START_TIMEOUT";
+            case BLE_STOP_TIMEOUT:
+                return "BLE_STOP_TIMEOUT";
+            case BREDR_START_TIMEOUT:
+                return "BREDR_START_TIMEOUT";
+            case BREDR_STOP_TIMEOUT:
+                return "BREDR_STOP_TIMEOUT";
+            default:
+                return "Unknown message (" + message + ")";
         }
     }
 
@@ -162,9 +155,7 @@ final class AdapterState extends StateMachine {
         }
 
         void infoLog(String msg) {
-            if (DBG) {
-                Log.i(TAG, BluetoothAdapter.nameForState(getStateValue()) + " : " + msg);
-            }
+            Log.i(TAG, BluetoothAdapter.nameForState(getStateValue()) + " : " + msg);
         }
 
         void errorLog(String msg) {
@@ -177,6 +168,19 @@ final class AdapterState extends StateMachine {
         @Override
         int getStateValue() {
             return BluetoothAdapter.STATE_OFF;
+        }
+
+        @Override
+        public void enter() {
+            if (!Flags.explicitKillFromSystemServer()) {
+                super.enter();
+                return;
+            }
+            int prevState = mPrevState;
+            super.enter();
+            if (prevState == BluetoothAdapter.STATE_BLE_TURNING_OFF) {
+                mAdapterService.cleanup();
+            }
         }
 
         @Override
@@ -252,8 +256,9 @@ final class AdapterState extends StateMachine {
         @Override
         public void enter() {
             super.enter();
-            final int timeoutDelay = SystemProperties.getInt(
-                    BLE_START_TIMEOUT_DELAY_PROPERTY, BLE_START_TIMEOUT_DELAY);
+            final int timeoutDelay =
+                    SystemProperties.getInt(
+                            BLE_START_TIMEOUT_DELAY_PROPERTY, BLE_START_TIMEOUT_DELAY);
             Log.d(TAG, "Start Timeout Delay: " + timeoutDelay);
             sendMessageDelayed(BLE_START_TIMEOUT, timeoutDelay);
             mAdapterService.bringUpBle();
@@ -375,8 +380,9 @@ final class AdapterState extends StateMachine {
         @Override
         public void enter() {
             super.enter();
-            final int timeoutDelay = SystemProperties.getInt(
-                    BLE_STOP_TIMEOUT_DELAY_PROPERTY, BLE_STOP_TIMEOUT_DELAY);
+            final int timeoutDelay =
+                    SystemProperties.getInt(
+                            BLE_STOP_TIMEOUT_DELAY_PROPERTY, BLE_STOP_TIMEOUT_DELAY);
             Log.d(TAG, "Stop Timeout Delay: " + timeoutDelay);
             sendMessageDelayed(BLE_STOP_TIMEOUT, timeoutDelay);
             mAdapterService.bringDownBle();

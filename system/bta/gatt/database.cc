@@ -18,7 +18,6 @@
 
 #include "database.h"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <algorithm>
@@ -171,8 +170,8 @@ Database Database::Deserialize(const std::vector<StoredAttribute>& nv_attr,
 
     if (current_service_it == result.services.end() ||
         !HandleInRange(*current_service_it, attr.handle)) {
-      log::error("Can't find service for attribute with handle: {}",
-                 loghex(attr.handle));
+      log::error("Can't find service for attribute with handle: 0x{:x}",
+                 attr.handle);
       *success = false;
       return result;
     }

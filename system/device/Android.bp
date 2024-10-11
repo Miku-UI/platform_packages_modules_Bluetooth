@@ -21,7 +21,6 @@ cc_library_static {
         "packages/modules/Bluetooth/system/stack/include",
     ],
     srcs: [
-        "src/controller.cc",
         "src/device_iot_config.cc",
         "src/device_iot_config_int.cc",
         "src/esco_parameters.cc",
@@ -37,6 +36,7 @@ cc_library_static {
     header_libs: ["libbluetooth_headers"],
     static_libs: [
         "bluetooth_flags_c_lib",
+        "libaconfig_storage_read_api_cc",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbt_shim_bridge",
@@ -96,11 +96,13 @@ cc_test {
         "test/device_iot_config_test.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libdl",
         "liblog",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth-types",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
@@ -109,7 +111,9 @@ cc_test {
         "libbtcore",
         "libbtdevice",
         "libchrome",
+        "libflagtest",
         "libgmock",
+        "server_configurable_flags",
     ],
     header_libs: ["libbluetooth_headers"],
     cflags: ["-Wno-unused-parameter"],

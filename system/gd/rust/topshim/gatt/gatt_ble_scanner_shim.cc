@@ -24,7 +24,6 @@
 #include <memory>
 #include <vector>
 
-#include "bind_helpers.h"
 #include "include/hardware/bt_common_types.h"
 #include "rust/cxx.h"
 #include "src/profiles/gatt.rs.h"
@@ -52,8 +51,8 @@ ApcfCommand ConvertApcfFromRust(const RustApcfCommand& command) {
       .type = command.type_,
       .address = command.address,
       .addr_type = command.addr_type,
-      .uuid = bluetooth::Uuid::From128BitBE(command.uuid.uu),
-      .uuid_mask = bluetooth::Uuid::From128BitBE(command.uuid_mask.uu),
+      .uuid = command.uuid,
+      .uuid_mask = command.uuid_mask,
       .name = name,
       .company = command.company,
       .company_mask = command.company_mask,
@@ -109,31 +108,23 @@ std::vector<MsftAdvMonitorPattern> ConvertAdvMonitorPatterns(const ::rust::Vec<R
   return converted;
 }
 
+MsftAdvMonitorAddress ConvertAdvMonitorAddress(RustMsftAdvMonitorAddress rust_addr_info) {
+  MsftAdvMonitorAddress addr_info;
+  addr_info.addr_type = rust_addr_info.addr_type;
+  addr_info.bd_addr = rust_addr_info.bd_addr;
+  return addr_info;
+}
+
 MsftAdvMonitor ConvertAdvMonitor(const RustMsftAdvMonitor& monitor) {
   MsftAdvMonitor converted = {
       .rssi_threshold_high = monitor.rssi_high_threshold,
       .rssi_threshold_low = monitor.rssi_low_threshold,
       .rssi_threshold_low_time_interval = monitor.rssi_low_timeout,
       .rssi_sampling_period = monitor.rssi_sampling_period,
+      .condition_type = monitor.condition_type,
       .patterns = ConvertAdvMonitorPatterns(monitor.patterns),
+      .addr_info = ConvertAdvMonitorAddress(monitor.addr_info),
   };
-  return converted;
-}
-
-::btgatt_filt_param_setup_t ConvertRustFilterParam(const RustGattFilterParam& param) {
-  ::btgatt_filt_param_setup_t converted = {
-      .feat_seln = param.feat_seln,
-      .list_logic_type = param.list_logic_type,
-      .filt_logic_type = param.filt_logic_type,
-      .rssi_high_thres = param.rssi_high_thres,
-      .rssi_low_thres = param.rssi_low_thres,
-      .dely_mode = param.delay_mode,
-      .found_timeout = param.found_timeout,
-      .lost_timeout = param.lost_timeout,
-      .found_timeout_cnt = param.found_timeout_count,
-      .num_of_tracking_entries = param.num_of_tracking_entries,
-  };
-
   return converted;
 }
 }  // namespace internal
@@ -208,10 +199,9 @@ void BleScannerIntf::OnBatchScanThresholdCrossed(int client_if) {
 
 // BleScannerInterface implementations
 
-void BleScannerIntf::RegisterScanner(RustUuid uuid) {
-  bluetooth::Uuid converted = bluetooth::Uuid::From128BitBE(uuid.uu);
+void BleScannerIntf::RegisterScanner(Uuid uuid) {
   scanner_intf_->RegisterScanner(
-      converted, base::Bind(&BleScannerIntf::OnRegisterCallback, base::Unretained(this), uuid));
+      uuid, base::Bind(&BleScannerIntf::OnRegisterCallback, base::Unretained(this), uuid));
 }
 
 void BleScannerIntf::Unregister(uint8_t scanner_id) {
@@ -223,9 +213,11 @@ void BleScannerIntf::Scan(bool start) {
 }
 
 void BleScannerIntf::ScanFilterParamSetup(
-    uint8_t scanner_id, uint8_t action, uint8_t filter_index, RustGattFilterParam filter_param) {
-  std::unique_ptr<::btgatt_filt_param_setup_t> converted =
-      std::make_unique<::btgatt_filt_param_setup_t>(std::move(internal::ConvertRustFilterParam(filter_param)));
+    uint8_t scanner_id,
+    uint8_t action,
+    uint8_t filter_index,
+    btgatt_filt_param_setup_t filter_param) {
+  auto converted = std::make_unique<::btgatt_filt_param_setup_t>(std::move(filter_param));
 
   scanner_intf_->ScanFilterParamSetup(
       scanner_id,
@@ -252,6 +244,8 @@ void BleScannerIntf::ScanFilterEnable(bool enable) {
   scanner_intf_->ScanFilterEnable(enable, base::Bind(&BleScannerIntf::OnEnableCallback, base::Unretained(this)));
 }
 
+#if TARGET_FLOSS
+
 bool BleScannerIntf::IsMsftSupported() {
   return scanner_intf_->IsMsftSupported();
 }
@@ -272,13 +266,29 @@ void BleScannerIntf::MsftAdvMonitorEnable(uint32_t call_id, bool enable) {
       enable, base::Bind(&BleScannerIntf::OnMsftAdvMonitorEnableCallback, base::Unretained(this), call_id));
 }
 
+#else
+
+bool BleScannerIntf::IsMsftSupported() {
+  return false;
+}
+void BleScannerIntf::MsftAdvMonitorAdd(uint32_t, const RustMsftAdvMonitor&) {}
+void BleScannerIntf::MsftAdvMonitorRemove(uint32_t, uint8_t) {}
+void BleScannerIntf::MsftAdvMonitorEnable(uint32_t, bool) {}
+
+#endif
+
 void BleScannerIntf::SetScanParameters(
-    uint8_t scanner_id, uint8_t scan_type, uint16_t scan_interval, uint16_t scan_window) {
+    uint8_t scanner_id,
+    uint8_t scan_type,
+    uint16_t scan_interval,
+    uint16_t scan_window,
+    uint8_t scan_phy) {
   scanner_intf_->SetScanParameters(
       scanner_id,
       scan_type,
       scan_interval,
       scan_window,
+      scan_phy,
       base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), scanner_id));
 }
 
@@ -338,7 +348,7 @@ void BleScannerIntf::SyncTxParameters(RawAddress addr, uint8_t mode, uint16_t sk
   scanner_intf_->SyncTxParameters(addr, mode, skip, timeout, 0 /* place holder */);
 }
 
-void BleScannerIntf::OnRegisterCallback(RustUuid uuid, uint8_t scanner_id, uint8_t btm_status) {
+void BleScannerIntf::OnRegisterCallback(Uuid uuid, uint8_t scanner_id, uint8_t btm_status) {
   rusty::gdscan_register_callback(uuid, scanner_id, btm_status);
 }
 
@@ -360,6 +370,7 @@ void BleScannerIntf::OnFilterConfigCallback(
   rusty::gdscan_filter_config_callback(filter_index, filt_type, avbl_space, action, btm_status);
 }
 
+#if TARGET_FLOSS
 void BleScannerIntf::OnMsftAdvMonitorAddCallback(uint32_t call_id, uint8_t monitor_handle, uint8_t status) {
   rusty::gdscan_msft_adv_monitor_add_callback(call_id, monitor_handle, status);
 }
@@ -371,6 +382,7 @@ void BleScannerIntf::OnMsftAdvMonitorRemoveCallback(uint32_t call_id, uint8_t st
 void BleScannerIntf::OnMsftAdvMonitorEnableCallback(uint32_t call_id, uint8_t status) {
   rusty::gdscan_msft_adv_monitor_enable_callback(call_id, status);
 }
+#endif
 
 void BleScannerIntf::OnPeriodicSyncStarted(
     int,

@@ -26,7 +26,7 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bluetooth"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
 #include <string.h>
@@ -332,8 +332,7 @@ static void avdt_msg_bld_cfg(uint8_t** p, AvdtpSepConfig* p_cfg) {
  * Returns          void.
  *
  ******************************************************************************/
-static void avdt_msg_bld_none(UNUSED_ATTR uint8_t** p,
-                              UNUSED_ATTR tAVDT_MSG* p_msg) {
+static void avdt_msg_bld_none(uint8_t** /* p */, tAVDT_MSG* /* p_msg */) {
   return;
 }
 
@@ -675,9 +674,8 @@ static uint8_t avdt_msg_prs_cfg(AvdtpSepConfig* p_cfg, uint8_t* p, uint16_t len,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_none(UNUSED_ATTR tAVDT_MSG* p_msg,
-                                 UNUSED_ATTR uint8_t* p,
-                                 UNUSED_ATTR uint16_t len) {
+static uint8_t avdt_msg_prs_none(tAVDT_MSG* /* p_msg */, uint8_t* /* p */,
+                                 uint16_t /* len */) {
   return 0;
 }
 
@@ -1546,7 +1544,6 @@ void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
   /* parse the message header */
   AVDT_MSG_PRS_HDR(p, label, pkt_type, msg_type);
 
-  log::verbose("msg_type={}, sig={}", msg_type, sig);
   /* set up label and ccb_idx in message hdr */
   msg.hdr.label = label;
   msg.hdr.ccb_idx = avdt_ccb_to_idx(p_ccb);
@@ -1581,6 +1578,8 @@ void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
       }
     }
   }
+
+  log::verbose("msg_type={}, sig={}", msg_type, sig);
 
   if (ok && !gen_rej) {
     /* skip over header (msg length already verified during reassembly) */

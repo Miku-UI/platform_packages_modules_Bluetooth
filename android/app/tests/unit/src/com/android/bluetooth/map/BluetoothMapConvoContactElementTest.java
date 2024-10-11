@@ -26,11 +26,12 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.SignedLongLong;
 
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 import org.xmlpull.v1.XmlSerializer;
@@ -53,28 +54,31 @@ public class BluetoothMapConvoContactElementTest {
 
     private final SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
 
-    @Mock
-    private MapContact mMapContact;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Before
-    public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
-    }
+    @Mock private MapContact mMapContact;
 
     @Test
     public void constructorWithArguments() {
         BluetoothMapConvoContactElement contactElement =
-                new BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, TEST_PRIORITY, TEST_BT_UID);
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        TEST_PRIORITY,
+                        TEST_BT_UID);
 
         assertThat(contactElement.getContactId()).isEqualTo(TEST_UCI);
         assertThat(contactElement.getName()).isEqualTo(TEST_NAME);
         assertThat(contactElement.getDisplayName()).isEqualTo(TEST_DISPLAY_NAME);
         assertThat(contactElement.getPresenceStatus()).isEqualTo(TEST_PRESENCE_STATUS);
         assertThat(contactElement.getPresenceAvailability()).isEqualTo(TEST_PRESENCE_AVAILABILITY);
-        assertThat(contactElement.getLastActivityString()).isEqualTo(
-                format.format(TEST_LAST_ACTIVITY));
+        assertThat(contactElement.getLastActivityString())
+                .isEqualTo(format.format(TEST_LAST_ACTIVITY));
         assertThat(contactElement.getChatState()).isEqualTo(TEST_CHAT_STATE);
         assertThat(contactElement.getPriority()).isEqualTo(TEST_PRIORITY);
         assertThat(contactElement.getBtUid()).isEqualTo(TEST_BT_UID);
@@ -111,8 +115,8 @@ public class BluetoothMapConvoContactElementTest {
         assertThat(contactElement.getDisplayName()).isEqualTo(TEST_DISPLAY_NAME);
         assertThat(contactElement.getPresenceStatus()).isEqualTo(TEST_PRESENCE_STATUS);
         assertThat(contactElement.getPresenceAvailability()).isEqualTo(TEST_PRESENCE_AVAILABILITY);
-        assertThat(contactElement.getLastActivityString()).isEqualTo(
-                format.format(TEST_LAST_ACTIVITY));
+        assertThat(contactElement.getLastActivityString())
+                .isEqualTo(format.format(TEST_LAST_ACTIVITY));
         assertThat(contactElement.getChatState()).isEqualTo(TEST_CHAT_STATE);
         assertThat(contactElement.getPriority()).isEqualTo(TEST_PRIORITY);
         assertThat(contactElement.getBtUid()).isEqualTo(TEST_BT_UID);
@@ -120,10 +124,17 @@ public class BluetoothMapConvoContactElementTest {
 
     @Test
     public void encodeToXml_thenDecodeToInstance_returnsCorrectly() throws Exception {
-        BluetoothMapConvoContactElement contactElement = new
-                BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, TEST_PRIORITY, TEST_BT_UID);
+        BluetoothMapConvoContactElement contactElement =
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        TEST_PRIORITY,
+                        TEST_BT_UID);
 
         final XmlSerializer serializer = Xml.newSerializer();
         final StringWriter writer = new StringWriter();
@@ -148,10 +159,10 @@ public class BluetoothMapConvoContactElementTest {
         assertThat(contactElementFromXml.getName()).isEqualTo(TEST_NAME);
         assertThat(contactElementFromXml.getDisplayName()).isEqualTo(TEST_DISPLAY_NAME);
         assertThat(contactElementFromXml.getPresenceStatus()).isEqualTo(TEST_PRESENCE_STATUS);
-        assertThat(contactElementFromXml.getPresenceAvailability()).isEqualTo(
-                TEST_PRESENCE_AVAILABILITY);
-        assertThat(contactElementFromXml.getLastActivityString()).isEqualTo(
-                format.format(TEST_LAST_ACTIVITY));
+        assertThat(contactElementFromXml.getPresenceAvailability())
+                .isEqualTo(TEST_PRESENCE_AVAILABILITY);
+        assertThat(contactElementFromXml.getLastActivityString())
+                .isEqualTo(format.format(TEST_LAST_ACTIVITY));
         assertThat(contactElementFromXml.getChatState()).isEqualTo(TEST_CHAT_STATE);
         assertThat(contactElementFromXml.getPriority()).isEqualTo(TEST_PRIORITY);
         assertThat(contactElementFromXml.getBtUid()).isEqualTo(TEST_BT_UID);
@@ -160,14 +171,28 @@ public class BluetoothMapConvoContactElementTest {
     @Test
     public void equalsWithSameValues_returnsTrue() {
         BluetoothMapConvoContactElement contactElement =
-                new BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, TEST_PRIORITY, TEST_BT_UID);
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        TEST_PRIORITY,
+                        TEST_BT_UID);
 
         BluetoothMapConvoContactElement contactElementEqual =
-                new BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, TEST_PRIORITY, TEST_BT_UID);
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        TEST_PRIORITY,
+                        TEST_BT_UID);
 
         assertThat(contactElement).isEqualTo(contactElementEqual);
     }
@@ -175,14 +200,28 @@ public class BluetoothMapConvoContactElementTest {
     @Test
     public void equalsWithDifferentPriority_returnsFalse() {
         BluetoothMapConvoContactElement contactElement =
-                new BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, TEST_PRIORITY, TEST_BT_UID);
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        TEST_PRIORITY,
+                        TEST_BT_UID);
 
         BluetoothMapConvoContactElement contactElementWithDifferentPriority =
-                new BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, /*priority=*/0, TEST_BT_UID);
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        /* priority= */ 0,
+                        TEST_BT_UID);
 
         assertThat(contactElement).isNotEqualTo(contactElementWithDifferentPriority);
     }
@@ -190,14 +229,28 @@ public class BluetoothMapConvoContactElementTest {
     @Test
     public void compareTo_withSameValues_returnsZero() {
         BluetoothMapConvoContactElement contactElement =
-                new BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, TEST_PRIORITY, TEST_BT_UID);
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        TEST_PRIORITY,
+                        TEST_BT_UID);
 
         BluetoothMapConvoContactElement contactElementSameLastActivity =
-                new BluetoothMapConvoContactElement(TEST_UCI, TEST_NAME, TEST_DISPLAY_NAME,
-                TEST_PRESENCE_STATUS, TEST_PRESENCE_AVAILABILITY, TEST_LAST_ACTIVITY,
-                TEST_CHAT_STATE, TEST_PRIORITY, TEST_BT_UID);
+                new BluetoothMapConvoContactElement(
+                        TEST_UCI,
+                        TEST_NAME,
+                        TEST_DISPLAY_NAME,
+                        TEST_PRESENCE_STATUS,
+                        TEST_PRESENCE_AVAILABILITY,
+                        TEST_LAST_ACTIVITY,
+                        TEST_CHAT_STATE,
+                        TEST_PRIORITY,
+                        TEST_BT_UID);
 
         assertThat(contactElement.compareTo(contactElementSameLastActivity)).isEqualTo(0);
     }

@@ -24,19 +24,17 @@
 
 #define LOG_TAG "rfcomm_port_utils"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
 #include <cstring>
 
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/mutex.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/l2cdefs.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_int.h"
 #include "types/raw_address.h"
@@ -90,13 +88,11 @@ tPORT* port_allocate_port(uint8_t dlci, const RawAddress& bd_addr) {
       rfc_cb.rfc.last_port_index = port_index;
       log::verbose(
           "rfc_cb.port.port[{}]:{} chosen, last_port_index:{}, bd_addr={}",
-          port_index, fmt::ptr(p_port), rfc_cb.rfc.last_port_index,
-          ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+          port_index, fmt::ptr(p_port), rfc_cb.rfc.last_port_index, bd_addr);
       return p_port;
     }
   }
-  log::warn("running out of free ports for dlci {}, bd_addr {}", dlci,
-            ADDRESS_TO_LOGGABLE_STR(bd_addr));
+  log::warn("running out of free ports for dlci {}, bd_addr {}", dlci, bd_addr);
   return nullptr;
 }
 
@@ -112,7 +108,6 @@ void port_set_defaults(tPORT* p_port) {
   p_port->ev_mask = 0;
   p_port->p_callback = nullptr;
   p_port->port_ctrl = 0;
-  p_port->error = 0;
   p_port->line_status = 0;
   p_port->rx_flag_ev_pending = false;
   p_port->peer_mtu = RFCOMM_DEFAULT_MTU;
@@ -153,8 +148,7 @@ void port_select_mtu(tPORT* p_port) {
         get_btm_client_interface().peer.BTM_GetMaxPacketSize(p_port->bd_addr);
     if (packet_size == 0) {
       /* something is very wrong */
-      log::warn("bad packet size 0 for{}",
-                ADDRESS_TO_LOGGABLE_STR(p_port->bd_addr));
+      log::warn("bad packet size 0 for{}", p_port->bd_addr);
       p_port->mtu = RFCOMM_DEFAULT_MTU;
     } else {
       /* We try to negotiate MTU that each packet can be split into whole
@@ -288,13 +282,12 @@ tRFC_MCB* port_find_mcb(const RawAddress& bd_addr) {
   for (tRFC_MCB& mcb : rfc_cb.port.rfc_mcb) {
     if ((mcb.state != RFC_MX_STATE_IDLE) && (mcb.bd_addr == bd_addr)) {
       /* Multiplexer channel found do not change anything */
-      log::verbose("found, bd_addr:{}, rfc_mcb:{}, lcid:{}",
-                   ADDRESS_TO_LOGGABLE_CSTR(bd_addr), fmt::ptr(&mcb),
-                   loghex(mcb.lcid));
+      log::verbose("found, bd_addr:{}, rfc_mcb:{}, lcid:0x{:x}", bd_addr,
+                   fmt::ptr(&mcb), mcb.lcid);
       return &mcb;
     }
   }
-  log::warn("not found, bd_addr:{}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+  log::warn("not found, bd_addr:{}", bd_addr);
   return nullptr;
 }
 
@@ -318,7 +311,7 @@ tPORT* port_find_mcb_dlci_port(tRFC_MCB* p_mcb, uint8_t dlci) {
 
   if (dlci > RFCOMM_MAX_DLCI) {
     log::warn("DLCI {} is too large, bd_addr={}, p_mcb={}", dlci,
-              ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr), fmt::ptr(p_mcb));
+              p_mcb->bd_addr, fmt::ptr(p_mcb));
     return nullptr;
   }
 
@@ -326,7 +319,7 @@ tPORT* port_find_mcb_dlci_port(tRFC_MCB* p_mcb, uint8_t dlci) {
   if (handle == 0) {
     log::info(
         "Cannot find allocated RFCOMM app port for DLCI {} on {}, p_mcb={}",
-        dlci, ADDRESS_TO_LOGGABLE_STR(p_mcb->bd_addr), fmt::ptr(p_mcb));
+        dlci, p_mcb->bd_addr, fmt::ptr(p_mcb));
     return nullptr;
   }
   return &rfc_cb.port.port[handle - 1];

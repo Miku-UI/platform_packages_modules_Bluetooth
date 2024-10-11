@@ -20,6 +20,7 @@
  *  This file contains action functions for SDP search.
  ******************************************************************************/
 
+#include <base/functional/bind.h>
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <hardware/bt_sdp.h>
@@ -550,8 +551,8 @@ static void bta_create_raw_sdp_record(bluetooth_sdp_record* record,
 }
 
 /** Callback from btm after search is completed */
-static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
-                                 tSDP_RESULT result, const void* user_data) {
+static void bta_sdp_search_cback(Uuid uuid, const RawAddress& /* bd_addr */,
+                                 tSDP_RESULT result) {
   tBTA_SDP_STATUS status = BTA_SDP_FAILURE;
   int count = 0;
   log::verbose("res: 0x{:x}", result);
@@ -559,8 +560,6 @@ static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
   bta_sdp_cb.sdp_active = false;
 
   if (bta_sdp_cb.p_dm_cback == NULL) return;
-
-  Uuid& uuid = *(reinterpret_cast<Uuid*>(const_cast<void*>(user_data)));
 
   tBTA_SDP_SEARCH_COMP evt_data;
   memset(&evt_data, 0, sizeof(evt_data));
@@ -599,8 +598,10 @@ static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
         if (p_rec != NULL) {
           uint16_t peer_pce_version = 0;
 
-          get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
-              p_rec, UUID_SERVCLASS_PHONE_ACCESS, &peer_pce_version);
+          if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+                  p_rec, UUID_SERVCLASS_PHONE_ACCESS, &peer_pce_version)) {
+            log::warn("Unable to find PBAP profile version in SDP record");
+          }
           if (peer_pce_version != 0) {
             btif_storage_set_pce_profile_version(p_rec->remote_bd_addr,
                                                  peer_pce_version);
@@ -634,8 +635,6 @@ static void bta_sdp_search_cback(UNUSED_ATTR const RawAddress& bd_addr,
   bta_sdp_cb.p_dm_cback(BTA_SDP_SEARCH_COMP_EVT, &bta_sdp, (void*)&uuid);
   bluetooth::shim::CountCounterMetrics(
       android::bluetooth::CodePathCounterKeyEnum::SDP_SUCCESS, 1);
-  osi_free(const_cast<void*>(
-      user_data));  // We no longer need the user data to track the search
 }
 
 /*******************************************************************************
@@ -691,14 +690,17 @@ void bta_sdp_search(const RawAddress bd_addr, const bluetooth::Uuid uuid) {
 
   /* initialize the search for the uuid */
   log::verbose("init discovery with UUID: {}", uuid.ToString());
-  get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
-      p_bta_sdp_cfg->p_sdp_db, p_bta_sdp_cfg->sdp_db_size, 1, &uuid, 0, NULL);
+  if (!get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
+          p_bta_sdp_cfg->p_sdp_db, p_bta_sdp_cfg->sdp_db_size, 1, &uuid, 0,
+          NULL)) {
+    log::warn("Unable to initialize SDP service search db peer:{}", bd_addr);
+  }
 
-  Uuid* bta_sdp_search_uuid = (Uuid*)osi_malloc(sizeof(Uuid));
-  *bta_sdp_search_uuid = uuid;
   if (!get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
-          bd_addr, p_bta_sdp_cfg->p_sdp_db, bta_sdp_search_cback,
-          (void*)bta_sdp_search_uuid)) {
+          bd_addr, p_bta_sdp_cfg->p_sdp_db,
+          base::BindRepeating(bta_sdp_search_cback, uuid))) {
+    log::warn("Unable to start SDP service search attribute request peer:{}",
+              bd_addr);
     bta_sdp_cb.sdp_active = false;
 
     /* failed to start SDP. report the failure right away */
@@ -756,9 +758,9 @@ void bta_create_dip_sdp_record(bluetooth_sdp_record* record,
   ::bta_create_dip_sdp_record(record, p_rec);
 }
 
-void bta_sdp_search_cback(const RawAddress& bd_addr, tSDP_RESULT result,
-                          const void* user_data) {
-  ::bta_sdp_search_cback(bd_addr, result, user_data);
+void bta_sdp_search_cback(Uuid uuid, const RawAddress& bd_addr,
+                          tSDP_RESULT result) {
+  ::bta_sdp_search_cback(uuid, bd_addr, result);
 }
 
 }  // namespace testing

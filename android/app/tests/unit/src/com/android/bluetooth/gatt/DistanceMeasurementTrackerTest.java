@@ -34,19 +34,21 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.UUID;
 
-/**
- * Test cases for {@link DistanceMeasurementTracker}.
- */
+/** Test cases for {@link DistanceMeasurementTracker}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class DistanceMeasurementTrackerTest {
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private DistanceMeasurementManager mDistanceMeasurementManager;
     @Mock private IDistanceMeasurementCallback mCallback;
     private DistanceMeasurementTracker mTracker;
@@ -61,16 +63,22 @@ public class DistanceMeasurementTrackerTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         mUuid = UUID.randomUUID();
         mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(IDENTITY_ADDRESS);
-        mParams = new DistanceMeasurementParams.Builder(mDevice)
-                .setDurationSeconds(TIMEOUT_S)
-                .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
-                .setMethodId(mMethod)
-                .build();
-        mTracker = new DistanceMeasurementTracker(
-                mDistanceMeasurementManager, mParams, IDENTITY_ADDRESS, mUuid, 1000, mCallback);
+        mParams =
+                new DistanceMeasurementParams.Builder(mDevice)
+                        .setDurationSeconds(TIMEOUT_S)
+                        .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
+                        .setMethodId(mMethod)
+                        .build();
+        mTracker =
+                new DistanceMeasurementTracker(
+                        mDistanceMeasurementManager,
+                        mParams,
+                        IDENTITY_ADDRESS,
+                        mUuid,
+                        1000,
+                        mCallback);
         mHandlerThread = new HandlerThread("DistanceMeasurementTrackerTestHandlerThread");
         mHandlerThread.start();
     }
@@ -92,21 +100,33 @@ public class DistanceMeasurementTrackerTest {
     public void testCancelTimer() {
         mTracker.startTimer(mHandlerThread.getLooper());
         mTracker.cancelTimer();
-        verify(mDistanceMeasurementManager, after(TIMEOUT_MS).never()).stopDistanceMeasurement(
-                mUuid, mDevice, mMethod, true);
+        verify(mDistanceMeasurementManager, after(TIMEOUT_MS).never())
+                .stopDistanceMeasurement(mUuid, mDevice, mMethod, true);
     }
 
     @Test
     public void testEquals() {
-        DistanceMeasurementTracker tracker = new DistanceMeasurementTracker(
-                mDistanceMeasurementManager, mParams, IDENTITY_ADDRESS, mUuid, 1000, mCallback);
+        DistanceMeasurementTracker tracker =
+                new DistanceMeasurementTracker(
+                        mDistanceMeasurementManager,
+                        mParams,
+                        IDENTITY_ADDRESS,
+                        mUuid,
+                        1000,
+                        mCallback);
         assertThat(mTracker.equals(tracker)).isTrue();
     }
 
     @Test
     public void testHashCode() {
-        DistanceMeasurementTracker tracker = new DistanceMeasurementTracker(
-                mDistanceMeasurementManager, mParams, IDENTITY_ADDRESS, mUuid, 1000, mCallback);
+        DistanceMeasurementTracker tracker =
+                new DistanceMeasurementTracker(
+                        mDistanceMeasurementManager,
+                        mParams,
+                        IDENTITY_ADDRESS,
+                        mUuid,
+                        1000,
+                        mCallback);
         assertThat(mTracker.hashCode()).isEqualTo(tracker.hashCode());
     }
 }

@@ -25,6 +25,7 @@
 
 #include <cstdint>
 
+#include "hci/le_rand_callback.h"
 #include "test/common/mock_functions.h"
 
 // Original usings
@@ -44,7 +45,6 @@ struct BTA_DmBleConfigLocalPrivacy BTA_DmBleConfigLocalPrivacy;
 struct BTA_DmBleConfirmReply BTA_DmBleConfirmReply;
 struct BTA_DmBleCsisObserve BTA_DmBleCsisObserve;
 struct BTA_DmBleGetEnergyInfo BTA_DmBleGetEnergyInfo;
-struct BTA_DmBleObserve BTA_DmBleObserve;
 struct BTA_DmBlePasskeyReply BTA_DmBlePasskeyReply;
 struct BTA_DmBleRequestMaxTxDataLength BTA_DmBleRequestMaxTxDataLength;
 struct BTA_DmBleResetId BTA_DmBleResetId;
@@ -58,7 +58,6 @@ struct BTA_DmCheckLeAudioCapable BTA_DmCheckLeAudioCapable;
 struct BTA_DmClearEventFilter BTA_DmClearEventFilter;
 struct BTA_DmClearEventMask BTA_DmClearEventMask;
 struct BTA_DmClearFilterAcceptList BTA_DmClearFilterAcceptList;
-struct BTA_DmCloseACL BTA_DmCloseACL;
 struct BTA_DmConfirm BTA_DmConfirm;
 struct BTA_DmDisconnectAllAcls BTA_DmDisconnectAllAcls;
 struct BTA_DmDiscover BTA_DmDiscover;
@@ -82,8 +81,6 @@ struct BTA_DmSetLocalDiRecord BTA_DmSetLocalDiRecord;
 struct BTA_DmSirkConfirmDeviceReply BTA_DmSirkConfirmDeviceReply;
 struct BTA_DmSirkSecCbRegister BTA_DmSirkSecCbRegister;
 struct BTA_EnableTestMode BTA_EnableTestMode;
-struct BTA_GetEirService BTA_GetEirService;
-struct BTA_VendorInit BTA_VendorInit;
 struct BTA_dm_init BTA_dm_init;
 
 }  // namespace bta_dm_api
@@ -144,11 +141,6 @@ void BTA_DmBleCsisObserve(bool observe, tBTA_DM_SEARCH_CBACK* p_results_cb) {
 void BTA_DmBleGetEnergyInfo(tBTA_BLE_ENERGY_INFO_CBACK* p_cmpl_cback) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_api::BTA_DmBleGetEnergyInfo(p_cmpl_cback);
-}
-void BTA_DmBleObserve(bool start, uint8_t duration,
-                      tBTA_DM_SEARCH_CBACK* p_results_cb) {
-  inc_func_call_count(__func__);
-  test::mock::bta_dm_api::BTA_DmBleObserve(start, duration, p_results_cb);
 }
 void BTA_DmBlePasskeyReply(const RawAddress& bd_addr, bool accept,
                            uint32_t passkey) {
@@ -213,11 +205,6 @@ void BTA_DmClearFilterAcceptList(void) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_api::BTA_DmClearFilterAcceptList();
 }
-void BTA_DmCloseACL(const RawAddress& bd_addr, bool remove_dev,
-                    tBT_TRANSPORT transport) {
-  inc_func_call_count(__func__);
-  test::mock::bta_dm_api::BTA_DmCloseACL(bd_addr, remove_dev, transport);
-}
 void BTA_DmConfirm(const RawAddress& bd_addr, bool accept) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_api::BTA_DmConfirm(bd_addr, accept);
@@ -235,7 +222,7 @@ bool BTA_DmGetConnectionState(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   return test::mock::bta_dm_api::BTA_DmGetConnectionState(bd_addr);
 }
-void BTA_DmLeRand(LeRandCallback cb) {
+void BTA_DmLeRand(bluetooth::hci::LeRandCallback cb) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_api::BTA_DmLeRand(std::move(cb));
 }
@@ -314,15 +301,6 @@ void BTA_DmSirkSecCbRegister(tBTA_DM_SEC_CBACK* p_cback) {
 void BTA_EnableTestMode(void) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_api::BTA_EnableTestMode();
-}
-void BTA_GetEirService(const uint8_t* p_eir, size_t eir_len,
-                       tBTA_SERVICE_MASK* p_services) {
-  inc_func_call_count(__func__);
-  test::mock::bta_dm_api::BTA_GetEirService(p_eir, eir_len, p_services);
-}
-void BTA_VendorInit(void) {
-  inc_func_call_count(__func__);
-  test::mock::bta_dm_api::BTA_VendorInit();
 }
 void BTA_dm_init() {
   inc_func_call_count(__func__);

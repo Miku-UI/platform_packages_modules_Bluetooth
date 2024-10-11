@@ -18,20 +18,28 @@
 
 package com.android.server.bluetooth
 
+import android.app.AlarmManager
+import android.app.BroadcastOptions
+import android.bluetooth.BluetoothAdapter.ACTION_AUTO_ON_STATE_CHANGED
+import android.bluetooth.BluetoothAdapter.AUTO_ON_STATE_DISABLED
+import android.bluetooth.BluetoothAdapter.AUTO_ON_STATE_ENABLED
+import android.bluetooth.BluetoothAdapter.EXTRA_AUTO_ON_STATE
 import android.bluetooth.BluetoothAdapter.STATE_ON
 import android.content.BroadcastReceiver
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.database.ContentObserver
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import androidx.annotation.VisibleForTesting
 import com.android.modules.expresslog.Counter
 import com.android.server.bluetooth.airplane.hasUserToggledApm as hasUserToggledApm
-import com.android.server.bluetooth.airplane.isOn as isAirplaneModeOn
+import com.android.server.bluetooth.airplane.isOnOverrode as isAirplaneModeOn
 import com.android.server.bluetooth.satellite.isOn as isSatelliteModeOn
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -89,14 +97,22 @@ public fun pause() {
     timer = null
 }
 
-public fun notifyBluetoothOn(resolver: ContentResolver) {
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+public fun notifyBluetoothOn(context: Context) {
     timer?.cancel()
     timer = null
 
-    if (!isFeatureSupportedForUser(resolver)) {
+    if (!isFeatureSupportedForUser(context.contentResolver)) {
         val defaultFeatureValue = true
-        Log.i(TAG, "Feature was set to its default value ${defaultFeatureValue}")
-        setFeatureEnabledForUserUnchecked(resolver, defaultFeatureValue)
+        if (!setFeatureEnabledForUserUnchecked(context, defaultFeatureValue)) {
+            Log.e(TAG, "Failed to set feature to its default value ${defaultFeatureValue}")
+        } else {
+            Log.i(TAG, "Feature was set to its default value ${defaultFeatureValue}")
+        }
+    } else {
+        // When Bluetooth turned on state, any saved time will be obsolete.
+        // This happen only when the phone reboot while Bluetooth is ON
+        Timer.resetStorage(context.contentResolver)
     }
 }
 
@@ -109,6 +125,7 @@ public fun isUserEnabled(context: Context): Boolean {
     return isFeatureEnabledForUser(context.contentResolver)
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 public fun setUserEnabled(
     looper: Looper,
     context: Context,
@@ -119,21 +136,14 @@ public fun setUserEnabled(
     if (!isUserSupported(context.contentResolver)) {
         throw IllegalStateException("AutoOnFeature not supported for user: ${context.getUser()}")
     }
-    setFeatureEnabledForUserUnchecked(context.contentResolver, status)
+    if (!setFeatureEnabledForUserUnchecked(context, status)) {
+        throw IllegalStateException("AutoOnFeature database failure for user: ${context.getUser()}")
+    }
     Counter.logIncrement(
         if (status) "bluetooth.value_auto_on_enabled" else "bluetooth.value_auto_on_disabled"
     )
+    Timer.resetStorage(context.contentResolver)
     resetAutoOnTimerForUser(looper, context, state, callback_on)
-}
-
-// Listener is needed because code should be actionable prior to V API release
-public fun registerHiddenApiListener(
-    looper: Looper,
-    context: Context,
-    state: BluetoothAdapterState,
-    callback_on: () -> Unit
-) {
-    HiddenApiListener.registerUser(looper, context, state, callback_on)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,24 +158,23 @@ private constructor(
     looper: Looper,
     private val context: Context,
     private val receiver: BroadcastReceiver,
-    callback_on: () -> Unit,
+    private val callback_on: () -> Unit,
     private val now: LocalDateTime,
     private val target: LocalDateTime,
     private val timeToSleep: Duration
-) {
+) : AlarmManager.OnAlarmListener {
+    private val alarmManager: AlarmManager = context.getSystemService(AlarmManager::class.java)!!
+
     private val handler = Handler(looper)
 
     init {
         writeDateToStorage(target, context.contentResolver)
-        handler.postDelayed(
-            {
-                Log.i(TAG, "[${this}]: Bluetooth restarting now")
-                callback_on()
-                cancel()
-                // Set global instance to null to prevent further action. Job is done here
-                timer = null
-            },
-            timeToSleep.inWholeMilliseconds
+        alarmManager.set(
+            AlarmManager.ELAPSED_REALTIME,
+            SystemClock.elapsedRealtime() + timeToSleep.inWholeMilliseconds,
+            "Bluetooth AutoOnFeature",
+            this,
+            handler
         )
         Log.i(TAG, "[${this}]: Scheduling next Bluetooth restart")
 
@@ -181,6 +190,13 @@ private constructor(
         )
     }
 
+    override fun onAlarm() {
+        Log.i(TAG, "[${this}]: Bluetooth restarting now")
+        callback_on()
+        cancel()
+        timer = null
+    }
+
     companion object {
         @VisibleForTesting internal val STORAGE_KEY = "bluetooth_internal_automatic_turn_on_timer"
 
@@ -193,7 +209,7 @@ private constructor(
             return date?.let { LocalDateTime.parse(it) }
         }
 
-        private fun resetStorage(resolver: ContentResolver) {
+        fun resetStorage(resolver: ContentResolver) {
             Settings.Secure.putString(resolver, STORAGE_KEY, null)
         }
 
@@ -227,6 +243,7 @@ private constructor(
     internal fun pause() {
         Log.i(TAG, "[${this}]: Pausing timer")
         context.unregisterReceiver(receiver)
+        alarmManager.cancel(this)
         handler.removeCallbacksAndMessages(null)
     }
 
@@ -235,11 +252,13 @@ private constructor(
     internal fun cancel() {
         Log.i(TAG, "[${this}]: Cancelling timer")
         context.unregisterReceiver(receiver)
+        alarmManager.cancel(this)
         handler.removeCallbacksAndMessages(null)
         resetStorage(context.contentResolver)
     }
 
-    override fun toString() = "Timer scheduled ${now} for target=${target} (=${timeToSleep} delay)."
+    override fun toString() =
+        "Timer was scheduled at ${now} and should expire at ${target}. (sleep for ${timeToSleep})."
 }
 
 @VisibleForTesting internal val USER_SETTINGS_KEY = "bluetooth_automatic_turn_on"
@@ -267,82 +286,23 @@ private fun isFeatureSupportedForUser(resolver: ContentResolver): Boolean {
  *
  * @return whether the auto on feature is enabled for this user
  */
-private fun setFeatureEnabledForUserUnchecked(resolver: ContentResolver, status: Boolean) {
-    Settings.Secure.putInt(resolver, USER_SETTINGS_KEY, if (status) 1 else 0)
-}
-
-// Listener is needed because code should be actionable prior to V API release
-@VisibleForTesting
-internal class HiddenApiListener
-private constructor(
-    looper: Looper,
-    private val context: Context,
-    state: BluetoothAdapterState,
-    callback_on: () -> Unit
-) {
-    companion object {
-        @VisibleForTesting internal var listener: HiddenApiListener? = null
-
-        fun registerUser(
-            looper: Looper,
-            context: Context,
-            state: BluetoothAdapterState,
-            callback_on: () -> Unit
-        ) {
-            // Remove observer on previous user
-            listener?.remove()
-            listener = HiddenApiListener(looper, context, state, callback_on)
-        }
-    }
-
-    private val handler = Handler(looper)
-
-    private val observer =
-        object : ContentObserver(handler) {
-            override fun onChange(selfChange: Boolean) {
-                var previousState = featureState
-                var newState =
-                    Settings.Secure.getInt(context.contentResolver, USER_SETTINGS_KEY, -1)
-                featureState = newState
-
-                if (previousState == newState) {
-                    Log.d(TAG, "HiddenApi: State is unchanged: ${newState}")
-                    return
-                }
-
-                if (previousState == -1) {
-                    Log.d(TAG, "HiddenApi: Feature default state got setup to ${newState}")
-                    return
-                }
-
-                Log.d(TAG, "HiddenApi: Feature state change from ${previousState} to ${newState}")
-
-                Counter.logIncrement("bluetooth.value_auto_on_hidden_usage")
-                Counter.logIncrement(
-                    if (newState == 1) "bluetooth.value_auto_on_enabled"
-                    else "bluetooth.value_auto_on_disabled"
-                )
-
-                resetAutoOnTimerForUser(looper, context, state, callback_on)
-            }
-        }
-
-    private var featureState =
-        Settings.Secure.getInt(context.contentResolver, USER_SETTINGS_KEY, -1)
-
-    init {
-        val notifyForDescendants = false
-
-        context.contentResolver.registerContentObserver(
-            Settings.Secure.getUriFor(USER_SETTINGS_KEY),
-            notifyForDescendants,
-            observer
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+private fun setFeatureEnabledForUserUnchecked(context: Context, status: Boolean): Boolean {
+    val ret =
+        Settings.Secure.putInt(context.contentResolver, USER_SETTINGS_KEY, if (status) 1 else 0)
+    if (ret) {
+        context.sendBroadcast(
+            Intent(ACTION_AUTO_ON_STATE_CHANGED)
+                .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY)
+                .putExtra(
+                    EXTRA_AUTO_ON_STATE,
+                    if (status) AUTO_ON_STATE_ENABLED else AUTO_ON_STATE_DISABLED
+                ),
+            android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+            BroadcastOptions.makeBasic()
+                .setDeferralPolicy(BroadcastOptions.DEFERRAL_POLICY_UNTIL_ACTIVE)
+                .toBundle(),
         )
     }
-
-    @VisibleForTesting
-    internal fun remove() {
-        context.contentResolver.unregisterContentObserver(observer)
-        handler.removeCallbacksAndMessages(null)
-    }
+    return ret
 }

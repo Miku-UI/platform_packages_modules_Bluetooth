@@ -34,18 +34,22 @@ import android.bluetooth.le.ScanFilter;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.Collections;
 import java.util.List;
 
 @RunWith(JUnit4.class)
 public class BleBroadcastAssistantBinderTest {
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private BassClientService mService;
 
@@ -54,7 +58,6 @@ public class BleBroadcastAssistantBinderTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mBinder = new BassClientService.BluetoothLeBroadcastAssistantBinder(mService);
         mAdapter = BluetoothAdapter.getDefaultAdapter();
     }
@@ -80,17 +83,17 @@ public class BleBroadcastAssistantBinderTest {
 
     @Test
     public void getDevicesMatchingConnectionStates() {
-        int[] states = new int[] { STATE_DISCONNECTED };
+        int[] states = new int[] {STATE_DISCONNECTED};
         mBinder.getDevicesMatchingConnectionStates(states);
         verify(mService).getDevicesMatchingConnectionStates(states);
 
         doThrow(new RuntimeException()).when(mService).getDevicesMatchingConnectionStates(states);
-        assertThat(mBinder.getDevicesMatchingConnectionStates(states)).isEqualTo(
-                Collections.emptyList());
+        assertThat(mBinder.getDevicesMatchingConnectionStates(states))
+                .isEqualTo(Collections.emptyList());
 
         mBinder.cleanup();
-        assertThat(mBinder.getDevicesMatchingConnectionStates(states)).isEqualTo(
-                Collections.emptyList());
+        assertThat(mBinder.getDevicesMatchingConnectionStates(states))
+                .isEqualTo(Collections.emptyList());
     }
 
     @Test
@@ -111,7 +114,8 @@ public class BleBroadcastAssistantBinderTest {
         mBinder.setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
         verify(mService).setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
 
-        doThrow(new RuntimeException()).when(mService)
+        doThrow(new RuntimeException())
+                .when(mService)
                 .setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
         assertThat(mBinder.setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
                 .isFalse();
@@ -172,7 +176,7 @@ public class BleBroadcastAssistantBinderTest {
 
     @Test
     public void startSearchingForSources() {
-        List<ScanFilter> filters =  Collections.EMPTY_LIST;
+        List<ScanFilter> filters = Collections.EMPTY_LIST;
         mBinder.startSearchingForSources(filters);
         verify(mService).startSearchingForSources(filters);
 

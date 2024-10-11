@@ -24,7 +24,6 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -32,7 +31,6 @@
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_api.h"
@@ -52,7 +50,7 @@ using namespace bluetooth;
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hf_client_port_cback(UNUSED_ATTR uint32_t code,
+static void bta_hf_client_port_cback(uint32_t /* code */,
                                      uint16_t port_handle) {
   /* ignore port events for port handles other than connected handle */
   tBTA_HF_CLIENT_CB* client_cb =
@@ -79,7 +77,8 @@ static void bta_hf_client_port_cback(UNUSED_ATTR uint32_t code,
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
+static void bta_hf_client_mgmt_cback(const tPORT_RESULT code,
+                                     uint16_t port_handle) {
   tBTA_HF_CLIENT_CB* client_cb =
       bta_hf_client_find_cb_by_rfc_handle(port_handle);
 
@@ -120,7 +119,11 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
       if (client_cb == NULL) {
         log::error("error allocating a new handle");
         p_buf->hdr.event = BTA_HF_CLIENT_RFC_CLOSE_EVT;
-        RFCOMM_RemoveConnection(port_handle);
+        if (RFCOMM_RemoveConnection(port_handle) != PORT_SUCCESS) {
+          log::warn("Unable to remote RFCOMM server connection handle:{}",
+                    port_handle);
+        }
+
       } else {
         // Set the connection fields for this new CB
         client_cb->conn_handle = port_handle;
@@ -139,9 +142,12 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
   } else if (client_cb != NULL &&
              port_handle == client_cb->conn_handle) { /* code != PORT_SUC */
     log::error("closing port handle {} dev {}", port_handle,
-               ADDRESS_TO_LOGGABLE_STR(client_cb->peer_addr));
+               client_cb->peer_addr);
 
-    RFCOMM_RemoveServer(port_handle);
+    if (RFCOMM_RemoveServer(port_handle) != PORT_SUCCESS) {
+      log::warn("Unable to remote RFCOMM server connection handle:{}",
+                port_handle);
+    }
     p_buf->hdr.event = BTA_HF_CLIENT_RFC_CLOSE_EVT;
   } else if (client_cb == NULL) {
     // client_cb is already cleaned due to hfp client disabled.
@@ -164,8 +170,10 @@ static void bta_hf_client_mgmt_cback(uint32_t code, uint16_t port_handle) {
  *
  ******************************************************************************/
 void bta_hf_client_setup_port(uint16_t handle) {
-  PORT_SetEventMask(handle, PORT_EV_RXCHAR);
-  PORT_SetEventCallback(handle, bta_hf_client_port_cback);
+  if (PORT_SetEventMaskAndCallback(handle, PORT_EV_RXCHAR,
+                                   bta_hf_client_port_cback) != PORT_SUCCESS) {
+    log::warn("Unable to set RFCOMM event mask and callbackhandle:{}", handle);
+  }
 }
 
 /*******************************************************************************
@@ -220,7 +228,10 @@ void bta_hf_client_close_server() {
     return;
   }
 
-  RFCOMM_RemoveServer(bta_hf_client_cb_arr.serv_handle);
+  if (RFCOMM_RemoveServer(bta_hf_client_cb_arr.serv_handle) != PORT_SUCCESS) {
+    log::warn("Unable to remove RFCOMM servier handle:{}",
+              bta_hf_client_cb_arr.serv_handle);
+  }
   bta_hf_client_cb_arr.serv_handle = 0;
 }
 
@@ -276,7 +287,10 @@ void bta_hf_client_rfc_do_close(tBTA_HF_CLIENT_DATA* p_data) {
   }
 
   if (client_cb->conn_handle) {
-    RFCOMM_RemoveConnection(client_cb->conn_handle);
+    if (RFCOMM_RemoveConnection(client_cb->conn_handle) != PORT_SUCCESS) {
+      log::warn("Unable to remove RFCOMM connection peer:{} handle:{}",
+                client_cb->peer_addr, client_cb->conn_handle);
+    }
   } else {
     /* Close API was called while HF Client is in Opening state.        */
     /* Need to trigger the state machine to send callback to the app    */

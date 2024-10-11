@@ -29,47 +29,46 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.MatrixCursor;
+import android.os.Looper;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppServiceTest {
-    private BluetoothOppService mService = null;
-    private BluetoothAdapter mAdapter = null;
-    private boolean mIsAdapterServiceSet;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private BluetoothMethodProxy mBluetoothMethodProxy;
+
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    private BluetoothOppService mService;
     private boolean mIsBluetoothOppServiceStarted;
-
-
-    @Mock BluetoothMethodProxy mBluetoothMethodProxy;
-
-    @Mock private AdapterService mAdapterService;
 
     @Before
     public void setUp() throws Exception {
-        Context targetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        MockitoAnnotations.initMocks(this);
-
         BluetoothMethodProxy.setInstanceForTesting(mBluetoothMethodProxy);
+
         // BluetoothOppService can create a UpdateThread, which will call
         // BluetoothOppNotification#updateNotification(), which in turn create a new
         // NotificationUpdateThread. Both threads may cause the tests to fail because they try to
@@ -77,16 +76,15 @@ public class BluetoothOppServiceTest {
         // is no mocking). Since we have no intention to test those threads, avoid running them
         doNothing().when(mBluetoothMethodProxy).threadStart(any());
 
-        TestUtils.setAdapterService(mAdapterService);
-        mIsAdapterServiceSet = true;
-        mService = new BluetoothOppService(targetContext);
+        if (Looper.myLooper() == null) {
+            Looper.prepare();
+        }
+
+        AdapterService adapterService = new AdapterService(mTargetContext);
+        mService = new BluetoothOppService(adapterService);
         mService.start();
         mService.setAvailable(true);
         mIsBluetoothOppServiceStarted = true;
-
-        // Try getting the Bluetooth adapter
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        Assert.assertNotNull(mAdapter);
 
         // Wait until the initial trimDatabase operation is done.
         verify(mBluetoothMethodProxy, timeout(3_000))
@@ -113,10 +111,7 @@ public class BluetoothOppServiceTest {
 
         BluetoothMethodProxy.setInstanceForTesting(null);
         if (mIsBluetoothOppServiceStarted) {
-            mService.stop();
-        }
-        if (mIsAdapterServiceSet) {
-            TestUtils.clearAdapterService(mAdapterService);
+            service.stop();
         }
     }
 
@@ -130,12 +125,38 @@ public class BluetoothOppServiceTest {
         int infoTimestamp = 123456789;
         int infoTimestamp2 = 123489;
 
-        BluetoothOppShareInfo shareInfo = mock(BluetoothOppShareInfo.class);
-        shareInfo.mTimestamp = infoTimestamp;
-        shareInfo.mDestination = "AA:BB:CC:DD:EE:FF";
-        BluetoothOppShareInfo shareInfo2 = mock(BluetoothOppShareInfo.class);
-        shareInfo2.mTimestamp = infoTimestamp2;
-        shareInfo2.mDestination = "00:11:22:33:44:55";
+        BluetoothOppShareInfo shareInfo =
+                new BluetoothOppShareInfo(
+                        1, // id
+                        null, // Uri,
+                        "hint",
+                        "filename",
+                        "mimetype",
+                        0, // direction
+                        "AA:BB:CC:DD:EE:FF", // destination
+                        0, // visibility,
+                        0, // confirm
+                        0, // status
+                        0, // totalBytes
+                        0, // currentBytes
+                        infoTimestamp,
+                        false); // mediaScanned
+        BluetoothOppShareInfo shareInfo2 =
+                new BluetoothOppShareInfo(
+                        1, // id
+                        null, // Uri,
+                        "hint",
+                        "filename",
+                        "mimetype",
+                        0, // direction
+                        "00:11:22:33:44:55", // destination
+                        0, // visibility,
+                        0, // confirm
+                        0, // status
+                        0, // totalBytes
+                        0, // currentBytes
+                        infoTimestamp2,
+                        false); // mediaScanned
 
         mService.mShares.clear();
         mService.mShares.add(shareInfo);
@@ -150,10 +171,9 @@ public class BluetoothOppServiceTest {
         mService.mBatches.add(batch2);
 
         mService.deleteShare(0);
-        assertThat(mService.mShares.size()).isEqualTo(1);
-        assertThat(mService.mBatches.size()).isEqualTo(1);
-        assertThat(mService.mShares.get(0)).isEqualTo(shareInfo2);
-        assertThat(mService.mBatches.get(0)).isEqualTo(batch2);
+
+        assertThat(mService.mShares).containsExactly(shareInfo2);
+        assertThat(mService.mBatches).containsExactly(batch2);
     }
 
     @Test
@@ -168,10 +188,7 @@ public class BluetoothOppServiceTest {
 
     @Test
     public void trimDatabase_trimsOldOrInvisibleRecords() {
-        ContentResolver contentResolver =
-                InstrumentationRegistry.getInstrumentation()
-                        .getTargetContext()
-                        .getContentResolver();
+        ContentResolver contentResolver = mTargetContext.getContentResolver();
 
         doReturn(1 /* any int is Ok */)
                 .when(mBluetoothMethodProxy)

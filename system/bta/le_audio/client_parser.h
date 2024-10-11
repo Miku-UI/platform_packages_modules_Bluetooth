@@ -26,7 +26,7 @@
 
 #include "le_audio_types.h"
 
-namespace le_audio {
+namespace bluetooth::le_audio {
 namespace client_parser {
 namespace ascs {
 /*
@@ -163,7 +163,7 @@ struct ctp_codec_conf {
   uint8_t target_latency;
   uint8_t target_phy;
   types::LeAudioCodecId codec_id;
-  types::LeAudioLtvMap codec_config;
+  std::vector<uint8_t> codec_config;
 };
 
 constexpr uint16_t kCtpQosConfMinLen = 16;
@@ -257,4 +257,4 @@ bool ParseTmapRole(std::bitset<16>& role, uint16_t len, const uint8_t* value);
 
 }  // namespace tmap
 }  // namespace client_parser
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio

@@ -38,15 +38,19 @@ import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @RunWith(AndroidJUnit4.class)
 public class A2dpSinkStateMachineTest {
     private static final String DEVICE_ADDRESS = "11:11:11:11:11:11";
     private static final int UNHANDLED_MESSAGE = 9999;
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private A2dpSinkService mService;
     @Mock private A2dpSinkNativeInterface mNativeInterface;
@@ -54,14 +58,10 @@ public class A2dpSinkStateMachineTest {
     private A2dpSinkStateMachine mStateMachine;
     private BluetoothAdapter mAdapter;
     private BluetoothDevice mDevice;
-    private Context mTargetContext;
     private TestLooper mLooper;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
-
         mLooper = new TestLooper();
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -98,13 +98,15 @@ public class A2dpSinkStateMachineTest {
     }
 
     private void sendConnectionEvent(int state) {
-        mStateMachine.sendMessage(A2dpSinkStateMachine.STACK_EVENT,
+        mStateMachine.sendMessage(
+                A2dpSinkStateMachine.STACK_EVENT,
                 StackEvent.connectionStateChanged(mDevice, state));
         syncHandler(A2dpSinkStateMachine.STACK_EVENT);
     }
 
     private void sendAudioConfigChangedEvent(int sampleRate, int channelCount) {
-        mStateMachine.sendMessage(A2dpSinkStateMachine.STACK_EVENT,
+        mStateMachine.sendMessage(
+                A2dpSinkStateMachine.STACK_EVENT,
                 StackEvent.audioConfigChanged(mDevice, sampleRate, channelCount));
         syncHandler(A2dpSinkStateMachine.STACK_EVENT);
     }

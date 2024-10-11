@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <bluetooth/log.h>
+
 #include <map>
 #include <variant>
 
@@ -108,12 +110,8 @@ class LeAddressManager {
   std::chrono::milliseconds maximum_rotation_time_;
 
  private:
-  enum ClientState {
-    WAITING_FOR_PAUSE,
-    PAUSED,
-    WAITING_FOR_RESUME,
-    RESUMED,
-  };
+  enum class ClientState;
+  std::string ClientStateText(const ClientState cs);
 
   enum CommandType {
     ROTATE_RANDOM_ADDRESS,

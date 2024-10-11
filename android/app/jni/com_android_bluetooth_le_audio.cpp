@@ -365,7 +365,7 @@ class LeAudioClientCallbacksImpl : public LeAudioClientCallbacks {
 
   void OnGroupStreamStatus(int group_id,
                            GroupStreamStatus group_stream_status) override {
-    LOG(INFO) << __func__;
+    log::info("");
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
@@ -734,6 +734,23 @@ static void sendAudioProfilePreferencesNative(
       groupId, isOutputPreferenceLeAudio, isDuplexPreferenceLeAudio);
 }
 
+static void setGroupAllowedContextMaskNative(JNIEnv* /* env */,
+                                             jobject /* object */, jint groupId,
+                                             jint sinkContextTypes,
+                                             jint sourceContextTypes) {
+  std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);
+  if (!sLeAudioClientInterface) {
+    log::error("Failed to get the Bluetooth LeAudio Interface");
+    return;
+  }
+
+  log::info("group_id: {}, sink context types: {}, source context types: {}",
+            groupId, sinkContextTypes, sourceContextTypes);
+
+  sLeAudioClientInterface->SetGroupAllowedContextMask(groupId, sinkContextTypes,
+                                                      sourceContextTypes);
+}
+
 /* Le Audio Broadcaster */
 static jmethodID method_onBroadcastCreated;
 static jmethodID method_onBroadcastDestroyed;
@@ -1079,7 +1096,8 @@ jobject prepareBluetoothLeBroadcastMetadataObject(
     env->SetByteArrayRegion(
         code.get(), 0, nativeCodeSize,
         (const jbyte*)broadcast_metadata.broadcast_code->data());
-    CHECK(!env->ExceptionCheck());
+    log::assert_that(!env->ExceptionCheck(),
+                     "assert failed: !env->ExceptionCheck()");
   }
 
   ScopedLocalRef<jstring> broadcast_name(
@@ -1591,6 +1609,8 @@ int register_com_android_bluetooth_le_audio(JNIEnv* env) {
        (void*)setUnicastMonitorModeNative},
       {"sendAudioProfilePreferencesNative", "(IZZ)V",
        (void*)sendAudioProfilePreferencesNative},
+      {"setGroupAllowedContextMaskNative", "(III)V",
+       (void*)setGroupAllowedContextMaskNative},
   };
 
   const int result = REGISTER_NATIVE_METHODS(

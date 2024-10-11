@@ -32,13 +32,10 @@
 #include "com_android_bluetooth.h"
 #include "hardware/bt_sock.h"
 #include "os/logging/log_adapter.h"
-#include "utils/Log.h"
 #include "utils/misc.h"
 
 using bluetooth::Uuid;
-#ifndef DYNAMIC_LOAD_BLUETOOTH
 extern bt_interface_t bluetoothInterface;
-#endif
 
 namespace fmt {
 template <>
@@ -47,6 +44,15 @@ template <>
 struct formatter<bt_discovery_state_t> : enum_formatter<bt_discovery_state_t> {
 };
 }  // namespace fmt
+
+static Uuid from_java_uuid(jlong uuid_msb, jlong uuid_lsb) {
+  std::array<uint8_t, Uuid::kNumBytes128> uu;
+  for (int i = 0; i < 8; i++) {
+    uu[7 - i] = (uuid_msb >> (8 * i)) & 0xFF;
+    uu[15 - i] = (uuid_lsb >> (8 * i)) & 0xFF;
+  }
+  return Uuid::From128BitBE(uu);
+}
 
 namespace android {
 // Both
@@ -59,6 +65,7 @@ namespace android {
 #define BLE_ADDR_RANDOM 0x01
 
 const jint INVALID_FD = -1;
+const jint INVALID_CID = -1;
 
 static jmethodID method_oobDataReceivedCallback;
 static jmethodID method_stateChangeCallback;
@@ -210,7 +217,8 @@ static void remote_device_properties_callback(bt_status_t status,
   CallbackEnv sCallbackEnv(__func__);
   if (!sCallbackEnv.valid()) return;
 
-  log::verbose("Status is: {}, Properties: {}", bt_status_text(status),
+  log::verbose("Device: {}, Status: {}, Properties: {}",
+               ADDRESS_TO_LOGGABLE_STR(*bd_addr), bt_status_text(status),
                num_properties);
 
   if (status != BT_STATUS_SUCCESS) {
@@ -298,9 +306,8 @@ static void device_found_callback(int num_properties,
     return;
   }
 
-  log::verbose(
-      "Properties: {}, Address: {}", num_properties,
-      ADDRESS_TO_LOGGABLE_STR(*(RawAddress*)properties[addr_index].val));
+  log::verbose("Properties: {}, Address: {}", num_properties,
+               *(RawAddress*)properties[addr_index].val);
 
   remote_device_properties_callback(BT_STATUS_SUCCESS,
                                     (RawAddress*)properties[addr_index].val,
@@ -454,7 +461,7 @@ static void discovery_state_changed_callback(bt_discovery_state_t state) {
   CallbackEnv sCallbackEnv(__func__);
   if (!sCallbackEnv.valid()) return;
 
-  log::verbose("DiscoveryState:{} ", state);
+  log::verbose("DiscoveryState:{}", state);
 
   sCallbackEnv->CallVoidMethod(
       sJniCallbacksObj, method_discoveryStateChangeCallback, (jint)state);
@@ -500,8 +507,8 @@ static void pin_request_callback(RawAddress* bd_addr, bt_bdname_t* bdname,
                                addr.get(), devname.get(), cod, min_16_digits);
 }
 
-static void ssp_request_callback(RawAddress* bd_addr, bt_bdname_t* bdname,
-                                 uint32_t cod, bt_ssp_variant_t pairing_variant,
+static void ssp_request_callback(RawAddress* bd_addr,
+                                 bt_ssp_variant_t pairing_variant,
                                  uint32_t pass_key) {
   if (!bd_addr) {
     log::error("Address is null");
@@ -527,19 +534,8 @@ static void ssp_request_callback(RawAddress* bd_addr, bt_bdname_t* bdname,
   sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
                                    (jbyte*)bd_addr);
 
-  ScopedLocalRef<jbyteArray> devname(
-      sCallbackEnv.get(), sCallbackEnv->NewByteArray(sizeof(bt_bdname_t)));
-  if (!devname.get()) {
-    log::error("Error while allocating");
-    return;
-  }
-
-  sCallbackEnv->SetByteArrayRegion(devname.get(), 0, sizeof(bt_bdname_t),
-                                   (jbyte*)bdname);
-
   sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_sspRequestCallback,
-                               addr.get(), devname.get(), cod,
-                               (jint)pairing_variant, pass_key);
+                               addr.get(), (jint)pairing_variant, pass_key);
 }
 
 static jobject createClassicOobDataObject(JNIEnv* env, bt_oob_data_t oob_data) {
@@ -736,8 +732,7 @@ static void switch_buffer_size_callback(bool is_low_latency_buffer_size) {
   CallbackEnv sCallbackEnv(__func__);
   if (!sCallbackEnv.valid()) return;
 
-  log::verbose("SwitchBufferSizeCallback: {}",
-               is_low_latency_buffer_size ? "true" : "false");
+  log::verbose("SwitchBufferSizeCallback: {}", is_low_latency_buffer_size);
 
   sCallbackEnv->CallVoidMethod(
       sJniCallbacksObj, method_switchBufferSizeCallback,
@@ -754,8 +749,7 @@ static void switch_codec_callback(bool is_low_latency_buffer_size) {
   CallbackEnv sCallbackEnv(__func__);
   if (!sCallbackEnv.valid()) return;
 
-  log::verbose("SwitchCodecCallback: {}",
-               is_low_latency_buffer_size ? "true" : "false");
+  log::verbose("SwitchCodecCallback: {}", is_low_latency_buffer_size);
 
   sCallbackEnv->CallVoidMethod(sJniCallbacksObj, method_switchCodecCallback,
                                (jboolean)is_low_latency_buffer_size);
@@ -815,7 +809,7 @@ static void dut_mode_recv_callback(uint16_t /* opcode */, uint8_t* /* buf */,
 
 static void le_test_mode_recv_callback(bt_status_t status,
                                        uint16_t packet_count) {
-  log::verbose("status:{} packet_count:{} ", bt_status_text(status),
+  log::verbose("status:{} packet_count:{}", bt_status_text(status),
                packet_count);
 }
 
@@ -993,40 +987,8 @@ static bt_os_callouts_t sBluetoothOsCallouts = {
 };
 
 int hal_util_load_bt_library(const bt_interface_t** interface) {
-#ifndef DYNAMIC_LOAD_BLUETOOTH
   *interface = &bluetoothInterface;
   return 0;
-#else
-  const char* sym = BLUETOOTH_INTERFACE_STRING;
-  bt_interface_t* itf = nullptr;
-
-  // The library name is not set by default, so the preset library name is used.
-  void* handle = dlopen("libbluetooth.so", RTLD_NOW);
-  if (!handle) {
-    const char* err_str = dlerror();
-    log::error("failed to load Bluetooth library, error={}",
-               err_str ? err_str : "error unknown");
-    goto error;
-  }
-
-  // Get the address of the bt_interface_t.
-  itf = (bt_interface_t*)dlsym(handle, sym);
-  if (!itf) {
-    log::error("failed to load symbol from Bluetooth library {}", sym);
-    goto error;
-  }
-
-  // Success.
-  log::info("loaded Bluetooth library successfully");
-  *interface = itf;
-  return 0;
-
-error:
-  *interface = NULL;
-  if (handle) dlclose(handle);
-
-  return -EINVAL;
-#endif
 }
 
 static bool initNative(JNIEnv* env, jobject obj, jboolean isGuest,
@@ -2139,6 +2101,42 @@ static jboolean pbapPseDynamicVersionUpgradeIsEnabledNative(JNIEnv* /* env */,
              : JNI_FALSE;
 }
 
+static jint getSocketL2capLocalChannelIdNative(JNIEnv* /* env */,
+                                               jobject /* obj */,
+                                               jlong conn_uuid_lsb,
+                                               jlong conn_uuid_msb) {
+  log::verbose("");
+
+  if (!sBluetoothSocketInterface) {
+    return INVALID_CID;
+  }
+  uint16_t cid;
+  Uuid uuid = from_java_uuid(conn_uuid_msb, conn_uuid_lsb);
+  if (sBluetoothSocketInterface->get_l2cap_local_cid(uuid, &cid) !=
+      BT_STATUS_SUCCESS) {
+    return INVALID_CID;
+  }
+  return (jint)cid;
+}
+
+static jint getSocketL2capRemoteChannelIdNative(JNIEnv* /* env */,
+                                                jobject /* obj */,
+                                                jlong conn_uuid_lsb,
+                                                jlong conn_uuid_msb) {
+  log::verbose("");
+
+  if (!sBluetoothSocketInterface) {
+    return INVALID_CID;
+  }
+  uint16_t cid;
+  Uuid uuid = from_java_uuid(conn_uuid_msb, conn_uuid_lsb);
+  if (sBluetoothSocketInterface->get_l2cap_remote_cid(uuid, &cid) !=
+      BT_STATUS_SUCCESS) {
+    return INVALID_CID;
+  }
+  return (jint)cid;
+}
+
 int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
   const JNINativeMethod methods[] = {
       {"initNative", "(ZZI[Ljava/lang/String;ZLjava/lang/String;)Z",
@@ -2201,6 +2199,10 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
        (void*)getRemotePbapPceVersionNative},
       {"pbapPseDynamicVersionUpgradeIsEnabledNative", "()Z",
        (void*)pbapPseDynamicVersionUpgradeIsEnabledNative},
+      {"getSocketL2capLocalChannelIdNative", "(JJ)I",
+       (void*)getSocketL2capLocalChannelIdNative},
+      {"getSocketL2capRemoteChannelIdNative", "(JJ)I",
+       (void*)getSocketL2capRemoteChannelIdNative},
   };
   const int result = REGISTER_NATIVE_METHODS(
       env, "com/android/bluetooth/btservice/AdapterNativeInterface", methods);
@@ -2227,7 +2229,7 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
        &method_devicePropertyChangedCallback},
       {"deviceFoundCallback", "([B)V", &method_deviceFoundCallback},
       {"pinRequestCallback", "([B[BIZ)V", &method_pinRequestCallback},
-      {"sspRequestCallback", "([B[BIII)V", &method_sspRequestCallback},
+      {"sspRequestCallback", "([BII)V", &method_sspRequestCallback},
       {"bondStateChangeCallback", "(I[BII)V", &method_bondStateChangeCallback},
       {"addressConsolidateCallback", "([B[B)V",
        &method_addressConsolidateCallback},

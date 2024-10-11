@@ -22,10 +22,12 @@ import android.support.v4.media.MediaBrowserCompat.MediaItem;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.flags.Flags;
 
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,23 +38,11 @@ import java.util.UUID;
 /**
  * An object that holds the browse tree of available media from a remote device.
  *
- * Browsing hierarchy follows the AVRCP specification's description of various scopes and
- * looks like follows:
- *    Root:
- *      Player1:
- *        Now_Playing:
- *           MediaItem1
- *           MediaItem2
- *        Folder1
- *        Folder2
- *          ....
- *        Player2
- *          ....
+ * <p>Browsing hierarchy follows the AVRCP specification's description of various scopes and looks
+ * like follows: Root: Player1: Now_Playing: MediaItem1 MediaItem2 Folder1 Folder2 .... Player2 ....
  */
 public class BrowseTree {
-    private static final String TAG = "BrowseTree";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
-    private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
+    private static final String TAG = BrowseTree.class.getSimpleName();
 
     public static final String ROOT = "__ROOT__";
     public static final String UP = "__UP__";
@@ -64,6 +54,7 @@ public class BrowseTree {
     // Static instance of Folder ID <-> Folder Instance (for navigation purposes)
     @VisibleForTesting
     final HashMap<String, BrowseNode> mBrowseMap = new HashMap<String, BrowseNode>();
+
     private BrowseNode mCurrentBrowseNode;
     private BrowseNode mCurrentBrowsedPlayer;
     private BrowseNode mCurrentAddressedPlayer;
@@ -78,24 +69,55 @@ public class BrowseTree {
 
     BrowseTree(BluetoothDevice device) {
         if (device == null) {
-            mRootNode = new BrowseNode(new AvrcpItem.Builder()
-                    .setUuid(ROOT).setTitle(ROOT).setBrowsable(true).build());
+            mRootNode =
+                    new BrowseNode(
+                            new AvrcpItem.Builder()
+                                    .setUuid(ROOT)
+                                    .setTitle(ROOT)
+                                    .setBrowsable(true)
+                                    .build());
             mRootNode.setCached(true);
+        } else if (!Flags.randomizeDeviceLevelMediaIds()) {
+            mRootNode =
+                    new BrowseNode(
+                            new AvrcpItem.Builder()
+                                    .setDevice(device)
+                                    .setUuid(ROOT + device.getAddress().toString())
+                                    .setTitle(Utils.getName(device))
+                                    .setBrowsable(true)
+                                    .build());
         } else {
-            mRootNode = new BrowseNode(new AvrcpItem.Builder().setDevice(device)
-                    .setUuid(ROOT + device.getAddress().toString())
-                    .setTitle(Utils.getName(device)).setBrowsable(true).build());
+            mRootNode =
+                    new BrowseNode(
+                            new AvrcpItem.Builder()
+                                    .setDevice(device)
+                                    .setUuid(
+                                            ROOT
+                                                    + device.getAddress().toString()
+                                                    + UUID.randomUUID().toString())
+                                    .setTitle(Utils.getName(device))
+                                    .setBrowsable(true)
+                                    .build());
         }
 
         mRootNode.mBrowseScope = AvrcpControllerService.BROWSE_SCOPE_PLAYER_LIST;
         mRootNode.setExpectedChildren(DEFAULT_FOLDER_SIZE);
 
-        mNavigateUpNode = new BrowseNode(new AvrcpItem.Builder()
-                .setUuid(UP).setTitle(UP).setBrowsable(true).build());
+        mNavigateUpNode =
+                new BrowseNode(
+                        new AvrcpItem.Builder()
+                                .setUuid(UP)
+                                .setTitle(UP)
+                                .setBrowsable(true)
+                                .build());
 
-        mNowPlayingNode = new BrowseNode(new AvrcpItem.Builder()
-                .setUuid(NOW_PLAYING_PREFIX).setTitle(NOW_PLAYING_PREFIX)
-                .setBrowsable(true).build());
+        mNowPlayingNode =
+                new BrowseNode(
+                        new AvrcpItem.Builder()
+                                .setUuid(NOW_PLAYING_PREFIX)
+                                .setTitle(NOW_PLAYING_PREFIX)
+                                .setBrowsable(true)
+                                .build());
         mNowPlayingNode.mBrowseScope = AvrcpControllerService.BROWSE_SCOPE_NOW_PLAYING;
         mNowPlayingNode.setExpectedChildren(DEFAULT_FOLDER_SIZE);
         mBrowseMap.put(mRootNode.getID(), mRootNode);
@@ -282,7 +304,7 @@ public class BrowseTree {
         }
 
         synchronized void setCached(boolean cached) {
-            if (DBG) Log.d(TAG, "Set Cache" + cached + "Node" + toString());
+            Log.d(TAG, "Set Cache" + cached + "Node" + toString());
             mCached = cached;
             if (!cached) {
                 for (BrowseNode child : mChildren) {
@@ -351,9 +373,13 @@ public class BrowseTree {
 
         @Override
         public synchronized String toString() {
-            return "[Id: " + getID()
-                    + " Name: " + getMediaItem().getDescription().getTitle()
-                    + " Size: " + mChildren.size() + "]";
+            return "[Id: "
+                    + getID()
+                    + " Name: "
+                    + getMediaItem().getDescription().getTitle()
+                    + " Size: "
+                    + mChildren.size()
+                    + "]";
         }
 
         // Returns true if target is a descendant of this.
@@ -368,9 +394,7 @@ public class BrowseTree {
             Log.e(TAG, "folder " + parentID + " not found!");
             return null;
         }
-        if (VDBG) {
-            Log.d(TAG, "Size" + mBrowseMap.size());
-        }
+        Log.d(TAG, "Size" + mBrowseMap.size());
         return bn;
     }
 
@@ -419,7 +443,7 @@ public class BrowseTree {
     synchronized boolean setCurrentAddressedPlayer(String uid) {
         BrowseNode bn = mBrowseMap.get(uid);
         if (bn == null) {
-            if (DBG) Log.d(TAG, "Setting an unknown addressed player, ignoring bn " + uid);
+            Log.w(TAG, "Setting an unknown addressed player, ignoring bn " + uid);
             mRootNode.setCached(false);
             mRootNode.mChildren.add(mNowPlayingNode);
             mBrowseMap.put(NOW_PLAYING_PREFIX, mNowPlayingNode);
@@ -442,27 +466,21 @@ public class BrowseTree {
         mCoverArtMap.get(handle).add(nodeId);
     }
 
-    /**
-     * Indicate that a node in the tree no longer needs a specific piece of cover art.
-     */
+    /** Indicate that a node in the tree no longer needs a specific piece of cover art. */
     synchronized void indicateCoverArtUnused(String nodeId, String handle) {
         if (mCoverArtMap.containsKey(handle) && mCoverArtMap.get(handle).contains(nodeId)) {
             mCoverArtMap.get(handle).remove(nodeId);
         }
     }
 
-    /**
-     * Get a list of items using the piece of cover art identified by the given handle.
-     */
-    synchronized ArrayList<String> getNodesUsingCoverArt(String handle) {
-        if (!mCoverArtMap.containsKey(handle)) return new ArrayList<String>();
-        return (ArrayList<String>) mCoverArtMap.get(handle).clone();
+    /** Get a list of items using the piece of cover art identified by the given handle. */
+    synchronized List<String> getNodesUsingCoverArt(String handle) {
+        if (!mCoverArtMap.containsKey(handle)) return Collections.emptyList();
+        return (List<String>) mCoverArtMap.get(handle).clone();
     }
 
-    /**
-     * Get a list of Cover Art UUIDs that are no longer being used by the tree. Clear that list.
-     */
-    synchronized ArrayList<String> getAndClearUnusedCoverArt() {
+    /** Get a list of Cover Art UUIDs that are no longer being used by the tree. Clear that list. */
+    synchronized List<String> getAndClearUnusedCoverArt() {
         ArrayList<String> unused = new ArrayList<String>();
         for (String uuid : mCoverArtMap.keySet()) {
             if (mCoverArtMap.get(uuid).isEmpty()) {
@@ -477,12 +495,12 @@ public class BrowseTree {
 
     /**
      * Adds the Uri of a newly downloaded image to all tree nodes using that specific handle.
-     * Returns the set of parent nodes that have children impacted by the new art so clients can
-     * be notified of the change.
+     * Returns the set of parent nodes that have children impacted by the new art so clients can be
+     * notified of the change.
      */
     synchronized Set<BrowseNode> notifyImageDownload(String uuid, Uri uri) {
-        if (DBG) Log.d(TAG, "Received downloaded image handle to cascade to BrowseNodes using it");
-        ArrayList<String> nodes = getNodesUsingCoverArt(uuid);
+        Log.d(TAG, "Received downloaded image handle to cascade to BrowseNodes using it");
+        List<String> nodes = getNodesUsingCoverArt(uuid);
         HashSet<BrowseNode> parents = new HashSet<BrowseNode>();
         for (String nodeId : nodes) {
             BrowseNode node = findBrowseNodeByID(nodeId);
@@ -499,9 +517,7 @@ public class BrowseTree {
         return parents;
     }
 
-    /**
-     * Dump the state of the AVRCP browse tree
-     */
+    /** Dump the state of the AVRCP browse tree */
     public void dump(StringBuilder sb) {
         mRootNode.toTreeString(0, sb);
         sb.append("\n  Image handles in use (" + mCoverArtMap.size() + "):");
@@ -550,17 +566,14 @@ public class BrowseTree {
     static BrowseNode getEldestChild(BrowseNode ancestor, BrowseNode target) {
         // ancestor is an ancestor of target
         BrowseNode descendant = target;
-        if (DBG) {
-            Log.d(TAG, "NAVIGATING ancestor" + ancestor.toString() + "Target"
-                    + target.toString());
-        }
+        Log.d(TAG, "NAVIGATING ancestor" + ancestor.toString() + "Target" + target.toString());
         while (!ancestor.equals(descendant.mParent)) {
             descendant = descendant.mParent;
             if (descendant == null) {
                 return null;
             }
         }
-        if (DBG) Log.d(TAG, "NAVIGATING Descendant" + descendant.toString());
+        Log.d(TAG, "NAVIGATING Descendant" + descendant.toString());
         return descendant;
     }
 }

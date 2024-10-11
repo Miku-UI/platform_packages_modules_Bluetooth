@@ -29,31 +29,31 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.R;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapConfigTest {
 
-    @Mock
-    Context mContext;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    Resources mResources;
+    @Mock Context mContext;
+
+    @Mock Resources mResources;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         when(mContext.getResources()).thenReturn(mResources);
     }
 
     @Test
     public void testInit_whenUseProfileForOwnerVcardIsTrue() {
-        when(mResources.getBoolean(R.bool.pbap_use_profile_for_owner_vcard))
-                .thenReturn(true);
+        when(mResources.getBoolean(R.bool.pbap_use_profile_for_owner_vcard)).thenReturn(true);
 
         BluetoothPbapConfig.init(mContext);
         assertThat(BluetoothPbapConfig.useProfileForOwnerVcard()).isTrue();
@@ -61,8 +61,7 @@ public class BluetoothPbapConfigTest {
 
     @Test
     public void testInit_whenUseProfileForOwnerVcardIsFalse() {
-        when(mResources.getBoolean(R.bool.pbap_use_profile_for_owner_vcard))
-                .thenReturn(false);
+        when(mResources.getBoolean(R.bool.pbap_use_profile_for_owner_vcard)).thenReturn(false);
 
         BluetoothPbapConfig.init(mContext);
         assertThat(BluetoothPbapConfig.useProfileForOwnerVcard()).isFalse();
@@ -79,8 +78,7 @@ public class BluetoothPbapConfigTest {
 
     @Test
     public void testInit_whenIncludePhotosInVcardIsTrue() {
-        when(mResources.getBoolean(R.bool.pbap_include_photos_in_vcard))
-                .thenReturn(true);
+        when(mResources.getBoolean(R.bool.pbap_include_photos_in_vcard)).thenReturn(true);
 
         BluetoothPbapConfig.init(mContext);
         assertThat(BluetoothPbapConfig.includePhotosInVcard()).isTrue();
@@ -88,8 +86,7 @@ public class BluetoothPbapConfigTest {
 
     @Test
     public void testInit_whenIncludePhotosInVcardIsFalse() {
-        when(mResources.getBoolean(R.bool.pbap_include_photos_in_vcard))
-                .thenReturn(false);
+        when(mResources.getBoolean(R.bool.pbap_include_photos_in_vcard)).thenReturn(false);
 
         BluetoothPbapConfig.init(mContext);
         assertThat(BluetoothPbapConfig.includePhotosInVcard()).isFalse();

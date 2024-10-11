@@ -15,6 +15,8 @@
  */
 #include "hci/le_scanning_reassembler.h"
 
+#include <bluetooth/log.h>
+
 #include <memory>
 #include <unordered_map>
 
@@ -24,7 +26,6 @@
 #include "hci/hci_packets.h"
 #include "hci/le_periodic_sync_manager.h"
 #include "hci/le_scanning_interface.h"
-#include "hci/vendor_specific_event_manager.h"
 #include "module.h"
 #include "os/handler.h"
 #include "os/log.h"
@@ -46,7 +47,7 @@ LeScanningReassembler::ProcessAdvertisingReport(
 
   if (address_type != (uint8_t)DirectAdvertisingAddressType::NO_ADDRESS_PROVIDED &&
       address == Address::kEmpty) {
-    LOG_WARN("Ignoring non-anonymous advertising report with empty address");
+    log::warn("Ignoring non-anonymous advertising report with empty address");
     return {};
   }
 
@@ -54,7 +55,7 @@ LeScanningReassembler::ProcessAdvertisingReport(
 
   // Ignore scan responses received without a matching advertising event.
   if (is_scan_response && (ignore_scan_responses_ || !ContainsFragment(key))) {
-    LOG_INFO("Ignoring scan response received without advertising event");
+    log::info("Ignoring scan response received without advertising event");
     return {};
   }
 
@@ -62,7 +63,7 @@ LeScanningReassembler::ProcessAdvertisingReport(
   // the previous data as safety measure if the report is not a scan
   // response.
   if (is_legacy && !is_scan_response) {
-    LOG_DEBUG("Dropping repeated legacy advertising data");
+    log::verbose("Dropping repeated legacy advertising data");
     RemoveFragment(key);
   }
 

@@ -22,7 +22,7 @@
 
 #include <vector>
 
-namespace le_audio {
+namespace bluetooth::le_audio {
 namespace types {
 
 using ::testing::AllOf;
@@ -58,7 +58,9 @@ TEST(LeAudioLtvMapTest, test_serialization) {
   bool success;
   LeAudioLtvMap ltv_map =
       LeAudioLtvMap::Parse(ltv_test_vec.data(), ltv_test_vec.size(), success);
+  auto hash_one = ltv_map.GetHash();
   ASSERT_TRUE(success);
+  ASSERT_NE(hash_one, 0lu);
   ASSERT_FALSE(ltv_map.IsEmpty());
   ASSERT_EQ((size_t)3, ltv_map.Size());
 
@@ -67,11 +69,17 @@ TEST(LeAudioLtvMapTest, test_serialization) {
 
   LeAudioLtvMap ltv_map2 =
       LeAudioLtvMap::Parse(ltv_test_vec2.data(), ltv_test_vec2.size(), success);
+  auto hash_two = ltv_map2.GetHash();
   ASSERT_TRUE(success);
+  ASSERT_NE(hash_two, 0lu);
   ASSERT_FALSE(ltv_map2.IsEmpty());
   ASSERT_EQ((size_t)2, ltv_map2.Size());
+  ASSERT_NE(hash_one, hash_two);
 
   ltv_map.Append(ltv_map2);
+  ASSERT_NE(ltv_map.GetHash(), 0lu);
+  ASSERT_NE(ltv_map.GetHash(), hash_one);
+  ASSERT_NE(ltv_map.GetHash(), hash_two);
   ASSERT_EQ((size_t)4, ltv_map.Size());
 
   ASSERT_TRUE(ltv_map.Find(0x01));
@@ -242,8 +250,6 @@ TEST(LeAudioLtvMapTest, test_configuration_valid) {
   //                            kLeAudioLocationFrontRight
   ASSERT_TRUE(config.audio_channel_allocation.has_value());
   ASSERT_EQ(0x00000003u, config.audio_channel_allocation.value());
-  // Check if allocated channel count matches the number of allocation bits
-  ASSERT_EQ(2u, config.GetChannelCountPerIsoStream());
 
   // OctetsPerCodecFrame = 40
   ASSERT_TRUE(config.octets_per_codec_frame.has_value());
@@ -372,5 +378,378 @@ TEST(LeAudioLtvMapTest, test_capabilities_valid) {
   ASSERT_FALSE(caps.IsCodecFramesPerSduSupported(3));
 }
 
+TEST(LeAudioLtvMapTest, test_metadata_use_guard1) {
+  auto default_context =
+      (uint16_t)bluetooth::le_audio::types::LeAudioContextType::VOICEASSISTANTS;
+  static const std::vector<uint8_t> default_metadata = {
+      bluetooth::le_audio::types::kLeAudioMetadataStreamingAudioContextLen + 1,
+      bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext,
+      (uint8_t)(default_context & 0x00FF),
+      (uint8_t)((default_context & 0xFF00) >> 8)};
+
+  // Parse
+  bool success = true;
+  LeAudioLtvMap ltv_map = LeAudioLtvMap::Parse(
+      default_metadata.data(), default_metadata.size(), success);
+  ASSERT_TRUE(success);
+
+  // Verify the codec capabilities values
+  auto metadata = ltv_map.GetAsLeAudioMetadata();
+
+  // Should fail when trying to reinterpret the LTV as configuration
+  EXPECT_DEATH(ltv_map.GetAsCoreCodecConfig(), "");
+}
+
+TEST(LeAudioLtvMapTest, test_metadata_use_guard2) {
+  auto default_context =
+      (uint16_t)bluetooth::le_audio::types::LeAudioContextType::VOICEASSISTANTS;
+  static const std::vector<uint8_t> default_metadata = {
+      bluetooth::le_audio::types::kLeAudioMetadataStreamingAudioContextLen + 1,
+      bluetooth::le_audio::types::kLeAudioMetadataTypeStreamingAudioContext,
+      (uint8_t)(default_context & 0x00FF),
+      (uint8_t)((default_context & 0xFF00) >> 8)};
+
+  // Parse
+  bool success = true;
+  LeAudioLtvMap ltv_map = LeAudioLtvMap::Parse(
+      default_metadata.data(), default_metadata.size(), success);
+  ASSERT_TRUE(success);
+
+  // Verify the codec capabilities values
+  auto metadata = ltv_map.GetAsLeAudioMetadata();
+
+  // Should fail when trying to reinterpret the LTV as configuration
+  EXPECT_DEATH(ltv_map.GetAsCoreCodecCapabilities(), "");
+}
+
+static auto PrepareMetadataLtv() {
+  ::bluetooth::le_audio::types::LeAudioLtvMap metadata_ltvs;
+  // Prepare the metadata LTVs
+  metadata_ltvs
+      .Add(::bluetooth::le_audio::types::
+               kLeAudioMetadataTypePreferredAudioContext,
+           (uint16_t)10)
+      .Add(::bluetooth::le_audio::types::
+               kLeAudioMetadataTypeStreamingAudioContext,
+           (uint16_t)8)
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeProgramInfo,
+           std::string{"ProgramInfo"})
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeLanguage,
+           std::string{"ice"})
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeCcidList,
+           std::vector<uint8_t>{1, 2, 3})
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeparentalRating,
+           (uint8_t)0x01)
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeProgramInfoUri,
+           std::string{"ProgramInfoUri"})
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeAudioActiveState,
+           false)
+      .Add(::bluetooth::le_audio::types::
+               kLeAudioMetadataTypeBroadcastAudioImmediateRenderingFlag,
+           true)
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeExtendedMetadata,
+           std::vector<uint8_t>{1, 2, 3})
+      .Add(::bluetooth::le_audio::types::kLeAudioMetadataTypeVendorSpecific,
+           std::vector<uint8_t>{1, 2, 3});
+  return metadata_ltvs;
+}
+
+TEST(LeAudioLtvMapTest, test_metadata_valid) {
+  // Prepare the reference LTV
+  auto metadata_ltv = PrepareMetadataLtv();
+  auto raw_metadata = metadata_ltv.RawPacket();
+
+  // Check the Parsing
+  bool success = true;
+  LeAudioLtvMap parsed_ltv_map =
+      LeAudioLtvMap::Parse(raw_metadata.data(), raw_metadata.size(), success);
+  ASSERT_TRUE(success);
+
+  // Verify the values
+  auto metadata = metadata_ltv.GetAsLeAudioMetadata();
+  auto parsed_metadata = parsed_ltv_map.GetAsLeAudioMetadata();
+  ASSERT_EQ(parsed_metadata.preferred_audio_context.value(),
+            metadata.preferred_audio_context.value());
+  ASSERT_EQ(parsed_metadata.program_info.value(),
+            metadata.program_info.value());
+  ASSERT_TRUE(parsed_metadata.language.has_value());
+  ASSERT_TRUE(metadata.language.has_value());
+  ASSERT_EQ(parsed_metadata.language.value(), metadata.language.value());
+  ASSERT_EQ(parsed_metadata.ccid_list.value(), metadata.ccid_list.value());
+  ASSERT_EQ(parsed_metadata.parental_rating.value(),
+            metadata.parental_rating.value());
+  ASSERT_EQ(parsed_metadata.program_info_uri.value(),
+            metadata.program_info_uri.value());
+  ASSERT_EQ(parsed_metadata.audio_active_state.value(),
+            metadata.audio_active_state.value());
+  ASSERT_EQ(parsed_metadata.broadcast_audio_immediate_rendering.value(),
+            metadata.broadcast_audio_immediate_rendering.value());
+  ASSERT_EQ(parsed_metadata.extended_metadata.value(),
+            metadata.extended_metadata.value());
+  ASSERT_EQ(parsed_metadata.vendor_specific.value(),
+            metadata.vendor_specific.value());
+}
+
+TEST(LeAudioLtvMapTest, test_adding_types) {
+  LeAudioLtvMap ltv_map;
+  ltv_map.Add(1, (uint8_t)127);
+  ltv_map.Add(2, (uint16_t)32767);
+  ltv_map.Add(3, (uint32_t)65535);
+  ltv_map.Add(4, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+  ltv_map.Add(5, std::string("sample text"));
+  ltv_map.Add(6, true);
+
+  ASSERT_EQ(6lu, ltv_map.Size());
+
+  uint8_t u8;
+  auto pp = ltv_map.At(1).data();
+  STREAM_TO_UINT8(u8, pp);
+  ASSERT_EQ((uint8_t)127, u8);
+
+  uint16_t u16;
+  pp = ltv_map.At(2).data();
+  STREAM_TO_UINT16(u16, pp);
+  ASSERT_EQ((uint16_t)32767, u16);
+
+  uint32_t u32;
+  pp = ltv_map.At(3).data();
+  STREAM_TO_UINT32(u32, pp);
+  ASSERT_EQ((uint32_t)65535, u32);
+
+  ASSERT_EQ((std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9}), ltv_map.At(4));
+
+  ASSERT_EQ(std::string("sample text"),
+            std::string(ltv_map.At(5).begin(), ltv_map.At(5).end()));
+
+  ASSERT_EQ(true, (bool)ltv_map.At(6).data()[0]);
+}
+
+TEST(LeAudioLtvMapTest, test_hash_sanity) {
+  LeAudioLtvMap ltv_map;
+  ASSERT_EQ(ltv_map.GetHash(), 0lu);
+
+  auto hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ltv_map.Add(1, (uint16_t)32767);
+  ltv_map.Add(2, (uint32_t)65535);
+  ltv_map.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+  ASSERT_NE(ltv_map.GetHash(), 0lu);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+  ASSERT_EQ(ltv_map, ltv_map);
+
+  // Compare hashes of equal LTV maps, filled in a different order
+  LeAudioLtvMap ltv_map_two;
+  ltv_map_two.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+  ltv_map_two.Add(0, (uint8_t)127);
+  ltv_map_two.Add(2, (uint32_t)65535);
+  ltv_map_two.Add(1, (uint16_t)32767);
+  ASSERT_EQ(ltv_map, ltv_map_two);
+}
+
+TEST(LeAudioLtvMapTest, test_value_hash_sanity) {
+  LeAudioLtvMap ltv_map;
+
+  ltv_map.Add(1, (uint16_t)32767);
+  auto hash = ltv_map.GetHash();
+
+  // Same value but type size is different
+  hash = ltv_map.GetHash();
+  ltv_map.Add(1, (uint32_t)32767);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+}
+
+TEST(LeAudioLtvMapTest, test_type_change_same_value) {
+  LeAudioLtvMap ltv_map_one;
+  ltv_map_one.Add(1, (uint16_t)32767);
+
+  LeAudioLtvMap ltv_map_two;
+  // The same value but different type
+  ltv_map_two.Add(3, (uint16_t)32767);
+
+  ASSERT_NE(ltv_map_one.GetHash(), ltv_map_two.GetHash());
+}
+
+TEST(LeAudioLtvMapTest, test_add_changing_hash) {
+  LeAudioLtvMap ltv_map;
+
+  auto hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Add(1, (uint16_t)32767);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Add(2, (uint32_t)65535);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+  ASSERT_NE(ltv_map.GetHash(), hash);
+}
+
+TEST(LeAudioLtvMapTest, test_update_changing_hash) {
+  LeAudioLtvMap ltv_map;
+
+  auto hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint16_t)32767);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint32_t)65535);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Add(0, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+  ASSERT_NE(ltv_map.GetHash(), hash);
+}
+
+TEST(LeAudioLtvMapTest, test_update_same_not_changing_hash) {
+  LeAudioLtvMap ltv_map;
+
+  auto hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ASSERT_EQ(ltv_map.GetHash(), hash);
+}
+
+TEST(LeAudioLtvMapTest, test_remove_changing_hash) {
+  LeAudioLtvMap ltv_map;
+
+  auto hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ltv_map.Add(1, (uint16_t)32767);
+  ltv_map.Add(2, (uint32_t)65535);
+  ltv_map.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+  hash = ltv_map.GetHash();
+  ltv_map.Remove(0);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Remove(1);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Remove(2);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  hash = ltv_map.GetHash();
+  ltv_map.Remove(3);
+  ASSERT_NE(ltv_map.GetHash(), hash);
+}
+
+TEST(LeAudioLtvMapTest, test_clear_changing_hash) {
+  LeAudioLtvMap ltv_map;
+
+  auto hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ltv_map.Add(1, (uint16_t)32767);
+  ltv_map.Add(2, (uint32_t)65535);
+  ltv_map.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+  hash = ltv_map.GetHash();
+  ltv_map.Clear();
+  ASSERT_NE(ltv_map.GetHash(), hash);
+
+  // 2nd clear should not change it
+  hash = ltv_map.GetHash();
+  ltv_map.Clear();
+  ASSERT_EQ(ltv_map.GetHash(), hash);
+
+  // Check if empty maps have equal hash
+  LeAudioLtvMap empty_ltv_map;
+  ASSERT_EQ(empty_ltv_map, ltv_map);
+}
+
+TEST(LeAudioLtvMapTest, test_remove_all_changing_hash) {
+  LeAudioLtvMap ltv_map;
+
+  auto hash = ltv_map.GetHash();
+  ltv_map.Add(0, (uint8_t)127);
+  ltv_map.Add(1, (uint16_t)32767);
+  ltv_map.Add(2, (uint32_t)65535);
+  ltv_map.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+  LeAudioLtvMap ltv_map_1st_half;
+  ltv_map_1st_half.Add(1, (uint16_t)32767);
+  ltv_map_1st_half.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+  LeAudioLtvMap ltv_map_2nd_half;
+  ltv_map_2nd_half.Add(0, (uint8_t)127);
+  ltv_map_2nd_half.Add(2, (uint32_t)65535);
+
+  ASSERT_NE(ltv_map_1st_half, ltv_map_2nd_half);
+  ASSERT_NE(ltv_map, ltv_map_2nd_half);
+
+  hash = ltv_map.GetHash();
+  ltv_map.RemoveAllTypes(ltv_map_1st_half);
+  ASSERT_NE(hash, ltv_map.GetHash());
+
+  hash = ltv_map.GetHash();
+  ltv_map.RemoveAllTypes(ltv_map_2nd_half);
+  ASSERT_NE(hash, ltv_map.GetHash());
+
+  // Check if empty maps have equal hash
+  LeAudioLtvMap empty_ltv_map;
+  ASSERT_EQ(empty_ltv_map, ltv_map);
+}
+
+TEST(LeAudioLtvMapTest, test_intersection) {
+  LeAudioLtvMap ltv_map_one;
+  ltv_map_one.Add(1, (uint16_t)32767);
+  ltv_map_one.Add(3, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9});
+  ltv_map_one.Add(2, (uint32_t)65535);
+
+  LeAudioLtvMap ltv_map_two;
+  ltv_map_two.Add(0, (uint8_t)127);
+  // Not the type is the same but value differs
+  ltv_map_two.Add(1, (uint16_t)32766);
+  ltv_map_two.Add(2, (uint32_t)65535);
+
+  LeAudioLtvMap ltv_map_common;
+  ltv_map_common.Add(2, (uint32_t)65535);
+  ASSERT_NE(ltv_map_common.GetHash(), 0lu);
+
+  ASSERT_EQ(ltv_map_one.GetIntersection(ltv_map_two).GetHash(),
+            ltv_map_common.GetHash());
+  ASSERT_EQ(ltv_map_two.GetIntersection(ltv_map_one), ltv_map_common);
+}
+
+constexpr types::LeAudioCodecId kLeAudioCodecIdVendor1 = {
+    .coding_format = types::kLeAudioCodingFormatVendorSpecific,
+    // Not a particualr vendor - just some random numbers
+    .vendor_company_id = 0xC0,
+    .vendor_codec_id = 0xDE,
+};
+
+static const set_configurations::CodecConfigSetting vendor_16_2 = {
+    .id = kLeAudioCodecIdVendor1,
+    .params = types::LeAudioLtvMap({
+        LTV_ENTRY_SAMPLING_FREQUENCY(
+            codec_spec_conf::kLeAudioSamplingFreq16000Hz),
+        LTV_ENTRY_FRAME_DURATION(codec_spec_conf::kLeAudioCodecFrameDur10000us),
+        LTV_ENTRY_AUDIO_CHANNEL_ALLOCATION(
+            codec_spec_conf::kLeAudioLocationStereo),
+        LTV_ENTRY_OCTETS_PER_CODEC_FRAME(40),
+    }),
+    .vendor_params = {0x01, 0x02, 0x03, 0x04},
+    .channel_count_per_iso_stream = 1,
+};
+
+TEST(CodecConfigSettingTest, test_vendor_codec_type) {
+  auto vendor_codec = vendor_16_2;
+  ASSERT_EQ(vendor_16_2, vendor_codec);
+}
+
 }  // namespace types
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio

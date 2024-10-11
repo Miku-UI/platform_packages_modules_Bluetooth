@@ -150,7 +150,7 @@ class TestAclConnectionInterface : public hci::AclConnectionInterface {
     const std::lock_guard<std::mutex> lock(command_queue_mutex_);
     auto packet = std::move(command_queue_.front());
     command_queue_.pop();
-    return std::move(packet);
+    return packet;
   }
 
   std::shared_ptr<std::vector<uint8_t>> DequeueCommandBytes() {
@@ -260,8 +260,10 @@ class ClassicAclConnectionTest : public ::testing::Test {
   }
 
   void sync_handler() {
-    ASSERT(thread_ != nullptr);
-    ASSERT(thread_->GetReactor()->WaitForIdle(2s));
+    log::assert_that(thread_ != nullptr, "assert failed: thread_ != nullptr");
+    log::assert_that(
+        thread_->GetReactor()->WaitForIdle(2s),
+        "assert failed: thread_->GetReactor()->WaitForIdle(2s)");
   }
 
   Address address_;

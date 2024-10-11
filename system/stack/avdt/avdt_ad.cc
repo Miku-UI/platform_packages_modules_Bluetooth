@@ -22,12 +22,13 @@
  *
  ******************************************************************************/
 
+#define LOG_TAG "bluetooth-a2dp"
+
 #include <bluetooth/log.h>
 #include <string.h>
 
 #include "avdt_api.h"
 #include "avdt_int.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "l2c_api.h"
 #include "l2cdefs.h"
@@ -227,7 +228,7 @@ AvdtpTransportChannel* avdt_ad_tc_tbl_by_type(uint8_t type, AvdtpCcb* p_ccb,
     }
   }
 
-  CHECK(i != AVDT_NUM_TC_TBL);
+  log::assert_that(i != AVDT_NUM_TC_TBL, "assert failed: i != AVDT_NUM_TC_TBL");
 
   return p_tbl;
 }
@@ -254,7 +255,7 @@ AvdtpTransportChannel* avdt_ad_tc_tbl_alloc(AvdtpCcb* p_ccb) {
   }
 
   /* sanity check */
-  CHECK(i != AVDT_NUM_TC_TBL);
+  log::assert_that(i != AVDT_NUM_TC_TBL, "assert failed: i != AVDT_NUM_TC_TBL");
 
   /* initialize entry */
   p_tbl->peer_mtu = L2CAP_DEFAULT_MTU;
@@ -354,8 +355,12 @@ void avdt_ad_tc_open_ind(AvdtpTransportChannel* p_tbl) {
   /* if signaling channel, notify ccb that channel open */
   if (p_tbl->tcid == 0) {
     /* set the signal channel to use high priority within the ACL link */
-    L2CA_SetTxPriority(avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid,
-                       L2CAP_CHNL_PRIORITY_HIGH);
+    if (!L2CA_SetTxPriority(
+            avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid,
+            L2CAP_CHNL_PRIORITY_HIGH)) {
+      log::warn("Unable to set L2CAP transmit high priority cid:{}",
+                avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid);
+    }
 
     p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
     /* use err_param to indicate the role of connection.
@@ -543,12 +548,12 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
     p_tbl->state = AVDT_AD_ST_CONN;
 
     /* call l2cap connect req */
-    lcid =
-        L2CA_ConnectReq2(AVDT_PSM, p_ccb->peer_addr, BTM_SEC_OUT_AUTHENTICATE);
+    lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
+                                       BTM_SEC_OUT_AUTHENTICATE);
     if (lcid != 0) {
       /* if connect req ok, store tcid in lcid table  */
       avdtp_cb.ad.lcid_tbl[lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
-      log::verbose("avdtp_cb.ad.lcid_tbl[{}] = {}", (lcid),
+      log::verbose("avdtp_cb.ad.lcid_tbl[{}] = {}", lcid,
                    avdt_ad_tc_tbl_to_idx(p_tbl));
 
       avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].lcid = lcid;

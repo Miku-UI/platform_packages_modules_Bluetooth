@@ -23,12 +23,13 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "bnep_int.h"
-#include "device/include/controller.h"
+#include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/entry.h"
+#include "main/shim/helpers.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
@@ -171,7 +172,7 @@ void bnep_send_conn_req(tBNEP_CONN* p_bcb) {
   uint8_t *p, *p_start;
 
   log::verbose("sending setup req with dst uuid {}",
-               p_bcb->dst_uuid.ToString().c_str());
+               p_bcb->dst_uuid.ToString());
 
   p_buf->offset = L2CAP_MIN_OFFSET;
   p = p_start = (uint8_t*)(p_buf + 1) + L2CAP_MIN_OFFSET;
@@ -199,8 +200,7 @@ void bnep_send_conn_req(tBNEP_CONN* p_bcb) {
     memcpy(p, p_bcb->src_uuid.To128BitBE().data(), Uuid::kNumBytes128);
     p += Uuid::kNumBytes128;
   } else {
-    log::error("uuid: {}, invalid length: {}",
-               p_bcb->dst_uuid.ToString().c_str(),
+    log::error("uuid: {}, invalid length: {}", p_bcb->dst_uuid.ToString(),
                p_bcb->dst_uuid.GetShortestRepresentationSize());
   }
 
@@ -415,7 +415,10 @@ void bnepu_check_send_packet(tBNEP_CONN* p_bcb, BT_HDR* p_buf) {
       fixed_queue_enqueue(p_bcb->xmit_q, p_buf);
     }
   } else {
-    L2CA_DataWrite(p_bcb->l2cap_cid, p_buf);
+    if (L2CA_DataWrite(p_bcb->l2cap_cid, p_buf) != L2CAP_DW_SUCCESS) {
+      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
+                p_bcb->rem_bda, p_bcb->l2cap_cid, p_buf->len);
+    }
   }
 }
 
@@ -433,7 +436,6 @@ void bnepu_check_send_packet(tBNEP_CONN* p_bcb, BT_HDR* p_buf) {
 void bnepu_build_bnep_hdr(tBNEP_CONN* p_bcb, BT_HDR* p_buf, uint16_t protocol,
                           const RawAddress& src_addr,
                           const RawAddress& dest_addr, bool fw_ext_present) {
-  const controller_t* controller = controller_get_interface();
   uint8_t ext_bit, *p = (uint8_t*)NULL;
   uint8_t type = BNEP_FRAME_COMPRESSED_ETHERNET;
   RawAddress source_addr = src_addr;
@@ -441,7 +443,8 @@ void bnepu_build_bnep_hdr(tBNEP_CONN* p_bcb, BT_HDR* p_buf, uint16_t protocol,
   ext_bit = fw_ext_present ? 0x80 : 0x00;
 
   if (source_addr != RawAddress::kEmpty &&
-      source_addr != *controller->get_address())
+      source_addr != bluetooth::ToRawAddress(
+                         bluetooth::shim::GetController()->GetMacAddress()))
     type = BNEP_FRAME_COMPRESSED_ETHERNET_SRC_ONLY;
 
   if (dest_addr != p_bcb->rem_bda)
@@ -450,7 +453,8 @@ void bnepu_build_bnep_hdr(tBNEP_CONN* p_bcb, BT_HDR* p_buf, uint16_t protocol,
                : BNEP_FRAME_GENERAL_ETHERNET;
 
   if (source_addr == RawAddress::kEmpty)
-    source_addr = *controller->get_address();
+    source_addr = bluetooth::ToRawAddress(
+        bluetooth::shim::GetController()->GetMacAddress());
 
   switch (type) {
     case BNEP_FRAME_GENERAL_ETHERNET:
@@ -610,7 +614,7 @@ void bnep_process_setup_conn_req(tBNEP_CONN* p_bcb, uint8_t* p_setup,
   p_bcb->con_flags |= BNEP_FLAGS_SETUP_RCVD;
 
   log::debug("BNEP initiating security check for incoming call for uuid {}",
-             p_bcb->src_uuid.ToString().c_str());
+             p_bcb->src_uuid.ToString());
   bnep_sec_check_complete(&p_bcb->rem_bda, BT_TRANSPORT_BR_EDR, p_bcb);
 }
 
@@ -687,7 +691,10 @@ void bnep_process_setup_conn_responce(tBNEP_CONN* p_bcb, uint8_t* p_setup) {
     } else {
       log::error("BNEP - setup response {} is not OK", resp_code);
 
-      L2CA_DisconnectReq(p_bcb->l2cap_cid);
+      if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+        log::warn("Unable to request L2CAP disconnect peer:{} cid:{}",
+                  p_bcb->rem_bda, p_bcb->l2cap_cid);
+      }
 
       /* Tell the user if there is a callback */
       if ((p_bcb->con_flags & BNEP_FLAGS_IS_ORIG) && (bnep_cb.p_conn_state_cb))
@@ -1253,7 +1260,7 @@ tBNEP_RESULT bnep_is_packet_allowed(tBNEP_CONN* p_bcb,
     if ((p_bcb->rcvd_mcast_filters == 0xFFFF) ||
         (i == p_bcb->rcvd_mcast_filters)) {
       log::verbose("Ignoring multicast address {} in BNEP data write",
-                   ADDRESS_TO_LOGGABLE_STR(dest_addr));
+                   dest_addr);
       return BNEP_IGNORE_CMD;
     }
   }

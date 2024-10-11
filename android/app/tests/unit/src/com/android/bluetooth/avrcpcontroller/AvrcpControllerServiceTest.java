@@ -30,7 +30,9 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.media.AudioManager;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.support.v4.media.session.PlaybackStateCompat;
 
 import androidx.test.InstrumentationRegistry;
@@ -38,9 +40,12 @@ import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.a2dpsink.A2dpSinkService;
 import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService.BrowseResult;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -49,7 +54,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,7 +65,9 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 public class AvrcpControllerServiceTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
-    private static final byte[] REMOTE_DEVICE_ADDRESS_AS_ARRAY = new byte[]{0, 0, 0, 0, 0, 0};
+    private static final String REMOTE_DEVICE_ADDRESS_2 = "11:11:11:11:11:11";
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private AvrcpControllerService mService = null;
     private BluetoothAdapter mAdapter = null;
@@ -67,16 +75,20 @@ public class AvrcpControllerServiceTest {
     @Rule
     public final ServiceTestRule mBluetoothBrowserMediaServiceTestRule = new ServiceTestRule();
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private A2dpSinkService mA2dpSinkService;
     @Mock private AdapterService mAdapterService;
     @Mock private AvrcpControllerStateMachine mStateMachine;
+    @Mock private AvrcpControllerStateMachine mStateMachine2;
     @Mock private AvrcpControllerNativeInterface mNativeInterface;
 
     private BluetoothDevice mRemoteDevice;
+    private BluetoothDevice mRemoteDevice2;
 
     @Before
     public void setUp() throws Exception {
         Context targetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
         AvrcpControllerNativeInterface.setInstance(mNativeInterface);
         mService = new AvrcpControllerService(targetContext, mNativeInterface);
@@ -84,17 +96,27 @@ public class AvrcpControllerServiceTest {
         // Try getting the Bluetooth adapter
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         assertThat(mAdapter).isNotNull();
+        // Set a mock A2dpSinkService for audio focus calls
+        A2dpSinkService.setA2dpSinkService(mA2dpSinkService);
+
         mRemoteDevice = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS);
         mService.mDeviceStateMap.put(mRemoteDevice, mStateMachine);
         final Intent bluetoothBrowserMediaServiceStartIntent =
                 TestUtils.prepareIntentToStartBluetoothBrowserMediaService();
         mBluetoothBrowserMediaServiceTestRule.startService(bluetoothBrowserMediaServiceStartIntent);
+
+        // Set up device and state machine under test
+        mRemoteDevice2 = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS_2);
+        mService.mDeviceStateMap.put(mRemoteDevice2, mStateMachine2);
+
+        when(mA2dpSinkService.setActiveDevice(any(BluetoothDevice.class))).thenReturn(true);
     }
 
     @After
     public void tearDown() throws Exception {
         mService.stop();
         AvrcpControllerNativeInterface.setInstance(null);
+        A2dpSinkService.setA2dpSinkService(null);
         mService = AvrcpControllerService.getAvrcpControllerService();
         assertThat(mService).isNull();
         TestUtils.clearAdapterService(mAdapterService);
@@ -131,8 +153,7 @@ public class AvrcpControllerServiceTest {
 
     @Test
     public void getConnectedDevices() {
-        when(mAdapterService.getBondedDevices()).thenReturn(
-                new BluetoothDevice[]{mRemoteDevice});
+        when(mAdapterService.getBondedDevices()).thenReturn(new BluetoothDevice[] {mRemoteDevice});
         when(mStateMachine.getState()).thenReturn(BluetoothProfile.STATE_CONNECTED);
 
         assertThat(mService.getConnectedDevices()).contains(mRemoteDevice);
@@ -140,6 +161,7 @@ public class AvrcpControllerServiceTest {
 
     @Test
     public void setActiveDevice_whenA2dpSinkServiceIsNotInitailized_returnsFalse() {
+        A2dpSinkService.setA2dpSinkService(null);
         assertThat(mService.setActiveDevice(mRemoteDevice)).isFalse();
 
         assertThat(mService.getActiveDevice()).isNull();
@@ -183,9 +205,9 @@ public class AvrcpControllerServiceTest {
     }
 
     /**
-     * Pre-conditions: No node in BrowseTree for specified media ID
-     * Test: Call AvrcpControllerService.getContents()
-     * Expected Output: BrowseResult object with status ERROR_MEDIA_ID_INVALID
+     * Pre-conditions: No node in BrowseTree for specified media ID Test: Call
+     * AvrcpControllerService.getContents() Expected Output: BrowseResult object with status
+     * ERROR_MEDIA_ID_INVALID
      */
     @Test
     public void testGetContentsNoNode_returnInvalidMediaIdStatus() {
@@ -198,8 +220,8 @@ public class AvrcpControllerServiceTest {
 
     /**
      * Pre-conditions: No device is connected - parent media ID is at the root of the BrowseTree
-     * Test: Call AvrcpControllerService.getContents()
-     * Expected Output: BrowseResult object with status NO_DEVICE_CONNECTED
+     * Test: Call AvrcpControllerService.getContents() Expected Output: BrowseResult object with
+     * status NO_DEVICE_CONNECTED
      */
     @Test
     public void getContentsNoDeviceConnected_returnNoDeviceConnectedStatus() {
@@ -210,9 +232,8 @@ public class AvrcpControllerServiceTest {
     }
 
     /**
-     * Pre-conditions: At least one device is connected
-     * Test: Call AvrcpControllerService.getContents()
-     * Expected Output: BrowseResult object with status SUCCESS
+     * Pre-conditions: At least one device is connected Test: Call
+     * AvrcpControllerService.getContents() Expected Output: BrowseResult object with status SUCCESS
      */
     @Test
     public void getContentsOneDeviceConnected_returnSuccessStatus() {
@@ -224,13 +245,12 @@ public class AvrcpControllerServiceTest {
     }
 
     /**
-     * Pre-conditions: Node for specified media ID is not cached
-     * Test: {@link BrowseTree.BrowseNode#getContents} returns {@code null} when the node has no
-     * children/items and the node is not cached.
-     * When {@link AvrcpControllerService#getContents} receives a node that is not cached,
-     * it should interpret the status as `DOWNLOAD_PENDING`.
-     * Expected Output: BrowseResult object with status DOWNLOAD_PENDING; verify that a download
-     * request has been sent by checking if mStateMachine.requestContents() is called
+     * Pre-conditions: Node for specified media ID is not cached Test: {@link
+     * BrowseTree.BrowseNode#getContents} returns {@code null} when the node has no children/items
+     * and the node is not cached. When {@link AvrcpControllerService#getContents} receives a node
+     * that is not cached, it should interpret the status as `DOWNLOAD_PENDING`. Expected Output:
+     * BrowseResult object with status DOWNLOAD_PENDING; verify that a download request has been
+     * sent by checking if mStateMachine.requestContents() is called
      */
     @Test
     public void getContentsNodeNotCached_returnDownloadPendingStatus() {
@@ -248,9 +268,8 @@ public class AvrcpControllerServiceTest {
     }
 
     /**
-     * Pre-conditions: Parent media ID that is not BrowseTree.ROOT; isCached returns true
-     * Test: Call AvrcpControllerService.getContents()
-     * Expected Output: BrowseResult object with status SUCCESS
+     * Pre-conditions: Parent media ID that is not BrowseTree.ROOT; isCached returns true Test: Call
+     * AvrcpControllerService.getContents() Expected Output: BrowseResult object with status SUCCESS
      */
     @Test
     public void getContentsNoErrorConditions_returnsSuccessStatus() {
@@ -349,8 +368,9 @@ public class AvrcpControllerServiceTest {
 
         mService.getRcPsm(mRemoteDevice, psm);
 
-        verify(mStateMachine).sendMessage(
-                AvrcpControllerStateMachine.MESSAGE_PROCESS_RECEIVED_COVER_ART_PSM, psm);
+        verify(mStateMachine)
+                .sendMessage(
+                        AvrcpControllerStateMachine.MESSAGE_PROCESS_RECEIVED_COVER_ART_PSM, psm);
     }
 
     @Test
@@ -403,8 +423,11 @@ public class AvrcpControllerServiceTest {
 
         mService.onPlayPositionChanged(mRemoteDevice, songLen, currSongPos);
 
-        verify(mStateMachine).sendMessage(
-                AvrcpControllerStateMachine.MESSAGE_PROCESS_PLAY_POS_CHANGED, songLen, currSongPos);
+        verify(mStateMachine)
+                .sendMessage(
+                        AvrcpControllerStateMachine.MESSAGE_PROCESS_PLAY_POS_CHANGED,
+                        songLen,
+                        currSongPos);
     }
 
     @Test
@@ -413,9 +436,10 @@ public class AvrcpControllerServiceTest {
 
         mService.onPlayStatusChanged(mRemoteDevice, status);
 
-        verify(mStateMachine).sendMessage(
-                AvrcpControllerStateMachine.MESSAGE_PROCESS_PLAY_STATUS_CHANGED,
-                PlaybackStateCompat.STATE_REWINDING);
+        verify(mStateMachine)
+                .sendMessage(
+                        AvrcpControllerStateMachine.MESSAGE_PROCESS_PLAY_STATUS_CHANGED,
+                        PlaybackStateCompat.STATE_REWINDING);
     }
 
     @Test
@@ -463,9 +487,10 @@ public class AvrcpControllerServiceTest {
 
         mService.handleGetPlayerItemsRsp(mRemoteDevice, items);
 
-        verify(mStateMachine).sendMessage(
-                eq(AvrcpControllerStateMachine.MESSAGE_PROCESS_GET_PLAYER_ITEMS),
-                eq(items));
+        verify(mStateMachine)
+                .sendMessage(
+                        eq(AvrcpControllerStateMachine.MESSAGE_PROCESS_GET_PLAYER_ITEMS),
+                        eq(items));
     }
 
     @Test
@@ -484,5 +509,29 @@ public class AvrcpControllerServiceTest {
     public void testOnFocusChange_audioLoss_sessionDeactivated() {
         mService.onAudioFocusStateChanged(AudioManager.AUDIOFOCUS_LOSS);
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
+    }
+
+    /**
+     * Connect first device and check that it is the active device. Pair a second device, then
+     * disconnect and repair this known second device. Confirm that audio focus is maintained by
+     * first device by checking that it has remained as the active device.
+     */
+    @Test
+    public void testActiveDeviceMaintainsAudioFocusWhenOtherDeviceConnects_audioFocusMaintained() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
+
+        mService.onConnectionStateChanged(true, true, mRemoteDevice);
+        // check set active device is called
+        verify(mA2dpSinkService).setActiveDevice(mRemoteDevice);
+        when(mA2dpSinkService.getActiveDevice()).thenReturn(mRemoteDevice);
+
+        // connect another phone
+        mService.onConnectionStateChanged(true, true, mRemoteDevice2);
+        verify(mA2dpSinkService, times(0)).setActiveDevice(mRemoteDevice2);
+
+        // disconnect and reconnect other phone
+        mService.onConnectionStateChanged(false, false, mRemoteDevice2);
+        mService.onConnectionStateChanged(true, true, mRemoteDevice2);
+        verify(mA2dpSinkService, times(0)).setActiveDevice(mRemoteDevice2);
     }
 }

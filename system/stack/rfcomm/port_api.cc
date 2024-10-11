@@ -26,19 +26,20 @@
 
 #include "stack/include/port_api.h"
 
-#include <base/logging.h>
+#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
 
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/mutex.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_log_history.h"
 #include "stack/rfcomm/rfc_int.h"
 #include "types/raw_address.h"
 
@@ -73,6 +74,10 @@ static const char* result_code_strings[] = {"Success",
                                             "Invalid SCN",
                                             "Unknown result code"};
 
+namespace {
+const char kBtmLogTag[] = "RFCOMM";
+}  // namespace
+
 /*******************************************************************************
  *
  * Function         RFCOMM_CreateConnectionWithSecurity
@@ -88,7 +93,7 @@ static const char* result_code_strings[] = {"Success",
  *                  mtu          - Maximum frame size the application can accept
  *                  bd_addr      - address of the peer (client)
  *                  p_handle     - OUT pointer to the handle.
- *                  p_mgmt_cb    - pointer to callback function to receive
+ *                  p_mgmt_callback - pointer to callback function to receive
  *                                 connection up/down events.
  *                  sec_mask     - bitmask of BTM_SEC_* values indicating the
  *                                 minimum security requirements for this
@@ -107,15 +112,15 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
                                         bool is_server, uint16_t mtu,
                                         const RawAddress& bd_addr,
                                         uint16_t* p_handle,
-                                        tPORT_CALLBACK* p_mgmt_cb,
+                                        tPORT_MGMT_CALLBACK* p_mgmt_callback,
                                         uint16_t sec_mask) {
   *p_handle = 0;
 
   if ((scn == 0) || (scn > RFCOMM_MAX_SCN)) {
     // Server Channel Number (SCN) should be in range [1, 30]
-    log::error("Invalid SCN, bd_addr={}, scn={}, is_server={}, mtu={}, uuid={}",
-               ADDRESS_TO_LOGGABLE_STR(bd_addr), static_cast<int>(scn),
-               is_server, static_cast<int>(mtu), loghex(uuid));
+    log::error(
+        "Invalid SCN, bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}",
+        bd_addr, static_cast<int>(scn), is_server, static_cast<int>(mtu), uuid);
     return (PORT_INVALID_SCN);
   }
 
@@ -131,7 +136,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
 
   // On the client side, do not allow the same (dlci, bd_addr) to be opened
   // twice by application
-  tPORT* p_port;
+  tPORT* p_port{nullptr};
   if (!is_server) {
     p_port = port_find_port(dlci, bd_addr);
     if (p_port != nullptr) {
@@ -139,13 +144,12 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
       if (!p_port->is_server) {
         log::error(
             "already at opened state {}, RFC_state={}, MCB_state={}, "
-            "bd_addr={}, scn={}, is_server={}, mtu={}, uuid={}, dlci={}, "
+            "bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}, dlci={}, "
             "p_mcb={}, port={}",
             static_cast<int>(p_port->state),
             static_cast<int>(p_port->rfc.state),
-            (p_port->rfc.p_mcb ? p_port->rfc.p_mcb->state : 0),
-            ADDRESS_TO_LOGGABLE_STR(bd_addr), scn, is_server, mtu, loghex(uuid),
-            dlci, fmt::ptr(p_mcb), p_port->handle);
+            p_port->rfc.p_mcb ? p_port->rfc.p_mcb->state : 0, bd_addr, scn,
+            is_server, mtu, uuid, dlci, fmt::ptr(p_mcb), p_port->handle);
         *p_handle = p_port->handle;
         return (PORT_ALREADY_OPENED);
       }
@@ -156,10 +160,9 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
   p_port = port_allocate_port(dlci, bd_addr);
   if (p_port == nullptr) {
     log::error(
-        "no resources, bd_addr={}, scn={}, is_server={}, mtu={}, uuid={}, "
+        "no resources, bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}, "
         "dlci={}",
-        ADDRESS_TO_LOGGABLE_STR(bd_addr), scn, is_server, mtu, loghex(uuid),
-        dlci);
+        bd_addr, scn, is_server, mtu, uuid, dlci);
     return PORT_NO_RESOURCES;
   }
   p_port->sec_mask = sec_mask;
@@ -214,19 +217,26 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
   }
   p_port->local_ctrl.modem_signal = p_port->default_signal_state;
   p_port->local_ctrl.fc = false;
-  p_port->p_mgmt_callback = p_mgmt_cb;
+  p_port->p_mgmt_callback = p_mgmt_callback;
   p_port->bd_addr = bd_addr;
 
   log::info(
-      "bd_addr={}, scn={}, is_server={}, mtu={}, uuid={}, dlci={}, "
-      "signal_state={}, p_port={}",
-      ADDRESS_TO_LOGGABLE_STR(bd_addr), scn, is_server, mtu, loghex(uuid), dlci,
-      loghex(p_port->default_signal_state), fmt::ptr(p_port));
+      "bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}, dlci={}, "
+      "signal_state=0x{:x}, p_port={}",
+      bd_addr, scn, is_server, mtu, uuid, dlci, p_port->default_signal_state,
+      fmt::ptr(p_port));
 
   // If this is not initiator of the connection need to just wait
   if (p_port->is_server) {
+    BTM_LogHistory(kBtmLogTag, bd_addr, "Server started",
+                   base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu mtu:%hu",
+                                      *p_handle, scn, dlci, mtu));
     return (PORT_SUCCESS);
   }
+
+  BTM_LogHistory(kBtmLogTag, bd_addr, "Connection opened",
+                 base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu mtu:%hu",
+                                    *p_handle, scn, dlci, mtu));
 
   // Open will be continued after security checks are passed
   return port_open_continue(p_port);
@@ -273,6 +283,14 @@ int RFCOMM_ControlReqFromBTSOCK(uint8_t dlci, const RawAddress& bd_addr,
   return PORT_SUCCESS;
 }
 
+static tPORT* get_port_from_handle(uint16_t handle) {
+  /* Check if handle is valid to avoid crashing */
+  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+    return nullptr;
+  }
+  return &rfc_cb.port.port[handle - 1];
+}
+
 /*******************************************************************************
  *
  * Function         RFCOMM_RemoveConnection
@@ -283,21 +301,26 @@ int RFCOMM_ControlReqFromBTSOCK(uint8_t dlci, const RawAddress& bd_addr,
  *
  ******************************************************************************/
 int RFCOMM_RemoveConnection(uint16_t handle) {
-  tPORT* p_port;
-
   log::verbose("RFCOMM_RemoveConnection() handle:{}", handle);
 
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
-    log::error("RFCOMM_RemoveConnection() BAD handle:{}", handle);
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-  p_port = &rfc_cb.port.port[handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     log::verbose("RFCOMM_RemoveConnection() Not opened:{}", handle);
     return (PORT_SUCCESS);
   }
+
+  const RawAddress bd_addr =
+      (p_port->rfc.p_mcb) ? (p_port->rfc.p_mcb->bd_addr) : (RawAddress::kEmpty);
+  BTM_LogHistory(
+      kBtmLogTag, bd_addr, "Connection closed",
+      base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu is_server:%s", handle,
+                         p_port->scn, p_port->dlci,
+                         p_port->is_server ? "true" : "false"));
 
   p_port->state = PORT_CONNECTION_STATE_CLOSING;
 
@@ -316,12 +339,11 @@ int RFCOMM_RemoveConnection(uint16_t handle) {
  *
  ******************************************************************************/
 int RFCOMM_RemoveServer(uint16_t handle) {
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
-    log::error("bad handle {}", handle);
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-  tPORT* p_port = &rfc_cb.port.port[handle - 1];
 
   /* Do not report any events to the client any more. */
   p_port->p_mgmt_callback = nullptr;
@@ -332,6 +354,14 @@ int RFCOMM_RemoveServer(uint16_t handle) {
   }
   log::info("handle={}", handle);
 
+  const RawAddress bd_addr =
+      (p_port->rfc.p_mcb) ? (p_port->rfc.p_mcb->bd_addr) : (RawAddress::kEmpty);
+  BTM_LogHistory(
+      kBtmLogTag, bd_addr, "Server stopped",
+      base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu is_server:%s", handle,
+                         p_port->scn, p_port->dlci,
+                         p_port->is_server ? "true" : "false"));
+
   /* this port will be deallocated after closing */
   p_port->keep_port_handle = false;
   p_port->state = PORT_CONNECTION_STATE_CLOSING;
@@ -341,41 +371,25 @@ int RFCOMM_RemoveServer(uint16_t handle) {
   return (PORT_SUCCESS);
 }
 
-/*******************************************************************************
- *
- * Function         PORT_SetEventCallback
- *
- * Description      This function is called to provide an address of the
- *                  function which will be called when one of the events
- *                  specified in the mask occures.
- *
- * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
- *                  p_callback - address of the callback function which should
- *                               be called from the RFCOMM when an event
- *                               specified in the mask occures.
- *
- *
- ******************************************************************************/
-int PORT_SetEventCallback(uint16_t port_handle, tPORT_CALLBACK* p_port_cb) {
-  tPORT* p_port;
-
-  /* Check if handle is valid to avoid crashing */
-  if ((port_handle == 0) || (port_handle > MAX_RFC_PORTS)) {
+int PORT_SetEventMaskAndCallback(uint16_t handle, uint32_t mask,
+                                 tPORT_CALLBACK* p_port_cb) {
+  log::verbose("PORT_SetEventMask() handle:{} mask:0x{:x}", handle, mask);
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-
-  p_port = &rfc_cb.port.port[port_handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return (PORT_NOT_OPENED);
   }
 
-  log::verbose("PORT_SetEventCallback() handle:{}", port_handle);
-
+  p_port->ev_mask = mask;
   p_port->p_callback = p_port_cb;
 
   return (PORT_SUCCESS);
 }
+
 /*******************************************************************************
  *
  * Function         PORT_ClearKeepHandleFlag
@@ -386,15 +400,12 @@ int PORT_SetEventCallback(uint16_t port_handle, tPORT_CALLBACK* p_port_cb) {
  *
  ******************************************************************************/
 
-int PORT_ClearKeepHandleFlag(uint16_t port_handle) {
-  tPORT* p_port;
-
-  /* Check if handle is valid to avoid crashing */
-  if ((port_handle == 0) || (port_handle > MAX_RFC_PORTS)) {
+int PORT_ClearKeepHandleFlag(uint16_t handle) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-
-  p_port = &rfc_cb.port.port[port_handle - 1];
   p_port->keep_port_handle = 0;
   return (PORT_SUCCESS);
 }
@@ -412,56 +423,20 @@ int PORT_ClearKeepHandleFlag(uint16_t port_handle) {
  *
  *
  ******************************************************************************/
-int PORT_SetDataCOCallback(uint16_t port_handle,
-                           tPORT_DATA_CO_CALLBACK* p_port_cb) {
-  tPORT* p_port;
-
-  log::verbose("PORT_SetDataCOCallback() handle:{} cb 0x{}", port_handle,
+int PORT_SetDataCOCallback(uint16_t handle, tPORT_DATA_CO_CALLBACK* p_port_cb) {
+  log::verbose("PORT_SetDataCOCallback() handle:{} cb 0x{}", handle,
                fmt::ptr(p_port_cb));
 
-  /* Check if handle is valid to avoid crashing */
-  if ((port_handle == 0) || (port_handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-
-  p_port = &rfc_cb.port.port[port_handle - 1];
-
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return (PORT_NOT_OPENED);
   }
 
   p_port->p_data_co_callback = p_port_cb;
-
-  return (PORT_SUCCESS);
-}
-
-/*******************************************************************************
- *
- * Function         PORT_SetEventMask
- *
- * Description      This function is called to close the specified connection.
- *
- * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
- *                  mask   - Bitmask of the events the host is interested in
- *
- ******************************************************************************/
-int PORT_SetEventMask(uint16_t port_handle, uint32_t mask) {
-  tPORT* p_port;
-
-  log::verbose("PORT_SetEventMask() handle:{} mask:0x{:x}", port_handle, mask);
-
-  /* Check if handle is valid to avoid crashing */
-  if ((port_handle == 0) || (port_handle > MAX_RFC_PORTS)) {
-    return (PORT_BAD_HANDLE);
-  }
-
-  p_port = &rfc_cb.port.port[port_handle - 1];
-
-  if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
-    return (PORT_NOT_OPENED);
-  }
-
-  p_port->ev_mask = mask;
 
   return (PORT_SUCCESS);
 }
@@ -480,16 +455,16 @@ int PORT_SetEventMask(uint16_t port_handle, uint32_t mask) {
  ******************************************************************************/
 int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr,
                          uint16_t* p_lcid) {
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-  tPORT* p_port = &rfc_cb.port.port[handle - 1];
   log::verbose(
       "handle={}, in_use={}, port_state={}, p_mcb={}, peer_ready={}, "
       "rfc_state={}",
       handle, p_port->in_use, p_port->state, fmt::ptr(p_port->rfc.p_mcb),
-      (p_port->rfc.p_mcb ? p_port->rfc.p_mcb->peer_ready : -1),
+      p_port->rfc.p_mcb ? p_port->rfc.p_mcb->peer_ready : -1,
       p_port->rfc.state);
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
@@ -530,21 +505,19 @@ bool PORT_IsOpening(RawAddress* bd_addr) {
     }
 
     if (multiplexer_cb.state == RFC_MX_STATE_CONNECTED) {
-      bool found_port = false;
       tPORT* p_port = nullptr;
 
       for (tPORT& port : rfc_cb.port.port) {
         if (port.rfc.p_mcb == &multiplexer_cb) {
-          found_port = true;
           p_port = &port;
           break;
         }
       }
 
       log::info("RFC_MX_STATE_CONNECTED, found_port={}, tRFC_PORT_STATE={}",
-                found_port, p_port != nullptr ? p_port->rfc.state : 0);
-      if ((!found_port) ||
-          (found_port && (p_port->rfc.state < RFC_STATE_OPENED))) {
+                (p_port != nullptr) ? "T" : "F",
+                (p_port != nullptr) ? p_port->rfc.state : 0);
+      if ((p_port == nullptr) || (p_port->rfc.state < RFC_STATE_OPENED)) {
         /* Port is not established yet. */
         *bd_addr = multiplexer_cb.bd_addr;
         log::info(
@@ -572,17 +545,14 @@ bool PORT_IsOpening(RawAddress* bd_addr) {
  *
  ******************************************************************************/
 int PORT_SetState(uint16_t handle, tPORT_STATE* p_settings) {
-  tPORT* p_port;
   uint8_t baud_rate;
 
   log::verbose("PORT_SetState() handle:{}", handle);
-
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-
-  p_port = &rfc_cb.port.port[handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return (PORT_NOT_OPENED);
@@ -618,16 +588,13 @@ int PORT_SetState(uint16_t handle, tPORT_STATE* p_settings) {
  *
  ******************************************************************************/
 int PORT_GetState(uint16_t handle, tPORT_STATE* p_settings) {
-  tPORT* p_port;
-
   log::verbose("PORT_GetState() handle:{}", handle);
 
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-
-  p_port = &rfc_cb.port.port[handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return (PORT_NOT_OPENED);
@@ -656,18 +623,16 @@ int PORT_GetState(uint16_t handle, tPORT_STATE* p_settings) {
  ******************************************************************************/
 
 int PORT_FlowControl_MaxCredit(uint16_t handle, bool enable) {
-  tPORT* p_port;
   bool old_fc;
   uint32_t events;
 
   log::verbose("PORT_FlowControl() handle:{} enable: {}", handle, enable);
 
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-
-  p_port = &rfc_cb.port.port[handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return (PORT_NOT_OPENED);
@@ -724,7 +689,6 @@ int PORT_FlowControl_MaxCredit(uint16_t handle, bool enable) {
  ******************************************************************************/
 int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len,
                   uint16_t* p_len) {
-  tPORT* p_port;
   BT_HDR* p_buf;
   uint16_t count;
 
@@ -733,12 +697,11 @@ int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len,
   /* Initialize this in case of an error */
   *p_len = 0;
 
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-
-  p_port = &rfc_cb.port.port[handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return (PORT_NOT_OPENED);
@@ -801,7 +764,7 @@ int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len,
 
   if (*p_len == 1) {
     log::verbose("PORT_ReadData queue:{} returned:{} {:x}",
-                 p_port->rx.queue_size, *p_len, (p_data[0]));
+                 p_port->rx.queue_size, *p_len, p_data[0]);
   } else {
     log::verbose("PORT_ReadData queue:{} returned:{}", p_port->rx.queue_size,
                  *p_len);
@@ -856,9 +819,8 @@ static int port_write(tPORT* p_port, BT_HDR* p_buf) {
     log::verbose(
         "PORT_Write : Data is enqued. flow disabled {} peer_ready {} state {} "
         "ctrl_state {:x}",
-        p_port->tx.peer_fc,
-        (p_port->rfc.p_mcb && p_port->rfc.p_mcb->peer_ready), p_port->rfc.state,
-        p_port->port_ctrl);
+        p_port->tx.peer_fc, p_port->rfc.p_mcb && p_port->rfc.p_mcb->peer_ready,
+        p_port->rfc.state, p_port->port_ctrl);
 
     fixed_queue_enqueue(p_port->tx.queue, p_buf);
     p_port->tx.queue_size += p_buf->len;
@@ -885,7 +847,6 @@ static int port_write(tPORT* p_port, BT_HDR* p_buf) {
  *
  ******************************************************************************/
 int PORT_WriteDataCO(uint16_t handle, int* p_len) {
-  tPORT* p_port;
   BT_HDR* p_buf;
   uint32_t event = 0;
   int rc = 0;
@@ -894,11 +855,11 @@ int PORT_WriteDataCO(uint16_t handle, int* p_len) {
   log::verbose("PORT_WriteDataCO() handle:{}", handle);
   *p_len = 0;
 
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-  p_port = &rfc_cb.port.port[handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     log::warn("PORT_WriteDataByFd() no port state:{}", p_port->state);
@@ -1042,7 +1003,6 @@ int PORT_WriteDataCO(uint16_t handle, int* p_len) {
  ******************************************************************************/
 int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len,
                    uint16_t* p_len) {
-  tPORT* p_port;
   BT_HDR* p_buf;
   uint32_t event = 0;
   int rc = 0;
@@ -1052,11 +1012,11 @@ int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len,
 
   *p_len = 0;
 
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-  p_port = &rfc_cb.port.port[handle - 1];
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     log::warn("PORT_WriteData() no port state:{}", p_port->state);
@@ -1187,11 +1147,11 @@ const char* PORT_GetResultString(const uint8_t result_code) {
  *
  ******************************************************************************/
 int PORT_GetSecurityMask(uint16_t handle, uint16_t* sec_mask) {
-  /* Check if handle is valid to avoid crashing */
-  if ((handle == 0) || (handle > MAX_RFC_PORTS)) {
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return (PORT_BAD_HANDLE);
   }
-  tPORT* p_port = &rfc_cb.port.port[handle - 1];
   *sec_mask = p_port->sec_mask;
   return (PORT_SUCCESS);
 }

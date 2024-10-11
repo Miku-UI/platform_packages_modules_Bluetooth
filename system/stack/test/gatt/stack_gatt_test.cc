@@ -25,6 +25,7 @@
 #include <string>
 
 #include "common/strings.h"
+#include "gd/os/rand.h"
 #include "osi/include/allocator.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
@@ -129,6 +130,7 @@ TEST_F(StackGattTest, lifecycle_tGATT_REG) {
     memset(reg0.get(), 0, sizeof(tGATT_REG));
     // Restore the complex structure after memset
     memset(&reg1.name, 0, sizeof(std::string));
+    memset(&reg1.direct_connect_request, 0, sizeof(std::set<RawAddress>));
     reg1 = {};
     ASSERT_EQ(0, memcmp(reg0.get(), &reg1, actual_sizeof_tGATT_REG()));
   }
@@ -158,8 +160,10 @@ TEST_F(StackGattTest, GATT_Register_Deregister) {
 
   for (int i = 0; i < GATT_MAX_APPS - 1; i++) {
     std::string name = bluetooth::common::StringFormat("name%02d", i);
-    apps[i] = GATT_Register(bluetooth::Uuid::GetRandom(), name, &gatt_callbacks,
-                            false);
+
+    bluetooth::Uuid uuid = bluetooth::Uuid::From128BitBE(
+        bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
+    apps[i] = GATT_Register(uuid, name, &gatt_callbacks, false);
   }
 
   for (int i = 0; i < GATT_MAX_APPS - 1; i++) {

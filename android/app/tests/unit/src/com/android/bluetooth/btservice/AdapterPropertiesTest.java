@@ -36,11 +36,13 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.Utils;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -54,6 +56,8 @@ public class AdapterPropertiesTest {
     private HandlerThread mHandlerThread;
     private Context mTargetContext;
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private AdapterService mAdapterService;
     @Mock private AdapterNativeInterface mNativeInterface;
 
@@ -61,7 +65,6 @@ public class AdapterPropertiesTest {
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getTargetContext();
 
-        MockitoAnnotations.initMocks(this);
         doReturn(mNativeInterface).when(mAdapterService).getNative();
         mHandlerThread = new HandlerThread("RemoteDevicesTestHandlerThread");
         mHandlerThread.start();
@@ -98,8 +101,13 @@ public class AdapterPropertiesTest {
     @Test
     public void testCleanupPrevBondRecordsFor() {
         mRemoteDevices.reset();
-        mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
-        mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES_2);
+        mRemoteDevices
+                .addDeviceProperties(TEST_BT_ADDR_BYTES)
+                .setDeviceType(BluetoothDevice.DEVICE_TYPE_LE);
+        mRemoteDevices
+                .addDeviceProperties(TEST_BT_ADDR_BYTES_2)
+                .setDeviceType(BluetoothDevice.DEVICE_TYPE_LE);
+
         BluetoothDevice device1, device2;
         device1 = mRemoteDevices.getDevice(TEST_BT_ADDR_BYTES);
         device2 = mRemoteDevices.getDevice(TEST_BT_ADDR_BYTES_2);

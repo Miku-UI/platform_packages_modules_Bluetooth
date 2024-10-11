@@ -24,15 +24,12 @@
 #include "hci/hci_layer.h"
 #include "hci/le_advertising_manager.h"
 #include "hci/le_scanning_manager.h"
+#if TARGET_FLOSS
 #include "hci/msft.h"
+#endif
 #include "hci/remote_name_request.h"
-#include "hci/vendor_specific_event_manager.h"
 #include "main/shim/stack.h"
 #include "metrics/counter_metrics.h"
-#include "neighbor/connectability.h"
-#include "neighbor/discoverability.h"
-#include "neighbor/inquiry.h"
-#include "neighbor/page.h"
 #include "os/handler.h"
 #include "shim/dumpsys.h"
 #include "storage/storage_module.h"
@@ -54,36 +51,12 @@ hci::ControllerInterface* GetController() {
       ->GetInstance<hci::Controller>();
 }
 
-neighbor::ConnectabilityModule* GetConnectability() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::ConnectabilityModule>();
-}
-
-neighbor::DiscoverabilityModule* GetDiscoverability() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::DiscoverabilityModule>();
-}
-
 Dumpsys* GetDumpsys() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<Dumpsys>();
 }
 
-neighbor::InquiryModule* GetInquiry() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::InquiryModule>();
-}
-
-hci::HciLayer* GetHciLayer() {
+hci::HciInterface* GetHciLayer() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hci::HciLayer>();
-}
-
-neighbor::PageModule* GetPage() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<neighbor::PageModule>();
 }
 
 hci::RemoteNameRequestModule* GetRemoteNameRequest() {
@@ -122,23 +95,19 @@ hci::AclManager* GetAclManager() {
       ->GetInstance<hci::AclManager>();
 }
 
-hci::VendorSpecificEventManager* GetVendorSpecificEventManager() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::VendorSpecificEventManager>();
-}
-
 metrics::CounterMetrics* GetCounterMetrics() {
   return Stack::GetInstance()
       ->GetStackManager()
       ->GetInstance<metrics::CounterMetrics>();
 }
 
+#if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager() {
   return Stack::GetInstance()
       ->GetStackManager()
       ->GetInstance<hci::MsftExtensionManager>();
 }
+#endif
 
 }  // namespace shim
 }  // namespace bluetooth

@@ -3,6 +3,7 @@ container: "com.android.btservices"
 
 flag {
     name: "leaudio_broadcast_monitor_source_sync_status"
+    is_exported: true
     namespace: "bluetooth"
     description: "New APIs to improve broadcast source sync"
     bug: "307406671"
@@ -10,6 +11,7 @@ flag {
 
 flag {
     name: "leaudio_broadcast_volume_control_for_connected_devices"
+    is_exported: true
     namespace: "bluetooth"
     description: "Allow volume control for connected devices"
     bug: "307408418"
@@ -72,20 +74,6 @@ flag {
 }
 
 flag {
-    name: "delay_bonding_when_busy"
-    namespace: "bluetooth"
-    description: "Fix bonding failure due to native stack being busy"
-    bug: "316927319"
-}
-
-flag {
-    name: "le_audio_fast_bond_params"
-    namespace: "bluetooth"
-    description: "Faster LE Audio devices connection"
-    bug: "319405267"
-}
-
-flag {
     name: "le_audio_dev_type_detection_fix"
     namespace: "bluetooth"
     description: "Better LE Audio devices detection"
@@ -94,6 +82,7 @@ flag {
 
 flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
+    is_exported: true
     namespace: "bluetooth"
     description: "API to set device as inactive audio device upon connection"
     bug: "322387487"
@@ -101,6 +90,7 @@ flag {
 
 flag {
     name: "leaudio_add_sampling_frequencies"
+    is_exported: true
     namespace: "bluetooth"
     description: "Adds missing frequencies defined by the Bluetooth SIG"
     bug: "323287937"
@@ -108,6 +98,7 @@ flag {
 
 flag {
     name: "leaudio_callback_on_group_stream_status"
+    is_exported: true
     namespace: "bluetooth"
     description: "Add group stream status callback to notify about playing state"
     bug: "323288608"
@@ -125,6 +116,7 @@ flag {
 
 flag {
     name: "leaudio_multiple_vocs_instances_api"
+    is_exported: true
     namespace: "bluetooth"
     description: "Support multiple audio outputs for volume offset"
     bug: "323156655"
@@ -185,6 +177,210 @@ flag {
     namespace: "bluetooth"
     description: "Fix for the order on the callback"
     bug: "326442537"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_resume_active_after_hfp_handover"
+    namespace: "bluetooth"
+    description: "Fix for if HFP- LE Audio handover happened, LE audio resume active after the call"
+    bug: "331468678"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_allow_leaudio_only_devices"
+    namespace: "bluetooth"
+    description: "Enable Le Audio for LeAudio only devices"
+    bug: "328471369"
+}
+
+flag {
+    name: "leaudio_mono_location_errata"
+    namespace: "bluetooth"
+    description: "Add mono location as per Bluetooth Assigned Numbers"
+    bug: "331139722"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_quick_leaudio_toggle_switch_fix"
+    namespace: "bluetooth"
+    description: "Fix for one device being not connected when toggle LeAudio is switch during bonding"
+    bug: "328595942"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_assistant_handle_command_statuses"
+    namespace: "bluetooth"
+    description: "Handle command statuses to recover from errors"
+    bug: "331167629"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_getting_active_state_support"
+    namespace: "bluetooth"
+    description: "Introduce getting active state for LE Audio to avoid unnecessary broadcast handover when changing active group"
+    bug: "331387253"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_audio_base_ecosystem_interval"
+    namespace: "bluetooth"
+    description: "Set base ecosystem interval when LE Audio is in use"
+    bug: "332574780"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_audio_support_unidirectional_voice_assistant"
+    namespace: "bluetooth"
+    description: "Allow to create unidirectional stream for VOICEASSISTANT"
+    bug: "332510824"
+}
+
+flag {
+    name: "leaudio_start_request_state_mutex_check"
+    namespace: "bluetooth"
+    description: "Check mutex before getting start request state"
+    bug: "332847150"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_assistant_peripheral_entrustment"
+    namespace: "bluetooth"
+    description: "Give peripheral devices more responsibility for source handling"
+    bug: "333050419"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_destroy_after_timeout"
+    namespace: "bluetooth"
+    description: "Destroy broadcast if it fails to start in time"
+    bug: "332500141"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_volume_control_with_set_volume"
+    namespace: "bluetooth"
+    description: "Set broadcast sink volume with setVolume API"
+    bug: "333761969"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "run_clock_recovery_in_worker_thread"
+    namespace: "bluetooth"
+    description: "Fix thread ownership issue in clock_recovery"
+    bug: "333657963"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_extract_periodic_scanner_from_state_machine"
+    namespace: "bluetooth"
+    description: "Extract periodic scanner from state machine to make it independent from remote devices"
+    bug: "333691526"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_allowed_context_mask"
+    namespace: "bluetooth"
+    description: "Set allowed context mask to filter stream requests in native"
+    bug: "336468573"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_no_context_validate_streaming_request"
+    namespace: "bluetooth"
+    description: "Request streaming would be send without available cotext validation"
+    bug: "336466406"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_synchronize_start"
+    namespace: "bluetooth"
+    description: "Do not post on main looper when starting le_audio"
+    bug: "341385684"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_stop_on_streaming_request"
+    namespace: "bluetooth"
+    description: "Stop instead of pause on unicast stream request"
+    bug: "336740254"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "headtracker_codec_capability"
+    namespace: "bluetooth"
+    description: "Use Android Headtracker codec capabilities"
+    bug: "338098113"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_use_audio_mode_listener"
+    namespace: "bluetooth"
+    description: "Use Audio Mode listener instead of Telecom in call callback"
+    bug: "339612732"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_big_depends_on_audio_state"
+    namespace: "bluetooth"
+    description: "BIG creation/termination depends on audio resume/pause"
+    bug: "347204335"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

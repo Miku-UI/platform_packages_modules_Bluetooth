@@ -44,10 +44,11 @@
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_pan_internal.h"
 #include "btif/include/btif_sock_thread.h"
-#include "device/include/controller.h"
-#include "include/check.h"
+#include "hci/controller_interface.h"
 #include "include/hardware/bt_pan.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/entry.h"
+#include "main/shim/helpers.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
@@ -245,7 +246,7 @@ static bt_status_t btpan_disconnect(const RawAddress* bd_addr) {
     BTA_PanClose(conn->handle);
     return BT_STATUS_SUCCESS;
   }
-  return BT_STATUS_FAIL;
+  return BT_STATUS_DEVICE_NOT_FOUND;
 }
 
 static int pan_pth = -1;
@@ -262,7 +263,7 @@ void destroy_tap_read_thread(void) {
   }
 }
 
-static int tap_if_up(const char* devname, const RawAddress* addr) {
+static int tap_if_up(const char* devname, const RawAddress& addr) {
   struct ifreq ifr;
   int sk, err;
 
@@ -281,7 +282,7 @@ static int tap_if_up(const char* devname, const RawAddress* addr) {
   }
 
   strlcpy(ifr.ifr_name, devname, IFNAMSIZ);
-  memcpy(ifr.ifr_hwaddr.sa_data, addr->address, 6);
+  memcpy(ifr.ifr_hwaddr.sa_data, addr.address, 6);
 
   /* The IEEE has specified that the most significant bit of the most
    * significant byte is used to
@@ -380,7 +381,9 @@ int btpan_tap_open() {
     close(fd);
     return err;
   }
-  if (tap_if_up(TAP_IF_NAME, controller_get_interface()->get_address()) == 0) {
+  if (tap_if_up(TAP_IF_NAME,
+                bluetooth::ToRawAddress(
+                    bluetooth::shim::GetController()->GetMacAddress())) == 0) {
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     return fd;
@@ -573,8 +576,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
     case BTA_PAN_OPENING_EVT: {
       btpan_conn_t* conn;
       log::verbose("BTA_PAN_OPENING_EVT handle {}, addr: {}",
-                   p_data->opening.handle,
-                   ADDRESS_TO_LOGGABLE_CSTR(p_data->opening.bd_addr));
+                   p_data->opening.handle, p_data->opening.bd_addr);
       conn = btpan_find_conn_addr(p_data->opening.bd_addr);
 
       asrt(conn != NULL);
@@ -734,7 +736,9 @@ static void btif_pan_close_all_conns() {
 
 static void btpan_tap_fd_signaled(int fd, int type, int flags,
                                   uint32_t user_id) {
-  CHECK(btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd);
+  log::assert_that(
+      btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd,
+      "assert failed: btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd");
 
   if (btpan_cb.tap_fd != fd) {
     log::warn("Signaled on mismatched fds exp:{} act:{}", btpan_cb.tap_fd, fd);

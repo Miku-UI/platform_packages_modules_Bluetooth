@@ -16,6 +16,7 @@
 
 #include "hci/acl_manager.h"
 
+#include <bluetooth/log.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -94,7 +95,7 @@ class TestController : public testing::MockController {
   }
 
   void CompletePackets(uint16_t handle, uint16_t packets) {
-    acl_cb_.Invoke(handle, packets);
+    acl_cb_(handle, packets);
   }
 
   uint16_t acl_buffer_length_ = 1024;
@@ -166,7 +167,9 @@ class AclManagerNoCallbacksTest : public ::testing::Test {
   }
 
   void sync_client_handler() {
-    ASSERT(thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2)));
+    log::assert_that(
+        thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2)),
+        "assert failed: thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2))");
   }
 
   TestModuleRegistry fake_registry_;
@@ -180,13 +183,13 @@ class AclManagerNoCallbacksTest : public ::testing::Test {
   const bool use_accept_list_ = true;  // gd currently only supports connect list
 
   std::future<void> GetConnectionFuture() {
-    ASSERT_LOG(connection_promise_ == nullptr, "Promises promises ... Only one at a time");
+    log::assert_that(connection_promise_ == nullptr, "Promises promises ... Only one at a time");
     connection_promise_ = std::make_unique<std::promise<void>>();
     return connection_promise_->get_future();
   }
 
   std::future<void> GetLeConnectionFuture() {
-    ASSERT_LOG(le_connection_promise_ == nullptr, "Promises promises ... Only one at a time");
+    log::assert_that(le_connection_promise_ == nullptr, "Promises promises ... Only one at a time");
     le_connection_promise_ = std::make_unique<std::promise<void>>();
     return le_connection_promise_->get_future();
   }
@@ -387,7 +390,7 @@ class AclManagerWithLeConnectionTest : public AclManagerTest {
         });
 
     if (send_early_acl_) {
-      LOG_INFO("Sending a packet with handle 0x%02x (0x%d)", handle_, handle_);
+      log::info("Sending a packet with handle 0x{:02x} ({})", handle_, handle_);
       test_hci_layer_->IncomingAclData(handle_);
     }
 
@@ -956,12 +959,12 @@ TEST_F(AclManagerWithConnectionTest, send_flow_specification) {
 
 TEST_F(AclManagerWithConnectionTest, send_flush) {
   connection_->Flush();
-  auto packet = GetConnectionManagementCommand(OpCode::FLUSH);
-  auto command_view = FlushView::Create(packet);
+  auto packet = GetConnectionManagementCommand(OpCode::ENHANCED_FLUSH);
+  auto command_view = EnhancedFlushView::Create(packet);
   ASSERT_TRUE(command_view.IsValid());
 
   EXPECT_CALL(mock_connection_management_callbacks_, OnFlushOccurred());
-  test_hci_layer_->IncomingEvent(FlushOccurredBuilder::Create(handle_));
+  test_hci_layer_->IncomingEvent(EnhancedFlushCompleteBuilder::Create(handle_));
   sync_client_handler();
 }
 

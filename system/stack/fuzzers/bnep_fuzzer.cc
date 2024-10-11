@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <bluetooth/log.h>
 #include <fuzzer/FuzzedDataProvider.h>
 
 #include <cstdint>
@@ -52,20 +53,24 @@ class FakeBtStack {
   FakeBtStack() {
     test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid,
                                                           BT_HDR* p_data) {
-      CHECK(cid == kDummyCid);
+      bluetooth::log::assert_that(cid == kDummyCid,
+                                  "assert failed: cid == kDummyCid");
       osi_free(p_data);
       return L2CAP_DW_SUCCESS;
     };
     test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t cid) {
-      CHECK(cid == kDummyCid);
+      bluetooth::log::assert_that(cid == kDummyCid,
+                                  "assert failed: cid == kDummyCid");
       return true;
     };
-    test::mock::stack_l2cap_api::L2CA_ConnectReq2.body =
+    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
         [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
-          CHECK(p_bd_addr == kDummyRemoteAddr);
+          bluetooth::log::assert_that(
+              p_bd_addr == kDummyRemoteAddr,
+              "assert failed: p_bd_addr == kDummyRemoteAddr");
           return kDummyCid;
         };
-    test::mock::stack_l2cap_api::L2CA_Register2.body =
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
         [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
            tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
            uint16_t required_remote_mtu, uint16_t sec_level) {
@@ -77,9 +82,9 @@ class FakeBtStack {
 
   ~FakeBtStack() {
     test::mock::stack_l2cap_api::L2CA_DataWrite = {};
-    test::mock::stack_l2cap_api::L2CA_ConnectReq2 = {};
+    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity = {};
     test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
-    test::mock::stack_l2cap_api::L2CA_Register2 = {};
+    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
     test::mock::stack_l2cap_api::L2CA_Deregister = {};
   }
 };

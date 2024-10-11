@@ -44,12 +44,14 @@ import com.android.bluetooth.btservice.storage.DatabaseManager;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -63,6 +65,7 @@ public class BluetoothPbapServiceTest {
     private boolean mIsBluetoothPabpServiceStarted;
     private TestLooper mTestLooper;
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
@@ -71,7 +74,6 @@ public class BluetoothPbapServiceTest {
     @Before
     public void setUp() throws Exception {
         Context targetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
         mTestLooper = new TestLooper();
         BluetoothMethodProxy.setInstanceForTesting(mMethodProxy);
         doReturn(mTestLooper.getLooper()).when(mMethodProxy).handlerThreadGetLooper(any());
@@ -169,9 +171,11 @@ public class BluetoothPbapServiceTest {
     @Test
     public void broadcastReceiver_onReceive_withActionConnectionAccessReply() {
         Intent intent = new Intent(BluetoothDevice.ACTION_CONNECTION_ACCESS_REPLY);
-        intent.putExtra(BluetoothDevice.EXTRA_ACCESS_REQUEST_TYPE,
+        intent.putExtra(
+                BluetoothDevice.EXTRA_ACCESS_REQUEST_TYPE,
                 BluetoothDevice.REQUEST_TYPE_PHONEBOOK_ACCESS);
-        intent.putExtra(BluetoothDevice.EXTRA_CONNECTION_ACCESS_RESULT,
+        intent.putExtra(
+                BluetoothDevice.EXTRA_CONNECTION_ACCESS_RESULT,
                 BluetoothDevice.CONNECTION_ACCESS_YES);
         intent.putExtra(BluetoothDevice.EXTRA_ALWAYS_ALLOWED, true);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mRemoteDevice);

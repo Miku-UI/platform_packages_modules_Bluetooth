@@ -80,7 +80,7 @@ static bool acl_ble_common_connection(
 void acl_ble_enhanced_connection_complete(
     const tBLE_BD_ADDR& address_with_type, uint16_t handle, tHCI_ROLE role,
     bool match, uint16_t conn_interval, uint16_t conn_latency,
-    uint16_t conn_timeout, const RawAddress& local_rpa,
+    uint16_t conn_timeout, const RawAddress& /* local_rpa */,
     const RawAddress& peer_rpa, tBLE_ADDR_TYPE peer_addr_type,
     bool can_read_discoverable_characteristics) {
   if (!acl_ble_common_connection(address_with_type, handle, role, match,
@@ -99,7 +99,8 @@ void acl_ble_enhanced_connection_complete(
 static bool maybe_resolve_received_address(
     const tBLE_BD_ADDR& address_with_type,
     tBLE_BD_ADDR* resolved_address_with_type) {
-  ASSERT(resolved_address_with_type != nullptr);
+  log::assert_that(resolved_address_with_type != nullptr,
+                   "assert failed: resolved_address_with_type != nullptr");
 
   *resolved_address_with_type = address_with_type;
   return maybe_resolve_address(&resolved_address_with_type->bda,
@@ -132,7 +133,7 @@ void acl_ble_enhanced_connection_complete_from_shim(
 }
 
 void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type,
-                             uint16_t handle, bool enhanced,
+                             uint16_t /* handle */, bool /* enhanced */,
                              tHCI_STATUS status) {
   acl_set_locally_initiated(
       true);  // LE connection failures are always locally initiated
@@ -150,9 +151,8 @@ void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type,
           resolved_address_with_type.bda);
     }
     log::warn("LE connection fail peer:{} bd_addr:{} hci_status:{}",
-              ADDRESS_TO_LOGGABLE_CSTR(address_with_type),
-              ADDRESS_TO_LOGGABLE_CSTR(resolved_address_with_type.bda),
-              hci_status_code_text(status).c_str());
+              address_with_type, resolved_address_with_type.bda,
+              hci_status_code_text(status));
   } else {
     btm_cb.ble_ctr_cb.inq_var.adv_mode = BTM_BLE_ADV_DISABLE;
   }

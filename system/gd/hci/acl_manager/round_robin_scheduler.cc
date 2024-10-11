@@ -15,8 +15,10 @@
  */
 
 #include "hci/acl_manager/round_robin_scheduler.h"
-#include "hci/acl_manager/acl_fragmenter.h"
 
+#include <bluetooth/log.h>
+
+#include "hci/acl_manager/acl_fragmenter.h"
 namespace bluetooth {
 namespace hci {
 namespace acl_manager {
@@ -41,7 +43,9 @@ RoundRobinScheduler::~RoundRobinScheduler() {
 
 void RoundRobinScheduler::Register(ConnectionType connection_type, uint16_t handle,
                                    std::shared_ptr<acl_manager::AclConnection::Queue> queue) {
-  ASSERT(acl_queue_handlers_.count(handle) == 0);
+  log::assert_that(
+      acl_queue_handlers_.count(handle) == 0,
+      "assert failed: acl_queue_handlers_.count(handle) == 0");
   acl_queue_handler acl_queue_handler = {connection_type, std::move(queue), false, 0};
   acl_queue_handlers_.insert(std::pair<uint16_t, RoundRobinScheduler::acl_queue_handler>(handle, acl_queue_handler));
   if (fragments_to_send_.size() == 0) {
@@ -50,7 +54,9 @@ void RoundRobinScheduler::Register(ConnectionType connection_type, uint16_t hand
 }
 
 void RoundRobinScheduler::Unregister(uint16_t handle) {
-  ASSERT(acl_queue_handlers_.count(handle) == 1);
+  log::assert_that(
+      acl_queue_handlers_.count(handle) == 1,
+      "assert failed: acl_queue_handlers_.count(handle) == 1");
   auto acl_queue_handler = acl_queue_handlers_.find(handle)->second;
   // Reclaim outstanding packets
   if (acl_queue_handler.connection_type_ == ConnectionType::CLASSIC) {
@@ -71,7 +77,7 @@ void RoundRobinScheduler::Unregister(uint16_t handle) {
 void RoundRobinScheduler::SetLinkPriority(uint16_t handle, bool high_priority) {
   auto acl_queue_handler = acl_queue_handlers_.find(handle);
   if (acl_queue_handler == acl_queue_handlers_.end()) {
-    LOG_WARN("handle %d is invalid", handle);
+    log::warn("handle {} is invalid", handle);
     return;
   }
   acl_queue_handler->second.high_priority_ = high_priority;
@@ -94,14 +100,14 @@ void RoundRobinScheduler::start_round_robin() {
     bool classic_buffer_full = acl_packet_credits_ == 0 && connection_type == ConnectionType::CLASSIC;
     bool le_buffer_full = le_acl_packet_credits_ == 0 && connection_type == ConnectionType::LE;
     if (classic_buffer_full || le_buffer_full) {
-      LOG_WARN("Buffer of connection_type %d is full", connection_type);
+      log::warn("Buffer of connection_type {} is full", connection_type);
       return;
     }
     send_next_fragment();
     return;
   }
   if (acl_queue_handlers_.empty()) {
-    LOG_INFO("No any acl connection");
+    log::info("No any acl connection");
     return;
   }
 
@@ -135,14 +141,14 @@ void RoundRobinScheduler::buffer_packet(uint16_t acl_handle) {
   BroadcastFlag broadcast_flag = BroadcastFlag::POINT_TO_POINT;
   auto acl_queue_handler = acl_queue_handlers_.find(acl_handle);
   if( acl_queue_handler == acl_queue_handlers_.end()) {
-    LOG_ERROR("Ignore since ACL connection vanished with handle: 0x%X", acl_handle);
+    log::error("Ignore since ACL connection vanished with handle: 0x{:X}", acl_handle);
     return;
   }
 
   // Wrap packet and enqueue it
   uint16_t handle = acl_queue_handler->first;
   auto packet = acl_queue_handler->second.queue_->GetDownEnd()->TryDequeue();
-  ASSERT(packet != nullptr);
+  log::assert_that(packet != nullptr, "assert failed: packet != nullptr");
 
   ConnectionType connection_type = acl_queue_handler->second.connection_type_;
   size_t mtu = connection_type == ConnectionType::CLASSIC ? hci_mtu_ : le_hci_mtu_;
@@ -167,7 +173,7 @@ void RoundRobinScheduler::buffer_packet(uint16_t acl_handle) {
       packet_boundary_flag = PacketBoundaryFlag::CONTINUING_FRAGMENT;
     }
   }
-  ASSERT(fragments_to_send_.size() > 0);
+  log::assert_that(fragments_to_send_.size() > 0, "assert failed: fragments_to_send_.size() > 0");
   unregister_all_connections();
 
   acl_queue_handler->second.number_of_sent_packets_ += fragments_to_send_.size();
@@ -195,10 +201,10 @@ void RoundRobinScheduler::send_next_fragment() {
 std::unique_ptr<AclBuilder> RoundRobinScheduler::handle_enqueue_next_fragment() {
   ConnectionType connection_type = fragments_to_send_.front().first;
   if (connection_type == ConnectionType::CLASSIC) {
-    ASSERT(acl_packet_credits_ > 0);
+    log::assert_that(acl_packet_credits_ > 0, "assert failed: acl_packet_credits_ > 0");
     acl_packet_credits_ -= 1;
   } else {
-    ASSERT(le_acl_packet_credits_ > 0);
+    log::assert_that(le_acl_packet_credits_ > 0, "assert failed: le_acl_packet_credits_ > 0");
     le_acl_packet_credits_ -= 1;
   }
 
@@ -229,7 +235,7 @@ void RoundRobinScheduler::incoming_acl_credits(uint16_t handle, uint16_t credits
   if (acl_queue_handler->second.number_of_sent_packets_ >= credits) {
     acl_queue_handler->second.number_of_sent_packets_ -= credits;
   } else {
-    LOG_WARN("receive more credits than we sent");
+    log::warn("receive more credits than we sent");
     acl_queue_handler->second.number_of_sent_packets_ = 0;
   }
 
@@ -241,7 +247,7 @@ void RoundRobinScheduler::incoming_acl_credits(uint16_t handle, uint16_t credits
     acl_packet_credits_ += credits;
     if (acl_packet_credits_ > max_acl_packet_credits_) {
       acl_packet_credits_ = max_acl_packet_credits_;
-      LOG_WARN("acl packet credits overflow due to receive %hx credits", credits);
+      log::warn("acl packet credits overflow due to receive {} credits", credits);
     }
   } else {
     if (le_acl_packet_credits_ == 0) {
@@ -250,7 +256,7 @@ void RoundRobinScheduler::incoming_acl_credits(uint16_t handle, uint16_t credits
     le_acl_packet_credits_ += credits;
     if (le_acl_packet_credits_ > le_max_acl_packet_credits_) {
       le_acl_packet_credits_ = le_max_acl_packet_credits_;
-      LOG_WARN("le acl packet credits overflow due to receive %hx credits", credits);
+      log::warn("le acl packet credits overflow due to receive {} credits", credits);
     }
   }
   if (credit_was_zero) {

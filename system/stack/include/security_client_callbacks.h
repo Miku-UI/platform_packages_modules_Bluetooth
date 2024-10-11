@@ -31,8 +31,7 @@
  *  Security Manager Callback Functions
  ****************************************/
 /* Authorize device for service.  Parameters are
- *              Service Id (NULL - unknown service or unused
- *                                 [BTM_SEC_SERVICE_NAME_LEN set to 0])
+ *              Service Id (NULL - unknown service or unused)
  */
 typedef uint8_t(tBTM_AUTHORIZE_CALLBACK)(uint8_t service_id);
 
@@ -43,8 +42,7 @@ typedef uint8_t(tBTM_AUTHORIZE_CALLBACK)(uint8_t service_id);
  *              Flag indicating the minimum pin code length to be 16 digits
  */
 typedef uint8_t(tBTM_PIN_CALLBACK)(const RawAddress& bd_addr,
-                                   DEV_CLASS dev_class,
-                                   const tBTM_BD_NAME bd_name,
+                                   DEV_CLASS dev_class, const BD_NAME bd_name,
                                    bool min_16_digit);
 
 /* New Link Key for the connection.  Parameters are
@@ -53,8 +51,7 @@ typedef uint8_t(tBTM_PIN_CALLBACK)(const RawAddress& bd_addr,
  *              Key Type: Combination, Local Unit, or Remote Unit
  */
 typedef uint8_t(tBTM_LINK_KEY_CALLBACK)(const RawAddress& bd_addr,
-                                        DEV_CLASS dev_class,
-                                        tBTM_BD_NAME bd_name,
+                                        DEV_CLASS dev_class, BD_NAME bd_name,
                                         const LinkKey& key, uint8_t key_type,
                                         bool is_ctkd);
 
@@ -63,7 +60,7 @@ typedef uint8_t(tBTM_LINK_KEY_CALLBACK)(const RawAddress& bd_addr,
  *              BD Name of remote
  */
 typedef void(tBTM_RMT_NAME_CALLBACK)(const RawAddress& bd_addr, DEV_CLASS dc,
-                                     tBTM_BD_NAME bd_name);
+                                     BD_NAME bd_name);
 
 /* Authentication complete for the connection.  Parameters are
  *              BD Address of remote
@@ -72,8 +69,7 @@ typedef void(tBTM_RMT_NAME_CALLBACK)(const RawAddress& bd_addr, DEV_CLASS dc,
  *
  */
 typedef void(tBTM_AUTH_COMPLETE_CALLBACK)(const RawAddress& bd_addr,
-                                          DEV_CLASS dev_class,
-                                          tBTM_BD_NAME bd_name,
+                                          DEV_CLASS dev_class, BD_NAME bd_name,
                                           tHCI_REASON reason);
 
 /* Request SIRK verification for found member. Parameters are
@@ -101,9 +97,8 @@ typedef struct {
   void (*BTM_BleLoadLocalKeys)(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key);
 
   // Update/Query in-memory device records
-  bool (*BTM_SecAddDevice)(const RawAddress& bd_addr, const DEV_CLASS dev_class,
-                           const BD_NAME& bd_name, uint8_t* features,
-                           LinkKey* link_key, uint8_t key_type,
+  void (*BTM_SecAddDevice)(const RawAddress& bd_addr, const DEV_CLASS dev_class,
+                           LinkKey link_key, uint8_t key_type,
                            uint8_t pin_length);
   void (*BTM_SecAddBleDevice)(const RawAddress& bd_addr,
                               tBT_DEVICE_TYPE dev_type,

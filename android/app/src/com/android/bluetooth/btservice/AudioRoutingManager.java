@@ -19,7 +19,6 @@ package com.android.bluetooth.btservice;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -47,7 +46,6 @@ import com.android.bluetooth.hearingaid.HearingAidService;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.le_audio.LeAudioService;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.modules.utils.SynchronousResultReceiver;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -58,10 +56,10 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 public class AudioRoutingManager extends ActiveDeviceManager {
     private static final String TAG = AudioRoutingManager.class.getSimpleName();
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     @VisibleForTesting static final int A2DP_HFP_SYNC_CONNECTION_TIMEOUT_MS = 5_000;
 
     private final AdapterService mAdapterService;
@@ -101,19 +99,16 @@ public class AudioRoutingManager extends ActiveDeviceManager {
      *
      * @param device The device to be activated.
      * @param profile The profile to be activated
-     * @param receiver to post the results
      */
-    public void activateDeviceProfile(
-            BluetoothDevice device, int profile, @Nullable SynchronousResultReceiver receiver) {
+    public CompletableFuture<Boolean> activateDeviceProfile(BluetoothDevice device, int profile) {
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+
         mHandler.post(
-                () -> {
-                    boolean result =
-                            mHandler.activateDeviceProfile(
-                                    mHandler.getAudioRoutingDevice(device), profile);
-                    if (receiver != null) {
-                        receiver.send(result);
-                    }
-                });
+                () ->
+                        future.complete(
+                                mHandler.activateDeviceProfile(
+                                        mHandler.getAudioRoutingDevice(device), profile)));
+        return future;
     }
 
     /**
@@ -137,9 +132,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
     }
 
     private void handleAdapterStateChanged(int currentState) {
-        if (DBG) {
-            Log.d(TAG, "handleAdapterStateChanged: currentState=" + currentState);
-        }
+        Log.d(TAG, "handleAdapterStateChanged: currentState=" + currentState);
         if (currentState == BluetoothAdapter.STATE_ON) {
             mHandler.resetState();
         }
@@ -157,25 +150,23 @@ public class AudioRoutingManager extends ActiveDeviceManager {
 
     @Override
     void start() {
-        if (DBG) {
-            Log.d(TAG, "start()");
-        }
+        Log.d(TAG, "start()");
 
         mHandlerThread = new HandlerThread("BluetoothActiveDeviceManager");
         BluetoothMethodProxy mp = BluetoothMethodProxy.getInstance();
         mp.threadStart(mHandlerThread);
         mHandler = new AudioRoutingHandler(mp.handlerThreadGetLooper(mHandlerThread));
 
+        mAudioManager.addOnModeChangedListener(cmd -> mHandler.post(cmd), mHandler);
         mAudioManager.registerAudioDeviceCallback(mAudioManagerAudioDeviceCallback, mHandler);
         mAdapterService.registerBluetoothStateCallback((command) -> mHandler.post(command), this);
     }
 
     @Override
     void cleanup() {
-        if (DBG) {
-            Log.d(TAG, "cleanup()");
-        }
+        Log.d(TAG, "cleanup()");
 
+        mAudioManager.removeOnModeChangedListener(mHandler);
         mAudioManager.unregisterAudioDeviceCallback(mAudioManagerAudioDeviceCallback);
         mAdapterService.unregisterBluetoothStateCallback(this);
         if (mHandlerThread != null) {
@@ -222,19 +213,15 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         // Called in mHandler thread. See AudioRoutingManager.start()
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
-            if (DBG) {
-                Log.d(TAG, "onAudioDevicesAdded");
-            }
+            Log.d(TAG, "onAudioDevicesAdded");
             boolean hasAddedWiredDevice = false;
             for (AudioDeviceInfo deviceInfo : addedDevices) {
-                if (DBG) {
-                    Log.d(
-                            TAG,
-                            "Audio device added: "
-                                    + deviceInfo.getProductName()
-                                    + " type: "
-                                    + deviceInfo.getType());
-                }
+                Log.d(
+                        TAG,
+                        "Audio device added: "
+                                + deviceInfo.getProductName()
+                                + " type: "
+                                + deviceInfo.getType());
                 if (isWiredAudioHeadset(deviceInfo)) {
                     hasAddedWiredDevice = true;
                     break;
@@ -250,30 +237,29 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {}
     }
 
-    private class AudioRoutingHandler extends Handler {
+    private class AudioRoutingHandler extends Handler
+            implements AudioManager.OnModeChangedListener {
         private final ArrayMap<BluetoothDevice, AudioRoutingDevice> mConnectedDevices =
                 new ArrayMap<>();
         private final SparseArray<List<BluetoothDevice>> mActiveDevices = new SparseArray<>();
+        private int mAudioMode;
 
         AudioRoutingHandler(Looper looper) {
             super(looper);
+            mAudioMode = mAudioManager.getMode();
         }
 
         public void handleProfileConnected(int profile, BluetoothDevice device) {
-            if (DBG) {
-                Log.d(
-                        TAG,
-                        "handleProfileConnected(device="
-                                + device
-                                + ", profile="
-                                + BluetoothProfile.getProfileName(profile)
-                                + ")");
-            }
+            Log.d(
+                    TAG,
+                    "handleProfileConnected(device="
+                            + device
+                            + ", profile="
+                            + BluetoothProfile.getProfileName(profile)
+                            + ")");
             AudioRoutingDevice connectedDevice = getAudioRoutingDevice(device);
             if (connectedDevice.connectedProfiles.contains(profile)) {
-                if (DBG) {
-                    Log.d(TAG, "This device is already connected: " + device);
-                }
+                Log.d(TAG, "This device is already connected: " + device);
                 return;
             }
             connectedDevice.connectedProfiles.add(profile);
@@ -281,9 +267,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
                 return;
             }
             if (!connectedDevice.canActivateNow(profile)) {
-                if (DBG) {
-                    Log.d(TAG, "Can not activate now: " + BluetoothProfile.getProfileName(profile));
-                }
+                Log.d(TAG, "Can not activate now: " + BluetoothProfile.getProfileName(profile));
                 mHandler.postDelayed(
                         () -> activateDeviceProfile(connectedDevice, profile),
                         connectedDevice,
@@ -294,15 +278,13 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         }
 
         public void handleProfileDisconnected(int profile, BluetoothDevice device) {
-            if (DBG) {
-                Log.d(
-                        TAG,
-                        "handleProfileDisconnected(device="
-                                + device
-                                + ", profile="
-                                + BluetoothProfile.getProfileName(profile)
-                                + ")");
-            }
+            Log.d(
+                    TAG,
+                    "handleProfileDisconnected(device="
+                            + device
+                            + ", profile="
+                            + BluetoothProfile.getProfileName(profile)
+                            + ")");
             AudioRoutingDevice disconnectedDevice = getAudioRoutingDevice(device);
             disconnectedDevice.connectedProfiles.remove(profile);
             if (disconnectedDevice.connectedProfiles.isEmpty()) {
@@ -331,6 +313,39 @@ public class AudioRoutingManager extends ActiveDeviceManager {
                             + device);
         }
 
+        @Override
+        public void onModeChanged(int mode) {
+            Log.d(TAG, "onModeChanged: " + mAudioMode + " -> " + mode);
+            List<BluetoothDevice> a2dpActiveDevices = getActiveDevices(BluetoothProfile.A2DP);
+            List<BluetoothDevice> hfpActiveDevices = getActiveDevices(BluetoothProfile.HEADSET);
+            if (mode == AudioManager.MODE_NORMAL) {
+                for (BluetoothDevice d : a2dpActiveDevices) {
+                    // When an A2DP device that also support HFP as well is in use,
+                    // be sure that HFP is also activated.
+                    if (!hfpActiveDevices.contains(d)
+                            && getAudioRoutingDevice(d)
+                                    .connectedProfiles
+                                    .contains(BluetoothProfile.HEADSET)) {
+                        setActiveDevice(BluetoothProfile.HEADSET, d);
+                        break;
+                    }
+                }
+            } else if (mode == AudioManager.MODE_IN_CALL) {
+                for (BluetoothDevice d : hfpActiveDevices) {
+                    // When a HFP device that also support A2DP as well is in use,
+                    // be sure that A2DP is also activated.
+                    if (!a2dpActiveDevices.contains(d)
+                            && getAudioRoutingDevice(d)
+                                    .connectedProfiles
+                                    .contains(BluetoothProfile.A2DP)) {
+                        setActiveDevice(BluetoothProfile.A2DP, d);
+                        break;
+                    }
+                }
+            }
+            mAudioMode = mode;
+        }
+
         private Optional<BluetoothDevice> getFallbackDevice(
                 Collection<AudioRoutingDevice> candidates) {
             List<BluetoothDevice> activatableDevices = new ArrayList<>();
@@ -354,9 +369,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         }
 
         private boolean setFallbackDeviceActive(int profile) {
-            if (DBG) {
-                Log.d(TAG, "setFallbackDeviceActive: " + BluetoothProfile.getProfileName(profile));
-            }
+            Log.d(TAG, "setFallbackDeviceActive: " + BluetoothProfile.getProfileName(profile));
             // 1. Activate the lastly activated device among currently activated devices.
             Set<AudioRoutingDevice> candidates = new HashSet<>();
             for (int i = 0; i < mActiveDevices.size(); ++i) {
@@ -389,9 +402,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
                 return activateDeviceProfile(fallbackRoutingDevice, profileToActivate);
             } catch (NoSuchElementException e) {
                 // Thrown when no available fallback devices found
-                if (DBG) {
-                    Log.d(TAG, "Found no available BT fallback devices.");
-                }
+                Log.d(TAG, "Found no available BT fallback devices.");
                 return false;
             }
         }
@@ -448,15 +459,13 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         public boolean activateDeviceProfile(
                 @NonNull AudioRoutingDevice routingDevice, int profile) {
             mHandler.removeCallbacksAndMessages(routingDevice);
-            if (DBG) {
-                Log.d(
-                        TAG,
-                        "activateDeviceProfile("
-                                + routingDevice.device
-                                + ", "
-                                + BluetoothProfile.getProfileName(profile)
-                                + ")");
-            }
+            Log.d(
+                    TAG,
+                    "activateDeviceProfile("
+                            + routingDevice.device
+                            + ", "
+                            + BluetoothProfile.getProfileName(profile)
+                            + ")");
 
             List<BluetoothDevice> activeDevices = mActiveDevices.get(profile);
             if (activeDevices != null && activeDevices.contains(routingDevice.device)) {
@@ -547,34 +556,33 @@ public class AudioRoutingManager extends ActiveDeviceManager {
 
         @SuppressLint("MissingPermission")
         private boolean setActiveDevice(int profile, BluetoothDevice device) {
-            if (DBG) {
-                Log.d(
-                        TAG,
-                        "setActiveDevice("
-                                + BluetoothProfile.getProfileName(profile)
-                                + ", "
-                                + device
-                                + ")");
-            }
-            boolean activated = switch (profile) {
-                case BluetoothProfile.A2DP -> {
-                    A2dpService service = mFactory.getA2dpService();
-                    yield service == null ? false : service.setActiveDevice(device);
-                }
-                case BluetoothProfile.HEADSET -> {
-                    HeadsetService service = mFactory.getHeadsetService();
-                    yield service == null ? false : service.setActiveDevice(device);
-                }
-                case BluetoothProfile.LE_AUDIO -> {
-                    LeAudioService service = mFactory.getLeAudioService();
-                    yield service == null ? false : service.setActiveDevice(device);
-                }
-                case BluetoothProfile.HEARING_AID -> {
-                    HearingAidService service = mFactory.getHearingAidService();
-                    yield service == null ? false : service.setActiveDevice(device);
-                }
-                default -> false;
-            };
+            Log.d(
+                    TAG,
+                    "setActiveDevice("
+                            + BluetoothProfile.getProfileName(profile)
+                            + ", "
+                            + device
+                            + ")");
+            boolean activated =
+                    switch (profile) {
+                        case BluetoothProfile.A2DP -> {
+                            A2dpService service = mFactory.getA2dpService();
+                            yield service == null ? false : service.setActiveDevice(device);
+                        }
+                        case BluetoothProfile.HEADSET -> {
+                            HeadsetService service = mFactory.getHeadsetService();
+                            yield service == null ? false : service.setActiveDevice(device);
+                        }
+                        case BluetoothProfile.LE_AUDIO -> {
+                            LeAudioService service = mFactory.getLeAudioService();
+                            yield service == null ? false : service.setActiveDevice(device);
+                        }
+                        case BluetoothProfile.HEARING_AID -> {
+                            HearingAidService service = mFactory.getHearingAidService();
+                            yield service == null ? false : service.setActiveDevice(device);
+                        }
+                        default -> false;
+                    };
             if (activated) {
                 List<BluetoothDevice> activeDevices = mActiveDevices.get(profile);
                 if (activeDevices == null) {
@@ -590,15 +598,13 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         }
 
         private boolean removeActiveDevice(int profile, boolean hasFallbackDevice) {
-            if (DBG) {
-                Log.d(
-                        TAG,
-                        "removeActiveDevice("
-                                + BluetoothProfile.getProfileName(profile)
-                                + ", hadFallbackDevice="
-                                + hasFallbackDevice
-                                + ")");
-            }
+            Log.d(
+                    TAG,
+                    "removeActiveDevice("
+                            + BluetoothProfile.getProfileName(profile)
+                            + ", hadFallbackDevice="
+                            + hasFallbackDevice
+                            + ")");
             mActiveDevices.remove(profile);
             return switch (profile) {
                 case BluetoothProfile.A2DP -> {
@@ -679,7 +685,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
                 if (!getActiveDevices(p).isEmpty()) {
                     BluetoothMethodProxy mp = BluetoothMethodProxy.getInstance();
                     if (!mp.mediaSessionManagerGetActiveSessions(mSessionManager).isEmpty()
-                            || mAudioManager.getMode() == AudioManager.MODE_IN_CALL) {
+                            || mAudioMode == AudioManager.MODE_IN_CALL) {
                         Log.i(
                                 TAG,
                                 "Do not activate the connected device when another device is in"
@@ -730,9 +736,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         @VisibleForTesting
         @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
         void wiredAudioDeviceConnected() {
-            if (DBG) {
-                Log.d(TAG, "wiredAudioDeviceConnected");
-            }
+            Log.d(TAG, "wiredAudioDeviceConnected");
             removeActiveDevice(BluetoothProfile.A2DP, true);
             removeActiveDevice(BluetoothProfile.HEADSET, true);
             removeActiveDevice(BluetoothProfile.HEARING_AID, true);
@@ -752,19 +756,22 @@ public class AudioRoutingManager extends ActiveDeviceManager {
             public boolean canActivateNow(int profile) {
                 if (!connectedProfiles.contains(profile)) return false;
                 return switch (profile) {
-                    case BluetoothProfile.HEADSET -> !supportedProfiles.contains(
-                                    BluetoothProfile.A2DP)
-                            || connectedProfiles.contains(BluetoothProfile.A2DP);
-                    case BluetoothProfile.A2DP -> !supportedProfiles.contains(
-                                    BluetoothProfile.HEADSET)
-                            || connectedProfiles.contains(BluetoothProfile.HEADSET);
-                    case BluetoothProfile.LE_AUDIO -> !Utils.isDualModeAudioEnabled()
-                            // Check all supported A2DP and HFP are connected if dual mode enabled
-                            || ((connectedProfiles.contains(BluetoothProfile.A2DP)
-                                            || !supportedProfiles.contains(BluetoothProfile.A2DP))
-                                    && (connectedProfiles.contains(BluetoothProfile.HEADSET)
-                                            || !supportedProfiles.contains(
-                                                    BluetoothProfile.HEADSET)));
+                    case BluetoothProfile.HEADSET ->
+                            !supportedProfiles.contains(BluetoothProfile.A2DP)
+                                    || connectedProfiles.contains(BluetoothProfile.A2DP);
+                    case BluetoothProfile.A2DP ->
+                            !supportedProfiles.contains(BluetoothProfile.HEADSET)
+                                    || connectedProfiles.contains(BluetoothProfile.HEADSET);
+                    case BluetoothProfile.LE_AUDIO ->
+                            !Utils.isDualModeAudioEnabled()
+                                    // Check all supported A2DP and HFP are connected if dual mode
+                                    // enabled
+                                    || ((connectedProfiles.contains(BluetoothProfile.A2DP)
+                                                    || !supportedProfiles.contains(
+                                                            BluetoothProfile.A2DP))
+                                            && (connectedProfiles.contains(BluetoothProfile.HEADSET)
+                                                    || !supportedProfiles.contains(
+                                                            BluetoothProfile.HEADSET)));
                     default -> true;
                 };
             }

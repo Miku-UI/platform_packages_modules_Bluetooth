@@ -41,17 +41,18 @@ import com.android.bluetooth.btservice.AdapterService;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class DipTest {
     private BluetoothAdapter mAdapter;
-    private Context mTargetContext;
     private SdpManager mSdpManager;
     private BluetoothDevice mTestDevice;
 
@@ -59,15 +60,13 @@ public class DipTest {
     private ArgumentCaptor<String> mStringArgument = ArgumentCaptor.forClass(String.class);
     private ArgumentCaptor<Bundle> mBundleArgument = ArgumentCaptor.forClass(Bundle.class);
 
-    @Mock private AdapterService mAdapterService = null;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private AdapterService mAdapterService;
     @Mock private SdpManagerNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
-        // Set up mocks and test assets
-        MockitoAnnotations.initMocks(this);
-
         SdpManagerNativeInterface.setInstance(mNativeInterface);
         TestUtils.setAdapterService(mAdapterService);
         doReturn("00:01:02:03:04:05").when(mAdapterService).getIdentityAddress("00:01:02:03:04:05");
@@ -77,7 +76,7 @@ public class DipTest {
         }
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mSdpManager = SdpManager.init(mAdapterService);
+        mSdpManager = new SdpManager(mAdapterService);
 
         // Get a device for testing
         mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
@@ -89,19 +88,26 @@ public class DipTest {
         SdpManagerNativeInterface.setInstance(null);
     }
 
-    private void verifyDipSdpRecordIntent(ArgumentCaptor<Intent> intentArgument,
-            int status, BluetoothDevice device,
-            byte[] uuid,  int specificationId,
-            int vendorId, int vendorIdSource,
-            int productId, int version,
+    private void verifyDipSdpRecordIntent(
+            ArgumentCaptor<Intent> intentArgument,
+            int status,
+            BluetoothDevice device,
+            byte[] uuid,
+            int specificationId,
+            int vendorId,
+            int vendorIdSource,
+            int productId,
+            int version,
             boolean primaryRecord) {
         Intent intent = intentArgument.getValue();
 
         assertThat(intent).isNotEqualTo(null);
         assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_SDP_RECORD);
         assertThat(device).isEqualTo(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
-        assertThat(Utils.byteArrayToUuid(uuid)[0]).isEqualTo(intent.getParcelableExtra(BluetoothDevice.EXTRA_UUID));
-        assertThat(status).isEqualTo(intent.getIntExtra(BluetoothDevice.EXTRA_SDP_SEARCH_STATUS, -1));
+        assertThat(Utils.byteArrayToUuid(uuid)[0])
+                .isEqualTo(intent.getParcelableExtra(BluetoothDevice.EXTRA_UUID));
+        assertThat(status)
+                .isEqualTo(intent.getIntExtra(BluetoothDevice.EXTRA_SDP_SEARCH_STATUS, -1));
 
         SdpDipRecord record = intent.getParcelableExtra(BluetoothDevice.EXTRA_SDP_RECORD);
         assertThat(record).isNotEqualTo(null);
@@ -113,9 +119,7 @@ public class DipTest {
         assertThat(primaryRecord).isEqualTo(record.getPrimaryRecord());
     }
 
-    /**
-     * Test that an outgoing connection/disconnection succeeds
-     */
+    /** Test that an outgoing connection/disconnection succeeds */
     @Test
     @SmallTest
     public void testDipCallbackSuccess() {
@@ -130,12 +134,32 @@ public class DipTest {
         boolean moreResults = false;
 
         mSdpManager.sdpSearch(mTestDevice, BluetoothUuid.DIP);
-        mSdpManager.sdpDipRecordFoundCallback(AbstractionLayer.BT_STATUS_SUCCESS,
-                Utils.getByteAddress(mTestDevice), uuid, specificationId,
-                vendorId, vendorIdSource, productId, version, primaryRecord, moreResults);
-        verify(mAdapterService).sendBroadcast(mIntentArgument.capture(), mStringArgument.capture(),
-                mBundleArgument.capture());
-        verifyDipSdpRecordIntent(mIntentArgument, AbstractionLayer.BT_STATUS_SUCCESS, mTestDevice,
-                uuid, specificationId, vendorId, vendorIdSource, productId, version, primaryRecord);
+        mSdpManager.sdpDipRecordFoundCallback(
+                AbstractionLayer.BT_STATUS_SUCCESS,
+                Utils.getByteAddress(mTestDevice),
+                uuid,
+                specificationId,
+                vendorId,
+                vendorIdSource,
+                productId,
+                version,
+                primaryRecord,
+                moreResults);
+        verify(mAdapterService)
+                .sendBroadcast(
+                        mIntentArgument.capture(),
+                        mStringArgument.capture(),
+                        mBundleArgument.capture());
+        verifyDipSdpRecordIntent(
+                mIntentArgument,
+                AbstractionLayer.BT_STATUS_SUCCESS,
+                mTestDevice,
+                uuid,
+                specificationId,
+                vendorId,
+                vendorIdSource,
+                productId,
+                version,
+                primaryRecord);
     }
 }

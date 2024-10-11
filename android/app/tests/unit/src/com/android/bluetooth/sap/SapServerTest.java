@@ -71,13 +71,15 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -95,20 +97,18 @@ public class SapServerTest {
     private Context mTargetContext =
             new ContextWrapper(InstrumentationRegistry.getInstrumentation().getTargetContext());
 
-    @Spy
-    private TestHandlerCallback mCallback = new TestHandlerCallback();
+    @Spy private TestHandlerCallback mCallback = new TestHandlerCallback();
 
-    @Mock
-    private InputStream mInputStream;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private OutputStream mOutputStream;
+    @Mock private InputStream mInputStream;
+
+    @Mock private OutputStream mOutputStream;
 
     private SapServer mSapServer;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         mHandlerThread = new HandlerThread("SapServerTest");
         mHandlerThread.start();
@@ -179,9 +179,13 @@ public class SapServerTest {
         mSapServer.changeState(SapServer.SAP_STATE.CONNECTED);
         mSapServer.onConnectRequest(mock(SapMessage.class));
 
-        verify(mSapServer).sendClientMessage(argThat(
-                sapMsg -> sapMsg.getMsgType() == ID_CONNECT_RESP
-                        && sapMsg.getConnectionStatus() == CON_STATUS_ERROR_CONNECTION));
+        verify(mSapServer)
+                .sendClientMessage(
+                        argThat(
+                                sapMsg ->
+                                        sapMsg.getMsgType() == ID_CONNECT_RESP
+                                                && sapMsg.getConnectionStatus()
+                                                        == CON_STATUS_ERROR_CONNECTION));
     }
 
     @Test
@@ -191,9 +195,13 @@ public class SapServerTest {
         mSapServer.changeState(SapServer.SAP_STATE.CONNECTING_CALL_ONGOING);
         mSapServer.onConnectRequest(mock(SapMessage.class));
 
-        verify(mSapServer, atLeastOnce()).sendClientMessage(argThat(
-                sapMsg -> sapMsg.getMsgType() == ID_CONNECT_RESP
-                        && sapMsg.getConnectionStatus() == CON_STATUS_ERROR_CONNECTION));
+        verify(mSapServer, atLeastOnce())
+                .sendClientMessage(
+                        argThat(
+                                sapMsg ->
+                                        sapMsg.getMsgType() == ID_CONNECT_RESP
+                                                && sapMsg.getConnectionStatus()
+                                                        == CON_STATUS_ERROR_CONNECTION));
     }
 
     @Test
@@ -240,8 +248,8 @@ public class SapServerTest {
         SapMessage msg = mock(SapMessage.class);
         mSapServer.sendRilMessage(msg);
 
-        verify(mSapServer).sendClientMessage(
-                argThat(sapMsg -> sapMsg.getMsgType() == ID_ERROR_RESP));
+        verify(mSapServer)
+                .sendClientMessage(argThat(sapMsg -> sapMsg.getMsgType() == ID_ERROR_RESP));
     }
 
     @Test
@@ -256,8 +264,8 @@ public class SapServerTest {
         doThrow(new IllegalArgumentException()).when(msg).send(any());
         mSapServer.sendRilMessage(msg);
 
-        verify(mSapServer).sendClientMessage(
-                argThat(sapMsg -> sapMsg.getMsgType() == ID_ERROR_RESP));
+        verify(mSapServer)
+                .sendClientMessage(argThat(sapMsg -> sapMsg.getMsgType() == ID_ERROR_RESP));
     }
 
     @Test
@@ -274,8 +282,8 @@ public class SapServerTest {
         doThrow(new RemoteException()).when(msg).send(any());
         mSapServer.sendRilMessage(msg);
 
-        verify(mSapServer).sendClientMessage(
-                argThat(sapMsg -> sapMsg.getMsgType() == ID_ERROR_RESP));
+        verify(mSapServer)
+                .sendClientMessage(argThat(sapMsg -> sapMsg.getMsgType() == ID_ERROR_RESP));
         verify(mockReceiver).notifyShutdown();
         verify(mockReceiver).resetSapProxy();
     }
@@ -300,9 +308,13 @@ public class SapServerTest {
         mSapServer.changeState(SapServer.SAP_STATE.CONNECTED);
         mSapServer.handleRilInd(msg);
 
-        verify(mSapServer).sendClientMessage(argThat(
-                sapMsg -> sapMsg.getMsgType() == ID_DISCONNECT_IND
-                        && sapMsg.getDisconnectionType() == disconnectionType));
+        verify(mSapServer)
+                .sendClientMessage(
+                        argThat(
+                                sapMsg ->
+                                        sapMsg.getMsgType() == ID_DISCONNECT_IND
+                                                && sapMsg.getDisconnectionType()
+                                                        == disconnectionType));
     }
 
     @Test
@@ -476,14 +488,16 @@ public class SapServerTest {
         SapMessage msg = new SapMessage(ID_STATUS_IND);
         mSapServer.sendRilThreadMessage(msg);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RIL_REQ), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        return msg == arg;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RIL_REQ),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        return msg == arg;
+                                    }
+                                }));
     }
 
     @Test
@@ -493,14 +507,16 @@ public class SapServerTest {
         SapMessage msg = new SapMessage(ID_STATUS_IND);
         mSapServer.sendClientMessage(msg);
 
-        verify(mCallback, timeout(TIMEOUT_MS)).receiveMessage(eq(SAP_MSG_RFC_REPLY), argThat(
-                new ArgumentMatcher<Object>() {
-                    @Override
-                    public boolean matches(Object arg) {
-                        return msg == arg;
-                    }
-                }
-        ));
+        verify(mCallback, timeout(TIMEOUT_MS))
+                .receiveMessage(
+                        eq(SAP_MSG_RFC_REPLY),
+                        argThat(
+                                new ArgumentMatcher<Object>() {
+                                    @Override
+                                    public boolean matches(Object arg) {
+                                        return msg == arg;
+                                    }
+                                }));
     }
 
     // TODO: Find a good way to run() method.
@@ -550,8 +566,8 @@ public class SapServerTest {
         try {
             mSapServer.handleMessage(message);
 
-            verify(mSapServer).sendRilMessage(
-                    argThat(sapMsg -> sapMsg.getMsgType() == ID_CONNECT_REQ));
+            verify(mSapServer)
+                    .sendRilMessage(argThat(sapMsg -> sapMsg.getMsgType() == ID_CONNECT_REQ));
         } finally {
             message.recycle();
         }
@@ -622,12 +638,10 @@ public class SapServerTest {
     @Test
     public void handleMessage_forProxyDeadMsg_notifiesShutDown() throws Exception {
         ISapRilReceiver mockReceiver = mock(ISapRilReceiver.class);
-        AtomicLong cookie = new AtomicLong(23);
         mSapServer.mRilBtReceiver = mockReceiver;
 
         Message message = Message.obtain();
         message.what = SAP_PROXY_DEAD;
-        message.obj = cookie.get();
 
         try {
             mSapServer.handleMessage(message);
@@ -649,8 +663,8 @@ public class SapServerTest {
         assertThat(mSapServer.mState).isEqualTo(SapServer.SAP_STATE.CONNECTING_CALL_ONGOING);
         mSapServer.mIntentReceiver.onReceive(mTargetContext, intent);
 
-        verify(mSapServer).onConnectRequest(
-                argThat(sapMsg -> sapMsg.getMsgType() == ID_CONNECT_REQ));
+        verify(mSapServer)
+                .onConnectRequest(argThat(sapMsg -> sapMsg.getMsgType() == ID_CONNECT_REQ));
     }
 
     @Test
@@ -698,8 +712,6 @@ public class SapServerTest {
             return true;
         }
 
-        public void receiveMessage(int what, Object obj) {
-        }
+        public void receiveMessage(int what, Object obj) {}
     }
 }
-

@@ -32,11 +32,9 @@
 #include "bta/include/bta_hf_client_api.h"
 #include "bta/include/bta_rfcomm_scn.h"
 #include "bta/sys/bta_sys.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
@@ -63,14 +61,14 @@ using namespace bluetooth;
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hf_client_sdp_cback(UNUSED_ATTR const RawAddress& bd_addr,
-                                    tSDP_STATUS status, const void* data) {
+static void bta_hf_client_sdp_cback(tBTA_HF_CLIENT_CB* client_cb,
+                                    const RawAddress& /* bd_addr */,
+                                    tSDP_STATUS status) {
   uint16_t event;
   tBTA_HF_CLIENT_DISC_RESULT* p_buf = (tBTA_HF_CLIENT_DISC_RESULT*)osi_malloc(
       sizeof(tBTA_HF_CLIENT_DISC_RESULT));
 
   log::verbose("bta_hf_client_sdp_cback status:0x{:x}", status);
-  tBTA_HF_CLIENT_CB* client_cb = (tBTA_HF_CLIENT_CB*)data;
 
   /* set event according to int/acp */
   if (client_cb->role == BTA_HF_CLIENT_ACP)
@@ -218,7 +216,10 @@ void bta_hf_client_del_record(tBTA_HF_CLIENT_CB_ARR* client_cb) {
   log::verbose("");
 
   if (client_cb->sdp_handle != 0) {
-    get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(client_cb->sdp_handle);
+    if (get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
+            client_cb->sdp_handle)) {
+      log::warn("Unable to delete SDP record handle:{}", client_cb->sdp_handle);
+    }
     client_cb->sdp_handle = 0;
     BTA_FreeSCN(client_cb->scn);
     bta_sys_remove_uuid(UUID_SERVCLASS_HF_HANDSFREE);
@@ -263,8 +264,11 @@ bool bta_hf_client_sdp_find_attr(tBTA_HF_CLIENT_CB* client_cb) {
     }
 
     /* get profile version (if failure, version parameter is not updated) */
-    get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
-        p_rec, UUID_SERVCLASS_HF_HANDSFREE, &client_cb->peer_version);
+    if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+            p_rec, UUID_SERVCLASS_HF_HANDSFREE, &client_cb->peer_version)) {
+      log::warn("Uable to find HFP profile version in SDP record peer:{}",
+                p_rec->remote_bd_addr);
+    }
 
     /* get features */
     p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
@@ -355,11 +359,13 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
     /*Service discovery not initiated */
     db_inited =
         get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
-            client_cb->peer_addr, client_cb->p_disc_db, bta_hf_client_sdp_cback,
-            (void*)client_cb);
+            client_cb->peer_addr, client_cb->p_disc_db,
+            base::BindRepeating(&bta_hf_client_sdp_cback, client_cb));
   }
 
   if (!db_inited) {
+    log::warn("Unable to start SDP service search request peer:{}",
+              client_cb->peer_addr);
     /*free discover db */
     osi_free_and_reset((void**)&client_cb->p_disc_db);
     /* sent failed event */
@@ -380,7 +386,7 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
  *
  ******************************************************************************/
 void bta_hf_client_free_db(tBTA_HF_CLIENT_DATA* p_data) {
-  CHECK(p_data != NULL);
+  log::assert_that(p_data != NULL, "assert failed: p_data != NULL");
   tBTA_HF_CLIENT_CB* client_cb =
       bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
   if (client_cb == NULL) {

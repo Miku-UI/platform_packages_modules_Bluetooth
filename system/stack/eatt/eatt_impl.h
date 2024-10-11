@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <map>
 #include <vector>
 
 #include "bind_helpers.h"
-#include "device/include/controller.h"
 #include "eatt.h"
-#include "internal_include/bt_trace.h"
+#include "hci/controller_interface.h"
 #include "internal_include/stack_config.h"
 #include "l2c_api.h"
-#include "os/log.h"
+#include "main/shim/entry.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_sec.h"
@@ -35,6 +33,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_sec_api.h"
+#include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
 
 namespace bluetooth {
@@ -116,7 +115,7 @@ struct eatt_impl {
     auto channel = eatt_dev->eatt_channels[lcid];
     if (!channel->cl_cmd_q_.empty()) {
       log::warn("Channel {:c}, for device {} is not empty on disconnection.",
-                lcid, ADDRESS_TO_LOGGABLE_STR(channel->bda_));
+                lcid, channel->bda_);
       channel->cl_cmd_q_.clear();
     }
 
@@ -133,8 +132,9 @@ struct eatt_impl {
   }
 
   bool eatt_l2cap_connect_ind_common(const RawAddress& bda,
-                                     std::vector<uint16_t>& lcids, uint16_t psm,
-                                     uint16_t peer_mtu, uint8_t identifier) {
+                                     std::vector<uint16_t>& lcids,
+                                     uint16_t /* psm */, uint16_t peer_mtu,
+                                     uint8_t identifier) {
     /* The assumption is that L2CAP layer already check parameters etc.
      * Get our capabilities and accept all the channels.
      */
@@ -145,32 +145,37 @@ struct eatt_impl {
        * for LE case it is not necessary to read it before establish connection.
        * Therefore assume, device supports EATT since we got request to create
        * EATT channels. Just create device here. */
-      log::info("Adding device: {} on incoming EATT creation request",
-                ADDRESS_TO_LOGGABLE_STR(bda));
+      log::info("Adding device: {} on incoming EATT creation request", bda);
       eatt_dev = add_eatt_device(bda);
     }
 
-    uint16_t max_mps = controller_get_interface()->get_acl_data_size_ble();
+    uint16_t max_mps =
+        shim::GetController()->GetLeBufferSize().le_data_packet_length_;
 
     tL2CAP_LE_CFG_INFO local_coc_cfg = {
+        .result = L2CAP_LE_RESULT_CONN_OK,
         .mtu = eatt_dev->rx_mtu_,
         .mps = eatt_dev->rx_mps_ < max_mps ? eatt_dev->rx_mps_ : max_mps,
         .credits = L2CA_LeCreditDefault(),
     };
 
     if (!L2CA_ConnectCreditBasedRsp(bda, identifier, lcids, L2CAP_CONN_OK,
-                                    &local_coc_cfg))
+                                    &local_coc_cfg)) {
+      log::warn("Unable to respond L2CAP le_coc credit indication peer:{}",
+                bda);
       return false;
+    }
 
     if (!eatt_dev->eatt_tcb_) {
       eatt_dev->eatt_tcb_ =
           gatt_find_tcb_by_addr(eatt_dev->bda_, BT_TRANSPORT_LE);
-      CHECK(eatt_dev->eatt_tcb_);
+      log::assert_that(eatt_dev->eatt_tcb_ != nullptr,
+                       "assert failed: eatt_dev->eatt_tcb_ != nullptr");
     }
 
     for (uint16_t cid : lcids) {
       EattChannel* channel = find_eatt_channel_by_cid(bda, cid);
-      CHECK(!channel);
+      log::assert_that(channel == nullptr, "assert failed: channel == nullptr");
 
       auto chan = std::make_shared<EattChannel>(eatt_dev->bda_, cid, peer_mtu,
                                                 eatt_dev->rx_mtu_);
@@ -179,7 +184,7 @@ struct eatt_impl {
       chan->EattChannelSetState(EattChannelState::EATT_CHANNEL_OPENED);
       eatt_dev->eatt_tcb_->eatt++;
 
-      log::info("Channel connected CID {}", loghex(cid));
+      log::info("Channel connected CID 0x{:x}", cid);
     }
 
     return true;
@@ -191,8 +196,7 @@ struct eatt_impl {
     eatt_device* eatt_dev = find_device_by_address(bda);
     auto num_of_sdu =
         stack_config_get_interface()->get_pts_l2cap_ecoc_send_num_of_sdu();
-    log::info("device {}, num: {}", ADDRESS_TO_LOGGABLE_CSTR(eatt_dev->bda_),
-              num_of_sdu);
+    log::info("device {}, num: {}", eatt_dev->bda_, num_of_sdu);
 
     if (num_of_sdu <= 0) {
       return;
@@ -231,7 +235,7 @@ struct eatt_impl {
 
   /* This is for the L2CAP ECoC Testing. */
   void upper_tester_delay_connect_cb(const RawAddress& bda) {
-    log::info("device {}", ADDRESS_TO_LOGGABLE_CSTR(bda));
+    log::info("device {}", bda);
     eatt_device* eatt_dev = find_device_by_address(bda);
     if (eatt_dev == nullptr) {
       log::error("device is not available");
@@ -264,10 +268,13 @@ struct eatt_impl {
       if (key_size < min_key_size) {
         std::vector<uint16_t> empty;
         log::error("Insufficient key size ({}<{}) for device {}", key_size,
-                   min_key_size, ADDRESS_TO_LOGGABLE_CSTR(bda));
-        L2CA_ConnectCreditBasedRsp(bda, identifier, empty,
-                                   L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE,
-                                   nullptr);
+                   min_key_size, bda);
+        if (!L2CA_ConnectCreditBasedRsp(
+                bda, identifier, empty,
+                L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP_KEY_SIZE, nullptr)) {
+          log::warn("Unable to respond L2CAP le_coc credit indication peer:{}",
+                    bda);
+        }
         return;
       }
     }
@@ -301,9 +308,8 @@ struct eatt_impl {
   void eatt_l2cap_connect_ind(const RawAddress& bda,
                               std::vector<uint16_t>& lcids, uint16_t psm,
                               uint16_t peer_mtu, uint8_t identifier) {
-    log::info("Device {}, num of cids: {}, psm 0x{:04x}, peer_mtu {}",
-              ADDRESS_TO_LOGGABLE_CSTR(bda), static_cast<int>(lcids.size()),
-              psm, peer_mtu);
+    log::info("Device {}, num of cids: {}, psm 0x{:04x}, peer_mtu {}", bda,
+              static_cast<int>(lcids.size()), psm, peer_mtu);
 
     if (!stack_config_get_interface()
              ->get_pts_connect_eatt_before_encryption() &&
@@ -314,9 +320,12 @@ struct eatt_impl {
       if (BTM_IsLinkKeyKnown(bda, BT_TRANSPORT_LE)) {
         result = L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP;
       }
-      log::error("ACL to device {} is unencrypted.",
-                 ADDRESS_TO_LOGGABLE_CSTR(bda));
-      L2CA_ConnectCreditBasedRsp(bda, identifier, empty, result, nullptr);
+      log::error("ACL to device {} is unencrypted.", bda);
+      if (!L2CA_ConnectCreditBasedRsp(bda, identifier, empty, result,
+                                      nullptr)) {
+        log::warn("Unable to respond L2CAP le_coc credit indication peer:{}",
+                  bda);
+      }
       return;
     }
 
@@ -345,7 +354,7 @@ struct eatt_impl {
     uint8_t role = L2CA_GetBleConnRole(eatt_dev->bda_);
     if (role == HCI_ROLE_CENTRAL) {
       log::info("Retrying EATT setup due to previous collision for device {}",
-                ADDRESS_TO_LOGGABLE_CSTR(eatt_dev->bda_));
+                eatt_dev->bda_);
       connect_eatt_wrap(eatt_dev);
     } else if (stack_config_get_interface()
                    ->get_pts_eatt_peripheral_collision_support()) {
@@ -358,8 +367,7 @@ struct eatt_impl {
 
   /* This is for the L2CAP ECoC Testing. */
   void upper_tester_l2cap_connect_cfm(eatt_device* eatt_dev) {
-    log::info("Upper tester for L2CAP Ecoc {}",
-              ADDRESS_TO_LOGGABLE_CSTR(eatt_dev->bda_));
+    log::info("Upper tester for L2CAP Ecoc {}", eatt_dev->bda_);
     if (is_channel_connection_pending(eatt_dev)) {
       log::info("Waiting for all channels to be connected");
       return;
@@ -379,8 +387,8 @@ struct eatt_impl {
 
   void eatt_l2cap_connect_cfm(const RawAddress& bda, uint16_t lcid,
                               uint16_t peer_mtu, uint16_t result) {
-    log::info("bda: {} cid: {}peer mtu: {} result {}",
-              ADDRESS_TO_LOGGABLE_STR(bda), +lcid, +peer_mtu, +result);
+    log::info("bda: {} cid: {}peer mtu: {} result {}", bda, lcid, peer_mtu,
+              result);
 
     eatt_device* eatt_dev = find_device_by_address(bda);
     if (!eatt_dev) {
@@ -390,12 +398,12 @@ struct eatt_impl {
 
     EattChannel* channel = this->find_channel_by_cid(bda, lcid);
     if (!channel) {
-      log::error("unknown cid: {}", loghex(lcid));
+      log::error("unknown cid: 0x{:x}", lcid);
       return;
     }
 
     if (result != L2CAP_CONN_OK) {
-      log::error("Could not connect CoC result: {}", loghex(result));
+      log::error("Could not connect CoC result: 0x{:x}", result);
       remove_channel_by_cid(eatt_dev, lcid);
 
       /* If there is no channels connected, check if there was collision */
@@ -408,8 +416,10 @@ struct eatt_impl {
     channel->EattChannelSetState(EattChannelState::EATT_CHANNEL_OPENED);
     channel->EattChannelSetTxMTU(peer_mtu);
 
-    CHECK(eatt_dev->eatt_tcb_);
-    CHECK(eatt_dev->bda_ == channel->bda_);
+    log::assert_that(eatt_dev->eatt_tcb_ != nullptr,
+                     "assert failed: eatt_dev->eatt_tcb_ != nullptr");
+    log::assert_that(eatt_dev->bda_ == channel->bda_,
+                     "assert failed: eatt_dev->bda_ == channel->bda_");
     eatt_dev->eatt_tcb_->eatt++;
 
     log::info("Channel connected CID 0x{:04x}", lcid);
@@ -422,7 +432,7 @@ struct eatt_impl {
   void eatt_l2cap_reconfig_completed(const RawAddress& bda, uint16_t lcid,
                                      bool is_local_cfg,
                                      tL2CAP_LE_CFG_INFO* p_cfg) {
-    log::info("lcid: {} local cfg?: {}", loghex(lcid), is_local_cfg);
+    log::info("lcid: 0x{:x} local cfg?: {}", lcid, is_local_cfg);
 
     EattChannel* channel = find_channel_by_cid(bda, lcid);
     if (!channel) return;
@@ -431,8 +441,8 @@ struct eatt_impl {
     channel->EattChannelSetState(EattChannelState::EATT_CHANNEL_OPENED);
 
     if (p_cfg->result != L2CAP_CFG_OK) {
-      log::info("reconfig failed lcid: {} result: {}", loghex(lcid),
-                loghex(p_cfg->result));
+      log::info("reconfig failed lcid: 0x{:x} result: 0x{:x}", lcid,
+                p_cfg->result);
       return;
     }
 
@@ -456,8 +466,7 @@ struct eatt_impl {
   void eatt_l2cap_collision_ind(const RawAddress& bda) {
     eatt_device* eatt_dev = find_device_by_address(bda);
     if (!eatt_dev) {
-      log::error("Device {} not available anymore:",
-                 ADDRESS_TO_LOGGABLE_CSTR(bda));
+      log::error("Device {} not available anymore:", bda);
       return;
     }
     /* Remote wanted to setup channels as well. Let's retry remote's request
@@ -466,30 +475,28 @@ struct eatt_impl {
   }
 
   void eatt_l2cap_error_cb(uint16_t lcid, uint16_t reason) {
-    log::info("cid: {} reason {}", loghex(lcid), loghex(reason));
-
-    /*TODO: provide address in the L2CAP callback */
-
     EattChannel* channel = find_channel_by_cid(lcid);
     if (!channel) {
-      log::error("Unknown lcid");
+      log::error("Unknown cid: 0x{:x}, reason: 0x{:x}", lcid, reason);
       return;
     }
 
     eatt_device* eatt_dev = find_device_by_address(channel->bda_);
-
     switch (channel->state_) {
       case EattChannelState::EATT_CHANNEL_PENDING:
-        log::error("Connecting failed");
+        log::warn("Channel for cid: 0x{:x} is not extablished, reason: 0x{:x}",
+                  lcid, reason);
         remove_channel_by_cid(eatt_dev, lcid);
         break;
       case EattChannelState::EATT_CHANNEL_RECONFIGURING:
         /* Just go back to open state */
-        log::error("Reconfig failed");
+        log::error("Reconfig failed fo cid: 0x{:x}, reason: 0x{:x}", lcid,
+                   reason);
         channel->EattChannelSetState(EattChannelState::EATT_CHANNEL_OPENED);
         break;
       default:
-        log::error("Invalid state: {}", static_cast<uint8_t>(channel->state_));
+        log::error("cid: 0x{:x}, reason: 0x{:x}, invalid state: {}", lcid,
+                   reason, static_cast<uint8_t>(channel->state_));
         break;
     }
 
@@ -498,11 +505,11 @@ struct eatt_impl {
     }
   }
 
-  void eatt_l2cap_disconnect_ind(uint16_t lcid, bool please_confirm) {
-    log::info("cid: {}", loghex(lcid));
+  void eatt_l2cap_disconnect_ind(uint16_t lcid, bool /* please_confirm */) {
+    log::info("cid: 0x{:x}", lcid);
     eatt_device* eatt_dev = find_device_by_cid(lcid);
     if (!eatt_dev) {
-      log::error("unknown cid: {}", loghex(lcid));
+      log::error("unknown cid: 0x{:x}", lcid);
       return;
     }
 
@@ -511,16 +518,16 @@ struct eatt_impl {
   }
 
   void eatt_l2cap_data_ind(uint16_t lcid, BT_HDR* data_p) {
-    log::info("cid: {}", loghex(lcid));
+    log::info("cid: 0x{:x}", lcid);
     eatt_device* eatt_dev = find_device_by_cid(lcid);
     if (!eatt_dev) {
-      log::error("unknown cid: {}", loghex(lcid));
+      log::error("unknown cid: 0x{:x}", lcid);
       return;
     }
 
     EattChannel* channel = find_channel_by_cid(eatt_dev->bda_, lcid);
     if (!channel) {
-      log::error("Received data on closed channel {}", loghex(lcid));
+      log::error("Received data on closed channel 0x{:x}", lcid);
       return;
     }
 
@@ -564,17 +571,19 @@ struct eatt_impl {
                     uint8_t num_of_channels = L2CAP_CREDIT_BASED_MAX_CIDS) {
     /* Let us use maximum possible mps */
     if (eatt_dev->rx_mps_ == EATT_MIN_MTU_MPS)
-      eatt_dev->rx_mps_ = controller_get_interface()->get_acl_data_size_ble();
+      eatt_dev->rx_mps_ =
+          shim::GetController()->GetLeBufferSize().le_data_packet_length_;
 
     tL2CAP_LE_CFG_INFO local_coc_cfg = {
+        .result = L2CAP_LE_RESULT_CONN_OK,
         .mtu = eatt_dev->rx_mtu_,
         .mps = eatt_dev->rx_mps_,
         .credits = L2CA_LeCreditDefault(),
         .number_of_channels = num_of_channels,
     };
 
-    log::info("Connecting device {}, cnt count {}",
-              ADDRESS_TO_LOGGABLE_CSTR(eatt_dev->bda_), num_of_channels);
+    log::info("Connecting device {}, cnt count {}", eatt_dev->bda_,
+              num_of_channels);
 
     /* Warning! CIDs in Android are unique across the ACL connections */
     std::vector<uint16_t> connecting_cids =
@@ -586,10 +595,10 @@ struct eatt_impl {
     }
 
     log::info("Successfully sent CoC request, number of channel: {}",
-              +connecting_cids.size());
+              connecting_cids.size());
 
     for (uint16_t cid : connecting_cids) {
-      log::info(" \t cid: {}", loghex(cid));
+      log::info("\t cid: 0x{:x}", cid);
 
       auto chan = std::make_shared<EattChannel>(eatt_dev->bda_, cid, 0,
                                                 eatt_dev->rx_mtu_);
@@ -603,7 +612,8 @@ struct eatt_impl {
 
     eatt_dev->eatt_tcb_ =
         gatt_find_tcb_by_addr(eatt_dev->bda_, BT_TRANSPORT_LE);
-    CHECK(eatt_dev->eatt_tcb_);
+    log::assert_that(eatt_dev->eatt_tcb_ != nullptr,
+                     "assert failed: eatt_dev->eatt_tcb_ != nullptr");
   }
 
   EattChannel* find_eatt_channel_by_cid(const RawAddress& bd_addr,
@@ -743,8 +753,7 @@ struct eatt_impl {
   void start_indication_confirm_timer(const RawAddress& bd_addr, uint16_t cid) {
     EattChannel* channel = find_eatt_channel_by_cid(bd_addr, cid);
     if (!channel) {
-      log::error("Unknown cid: {} or device {}", loghex(cid),
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Unknown cid: 0x{:x} or device {}", cid, bd_addr);
       return;
     }
 
@@ -756,8 +765,7 @@ struct eatt_impl {
   void stop_indication_confirm_timer(const RawAddress& bd_addr, uint16_t cid) {
     EattChannel* channel = find_eatt_channel_by_cid(bd_addr, cid);
     if (!channel) {
-      log::error("Unknown cid: {} or device {}", loghex(cid),
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Unknown cid: 0x{:x} or device {}", cid, bd_addr);
       return;
     }
 
@@ -767,8 +775,7 @@ struct eatt_impl {
   void start_app_indication_timer(const RawAddress& bd_addr, uint16_t cid) {
     EattChannel* channel = find_eatt_channel_by_cid(bd_addr, cid);
     if (!channel) {
-      log::error("Unknown cid: {} or device {}", loghex(cid),
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Unknown cid: 0x{:x} or device {}", cid, bd_addr);
       return;
     }
 
@@ -779,8 +786,7 @@ struct eatt_impl {
   void stop_app_indication_timer(const RawAddress& bd_addr, uint16_t cid) {
     EattChannel* channel = find_eatt_channel_by_cid(bd_addr, cid);
     if (!channel) {
-      log::error("Unknown cid: {} or device {}", loghex(cid),
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Unknown cid: 0x{:x} or device {}", cid, bd_addr);
       return;
     }
 
@@ -790,29 +796,31 @@ struct eatt_impl {
   void reconfigure(const RawAddress& bd_addr, uint16_t cid, uint16_t new_mtu) {
     eatt_device* eatt_dev = find_device_by_address(bd_addr);
     if (!eatt_dev) {
-      log::error("Unknown device {}", ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Unknown device {}", bd_addr);
       return;
     }
 
     EattChannel* channel = find_eatt_channel_by_cid(bd_addr, cid);
     if (!channel) {
-      log::error("Unknown cid: {} or device {}", loghex(cid),
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Unknown cid: 0x{:x} or device {}", cid, bd_addr);
       return;
     }
 
     if (new_mtu <= channel->rx_mtu_) {
-      log::error("Invalid mtu: {}", loghex(new_mtu));
+      log::error("Invalid mtu: 0x{:x}", new_mtu);
       return;
     }
 
     std::vector<uint16_t> cids = {cid};
 
-    tL2CAP_LE_CFG_INFO cfg = {.mtu = new_mtu, .mps = eatt_dev->rx_mps_};
+    tL2CAP_LE_CFG_INFO cfg = {
+        .result = L2CAP_LE_RESULT_CONN_OK,
+        .mtu = new_mtu,
+        .mps = eatt_dev->rx_mps_};
 
     if (!L2CA_ReconfigCreditBasedConnsReq(eatt_dev->bda_, cids, &cfg)) {
-      log::error("Could not start reconfig cid: {} or device {}", loghex(cid),
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Could not start reconfig cid: 0x{:x} or device {}", cid,
+                 bd_addr);
       return;
     }
 
@@ -820,17 +828,16 @@ struct eatt_impl {
   }
 
   void reconfigure_all(const RawAddress& bd_addr, uint16_t new_mtu) {
-    log::info("Device {}, new mtu {}", ADDRESS_TO_LOGGABLE_STR(bd_addr),
-              new_mtu);
+    log::info("Device {}, new mtu {}", bd_addr, new_mtu);
     eatt_device* eatt_dev = find_device_by_address(bd_addr);
     if (!eatt_dev) {
-      log::error("Unknown device {}", ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Unknown device {}", bd_addr);
       return;
     }
 
     uint8_t num_of_channels = eatt_dev->eatt_channels.size();
     if (num_of_channels == 0) {
-      log::error("No channels for device {}", ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("No channels for device {}", bd_addr);
       return;
     }
 
@@ -844,15 +851,17 @@ struct eatt_impl {
     }
 
     if (new_mtu <= EATT_MIN_MTU_MPS) {
-      log::error("Invalid mtu: {}", loghex(new_mtu));
+      log::error("Invalid mtu: 0x{:x}", new_mtu);
       return;
     }
 
-    tL2CAP_LE_CFG_INFO cfg = {.mtu = new_mtu, .mps = eatt_dev->rx_mps_};
+    tL2CAP_LE_CFG_INFO cfg = {
+        .result = L2CAP_LE_RESULT_CONN_OK,
+        .mtu = new_mtu,
+        .mps = eatt_dev->rx_mps_};
 
     if (!L2CA_ReconfigCreditBasedConnsReq(eatt_dev->bda_, cids, &cfg)) {
-      log::error("Could not start reconfig for device {}",
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Could not start reconfig for device {}", bd_addr);
       return;
     }
 
@@ -866,32 +875,33 @@ struct eatt_impl {
                              uint8_t features) {
     bool is_eatt_supported = features & BLE_GATT_SVR_SUP_FEAT_EATT_BITMASK;
 
-    log::info("{} is_eatt_supported = {}", ADDRESS_TO_LOGGABLE_STR(bd_addr),
-              int(is_eatt_supported));
+    log::info("{} is_eatt_supported = {}", bd_addr, int(is_eatt_supported));
     if (!is_eatt_supported) return;
 
     eatt_device* eatt_dev = this->find_device_by_address(bd_addr);
     if (!eatt_dev) {
-      log::info("Adding device: {} on supported features callback.",
-                ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::info("Adding device: {} on supported features callback.", bd_addr);
       eatt_dev = add_eatt_device(bd_addr);
     }
 
     if (role != HCI_ROLE_CENTRAL) {
       /* TODO For now do nothing, we could run a timer here and start EATT if
        * not started by central */
-      log::info(" EATT Should be connected by the central. Let's wait for it.");
+      log::info("EATT Should be connected by the central. Let's wait for it.");
       return;
     }
 
     connect_eatt_wrap(eatt_dev);
   }
 
-  void disconnect_channel(uint16_t cid) { L2CA_DisconnectReq(cid); }
+  void disconnect_channel(uint16_t cid) {
+    if (!L2CA_DisconnectReq(cid)) {
+      log::warn("Unable to request L2CAP disconnect cid:{}", cid);
+    }
+  }
 
   void disconnect(const RawAddress& bd_addr, uint16_t cid) {
-    log::info("Device: {}, cid: 0x{:04x}", ADDRESS_TO_LOGGABLE_STR(bd_addr),
-              cid);
+    log::info("Device: {}, cid: 0x{:04x}", bd_addr, cid);
 
     eatt_device* eatt_dev = find_device_by_address(bd_addr);
     if (!eatt_dev) {
@@ -900,7 +910,8 @@ struct eatt_impl {
     }
 
     if (!eatt_dev->eatt_tcb_) {
-      LOG_ASSERT(eatt_dev->eatt_channels.size() == 0);
+      log::assert_that(eatt_dev->eatt_channels.size() == 0,
+                       "assert failed: eatt_dev->eatt_channels.size() == 0");
       log::warn("no eatt channels found");
       return;
     }
@@ -908,8 +919,7 @@ struct eatt_impl {
     if (cid != EATT_ALL_CIDS) {
       auto chan = find_channel_by_cid(cid);
       if (!chan) {
-        log::warn("Cid {} not found for device {}", cid,
-                  ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+        log::warn("Cid {} not found for device {}", cid, bd_addr);
         return;
       }
       log::info("Disconnecting cid {}", cid);
@@ -935,8 +945,8 @@ struct eatt_impl {
   void upper_tester_connect(const RawAddress& bd_addr, eatt_device* eatt_dev,
                             uint8_t role) {
     log::info(
-        "L2CAP Upper tester enabled, {} ({}), role: {}({})",
-        ADDRESS_TO_LOGGABLE_STR(bd_addr), fmt::ptr(eatt_dev),
+        "L2CAP Upper tester enabled, {} ({}), role: {}({})", bd_addr,
+        fmt::ptr(eatt_dev),
         role == HCI_ROLE_CENTRAL ? "HCI_ROLE_CENTRAL" : "HCI_ROLE_PERIPHERAL",
         role);
 
@@ -966,8 +976,7 @@ struct eatt_impl {
             bd_addr, base::BindOnce(&eatt_impl::supported_features_cb,
                                     weak_factory_.GetWeakPtr(), role)) ==
         false) {
-      log::info("Read server supported features failed for device {}",
-                ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+      log::info("Read server supported features failed for device {}", bd_addr);
     }
   }
 
@@ -976,8 +985,7 @@ struct eatt_impl {
 
     uint8_t role = L2CA_GetBleConnRole(bd_addr);
     if (role == HCI_ROLE_UNKNOWN) {
-      log::error("Could not get device role{}",
-                 ADDRESS_TO_LOGGABLE_STR(bd_addr));
+      log::error("Could not get device role{}", bd_addr);
       return;
     }
 
@@ -986,8 +994,8 @@ struct eatt_impl {
       return;
     }
 
-    log::info("Device {}, role {}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr),
-              (role == HCI_ROLE_CENTRAL ? "central" : "peripheral"));
+    log::info("Device {}, role {}", bd_addr,
+              role == HCI_ROLE_CENTRAL ? "central" : "peripheral");
 
     if (eatt_dev) {
       /* We are reconnecting device we know that support EATT.
@@ -997,7 +1005,7 @@ struct eatt_impl {
 
       if (role != HCI_ROLE_CENTRAL) {
         log::info(
-            " EATT Should be connected by the central. Let's wait for it.");
+            "EATT Should be connected by the central. Let's wait for it.");
         return;
       }
 
@@ -1008,8 +1016,7 @@ struct eatt_impl {
     if (role != HCI_ROLE_CENTRAL) return;
 
     if (gatt_profile_get_eatt_support(bd_addr)) {
-      log::debug("Eatt is supported for device {}",
-                 ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+      log::debug("Eatt is supported for device {}", bd_addr);
       supported_features_cb(role, bd_addr, BLE_GATT_SVR_SUP_FEAT_EATT_BITMASK);
       return;
     }
@@ -1019,15 +1026,14 @@ struct eatt_impl {
             bd_addr, base::BindOnce(&eatt_impl::supported_features_cb,
                                     weak_factory_.GetWeakPtr(), role)) ==
         false) {
-      log::info("Read server supported features failed for device {}",
-                ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+      log::info("Read server supported features failed for device {}", bd_addr);
     }
   }
 
   void add_from_storage(const RawAddress& bd_addr) {
     eatt_device* eatt_dev = find_device_by_address(bd_addr);
 
-    log::info("restoring: {}", ADDRESS_TO_LOGGABLE_STR(bd_addr));
+    log::info("restoring: {}", bd_addr);
 
     if (!eatt_dev) add_eatt_device(bd_addr);
   }

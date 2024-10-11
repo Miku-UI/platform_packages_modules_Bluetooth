@@ -54,14 +54,11 @@ source_set("LibBluetoothShimSources") {
     "acl.cc",
     "acl_api.cc",
     "acl_legacy_interface.cc",
-    "btm.cc",
     "btm_api.cc",
     "config.cc",
-    "controller.cc",
     "distance_measurement_manager.cc",
     "dumpsys.cc",
     "hci_layer.cc",
-    "l2c_api.cc",
     "le_advertising_manager.cc",
     "le_scanning_manager.cc",
     "metric_id_api.cc",
@@ -80,6 +77,7 @@ source_set("LibBluetoothShimSources") {
   ]
 
   deps = [
+    "//bt/sysprop:libcom.android.sysprop.bluetooth",
     "//bt/system/gd:BluetoothGeneratedDumpsysDataSchema_h",
     "//bt/system/gd/common:BluetoothCommonSources",
     "//bt/system/gd/dumpsys/bundler:BluetoothGeneratedBundlerSchema_h_bfbs",

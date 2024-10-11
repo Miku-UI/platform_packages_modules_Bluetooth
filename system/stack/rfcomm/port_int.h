@@ -27,13 +27,16 @@
 
 #include <cstdint>
 
+#include "include/macros.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/l2c_api.h"
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
+#include "stack/rfcomm/rfc_state.h"
 #include "types/raw_address.h"
+
 /*
  * Flow control configuration values for the mux
 */
@@ -87,7 +90,7 @@ typedef struct {
       RawAddress::kEmpty;                /* BD ADDR of the peer if initiator */
   uint16_t lcid;                         /* Local cid used for this channel */
   uint16_t peer_l2cap_mtu; /* Max frame that can be sent to peer L2CAP */
-  uint8_t state;           /* Current multiplexer channel state */
+  tRFC_MX_STATE state;     /* Current multiplexer channel state */
   uint8_t is_initiator;    /* true if this side sends SABME (dlci=0) */
   bool restart_required;  /* true if has to restart channel after disc */
   bool peer_ready;        /* True if other side can accept frames */
@@ -121,6 +124,32 @@ typedef struct {
   alarm_t* port_timer;
 } tRFC_PORT;
 
+typedef enum : uint8_t {
+  PORT_CONNECTION_STATE_CLOSED = 0,
+  PORT_CONNECTION_STATE_OPENING = 1,
+  PORT_CONNECTION_STATE_OPENED = 2,
+  PORT_CONNECTION_STATE_CLOSING = 3,
+} tPORT_CONNECTION_STATE;
+
+inline std::string port_connection_state_text(
+    const tPORT_CONNECTION_STATE& state) {
+  switch (state) {
+    CASE_RETURN_STRING(PORT_CONNECTION_STATE_CLOSED);
+    CASE_RETURN_STRING(PORT_CONNECTION_STATE_OPENING);
+    CASE_RETURN_STRING(PORT_CONNECTION_STATE_OPENED);
+    CASE_RETURN_STRING(PORT_CONNECTION_STATE_CLOSING);
+    default:
+      break;
+  }
+  RETURN_UNKNOWN_TYPE_STRING(tPORT_CONNECTION_STATE, state);
+}
+
+namespace fmt {
+template <>
+struct formatter<tPORT_CONNECTION_STATE>
+    : enum_formatter<tPORT_CONNECTION_STATE> {};
+}  // namespace fmt
+
 /*
  * Define control block containing information about PORT connection
 */
@@ -128,12 +157,7 @@ typedef struct {
   uint8_t handle;  // Starting from 1, unique for this object
   bool in_use; /* True when structure is allocated */
 
-#define PORT_CONNECTION_STATE_CLOSED 0
-#define PORT_CONNECTION_STATE_OPENING 1
-#define PORT_CONNECTION_STATE_OPENED 2
-#define PORT_CONNECTION_STATE_CLOSING 3
-
-  uint8_t state; /* State of the application */
+  tPORT_CONNECTION_STATE state; /* State of the application */
 
   uint8_t scn;   /* Service channel number */
   uint16_t uuid; /* Service UUID */
@@ -141,8 +165,6 @@ typedef struct {
   RawAddress bd_addr; /* BD ADDR of the device for the multiplexer channel */
   bool is_server;  /* true if the server application */
   uint8_t dlci;    /* DLCI of the connection */
-
-  uint8_t error; /* Last error detected */
 
   uint8_t line_status; /* Line status as reported by peer */
 
@@ -173,7 +195,7 @@ typedef struct {
 
   uint32_t ev_mask;           /* Event mask for the callback */
   tPORT_CALLBACK* p_callback; /* Pointer to users callback function */
-  tPORT_CALLBACK*
+  tPORT_MGMT_CALLBACK*
       p_mgmt_callback; /* Callback function to receive connection up/down */
   tPORT_DATA_CALLBACK*
       p_data_callback; /* Callback function to receive data indications */

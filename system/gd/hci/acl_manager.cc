@@ -16,6 +16,8 @@
 
 #include "hci/acl_manager.h"
 
+#include <bluetooth/log.h>
+
 #include <atomic>
 #include <future>
 #include <mutex>
@@ -129,8 +131,8 @@ struct AclManager::impl {
         if (!timed_out) {
           unsent_packets.push_back(itr);
         } else {
-          LOG_ERROR(
-              "Dropping packet of size %zu to unknown connection 0x%0hx",
+          log::error(
+              "Dropping packet of size {} to unknown connection 0x{:x}",
               itr.size(),
               itr.GetHandle());
         }
@@ -140,7 +142,7 @@ struct AclManager::impl {
   }
 
   static void on_unknown_acl_timer(struct AclManager::impl* impl) {
-    LOG_INFO("Timer fired!");
+    log::info("Timer fired!");
     impl->retry_unknown_acl(/* timed_out = */ true);
     impl->unknown_acl_alarm_.reset();
   }
@@ -153,9 +155,9 @@ struct AclManager::impl {
     }
 
     auto packet = hci_queue_end_->TryDequeue();
-    ASSERT(packet != nullptr);
+    log::assert_that(packet != nullptr, "assert failed: packet != nullptr");
     if (!packet->IsValid()) {
-      LOG_INFO("Dropping invalid packet of size %zu", packet->size());
+      log::info("Dropping invalid packet of size {}", packet->size());
       return;
     }
     uint16_t handle = packet->GetHandle();
@@ -170,8 +172,8 @@ struct AclManager::impl {
       unknown_acl_alarm_.reset(new os::Alarm(handler_));
     }
     waiting_packets_.push_back(*packet);
-    LOG_INFO(
-        "Saving packet of size %zu to unknown connection 0x%0hx",
+    log::info(
+        "Saving packet of size {} to unknown connection 0x{:x}",
         packet->size(),
         packet->GetHandle());
     unknown_acl_alarm_->Schedule(
@@ -203,7 +205,9 @@ struct AclManager::impl {
 AclManager::AclManager() : pimpl_(std::make_unique<impl>(*this)) {}
 
 void AclManager::RegisterCallbacks(ConnectionCallbacks* callbacks, os::Handler* handler) {
-  ASSERT(callbacks != nullptr && handler != nullptr);
+  log::assert_that(
+      callbacks != nullptr && handler != nullptr,
+      "assert failed: callbacks != nullptr && handler != nullptr");
   GetHandler()->Post(common::BindOnce(
       &classic_impl::handle_register_callbacks,
       common::Unretained(pimpl_->classic_impl_),
@@ -212,7 +216,7 @@ void AclManager::RegisterCallbacks(ConnectionCallbacks* callbacks, os::Handler* 
 }
 
 void AclManager::UnregisterCallbacks(ConnectionCallbacks* callbacks, std::promise<void> promise) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(
       pimpl_->classic_impl_,
       &classic_impl::handle_unregister_callbacks,
@@ -221,7 +225,9 @@ void AclManager::UnregisterCallbacks(ConnectionCallbacks* callbacks, std::promis
 }
 
 void AclManager::RegisterLeCallbacks(LeConnectionCallbacks* callbacks, os::Handler* handler) {
-  ASSERT(callbacks != nullptr && handler != nullptr);
+  log::assert_that(
+      callbacks != nullptr && handler != nullptr,
+      "assert failed: callbacks != nullptr && handler != nullptr");
   CallOn(
       pimpl_->le_impl_,
       &le_impl::handle_register_le_callbacks,
@@ -230,7 +236,7 @@ void AclManager::RegisterLeCallbacks(LeConnectionCallbacks* callbacks, os::Handl
 }
 
 void AclManager::RegisterLeAcceptlistCallbacks(LeAcceptlistCallbacks* callbacks) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(
       pimpl_->le_impl_,
       &le_impl::handle_register_le_acceptlist_callbacks,
@@ -238,13 +244,13 @@ void AclManager::RegisterLeAcceptlistCallbacks(LeAcceptlistCallbacks* callbacks)
 }
 
 void AclManager::UnregisterLeCallbacks(LeConnectionCallbacks* callbacks, std::promise<void> promise) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(pimpl_->le_impl_, &le_impl::handle_unregister_le_callbacks, common::Unretained(callbacks), std::move(promise));
 }
 
 void AclManager::UnregisterLeAcceptlistCallbacks(
     LeAcceptlistCallbacks* callbacks, std::promise<void> promise) {
-  ASSERT(callbacks != nullptr);
+  log::assert_that(callbacks != nullptr, "assert failed: callbacks != nullptr");
   CallOn(
       pimpl_->le_impl_,
       &le_impl::handle_unregister_le_acceptlist_callbacks,
@@ -358,7 +364,7 @@ void AclManager::SwitchRole(Address address, Role role) {
 }
 
 uint16_t AclManager::ReadDefaultLinkPolicySettings() {
-  ASSERT_LOG(pimpl_->default_link_policy_settings_ != 0xffff, "Settings were never written");
+  log::assert_that(pimpl_->default_link_policy_settings_ != 0xffff, "Settings were never written");
   return pimpl_->default_link_policy_settings_;
 }
 
@@ -384,10 +390,6 @@ void AclManager::OnAdvertisingSetTerminated(
   }
 }
 
-void AclManager::SetSecurityModule(security::SecurityModule* security_module) {
-  CallOn(pimpl_->classic_impl_, &classic_impl::set_security_module, security_module);
-}
-
 void AclManager::OnClassicSuspendInitiatedDisconnect(uint16_t handle, ErrorCode reason) {
   CallOn(pimpl_->classic_impl_, &classic_impl::on_classic_disconnect, handle, reason);
 }
@@ -410,6 +412,10 @@ uint16_t AclManager::HACK_GetHandle(Address address) {
 
 uint16_t AclManager::HACK_GetLeHandle(Address address) {
   return pimpl_->le_impl_->HACK_get_handle(address);
+}
+
+Address AclManager::HACK_GetLeAddress(uint16_t connection_handle) {
+  return pimpl_->le_impl_->HACK_get_address(connection_handle);
 }
 
 void AclManager::HACK_SetAclTxPriority(uint8_t handle, bool high_priority) {
@@ -472,7 +478,7 @@ void AclManager::impl::Dump(
 }
 
 DumpsysDataFinisher AclManager::GetDumpsysData(flatbuffers::FlatBufferBuilder* fb_builder) const {
-  ASSERT(fb_builder != nullptr);
+  log::assert_that(fb_builder != nullptr, "assert failed: fb_builder != nullptr");
 
   std::promise<flatbuffers::Offset<AclManagerData>> promise;
   auto future = promise.get_future();

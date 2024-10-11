@@ -26,9 +26,7 @@
 #include <cstdint>
 
 #include "bta/pan/bta_pan_int.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
@@ -181,7 +179,8 @@ void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event,
   /* execute action functions */
   for (i = 0; i < BTA_PAN_ACTIONS; i++) {
     action = state_table[event][i];
-    CHECK(action < BTA_PAN_MAX_ACTIONS);
+    log::assert_that(action < BTA_PAN_MAX_ACTIONS,
+                     "assert failed: action < BTA_PAN_MAX_ACTIONS");
     if (action == BTA_PAN_IGNORE) continue;
     (*bta_pan_action[action])(p_scb, p_data);
   }
@@ -216,9 +215,7 @@ void bta_pan_api_enable(tBTA_PAN_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_api_disable(UNUSED_ATTR tBTA_PAN_DATA* p_data) {
-  bta_pan_disable();
-}
+void bta_pan_api_disable(tBTA_PAN_DATA* /* p_data */) { bta_pan_disable(); }
 
 /*******************************************************************************
  *

@@ -25,26 +25,21 @@ import android.content.Intent;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
-/**
- * Test cases for {@link GattDebugUtils}.
- */
+/** Test cases for {@link GattDebugUtils}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class GattDebugUtilsTest {
 
-    @Mock
-    private GattService mService;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Before
-    public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
-    }
+    @Mock private GattService mService;
 
     @Test
     public void handleDebugAction() {
@@ -81,7 +76,7 @@ public class GattDebugUtilsTest {
         int initKey = 7;
         int respKey = 7;
         int maxKey = 16;
-        verify(mService).gattTestCommand(0xF0, null, null, authReq, ioCap, initKey, respKey,
-                maxKey);
+        verify(mService)
+                .gattTestCommand(0xF0, null, null, authReq, ioCap, initKey, respKey, maxKey);
     }
 }

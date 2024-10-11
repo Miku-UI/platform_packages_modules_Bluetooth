@@ -107,7 +107,10 @@ typedef enum {
   BT_STATUS_JNI_ENVIRONMENT_ERROR,
   BT_STATUS_JNI_THREAD_ATTACH_ERROR,
   BT_STATUS_WAKELOCK_ERROR,
-  BT_STATUS_TIMEOUT
+  BT_STATUS_TIMEOUT,
+  BT_STATUS_DEVICE_NOT_FOUND,
+  BT_STATUS_UNEXPECTED_STATE,
+  BT_STATUS_SOCKET_ERROR
 } bt_status_t;
 
 inline std::string bt_status_text(const bt_status_t& status) {
@@ -144,6 +147,12 @@ inline std::string bt_status_text(const bt_status_t& status) {
       return std::string("wakelock_error");
     case BT_STATUS_TIMEOUT:
       return std::string("timeout_error");
+    case BT_STATUS_DEVICE_NOT_FOUND:
+      return std::string("device_not_found");
+    case BT_STATUS_UNEXPECTED_STATE:
+      return std::string("unexpected_state");
+    case BT_STATUS_SOCKET_ERROR:
+      return std::string("socket_error");
     default:
       return std::string("UNKNOWN");
   }
@@ -229,6 +238,7 @@ typedef struct {
   bool le_isochronous_broadcast_supported;
   bool le_periodic_advertising_sync_transfer_recipient_supported;
   uint16_t adv_filter_extended_features_mask;
+  bool le_channel_sounding_supported;
 } bt_local_le_features_t;
 
 /** Bluetooth Vendor and Product ID info */
@@ -342,12 +352,7 @@ typedef enum {
    */
   BT_PROPERTY_LOCAL_LE_FEATURES,
 
-  /**
-   * Description - Local Input/Output Capabilities for classic Bluetooth
-   * Access mode - GET and SET
-   * Data Type - bt_io_cap_t.
-   */
-  BT_PROPERTY_LOCAL_IO_CAPS,
+  BT_PROPERTY_RESERVED_0E,
 
   BT_PROPERTY_RESERVED_0F,
 
@@ -373,7 +378,8 @@ typedef enum {
    * Data Type - bt_vendor_product_info_t.
    */
   BT_PROPERTY_VENDOR_PRODUCT_INFO,
-  BT_PROPERTY_WL_MEDIA_PLAYERS_LIST,
+
+  BT_PROPERTY_RESERVED_0x14,
 
   /**
    * Description - ASHA capability.
@@ -532,7 +538,6 @@ typedef void (*pin_request_callback)(RawAddress* remote_bd_addr,
 /* TODO: Passkey request callback shall not be needed for devices with display
  * capability. We still need support this in the stack for completeness */
 typedef void (*ssp_request_callback)(RawAddress* remote_bd_addr,
-                                     bt_bdname_t* bd_name, uint32_t cod,
                                      bt_ssp_variant_t pairing_variant,
                                      uint32_t pass_key);
 

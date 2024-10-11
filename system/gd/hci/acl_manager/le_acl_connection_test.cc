@@ -195,8 +195,10 @@ class LeAclConnectionTest : public ::testing::Test {
   }
 
   void sync_handler() {
-    ASSERT(thread_ != nullptr);
-    ASSERT(thread_->GetReactor()->WaitForIdle(2s));
+    log::assert_that(thread_ != nullptr, "assert failed: thread_ != nullptr");
+    log::assert_that(
+        thread_->GetReactor()->WaitForIdle(2s),
+        "assert failed: thread_->GetReactor()->WaitForIdle(2s)");
   }
 
   AddressWithType address_1 =
@@ -233,7 +235,7 @@ TEST_F(LeAclConnectionTest, LeSubrateRequest_success) {
   hci::EventView event = hci::EventView::Create(GetPacketView(std::move(status_builder)));
   hci::CommandStatusView command_status = hci::CommandStatusView::Create(event);
   auto on_status = le_acl_connection_interface_.DequeueStatusCallback();
-  on_status.Invoke(command_status);
+  on_status(command_status);
   sync_handler();
 }
 
@@ -254,7 +256,7 @@ TEST_F(LeAclConnectionTest, LeSubrateRequest_error) {
   hci::EventView event = hci::EventView::Create(GetPacketView(std::move(status_builder)));
   hci::CommandStatusView command_status = hci::CommandStatusView::Create(event);
   auto on_status = le_acl_connection_interface_.DequeueStatusCallback();
-  on_status.Invoke(std::move(command_status));
+  on_status(std::move(command_status));
   sync_handler();
 }
 

@@ -16,16 +16,19 @@
 
 #pragma once
 
+#include <bluetooth/log.h>
+#include <flatbuffers/flatbuffers.h>
+
 #include <chrono>
 #include <functional>
 #include <future>
 #include <map>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "common/bind.h"
-#include "module_state_dumper.h"
 #include "os/handler.h"
 #include "os/log.h"
 #include "os/thread.h"
@@ -68,6 +71,11 @@ public:
   std::vector<const ModuleFactory*> list_;
 };
 
+struct DumpsysDataBuilder;
+using DumpsysDataFinisher = std::function<void(DumpsysDataBuilder*)>;
+
+extern DumpsysDataFinisher EmptyDumpsysDataFinisher;
+
 // Each leaf node module must have a factory like so:
 //
 // static const ModuleFactory Factory;
@@ -75,13 +83,14 @@ public:
 // which will provide a constructor for the module registry to call.
 // The module registry will also use the factory as the identifier
 // for that module.
-class Module : protected ModuleStateDumper {
+class Module {
   friend ModuleDumper;
   friend ModuleRegistry;
   friend TestModuleRegistry;
 
  public:
   virtual ~Module() = default;
+
  protected:
   // Populate the provided list with modules that must start before yours
   virtual void ListDependencies(ModuleList* list) const = 0;
@@ -113,6 +122,8 @@ class Module : protected ModuleStateDumper {
   void CallOn(T* obj, Functor&& functor, Args&&... args) {
     GetHandler()->CallOn(obj, std::forward<Functor>(functor), std::forward<Args>(args)...);
   }
+
+  virtual DumpsysDataFinisher GetDumpsysData(flatbuffers::FlatBufferBuilder* builder) const;
 
  private:
   Module* GetDependency(const ModuleFactory* module) const;
@@ -217,7 +228,7 @@ class FuzzTestModuleRegistry : public TestModuleRegistry {
 
   void WaitForIdleAndStopAll() {
     if (!GetTestThread().GetReactor()->WaitForIdle(std::chrono::milliseconds(100))) {
-      LOG_ERROR("idle timed out");
+      log::error("idle timed out");
     }
     StopAll();
   }

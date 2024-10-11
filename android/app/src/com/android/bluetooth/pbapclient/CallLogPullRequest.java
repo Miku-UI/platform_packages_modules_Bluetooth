@@ -42,19 +42,16 @@ import java.util.List;
 
 public class CallLogPullRequest extends PullRequest {
     private static final String TAG = "CallLogPullRequest";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
-    private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
 
-    @VisibleForTesting
-    static final String TIMESTAMP_PROPERTY = "X-IRMC-CALL-DATETIME";
+    @VisibleForTesting static final String TIMESTAMP_PROPERTY = "X-IRMC-CALL-DATETIME";
     private static final String TIMESTAMP_FORMAT = "yyyyMMdd'T'HHmmss";
 
     private final Account mAccount;
     private Context mContext;
     private HashMap<String, Integer> mCallCounter;
 
-    public CallLogPullRequest(Context context, String path, HashMap<String, Integer> map,
-            Account account) {
+    public CallLogPullRequest(
+            Context context, String path, HashMap<String, Integer> map, Account account) {
         mContext = context;
         this.path = path;
         mCallCounter = map;
@@ -68,12 +65,7 @@ public class CallLogPullRequest extends PullRequest {
             return;
         }
 
-        if (DBG) {
-            Log.d(TAG, "onPullComplete");
-            if (VDBG) {
-                Log.d(TAG, " with " + mEntries.size() + " count.");
-            }
-        }
+        Log.d(TAG, "onPullComplete with " + mEntries.size() + " entries");
         int type;
         try {
             if (path.equals(PbapClientConnectionHandler.ICH_PATH)) {
@@ -94,7 +86,8 @@ public class CallLogPullRequest extends PullRequest {
                 values.put(CallLog.Calls.TYPE, type);
                 values.put(Calls.PHONE_ACCOUNT_ID, mAccount.name);
                 List<PhoneData> phones = vcard.getPhoneList();
-                if (phones == null || phones.get(0).getNumber().equals(";")
+                if (phones == null
+                        || phones.get(0).getNumber().equals(";")
                         || phones.get(0).getNumber().length() == 0) {
                     values.put(CallLog.Calls.NUMBER, "");
                 } else {
@@ -115,22 +108,20 @@ public class CallLogPullRequest extends PullRequest {
                             try {
                                 values.put(CallLog.Calls.DATE, parser.parse(pair.second).getTime());
                             } catch (ParseException e) {
-                                Log.d(TAG, "Failed to parse date ");
-                                if (VDBG) {
-                                    Log.d(TAG, pair.second);
-                                }
+                                Log.d(TAG, "Failed to parse date, value=" + pair.second);
                             }
                         }
                     }
                 }
-                ops.add(ContentProviderOperation.newInsert(CallLog.Calls.CONTENT_URI)
-                        .withValues(values)
-                        .withYieldAllowed(true)
-                        .build());
+                ops.add(
+                        ContentProviderOperation.newInsert(CallLog.Calls.CONTENT_URI)
+                                .withValues(values)
+                                .withYieldAllowed(true)
+                                .build());
             }
             mContext.getContentResolver().applyBatch(CallLog.AUTHORITY, ops);
             Log.d(TAG, "Updated call logs.");
-            //OUTGOING_TYPE is the last callLog we fetched.
+            // OUTGOING_TYPE is the last callLog we fetched.
             if (type == CallLog.Calls.OUTGOING_TYPE) {
                 updateTimesContacted();
             }
@@ -148,26 +139,24 @@ public class CallLogPullRequest extends PullRequest {
         for (String key : mCallCounter.keySet()) {
             ContentValues values = new ContentValues();
             values.put(ContactsContract.RawContacts.TIMES_CONTACTED, mCallCounter.get(key));
-            Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
-                    Uri.encode(key));
-            try (Cursor c = BluetoothMethodProxy.getInstance().contentResolverQuery(
-                    mContext.getContentResolver(), uri, null, null, null)) {
+            Uri uri =
+                    Uri.withAppendedPath(
+                            ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(key));
+            try (Cursor c =
+                    BluetoothMethodProxy.getInstance()
+                            .contentResolverQuery(
+                                    mContext.getContentResolver(), uri, null, null, null)) {
                 if (c != null && c.getCount() > 0) {
                     c.moveToNext();
-                    String contactId = c.getString(c.getColumnIndex(
-                            ContactsContract.PhoneLookup.CONTACT_ID));
-                    if (VDBG) {
-                        Log.d(TAG, "onPullComplete: ID " + contactId + " key : " + key);
-                    }
+                    String contactId =
+                            c.getString(c.getColumnIndex(ContactsContract.PhoneLookup.CONTACT_ID));
+                    Log.d(TAG, "onPullComplete: ID " + contactId + " key : " + key);
                     String where = ContactsContract.RawContacts.CONTACT_ID + "=" + contactId;
-                    mContext.getContentResolver().update(
-                            ContactsContract.RawContacts.CONTENT_URI, values, where, null);
+                    mContext.getContentResolver()
+                            .update(ContactsContract.RawContacts.CONTENT_URI, values, where, null);
                 }
             }
         }
-        if (DBG) {
-            Log.d(TAG, "Updated TIMES_CONTACTED");
-        }
+        Log.d(TAG, "Updated TIMES_CONTACTED");
     }
-
 }

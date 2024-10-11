@@ -26,25 +26,27 @@ import android.bluetooth.BluetoothProfile;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 public class HapClientNativeInterfaceTest {
     private static final byte[] TEST_DEVICE_ADDRESS =
-            new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-    @Mock
-    HapClientService mService;
+            new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock HapClientService mService;
 
     private HapClientNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         when(mService.isAvailable()).thenReturn(true);
         HapClientService.setHapClient(mService);
-        mNativeInterface = HapClientNativeInterface.getInstance();
+        mNativeInterface = new HapClientNativeInterface();
     }
 
     @After
@@ -60,8 +62,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         assertThat(event.getValue().valueInt1).isEqualTo(state);
     }
 
@@ -73,8 +75,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
         assertThat(event.getValue().valueInt1).isEqualTo(features);
     }
 
@@ -86,8 +88,7 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_DEVICE_FEATURES);
+        assertThat(event.getValue().type).isEqualTo(HapClientStackEvent.EVENT_TYPE_DEVICE_FEATURES);
         assertThat(event.getValue().valueInt1).isEqualTo(features);
     }
 
@@ -99,8 +100,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
         assertThat(event.getValue().valueInt1).isEqualTo(presetIndex);
     }
 
@@ -113,12 +114,11 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
         assertThat(event.getValue().valueInt1).isEqualTo(presetIndex);
         assertThat(event.getValue().valueInt2).isEqualTo(groupId);
     }
-
 
     @Test
     public void onActivePresetSelectError() {
@@ -128,8 +128,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
         assertThat(event.getValue().valueInt1).isEqualTo(resultCode);
     }
 
@@ -142,8 +142,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
         assertThat(event.getValue().valueInt1).isEqualTo(resultCode);
         assertThat(event.getValue().valueInt2).isEqualTo(groupId);
     }
@@ -151,18 +151,18 @@ public class HapClientNativeInterfaceTest {
     @Test
     public void onPresetInfo() {
         int infoReason = HapClientStackEvent.PRESET_INFO_REASON_ALL_PRESET_INFO;
-        BluetoothHapPresetInfo[] presets =
-                {new BluetoothHapPresetInfo.Builder(0x01, "onPresetInfo")
-                        .setWritable(true)
-                        .setAvailable(false)
-                        .build()};
+        BluetoothHapPresetInfo[] presets = {
+            new BluetoothHapPresetInfo.Builder(0x01, "onPresetInfo")
+                    .setWritable(true)
+                    .setAvailable(false)
+                    .build()
+        };
         mNativeInterface.onPresetInfo(TEST_DEVICE_ADDRESS, infoReason, presets);
 
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
+        assertThat(event.getValue().type).isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
         assertThat(event.getValue().valueInt2).isEqualTo(infoReason);
         assertThat(event.getValue().valueList.toArray()).isEqualTo(presets);
     }
@@ -171,18 +171,18 @@ public class HapClientNativeInterfaceTest {
     public void onGroupPresetInfo() {
         int groupId = 100;
         int infoReason = HapClientStackEvent.PRESET_INFO_REASON_ALL_PRESET_INFO;
-        BluetoothHapPresetInfo[] presets =
-                {new BluetoothHapPresetInfo.Builder(0x01, "onPresetInfo")
-                        .setWritable(true)
-                        .setAvailable(false)
-                        .build()};
+        BluetoothHapPresetInfo[] presets = {
+            new BluetoothHapPresetInfo.Builder(0x01, "onPresetInfo")
+                    .setWritable(true)
+                    .setAvailable(false)
+                    .build()
+        };
         mNativeInterface.onGroupPresetInfo(groupId, infoReason, presets);
 
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
+        assertThat(event.getValue().type).isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
         assertThat(event.getValue().valueInt2).isEqualTo(infoReason);
         assertThat(event.getValue().valueInt3).isEqualTo(groupId);
         assertThat(event.getValue().valueList.toArray()).isEqualTo(presets);
@@ -197,8 +197,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
         assertThat(event.getValue().valueInt1).isEqualTo(resultCode);
         assertThat(event.getValue().valueInt2).isEqualTo(presetIndex);
     }
@@ -213,8 +213,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
         assertThat(event.getValue().valueInt1).isEqualTo(resultCode);
         assertThat(event.getValue().valueInt2).isEqualTo(presetIndex);
         assertThat(event.getValue().valueInt3).isEqualTo(groupId);
@@ -229,8 +229,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
         assertThat(event.getValue().valueInt1).isEqualTo(resultCode);
         assertThat(event.getValue().valueInt2).isEqualTo(presetIndex);
     }
@@ -245,8 +245,8 @@ public class HapClientNativeInterfaceTest {
         ArgumentCaptor<HapClientStackEvent> event =
                 ArgumentCaptor.forClass(HapClientStackEvent.class);
         verify(mService).messageFromNative(event.capture());
-        assertThat(event.getValue().type).isEqualTo(
-                HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
+        assertThat(event.getValue().type)
+                .isEqualTo(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
         assertThat(event.getValue().valueInt1).isEqualTo(resultCode);
         assertThat(event.getValue().valueInt2).isEqualTo(presetIndex);
         assertThat(event.getValue().valueInt3).isEqualTo(groupId);

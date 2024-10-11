@@ -20,7 +20,6 @@
 
 #include <base/functional/bind.h>
 #include <base/location.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 
@@ -62,10 +61,9 @@ class BluetoothKeystoreInterfaceImpl
       log::info("callback isn't ready.");
       return;
     }
-    do_in_jni_thread(
-        FROM_HERE, base::BindOnce([]() {
-          shim::BtifConfigInterface::ConvertEncryptOrDecryptKeyIfNeeded();
-        }));
+    do_in_jni_thread(base::BindOnce([]() {
+      shim::BtifConfigInterface::ConvertEncryptOrDecryptKeyIfNeeded();
+    }));
   }
 
   bool set_encrypt_key_or_remove_key(std::string prefix,

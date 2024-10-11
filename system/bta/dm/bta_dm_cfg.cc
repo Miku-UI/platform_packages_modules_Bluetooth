@@ -614,7 +614,6 @@ const tBTM_PM_PWR_MD* p_bta_dm_pm_md = &bta_dm_pm_md[0];
 
 /* The performance impact of EIR packet size
  *
- * When BTM_EIR_DEFAULT_FEC_REQUIRED is true,
  * 1 to 17 bytes,    DM1 is used and most robust.
  * 18 to 121 bytes,  DM3 is used but impacts inquiry scan time with large number
  *                    of devices.(almost double with 150 users)
@@ -622,42 +621,21 @@ const tBTM_PM_PWR_MD* p_bta_dm_pm_md = &bta_dm_pm_md[0];
  *                    small number of users. so it is not recommended.
  * 225 to 240 bytes, DH5 is used without FEC but it not recommended.
  *                    (same reason of DM5)
- *
- * When BTM_EIR_DEFAULT_FEC_REQUIRED is false,
- * 1 to 27 bytes,    DH1 is used but only robust at short range.
- * 28 to 183 bytes,  DH3 is used but only robust at short range and impacts
- * inquiry
- *                    scan time with large number of devices.
- * 184 to 240 bytes, DH5 is used but it not recommended.
-*/
-
-#if (BTA_EIR_CANNED_UUID_LIST == TRUE)
-/* for example */
-const uint8_t bta_dm_eir_uuid16_list[] = {
-    0x08, 0x11, /* Headset */
-    0x1E, 0x11, /* Handsfree */
-    0x0E, 0x11, /* AV Remote Control */
-    0x0B, 0x11, /* Audio Sink */
-};
-#endif  // BTA_EIR_CANNED_UUID_LIST
+ */
 
 /* Extended Inquiry Response */
 const tBTA_DM_EIR_CONF bta_dm_eir_cfg = {
     50, /* minimum length of local name when it is shortened */
         /* if length of local name is longer than this and EIR has not enough */
         /* room for all UUID list then local name is shortened to this length */
-#if (BTA_EIR_CANNED_UUID_LIST == TRUE)
-    8,    (uint8_t*)bta_dm_eir_uuid16_list,
-#else     // BTA_EIR_CANNED_UUID_LIST
     {
         /* mask of UUID list in EIR */
         0xFFFFFFFF, /* LSB is the first UUID of the first 32 UUIDs in
                        BTM_EIR_UUID_LKUP_TBL */
         0xFFFFFFFF  /* LSB is the first UUID of the next 32 UUIDs in
                        BTM_EIR_UUID_LKUP_TBL */
-        /* BTM_EIR_UUID_LKUP_TBL can be overrided */
+                    /* BTM_EIR_UUID_LKUP_TBL can be overrided */
     },
-#endif    // BTA_EIR_CANNED_UUID_LIST
     NULL, /* Inquiry TX power         */
     0,    /* length of flags in bytes */
     NULL, /* flags for EIR */

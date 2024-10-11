@@ -17,23 +17,22 @@
 
 #include "mock_state_machine.h"
 
-#include <base/logging.h>
-
 static MockLeAudioGroupStateMachine* mock_machine = nullptr;
 
-void le_audio::LeAudioGroupStateMachine::Initialize(
-    le_audio::LeAudioGroupStateMachine::Callbacks* state_machine_callbacks) {
-  LOG_ASSERT(mock_machine) << "Mock State Machine not set!";
+void bluetooth::le_audio::LeAudioGroupStateMachine::Initialize(
+    bluetooth::le_audio::LeAudioGroupStateMachine::Callbacks*
+        state_machine_callbacks) {
+  log::assert_that(mock_machine, "Mock State Machine not set!");
   mock_machine->Initialize(state_machine_callbacks);
 }
 
-void le_audio::LeAudioGroupStateMachine::Cleanup(void) {
-  LOG_ASSERT(mock_machine) << "Mock State Machine not set!";
+void bluetooth::le_audio::LeAudioGroupStateMachine::Cleanup(void) {
+  log::assert_that(mock_machine, "Mock State Machine not set!");
   mock_machine->Cleanup();
 }
 
-le_audio::LeAudioGroupStateMachine* le_audio::LeAudioGroupStateMachine::Get(
-    void) {
+bluetooth::le_audio::LeAudioGroupStateMachine*
+bluetooth::le_audio::LeAudioGroupStateMachine::Get(void) {
   return mock_machine;
 }
 

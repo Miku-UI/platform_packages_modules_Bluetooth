@@ -26,10 +26,12 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -47,26 +49,39 @@ public class BluetoothMapMasInstanceTest {
 
     private BluetoothMapAccountItem mAccountItem;
 
-    @Mock
-    private Context mContext;
-    @Mock
-    private BluetoothMapService mMapService;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private Context mContext;
+    @Mock private BluetoothMapService mMapService;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
-        mAccountItem = BluetoothMapAccountItem.create(TEST_ID, TEST_NAME, TEST_PACKAGE_NAME,
-                TEST_PROVIDER_AUTHORITY, TEST_DRAWABLE, TEST_TYPE, TEST_UCI, TEST_UCI_PREFIX);
+        mAccountItem =
+                BluetoothMapAccountItem.create(
+                        TEST_ID,
+                        TEST_NAME,
+                        TEST_PACKAGE_NAME,
+                        TEST_PROVIDER_AUTHORITY,
+                        TEST_DRAWABLE,
+                        TEST_TYPE,
+                        TEST_UCI,
+                        TEST_UCI_PREFIX);
     }
 
     @Test
     public void toString_returnsInfo() {
-        BluetoothMapMasInstance instance = new BluetoothMapMasInstance(mMapService, mContext,
-                mAccountItem, TEST_MAS_ID, TEST_ENABLE_SMS_MMS);
+        BluetoothMapMasInstance instance =
+                new BluetoothMapMasInstance(
+                        mMapService, mContext, mAccountItem, TEST_MAS_ID, TEST_ENABLE_SMS_MMS);
 
-        String expected = "MasId: " + TEST_MAS_ID + " Uri:" + mAccountItem.mBase_uri + " SMS/MMS:"
-                + TEST_ENABLE_SMS_MMS;
+        String expected =
+                "MasId: "
+                        + TEST_MAS_ID
+                        + " Uri:"
+                        + mAccountItem.mBase_uri
+                        + " SMS/MMS:"
+                        + TEST_ENABLE_SMS_MMS;
         assertThat(instance.toString()).isEqualTo(expected);
     }
 }

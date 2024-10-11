@@ -16,6 +16,8 @@
 
 #include "l2cap/classic/facade.h"
 
+#include <bluetooth/log.h>
+
 #include <condition_variable>
 #include <cstdint>
 #include <unordered_map>
@@ -46,8 +48,8 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
  public:
   L2capClassicModuleFacadeService(L2capClassicModule* l2cap_layer, os::Handler* facade_handler)
       : l2cap_layer_(l2cap_layer), facade_handler_(facade_handler), security_interface_(nullptr) {
-    ASSERT(l2cap_layer_ != nullptr);
-    ASSERT(facade_handler_ != nullptr);
+    log::assert_that(l2cap_layer_ != nullptr, "assert failed: l2cap_layer_ != nullptr");
+    log::assert_that(facade_handler_ != nullptr, "assert failed: facade_handler_ != nullptr");
   }
 
   ::grpc::Status FetchConnectionComplete(
@@ -88,7 +90,9 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       return ::grpc::Status(::grpc::StatusCode::FAILED_PRECONDITION, "Psm not registered");
     }
     hci::Address peer;
-    ASSERT(hci::Address::FromString(request->remote().address(), peer));
+    log::assert_that(
+        hci::Address::FromString(request->remote().address(), peer),
+        "assert failed: hci::Address::FromString(request->remote().address(), peer)");
     dynamic_channel_helper_map_[request->psm()]->Connect(peer);
     return ::grpc::Status::OK;
   }
@@ -154,7 +158,9 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       const blueberry::facade::BluetoothAddress* request,
       ::google::protobuf::Empty* /* response */) override {
     hci::Address peer;
-    ASSERT(hci::Address::FromString(request->address(), peer));
+    log::assert_that(
+        hci::Address::FromString(request->address(), peer),
+        "assert failed: hci::Address::FromString(request->address(), peer)");
     outgoing_pairing_remote_devices_.insert(peer);
     security_interface_->InitiateConnectionForSecurity(peer);
     return ::grpc::Status::OK;
@@ -183,10 +189,12 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       const blueberry::facade::BluetoothAddress* request,
       ::google::protobuf::Empty* /* response */) override {
     hci::Address peer;
-    ASSERT(hci::Address::FromString(request->address(), peer));
+    log::assert_that(
+        hci::Address::FromString(request->address(), peer),
+        "assert failed: hci::Address::FromString(request->address(), peer)");
     auto entry = security_link_map_.find(peer);
     if (entry == security_link_map_.end()) {
-      LOG_WARN("Unknown address '%s'", ADDRESS_TO_LOGGABLE_CSTR(peer));
+      log::warn("Unknown address '{}'", peer);
     } else {
       entry->second->Hold();
     }
@@ -198,10 +206,12 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       const blueberry::facade::BluetoothAddress* request,
       ::google::protobuf::Empty* /* response */) override {
     hci::Address peer;
-    ASSERT(hci::Address::FromString(request->address(), peer));
+    log::assert_that(
+        hci::Address::FromString(request->address(), peer),
+        "assert failed: hci::Address::FromString(request->address(), peer)");
     auto entry = security_link_map_.find(peer);
     if (entry == security_link_map_.end()) {
-      LOG_WARN("Unknown address '%s'", ADDRESS_TO_LOGGABLE_CSTR(peer));
+      log::warn("Unknown address '{}'", peer);
     } else {
       entry->second->EnsureAuthenticated();
     }
@@ -213,11 +223,13 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       const blueberry::facade::BluetoothAddress* request,
       ::google::protobuf::Empty* /* response */) override {
     hci::Address peer;
-    ASSERT(hci::Address::FromString(request->address(), peer));
+    log::assert_that(
+        hci::Address::FromString(request->address(), peer),
+        "assert failed: hci::Address::FromString(request->address(), peer)");
     outgoing_pairing_remote_devices_.erase(peer);
     auto entry = security_link_map_.find(peer);
     if (entry == security_link_map_.end()) {
-      LOG_WARN("Unknown address '%s'", ADDRESS_TO_LOGGABLE_CSTR(peer));
+      log::warn("Unknown address '{}'", peer);
     } else {
       entry->second->Release();
     }
@@ -229,11 +241,13 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       const blueberry::facade::BluetoothAddress* request,
       ::google::protobuf::Empty* /* response */) override {
     hci::Address peer;
-    ASSERT(hci::Address::FromString(request->address(), peer));
+    log::assert_that(
+        hci::Address::FromString(request->address(), peer),
+        "assert failed: hci::Address::FromString(request->address(), peer)");
     outgoing_pairing_remote_devices_.erase(peer);
     auto entry = security_link_map_.find(peer);
     if (entry == security_link_map_.end()) {
-      LOG_WARN("Unknown address '%s'", ADDRESS_TO_LOGGABLE_CSTR(peer));
+      log::warn("Unknown address '{}'", peer);
     } else {
       entry->second->Disconnect();
     }
@@ -255,7 +269,7 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
   void OnLinkDisconnected(hci::Address remote) override {
     auto entry = security_link_map_.find(remote);
     if (entry == security_link_map_.end()) {
-      LOG_WARN("Unknown address '%s'", ADDRESS_TO_LOGGABLE_CSTR(remote));
+      log::warn("Unknown address '{}'", remote);
       return;
     }
     entry->second.reset();
@@ -315,7 +329,7 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
           handler_->BindOnceOn(this, &L2capDynamicChannelHelper::on_connect_fail));
       std::unique_lock<std::mutex> lock(channel_open_cv_mutex_);
       if (!channel_open_cv_.wait_for(lock, std::chrono::seconds(2), [this] { return channel_ != nullptr; })) {
-        LOG_WARN("Channel is not open for psm %d", psm_);
+        log::warn("Channel is not open for psm {}", psm_);
       }
     }
 
@@ -323,7 +337,7 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       if (channel_ == nullptr) {
         std::unique_lock<std::mutex> lock(channel_open_cv_mutex_);
         if (!channel_open_cv_.wait_for(lock, std::chrono::seconds(2), [this] { return channel_ != nullptr; })) {
-          LOG_WARN("Channel is not open for psm %d", psm_);
+          log::warn("Channel is not open for psm {}", psm_);
           return;
         }
       }
@@ -397,7 +411,7 @@ class L2capClassicModuleFacadeService : public L2capClassicModuleFacade::Service
       if (channel_ == nullptr) {
         std::unique_lock<std::mutex> lock(channel_open_cv_mutex_);
         if (!channel_open_cv_.wait_for(lock, std::chrono::seconds(2), [this] { return channel_ != nullptr; })) {
-          LOG_WARN("Channel is not open");
+          log::warn("Channel is not open");
           return false;
         }
       }

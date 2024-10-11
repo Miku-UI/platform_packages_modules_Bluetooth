@@ -52,20 +52,13 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
 import com.android.internal.annotations.VisibleForTesting;
 
-/**
- * This class is designed to show BT enabling progress.
- */
+/** This class is designed to show BT enabling progress. */
 public class BluetoothOppBtEnablingActivity extends AlertActivity {
     private static final String TAG = "BluetoothOppEnablingActivity";
 
-    private static final boolean D = Constants.DEBUG;
-
-    private static final boolean V = Constants.VERBOSE;
-
     private static final int BT_ENABLING_TIMEOUT = 0;
 
-    @VisibleForTesting
-    static int sBtEnablingTimeoutMs = 20000;
+    @VisibleForTesting static int sBtEnablingTimeoutMs = 20000;
 
     private boolean mRegistered = false;
 
@@ -91,8 +84,8 @@ public class BluetoothOppBtEnablingActivity extends AlertActivity {
         setupAlert();
 
         // Add timeout for enabling progress
-        mTimeoutHandler.sendMessageDelayed(mTimeoutHandler.obtainMessage(BT_ENABLING_TIMEOUT),
-                sBtEnablingTimeoutMs);
+        mTimeoutHandler.sendMessageDelayed(
+                mTimeoutHandler.obtainMessage(BT_ENABLING_TIMEOUT), sBtEnablingTimeoutMs);
     }
 
     private View createView() {
@@ -106,9 +99,7 @@ public class BluetoothOppBtEnablingActivity extends AlertActivity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (D) {
-                Log.d(TAG, "onKeyDown() called; Key: back key");
-            }
+            Log.d(TAG, "onKeyDown() called; Key: back key");
             mTimeoutHandler.removeMessages(BT_ENABLING_TIMEOUT);
             cancelSendingProgress();
         }
@@ -124,42 +115,41 @@ public class BluetoothOppBtEnablingActivity extends AlertActivity {
     }
 
     @VisibleForTesting
-    final Handler mTimeoutHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case BT_ENABLING_TIMEOUT:
-                    if (V) {
-                        Log.v(TAG, "Received BT_ENABLING_TIMEOUT msg.");
+    final Handler mTimeoutHandler =
+            new Handler() {
+                @Override
+                public void handleMessage(Message msg) {
+                    switch (msg.what) {
+                        case BT_ENABLING_TIMEOUT:
+                            Log.v(TAG, "Received BT_ENABLING_TIMEOUT msg.");
+                            cancelSendingProgress();
+                            break;
+                        default:
+                            break;
                     }
-                    cancelSendingProgress();
-                    break;
-                default:
-                    break;
-            }
-        }
-    };
+                }
+            };
 
     @VisibleForTesting
-    final BroadcastReceiver mBluetoothReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (V) {
-                Log.v(TAG, "Received intent: " + action);
-            }
-            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
-                switch (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-                    case BluetoothAdapter.STATE_ON:
-                        mTimeoutHandler.removeMessages(BT_ENABLING_TIMEOUT);
-                        finish();
-                        break;
-                    default:
-                        break;
+    final BroadcastReceiver mBluetoothReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String action = intent.getAction();
+                    Log.v(TAG, "Received intent: " + action);
+                    if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
+                        switch (intent.getIntExtra(
+                                BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                            case BluetoothAdapter.STATE_ON:
+                                mTimeoutHandler.removeMessages(BT_ENABLING_TIMEOUT);
+                                finish();
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
-            }
-        }
-    };
+            };
 
     private void cancelSendingProgress() {
         BluetoothOppManager mOppManager = BluetoothOppManager.getInstance(this);

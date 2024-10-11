@@ -15,16 +15,14 @@
  */
 #pragma once
 
+#include <gmock/gmock.h>
+
 #include <cstdint>
 
-#include "common/contextual_callback.h"
 #include "hci/address.h"
 #include "hci/controller.h"
 #include "hci/hci_packets.h"
-#include "module.h"
-#include "os/handler.h"
-
-#include <gmock/gmock.h>
+#include "hci/le_rand_callback.h"
 
 // Unit test interfaces
 namespace bluetooth {
@@ -110,6 +108,7 @@ class MockController : public Controller {
   MOCK_METHOD(bool, SupportsBlePeriodicAdvertisingAdi, (), (const));
   MOCK_METHOD(bool, SupportsBleConnectionSubrating, (), (const));
   MOCK_METHOD(bool, SupportsBleConnectionSubratingHost, (), (const));
+  MOCK_METHOD(bool, SupportsBleChannelSounding, (), (const));
   MOCK_METHOD(uint16_t, GetAclPacketLength, (), (const));
   MOCK_METHOD(uint16_t, GetNumAclPacketBuffers, (), (const));
   MOCK_METHOD(uint8_t, GetScoPacketLength, (), (const));

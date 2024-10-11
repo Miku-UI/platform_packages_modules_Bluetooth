@@ -25,7 +25,6 @@
 
 #define LOG_TAG "pan"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -83,41 +82,57 @@ uint32_t pan_register_with_sdp(uint16_t uuid, const char* p_name,
   }
 
   /* Service Class ID List */
-  get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1,
-                                                               &uuid);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle,
+                                                                    1, &uuid)) {
+    log::warn("Unable to add SDP class id list handle:{}", sdp_handle);
+  }
 
   /* Add protocol element sequence from the constant string */
-  get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_PROTOCOL_DESC_LIST, DATA_ELE_SEQ_DESC_TYPE, proto_len,
-      (uint8_t*)(pan_proto_elem_data + 2));
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+          sdp_handle, ATTR_ID_PROTOCOL_DESC_LIST, DATA_ELE_SEQ_DESC_TYPE,
+          proto_len, (uint8_t*)(pan_proto_elem_data + 2))) {
+    log::warn("Unable to add SDP PAN profile attribute handle:{}", sdp_handle);
+  }
 
   /* Language base */
-  get_legacy_stack_sdp_api()->handle.SDP_AddLanguageBaseAttrIDList(
-      sdp_handle, LANG_ID_CODE_ENGLISH, LANG_ID_CHAR_ENCODE_UTF8,
-      LANGUAGE_BASE_ID);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddLanguageBaseAttrIDList(
+          sdp_handle, LANG_ID_CODE_ENGLISH, LANG_ID_CHAR_ENCODE_UTF8,
+          LANGUAGE_BASE_ID)) {
+    log::warn("Unable to add SDP language base attribute");
+  }
 
   /* Profile descriptor list */
-  get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, uuid, PAN_PROFILE_VERSION);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
+          sdp_handle, uuid, PAN_PROFILE_VERSION)) {
+    log::warn("Unable to add SDP PAN profile version");
+  }
 
   /* Service Name */
-  get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE,
-      (uint8_t)(strlen(p_name) + 1), (uint8_t*)p_name);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+          sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE,
+          (uint8_t)(strlen(p_name) + 1), (uint8_t*)p_name)) {
+    log::warn("Unable to add SDP service name attribute handle:{}", sdp_handle);
+  }
 
   /* Service description */
-  get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_SERVICE_DESCRIPTION, TEXT_STR_DESC_TYPE,
-      (uint8_t)(strlen(p_desc) + 1), (uint8_t*)p_desc);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+          sdp_handle, ATTR_ID_SERVICE_DESCRIPTION, TEXT_STR_DESC_TYPE,
+          (uint8_t)(strlen(p_desc) + 1), (uint8_t*)p_desc)) {
+    log::warn("Unable to add SDP service description attribute handle:{}",
+              sdp_handle);
+  }
 
   /* Security description */
   // Only NAP and PANU has service level security; GN has no security
   if (uuid == UUID_SERVCLASS_NAP || uuid == UUID_SERVCLASS_PANU) {
     UINT16_TO_BE_FIELD(&security, 0x0001);
   }
-  get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_SECURITY_DESCRIPTION, UINT_DESC_TYPE, 2,
-      (uint8_t*)&security);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+          sdp_handle, ATTR_ID_SECURITY_DESCRIPTION, UINT_DESC_TYPE, 2,
+          (uint8_t*)&security)) {
+    log::warn("Unable to add SDP security description attribute handle:{}",
+              sdp_handle);
+  }
 
   if (uuid == UUID_SERVCLASS_NAP) {
     uint16_t NetAccessType = 0x0005;      /* Ethernet */
@@ -127,19 +142,29 @@ uint32_t pan_register_with_sdp(uint16_t uuid, const char* p_name,
     /* Net access type. */
     p = array;
     UINT16_TO_BE_STREAM(p, NetAccessType);
-    get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_NET_ACCESS_TYPE, UINT_DESC_TYPE, 2, array);
+    if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+            sdp_handle, ATTR_ID_NET_ACCESS_TYPE, UINT_DESC_TYPE, 2, array)) {
+      log::warn("Unable to add SDP attribute net access type handle:{}",
+                sdp_handle);
+    }
 
     /* Net access rate. */
     p = array;
     UINT32_TO_BE_STREAM(p, NetAccessRate);
-    get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_MAX_NET_ACCESS_RATE, UINT_DESC_TYPE, 4, array);
+    if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+            sdp_handle, ATTR_ID_MAX_NET_ACCESS_RATE, UINT_DESC_TYPE, 4,
+            array)) {
+      log::warn("Unable to add SDP attribute net access rate handle:{}",
+                sdp_handle);
+    }
   }
 
   /* Make the service browsable */
-  get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse_list);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse_list)) {
+    log::warn("Unable to add SDP uuid sequence browse group list handle:{}",
+              sdp_handle);
+  }
 
   return sdp_handle;
 }
@@ -286,8 +311,7 @@ void pan_dump_status(void) {
 
   for (i = 0, p_pcb = pan_cb.pcb; i < MAX_PAN_CONNS; i++, p_pcb++) {
     log::verbose("{} state:{}, handle:{}, src{}, BD:{}", i, p_pcb->con_state,
-                 p_pcb->handle, p_pcb->src_uuid,
-                 ADDRESS_TO_LOGGABLE_STR(p_pcb->rem_bda));
+                 p_pcb->handle, p_pcb->src_uuid, p_pcb->rem_bda);
   }
 #endif
 }

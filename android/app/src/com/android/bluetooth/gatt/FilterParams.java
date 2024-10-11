@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.gatt;
 
-/** @hide */
 public class FilterParams {
     private int mClientIf;
     private int mFiltIndex;
@@ -31,9 +30,19 @@ public class FilterParams {
     private int mFoundTimeOutCnt;
     private int mNumOfTrackEntries;
 
-    public FilterParams(int clientIf, int filtIndex, int featSeln, int listLogicType,
-            int filtLogicType, int rssiHighThres, int rssiLowThres, int delyMode, int foundTimeout,
-            int lostTimeout, int foundTimeoutCnt, int numOfTrackingEntries) {
+    public FilterParams(
+            int clientIf,
+            int filtIndex,
+            int featSeln,
+            int listLogicType,
+            int filtLogicType,
+            int rssiHighThres,
+            int rssiLowThres,
+            int delyMode,
+            int foundTimeout,
+            int lostTimeout,
+            int foundTimeoutCnt,
+            int numOfTrackingEntries) {
 
         mClientIf = clientIf;
         mFiltIndex = filtIndex;
@@ -96,6 +105,4 @@ public class FilterParams {
     public int getNumOfTrackEntries() {
         return mNumOfTrackEntries;
     }
-
 }
-

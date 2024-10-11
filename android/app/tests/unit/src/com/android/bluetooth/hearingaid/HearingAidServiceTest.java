@@ -22,6 +22,7 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
@@ -54,7 +55,6 @@ import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.AudioRoutingManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
-import com.android.bluetooth.x.com.android.modules.utils.SynchronousResultReceiver;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -66,14 +66,15 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeoutException;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -89,7 +90,8 @@ public class HearingAidServiceTest {
 
     private HearingAidService mService;
     private HearingAidService.BluetoothHearingAidBinder mServiceBinder;
-    private HashMap<BluetoothDevice, LinkedBlockingQueue<Intent>> mDeviceQueueMap;
+
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private ActiveDeviceManager mActiveDeviceManager;
@@ -103,12 +105,14 @@ public class HearingAidServiceTest {
 
     @Before
     public void setUp() throws Exception {
-        // Set up mocks and test assets
-        MockitoAnnotations.initMocks(this);
         mInOrder = inOrder(mContext);
 
         TestUtils.mockGetSystemService(
                 mContext, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
+
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        future.complete(true);
+        doReturn(future).when(mAudioRoutingManager).activateDeviceProfile(any(), anyInt());
 
         if (Looper.myLooper() == null) {
             Looper.prepare();
@@ -150,13 +154,13 @@ public class HearingAidServiceTest {
         TestUtils.clearAdapterService(mAdapterService);
     }
 
-    private void startService() throws TimeoutException {
+    private void startService() {
         mService = new HearingAidService(mContext);
         mService.start();
         mService.setAvailable(true);
     }
 
-    private void stopService() throws TimeoutException {
+    private void stopService() {
         mService.stop();
         mService = HearingAidService.getHearingAidService();
         assertThat(mService).isNull();
@@ -213,10 +217,7 @@ public class HearingAidServiceTest {
         when(mDatabaseManager.getProfileConnectionPolicy(mLeftDevice, BluetoothProfile.HEARING_AID))
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
         // indirect call of mService.getConnectionPolicy to test BluetoothHearingAidBinder
-        final SynchronousResultReceiver<Integer> recv = SynchronousResultReceiver.get();
-        final int defaultRecvValue = -1000;
-        mServiceBinder.getConnectionPolicy(mLeftDevice, null, recv);
-        int connectionPolicy = recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue);
+        int connectionPolicy = mServiceBinder.getConnectionPolicy(mLeftDevice, null);
         assertThat(connectionPolicy).isEqualTo(BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
 
         when(mDatabaseManager.getProfileConnectionPolicy(mLeftDevice, BluetoothProfile.HEARING_AID))
@@ -329,10 +330,7 @@ public class HearingAidServiceTest {
                 .thenReturn(BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
 
         // Send a connect request via BluetoothHearingAidBinder
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
-        boolean defaultRecvValue = true;
-        mServiceBinder.connect(mLeftDevice, null, recv);
-        assertThat(recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue)).isFalse();
+        assertThat(mServiceBinder.connect(mLeftDevice, null)).isFalse();
     }
 
     /** Test that an outgoing connection times out */
@@ -359,10 +357,7 @@ public class HearingAidServiceTest {
                 BluetoothProfile.STATE_CONNECTING,
                 BluetoothProfile.STATE_DISCONNECTED);
         // indirect call of mService.getConnectionState to test BluetoothHearingAidBinder
-        final SynchronousResultReceiver<Integer> recv = SynchronousResultReceiver.get();
-        int defaultRecvValue = -1000;
-        mServiceBinder.getConnectionState(mLeftDevice, null, recv);
-        int connectionState = recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue);
+        int connectionState = mServiceBinder.getConnectionState(mLeftDevice, null);
         assertThat(connectionState).isEqualTo(BluetoothProfile.STATE_CONNECTING);
 
         // Verify the connection state broadcast, and that we are in Disconnected state
@@ -471,12 +466,7 @@ public class HearingAidServiceTest {
                 BluetoothProfile.STATE_DISCONNECTING,
                 BluetoothProfile.STATE_CONNECTED);
         // indirect call of mService.getConnectedDevices to test BluetoothHearingAidBinder
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
-        List<BluetoothDevice> defaultRecvValue = null;
-        mServiceBinder.getConnectedDevices(null, recv);
-        assertThat(recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue))
-                .doesNotContain(mLeftDevice);
+        assertThat(mServiceBinder.getConnectedDevices(null)).doesNotContain(mLeftDevice);
         assertThat(mService.getConnectedDevices()).doesNotContain(mRightDevice);
 
         // Verify the connection state broadcast, and that the second device is in Connecting state
@@ -561,10 +551,7 @@ public class HearingAidServiceTest {
         // Send a disconnect request
         assertThat(mService.disconnect(mLeftDevice)).isTrue();
         // Send a disconnect request via BluetoothHearingAidBinder
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
-        boolean revalueRecvValue = false;
-        mServiceBinder.disconnect(mRightDevice, null, recv);
-        assertThat(recv.awaitResultNoInterrupt(TIMEOUT).getValue(revalueRecvValue)).isTrue();
+        assertThat(mServiceBinder.disconnect(mRightDevice, null)).isTrue();
 
         // Verify the connection state broadcast, and that we are in Disconnecting state
         verifyConnectionStateIntent(
@@ -913,12 +900,7 @@ public class HearingAidServiceTest {
         assertThat(mService.getActiveDevices()).contains(mRightDevice);
 
         // indirect call of mService.getActiveDevices to test BluetoothHearingAidBinder
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
-        List<BluetoothDevice> defaultRecvValue = null;
-        mServiceBinder.getActiveDevices(null, recv);
-        assertThat(recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue))
-                .doesNotContain(mLeftDevice);
+        assertThat(mServiceBinder.getActiveDevices(null)).doesNotContain(mLeftDevice);
 
         generateConnectionMessageFromNative(
                 mLeftDevice, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
@@ -968,17 +950,12 @@ public class HearingAidServiceTest {
         assertThat(mService.getActiveDevices()).containsNoneOf(mRightDevice, mLeftDevice);
         assertThat(mService.getActiveDevices()).contains(mSingleDevice);
 
-        SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
-        boolean defaultRecvValue = false;
-        mServiceBinder.setActiveDevice(null, null, recv);
-        assertThat(recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue)).isTrue();
+        assertThat(mServiceBinder.setActiveDevice(null, null)).isTrue();
         assertThat(mService.getActiveDevices()).doesNotContain(mSingleDevice);
 
         mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-        recv = SynchronousResultReceiver.get();
-        mServiceBinder.setActiveDevice(null, null, recv);
-        verify(mAudioRoutingManager)
-                .activateDeviceProfile(null, BluetoothProfile.HEARING_AID, recv);
+        mServiceBinder.setActiveDevice(null, null);
+        verify(mAudioRoutingManager).activateDeviceProfile(null, BluetoothProfile.HEARING_AID);
     }
 
     /**
@@ -1147,20 +1124,13 @@ public class HearingAidServiceTest {
         assertThat(mService.getHiSyncIdMap()).containsKey(mRightDevice);
         assertThat(mService.getHiSyncIdMap()).containsKey(mSingleDevice);
 
-        SynchronousResultReceiver<Long> recv = SynchronousResultReceiver.get();
-        long defaultRecvValue = -1000;
-        mServiceBinder.getHiSyncId(mLeftDevice, null, recv);
-        long id = recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue);
+        long id = mServiceBinder.getHiSyncId(mLeftDevice, null);
         assertThat(id).isNotEqualTo(BluetoothHearingAid.HI_SYNC_ID_INVALID);
 
-        recv = SynchronousResultReceiver.get();
-        mServiceBinder.getHiSyncId(mRightDevice, null, recv);
-        id = recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue);
+        id = mServiceBinder.getHiSyncId(mRightDevice, null);
         assertThat(id).isNotEqualTo(BluetoothHearingAid.HI_SYNC_ID_INVALID);
 
-        recv = SynchronousResultReceiver.get();
-        mServiceBinder.getHiSyncId(mSingleDevice, null, recv);
-        id = recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue);
+        id = mServiceBinder.getHiSyncId(mSingleDevice, null);
         assertThat(id).isNotEqualTo(BluetoothHearingAid.HI_SYNC_ID_INVALID);
     }
 
@@ -1174,18 +1144,14 @@ public class HearingAidServiceTest {
 
     @Test
     public void serviceBinder_callGetDeviceMode() throws Exception {
-        final SynchronousResultReceiver<Integer> recv = SynchronousResultReceiver.get();
-        mServiceBinder.getDeviceMode(mSingleDevice, null, recv);
-        int mode = recv.awaitResultNoInterrupt(TIMEOUT).getValue(BluetoothHearingAid.MODE_UNKNOWN);
+        int mode = mServiceBinder.getDeviceMode(mSingleDevice, null);
         // return unknown value if no device connected
         assertThat(mode).isEqualTo(BluetoothHearingAid.MODE_UNKNOWN);
     }
 
     @Test
     public void serviceBinder_callGetDeviceSide() throws Exception {
-        final SynchronousResultReceiver<Integer> recv = SynchronousResultReceiver.get();
-        mServiceBinder.getDeviceSide(mSingleDevice, null, recv);
-        int side = recv.awaitResultNoInterrupt(TIMEOUT).getValue(BluetoothHearingAid.SIDE_UNKNOWN);
+        int side = mServiceBinder.getDeviceSide(mSingleDevice, null);
 
         // return unknown value if no device connected
         assertThat(side).isEqualTo(BluetoothHearingAid.SIDE_UNKNOWN);
@@ -1199,11 +1165,10 @@ public class HearingAidServiceTest {
                         BluetoothProfile.CONNECTION_POLICY_UNKNOWN))
                 .thenReturn(true);
 
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
-        boolean defaultRecvValue = false;
-        mServiceBinder.setConnectionPolicy(
-                mSingleDevice, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, null, recv);
-        assertThat(recv.awaitResultNoInterrupt(TIMEOUT).getValue(defaultRecvValue)).isTrue();
+        assertThat(
+                        mServiceBinder.setConnectionPolicy(
+                                mSingleDevice, BluetoothProfile.CONNECTION_POLICY_UNKNOWN, null))
+                .isTrue();
         verify(mDatabaseManager)
                 .setProfileConnectionPolicy(
                         mSingleDevice,
@@ -1213,9 +1178,7 @@ public class HearingAidServiceTest {
 
     @Test
     public void serviceBinder_setVolume() throws Exception {
-        final SynchronousResultReceiver<Void> recv = SynchronousResultReceiver.get();
-        mServiceBinder.setVolume(0, null, recv);
-        recv.awaitResultNoInterrupt(TIMEOUT);
+        mServiceBinder.setVolume(0, null);
         verify(mNativeInterface).setVolume(0);
     }
 

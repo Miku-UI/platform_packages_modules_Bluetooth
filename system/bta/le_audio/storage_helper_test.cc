@@ -20,26 +20,16 @@
 
 #include "common/init_flags.h"
 
-using le_audio::LeAudioDevice;
+using bluetooth::le_audio::LeAudioDevice;
 
-const char* test_flags[] = {
-    "INIT_logging_debug_enabled_for_all=true",
-    nullptr,
-};
-
-namespace le_audio {
+namespace bluetooth::le_audio {
 RawAddress GetTestAddress(uint8_t index) {
-  CHECK_LT(index, UINT8_MAX);
+  EXPECT_LT(index, UINT8_MAX);
   RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, index}};
   return result;
 }
 
-class StorageHelperTest : public ::testing::Test {
- protected:
-  void SetUp() override { bluetooth::common::InitFlags::Load(test_flags); }
-
-  void TearDown() override {}
-};
+class StorageHelperTest : public ::testing::Test {};
 
 TEST(StorageHelperTest, DeserializeSinkPacs) {
   // clang-format off
@@ -319,4 +309,4 @@ TEST(StorageHelperTest, DeserializeHandles) {
   ASSERT_FALSE(DeserializeHandles(&leAudioDevice, invalidHandlesMagic));
   ASSERT_FALSE(DeserializeHandles(&leAudioDevice, invalidHandles));
 }
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio

@@ -23,7 +23,6 @@
 #include "avrc_api.h"
 #include "avrc_defs.h"
 #include "avrc_int.h"
-#include "include/check.h"
 #include "internal_include/bt_target.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
@@ -267,8 +266,8 @@ static tAVRC_STS avrc_bld_get_cur_app_setting_value_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_set_app_setting_value_rsp(
-    UNUSED_ATTR tAVRC_RSP* p_rsp, UNUSED_ATTR BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_set_app_setting_value_rsp(tAVRC_RSP* /* p_rsp */,
+                                                    BT_HDR* /* p_pkt */) {
   /* nothing to be added. */
   log::verbose("");
   return AVRC_STS_NO_ERROR;
@@ -389,8 +388,8 @@ static tAVRC_STS avrc_bld_get_app_setting_value_text_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_inform_charset_rsp(UNUSED_ATTR tAVRC_RSP* p_rsp,
-                                             UNUSED_ATTR BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_inform_charset_rsp(tAVRC_RSP* /* p_rsp */,
+                                             BT_HDR* /* p_pkt */) {
   /* nothing to be added. */
   log::verbose("");
   return AVRC_STS_NO_ERROR;
@@ -407,8 +406,8 @@ static tAVRC_STS avrc_bld_inform_charset_rsp(UNUSED_ATTR tAVRC_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_inform_battery_status_rsp(
-    UNUSED_ATTR tAVRC_RSP* p_rsp, UNUSED_ATTR BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_inform_battery_status_rsp(tAVRC_RSP* /* p_rsp */,
+                                                    BT_HDR* /* p_pkt */) {
   /* nothing to be added. */
   log::verbose("");
   return AVRC_STS_NO_ERROR;
@@ -425,7 +424,9 @@ static void avrc_build_attribute_entries(int num_attrs,
   /* Fill in the Attribute ID, Character Set, Length and Values */
   for (int index = 0; index < num_attrs; index++) {
     log::verbose("attr id[{}]: {}", index, p_attrs[index].attr_id);
-    CHECK(AVRC_IS_VALID_MEDIA_ATTRIBUTE(p_attrs[index].attr_id));
+    log::assert_that(
+        AVRC_IS_VALID_MEDIA_ATTRIBUTE(p_attrs[index].attr_id),
+        "assert failed: AVRC_IS_VALID_MEDIA_ATTRIBUTE(p_attrs[index].attr_id)");
     if (!p_attrs[index].name.p_str) {
       p_attrs[index].name.str_len = 0;
     }
@@ -849,7 +850,7 @@ static tAVRC_STS avrc_bld_set_browsed_player_rsp(tAVRC_SET_BR_PLAYER_RSP* p_rsp,
     len_left = mtu;
   }
   len_left = len_left - p_pkt->offset - p_pkt->len;
-  log::verbose("len_left:{}, mtu:{} ", len_left, mtu);
+  log::verbose("len_left:{}, mtu:{}", len_left, mtu);
 
   /* get the existing length, if any, and also the num attributes */
   p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;

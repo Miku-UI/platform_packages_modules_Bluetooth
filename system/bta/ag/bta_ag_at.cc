@@ -26,8 +26,10 @@
 #include "bta/ag/bta_ag_at.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
+#include <cstdlib>
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/utl.h"
@@ -138,7 +140,26 @@ void bta_ag_process_at(tBTA_AG_AT_CB* p_cb, char* p_end) {
       /* if it's a set integer check max, min range */
       if (arg_type == BTA_AG_AT_SET &&
           p_cb->p_at_tbl[idx].fmt == BTA_AG_AT_INT) {
-        int_arg = utl_str2int(p_arg);
+        if (com::android::bluetooth::flags::bta_ag_cmd_brsf_allow_uint32()) {
+          if (p_cb->p_at_tbl[idx].command_id == BTA_AG_LOCAL_EVT_BRSF) {
+            // Per HFP v1.9 BRSF could be 32-bit integer and we should ignore
+            // all reserved bits rather than responding ERROR.
+            long long int_arg_ll = std::atoll(p_arg);
+            if (int_arg_ll >= (1ll << 32) || int_arg_ll < 0) int_arg_ll = -1;
+
+            // Ignore reserved bits. 0xfff because there are 12 defined bits.
+            if (int_arg_ll > 0 && (int_arg_ll & (~0xfffll))) {
+              log::warn("BRSF: reserved bit is set: 0x{:x}", int_arg_ll);
+              int_arg_ll &= 0xfffll;
+            }
+
+            int_arg = static_cast<int16_t>(int_arg_ll);
+          } else {
+            int_arg = utl_str2int(p_arg);
+          }
+        } else {
+          int_arg = utl_str2int(p_arg);
+        }
         if (int_arg < (int16_t)p_cb->p_at_tbl[idx].min ||
             int_arg > (int16_t)p_cb->p_at_tbl[idx].max) {
           /* arg out of range; error */

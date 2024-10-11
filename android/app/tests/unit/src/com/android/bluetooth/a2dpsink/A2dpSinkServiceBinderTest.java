@@ -19,30 +19,29 @@ package com.android.bluetooth.a2dpsink;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothAudioConfig;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.AttributionSource;
 
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.x.com.android.modules.utils.SynchronousResultReceiver;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.util.List;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 public class A2dpSinkServiceBinderTest {
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private A2dpSinkService mService;
     private A2dpSinkService.A2dpSinkServiceBinder mBinder;
     private BluetoothAdapter mAdapter;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mBinder = new A2dpSinkService.A2dpSinkServiceBinder(mService);
     }
@@ -56,9 +55,8 @@ public class A2dpSinkServiceBinderTest {
     public void connect() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
 
-        mBinder.connect(device, source, recv);
+        mBinder.connect(device, source);
         verify(mService).connect(device);
     }
 
@@ -66,29 +64,25 @@ public class A2dpSinkServiceBinderTest {
     public void disconnect() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
 
-        mBinder.disconnect(device, source, recv);
+        mBinder.disconnect(device, source);
         verify(mService).disconnect(device);
     }
 
     @Test
     public void getConnectedDevices() {
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
-        mBinder.getConnectedDevices(source, recv);
+
+        mBinder.getConnectedDevices(source);
         verify(mService).getConnectedDevices();
     }
 
     @Test
     public void getDevicesMatchingConnectionStates() {
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED };
+        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
 
-        mBinder.getDevicesMatchingConnectionStates(states, source, recv);
+        mBinder.getDevicesMatchingConnectionStates(states, source);
         verify(mService).getDevicesMatchingConnectionStates(states);
     }
 
@@ -96,10 +90,8 @@ public class A2dpSinkServiceBinderTest {
     public void getConnectionState() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<List<BluetoothDevice>> recv =
-                SynchronousResultReceiver.get();
 
-        mBinder.getConnectionState(device, source, recv);
+        mBinder.getConnectionState(device, source);
         verify(mService).getConnectionState(device);
     }
 
@@ -108,9 +100,8 @@ public class A2dpSinkServiceBinderTest {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
 
-        mBinder.setConnectionPolicy(device, connectionPolicy, source, recv);
+        mBinder.setConnectionPolicy(device, connectionPolicy, source);
         verify(mService).setConnectionPolicy(device, connectionPolicy);
     }
 
@@ -118,9 +109,8 @@ public class A2dpSinkServiceBinderTest {
     public void getConnectionPolicy() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Integer> recv = SynchronousResultReceiver.get();
 
-        mBinder.getConnectionPolicy(device, source, recv);
+        mBinder.getConnectionPolicy(device, source);
         verify(mService).getConnectionPolicy(device);
     }
 
@@ -128,9 +118,8 @@ public class A2dpSinkServiceBinderTest {
     public void isA2dpPlaying() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<Boolean> recv = SynchronousResultReceiver.get();
 
-        mBinder.isA2dpPlaying(device, source, recv);
+        mBinder.isA2dpPlaying(device, source);
         verify(mService).isA2dpPlaying(device);
     }
 
@@ -138,10 +127,8 @@ public class A2dpSinkServiceBinderTest {
     public void getAudioConfig() {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
-        final SynchronousResultReceiver<BluetoothAudioConfig> recv =
-                SynchronousResultReceiver.get();
 
-        mBinder.getAudioConfig(device, source, recv);
+        mBinder.getAudioConfig(device, source);
         verify(mService).getAudioConfig(device);
     }
 }

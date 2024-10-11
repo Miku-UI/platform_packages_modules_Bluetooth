@@ -16,34 +16,18 @@
  */
 
 /**
- * Bluetooth Hap Client StateMachine. There is one instance per remote device.
- *  - "Disconnected" and "Connected" are steady states.
- *  - "Connecting" and "Disconnecting" are transient states until the
- *     connection / disconnection is completed.
+ * Bluetooth Hap Client StateMachine. There is one instance per remote device. - "Disconnected" and
+ * "Connected" are steady states. - "Connecting" and "Disconnecting" are transient states until the
+ * connection / disconnection is completed.
  *
+ * <p>(Disconnected) | ^ CONNECT | | DISCONNECTED V | (Connecting)<--->(Disconnecting) | ^ CONNECTED
+ * | | DISCONNECT V | (Connected) NOTES: - If state machine is in "Connecting" state and the remote
+ * device sends DISCONNECT request, the state machine transitions to "Disconnecting" state. -
+ * Similarly, if the state machine is in "Disconnecting" state and the remote device sends CONNECT
+ * request, the state machine transitions to "Connecting" state.
  *
- *                        (Disconnected)
- *                           |       ^
- *                   CONNECT |       | DISCONNECTED
- *                           V       |
- *                 (Connecting)<--->(Disconnecting)
- *                           |       ^
- *                 CONNECTED |       | DISCONNECT
- *                           V       |
- *                          (Connected)
- * NOTES:
- *  - If state machine is in "Connecting" state and the remote device sends
- *    DISCONNECT request, the state machine transitions to "Disconnecting" state.
- *  - Similarly, if the state machine is in "Disconnecting" state and the remote device
- *    sends CONNECT request, the state machine transitions to "Connecting" state.
- *
- *                    DISCONNECT
- *    (Connecting) ---------------> (Disconnecting)
- *                 <---------------
- *                      CONNECT
- *
+ * <p>DISCONNECT (Connecting) ---------------> (Disconnecting) <--------------- CONNECT
  */
-
 package com.android.bluetooth.hap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
@@ -69,16 +53,12 @@ import java.util.Scanner;
 final class HapClientStateMachine extends StateMachine {
     static final int CONNECT = 1;
     static final int DISCONNECT = 2;
-    @VisibleForTesting
-    static final int STACK_EVENT = 101;
-    private static final boolean DBG = true;
+    @VisibleForTesting static final int STACK_EVENT = 101;
     private static final String TAG = "HapClientStateMachine";
-    @VisibleForTesting
-    static final int CONNECT_TIMEOUT = 201;
+    @VisibleForTesting static final int CONNECT_TIMEOUT = 201;
 
     // NOTE: the value is not "final" - it is modified in the unit tests
-    @VisibleForTesting
-    static int sConnectTimeoutMs = 30000;        // 30s
+    @VisibleForTesting static int sConnectTimeoutMs = 30000; // 30s
 
     private final Disconnected mDisconnected;
     private final Connecting mConnecting;
@@ -92,8 +72,11 @@ final class HapClientStateMachine extends StateMachine {
 
     private final BluetoothDevice mDevice;
 
-    HapClientStateMachine(BluetoothDevice device, HapClientService svc,
-                                  HapClientNativeInterface gattInterface, Looper looper) {
+    HapClientStateMachine(
+            BluetoothDevice device,
+            HapClientService svc,
+            HapClientNativeInterface gattInterface,
+            Looper looper) {
         super(TAG, looper);
         mDevice = device;
         mService = svc;
@@ -112,11 +95,14 @@ final class HapClientStateMachine extends StateMachine {
         setInitialState(mDisconnected);
     }
 
-    static HapClientStateMachine make(BluetoothDevice device, HapClientService svc,
-            HapClientNativeInterface gattInterface, Looper looper) {
+    static HapClientStateMachine make(
+            BluetoothDevice device,
+            HapClientService svc,
+            HapClientNativeInterface gattInterface,
+            Looper looper) {
         Log.i(TAG, "make for device " + device);
-        HapClientStateMachine hearingAccessSm = new HapClientStateMachine(device, svc,
-                gattInterface, looper);
+        HapClientStateMachine hearingAccessSm =
+                new HapClientStateMachine(device, svc, gattInterface, looper);
         hearingAccessSm.start();
         return hearingAccessSm;
     }
@@ -176,16 +162,22 @@ final class HapClientStateMachine extends StateMachine {
 
     // This method does not check for error condition (newState == prevState)
     private void broadcastConnectionState(int newState, int prevState) {
-        log("Connection state " + mDevice + ": " + profileStateToString(prevState)
-                + "->" + profileStateToString(newState));
+        log(
+                "Connection state "
+                        + mDevice
+                        + ": "
+                        + profileStateToString(prevState)
+                        + "->"
+                        + profileStateToString(newState));
 
         mService.connectionStateChanged(mDevice, prevState, newState);
         Intent intent = new Intent(BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED);
         intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
         intent.putExtra(BluetoothProfile.EXTRA_STATE, newState);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mDevice);
-        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
-                | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        intent.addFlags(
+                Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
+                        | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
         mService.sendBroadcast(intent, BLUETOOTH_CONNECT);
     }
 
@@ -195,7 +187,7 @@ final class HapClientStateMachine extends StateMachine {
         // Dump the state machine logs
         StringWriter stringWriter = new StringWriter();
         PrintWriter printWriter = new PrintWriter(stringWriter);
-        super.dump(new FileDescriptor(), printWriter, new String[]{});
+        super.dump(new FileDescriptor(), printWriter, new String[] {});
         printWriter.flush();
         stringWriter.flush();
         ProfileService.println(sb, "  StateMachineLog:");
@@ -209,39 +201,46 @@ final class HapClientStateMachine extends StateMachine {
 
     @Override
     protected void log(String msg) {
-        if (DBG) {
-            super.log(msg);
-        }
+        super.log(msg);
     }
 
     @VisibleForTesting
     class Disconnected extends State {
         @Override
         public void enter() {
-            Log.i(TAG, "Enter Disconnected(" + mDevice + "): " + messageWhatToString(
-                    getCurrentMessage().what));
+            Log.i(
+                    TAG,
+                    "Enter Disconnected("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
 
             removeDeferredMessages(DISCONNECT);
 
             if (mLastConnectionState != -1) {
                 // Don't broadcast during startup
-                broadcastConnectionState(BluetoothProfile.STATE_DISCONNECTED,
-                        mLastConnectionState);
+                broadcastConnectionState(BluetoothProfile.STATE_DISCONNECTED, mLastConnectionState);
             }
         }
 
         @Override
         public void exit() {
-            log("Exit Disconnected(" + mDevice + "): " + messageWhatToString(
-                    getCurrentMessage().what));
+            log(
+                    "Exit Disconnected("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             mLastConnectionState = BluetoothProfile.STATE_DISCONNECTED;
         }
 
         @Override
         public boolean processMessage(Message message) {
-            log("Disconnected: process message(" + mDevice + "): " + messageWhatToString(
-                    message.what));
+            log(
+                    "Disconnected: process message("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(message.what));
 
             switch (message.what) {
                 case CONNECT:
@@ -254,8 +253,9 @@ final class HapClientStateMachine extends StateMachine {
                         transitionTo(mConnecting);
                     } else {
                         // Reject the request and stay in Disconnected state
-                        Log.w(TAG, "Outgoing HearingAccess Connecting request rejected: "
-                                + mDevice);
+                        Log.w(
+                                TAG,
+                                "Outgoing HearingAccess Connecting request rejected: " + mDevice);
                     }
                     break;
                 case DISCONNECT:
@@ -264,9 +264,7 @@ final class HapClientStateMachine extends StateMachine {
                     break;
                 case STACK_EVENT:
                     HapClientStackEvent event = (HapClientStackEvent) message.obj;
-                    if (DBG) {
-                        Log.d(TAG, "Disconnected: stack event: " + event);
-                    }
+                    Log.d(TAG, "Disconnected: stack event: " + event);
                     if (!mDevice.equals(event.device)) {
                         Log.wtf(TAG, "Device(" + mDevice + "): event mismatch: " + event);
                     }
@@ -293,13 +291,15 @@ final class HapClientStateMachine extends StateMachine {
                     break;
                 case HapClientStackEvent.CONNECTION_STATE_CONNECTING:
                     if (mService.okToConnect(mDevice)) {
-                        Log.i(TAG, "Incoming HearingAccess Connecting request accepted: "
-                                + mDevice);
+                        Log.i(
+                                TAG,
+                                "Incoming HearingAccess Connecting request accepted: " + mDevice);
                         transitionTo(mConnecting);
                     } else {
                         // Reject the connection and stay in Disconnected state itself
-                        Log.w(TAG, "Incoming HearingAccess Connecting request rejected: "
-                                + mDevice);
+                        Log.w(
+                                TAG,
+                                "Incoming HearingAccess Connecting request rejected: " + mDevice);
                         mNativeInterface.disconnectHapClient(mDevice);
                     }
                     break;
@@ -328,8 +328,12 @@ final class HapClientStateMachine extends StateMachine {
     class Connecting extends State {
         @Override
         public void enter() {
-            Log.i(TAG, "Enter Connecting(" + mDevice + "): "
-                    + messageWhatToString(getCurrentMessage().what));
+            Log.i(
+                    TAG,
+                    "Enter Connecting("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             sendMessageDelayed(CONNECT_TIMEOUT, sConnectTimeoutMs);
             mConnectionState = BluetoothProfile.STATE_CONNECTING;
             broadcastConnectionState(BluetoothProfile.STATE_CONNECTING, mLastConnectionState);
@@ -337,16 +341,22 @@ final class HapClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            log("Exit Connecting(" + mDevice + "): "
-                    + messageWhatToString(getCurrentMessage().what));
+            log(
+                    "Exit Connecting("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             mLastConnectionState = BluetoothProfile.STATE_CONNECTING;
             removeMessages(CONNECT_TIMEOUT);
         }
 
         @Override
         public boolean processMessage(Message message) {
-            log("Connecting: process message(" + mDevice + "): "
-                    + messageWhatToString(message.what));
+            log(
+                    "Connecting: process message("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(message.what));
 
             switch (message.what) {
                 case CONNECT:
@@ -415,8 +425,12 @@ final class HapClientStateMachine extends StateMachine {
     class Disconnecting extends State {
         @Override
         public void enter() {
-            Log.i(TAG, "Enter Disconnecting(" + mDevice + "): "
-                    + messageWhatToString(getCurrentMessage().what));
+            Log.i(
+                    TAG,
+                    "Enter Disconnecting("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             sendMessageDelayed(CONNECT_TIMEOUT, sConnectTimeoutMs);
             mConnectionState = BluetoothProfile.STATE_DISCONNECTING;
             broadcastConnectionState(BluetoothProfile.STATE_DISCONNECTING, mLastConnectionState);
@@ -424,33 +438,41 @@ final class HapClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            log("Exit Disconnecting(" + mDevice + "): "
-                    + messageWhatToString(getCurrentMessage().what));
+            log(
+                    "Exit Disconnecting("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             mLastConnectionState = BluetoothProfile.STATE_DISCONNECTING;
             removeMessages(CONNECT_TIMEOUT);
         }
 
         @Override
         public boolean processMessage(Message message) {
-            log("Disconnecting: process message(" + mDevice + "): "
-                    + messageWhatToString(message.what));
+            log(
+                    "Disconnecting: process message("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(message.what));
 
             switch (message.what) {
                 case CONNECT:
                     deferMessage(message);
                     break;
-                case CONNECT_TIMEOUT: {
-                    Log.w(TAG, "Disconnecting connection timeout: " + mDevice);
-                    mNativeInterface.disconnectHapClient(mDevice);
+                case CONNECT_TIMEOUT:
+                    {
+                        Log.w(TAG, "Disconnecting connection timeout: " + mDevice);
+                        mNativeInterface.disconnectHapClient(mDevice);
 
-                    HapClientStackEvent disconnectEvent =
-                            new HapClientStackEvent(
-                                    HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
-                    disconnectEvent.device = mDevice;
-                    disconnectEvent.valueInt1 = HapClientStackEvent.CONNECTION_STATE_DISCONNECTED;
-                    sendMessage(STACK_EVENT, disconnectEvent);
-                    break;
-                }
+                        HapClientStackEvent disconnectEvent =
+                                new HapClientStackEvent(
+                                        HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+                        disconnectEvent.device = mDevice;
+                        disconnectEvent.valueInt1 =
+                                HapClientStackEvent.CONNECTION_STATE_DISCONNECTED;
+                        sendMessage(STACK_EVENT, disconnectEvent);
+                        break;
+                    }
                 case DISCONNECT:
                     deferMessage(message);
                     break;
@@ -498,8 +520,9 @@ final class HapClientStateMachine extends StateMachine {
                         transitionTo(mConnecting);
                     } else {
                         // Reject the connection and stay in Disconnecting state
-                        Log.w(TAG, "Incoming HearingAccess Connecting request rejected: "
-                                + mDevice);
+                        Log.w(
+                                TAG,
+                                "Incoming HearingAccess Connecting request rejected: " + mDevice);
                         mNativeInterface.disconnectHapClient(mDevice);
                     }
                     break;
@@ -516,8 +539,12 @@ final class HapClientStateMachine extends StateMachine {
     class Connected extends State {
         @Override
         public void enter() {
-            Log.i(TAG, "Enter Connected(" + mDevice + "): "
-                    + messageWhatToString(getCurrentMessage().what));
+            Log.i(
+                    TAG,
+                    "Enter Connected("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             mConnectionState = BluetoothProfile.STATE_CONNECTED;
             removeDeferredMessages(CONNECT);
             broadcastConnectionState(BluetoothProfile.STATE_CONNECTED, mLastConnectionState);
@@ -525,15 +552,21 @@ final class HapClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            log("Exit Connected(" + mDevice + "): "
-                    + messageWhatToString(getCurrentMessage().what));
+            log(
+                    "Exit Connected("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(getCurrentMessage().what));
             mLastConnectionState = BluetoothProfile.STATE_CONNECTED;
         }
 
         @Override
         public boolean processMessage(Message message) {
-            log("Connected: process message(" + mDevice + "): "
-                    + messageWhatToString(message.what));
+            log(
+                    "Connected: process message("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(message.what));
 
             switch (message.what) {
                 case CONNECT:

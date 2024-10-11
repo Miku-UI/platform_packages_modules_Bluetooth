@@ -27,12 +27,9 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.UUID;
 
-/**
- * CSIP Set Coordinator role native interface
- */
+/** CSIP Set Coordinator role native interface */
 public class CsipSetCoordinatorNativeInterface {
     private static final String TAG = "CsipSetCoordinatorNativeInterface";
-    private static final boolean DBG = false;
     private BluetoothAdapter mAdapter;
 
     @GuardedBy("INSTANCE_LOCK")
@@ -47,9 +44,7 @@ public class CsipSetCoordinatorNativeInterface {
         }
     }
 
-    /**
-     * Get singleton instance.
-     */
+    /** Get singleton instance. */
     public static CsipSetCoordinatorNativeInterface getInstance() {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
@@ -70,16 +65,14 @@ public class CsipSetCoordinatorNativeInterface {
     /**
      * Initializes the native interface.
      *
-     * priorities to configure.
+     * <p>priorities to configure.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void init() {
         initNative();
     }
 
-    /**
-     * Cleanup the native interface.
-     */
+    /** Cleanup the native interface. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void cleanup() {
         cleanupNative();
@@ -141,14 +134,13 @@ public class CsipSetCoordinatorNativeInterface {
     /** Device connection state change */
     @VisibleForTesting
     public void onConnectionStateChanged(byte[] address, int state) {
-        CsipSetCoordinatorStackEvent event = new CsipSetCoordinatorStackEvent(
-                CsipSetCoordinatorStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
+        CsipSetCoordinatorStackEvent event =
+                new CsipSetCoordinatorStackEvent(
+                        CsipSetCoordinatorStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
         event.device = getDevice(address);
         event.valueInt1 = state;
 
-        if (DBG) {
-            Log.d(TAG, "onConnectionStateChanged: " + event);
-        }
+        Log.d(TAG, "onConnectionStateChanged: " + event);
         sendMessageToService(event);
     }
 
@@ -157,17 +149,16 @@ public class CsipSetCoordinatorNativeInterface {
     public void onDeviceAvailable(
             byte[] address, int groupId, int groupSize, int rank, long uuidLsb, long uuidMsb) {
         UUID uuid = new UUID(uuidMsb, uuidLsb);
-        CsipSetCoordinatorStackEvent event = new CsipSetCoordinatorStackEvent(
-                CsipSetCoordinatorStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
+        CsipSetCoordinatorStackEvent event =
+                new CsipSetCoordinatorStackEvent(
+                        CsipSetCoordinatorStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
         event.device = getDevice(address);
         event.valueInt1 = groupId;
         event.valueInt2 = groupSize;
         event.valueInt3 = rank;
         event.valueUuid1 = uuid;
 
-        if (DBG) {
-            Log.d(TAG, "onDeviceAvailable: " + event);
-        }
+        Log.d(TAG, "onDeviceAvailable: " + event);
         sendMessageToService(event);
     }
 
@@ -175,24 +166,20 @@ public class CsipSetCoordinatorNativeInterface {
     // All callbacks are routed via the Service which will disambiguate which
     // state machine the message should be routed to.
 
-    /**
-     * Set member available callback
-     */
+    /** Set member available callback */
     @VisibleForTesting
     public void onSetMemberAvailable(byte[] address, int groupId) {
-        CsipSetCoordinatorStackEvent event = new CsipSetCoordinatorStackEvent(
-                CsipSetCoordinatorStackEvent.EVENT_TYPE_SET_MEMBER_AVAILABLE);
+        CsipSetCoordinatorStackEvent event =
+                new CsipSetCoordinatorStackEvent(
+                        CsipSetCoordinatorStackEvent.EVENT_TYPE_SET_MEMBER_AVAILABLE);
         event.device = getDevice(address);
         event.valueInt1 = groupId;
-        if (DBG) {
-            Log.d(TAG, "onSetMemberAvailable: " + event);
-        }
+        Log.d(TAG, "onSetMemberAvailable: " + event);
         sendMessageToService(event);
     }
 
     /**
-     * Group lock changed callback as a result of lock or unlock request or
-     * autonomous event.
+     * Group lock changed callback as a result of lock or unlock request or autonomous event.
      *
      * @param groupId group identifier
      * @param locked whether group is locked or unlocked
@@ -200,21 +187,21 @@ public class CsipSetCoordinatorNativeInterface {
      */
     @VisibleForTesting
     public void onGroupLockChanged(int groupId, boolean locked, int status) {
-        CsipSetCoordinatorStackEvent event = new CsipSetCoordinatorStackEvent(
-                CsipSetCoordinatorStackEvent.EVENT_TYPE_GROUP_LOCK_CHANGED);
+        CsipSetCoordinatorStackEvent event =
+                new CsipSetCoordinatorStackEvent(
+                        CsipSetCoordinatorStackEvent.EVENT_TYPE_GROUP_LOCK_CHANGED);
         event.valueInt1 = groupId;
         event.valueInt2 = status;
         event.valueBool1 = locked;
-        if (DBG) {
-            Log.d(TAG, "onGroupLockChanged: " + event);
-        }
+        Log.d(TAG, "onGroupLockChanged: " + event);
         sendMessageToService(event);
     }
 
     /**
      * Set lock on the group.
-     * @param groupId  group identifier
-     * @param lock  True for lock, false for unlock
+     *
+     * @param groupId group identifier
+     * @param lock True for lock, false for unlock
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void groupLockSet(int groupId, boolean lock) {
@@ -223,8 +210,12 @@ public class CsipSetCoordinatorNativeInterface {
 
     // Native methods that call into the JNI interface
     private native void initNative();
+
     private native void cleanupNative();
+
     private native boolean connectNative(byte[] address);
+
     private native boolean disconnectNative(byte[] address);
+
     private native void groupLockSetNative(int groupId, boolean lock);
 }

@@ -20,10 +20,13 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.bluetooth.avrcpcontroller.BrowseTree.BrowseNode;
+import com.android.bluetooth.flags.Flags;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.Set;
@@ -33,7 +36,9 @@ public class BrowseTreeTest {
     private static final String TEST_HANDLE = "test_handle";
     private static final String TEST_NODE_ID = "test_node_id";
 
-    private final byte[] mTestAddress = new byte[]{01, 01, 01, 01, 01, 01};
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
     private BluetoothAdapter mAdapter;
     private BluetoothDevice mTestDevice = null;
 
@@ -69,13 +74,18 @@ public class BrowseTreeTest {
     @Test
     public void getTrackFromNowPlayingList() {
         BrowseTree browseTree = new BrowseTree(mTestDevice);
-        BrowseNode trackInNowPlayingList = browseTree.new BrowseNode(new AvrcpItem.Builder()
-                .setUuid(ILLEGAL_ID).setTitle(ILLEGAL_ID).setBrowsable(true).build());
+        BrowseNode trackInNowPlayingList =
+                browseTree
+                .new BrowseNode(
+                        new AvrcpItem.Builder()
+                                .setUuid(ILLEGAL_ID)
+                                .setTitle(ILLEGAL_ID)
+                                .setBrowsable(true)
+                                .build());
 
         browseTree.mNowPlayingNode.addChild(trackInNowPlayingList);
 
-        assertThat(browseTree.getTrackFromNowPlayingList(0)).isEqualTo(
-                trackInNowPlayingList);
+        assertThat(browseTree.getTrackFromNowPlayingList(0)).isEqualTo(trackInNowPlayingList);
     }
 
     @Test
@@ -90,6 +100,18 @@ public class BrowseTreeTest {
     }
 
     @Test
+    public void sameDeviceDifferentBrowseTrees_uniqueMediaIds() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
+        BrowseTree browseTree1 = new BrowseTree(mTestDevice);
+        BrowseTree browseTree2 = new BrowseTree(mTestDevice);
+
+        String mediaId1 = browseTree1.mRootNode.getID();
+        String mediaId2 = browseTree2.mRootNode.getID();
+
+        assertThat(mediaId1).isNotEqualTo(mediaId2);
+    }
+
+    @Test
     public void findBrowseNodeByIDForRoot() {
         BrowseTree browseTree = new BrowseTree(null);
         assertThat(browseTree.findBrowseNodeByID(BrowseTree.ROOT)).isEqualTo(browseTree.mRootNode);
@@ -97,8 +119,17 @@ public class BrowseTreeTest {
 
     @Test
     public void findBrowseNodeByIDForDevice() {
+        mSetFlagsRule.disableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
         BrowseTree browseTree = new BrowseTree(mTestDevice);
         final String deviceId = BrowseTree.ROOT + mTestDevice.getAddress().toString();
+        assertThat(browseTree.findBrowseNodeByID(deviceId)).isEqualTo(browseTree.mRootNode);
+    }
+
+    @Test
+    public void findBrowseNodeByIDForDevice_flagEnabled() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
+        BrowseTree browseTree = new BrowseTree(mTestDevice);
+        final String deviceId = browseTree.mRootNode.getID();
         assertThat(browseTree.findBrowseNodeByID(deviceId)).isEqualTo(browseTree.mRootNode);
     }
 
@@ -118,12 +149,20 @@ public class BrowseTreeTest {
     }
 
     @Test
+    public void findBrowseNodeByIDForDevice_withRandomDeviceID_nodeIsFound() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
+        BrowseTree browseTree = new BrowseTree(mTestDevice);
+        final String deviceId = browseTree.mRootNode.getID();
+        assertThat(browseTree.findBrowseNodeByID(deviceId)).isEqualTo(browseTree.mRootNode);
+    }
+
+    @Test
     public void setAndGetCurrentBrowsedPlayer() {
         BrowseTree browseTree = new BrowseTree(mTestDevice);
 
         assertThat(browseTree.setCurrentBrowsedPlayer(ILLEGAL_ID, 0, 0)).isFalse();
-        assertThat(
-                browseTree.setCurrentBrowsedPlayer(BrowseTree.NOW_PLAYING_PREFIX, 2, 1)).isTrue();
+        assertThat(browseTree.setCurrentBrowsedPlayer(BrowseTree.NOW_PLAYING_PREFIX, 2, 1))
+                .isTrue();
         assertThat(browseTree.getCurrentBrowsedPlayer()).isEqualTo(browseTree.mNowPlayingNode);
     }
 
@@ -170,8 +209,8 @@ public class BrowseTreeTest {
 
         browseTree.onConnected(mTestDevice);
 
-        assertThat(BrowseTree.getEldestChild(browseTree.mNowPlayingNode,
-                browseTree.mRootNode)).isNull();
+        assertThat(BrowseTree.getEldestChild(browseTree.mNowPlayingNode, browseTree.mRootNode))
+                .isNull();
     }
 
     @Test
@@ -180,34 +219,42 @@ public class BrowseTreeTest {
 
         browseTree.onConnected(mTestDevice);
 
-        assertThat(BrowseTree.getEldestChild(browseTree.mRootNode,
-                browseTree.mRootNode.getChild(0))).isEqualTo(browseTree.mRootNode.getChild(0));
+        assertThat(
+                        BrowseTree.getEldestChild(
+                                browseTree.mRootNode, browseTree.mRootNode.getChild(0)))
+                .isEqualTo(browseTree.mRootNode.getChild(0));
     }
 
     @Test
     public void getNextStepFolder() {
         BrowseTree browseTree = new BrowseTree(null);
-        BrowseNode nodeOutOfMap = browseTree.new BrowseNode(new AvrcpItem.Builder()
-                .setUuid(ILLEGAL_ID).setTitle(ILLEGAL_ID).setBrowsable(true).build());
+        BrowseNode nodeOutOfMap =
+                browseTree
+                .new BrowseNode(
+                        new AvrcpItem.Builder()
+                                .setUuid(ILLEGAL_ID)
+                                .setTitle(ILLEGAL_ID)
+                                .setBrowsable(true)
+                                .build());
 
         browseTree.onConnected(mTestDevice);
 
         assertThat(browseTree.getNextStepToFolder(null)).isNull();
-        assertThat(browseTree.getNextStepToFolder(browseTree.mRootNode)).isEqualTo(
-                browseTree.mRootNode);
-        assertThat(browseTree.getNextStepToFolder(browseTree.mRootNode.getChild(0))).isEqualTo(
-                browseTree.mRootNode.getChild(0));
+        assertThat(browseTree.getNextStepToFolder(browseTree.mRootNode))
+                .isEqualTo(browseTree.mRootNode);
+        assertThat(browseTree.getNextStepToFolder(browseTree.mRootNode.getChild(0)))
+                .isEqualTo(browseTree.mRootNode.getChild(0));
         assertThat(browseTree.getNextStepToFolder(nodeOutOfMap)).isNull();
 
         browseTree.setCurrentBrowsedPlayer(BrowseTree.NOW_PLAYING_PREFIX, 2, 1);
-        assertThat(browseTree.getNextStepToFolder(browseTree.mRootNode.getChild(0))).isEqualTo(
-                browseTree.mNavigateUpNode);
+        assertThat(browseTree.getNextStepToFolder(browseTree.mRootNode.getChild(0)))
+                .isEqualTo(browseTree.mNavigateUpNode);
     }
 
     @Test
     public void toString_returnsSizeInfo() {
         BrowseTree browseTree = new BrowseTree(mTestDevice);
-        assertThat(browseTree.toString()).isEqualTo(
-                "[BrowseTree size=" + browseTree.mBrowseMap.size() + "]");
+        assertThat(browseTree.toString())
+                .isEqualTo("[BrowseTree size=" + browseTree.mBrowseMap.size() + "]");
     }
 }

@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "a2dp_aac_decoder"
-
-#include <base/logging.h>
-
 #include "a2dp_aac_decoder.h"
 #include "stack/include/bt_hdr.h"
 

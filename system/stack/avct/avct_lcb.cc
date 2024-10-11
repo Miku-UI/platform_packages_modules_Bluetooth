@@ -256,7 +256,7 @@ tAVCT_LCB* avct_lcb_by_bd(const RawAddress& bd_addr) {
     /* if no lcb found */
     p_lcb = NULL;
 
-    log::verbose("No lcb for addr {}", ADDRESS_TO_LOGGABLE_STR(bd_addr));
+    log::verbose("No lcb for addr {}", bd_addr);
   }
   return p_lcb;
 }
@@ -304,7 +304,7 @@ tAVCT_LCB* avct_lcb_alloc(const RawAddress& bd_addr) {
  * Returns          void.
  *
  ******************************************************************************/
-void avct_lcb_dealloc(tAVCT_LCB* p_lcb, UNUSED_ATTR tAVCT_LCB_EVT* p_data) {
+void avct_lcb_dealloc(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   log::verbose("allocated: {}", p_lcb->allocated);
 
   // Check if the LCB is still referenced

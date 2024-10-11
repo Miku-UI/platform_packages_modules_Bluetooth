@@ -26,6 +26,7 @@ import com.android.bluetooth.audio_util.PlayStatus;
 import com.android.bluetooth.audio_util.PlayerInfo;
 import com.android.bluetooth.audio_util.PlayerSettingsManager.PlayerSettingsValues;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -33,12 +34,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Native Interface to communicate with the JNI layer. This class should never be passed null
- * data.
+ * Native Interface to communicate with the JNI layer. This class should never be passed null data.
  */
 public class AvrcpNativeInterface {
-    private static final String TAG = "AvrcpNativeInterface";
-    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = AvrcpNativeInterface.class.getSimpleName();
 
     @GuardedBy("INSTANCE_LOCK")
     private static AvrcpNativeInterface sInstance;
@@ -49,8 +48,10 @@ public class AvrcpNativeInterface {
     private AdapterService mAdapterService;
 
     private AvrcpNativeInterface() {
-        mAdapterService = Objects.requireNonNull(AdapterService.getAdapterService(),
-                "AdapterService cannot be null when AvrcpNativeInterface init");
+        mAdapterService =
+                Objects.requireNonNull(
+                        AdapterService.getAdapterService(),
+                        "AdapterService cannot be null when AvrcpNativeInterface init");
     }
 
     static AvrcpNativeInterface getInstance() {
@@ -93,8 +94,11 @@ public class AvrcpNativeInterface {
         unregisterBipServerNative();
     }
 
-    void setBipClientStatus(String bdaddr, boolean connected) {
-        String identityAddress = mAdapterService.getIdentityAddress(bdaddr);
+    void setBipClientStatus(BluetoothDevice device, boolean connected) {
+        String identityAddress =
+                Flags.identityAddressNullIfUnknown()
+                        ? Utils.getBrEdrAddress(device)
+                        : mAdapterService.getIdentityAddress(device.getAddress());
         setBipClientStatusNative(identityAddress, connected);
     }
 
@@ -172,15 +176,19 @@ public class AvrcpNativeInterface {
     // anything internally. It just returns the number of items in the root folder.
     void setBrowsedPlayer(int playerId) {
         d("setBrowsedPlayer: playerId=" + playerId);
-        mAvrcpService.getPlayerRoot(playerId, (a, b, c, d) ->
-                setBrowsedPlayerResponse(a, b, c, d));
+        mAvrcpService.getPlayerRoot(playerId, (a, b, c, d) -> setBrowsedPlayerResponse(a, b, c, d));
     }
 
     void setBrowsedPlayerResponse(int playerId, boolean success, String rootId, int numItems) {
-        d("setBrowsedPlayerResponse: playerId=" + playerId
-                + " success=" + success
-                + " rootId=" + rootId
-                + " numItems=" + numItems);
+        d(
+                "setBrowsedPlayerResponse: playerId="
+                        + playerId
+                        + " success="
+                        + success
+                        + " rootId="
+                        + rootId
+                        + " numItems="
+                        + numItems);
         setBrowsedPlayerResponseNative(playerId, success, rootId, numItems);
     }
 
@@ -195,16 +203,24 @@ public class AvrcpNativeInterface {
     }
 
     void sendMediaUpdate(boolean metadata, boolean playStatus, boolean queue) {
-        d("sendMediaUpdate: metadata=" + metadata
-                + " playStatus=" + playStatus
-                + " queue=" + queue);
+        d(
+                "sendMediaUpdate: metadata="
+                        + metadata
+                        + " playStatus="
+                        + playStatus
+                        + " queue="
+                        + queue);
         sendMediaUpdateNative(metadata, playStatus, queue);
     }
 
     void sendFolderUpdate(boolean availablePlayers, boolean addressedPlayers, boolean uids) {
-        d("sendFolderUpdate: availablePlayers=" + availablePlayers
-                + " addressedPlayers=" + addressedPlayers
-                + " uids=" + uids);
+        d(
+                "sendFolderUpdate: availablePlayers="
+                        + availablePlayers
+                        + " addressedPlayers="
+                        + addressedPlayers
+                        + " uids="
+                        + uids);
         sendFolderUpdateNative(availablePlayers, addressedPlayers, uids);
     }
 
@@ -218,26 +234,25 @@ public class AvrcpNativeInterface {
         mAvrcpService.playItem(playerId, nowPlaying, mediaId);
     }
 
-    boolean connectDevice(String bdaddr) {
-        String identityAddress = mAdapterService.getIdentityAddress(bdaddr);
-        d("connectDevice: identityAddress=" + identityAddress);
-        return connectDeviceNative(identityAddress);
-    }
-
-    boolean disconnectDevice(String bdaddr) {
-        String identityAddress = mAdapterService.getIdentityAddress(bdaddr);
+    boolean disconnectDevice(BluetoothDevice device) {
+        String identityAddress =
+                Flags.identityAddressNullIfUnknown()
+                        ? Utils.getBrEdrAddress(device)
+                        : mAdapterService.getIdentityAddress(device.getAddress());
         d("disconnectDevice: identityAddress=" + identityAddress);
         return disconnectDeviceNative(identityAddress);
     }
 
     void setActiveDevice(String bdaddr) {
-        BluetoothDevice device = mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(bdaddr));
+        BluetoothDevice device =
+                mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(bdaddr));
         d("setActiveDevice: device=" + device);
         mAvrcpService.setActiveDevice(device);
     }
 
     void deviceConnected(String bdaddr, boolean absoluteVolume) {
-        BluetoothDevice device = mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(bdaddr));
+        BluetoothDevice device =
+                mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(bdaddr));
         d("deviceConnected: device=" + device + " absoluteVolume=" + absoluteVolume);
         if (mAvrcpService == null) {
             Log.w(TAG, "deviceConnected: AvrcpTargetService is null");
@@ -248,7 +263,8 @@ public class AvrcpNativeInterface {
     }
 
     void deviceDisconnected(String bdaddr) {
-        BluetoothDevice device = mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(bdaddr));
+        BluetoothDevice device =
+                mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(bdaddr));
         d("deviceDisconnected: device=" + device);
         if (mAvrcpService == null) {
             Log.w(TAG, "deviceDisconnected: AvrcpTargetService is null");
@@ -258,9 +274,12 @@ public class AvrcpNativeInterface {
         mAvrcpService.deviceDisconnected(device);
     }
 
-    void sendVolumeChanged(String bdaddr, int volume) {
+    void sendVolumeChanged(BluetoothDevice device, int volume) {
         d("sendVolumeChanged: volume=" + volume);
-        String identityAddress = mAdapterService.getIdentityAddress(bdaddr);
+        String identityAddress =
+                Flags.identityAddressNullIfUnknown()
+                        ? Utils.getBrEdrAddress(device)
+                        : mAdapterService.getIdentityAddress(device.getAddress());
         sendVolumeChangedNative(identityAddress, volume);
     }
 
@@ -304,8 +323,7 @@ public class AvrcpNativeInterface {
                 valuesArray = new byte[1];
                 valuesArray[0] = PlayerSettingsValues.STATE_DEFAULT_OFF;
         }
-        listPlayerSettingValuesResponseNative(
-                settingRequest, valuesArray);
+        listPlayerSettingValuesResponseNative(settingRequest, valuesArray);
     }
 
     /** Request from remote current values for player settings. */
@@ -395,8 +413,6 @@ public class AvrcpNativeInterface {
     private native void sendPlayerSettingsNative(byte[] attributes, byte[] values);
 
     private static void d(String msg) {
-        if (DEBUG) {
-            Log.d(TAG, msg);
-        }
+        Log.d(TAG, msg);
     }
 }

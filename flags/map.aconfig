@@ -1,0 +1,9 @@
+package: "com.android.bluetooth.flags"
+container: "com.android.btservices"
+
+flag {
+    name: "map_limit_notification"
+    namespace: "bluetooth"
+    description: "Skip notyfing old messages in MAP"
+    bug: "325863406"
+}

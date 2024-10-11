@@ -18,7 +18,6 @@
 
 #include <base/functional/bind.h>
 #include <base/location.h>
-#include <base/logging.h>
 #include <base/threading/platform_thread.h>
 #include <bluetooth/log.h>
 
@@ -26,9 +25,13 @@
 #include <utility>
 
 #include "common/message_loop_thread.h"
+#include "common/postable_context.h"
 #include "include/hardware/bluetooth.h"
 #include "osi/include/allocator.h"
-#include "stack/include/bt_types.h"
+
+/* BTIF Events */
+#define BT_EVT_BTIF 0xA000
+#define BT_EVT_CONTEXT_SWITCH_EVT (0x0001 | BT_EVT_BTIF)
 
 using base::PlatformThread;
 using namespace bluetooth;
@@ -100,17 +103,12 @@ bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
  * This function posts a task into the btif message loop, that executes it in
  * the JNI message loop.
  **/
-bt_status_t do_in_jni_thread(const base::Location& from_here,
-                             base::OnceClosure task) {
-  if (!jni_thread.DoInThread(from_here, std::move(task))) {
+bt_status_t do_in_jni_thread(base::OnceClosure task) {
+  if (!jni_thread.DoInThread(FROM_HERE, std::move(task))) {
     log::error("Post task to task runner failed!");
-    return BT_STATUS_FAIL;
+    return BT_STATUS_JNI_THREAD_ATTACH_ERROR;
   }
   return BT_STATUS_SUCCESS;
-}
-
-bt_status_t do_in_jni_thread(base::OnceClosure task) {
-  return do_in_jni_thread(FROM_HERE, std::move(task));
 }
 
 bool is_on_jni_thread() {
@@ -120,7 +118,12 @@ bool is_on_jni_thread() {
 static void do_post_on_bt_jni(BtJniClosure closure) { closure(); }
 
 void post_on_bt_jni(BtJniClosure closure) {
-  ASSERT(do_in_jni_thread(FROM_HERE, base::BindOnce(do_post_on_bt_jni,
-                                                    std::move(closure))) ==
-         BT_STATUS_SUCCESS);
+  log::assert_that(
+      do_in_jni_thread(base::BindOnce(do_post_on_bt_jni, std::move(closure))) ==
+          BT_STATUS_SUCCESS,
+      "assert failed: do_in_jni_thread("
+      "base::BindOnce(do_post_on_bt_jni, std::move(closure))) == "
+      "BT_STATUS_SUCCESS");
 }
+
+bluetooth::common::PostableContext* get_jni() { return jni_thread.Postable(); }

@@ -16,9 +16,7 @@
 
 #include "stack/include/a2dp_sbc.h"
 
-#include <base/logging.h>
 #include <gtest/gtest.h>
-#include <stdio.h>
 
 #include <chrono>
 #include <cstdint>
@@ -26,7 +24,6 @@
 #include <string>
 
 #include "common/init_flags.h"
-#include "common/testing/log_capture.h"
 #include "common/time_util.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
@@ -147,7 +144,6 @@ class A2dpSbcTest : public ::testing::Test {
   A2dpCodecs* a2dp_codecs_;
   tA2DP_ENCODER_INTERFACE* encoder_iface_;
   tA2DP_DECODER_INTERFACE* decoder_iface_;
-  std::unique_ptr<LogCapture> log_capture_;
 };
 
 TEST_F(A2dpSbcTest, a2dp_source_read_underflow) {
@@ -174,7 +170,7 @@ TEST_F(A2dpSbcTest, a2dp_source_read_underflow) {
 TEST_F(A2dpSbcTest, a2dp_enqueue_cb_is_invoked) {
   promise = {};
   auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
-    ASSERT(kSbcReadSize == len);
+    log::assert_that(kSbcReadSize == len, "assert failed: kSbcReadSize == len");
     return len;
   };
   auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
@@ -257,7 +253,7 @@ TEST_F(A2dpSbcTest, sink_supports_sbc) {
 
 TEST_F(A2dpSbcTest, effective_mtu_when_peer_supports_3mbps) {
   auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
-    ASSERT(kSbcReadSize == len);
+    log::assert_that(kSbcReadSize == len, "assert failed: kSbcReadSize == len");
     return len;
   };
   auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
@@ -270,7 +266,7 @@ TEST_F(A2dpSbcTest, effective_mtu_when_peer_supports_3mbps) {
 
 TEST_F(A2dpSbcTest, effective_mtu_when_peer_does_not_support_3mbps) {
   auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
-    ASSERT(kSbcReadSize == len);
+    log::assert_that(kSbcReadSize == len, "assert failed: kSbcReadSize == len");
     return len;
   };
   auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
@@ -279,12 +275,6 @@ TEST_F(A2dpSbcTest, effective_mtu_when_peer_does_not_support_3mbps) {
   };
   InitializeEncoder(false, read_cb, enqueue_cb);
   ASSERT_EQ(a2dp_sbc_get_effective_frame_size(), 663 /* MAX_2MBPS_AVDTP_MTU */);
-}
-
-TEST_F(A2dpSbcTest, debug_codec_dump) {
-  log_capture_ = std::make_unique<LogCapture>();
-  a2dp_codecs_->debug_codec_dump(2);
-  log_capture_->WaitUntilLogContains("Current Codec: SBC");
 }
 
 TEST_F(A2dpSbcTest, codec_info_string) {

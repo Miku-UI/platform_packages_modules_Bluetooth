@@ -37,7 +37,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import pandora.HostProto.ConnectRequest;
-import pandora.HostProto.WaitConnectionRequest;
 
 /** Test cases for {@link ServiceDiscoveryManager}. */
 @RunWith(AndroidJUnit4.class)
@@ -81,13 +80,6 @@ public class SdpClientTest {
         mBumble.hostBlocking()
                 .connect(
                         ConnectRequest.newBuilder()
-                                .setAddress(ByteString.copyFrom(local_bytes_addr))
-                                .build());
-
-        // Wait until connection is stable
-        mBumble.hostBlocking()
-                .waitConnection(
-                        WaitConnectionRequest.newBuilder()
                                 .setAddress(ByteString.copyFrom(local_bytes_addr))
                                 .build());
 

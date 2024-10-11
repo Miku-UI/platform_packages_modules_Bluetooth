@@ -29,12 +29,11 @@ import static com.android.server.bluetooth.BluetoothManagerService.MESSAGE_TIMEO
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.runners.Parameterized.Parameter;
-import static org.junit.runners.Parameterized.Parameters;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -59,34 +58,23 @@ import android.os.test.TestLooper;
 import android.provider.Settings;
 
 import androidx.test.platform.app.InstrumentationRegistry;
-
-import com.android.bluetooth.flags.FakeFeatureFlagsImpl;
-import com.android.bluetooth.flags.Flags;
-
-import com.google.common.collect.Lists;
+import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
+@RunWith(AndroidJUnit4.class)
 public class BluetoothManagerServiceTest {
     private static final String TAG = BluetoothManagerServiceTest.class.getSimpleName();
     private static final int STATE_BLE_TURNING_ON = 14; // can't find the symbol because hidden api
-    private static final int TIMEOUT_MS = 1000; // TO use to wait for handler execution
 
     BluetoothManagerService mManagerService;
 
@@ -104,74 +92,15 @@ public class BluetoothManagerServiceTest {
 
     @Mock IBluetooth mAdapterService;
     @Mock AdapterBinder mAdapterBinder;
-    private FakeFeatureFlagsImpl mFakeFlagsImpl;
-
-    @Parameter public FlagsValue mFlagsValue;
-
-    static class FlagsValue {
-        final Map<String, Boolean> mFlagsValue;
-
-        FlagsValue(Map<String, Boolean> flagsValue) {
-            mFlagsValue = flagsValue;
-        }
-
-        private static String formatFlag(String key) {
-            return key.substring(key.lastIndexOf(".") + 1);
-        }
-
-        @Override
-        public String toString() {
-            return mFlagsValue.entrySet().stream()
-                    .filter(Map.Entry::getValue)
-                    .map(Map.Entry::getKey)
-                    .map(FlagsValue::formatFlag)
-                    .sorted()
-                    .collect(Collectors.joining(", "));
-        }
-    }
-
-    private static boolean filterFlags(Map<String, Boolean> map) {
-        if (map.get(Flags.FLAG_USE_NEW_AIRPLANE_MODE)) {
-            return !map.get(Flags.FLAG_AIRPLANE_RESSOURCES_IN_APP);
-        }
-        return true;
-    }
-
-    /** Generate the Map of flag for this test Suite */
-    @Parameters(name = "{0}")
-    public static Iterable<? extends Object> generateParameterizedFlagsValue() {
-        final String[] flags = {
-            Flags.FLAG_AIRPLANE_RESSOURCES_IN_APP,
-            Flags.FLAG_USE_NEW_AIRPLANE_MODE,
-            Flags.FLAG_USE_NEW_SATELLITE_MODE,
-        };
-        final Boolean[] values = {true, false};
-
-        List<List<Map.Entry<String, Boolean>>> flagValues =
-                Arrays.stream(flags)
-                        .map(flag -> Arrays.stream(values).map(val -> Map.entry(flag, val)))
-                        .map(Stream::toList)
-                        .toList();
-
-        return Lists.cartesianProduct(flagValues).stream()
-                .map(list -> list.toArray(new Map.Entry[0]))
-                .map(Map::ofEntries)
-                .filter(BluetoothManagerServiceTest::filterFlags)
-                .map(FlagsValue::new)
-                .map(List::of)
-                .map(List::toArray)
-                .toList();
-    }
 
     TestLooper mLooper;
-
-    boolean mHasException = false;
 
     static {
         // Required for reading DeviceConfig.
         InstrumentationRegistry.getInstrumentation()
                 .getUiAutomation()
-                .adoptShellPermissionIdentity(android.Manifest.permission.READ_DEVICE_CONFIG);
+                .adoptShellPermissionIdentity(
+                        android.Manifest.permission.INTERACT_ACROSS_USERS_FULL);
     }
 
     @Before
@@ -185,6 +114,20 @@ public class BluetoothManagerServiceTest {
         doReturn("00:11:22:33:44:55")
                 .when(mBluetoothServerProxy)
                 .settingsSecureGetString(any(), eq(Settings.Secure.BLUETOOTH_ADDRESS));
+        // Set persisted state to BLUETOOTH_OFF to not generate unwanted behavior when starting test
+        doReturn(BluetoothManagerService.BLUETOOTH_OFF)
+                .when(mBluetoothServerProxy)
+                .getBluetoothPersistedState(any(), anyInt());
+
+        doAnswer(
+                        inv -> {
+                            doReturn(inv.getArguments()[1])
+                                    .when(mBluetoothServerProxy)
+                                    .getBluetoothPersistedState(any(), anyInt());
+                            return null;
+                        })
+                .when(mBluetoothServerProxy)
+                .setBluetoothPersistedState(any(), anyInt());
 
         // Test is not allowed to send broadcast as Bluetooth. doNothing Prevent SecurityException
         doNothing().when(mContext).sendBroadcastAsUser(any(), any(), any(), any());
@@ -211,11 +154,7 @@ public class BluetoothManagerServiceTest {
 
         mLooper = new TestLooper();
 
-        mFakeFlagsImpl = new FakeFeatureFlagsImpl();
-        mFlagsValue.mFlagsValue.forEach(mFakeFlagsImpl::setFlag);
-
-        mManagerService =
-                new BluetoothManagerService(mContext, mLooper.getLooper(), mFakeFlagsImpl);
+        mManagerService = new BluetoothManagerService(mContext, mLooper.getLooper());
         mManagerService.initialize(mUserHandle);
 
         mManagerService.registerAdapter(mManagerCallback);
@@ -228,10 +167,8 @@ public class BluetoothManagerServiceTest {
             mManagerService = null;
         }
         mLooper.moveTimeForward(120_000); // 120 seconds
-        // Do not try to assert if `syncHandler()` already raised an exception for it
-        if (!mHasException) {
-            assertThat(mLooper.nextMessage()).isNull();
-        }
+
+        assertThat(mLooper.nextMessage()).isNull();
         validateMockitoUsage();
     }
 
@@ -271,23 +208,6 @@ public class BluetoothManagerServiceTest {
         // called from SYSTEM user, should try to toggle Bluetooth off
         mManagerService.onUserRestrictionsChanged(UserHandle.SYSTEM);
         syncHandler(MESSAGE_DISABLE);
-    }
-
-    @Test
-    public void testApmEnhancementEnabled() {
-        // Change the apm enhancement enabled value to 0
-        Settings.Global.putInt(mContext.getContentResolver(), "apm_enhancement_enabled", 0);
-        assertThat(
-                        Settings.Global.getInt(
-                                mContext.getContentResolver(), "apm_enhancement_enabled", 0))
-                .isEqualTo(0);
-
-        // Confirm that apm enhancement enabled value has been updated to 1
-        mManagerService.setApmEnhancementState();
-        assertThat(
-                        Settings.Global.getInt(
-                                mContext.getContentResolver(), "apm_enhancement_enabled", 0))
-                .isEqualTo(1);
     }
 
     @Test
@@ -396,11 +316,6 @@ public class BluetoothManagerServiceTest {
 
     @Test
     public void offToBleOn() throws Exception {
-        // In order to go to BLE only, the persisted state should be BLUETOOTH_OFF
-        doReturn(BluetoothManagerService.BLUETOOTH_OFF)
-                .when(mBluetoothServerProxy)
-                .getBluetoothPersistedState(any(), anyInt());
-
         mManagerService.enableBle("test_offToBleOn", mBinder);
         syncHandler(MESSAGE_ENABLE);
 
@@ -413,11 +328,6 @@ public class BluetoothManagerServiceTest {
 
     @Test
     public void offToOn() throws Exception {
-        // In order to not go to BLE only, the persisted state should not be BLUETOOTH_OFF
-        doReturn(BluetoothManagerService.BLUETOOTH_ON_BLUETOOTH)
-                .when(mBluetoothServerProxy)
-                .getBluetoothPersistedState(any(), anyInt());
-
         mManagerService.enable("test_offToOn");
         syncHandler(MESSAGE_ENABLE);
 

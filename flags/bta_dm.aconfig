@@ -35,3 +35,24 @@ flag {
     description: "Report Bluetooth system context through bta_ble_energy_info_cmpl"
     bug: "323083457"
 }
+
+flag {
+    name: "continue_service_discovery_when_cancel_device_discovery"
+    namespace: "bluetooth"
+    description: "Continue service discovery when API cancel device discovery called"
+    bug: "329642681"
+}
+
+flag {
+    name: "separate_service_and_device_discovery"
+    namespace: "bluetooth"
+    description: "Separate service and device discovery state machines such that one does not block on another"
+    bug: "335732980"
+}
+
+flag {
+    name: "bta_dm_discover_both"
+    namespace: "bluetooth"
+    description: "perform both LE and Classic service discovery simulteanously on capable devices"
+    bug: "339217881"
+}

@@ -17,13 +17,12 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "a2dp_sbc_encoder"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "a2dp_sbc_encoder.h"
 
 #include <bluetooth/log.h>
 #include <limits.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "a2dp_sbc.h"
@@ -172,7 +171,7 @@ static void a2dp_sbc_encoder_update(A2dpCodecConfig* a2dp_codec_config,
   *p_config_updated = false;
   if (!a2dp_codec_config->copyOutOtaCodecConfig(codec_info)) {
     log::error("Cannot update the codec encoder for {}: invalid codec config",
-               a2dp_codec_config->name().c_str());
+               a2dp_codec_config->name());
     return;
   }
   const uint8_t* p_codec_info = codec_info;
@@ -539,7 +538,12 @@ static void a2dp_sbc_encode_frames(uint8_t nb_frame) {
        */
       *((uint32_t*)(p_buf + 1)) = a2dp_sbc_encoder_cb.timestamp;
 
-      a2dp_sbc_encoder_cb.timestamp += p_buf->layer_specific * blocm_x_subband;
+      // Timestamp will wrap over to 0 if stream continues on long enough
+      // (>25H @ 48KHz). The parameters are promoted to 64bit to ensure that
+      // no unsigned overflow is triggered as ubsan is always enabled.
+      a2dp_sbc_encoder_cb.timestamp =
+          ((uint64_t)a2dp_sbc_encoder_cb.timestamp +
+           (p_buf->layer_specific * blocm_x_subband)) & UINT32_MAX;
 
       uint8_t done_nb_frame = remain_nb_frame - nb_frame;
       remain_nb_frame = nb_frame;
@@ -857,7 +861,7 @@ static uint32_t a2dp_sbc_frame_length(void) {
 
 uint32_t a2dp_sbc_get_bitrate() {
   SBC_ENC_PARAMS* p_encoder_params = &a2dp_sbc_encoder_cb.sbc_encoder_params;
-  log::info("bit rate {} ", p_encoder_params->u16BitRate);
+  log::info("bit rate {}", p_encoder_params->u16BitRate);
   return p_encoder_params->u16BitRate * 1000;
 }
 

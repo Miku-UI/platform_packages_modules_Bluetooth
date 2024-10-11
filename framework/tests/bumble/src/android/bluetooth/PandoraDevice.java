@@ -29,13 +29,14 @@ import io.grpc.okhttp.OkHttpChannelBuilder;
 
 import org.junit.rules.ExternalResource;
 
-import java.util.concurrent.TimeUnit;
-
 import pandora.DckGrpc;
 import pandora.GATTGrpc;
 import pandora.HostGrpc;
 import pandora.HostProto;
+import pandora.RFCOMMGrpc;
 import pandora.SecurityGrpc;
+
+import java.util.concurrent.TimeUnit;
 
 public final class PandoraDevice extends ExternalResource {
     private static final String TAG = PandoraDevice.class.getSimpleName();
@@ -140,5 +141,15 @@ public final class PandoraDevice extends ExternalResource {
     /** Get Pandora GATT blocking service */
     public GATTGrpc.GATTBlockingStub gattBlocking() {
         return GATTGrpc.newBlockingStub(mChannel);
+    }
+
+    /** Get Pandora RFCOMM service */
+    public RFCOMMGrpc.RFCOMMStub rfcomm() {
+        return RFCOMMGrpc.newStub(mChannel);
+    }
+
+    /** Get Pandora RFCOMM blocking service */
+    public RFCOMMGrpc.RFCOMMBlockingStub rfcommBlocking() {
+        return RFCOMMGrpc.newBlockingStub(mChannel);
     }
 }

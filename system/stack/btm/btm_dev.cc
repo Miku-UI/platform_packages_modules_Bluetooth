@@ -26,8 +26,8 @@
 
 #include "stack/btm/btm_dev.h"
 
-#include <android_bluetooth_flags.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <string>
 
@@ -42,7 +42,6 @@
 #include "main/shim/entry.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/compat.h"
 #include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
@@ -78,26 +77,20 @@ static void wipe_secrets_and_remove(tBTM_SEC_DEV_REC* p_dev_rec) {
  *
  * Parameters:      bd_addr          - BD address of the peer
  *                  dev_class        - Device Class
- *                  bd_name          - Name of the peer device. NULL if unknown.
- *                  features         - Remote device's features (up to 3 pages).
- *                                     NULL if not known
  *                  link_key         - Connection link key. NULL if unknown.
  *
- * Returns          true if added OK, else false
+ * Returns          void
  *
  ******************************************************************************/
-bool BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
-                      const BD_NAME& bd_name, uint8_t* features,
-                      LinkKey* p_link_key, uint8_t key_type,
-                      uint8_t pin_length) {
+void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
+                      LinkKey link_key, uint8_t key_type, uint8_t pin_length) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   if (!p_dev_rec) {
     p_dev_rec = btm_sec_allocate_dev_rec();
-    log::debug(
-        "Caching new record from config file device:{} link_key_type:{:x} "
-        "name:{}",
-        ADDRESS_TO_LOGGABLE_STR(bd_addr), key_type,
-        reinterpret_cast<const char*>(bd_name));
+    log::info(
+        "Caching new record from config file device: {}, dev_class: 0x{:02x}, "
+        "link_key_type: 0x{:x}",
+        bd_addr, fmt::join(dev_class, ""), key_type);
 
     p_dev_rec->bd_addr = bd_addr;
     p_dev_rec->hci_handle = BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
@@ -106,9 +99,10 @@ bool BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
     /* update conn params, use default value for background connection params */
     memset(&p_dev_rec->conn_params, 0xff, sizeof(tBTM_LE_CONN_PRAMS));
   } else {
-    log::debug(
-        "Caching existing record from config file device:{} link_key_type:{:x}",
-        ADDRESS_TO_LOGGABLE_STR(bd_addr), key_type);
+    log::info(
+        "Caching existing record from config file device: {}, dev_class: "
+        "0x{:02x}, link_key_type: 0x{:x}",
+        bd_addr, fmt::join(dev_class, ""), key_type);
 
     /* "Bump" timestamp for existing record */
     p_dev_rec->timestamp = btm_sec_cb.dev_rec_count++;
@@ -124,42 +118,27 @@ bool BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class,
 
   if (dev_class != kDevClassEmpty) p_dev_rec->dev_class = dev_class;
 
-  memset(p_dev_rec->sec_bd_name, 0, sizeof(tBTM_BD_NAME));
+  memset(p_dev_rec->sec_bd_name, 0, sizeof(BD_NAME));
 
-  if (bd_name && bd_name[0]) {
-    log::debug("  Remote name known for device:{} name:{}",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr),
-               reinterpret_cast<const char*>(bd_name));
-    p_dev_rec->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
-    strlcpy((char*)p_dev_rec->sec_bd_name, (char*)bd_name,
-            BTM_MAX_REM_BD_NAME_LEN + 1);
+  p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
+  p_dev_rec->sec_rec.link_key = link_key;
+  p_dev_rec->sec_rec.link_key_type = key_type;
+  p_dev_rec->sec_rec.pin_code_length = pin_length;
+
+  if (com::android::bluetooth::flags::correct_bond_type_of_loaded_devices()) {
+    p_dev_rec->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
   }
 
-  if (p_link_key) {
-    log::debug("  Link key known for device:{}",
-               ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
-    p_dev_rec->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
-    p_dev_rec->sec_rec.link_key = *p_link_key;
-    p_dev_rec->sec_rec.link_key_type = key_type;
-    p_dev_rec->sec_rec.pin_code_length = pin_length;
-
-    if (IS_FLAG_ENABLED(correct_bond_type_of_loaded_devices)) {
-      p_dev_rec->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
-    }
-
-    if (pin_length >= 16 || key_type == BTM_LKEY_TYPE_AUTH_COMB ||
-        key_type == BTM_LKEY_TYPE_AUTH_COMB_P_256) {
-      // Set the flag if the link key was made by using either a 16 digit
-      // pin or MITM.
-      p_dev_rec->sec_rec.sec_flags |=
-          BTM_SEC_16_DIGIT_PIN_AUTHED | BTM_SEC_LINK_KEY_AUTHED;
-    }
+  if (pin_length >= 16 || key_type == BTM_LKEY_TYPE_AUTH_COMB ||
+      key_type == BTM_LKEY_TYPE_AUTH_COMB_P_256) {
+    // Set the flag if the link key was made by using either a 16 digit
+    // pin or MITM.
+    p_dev_rec->sec_rec.sec_flags |=
+        BTM_SEC_16_DIGIT_PIN_AUTHED | BTM_SEC_LINK_KEY_AUTHED;
   }
 
   p_dev_rec->sec_rec.rmt_io_caps = BTM_IO_CAP_OUT;
   p_dev_rec->device_type |= BT_DEVICE_TYPE_BREDR;
-
-  return true;
 }
 
 /** Removes the device from acceptlist */
@@ -178,8 +157,7 @@ void BTM_AcceptlistRemove(const RawAddress& address);
 bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   if (p_dev_rec == NULL) {
-    log::warn("Unable to delete link key for unknown device {}",
-              ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::warn("Unable to delete link key for unknown device {}", bd_addr);
     return true;
   }
 
@@ -189,15 +167,14 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
 
   if (BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_LE) ||
       BTM_IsAclConnectionUp(bd_addr, BT_TRANSPORT_BR_EDR)) {
-    log::warn("FAILED: Cannot Delete when connection to {} is active",
-              ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+    log::warn("FAILED: Cannot Delete when connection to {} is active", bd_addr);
     return false;
   }
 
   RawAddress bda = p_dev_rec->bd_addr;
 
   log::info("Remove device {} from filter accept list before delete record",
-            ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+            bd_addr);
   if (bluetooth::common::init_flags::
           use_unified_connection_manager_is_enabled()) {
     bluetooth::connection::GetConnectionManager()
@@ -215,7 +192,7 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
   wipe_secrets_and_remove(p_dev_rec);
   /* Tell controller to get rid of the link key, if it has one stored */
   BTM_DeleteStoredLinkKey(&bda, NULL);
-  log::info("{} complete", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+  log::info("{} complete", bd_addr);
   BTM_LogHistory(kBtmLogTag, bd_addr, "Device removed",
                  base::StringPrintf("device_type:%s bond_type:%s",
                                     DeviceTypeText(device_type).c_str(),
@@ -277,8 +254,7 @@ tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr) {
 
   tBTM_SEC_DEV_REC* p_dev_rec = btm_sec_allocate_dev_rec();
 
-  log::debug("Allocated device record bd_addr:{}",
-             ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+  log::debug("Allocated device record bd_addr:{}", bd_addr);
 
   /* Check with the BT manager if details about remote device are known */
   /* outgoing connection */
@@ -305,51 +281,6 @@ tBTM_SEC_DEV_REC* btm_sec_alloc_dev(const RawAddress& bd_addr) {
   p_dev_rec->hci_handle = BTM_GetHCIConnHandle(bd_addr, BT_TRANSPORT_BR_EDR);
 
   return (p_dev_rec);
-}
-
-/*******************************************************************************
- *
- * Function         btm_dev_support_role_switch
- *
- * Description      This function is called by the L2CAP to check if remote
- *                  device supports role switch
- *
- * Parameters:      bd_addr       - Address of the peer device
- *
- * Returns          true if device is known and role switch is supported
- *                  for the link.
- *
- ******************************************************************************/
-bool btm_dev_support_role_switch(const RawAddress& bd_addr) {
-  if (BTM_IsScoActiveByBdaddr(bd_addr)) {
-    log::verbose("Role switch is not allowed if a SCO is up");
-    return false;
-  }
-
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == nullptr) {
-    log::verbose("Unknown address for role switch");
-    return false;
-  }
-
-  if (!bluetooth::shim::GetController()->SupportsRoleSwitch()) {
-    log::verbose("Local controller does not support role switch");
-    return false;
-  }
-
-  if (p_dev_rec->remote_supports_hci_role_switch) {
-    log::verbose("Peer controller supports role switch");
-    return true;
-  }
-
-  if (!p_dev_rec->remote_feature_received) {
-    log::verbose(
-        "Unknown peer capabilities, assuming peer supports role switch");
-    return true;
-  }
-
-  log::verbose("Peer controller does not support role switch");
-  return false;
 }
 
 static bool is_handle_equal(void* data, void* context) {
@@ -518,7 +449,7 @@ void btm_dev_consolidate_existing_connections(const RawAddress& bd_addr) {
     return;
   }
 
-  log::info("{}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+  log::info("{}", bd_addr);
 
   list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
   list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec);
@@ -535,7 +466,7 @@ void btm_dev_consolidate_existing_connections(const RawAddress& bd_addr) {
     if (btm_ble_addr_resolvable(p_dev_rec->bd_addr, p_target_rec)) {
       if (p_dev_rec->ble_hci_handle == HCI_INVALID_HANDLE) {
         log::info("already disconnected - erasing entry {}",
-                  ADDRESS_TO_LOGGABLE_CSTR(p_dev_rec->bd_addr));
+                  p_dev_rec->bd_addr);
         wipe_secrets_and_remove(p_dev_rec);
         continue;
       }
@@ -543,8 +474,7 @@ void btm_dev_consolidate_existing_connections(const RawAddress& bd_addr) {
       log::info(
           "Found existing LE connection to just bonded device on {} handle "
           "0x{:04x}",
-          ADDRESS_TO_LOGGABLE_CSTR(p_dev_rec->bd_addr),
-          p_dev_rec->ble_hci_handle);
+          p_dev_rec->bd_addr, p_dev_rec->ble_hci_handle);
 
       RawAddress ble_conn_addr = p_dev_rec->bd_addr;
       p_target_rec->ble_hci_handle = p_dev_rec->ble_hci_handle;
@@ -725,12 +655,14 @@ bool btm_set_bond_type_dev(const RawAddress& bd_addr,
 std::vector<tBTM_SEC_DEV_REC*> btm_get_sec_dev_rec() {
   std::vector<tBTM_SEC_DEV_REC*> result{};
 
-  list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
-  for (list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec); node != end;
-       node = list_next(node)) {
-    tBTM_SEC_DEV_REC* p_dev_rec =
-        static_cast<tBTM_SEC_DEV_REC*>(list_node(node));
-    result.push_back(p_dev_rec);
+  if (btm_sec_cb.sec_dev_rec != nullptr) {
+    list_node_t* end = list_end(btm_sec_cb.sec_dev_rec);
+    for (list_node_t* node = list_begin(btm_sec_cb.sec_dev_rec); node != end;
+         node = list_next(node)) {
+      tBTM_SEC_DEV_REC* p_dev_rec =
+          static_cast<tBTM_SEC_DEV_REC*>(list_node(node));
+      result.push_back(p_dev_rec);
+    }
   }
   return result;
 }
@@ -758,8 +690,8 @@ bool BTM_Sec_AddressKnown(const RawAddress& address) {
   if (p_dev_rec == NULL || (p_dev_rec->device_type & BT_DEVICE_TYPE_BLE) == 0)
     return true;
 
-  log::warn("{}, device type not BLE: 0x{:02x}",
-            ADDRESS_TO_LOGGABLE_CSTR(address), p_dev_rec->device_type);
+  log::warn("{}, device type not BLE: 0x{:02x}", address,
+            p_dev_rec->device_type);
 
   // bonded device with identity address known
   if (!p_dev_rec->ble.identity_address_with_type.bda.IsEmpty()) {
@@ -772,8 +704,8 @@ bool BTM_Sec_AddressKnown(const RawAddress& address) {
     return true;
   }
 
-  log::warn("{}, the address type is 0x{:02x}",
-            ADDRESS_TO_LOGGABLE_CSTR(address), p_dev_rec->ble.AddressType());
+  log::warn("{}, the address type is 0x{:02x}", address,
+            p_dev_rec->ble.AddressType());
 
   // Only Resolvable Private Address (RPA) is known, we don't allow it into
   // the background connection procedure.
@@ -812,7 +744,8 @@ const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr) {
   }
 }
 
-bool BTM_IsRemoteNameKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+bool BTM_IsRemoteNameKnown(const RawAddress& bd_addr,
+                           tBT_TRANSPORT /* transport */) {
   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
   return (p_dev_rec == nullptr) ? false : p_dev_rec->sec_rec.is_name_known();
 }

@@ -50,10 +50,12 @@ import com.android.bluetooth.opp.BluetoothShare;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,11 +75,12 @@ public class DataMigrationTest {
     private Context mTargetContext;
     private SharedPreferences mPrefs;
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private Context mMockContext;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         mTargetContext = InstrumentationRegistry.getTargetContext();
         mTargetContext.deleteSharedPreferences(TEST_PREF);
@@ -89,7 +92,6 @@ public class DataMigrationTest {
         when(mMockContext.getCacheDir()).thenReturn(mTargetContext.getCacheDir());
 
         when(mMockContext.getSharedPreferences(anyString(), anyInt())).thenReturn(mPrefs);
-
     }
 
     @After
@@ -105,17 +107,15 @@ public class DataMigrationTest {
         assertThat(DataMigration.migrationStatus(mMockContext)).isEqualTo(status);
     }
 
-    /**
-     * Test: execute Empty migration
-     */
+    /** Test: execute Empty migration */
     @Test
     public void testEmptyMigration() {
         BluetoothLegacyContentProvider fakeContentProvider =
                 new BluetoothLegacyContentProvider(mMockContext);
         mMockContentResolver.addProvider(AUTHORITY, fakeContentProvider);
 
-        final int nCallCount = DataMigration.sharedPreferencesKeys.length
-                + 1; // +1 for default preferences
+        final int nCallCount =
+                DataMigration.sharedPreferencesKeys.length + 1; // +1 for default preferences
         final int nBundleCount = 2; // `bluetooth_db` && `btopp.db`
 
         assertRunStatus(DataMigration.MIGRATION_STATUS_COMPLETED);
@@ -133,14 +133,21 @@ public class DataMigrationTest {
         BluetoothLegacyContentProvider(Context ctx) {
             super(ctx);
         }
+
         int mCallCount = 0;
         int mBundleCount = 0;
+
         @Override
-        public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
+        public Cursor query(
+                Uri uri,
+                String[] projection,
+                String selection,
+                String[] selectionArgs,
                 String sortOrder) {
             mBundleCount++;
             return null;
         }
+
         @Override
         public Bundle call(String method, String arg, Bundle extras) {
             mCallCount++;
@@ -148,9 +155,7 @@ public class DataMigrationTest {
         }
     }
 
-    /**
-     * Test: execute migration without having a content provided registered
-     */
+    /** Test: execute migration without having a content provided registered */
     @Test
     public void testMissingProvider() {
         assertThat(DataMigration.isMigrationApkInstalled(mMockContext)).isFalse();
@@ -161,32 +166,25 @@ public class DataMigrationTest {
         assertThat(DataMigration.isMigrationApkInstalled(mMockContext)).isTrue();
     }
 
-    /**
-     * Test: execute migration after too many attempt
-     */
+    /** Test: execute migration after too many attempt */
     @Test
     public void testTooManyAttempt() {
-        assertThat(mPrefs.getInt(DataMigration.MIGRATION_ATTEMPT_PROPERTY, -1))
-            .isEqualTo(-1);
+        assertThat(mPrefs.getInt(DataMigration.MIGRATION_ATTEMPT_PROPERTY, -1)).isEqualTo(-1);
 
         for (int i = 0; i < DataMigration.MAX_ATTEMPT; i++) {
-            assertThat(DataMigration.incrementeMigrationAttempt(mMockContext))
-                .isTrue();
+            assertThat(DataMigration.incrementeMigrationAttempt(mMockContext)).isTrue();
             assertThat(mPrefs.getInt(DataMigration.MIGRATION_ATTEMPT_PROPERTY, -1))
-                .isEqualTo(i + 1);
+                    .isEqualTo(i + 1);
         }
-        assertThat(DataMigration.incrementeMigrationAttempt(mMockContext))
-            .isFalse();
+        assertThat(DataMigration.incrementeMigrationAttempt(mMockContext)).isFalse();
         assertThat(mPrefs.getInt(DataMigration.MIGRATION_ATTEMPT_PROPERTY, -1))
-            .isEqualTo(DataMigration.MAX_ATTEMPT + 1);
+                .isEqualTo(DataMigration.MAX_ATTEMPT + 1);
 
         mMockContentResolver.addProvider(AUTHORITY, new MockContentProvider(mMockContext));
         assertRunStatus(DataMigration.MIGRATION_STATUS_MAX_ATTEMPT);
     }
 
-    /**
-     * Test: execute migration of SharedPreferences
-     */
+    /** Test: execute migration of SharedPreferences */
     @Test
     public void testSharedPreferencesMigration() {
         BluetoothLegacySharedPreferencesContentProvider fakeContentProvider =
@@ -221,8 +219,8 @@ public class DataMigrationTest {
 
         assertThat(DataMigration.sharedPreferencesMigration("empty", mMockContext)).isFalse();
 
-        assertThat(DataMigration
-                .sharedPreferencesMigration("anything else", mMockContext)).isTrue();
+        assertThat(DataMigration.sharedPreferencesMigration("anything else", mMockContext))
+                .isTrue();
     }
 
     private static class BluetoothLegacySharedPreferencesContentProvider
@@ -230,26 +228,29 @@ public class DataMigrationTest {
         BluetoothLegacySharedPreferencesContentProvider(Context ctx) {
             super(ctx);
         }
-        String mLastMethod = null;
+
         int mCallCount = 0;
-        int mBundleCount = 0;
+
         @Override
-        public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
+        public Cursor query(
+                Uri uri,
+                String[] projection,
+                String selection,
+                String[] selectionArgs,
                 String sortOrder) {
-            mBundleCount++;
             return null;
         }
+
         @Override
         public Bundle call(String method, String arg, Bundle extras) {
             mCallCount++;
-            mLastMethod = method;
             assertThat(method).isNotNull();
             assertThat(arg).isNotNull();
             assertThat(extras).isNull();
             final String key = "key" + arg;
             Bundle b = new Bundle();
             b.putStringArrayList(DataMigration.KEY_LIST, new ArrayList<String>(Arrays.asList(key)));
-            switch(arg) {
+            switch (arg) {
                 case "Boolean":
                     b.putBoolean(key, true);
                     break;
@@ -269,7 +270,7 @@ public class DataMigrationTest {
                     b.putObject(key, null);
                     break;
                 case "Invalid":
-                     // Put anything different from Boolean/Long/Integer/String
+                    // Put anything different from Boolean/Long/Integer/String
                     b.putFloat(key, 42f);
                     break;
                 case "empty":
@@ -283,15 +284,13 @@ public class DataMigrationTest {
         }
     }
 
-    /**
-     * Test: execute migration of BLUETOOTH_DATABASE and OPP_DATABASE without correct data
-     */
+    /** Test: execute migration of BLUETOOTH_DATABASE and OPP_DATABASE without correct data */
     @Test
     public void testIncompleteDbMigration() {
         when(mMockContext.getDatabasePath("btopp.db"))
-            .thenReturn(mTargetContext.getDatabasePath("TestOppDb"));
+                .thenReturn(mTargetContext.getDatabasePath("TestOppDb"));
         when(mMockContext.getDatabasePath("bluetooth_db"))
-            .thenReturn(mTargetContext.getDatabasePath("TestBluetoothDb"));
+                .thenReturn(mTargetContext.getDatabasePath("TestBluetoothDb"));
 
         BluetoothLegacyDbContentProvider fakeContentProvider =
                 new BluetoothLegacyDbContentProvider(mMockContext);
@@ -305,17 +304,13 @@ public class DataMigrationTest {
     }
 
     private static final List<Pair<String, Object>> FAKE_SAMPLE =
-            Arrays.asList(
-                    new Pair("wrong_key", "wrong_content")
-    );
+            Arrays.asList(new Pair("wrong_key", "wrong_content"));
 
-    /**
-     * Test: execute migration of BLUETOOTH_DATABASE
-     */
+    /** Test: execute migration of BLUETOOTH_DATABASE */
     @Test
     public void testBluetoothDbMigration() {
         when(mMockContext.getDatabasePath("bluetooth_db"))
-            .thenReturn(mTargetContext.getDatabasePath("TestBluetoothDb"));
+                .thenReturn(mTargetContext.getDatabasePath("TestBluetoothDb"));
 
         BluetoothLegacyDbContentProvider fakeContentProvider =
                 new BluetoothLegacyDbContentProvider(mMockContext);
@@ -330,17 +325,16 @@ public class DataMigrationTest {
 
         Log.d(TAG, "Metadata migrated: " + metadata);
 
-        assertWithMessage("Address mismatch")
-            .that(metadata.getAddress()).isEqualTo("my_address");
+        assertWithMessage("Address mismatch").that(metadata.getAddress()).isEqualTo("my_address");
         assertWithMessage("Connection policy mismatch")
-            .that(metadata.getProfileConnectionPolicy(BluetoothProfile.A2DP))
-            .isEqualTo(CONNECTION_POLICY_FORBIDDEN);
+                .that(metadata.getProfileConnectionPolicy(BluetoothProfile.A2DP))
+                .isEqualTo(CONNECTION_POLICY_FORBIDDEN);
         assertWithMessage("Custom metadata mismatch")
-            .that(metadata.getCustomizedMeta(BluetoothDevice.METADATA_UNTETHERED_LEFT_CHARGING))
-            .isEqualTo(CUSTOM_META);
+                .that(metadata.getCustomizedMeta(BluetoothDevice.METADATA_UNTETHERED_LEFT_CHARGING))
+                .isEqualTo(CUSTOM_META);
     }
 
-    private static final byte[] CUSTOM_META =  new byte[]{ 42, 43, 44};
+    private static final byte[] CUSTOM_META = new byte[] {42, 43, 44};
 
     private static final List<Pair<String, Object>> BLUETOOTH_DATABASE_SAMPLE =
             Arrays.asList(
@@ -398,16 +392,13 @@ public class DataMigrationTest {
                     new Pair("untethered_right_low_battery_threshold", CUSTOM_META),
                     new Pair("untethered_case_low_battery_threshold", CUSTOM_META),
                     new Pair("spatial_audio", CUSTOM_META),
-                    new Pair("fastpair_customized", CUSTOM_META)
-    );
+                    new Pair("fastpair_customized", CUSTOM_META));
 
-    /**
-     * Test: execute migration of OPP_DATABASE
-     */
+    /** Test: execute migration of OPP_DATABASE */
     @Test
     public void testOppDbMigration() {
         when(mMockContext.getDatabasePath("btopp.db"))
-            .thenReturn(mTargetContext.getDatabasePath("TestOppDb"));
+                .thenReturn(mTargetContext.getDatabasePath("TestOppDb"));
 
         BluetoothLegacyDbContentProvider fakeContentProvider =
                 new BluetoothLegacyDbContentProvider(mMockContext);
@@ -435,26 +426,27 @@ public class DataMigrationTest {
 
                     // Long
                     new Pair(BluetoothShare.TOTAL_BYTES, 42L),
-                    new Pair(BluetoothShare.TIMESTAMP, 42L)
-    );
+                    new Pair(BluetoothShare.TIMESTAMP, 42L));
 
     private static class BluetoothLegacyDbContentProvider extends MockContentProvider {
         BluetoothLegacyDbContentProvider(Context ctx) {
             super(ctx);
         }
-        String mLastMethod = null;
+
         Cursor mCursor = null;
-        int mCallCount = 0;
-        int mBundleCount = 0;
+
         @Override
-        public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
+        public Cursor query(
+                Uri uri,
+                String[] projection,
+                String selection,
+                String[] selectionArgs,
                 String sortOrder) {
-            mBundleCount++;
             return mCursor;
         }
+
         @Override
         public Bundle call(String method, String arg, Bundle extras) {
-            mCallCount++;
             return null;
         }
     }

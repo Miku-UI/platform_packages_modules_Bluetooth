@@ -16,6 +16,8 @@
 
 #include "l2cap/le/internal/fixed_channel_service_manager_impl.h"
 
+#include <bluetooth/log.h>
+
 #include "common/bind.h"
 #include "l2cap/cid.h"
 #include "l2cap/le/internal/fixed_channel_service_impl.h"
@@ -55,7 +57,7 @@ void FixedChannelServiceManagerImpl::Unregister(Cid cid, FixedChannelService::On
     service_map_.erase(cid);
     handler->Post(std::move(callback));
   } else {
-    LOG_ERROR("service not registered cid:%d", cid);
+    log::error("service not registered cid:{}", cid);
   }
 }
 
@@ -64,7 +66,7 @@ bool FixedChannelServiceManagerImpl::IsServiceRegistered(Cid cid) const {
 }
 
 FixedChannelServiceImpl* FixedChannelServiceManagerImpl::GetService(Cid cid) {
-  ASSERT(IsServiceRegistered(cid));
+  log::assert_that(IsServiceRegistered(cid), "assert failed: IsServiceRegistered(cid)");
   return &service_map_.find(cid)->second;
 }
 

@@ -30,6 +30,7 @@
 #include "stack/include/hiddefs.h"
 #include "stack/include/l2c_api.h"
 #include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
 
 /*****************************************************************************
  *  Constants and Type Definitions
@@ -47,20 +48,21 @@
 #endif
 
 /* BTA HID Host callback events */
-#define BTA_HH_ENABLE_EVT 0     /* HH enabled */
-#define BTA_HH_DISABLE_EVT 1    /* HH disabled */
-#define BTA_HH_OPEN_EVT 2       /* connection opened */
-#define BTA_HH_CLOSE_EVT 3      /* connection closed */
-#define BTA_HH_GET_RPT_EVT 4    /* BTA_HhGetReport callback */
-#define BTA_HH_SET_RPT_EVT 5    /* BTA_HhSetReport callback */
-#define BTA_HH_GET_PROTO_EVT 6  /* BTA_GetProtoMode callback */
-#define BTA_HH_SET_PROTO_EVT 7  /* BTA_HhSetProtoMode callback */
-#define BTA_HH_GET_IDLE_EVT 8   /* BTA_HhGetIdle comes callback */
-#define BTA_HH_SET_IDLE_EVT 9   /* BTA_HhSetIdle finish callback */
-#define BTA_HH_GET_DSCP_EVT 10  /* Get report descriptor */
-#define BTA_HH_ADD_DEV_EVT 11   /* Add Device callback */
-#define BTA_HH_RMV_DEV_EVT 12   /* remove device finished */
-#define BTA_HH_VC_UNPLUG_EVT 13 /* virtually unplugged */
+#define BTA_HH_EMPTY_EVT 0      /* No op */
+#define BTA_HH_ENABLE_EVT 1     /* HH enabled */
+#define BTA_HH_DISABLE_EVT 2    /* HH disabled */
+#define BTA_HH_OPEN_EVT 3       /* connection opened */
+#define BTA_HH_CLOSE_EVT 4      /* connection closed */
+#define BTA_HH_GET_RPT_EVT 5    /* BTA_HhGetReport callback */
+#define BTA_HH_SET_RPT_EVT 6    /* BTA_HhSetReport callback */
+#define BTA_HH_GET_PROTO_EVT 7  /* BTA_GetProtoMode callback */
+#define BTA_HH_SET_PROTO_EVT 8  /* BTA_HhSetProtoMode callback */
+#define BTA_HH_GET_IDLE_EVT 9   /* BTA_HhGetIdle comes callback */
+#define BTA_HH_SET_IDLE_EVT 10  /* BTA_HhSetIdle finish callback */
+#define BTA_HH_GET_DSCP_EVT 11  /* Get report descriptor */
+#define BTA_HH_ADD_DEV_EVT 12   /* Add Device callback */
+#define BTA_HH_RMV_DEV_EVT 13   /* remove device finished */
+#define BTA_HH_VC_UNPLUG_EVT 14 /* virtually unplugged */
 #define BTA_HH_DATA_EVT 15
 #define BTA_HH_API_ERR_EVT 16     /* API error is caught */
 #define BTA_HH_UPDATE_SCPP_EVT 17 /* update scan paramter complete */
@@ -145,24 +147,46 @@ inline tBTA_HH_STATUS to_bta_hh_status(uint32_t status) {
 
 inline std::string bta_hh_status_text(const tBTA_HH_STATUS& status) {
   switch (status) {
-    CASE_RETURN_TEXT(BTA_HH_OK);
-    CASE_RETURN_TEXT(BTA_HH_HS_HID_NOT_READY);
-    CASE_RETURN_TEXT(BTA_HH_HS_INVALID_RPT_ID);
-    CASE_RETURN_TEXT(BTA_HH_HS_TRANS_NOT_SPT);
-    CASE_RETURN_TEXT(BTA_HH_HS_INVALID_PARAM);
-    CASE_RETURN_TEXT(BTA_HH_HS_ERROR);
-    CASE_RETURN_TEXT(BTA_HH_ERR);
-    CASE_RETURN_TEXT(BTA_HH_ERR_SDP);
-    CASE_RETURN_TEXT(BTA_HH_ERR_PROTO);
-    CASE_RETURN_TEXT(BTA_HH_ERR_DB_FULL);
-    CASE_RETURN_TEXT(BTA_HH_ERR_TOD_UNSPT);
-    CASE_RETURN_TEXT(BTA_HH_ERR_NO_RES);
-    CASE_RETURN_TEXT(BTA_HH_ERR_AUTH_FAILED);
-    CASE_RETURN_TEXT(BTA_HH_ERR_HDL);
-    CASE_RETURN_TEXT(BTA_HH_ERR_SEC);
-    default:
-      return base::StringPrintf("UNKNOWN[%hhu]", status);
+    CASE_RETURN_STRING(BTA_HH_OK);
+    CASE_RETURN_STRING(BTA_HH_HS_HID_NOT_READY);
+    CASE_RETURN_STRING(BTA_HH_HS_INVALID_RPT_ID);
+    CASE_RETURN_STRING(BTA_HH_HS_TRANS_NOT_SPT);
+    CASE_RETURN_STRING(BTA_HH_HS_INVALID_PARAM);
+    CASE_RETURN_STRING(BTA_HH_HS_ERROR);
+    CASE_RETURN_STRING(BTA_HH_ERR);
+    CASE_RETURN_STRING(BTA_HH_ERR_SDP);
+    CASE_RETURN_STRING(BTA_HH_ERR_PROTO);
+    CASE_RETURN_STRING(BTA_HH_ERR_DB_FULL);
+    CASE_RETURN_STRING(BTA_HH_ERR_TOD_UNSPT);
+    CASE_RETURN_STRING(BTA_HH_ERR_NO_RES);
+    CASE_RETURN_STRING(BTA_HH_ERR_AUTH_FAILED);
+    CASE_RETURN_STRING(BTA_HH_ERR_HDL);
+    CASE_RETURN_STRING(BTA_HH_ERR_SEC);
+    CASE_RETURN_STRING(BTA_HH_HS_SERVICE_CHANGED);
   }
+  RETURN_UNKNOWN_TYPE_STRING(tBTA_HH_STATUS, status);
+}
+
+inline std::string bta_hh_event_text(uint16_t event) {
+  switch (event) {
+    CASE_RETURN_STRING(BTA_HH_EMPTY_EVT);
+    CASE_RETURN_STRING(BTA_HH_ENABLE_EVT);
+    CASE_RETURN_STRING(BTA_HH_DISABLE_EVT);
+    CASE_RETURN_STRING(BTA_HH_OPEN_EVT);
+    CASE_RETURN_STRING(BTA_HH_CLOSE_EVT);
+    CASE_RETURN_STRING(BTA_HH_GET_DSCP_EVT);
+    CASE_RETURN_STRING(BTA_HH_GET_PROTO_EVT);
+    CASE_RETURN_STRING(BTA_HH_GET_RPT_EVT);
+    CASE_RETURN_STRING(BTA_HH_GET_IDLE_EVT);
+    CASE_RETURN_STRING(BTA_HH_SET_PROTO_EVT);
+    CASE_RETURN_STRING(BTA_HH_SET_RPT_EVT);
+    CASE_RETURN_STRING(BTA_HH_SET_IDLE_EVT);
+    CASE_RETURN_STRING(BTA_HH_VC_UNPLUG_EVT);
+    CASE_RETURN_STRING(BTA_HH_ADD_DEV_EVT);
+    CASE_RETURN_STRING(BTA_HH_RMV_DEV_EVT);
+    CASE_RETURN_STRING(BTA_HH_API_ERR_EVT);
+  }
+  RETURN_UNKNOWN_TYPE_STRING(bta_hh_event, event);
 }
 
 typedef uint16_t tBTA_HH_ATTR_MASK;
@@ -236,7 +260,6 @@ typedef struct {
   tAclLinkSpec link_spec; /* HID device ACL link specification */
   tBTA_HH_STATUS status; /* operation status         */
   uint8_t handle;        /* device handle            */
-  bool le_hid;           /* is LE devices? */
   bool scps_supported;   /* scan parameter service supported */
   uint8_t sub_class;     /* Cod sub class */
   uint16_t attr_mask;    /* attribute mask */
@@ -317,6 +340,23 @@ typedef union {
                                       BTA_HH_GET_PROTO_EVT
                                       BTA_HH_GET_IDLE_EVT */
 } tBTA_HH;
+
+/**
+ * Android Headtracker Service UUIDs
+ */
+#define ANDROID_HEADTRACKER_SERVICE_UUID_STRING \
+  "109b862f-50e3-45cc-8ea1-ac62de4846d1"
+#define ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING \
+  "b4eb9919-a910-46a2-a9dd-fec2525196fd"
+#define ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING \
+  "8584cbb5-2d58-45a3-ab9d-583e0958b067"
+#define ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING \
+  "e66dd173-b2ae-4f5a-ae16-0162af8038ae"
+
+extern const bluetooth::Uuid ANDROID_HEADTRACKER_SERVICE_UUID;
+extern const bluetooth::Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID;
+extern const bluetooth::Uuid ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID;
+extern const bluetooth::Uuid ANDROID_HEADTRACKER_REPORT_CHARAC_UUID;
 
 /* BTA HH callback function */
 typedef void(tBTA_HH_CBACK)(tBTA_HH_EVT event, tBTA_HH* p_data);

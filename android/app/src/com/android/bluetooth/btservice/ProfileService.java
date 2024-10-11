@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.btservice;
 
-
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.RequiresPermission;
@@ -32,10 +31,8 @@ import com.android.bluetooth.BluetoothMetricsProto;
 
 /** Base class for a background service that runs a Bluetooth profile */
 public abstract class ProfileService extends ContextWrapper {
-    private static final boolean DBG = false;
 
-    public static final String BLUETOOTH_PERM =
-            android.Manifest.permission.BLUETOOTH;
+    public static final String BLUETOOTH_PERM = android.Manifest.permission.BLUETOOTH;
     public static final String BLUETOOTH_PRIVILEGED =
             android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
@@ -45,7 +42,6 @@ public abstract class ProfileService extends ContextWrapper {
 
     private final IProfileServiceBinder mBinder;
     private final String mName;
-    private AdapterService mAdapterService;
     private boolean mAvailable = false;
     private volatile boolean mTestModeEnabled = false;
 
@@ -73,7 +69,7 @@ public abstract class ProfileService extends ContextWrapper {
     protected abstract IProfileServiceBinder initBinder();
 
     /** Start service */
-    public abstract void start();
+    public void start() {}
 
     /** Stop service */
     public abstract void stop();
@@ -91,9 +87,7 @@ public abstract class ProfileService extends ContextWrapper {
     protected ProfileService(Context ctx) {
         super(ctx);
         mName = getName();
-        if (DBG) {
-            Log.d(mName, "Service created");
-        }
+        Log.d(mName, "Service created");
         mBinder = requireNonNull(initBinder(), "Binder null is not allowed for " + mName);
     }
 
@@ -103,10 +97,10 @@ public abstract class ProfileService extends ContextWrapper {
     }
 
     /**
-     * Set the availability of an owned/managed component (Service, Activity, Provider, etc.)
-     * using a string class name assumed to be in the Bluetooth package.
+     * Set the availability of an owned/managed component (Service, Activity, Provider, etc.) using
+     * a string class name assumed to be in the Bluetooth package.
      *
-     * It's expected that profiles can have a set of components that they may use to provide
+     * <p>It's expected that profiles can have a set of components that they may use to provide
      * features or interact with other services/the user. Profiles are expected to enable those
      * components when they start, and disable them when they stop.
      *
@@ -115,10 +109,7 @@ public abstract class ProfileService extends ContextWrapper {
      */
     @RequiresPermission(android.Manifest.permission.CHANGE_COMPONENT_ENABLED_STATE)
     protected void setComponentAvailable(String className, boolean enable) {
-        if (DBG) {
-            Log.d(mName, "setComponentAvailable(className=" + className + ", enable=" + enable
-                    + ")");
-        }
+        Log.d(mName, "setComponentAvailable(className=" + className + ", enable=" + enable + ")");
         if (className == null) {
             return;
         }
@@ -129,7 +120,7 @@ public abstract class ProfileService extends ContextWrapper {
     /**
      * Set the availability of an owned/managed component (Service, Activity, Provider, etc.)
      *
-     * It's expected that profiles can have a set of components that they may use to provide
+     * <p>It's expected that profiles can have a set of components that they may use to provide
      * features or interact with other services/the user. Profiles are expected to enable those
      * components when they start, and disable them when they stop.
      *
@@ -138,18 +129,17 @@ public abstract class ProfileService extends ContextWrapper {
      */
     @RequiresPermission(android.Manifest.permission.CHANGE_COMPONENT_ENABLED_STATE)
     protected void setComponentAvailable(ComponentName component, boolean enable) {
-        if (DBG) {
-            Log.d(mName, "setComponentAvailable(component=" + component + ", enable=" + enable
-                    + ")");
-        }
+        Log.d(mName, "setComponentAvailable(component=" + component + ", enable=" + enable + ")");
         if (component == null) {
             return;
         }
-        getPackageManager().setComponentEnabledSetting(
-                component,
-                enable ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                       : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.DONT_KILL_APP | PackageManager.SYNCHRONOUS);
+        getPackageManager()
+                .setComponentEnabledSetting(
+                        component,
+                        enable
+                                ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                                : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP | PackageManager.SYNCHRONOUS);
     }
 
     /**

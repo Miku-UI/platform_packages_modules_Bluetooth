@@ -41,9 +41,7 @@ void bta_hh_co_close(btif_hh_device_t* /* p_dev */) {
   inc_func_call_count(__func__);
 }
 void bta_hh_co_data(uint8_t /* dev_handle */, uint8_t* /* p_rpt */,
-                    uint16_t /* len */, tBTA_HH_PROTO_MODE /* mode */,
-                    uint8_t /* sub_class */, uint8_t /* ctry_code */,
-                    const tAclLinkSpec& /* link_spec */, uint8_t /* app_id */) {
+                    uint16_t /* len */) {
   inc_func_call_count(__func__);
 }
 void bta_hh_co_get_rpt_rsp(uint8_t /* dev_handle */, uint8_t /* status */,
@@ -51,7 +49,8 @@ void bta_hh_co_get_rpt_rsp(uint8_t /* dev_handle */, uint8_t /* status */,
   inc_func_call_count(__func__);
 }
 bool bta_hh_co_open(uint8_t /* dev_handle */, uint8_t /* sub_class */,
-                    tBTA_HH_ATTR_MASK /* attr_mask */, uint8_t /* app_id */) {
+                    tBTA_HH_ATTR_MASK /* attr_mask */, uint8_t /* app_id */,
+                    tAclLinkSpec& /* link_spec */) {
   inc_func_call_count(__func__);
   return true;
 }

@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.hid;
 
-import android.bluetooth.BluetoothProfile;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
@@ -25,7 +24,6 @@ import com.android.internal.annotations.VisibleForTesting;
 /** Provides Bluetooth Hid Host profile, as a service in the Bluetooth application. */
 public class HidHostNativeInterface {
     private static final String TAG = HidHostNativeInterface.class.getSimpleName();
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
     private HidHostService mHidHostService;
 
@@ -60,59 +58,69 @@ public class HidHostNativeInterface {
         cleanupNative();
     }
 
-    boolean connectHid(byte[] address) {
-        return connectHidNative(address);
+    boolean connectHid(byte[] address, int addressType, int transport) {
+        return connectHidNative(address, addressType, transport);
     }
 
-    boolean disconnectHid(byte[] address) {
-        return disconnectHidNative(address);
+    boolean disconnectHid(
+            byte[] address, int addressType, int transport, boolean reconnectAllowed) {
+        return disconnectHidNative(address, addressType, transport, reconnectAllowed);
     }
 
-    boolean getProtocolMode(byte[] address) {
-        return getProtocolModeNative(address);
+    boolean getProtocolMode(byte[] address, int addressType, int transport) {
+        return getProtocolModeNative(address, addressType, transport);
     }
 
-    boolean virtualUnPlug(byte[] address) {
-        return virtualUnPlugNative(address);
+    boolean virtualUnPlug(byte[] address, int addressType, int transport) {
+        return virtualUnPlugNative(address, addressType, transport);
     }
 
-    boolean setProtocolMode(byte[] address, byte protocolMode) {
-        return setProtocolModeNative(address, protocolMode);
+    boolean setProtocolMode(byte[] address, int addressType, int transport, byte protocolMode) {
+        return setProtocolModeNative(address, addressType, transport, protocolMode);
     }
 
-    boolean getReport(byte[] address, byte reportType, byte reportId, int bufferSize) {
-        return getReportNative(address, reportType, reportId, bufferSize);
+    boolean getReport(
+            byte[] address,
+            int addressType,
+            int transport,
+            byte reportType,
+            byte reportId,
+            int bufferSize) {
+        return getReportNative(address, addressType, transport, reportType, reportId, bufferSize);
     }
 
-    boolean setReport(byte[] address, byte reportType, String report) {
-        return setReportNative(address, reportType, report);
+    boolean setReport(
+            byte[] address, int addressType, int transport, byte reportType, String report) {
+        return setReportNative(address, addressType, transport, reportType, report);
     }
 
-    boolean sendData(byte[] address, String report) {
-        return sendDataNative(address, report);
+    boolean sendData(byte[] address, int addressType, int transport, String report) {
+        return sendDataNative(address, addressType, transport, report);
     }
 
-    boolean setIdleTime(byte[] address, byte idleTime) {
-        return setIdleTimeNative(address, idleTime);
+    boolean setIdleTime(byte[] address, int addressType, int transport, byte idleTime) {
+        return setIdleTimeNative(address, addressType, transport, idleTime);
     }
 
-    boolean getIdleTime(byte[] address) {
-        return getIdleTimeNative(address);
+    boolean getIdleTime(byte[] address, int addressType, int transport) {
+        return getIdleTimeNative(address, addressType, transport);
     }
 
     private static int convertHalState(int halState) {
         switch (halState) {
             case CONN_STATE_CONNECTED:
-                return BluetoothProfile.STATE_CONNECTED;
+                return HidHostService.STATE_CONNECTED;
             case CONN_STATE_CONNECTING:
-                return BluetoothProfile.STATE_CONNECTING;
+                return HidHostService.STATE_CONNECTING;
             case CONN_STATE_DISCONNECTED:
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return HidHostService.STATE_DISCONNECTED;
             case CONN_STATE_DISCONNECTING:
-                return BluetoothProfile.STATE_DISCONNECTING;
+                return HidHostService.STATE_DISCONNECTING;
+            case CONN_STATE_ACCEPTING:
+                return HidHostService.STATE_ACCEPTING;
             default:
                 Log.e(TAG, "bad hid connection state: " + halState);
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return HidHostService.STATE_DISCONNECTED;
         }
     }
 
@@ -120,34 +128,36 @@ public class HidHostNativeInterface {
     /*********************************** callbacks from native ************************************/
     /**********************************************************************************************/
 
-    private void onConnectStateChanged(byte[] address, int state) {
-        if (DBG) Log.d(TAG, "onConnectStateChanged: state=" + state);
-        mHidHostService.onConnectStateChanged(address, convertHalState(state));
+    private void onConnectStateChanged(byte[] address, int addressType, int transport, int state) {
+        Log.d(TAG, "onConnectStateChanged: state=" + state);
+        mHidHostService.onConnectStateChanged(
+                address, addressType, transport, convertHalState(state));
     }
 
-    private void onGetProtocolMode(byte[] address, int mode) {
-        if (DBG) Log.d(TAG, "onGetProtocolMode()");
-        mHidHostService.onGetProtocolMode(address, mode);
+    private void onGetProtocolMode(byte[] address, int addressType, int transport, int mode) {
+        Log.d(TAG, "onGetProtocolMode()");
+        mHidHostService.onGetProtocolMode(address, addressType, transport, mode);
     }
 
-    private void onGetReport(byte[] address, byte[] report, int rptSize) {
-        if (DBG) Log.d(TAG, "onGetReport()");
-        mHidHostService.onGetReport(address, report, rptSize);
+    private void onGetReport(
+            byte[] address, int addressType, int transport, byte[] report, int rptSize) {
+        Log.d(TAG, "onGetReport()");
+        mHidHostService.onGetReport(address, addressType, transport, report, rptSize);
     }
 
-    private void onHandshake(byte[] address, int status) {
-        if (DBG) Log.d(TAG, "onHandshake: status=" + status);
-        mHidHostService.onHandshake(address, status);
+    private void onHandshake(byte[] address, int addressType, int transport, int status) {
+        Log.d(TAG, "onHandshake: status=" + status);
+        mHidHostService.onHandshake(address, addressType, transport, status);
     }
 
-    private void onVirtualUnplug(byte[] address, int status) {
-        if (DBG) Log.d(TAG, "onVirtualUnplug: status=" + status);
-        mHidHostService.onVirtualUnplug(address, status);
+    private void onVirtualUnplug(byte[] address, int addressType, int transport, int status) {
+        Log.d(TAG, "onVirtualUnplug: status=" + status);
+        mHidHostService.onVirtualUnplug(address, addressType, transport, status);
     }
 
-    private void onGetIdleTime(byte[] address, int idleTime) {
-        if (DBG) Log.d(TAG, "onGetIdleTime()");
-        mHidHostService.onGetIdleTime(address, idleTime);
+    private void onGetIdleTime(byte[] address, int addressType, int transport, int idleTime) {
+        Log.d(TAG, "onGetIdleTime()");
+        mHidHostService.onGetIdleTime(address, addressType, transport, idleTime);
     }
 
     /**********************************************************************************************/
@@ -161,29 +171,40 @@ public class HidHostNativeInterface {
     private static final int CONN_STATE_CONNECTING = 1;
     private static final int CONN_STATE_DISCONNECTED = 2;
     private static final int CONN_STATE_DISCONNECTING = 3;
+    private static final int CONN_STATE_ACCEPTING = 4;
 
     private native void initializeNative();
 
     private native void cleanupNative();
 
-    private native boolean connectHidNative(byte[] btAddress);
+    private native boolean connectHidNative(byte[] btAddress, int addressType, int transport);
 
-    private native boolean disconnectHidNative(byte[] btAddress);
+    private native boolean disconnectHidNative(
+            byte[] btAddress, int addressType, int transport, boolean reconnectAllowed);
 
-    private native boolean getProtocolModeNative(byte[] btAddress);
+    private native boolean getProtocolModeNative(byte[] btAddress, int addressType, int transport);
 
-    private native boolean virtualUnPlugNative(byte[] btAddress);
+    private native boolean virtualUnPlugNative(byte[] btAddress, int addressType, int transport);
 
-    private native boolean setProtocolModeNative(byte[] btAddress, byte protocolMode);
+    private native boolean setProtocolModeNative(
+            byte[] btAddress, int addressType, int transport, byte protocolMode);
 
     private native boolean getReportNative(
-            byte[] btAddress, byte reportType, byte reportId, int bufferSize);
+            byte[] btAddress,
+            int addressType,
+            int transport,
+            byte reportType,
+            byte reportId,
+            int bufferSize);
 
-    private native boolean setReportNative(byte[] btAddress, byte reportType, String report);
+    private native boolean setReportNative(
+            byte[] btAddress, int addressType, int transport, byte reportType, String report);
 
-    private native boolean sendDataNative(byte[] btAddress, String report);
+    private native boolean sendDataNative(
+            byte[] btAddress, int addressType, int transport, String report);
 
-    private native boolean setIdleTimeNative(byte[] btAddress, byte idleTime);
+    private native boolean setIdleTimeNative(
+            byte[] btAddress, int addressType, int transport, byte idleTime);
 
-    private native boolean getIdleTimeNative(byte[] btAddress);
+    private native boolean getIdleTimeNative(byte[] btAddress, int addressType, int transport);
 }

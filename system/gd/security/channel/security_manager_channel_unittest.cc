@@ -17,6 +17,7 @@
  */
 #include "security/channel/security_manager_channel.h"
 
+#include <bluetooth/log.h>
 #include <gtest/gtest.h>
 
 #include "hci/address.h"
@@ -151,7 +152,7 @@ class SecurityManagerChannelCallback : public ISecurityManagerChannelListener {
 
   void OnHciEventReceived(EventView packet) override {
     auto event = EventView::Create(packet);
-    ASSERT_LOG(event.IsValid(), "Received invalid packet");
+    log::assert_that(event.IsValid(), "Received invalid packet");
     const hci::EventCode code = event.GetEventCode();
     switch (code) {
       case hci::EventCode::CHANGE_CONNECTION_LINK_KEY_COMPLETE:
@@ -203,13 +204,13 @@ class SecurityManagerChannelCallback : public ISecurityManagerChannelListener {
         OnReceive(hci::AddressWithType(), hci::UserPasskeyRequestView::Create(event));
         break;
       default:
-        ASSERT_LOG(false, "Cannot handle received packet: %s", hci::EventCodeText(code).c_str());
+        log::fatal("Cannot handle received packet: {}", hci::EventCodeText(code));
         break;
     }
   }
 
   void OnConnectionClosed(hci::Address address) override {
-    LOG_INFO("Called");
+    log::info("Called");
   }
 };
 

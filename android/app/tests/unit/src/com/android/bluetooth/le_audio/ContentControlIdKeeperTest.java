@@ -30,10 +30,12 @@ import com.android.bluetooth.btservice.ServiceFactory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.Map;
 import java.util.UUID;
@@ -41,14 +43,13 @@ import java.util.UUID;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class ContentControlIdKeeperTest {
-    @Mock
-    ServiceFactory mServiceFactoryMock;
-    @Mock
-    LeAudioService mLeAudioServiceMock;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock ServiceFactory mServiceFactoryMock;
+    @Mock LeAudioService mLeAudioServiceMock;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
 
         doReturn(mLeAudioServiceMock).when(mServiceFactoryMock).getLeAudioService();
         ContentControlIdKeeper.initForTesting(mServiceFactoryMock);
@@ -61,33 +62,29 @@ public class ContentControlIdKeeperTest {
 
     public int testCcidAcquire(ParcelUuid uuid, int context, int expectedListSize) {
         int ccid = ContentControlIdKeeper.acquireCcid(uuid, context);
-        Assert.assertNotEquals(
-                ccid,
-                ContentControlIdKeeper.CCID_INVALID);
+        Assert.assertNotEquals(ccid, ContentControlIdKeeper.CCID_INVALID);
 
-        verify(mLeAudioServiceMock).setCcidInformation(eq(uuid),
-                        eq(ccid), eq(context));
+        verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(context));
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
                 ContentControlIdKeeper.getUuidToCcidContextPairMap();
         Assert.assertEquals(expectedListSize, uuidToCcidContextPair.size());
         Assert.assertTrue(uuidToCcidContextPair.containsKey(uuid));
-        Assert.assertEquals(ccid, (long)uuidToCcidContextPair.get(uuid).first);
-        Assert.assertEquals(context, (long)uuidToCcidContextPair.get(uuid).second);
+        Assert.assertEquals(ccid, (long) uuidToCcidContextPair.get(uuid).first);
+        Assert.assertEquals(context, (long) uuidToCcidContextPair.get(uuid).second);
 
         return ccid;
     }
 
     public void testCcidRelease(ParcelUuid uuid, int ccid, int expectedListSize) {
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
-                        ContentControlIdKeeper.getUuidToCcidContextPairMap();
+                ContentControlIdKeeper.getUuidToCcidContextPairMap();
         Assert.assertTrue(uuidToCcidContextPair.containsKey(uuid));
 
         ContentControlIdKeeper.releaseCcid(ccid);
         uuidToCcidContextPair = ContentControlIdKeeper.getUuidToCcidContextPairMap();
         Assert.assertFalse(uuidToCcidContextPair.containsKey(uuid));
 
-        verify(mLeAudioServiceMock).setCcidInformation(eq(uuid),
-                eq(ccid), eq(0));
+        verify(mLeAudioServiceMock).setCcidInformation(eq(uuid), eq(ccid), eq(0));
 
         Assert.assertEquals(expectedListSize, uuidToCcidContextPair.size());
     }
@@ -108,8 +105,12 @@ public class ContentControlIdKeeperTest {
     @Test
     public void testAcquireReleaseCcidForCompoundContext() {
         ParcelUuid uuid = new ParcelUuid(UUID.randomUUID());
-        int ccid = testCcidAcquire(uuid,
-                BluetoothLeAudio.CONTEXT_TYPE_MEDIA | BluetoothLeAudio.CONTEXT_TYPE_RINGTONE, 1);
+        int ccid =
+                testCcidAcquire(
+                        uuid,
+                        BluetoothLeAudio.CONTEXT_TYPE_MEDIA
+                                | BluetoothLeAudio.CONTEXT_TYPE_RINGTONE,
+                        1);
         testCcidRelease(uuid, ccid, 0);
     }
 
@@ -120,8 +121,8 @@ public class ContentControlIdKeeperTest {
         int ccid = ContentControlIdKeeper.acquireCcid(uuid, 0);
         Assert.assertEquals(ccid, ContentControlIdKeeper.CCID_INVALID);
 
-        verify(mLeAudioServiceMock,
-                times(0)).setCcidInformation(any(ParcelUuid.class), any(int.class), any(int.class));
+        verify(mLeAudioServiceMock, times(0))
+                .setCcidInformation(any(ParcelUuid.class), any(int.class), any(int.class));
         Map<ParcelUuid, Pair<Integer, Integer>> uuidToCcidContextPair =
                 ContentControlIdKeeper.getUuidToCcidContextPairMap();
         Assert.assertEquals(0, uuidToCcidContextPair.size());
@@ -137,5 +138,4 @@ public class ContentControlIdKeeperTest {
         // This is implementation specific but verifies that the previous CCID was recycled
         Assert.assertEquals(ccid_one, ccid_two);
     }
-
 }

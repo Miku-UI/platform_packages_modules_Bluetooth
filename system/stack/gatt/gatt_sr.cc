@@ -21,7 +21,7 @@
  *  this file contains the GATT server functions
  *
  ******************************************************************************/
-#include <base/logging.h>
+
 #include <bluetooth/log.h>
 #include <string.h>
 
@@ -30,15 +30,13 @@
 #include "gatt_int.h"
 #include "hardware/bt_gatt_types.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
 #include "l2c_api.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/eatt/eatt.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cdefs.h"
 #include "types/bluetooth/uuid.h"
 
 #define GATT_MTU_REQ_MIN_LEN 2
@@ -69,8 +67,7 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
     EattChannel* channel =
         EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
       return 0;
     }
 
@@ -115,8 +112,7 @@ bool gatt_sr_cmd_empty(tGATT_TCB& tcb, uint16_t cid) {
   EattChannel* channel =
       EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
   if (channel == nullptr) {
-    log::warn("{}, cid 0x{:02x} already disconnected",
-              ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+    log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
     return false;
   }
 
@@ -141,8 +137,7 @@ void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {
     EattChannel* channel =
         EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
     if (channel == nullptr) {
-      log::warn("{}, cid 0x{:02x} already disconnected",
-                ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
       return;
     }
 
@@ -150,7 +145,7 @@ void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {
   }
 
   /* Double check in case any buffers are queued */
-  log::verbose("gatt_dequeue_sr_cmd cid: {}", loghex(cid));
+  log::verbose("gatt_dequeue_sr_cmd cid: 0x{:x}", cid);
   if (p_cmd->p_rsp_msg)
     log::error("free tcb.sr_cmd.p_rsp_msg = {}", fmt::ptr(p_cmd->p_rsp_msg));
   osi_free_and_reset((void**)&p_cmd->p_rsp_msg);
@@ -308,9 +303,8 @@ static bool process_read_multi_rsp(tGATT_SR_CMD* p_cmd, tGATT_STATUS status,
  *
  ******************************************************************************/
 tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if,
-                                     UNUSED_ATTR uint32_t trans_id,
-                                     uint8_t op_code, tGATT_STATUS status,
-                                     tGATTS_RSP* p_msg,
+                                     uint32_t /* trans_id */, uint8_t op_code,
+                                     tGATT_STATUS status, tGATTS_RSP* p_msg,
                                      tGATT_SR_CMD* sr_res_p) {
   tGATT_STATUS ret_code = GATT_SUCCESS;
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, sr_res_p->cid);
@@ -447,8 +441,7 @@ void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
 
   tGATT_READ_MULTI* multi_req = gatt_sr_get_read_multi(tcb, cid);
   if (multi_req == nullptr) {
-    log::error("Could not proceed request. {}, 0x{:02x}",
-               ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+    log::error("Could not proceed request. {}, 0x{:02x}", tcb.peer_bda, cid);
     return;
   }
   multi_req->num_handles = 0;
@@ -505,7 +498,7 @@ void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
       if (sr_cmd_p == nullptr) {
         log::error(
             "Could not send response on CID were request arrived. {}, 0x{:02x}",
-            ADDRESS_TO_LOGGABLE_CSTR(tcb.peer_bda), cid);
+            tcb.peer_bda, cid);
         return;
       }
       gatt_sr_reset_cback_cnt(tcb,
@@ -551,8 +544,7 @@ void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
  ******************************************************************************/
 static tGATT_STATUS gatt_build_primary_service_rsp(
     BT_HDR* p_msg, tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
-    uint16_t s_hdl, uint16_t e_hdl, UNUSED_ATTR uint8_t* p_data,
-    const Uuid& value) {
+    uint16_t s_hdl, uint16_t e_hdl, uint8_t* /* p_data */, const Uuid& value) {
   tGATT_STATUS status = GATT_NOT_FOUND;
   uint8_t handle_len = 4;
 
@@ -694,7 +686,7 @@ static tGATT_STATUS gatts_validate_packet_format(uint8_t op_code, uint16_t& len,
   if (len < 2) return GATT_INVALID_PDU;
 
   /* parse uuid now */
-  CHECK(p_uuid);
+  log::assert_that(p_uuid != nullptr, "assert failed: p_uuid != nullptr");
   uint16_t uuid_len = (op_code == GATT_REQ_FIND_TYPE_VALUE) ? 2 : len;
   if (!gatt_parse_uuid_from_cmd(p_uuid, uuid_len, &p)) {
     log::verbose("Bad UUID");
@@ -862,7 +854,7 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len,
   gatt_sr_msg.mtu = gatt_get_local_mtu();
 
   log::info("MTU {} request from remote ({}), resulted MTU {}", mtu,
-            tcb.peer_bda.ToString(), tcb.payload_size);
+            tcb.peer_bda, tcb.payload_size);
 
   BTM_SetBleDataLength(tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD);
 
@@ -1233,8 +1225,11 @@ static void gatts_chk_pending_ind(tGATT_TCB& tcb) {
   tGATT_VALUE* p_buf =
       (tGATT_VALUE*)fixed_queue_try_peek_first(tcb.pending_ind_q);
   if (p_buf != NULL) {
-    GATTS_HandleValueIndication(p_buf->conn_id, p_buf->handle, p_buf->len,
-                                p_buf->value);
+    if (GATTS_HandleValueIndication(p_buf->conn_id, p_buf->handle, p_buf->len,
+                                    p_buf->value) != GATT_SUCCESS) {
+      log::warn("Unable to send GATT server handle value conn_id:{}",
+                p_buf->conn_id);
+    }
     osi_free(fixed_queue_try_remove_from_queue(tcb.pending_ind_q, p_buf));
   }
 }
@@ -1369,9 +1364,8 @@ static bool gatts_process_db_out_of_sync(tGATT_TCB& tcb, uint16_t cid,
       gatt_send_error_rsp(tcb, cid, GATT_DATABASE_OUT_OF_SYNC, op_code, 0x0000,
                           false);
     }
-    log::info("database out of sync, device={}, op_code={}, should_rsp={}",
-              ADDRESS_TO_LOGGABLE_STR(tcb.peer_bda), loghex((uint16_t)op_code),
-              should_rsp);
+    log::info("database out of sync, device={}, op_code=0x{:x}, should_rsp={}",
+              tcb.peer_bda, (uint16_t)op_code, should_rsp);
     gatt_sr_update_cl_status(tcb, /* chg_aware= */ should_rsp);
   }
 

@@ -43,16 +43,17 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
-import com.android.bluetooth.x.com.android.modules.utils.SynchronousResultReceiver;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @MediumTest
 @RunWith(AndroidJUnit4.class)
@@ -66,6 +67,8 @@ public class PbapClientServiceTest {
     boolean mIsAdapterServiceSet;
     boolean mIsPbapClientServiceStarted;
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock private AdapterService mAdapterService;
 
     @Mock private DatabaseManager mDatabaseManager;
@@ -73,7 +76,6 @@ public class PbapClientServiceTest {
     @Before
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getTargetContext();
-        MockitoAnnotations.initMocks(this);
         TestUtils.setAdapterService(mAdapterService);
         mIsAdapterServiceSet = true;
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
@@ -126,15 +128,19 @@ public class PbapClientServiceTest {
 
     @Test
     public void testSetConnectionPolicy_withNullDevice_throwsIAE() {
-        assertThrows(IllegalArgumentException.class, () -> mService.setConnectionPolicy(
-                null, BluetoothProfile.CONNECTION_POLICY_ALLOWED));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        mService.setConnectionPolicy(
+                                null, BluetoothProfile.CONNECTION_POLICY_ALLOWED));
     }
 
     @Test
     public void testSetConnectionPolicy() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
         when(mDatabaseManager.setProfileConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.PBAP_CLIENT, connectionPolicy)).thenReturn(true);
+                        mRemoteDevice, BluetoothProfile.PBAP_CLIENT, connectionPolicy))
+                .thenReturn(true);
 
         assertThat(mService.setConnectionPolicy(mRemoteDevice, connectionPolicy)).isTrue();
     }
@@ -148,7 +154,8 @@ public class PbapClientServiceTest {
     public void testGetConnectionPolicy() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
         when(mDatabaseManager.getProfileConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.PBAP_CLIENT)).thenReturn(connectionPolicy);
+                        mRemoteDevice, BluetoothProfile.PBAP_CLIENT))
+                .thenReturn(connectionPolicy);
 
         assertThat(mService.getConnectionPolicy(mRemoteDevice)).isEqualTo(connectionPolicy);
     }
@@ -162,7 +169,8 @@ public class PbapClientServiceTest {
     public void testConnect_whenPolicyIsForbidden_returnsFalse() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
         when(mDatabaseManager.getProfileConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.PBAP_CLIENT)).thenReturn(connectionPolicy);
+                        mRemoteDevice, BluetoothProfile.PBAP_CLIENT))
+                .thenReturn(connectionPolicy);
 
         assertThat(mService.connect(mRemoteDevice)).isFalse();
     }
@@ -171,7 +179,8 @@ public class PbapClientServiceTest {
     public void testConnect_whenPolicyIsAllowed_returnsTrue() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
         when(mDatabaseManager.getProfileConnectionPolicy(
-                mRemoteDevice, BluetoothProfile.PBAP_CLIENT)).thenReturn(connectionPolicy);
+                        mRemoteDevice, BluetoothProfile.PBAP_CLIENT))
+                .thenReturn(connectionPolicy);
 
         assertThat(mService.connect(mRemoteDevice)).isTrue();
     }
@@ -228,7 +237,7 @@ public class PbapClientServiceTest {
         PbapClientService.BluetoothPbapClientBinder binder =
                 new PbapClientService.BluetoothPbapClientBinder(mockService);
 
-        binder.connect(mRemoteDevice, null, SynchronousResultReceiver.get());
+        binder.connect(mRemoteDevice, null);
 
         verify(mockService).connect(mRemoteDevice);
     }
@@ -239,7 +248,7 @@ public class PbapClientServiceTest {
         PbapClientService.BluetoothPbapClientBinder binder =
                 new PbapClientService.BluetoothPbapClientBinder(mockService);
 
-        binder.disconnect(mRemoteDevice, null, SynchronousResultReceiver.get());
+        binder.disconnect(mRemoteDevice, null);
 
         verify(mockService).disconnect(mRemoteDevice);
     }
@@ -250,7 +259,7 @@ public class PbapClientServiceTest {
         PbapClientService.BluetoothPbapClientBinder binder =
                 new PbapClientService.BluetoothPbapClientBinder(mockService);
 
-        binder.getConnectedDevices(null, SynchronousResultReceiver.get());
+        binder.getConnectedDevices(null);
 
         verify(mockService).getConnectedDevices();
     }
@@ -262,7 +271,7 @@ public class PbapClientServiceTest {
                 new PbapClientService.BluetoothPbapClientBinder(mockService);
 
         int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
-        binder.getDevicesMatchingConnectionStates(states, null, SynchronousResultReceiver.get());
+        binder.getDevicesMatchingConnectionStates(states, null);
 
         verify(mockService).getDevicesMatchingConnectionStates(states);
     }
@@ -273,7 +282,7 @@ public class PbapClientServiceTest {
         PbapClientService.BluetoothPbapClientBinder binder =
                 new PbapClientService.BluetoothPbapClientBinder(mockService);
 
-        binder.getConnectionState(mRemoteDevice, null, SynchronousResultReceiver.get());
+        binder.getConnectionState(mRemoteDevice, null);
 
         verify(mockService).getConnectionState(mRemoteDevice);
     }
@@ -285,8 +294,7 @@ public class PbapClientServiceTest {
                 new PbapClientService.BluetoothPbapClientBinder(mockService);
 
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        binder.setConnectionPolicy(mRemoteDevice, connectionPolicy,
-                null, SynchronousResultReceiver.get());
+        binder.setConnectionPolicy(mRemoteDevice, connectionPolicy, null);
 
         verify(mockService).setConnectionPolicy(mRemoteDevice, connectionPolicy);
     }
@@ -297,7 +305,7 @@ public class PbapClientServiceTest {
         PbapClientService.BluetoothPbapClientBinder binder =
                 new PbapClientService.BluetoothPbapClientBinder(mockService);
 
-        binder.getConnectionPolicy(mRemoteDevice, null, SynchronousResultReceiver.get());
+        binder.getConnectionPolicy(mRemoteDevice, null);
 
         verify(mockService).getConnectionPolicy(mRemoteDevice);
     }
@@ -360,8 +368,12 @@ public class PbapClientServiceTest {
                 BluetoothProfile.STATE_DISCONNECTED);
 
         ArgumentCaptor<Object> selectionArgsCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(methodProxy).contentResolverDelete(any(), eq(CallLog.Calls.CONTENT_URI), any(),
-                (String[]) selectionArgsCaptor.capture());
+        verify(methodProxy)
+                .contentResolverDelete(
+                        any(),
+                        eq(CallLog.Calls.CONTENT_URI),
+                        any(),
+                        (String[]) selectionArgsCaptor.capture());
 
         assertThat(((String[]) selectionArgsCaptor.getValue())[0])
                 .isEqualTo(mRemoteDevice.getAddress());

@@ -31,26 +31,26 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothHidDeviceCallback;
 import android.content.AttributionSource;
 
-import com.android.bluetooth.x.com.android.modules.utils.SynchronousResultReceiver;
-
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 public class BluetoothHidDeviceBinderTest {
 
     private static final String TEST_DEVICE_ADDRESS = "00:00:00:00:00:00";
 
-    @Mock
-    private HidDeviceService mService;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private HidDeviceService mService;
     private AttributionSource mAttributionSource;
     private BluetoothDevice mTestDevice;
     private HidDeviceService.BluetoothHidDeviceBinder mBinder;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         when(mService.isAvailable()).thenReturn(true);
         mBinder = new HidDeviceService.BluetoothHidDeviceBinder(mService);
         mAttributionSource = new AttributionSource.Builder(1).build();
@@ -70,39 +70,48 @@ public class BluetoothHidDeviceBinderTest {
         String provider = "test-provider";
         byte subclass = 1;
         byte[] descriptors = new byte[] {10};
-        BluetoothHidDeviceAppSdpSettings sdp = new BluetoothHidDeviceAppSdpSettings(
-                name, description, provider, subclass, descriptors);
+        BluetoothHidDeviceAppSdpSettings sdp =
+                new BluetoothHidDeviceAppSdpSettings(
+                        name, description, provider, subclass, descriptors);
 
         int tokenRate = 800;
         int tokenBucketSize = 9;
         int peakBandwidth = 10;
         int latency = 11250;
         int delayVariation = BluetoothHidDeviceAppQosSettings.MAX;
-        BluetoothHidDeviceAppQosSettings inQos = new BluetoothHidDeviceAppQosSettings(
-                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT, tokenRate,
-                tokenBucketSize, peakBandwidth, latency, delayVariation);
-        BluetoothHidDeviceAppQosSettings outQos = new BluetoothHidDeviceAppQosSettings(
-                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT, tokenRate,
-                tokenBucketSize, peakBandwidth, latency, delayVariation);
+        BluetoothHidDeviceAppQosSettings inQos =
+                new BluetoothHidDeviceAppQosSettings(
+                        BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                        tokenRate,
+                        tokenBucketSize,
+                        peakBandwidth,
+                        latency,
+                        delayVariation);
+        BluetoothHidDeviceAppQosSettings outQos =
+                new BluetoothHidDeviceAppQosSettings(
+                        BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                        tokenRate,
+                        tokenBucketSize,
+                        peakBandwidth,
+                        latency,
+                        delayVariation);
         IBluetoothHidDeviceCallback cb = mock(IBluetoothHidDeviceCallback.class);
 
-        mBinder.registerApp(sdp, inQos, outQos, cb, mAttributionSource,
-                SynchronousResultReceiver.get());
+        mBinder.registerApp(sdp, inQos, outQos, cb, mAttributionSource);
         verify(mService).registerApp(sdp, inQos, outQos, cb);
     }
 
     @Test
     public void unregisterApp() {
-        mBinder.unregisterApp(mAttributionSource, SynchronousResultReceiver.get());
+        mBinder.unregisterApp(mAttributionSource);
         verify(mService).unregisterApp();
     }
 
     @Test
     public void sendReport() {
         int id = 100;
-        byte[] data = new byte[] { 0x00,  0x01 };
-        mBinder.sendReport(mTestDevice, id, data, mAttributionSource,
-                SynchronousResultReceiver.get());
+        byte[] data = new byte[] {0x00, 0x01};
+        mBinder.sendReport(mTestDevice, id, data, mAttributionSource);
         verify(mService).sendReport(mTestDevice, id, data);
     }
 
@@ -110,70 +119,65 @@ public class BluetoothHidDeviceBinderTest {
     public void replyReport() {
         byte type = 0;
         byte id = 100;
-        byte[] data = new byte[] { 0x00,  0x01 };
-        mBinder.replyReport(mTestDevice, type, id, data, mAttributionSource,
-                SynchronousResultReceiver.get());
+        byte[] data = new byte[] {0x00, 0x01};
+        mBinder.replyReport(mTestDevice, type, id, data, mAttributionSource);
         verify(mService).replyReport(mTestDevice, type, id, data);
     }
 
     @Test
     public void unplug() {
-        mBinder.unplug(mTestDevice, mAttributionSource, SynchronousResultReceiver.get());
+        mBinder.unplug(mTestDevice, mAttributionSource);
         verify(mService).unplug(mTestDevice);
     }
 
     @Test
     public void connect() {
-        mBinder.connect(mTestDevice, mAttributionSource, SynchronousResultReceiver.get());
+        mBinder.connect(mTestDevice, mAttributionSource);
         verify(mService).connect(mTestDevice);
     }
 
     @Test
     public void disconnect() {
-        mBinder.disconnect(mTestDevice, mAttributionSource, SynchronousResultReceiver.get());
+        mBinder.disconnect(mTestDevice, mAttributionSource);
         verify(mService).disconnect(mTestDevice);
     }
 
     @Test
     public void setConnectionPolicy() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        mBinder.setConnectionPolicy(mTestDevice, connectionPolicy, mAttributionSource,
-                SynchronousResultReceiver.get());
+        mBinder.setConnectionPolicy(mTestDevice, connectionPolicy, mAttributionSource);
         verify(mService).setConnectionPolicy(mTestDevice, connectionPolicy);
     }
 
     @Test
     public void reportError() {
         byte error = -1;
-        mBinder.reportError(mTestDevice, error, mAttributionSource,
-                SynchronousResultReceiver.get());
+        mBinder.reportError(mTestDevice, error, mAttributionSource);
         verify(mService).reportError(mTestDevice, error);
     }
 
     @Test
     public void getConnectionState() {
-        mBinder.getConnectionState(mTestDevice, mAttributionSource,
-                SynchronousResultReceiver.get());
+        mBinder.getConnectionState(mTestDevice, mAttributionSource);
         verify(mService).getConnectionState(mTestDevice);
     }
 
     @Test
     public void getConnectedDevices() {
-        mBinder.getConnectedDevices(mAttributionSource, SynchronousResultReceiver.get());
+        mBinder.getConnectedDevices(mAttributionSource);
         verify(mService).getDevicesMatchingConnectionStates(any(int[].class));
     }
 
     @Test
     public void getDevicesMatchingConnectionStates() {
-        int[] states = new int[] { BluetoothProfile.STATE_CONNECTED };
-        mBinder.getDevicesMatchingConnectionStates(states, mAttributionSource,
-                SynchronousResultReceiver.get());
+        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
+        mBinder.getDevicesMatchingConnectionStates(states, mAttributionSource);
         verify(mService).getDevicesMatchingConnectionStates(states);
     }
 
     @Test
     public void getUserAppName() {
-        mBinder.getUserAppName(mAttributionSource, SynchronousResultReceiver.get());
+        mBinder.getUserAppName(mAttributionSource);
         verify(mService).getUserAppName();
     }
 }

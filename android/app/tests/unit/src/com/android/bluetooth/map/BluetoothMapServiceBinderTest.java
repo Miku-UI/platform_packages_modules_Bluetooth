@@ -25,21 +25,22 @@ import android.bluetooth.BluetoothProfile;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.x.com.android.modules.utils.SynchronousResultReceiver;
-
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapServiceBinderTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
 
-    @Mock
-    private BluetoothMapService mService;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private BluetoothMapService mService;
 
     BluetoothDevice mRemoteDevice;
 
@@ -47,21 +48,20 @@ public class BluetoothMapServiceBinderTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         mRemoteDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
         mBinder = new BluetoothMapService.BluetoothMapBinder(mService);
     }
 
     @Test
     public void disconnect_callsServiceMethod() {
-        mBinder.disconnect(mRemoteDevice, null, SynchronousResultReceiver.get());
+        mBinder.disconnect(mRemoteDevice, null);
 
         verify(mService).disconnect(mRemoteDevice);
     }
 
     @Test
     public void getConnectedDevices_callsServiceMethod() {
-        mBinder.getConnectedDevices(null, SynchronousResultReceiver.get());
+        mBinder.getConnectedDevices(null);
 
         verify(mService).getConnectedDevices();
     }
@@ -69,14 +69,14 @@ public class BluetoothMapServiceBinderTest {
     @Test
     public void getDevicesMatchingConnectionStates_callsServiceMethod() {
         int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
-        mBinder.getDevicesMatchingConnectionStates(states, null, SynchronousResultReceiver.get());
+        mBinder.getDevicesMatchingConnectionStates(states, null);
 
         verify(mService).getDevicesMatchingConnectionStates(states);
     }
 
     @Test
     public void getConnectionState_callsServiceMethod() {
-        mBinder.getConnectionState(mRemoteDevice, null, SynchronousResultReceiver.get());
+        mBinder.getConnectionState(mRemoteDevice, null);
 
         verify(mService).getConnectionState(mRemoteDevice);
     }
@@ -84,36 +84,35 @@ public class BluetoothMapServiceBinderTest {
     @Test
     public void setConnectionPolicy_callsServiceMethod() {
         int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        mBinder.setConnectionPolicy(mRemoteDevice, connectionPolicy,
-                null, SynchronousResultReceiver.get());
+        mBinder.setConnectionPolicy(mRemoteDevice, connectionPolicy, null);
 
         verify(mService).setConnectionPolicy(mRemoteDevice, connectionPolicy);
     }
 
     @Test
     public void getConnectionPolicy_callsServiceMethod() {
-        mBinder.getConnectionPolicy(mRemoteDevice, null, SynchronousResultReceiver.get());
+        mBinder.getConnectionPolicy(mRemoteDevice, null);
 
         verify(mService).getConnectionPolicy(mRemoteDevice);
     }
 
     @Test
     public void getState_callsServiceMethod() {
-        mBinder.getState(null, SynchronousResultReceiver.get());
+        mBinder.getState(null);
 
         verify(mService).getState();
     }
 
     @Test
     public void isConnected_callsServiceStaticMethod() {
-        mBinder.isConnected(mRemoteDevice, null, SynchronousResultReceiver.get());
+        mBinder.isConnected(mRemoteDevice, null);
 
         verify(mService).getConnectionState(mRemoteDevice);
     }
 
     @Test
     public void getClient_callsServiceStaticMethod() {
-        mBinder.getClient(null, SynchronousResultReceiver.get());
+        mBinder.getClient(null);
 
         // TODO: Check the static BluetoothMapService.getRemoteDevice() is called
         //       when static methods become mockable.

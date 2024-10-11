@@ -14,6 +14,7 @@
  *  limitations under the License.
  */
 
+#include <bluetooth/log.h>
 #include <fcntl.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -28,14 +29,11 @@
 #include <vector>
 
 #include "btif/include/btif_hh.h"
-#include "device/include/controller.h"
 #include "hal/hci_hal.h"
 #include "hci/acl_manager.h"
 #include "hci/acl_manager/classic_acl_connection.h"
-#include "hci/acl_manager/connection_callbacks.h"
 #include "hci/acl_manager/connection_management_callbacks.h"
 #include "hci/acl_manager/le_acl_connection.h"
-#include "hci/acl_manager/le_connection_callbacks.h"
 #include "hci/acl_manager/le_connection_management_callbacks.h"
 #include "hci/acl_manager_mock.h"
 #include "hci/address.h"
@@ -51,21 +49,17 @@
 #include "main/shim/dumpsys.h"
 #include "main/shim/helpers.h"
 #include "main/shim/le_advertising_manager.h"
-#include "main/shim/utils.h"
 #include "main/shim/le_scanning_manager.h"
+#include "main/shim/utils.h"
 #include "os/handler.h"
-#include "os/mock_queue.h"
 #include "os/queue.h"
 #include "os/thread.h"
 #include "packet/packet_view.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec_cb.h"
-#include "stack/include/acl_hci_link_interface.h"
-#include "stack/include/ble_acl_interface.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/hci_error_code.h"
-#include "stack/include/sec_hci_link_interface.h"
 #include "stack/l2cap/l2c_int.h"
 #include "test/common/jni_thread.h"
 #include "test/common/main_handler.h"
@@ -95,6 +89,8 @@ struct bluetooth::hci::LeScanningManager::impl
     : public bluetooth::hci::LeAddressManagerCallback {};
 
 namespace {
+const hci::Address kAddress = {{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}};
+const hci::ClassOfDevice kCod = {{0x11, 0x22, 0x33}};
 constexpr double kMaxAbsoluteError = .0000001;
 constexpr double kTicksInMs = 20479.375;
 constexpr double kTicksInSec = 20.479375;
@@ -122,14 +118,6 @@ class DevNullOrStdErr {
 }  // namespace
 
 bluetooth::common::TimestamperInMilliseconds timestamper_in_milliseconds;
-
-uint8_t mock_get_ble_acceptlist_size() { return 123; }
-
-struct controller_t mock_controller {
-  .get_ble_acceptlist_size = mock_get_ble_acceptlist_size,
-};
-
-const controller_t* controller_get_interface() { return &mock_controller; }
 
 void mock_on_send_data_upwards(BT_HDR*) {}
 
@@ -169,50 +157,52 @@ void mock_link_classic_on_read_remote_extended_features_complete(
     uint16_t handle, uint8_t current_page_number, uint8_t max_page_number,
     uint64_t features) {}
 
-const shim::legacy::acl_interface_t GetMockAclInterface() {
-  shim::legacy::acl_interface_t acl_interface{
-      .on_send_data_upwards = mock_on_send_data_upwards,
-      .on_packets_completed = mock_on_packets_completed,
+shim::legacy::acl_interface_t acl_interface{
+    .on_send_data_upwards = mock_on_send_data_upwards,
+    .on_packets_completed = mock_on_packets_completed,
 
-      .connection.classic.on_connected = mock_connection_classic_on_connected,
-      .connection.classic.on_failed = mock_connection_classic_on_failed,
-      .connection.classic.on_disconnected =
-          mock_connection_classic_on_disconnected,
+    .connection.classic.on_connected = mock_connection_classic_on_connected,
+    .connection.classic.on_failed = mock_connection_classic_on_failed,
+    .connection.classic.on_disconnected =
+        mock_connection_classic_on_disconnected,
+    .connection.classic.on_connect_request = nullptr,
 
-      .connection.le.on_connected = mock_connection_le_on_connected,
-      .connection.le.on_failed = mock_connection_le_on_failed,
-      .connection.le.on_disconnected = mock_connection_le_on_disconnected,
+    .connection.le.on_connected = mock_connection_le_on_connected,
+    .connection.le.on_failed = mock_connection_le_on_failed,
+    .connection.le.on_disconnected = mock_connection_le_on_disconnected,
 
-      .link.classic.on_authentication_complete = nullptr,
-      .link.classic.on_central_link_key_complete = nullptr,
-      .link.classic.on_change_connection_link_key_complete = nullptr,
-      .link.classic.on_encryption_change = nullptr,
-      .link.classic.on_flow_specification_complete = nullptr,
-      .link.classic.on_flush_occurred = nullptr,
-      .link.classic.on_mode_change = nullptr,
-      .link.classic.on_packet_type_changed = nullptr,
-      .link.classic.on_qos_setup_complete = nullptr,
-      .link.classic.on_read_afh_channel_map_complete = nullptr,
-      .link.classic.on_read_automatic_flush_timeout_complete = nullptr,
-      .link.classic.on_sniff_subrating = nullptr,
-      .link.classic.on_read_clock_complete = nullptr,
-      .link.classic.on_read_clock_offset_complete = nullptr,
-      .link.classic.on_read_failed_contact_counter_complete = nullptr,
-      .link.classic.on_read_link_policy_settings_complete = nullptr,
-      .link.classic.on_read_link_quality_complete = nullptr,
-      .link.classic.on_read_link_supervision_timeout_complete = nullptr,
-      .link.classic.on_read_remote_version_information_complete = nullptr,
-      .link.classic.on_read_remote_extended_features_complete =
-          mock_link_classic_on_read_remote_extended_features_complete,
-      .link.classic.on_read_rssi_complete = nullptr,
-      .link.classic.on_read_transmit_power_level_complete = nullptr,
-      .link.classic.on_role_change = nullptr,
-      .link.classic.on_role_discovery_complete = nullptr,
+    .link.classic.on_authentication_complete = nullptr,
+    .link.classic.on_central_link_key_complete = nullptr,
+    .link.classic.on_change_connection_link_key_complete = nullptr,
+    .link.classic.on_encryption_change = nullptr,
+    .link.classic.on_flow_specification_complete = nullptr,
+    .link.classic.on_flush_occurred = nullptr,
+    .link.classic.on_mode_change = nullptr,
+    .link.classic.on_packet_type_changed = nullptr,
+    .link.classic.on_qos_setup_complete = nullptr,
+    .link.classic.on_read_afh_channel_map_complete = nullptr,
+    .link.classic.on_read_automatic_flush_timeout_complete = nullptr,
+    .link.classic.on_sniff_subrating = nullptr,
+    .link.classic.on_read_clock_complete = nullptr,
+    .link.classic.on_read_clock_offset_complete = nullptr,
+    .link.classic.on_read_failed_contact_counter_complete = nullptr,
+    .link.classic.on_read_link_policy_settings_complete = nullptr,
+    .link.classic.on_read_link_quality_complete = nullptr,
+    .link.classic.on_read_link_supervision_timeout_complete = nullptr,
+    .link.classic.on_read_remote_version_information_complete = nullptr,
+    .link.classic.on_read_remote_extended_features_complete =
+        mock_link_classic_on_read_remote_extended_features_complete,
+    .link.classic.on_read_rssi_complete = nullptr,
+    .link.classic.on_read_transmit_power_level_complete = nullptr,
+    .link.classic.on_role_change = nullptr,
+    .link.classic.on_role_discovery_complete = nullptr,
 
-      .link.le.on_connection_update = nullptr,
-      .link.le.on_data_length_change = nullptr,
-      .link.le.on_read_remote_version_information_complete = nullptr,
-  };
+    .link.le.on_connection_update = nullptr,
+    .link.le.on_data_length_change = nullptr,
+    .link.le.on_read_remote_version_information_complete = nullptr,
+};
+
+const shim::legacy::acl_interface_t& GetMockAclInterface() {
   return acl_interface;
 }
 
@@ -361,7 +351,7 @@ class MainShimTest : public testing::Test {
  protected:
   void SetUp() override {
     main_thread_start_up();
-    post_on_bt_main([]() { LOG_INFO("Main thread started"); });
+    post_on_bt_main([]() { log::info("Main thread started"); });
 
     thread_ = new os::Thread("acl_thread", os::Thread::Priority::NORMAL);
     handler_ = new os::Handler(thread_);
@@ -393,7 +383,7 @@ class MainShimTest : public testing::Test {
     delete handler_;
     delete thread_;
 
-    post_on_bt_main([]() { LOG_INFO("Main thread stopped"); });
+    post_on_bt_main([]() { log::info("Main thread stopped"); });
     main_thread_shut_down();
     reset_mock_function_count_map();
   }
@@ -656,13 +646,7 @@ TEST_F(MainShimTest, DISABLED_BleScannerInterfaceImpl_OnScanResult) {
   run_all_jni_thread_task();
 }
 
-const char* test_flags[] = {
-    "INIT_logging_debug_enabled_for_all=true",
-    nullptr,
-};
-
 TEST_F(MainShimTest, DISABLED_LeShimAclConnection_local_disconnect) {
-  bluetooth::common::InitFlags::Load(test_flags);
   auto acl = MakeAcl();
   EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(_, _)).Times(1);
 
@@ -772,12 +756,23 @@ TEST_F(MainShimTest, DumpConnectionHistory) {
   acl->DumpConnectionHistory(STDOUT_FILENO);
 }
 
+TEST_F(MainShimTest, OnConnectRequest) {
+  acl_interface.connection.classic.on_connect_request =
+      [](const RawAddress& bda, const hci::ClassOfDevice& cod) {
+        ASSERT_STREQ(kAddress.ToString().c_str(), bda.ToString().c_str());
+        ASSERT_STREQ(kCod.ToString().c_str(), cod.ToString().c_str());
+      };
+  auto acl = MakeAcl();
+  acl->OnConnectRequest(kAddress, kCod);
+}
+
 void DumpsysNeighbor(int fd);
 TEST_F(MainShimTest, DumpsysNeighbor) {
   btm_cb.neighbor = {};
 
   btm_cb.neighbor.inquiry_history_->Push({
       .status = tBTM_INQUIRY_CMPL::CANCELED,
+      .hci_status = HCI_SUCCESS,
       .num_resp = 45,
       .resp_type = {20, 30, 40},
       .start_time_ms = 0,
@@ -785,6 +780,7 @@ TEST_F(MainShimTest, DumpsysNeighbor) {
 
   btm_cb.neighbor.inquiry_history_->Push({
       .status = tBTM_INQUIRY_CMPL::CANCELED,
+      .hci_status = HCI_SUCCESS,
       .num_resp = 123,
       .resp_type = {50, 60, 70},
       .start_time_ms = -1,

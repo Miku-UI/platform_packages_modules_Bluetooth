@@ -248,10 +248,10 @@ public class BluetoothServiceBinderTest {
         // TODO(b/280518177): add more test from not System / ...
         // TODO(b/280518177): add more test when caller is not in foreground
 
-        doReturn("foo").when(mManagerService).getAddress(any());
+        doReturn("foo").when(mManagerService).getAddress();
         assertThat(mBinder.getAddress(mSource)).isEqualTo("foo");
 
-        verify(mManagerService).getAddress(any());
+        verify(mManagerService).getAddress();
         verifyMockForCheckIfCallerIsForegroundUser();
     }
 
@@ -267,9 +267,9 @@ public class BluetoothServiceBinderTest {
         // TODO(b/280518177): add more test from not System / ...
         // TODO(b/280518177): add more test when caller is not in foreground
 
-        doReturn("foo").when(mManagerService).getName(any());
+        doReturn("foo").when(mManagerService).getName();
         assertThat(mBinder.getName(mSource)).isEqualTo("foo");
-        verify(mManagerService).getName(any());
+        verify(mManagerService).getName();
         verifyMockForCheckIfCallerIsForegroundUser();
     }
 
@@ -288,15 +288,15 @@ public class BluetoothServiceBinderTest {
                 .adoptShellPermissionIdentity(BLUETOOTH_PRIVILEGED, BLUETOOTH_CONNECT);
 
         assertThat(mBinder.onFactoryReset(mSource)).isFalse();
-        verify(mManagerService).onFactoryReset(any());
+        verify(mManagerService).onFactoryReset();
         verifyMock();
     }
 
     @Test
-    public void isBleScanAlwaysAvailable() {
+    public void isBleScanAvailable() {
         // No permission needed for this call
-        mBinder.isBleScanAlwaysAvailable();
-        verify(mManagerService).isBleScanAlwaysAvailable();
+        mBinder.isBleScanAvailable();
+        verify(mManagerService).isBleScanAvailable();
         verifyMock();
     }
 
@@ -322,17 +322,9 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.disableBle(mSource, token));
         checkHardDenied(() -> mBinder.disableBle(mSource, token), false);
-        doReturn(true).when(mManagerService).disableBle(eq(mSource), eq(TAG), eq(token));
+        doReturn(true).when(mManagerService).disableBle(eq(TAG), eq(token));
         checkGranted(() -> mBinder.disableBle(mSource, token), true);
-        verify(mManagerService).disableBle(eq(mSource), eq(TAG), eq(token));
-        verifyMock();
-    }
-
-    @Test
-    public void isBleAppPresent() {
-        // No permission needed for this call
-        mBinder.isBleAppPresent();
-        verify(mManagerService).isBleAppPresent();
+        verify(mManagerService).disableBle(eq(TAG), eq(token));
         verifyMock();
     }
 

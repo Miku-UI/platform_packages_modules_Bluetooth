@@ -23,11 +23,11 @@
  ******************************************************************************/
 #define LOG_TAG "avctp"
 
-#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 
 #include "avct_api.h"
 #include "avct_int.h"
+#include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
 #include "l2c_api.h"
 #include "l2cdefs.h"
@@ -106,7 +106,7 @@ static bool avct_l2c_is_passive(tAVCT_LCB* p_lcb) {
  *
  ******************************************************************************/
 void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
-                                UNUSED_ATTR uint16_t psm, uint8_t id) {
+                                uint16_t /* psm */, uint8_t id) {
   tAVCT_LCB* p_lcb;
   uint16_t result = L2CAP_CONN_OK;
 
@@ -141,12 +141,15 @@ void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
 
   /* If we reject the connection, send DisconnectReq */
   if (result != L2CAP_CONN_OK) {
-    L2CA_DisconnectReq(lcid);
+    if (!L2CA_DisconnectReq(lcid)) {
+      log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}",
+                bd_addr, lcid);
+    }
   }
 
   /* if result ok, proceed with connection */
   if (result == L2CAP_CONN_OK) {
-    if (GET_SYSPROP(A2dp, src_sink_coexist, false)) {
+    if (btif_av_src_sink_coexist_enabled()) {
       tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
       for (int i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
         if (p_ccb && p_ccb->allocated && (p_ccb->p_lcb == NULL) &&
@@ -166,7 +169,7 @@ void avct_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid,
     p_lcb->ch_state = AVCT_CH_CFG;
   }
 
-  if (p_lcb) log::verbose("ch_state cni: {} ", p_lcb->ch_state);
+  if (p_lcb) log::verbose("ch_state cni: {}", p_lcb->ch_state);
 }
 
 static void avct_on_l2cap_error(uint16_t lcid, uint16_t result) {
@@ -183,13 +186,16 @@ static void avct_on_l2cap_error(uint16_t lcid, uint16_t result) {
       avct_lcb_event(p_lcb, AVCT_LCB_LL_CLOSE_EVT, &avct_lcb_evt);
     }
   } else if (p_lcb->ch_state == AVCT_CH_CFG) {
-    log::verbose("ERROR avct_l2c_config_cfm_cback L2CA_DisconnectReq {} ",
+    log::verbose("ERROR avct_l2c_config_cfm_cback L2CA_DisconnectReq {}",
                  p_lcb->ch_state);
     /* store result value */
     p_lcb->ch_result = result;
 
     /* Send L2CAP disconnect req */
-    L2CA_DisconnectReq(lcid);
+    if (!L2CA_DisconnectReq(lcid)) {
+      log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}",
+                p_lcb->peer_addr, lcid);
+    }
   }
 }
 
@@ -232,11 +238,14 @@ void avct_l2c_connect_cfm_cback(uint16_t lcid, uint16_t result) {
       if (result == L2CAP_CONN_OK) {
         /* just in case the peer also accepts our connection - Send L2CAP
          * disconnect req */
-        L2CA_DisconnectReq(lcid);
+        if (!L2CA_DisconnectReq(lcid)) {
+          log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}",
+                    p_lcb->peer_addr, lcid);
+        }
       }
       p_lcb->conflict_lcid = 0;
     }
-    log::verbose("ch_state cnc: {} ", p_lcb->ch_state);
+    log::verbose("ch_state cnc: {}", p_lcb->ch_state);
   }
 }
 
@@ -266,7 +275,7 @@ void avct_l2c_config_cfm_cback(uint16_t lcid, uint16_t initiator,
       p_lcb->ch_state = AVCT_CH_OPEN;
       avct_lcb_event(p_lcb, AVCT_LCB_LL_OPEN_EVT, NULL);
     }
-    log::verbose("ch_state cfc: {} ", p_lcb->ch_state);
+    log::verbose("ch_state cfc: {}", p_lcb->ch_state);
   }
 }
 
@@ -319,12 +328,14 @@ void avct_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed) {
     tAVCT_LCB_EVT avct_lcb_evt;
     avct_lcb_evt.result = result;
     avct_lcb_event(p_lcb, AVCT_LCB_LL_CLOSE_EVT, &avct_lcb_evt);
-    log::verbose("ch_state di: {} ", p_lcb->ch_state);
+    log::verbose("ch_state di: {}", p_lcb->ch_state);
   }
 }
 
 void avct_l2c_disconnect(uint16_t lcid, uint16_t result) {
-  L2CA_DisconnectReq(lcid);
+  if (!L2CA_DisconnectReq(lcid)) {
+    log::warn("Unable to send L2CAP disconnect request cid:{}", lcid);
+  }
 
   tAVCT_LCB* p_lcb;
   uint16_t res;
@@ -341,7 +352,7 @@ void avct_l2c_disconnect(uint16_t lcid, uint16_t result) {
     tAVCT_LCB_EVT avct_lcb_evt;
     avct_lcb_evt.result = res;
     avct_lcb_event(p_lcb, AVCT_LCB_LL_CLOSE_EVT, &avct_lcb_evt);
-    log::verbose("ch_state dc: {} ", p_lcb->ch_state);
+    log::verbose("ch_state dc: {}", p_lcb->ch_state);
   }
 }
 

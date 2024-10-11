@@ -30,7 +30,6 @@
 
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
-#include <base/logging.h>
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <string.h>
@@ -39,7 +38,6 @@
 
 #include "btif/include/stack_manager_t.h"
 #include "btif_common.h"
-#include "include/check.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -99,7 +97,9 @@ static const size_t MAX_REASONABLE_REQUESTS = 20;
 static void queue_int_add(uint16_t uuid, const RawAddress& bda,
                           btif_connect_cb_t connect_cb) {
   // Sanity check to make sure we're not leaking connection requests
-  CHECK(connect_queue.size() < MAX_REASONABLE_REQUESTS);
+  log::assert_that(
+      connect_queue.size() < MAX_REASONABLE_REQUESTS,
+      "assert failed: connect_queue.size() < MAX_REASONABLE_REQUESTS");
 
   ConnectNode param(bda, uuid, connect_cb);
   for (const auto& node : connect_queue) {
@@ -154,7 +154,7 @@ static void queue_int_release() { connect_queue.clear(); }
 bt_status_t btif_queue_connect(uint16_t uuid, const RawAddress* bda,
                                btif_connect_cb_t connect_cb) {
   return do_in_jni_thread(
-      FROM_HERE, base::BindOnce(&queue_int_add, uuid, *bda, connect_cb));
+      base::BindOnce(&queue_int_add, uuid, *bda, connect_cb));
 }
 
 /*******************************************************************************
@@ -167,7 +167,7 @@ bt_status_t btif_queue_connect(uint16_t uuid, const RawAddress* bda,
  *
  ******************************************************************************/
 void btif_queue_cleanup(uint16_t uuid) {
-  do_in_jni_thread(FROM_HERE, base::BindOnce(&queue_int_cleanup, uuid));
+  do_in_jni_thread(base::BindOnce(&queue_int_cleanup, uuid));
 }
 
 /*******************************************************************************
@@ -181,17 +181,17 @@ void btif_queue_cleanup(uint16_t uuid) {
  *
  ******************************************************************************/
 void btif_queue_advance() {
-  do_in_jni_thread(FROM_HERE, base::BindOnce(&queue_int_advance));
+  do_in_jni_thread(base::BindOnce(&queue_int_advance));
 }
 
 bt_status_t btif_queue_connect_next(void) {
   // The call must be on the JNI thread, otherwise the access to connect_queue
   // is not thread-safe.
-  CHECK(is_on_jni_thread());
+  log::assert_that(is_on_jni_thread(), "assert failed: is_on_jni_thread()");
 
   if (connect_queue.empty()) return BT_STATUS_FAIL;
   if (!stack_manager_get_interface()->get_stack_is_running())
-    return BT_STATUS_FAIL;
+    return BT_STATUS_UNEXPECTED_STATE;
 
   ConnectNode& head = connect_queue.front();
 
@@ -216,7 +216,7 @@ bt_status_t btif_queue_connect_next(void) {
  ******************************************************************************/
 void btif_queue_release() {
   log::info("");
-  if (do_in_jni_thread(FROM_HERE, base::BindOnce(&queue_int_release)) !=
+  if (do_in_jni_thread(base::BindOnce(&queue_int_release)) !=
       BT_STATUS_SUCCESS) {
     log::fatal("Failed to schedule on JNI thread");
   }

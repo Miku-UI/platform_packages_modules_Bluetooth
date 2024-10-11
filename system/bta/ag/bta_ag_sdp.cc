@@ -25,7 +25,6 @@
 
 #include <base/functional/bind.h>
 #include <base/location.h>
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include "bta/ag/bta_ag_int.h"
@@ -36,9 +35,8 @@
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"  // UNUSED_ATTR
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -115,28 +113,22 @@ static void bta_ag_sdp_cback(uint16_t status, uint8_t idx) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_sdp_cback_1(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_1(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 1);
 }
-void bta_ag_sdp_cback_2(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_2(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 2);
 }
-void bta_ag_sdp_cback_3(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_3(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 3);
 }
-void bta_ag_sdp_cback_4(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_4(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 4);
 }
-void bta_ag_sdp_cback_5(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_5(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 5);
 }
-void bta_ag_sdp_cback_6(UNUSED_ATTR const RawAddress& bd_addr,
-                        tSDP_STATUS status) {
+void bta_ag_sdp_cback_6(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
   bta_ag_sdp_cback(status, 6);
 }
 
@@ -308,8 +300,11 @@ void bta_ag_del_records(tBTA_AG_SCB* p_scb) {
     if (((services & 1) == 1) && ((others & 1) == 0)) {
       log::verbose("bta_ag_del_records {}", i);
       if (bta_ag_cb.profile[i].sdp_handle != 0) {
-        get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-            bta_ag_cb.profile[i].sdp_handle);
+        if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
+                bta_ag_cb.profile[i].sdp_handle)) {
+          log::warn("Unable to delete record sdp_handle:{}",
+                    bta_ag_cb.profile[i].sdp_handle);
+        }
         bta_ag_cb.profile[i].sdp_handle = 0;
       }
       BTA_FreeSCN(bta_ag_cb.profile[i].scn);
@@ -397,7 +392,7 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
                 (const uint8_t*)&peer_version, sizeof(peer_version))) {
         } else {
           log::warn("Failed to store peer HFP version for {}",
-                    ADDRESS_TO_LOGGABLE_CSTR(p_scb->peer_addr));
+                    p_scb->peer_addr);
         }
       }
       /* get features if HFP */
@@ -428,7 +423,7 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
                                   sizeof(sdp_features))) {
           } else {
             log::warn("Failed to store peer HFP SDP Features for {}",
-                      ADDRESS_TO_LOGGABLE_CSTR(p_scb->peer_addr));
+                      p_scb->peer_addr);
           }
         }
         if (p_scb->peer_features == 0) {
@@ -550,12 +545,11 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
             bta_ag_sdp_cback_tbl[bta_ag_scb_to_idx(p_scb) - 1])) {
       return;
     } else {
-      log::error("failed to start SDP discovery for {}",
-                 ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+      log::error("failed to start SDP discovery for {}", p_scb->peer_addr);
     }
   } else {
     log::error("failed to init SDP discovery database for {}",
-               ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+               p_scb->peer_addr);
   }
   // Failure actions
   bta_ag_free_db(p_scb, tBTA_AG_DATA::kEmpty);

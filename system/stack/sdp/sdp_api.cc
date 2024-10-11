@@ -45,10 +45,6 @@
 using bluetooth::Uuid;
 using namespace bluetooth;
 
-/**********************************************************************
- *   C L I E N T    F U N C T I O N    P R O T O T Y P E S            *
- **********************************************************************/
-
 /*******************************************************************************
  *
  * Function         SDP_InitDiscoveryDb
@@ -135,13 +131,13 @@ bool SDP_CancelServiceSearch(const tSDP_DISCOVERY_DB* p_db) {
  * Returns          true if discovery started, false if failed.
  *
  ******************************************************************************/
-bool SDP_ServiceSearchRequest(const RawAddress& p_bd_addr,
+bool SDP_ServiceSearchRequest(const RawAddress& bd_addr,
                               tSDP_DISCOVERY_DB* p_db,
                               tSDP_DISC_CMPL_CB* p_cb) {
   tCONN_CB* p_ccb;
 
   /* Specific BD address */
-  p_ccb = sdp_conn_originate(p_bd_addr);
+  p_ccb = sdp_conn_originate(bd_addr);
 
   if (!p_ccb) return (false);
 
@@ -166,13 +162,13 @@ bool SDP_ServiceSearchRequest(const RawAddress& p_bd_addr,
  * Returns          true if discovery started, false if failed.
  *
  ******************************************************************************/
-bool SDP_ServiceSearchAttributeRequest(const RawAddress& p_bd_addr,
+bool SDP_ServiceSearchAttributeRequest(const RawAddress& bd_addr,
                                        tSDP_DISCOVERY_DB* p_db,
                                        tSDP_DISC_CMPL_CB* p_cb) {
   tCONN_CB* p_ccb;
 
   /* Specific BD address */
-  p_ccb = sdp_conn_originate(p_bd_addr);
+  p_ccb = sdp_conn_originate(bd_addr);
 
   if (!p_ccb) return (false);
 
@@ -198,23 +194,21 @@ bool SDP_ServiceSearchAttributeRequest(const RawAddress& p_bd_addr,
  * Returns          true if discovery started, false if failed.
  *
  ******************************************************************************/
-bool SDP_ServiceSearchAttributeRequest2(const RawAddress& p_bd_addr,
-                                        tSDP_DISCOVERY_DB* p_db,
-                                        tSDP_DISC_CMPL_CB2* p_cb2,
-                                        const void* user_data) {
+bool SDP_ServiceSearchAttributeRequest2(
+    const RawAddress& bd_addr, tSDP_DISCOVERY_DB* p_db,
+    base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback) {
   tCONN_CB* p_ccb;
 
   /* Specific BD address */
-  p_ccb = sdp_conn_originate(p_bd_addr);
+  p_ccb = sdp_conn_originate(bd_addr);
 
   if (!p_ccb) return (false);
 
   p_ccb->disc_state = SDP_DISC_WAIT_CONN;
   p_ccb->p_db = p_db;
-  p_ccb->p_cb2 = p_cb2;
+  p_ccb->complete_callback = std::move(complete_callback);
 
   p_ccb->is_attr_search = true;
-  p_ccb->user_data = user_data;
 
   return (true);
 }

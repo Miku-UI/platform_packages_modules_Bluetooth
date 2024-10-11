@@ -27,12 +27,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * This is a base class for implementing AVRCP Controller Basic Image Profile (BIP) requests
- */
+/** This is a base class for implementing AVRCP Controller Basic Image Profile (BIP) requests */
 abstract class BipRequest {
-    private static final String TAG = "avrcpcontroller.BipRequest";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = BipRequest.class.getSimpleName();
 
     // User defined OBEX header identifiers
     protected static final byte HEADER_ID_IMG_HANDLE = 0x30;
@@ -54,15 +51,15 @@ abstract class BipRequest {
     /**
      * A function that returns the type of the request.
      *
-     * Used to determine type instead of using 'instanceof'
+     * <p>Used to determine type instead of using 'instanceof'
      */
     public abstract int getType();
 
     /**
      * A single point of entry for kicking off a AVRCP BIP request.
      *
-     * Child classes are expected to implement this interface, filling in the details of the request
-     * (headers, operation type, error handling, etc).
+     * <p>Child classes are expected to implement this interface, filling in the details of the
+     * request (headers, operation type, error handling, etc).
      */
     public abstract void execute(ClientSession session) throws IOException;
 
@@ -91,9 +88,7 @@ abstract class BipRequest {
         debug("GET final response code is '" + mResponseCode + "'");
     }
 
-    /**
-     * A generica PUT operation, providing overridable hooks to read response headers.
-     */
+    /** A generica PUT operation, providing overridable hooks to read response headers. */
     protected void executePut(ClientSession session, byte[] body) throws IOException {
         debug("Exeucting PUT");
         setOperation(null);
@@ -149,10 +144,6 @@ abstract class BipRequest {
         /* nothing here by default */
     }
 
-    private synchronized ClientOperation getOperation() {
-        return mOperation;
-    }
-
     private synchronized void setOperation(ClientOperation operation) {
         mOperation = operation;
     }
@@ -162,25 +153,17 @@ abstract class BipRequest {
         return TAG + " (type: " + getType() + ", mResponseCode: " + mResponseCode + ")";
     }
 
-    /**
-     * Print to debug if debug is enabled for this class
-     */
+    /** Print to debug if debug is enabled for this class */
     protected void debug(String msg) {
-        if (DBG) {
-            Log.d(TAG, msg);
-        }
+        Log.d(TAG, msg);
     }
 
-    /**
-     * Print to warn
-     */
+    /** Print to warn */
     protected void warn(String msg) {
         Log.w(TAG, msg);
     }
 
-    /**
-     * Print to error
-     */
+    /** Print to error */
     protected void error(String msg) {
         Log.e(TAG, msg);
     }

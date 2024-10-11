@@ -34,10 +34,12 @@ import com.android.bluetooth.pbap.BluetoothPbapVcardManager.PropertySelector;
 import com.android.bluetooth.pbap.BluetoothPbapVcardManager.VCardFilter;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,15 +47,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapVcardManagerNestedClassesTest {
 
-    @Mock
-    Context mContext;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    Resources mResources;
+    @Mock Context mContext;
+
+    @Mock Resources mResources;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         when(mContext.getResources()).thenReturn(mResources);
     }
 
@@ -76,34 +77,44 @@ public class BluetoothPbapVcardManagerNestedClassesTest {
 
     @Test
     public void VCardFilter_apply_whenFilterIsNull_returnsSameVcard() {
-        VCardFilter vCardFilter = new VCardFilter(/*filter=*/null);
+        VCardFilter vCardFilter = new VCardFilter(/* filter= */ null);
 
         String vCard = "FN:Full Name";
-        assertThat(vCardFilter.apply(vCard, /*vCardType21=*/ true)).isEqualTo(vCard);
+        assertThat(vCardFilter.apply(vCard, /* vCardType21= */ true)).isEqualTo(vCard);
     }
 
     @Test
     public void VCardFilter_apply_returnsSameVcard() {
         final String separator = System.getProperty("line.separator");
-        String vCard = "FN:Test Full Name" + separator
-                + "EMAIL:android@android.com:" + separator
-                + "X-IRMC-CALL-DATETIME:20170314T173942" + separator;
+        String vCard =
+                "FN:Test Full Name"
+                        + separator
+                        + "EMAIL:android@android.com:"
+                        + separator
+                        + "X-IRMC-CALL-DATETIME:20170314T173942"
+                        + separator;
 
         byte[] emailExcludeFilter = new byte[] {(byte) 0xFE, (byte) 0xFF};
-        VCardFilter vCardFilter = new VCardFilter(/*filter=*/ emailExcludeFilter);
-        String expectedVCard = "FN:Test Full Name" + separator
-                + "X-IRMC-CALL-DATETIME:20170314T173942" + separator;
+        VCardFilter vCardFilter = new VCardFilter(/* filter= */ emailExcludeFilter);
+        String expectedVCard =
+                "FN:Test Full Name"
+                        + separator
+                        + "X-IRMC-CALL-DATETIME:20170314T173942"
+                        + separator;
 
-        assertThat(vCardFilter.apply(vCard, /*vCardType21=*/ true))
-                .isEqualTo(expectedVCard);
+        assertThat(vCardFilter.apply(vCard, /* vCardType21= */ true)).isEqualTo(expectedVCard);
     }
 
     @Test
     public void PropertySelector_checkVCardSelector_atLeastOnePropertyExists_returnsTrue() {
         final String separator = System.getProperty("line.separator");
-        String vCard = "FN:Test Full Name" + separator
-                + "EMAIL:android@android.com:" + separator
-                + "TEL:0123456789" + separator;
+        String vCard =
+                "FN:Test Full Name"
+                        + separator
+                        + "EMAIL:android@android.com:"
+                        + separator
+                        + "TEL:0123456789"
+                        + separator;
 
         byte[] emailSelector = new byte[] {0x01, 0x00};
         PropertySelector selector = new PropertySelector(emailSelector);
@@ -114,9 +125,13 @@ public class BluetoothPbapVcardManagerNestedClassesTest {
     @Test
     public void PropertySelector_checkVCardSelector_atLeastOnePropertyExists_returnsFalse() {
         final String separator = System.getProperty("line.separator");
-        String vCard = "FN:Test Full Name" + separator
-                + "EMAIL:android@android.com:" + separator
-                + "TEL:0123456789" + separator;
+        String vCard =
+                "FN:Test Full Name"
+                        + separator
+                        + "EMAIL:android@android.com:"
+                        + separator
+                        + "TEL:0123456789"
+                        + separator;
 
         byte[] organizationSelector = new byte[] {0x01, 0x00, 0x00};
         PropertySelector selector = new PropertySelector(organizationSelector);
@@ -127,9 +142,13 @@ public class BluetoothPbapVcardManagerNestedClassesTest {
     @Test
     public void PropertySelector_checkVCardSelector_allPropertiesExist_returnsTrue() {
         final String separator = System.getProperty("line.separator");
-        String vCard = "FN:Test Full Name" + separator
-                + "EMAIL:android@android.com:" + separator
-                + "TEL:0123456789" + separator;
+        String vCard =
+                "FN:Test Full Name"
+                        + separator
+                        + "EMAIL:android@android.com:"
+                        + separator
+                        + "TEL:0123456789"
+                        + separator;
 
         byte[] fullNameAndEmailSelector = new byte[] {0x01, 0x02};
         PropertySelector selector = new PropertySelector(fullNameAndEmailSelector);
@@ -140,9 +159,13 @@ public class BluetoothPbapVcardManagerNestedClassesTest {
     @Test
     public void PropertySelector_checkVCardSelector_allPropertiesExist_returnsFalse() {
         final String separator = System.getProperty("line.separator");
-        String vCard = "FN:Test Full Name" + separator
-                + "EMAIL:android@android.com:" + separator
-                + "TEL:0123456789" + separator;
+        String vCard =
+                "FN:Test Full Name"
+                        + separator
+                        + "EMAIL:android@android.com:"
+                        + separator
+                        + "TEL:0123456789"
+                        + separator;
 
         byte[] fullNameAndOrganizationSelector = new byte[] {0x01, 0x00, 0x02};
         PropertySelector selector = new PropertySelector(fullNameAndOrganizationSelector);
@@ -159,13 +182,15 @@ public class BluetoothPbapVcardManagerNestedClassesTest {
 
         long[] contactIds = new long[] {1001, 1001, 1002, 1002, 1003, 1003, 1004};
         AtomicInteger currentPos = new AtomicInteger(-1);
-        when(contactCursor.moveToNext()).thenAnswer(invocation -> {
-            if (currentPos.get() < contactIds.length - 1) {
-                currentPos.incrementAndGet();
-                return true;
-            }
-            return false;
-        });
+        when(contactCursor.moveToNext())
+                .thenAnswer(
+                        invocation -> {
+                            if (currentPos.get() < contactIds.length - 1) {
+                                currentPos.incrementAndGet();
+                                return true;
+                            }
+                            return false;
+                        });
         when(contactCursor.getLong(contactIdColumn))
                 .thenAnswer(invocation -> contactIds[currentPos.get()]);
 
@@ -186,20 +211,22 @@ public class BluetoothPbapVcardManagerNestedClassesTest {
 
         long[] contactIds = new long[] {1001, 1001, 1002, 1002, 1003, 1003, 1004};
         AtomicInteger currentPos = new AtomicInteger(-1);
-        when(contactCursor.moveToNext()).thenAnswer(invocation -> {
-            if (currentPos.get() < contactIds.length - 1) {
-                currentPos.incrementAndGet();
-                return true;
-            }
-            return false;
-        });
+        when(contactCursor.moveToNext())
+                .thenAnswer(
+                        invocation -> {
+                            if (currentPos.get() < contactIds.length - 1) {
+                                currentPos.incrementAndGet();
+                                return true;
+                            }
+                            return false;
+                        });
         when(contactCursor.getLong(contactIdColumn))
                 .thenAnswer(invocation -> contactIds[currentPos.get()]);
 
         int startPoint = 2;
         int endPoint = 4;
-        Cursor resultCursor = ContactCursorFilter.filterByRange(
-                contactCursor, startPoint, endPoint);
+        Cursor resultCursor =
+                ContactCursorFilter.filterByRange(contactCursor, startPoint, endPoint);
 
         // Should return cursor containing [1002, 1003, 1004]
         assertThat(resultCursor.getCount()).isEqualTo(3);

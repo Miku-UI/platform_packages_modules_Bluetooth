@@ -17,7 +17,6 @@
 #include "avrcp_service.h"
 
 #include <base/functional/bind.h>
-#include <base/logging.h>
 #include <base/task/cancelable_task_tracker.h>
 #include <base/threading/thread.h>
 #include <bluetooth/log.h>
@@ -29,7 +28,8 @@
 #include "btif_av.h"
 #include "btif_common.h"
 #include "device.h"
-#include "include/check.h"
+#include "osi/include/osi.h"
+#include "stack/include/a2dp_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/main_thread.h"
@@ -45,16 +45,34 @@ namespace avrcp {
 AvrcpService* AvrcpService::instance_ = nullptr;
 AvrcpService::ServiceInterfaceImpl* AvrcpService::service_interface_ = nullptr;
 
-void do_in_avrcp_jni(const base::Closure& task) {
-  do_in_jni_thread(FROM_HERE, task);
-}
-
 class A2dpInterfaceImpl : public A2dpInterface {
   RawAddress active_peer() override { return btif_av_source_active_peer(); }
 
   bool is_peer_in_silence_mode(const RawAddress& peer_address) override {
     return btif_av_is_peer_silenced(peer_address);
   }
+
+  void connect_audio_sink_delayed(uint8_t handle,
+                                  const RawAddress& peer_address) override {
+    btif_av_connect_sink_delayed(handle, peer_address);
+  }
+
+  uint16_t find_audio_sink_service(const RawAddress& peer_address,
+                                   tA2DP_FIND_CBACK p_cback) override {
+    uint16_t attr_list[] = {ATTR_ID_SERVICE_CLASS_ID_LIST,
+                            ATTR_ID_BT_PROFILE_DESC_LIST,
+                            ATTR_ID_SUPPORTED_FEATURES};
+
+    tA2DP_SDP_DB_PARAMS db_params = {
+        .db_len = BT_DEFAULT_BUFFER_SIZE,
+        .num_attr = ARRAY_SIZE(attr_list),
+        .p_attrs = attr_list,
+    };
+
+    return A2DP_FindService(UUID_SERVCLASS_AUDIO_SINK, peer_address, &db_params,
+                            p_cback);
+  }
+
 } a2dp_interface_;
 
 class AvrcpInterfaceImpl : public AvrcpInterface {
@@ -158,8 +176,8 @@ class MediaInterfaceWrapper : public MediaInterface {
   MediaInterfaceWrapper(MediaInterface* cb) : wrapped_(cb){};
 
   void SendKeyEvent(uint8_t key, KeyState state) override {
-    do_in_avrcp_jni(base::Bind(&MediaInterface::SendKeyEvent,
-                               base::Unretained(wrapped_), key, state));
+    do_in_jni_thread(base::Bind(&MediaInterface::SendKeyEvent,
+                                base::Unretained(wrapped_), key, state));
   }
 
   void GetSongInfo(SongInfoCallback info_cb) override {
@@ -169,8 +187,8 @@ class MediaInterfaceWrapper : public MediaInterface {
 
     auto bound_cb = base::Bind(cb_lambda, info_cb);
 
-    do_in_avrcp_jni(base::Bind(&MediaInterface::GetSongInfo,
-                               base::Unretained(wrapped_), bound_cb));
+    do_in_jni_thread(base::Bind(&MediaInterface::GetSongInfo,
+                                base::Unretained(wrapped_), bound_cb));
   }
 
   void GetPlayStatus(PlayStatusCallback status_cb) override {
@@ -180,8 +198,8 @@ class MediaInterfaceWrapper : public MediaInterface {
 
     auto bound_cb = base::Bind(cb_lambda, status_cb);
 
-    do_in_avrcp_jni(base::Bind(&MediaInterface::GetPlayStatus,
-                               base::Unretained(wrapped_), bound_cb));
+    do_in_jni_thread(base::Bind(&MediaInterface::GetPlayStatus,
+                                base::Unretained(wrapped_), bound_cb));
   }
 
   void GetNowPlayingList(NowPlayingCallback now_playing_cb) override {
@@ -193,8 +211,8 @@ class MediaInterfaceWrapper : public MediaInterface {
 
     auto bound_cb = base::Bind(cb_lambda, now_playing_cb);
 
-    do_in_avrcp_jni(base::Bind(&MediaInterface::GetNowPlayingList,
-                               base::Unretained(wrapped_), bound_cb));
+    do_in_jni_thread(base::Bind(&MediaInterface::GetNowPlayingList,
+                                base::Unretained(wrapped_), bound_cb));
   }
 
   void GetMediaPlayerList(MediaListCallback list_cb) override {
@@ -206,8 +224,8 @@ class MediaInterfaceWrapper : public MediaInterface {
 
     auto bound_cb = base::Bind(cb_lambda, list_cb);
 
-    do_in_avrcp_jni(base::Bind(&MediaInterface::GetMediaPlayerList,
-                               base::Unretained(wrapped_), bound_cb));
+    do_in_jni_thread(base::Bind(&MediaInterface::GetMediaPlayerList,
+                                base::Unretained(wrapped_), bound_cb));
   }
 
   void GetFolderItems(uint16_t player_id, std::string media_id,
@@ -219,9 +237,9 @@ class MediaInterfaceWrapper : public MediaInterface {
 
     auto bound_cb = base::Bind(cb_lambda, folder_cb);
 
-    do_in_avrcp_jni(base::Bind(&MediaInterface::GetFolderItems,
-                               base::Unretained(wrapped_), player_id, media_id,
-                               bound_cb));
+    do_in_jni_thread(base::Bind(&MediaInterface::GetFolderItems,
+                                base::Unretained(wrapped_), player_id, media_id,
+                                bound_cb));
   }
 
   void SetBrowsedPlayer(uint16_t player_id,
@@ -234,21 +252,21 @@ class MediaInterfaceWrapper : public MediaInterface {
 
     auto bound_cb = base::Bind(cb_lambda, browse_cb);
 
-    do_in_avrcp_jni(base::Bind(&MediaInterface::SetBrowsedPlayer,
-                               base::Unretained(wrapped_), player_id,
-                               bound_cb));
+    do_in_jni_thread(base::Bind(&MediaInterface::SetBrowsedPlayer,
+                                base::Unretained(wrapped_), player_id,
+                                bound_cb));
   }
 
   void PlayItem(uint16_t player_id, bool now_playing,
                 std::string media_id) override {
-    do_in_avrcp_jni(base::Bind(&MediaInterface::PlayItem,
-                               base::Unretained(wrapped_), player_id,
-                               now_playing, media_id));
+    do_in_jni_thread(base::Bind(&MediaInterface::PlayItem,
+                                base::Unretained(wrapped_), player_id,
+                                now_playing, media_id));
   }
 
   void SetActiveDevice(const RawAddress& address) override {
-    do_in_avrcp_jni(base::Bind(&MediaInterface::SetActiveDevice,
-                               base::Unretained(wrapped_), address));
+    do_in_jni_thread(base::Bind(&MediaInterface::SetActiveDevice,
+                                base::Unretained(wrapped_), address));
   }
 
   void RegisterUpdateCallback(MediaCallbacks* callback) override {
@@ -270,7 +288,7 @@ class VolumeInterfaceWrapper : public VolumeInterface {
   VolumeInterfaceWrapper(VolumeInterface* interface) : wrapped_(interface){};
 
   void DeviceConnected(const RawAddress& bdaddr) override {
-    do_in_avrcp_jni(
+    do_in_jni_thread(
         base::Bind(static_cast<void (VolumeInterface::*)(const RawAddress&)>(
                        &VolumeInterface::DeviceConnected),
                    base::Unretained(wrapped_), bdaddr));
@@ -283,20 +301,20 @@ class VolumeInterfaceWrapper : public VolumeInterface {
 
     auto bound_cb = base::Bind(cb_lambda, cb);
 
-    do_in_avrcp_jni(base::Bind(static_cast<void (VolumeInterface::*)(
-                                   const RawAddress&, VolumeChangedCb)>(
-                                   &VolumeInterface::DeviceConnected),
-                               base::Unretained(wrapped_), bdaddr, bound_cb));
+    do_in_jni_thread(base::Bind(static_cast<void (VolumeInterface::*)(
+                                    const RawAddress&, VolumeChangedCb)>(
+                                    &VolumeInterface::DeviceConnected),
+                                base::Unretained(wrapped_), bdaddr, bound_cb));
   }
 
   void DeviceDisconnected(const RawAddress& bdaddr) override {
-    do_in_avrcp_jni(base::Bind(&VolumeInterface::DeviceDisconnected,
-                               base::Unretained(wrapped_), bdaddr));
+    do_in_jni_thread(base::Bind(&VolumeInterface::DeviceDisconnected,
+                                base::Unretained(wrapped_), bdaddr));
   }
 
   void SetVolume(int8_t volume) override {
-    do_in_avrcp_jni(base::Bind(&VolumeInterface::SetVolume,
-                               base::Unretained(wrapped_), volume));
+    do_in_jni_thread(base::Bind(&VolumeInterface::SetVolume,
+                                base::Unretained(wrapped_), volume));
   }
 
  private:
@@ -318,8 +336,8 @@ class PlayerSettingsInterfaceWrapper : public PlayerSettingsInterface {
 
     auto bound_cb = base::Bind(cb_lambda, cb);
 
-    do_in_avrcp_jni(base::Bind(&PlayerSettingsInterface::ListPlayerSettings,
-                               base::Unretained(wrapped_), bound_cb));
+    do_in_jni_thread(base::Bind(&PlayerSettingsInterface::ListPlayerSettings,
+                                base::Unretained(wrapped_), bound_cb));
   }
 
   void ListPlayerSettingValues(PlayerAttribute setting,
@@ -332,7 +350,7 @@ class PlayerSettingsInterfaceWrapper : public PlayerSettingsInterface {
 
     auto bound_cb = base::Bind(cb_lambda, cb);
 
-    do_in_avrcp_jni(
+    do_in_jni_thread(
         base::Bind(&PlayerSettingsInterface::ListPlayerSettingValues,
                    base::Unretained(wrapped_), setting, bound_cb));
   }
@@ -349,7 +367,7 @@ class PlayerSettingsInterfaceWrapper : public PlayerSettingsInterface {
 
     auto bound_cb = base::Bind(cb_lambda, cb);
 
-    do_in_avrcp_jni(base::Bind(
+    do_in_jni_thread(base::Bind(
         &PlayerSettingsInterface::GetCurrentPlayerSettingValue,
         base::Unretained(wrapped_), std::move(attributes), bound_cb));
   }
@@ -363,7 +381,7 @@ class PlayerSettingsInterfaceWrapper : public PlayerSettingsInterface {
 
     auto bound_cb = base::Bind(cb_lambda, cb);
 
-    do_in_avrcp_jni(base::Bind(
+    do_in_jni_thread(base::Bind(
         &PlayerSettingsInterface::SetPlayerSettings, base::Unretained(wrapped_),
         std::move(attributes), std::move(values), bound_cb));
   }
@@ -481,7 +499,7 @@ void AvrcpService::UnregisterBipServer() {
 }
 
 AvrcpService* AvrcpService::Get() {
-  CHECK(instance_);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   return instance_;
 }
 
@@ -494,20 +512,19 @@ ServiceInterface* AvrcpService::GetServiceInterface() {
 }
 
 void AvrcpService::ConnectDevice(const RawAddress& bdaddr) {
-  log::info("address={}", ADDRESS_TO_LOGGABLE_STR(bdaddr));
+  log::info("address={}", bdaddr);
 
   connection_handler_->ConnectDevice(bdaddr);
 }
 
 void AvrcpService::DisconnectDevice(const RawAddress& bdaddr) {
-  log::info("address={}", ADDRESS_TO_LOGGABLE_STR(bdaddr));
+  log::info("address={}", bdaddr);
   connection_handler_->DisconnectDevice(bdaddr);
 }
 
 void AvrcpService::SetBipClientStatus(const RawAddress& bdaddr,
                                       bool connected) {
-  log::info("address={}, connected={}", ADDRESS_TO_LOGGABLE_STR(bdaddr),
-            connected);
+  log::info("address={}, connected={}", bdaddr, connected);
   connection_handler_->SetBipClientStatus(bdaddr, connected);
 }
 
@@ -548,10 +565,14 @@ void AvrcpService::SendActiveDeviceChanged(const RawAddress& address) {
 
 void AvrcpService::SendPlayerSettingsChanged(
     std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values) {
-  log::info("");
+  if (attributes.size() != values.size()) {
+    log::error("Attributes size {} doesn't match values size {}",
+               attributes.size(), values.size());
+    return;
+  }
   std::stringstream ss;
   for (size_t i = 0; i < attributes.size(); i++) {
-    ss << "attribute=" << attributes.at(i) << " : ";
+    ss << "{attribute=" << attributes.at(i) << " : ";
     if (attributes.at(i) == PlayerAttribute::REPEAT) {
       ss << "value=" << (PlayerRepeatValue)values.at(i);
     } else if (attributes.at(i) == PlayerAttribute::SHUFFLE) {
@@ -559,7 +580,7 @@ void AvrcpService::SendPlayerSettingsChanged(
     } else {
       ss << "value=" << std::to_string(values.at(i));
     }
-    ss << std::endl;
+    ss << ((i + 1 < attributes.size()) ? "}, " : "}");
   }
 
   log::info("{}", ss.str());
@@ -592,7 +613,7 @@ void AvrcpService::ServiceInterfaceImpl::Init(
   // that its possible to call Get() on the service immediately after calling
   // init without issues.
 
-  CHECK(instance_ == nullptr);
+  log::assert_that(instance_ == nullptr, "assert failed: instance_ == nullptr");
   instance_ = new AvrcpService();
 
   do_in_main_thread(
@@ -603,7 +624,7 @@ void AvrcpService::ServiceInterfaceImpl::Init(
 
 void AvrcpService::ServiceInterfaceImpl::RegisterBipServer(int psm) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::RegisterBipServer,
                                    base::Unretained(instance_), psm));
@@ -611,7 +632,7 @@ void AvrcpService::ServiceInterfaceImpl::RegisterBipServer(int psm) {
 
 void AvrcpService::ServiceInterfaceImpl::UnregisterBipServer() {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::UnregisterBipServer,
                                    base::Unretained(instance_)));
@@ -620,7 +641,7 @@ void AvrcpService::ServiceInterfaceImpl::UnregisterBipServer() {
 bool AvrcpService::ServiceInterfaceImpl::ConnectDevice(
     const RawAddress& bdaddr) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::ConnectDevice,
                                    base::Unretained(instance_), bdaddr));
@@ -630,17 +651,38 @@ bool AvrcpService::ServiceInterfaceImpl::ConnectDevice(
 bool AvrcpService::ServiceInterfaceImpl::DisconnectDevice(
     const RawAddress& bdaddr) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE,
                     base::BindOnce(&AvrcpService::DisconnectDevice,
                                    base::Unretained(instance_), bdaddr));
   return true;
 }
 
+bool AvrcpService::IsDeviceConnected(const RawAddress& bdaddr) {
+  if (instance_ == nullptr) {
+    log::warn("AVRCP Target Service not started");
+    return false;
+  }
+
+  auto handler = instance_->connection_handler_;
+  if (handler == nullptr) {
+    log::warn("AVRCP connection handler is null");
+    return false;
+  }
+
+  for (const auto& device : handler->GetListOfDevices()) {
+    if (bdaddr == device->GetAddress()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void AvrcpService::ServiceInterfaceImpl::SetBipClientStatus(
     const RawAddress& bdaddr, bool connected) {
   std::lock_guard<std::mutex> lock(service_interface_lock_);
-  CHECK(instance_ != nullptr);
+  log::assert_that(instance_ != nullptr, "assert failed: instance_ != nullptr");
   do_in_main_thread(FROM_HERE, base::BindOnce(&AvrcpService::SetBipClientStatus,
                                               base::Unretained(instance_),
                                               bdaddr, connected));
@@ -688,7 +730,7 @@ void AvrcpService::DebugDump(int fd) {
 /** when a2dp connected, btif will start register vol changed, so we need a
  * interface for it. */
 void AvrcpService::RegisterVolChanged(const RawAddress& bdaddr) {
-  log::info(": address={}", ADDRESS_TO_LOGGABLE_STR(bdaddr));
+  log::info(": address={}", bdaddr);
 
   connection_handler_->RegisterVolChanged(bdaddr);
 }

@@ -25,12 +25,9 @@ import android.util.Log;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * An abstraction of the cover art image storage mechanism.
- */
+/** An abstraction of the cover art image storage mechanism. */
 public class AvrcpCoverArtStorage {
-    private static final String TAG = "AvrcpCoverArtStorage";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = AvrcpCoverArtStorage.class.getSimpleName();
 
     private final Context mContext;
 
@@ -43,9 +40,7 @@ public class AvrcpCoverArtStorage {
     private final Map<BluetoothDevice, Map<String, Bitmap>> mDeviceImages =
             new ConcurrentHashMap<>(1);
 
-    /**
-     * Create and initialize this Cover Art storage interface
-     */
+    /** Create and initialize this Cover Art storage interface */
     public AvrcpCoverArtStorage(Context context) {
         mContext = context;
     }
@@ -142,9 +137,7 @@ public class AvrcpCoverArtStorage {
         mDeviceImages.remove(device);
     }
 
-    /**
-     * Clear the entirety of storage
-     */
+    /** Clear the entirety of storage */
     public void clear() {
         debug("Clearing all images");
         mDeviceImages.clear();
@@ -165,12 +158,6 @@ public class AvrcpCoverArtStorage {
     }
 
     private void debug(String msg) {
-        if (DBG) {
-            Log.d(TAG, msg);
-        }
-    }
-
-    private void error(String msg) {
-        Log.e(TAG, msg);
+        Log.d(TAG, msg);
     }
 }

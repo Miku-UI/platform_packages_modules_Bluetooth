@@ -18,8 +18,10 @@
  *
  ******************************************************************************/
 
-#include <android_bluetooth_flags.h>
-#include <base/logging.h>
+#include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
+
+#include <optional>
 
 #include "audio/asrc/asrc_resampler.h"
 #include "audio_hal_client.h"
@@ -32,9 +34,7 @@
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
 
-using bluetooth::audio::le_audio::LeAudioClientInterface;
-
-namespace le_audio {
+namespace bluetooth::le_audio {
 namespace {
 struct AudioHalStats {
   size_t media_read_total_underflow_bytes;
@@ -67,16 +67,29 @@ class SourceImpl : public LeAudioSourceAudioHalClient {
   void CancelStreamingRequest() override;
   void UpdateRemoteDelay(uint16_t remote_delay_ms) override;
   void UpdateAudioConfigToHal(
-      const ::le_audio::offload_config& config) override;
+      const ::bluetooth::le_audio::offload_config& config) override;
+  std::optional<broadcaster::BroadcastConfiguration> GetBroadcastConfig(
+      const std::vector<std::pair<types::LeAudioContextType, uint8_t>>&
+          subgroup_quality,
+      const std::optional<
+          std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs)
+      const override;
+  std::optional<
+      ::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+  GetUnicastConfig(const CodecManager::UnicastConfigurationRequirements&
+                       requirements) const override;
   void UpdateBroadcastAudioConfigToHal(
-      const ::le_audio::broadcast_offload_config& config) override;
+      const ::bluetooth::le_audio::broadcast_offload_config& config) override;
   void SuspendedForReconfiguration() override;
   void ReconfigurationComplete() override;
 
   // Internal functionality
   SourceImpl(bool is_broadcaster)
       : le_audio_sink_hal_state_(HAL_UNINITIALIZED),
-        is_broadcaster_(is_broadcaster){};
+        audio_timer_(
+            /* clock_tick_us= */ bluetooth::common::
+                time_get_audio_server_tick_us),
+        is_broadcaster_(is_broadcaster) {}
   ~SourceImpl() override {
     if (le_audio_sink_hal_state_ != HAL_UNINITIALIZED) Release();
   }
@@ -121,9 +134,9 @@ bool SourceImpl::Acquire() {
   };
 
   /* Get pointer to singleton LE audio client interface */
-  auto halInterface = LeAudioClientInterface::Get();
+  auto halInterface = audio::le_audio::LeAudioClientInterface::Get();
   if (halInterface == nullptr) {
-    LOG_ERROR("Can't get LE Audio HAL interface");
+    log::error("Can't get LE Audio HAL interface");
     return false;
   }
 
@@ -131,32 +144,37 @@ bool SourceImpl::Acquire() {
       halInterface->GetSink(sink_stream_cb, get_main_thread(), is_broadcaster_);
 
   if (halSinkInterface_ == nullptr) {
-    LOG_ERROR("Can't get Audio HAL Audio sink interface");
+    log::error("Can't get Audio HAL Audio sink interface");
     return false;
   }
 
-  LOG_INFO();
+  log::info("");
   le_audio_sink_hal_state_ = HAL_STOPPED;
   return this->InitAudioSinkThread();
 }
 
 void SourceImpl::Release() {
   if (le_audio_sink_hal_state_ == HAL_UNINITIALIZED) {
-    LOG_WARN("Audio HAL Audio sink is not running");
+    log::warn("Audio HAL Audio sink is not running");
     return;
   }
 
-  LOG_INFO();
+  log::info("");
   worker_thread_->ShutDown();
 
   if (halSinkInterface_) {
+    if (le_audio_sink_hal_state_ == HAL_STARTED) {
+      halSinkInterface_->StopSession();
+      le_audio_sink_hal_state_ = HAL_STOPPED;
+    }
+
     halSinkInterface_->Cleanup();
 
-    auto halInterface = LeAudioClientInterface::Get();
+    auto halInterface = audio::le_audio::LeAudioClientInterface::Get();
     if (halInterface != nullptr) {
       halInterface->ReleaseSink(halSinkInterface_);
     } else {
-      LOG_ERROR("Can't get LE Audio HAL interface");
+      log::error("Can't get LE Audio HAL interface");
     }
 
     le_audio_sink_hal_state_ = HAL_UNINITIALIZED;
@@ -167,7 +185,7 @@ void SourceImpl::Release() {
 bool SourceImpl::OnResumeReq(bool start_media_task) {
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
   if (audioSourceCallbacks_ == nullptr) {
-    LOG_ERROR("audioSourceCallbacks_ not set");
+    log::error("audioSourceCallbacks_ not set");
     return false;
   }
   bt_status_t status = do_in_main_thread(
@@ -178,13 +196,13 @@ bool SourceImpl::OnResumeReq(bool start_media_task) {
     return true;
   }
 
-  LOG_ERROR("do_in_main_thread err=%d", status);
+  log::error("do_in_main_thread err={}", status);
   return false;
 }
 
 void SourceImpl::SendAudioData() {
   if (halSinkInterface_ == nullptr) {
-    LOG_ERROR("Audio HAL Audio sink interface not acquired - aborting");
+    log::error("Audio HAL Audio sink interface not acquired - aborting");
     return;
   }
 
@@ -206,7 +224,7 @@ void SourceImpl::SendAudioData() {
         bluetooth::common::time_get_os_boottime_us();
   }
 
-  if (IS_FLAG_ENABLED(leaudio_hal_client_asrc)) {
+  if (com::android::bluetooth::flags::leaudio_hal_client_asrc()) {
     auto asrc_buffers = asrc_->Run(data);
 
     std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
@@ -231,14 +249,14 @@ bool SourceImpl::InitAudioSinkThread() {
 
   worker_thread_->StartUp();
   if (!worker_thread_->IsRunning()) {
-    LOG_ERROR("Unable to start up the BLE audio sink worker thread");
+    log::error("Unable to start up the BLE audio sink worker thread");
     return false;
   }
 
   /* Schedule the rest of the operations */
   if (!worker_thread_->EnableRealTimeScheduling()) {
 #if defined(__ANDROID__)
-    LOG(FATAL) << __func__ << ", Failed to increase media thread priority";
+    log::fatal("Failed to increase media thread priority");
 #endif
   }
 
@@ -247,11 +265,10 @@ bool SourceImpl::InitAudioSinkThread() {
 
 void SourceImpl::StartAudioTicks() {
   wakelock_acquire();
-  if (IS_FLAG_ENABLED(leaudio_hal_client_asrc)) {
+  if (com::android::bluetooth::flags::leaudio_hal_client_asrc()) {
     asrc_ = std::make_unique<bluetooth::audio::asrc::SourceAudioHalAsrc>(
-        std::make_shared<bluetooth::hal::NocpIsoEvents>(),
-        source_codec_config_.num_channels, source_codec_config_.sample_rate,
-        source_codec_config_.bits_per_sample,
+        worker_thread_, source_codec_config_.num_channels,
+        source_codec_config_.sample_rate, source_codec_config_.bits_per_sample,
         source_codec_config_.data_interval_us);
   }
   audio_timer_.SchedulePeriodic(
@@ -270,7 +287,8 @@ bool SourceImpl::OnSuspendReq() {
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
   if (CodecManager::GetInstance()->GetCodecLocation() ==
       types::CodecLocation::HOST) {
-    if (IS_FLAG_ENABLED(run_ble_audio_ticks_in_worker_thread)) {
+    if (com::android::bluetooth::flags::
+            run_ble_audio_ticks_in_worker_thread()) {
       worker_thread_->DoInThread(
           FROM_HERE,
           base::BindOnce(&SourceImpl::StopAudioTicks, base::Unretained(this)));
@@ -280,7 +298,7 @@ bool SourceImpl::OnSuspendReq() {
   }
 
   if (audioSourceCallbacks_ == nullptr) {
-    LOG_ERROR("audioSourceCallbacks_ not set");
+    log::error("audioSourceCallbacks_ not set");
     return false;
   }
 
@@ -292,7 +310,7 @@ bool SourceImpl::OnSuspendReq() {
     return true;
   }
 
-  LOG_ERROR("do_in_main_thread err=%d", status);
+  log::error("do_in_main_thread err={}", status);
   return false;
 }
 
@@ -300,7 +318,7 @@ bool SourceImpl::OnMetadataUpdateReq(
     const source_metadata_v7_t& source_metadata, DsaMode dsa_mode) {
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
   if (audioSourceCallbacks_ == nullptr) {
-    LOG(ERROR) << __func__ << ", audio receiver not started";
+    log::error("audio receiver not started");
     return false;
   }
 
@@ -318,7 +336,7 @@ bool SourceImpl::OnMetadataUpdateReq(
     return true;
   }
 
-  LOG_ERROR("do_in_main_thread err=%d", status);
+  log::error("do_in_main_thread err={}", status);
   return false;
 }
 
@@ -326,32 +344,32 @@ bool SourceImpl::Start(const LeAudioCodecConfiguration& codec_configuration,
                        LeAudioSourceAudioHalClient::Callbacks* audioReceiver,
                        DsaModes dsa_modes) {
   if (!halSinkInterface_) {
-    LOG_ERROR("Audio HAL Audio sink interface not acquired");
+    log::error("Audio HAL Audio sink interface not acquired");
     return false;
   }
 
   if (le_audio_sink_hal_state_ == HAL_STARTED) {
-    LOG_ERROR("Audio HAL Audio sink is already in use");
+    log::error("Audio HAL Audio sink is already in use");
     return false;
   }
 
-  LOG_INFO("bit rate: %d, num channels: %d, sample rate: %d, data interval: %d",
-           codec_configuration.bits_per_sample,
-           codec_configuration.num_channels, codec_configuration.sample_rate,
-           codec_configuration.data_interval_us);
+  log::info(
+      "bit rate: {}, num channels: {}, sample rate: {}, data interval: {}",
+      codec_configuration.bits_per_sample, codec_configuration.num_channels,
+      codec_configuration.sample_rate, codec_configuration.data_interval_us);
 
   sStats.Reset();
 
   /* Global config for periodic audio data */
   source_codec_config_ = codec_configuration;
-  LeAudioClientInterface::PcmParameters pcmParameters = {
+  audio::le_audio::LeAudioClientInterface::PcmParameters pcmParameters = {
       .data_interval_us = codec_configuration.data_interval_us,
       .sample_rate = codec_configuration.sample_rate,
       .bits_per_sample = codec_configuration.bits_per_sample,
       .channels_count = codec_configuration.num_channels};
 
   halSinkInterface_->SetPcmParameters(pcmParameters);
-  LeAudioClientInterface::Get()->SetAllowedDsaModes(dsa_modes);
+  audio::le_audio::LeAudioClientInterface::Get()->SetAllowedDsaModes(dsa_modes);
   halSinkInterface_->StartSession();
 
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
@@ -362,23 +380,24 @@ bool SourceImpl::Start(const LeAudioCodecConfiguration& codec_configuration,
 
 void SourceImpl::Stop() {
   if (!halSinkInterface_) {
-    LOG_ERROR("Audio HAL Audio sink interface already stopped");
+    log::error("Audio HAL Audio sink interface already stopped");
     return;
   }
 
   if (le_audio_sink_hal_state_ != HAL_STARTED) {
-    LOG_ERROR("Audio HAL Audio sink was not started!");
+    log::error("Audio HAL Audio sink was not started!");
     return;
   }
 
-  LOG_INFO();
+  log::info("");
 
   halSinkInterface_->StopSession();
   le_audio_sink_hal_state_ = HAL_STOPPED;
 
   if (CodecManager::GetInstance()->GetCodecLocation() ==
       types::CodecLocation::HOST) {
-    if (IS_FLAG_ENABLED(run_ble_audio_ticks_in_worker_thread)) {
+    if (com::android::bluetooth::flags::
+            run_ble_audio_ticks_in_worker_thread()) {
       worker_thread_->DoInThread(
           FROM_HERE,
           base::BindOnce(&SourceImpl::StopAudioTicks, base::Unretained(this)));
@@ -394,12 +413,12 @@ void SourceImpl::Stop() {
 void SourceImpl::ConfirmStreamingRequest() {
   if ((halSinkInterface_ == nullptr) ||
       (le_audio_sink_hal_state_ != HAL_STARTED)) {
-    LOG_ERROR("Audio HAL Audio sink was not started!");
+    log::error("Audio HAL Audio sink was not started!");
     return;
   }
 
-  LOG_INFO();
-  if (IS_FLAG_ENABLED(leaudio_start_stream_race_fix)) {
+  log::info("");
+  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
     halSinkInterface_->ConfirmStreamingRequestV2();
   } else {
     halSinkInterface_->ConfirmStreamingRequest();
@@ -408,7 +427,7 @@ void SourceImpl::ConfirmStreamingRequest() {
       types::CodecLocation::HOST)
     return;
 
-  if (IS_FLAG_ENABLED(run_ble_audio_ticks_in_worker_thread)) {
+  if (com::android::bluetooth::flags::run_ble_audio_ticks_in_worker_thread()) {
     worker_thread_->DoInThread(
         FROM_HERE,
         base::BindOnce(&SourceImpl::StartAudioTicks, base::Unretained(this)));
@@ -420,34 +439,34 @@ void SourceImpl::ConfirmStreamingRequest() {
 void SourceImpl::SuspendedForReconfiguration() {
   if ((halSinkInterface_ == nullptr) ||
       (le_audio_sink_hal_state_ != HAL_STARTED)) {
-    LOG_ERROR("Audio HAL Audio sink was not started!");
+    log::error("Audio HAL Audio sink was not started!");
     return;
   }
 
-  LOG_INFO();
+  log::info("");
   halSinkInterface_->SuspendedForReconfiguration();
 }
 
 void SourceImpl::ReconfigurationComplete() {
   if ((halSinkInterface_ == nullptr) ||
       (le_audio_sink_hal_state_ != HAL_STARTED)) {
-    LOG_ERROR("Audio HAL Audio sink was not started!");
+    log::error("Audio HAL Audio sink was not started!");
     return;
   }
 
-  LOG_INFO();
+  log::info("");
   halSinkInterface_->ReconfigurationComplete();
 }
 
 void SourceImpl::CancelStreamingRequest() {
   if ((halSinkInterface_ == nullptr) ||
       (le_audio_sink_hal_state_ != HAL_STARTED)) {
-    LOG_ERROR("Audio HAL Audio sink was not started!");
+    log::error("Audio HAL Audio sink was not started!");
     return;
   }
 
-  LOG_INFO();
-  if (IS_FLAG_ENABLED(leaudio_start_stream_race_fix)) {
+  log::info("");
+  if (com::android::bluetooth::flags::leaudio_start_stream_race_fix()) {
     halSinkInterface_->CancelStreamingRequestV2();
   } else {
     halSinkInterface_->CancelStreamingRequest();
@@ -457,34 +476,61 @@ void SourceImpl::CancelStreamingRequest() {
 void SourceImpl::UpdateRemoteDelay(uint16_t remote_delay_ms) {
   if ((halSinkInterface_ == nullptr) ||
       (le_audio_sink_hal_state_ != HAL_STARTED)) {
-    LOG_ERROR("Audio HAL Audio sink was not started!");
+    log::error("Audio HAL Audio sink was not started!");
     return;
   }
 
-  LOG_INFO();
+  log::info("");
   halSinkInterface_->SetRemoteDelay(remote_delay_ms);
 }
 
 void SourceImpl::UpdateAudioConfigToHal(
-    const ::le_audio::offload_config& config) {
+    const ::bluetooth::le_audio::offload_config& config) {
   if ((halSinkInterface_ == nullptr) ||
       (le_audio_sink_hal_state_ != HAL_STARTED)) {
-    LOG_ERROR("Audio HAL Audio sink was not started!");
+    log::error("Audio HAL Audio sink was not started!");
     return;
   }
 
-  LOG_INFO();
+  log::info("");
   halSinkInterface_->UpdateAudioConfigToHal(config);
 }
 
-void SourceImpl::UpdateBroadcastAudioConfigToHal(
-    const ::le_audio::broadcast_offload_config& config) {
+std::optional<broadcaster::BroadcastConfiguration>
+SourceImpl::GetBroadcastConfig(
+    const std::vector<std::pair<types::LeAudioContextType, uint8_t>>&
+        subgroup_quality,
+    const std::optional<
+        std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs) const {
   if (halSinkInterface_ == nullptr) {
-    LOG_ERROR("Audio HAL Audio sink interface not acquired");
+    log::error("Audio HAL Audio sink is null!");
+    return std::nullopt;
+  }
+
+  log::info("");
+  return halSinkInterface_->GetBroadcastConfig(subgroup_quality, pacs);
+}
+
+std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+SourceImpl::GetUnicastConfig(
+    const CodecManager::UnicastConfigurationRequirements& requirements) const {
+  if (halSinkInterface_ == nullptr) {
+    log::error("Audio HAL Audio sink is null!");
+    return std::nullopt;
+  }
+
+  log::info("");
+  return halSinkInterface_->GetUnicastConfig(requirements);
+};
+
+void SourceImpl::UpdateBroadcastAudioConfigToHal(
+    const ::bluetooth::le_audio::broadcast_offload_config& config) {
+  if (halSinkInterface_ == nullptr) {
+    log::error("Audio HAL Audio sink interface not acquired");
     return;
   }
 
-  LOG_INFO();
+  log::info("");
   halSinkInterface_->UpdateBroadcastAudioConfigToHal(config);
 }
 }  // namespace
@@ -493,12 +539,12 @@ std::unique_ptr<LeAudioSourceAudioHalClient>
 LeAudioSourceAudioHalClient::AcquireUnicast() {
   std::unique_ptr<SourceImpl> impl(new SourceImpl(false));
   if (!impl->Acquire()) {
-    LOG_ERROR("Could not acquire Unicast Source on LE Audio HAL enpoint");
+    log::error("Could not acquire Unicast Source on LE Audio HAL enpoint");
     impl.reset();
     return nullptr;
   }
 
-  LOG_INFO();
+  log::info("");
   return std::move(impl);
 }
 
@@ -506,12 +552,12 @@ std::unique_ptr<LeAudioSourceAudioHalClient>
 LeAudioSourceAudioHalClient::AcquireBroadcast() {
   std::unique_ptr<SourceImpl> impl(new SourceImpl(true));
   if (!impl->Acquire()) {
-    LOG_ERROR("Could not acquire Broadcast Source on LE Audio HAL enpoint");
+    log::error("Could not acquire Broadcast Source on LE Audio HAL enpoint");
     impl.reset();
     return nullptr;
   }
 
-  LOG_INFO();
+  log::info("");
   return std::move(impl);
 }
 
@@ -532,4 +578,4 @@ void LeAudioSourceAudioHalClient::DebugDump(int fd) {
          << std::endl;
   dprintf(fd, "%s", stream.str().c_str());
 }
-}  // namespace le_audio
+}  // namespace bluetooth::le_audio

@@ -19,7 +19,6 @@ package com.android.bluetooth.mapclient;
 import android.util.Log;
 
 import com.android.bluetooth.ObexAppParameters;
-import com.android.bluetooth.ObexServerSockets;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.HeaderSet;
 import com.android.obex.Operation;
@@ -31,47 +30,41 @@ import java.lang.ref.WeakReference;
 import java.util.Arrays;
 
 class MnsObexServer extends ServerRequestHandler {
-
-    private static final String TAG = "MnsObexServer";
-    private static final boolean VDBG = MapClientService.VDBG;
+    private static final String TAG = MnsObexServer.class.getSimpleName();
 
     @VisibleForTesting
-    static final byte[] MNS_TARGET = new byte[]{
-            (byte) 0xbb,
-            0x58,
-            0x2b,
-            0x41,
-            0x42,
-            0x0c,
-            0x11,
-            (byte) 0xdb,
-            (byte) 0xb0,
-            (byte) 0xde,
-            0x08,
-            0x00,
-            0x20,
-            0x0c,
-            (byte) 0x9a,
-            0x66
-    };
+    static final byte[] MNS_TARGET =
+            new byte[] {
+                (byte) 0xbb,
+                0x58,
+                0x2b,
+                0x41,
+                0x42,
+                0x0c,
+                0x11,
+                (byte) 0xdb,
+                (byte) 0xb0,
+                (byte) 0xde,
+                0x08,
+                0x00,
+                0x20,
+                0x0c,
+                (byte) 0x9a,
+                0x66
+            };
 
-    @VisibleForTesting
-    static final String TYPE = "x-bt/MAP-event-report";
+    @VisibleForTesting static final String TYPE = "x-bt/MAP-event-report";
 
     private final WeakReference<MceStateMachine> mStateMachineReference;
-    private final ObexServerSockets mObexServerSockets;
 
-    MnsObexServer(MceStateMachine stateMachine, ObexServerSockets socketOriginator) {
+    MnsObexServer(MceStateMachine stateMachine) {
         super();
         mStateMachineReference = new WeakReference<>(stateMachine);
-        mObexServerSockets = socketOriginator;
     }
 
     @Override
     public int onConnect(final HeaderSet request, HeaderSet reply) {
-        if (VDBG) {
-            Log.v(TAG, "onConnect");
-        }
+        Log.v(TAG, "onConnect");
 
         try {
             byte[] uuid = (byte[]) request.getHeader(HeaderSet.TARGET);
@@ -90,9 +83,7 @@ class MnsObexServer extends ServerRequestHandler {
 
     @Override
     public void onDisconnect(final HeaderSet request, HeaderSet reply) {
-        if (VDBG) {
-            Log.v(TAG, "onDisconnect");
-        }
+        Log.v(TAG, "onDisconnect");
         MceStateMachine currentStateMachine = mStateMachineReference.get();
         if (currentStateMachine != null) {
             currentStateMachine.disconnect();
@@ -101,17 +92,13 @@ class MnsObexServer extends ServerRequestHandler {
 
     @Override
     public int onGet(final Operation op) {
-        if (VDBG) {
-            Log.v(TAG, "onGet");
-        }
+        Log.v(TAG, "onGet");
         return ResponseCodes.OBEX_HTTP_BAD_REQUEST;
     }
 
     @Override
     public int onPut(final Operation op) {
-        if (VDBG) {
-            Log.v(TAG, "onPut");
-        }
+        Log.v(TAG, "onPut");
 
         try {
             HeaderSet headerset;
@@ -123,7 +110,6 @@ class MnsObexServer extends ServerRequestHandler {
                 return ResponseCodes.OBEX_HTTP_BAD_REQUEST;
             }
 
-            Byte inst = oap.getByte(Request.OAP_TAGID_MAS_INSTANCE_ID);
             EventReport ev = EventReport.fromStream(op.openDataInputStream());
             op.close();
 
@@ -140,25 +126,19 @@ class MnsObexServer extends ServerRequestHandler {
 
     @Override
     public int onAbort(final HeaderSet request, HeaderSet reply) {
-        if (VDBG) {
-            Log.v(TAG, "onAbort");
-        }
+        Log.v(TAG, "onAbort");
         return ResponseCodes.OBEX_HTTP_NOT_IMPLEMENTED;
     }
 
     @Override
-    public int onSetPath(final HeaderSet request, HeaderSet reply, final boolean backup,
-            final boolean create) {
-        if (VDBG) {
-            Log.v(TAG, "onSetPath");
-        }
+    public int onSetPath(
+            final HeaderSet request, HeaderSet reply, final boolean backup, final boolean create) {
+        Log.v(TAG, "onSetPath");
         return ResponseCodes.OBEX_HTTP_BAD_REQUEST;
     }
 
     @Override
     public void onClose() {
-        if (VDBG) {
-            Log.v(TAG, "onClose");
-        }
+        Log.v(TAG, "onClose");
     }
 }

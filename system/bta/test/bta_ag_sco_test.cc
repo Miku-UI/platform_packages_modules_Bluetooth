@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <tuple>
@@ -21,8 +22,10 @@
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_le_audio_api.h"
+#include "hci/controller_interface_mock.h"
 #include "stack/btm/btm_int_types.h"
 #include "test/mock/mock_device_esco_parameters.h"
+#include "test/mock/mock_main_shim_entry.h"
 
 bool btm_peer_supports_esco_ev3(const RawAddress& remote_bda) { return true; }
 tBTM_CB btm_cb;
@@ -41,11 +44,14 @@ class BtaAgScoParameterSelectionTest
           this->codec = codec;
           return enh_esco_params_t{};
         };
+    bluetooth::hci::testing::mock_controller_ = &controller_;
   }
   void TearDown() override {
     test::mock::device_esco_parameters::esco_parameters_for_codec = {};
+    bluetooth::hci::testing::mock_controller_ = nullptr;
   }
   esco_codec_t codec;
+  bluetooth::hci::testing::MockControllerInterface controller_;
 };
 
 TEST_P(BtaAgScoParameterSelectionTest, create_sco_cvsd) {
@@ -83,7 +89,13 @@ TEST_P(BtaAgScoParameterSelectionTest, create_pending_sco_cvsd) {
   };
 
   this->codec = ESCO_CODEC_UNKNOWN;
-  bta_ag_create_pending_sco(&scb, is_local);
+  if (is_local) {
+    bta_ag_create_sco(&scb, true);
+  } else {
+    // empty data, not used in the function
+    tBTM_ESCO_CONN_REQ_EVT_DATA data;
+    bta_ag_sco_conn_rsp(&scb, &data);
+  }
   if ((scb.features & BTA_AG_FEAT_ESCO_S4) &&
       (scb.peer_features & BTA_AG_PEER_FEAT_ESCO_S4)) {
     ASSERT_EQ(this->codec, ESCO_CODEC_CVSD_S4);

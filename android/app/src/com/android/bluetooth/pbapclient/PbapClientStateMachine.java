@@ -71,8 +71,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 class PbapClientStateMachine extends StateMachine {
-    private static final String TAG = "PbapClientStateMachine";
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = PbapClientStateMachine.class.getSimpleName();
 
     // Messages for handling connect/disconnect requests.
     private static final int MSG_DISCONNECT = 2;
@@ -112,7 +111,9 @@ class PbapClientStateMachine extends StateMachine {
     }
 
     @VisibleForTesting
-    PbapClientStateMachine(PbapClientService svc, BluetoothDevice device,
+    PbapClientStateMachine(
+            PbapClientService svc,
+            BluetoothDevice device,
             PbapClientConnectionHandler connectionHandler) {
         super(TAG);
 
@@ -137,9 +138,9 @@ class PbapClientStateMachine extends StateMachine {
     class Disconnected extends State {
         @Override
         public void enter() {
-            if (DBG) Log.d(TAG, "Enter Disconnected: " + getCurrentMessage().what);
-            onConnectionStateChanged(mCurrentDevice, mMostRecentState,
-                    BluetoothProfile.STATE_DISCONNECTED);
+            Log.d(TAG, "Enter Disconnected: " + getCurrentMessage().what);
+            onConnectionStateChanged(
+                    mCurrentDevice, mMostRecentState, BluetoothProfile.STATE_DISCONNECTED);
             mMostRecentState = BluetoothProfile.STATE_DISCONNECTED;
             quit();
         }
@@ -149,11 +150,9 @@ class PbapClientStateMachine extends StateMachine {
 
         @Override
         public void enter() {
-            if (DBG) {
-                Log.d(TAG, "Enter Connecting: " + getCurrentMessage().what);
-            }
-            onConnectionStateChanged(mCurrentDevice, mMostRecentState,
-                    BluetoothProfile.STATE_CONNECTING);
+            Log.d(TAG, "Enter Connecting: " + getCurrentMessage().what);
+            onConnectionStateChanged(
+                    mCurrentDevice, mMostRecentState, BluetoothProfile.STATE_CONNECTING);
             mCurrentDevice.sdpSearch(BluetoothUuid.PBAP_PSE);
             mMostRecentState = BluetoothProfile.STATE_CONNECTING;
 
@@ -180,13 +179,11 @@ class PbapClientStateMachine extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            if (DBG) {
-                Log.d(TAG, "Processing MSG " + message.what + " from " + this.getName());
-            }
+            Log.d(TAG, "Processing MSG " + message.what + " from " + this.getName());
             switch (message.what) {
                 case MSG_DISCONNECT:
-                    if (message.obj instanceof BluetoothDevice && message.obj.equals(
-                            mCurrentDevice)) {
+                    if (message.obj instanceof BluetoothDevice
+                            && message.obj.equals(mCurrentDevice)) {
                         removeMessages(MSG_CONNECT_TIMEOUT);
                         transitionTo(mDisconnecting);
                     }
@@ -223,9 +220,9 @@ class PbapClientStateMachine extends StateMachine {
     class Disconnecting extends State {
         @Override
         public void enter() {
-            if (DBG) Log.d(TAG, "Enter Disconnecting: " + getCurrentMessage().what);
-            onConnectionStateChanged(mCurrentDevice, mMostRecentState,
-                    BluetoothProfile.STATE_DISCONNECTING);
+            Log.d(TAG, "Enter Disconnecting: " + getCurrentMessage().what);
+            onConnectionStateChanged(
+                    mCurrentDevice, mMostRecentState, BluetoothProfile.STATE_DISCONNECTING);
             mMostRecentState = BluetoothProfile.STATE_DISCONNECTING;
             PbapClientConnectionHandler connectionHandler = mConnectionHandler;
             if (connectionHandler != null) {
@@ -238,9 +235,7 @@ class PbapClientStateMachine extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            if (DBG) {
-                Log.d(TAG, "Processing MSG " + message.what + " from " + this.getName());
-            }
+            Log.d(TAG, "Processing MSG " + message.what + " from " + this.getName());
             PbapClientConnectionHandler connectionHandler = mConnectionHandler;
             HandlerThread handlerThread = mHandlerThread;
 
@@ -283,18 +278,16 @@ class PbapClientStateMachine extends StateMachine {
     class Connected extends State {
         @Override
         public void enter() {
-            if (DBG) Log.d(TAG, "Enter Connected: " + getCurrentMessage().what);
-            onConnectionStateChanged(mCurrentDevice, mMostRecentState,
-                    BluetoothProfile.STATE_CONNECTED);
+            Log.d(TAG, "Enter Connected: " + getCurrentMessage().what);
+            onConnectionStateChanged(
+                    mCurrentDevice, mMostRecentState, BluetoothProfile.STATE_CONNECTED);
             mMostRecentState = BluetoothProfile.STATE_CONNECTED;
             downloadIfReady();
         }
 
         @Override
         public boolean processMessage(Message message) {
-            if (DBG) {
-                Log.d(TAG, "Processing MSG " + message.what + " from " + this.getName());
-            }
+            Log.d(TAG, "Processing MSG " + message.what + " from " + this.getName());
             switch (message.what) {
                 case MSG_DISCONNECT:
                     if ((message.obj instanceof BluetoothDevice)
@@ -315,15 +308,17 @@ class PbapClientStateMachine extends StateMachine {
         }
     }
 
-    /**
-     * Trigger a contacts download if the user is unlocked and our accounts are available to us
-     */
+    /** Trigger a contacts download if the user is unlocked and our accounts are available to us */
     private void downloadIfReady() {
         boolean userReady = mUserManager.isUserUnlocked();
         boolean accountServiceReady = mService.isAuthenticationServiceReady();
         if (!userReady || !accountServiceReady) {
-            Log.w(TAG, "Cannot download contacts yet, userReady=" + userReady
-                    + ", accountServiceReady=" + accountServiceReady);
+            Log.w(
+                    TAG,
+                    "Cannot download contacts yet, userReady="
+                            + userReady
+                            + ", accountServiceReady="
+                            + accountServiceReady);
             return;
         }
         PbapClientConnectionHandler connectionHandler = mConnectionHandler;
@@ -353,13 +348,14 @@ class PbapClientStateMachine extends StateMachine {
         intent.putExtra(BluetoothProfile.EXTRA_STATE, state);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-        mService.sendBroadcastMultiplePermissions(intent,
+        mService.sendBroadcastMultiplePermissions(
+                intent,
                 new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
                 Utils.getTempBroadcastOptions());
     }
 
     public void disconnect(BluetoothDevice device) {
-        if (DBG) Log.d(TAG, "Disconnect Request " + device);
+        Log.d(TAG, "Disconnect Request " + device);
         sendMessage(MSG_DISCONNECT, device);
     }
 
@@ -432,7 +428,6 @@ class PbapClientStateMachine extends StateMachine {
         return BluetoothProfile.STATE_DISCONNECTED;
     }
 
-
     public BluetoothDevice getDevice() {
         /*
          * Disconnected is the only state where device can change, and to prevent the race
@@ -451,7 +446,13 @@ class PbapClientStateMachine extends StateMachine {
     }
 
     public void dump(StringBuilder sb) {
-        ProfileService.println(sb, "mCurrentDevice: " + mCurrentDevice.getAddress() + "("
-                + Utils.getName(mCurrentDevice) + ") " + this.toString());
+        ProfileService.println(
+                sb,
+                "mCurrentDevice: "
+                        + mCurrentDevice.getAddress()
+                        + "("
+                        + Utils.getName(mCurrentDevice)
+                        + ") "
+                        + this.toString());
     }
 }

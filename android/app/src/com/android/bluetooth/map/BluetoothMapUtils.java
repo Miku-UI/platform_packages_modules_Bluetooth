@@ -1,17 +1,17 @@
 /*
-* Copyright (C) 2013 Samsung System LSI
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2013 Samsung System LSI
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.map;
 
 import android.bluetooth.BluetoothProfile;
@@ -34,6 +34,8 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Calendar;
@@ -45,8 +47,6 @@ import java.util.regex.Pattern;
 public class BluetoothMapUtils {
 
     private static final String TAG = "BluetoothMapUtils";
-    private static final boolean D = BluetoothMapService.DEBUG;
-    private static final boolean V = BluetoothMapService.VERBOSE;
     /* We use the upper 4 bits for the type mask.
      * TODO: When more types are needed, consider just using a number
      *       in stead of a bit to indicate the message type. Then 4
@@ -106,11 +106,16 @@ public class BluetoothMapUtils {
     private static boolean mPeerSupportUtcTimeStamp = false;
 
     /**
-     * This enum is used to convert from the bMessage type property to a type safe
-     * type. Hence do not change the names of the enum values.
+     * This enum is used to convert from the bMessage type property to a type safe type. Hence do
+     * not change the names of the enum values.
      */
     public enum TYPE {
-        NONE, EMAIL, SMS_GSM, SMS_CDMA, MMS, IM;
+        NONE,
+        EMAIL,
+        SMS_GSM,
+        SMS_CDMA,
+        MMS,
+        IM;
         private static TYPE[] sAllValues = values();
 
         public static TYPE fromOrdinal(int n) {
@@ -122,17 +127,23 @@ public class BluetoothMapUtils {
     }
 
     public static void printCursor(Cursor c) {
-        if (D) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("\nprintCursor:\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("\nprintCursor:\n");
+        if (c == null) {
+            sb.append(" null");
+        } else if (c.isBeforeFirst() || c.isAfterLast()) {
+            sb.append(" cursor points to invalid position");
+        } else {
             for (int i = 0; i < c.getColumnCount(); i++) {
                 if (c.getColumnName(i).equals(BluetoothMapContract.MessageColumns.DATE)
                         || c.getColumnName(i)
-                        .equals(BluetoothMapContract.ConversationColumns.LAST_THREAD_ACTIVITY)
+                                .equals(
+                                        BluetoothMapContract.ConversationColumns
+                                                .LAST_THREAD_ACTIVITY)
                         || c.getColumnName(i)
-                        .equals(BluetoothMapContract.ChatStatusColumns.LAST_ACTIVE)
+                                .equals(BluetoothMapContract.ChatStatusColumns.LAST_ACTIVE)
                         || c.getColumnName(i)
-                        .equals(BluetoothMapContract.PresenceColumns.LAST_ONLINE)) {
+                                .equals(BluetoothMapContract.PresenceColumns.LAST_ONLINE)) {
                     sb.append("  ")
                             .append(c.getColumnName(i))
                             .append(" : ")
@@ -146,8 +157,8 @@ public class BluetoothMapUtils {
                             .append("\n");
                 }
             }
-            Log.d(TAG, sb.toString());
         }
+        Log.v(TAG, sb.toString());
     }
 
     public static String getLongAsString(long v) {
@@ -169,29 +180,24 @@ public class BluetoothMapUtils {
     }
 
     /**
-     * Converts a hex-string to a long - please mind that Java has no unsigned data types, hence
-     * any value passed to this function, which has the upper bit set, will return a negative value.
-     * The bitwise content of the variable will however be the same.
-     * Will ignore any white-space characters as well as '-' seperators
-     * @param valueStr a hexstring - NOTE: shall not contain any "0x" prefix.
-     * @return
-     * @throws UnsupportedEncodingException if "US-ASCII" charset is not supported,
-     * NullPointerException if a null pointer is passed to the function,
-     * NumberFormatException if the string contains invalid characters.
+     * Converts a hex-string to a long - please mind that Java has no unsigned data types, hence any
+     * value passed to this function, which has the upper bit set, will return a negative value. The
+     * bitwise content of the variable will however be the same. Will ignore any white-space
+     * characters as well as '-' separators
      *
+     * @param valueStr a hexstring - NOTE: shall not contain any "0x" prefix.
+     * @throws UnsupportedEncodingException if "US-ASCII" charset is not supported,
+     *     NullPointerException if a null pointer is passed to the function, NumberFormatException
+     *     if the string contains invalid characters.
      */
     public static long getLongFromString(String valueStr) throws UnsupportedEncodingException {
         if (valueStr == null) {
             throw new NullPointerException();
         }
-        if (V) {
-            Log.i(TAG, "getLongFromString(): converting: " + valueStr);
-        }
+        Log.v(TAG, "getLongFromString(): converting: " + valueStr);
         byte[] nibbles;
         nibbles = valueStr.getBytes("US-ASCII");
-        if (V) {
-            Log.i(TAG, "  byte values: " + Arrays.toString(nibbles));
-        }
+        Log.v(TAG, "  byte values: " + Arrays.toString(nibbles));
         byte c;
         int count = 0;
         int length = nibbles.length;
@@ -205,10 +211,7 @@ public class BluetoothMapUtils {
             } else if (c >= 'a' && c <= 'f') {
                 c -= ('a' - 10);
             } else if (c <= ' ' || c == '-') {
-                if (V) {
-                    Log.v(TAG,
-                            "Skipping c = '" + new String(new byte[]{(byte) c}, "US-ASCII") + "'");
-                }
+                Log.v(TAG, "Skipping c = '" + new String(new byte[] {(byte) c}, "US-ASCII") + "'");
                 continue; // Skip any whitespace and '-' (which is used for UUIDs)
             } else {
                 throw new NumberFormatException("Invalid character:" + c);
@@ -220,9 +223,7 @@ public class BluetoothMapUtils {
                 throw new NullPointerException("String to large - count: " + count);
             }
         }
-        if (V) {
-            Log.i(TAG, "  length: " + count);
-        }
+        Log.v(TAG, "  length: " + count);
         return value;
     }
 
@@ -263,9 +264,9 @@ public class BluetoothMapUtils {
         return new String(result, i, LONG_LONG_LENGTH - i);
     }
 
-
     /**
      * Convert a Content Provider handle and a Messagetype into a unique handle
+     *
      * @param cpHandle content provider handle
      * @param messageType message type (TYPE_MMS/TYPE_SMS_GSM/TYPE_SMS_CDMA/TYPE_EMAIL)
      * @return String Formatted Map Handle
@@ -296,9 +297,7 @@ public class BluetoothMapUtils {
                     throw new IllegalArgumentException("Message type not supported");
             }
         } else {
-            if (D) {
-                Log.e(TAG, " Invalid messageType input");
-            }
+            Log.e(TAG, " Invalid messageType input");
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.MAP,
                     BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
@@ -306,11 +305,11 @@ public class BluetoothMapUtils {
                     0);
         }
         return mapHandle;
-
     }
 
     /**
      * Convert a Content Provider handle and a Messagetype into a unique handle
+     *
      * @param cpHandle content provider handle
      * @param messageType message type (TYPE_MMS/TYPE_SMS_GSM/TYPE_SMS_CDMA/TYPE_EMAIL)
      * @return String Formatted Map Handle
@@ -331,11 +330,11 @@ public class BluetoothMapUtils {
                 throw new IllegalArgumentException("Message type not supported");
         }
         return mapHandle;
-
     }
 
     /**
      * Convert a handle string the the raw long representation, including the type bit.
+     *
      * @param mapHandle the handle string
      * @return the handle value
      */
@@ -345,28 +344,21 @@ public class BluetoothMapUtils {
 
     /**
      * Convert a Map Handle into a content provider Handle
+     *
      * @param mapHandle handle to convert from
      * @return content provider handle without message type mask
      */
     public static long getCpHandle(String mapHandle) {
         long cpHandle = getMsgHandleAsLong(mapHandle);
-        if (D) {
-            Log.d(TAG, "-> MAP handle:" + mapHandle);
-        }
+        Log.d(TAG, "-> MAP handle:" + mapHandle);
         /* remove masks as the call should already know what type of message this handle is for */
         cpHandle &= ~HANDLE_TYPE_MASK;
-        if (D) {
-            Log.d(TAG, "->CP handle:" + cpHandle);
-        }
+        Log.d(TAG, "->CP handle:" + cpHandle);
 
         return cpHandle;
     }
 
-    /**
-     * Extract the message type from the handle.
-     * @param mapHandle
-     * @return
-     */
+    /** Extract the message type from the handle. */
     public static TYPE getMsgTypeFromHandle(String mapHandle) {
         long cpHandle = getMsgHandleAsLong(mapHandle);
 
@@ -391,13 +383,12 @@ public class BluetoothMapUtils {
 
     /**
      * TODO: Is this still needed after changing to another XML encoder? It should escape illegal
-     *       characters.
-     * Strip away any illegal XML characters, that would otherwise cause the
-     * xml serializer to throw an exception.
-     * Examples of such characters are the emojis used on Android.
+     * characters. Strip away any illegal XML characters, that would otherwise cause the xml
+     * serializer to throw an exception. Examples of such characters are the emojis used on Android.
+     *
      * @param text The string to validate
-     * @return the same string if valid, otherwise a new String stripped for
-     * any illegal characters. If a null pointer is passed an empty string will be returned.
+     * @return the same string if valid, otherwise a new String stripped for any illegal characters.
+     *     If a null pointer is passed an empty string will be returned.
      */
     public static String stripInvalidChars(String text) {
         if (text == null) {
@@ -421,10 +412,10 @@ public class BluetoothMapUtils {
 
     /**
      * Truncate UTF-8 string encoded byte array to desired length
+     *
      * @param utf8String String to convert to bytes array h
      * @param maxLength Max length of byte array returned including null termination
      * @return byte array containing valid utf8 characters with max length
-     * @throws UnsupportedEncodingException
      */
     public static byte[] truncateUtf8StringToBytearray(String utf8String, int maxLength)
             throws UnsupportedEncodingException {
@@ -466,10 +457,10 @@ public class BluetoothMapUtils {
 
     /**
      * Truncate UTF-8 string encoded to desired length
+     *
      * @param utf8InString String to truncate
      * @param maxBytesLength Max length in bytes of the returned string
      * @return A valid truncated utf-8 string
-     * @throws UnsupportedEncodingException
      */
     public static String truncateUtf8StringToString(String utf8InString, int maxBytesLength)
             throws UnsupportedEncodingException {
@@ -494,6 +485,7 @@ public class BluetoothMapUtils {
 
     /**
      * Method for converting quoted printable og base64 encoded string from headers.
+     *
      * @param in the string with encoding
      * @return decoded string if success - else the same string as was as input.
      */
@@ -510,11 +502,18 @@ public class BluetoothMapUtils {
                 charset = m.group(1);
                 encoding = m.group(2);
                 encodedText = m.group(3);
-                Log.v(TAG,
-                        "Matching:" + match + "\nCharset: " + charset + "\nEncoding : " + encoding
-                                + "\nText: " + encodedText);
+                Log.v(
+                        TAG,
+                        "Matching:"
+                                + match
+                                + "\nCharset: "
+                                + charset
+                                + "\nEncoding : "
+                                + encoding
+                                + "\nText: "
+                                + encodedText);
                 if (encoding.equalsIgnoreCase("Q")) {
-                    //quoted printable
+                    // quoted printable
                     Log.d(TAG, "StripEncoding: Quoted Printable string : " + encodedText);
                     str = new String(quotedPrintableToUtf8(encodedText, charset));
                     in = in.replace(match, str);
@@ -561,11 +560,10 @@ public class BluetoothMapUtils {
         return in;
     }
 
-
     /**
-     * Convert a quoted-printable encoded string to a UTF-8 string:
-     *  - Remove any soft line breaks: "=<CRLF>"
-     *  - Convert all "=xx" to the corresponding byte
+     * Convert a quoted-printable encoded string to a UTF-8 string: - Remove any soft line breaks:
+     * "=<CRLF>" - Convert all "=xx" to the corresponding byte
+     *
      * @param text quoted-printable encoded UTF-8 text
      * @return decoded UTF-8 string
      */
@@ -600,12 +598,13 @@ public class BluetoothMapUtils {
                 if (b1 == '\r' && b2 == '\n') {
                     continue; // soft line break, remove all tree;
                 }
-                if (((b1 >= '0' && b1 <= '9') || (b1 >= 'A' && b1 <= 'F') || (b1 >= 'a'
-                        && b1 <= 'f')) && ((b2 >= '0' && b2 <= '9') || (b2 >= 'A' && b2 <= 'F') || (
-                        b2 >= 'a' && b2 <= 'f'))) {
-                    if (V) {
-                        Log.v(TAG, "Found hex number: " + String.format("%c%c", b1, b2));
-                    }
+                if (((b1 >= '0' && b1 <= '9')
+                                || (b1 >= 'A' && b1 <= 'F')
+                                || (b1 >= 'a' && b1 <= 'f'))
+                        && ((b2 >= '0' && b2 <= '9')
+                                || (b2 >= 'A' && b2 <= 'F')
+                                || (b2 >= 'a' && b2 <= 'f'))) {
+                    Log.v(TAG, "Found hex number: " + String.format("%c%c", b1, b2));
                     if (b1 <= '9') {
                         b1 = (byte) (b1 - '0');
                     } else if (b1 <= 'F') {
@@ -622,19 +621,16 @@ public class BluetoothMapUtils {
                         b2 = (byte) (b2 - 'a' + 10);
                     }
 
-                    if (V) {
-                        Log.v(TAG,
-                                "Resulting nibble values: " + String.format("b1=%x b2=%x", b1, b2));
-                    }
+                    Log.v(TAG, "Resulting nibble values: " + String.format("b1=%x b2=%x", b1, b2));
 
                     output[out++] = (byte) (b1 << 4 | b2); // valid hex char, append
-                    if (V) {
-                        Log.v(TAG, "Resulting value: " + String.format("0x%2x", output[out - 1]));
-                    }
+                    Log.v(TAG, "Resulting value: " + String.format("0x%2x", output[out - 1]));
                     continue;
                 }
-                Log.w(TAG, "Received wrongly quoted printable encoded text. "
-                        + "Continuing at best effort...");
+                Log.w(
+                        TAG,
+                        "Received wrongly quoted printable encoded text. "
+                                + "Continuing at best effort...");
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.MAP,
                         BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
@@ -701,20 +697,18 @@ public class BluetoothMapUtils {
         return result.getBytes(); /* return the result as "UTF-8" bytes */
     }
 
-    /**
-     * Encodes an array of bytes into an array of quoted-printable 7-bit characters.
-     * Unsafe characters are escaped.
-     * Simplified version of encoder from QuetedPrintableCodec.java (Apache external)
-     *
-     * @param bytes
-     *                  array of bytes to be encoded
-     * @return UTF-8 string containing quoted-printable characters
-     */
-
     private static final byte ESCAPE_CHAR = '=';
     private static final byte TAB = 9;
     private static final byte SPACE = 32;
 
+    /**
+     * Encodes an array of bytes into an array of quoted-printable 7-bit characters. Unsafe
+     * characters are escaped. Simplified version of encoder from QuetedPrintableCodec.java (Apache
+     * external)
+     *
+     * @param bytes array of bytes to be encoded
+     * @return UTF-8 string containing quoted-printable characters
+     */
     public static final String encodeQuotedPrintable(byte[] bytes) {
         if (bytes == null) {
             return null;
@@ -754,19 +748,24 @@ public class BluetoothMapUtils {
                     BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     10);
-            //cannot happen
+            // cannot happen
             return "";
         }
     }
 
-
-    static String getDateTimeString( long timestamp) {
-        SimpleDateFormat format = (mPeerSupportUtcTimeStamp) ? new
-            SimpleDateFormat("yyyyMMdd'T'HHmmssZ") : new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+    static String getDateTimeString(long timestamp) {
+        SimpleDateFormat format =
+                (mPeerSupportUtcTimeStamp)
+                        ? new SimpleDateFormat("yyyyMMdd'T'HHmmssZ")
+                        : new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timestamp);
-        if (V) Log.v(TAG, "getDateTimeString  timestamp :" + timestamp + " time:"
-                + format.format(cal.getTime()));
+        Log.v(
+                TAG,
+                "getDateTimeString  timestamp :"
+                        + timestamp
+                        + " time:"
+                        + format.format(cal.getTime()));
         return format.format(cal.getTime());
     }
 
@@ -776,13 +775,21 @@ public class BluetoothMapUtils {
         Calendar oneYearAgo = Calendar.getInstance();
         oneYearAgo.add(Calendar.YEAR, -1);
         if (cal.before(oneYearAgo)) {
-            if (V) {
-                Log.v(TAG, "isDateTimeOlderThanOneYear " + cal.getTimeInMillis()
-                        + " oneYearAgo: " + oneYearAgo.getTimeInMillis());
-            }
+            Log.v(
+                    TAG,
+                    "isDateTimeOlderThanOneYear "
+                            + cal.getTimeInMillis()
+                            + " oneYearAgo: "
+                            + oneYearAgo.getTimeInMillis());
             return true;
         }
         return false;
+    }
+
+    static boolean isDateTimeOlderThanDuration(long timestamp, Duration duration) {
+        Instant nowMinusDuration = Instant.now().minus(duration);
+        Instant dateTime = Instant.ofEpochMilli(timestamp);
+        return dateTime.isBefore(nowMinusDuration);
     }
 
     static void savePeerSupportUtcTimeStamp(int remoteFeatureMask) {
@@ -792,8 +799,6 @@ public class BluetoothMapUtils {
         } else {
             mPeerSupportUtcTimeStamp = false;
         }
-        if (V) Log.v(TAG, "savePeerSupportUtcTimeStamp " + mPeerSupportUtcTimeStamp);
+        Log.v(TAG, "savePeerSupportUtcTimeStamp " + mPeerSupportUtcTimeStamp);
     }
-
 }
-

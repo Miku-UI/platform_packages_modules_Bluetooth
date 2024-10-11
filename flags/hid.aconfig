@@ -10,7 +10,55 @@ flag {
 
 flag {
     name: "allow_switching_hid_and_hogp"
+    is_exported: true
     namespace: "bluetooth"
     description: "Allow switching between HID and HOGP supported on the same device"
     bug: "320762367"
+}
+
+flag {
+    name: "prevent_hogp_reconnect_when_connected"
+    namespace: "bluetooth"
+    description: "Do not request GATT connection while the HOGP is already connected"
+    bug: "329720661"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "save_initial_hid_connection_policy"
+    namespace: "bluetooth"
+    description: "Save HID connection policy on initial successful connection"
+    bug: "335904609"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "android_headtracker_service"
+    namespace: "bluetooth"
+    description: "Support headtracking through Android Headtracker Service"
+    bug: "335708774"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "suppress_hid_rejection_broadcast"
+    namespace: "bluetooth"
+    description: "Don't generate state change event when an incoming HID connection is rejected"
+    bug: "339018102"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hid_report_queuing"
+    namespace: "bluetooth"
+    description: "Queue incoming HID reports if UHID is not ready"
+    bug: "345498287"
 }

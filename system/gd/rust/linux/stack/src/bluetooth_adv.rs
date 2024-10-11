@@ -2,8 +2,8 @@
 
 use btif_macros::{btif_callback, btif_callbacks_dispatcher};
 
-use bt_topshim::btif::{RawAddress, Uuid};
-use bt_topshim::profiles::gatt::{AdvertisingStatus, Gatt, GattAdvCallbacks, LePhy};
+use bt_topshim::btif::{DisplayAddress, RawAddress, Uuid};
+use bt_topshim::profiles::gatt::{AdvertisingStatus, Gatt, GattAdvCallbacks, LeDiscMode, LePhy};
 
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -17,7 +17,6 @@ use tokio::time;
 
 use crate::bluetooth::{Bluetooth, IBluetooth};
 use crate::callbacks::Callbacks;
-use crate::uuid::UuidHelper;
 use crate::{Message, RPCProxy, SuspendMode};
 
 pub type AdvertiserId = i32;
@@ -28,6 +27,8 @@ pub type ManfId = u16;
 /// Advertising parameters for each BLE advertising set.
 #[derive(Debug, Default, Clone)]
 pub struct AdvertisingSetParameters {
+    /// Discoverable modes.
+    pub discoverable: LeDiscMode,
     /// Whether the advertisement will be connectable.
     pub connectable: bool,
     /// Whether the advertisement will be scannable.
@@ -105,7 +106,7 @@ pub trait IAdvertisingSetCallback: RPCProxy {
     );
 
     /// Callback triggered in response to `get_own_address` indicating result of the operation.
-    fn on_own_address_read(&mut self, advertiser_id: i32, address_type: i32, address: String);
+    fn on_own_address_read(&mut self, advertiser_id: i32, address_type: i32, address: RawAddress);
 
     /// Callback triggered in response to `stop_advertising_set` indicating the advertising set
     /// is stopped.
@@ -228,6 +229,13 @@ impl Into<bt_topshim::profiles::gatt::AdvertiseParameters> for AdvertisingSetPar
             props |= 0x40;
         }
 
+        match self.discoverable {
+            LeDiscMode::GeneralDiscoverable => {
+                props |= 0x04;
+            }
+            _ => {}
+        }
+
         let interval = clamp(self.interval, INTERVAL_MIN, INTERVAL_MAX - INTERVAL_DELTA);
 
         bt_topshim::profiles::gatt::AdvertiseParameters {
@@ -263,7 +271,7 @@ impl AdvertiseData {
         // The data generated for UUIDs looks like:
         // [16-bit_UUID_LIST, 32-bit_UUID_LIST, 128-bit_UUID_LIST].
         for uuid in uuids {
-            let uuid_slice = UuidHelper::get_shortest_slice(&uuid.uu);
+            let uuid_slice = uuid.get_shortest_slice();
             let id: Vec<u8> = uuid_slice.iter().rev().cloned().collect();
             match id.len() {
                 2 => uuid16_bytes.extend(id),
@@ -291,9 +299,9 @@ impl AdvertiseData {
 
     fn append_service_data(dest: &mut Vec<u8>, service_data: &HashMap<String, Vec<u8>>) {
         for (uuid, data) in
-            service_data.iter().filter_map(|(s, d)| UuidHelper::parse_string(s).map(|s| (s, d)))
+            service_data.iter().filter_map(|(s, d)| Uuid::from_string(s).map(|s| (s, d)))
         {
-            let uuid_slice = UuidHelper::get_shortest_slice(&uuid.uu);
+            let uuid_slice = uuid.get_shortest_slice();
             let concated: Vec<u8> = uuid_slice.iter().rev().chain(data).cloned().collect();
             match uuid_slice.len() {
                 2 => AdvertiseData::append_adv_data(dest, SERVICE_DATA_16_BIT_UUID, &concated),
@@ -722,6 +730,9 @@ pub(crate) trait AdvertiseManagerOps:
 
 impl AdvertiseManagerOps for AdvertiseManagerImpl {
     fn enter_suspend(&mut self) {
+        if self.suspend_mode() != SuspendMode::Normal {
+            return;
+        }
         self.set_suspend_mode(SuspendMode::Suspending);
 
         let mut pausing_cnt = 0;
@@ -742,6 +753,9 @@ impl AdvertiseManagerOps for AdvertiseManagerImpl {
     }
 
     fn exit_suspend(&mut self) {
+        if self.suspend_mode() != SuspendMode::Suspended {
+            return;
+        }
         for id in self.stopped_sets().map(|s| s.adv_id()).collect::<Vec<_>>() {
             self.gatt.lock().unwrap().advertiser.unregister(id);
             self.remove_by_advertiser_id(id as AdvertiserId);
@@ -948,7 +962,7 @@ impl IBluetoothAdvertiseManager for AdvertiseManagerImpl {
 
         if self.suspend_mode() != SuspendMode::Normal {
             if !s.is_stopped() {
-                warn!("Deferred advertisement unregistering due to suspending");
+                info!("Deferred advertisement unregistering due to suspending");
                 self.get_mut_by_advertiser_id(advertiser_id).unwrap().set_stopped();
                 if let Some(cb) = self.get_callback(&s) {
                     cb.on_advertising_set_stopped(advertiser_id);
@@ -1365,8 +1379,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
 
     fn on_own_address_read(&mut self, adv_id: u8, addr_type: u8, address: RawAddress) {
         debug!(
-            "on_own_address_read(): adv_id = {}, addr_type = {}, address = {:?}",
-            adv_id, addr_type, address
+            "on_own_address_read(): adv_id = {}, addr_type = {}, address = {}",
+            adv_id,
+            addr_type,
+            DisplayAddress(&address)
         );
 
         let advertiser_id: i32 = adv_id.into();
@@ -1376,7 +1392,7 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
 
         if let Some(cb) = self.get_callback(&s) {
-            cb.on_own_address_read(advertiser_id, addr_type.into(), address.to_string());
+            cb.on_own_address_read(advertiser_id, addr_type.into(), address);
         }
     }
 }
@@ -2097,24 +2113,21 @@ mod tests {
     #[test]
     fn test_append_service_uuids() {
         let mut bytes = Vec::<u8>::new();
-        let uuid_16 =
-            Uuid::from(UuidHelper::from_string("0000fef3-0000-1000-8000-00805f9b34fb").unwrap());
+        let uuid_16 = Uuid::from_string("0000fef3-0000-1000-8000-00805f9b34fb").unwrap();
         let uuids = vec![uuid_16.clone()];
         let exp_16: Vec<u8> = vec![3, 0x3, 0xf3, 0xfe];
         AdvertiseData::append_service_uuids(&mut bytes, &uuids);
         assert_eq!(bytes, exp_16);
 
         let mut bytes = Vec::<u8>::new();
-        let uuid_32 =
-            Uuid::from(UuidHelper::from_string("00112233-0000-1000-8000-00805f9b34fb").unwrap());
+        let uuid_32 = Uuid::from_string("00112233-0000-1000-8000-00805f9b34fb").unwrap();
         let uuids = vec![uuid_32.clone()];
         let exp_32: Vec<u8> = vec![5, 0x5, 0x33, 0x22, 0x11, 0x0];
         AdvertiseData::append_service_uuids(&mut bytes, &uuids);
         assert_eq!(bytes, exp_32);
 
         let mut bytes = Vec::<u8>::new();
-        let uuid_128 =
-            Uuid::from(UuidHelper::from_string("00010203-0405-0607-0809-0a0b0c0d0e0f").unwrap());
+        let uuid_128 = Uuid::from_string("00010203-0405-0607-0809-0a0b0c0d0e0f").unwrap();
         let uuids = vec![uuid_128.clone()];
         let exp_128: Vec<u8> = vec![
             17, 0x7, 0xf, 0xe, 0xd, 0xc, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0,
@@ -2131,8 +2144,7 @@ mod tests {
 
         // Interleaved UUIDs.
         let mut bytes = Vec::<u8>::new();
-        let uuid_16_2 =
-            Uuid::from(UuidHelper::from_string("0000aabb-0000-1000-8000-00805f9b34fb").unwrap());
+        let uuid_16_2 = Uuid::from_string("0000aabb-0000-1000-8000-00805f9b34fb").unwrap();
         let uuids = vec![uuid_16, uuid_128, uuid_16_2, uuid_32];
         let exp_16: Vec<u8> = vec![5, 0x3, 0xf3, 0xfe, 0xbb, 0xaa];
         let exp_bytes: Vec<u8> =
@@ -2144,12 +2156,9 @@ mod tests {
     #[test]
     fn test_append_solicit_uuids() {
         let mut bytes = Vec::<u8>::new();
-        let uuid_16 =
-            Uuid::from(UuidHelper::from_string("0000fef3-0000-1000-8000-00805f9b34fb").unwrap());
-        let uuid_32 =
-            Uuid::from(UuidHelper::from_string("00112233-0000-1000-8000-00805f9b34fb").unwrap());
-        let uuid_128 =
-            Uuid::from(UuidHelper::from_string("00010203-0405-0607-0809-0a0b0c0d0e0f").unwrap());
+        let uuid_16 = Uuid::from_string("0000fef3-0000-1000-8000-00805f9b34fb").unwrap();
+        let uuid_32 = Uuid::from_string("00112233-0000-1000-8000-00805f9b34fb").unwrap();
+        let uuid_128 = Uuid::from_string("00010203-0405-0607-0809-0a0b0c0d0e0f").unwrap();
         let uuids = vec![uuid_16, uuid_32, uuid_128];
         let exp_16: Vec<u8> = vec![3, 0x14, 0xf3, 0xfe];
         let exp_32: Vec<u8> = vec![5, 0x1f, 0x33, 0x22, 0x11, 0x0];

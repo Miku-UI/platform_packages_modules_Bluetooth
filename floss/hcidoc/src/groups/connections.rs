@@ -7,7 +7,7 @@ use std::slice::Iter;
 
 use crate::engine::{Rule, RuleGroup, Signal};
 use crate::parser::{Packet, PacketChild};
-use bt_packets::hci::{
+use hcidoc_packets::hci::{
     Acl, AclCommandChild, Address, AuthenticatedPayloadTimeoutExpired, CommandChild,
     ConnectionManagementCommandChild, DisconnectReason, Enable, ErrorCode, EventChild,
     InitiatorFilterPolicy, LeConnectionManagementCommandChild, LeMetaEventChild,
@@ -483,7 +483,8 @@ impl OddDisconnectionsRule {
         let use_accept_list = self
             .last_le_connection_filter_policy
             .map_or(false, |policy| policy == InitiatorFilterPolicy::UseFilterAcceptList);
-        let addr_to_remove = if use_accept_list { bt_packets::hci::EMPTY_ADDRESS } else { address };
+        let addr_to_remove =
+            if use_accept_list { hcidoc_packets::hci::EMPTY_ADDRESS } else { address };
 
         if let Some(_) = self.le_connection_attempt.remove(&addr_to_remove) {
             if status == ErrorCode::Success {
@@ -610,6 +611,14 @@ impl OddDisconnectionsRule {
         self.pending_le_feat.clear();
         self.last_feat_handle.clear();
         self.pending_disconnect_due_to_host_power_off.clear();
+    }
+
+    fn process_system_note(&mut self, note: &String) {
+        // Carryover section doesn't contain the NOCP from the controller.
+        // The note may contain zero bytes, so don't check for exact string.
+        if note.contains("END OF CARRYOVER SECTION") {
+            self.nocp_by_handle.clear();
+        }
     }
 }
 
@@ -804,6 +813,10 @@ impl Rule for OddDisconnectionsRule {
 
             // We don't do anything with RX packets yet.
             PacketChild::AclRx(_) => (),
+
+            PacketChild::SystemNote(note) => {
+                self.process_system_note(note);
+            }
 
             // End packet.inner match
             _ => (),

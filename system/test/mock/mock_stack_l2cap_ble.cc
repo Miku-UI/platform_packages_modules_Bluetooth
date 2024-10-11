@@ -50,7 +50,6 @@ struct l2cble_process_sig_cmd l2cble_process_sig_cmd;
 struct l2cble_create_conn l2cble_create_conn;
 struct l2c_link_processs_ble_num_bufs l2c_link_processs_ble_num_bufs;
 struct l2c_ble_link_adjust_allocation l2c_ble_link_adjust_allocation;
-struct l2cble_process_rc_param_request_evt l2cble_process_rc_param_request_evt;
 struct l2cble_update_data_length l2cble_update_data_length;
 struct l2cble_process_data_length_change_event
     l2cble_process_data_length_change_event;
@@ -61,6 +60,7 @@ struct l2cble_send_peer_disc_req l2cble_send_peer_disc_req;
 struct l2cble_sec_comp l2cble_sec_comp;
 struct l2ble_sec_access_req l2ble_sec_access_req;
 struct L2CA_AdjustConnectionIntervals L2CA_AdjustConnectionIntervals;
+struct L2CA_SetEcosystemBaseInterval L2CA_SetEcosystemBaseInterval;
 struct l2cble_use_preferred_conn_params l2cble_use_preferred_conn_params;
 struct L2CA_SubrateRequest L2CA_SubrateRequest;
 struct l2cble_process_subrate_change_evt l2cble_process_subrate_change_evt;
@@ -102,7 +102,7 @@ void l2cble_notify_le_connection(const RawAddress& bda) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2cble_notify_le_connection(bda);
 }
-bool l2cble_conn_comp(uint16_t handle, uint8_t role, const RawAddress& bda,
+bool l2cble_conn_comp(uint16_t handle, tHCI_ROLE role, const RawAddress& bda,
                       tBLE_ADDR_TYPE type, uint16_t conn_interval,
                       uint16_t conn_latency, uint16_t conn_timeout) {
   inc_func_call_count(__func__);
@@ -131,13 +131,6 @@ void l2c_link_processs_ble_num_bufs(uint16_t num_lm_ble_bufs) {
 void l2c_ble_link_adjust_allocation(void) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2c_ble_link_adjust_allocation();
-}
-void l2cble_process_rc_param_request_evt(uint16_t handle, uint16_t int_min,
-                                         uint16_t int_max, uint16_t latency,
-                                         uint16_t timeout) {
-  inc_func_call_count(__func__);
-  test::mock::stack_l2cap_ble::l2cble_process_rc_param_request_evt(
-      handle, int_min, int_max, latency, timeout);
 }
 void l2cble_update_data_length(tL2C_LCB* p_lcb) {
   inc_func_call_count(__func__);
@@ -187,6 +180,10 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::L2CA_AdjustConnectionIntervals(
       min_interval, max_interval, floor_interval);
+}
+void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
+  inc_func_call_count(__func__);
+  test::mock::stack_l2cap_ble::L2CA_SetEcosystemBaseInterval(base_interval);
 }
 void l2cble_use_preferred_conn_params(const RawAddress& bda) {
   inc_func_call_count(__func__);

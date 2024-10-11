@@ -36,16 +36,19 @@ source_set("BluetoothHciSources") {
     "msft.cc",
     "remote_name_request.cc",
     "uuid.cc",
-    "vendor_specific_event_manager.cc",
   ]
 
   include_dirs = [ "//bt/system/gd" ]
 
   deps = [
+    "//bt/flags:bluetooth_flags_c_lib",
     "//bt/system/gd:gd_default_deps",
   ]
 
-  configs += [ "//bt/system:target_defaults" ]
+  configs += [
+    "//bt/system:target_defaults",
+    "//bt/system/log:log_defaults",
+  ]
 }
 
 if (use.test) {

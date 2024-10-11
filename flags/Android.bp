@@ -7,9 +7,49 @@ aconfig_declarations {
     name: "bluetooth_aconfig_flags",
     package: "com.android.bluetooth.flags",
     container: "com.android.btservices",
+    // LINT.IfChange
     srcs: [
-        "**/*.aconfig",
+        "a2dp.aconfig",
+        "asha.aconfig",
+        "audio_routing.aconfig",
+        "avrcp.aconfig",
+        "avrcp_controller.aconfig",
+        "bta_dm.aconfig",
+        "btif_dm.aconfig",
+        "btm_ble.aconfig",
+        "connectivity.aconfig",
+        "device_iot_config.aconfig",
+        "did.aconfig",
+        "discovery_service.aconfig",
+        "dumpsys.aconfig",
+        "framework.aconfig",
+        "gap.aconfig",
+        "hal.aconfig",
+        "hap.aconfig",
+        "hfp.aconfig",
+        "hid.aconfig",
+        "l2cap.aconfig",
+        "le_advertising.aconfig",
+        "leaudio.aconfig",
+        "map.aconfig",
+        "mapclient.aconfig",
+        "mcp.aconfig",
+        "metric.aconfig",
+        "opp.aconfig",
+        "pairing.aconfig",
+        "ranging.aconfig",
+        "rfcomm.aconfig",
+        "rnr.aconfig",
+        "sdp.aconfig",
+        "security.aconfig",
+        "sniff.aconfig",
+        "sockets.aconfig",
+        "system_service.aconfig",
+        "vcp.aconfig",
+        "vsc.aconfig",
     ],
+    // LINT.ThenChange(/flags/BUILD.gn)
+    exportable: true,
 }
 
 java_aconfig_library {
@@ -31,10 +71,20 @@ java_aconfig_library {
     min_sdk_version: "Tiramisu",
 }
 
+java_aconfig_library {
+    name: "bluetooth_exported_flags_java_lib",
+    aconfig_declarations: "bluetooth_aconfig_flags",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    min_sdk_version: "VanillaIceCream",
+    mode: "exported",
+    visibility: [
+        "//frameworks/base",
+    ],
+}
+
 cc_aconfig_library {
     name: "bluetooth_flags_c_lib",
     aconfig_declarations: "bluetooth_aconfig_flags",
-    export_include_dirs: ["exported_include"],
     host_supported: true,
     visibility: [
         "//packages/modules/Bluetooth/system:__subpackages__",

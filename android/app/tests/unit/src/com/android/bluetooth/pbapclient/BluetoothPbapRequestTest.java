@@ -30,10 +30,12 @@ import com.android.obex.ObexTransport;
 import com.android.obex.ResponseCodes;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.io.InputStream;
 
@@ -43,12 +45,12 @@ public class BluetoothPbapRequestTest {
 
     private BluetoothPbapRequest mRequest = new BluetoothPbapRequest() {};
 
-    @Mock
-    private ObexTransport mObexTransport;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Mock private ObexTransport mObexTransport;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         mRequest = new BluetoothPbapRequest() {};
     }
 

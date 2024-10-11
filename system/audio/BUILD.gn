@@ -26,9 +26,11 @@ source_set("libbt-audio-asrc") {
 
   configs += [
     "//bt/system:target_defaults",
+    "//bt/system/log:log_defaults",
   ]
 
   deps = [
+    "//bt/flags:bluetooth_flags_c_lib",
     "//bt/system/gd:gd_default_deps"
   ]
 }

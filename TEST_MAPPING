@@ -5,6 +5,9 @@
       "name": "CtsBluetoothTestCases"
     },
     {
+      "name": "CtsStrictJavaPackagesTestCases"
+    },
+    {
       "name": "BluetoothInstrumentationTests"
     },
     {
@@ -127,9 +130,6 @@
     },
     {
       "name": "net_test_btcore"
-    },
-    {
-      "name": "net_test_btif_config_cache"
     },
     {
       "name": "net_test_btif_hh"
@@ -275,10 +275,9 @@
     {
       "name": "bluetooth_flatbuffer_tests"
     },
-    // b/271319421
-    // {
-    //   "name": "bluetooth_le_audio_test"
-    // },
+    {
+      "name": "bluetooth_le_audio_test"
+    },
     {
       "name": "bluetooth_test_common"
     },
@@ -290,9 +289,6 @@
     },
     {
       "name": "net_test_avrcp"
-    },
-    {
-      "name": "net_test_btif_config_cache"
     },
     {
       "name": "net_test_btpackets"
@@ -330,7 +326,7 @@
       "name": "bluetooth_test_gdx_unit"
     },
     {
-      "name": "CtsStrictJavaPackagesTestCases"
+      "name": "net_test_bta_jv"
     },
     {
       "name": "asrc_resampler_test"

@@ -16,11 +16,9 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include "gatt_api.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "srvc_dis_int.h"
@@ -34,7 +32,7 @@ using namespace bluetooth;
 
 static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
                                      tGATTS_REQ_TYPE type, tGATTS_DATA* p_data);
-static void srvc_eng_connect_cback(UNUSED_ATTR tGATT_IF gatt_if,
+static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */,
                                    const RawAddress& bda, uint16_t conn_id,
                                    bool connected, tGATT_DISCONN_REASON reason,
                                    tBT_TRANSPORT transport);
@@ -209,9 +207,9 @@ static uint8_t srvc_eng_process_read_req(uint8_t clcb_idx,
 /*******************************************************************************
  *   Service Engine Server Attributes Database write Request process
  ******************************************************************************/
-static uint8_t srvc_eng_process_write_req(uint8_t clcb_idx,
+static uint8_t srvc_eng_process_write_req(uint8_t /* clcb_idx */,
                                           tGATT_WRITE_REQ* p_data,
-                                          UNUSED_ATTR tGATTS_RSP* p_rsp,
+                                          tGATTS_RSP* /* p_rsp */,
                                           tGATT_STATUS* p_status) {
   uint8_t act = SRVC_ACT_RSP;
 
@@ -239,6 +237,10 @@ static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
   tGATTS_RSP rsp_msg;
   uint8_t act = SRVC_ACT_IGNORE;
   uint8_t clcb_idx = srvc_eng_find_clcb_idx_by_conn_id(conn_id);
+  if (clcb_idx == SRVC_MAX_APPS) {
+    log::error("Can't find clcb, id:{}", conn_id);
+    return;
+  }
 
   log::verbose("srvc_eng_s_request_cback : recv type (0x{:02x})", type);
 
@@ -275,7 +277,11 @@ static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
 
   srvc_eng_cb.clcb[clcb_idx].trans_id = 0;
 
-  if (act == SRVC_ACT_RSP) GATTS_SendRsp(conn_id, trans_id, status, &rsp_msg);
+  if (act == SRVC_ACT_RSP) {
+    if (GATTS_SendRsp(conn_id, trans_id, status, &rsp_msg) != GATT_SUCCESS) {
+      log::warn("Unable to send GATT server respond conn_id:{}", conn_id);
+    }
+  }
 }
 
 /*******************************************************************************
@@ -313,12 +319,12 @@ static void srvc_eng_c_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
  * Returns          void
  *
  ******************************************************************************/
-static void srvc_eng_connect_cback(UNUSED_ATTR tGATT_IF gatt_if,
+static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */,
                                    const RawAddress& bda, uint16_t conn_id,
-                                   bool connected, tGATT_DISCONN_REASON reason,
-                                   UNUSED_ATTR tBT_TRANSPORT transport) {
-  log::verbose("from {} connected:{} conn_id={}", ADDRESS_TO_LOGGABLE_STR(bda),
-               connected, conn_id);
+                                   bool connected,
+                                   tGATT_DISCONN_REASON /* reason */,
+                                   tBT_TRANSPORT /* transport */) {
+  log::verbose("from {} connected:{} conn_id={}", bda, connected, conn_id);
 
   if (connected) {
     if (srvc_eng_clcb_alloc(conn_id, bda) == NULL) {
@@ -371,7 +377,9 @@ void srvc_eng_release_channel(uint16_t conn_id) {
   p_clcb->cur_srvc_id = SRVC_ID_NONE;
 
   /* check pending request */
-  GATT_Disconnect(p_clcb->conn_id);
+  if (GATT_Disconnect(p_clcb->conn_id) != GATT_SUCCESS) {
+    log::warn("Unable to disconnect GATT conn_id:{}", p_clcb->conn_id);
+  }
 }
 /*******************************************************************************
  *

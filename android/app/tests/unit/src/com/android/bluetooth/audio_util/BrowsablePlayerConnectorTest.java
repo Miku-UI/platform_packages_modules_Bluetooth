@@ -33,10 +33,12 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,29 +53,40 @@ public final class BrowsablePlayerConnectorTest {
     Context mContext;
     TestLooper mTestLooper;
     List<ResolveInfo> mPlayerList;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     @Mock MediaBrowser mMediaBrowser;
     MediaBrowser.ConnectionCallback mConnectionCallback;
+
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mContext = InstrumentationRegistry.getTargetContext();
         mTestLooper = new TestLooper();
 
-        doAnswer(invocation -> {
-            mConnectionCallback = invocation.getArgument(2);
-            return null;
-        }).when(mMediaBrowser).testInit(any(), any(), any(), any());
-        doAnswer(invocation -> {
-            mConnectionCallback.onConnected();
-            return null;
-        }).when(mMediaBrowser).connect();
-        doAnswer(invocation -> {
-            String id = invocation.getArgument(0);
-            android.media.browse.MediaBrowser.SubscriptionCallback callback
-                    = invocation.getArgument(1);
-            callback.onChildrenLoaded(id, Collections.emptyList());
-            return null;
-        }).when(mMediaBrowser).subscribe(any(), any());
+        doAnswer(
+                        invocation -> {
+                            mConnectionCallback = invocation.getArgument(2);
+                            return null;
+                        })
+                .when(mMediaBrowser)
+                .testInit(any(), any(), any(), any());
+        doAnswer(
+                        invocation -> {
+                            mConnectionCallback.onConnected();
+                            return null;
+                        })
+                .when(mMediaBrowser)
+                .connect();
+        doAnswer(
+                        invocation -> {
+                            String id = invocation.getArgument(0);
+                            android.media.browse.MediaBrowser.SubscriptionCallback callback =
+                                    invocation.getArgument(1);
+                            callback.onChildrenLoaded(id, Collections.emptyList());
+                            return null;
+                        })
+                .when(mMediaBrowser)
+                .subscribe(any(), any());
         doReturn("testRoot").when(mMediaBrowser).getRoot();
         MediaBrowserFactory.inject(mMediaBrowser);
 

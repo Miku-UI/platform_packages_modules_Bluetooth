@@ -101,6 +101,7 @@ cc_library_shared {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
+        "libaconfig_storage_read_api_cc",
         "libaudio-a2dp-hw-utils",
         "libbase",
         "libbluetooth",
@@ -130,7 +131,6 @@ cc_library_shared {
         "libbte",
         "libbtif",
         "libbtif-core",
-        "libc++fs",
         "libchrome",
         "libcutils",
         "libevent",
@@ -164,6 +164,10 @@ cc_library_shared {
         "com.android.btservices",
     ],
     min_sdk_version: "Tiramisu",
+    ldflags: ["-Wl,--allow-multiple-definition"],
+
+    // TODO(b/346919576) Workaround LTO build breakage.
+    lto_O0: true,
 }
 
 cc_library {
@@ -190,7 +194,6 @@ cc_library {
         "libosi",
 
         "libbluetooth-types",
-        "libc++fs",
     ],
     cflags: [
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
@@ -214,7 +217,6 @@ cc_library {
 
 android_app {
     name: "Bluetooth",
-    defaults: ["bluetooth-module-sdk-version-defaults"],
 
     srcs: [
         ":statslog-bluetooth-java-gen",
@@ -290,16 +292,17 @@ android_app {
     javacflags: ["-Aroom.schemaLocation=packages/modules/Bluetooth/android/app/tests/unit/src/com/android/bluetooth/btservice/storage/schemas"],
 
     lint: {
+        // TODO(b/318814235): Add back ObsoleteSdkInt to this list.
         error_checks: [
             "ExtraText",
             "MissingClass",
             "NewApi",
-            "ObsoleteSdkInt",
             "Recycle",
             "RtlHardcoded",
             "UseSparseArrays",
             "UseValueOf",
         ],
+        extra_check_modules: ["BluetoothLintChecker"],
         baseline_filename: "lint-baseline.xml",
     },
 
@@ -315,9 +318,22 @@ android_app {
         "com.android.btservices",
     ],
     errorprone: {
+        enabled: true,
         javacflags: [
             // "-Xep:AndroidFrameworkRequiresPermission:ERROR",
             "-Xep:AlmostJavadoc:ERROR",
+            "-Xep:BadImport:ERROR",
+            "-Xep:ClassCanBeStatic:ERROR",
+            "-Xep:EmptyBlockTag:ERROR",
+            "-Xep:InlineMeInliner:ERROR",
+            "-Xep:InvalidBlockTag:ERROR",
+            "-Xep:InvalidParam:ERROR",
+            "-Xep:MockNotUsedInProduction:ERROR",
+            "-Xep:NonCanonicalType:ERROR",
+            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
+            "-Xep:UnusedMethod:ERROR",
+            "-Xep:UnusedVariable:ERROR",
+            "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files
         ],
     },
     min_sdk_version: "Tiramisu",

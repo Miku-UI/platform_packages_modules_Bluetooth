@@ -18,6 +18,7 @@
 
 #include <android/hardware/bluetooth/audio/2.1/IBluetoothAudioProvider.h>
 #include <android/hardware/bluetooth/audio/2.1/types.h>
+#include <bluetooth/log.h>
 #include <fmq/MessageQueue.h>
 #include <hardware/audio.h>
 #include <time.h>
@@ -191,9 +192,7 @@ class BluetoothAudioClientInterface {
       IBluetoothTransportInstance* instance);
   virtual ~BluetoothAudioClientInterface() = default;
 
-  bool IsValid() const {
-    return provider_ != nullptr || provider_2_1_ != nullptr;
-  }
+  bool IsValid() const;
 
   std::vector<AudioCapabilities> GetAudioCapabilities() const;
   std::vector<AudioCapabilities_2_1> GetAudioCapabilities_2_1() const;
@@ -294,3 +293,9 @@ class BluetoothAudioSourceClientInterface
 }  // namespace hidl
 }  // namespace audio
 }  // namespace bluetooth
+
+namespace fmt {
+template <>
+struct formatter<bluetooth::audio::hidl::BluetoothAudioCtrlAck>
+    : enum_formatter<bluetooth::audio::hidl::BluetoothAudioCtrlAck> {};
+}  // namespace fmt

@@ -23,6 +23,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,23 +38,24 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AvrcpVolumeManagerTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:01:02:03:04:05";
-    private static final int TEST_DEVICE_MAX_VOUME = 25;
+    private static final int TEST_DEVICE_MAX_VOLUME = 25;
 
-    @Mock
-    AvrcpNativeInterface mNativeInterface;
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    AudioManager mAudioManager;
+    @Mock AvrcpNativeInterface mNativeInterface;
+
+    @Mock AudioManager mAudioManager;
 
     Context mContext;
     BluetoothDevice mRemoteDevice;
@@ -61,10 +63,9 @@ public class AvrcpVolumeManagerTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
         mContext = InstrumentationRegistry.getTargetContext();
         when(mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC))
-                .thenReturn(TEST_DEVICE_MAX_VOUME);
+                .thenReturn(TEST_DEVICE_MAX_VOLUME);
         mRemoteDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
         mAvrcpVolumeManager = new AvrcpVolumeManager(mContext, mAudioManager, mNativeInterface);
     }
@@ -78,10 +79,10 @@ public class AvrcpVolumeManagerTest {
     public void avrcpVolumeConversion() {
         assertThat(AvrcpVolumeManager.avrcpToSystemVolume(0)).isEqualTo(0);
         assertThat(AvrcpVolumeManager.avrcpToSystemVolume(AVRCP_MAX_VOL))
-                .isEqualTo(TEST_DEVICE_MAX_VOUME);
+                .isEqualTo(TEST_DEVICE_MAX_VOLUME);
 
         assertThat(AvrcpVolumeManager.systemToAvrcpVolume(0)).isEqualTo(0);
-        assertThat(AvrcpVolumeManager.systemToAvrcpVolume(TEST_DEVICE_MAX_VOUME))
+        assertThat(AvrcpVolumeManager.systemToAvrcpVolume(TEST_DEVICE_MAX_VOLUME))
                 .isEqualTo(AVRCP_MAX_VOL);
     }
 
@@ -95,34 +96,39 @@ public class AvrcpVolumeManagerTest {
 
     @Test
     public void sendVolumeChanged() {
-        mAvrcpVolumeManager.sendVolumeChanged(mRemoteDevice, TEST_DEVICE_MAX_VOUME);
+        mAvrcpVolumeManager.sendVolumeChanged(mRemoteDevice, TEST_DEVICE_MAX_VOLUME);
 
-        verify(mNativeInterface).sendVolumeChanged(REMOTE_DEVICE_ADDRESS, AVRCP_MAX_VOL);
+        verify(mNativeInterface).sendVolumeChanged(mRemoteDevice, AVRCP_MAX_VOL);
     }
 
     @Test
     public void setVolume() {
         mAvrcpVolumeManager.setVolume(mRemoteDevice, AVRCP_MAX_VOL);
 
-        verify(mAudioManager).setStreamVolume(eq(AudioManager.STREAM_MUSIC),
-                eq(TEST_DEVICE_MAX_VOUME), anyInt());
+        verify(mAudioManager)
+                .setStreamVolume(
+                        eq(AudioManager.STREAM_MUSIC), eq(TEST_DEVICE_MAX_VOLUME), anyInt());
     }
 
     @Test
-    public void switchVolumeDevice() {
+    public void switchVolumeDevice() throws InterruptedException {
         mAvrcpVolumeManager.volumeDeviceSwitched(mRemoteDevice);
         mAvrcpVolumeManager.deviceConnected(mRemoteDevice, true);
 
         // verify whether switchVolumeDevice is called by checking
         // mAudioManager.setDeviceVolumeBehavior().
-        verify(mAudioManager).setDeviceVolumeBehavior(any(), anyInt());
+        // Since it's done in an async thread, we need to add a timeout to await completion
+        verify(mAudioManager, timeout(1_000)).setDeviceVolumeBehavior(any(), anyInt());
+    }
 
-        Mockito.clearInvocations(mAudioManager);
-        mAvrcpVolumeManager.deviceDisconnected(mRemoteDevice);
-        // verify one more time when deviceConnected event comes first.
+    @Test
+    public void switchVolumeDevice_reverseEventOrder() throws InterruptedException {
         mAvrcpVolumeManager.deviceConnected(mRemoteDevice, true);
         mAvrcpVolumeManager.volumeDeviceSwitched(mRemoteDevice);
 
-        verify(mAudioManager).setDeviceVolumeBehavior(any(), anyInt());
+        // verify whether switchVolumeDevice is called by checking
+        // mAudioManager.setDeviceVolumeBehavior().
+        // Since it's done in an async thread, we need to add a timeout to await completion
+        verify(mAudioManager, timeout(1_000)).setDeviceVolumeBehavior(any(), anyInt());
     }
 }

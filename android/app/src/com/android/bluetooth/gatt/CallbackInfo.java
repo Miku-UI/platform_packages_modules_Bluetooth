@@ -16,11 +16,10 @@
 package com.android.bluetooth.gatt;
 
 /**
- * Helper class that keeps track of callback parameters for app callbacks.
- * These are held during congestion and reported when congestion clears.
- * @hide
+ * Helper class that keeps track of callback parameters for app callbacks. These are held during
+ * congestion and reported when congestion clears.
  */
-/* package */ class CallbackInfo {
+public class CallbackInfo {
     public String address;
     public int status;
     public int handle;

@@ -16,9 +16,8 @@
 
 #include "packet_builder.h"
 
-#include <base/logging.h>
+#include <bluetooth/log.h>
 
-#include "check.h"
 #include "packet.h"
 
 namespace bluetooth {
@@ -30,7 +29,8 @@ void PacketBuilder::ReserveSpace(const std::shared_ptr<Packet>& pkt,
 
 bool PacketBuilder::AddPayloadOctets(const std::shared_ptr<Packet>& pkt,
                                      size_t octets, uint64_t value) {
-  CHECK_LE(octets, sizeof(uint64_t));
+  log::assert_that(octets <= sizeof(uint64_t),
+                   "assert failed: octets <= sizeof(uint64_t)");
 
   for (size_t i = 0; i < octets; i++) {
     pkt->data_->push_back(value & 0xff);

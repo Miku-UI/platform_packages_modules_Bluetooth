@@ -16,20 +16,19 @@
 
 #include "hci/acl_manager/le_impl.h"
 
+#include <bluetooth/log.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <chrono>
 
 #include "common/bidi_queue.h"
-#include "common/testing/log_capture.h"
 #include "hci/acl_manager/le_connection_callbacks.h"
 #include "hci/acl_manager/le_connection_management_callbacks.h"
 #include "hci/address_with_type.h"
 #include "hci/controller.h"
 #include "hci/hci_layer_fake.h"
 #include "hci/hci_packets.h"
-#include "hci/le_acl_connection_interface.h"
 #include "hci/octets.h"
 #include "os/handler.h"
 #include "os/log.h"
@@ -45,7 +44,6 @@ using ::bluetooth::os::Handler;
 using ::bluetooth::os::Thread;
 using ::bluetooth::packet::BitInserter;
 using ::bluetooth::packet::RawBuilder;
-using ::bluetooth::testing::LogCapture;
 
 using ::testing::_;
 using ::testing::DoAll;
@@ -169,12 +167,12 @@ namespace {
 class TestController : public Controller {
  public:
   bool IsSupported(OpCode op_code) const override {
-    LOG_INFO("IsSupported");
+    log::info("IsSupported");
     return supported_opcodes_.count(op_code) == 1;
   }
 
   void AddSupported(OpCode op_code) {
-    LOG_INFO("AddSupported");
+    log::info("AddSupported");
     supported_opcodes_.insert(op_code);
   }
 
@@ -198,7 +196,7 @@ class TestController : public Controller {
   }
 
   void SendCompletedAclPacketsCallback(uint16_t handle, uint16_t credits) {
-    acl_credits_callback_.Invoke(handle, credits);
+    acl_credits_callback_(handle, credits);
   }
 
   void UnregisterCompletedAclPacketsCallback() {
@@ -345,8 +343,10 @@ class LeImplTest : public ::testing::Test {
   }
 
   void sync_handler() {
-    ASSERT(thread_ != nullptr);
-    ASSERT(thread_->GetReactor()->WaitForIdle(2s));
+    log::assert_that(thread_ != nullptr, "assert failed: thread_ != nullptr");
+    log::assert_that(
+        thread_->GetReactor()->WaitForIdle(2s),
+        "assert failed: thread_->GetReactor()->WaitForIdle(2s)");
   }
 
   void HciDownEndDequeue() {
@@ -655,8 +655,6 @@ TEST_F(LeImplTest, enhanced_connection_complete_with_central_role) {
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyNotSet) {
-  auto log_capture = std::make_unique<LogCapture>();
-
   std::promise<void> promise;
   auto future = promise.get_future();
   handler_->Post(common::BindOnce(
@@ -696,135 +694,85 @@ TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyNotSet) 
   // Let |LeAddressManager::unregister_client| execute on handler
   auto status2 = future2.wait_for(2s);
   ASSERT_EQ(status2, std::future_status::ready);
-
-  handler_->Post(common::BindOnce(
-      [](std::unique_ptr<LogCapture> log_capture) {
-        log_capture->Sync();
-        ASSERT_TRUE(log_capture->Rewind()->Find("address policy isn't set yet"));
-        ASSERT_TRUE(log_capture->Rewind()->Find("Client unregistered"));
-      },
-      std::move(log_capture)));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_DISARMED) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::DISARMED;
   le_impl_->disarm_connectability();
   ASSERT_FALSE(le_impl_->disarmed_while_arming_);
 
   le_impl_->on_create_connection(ReturnCommandStatus(OpCode::LE_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Attempting to disarm le connection"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("in unexpected state:ConnectabilityState::DISARMED"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_DISARMED_extended) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::DISARMED;
   le_impl_->disarm_connectability();
   ASSERT_FALSE(le_impl_->disarmed_while_arming_);
 
   le_impl_->on_extended_create_connection(
       ReturnCommandStatus(OpCode::LE_EXTENDED_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Attempting to disarm le connection"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("in unexpected state:ConnectabilityState::DISARMED"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_ARMING) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::ARMING;
   le_impl_->disarm_connectability();
   ASSERT_TRUE(le_impl_->disarmed_while_arming_);
   le_impl_->on_create_connection(ReturnCommandStatus(OpCode::LE_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Queueing cancel connect until"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Le connection state machine armed state"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_ARMING_extended) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::ARMING;
   le_impl_->disarm_connectability();
   ASSERT_TRUE(le_impl_->disarmed_while_arming_);
 
   le_impl_->on_extended_create_connection(
       ReturnCommandStatus(OpCode::LE_EXTENDED_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Queueing cancel connect until"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Le connection state machine armed state"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_ARMED) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::ARMED;
   le_impl_->disarm_connectability();
   ASSERT_FALSE(le_impl_->disarmed_while_arming_);
 
   le_impl_->on_create_connection(ReturnCommandStatus(OpCode::LE_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Disarming LE connection state machine"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Disarming LE connection state machine with create connection"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_ARMED_extended) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::ARMED;
   le_impl_->disarm_connectability();
   ASSERT_FALSE(le_impl_->disarmed_while_arming_);
 
   le_impl_->on_extended_create_connection(
       ReturnCommandStatus(OpCode::LE_EXTENDED_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Disarming LE connection state machine"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Disarming LE connection state machine with create connection"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_DISARMING) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::DISARMING;
   le_impl_->disarm_connectability();
   ASSERT_FALSE(le_impl_->disarmed_while_arming_);
 
   le_impl_->on_create_connection(ReturnCommandStatus(OpCode::LE_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Attempting to disarm le connection"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("in unexpected state:ConnectabilityState::DISARMING"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_disarm_connectability_DISARMING_extended) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   le_impl_->connectability_state_ = ConnectabilityState::DISARMING;
   le_impl_->disarm_connectability();
   ASSERT_FALSE(le_impl_->disarmed_while_arming_);
 
   le_impl_->on_extended_create_connection(
       ReturnCommandStatus(OpCode::LE_EXTENDED_CREATE_CONNECTION, ErrorCode::SUCCESS));
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("Attempting to disarm le connection"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("in unexpected state:ConnectabilityState::DISARMING"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyPublicAddress) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   set_privacy_policy_for_initiator_address(fixed_address_, LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS);
 
   le_impl_->register_with_address_manager();
@@ -838,15 +786,10 @@ TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyPublicAd
   sync_handler();  // Let |LeAddressManager::unregister_client| execute on handler
   ASSERT_FALSE(le_impl_->address_manager_registered);
   ASSERT_FALSE(le_impl_->pause_connection);
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("SetPrivacyPolicyForInitiatorAddress with policy 1"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Client unregistered"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyStaticAddress) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   set_privacy_policy_for_initiator_address(fixed_address_, LeAddressManager::AddressPolicy::USE_STATIC_ADDRESS);
 
   le_impl_->register_with_address_manager();
@@ -860,15 +803,10 @@ TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyStaticAd
   sync_handler();  // Let |LeAddressManager::unregister_client| execute on handler
   ASSERT_FALSE(le_impl_->address_manager_registered);
   ASSERT_FALSE(le_impl_->pause_connection);
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("SetPrivacyPolicyForInitiatorAddress with policy 2"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Client unregistered"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyNonResolvableAddress) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   set_privacy_policy_for_initiator_address(fixed_address_, LeAddressManager::AddressPolicy::USE_NON_RESOLVABLE_ADDRESS);
 
   le_impl_->register_with_address_manager();
@@ -882,15 +820,10 @@ TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyNonResol
   sync_handler();  // Let |LeAddressManager::unregister_client| execute on handler
   ASSERT_FALSE(le_impl_->address_manager_registered);
   ASSERT_FALSE(le_impl_->pause_connection);
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("SetPrivacyPolicyForInitiatorAddress with policy 3"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Client unregistered"));
 }
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyResolvableAddress) {
-  std::unique_ptr<LogCapture> log_capture = std::make_unique<LogCapture>();
-
   set_privacy_policy_for_initiator_address(fixed_address_, LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS);
 
   le_impl_->register_with_address_manager();
@@ -904,9 +837,6 @@ TEST_F(LeImplTest, DISABLED_register_with_address_manager__AddressPolicyResolvab
   sync_handler();  // Let |LeAddressManager::unregister_client| execute on handler
   ASSERT_FALSE(le_impl_->address_manager_registered);
   ASSERT_FALSE(le_impl_->pause_connection);
-
-  ASSERT_TRUE(log_capture->Rewind()->Find("SetPrivacyPolicyForInitiatorAddress with policy 4"));
-  ASSERT_TRUE(log_capture->Rewind()->Find("Client unregistered"));
 }
 
 // b/260920739
@@ -1320,10 +1250,8 @@ TEST_F(LeImplTest, on_create_connection_timeout) {
 
 // b/260917913
 TEST_F(LeImplTest, DISABLED_on_common_le_connection_complete__NoPriorConnection) {
-  auto log_capture = std::make_unique<LogCapture>();
   le_impl_->on_common_le_connection_complete(remote_public_address_with_type_);
   ASSERT_TRUE(le_impl_->connecting_le_.empty());
-  ASSERT_TRUE(log_capture->Rewind()->Find("No prior connection request for"));
 }
 
 TEST_F(LeImplTest, cancel_connect) {
@@ -1419,7 +1347,7 @@ TEST_P(
           ClockAccuracy::PPM_30));
     } break;
     default: {
-      LOG_ALWAYS_FATAL("unexpected case");
+      log::fatal("unexpected case");
     }
   }
   sync_handler();
@@ -1675,7 +1603,7 @@ TEST_F(LeImplTest, direct_connection_after_background_connection) {
       LeCreateConnectionView::Create(LeConnectionManagementCommandView::Create(
           AclCommandView::Create(raw_direct_create_connection)));
   EXPECT_TRUE(direct_create_connection.IsValid());
-  LOG_INFO("Scan Interval %u", direct_create_connection.GetLeScanInterval());
+  log::info("Scan Interval {}", direct_create_connection.GetLeScanInterval());
   ASSERT_NE(direct_create_connection.GetLeScanInterval(), bg_create_connection.GetLeScanInterval());
 }
 

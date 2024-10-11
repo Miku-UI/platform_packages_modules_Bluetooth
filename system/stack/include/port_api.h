@@ -26,6 +26,7 @@
 
 #include <cstdint>
 
+#include "include/macros.h"
 #include "internal_include/bt_target.h"
 #include "types/raw_address.h"
 
@@ -118,36 +119,76 @@ typedef void(tPORT_CALLBACK)(uint32_t code, uint16_t port_handle);
 /*
  * Define port result codes
 */
-#define PORT_SUCCESS 0
+typedef enum {
+  PORT_SUCCESS = 0,
+  PORT_UNKNOWN_ERROR = 1,
+  PORT_ALREADY_OPENED = 2,
+  PORT_CMD_PENDING = 3,
+  PORT_APP_NOT_REGISTERED = 4,
+  PORT_NO_MEM = 5,
+  PORT_NO_RESOURCES = 6,
+  PORT_BAD_BD_ADDR = 7,
+  PORT_BAD_HANDLE = 9,
+  PORT_NOT_OPENED = 10,
+  PORT_LINE_ERR = 11,
+  PORT_START_FAILED = 12,
+  PORT_PAR_NEG_FAILED = 13,
+  PORT_PORT_NEG_FAILED = 14,
+  PORT_SEC_FAILED = 15,
+  PORT_PEER_CONNECTION_FAILED = 16,
+  PORT_PEER_FAILED = 17,
+  PORT_PEER_TIMEOUT = 18,
+  PORT_CLOSED = 19,
+  PORT_TX_FULL = 20,
+  PORT_LOCAL_CLOSED = 21,
+  PORT_LOCAL_TIMEOUT = 22,
+  PORT_TX_QUEUE_DISABLED = 23,
+  PORT_PAGE_TIMEOUT = 24,
+  PORT_INVALID_SCN = 25,
+  PORT_ERR_MAX = 26,
+} tPORT_RESULT;
 
-#define PORT_ERR_BASE 0
+inline std::string port_result_text(const tPORT_RESULT& result) {
+  switch (result) {
+    CASE_RETURN_STRING(PORT_SUCCESS);
+    CASE_RETURN_STRING(PORT_UNKNOWN_ERROR);
+    CASE_RETURN_STRING(PORT_ALREADY_OPENED);
+    CASE_RETURN_STRING(PORT_CMD_PENDING);
+    CASE_RETURN_STRING(PORT_APP_NOT_REGISTERED);
+    CASE_RETURN_STRING(PORT_NO_MEM);
+    CASE_RETURN_STRING(PORT_NO_RESOURCES);
+    CASE_RETURN_STRING(PORT_BAD_BD_ADDR);
+    CASE_RETURN_STRING(PORT_BAD_HANDLE);
+    CASE_RETURN_STRING(PORT_NOT_OPENED);
+    CASE_RETURN_STRING(PORT_LINE_ERR);
+    CASE_RETURN_STRING(PORT_START_FAILED);
+    CASE_RETURN_STRING(PORT_PAR_NEG_FAILED);
+    CASE_RETURN_STRING(PORT_PORT_NEG_FAILED);
+    CASE_RETURN_STRING(PORT_SEC_FAILED);
+    CASE_RETURN_STRING(PORT_PEER_CONNECTION_FAILED);
+    CASE_RETURN_STRING(PORT_PEER_FAILED);
+    CASE_RETURN_STRING(PORT_PEER_TIMEOUT);
+    CASE_RETURN_STRING(PORT_CLOSED);
+    CASE_RETURN_STRING(PORT_TX_FULL);
+    CASE_RETURN_STRING(PORT_LOCAL_CLOSED);
+    CASE_RETURN_STRING(PORT_LOCAL_TIMEOUT);
+    CASE_RETURN_STRING(PORT_TX_QUEUE_DISABLED);
+    CASE_RETURN_STRING(PORT_PAGE_TIMEOUT);
+    CASE_RETURN_STRING(PORT_INVALID_SCN);
+    CASE_RETURN_STRING(PORT_ERR_MAX);
+    default:
+      break;
+  }
+  RETURN_UNKNOWN_TYPE_STRING(tPORT_RESULT, result);
+}
 
-#define PORT_UNKNOWN_ERROR (PORT_ERR_BASE + 1)
-#define PORT_ALREADY_OPENED (PORT_ERR_BASE + 2)
-#define PORT_CMD_PENDING (PORT_ERR_BASE + 3)
-#define PORT_APP_NOT_REGISTERED (PORT_ERR_BASE + 4)
-#define PORT_NO_MEM (PORT_ERR_BASE + 5)
-#define PORT_NO_RESOURCES (PORT_ERR_BASE + 6)
-#define PORT_BAD_BD_ADDR (PORT_ERR_BASE + 7)
-#define PORT_BAD_HANDLE (PORT_ERR_BASE + 9)
-#define PORT_NOT_OPENED (PORT_ERR_BASE + 10)
-#define PORT_LINE_ERR (PORT_ERR_BASE + 11)
-#define PORT_START_FAILED (PORT_ERR_BASE + 12)
-#define PORT_PAR_NEG_FAILED (PORT_ERR_BASE + 13)
-#define PORT_PORT_NEG_FAILED (PORT_ERR_BASE + 14)
-#define PORT_SEC_FAILED (PORT_ERR_BASE + 15)
-#define PORT_PEER_CONNECTION_FAILED (PORT_ERR_BASE + 16)
-#define PORT_PEER_FAILED (PORT_ERR_BASE + 17)
-#define PORT_PEER_TIMEOUT (PORT_ERR_BASE + 18)
-#define PORT_CLOSED (PORT_ERR_BASE + 19)
-#define PORT_TX_FULL (PORT_ERR_BASE + 20)
-#define PORT_LOCAL_CLOSED (PORT_ERR_BASE + 21)
-#define PORT_LOCAL_TIMEOUT (PORT_ERR_BASE + 22)
-#define PORT_TX_QUEUE_DISABLED (PORT_ERR_BASE + 23)
-#define PORT_PAGE_TIMEOUT (PORT_ERR_BASE + 24)
-#define PORT_INVALID_SCN (PORT_ERR_BASE + 25)
+namespace fmt {
+template <>
+struct formatter<tPORT_RESULT> : enum_formatter<tPORT_RESULT> {};
+}  // namespace fmt
 
-#define PORT_ERR_MAX (PORT_ERR_BASE + 26)
+typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
+                                  uint16_t port_handle);
 
 /*****************************************************************************
  *  External Function Declarations
@@ -171,7 +212,7 @@ typedef void(tPORT_CALLBACK)(uint32_t code, uint16_t port_handle);
  *                  mask         - specifies events to be enabled.  A value
  *                                 of zero disables all events.
  *                  p_handle     - OUT pointer to the handle.
- *                  p_mgmt_cb    - pointer to callback function to receive
+ *                  p_mgmt_callback - pointer to callback function to receive
  *                                 connection up/down events.
  * Notes:
  *
@@ -184,12 +225,10 @@ typedef void(tPORT_CALLBACK)(uint32_t code, uint16_t port_handle);
  * (scn * 2 + 1) dlci.
  *
  ******************************************************************************/
-int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
-                                        bool is_server, uint16_t mtu,
-                                        const RawAddress& bd_addr,
-                                        uint16_t* p_handle,
-                                        tPORT_CALLBACK* p_mgmt_cb,
-                                        uint16_t sec_mask);
+[[nodiscard]] int RFCOMM_CreateConnectionWithSecurity(
+    uint16_t uuid, uint8_t scn, bool is_server, uint16_t mtu,
+    const RawAddress& bd_addr, uint16_t* p_handle,
+    tPORT_MGMT_CALLBACK* p_mgmt_callback, uint16_t sec_mask);
 
 /*******************************************************************************
  *
@@ -211,11 +250,10 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn,
  *                                     frames
  *
  ******************************************************************************/
-extern int RFCOMM_ControlReqFromBTSOCK(uint8_t dlci, const RawAddress& bd_addr,
-                                       uint8_t modem_signal,
-                                       uint8_t break_signal,
-                                       uint8_t discard_buffers,
-                                       uint8_t break_signal_seq, bool fc);
+[[nodiscard]] int RFCOMM_ControlReqFromBTSOCK(
+    uint8_t dlci, const RawAddress& bd_addr, uint8_t modem_signal,
+    uint8_t break_signal, uint8_t discard_buffers, uint8_t break_signal_seq,
+    bool fc);
 
 /*******************************************************************************
  *
@@ -226,7 +264,7 @@ extern int RFCOMM_ControlReqFromBTSOCK(uint8_t dlci, const RawAddress& bd_addr,
  * Parameters:      handle     - Handle of the port returned in the Open
  *
  ******************************************************************************/
-int RFCOMM_RemoveConnection(uint16_t handle);
+[[nodiscard]] int RFCOMM_RemoveConnection(uint16_t handle);
 
 /*******************************************************************************
  *
@@ -237,21 +275,25 @@ int RFCOMM_RemoveConnection(uint16_t handle);
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
  *
  ******************************************************************************/
-int RFCOMM_RemoveServer(uint16_t handle);
+[[nodiscard]] int RFCOMM_RemoveServer(uint16_t handle);
 
 /*******************************************************************************
  *
- * Function         PORT_SetEventCallback
+ * Function         PORT_SetEventMaskAndCallback
  *
  * Description      Set event callback the specified connection.
  *
  * Parameters:      handle       - Handle of the port returned in the Open
+ *                  mask         - specifies events to be enabled.  A value
+ *                                 of zero disables all events.
  *                  p_callback   - address of the callback function which should
  *                                 be called from the RFCOMM when an event
  *                                 specified in the mask occurs.
  *
  ******************************************************************************/
-int PORT_SetEventCallback(uint16_t port_handle, tPORT_CALLBACK* p_port_cb);
+[[nodiscard]] int PORT_SetEventMaskAndCallback(uint16_t port_handle,
+                                               uint32_t mask,
+                                               tPORT_CALLBACK* p_port_cb);
 
 /*******************************************************************************
  *
@@ -263,23 +305,10 @@ int PORT_SetEventCallback(uint16_t port_handle, tPORT_CALLBACK* p_port_cb);
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
  *
  ******************************************************************************/
-int PORT_ClearKeepHandleFlag(uint16_t port_handle);
+[[nodiscard]] int PORT_ClearKeepHandleFlag(uint16_t port_handle);
 
-int PORT_SetDataCOCallback(uint16_t port_handle,
-                           tPORT_DATA_CO_CALLBACK* p_port_cb);
-/*******************************************************************************
- *
- * Function         PORT_SetEventMask
- *
- * Description      This function is called to close the specified connection.
- *
- * Parameters:      handle - Handle of the port returned in the Open
- *                  mask   - specifies events to be enabled.  A value
- *                           of zero disables all events.
- *
- ******************************************************************************/
-int PORT_SetEventMask(uint16_t port_handle, uint32_t mask);
-
+[[nodiscard]] int PORT_SetDataCOCallback(uint16_t port_handle,
+                                         tPORT_DATA_CO_CALLBACK* p_port_cb);
 /*******************************************************************************
  *
  * Function         PORT_CheckConnection
@@ -292,8 +321,8 @@ int PORT_SetEventMask(uint16_t port_handle, uint32_t mask);
  *                  p_lcid     - OUT L2CAP's LCID
  *
  ******************************************************************************/
-int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr,
-                         uint16_t* p_lcid);
+[[nodiscard]] int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr,
+                                       uint16_t* p_lcid);
 
 /*******************************************************************************
  *
@@ -306,7 +335,7 @@ int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr,
  *                  bd_addr    - bd_addr of the peer
  *
  ******************************************************************************/
-bool PORT_IsOpening(RawAddress* bd_addr);
+[[nodiscard]] bool PORT_IsOpening(RawAddress* bd_addr);
 
 /*******************************************************************************
  *
@@ -320,7 +349,7 @@ bool PORT_IsOpening(RawAddress* bd_addr);
  *                               configuration information for the connection.
  *
  ******************************************************************************/
-int PORT_SetState(uint16_t handle, tPORT_STATE* p_settings);
+[[nodiscard]] int PORT_SetState(uint16_t handle, tPORT_STATE* p_settings);
 
 /*******************************************************************************
  *
@@ -334,7 +363,7 @@ int PORT_SetState(uint16_t handle, tPORT_STATE* p_settings);
  *                               configuration information is returned.
  *
  ******************************************************************************/
-int PORT_GetState(uint16_t handle, tPORT_STATE* p_settings);
+[[nodiscard]] int PORT_GetState(uint16_t handle, tPORT_STATE* p_settings);
 
 /*******************************************************************************
  *
@@ -349,7 +378,7 @@ int PORT_GetState(uint16_t handle, tPORT_STATE* p_settings);
  *                  enable     - enables data flow
  *
  ******************************************************************************/
-int PORT_FlowControl_MaxCredit(uint16_t handle, bool enable);
+[[nodiscard]] int PORT_FlowControl_MaxCredit(uint16_t handle, bool enable);
 
 #define PORT_DTRDSR_ON 0x01
 #define PORT_CTSRTS_ON 0x02
@@ -387,8 +416,8 @@ int PORT_FlowControl_MaxCredit(uint16_t handle, bool enable);
  *                  p_len       - Byte count received
  *
  ******************************************************************************/
-int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len,
-                  uint16_t* p_len);
+[[nodiscard]] int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len,
+                                uint16_t* p_len);
 
 /*******************************************************************************
  *
@@ -403,8 +432,8 @@ int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len,
  *                  p_len       - Bytes written
  *
  ******************************************************************************/
-int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len,
-                   uint16_t* p_len);
+[[nodiscard]] int PORT_WriteData(uint16_t handle, const char* p_data,
+                                 uint16_t max_len, uint16_t* p_len);
 
 /*******************************************************************************
  *
@@ -416,7 +445,7 @@ int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len,
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
  *
  ******************************************************************************/
-int PORT_WriteDataCO(uint16_t handle, int* p_len);
+[[nodiscard]] int PORT_WriteDataCO(uint16_t handle, int* p_len);
 
 /*******************************************************************************
  *
@@ -438,7 +467,7 @@ void RFCOMM_Init(void);
  *                  result. Note that the string returned must not be freed.
  *
  ******************************************************************************/
-const char* PORT_GetResultString(const uint8_t result_code);
+[[nodiscard]] const char* PORT_GetResultString(const uint8_t result_code);
 
 /*******************************************************************************
  *
@@ -449,6 +478,6 @@ const char* PORT_GetResultString(const uint8_t result_code);
  * Returns          the security bitmask.
  *
  ******************************************************************************/
-int PORT_GetSecurityMask(uint16_t handle, uint16_t* sec_mask);
+[[nodiscard]] int PORT_GetSecurityMask(uint16_t handle, uint16_t* sec_mask);
 
 #endif /* PORT_API_H */

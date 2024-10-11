@@ -21,17 +21,15 @@
 
 #include "common/contextual_callback.h"
 #include "hci/address.h"
-#include "hci/hci_layer.h"
+#include "hci/hci_interface.h"
 #include "hci/hci_packets.h"
-#include "module.h"
-#include "os/handler.h"
 
 // Unit test interfaces
 namespace bluetooth {
 namespace hci {
 namespace testing {
 
-class MockHciLayer : public HciLayer {
+class MockHciLayer : public HciInterface {
  public:
   MOCK_METHOD(
       void,
@@ -59,10 +57,21 @@ class MockHciLayer : public HciLayer {
       (override));
   MOCK_METHOD((void), UnregisterLeEventHandler, (SubeventCode), (override));
   MOCK_METHOD(
+      (void),
+      RegisterVendorSpecificEventHandler,
+      (VseSubeventCode, common::ContextualCallback<void(VendorSpecificEventView)>),
+      (override));
+  MOCK_METHOD((void), UnregisterVendorSpecificEventHandler, (VseSubeventCode), (override));
+  MOCK_METHOD(
       (SecurityInterface*),
       GetSecurityInterface,
       (common::ContextualCallback<void(EventView)> event_handler),
       (override));
+
+  MOCK_METHOD(
+      (void),
+      RegisterForDisconnects,
+      (common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect));
 
   MOCK_METHOD(
       (LeSecurityInterface*),
@@ -114,6 +123,12 @@ class MockHciLayer : public HciLayer {
       GetDistanceMeasurementInterface,
       (common::ContextualCallback<void(LeMetaEventView)> event_handler),
       (override));
+
+  MOCK_METHOD(
+      void,
+      RegisterForScoConnectionRequests,
+      (common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
+           on_sco_connection_request));
 };
 
 }  // namespace testing

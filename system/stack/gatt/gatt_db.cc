@@ -22,10 +22,7 @@
  *
  ******************************************************************************/
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
-#include <log/log.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "gatt_int.h"
@@ -79,7 +76,7 @@ Uuid* gatts_get_service_uuid(tGATT_SVC_DB* p_db) {
 
 /** Check attribute readability. Returns status of operation. */
 static tGATT_STATUS gatts_check_attr_readability(const tGATT_ATTR& attr,
-                                                 UNUSED_ATTR uint16_t offset,
+                                                 uint16_t /* offset */,
                                                  bool read_long,
                                                  tGATT_SEC_FLAG sec_flag,
                                                  uint8_t key_size) {
@@ -278,7 +275,7 @@ static tGATT_STATUS read_attr_value(tGATT_ATTR& attr16, uint16_t offset,
  ******************************************************************************/
 tGATT_STATUS gatts_db_read_attr_value_by_type(
     tGATT_TCB& tcb, uint16_t cid, tGATT_SVC_DB* p_db, uint8_t op_code,
-    BT_HDR* p_rsp, uint16_t s_handle, uint16_t e_handle, const Uuid& type,
+    BT_HDR* p_rsp, uint16_t s_handle, uint16_t /* e_handle */, const Uuid& type,
     uint16_t* p_len, tGATT_SEC_FLAG sec_flag, uint8_t key_size,
     uint32_t trans_id, uint16_t* p_cur_handle) {
   tGATT_STATUS status = GATT_NOT_FOUND;
@@ -546,7 +543,7 @@ tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* p_db, uint8_t op_code,
                                          uint8_t* p_data, uint16_t len,
                                          tGATT_SEC_FLAG sec_flag,
                                          uint8_t key_size) {
-  log::verbose("op_code=0x%{:x} handle=0x{:04x} offset={} len={} key_size={}",
+  log::verbose("op_code=0x{:x} handle=0x{:04x} offset={} len={} key_size={}",
                op_code, handle, offset, len, key_size);
 
   tGATT_ATTR* p_attr = find_attr_by_handle(p_db, handle);

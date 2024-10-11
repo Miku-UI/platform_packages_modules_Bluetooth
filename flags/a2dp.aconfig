@@ -3,6 +3,7 @@ container: "com.android.btservices"
 
 flag {
     name: "a2dp_offload_codec_extensibility"
+    is_exported: true
     namespace: "bluetooth"
     description: "Enable a2dp offload codec extensibility"
     bug: "308686081"
@@ -13,4 +14,64 @@ flag {
     namespace: "bluetooth"
     description: "Support for concurrent A2DP source and sink"
     bug : "321806163"
+}
+
+flag {
+    name: "a2dp_service_looper"
+    namespace: "bluetooth"
+    description: "Inject looper into A2dpService"
+    bug: "337348333"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "avdtp_error_codes"
+    namespace: "bluetooth"
+    description: "Use compliant error codes in AVDTP responses"
+    bug: "338139069"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "bta_av_use_peer_codec"
+    namespace: "bluetooth"
+    description: "Deprecate bta av codec state"
+    bug: "339264791"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_async_allow_low_latency"
+    namespace: "bluetooth"
+    description: "Make allow_low_latency run on main thread"
+    bug : "339368380"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_ignore_started_when_responder"
+    namespace: "bluetooth"
+    description: "Ignore the event BTA_AV_START_EVT when source and responder"
+    bug : "341178856"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "avrcp_sdp_records"
+    namespace: "bluetooth"
+    description: "Update SDP records for AVRC"
+    bug: "341353017"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

@@ -34,16 +34,8 @@ class InitFlags final {
     init_flags::load(std::move(rusted_flags));
   }
 
-  inline static bool IsDeviceIotConfigLoggingEnabled() {
-    return init_flags::device_iot_config_logging_is_enabled();
-  }
-
   inline static bool IsBtmDmFlushDiscoveryQueueOnSearchCancel() {
     return init_flags::btm_dm_flush_discovery_queue_on_search_cancel_is_enabled();
-  }
-
-  inline static bool IsBluetoothQualityReportCallbackEnabled() {
-    return init_flags::bluetooth_quality_report_callback_is_enabled();
   }
 
   inline static bool IsTargetedAnnouncementReconnectionMode() {

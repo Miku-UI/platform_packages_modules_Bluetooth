@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-#include <base/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "bta_groups.h"
+#include "gd/os/rand.h"
 #include "test/common/mock_functions.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -42,7 +42,7 @@ using bluetooth::groups::DeviceGroupsCallbacks;
 DeviceGroupsCallbacks* dev_callbacks;
 
 RawAddress GetTestAddress(int index) {
-  CHECK_LT(index, UINT8_MAX);
+  EXPECT_LT(index, UINT8_MAX);
   RawAddress result = {
       {0xC0, 0xDE, 0xC0, 0xDE, 0x00, static_cast<uint8_t>(index)}};
   return result;
@@ -170,8 +170,10 @@ TEST_F(GroupsTest, test_add_multiple_groups) {
 }
 
 TEST_F(GroupsTest, test_remove_multiple_groups) {
-  Uuid uuid1 = Uuid::GetRandom();
-  Uuid uuid2 = Uuid::GetRandom();
+  Uuid uuid1 =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
+  Uuid uuid2 =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
   ASSERT_NE(uuid1, uuid2);
 
   EXPECT_CALL(*callbacks, OnGroupAdded(_, _, _)).Times(2);
@@ -190,8 +192,10 @@ TEST_F(GroupsTest, test_remove_multiple_groups) {
 }
 
 TEST_F(GroupsTest, test_remove_device_fo_devices) {
-  Uuid uuid1 = Uuid::GetRandom();
-  Uuid uuid2 = Uuid::GetRandom();
+  Uuid uuid1 =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
+  Uuid uuid2 =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
   EXPECT_CALL(*callbacks, OnGroupAdded(_, _, _)).Times(2);
   DeviceGroups::Initialize(callbacks.get());
   DeviceGroups::Get()->AddDevice(GetTestAddress(1), uuid1, 8);
@@ -271,8 +275,10 @@ TEST_F(GroupsTest, test_storage_calls) {
 TEST_F(GroupsTest, test_storage_content) {
   int gid1 = bluetooth::groups::kGroupUnknown;
   int gid2 = bluetooth::groups::kGroupUnknown;
-  Uuid uuid1 = Uuid::GetRandom();
-  Uuid uuid2 = Uuid::GetRandom();
+  Uuid uuid1 =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
+  Uuid uuid2 =
+      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
   ASSERT_NE(uuid1, uuid2);
 
   DeviceGroups::Initialize(callbacks.get());

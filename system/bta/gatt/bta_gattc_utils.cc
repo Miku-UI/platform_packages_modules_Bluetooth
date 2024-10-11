@@ -24,15 +24,16 @@
 
 #define LOG_TAG "bt_bta_gattc"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
 
 #include "bta/gatt/bta_gattc_int.h"
 #include "common/init_flags.h"
-#include "device/include/controller.h"
+#include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "internal_include/bt_trace.h"
+#include "main/shim/entry.h"
 #include "os/log.h"
 #include "osi/include/allocator.h"
 #include "types/bt_transport.h"
@@ -42,11 +43,10 @@
 using namespace bluetooth;
 
 static uint8_t ble_acceptlist_size() {
-  const controller_t* controller = controller_get_interface();
-  if (!controller->SupportsBle()) {
+  if (!bluetooth::shim::GetController()->SupportsBle()) {
     return 0;
   }
-  return controller->get_ble_acceptlist_size();
+  return bluetooth::shim::GetController()->GetLeFilterAcceptListSize();
 }
 
 /*******************************************************************************
@@ -97,9 +97,8 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if,
                                             const RawAddress& remote_bda,
                                             tBT_TRANSPORT transport) {
   tBTA_GATTC_CLCB* p_clcb = &bta_gattc_cb.clcb[0];
-  uint8_t i;
 
-  for (i = 0; i < BTA_GATTC_CLCB_MAX; i++, p_clcb++) {
+  for (size_t i = 0; i < BTA_GATTC_CLCB_MAX; i++, p_clcb++) {
     if (p_clcb->in_use && p_clcb->p_rcb->client_if == client_if &&
         p_clcb->transport == transport && p_clcb->bda == remote_bda)
       return p_clcb;
@@ -117,9 +116,8 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if,
  ******************************************************************************/
 tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(uint16_t conn_id) {
   tBTA_GATTC_CLCB* p_clcb = &bta_gattc_cb.clcb[0];
-  uint8_t i;
 
-  for (i = 0; i < BTA_GATTC_CLCB_MAX; i++, p_clcb++) {
+  for (size_t i = 0; i < BTA_GATTC_CLCB_MAX; i++, p_clcb++) {
     if (p_clcb->in_use && p_clcb->bta_conn_id == conn_id) return p_clcb;
   }
   return NULL;
@@ -137,10 +135,9 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(uint16_t conn_id) {
 tBTA_GATTC_CLCB* bta_gattc_clcb_alloc(tGATT_IF client_if,
                                       const RawAddress& remote_bda,
                                       tBT_TRANSPORT transport) {
-  uint8_t i_clcb = 0;
   tBTA_GATTC_CLCB* p_clcb = NULL;
 
-  for (i_clcb = 0; i_clcb < BTA_GATTC_CLCB_MAX; i_clcb++) {
+  for (int i_clcb = 0; i_clcb < BTA_GATTC_CLCB_MAX; i_clcb++) {
     if (!bta_gattc_cb.clcb[i_clcb].in_use) {
 #if (BTA_GATT_DEBUG == TRUE)
       log::verbose("found clcb:{} available", i_clcb);
@@ -464,7 +461,7 @@ BtaEnqueuedResult_t bta_gattc_enqueue(tBTA_GATTC_CLCB* p_clcb,
   log::info(
       "Already has a pending command to executer. Queuing for later {} conn "
       "id=0x{:04x}",
-      ADDRESS_TO_LOGGABLE_CSTR(p_clcb->bda), p_clcb->bta_conn_id);
+      p_clcb->bda, p_clcb->bta_conn_id);
   p_clcb->p_q_cmd_queue.push_back(p_data);
 
   return ENQUEUED_FOR_LATER;
@@ -577,7 +574,7 @@ bool bta_gattc_mark_bg_conn(tGATT_IF client_if,
   }
   if (!add) {
     log::error("unable to find the bg connection mask for bd_addr={}",
-               ADDRESS_TO_LOGGABLE_STR(remote_bda_ptr));
+               remote_bda_ptr);
     return false;
   } else /* adding a new device mask */
   {
@@ -801,15 +798,100 @@ tBTA_GATTC_CLCB* bta_gattc_find_int_disconn_clcb(tBTA_GATTC_DATA* p_msg) {
   return p_clcb;
 }
 
-/*******************************************************************************
- *
- * Function         bta_gattc_is_robust_caching_enabled
- *
- * Description      check if robust caching is enabled
- *
- * Returns          true if enabled; otherwise false
- *
- ******************************************************************************/
-bool bta_gattc_is_robust_caching_enabled() {
-  return bluetooth::common::init_flags::gatt_robust_caching_client_is_enabled();
+void bta_gatt_client_dump(int fd) {
+  std::stringstream stream;
+  int entry_count = 0;
+
+  stream << " ->conn_track (GATT_MAX_PHY_CHANNEL=" << GATT_MAX_PHY_CHANNEL
+         << ")\n";
+  for (int i = 0; i < GATT_MAX_PHY_CHANNEL; i++) {
+    tBTA_GATTC_CONN* p_conn_track = &bta_gattc_cb.conn_track[i];
+    if (p_conn_track->in_use) {
+      entry_count++;
+      stream << "  address: "
+             << ADDRESS_TO_LOGGABLE_STR(p_conn_track->remote_bda);
+      stream << "\n";
+    }
+  }
+  stream << "  -- used: " << entry_count << "\n";
+  entry_count = 0;
+
+  stream << " ->bg_track (BTA_GATTC_KNOWN_SR_MAX=" << BTA_GATTC_KNOWN_SR_MAX
+         << ")\n";
+  for (int i = 0; i < BTA_GATTC_KNOWN_SR_MAX; i++) {
+    tBTA_GATTC_BG_TCK* p_bg_track = &bta_gattc_cb.bg_track[i];
+    if (!p_bg_track->in_use) {
+      continue;
+    }
+    entry_count++;
+    stream << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_bg_track->remote_bda)
+           << "  cif_mask: " << loghex(p_bg_track->cif_mask);
+    stream << "\n";
+  }
+
+  stream << "  -- used: " << entry_count << "\n";
+  entry_count = 0;
+  stream << " ->cl_rcb (BTA_GATTC_CL_MAX=" << BTA_GATTC_CL_MAX << ")\n";
+  for (int i = 0; i < BTA_GATTC_CL_MAX; i++) {
+    tBTA_GATTC_RCB* p_cl_rcb = &bta_gattc_cb.cl_rcb[i];
+    if (!p_cl_rcb->in_use) {
+      continue;
+    }
+    entry_count++;
+    stream << "  client_if: " << +p_cl_rcb->client_if
+           << "  app uuids: " << p_cl_rcb->app_uuid
+           << "  clcb_num: " << +p_cl_rcb->num_clcb;
+    stream << "\n";
+  }
+
+  stream << "  -- used: " << entry_count << "\n";
+  entry_count = 0;
+  stream << " ->clcb (BTA_GATTC_CLCB_MAX=" << BTA_GATTC_CLCB_MAX << ")\n";
+  for (size_t i = 0; i < BTA_GATTC_CLCB_MAX; i++) {
+    tBTA_GATTC_CLCB* p_clcb = &bta_gattc_cb.clcb[i];
+    if (!p_clcb->in_use) {
+      continue;
+    }
+    entry_count++;
+    stream << "  conn_id: " << loghex(p_clcb->bta_conn_id)
+           << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_clcb->bda)
+           << "  transport: " << bt_transport_text(p_clcb->transport)
+           << "  state: " << bta_clcb_state_text(p_clcb->state);
+    stream << "\n";
+  }
+
+  stream << "  -- used: " << entry_count << "\n";
+  entry_count = 0;
+  stream << " ->known_server (BTA_GATTC_KNOWN_SR_MAX=" << BTA_GATTC_KNOWN_SR_MAX
+         << ")\n";
+  for (int i = 0; i < BTA_GATTC_CL_MAX; i++) {
+    tBTA_GATTC_SERV* p_known_server = &bta_gattc_cb.known_server[i];
+    if (!p_known_server->in_use) {
+      continue;
+    }
+    entry_count++;
+    stream << "  server_address: "
+           << ADDRESS_TO_LOGGABLE_STR(p_known_server->server_bda)
+           << "  mtu: " << p_known_server->mtu
+           << "  blocked_conn_id: " << loghex(p_known_server->blocked_conn_id)
+           << "  pending_discovery: "
+           << p_known_server->pending_discovery.ToString()
+           << "  num_clcb: " << +p_known_server->num_clcb
+           << "  state: " << bta_server_state_text(p_known_server->state)
+           << "  connected: " << p_known_server->connected
+           << "  srvc_disc_count: " << p_known_server->srvc_disc_count
+           << "  disc_blocked_waiting_on_version: "
+           << p_known_server->disc_blocked_waiting_on_version
+           << "  srvc_hdl_chg: " << +p_known_server->srvc_hdl_chg
+           << "  srvc_hdl_db_hash: " << p_known_server->srvc_hdl_db_hash
+           << "  update_count: " << +p_known_server->update_count;
+
+    stream << "\n";
+  }
+
+  stream << "  -- used: " << entry_count << "\n";
+  entry_count = 0;
+  dprintf(fd, "BTA_GATTC_CB state %s \n%s\n",
+          bta_gattc_state_text(bta_gattc_cb.state).c_str(),
+          stream.str().c_str());
 }

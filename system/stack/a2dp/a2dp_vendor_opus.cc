@@ -21,17 +21,15 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "a2dp_vendor_opus"
+#define LOG_TAG "bluetooth-a2dp"
 
 #include "a2dp_vendor_opus.h"
 
-#include <base/logging.h>
 #include <bluetooth/log.h>
 #include <string.h>
 
 #include "a2dp_vendor_opus_decoder.h"
 #include "a2dp_vendor_opus_encoder.h"
-#include "include/check.h"
 #include "internal_include/bt_trace.h"
 #include "os/log.h"
 #include "osi/include/osi.h"
@@ -119,7 +117,7 @@ static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_opus = {
     a2dp_vendor_opus_decoder_suspend,       a2dp_vendor_opus_decoder_configure,
 };
 
-UNUSED_ATTR static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityOpus(
+static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityOpus(
     const tA2DP_OPUS_CIE* p_cap, const uint8_t* p_codec_info,
     bool is_peer_codec_info);
 
@@ -151,19 +149,19 @@ static tA2DP_STATUS A2DP_BuildInfoOpus(uint8_t media_type,
   *p_result = 0;
   *p_result |= (uint8_t)(p_ie->channelMode) & A2DP_OPUS_CHANNEL_MODE_MASK;
   if ((*p_result & A2DP_OPUS_CHANNEL_MODE_MASK) == 0) {
-    log::error("channelmode 0x{:X} setting failed", (p_ie->channelMode));
+    log::error("channelmode 0x{:X} setting failed", p_ie->channelMode);
     return A2DP_INVALID_PARAMS;
   }
 
   *p_result |= ((uint8_t)(p_ie->future1) & A2DP_OPUS_FRAMESIZE_MASK);
   if ((*p_result & A2DP_OPUS_FRAMESIZE_MASK) == 0) {
-    log::error("frameSize 0x{:X} setting failed", (p_ie->future1));
+    log::error("frameSize 0x{:X} setting failed", p_ie->future1);
     return A2DP_INVALID_PARAMS;
   }
 
   *p_result |= ((uint8_t)(p_ie->sampleRate) & A2DP_OPUS_SAMPLING_FREQ_MASK);
   if ((*p_result & A2DP_OPUS_SAMPLING_FREQ_MASK) == 0) {
-    log::error("samplerate 0x{:X} setting failed", (p_ie->sampleRate));
+    log::error("samplerate 0x{:X} setting failed", p_ie->sampleRate);
     return A2DP_INVALID_PARAMS;
   }
 
@@ -356,12 +354,12 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityOpus(
   return A2DP_SUCCESS;
 }
 
-bool A2DP_VendorUsesRtpHeaderOpus(UNUSED_ATTR bool content_protection_enabled,
-                                  UNUSED_ATTR const uint8_t* p_codec_info) {
+bool A2DP_VendorUsesRtpHeaderOpus(bool /* content_protection_enabled */,
+                                  const uint8_t* /* p_codec_info */) {
   return true;
 }
 
-const char* A2DP_VendorCodecNameOpus(UNUSED_ATTR const uint8_t* p_codec_info) {
+const char* A2DP_VendorCodecNameOpus(const uint8_t* /* p_codec_info */) {
   return "Opus";
 }
 
@@ -555,14 +553,14 @@ int A2DP_VendorGetFrameSizeOpus(const uint8_t* p_codec_info) {
   return -1;
 }
 
-bool A2DP_VendorGetPacketTimestampOpus(UNUSED_ATTR const uint8_t* p_codec_info,
+bool A2DP_VendorGetPacketTimestampOpus(const uint8_t* /* p_codec_info */,
                                        const uint8_t* p_data,
                                        uint32_t* p_timestamp) {
   *p_timestamp = *(const uint32_t*)p_data;
   return true;
 }
 
-bool A2DP_VendorBuildCodecHeaderOpus(UNUSED_ATTR const uint8_t* p_codec_info,
+bool A2DP_VendorBuildCodecHeaderOpus(const uint8_t* /* p_codec_info */,
                                      BT_HDR* p_buf,
                                      uint16_t frames_per_packet) {
   uint8_t* p;
@@ -589,7 +587,8 @@ std::string A2DP_VendorCodecInfoStringOpus(const uint8_t* p_codec_info) {
 
   a2dp_status = A2DP_ParseInfoOpus(&Opus_cie, p_codec_info, true);
   if (a2dp_status != A2DP_SUCCESS) {
-    res << "A2DP_ParseInfoOpus fail: " << loghex(a2dp_status);
+    res << "A2DP_ParseInfoOpus fail: "
+        << loghex(static_cast<uint8_t>(a2dp_status));
     return res.str();
   }
 
@@ -648,12 +647,12 @@ bool A2DP_VendorAdjustCodecOpus(uint8_t* p_codec_info) {
 }
 
 btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexOpus(
-    UNUSED_ATTR const uint8_t* p_codec_info) {
+    const uint8_t* /* p_codec_info */) {
   return BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS;
 }
 
 btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndexOpus(
-    UNUSED_ATTR const uint8_t* p_codec_info) {
+    const uint8_t* /* p_codec_info */) {
   return BTAV_A2DP_CODEC_INDEX_SINK_OPUS;
 }
 
@@ -1220,11 +1219,13 @@ bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info,
     status = A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
                                 ota_codec_peer_config_);
   }
-  CHECK(status == A2DP_SUCCESS);
+  log::assert_that(status == A2DP_SUCCESS,
+                   "assert failed: status == A2DP_SUCCESS");
 
   status = A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie,
                               ota_codec_config_);
-  CHECK(status == A2DP_SUCCESS);
+  log::assert_that(status == A2DP_SUCCESS,
+                   "assert failed: status == A2DP_SUCCESS");
   return true;
 
 fail:
@@ -1290,7 +1291,8 @@ bool A2dpCodecConfigOpusBase::setPeerCodecCapabilities(
   log::info("BuildInfoOpus for peer info cie for ota caps");
   status = A2DP_BuildInfoOpus(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
                               ota_codec_peer_capability_);
-  CHECK(status == A2DP_SUCCESS);
+  log::assert_that(status == A2DP_SUCCESS,
+                   "assert failed: status == A2DP_SUCCESS");
   return true;
 
 fail:
@@ -1318,8 +1320,8 @@ bool A2dpCodecConfigOpusSink::init() {
 bool A2dpCodecConfigOpusSink::useRtpHeaderMarkerBit() const { return false; }
 
 bool A2dpCodecConfigOpusSink::updateEncoderUserConfig(
-    UNUSED_ATTR const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-    UNUSED_ATTR bool* p_restart_input, UNUSED_ATTR bool* p_restart_output,
-    UNUSED_ATTR bool* p_config_updated) {
+    const tA2DP_ENCODER_INIT_PEER_PARAMS* /* p_peer_params */,
+    bool* /* p_restart_input */, bool* /* p_restart_output */,
+    bool* /* p_config_updated */) {
   return false;
 }
