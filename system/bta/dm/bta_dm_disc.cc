@@ -33,9 +33,11 @@
 #include "bta/dm/bta_dm_disc_legacy.h"
 #include "bta/include/bta_gatt_api.h"
 #include "com_android_bluetooth_flags.h"
+#include "btif/include/btif_storage.h"
 #include "common/circular_buffer.h"
 #include "common/init_flags.h"
 #include "common/strings.h"
+#include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
 #include "os/logging/log_adapter.h"
@@ -333,8 +335,17 @@ static void bta_dm_disc_result(tBTA_DM_SVC_RES& disc_result) {
     bta_dm_discovery_cb.service_search_cbacks.on_service_discovery_results(
         r.bd_addr, r.uuids, r.result);
   } else {
+    char remote_name[BD_NAME_LEN] = "";
     bta_dm_discovery_cb.transports &= ~BT_TRANSPORT_LE;
-    GAP_BleReadPeerPrefConnParams(bta_dm_discovery_cb.peer_bdaddr);
+    if (btif_storage_get_stored_remote_name(bta_dm_discovery_cb.peer_bdaddr, remote_name) &&
+        interop_match_name(INTEROP_DISABLE_LE_CONN_PREFERRED_PARAMS, remote_name)) {
+      // Some devices provide PPCP values that are incompatible with the device-side firmware.
+      log::info("disable PPCP read: interop matched name {} address {}", remote_name,
+                bta_dm_discovery_cb.peer_bdaddr);
+    } else {
+      log::info("reading PPCP");
+      GAP_BleReadPeerPrefConnParams(bta_dm_discovery_cb.peer_bdaddr);
+    }
 
     bta_dm_discovery_cb.service_search_cbacks.on_gatt_results(
         bta_dm_discovery_cb.peer_bdaddr, BD_NAME{}, disc_result.gatt_uuids,
