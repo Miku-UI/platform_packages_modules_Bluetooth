@@ -26,7 +26,7 @@
 #include "type_def.h"
 
 class StructDef : public ParentDef {
- public:
+public:
   StructDef(std::string name, FieldList fields);
   StructDef(std::string name, FieldList fields, StructDef* parent);
 
@@ -51,6 +51,6 @@ class StructDef : public ParentDef {
 
   Size GetStructOffsetForField(std::string field_name) const;
 
- private:
+private:
   Size total_size_;
 };

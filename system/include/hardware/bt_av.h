@@ -66,8 +66,7 @@ typedef enum {
   // Indexes in this range will be allocated for offloaded codecs
   // that the stack does not recognize.
   BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX,
-  BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MAX =
-      BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN + 4,
+  BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MAX = BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN + 4,
 
   BTAV_A2DP_CODEC_INDEX_SINK_MIN = BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MAX,
 
@@ -98,7 +97,7 @@ typedef struct {
 typedef enum {
   // Disable the codec.
   // NOTE: This value can be used only during initialization when
-  // function btav_source_interface_t::init() is called.
+  // function btif_av_source_init() is called.
   BTAV_A2DP_CODEC_PRIORITY_DISABLED = -1,
 
   // Reset the codec priority to its default value.
@@ -155,11 +154,10 @@ typedef enum {
  */
 struct btav_a2dp_codec_config_t {
   btav_a2dp_codec_index_t codec_type;
-  btav_a2dp_codec_priority_t
-      codec_priority;  // Codec selection priority
-                       // relative to other codecs: larger value
-                       // means higher priority. If 0, reset to
-                       // default.
+  btav_a2dp_codec_priority_t codec_priority;  // Codec selection priority
+                                              // relative to other codecs: larger value
+                                              // means higher priority. If 0, reset to
+                                              // default.
   btav_a2dp_codec_sample_rate_t sample_rate;
   btav_a2dp_codec_bits_per_sample_t bits_per_sample;
   btav_a2dp_codec_channel_mode_t channel_mode;
@@ -203,62 +201,34 @@ struct btav_a2dp_codec_config_t {
 
   std::string ToString() const {
     std::string sample_rate_str;
-    AppendCapability(sample_rate_str,
-                     (sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_NONE), "NONE");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_44100),
-                     "44100");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_48000),
-                     "48000");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_88200),
-                     "88200");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_96000),
-                     "96000");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_176400),
-                     "176400");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_192000),
-                     "192000");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_16000),
-                     "16000");
-    AppendCapability(sample_rate_str,
-                     (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_24000),
-                     "24000");
+    AppendCapability(sample_rate_str, (sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_NONE), "NONE");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_44100), "44100");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_48000), "48000");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_88200), "88200");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_96000), "96000");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_176400), "176400");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_192000), "192000");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_16000), "16000");
+    AppendCapability(sample_rate_str, (sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_24000), "24000");
 
     std::string bits_per_sample_str;
-    AppendCapability(bits_per_sample_str,
-                     (bits_per_sample == BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE),
+    AppendCapability(bits_per_sample_str, (bits_per_sample == BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE),
                      "NONE");
-    AppendCapability(bits_per_sample_str,
-                     (bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16),
+    AppendCapability(bits_per_sample_str, (bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16),
                      "16");
-    AppendCapability(bits_per_sample_str,
-                     (bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24),
+    AppendCapability(bits_per_sample_str, (bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24),
                      "24");
-    AppendCapability(bits_per_sample_str,
-                     (bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32),
+    AppendCapability(bits_per_sample_str, (bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32),
                      "32");
 
     std::string channel_mode_str;
-    AppendCapability(channel_mode_str,
-                     (channel_mode == BTAV_A2DP_CODEC_CHANNEL_MODE_NONE),
-                     "NONE");
-    AppendCapability(channel_mode_str,
-                     (channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_MONO),
-                     "MONO");
-    AppendCapability(channel_mode_str,
-                     (channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO),
+    AppendCapability(channel_mode_str, (channel_mode == BTAV_A2DP_CODEC_CHANNEL_MODE_NONE), "NONE");
+    AppendCapability(channel_mode_str, (channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_MONO), "MONO");
+    AppendCapability(channel_mode_str, (channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO),
                      "STEREO");
 
-    return "codec: " + CodecNameStr() +
-           " priority: " + std::to_string(codec_priority) +
-           " sample_rate: " + sample_rate_str +
-           " bits_per_sample: " + bits_per_sample_str +
+    return "codec: " + CodecNameStr() + " priority: " + std::to_string(codec_priority) +
+           " sample_rate: " + sample_rate_str + " bits_per_sample: " + bits_per_sample_str +
            " channel_mode: " + channel_mode_str +
            " codec_specific_1: " + std::to_string(codec_specific_1) +
            " codec_specific_2: " + std::to_string(codec_specific_2) +
@@ -278,11 +248,14 @@ struct btav_a2dp_codec_config_t {
     return oss.str();
   }
 
- private:
-  static std::string AppendCapability(std::string& result, bool append,
-                                      const std::string& name) {
-    if (!append) return result;
-    if (!result.empty()) result += "|";
+private:
+  static std::string AppendCapability(std::string& result, bool append, const std::string& name) {
+    if (!append) {
+      return result;
+    }
+    if (!result.empty()) {
+      result += "|";
+    }
     result += name;
     return result;
   }
@@ -309,32 +282,29 @@ typedef void (*btav_connection_state_callback)(const RawAddress& bd_addr,
 /** Callback for audiopath state change.
  *  state will have one of the values from btav_audio_state_t
  */
-typedef void (*btav_audio_state_callback)(const RawAddress& bd_addr,
-                                          btav_audio_state_t state);
+typedef void (*btav_audio_state_callback)(const RawAddress& bd_addr, btav_audio_state_t state);
 
 /** Callback for audio configuration change.
  *  Used only for the A2DP Source interface.
  */
 typedef void (*btav_audio_source_config_callback)(
-    const RawAddress& bd_addr, btav_a2dp_codec_config_t codec_config,
-    std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities,
-    std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities);
+        const RawAddress& bd_addr, btav_a2dp_codec_config_t codec_config,
+        std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities,
+        std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities);
 
 /** Callback for audio configuration change.
  *  Used only for the A2DP Sink interface.
  *  sample_rate: sample rate in Hz
  *  channel_count: number of channels (1 for mono, 2 for stereo)
  */
-typedef void (*btav_audio_sink_config_callback)(const RawAddress& bd_addr,
-                                                uint32_t sample_rate,
+typedef void (*btav_audio_sink_config_callback)(const RawAddress& bd_addr, uint32_t sample_rate,
                                                 uint8_t channel_count);
 
 /** Callback for querying whether the mandatory codec is more preferred.
  *  Used only for the A2DP Source interface.
  *  Return true if optional codecs are not preferred.
  */
-typedef bool (*btav_mandatory_codec_preferred_callback)(
-    const RawAddress& bd_addr);
+typedef bool (*btav_mandatory_codec_preferred_callback)(const RawAddress& bd_addr);
 
 /** BT-AV A2DP Source callback structure. */
 typedef struct {
@@ -366,95 +336,25 @@ typedef struct {
  *
  */
 
-/** Represents the standard BT-AV A2DP Source interface.
- */
-typedef struct {
-  /** set to sizeof(btav_source_interface_t) */
-  size_t size;
-  /**
-   * Register the BtAv callbacks.
-   */
-  bt_status_t (*init)(
-      btav_source_callbacks_t* callbacks, int max_connected_audio_devices,
-      const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
-      const std::vector<btav_a2dp_codec_config_t>& offloading_preference,
-      std::vector<btav_a2dp_codec_info_t>* supported_codecs);
-
-  /** connect to headset */
-  bt_status_t (*connect)(const RawAddress& bd_addr);
-
-  /** dis-connect from headset */
-  bt_status_t (*disconnect)(const RawAddress& bd_addr);
-
-  /** sets the connected device silence state */
-  bt_status_t (*set_silence_device)(const RawAddress& bd_addr, bool silence);
-
-  /** sets the connected device as active */
-  bt_status_t (*set_active_device)(const RawAddress& bd_addr);
-
-  /** configure the codecs settings preferences */
-  bt_status_t (*config_codec)(
-      const RawAddress& bd_addr,
-      std::vector<btav_a2dp_codec_config_t> codec_preferences);
-
-  /** Closes the interface. */
-  void (*cleanup)(void);
-
-} btav_source_interface_t;
-
-/** Represents the standard BT-AV A2DP Sink interface.
- */
-typedef struct {
-  /** set to sizeof(btav_sink_interface_t) */
-  size_t size;
-  /**
-   * Register the BtAv callbacks
-   */
-  bt_status_t (*init)(btav_sink_callbacks_t* callbacks,
-                      int max_connected_audio_devices);
-
-  /** connect to headset */
-  bt_status_t (*connect)(const RawAddress& bd_addr);
-
-  /** dis-connect from headset */
-  bt_status_t (*disconnect)(const RawAddress& bd_addr);
-
-  /** Closes the interface. */
-  void (*cleanup)(void);
-
-  /** Sends Audio Focus State. */
-  void (*set_audio_focus_state)(int focus_state);
-
-  /** Sets the audio track gain. */
-  void (*set_audio_track_gain)(float gain);
-
-  /** sets the connected device as active */
-  bt_status_t (*set_active_device)(const RawAddress& bd_addr);
-} btav_sink_interface_t;
-
 __END_DECLS
 
 namespace fmt {
 template <>
-struct formatter<btav_connection_state_t>
-    : enum_formatter<btav_connection_state_t> {};
+struct formatter<btav_connection_state_t> : enum_formatter<btav_connection_state_t> {};
 template <>
 struct formatter<btav_audio_state_t> : enum_formatter<btav_audio_state_t> {};
 template <>
 struct formatter<btav_a2dp_codec_bits_per_sample_t>
     : enum_formatter<btav_a2dp_codec_bits_per_sample_t> {};
 template <>
-struct formatter<btav_a2dp_codec_priority_t>
-    : enum_formatter<btav_a2dp_codec_priority_t> {};
+struct formatter<btav_a2dp_codec_priority_t> : enum_formatter<btav_a2dp_codec_priority_t> {};
 template <>
-struct formatter<btav_a2dp_codec_index_t>
-    : enum_formatter<btav_a2dp_codec_index_t> {};
+struct formatter<btav_a2dp_codec_index_t> : enum_formatter<btav_a2dp_codec_index_t> {};
 template <>
-struct formatter<btav_a2dp_codec_sample_rate_t>
-    : enum_formatter<btav_a2dp_codec_sample_rate_t> {};
+struct formatter<btav_a2dp_codec_sample_rate_t> : enum_formatter<btav_a2dp_codec_sample_rate_t> {};
 template <>
-struct formatter<btav_a2dp_codec_channel_mode_t>
-    : enum_formatter<btav_a2dp_codec_channel_mode_t> {};
+struct formatter<btav_a2dp_codec_channel_mode_t> : enum_formatter<btav_a2dp_codec_channel_mode_t> {
+};
 template <>
 struct formatter<btav_a2dp_scmst_enable_status_t>
     : enum_formatter<btav_a2dp_scmst_enable_status_t> {};

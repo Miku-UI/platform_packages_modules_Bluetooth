@@ -18,6 +18,8 @@ package com.android.bluetooth.map;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.annotation.SuppressLint;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.SignedLongLong;
@@ -106,6 +108,7 @@ public class BluetoothMapConvoListingTest {
     }
 
     @Test
+    @SuppressLint("EqualsIncompatibleType") // That the point of this test
     public void equals_withDifferentClass_returnsFalse() {
         assertThat(mListing.equals(mListingElementEarliestWithReadFalse)).isEqualTo(false);
     }

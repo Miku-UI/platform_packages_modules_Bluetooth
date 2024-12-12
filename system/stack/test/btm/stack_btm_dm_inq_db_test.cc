@@ -38,8 +38,7 @@ extern void btm_clr_inq_result_flt(void);
 
 namespace {
 constexpr size_t kNumberOfThreads = 8;
-constexpr size_t kEntriesPerThread =
-    static_cast<size_t>(BTM_INQ_DB_SIZE) / kNumberOfThreads;
+constexpr size_t kEntriesPerThread = static_cast<size_t>(BTM_INQ_DB_SIZE) / kNumberOfThreads;
 
 constexpr RawAddress* kClearAllEntries = nullptr;
 }  // namespace
@@ -54,12 +53,11 @@ uint16_t btm_get_num_bd_entries();
 }  // namespace bluetooth
 
 class BtmDmInqDbWithMockTest : public testing::Test {
- protected:
+protected:
   void SetUp() override {
     reset_mock_function_count_map();
     fake_osi_ = std::make_unique<test::fake::FakeOsi>();
-    test::mock::osi_thread::thread_new.body =
-        [](const char* name) -> thread_t* {
+    test::mock::osi_thread::thread_new.body = [](const char* name) -> thread_t* {
       thread_t* thread = new thread_t;
       thread->name_ = std::string(name);
       thread_start_arg_t start_arg;
@@ -69,9 +67,11 @@ class BtmDmInqDbWithMockTest : public testing::Test {
       start_arg.start_sem.wait();
       return thread;
     };
-    test::mock::osi_thread::thread_post.body =
-        [](thread_t* thread, thread_func func, void* context) -> bool {
-      if (!thread->is_running()) return false;
+    test::mock::osi_thread::thread_post.body = [](thread_t* thread, thread_func func,
+                                                  void* context) -> bool {
+      if (!thread->is_running()) {
+        return false;
+      }
       {
         std::lock_guard<std::mutex> lock(thread->work_queue_semaphore.mutex_);
         thread->work_queue.push(std::make_pair(func, context));
@@ -96,7 +96,7 @@ class BtmDmInqDbWithMockTest : public testing::Test {
 };
 
 class BtmDmInqDbTest : public BtmDmInqDbWithMockTest {
- protected:
+protected:
   void SetUp() override {
     BtmDmInqDbWithMockTest::SetUp();
     bluetooth::legacy::testing::btm_clr_inq_db(kClearAllEntries);
@@ -111,7 +111,7 @@ class BtmDmInqDbTest : public BtmDmInqDbWithMockTest {
 };
 
 class BtmDmInqDbThreadedTest : public BtmDmInqDbTest {
- protected:
+protected:
   void SetUp() override { BtmDmInqDbTest::SetUp(); }
 
   void TearDown() override { BtmDmInqDbTest::TearDown(); }
@@ -155,8 +155,7 @@ RawAddress RawAddressMaker(int thread_id, int subid) {
 
 void allocate_db_entry(void* context) {
   entry_data_t* data = static_cast<entry_data_t*>(context);
-  RawAddress p_bda =
-      RawAddressMaker(data->thread_id, (int)data->inq_db_queue->size());
+  RawAddress p_bda = RawAddressMaker(data->thread_id, (int)data->inq_db_queue->size());
   tINQ_DB_ENT* ent = btm_inq_db_new(p_bda);
   data->inq_db_queue->push_back(ent);
 }
@@ -171,8 +170,7 @@ TEST_F(BtmDmInqDbThreadedTest, btm_inq_db_new) {
       data_t* data = static_cast<data_t*>(calloc(sizeof(data_t), 1));
       data->thread_id = i;
       data->inq_db_queue = &context.inq_db_queue[i];
-      ASSERT_TRUE(
-          thread_post(threads[i], allocate_db_entry, static_cast<void*>(data)));
+      ASSERT_TRUE(thread_post(threads[i], allocate_db_entry, static_cast<void*>(data)));
     }
   }
 
@@ -211,12 +209,10 @@ TEST_F(BtmDmInqDbThreadedTest, btm_inq_find_bdaddr) {
 
   for (size_t j = 0; j < kEntriesPerThread; j++) {
     for (size_t i = 0; i < kNumberOfThreads; i++) {
-      address_data_t* data =
-          static_cast<address_data_t*>(calloc(sizeof(address_data_t), 1));
+      address_data_t* data = static_cast<address_data_t*>(calloc(sizeof(address_data_t), 1));
       data->thread_id = i;
       data->offset = (int)j;
-      ASSERT_TRUE(
-          thread_post(threads[i], check_address, static_cast<void*>(data)));
+      ASSERT_TRUE(thread_post(threads[i], check_address, static_cast<void*>(data)));
     }
   }
 

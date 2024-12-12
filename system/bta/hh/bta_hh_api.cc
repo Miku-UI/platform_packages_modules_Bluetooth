@@ -46,13 +46,13 @@ using namespace bluetooth;
  * Android Headtracker Service UUIDs
  */
 const Uuid ANDROID_HEADTRACKER_SERVICE_UUID =
-    Uuid::FromString(ANDROID_HEADTRACKER_SERVICE_UUID_STRING);
+        Uuid::FromString(ANDROID_HEADTRACKER_SERVICE_UUID_STRING);
 const Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID =
-    Uuid::FromString(ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING);
+        Uuid::FromString(ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING);
 const Uuid ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID =
-    Uuid::FromString(ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING);
+        Uuid::FromString(ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING);
 const Uuid ANDROID_HEADTRACKER_REPORT_CHARAC_UUID =
-    Uuid::FromString(ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING);
+        Uuid::FromString(ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING);
 
 static const tBTA_SYS_REG bta_hh_reg = {bta_hh_hdl_event, BTA_HhDisable};
 
@@ -123,8 +123,7 @@ void BTA_HhClose(uint8_t dev_handle) {
  *
  ******************************************************************************/
 void BTA_HhOpen(const tAclLinkSpec& link_spec) {
-  tBTA_HH_API_CONN* p_buf =
-      (tBTA_HH_API_CONN*)osi_calloc(sizeof(tBTA_HH_API_CONN));
+  tBTA_HH_API_CONN* p_buf = (tBTA_HH_API_CONN*)osi_calloc(sizeof(tBTA_HH_API_CONN));
   tBTA_HH_PROTO_MODE mode = BTA_HH_PROTO_RPT_MODE;
 
   p_buf->hdr.event = BTA_HH_API_OPEN_EVT;
@@ -140,11 +139,9 @@ void BTA_HhOpen(const tAclLinkSpec& link_spec) {
  * Function  bta_hh_snd_write_dev
  *
  ******************************************************************************/
-static void bta_hh_snd_write_dev(uint8_t dev_handle, uint8_t t_type,
-                                 uint8_t param, uint16_t data, uint8_t rpt_id,
-                                 BT_HDR* p_data) {
-  tBTA_HH_CMD_DATA* p_buf =
-      (tBTA_HH_CMD_DATA*)osi_calloc(sizeof(tBTA_HH_CMD_DATA));
+static void bta_hh_snd_write_dev(uint8_t dev_handle, uint8_t t_type, uint8_t param, uint16_t data,
+                                 uint8_t rpt_id, BT_HDR* p_data) {
+  tBTA_HH_CMD_DATA* p_buf = (tBTA_HH_CMD_DATA*)osi_calloc(sizeof(tBTA_HH_CMD_DATA));
 
   p_buf->hdr.event = BTA_HH_API_WRITE_DEV_EVT;
   p_buf->hdr.layer_specific = (uint16_t)dev_handle;
@@ -169,8 +166,7 @@ static void bta_hh_snd_write_dev(uint8_t dev_handle, uint8_t t_type,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhSetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type,
-                     BT_HDR* p_data) {
+void BTA_HhSetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type, BT_HDR* p_data) {
   bta_hh_snd_write_dev(dev_handle, HID_TRANS_SET_REPORT, r_type, 0, 0, p_data);
 }
 /*******************************************************************************
@@ -182,12 +178,11 @@ void BTA_HhSetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhGetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type,
-                     uint8_t rpt_id, uint16_t buf_size) {
+void BTA_HhGetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type, uint8_t rpt_id,
+                     uint16_t buf_size) {
   uint8_t param = (buf_size) ? (r_type | 0x08) : r_type;
 
-  bta_hh_snd_write_dev(dev_handle, HID_TRANS_GET_REPORT, param, buf_size,
-                       rpt_id, NULL);
+  bta_hh_snd_write_dev(dev_handle, HID_TRANS_GET_REPORT, param, buf_size, rpt_id, NULL);
 }
 /*******************************************************************************
  *
@@ -199,8 +194,7 @@ void BTA_HhGetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type,
  *
  ******************************************************************************/
 void BTA_HhSetProtoMode(uint8_t dev_handle, tBTA_HH_PROTO_MODE p_type) {
-  bta_hh_snd_write_dev(dev_handle, HID_TRANS_SET_PROTOCOL, (uint8_t)p_type, 0,
-                       0, NULL);
+  bta_hh_snd_write_dev(dev_handle, HID_TRANS_SET_PROTOCOL, (uint8_t)p_type, 0, 0, NULL);
 }
 /*******************************************************************************
  *
@@ -249,8 +243,7 @@ void BTA_HhGetIdle(uint8_t dev_handle) {
  *
  ******************************************************************************/
 void BTA_HhSendCtrl(uint8_t dev_handle, tBTA_HH_TRANS_CTRL_TYPE c_type) {
-  bta_hh_snd_write_dev(dev_handle, HID_TRANS_CONTROL, (uint8_t)c_type, 0, 0,
-                       NULL);
+  bta_hh_snd_write_dev(dev_handle, HID_TRANS_CONTROL, (uint8_t)c_type, 0, 0, NULL);
 }
 /*******************************************************************************
  *
@@ -271,16 +264,12 @@ void BTA_HhSendCtrl(uint8_t dev_handle, tBTA_HH_TRANS_CTRL_TYPE c_type) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhSendData(uint8_t dev_handle, const tAclLinkSpec& /* link_spec */,
-                    BT_HDR* p_data) {
+void BTA_HhSendData(uint8_t dev_handle, const tAclLinkSpec& /* link_spec */, BT_HDR* p_data) {
   if (p_data->layer_specific != BTA_HH_RPTT_OUTPUT) {
-    log::error(
-        "ERROR! Wrong report type! Write Command only valid for output "
-        "report!");
+    log::error("ERROR! Wrong report type! Write Command only valid for output report!");
     return;
   }
-  bta_hh_snd_write_dev(dev_handle, HID_TRANS_DATA,
-                       (uint8_t)p_data->layer_specific, 0, 0, p_data);
+  bta_hh_snd_write_dev(dev_handle, HID_TRANS_DATA, (uint8_t)p_data->layer_specific, 0, 0, p_data);
 }
 
 /*******************************************************************************
@@ -313,9 +302,8 @@ void BTA_HhGetDscpInfo(uint8_t dev_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask,
-                  uint8_t sub_class, uint8_t app_id,
-                  tBTA_HH_DEV_DSCP_INFO dscp_info) {
+void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask, uint8_t sub_class,
+                  uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info) {
   size_t len = sizeof(tBTA_HH_MAINT_DEV) + dscp_info.descriptor.dl_len;
   tBTA_HH_MAINT_DEV* p_buf = (tBTA_HH_MAINT_DEV*)osi_calloc(len);
 
@@ -352,8 +340,7 @@ void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask,
  *
  ******************************************************************************/
 void BTA_HhRemoveDev(uint8_t dev_handle) {
-  tBTA_HH_MAINT_DEV* p_buf =
-      (tBTA_HH_MAINT_DEV*)osi_calloc(sizeof(tBTA_HH_MAINT_DEV));
+  tBTA_HH_MAINT_DEV* p_buf = (tBTA_HH_MAINT_DEV*)osi_calloc(sizeof(tBTA_HH_MAINT_DEV));
 
   p_buf->hdr.event = BTA_HH_API_MAINT_DEV_EVT;
   p_buf->sub_event = BTA_HH_RMV_DEV_EVT;
@@ -361,3 +348,14 @@ void BTA_HhRemoveDev(uint8_t dev_handle) {
 
   bta_sys_sendmsg(p_buf);
 }
+
+/*******************************************************************************
+ *
+ * Function         BTA_HhDump
+ *
+ * Description      Dump BTA HH control block
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_HhDump(int fd) { bta_hh_dump(fd); }

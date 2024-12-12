@@ -37,8 +37,7 @@ inline lc3_pcm_format MapLc3PcmFmt(Lc3Param_PcmFmt fmt) {
     case Lc3Param::kLc3PcmFormatS24:
       return LC3_PCM_FORMAT_S24;
     default:
-      bluetooth::log::info(
-          "No corresponding LC3 PCM format, return `LC3_PCM_FORMAT_S16`.");
+      bluetooth::log::info("No corresponding LC3 PCM format, return `LC3_PCM_FORMAT_S16`.");
       return LC3_PCM_FORMAT_S16;
   }
 }

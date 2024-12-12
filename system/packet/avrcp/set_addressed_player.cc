@@ -19,10 +19,10 @@
 namespace bluetooth {
 namespace avrcp {
 
-std::unique_ptr<SetAddressedPlayerResponseBuilder>
-SetAddressedPlayerResponseBuilder::MakeBuilder(Status status) {
+std::unique_ptr<SetAddressedPlayerResponseBuilder> SetAddressedPlayerResponseBuilder::MakeBuilder(
+        Status status) {
   std::unique_ptr<SetAddressedPlayerResponseBuilder> builder(
-      new SetAddressedPlayerResponseBuilder(status));
+          new SetAddressedPlayerResponseBuilder(status));
 
   return builder;
 }
@@ -33,8 +33,7 @@ size_t SetAddressedPlayerResponseBuilder::size() const {
   return len;
 }
 
-bool SetAddressedPlayerResponseBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool SetAddressedPlayerResponseBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   PacketBuilder::PushHeader(pkt);
@@ -52,7 +51,9 @@ uint16_t SetAddressedPlayerRequest::GetPlayerId() const {
 }
 
 bool SetAddressedPlayerRequest::IsValid() const {
-  if (!VendorPacket::IsValid()) return false;
+  if (!VendorPacket::IsValid()) {
+    return false;
+  }
   return size() == kMinSize();
 }
 

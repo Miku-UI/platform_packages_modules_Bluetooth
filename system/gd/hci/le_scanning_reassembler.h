@@ -34,13 +34,13 @@ namespace bluetooth::hci {
 /// matching advertising data.
 
 class LeScanningReassembler {
- public:
+public:
   struct CompleteAdvertisingData {
     uint16_t extended_event_type;
     std::vector<uint8_t> data;
   };
 
-  LeScanningReassembler(){};
+  LeScanningReassembler() {}
 
   LeScanningReassembler(const LeScanningReassembler&) = delete;
 
@@ -52,18 +52,15 @@ class LeScanningReassembler {
   /// Returns the completed advertising data if the event was complete, or the
   /// completion of a fragmented advertising event.
   std::optional<CompleteAdvertisingData> ProcessAdvertisingReport(
-      uint16_t event_type,
-      uint8_t address_type,
-      Address address,
-      uint8_t advertising_sid,
-      const std::vector<uint8_t>& advertising_data);
+          uint16_t event_type, uint8_t address_type, Address address, uint8_t advertising_sid,
+          const std::vector<uint8_t>& advertising_data);
 
   /// Process an incoming periodic advertising report, extracted from the
   /// HCI LE Periodic Advertising Report events.
   /// Returns the completed advertising data if the event was complete,
   /// or the completion of a fragmented advertising event.
   std::optional<std::vector<uint8_t>> ProcessPeriodicAdvertisingReport(
-      uint16_t sync_handle, DataStatus status, const std::vector<uint8_t>& advertising_data);
+          uint16_t sync_handle, DataStatus status, const std::vector<uint8_t>& advertising_data);
 
   /// Configure the scan response filter.
   /// If true all scan responses are ignored.
@@ -71,7 +68,7 @@ class LeScanningReassembler {
     ignore_scan_responses_ = ignore_scan_responses;
   }
 
- private:
+private:
   /// Determine if scan responses should be processed or ignored.
   bool ignore_scan_responses_{false};
 
@@ -107,8 +104,8 @@ class LeScanningReassembler {
     uint16_t extended_event_type;
     std::vector<uint8_t> data;
 
-    AdvertisingFragment(
-        const AdvertisingKey& key, uint16_t extended_event_type, const std::vector<uint8_t>& data)
+    AdvertisingFragment(const AdvertisingKey& key, uint16_t extended_event_type,
+                        const std::vector<uint8_t>& data)
         : key(key), extended_event_type(extended_event_type), data(data.begin(), data.end()) {}
   };
 
@@ -130,8 +127,9 @@ class LeScanningReassembler {
   std::list<AdvertisingFragment> cache_;
 
   /// Advertising cache management methods.
-  std::list<AdvertisingFragment>::iterator AppendFragment(
-      const AdvertisingKey& key, uint16_t extended_event_type, const std::vector<uint8_t>& data);
+  std::list<AdvertisingFragment>::iterator AppendFragment(const AdvertisingKey& key,
+                                                          uint16_t extended_event_type,
+                                                          const std::vector<uint8_t>& data);
 
   void RemoveFragment(const AdvertisingKey& key);
 
@@ -144,7 +142,7 @@ class LeScanningReassembler {
   std::list<PeriodicAdvertisingFragment> periodic_cache_;
 
   std::list<PeriodicAdvertisingFragment>::iterator AppendPeriodicFragment(
-      uint16_t sync_handle, const std::vector<uint8_t>& data);
+          uint16_t sync_handle, const std::vector<uint8_t>& data);
 
   std::list<PeriodicAdvertisingFragment>::iterator FindPeriodicFragment(uint16_t sync_handle);
 

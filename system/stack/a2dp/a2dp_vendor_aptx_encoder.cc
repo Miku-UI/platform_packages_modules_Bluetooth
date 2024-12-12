@@ -39,9 +39,9 @@ using namespace bluetooth;
 //
 
 static const tAPTX_API aptx_api = {
-    .init_func = aptxbtenc_init,
-    .encode_stereo_func = aptxbtenc_encodestereo,
-    .sizeof_params_func = SizeofAptxbtenc,
+        .init_func = aptxbtenc_init,
+        .encode_stereo_func = aptxbtenc_encodestereo,
+        .sizeof_params_func = SizeofAptxbtenc,
 };
 
 // offset
@@ -76,7 +76,7 @@ typedef struct {
 
   bool use_SCMS_T;
   tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
-  uint32_t timestamp;        // Timestamp for the A2DP frames
+  uint32_t timestamp;  // Timestamp for the A2DP frames
 
   tA2DP_FEEDING_PARAMS feeding_params;
   tAPTX_FRAMING_PARAMS framing_params;
@@ -87,14 +87,12 @@ typedef struct {
 static tA2DP_APTX_ENCODER_CB a2dp_aptx_encoder_cb;
 
 static void a2dp_vendor_aptx_encoder_update(A2dpCodecConfig* a2dp_codec_config,
-                                            bool* p_restart_input,
-                                            bool* p_restart_output,
+                                            bool* p_restart_input, bool* p_restart_output,
                                             bool* p_config_updated);
 static void aptx_init_framing_params(tAPTX_FRAMING_PARAMS* framing_params);
 static void aptx_update_framing_params(tAPTX_FRAMING_PARAMS* framing_params);
-static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
-                                size_t* data_out_index, uint16_t* data16_in,
-                                uint8_t* data_out);
+static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params, size_t* data_out_index,
+                                uint16_t* data16_in, uint8_t* data_out);
 
 /*******************************************************************************
  *
@@ -121,15 +119,13 @@ void A2DP_VendorUnloadEncoderAptx(void) {
   // nothing to do
 }
 
-void a2dp_vendor_aptx_encoder_init(
-    const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-    A2dpCodecConfig* a2dp_codec_config,
-    a2dp_source_read_callback_t read_callback,
-    a2dp_source_enqueue_callback_t enqueue_callback) {
+void a2dp_vendor_aptx_encoder_init(const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+                                   A2dpCodecConfig* a2dp_codec_config,
+                                   a2dp_source_read_callback_t read_callback,
+                                   a2dp_source_enqueue_callback_t enqueue_callback) {
   memset(&a2dp_aptx_encoder_cb, 0, sizeof(a2dp_aptx_encoder_cb));
 
-  a2dp_aptx_encoder_cb.stats.session_start_us =
-      bluetooth::common::time_get_os_boottime_us();
+  a2dp_aptx_encoder_cb.stats.session_start_us = bluetooth::common::time_get_os_boottime_us();
 
   a2dp_aptx_encoder_cb.read_callback = read_callback;
   a2dp_aptx_encoder_cb.enqueue_callback = enqueue_callback;
@@ -139,8 +135,7 @@ void a2dp_vendor_aptx_encoder_init(
   /* aptX encoder config */
   a2dp_aptx_encoder_cb.use_SCMS_T = false;
 
-  a2dp_aptx_encoder_cb.aptx_encoder_state =
-      osi_malloc(aptx_api.sizeof_params_func());
+  a2dp_aptx_encoder_cb.aptx_encoder_state = osi_malloc(aptx_api.sizeof_params_func());
   if (a2dp_aptx_encoder_cb.aptx_encoder_state != NULL) {
     aptx_api.init_func(a2dp_aptx_encoder_cb.aptx_encoder_state, 0);
   } else {
@@ -153,15 +148,14 @@ void a2dp_vendor_aptx_encoder_init(
   bool restart_input = false;
   bool restart_output = false;
   bool config_updated = false;
-  a2dp_vendor_aptx_encoder_update(a2dp_codec_config, &restart_input,
-                                  &restart_output, &config_updated);
+  a2dp_vendor_aptx_encoder_update(a2dp_codec_config, &restart_input, &restart_output,
+                                  &config_updated);
 }
 
 // Update the A2DP aptX encoder.
 // |a2dp_codec_config| is the A2DP codec to use for the update.
 static void a2dp_vendor_aptx_encoder_update(A2dpCodecConfig* a2dp_codec_config,
-                                            bool* p_restart_input,
-                                            bool* p_restart_output,
+                                            bool* p_restart_input, bool* p_restart_output,
                                             bool* p_config_updated) {
   uint8_t codec_info[AVDT_CODEC_SIZE];
 
@@ -177,15 +171,11 @@ static void a2dp_vendor_aptx_encoder_update(A2dpCodecConfig* a2dp_codec_config,
 
   // The feeding parameters
   tA2DP_FEEDING_PARAMS* p_feeding_params = &a2dp_aptx_encoder_cb.feeding_params;
-  p_feeding_params->sample_rate =
-      A2DP_VendorGetTrackSampleRateAptx(p_codec_info);
-  p_feeding_params->bits_per_sample =
-      a2dp_codec_config->getAudioBitsPerSample();
-  p_feeding_params->channel_count =
-      A2DP_VendorGetTrackChannelCountAptx(p_codec_info);
-  log::info("sample_rate={} bits_per_sample={} channel_count={}",
-            p_feeding_params->sample_rate, p_feeding_params->bits_per_sample,
-            p_feeding_params->channel_count);
+  p_feeding_params->sample_rate = A2DP_VendorGetTrackSampleRateAptx(p_codec_info);
+  p_feeding_params->bits_per_sample = a2dp_codec_config->getAudioBitsPerSample();
+  p_feeding_params->channel_count = A2DP_VendorGetTrackChannelCountAptx(p_codec_info);
+  log::info("sample_rate={} bits_per_sample={} channel_count={}", p_feeding_params->sample_rate,
+            p_feeding_params->bits_per_sample, p_feeding_params->channel_count);
   a2dp_vendor_aptx_feeding_reset();
 }
 
@@ -275,11 +265,11 @@ static void aptx_update_framing_params(tAPTX_FRAMING_PARAMS* framing_params) {
   }
 
   log::verbose(
-      "sleep_time_ns={} aptx_bytes={} pcm_bytes_per_read={} pcm_reads={} "
-      "frame_size_counter={}",
-      framing_params->sleep_time_ns, framing_params->aptx_bytes,
-      framing_params->pcm_bytes_per_read, framing_params->pcm_reads,
-      framing_params->frame_size_counter);
+          "sleep_time_ns={} aptx_bytes={} pcm_bytes_per_read={} pcm_reads={} "
+          "frame_size_counter={}",
+          framing_params->sleep_time_ns, framing_params->aptx_bytes,
+          framing_params->pcm_bytes_per_read, framing_params->pcm_reads,
+          framing_params->frame_size_counter);
 }
 
 void a2dp_vendor_aptx_feeding_reset(void) {
@@ -298,7 +288,7 @@ int a2dp_vendor_aptx_get_effective_frame_size() {
   return a2dp_aptx_encoder_cb.peer_params.peer_mtu;
 }
 
-void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
+void a2dp_vendor_aptx_send_frames(uint64_t /* timestamp_us */) {
   tAPTX_FRAMING_PARAMS* framing_params = &a2dp_aptx_encoder_cb.framing_params;
 
   // Prepare the packet to send
@@ -316,24 +306,21 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
   // Read the PCM data and encode it
   //
   uint16_t read_buffer16[A2DP_APTX_MAX_PCM_BYTES_PER_READ / sizeof(uint16_t)];
-  uint32_t expected_read_bytes =
-      framing_params->pcm_reads * framing_params->pcm_bytes_per_read;
+  uint32_t expected_read_bytes = framing_params->pcm_reads * framing_params->pcm_bytes_per_read;
   size_t encoded_ptr_index = 0;
   size_t pcm_bytes_encoded = 0;
   uint32_t bytes_read = 0;
 
   a2dp_aptx_encoder_cb.stats.media_read_total_expected_packets++;
   a2dp_aptx_encoder_cb.stats.media_read_total_expected_reads_count++;
-  a2dp_aptx_encoder_cb.stats.media_read_total_expected_read_bytes +=
-      expected_read_bytes;
+  a2dp_aptx_encoder_cb.stats.media_read_total_expected_read_bytes += expected_read_bytes;
 
   log::verbose("PCM read of size {}", expected_read_bytes);
-  bytes_read = a2dp_aptx_encoder_cb.read_callback((uint8_t*)read_buffer16,
-                                                  expected_read_bytes);
+  bytes_read = a2dp_aptx_encoder_cb.read_callback((uint8_t*)read_buffer16, expected_read_bytes);
   a2dp_aptx_encoder_cb.stats.media_read_total_actual_read_bytes += bytes_read;
   if (bytes_read < expected_read_bytes) {
-    log::warn("underflow at PCM reading: read {} bytes instead of {}",
-              bytes_read, expected_read_bytes);
+    log::warn("underflow at PCM reading: read {} bytes instead of {}", bytes_read,
+              expected_read_bytes);
     a2dp_aptx_encoder_cb.stats.media_read_total_dropped_packets++;
     osi_free(p_buf);
     return;
@@ -341,8 +328,7 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
   a2dp_aptx_encoder_cb.stats.media_read_total_actual_reads_count++;
 
   for (uint32_t reads = 0, offset = 0; reads < framing_params->pcm_reads;
-       reads++, offset +=
-                (framing_params->pcm_bytes_per_read / sizeof(uint16_t))) {
+       reads++, offset += (framing_params->pcm_bytes_per_read / sizeof(uint16_t))) {
     pcm_bytes_encoded += aptx_encode_16bit(framing_params, &encoded_ptr_index,
                                            read_buffer16 + offset, encoded_ptr);
   }
@@ -358,14 +344,13 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
 
   const uint8_t BYTES_PER_FRAME = 2;
   uint32_t rtp_timestamp =
-      (pcm_bytes_encoded / a2dp_aptx_encoder_cb.feeding_params.channel_count) /
-      BYTES_PER_FRAME;
+          (pcm_bytes_encoded / a2dp_aptx_encoder_cb.feeding_params.channel_count) / BYTES_PER_FRAME;
 
   // Timestamp will wrap over to 0 if stream continues on long enough
   // (>25H @ 48KHz). The parameters are promoted to 64bit to ensure that
   // no unsigned overflow is triggered as ubsan is always enabled.
   a2dp_aptx_encoder_cb.timestamp =
-      ((uint64_t)a2dp_aptx_encoder_cb.timestamp + rtp_timestamp) & UINT32_MAX;
+          ((uint64_t)a2dp_aptx_encoder_cb.timestamp + rtp_timestamp) & UINT32_MAX;
 
   if (p_buf->len > 0) {
     a2dp_aptx_encoder_cb.enqueue_callback(p_buf, 1, bytes_read);
@@ -375,25 +360,24 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us) {
   }
 }
 
-static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params,
-                                size_t* data_out_index, uint16_t* data16_in,
-                                uint8_t* data_out) {
+static size_t aptx_encode_16bit(tAPTX_FRAMING_PARAMS* framing_params, size_t* data_out_index,
+                                uint16_t* data16_in, uint8_t* data_out) {
   size_t pcm_bytes_encoded = 0;
   size_t frame = 0;
 
-  for (size_t aptx_samples = 0;
-       aptx_samples < framing_params->pcm_bytes_per_read / 16; aptx_samples++) {
+  for (size_t aptx_samples = 0; aptx_samples < framing_params->pcm_bytes_per_read / 16;
+       aptx_samples++) {
     uint32_t pcmL[4];
     uint32_t pcmR[4];
     uint16_t encoded_sample[2];
 
     for (size_t i = 0, j = frame; i < 4; i++, j++) {
-      pcmL[i] = (uint16_t) * (data16_in + (2 * j));
-      pcmR[i] = (uint16_t) * (data16_in + ((2 * j) + 1));
+      pcmL[i] = (uint16_t)*(data16_in + (2 * j));
+      pcmR[i] = (uint16_t)*(data16_in + ((2 * j) + 1));
     }
 
-    aptx_api.encode_stereo_func(a2dp_aptx_encoder_cb.aptx_encoder_state, &pcmL,
-                                &pcmR, &encoded_sample);
+    aptx_api.encode_stereo_func(a2dp_aptx_encoder_cb.aptx_encoder_state, &pcmL, &pcmR,
+                                &encoded_sample);
 
     data_out[*data_out_index + 0] = (uint8_t)((encoded_sample[0] >> 8) & 0xff);
     data_out[*data_out_index + 1] = (uint8_t)((encoded_sample[0] >> 0) & 0xff);
@@ -413,25 +397,20 @@ void A2dpCodecConfigAptx::debug_codec_dump(int fd) {
 
   A2dpCodecConfig::debug_codec_dump(fd);
 
-  dprintf(fd, "  Encoder interval (ms): %" PRIu64 "\n",
-          a2dp_vendor_aptx_get_encoder_interval_ms());
-  dprintf(fd, "  Effective MTU: %d\n",
-          a2dp_vendor_aptx_get_effective_frame_size());
+  dprintf(fd, "  Encoder interval (ms): %" PRIu64 "\n", a2dp_vendor_aptx_get_encoder_interval_ms());
+  dprintf(fd, "  Effective MTU: %d\n", a2dp_vendor_aptx_get_effective_frame_size());
   dprintf(fd,
           "  Packet counts (expected/dropped)                        : %zu / "
           "%zu\n",
-          stats->media_read_total_expected_packets,
-          stats->media_read_total_dropped_packets);
+          stats->media_read_total_expected_packets, stats->media_read_total_dropped_packets);
 
   dprintf(fd,
           "  PCM read counts (expected/actual)                       : %zu / "
           "%zu\n",
-          stats->media_read_total_expected_reads_count,
-          stats->media_read_total_actual_reads_count);
+          stats->media_read_total_expected_reads_count, stats->media_read_total_actual_reads_count);
 
   dprintf(fd,
           "  PCM read bytes (expected/actual)                        : %zu / "
           "%zu\n",
-          stats->media_read_total_expected_read_bytes,
-          stats->media_read_total_actual_read_bytes);
+          stats->media_read_total_expected_read_bytes, stats->media_read_total_actual_read_bytes);
 }

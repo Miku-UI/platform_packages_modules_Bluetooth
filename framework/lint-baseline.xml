@@ -1,0 +1,862 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.4.0-alpha08" type="baseline" client="" dependencies="true" name="" variant="all" version="8.4.0-alpha08">
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `BluetoothCodecConfig` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="                BluetoothCodecType.createFromType(codecType),"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="258"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `BluetoothCodecConfig` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="                BluetoothCodecType.createFromType(codecType),"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="318"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `BluetoothCodecConfig` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="        mCodecType = BluetoothCodecType.createFromType(in.readInt());"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="330"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getCodecName()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `toString` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="            codecName = mCodecType.getCodecName();"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="398"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getNativeCodecType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `toString` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="            codecType = mCodecType.getNativeCodecType();"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="399"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getNativeCodecType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `getCodecType` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="        return mCodecType == null ? SOURCE_CODEC_TYPE_INVALID : mCodecType.getNativeCodecType();"
+        errorLine2="                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="548"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `isMandatoryCodec()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `isMandatoryCodec` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="        return mCodecType == null ? false : mCodecType.isMandatoryCodec();"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="566"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `setCodecType` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="            mCodecType = BluetoothCodecType.createFromType(codecType);"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="852"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `METADATA_EXCLUSIVE_MANAGER` is a flagged API and should be inside an `if (Flags.supportExclusiveManager())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_SUPPORT_EXCLUSIVE_MANAGER) to transfer requirement to caller`)"
+        errorLine1="    private static final int METADATA_MAX_KEY = METADATA_EXCLUSIVE_MANAGER;"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothDevice.java"
+            line="815"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `PRESET_INDEX_UNAVAILABLE` is a flagged API and should be inside an `if (Flags.settingsCanControlHapPreset())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET) to transfer requirement to caller`)"
+        errorLine1="        private int mPresetIndex = BluetoothHapClient.PRESET_INDEX_UNAVAILABLE;"
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothHapPresetInfo.java"
+            line="138"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_11025` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_11025:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="316"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_22050` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_22050:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="320"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_88200` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_88200:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="330"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_96000` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_96000:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="332"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_176400` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_176400:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="334"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_192000` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_192000:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="336"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_384000` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_384000:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="338"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onSourceLost()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `onSourceLost` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                        executor.execute(() -> callback.onSourceLost(broadcastId));"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastAssistant.java"
+            line="228"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onSourceLost()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `onSourceLost` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                    executor.execute(() -> cb.onSourceLost(broadcastId));"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastAssistantCallback.java"
+            line="291"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `equals` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                &amp;&amp; mRssi == other.getRssi()"
+        errorLine2="                            ~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="168"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                    builder.setRssi(in.readInt());"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="492"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `RSSI_UNKNOWN` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="        private int mRssi = RSSI_UNKNOWN;"
+        errorLine2="                            ~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="522"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="            mRssi = original.getRssi();"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="553"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `connect` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="                            BluetoothSocketException.UNIX_FILE_SOCKET_CREATION_FAILURE);"
+        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothSocket.java"
+            line="464"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `getMessage` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="            case UNIX_FILE_SOCKET_CREATION_FAILURE:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothSocketException.java"
+            line="233"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onVolumeOffsetAudioLocationChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioLocationChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
+        errorLine1="                            cb.onVolumeOffsetAudioLocationChanged("
+        errorLine2="                            ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
+            line="200"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onVolumeOffsetAudioDescriptionChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioDescriptionChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
+        errorLine1="                            cb.onVolumeOffsetAudioDescriptionChanged("
+        errorLine2="                            ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
+            line="210"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onDeviceVolumeChanged()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastVolumeControlForConnectedDevices())` check (or annotate the surrounding method `onDeviceVolumeChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES) to transfer requirement to caller`)"
+        errorLine1="            forEach((cb) -> cb.onDeviceVolumeChanged(device, volume));"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
+            line="217"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementMethod.java"
+            line="214"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setChannelSoundingParams()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    builder.setChannelSoundingParams("
+        errorLine2="                    ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementParams.java"
+            line="205"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="This is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                            (ChannelSoundingParams) in.readParcelable(null));"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementParams.java"
+            line="206"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `setMethodId` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementParams.java"
+            line="293"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setConfidenceLevel()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setDelaySpreadMeters()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setDetectedAttackLevel()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setVelocityMetersPerSecond()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `NADM_UNKNOWN` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="        private int mDetectedAttackLevel = NADM_UNKNOWN;"
+        errorLine2="                                           ~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="411"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `getL2capLeConnectStatusCode` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="            case (BluetoothSocketException.UNIX_FILE_SOCKET_CREATION_FAILURE):"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/SocketMetrics.java"
+            line="140"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `getRfcommConnectStatusCode` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="            case (BluetoothSocketException.UNIX_FILE_SOCKET_CREATION_FAILURE):"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/SocketMetrics.java"
+            line="161"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `BluetoothCodecConfig` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="                BluetoothCodecType.createFromType(codecType),"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="258"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `BluetoothCodecConfig` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="                BluetoothCodecType.createFromType(codecType),"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="318"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `BluetoothCodecConfig` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="        mCodecType = BluetoothCodecType.createFromType(in.readInt());"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="330"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getCodecName()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `toString` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="            codecName = mCodecType.getCodecName();"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="398"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getNativeCodecType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `toString` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="            codecType = mCodecType.getNativeCodecType();"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="399"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getNativeCodecType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `getCodecType` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="        return mCodecType == null ? SOURCE_CODEC_TYPE_INVALID : mCodecType.getNativeCodecType();"
+        errorLine2="                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="548"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `isMandatoryCodec()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `isMandatoryCodec` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="        return mCodecType == null ? false : mCodecType.isMandatoryCodec();"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="566"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `createFromType()` is a flagged API and should be inside an `if (Flags.a2dpOffloadCodecExtensibility())` check (or annotate the surrounding method `setCodecType` with `@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY) to transfer requirement to caller`)"
+        errorLine1="            mCodecType = BluetoothCodecType.createFromType(codecType);"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothCodecConfig.java"
+            line="852"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `METADATA_EXCLUSIVE_MANAGER` is a flagged API and should be inside an `if (Flags.supportExclusiveManager())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_SUPPORT_EXCLUSIVE_MANAGER) to transfer requirement to caller`)"
+        errorLine1="    private static final int METADATA_MAX_KEY = METADATA_EXCLUSIVE_MANAGER;"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothDevice.java"
+            line="815"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `PRESET_INDEX_UNAVAILABLE` is a flagged API and should be inside an `if (Flags.settingsCanControlHapPreset())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_SETTINGS_CAN_CONTROL_HAP_PRESET) to transfer requirement to caller`)"
+        errorLine1="        private int mPresetIndex = BluetoothHapClient.PRESET_INDEX_UNAVAILABLE;"
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothHapPresetInfo.java"
+            line="138"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_11025` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_11025:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="316"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_22050` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_22050:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="320"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_88200` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_88200:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="330"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_96000` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_96000:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="332"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_176400` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_176400:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="334"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_192000` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_192000:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="336"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `SAMPLE_RATE_384000` is a flagged API and should be inside an `if (Flags.leaudioAddSamplingFrequencies())` check (or annotate the surrounding method `sampleRateToString` with `@FlaggedApi(Flags.FLAG_LEAUDIO_ADD_SAMPLING_FREQUENCIES) to transfer requirement to caller`)"
+        errorLine1="            case SAMPLE_RATE_384000:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeAudioCodecConfig.java"
+            line="338"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onSourceLost()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `onSourceLost` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                        executor.execute(() -> callback.onSourceLost(broadcastId));"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastAssistant.java"
+            line="228"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onSourceLost()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `onSourceLost` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                    executor.execute(() -> cb.onSourceLost(broadcastId));"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastAssistantCallback.java"
+            line="291"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `equals` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                &amp;&amp; mRssi == other.getRssi()"
+        errorLine2="                            ~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="168"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="                    builder.setRssi(in.readInt());"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="492"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `RSSI_UNKNOWN` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="        private int mRssi = RSSI_UNKNOWN;"
+        errorLine2="                            ~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="522"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `getRssi()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastMonitorSourceSyncStatus())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_MONITOR_SOURCE_SYNC_STATUS) to transfer requirement to caller`)"
+        errorLine1="            mRssi = original.getRssi();"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothLeBroadcastMetadata.java"
+            line="553"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `connect` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="                            BluetoothSocketException.UNIX_FILE_SOCKET_CREATION_FAILURE);"
+        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothSocket.java"
+            line="464"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `getMessage` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="            case UNIX_FILE_SOCKET_CREATION_FAILURE:"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothSocketException.java"
+            line="233"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onVolumeOffsetAudioLocationChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioLocationChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
+        errorLine1="                            cb.onVolumeOffsetAudioLocationChanged("
+        errorLine2="                            ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
+            line="200"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onVolumeOffsetAudioDescriptionChanged()` is a flagged API and should be inside an `if (Flags.leaudioMultipleVocsInstancesApi())` check (or annotate the surrounding method `onVolumeOffsetAudioDescriptionChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_MULTIPLE_VOCS_INSTANCES_API) to transfer requirement to caller`)"
+        errorLine1="                            cb.onVolumeOffsetAudioDescriptionChanged("
+        errorLine2="                            ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
+            line="210"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `onDeviceVolumeChanged()` is a flagged API and should be inside an `if (Flags.leaudioBroadcastVolumeControlForConnectedDevices())` check (or annotate the surrounding method `onDeviceVolumeChanged` with `@FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_VOLUME_CONTROL_FOR_CONNECTED_DEVICES) to transfer requirement to caller`)"
+        errorLine1="            forEach((cb) -> cb.onDeviceVolumeChanged(device, volume));"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/BluetoothVolumeControl.java"
+            line="217"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `Builder` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementMethod.java"
+            line="214"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setChannelSoundingParams()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    builder.setChannelSoundingParams("
+        errorLine2="                    ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementParams.java"
+            line="205"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="This is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                            (ChannelSoundingParams) in.readParcelable(null));"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementParams.java"
+            line="206"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `setMethodId` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementParams.java"
+            line="293"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setConfidenceLevel()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setDelaySpreadMeters()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setDetectedAttackLevel()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Method `setVelocityMetersPerSecond()` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `createFromParcel` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="                    return new Builder(in.readDouble(), in.readDouble())"
+        errorLine2="                           ^">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="378"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `NADM_UNKNOWN` is a flagged API and should be inside an `if (Flags.channelSounding())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING) to transfer requirement to caller`)"
+        errorLine1="        private int mDetectedAttackLevel = NADM_UNKNOWN;"
+        errorLine2="                                           ~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/le/DistanceMeasurementResult.java"
+            line="411"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `getL2capLeConnectStatusCode` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="            case (BluetoothSocketException.UNIX_FILE_SOCKET_CREATION_FAILURE):"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/SocketMetrics.java"
+            line="140"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="FlaggedApi"
+        message="Field `UNIX_FILE_SOCKET_CREATION_FAILURE` is a flagged API and should be inside an `if (Flags.unixFileSocketCreationFailure())` check (or annotate the surrounding method `getRfcommConnectStatusCode` with `@FlaggedApi(Flags.FLAG_UNIX_FILE_SOCKET_CREATION_FAILURE) to transfer requirement to caller`)"
+        errorLine1="            case (BluetoothSocketException.UNIX_FILE_SOCKET_CREATION_FAILURE):"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/Bluetooth/framework/java/android/bluetooth/SocketMetrics.java"
+            line="161"
+            column="44"/>
+    </issue>
+
+</issues>

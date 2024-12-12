@@ -37,13 +37,13 @@ using namespace bluetooth;
 const int A2DP_AAC_HEADER_LEN = 9;
 const int A2DP_AAC_MAX_LEN_REPR = 4;
 const int A2DP_AAC_MAX_PREFIX_SIZE =
-    AVDT_MEDIA_HDR_SIZE + A2DP_AAC_HEADER_LEN + A2DP_AAC_MAX_LEN_REPR;
+        AVDT_MEDIA_HDR_SIZE + A2DP_AAC_HEADER_LEN + A2DP_AAC_MAX_LEN_REPR;
 
 constexpr uint8_t A2DP_AAC_HEADER_44100[A2DP_AAC_HEADER_LEN] = {
-    0x47, 0xfc, 0x00, 0x00, 0xb0, 0x90, 0x80, 0x03, 0x00,
+        0x47, 0xfc, 0x00, 0x00, 0xb0, 0x90, 0x80, 0x03, 0x00,
 };
 constexpr uint8_t A2DP_AAC_HEADER_48000[A2DP_AAC_HEADER_LEN] = {
-    0x47, 0xfc, 0x00, 0x00, 0xb0, 0x8c, 0x80, 0x03, 0x00,
+        0x47, 0xfc, 0x00, 0x00, 0xb0, 0x8c, 0x80, 0x03, 0x00,
 };
 }  // namespace
 
@@ -113,8 +113,7 @@ void A2dpAacEncoder::cleanup() {
   }
 }
 
-int A2dpAacEncoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf,
-                              int o_len) {
+int A2dpAacEncoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf, int o_len) {
   int rc;
 
   AVFrame* frame = av_frame_alloc();
@@ -205,8 +204,8 @@ int A2dpAacEncoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf,
 
   uint8_t* dst = o_buf;
 
-  const uint8_t* header = avctx_->sample_rate == 44100 ? A2DP_AAC_HEADER_44100
-                                                       : A2DP_AAC_HEADER_48000;
+  const uint8_t* header =
+          avctx_->sample_rate == 44100 ? A2DP_AAC_HEADER_44100 : A2DP_AAC_HEADER_48000;
 
   std::copy(header, header + A2DP_AAC_HEADER_LEN, dst);
 
@@ -219,7 +218,7 @@ int A2dpAacEncoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf,
       log::warn("Dropped pkt: size={}, cap={}", pkt->size, cap);
     }
     static uint8_t silent_frame[7] = {
-        0x06, 0x21, 0x10, 0x04, 0x60, 0x8c, 0x1c,
+            0x06, 0x21, 0x10, 0x04, 0x60, 0x8c, 0x1c,
     };
     std::copy(silent_frame, std::end(silent_frame), dst);
     dst += sizeof(silent_frame);

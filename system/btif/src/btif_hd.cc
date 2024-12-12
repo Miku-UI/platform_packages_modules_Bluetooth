@@ -77,9 +77,13 @@ static void intr_data_copy_cb(uint16_t event, char* p_dst, const char* p_src) {
   tBTA_HD_INTR_DATA* p_src_data = (tBTA_HD_INTR_DATA*)p_src;
   uint8_t* p_data;
 
-  if (!p_src) return;
+  if (!p_src) {
+    return;
+  }
 
-  if (event != BTA_HD_INTR_DATA_EVT) return;
+  if (event != BTA_HD_INTR_DATA_EVT) {
+    return;
+  }
 
   memcpy(p_dst, p_src, sizeof(tBTA_HD_INTR_DATA));
 
@@ -95,9 +99,13 @@ static void set_report_copy_cb(uint16_t event, char* p_dst, const char* p_src) {
   tBTA_HD_SET_REPORT* p_src_data = (tBTA_HD_SET_REPORT*)p_src;
   uint8_t* p_data;
 
-  if (!p_src) return;
+  if (!p_src) {
+    return;
+  }
 
-  if (event != BTA_HD_SET_REPORT_EVT) return;
+  if (event != BTA_HD_SET_REPORT_EVT) {
+    return;
+  }
 
   memcpy(p_dst, p_src, sizeof(tBTA_HD_SET_REPORT));
 
@@ -109,10 +117,18 @@ static void set_report_copy_cb(uint16_t event, char* p_dst, const char* p_src) {
 }
 
 static void btif_hd_free_buf() {
-  if (app_info.descriptor.dsc_list) osi_free(app_info.descriptor.dsc_list);
-  if (app_info.p_description) osi_free(app_info.p_description);
-  if (app_info.p_name) osi_free(app_info.p_name);
-  if (app_info.p_provider) osi_free(app_info.p_provider);
+  if (app_info.descriptor.dsc_list) {
+    osi_free(app_info.descriptor.dsc_list);
+  }
+  if (app_info.p_description) {
+    osi_free(app_info.p_description);
+  }
+  if (app_info.p_name) {
+    osi_free(app_info.p_name);
+  }
+  if (app_info.p_provider) {
+    osi_free(app_info.p_provider);
+  }
   app_info.descriptor.dsc_list = NULL;
   app_info.p_description = NULL;
   app_info.p_name = NULL;
@@ -174,10 +190,11 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
         btif_hd_cb.service_dereg_active = FALSE;
       }
       btif_hd_free_buf();
-      if (p_data->status == BTA_HD_OK)
+      if (p_data->status == BTA_HD_OK) {
         memset(&btif_hd_cb, 0, sizeof(btif_hd_cb));
-      else
+      } else {
         log::warn("Failed to disable BT-HD, status={}", p_data->status);
+      }
       break;
 
     case BTA_HD_REGISTER_APP_EVT: {
@@ -189,14 +206,12 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
 
       log::info("Registering HID device app");
       btif_hd_cb.app_registered = TRUE;
-      HAL_CBACK(bt_hd_callbacks, application_state_cb, addr,
-                BTHD_APP_STATE_REGISTERED);
+      HAL_CBACK(bt_hd_callbacks, application_state_cb, addr, BTHD_APP_STATE_REGISTERED);
     } break;
 
     case BTA_HD_UNREGISTER_APP_EVT:
       btif_hd_cb.app_registered = FALSE;
-      HAL_CBACK(bt_hd_callbacks, application_state_cb, NULL,
-                BTHD_APP_STATE_NOT_REGISTERED);
+      HAL_CBACK(bt_hd_callbacks, application_state_cb, NULL, BTHD_APP_STATE_NOT_REGISTERED);
       if (btif_hd_cb.service_dereg_active) {
         log::warn("disabling hid device service now");
         BTA_HdDisable();
@@ -216,8 +231,8 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
       }
       btif_storage_set_hidd(p_data->conn.bda);
 
-      HAL_CBACK(bt_hd_callbacks, connection_state_cb,
-                (RawAddress*)&p_data->conn.bda, BTHD_CONN_STATE_CONNECTED);
+      HAL_CBACK(bt_hd_callbacks, connection_state_cb, (RawAddress*)&p_data->conn.bda,
+                BTHD_CONN_STATE_CONNECTED);
     } break;
 
     case BTA_HD_CLOSE_EVT:
@@ -228,8 +243,8 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
         btif_hd_cb.forced_disc = FALSE;
         break;
       }
-      HAL_CBACK(bt_hd_callbacks, connection_state_cb,
-                (RawAddress*)&p_data->conn.bda, BTHD_CONN_STATE_DISCONNECTED);
+      HAL_CBACK(bt_hd_callbacks, connection_state_cb, (RawAddress*)&p_data->conn.bda,
+                BTHD_CONN_STATE_DISCONNECTED);
       break;
 
     case BTA_HD_GET_REPORT_EVT:
@@ -239,8 +254,7 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
 
     case BTA_HD_SET_REPORT_EVT:
       HAL_CBACK(bt_hd_callbacks, set_report_cb, p_data->set_report.report_type,
-                p_data->set_report.report_id, p_data->set_report.len,
-                p_data->set_report.p_data);
+                p_data->set_report.report_id, p_data->set_report.len, p_data->set_report.p_data);
       break;
 
     case BTA_HD_SET_PROTOCOL_EVT:
@@ -248,13 +262,13 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     case BTA_HD_INTR_DATA_EVT:
-      HAL_CBACK(bt_hd_callbacks, intr_data_cb, p_data->intr_data.report_id,
-                p_data->intr_data.len, p_data->intr_data.p_data);
+      HAL_CBACK(bt_hd_callbacks, intr_data_cb, p_data->intr_data.report_id, p_data->intr_data.len,
+                p_data->intr_data.p_data);
       break;
 
     case BTA_HD_VC_UNPLUG_EVT:
-      HAL_CBACK(bt_hd_callbacks, connection_state_cb,
-                (RawAddress*)&p_data->conn.bda, BTHD_CONN_STATE_DISCONNECTED);
+      HAL_CBACK(bt_hd_callbacks, connection_state_cb, (RawAddress*)&p_data->conn.bda,
+                BTHD_CONN_STATE_DISCONNECTED);
       if (bta_dm_check_if_only_hd_connected(p_data->conn.bda)) {
         log::verbose("Removing bonding as only HID profile connected");
         BTA_DmRemoveDevice(p_data->conn.bda);
@@ -267,8 +281,7 @@ static void btif_hd_upstreams_evt(uint16_t event, char* p_param) {
       break;
 
     case BTA_HD_CONN_STATE_EVT:
-      HAL_CBACK(bt_hd_callbacks, connection_state_cb,
-                (RawAddress*)&p_data->conn.bda,
+      HAL_CBACK(bt_hd_callbacks, connection_state_cb, (RawAddress*)&p_data->conn.bda,
                 (bthd_connection_state_t)p_data->conn.status);
       break;
 
@@ -332,8 +345,8 @@ static void bte_hd_evt(tBTA_HD_EVT event, tBTA_HD* p_data) {
       break;
   }
 
-  status = btif_transfer_context(btif_hd_upstreams_evt, (uint16_t)event,
-                                 (char*)p_data, param_len, p_copy_cback);
+  status = btif_transfer_context(btif_hd_upstreams_evt, (uint16_t)event, (char*)p_data, param_len,
+                                 p_copy_cback);
 
   ASSERTC(status == BT_STATUS_SUCCESS, "context transfer failed", status);
 }
@@ -387,8 +400,7 @@ static void cleanup(void) {
  * Returns          bt_status_t
  *
  ******************************************************************************/
-static bt_status_t register_app(bthd_app_param_t* p_app_param,
-                                bthd_qos_param_t* p_in_qos,
+static bt_status_t register_app(bthd_app_param_t* p_app_param, bthd_qos_param_t* p_in_qos,
                                 bthd_qos_param_t* p_out_qos) {
   log::verbose("");
 
@@ -400,16 +412,13 @@ static bt_status_t register_app(bthd_app_param_t* p_app_param,
   app_info.p_name = (char*)osi_calloc(BTIF_HD_APP_NAME_LEN);
   strlcpy(app_info.p_name, p_app_param->name, BTIF_HD_APP_NAME_LEN);
   app_info.p_description = (char*)osi_calloc(BTIF_HD_APP_DESCRIPTION_LEN);
-  strlcpy(app_info.p_description, p_app_param->description,
-          BTIF_HD_APP_DESCRIPTION_LEN);
+  strlcpy(app_info.p_description, p_app_param->description, BTIF_HD_APP_DESCRIPTION_LEN);
   app_info.p_provider = (char*)osi_calloc(BTIF_HD_APP_PROVIDER_LEN);
   strlcpy(app_info.p_provider, p_app_param->provider, BTIF_HD_APP_PROVIDER_LEN);
   app_info.subclass = p_app_param->subclass;
   app_info.descriptor.dl_len = p_app_param->desc_list_len;
-  app_info.descriptor.dsc_list =
-      (uint8_t*)osi_malloc(app_info.descriptor.dl_len);
-  memcpy(app_info.descriptor.dsc_list, p_app_param->desc_list,
-         p_app_param->desc_list_len);
+  app_info.descriptor.dsc_list = (uint8_t*)osi_malloc(app_info.descriptor.dl_len);
+  memcpy(app_info.descriptor.dsc_list, p_app_param->desc_list, p_app_param->desc_list_len);
 
   in_qos.service_type = p_in_qos->service_type;
   in_qos.token_rate = p_in_qos->token_rate;
@@ -528,8 +537,7 @@ static bt_status_t disconnect(void) {
  * Returns          bt_status_t
  *
  ******************************************************************************/
-static bt_status_t send_report(bthd_report_type_t type, uint8_t id,
-                               uint16_t len, uint8_t* p_data) {
+static bt_status_t send_report(bthd_report_type_t type, uint8_t id, uint16_t len, uint8_t* p_data) {
   tBTA_HD_REPORT report;
 
   log::verbose("type={} id={} len={}", type, id, len);
@@ -616,16 +624,16 @@ static bt_status_t virtual_cable_unplug(void) {
 }
 
 static const bthd_interface_t bthdInterface = {
-    sizeof(bthdInterface),
-    init,
-    cleanup,
-    register_app,
-    unregister_app,
-    connect,
-    disconnect,
-    send_report,
-    report_error,
-    virtual_cable_unplug,
+        sizeof(bthdInterface),
+        init,
+        cleanup,
+        register_app,
+        unregister_app,
+        connect,
+        disconnect,
+        send_report,
+        report_error,
+        virtual_cable_unplug,
 };
 
 /*******************************************************************************
@@ -640,7 +648,9 @@ static const bthd_interface_t bthdInterface = {
 bt_status_t btif_hd_execute_service(bool b_enable) {
   log::verbose("b_enable={}", b_enable);
 
-  if (!b_enable) BTA_HdDisable();
+  if (!b_enable) {
+    BTA_HdDisable();
+  }
 
   return BT_STATUS_SUCCESS;
 }

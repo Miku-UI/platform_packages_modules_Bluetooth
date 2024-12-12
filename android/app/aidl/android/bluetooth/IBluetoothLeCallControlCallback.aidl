@@ -26,18 +26,11 @@ import android.os.ParcelUuid;
  * @hide
  */
 oneway interface IBluetoothLeCallControlCallback {
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void onBearerRegistered(in int ccid);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void onAcceptCall(in int requestId, in ParcelUuid uuid);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void onTerminateCall(in int requestId, in ParcelUuid uuid);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void onHoldCall(in int requestId, in ParcelUuid uuid);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void onUnholdCall(in int requestId, in ParcelUuid uuid);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void onPlaceCall(in int requestId, in ParcelUuid uuid, in String uri);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void onJoinCalls(in int requestId, in List<ParcelUuid> uuids);
 }

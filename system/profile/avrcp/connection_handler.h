@@ -24,10 +24,10 @@
 #include <vector>
 
 #include "avrcp_internal.h"
-#include "packet/avrcp/avrcp_packet.h"
 #include "packet/base/packet.h"
 #include "profile/avrcp/device.h"
 #include "raw_address.h"
+#include "stack/include/sdp_status.h"
 
 namespace bluetooth {
 namespace avrcp {
@@ -46,14 +46,13 @@ namespace avrcp {
  * and multiplexing/delivering messages to devices.
  */
 class ConnectionHandler {
- public:
+public:
   /**
    * This callback is used to return a new device after a connection attempt.
    * A reference to the new Avrcp device is located in the shared_ptr.
    * If there was an issue during connection the pointer value will be null.
    */
-  using ConnectionCallback =
-      base::RepeatingCallback<void(std::shared_ptr<Device>)>;
+  using ConnectionCallback = base::RepeatingCallback<void(std::shared_ptr<Device>)>;
 
   /**
    * Initializes the singleton instance and sets up SDP. Also Opens the
@@ -66,9 +65,8 @@ class ConnectionHandler {
    *
    * TODO: Add message loop to determine which thread events are posted to
    */
-  static bool Initialize(const ConnectionCallback& callback,
-                         AvrcpInterface* avrcp, SdpInterface* sdp,
-                         VolumeInterface* vol);
+  static bool Initialize(const ConnectionCallback& callback, AvrcpInterface* avrcp,
+                         SdpInterface* sdp, VolumeInterface* vol);
 
   /**
    * Clears the singleton and tears down SDP
@@ -132,7 +130,7 @@ class ConnectionHandler {
 
   virtual void RegisterVolChanged(const RawAddress& bdaddr);
 
- private:
+private:
   AvrcpInterface* avrc_;
   SdpInterface* sdp_;
   VolumeInterface* vol_;
@@ -146,11 +144,10 @@ class ConnectionHandler {
 
   static ConnectionHandler* instance_;
 
-  using SdpCallback = base::Callback<void(uint16_t status, uint16_t version,
-                                          uint16_t features)>;
+  using SdpCallback = base::Callback<void(tSDP_STATUS status, uint16_t version, uint16_t features)>;
   virtual bool SdpLookup(const RawAddress& bdaddr, SdpCallback cb, bool retry);
-  void SdpCb(RawAddress bdaddr, SdpCallback cb,
-             tSDP_DISCOVERY_DB* disc_db, bool retry, uint16_t status);
+  void SdpCb(RawAddress bdaddr, SdpCallback cb, tSDP_DISCOVERY_DB* disc_db, bool retry,
+             tSDP_STATUS status);
 
   virtual bool AvrcpConnect(bool initiator, const RawAddress& bdaddr);
 
@@ -159,10 +156,9 @@ class ConnectionHandler {
                           const RawAddress* peer_addr);
   void AcceptorControlCb(uint8_t handle, uint8_t event, uint16_t result,
                          const RawAddress* peer_addr);
-  void MessageCb(uint8_t handle, uint8_t label, uint8_t opcode,
-                 tAVRC_MSG* p_msg);
+  void MessageCb(uint8_t handle, uint8_t label, uint8_t opcode, tAVRC_MSG* p_msg);
 
-  ConnectionHandler() : weak_ptr_factory_(this){};
+  ConnectionHandler() : weak_ptr_factory_(this) {}
   ConnectionHandler(const ConnectionHandler&) = delete;
   ConnectionHandler& operator=(const ConnectionHandler&) = delete;
 
@@ -175,8 +171,7 @@ class ConnectionHandler {
   // Check peer role: audio src or sink. If any role supported send
   // delayed a2dp connect request
   bool SdpLookupAudioRole(uint16_t handle);
-  void SdpLookupAudioRoleCb(uint16_t handle, bool found,
-                            tA2DP_Service* p_service,
+  void SdpLookupAudioRoleCb(uint16_t handle, bool found, tA2DP_Service* p_service,
                             const RawAddress& peer_address);
 
   base::WeakPtrFactory<ConnectionHandler> weak_ptr_factory_;

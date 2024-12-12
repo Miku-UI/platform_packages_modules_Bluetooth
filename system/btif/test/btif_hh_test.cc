@@ -26,7 +26,6 @@
 #include "bta/include/bta_ag_api.h"
 #include "bta/include/bta_hh_api.h"
 #include "btcore/include/module.h"
-#include "common/init_flags.h"
 #include "include/hardware/bt_hh.h"
 #include "test/common/core_interface.h"
 #include "test/common/mock_functions.h"
@@ -68,9 +67,9 @@ extern bool bluetooth_shim_is_gd_stack_started_up;
 
 namespace {
 std::array<uint8_t, 32> data32 = {
-    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
-    0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
-    0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
+        0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
 };
 
 const RawAddress kDeviceAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
@@ -102,58 +101,54 @@ std::promise<connection_state_cb_t> g_bthh_connection_state_promise;
 }  // namespace
 
 bt_callbacks_t bt_callbacks = {
-    .size = sizeof(bt_callbacks_t),
-    .adapter_state_changed_cb = nullptr,  // adapter_state_changed_callback
-    .adapter_properties_cb = nullptr,     // adapter_properties_callback
-    .remote_device_properties_cb =
-        nullptr,                            // remote_device_properties_callback
-    .device_found_cb = nullptr,             // device_found_callback
-    .discovery_state_changed_cb = nullptr,  // discovery_state_changed_callback
-    .pin_request_cb = nullptr,              // pin_request_callback
-    .ssp_request_cb = nullptr,              // ssp_request_callback
-    .bond_state_changed_cb = nullptr,       // bond_state_changed_callback
-    .address_consolidate_cb = nullptr,      // address_consolidate_callback
-    .le_address_associate_cb = nullptr,     // le_address_associate_callback
-    .acl_state_changed_cb = nullptr,        // acl_state_changed_callback
-    .thread_evt_cb = nullptr,               // callback_thread_event
-    .dut_mode_recv_cb = nullptr,            // dut_mode_recv_callback
-    .le_test_mode_cb = nullptr,             // le_test_mode_callback
-    .energy_info_cb = nullptr,              // energy_info_callback
-    .link_quality_report_cb = nullptr,      // link_quality_report_callback
-    .generate_local_oob_data_cb = nullptr,  // generate_local_oob_data_callback
-    .switch_buffer_size_cb = nullptr,       // switch_buffer_size_callback
-    .switch_codec_cb = nullptr,             // switch_codec_callback
-    .le_rand_cb = nullptr,                  // le_rand_callback
+        .size = sizeof(bt_callbacks_t),
+        .adapter_state_changed_cb = nullptr,     // adapter_state_changed_callback
+        .adapter_properties_cb = nullptr,        // adapter_properties_callback
+        .remote_device_properties_cb = nullptr,  // remote_device_properties_callback
+        .device_found_cb = nullptr,              // device_found_callback
+        .discovery_state_changed_cb = nullptr,   // discovery_state_changed_callback
+        .pin_request_cb = nullptr,               // pin_request_callback
+        .ssp_request_cb = nullptr,               // ssp_request_callback
+        .bond_state_changed_cb = nullptr,        // bond_state_changed_callback
+        .address_consolidate_cb = nullptr,       // address_consolidate_callback
+        .le_address_associate_cb = nullptr,      // le_address_associate_callback
+        .acl_state_changed_cb = nullptr,         // acl_state_changed_callback
+        .thread_evt_cb = nullptr,                // callback_thread_event
+        .dut_mode_recv_cb = nullptr,             // dut_mode_recv_callback
+        .le_test_mode_cb = nullptr,              // le_test_mode_callback
+        .energy_info_cb = nullptr,               // energy_info_callback
+        .link_quality_report_cb = nullptr,       // link_quality_report_callback
+        .generate_local_oob_data_cb = nullptr,   // generate_local_oob_data_callback
+        .switch_buffer_size_cb = nullptr,        // switch_buffer_size_callback
+        .switch_codec_cb = nullptr,              // switch_codec_callback
+        .le_rand_cb = nullptr,                   // le_rand_callback
 };
 
 bthh_callbacks_t bthh_callbacks = {
-    .size = sizeof(bthh_callbacks_t),
-    .connection_state_cb = nullptr,  // bthh_connection_state_callback
-    .hid_info_cb = nullptr,          // bthh_hid_info_callback
-    .protocol_mode_cb = nullptr,     // bthh_protocol_mode_callback
-    .idle_time_cb = nullptr,         // bthh_idle_time_callback
-    .get_report_cb = nullptr,        // bthh_get_report_callback
-    .virtual_unplug_cb = nullptr,    // bthh_virtual_unplug_callback
-    .handshake_cb = nullptr,         // bthh_handshake_callback
+        .size = sizeof(bthh_callbacks_t),
+        .connection_state_cb = nullptr,  // bthh_connection_state_callback
+        .hid_info_cb = nullptr,          // bthh_hid_info_callback
+        .protocol_mode_cb = nullptr,     // bthh_protocol_mode_callback
+        .idle_time_cb = nullptr,         // bthh_idle_time_callback
+        .get_report_cb = nullptr,        // bthh_get_report_callback
+        .virtual_unplug_cb = nullptr,    // bthh_virtual_unplug_callback
+        .handshake_cb = nullptr,         // bthh_handshake_callback
 };
 
 class BtifHhWithMockTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override { reset_mock_function_count_map(); }
 
   void TearDown() override {}
 };
 
 class BtifHhWithHalCallbacksTest : public BtifHhWithMockTest {
- protected:
+protected:
   void SetUp() override {
     BtifHhWithMockTest::SetUp();
-    bluetooth::common::InitFlags::SetAllForTesting();
     g_thread_evt_promise = std::promise<bt_cb_thread_evt>();
     auto future = g_thread_evt_promise.get_future();
-    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt evt) {
-      g_thread_evt_promise.set_value(evt);
-    };
+    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt evt) { g_thread_evt_promise.set_value(evt); };
     bluetooth::testing::set_hal_cbacks(&bt_callbacks);
     // Start the jni callback thread
     InitializeCoreInterface();
@@ -166,9 +161,7 @@ class BtifHhWithHalCallbacksTest : public BtifHhWithMockTest {
   void TearDown() override {
     g_thread_evt_promise = std::promise<bt_cb_thread_evt>();
     auto future = g_thread_evt_promise.get_future();
-    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt evt) {
-      g_thread_evt_promise.set_value(evt);
-    };
+    bt_callbacks.thread_evt_cb = [](bt_cb_thread_evt evt) { g_thread_evt_promise.set_value(evt); };
     CleanCoreInterface();
     ASSERT_EQ(std::future_status::ready, future.wait_for(2s));
     ASSERT_EQ(DISASSOCIATE_JVM, future.get());
@@ -179,12 +172,11 @@ class BtifHhWithHalCallbacksTest : public BtifHhWithMockTest {
 };
 
 class BtifHhAdapterReady : public BtifHhWithHalCallbacksTest {
- protected:
+protected:
   void SetUp() override {
     BtifHhWithHalCallbacksTest::SetUp();
     test::mock::bluetooth_shim_is_gd_stack_started_up = true;
-    ASSERT_EQ(BT_STATUS_SUCCESS,
-              btif_hh_get_interface()->init(&bthh_callbacks));
+    ASSERT_EQ(BT_STATUS_SUCCESS, btif_hh_get_interface()->init(&bthh_callbacks));
   }
 
   void TearDown() override {
@@ -194,7 +186,7 @@ class BtifHhAdapterReady : public BtifHhWithHalCallbacksTest {
 };
 
 class BtifHhWithDevice : public BtifHhAdapterReady {
- protected:
+protected:
   void SetUp() override {
     BtifHhAdapterReady::SetUp();
 
@@ -215,36 +207,34 @@ static uint8_t report_data[sizeof(BT_HDR) + data32.size()];
 
 TEST_F(BtifHhWithDevice, BTA_HH_GET_RPT_EVT) {
   tBTA_HH data = {
-      .hs_data =
-          {
-              .status = BTA_HH_OK,
-              .handle = kHhHandle,
-              .rsp_data =
+          .hs_data =
                   {
-                      .p_rpt_data = reinterpret_cast<BT_HDR*>(report_data),
+                          .status = BTA_HH_OK,
+                          .handle = kHhHandle,
+                          .rsp_data =
+                                  {
+                                          .p_rpt_data = reinterpret_cast<BT_HDR*>(report_data),
+                                  },
                   },
-          },
   };
 
   // Fill out the deep copy data
   data.hs_data.rsp_data.p_rpt_data->len = static_cast<uint16_t>(data32.size());
   std::copy(data32.begin(), data32.begin() + data32.size(),
-            reinterpret_cast<uint8_t*>((data.hs_data.rsp_data.p_rpt_data + 1)));
+            reinterpret_cast<uint8_t*>(data.hs_data.rsp_data.p_rpt_data + 1));
 
   g_bthh_callbacks_get_report_promise = std::promise<get_report_cb_t>();
   auto future = g_bthh_callbacks_get_report_promise.get_future();
-  bthh_callbacks.get_report_cb = [](RawAddress* bd_addr,
-                                    tBLE_ADDR_TYPE /* addr_type */,
-                                    tBT_TRANSPORT /* transport */,
-                                    bthh_status_t hh_status, uint8_t* rpt_data,
-                                    int rpt_size) {
+  bthh_callbacks.get_report_cb = [](RawAddress* bd_addr, tBLE_ADDR_TYPE /* addr_type */,
+                                    tBT_TRANSPORT /* transport */, bthh_status_t hh_status,
+                                    uint8_t* rpt_data, int rpt_size) {
     get_report_cb_t report = {
-        .raw_address = *bd_addr,
-        .status = hh_status,
-        .data = std::vector<uint8_t>(),
+            .raw_address = *bd_addr,
+            .status = hh_status,
+            .data = std::vector<uint8_t>(),
     };
     report.data.assign(rpt_data, rpt_data + rpt_size),
-        g_bthh_callbacks_get_report_promise.set_value(report);
+            g_bthh_callbacks_get_report_promise.set_value(report);
   };
 
   bluetooth::legacy::testing::bte_hh_evt(BTA_HH_GET_RPT_EVT, &data);
@@ -253,8 +243,7 @@ TEST_F(BtifHhWithDevice, BTA_HH_GET_RPT_EVT) {
   auto report = future.get();
 
   // Verify data was delivered
-  ASSERT_STREQ(kDeviceAddress.ToString().c_str(),
-               report.raw_address.ToString().c_str());
+  ASSERT_STREQ(kDeviceAddress.ToString().c_str(), report.raw_address.ToString().c_str());
   ASSERT_EQ(BTHH_OK, report.status);
   int i = 0;
   for (const auto& data : data32) {
@@ -263,16 +252,15 @@ TEST_F(BtifHhWithDevice, BTA_HH_GET_RPT_EVT) {
 }
 
 class BtifHHVirtualUnplugTest : public BtifHhAdapterReady {
- protected:
+protected:
   void SetUp() override {
     BtifHhAdapterReady::SetUp();
-    bthh_callbacks.connection_state_cb = [](RawAddress* bd_addr,
-                                            tBLE_ADDR_TYPE /* addr_type */,
+    bthh_callbacks.connection_state_cb = [](RawAddress* bd_addr, tBLE_ADDR_TYPE /* addr_type */,
                                             tBT_TRANSPORT /* transport */,
                                             bthh_connection_state_t state) {
       connection_state_cb_t connection_state = {
-        .raw_address = *bd_addr,
-        .state = state,
+              .raw_address = *bd_addr,
+              .state = state,
       };
       g_bthh_connection_state_promise.set_value(connection_state);
     };
@@ -280,9 +268,8 @@ class BtifHHVirtualUnplugTest : public BtifHhAdapterReady {
 
   void TearDown() override {
     bthh_callbacks.connection_state_cb =
-        [](RawAddress* /* bd_addr */, tBLE_ADDR_TYPE /* addr_type */,
-           tBT_TRANSPORT /* transport */,
-           bthh_connection_state_t /* state */) {};
+            [](RawAddress* /* bd_addr */, tBLE_ADDR_TYPE /* addr_type */,
+               tBT_TRANSPORT /* transport */, bthh_connection_state_t /* state */) {};
     BtifHhAdapterReady::TearDown();
   }
 };
@@ -298,10 +285,8 @@ TEST_F(BtifHHVirtualUnplugTest, test_btif_hh_virtual_unplug_device_not_open) {
   ASSERT_EQ(std::future_status::ready, future.wait_for(2s));
 
   auto res = future.get();
-  ASSERT_STREQ(kDeviceAddressConnecting.ToString().c_str(),
-               res.raw_address.ToString().c_str());
+  ASSERT_STREQ(kDeviceAddressConnecting.ToString().c_str(), res.raw_address.ToString().c_str());
   ASSERT_EQ(BTHH_CONN_STATE_CONNECTING, res.state);
-
 
   g_bthh_connection_state_promise = std::promise<connection_state_cb_t>();
   future = g_bthh_connection_state_promise.get_future();
@@ -311,7 +296,6 @@ TEST_F(BtifHHVirtualUnplugTest, test_btif_hh_virtual_unplug_device_not_open) {
 
   // Verify data was delivered
   res = future.get();
-  ASSERT_STREQ(kDeviceAddressConnecting.ToString().c_str(),
-               res.raw_address.ToString().c_str());
+  ASSERT_STREQ(kDeviceAddressConnecting.ToString().c_str(), res.raw_address.ToString().c_str());
   ASSERT_EQ(BTHH_CONN_STATE_DISCONNECTED, res.state);
 }

@@ -456,7 +456,8 @@ public class Metadata {
     public String toString() {
         StringBuilder builder = new StringBuilder();
         builder.append(getAnonymizedAddress())
-                .append(" last_active_time=" + last_active_time)
+                .append(" last_active_time=")
+                .append(last_active_time)
                 .append(" {profile connection policy(")
                 .append(profileConnectionPolicies)
                 .append("), optional codec(support=")

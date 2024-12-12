@@ -33,20 +33,25 @@ namespace bluetooth {
 namespace common {
 namespace testing {
 
-/* This class is a pair of BiDiQueues, that have down ends "wired" together. It can be used i.e. to mock L2cap
- * interface, and provide two queues, where each sends packets of type A, and receives packets of type B */
+/* This class is a pair of BiDiQueues, that have down ends "wired" together. It can be used i.e. to
+ * mock L2cap interface, and provide two queues, where each sends packets of type A, and receives
+ * packets of type B */
 template <class A, class B, std::unique_ptr<B> (*A_TO_B)(std::unique_ptr<A>)>
 class WiredPairOfBiDiQueues {
   void dequeue_callback_a() {
     auto down_thing = queue_a_.GetDownEnd()->TryDequeue();
-    if (!down_thing) log::error("Received dequeue, but no data ready...");
+    if (!down_thing) {
+      log::error("Received dequeue, but no data ready...");
+    }
 
     down_buffer_b_.Enqueue(A_TO_B(std::move(down_thing)), handler_);
   }
 
   void dequeue_callback_b() {
     auto down_thing = queue_b_.GetDownEnd()->TryDequeue();
-    if (!down_thing) log::error("Received dequeue, but no data ready...");
+    if (!down_thing) {
+      log::error("Received dequeue, but no data ready...");
+    }
 
     down_buffer_a_.Enqueue(A_TO_B(std::move(down_thing)), handler_);
   }
@@ -57,12 +62,14 @@ class WiredPairOfBiDiQueues {
   os::EnqueueBuffer<B> down_buffer_a_{queue_a_.GetDownEnd()};
   os::EnqueueBuffer<B> down_buffer_b_{queue_b_.GetDownEnd()};
 
- public:
+public:
   WiredPairOfBiDiQueues(os::Handler* handler) : handler_(handler) {
     queue_a_.GetDownEnd()->RegisterDequeue(
-        handler_, common::Bind(&WiredPairOfBiDiQueues::dequeue_callback_a, common::Unretained(this)));
+            handler_,
+            common::Bind(&WiredPairOfBiDiQueues::dequeue_callback_a, common::Unretained(this)));
     queue_b_.GetDownEnd()->RegisterDequeue(
-        handler_, common::Bind(&WiredPairOfBiDiQueues::dequeue_callback_b, common::Unretained(this)));
+            handler_,
+            common::Bind(&WiredPairOfBiDiQueues::dequeue_callback_b, common::Unretained(this)));
   }
 
   ~WiredPairOfBiDiQueues() {
@@ -71,19 +78,15 @@ class WiredPairOfBiDiQueues {
   }
 
   /* This methd returns the UpEnd of queue A */
-  common::BidiQueueEnd<A, B>* GetQueueAUpEnd() {
-    return queue_a_.GetUpEnd();
-  }
+  common::BidiQueueEnd<A, B>* GetQueueAUpEnd() { return queue_a_.GetUpEnd(); }
 
   /* This methd returns the UpEnd of queue B */
-  common::BidiQueueEnd<A, B>* GetQueueBUpEnd() {
-    return queue_b_.GetUpEnd();
-  }
+  common::BidiQueueEnd<A, B>* GetQueueBUpEnd() { return queue_b_.GetUpEnd(); }
 };
 
 namespace {
 std::unique_ptr<packet::PacketView<packet::kLittleEndian>> BuilderToView(
-    std::unique_ptr<packet::BasePacketBuilder> up_thing) {
+        std::unique_ptr<packet::BasePacketBuilder> up_thing) {
   auto bytes = std::make_shared<std::vector<uint8_t>>();
   bluetooth::packet::BitInserter i(*bytes);
   bytes->reserve(up_thing->size());
@@ -93,7 +96,8 @@ std::unique_ptr<packet::PacketView<packet::kLittleEndian>> BuilderToView(
 }  // namespace
 
 using WiredPairOfL2capQueues =
-    WiredPairOfBiDiQueues<packet::BasePacketBuilder, packet::PacketView<packet::kLittleEndian>, BuilderToView>;
+        WiredPairOfBiDiQueues<packet::BasePacketBuilder, packet::PacketView<packet::kLittleEndian>,
+                              BuilderToView>;
 
 }  // namespace testing
 }  // namespace common

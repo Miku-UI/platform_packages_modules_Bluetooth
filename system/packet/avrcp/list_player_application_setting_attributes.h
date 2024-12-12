@@ -23,28 +23,23 @@
 namespace bluetooth {
 namespace avrcp {
 
-class ListPlayerApplicationSettingAttributesResponseBuilder
-    : public VendorPacketBuilder {
- public:
+class ListPlayerApplicationSettingAttributesResponseBuilder : public VendorPacketBuilder {
+public:
   virtual ~ListPlayerApplicationSettingAttributesResponseBuilder() = default;
 
-  static std::unique_ptr<ListPlayerApplicationSettingAttributesResponseBuilder>
-  MakeBuilder(std::vector<PlayerAttribute> attributes);
+  static std::unique_ptr<ListPlayerApplicationSettingAttributesResponseBuilder> MakeBuilder(
+          std::vector<PlayerAttribute> attributes);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   std::vector<PlayerAttribute> attributes_;
 
-  ListPlayerApplicationSettingAttributesResponseBuilder(
-      std::vector<PlayerAttribute> attributes)
-      : VendorPacketBuilder(
-            CType::STABLE,
-            CommandPdu::LIST_PLAYER_APPLICATION_SETTING_ATTRIBUTES,
-            PacketType::SINGLE),
-        attributes_(std::move(attributes)){};
+  ListPlayerApplicationSettingAttributesResponseBuilder(std::vector<PlayerAttribute> attributes)
+      : VendorPacketBuilder(CType::STABLE, CommandPdu::LIST_PLAYER_APPLICATION_SETTING_ATTRIBUTES,
+                            PacketType::SINGLE),
+        attributes_(std::move(attributes)) {}
 };
 
 }  // namespace avrcp

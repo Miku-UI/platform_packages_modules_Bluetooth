@@ -139,9 +139,9 @@ class BtPermissionUtils {
         return "";
     }
 
+    @RequiresPermission(BLUETOOTH_PRIVILEGED)
     static void enforcePrivileged(Context ctx) {
-        ctx.enforceCallingOrSelfPermission(
-                BLUETOOTH_PRIVILEGED, "Need BLUETOOTH_PRIVILEGED permission");
+        ctx.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
     }
 
     static int getCallingAppId() {

@@ -48,7 +48,7 @@ class LeScanningManager;
 #if TARGET_FLOSS
 class MsftExtensionManager;
 #endif
-}
+}  // namespace hci
 
 namespace metrics {
 class CounterMetrics;

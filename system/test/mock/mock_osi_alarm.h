@@ -41,7 +41,7 @@ namespace osi_alarm {
 // Return: void
 struct alarm_cancel {
   std::function<void(alarm_t* alarm)> body{[](alarm_t* /* alarm */) {}};
-  void operator()(alarm_t* alarm) { body(alarm); };
+  void operator()(alarm_t* alarm) { body(alarm); }
 };
 extern struct alarm_cancel alarm_cancel;
 
@@ -50,7 +50,7 @@ extern struct alarm_cancel alarm_cancel;
 // Return: void
 struct alarm_cleanup {
   std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
+  void operator()(void) { body(); }
 };
 extern struct alarm_cleanup alarm_cleanup;
 
@@ -59,7 +59,7 @@ extern struct alarm_cleanup alarm_cleanup;
 // Return: void
 struct alarm_debug_dump {
   std::function<void(int fd)> body{[](int /* fd */) {}};
-  void operator()(int fd) { body(fd); };
+  void operator()(int fd) { body(fd); }
 };
 extern struct alarm_debug_dump alarm_debug_dump;
 
@@ -68,7 +68,7 @@ extern struct alarm_debug_dump alarm_debug_dump;
 // Return: void
 struct alarm_free {
   std::function<void(alarm_t* alarm)> body{[](alarm_t* /* alarm */) {}};
-  void operator()(alarm_t* alarm) { body(alarm); };
+  void operator()(alarm_t* alarm) { body(alarm); }
 };
 extern struct alarm_free alarm_free;
 
@@ -78,8 +78,8 @@ extern struct alarm_free alarm_free;
 struct alarm_get_remaining_ms {
   uint64_t return_value{0};
   std::function<uint64_t(const alarm_t* alarm)> body{
-      [this](const alarm_t* /* alarm */) { return return_value; }};
-  uint64_t operator()(const alarm_t* alarm) { return body(alarm); };
+          [this](const alarm_t* /* alarm */) { return return_value; }};
+  uint64_t operator()(const alarm_t* alarm) { return body(alarm); }
 };
 extern struct alarm_get_remaining_ms alarm_get_remaining_ms;
 
@@ -89,8 +89,8 @@ extern struct alarm_get_remaining_ms alarm_get_remaining_ms;
 struct alarm_is_scheduled {
   bool return_value{false};
   std::function<bool(const alarm_t* alarm)> body{
-      [this](const alarm_t* /* alarm */) { return return_value; }};
-  bool operator()(const alarm_t* alarm) { return body(alarm); };
+          [this](const alarm_t* /* alarm */) { return return_value; }};
+  bool operator()(const alarm_t* alarm) { return body(alarm); }
 };
 extern struct alarm_is_scheduled alarm_is_scheduled;
 
@@ -100,8 +100,8 @@ extern struct alarm_is_scheduled alarm_is_scheduled;
 struct alarm_new {
   alarm_t* return_value{0};
   std::function<alarm_t*(const char* name)> body{
-      [this](const char* /* name */) { return return_value; }};
-  alarm_t* operator()(const char* name) { return body(name); };
+          [this](const char* /* name */) { return return_value; }};
+  alarm_t* operator()(const char* name) { return body(name); }
 };
 extern struct alarm_new alarm_new;
 
@@ -111,8 +111,8 @@ extern struct alarm_new alarm_new;
 struct alarm_new_periodic {
   alarm_t* return_value{0};
   std::function<alarm_t*(const char* name)> body{
-      [this](const char* /* name */) { return return_value; }};
-  alarm_t* operator()(const char* name) { return body(name); };
+          [this](const char* /* name */) { return return_value; }};
+  alarm_t* operator()(const char* name) { return body(name); }
 };
 extern struct alarm_new_periodic alarm_new_periodic;
 
@@ -120,14 +120,12 @@ extern struct alarm_new_periodic alarm_new_periodic;
 // Params: alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data
 // Return: void
 struct alarm_set {
-  std::function<void(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb,
-                     void* data)>
-      body{[](alarm_t* /* alarm */, uint64_t /* interval_ms */,
-              alarm_callback_t /* cb */, void* /* data */) {}};
-  void operator()(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb,
-                  void* data) {
+  std::function<void(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data)> body{
+          [](alarm_t* /* alarm */, uint64_t /* interval_ms */, alarm_callback_t /* cb */,
+             void* /* data */) {}};
+  void operator()(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data) {
     body(alarm, interval_ms, cb, data);
-  };
+  }
 };
 extern struct alarm_set alarm_set;
 
@@ -135,14 +133,12 @@ extern struct alarm_set alarm_set;
 // Params: alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data
 // Return: void
 struct alarm_set_on_mloop {
-  std::function<void(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb,
-                     void* data)>
-      body{[](alarm_t* /* alarm */, uint64_t /* interval_ms */,
-              alarm_callback_t /* cb */, void* /* data */) {}};
-  void operator()(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb,
-                  void* data) {
+  std::function<void(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data)> body{
+          [](alarm_t* /* alarm */, uint64_t /* interval_ms */, alarm_callback_t /* cb */,
+             void* /* data */) {}};
+  void operator()(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data) {
     body(alarm, interval_ms, cb, data);
-  };
+  }
 };
 extern struct alarm_set_on_mloop alarm_set_on_mloop;
 

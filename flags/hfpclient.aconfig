@@ -1,0 +1,9 @@
+package: "com.android.bluetooth.flags"
+container: "com.android.btservices"
+
+flag {
+    name: "hfp_client_disconnecting_state"
+    namespace: "bluetooth"
+    description: "Add disconnecting state to HeadsetClientStateMachine"
+    bug: "366041766"
+}

@@ -48,10 +48,10 @@ public class HearingAidStackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("HearingAidStackEvent {type:" + eventTypeToString(type));
-        result.append(", device:" + device);
-        result.append(", value1:" + valueInt1);
-        result.append(", value2:" + valueLong2);
+        result.append("HearingAidStackEvent {type:").append(eventTypeToString(type));
+        result.append(", device:").append(device);
+        result.append(", value1:").append(valueInt1);
+        result.append(", value2:").append(valueLong2);
         result.append("}");
         return result.toString();
     }

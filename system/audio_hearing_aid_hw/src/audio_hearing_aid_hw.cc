@@ -56,19 +56,14 @@
 #define WRITE_POLL_MS 20
 
 #define FNLOG() ALOGV("%s:%d %s: ", __FILE__, __LINE__, __func__)
-#define DEBUG(fmt, args...) \
-  ALOGD("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
-#define INFO(fmt, args...) \
-  ALOGI("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
-#define WARN(fmt, args...) \
-  ALOGW("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
-#define ERROR(fmt, args...) \
-  ALOGE("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
+#define DEBUG(fmt, args...) ALOGD("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
+#define INFO(fmt, args...) ALOGI("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
+#define WARN(fmt, args...) ALOGW("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
+#define ERROR(fmt, args...) ALOGE("%s:%d %s: " fmt, __FILE__, __LINE__, __func__, ##args)
 
-#define ASSERTC(cond, msg, val)                                           \
-  if (!(cond)) {                                                          \
-    ERROR("### ASSERT : %s line %d %s (%d) ###", __FILE__, __LINE__, msg, \
-          val);                                                           \
+#define ASSERTC(cond, msg, val)                                                 \
+  if (!(cond)) {                                                                \
+    ERROR("### ASSERT : %s line %d %s (%d) ###", __FILE__, __LINE__, msg, val); \
   }
 
 #define CASE_RETURN_STR(const) \
@@ -166,7 +161,7 @@ struct ha_stream_in {
  *  Static functions
  *****************************************************************************/
 static void hash_map_utils_dump_string_keys_string_values(
-    std::unordered_map<std::string, std::string>& map) {
+        std::unordered_map<std::string, std::string>& map) {
   for (const auto& ptr : map) {
     INFO("key: '%s' value: '%s'\n", ptr.first.c_str(), ptr.second.c_str());
   }
@@ -189,8 +184,7 @@ static void ha_open_ctrl_path(struct ha_stream_common* common);
 
 /* logs timestamp with microsec precision
    pprev is optional in case a dedicated diff is required */
-static void ts_log(UNUSED_ATTR const char* tag, UNUSED_ATTR int val,
-                   struct timespec* pprev_opt) {
+static void ts_log(UNUSED_ATTR const char* tag, UNUSED_ATTR int val, struct timespec* pprev_opt) {
   struct timespec now;
   static struct timespec prev = {0, 0};
   unsigned long long now_us;
@@ -201,13 +195,11 @@ static void ts_log(UNUSED_ATTR const char* tag, UNUSED_ATTR int val,
   now_us = now.tv_sec * USEC_PER_SEC + now.tv_nsec / 1000;
 
   if (pprev_opt) {
-    diff_us = (now.tv_sec - prev.tv_sec) * USEC_PER_SEC +
-              (now.tv_nsec - prev.tv_nsec) / 1000;
+    diff_us = (now.tv_sec - prev.tv_sec) * USEC_PER_SEC + (now.tv_nsec - prev.tv_nsec) / 1000;
     *pprev_opt = now;
     DEBUG("[%s] ts %08lld, *diff %08lld, val %d", tag, now_us, diff_us, val);
   } else {
-    diff_us = (now.tv_sec - prev.tv_sec) * USEC_PER_SEC +
-              (now.tv_nsec - prev.tv_nsec) / 1000;
+    diff_us = (now.tv_sec - prev.tv_sec) * USEC_PER_SEC + (now.tv_nsec - prev.tv_nsec) / 1000;
     prev = now;
     DEBUG("[%s] ts %08lld, diff %08lld, val %d", tag, now_us, diff_us, val);
   }
@@ -239,9 +231,7 @@ static int calc_audiotime_usec(struct ha_config cfg, int bytes) {
       break;
   }
 
-  return (
-      int)(((int64_t)bytes * (USEC_PER_SEC / (chan_count * bytes_per_sample))) /
-           cfg.rate);
+  return (int)(((int64_t)bytes * (USEC_PER_SEC / (chan_count * bytes_per_sample))) / cfg.rate);
 }
 
 /*****************************************************************************
@@ -259,21 +249,23 @@ static int skt_connect(const char* path, size_t buffer_sz) {
 
   skt_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 
-  if (osi_socket_local_client_connect(
-          skt_fd, path, ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM) < 0) {
+  if (osi_socket_local_client_connect(skt_fd, path, ANDROID_SOCKET_NAMESPACE_ABSTRACT,
+                                      SOCK_STREAM) < 0) {
     ERROR("failed to connect (%s)", strerror(errno));
     close(skt_fd);
     return -1;
   }
 
   len = buffer_sz;
-  ret =
-      setsockopt(skt_fd, SOL_SOCKET, SO_SNDBUF, (char*)&len, (int)sizeof(len));
-  if (ret < 0) ERROR("setsockopt failed (%s)", strerror(errno));
+  ret = setsockopt(skt_fd, SOL_SOCKET, SO_SNDBUF, (char*)&len, (int)sizeof(len));
+  if (ret < 0) {
+    ERROR("setsockopt failed (%s)", strerror(errno));
+  }
 
-  ret =
-      setsockopt(skt_fd, SOL_SOCKET, SO_RCVBUF, (char*)&len, (int)sizeof(len));
-  if (ret < 0) ERROR("setsockopt failed (%s)", strerror(errno));
+  ret = setsockopt(skt_fd, SOL_SOCKET, SO_RCVBUF, (char*)&len, (int)sizeof(len));
+  if (ret < 0) {
+    ERROR("setsockopt failed (%s)", strerror(errno));
+  }
 
   /* Socket send/receive timeout value */
   struct timeval tv;
@@ -281,13 +273,17 @@ static int skt_connect(const char* path, size_t buffer_sz) {
   tv.tv_usec = (SOCK_SEND_TIMEOUT_MS % 1000) * 1000;
 
   ret = setsockopt(skt_fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-  if (ret < 0) ERROR("setsockopt failed (%s)", strerror(errno));
+  if (ret < 0) {
+    ERROR("setsockopt failed (%s)", strerror(errno));
+  }
 
   tv.tv_sec = SOCK_RECV_TIMEOUT_MS / 1000;
   tv.tv_usec = (SOCK_RECV_TIMEOUT_MS % 1000) * 1000;
 
   ret = setsockopt(skt_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-  if (ret < 0) ERROR("setsockopt failed (%s)", strerror(errno));
+  if (ret < 0) {
+    ERROR("setsockopt failed (%s)", strerror(errno));
+  }
 
   INFO("connected to stack fd = %d", skt_fd);
 
@@ -302,7 +298,9 @@ static int skt_read(int fd, void* p, size_t len) {
   ts_log("skt_read recv", len, NULL);
 
   OSI_NO_INTR(read = recv(fd, p, len, MSG_NOSIGNAL));
-  if (read == -1) ERROR("read failed with errno=%d\n", errno);
+  if (read == -1) {
+    ERROR("read failed with errno=%d\n", errno);
+  }
 
   return (int)read;
 }
@@ -316,7 +314,9 @@ static int skt_write(int fd, const void* p, size_t len) {
   if (WRITE_POLL_MS == 0) {
     // do not poll, use blocking send
     OSI_NO_INTR(sent = send(fd, p, len, MSG_NOSIGNAL));
-    if (sent == -1) ERROR("write failed with error(%s)", strerror(errno));
+    if (sent == -1) {
+      ERROR("write failed with error(%s)", strerror(errno));
+    }
 
     return (int)sent;
   }
@@ -361,8 +361,7 @@ static int skt_disconnect(int fd) {
  *
  ****************************************************************************/
 
-static int ha_ctrl_receive(struct ha_stream_common* common, void* buffer,
-                           size_t length) {
+static int ha_ctrl_receive(struct ha_stream_common* common, void* buffer, size_t length) {
   ssize_t ret;
   int i;
 
@@ -395,13 +394,14 @@ static int ha_ctrl_receive(struct ha_stream_common* common, void* buffer,
 // Sends control info for stream |common|. The data to send is stored in
 // |buffer| and has size |length|.
 // On success, returns the number of octets sent, otherwise -1.
-static int ha_ctrl_send(struct ha_stream_common* common, const void* buffer,
-                        size_t length) {
+static int ha_ctrl_send(struct ha_stream_common* common, const void* buffer, size_t length) {
   ssize_t sent;
   size_t remaining = length;
   int i;
 
-  if (length == 0) return 0;  // Nothing to do
+  if (length == 0) {
+    return 0;  // Nothing to do
+  }
 
   for (i = 0;; i++) {
     OSI_NO_INTR(sent = send(common->ctrl_fd, buffer, remaining, MSG_NOSIGNAL));
@@ -434,8 +434,7 @@ static int ha_ctrl_send(struct ha_stream_common* common, const void* buffer,
   return length;
 }
 
-static int ha_command(struct ha_stream_common* common,
-                      tHEARING_AID_CTRL_CMD cmd) {
+static int ha_command(struct ha_stream_common* common, tHEARING_AID_CTRL_CMD cmd) {
   char ack;
 
   DEBUG("HEARING_AID COMMAND %s", audio_ha_hw_dump_ctrl_event(cmd));
@@ -465,13 +464,13 @@ static int ha_command(struct ha_stream_common* common,
     return -1;
   }
 
-  DEBUG("HEARING_AID COMMAND %s DONE STATUS %d",
-        audio_ha_hw_dump_ctrl_event(cmd), ack);
+  DEBUG("HEARING_AID COMMAND %s DONE STATUS %d", audio_ha_hw_dump_ctrl_event(cmd), ack);
 
-  if (ack == HEARING_AID_CTRL_ACK_INCALL_FAILURE) return ack;
+  if (ack == HEARING_AID_CTRL_ACK_INCALL_FAILURE) {
+    return ack;
+  }
   if (ack != HEARING_AID_CTRL_ACK_SUCCESS) {
-    ERROR("HEARING_AID COMMAND %s error %d", audio_ha_hw_dump_ctrl_event(cmd),
-          ack);
+    ERROR("HEARING_AID COMMAND %s error %d", audio_ha_hw_dump_ctrl_event(cmd), ack);
     return -1;
   }
 
@@ -495,8 +494,9 @@ static int ha_read_input_audio_config(struct ha_stream_common* common) {
     return -1;
   }
 
-  if (ha_ctrl_receive(common, &sample_rate, sizeof(tHA_SAMPLE_RATE)) < 0)
+  if (ha_ctrl_receive(common, &sample_rate, sizeof(tHA_SAMPLE_RATE)) < 0) {
     return -1;
+  }
   if (ha_ctrl_receive(common, &channel_count, sizeof(tHA_CHANNEL_COUNT)) < 0) {
     return -1;
   }
@@ -533,9 +533,10 @@ static int ha_read_input_audio_config(struct ha_stream_common* common) {
   return 0;
 }
 
-static int ha_read_output_audio_config(
-    struct ha_stream_common* common, btav_a2dp_codec_config_t* codec_config,
-    btav_a2dp_codec_config_t* codec_capability, bool update_stream_config) {
+static int ha_read_output_audio_config(struct ha_stream_common* common,
+                                       btav_a2dp_codec_config_t* codec_config,
+                                       btav_a2dp_codec_config_t* codec_capability,
+                                       bool update_stream_config) {
   struct ha_config stream_config;
 
   if (ha_command(common, HEARING_AID_CTRL_GET_OUTPUT_AUDIO_CONFIG) < 0) {
@@ -544,16 +545,16 @@ static int ha_read_output_audio_config(
   }
 
   // Receive the current codec config
-  if (ha_ctrl_receive(common, &codec_config->sample_rate,
-                      sizeof(btav_a2dp_codec_sample_rate_t)) < 0) {
+  if (ha_ctrl_receive(common, &codec_config->sample_rate, sizeof(btav_a2dp_codec_sample_rate_t)) <
+      0) {
     return -1;
   }
   if (ha_ctrl_receive(common, &codec_config->bits_per_sample,
                       sizeof(btav_a2dp_codec_bits_per_sample_t)) < 0) {
     return -1;
   }
-  if (ha_ctrl_receive(common, &codec_config->channel_mode,
-                      sizeof(btav_a2dp_codec_channel_mode_t)) < 0) {
+  if (ha_ctrl_receive(common, &codec_config->channel_mode, sizeof(btav_a2dp_codec_channel_mode_t)) <
+      0) {
     return -1;
   }
 
@@ -646,25 +647,21 @@ static int ha_read_output_audio_config(
     common->cfg.is_stereo_to_mono = stream_config.is_stereo_to_mono;
     common->cfg.format = stream_config.format;
     common->buffer_sz = audio_ha_hw_stream_compute_buffer_size(
-        codec_config->sample_rate, codec_config->bits_per_sample,
-        codec_config->channel_mode);
+            codec_config->sample_rate, codec_config->bits_per_sample, codec_config->channel_mode);
     if (common->cfg.is_stereo_to_mono) {
       // We need to fetch twice as much data from the Audio framework
       common->buffer_sz *= 2;
     }
   }
 
-  INFO(
-      "got output codec config (update_stream_config=%s): "
-      "sample_rate=0x%x bits_per_sample=0x%x channel_mode=0x%x",
-      update_stream_config ? "true" : "false", codec_config->sample_rate,
-      codec_config->bits_per_sample, codec_config->channel_mode);
+  INFO("got output codec config (update_stream_config=%s): "
+       "sample_rate=0x%x bits_per_sample=0x%x channel_mode=0x%x",
+       update_stream_config ? "true" : "false", codec_config->sample_rate,
+       codec_config->bits_per_sample, codec_config->channel_mode);
 
-  INFO(
-      "got output codec capability: sample_rate=0x%x bits_per_sample=0x%x "
-      "channel_mode=0x%x",
-      codec_capability->sample_rate, codec_capability->bits_per_sample,
-      codec_capability->channel_mode);
+  INFO("got output codec capability: sample_rate=0x%x bits_per_sample=0x%x channel_mode=0x%x",
+       codec_capability->sample_rate, codec_capability->bits_per_sample,
+       codec_capability->channel_mode);
 
   return 0;
 }
@@ -746,23 +743,20 @@ static int ha_write_output_audio_config(struct ha_stream_common* common) {
   }
 
   // Send the current codec config that has been selected by us
-  if (ha_ctrl_send(common, &codec_config.sample_rate,
-                   sizeof(btav_a2dp_codec_sample_rate_t)) < 0)
+  if (ha_ctrl_send(common, &codec_config.sample_rate, sizeof(btav_a2dp_codec_sample_rate_t)) < 0) {
     return -1;
+  }
   if (ha_ctrl_send(common, &codec_config.bits_per_sample,
                    sizeof(btav_a2dp_codec_bits_per_sample_t)) < 0) {
     return -1;
   }
-  if (ha_ctrl_send(common, &codec_config.channel_mode,
-                   sizeof(btav_a2dp_codec_channel_mode_t)) < 0) {
+  if (ha_ctrl_send(common, &codec_config.channel_mode, sizeof(btav_a2dp_codec_channel_mode_t)) <
+      0) {
     return -1;
   }
 
-  INFO(
-      "sent output codec config: sample_rate=0x%x bits_per_sample=0x%x "
-      "channel_mode=0x%x",
-      codec_config.sample_rate, codec_config.bits_per_sample,
-      codec_config.channel_mode);
+  INFO("sent output codec config: sample_rate=0x%x bits_per_sample=0x%x channel_mode=0x%x",
+       codec_config.sample_rate, codec_config.bits_per_sample, codec_config.channel_mode);
 
   return 0;
 }
@@ -770,16 +764,19 @@ static int ha_write_output_audio_config(struct ha_stream_common* common) {
 static void ha_open_ctrl_path(struct ha_stream_common* common) {
   int i;
 
-  if (common->ctrl_fd != AUDIO_SKT_DISCONNECTED) return;  // already connected
+  if (common->ctrl_fd != AUDIO_SKT_DISCONNECTED) {
+    return;  // already connected
+  }
 
   /* retry logic to catch any timing variations on control channel */
   for (i = 0; i < CTRL_CHAN_RETRY_COUNT; i++) {
     /* connect control channel if not already connected */
-    if ((common->ctrl_fd = skt_connect(
-             HEARING_AID_CTRL_PATH, AUDIO_STREAM_CONTROL_OUTPUT_BUFFER_SZ)) >=
-        0) {
+    if ((common->ctrl_fd =
+                 skt_connect(HEARING_AID_CTRL_PATH, AUDIO_STREAM_CONTROL_OUTPUT_BUFFER_SZ)) >= 0) {
       /* success, now check if stack is ready */
-      if (check_ha_ready(common) == 0) break;
+      if (check_ha_ready(common) == 0) {
+        break;
+      }
 
       ERROR("error : ha not ready, wait 250 ms and retry");
       usleep(250000);
@@ -873,18 +870,22 @@ static int stop_audio_datapath(struct ha_stream_common* common) {
   return 0;
 }
 
-static int suspend_audio_datapath(struct ha_stream_common* common,
-                                  bool standby) {
+static int suspend_audio_datapath(struct ha_stream_common* common, bool standby) {
   INFO("state %d", common->state);
 
-  if (common->state == AUDIO_HA_STATE_STOPPING) return -1;
+  if (common->state == AUDIO_HA_STATE_STOPPING) {
+    return -1;
+  }
 
-  if (ha_command(common, HEARING_AID_CTRL_CMD_SUSPEND) < 0) return -1;
+  if (ha_command(common, HEARING_AID_CTRL_CMD_SUSPEND) < 0) {
+    return -1;
+  }
 
-  if (standby)
+  if (standby) {
     common->state = AUDIO_HA_STATE_STANDBY;
-  else
+  } else {
     common->state = AUDIO_HA_STATE_SUSPENDED;
+  }
 
   /* disconnect audio path */
   skt_disconnect(common->audio_fd);
@@ -900,8 +901,7 @@ static int suspend_audio_datapath(struct ha_stream_common* common,
  *
  ****************************************************************************/
 
-static ssize_t out_write(struct audio_stream_out* stream, const void* buffer,
-                         size_t bytes) {
+static ssize_t out_write(struct audio_stream_out* stream, const void* buffer, size_t bytes) {
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
   int sent = -1;
   size_t write_bytes = bytes;
@@ -935,8 +935,7 @@ static ssize_t out_write(struct audio_stream_out* stream, const void* buffer,
       *dst = (int16_t)(((int32_t)src[0] + (int32_t)src[1]) >> 1);
     }
     write_bytes /= 2;
-    DEBUG("stereo-to-mono mixing: write %zu bytes (fd %d)", write_bytes,
-          out->common.audio_fd);
+    DEBUG("stereo-to-mono mixing: write %zu bytes (fd %d)", write_bytes, out->common.audio_fd);
   }
 
   lock.unlock();
@@ -991,19 +990,17 @@ static int out_set_sample_rate(struct audio_stream* stream, uint32_t rate) {
 static size_t out_get_buffer_size(const struct audio_stream* stream) {
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
   // period_size is the AudioFlinger mixer buffer size.
-  const size_t period_size =
-      out->common.buffer_sz / AUDIO_STREAM_OUTPUT_BUFFER_PERIODS;
+  const size_t period_size = out->common.buffer_sz / AUDIO_STREAM_OUTPUT_BUFFER_PERIODS;
 
-  DEBUG("socket buffer size: %zu  period size: %zu", out->common.buffer_sz,
-        period_size);
+  DEBUG("socket buffer size: %zu  period size: %zu", out->common.buffer_sz, period_size);
 
   return period_size;
 }
 
 size_t audio_ha_hw_stream_compute_buffer_size(
-    btav_a2dp_codec_sample_rate_t codec_sample_rate,
-    btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample,
-    btav_a2dp_codec_channel_mode_t codec_channel_mode) {
+        btav_a2dp_codec_sample_rate_t codec_sample_rate,
+        btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample,
+        btav_a2dp_codec_channel_mode_t codec_channel_mode) {
   size_t buffer_sz = AUDIO_STREAM_OUTPUT_BUFFER_SZ;  // Default value
   const uint64_t time_period_ms = 20;                // Conservative 20ms
   uint32_t sample_rate;
@@ -1089,12 +1086,11 @@ size_t audio_ha_hw_stream_compute_buffer_size(
   //
   // Furthermore, the AudioFlinger expects the buffer size to be a multiple
   // of 16 frames.
-  const size_t divisor = (AUDIO_STREAM_OUTPUT_BUFFER_PERIODS * 16 *
-                          number_of_channels * bits_per_sample) /
-                         8;
+  const size_t divisor =
+          (AUDIO_STREAM_OUTPUT_BUFFER_PERIODS * 16 * number_of_channels * bits_per_sample) / 8;
 
-  buffer_sz = (time_period_ms * AUDIO_STREAM_OUTPUT_BUFFER_PERIODS *
-               sample_rate * number_of_channels * (bits_per_sample / 8)) /
+  buffer_sz = (time_period_ms * AUDIO_STREAM_OUTPUT_BUFFER_PERIODS * sample_rate *
+               number_of_channels * (bits_per_sample / 8)) /
               1000;
 
   // Adjust the buffer size so it can be divided by the divisor
@@ -1106,8 +1102,7 @@ size_t audio_ha_hw_stream_compute_buffer_size(
   return buffer_sz;
 }
 
-static audio_channel_mask_t out_get_channels(
-    const struct audio_stream* stream) {
+static audio_channel_mask_t out_get_channels(const struct audio_stream* stream) {
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
 
   DEBUG("channels 0x%" PRIx32, out->common.cfg.channel_mask);
@@ -1135,30 +1130,31 @@ static int out_standby(struct audio_stream* stream) {
 
   std::lock_guard<std::recursive_mutex> lock(*out->common.mutex);
   // Do nothing in SUSPENDED state.
-  if (out->common.state != AUDIO_HA_STATE_SUSPENDED)
+  if (out->common.state != AUDIO_HA_STATE_SUSPENDED) {
     retVal = suspend_audio_datapath(&out->common, true);
+  }
   out->frames_rendered = 0;  // rendered is reset, presented is not
 
   return retVal;
 }
 
-static int out_dump(UNUSED_ATTR const struct audio_stream* stream,
-                    UNUSED_ATTR int fd) {
+static int out_dump(UNUSED_ATTR const struct audio_stream* stream, UNUSED_ATTR int fd) {
   FNLOG();
   return 0;
 }
 
-static int out_set_parameters(struct audio_stream* stream,
-                              const char* kvpairs) {
+static int out_set_parameters(struct audio_stream* stream, const char* kvpairs) {
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
 
   INFO("state %d kvpairs %s", out->common.state, kvpairs);
 
   std::unordered_map<std::string, std::string> params =
-      hash_map_utils_new_from_string_params(kvpairs);
+          hash_map_utils_new_from_string_params(kvpairs);
   int status = 0;
 
-  if (params.empty()) return status;
+  if (params.empty()) {
+    return status;
+  }
 
   std::lock_guard<std::recursive_mutex> lock(*out->common.mutex);
 
@@ -1171,22 +1167,23 @@ static int out_set_parameters(struct audio_stream* stream,
   }
 
   if (params["HearingAidSuspended"].compare("true") == 0) {
-    if (out->common.state == AUDIO_HA_STATE_STARTED)
+    if (out->common.state == AUDIO_HA_STATE_STARTED) {
       status = suspend_audio_datapath(&out->common, false);
+    }
   } else {
     /* Do not start the streaming automatically. If the phone was streaming
      * prior to being suspended, the next out_write shall trigger the
      * AVDTP start procedure */
-    if (out->common.state == AUDIO_HA_STATE_SUSPENDED)
+    if (out->common.state == AUDIO_HA_STATE_SUSPENDED) {
       out->common.state = AUDIO_HA_STATE_STANDBY;
+    }
     /* Irrespective of the state, return 0 */
   }
 
   return status;
 }
 
-static char* out_get_parameters(const struct audio_stream* stream,
-                                const char* keys) {
+static char* out_get_parameters(const struct audio_stream* stream, const char* keys) {
   FNLOG();
 
   btav_a2dp_codec_config_t codec_config;
@@ -1194,16 +1191,16 @@ static char* out_get_parameters(const struct audio_stream* stream,
 
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
 
-  std::unordered_map<std::string, std::string> params =
-      hash_map_utils_new_from_string_params(keys);
+  std::unordered_map<std::string, std::string> params = hash_map_utils_new_from_string_params(keys);
   std::unordered_map<std::string, std::string> return_params;
 
-  if (params.empty()) return strdup("");
+  if (params.empty()) {
+    return strdup("");
+  }
 
   std::lock_guard<std::recursive_mutex> lock(*out->common.mutex);
 
-  if (ha_read_output_audio_config(&out->common, &codec_config,
-                                  &codec_capability,
+  if (ha_read_output_audio_config(&out->common, &codec_config, &codec_capability,
                                   false /* update_stream_config */) < 0) {
     ERROR("ha_read_output_audio_config failed");
     goto done;
@@ -1213,20 +1210,25 @@ static char* out_get_parameters(const struct audio_stream* stream,
   if (params.find(AUDIO_PARAMETER_STREAM_SUP_FORMATS) != params.end()) {
     std::string param;
     if (codec_capability.bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "AUDIO_FORMAT_PCM_16_BIT";
     }
     if (codec_capability.bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "AUDIO_FORMAT_PCM_24_BIT_PACKED";
     }
     if (codec_capability.bits_per_sample & BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "AUDIO_FORMAT_PCM_32_BIT";
     }
     if (param.empty()) {
-      ERROR("Invalid codec capability bits_per_sample=0x%x",
-            codec_capability.bits_per_sample);
+      ERROR("Invalid codec capability bits_per_sample=0x%x", codec_capability.bits_per_sample);
       goto done;
     } else {
       return_params[AUDIO_PARAMETER_STREAM_SUP_FORMATS] = param;
@@ -1237,40 +1239,55 @@ static char* out_get_parameters(const struct audio_stream* stream,
   if (params.find(AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES) != params.end()) {
     std::string param;
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_44100) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "44100";
     }
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_48000) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "48000";
     }
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_88200) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "88200";
     }
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_96000) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "96000";
     }
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_176400) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "176400";
     }
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_192000) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "192000";
     }
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_16000) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "16000";
     }
     if (codec_capability.sample_rate & BTAV_A2DP_CODEC_SAMPLE_RATE_24000) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "24000";
     }
     if (param.empty()) {
-      ERROR("Invalid codec capability sample_rate=0x%x",
-            codec_capability.sample_rate);
+      ERROR("Invalid codec capability sample_rate=0x%x", codec_capability.sample_rate);
       goto done;
     } else {
       return_params[AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES] = param;
@@ -1281,16 +1298,19 @@ static char* out_get_parameters(const struct audio_stream* stream,
   if (params.find(AUDIO_PARAMETER_STREAM_SUP_CHANNELS) != params.end()) {
     std::string param;
     if (codec_capability.channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_MONO) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "AUDIO_CHANNEL_OUT_MONO";
     }
     if (codec_capability.channel_mode & BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO) {
-      if (!param.empty()) param += "|";
+      if (!param.empty()) {
+        param += "|";
+      }
       param += "AUDIO_CHANNEL_OUT_STEREO";
     }
     if (param.empty()) {
-      ERROR("Invalid codec capability channel_mode=0x%x",
-            codec_capability.channel_mode);
+      ERROR("Invalid codec capability channel_mode=0x%x", codec_capability.channel_mode);
       goto done;
     } else {
       return_params[AUDIO_PARAMETER_STREAM_SUP_CHANNELS] = param;
@@ -1315,16 +1335,15 @@ static uint32_t out_get_latency(const struct audio_stream_out* stream) {
 
   FNLOG();
 
-  latency_us =
-      ((out->common.buffer_sz * 1000) /
-       audio_stream_out_frame_size(&out->stream) / out->common.cfg.rate) *
-      1000;
+  latency_us = ((out->common.buffer_sz * 1000) / audio_stream_out_frame_size(&out->stream) /
+                out->common.cfg.rate) *
+               1000;
 
   return (latency_us / 1000) + 200;
 }
 
-static int out_set_volume(UNUSED_ATTR struct audio_stream_out* stream,
-                          UNUSED_ATTR float left, UNUSED_ATTR float right) {
+static int out_set_volume(UNUSED_ATTR struct audio_stream_out* stream, UNUSED_ATTR float left,
+                          UNUSED_ATTR float right) {
   FNLOG();
 
   /* volume controlled in audioflinger mixer (digital) */
@@ -1332,18 +1351,18 @@ static int out_set_volume(UNUSED_ATTR struct audio_stream_out* stream,
   return -ENOSYS;
 }
 
-static int out_get_presentation_position(const struct audio_stream_out* stream,
-                                         uint64_t* frames,
+static int out_get_presentation_position(const struct audio_stream_out* stream, uint64_t* frames,
                                          struct timespec* timestamp) {
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
 
   FNLOG();
-  if (stream == NULL || frames == NULL || timestamp == NULL) return -EINVAL;
+  if (stream == NULL || frames == NULL || timestamp == NULL) {
+    return -EINVAL;
+  }
 
   int ret = -EWOULDBLOCK;
   std::lock_guard<std::recursive_mutex> lock(*out->common.mutex);
-  uint64_t latency_frames =
-      (uint64_t)out_get_latency(stream) * out->common.cfg.rate / 1000;
+  uint64_t latency_frames = (uint64_t)out_get_latency(stream) * out->common.cfg.rate / 1000;
   if (out->frames_presented >= latency_frames) {
     *frames = out->frames_presented - latency_frames;
     clock_gettime(CLOCK_MONOTONIC,
@@ -1353,16 +1372,16 @@ static int out_get_presentation_position(const struct audio_stream_out* stream,
   return ret;
 }
 
-static int out_get_render_position(const struct audio_stream_out* stream,
-                                   uint32_t* dsp_frames) {
+static int out_get_render_position(const struct audio_stream_out* stream, uint32_t* dsp_frames) {
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
 
   FNLOG();
-  if (stream == NULL || dsp_frames == NULL) return -EINVAL;
+  if (stream == NULL || dsp_frames == NULL) {
+    return -EINVAL;
+  }
 
   std::lock_guard<std::recursive_mutex> lock(*out->common.mutex);
-  uint64_t latency_frames =
-      (uint64_t)out_get_latency(stream) * out->common.cfg.rate / 1000;
+  uint64_t latency_frames = (uint64_t)out_get_latency(stream) * out->common.cfg.rate / 1000;
   if (out->frames_rendered >= latency_frames) {
     *dsp_frames = (uint32_t)(out->frames_rendered - latency_frames);
   } else {
@@ -1377,9 +1396,8 @@ static int out_add_audio_effect(UNUSED_ATTR const struct audio_stream* stream,
   return 0;
 }
 
-static int out_remove_audio_effect(
-    UNUSED_ATTR const struct audio_stream* stream,
-    UNUSED_ATTR effect_handle_t effect) {
+static int out_remove_audio_effect(UNUSED_ATTR const struct audio_stream* stream,
+                                   UNUSED_ATTR effect_handle_t effect) {
   FNLOG();
   return 0;
 }
@@ -1400,14 +1418,14 @@ static int in_set_sample_rate(struct audio_stream* stream, uint32_t rate) {
 
   FNLOG();
 
-  if (in->common.cfg.rate > 0 && in->common.cfg.rate == rate)
+  if (in->common.cfg.rate > 0 && in->common.cfg.rate == rate) {
     return 0;
-  else
+  } else {
     return -1;
+  }
 }
 
-static size_t in_get_buffer_size(
-    UNUSED_ATTR const struct audio_stream* stream) {
+static size_t in_get_buffer_size(UNUSED_ATTR const struct audio_stream* stream) {
   FNLOG();
   return 320;
 }
@@ -1419,8 +1437,7 @@ static audio_channel_mask_t in_get_channels(const struct audio_stream* stream) {
   return (audio_channel_mask_t)in->common.cfg.channel_mask;
 }
 
-static audio_format_t in_get_format(
-    UNUSED_ATTR const struct audio_stream* stream) {
+static audio_format_t in_get_format(UNUSED_ATTR const struct audio_stream* stream) {
   FNLOG();
   return AUDIO_FORMAT_PCM_16_BIT;
 }
@@ -1428,10 +1445,11 @@ static audio_format_t in_get_format(
 static int in_set_format(UNUSED_ATTR struct audio_stream* stream,
                          UNUSED_ATTR audio_format_t format) {
   FNLOG();
-  if (format == AUDIO_FORMAT_PCM_16_BIT)
+  if (format == AUDIO_FORMAT_PCM_16_BIT) {
     return 0;
-  else
+  } else {
     return -1;
+  }
 }
 
 static int in_standby(UNUSED_ATTR struct audio_stream* stream) {
@@ -1439,8 +1457,7 @@ static int in_standby(UNUSED_ATTR struct audio_stream* stream) {
   return 0;
 }
 
-static int in_dump(UNUSED_ATTR const struct audio_stream* stream,
-                   UNUSED_ATTR int fd) {
+static int in_dump(UNUSED_ATTR const struct audio_stream* stream, UNUSED_ATTR int fd) {
   FNLOG();
   return 0;
 }
@@ -1457,14 +1474,12 @@ static char* in_get_parameters(UNUSED_ATTR const struct audio_stream* stream,
   return strdup("");
 }
 
-static int in_set_gain(UNUSED_ATTR struct audio_stream_in* stream,
-                       UNUSED_ATTR float gain) {
+static int in_set_gain(UNUSED_ATTR struct audio_stream_in* stream, UNUSED_ATTR float gain) {
   FNLOG();
   return 0;
 }
 
-static ssize_t in_read(struct audio_stream_in* stream, void* buffer,
-                       size_t bytes) {
+static ssize_t in_read(struct audio_stream_in* stream, void* buffer, size_t bytes) {
   struct ha_stream_in* in = (struct ha_stream_in*)stream;
   int read;
   int us_delay;
@@ -1472,8 +1487,7 @@ static ssize_t in_read(struct audio_stream_in* stream, void* buffer,
   DEBUG("read %zu bytes, state: %d", bytes, in->common.state);
 
   std::unique_lock<std::recursive_mutex> lock(*in->common.mutex);
-  if (in->common.state == AUDIO_HA_STATE_SUSPENDED ||
-      in->common.state == AUDIO_HA_STATE_STOPPING) {
+  if (in->common.state == AUDIO_HA_STATE_SUSPENDED || in->common.state == AUDIO_HA_STATE_STOPPING) {
     DEBUG("stream suspended");
     goto error;
   }
@@ -1521,8 +1535,7 @@ error:
   return bytes;
 }
 
-static uint32_t in_get_input_frames_lost(
-    UNUSED_ATTR struct audio_stream_in* stream) {
+static uint32_t in_get_input_frames_lost(UNUSED_ATTR struct audio_stream_in* stream) {
   FNLOG();
   return 0;
 }
@@ -1558,7 +1571,9 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   std::lock_guard<std::recursive_mutex> lock(*ha_dev->mutex);
   out = (struct ha_stream_out*)calloc(1, sizeof(struct ha_stream_out));
 
-  if (!out) return -ENOMEM;
+  if (!out) {
+    return -ENOMEM;
+  }
 
   out->stream.common.get_sample_rate = out_get_sample_rate;
   out->stream.common.set_sample_rate = out_set_sample_rate;
@@ -1584,8 +1599,7 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   // Make sure we always have the feeding parameters configured
   btav_a2dp_codec_config_t codec_config;
   btav_a2dp_codec_config_t codec_capability;
-  if (ha_read_output_audio_config(&out->common, &codec_config,
-                                  &codec_capability,
+  if (ha_read_output_audio_config(&out->common, &codec_config, &codec_capability,
                                   true /* update_stream_config */) < 0) {
     ERROR("ha_read_output_audio_config failed");
     ret = -1;
@@ -1597,10 +1611,15 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   if (config != nullptr) {
     // Try to use the config parameters and send it to the remote side
     // TODO: Shall we use out_set_format() and similar?
-    if (config->format != 0) out->common.cfg.format = config->format;
-    if (config->sample_rate != 0) out->common.cfg.rate = config->sample_rate;
-    if (config->channel_mask != 0)
+    if (config->format != 0) {
+      out->common.cfg.format = config->format;
+    }
+    if (config->sample_rate != 0) {
+      out->common.cfg.rate = config->sample_rate;
+    }
+    if (config->channel_mask != 0) {
       out->common.cfg.channel_mask = config->channel_mask;
+    }
     if ((out->common.cfg.format != 0) || (out->common.cfg.rate != 0) ||
         (out->common.cfg.channel_mask != 0)) {
       if (ha_write_output_audio_config(&out->common) < 0) {
@@ -1609,8 +1628,7 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
         goto err_open;
       }
       // Read again and make sure we use the same parameters as the remote side
-      if (ha_read_output_audio_config(&out->common, &codec_config,
-                                      &codec_capability,
+      if (ha_read_output_audio_config(&out->common, &codec_config, &codec_capability,
                                       true /* update_stream_config */) < 0) {
         ERROR("ha_read_output_audio_config failed");
         ret = -1;
@@ -1618,16 +1636,11 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
       }
     }
     config->format = out_get_format((const struct audio_stream*)&out->stream);
-    config->sample_rate =
-        out_get_sample_rate((const struct audio_stream*)&out->stream);
-    config->channel_mask =
-        out_get_channels((const struct audio_stream*)&out->stream);
+    config->sample_rate = out_get_sample_rate((const struct audio_stream*)&out->stream);
+    config->channel_mask = out_get_channels((const struct audio_stream*)&out->stream);
 
-    INFO(
-        "Output stream config: format=0x%x sample_rate=%d channel_mask=0x%x "
-        "buffer_sz=%zu",
-        config->format, config->sample_rate, config->channel_mask,
-        out->common.buffer_sz);
+    INFO("Output stream config: format=0x%x sample_rate=%d channel_mask=0x%x buffer_sz=%zu",
+         config->format, config->sample_rate, config->channel_mask, out->common.buffer_sz);
   }
   *stream_out = &out->stream;
   ha_dev->output = out;
@@ -1647,8 +1660,7 @@ err_open:
   return ret;
 }
 
-static void adev_close_output_stream(struct audio_hw_device* dev,
-                                     struct audio_stream_out* stream) {
+static void adev_close_output_stream(struct audio_hw_device* dev, struct audio_stream_out* stream) {
   struct ha_audio_device* ha_dev = (struct ha_audio_device*)dev;
   struct ha_stream_out* out = (struct ha_stream_out*)stream;
 
@@ -1658,8 +1670,7 @@ static void adev_close_output_stream(struct audio_hw_device* dev,
     std::lock_guard<std::recursive_mutex> lock(*out->common.mutex);
     const ha_state_t state = out->common.state;
     INFO("closing output (state %d)", (int)state);
-    if ((state == AUDIO_HA_STATE_STARTED) ||
-        (state == AUDIO_HA_STATE_STOPPING)) {
+    if ((state == AUDIO_HA_STATE_STARTED) || (state == AUDIO_HA_STATE_STOPPING)) {
       stop_audio_datapath(&out->common);
     }
 
@@ -1674,8 +1685,7 @@ static void adev_close_output_stream(struct audio_hw_device* dev,
   DEBUG("done");
 }
 
-static int adev_set_parameters(struct audio_hw_device* dev,
-                               const char* kvpairs) {
+static int adev_set_parameters(struct audio_hw_device* dev, const char* kvpairs) {
   struct ha_audio_device* ha_dev = (struct ha_audio_device*)dev;
   int retval = 0;
 
@@ -1683,22 +1693,21 @@ static int adev_set_parameters(struct audio_hw_device* dev,
   std::lock_guard<std::recursive_mutex> lock(*ha_dev->mutex);
   struct ha_stream_out* out = ha_dev->output;
 
-  if (out == NULL) return retval;
+  if (out == NULL) {
+    return retval;
+  }
 
   INFO("state %d", out->common.state);
 
-  retval =
-      out->stream.common.set_parameters((struct audio_stream*)out, kvpairs);
+  retval = out->stream.common.set_parameters((struct audio_stream*)out, kvpairs);
 
   return retval;
 }
 
-static char* adev_get_parameters(UNUSED_ATTR const struct audio_hw_device* dev,
-                                 const char* keys) {
+static char* adev_get_parameters(UNUSED_ATTR const struct audio_hw_device* dev, const char* keys) {
   FNLOG();
 
-  std::unordered_map<std::string, std::string> params =
-      hash_map_utils_new_from_string_params(keys);
+  std::unordered_map<std::string, std::string> params = hash_map_utils_new_from_string_params(keys);
   hash_map_utils_dump_string_keys_string_values(params);
 
   return strdup("");
@@ -1724,15 +1733,13 @@ static int adev_set_master_volume(UNUSED_ATTR struct audio_hw_device* dev,
   return -ENOSYS;
 }
 
-static int adev_set_mode(UNUSED_ATTR struct audio_hw_device* dev,
-                         UNUSED_ATTR audio_mode_t mode) {
+static int adev_set_mode(UNUSED_ATTR struct audio_hw_device* dev, UNUSED_ATTR audio_mode_t mode) {
   FNLOG();
 
   return 0;
 }
 
-static int adev_set_mic_mute(UNUSED_ATTR struct audio_hw_device* dev,
-                             UNUSED_ATTR bool state) {
+static int adev_set_mic_mute(UNUSED_ATTR struct audio_hw_device* dev, UNUSED_ATTR bool state) {
   FNLOG();
 
   return -ENOSYS;
@@ -1745,16 +1752,14 @@ static int adev_get_mic_mute(UNUSED_ATTR const struct audio_hw_device* dev,
   return -ENOSYS;
 }
 
-static size_t adev_get_input_buffer_size(
-    UNUSED_ATTR const struct audio_hw_device* dev,
-    UNUSED_ATTR const struct audio_config* config) {
+static size_t adev_get_input_buffer_size(UNUSED_ATTR const struct audio_hw_device* dev,
+                                         UNUSED_ATTR const struct audio_config* config) {
   FNLOG();
 
   return 320;
 }
 
-static int adev_open_input_stream(struct audio_hw_device* dev,
-                                  UNUSED_ATTR audio_io_handle_t handle,
+static int adev_open_input_stream(struct audio_hw_device* dev, UNUSED_ATTR audio_io_handle_t handle,
                                   UNUSED_ATTR audio_devices_t devices,
                                   UNUSED_ATTR struct audio_config* config,
                                   struct audio_stream_in** stream_in,
@@ -1771,7 +1776,9 @@ static int adev_open_input_stream(struct audio_hw_device* dev,
   std::lock_guard<std::recursive_mutex> lock(*ha_dev->mutex);
   in = (struct ha_stream_in*)calloc(1, sizeof(struct ha_stream_in));
 
-  if (!in) return -ENOMEM;
+  if (!in) {
+    return -ENOMEM;
+  }
 
   in->stream.common.get_sample_rate = in_get_sample_rate;
   in->stream.common.set_sample_rate = in_set_sample_rate;
@@ -1814,8 +1821,7 @@ err_open:
   return ret;
 }
 
-static void adev_close_input_stream(struct audio_hw_device* dev,
-                                    struct audio_stream_in* stream) {
+static void adev_close_input_stream(struct audio_hw_device* dev, struct audio_stream_in* stream) {
   struct ha_audio_device* ha_dev = (struct ha_audio_device*)dev;
   struct ha_stream_in* in = (struct ha_stream_in*)stream;
 
@@ -1825,8 +1831,9 @@ static void adev_close_input_stream(struct audio_hw_device* dev,
     const ha_state_t state = in->common.state;
     INFO("closing input (state %d)", (int)state);
 
-    if ((state == AUDIO_HA_STATE_STARTED) || (state == AUDIO_HA_STATE_STOPPING))
+    if ((state == AUDIO_HA_STATE_STARTED) || (state == AUDIO_HA_STATE_STOPPING)) {
       stop_audio_datapath(&in->common);
+    }
 
     skt_disconnect(in->common.ctrl_fd);
     in->common.ctrl_fd = AUDIO_SKT_DISCONNECTED;
@@ -1838,8 +1845,7 @@ static void adev_close_input_stream(struct audio_hw_device* dev,
   DEBUG("done");
 }
 
-static int adev_dump(UNUSED_ATTR const audio_hw_device_t* device,
-                     UNUSED_ATTR int fd) {
+static int adev_dump(UNUSED_ATTR const audio_hw_device_t* device, UNUSED_ATTR int fd) {
   FNLOG();
 
   return 0;
@@ -1855,8 +1861,7 @@ static int adev_close(hw_device_t* device) {
   return 0;
 }
 
-static int adev_open(const hw_module_t* module, const char* name,
-                     hw_device_t** device) {
+static int adev_open(const hw_module_t* module, const char* name, hw_device_t** device) {
   struct ha_audio_device* adev;
 
   INFO(" adev_open in ha_hw module");
@@ -1869,7 +1874,9 @@ static int adev_open(const hw_module_t* module, const char* name,
 
   adev = (struct ha_audio_device*)calloc(1, sizeof(struct ha_audio_device));
 
-  if (!adev) return -ENOMEM;
+  if (!adev) {
+    return -ENOMEM;
+  }
 
   adev->mutex = new std::recursive_mutex;
 
@@ -1901,19 +1908,18 @@ static int adev_open(const hw_module_t* module, const char* name,
 }
 
 static struct hw_module_methods_t hal_module_methods = {
-    .open = adev_open,
+        .open = adev_open,
 };
 
-__attribute__((
-    visibility("default"))) struct audio_module HAL_MODULE_INFO_SYM = {
-    .common =
-        {
-            .tag = HARDWARE_MODULE_TAG,
-            .version_major = 1,
-            .version_minor = 0,
-            .id = AUDIO_HARDWARE_MODULE_ID,
-            .name = "Hearing Aid Audio HW HAL",
-            .author = "The Android Open Source Project",
-            .methods = &hal_module_methods,
-        },
+__attribute__((visibility("default"))) struct audio_module HAL_MODULE_INFO_SYM = {
+        .common =
+                {
+                        .tag = HARDWARE_MODULE_TAG,
+                        .version_major = 1,
+                        .version_minor = 0,
+                        .id = AUDIO_HARDWARE_MODULE_ID,
+                        .name = "Hearing Aid Audio HW HAL",
+                        .author = "The Android Open Source Project",
+                        .methods = &hal_module_methods,
+                },
 };

@@ -157,9 +157,8 @@
 /*constants used for index calculation*/
 #define SBC_BLK (SBC_MAX_NUM_OF_CHANNELS * SBC_MAX_NUM_OF_SUBBANDS)
 
-#define SBC_MAX_PCM_BUFFER_SIZE                                          \
-  (SBC_MAX_NUM_FRAME * SBC_MAX_NUM_OF_BLOCKS * SBC_MAX_NUM_OF_CHANNELS * \
-   SBC_MAX_NUM_OF_SUBBANDS)
+#define SBC_MAX_PCM_BUFFER_SIZE \
+  (SBC_MAX_NUM_FRAME * SBC_MAX_NUM_OF_BLOCKS * SBC_MAX_NUM_OF_CHANNELS * SBC_MAX_NUM_OF_SUBBANDS)
 
 typedef struct SBC_ENC_PARAMS_TAG {
   int16_t s16SamplingFreq;  /* 16k, 32k, 44.1k or 48k*/
@@ -180,8 +179,7 @@ typedef struct SBC_ENC_PARAMS_TAG {
 
   int16_t s16ScartchMemForBitAlloc[16];
 
-  int32_t s32SbBuffer[SBC_MAX_NUM_OF_CHANNELS * SBC_MAX_NUM_OF_SUBBANDS *
-                      SBC_MAX_NUM_OF_BLOCKS];
+  int32_t s32SbBuffer[SBC_MAX_NUM_OF_CHANNELS * SBC_MAX_NUM_OF_SUBBANDS * SBC_MAX_NUM_OF_BLOCKS];
 
   int16_t as16Bits[SBC_MAX_NUM_OF_CHANNELS * SBC_MAX_NUM_OF_SUBBANDS];
 
@@ -197,8 +195,7 @@ extern "C" {
 
 /* Encode the frame using SBC. The output is written into |output|. Return
  * number of bytes written. */
-uint32_t SBC_Encode(SBC_ENC_PARAMS* strEncParams, int16_t* input,
-                    uint8_t* output);
+uint32_t SBC_Encode(SBC_ENC_PARAMS* strEncParams, int16_t* input, uint8_t* output);
 void SBC_Encoder_Init(SBC_ENC_PARAMS* strEncParams);
 
 #ifdef __cplusplus

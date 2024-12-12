@@ -31,42 +31,39 @@
 #include "stack/include/bt_hdr.h"
 
 class A2dpCodecConfigSbcBase : public A2dpCodecConfig {
- protected:
-  A2dpCodecConfigSbcBase(btav_a2dp_codec_index_t codec_index,
-                         const std::string& name,
-                         btav_a2dp_codec_priority_t codec_priority,
-                         bool is_source)
+protected:
+  A2dpCodecConfigSbcBase(btav_a2dp_codec_index_t codec_index, const std::string& name,
+                         btav_a2dp_codec_priority_t codec_priority, bool is_source)
       : A2dpCodecConfig(codec_index, A2DP_CODEC_ID_SBC, name, codec_priority),
         is_source_(is_source) {}
-  bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                      uint8_t* p_result_codec_config) override;
-  bool setPeerCodecCapabilities(
-      const uint8_t* p_peer_codec_capabilities) override;
+  tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
+                              uint8_t* p_result_codec_config) override;
+  bool setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) override;
 
- private:
+private:
   bool is_source_;  // True if local is Source
 };
 
 class A2dpCodecConfigSbcSource : public A2dpCodecConfigSbcBase {
- public:
+public:
   A2dpCodecConfigSbcSource(btav_a2dp_codec_priority_t codec_priority);
   virtual ~A2dpCodecConfigSbcSource();
 
   bool init() override;
 
- private:
+private:
   bool useRtpHeaderMarkerBit() const override;
   void debug_codec_dump(int fd) override;
 };
 
 class A2dpCodecConfigSbcSink : public A2dpCodecConfigSbcBase {
- public:
+public:
   A2dpCodecConfigSbcSink(btav_a2dp_codec_priority_t codec_priority);
   virtual ~A2dpCodecConfigSbcSink();
 
   bool init() override;
 
- private:
+private:
   bool useRtpHeaderMarkerBit() const override;
 };
 
@@ -74,40 +71,12 @@ class A2dpCodecConfigSbcSink : public A2dpCodecConfigSbcBase {
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid SBC codec,
 // otherwise false.
-bool A2DP_IsSourceCodecValidSbc(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid A2DP SBC Sink codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid SBC codec,
-// otherwise false.
-bool A2DP_IsSinkCodecValidSbc(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP SBC Source
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid SBC codec,
-// otherwise false.
-bool A2DP_IsPeerSourceCodecValidSbc(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP SBC Sink
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid SBC codec,
-// otherwise false.
-bool A2DP_IsPeerSinkCodecValidSbc(const uint8_t* p_codec_info);
+bool A2DP_IsCodecValidSbc(const uint8_t* p_codec_info);
 
 // Checks whether A2DP SBC Sink codec is supported.
 // |p_codec_info| contains information about the codec capabilities.
 // Returns true if the A2DP SBC Sink codec is supported, otherwise false.
-bool A2DP_IsSinkCodecSupportedSbc(const uint8_t* p_codec_info);
-
-// Checks whether an A2DP SBC Source codec for a peer Source device is
-// supported.
-// |p_codec_info| contains information about the codec capabilities of the
-// peer device.
-// Returns true if the A2DP SBC Source codec for a peer Source device is
-// supported, otherwise false.
-bool A2DP_IsPeerSourceCodecSupportedSbc(const uint8_t* p_codec_info);
+tA2DP_STATUS A2DP_IsSinkCodecSupportedSbc(const uint8_t* p_codec_info);
 
 // Initialize state with the default A2DP SBC codec.
 // The initialized state with the codec capabilities is stored in
@@ -120,15 +89,13 @@ const char* A2DP_CodecNameSbc(const uint8_t* p_codec_info);
 // Checks whether two A2DP SBC codecs |p_codec_info_a| and |p_codec_info_b|
 // have the same type.
 // Returns true if the two codecs have the same type, otherwise false.
-bool A2DP_CodecTypeEqualsSbc(const uint8_t* p_codec_info_a,
-                             const uint8_t* p_codec_info_b);
+bool A2DP_CodecTypeEqualsSbc(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Checks whether two A2DP SBC codecs |p_codec_info_a| and |p_codec_info_b|
 // are exactly the same.
 // Returns true if the two codecs are exactly the same, otherwise false.
 // If the codec type is not SBC, the return value is false.
-bool A2DP_CodecEqualsSbc(const uint8_t* p_codec_info_a,
-                         const uint8_t* p_codec_info_b);
+bool A2DP_CodecEqualsSbc(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Gets the track sample rate value for the A2DP SBC codec.
 // |p_codec_info| is a pointer to the SBC codec_info to decode.
@@ -207,8 +174,8 @@ int A2DP_GetSinkTrackChannelTypeSbc(const uint8_t* p_codec_info);
 // |p_data| contains the audio data.
 // The timestamp is stored in |p_timestamp|.
 // Returns true on success, otherwise false.
-bool A2DP_GetPacketTimestampSbc(const uint8_t* p_codec_info,
-                                const uint8_t* p_data, uint32_t* p_timestamp);
+bool A2DP_GetPacketTimestampSbc(const uint8_t* p_codec_info, const uint8_t* p_data,
+                                uint32_t* p_timestamp);
 
 // Builds A2DP SBC codec header for audio data.
 // |p_codec_info| contains the codec information.
@@ -228,16 +195,14 @@ std::string A2DP_CodecInfoStringSbc(const uint8_t* p_codec_info);
 // |p_codec_info| contains the codec information.
 // Returns the A2DP SBC encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(
-    const uint8_t* p_codec_info);
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(const uint8_t* p_codec_info);
 
 // Gets the A2DP SBC decoder interface that can be used to decode received A2DP
 // packets - see |tA2DP_DECODER_INTERFACE|.
 // |p_codec_info| contains the codec information.
 // Returns the A2DP SBC decoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc(
-    const uint8_t* p_codec_info);
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc(const uint8_t* p_codec_info);
 
 // Adjusts the A2DP SBC codec, based on local support and Bluetooth
 // specification.

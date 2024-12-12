@@ -50,17 +50,14 @@ struct DataAsPeripheral {
 struct DataAsUninitializedPeripheral {};
 
 using RoleSpecificData =
-    std::variant<DataAsUninitializedPeripheral, DataAsCentral, DataAsPeripheral>;
+        std::variant<DataAsUninitializedPeripheral, DataAsCentral, DataAsPeripheral>;
 
 class LeAclConnection : public AclConnection {
- public:
+public:
   LeAclConnection();
-  LeAclConnection(
-      std::shared_ptr<Queue> queue,
-      LeAclConnectionInterface* le_acl_connection_interface,
-      uint16_t handle,
-      RoleSpecificData role_specific_data,
-      AddressWithType remote_address);
+  LeAclConnection(std::shared_ptr<Queue> queue,
+                  LeAclConnectionInterface* le_acl_connection_interface, uint16_t handle,
+                  RoleSpecificData role_specific_data, AddressWithType remote_address);
   LeAclConnection(const LeAclConnection&) = delete;
   LeAclConnection& operator=(const LeAclConnection&) = delete;
 
@@ -76,9 +73,7 @@ class LeAclConnection : public AclConnection {
     role_specific_data_ = role_specific_data;
   }
 
-  virtual AddressWithType GetRemoteAddress() const {
-    return remote_address_;
-  }
+  virtual AddressWithType GetRemoteAddress() const { return remote_address_; }
 
   // The peer address and type returned from the Connection Complete Event
   AddressWithType peer_address_with_type_;
@@ -99,16 +94,12 @@ class LeAclConnection : public AclConnection {
 
   // True if connection address was in the filter accept list, false otherwise
   bool in_filter_accept_list_;
-  bool IsInFilterAcceptList() const {
-    return in_filter_accept_list_;
-  }
+  bool IsInFilterAcceptList() const { return in_filter_accept_list_; }
 
   Address local_resolvable_private_address_ = Address::kEmpty;
   Address peer_resolvable_private_address_ = Address::kEmpty;
 
-  virtual AddressWithType GetPeerAddress() const {
-    return peer_address_with_type_;
-  }
+  virtual AddressWithType GetPeerAddress() const { return peer_address_with_type_; }
 
   // This function return actual peer address which was used for the connection over the air.
   virtual AddressWithType GetPeerOtaAddress() const {
@@ -130,36 +121,32 @@ class LeAclConnection : public AclConnection {
   virtual void RegisterCallbacks(LeConnectionManagementCallbacks* callbacks, os::Handler* handler);
   virtual void Disconnect(DisconnectReason reason);
 
-  virtual bool LeConnectionUpdate(
-      uint16_t conn_interval_min,
-      uint16_t conn_interval_max,
-      uint16_t conn_latency,
-      uint16_t supervision_timeout,
-      uint16_t min_ce_length,
-      uint16_t max_ce_length);
+  virtual bool LeConnectionUpdate(uint16_t conn_interval_min, uint16_t conn_interval_max,
+                                  uint16_t conn_latency, uint16_t supervision_timeout,
+                                  uint16_t min_ce_length, uint16_t max_ce_length);
 
   virtual bool ReadRemoteVersionInformation() override;
   virtual bool LeReadRemoteFeatures();
 
-  virtual void LeSubrateRequest(
-      uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency, uint16_t cont_num, uint16_t sup_tout);
+  virtual void LeSubrateRequest(uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency,
+                                uint16_t cont_num, uint16_t sup_tout);
 
-  // TODO implement LeRemoteConnectionParameterRequestReply, LeRemoteConnectionParameterRequestNegativeReply
+  // TODO implement LeRemoteConnectionParameterRequestReply,
+  // LeRemoteConnectionParameterRequestNegativeReply
 
   // Called once before passing the connection to the client
-  virtual LeConnectionManagementCallbacks* GetEventCallbacks(std::function<void(uint16_t)> invalidate_callbacks);
+  virtual LeConnectionManagementCallbacks* GetEventCallbacks(
+          std::function<void(uint16_t)> invalidate_callbacks);
 
- protected:
+protected:
   AddressWithType remote_address_;
   RoleSpecificData role_specific_data_;
 
- private:
+private:
   void OnLeSubrateRequestStatus(CommandStatusView status);
-  virtual bool check_connection_parameters(
-      uint16_t conn_interval_min,
-      uint16_t conn_interval_max,
-      uint16_t expected_conn_latency,
-      uint16_t expected_supervision_timeout);
+  virtual bool check_connection_parameters(uint16_t conn_interval_min, uint16_t conn_interval_max,
+                                           uint16_t expected_conn_latency,
+                                           uint16_t expected_supervision_timeout);
   struct impl;
   struct impl* pimpl_ = nullptr;
 };

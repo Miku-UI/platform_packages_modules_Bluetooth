@@ -40,7 +40,7 @@ struct tBTM_SCO_PKT_STATUS {
   // The timestamp of the first bit of |data|'s last update.
   uint64_t ts;
 
- public:
+public:
   void init() {
     std::fill(std::begin(data), std::end(data), 0);
     size = BTM_PKT_STATUS_LEN * 8;
@@ -96,7 +96,9 @@ struct tBTM_SCO_PKT_STATUS {
       }
     }
 
-    if (i % 8) oss << std::hex << std::setw(2) << std::setfill('0') << +(byte);
+    if (i % 8) {
+      oss << std::hex << std::setw(2) << std::setfill('0') << +(byte);
+    }
 
     return oss.str();
   }
@@ -108,7 +110,7 @@ struct tBTM_SCO_PKT_STATUS {
 
     for (int i = 0; i < len; ++i) {
       int j = (head + i) % size;
-      s += std::to_string(((data[j / 8] >> (j % 8)) & 1U));
+      s += std::to_string((data[j / 8] >> (j % 8)) & 1U);
     }
 
     return s;

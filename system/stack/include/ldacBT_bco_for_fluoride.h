@@ -51,8 +51,7 @@ typedef void (*decoded_data_callback_t)(uint8_t* buf, uint32_t len);
  *  Return value
  *      HANDLE_LDAC_BCO for success, NULL for failure.
  */
-LDAC_BCO_API HANDLE_LDAC_BCO
-ldac_BCO_init(decoded_data_callback_t decode_callback);
+LDAC_BCO_API HANDLE_LDAC_BCO ldac_BCO_init(decoded_data_callback_t decode_callback);
 
 /* End LDAC BCO.
  *  - Release of LDAC BCO handle.
@@ -87,8 +86,7 @@ LDAC_BCO_API int32_t ldac_BCO_cleanup(HANDLE_LDAC_BCO hLdacBco);
  *      The function ldac_BCO_init() shall be called before calling this
  *      function.
  */
-LDAC_BCO_API int32_t ldac_BCO_decode_packet(HANDLE_LDAC_BCO hLdacBco,
-                                            void* data, int32_t length);
+LDAC_BCO_API int32_t ldac_BCO_decode_packet(HANDLE_LDAC_BCO hLdacBco, void* data, int32_t length);
 
 /* Start decoding process.
  *  - Start or resume decoder thread.
@@ -141,10 +139,8 @@ LDAC_BCO_API int32_t ldac_BCO_suspend(HANDLE_LDAC_BCO hLdacBco);
  *      The function ldac_BCO_init() shall be called before calling this
  *      function.
  */
-LDAC_BCO_API int32_t ldac_BCO_configure(HANDLE_LDAC_BCO hLdacBco,
-                                        int32_t sample_rate,
-                                        int32_t bits_per_sample,
-                                        int32_t channel_mode);
+LDAC_BCO_API int32_t ldac_BCO_configure(HANDLE_LDAC_BCO hLdacBco, int32_t sample_rate,
+                                        int32_t bits_per_sample, int32_t channel_mode);
 
 #ifdef __cplusplus
 }

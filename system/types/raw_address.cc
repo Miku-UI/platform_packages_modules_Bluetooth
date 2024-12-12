@@ -31,9 +31,7 @@ static_assert(sizeof(RawAddress) == 6, "RawAddress must be 6 bytes long!");
 const RawAddress RawAddress::kAny{{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 const RawAddress RawAddress::kEmpty{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-RawAddress::RawAddress(const uint8_t (&addr)[6]) {
-  std::copy(addr, addr + kLength, address);
-}
+RawAddress::RawAddress(const uint8_t (&addr)[6]) { std::copy(addr, addr + kLength, address); }
 
 RawAddress::RawAddress(const std::array<uint8_t, kLength> mac) {
   std::copy(mac.begin(), mac.end(), address);
@@ -53,9 +51,7 @@ std::string RawAddress::ToColonSepHexString() const {
   return addr.str();
 }
 
-std::string RawAddress::ToStringForLogging() const {
-  return ToColonSepHexString();
-}
+std::string RawAddress::ToStringForLogging() const { return ToColonSepHexString(); }
 
 std::string RawAddress::ToRedactedStringForLogging() const {
   if (*this == RawAddress::kAny || *this == RawAddress::kEmpty) {
@@ -77,7 +73,9 @@ std::array<uint8_t, RawAddress::kLength> RawAddress::ToArray() const {
 
 bool RawAddress::FromString(const std::string& from, RawAddress& to) {
   RawAddress new_addr;
-  if (from.length() != 17) return false;
+  if (from.length() != 17) {
+    return false;
+  }
 
   std::istringstream stream(from);
   std::string token;
@@ -116,7 +114,7 @@ bool RawAddress::FromString(const std::string& from, RawAddress& to) {
 size_t RawAddress::FromOctets(const uint8_t* from) {
   std::copy(from, from + kLength, address);
   return kLength;
-};
+}
 
 bool RawAddress::IsValidAddress(const std::string& address) {
   RawAddress tmp;

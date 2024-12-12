@@ -37,11 +37,12 @@ namespace bluetooth {
 namespace os {
 using common::Closure;
 
-RepeatingAlarm::RepeatingAlarm(Handler* handler) : handler_(handler), fd_(TIMERFD_CREATE(ALARM_CLOCK, 0)) {
+RepeatingAlarm::RepeatingAlarm(Handler* handler)
+    : handler_(handler), fd_(TIMERFD_CREATE(ALARM_CLOCK, 0)) {
   log::assert_that(fd_ != -1, "assert failed: fd_ != -1");
 
   token_ = handler_->thread_->GetReactor()->Register(
-      fd_, common::Bind(&RepeatingAlarm::on_fire, common::Unretained(this)), common::Closure());
+          fd_, common::Bind(&RepeatingAlarm::on_fire, common::Unretained(this)), common::Closure());
 }
 
 RepeatingAlarm::~RepeatingAlarm() {
@@ -77,9 +78,8 @@ void RepeatingAlarm::on_fire() {
   auto bytes_read = read(fd_, &times_invoked, sizeof(uint64_t));
   lock.unlock();
   task.Run();
-  log::assert_that(
-      bytes_read == static_cast<ssize_t>(sizeof(uint64_t)),
-      "assert failed: bytes_read == static_cast<ssize_t>(sizeof(uint64_t))");
+  log::assert_that(bytes_read == static_cast<ssize_t>(sizeof(uint64_t)),
+                   "assert failed: bytes_read == static_cast<ssize_t>(sizeof(uint64_t))");
 }
 
 }  // namespace os

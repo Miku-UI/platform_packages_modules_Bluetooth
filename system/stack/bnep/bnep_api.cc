@@ -30,10 +30,10 @@
 #include "bnep_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -51,9 +51,7 @@ using bluetooth::Uuid;
  * Returns          void
  *
  ******************************************************************************/
-void BNEP_Init(void) {
-  memset(&bnep_cb, 0, sizeof(tBNEP_CB));
-}
+void BNEP_Init(void) { memset(&bnep_cb, 0, sizeof(tBNEP_CB)); }
 
 /*******************************************************************************
  *
@@ -71,8 +69,9 @@ void BNEP_Init(void) {
  ******************************************************************************/
 tBNEP_RESULT BNEP_Register(tBNEP_REGISTER* p_reg_info) {
   /* There should be connection state call back registered */
-  if ((!p_reg_info) || (!(p_reg_info->p_conn_state_cb)))
+  if ((!p_reg_info) || (!(p_reg_info->p_conn_state_cb))) {
     return BNEP_SECURITY_FAIL;
+  }
 
   bnep_cb.p_conn_ind_cb = p_reg_info->p_conn_ind_cb;
   bnep_cb.p_conn_state_cb = p_reg_info->p_conn_state_cb;
@@ -82,7 +81,9 @@ tBNEP_RESULT BNEP_Register(tBNEP_REGISTER* p_reg_info) {
   bnep_cb.p_mfilter_ind_cb = p_reg_info->p_mfilter_ind_cb;
   bnep_cb.p_tx_data_flow_cb = p_reg_info->p_tx_data_flow_cb;
 
-  if (bnep_register_with_l2cap()) return BNEP_SECURITY_FAIL;
+  if (bnep_register_with_l2cap()) {
+    return BNEP_SECURITY_FAIL;
+  }
 
   bnep_cb.profile_registered = true;
   return BNEP_SUCCESS;
@@ -111,7 +112,7 @@ void BNEP_Deregister(void) {
   bnep_cb.p_mfilter_ind_cb = NULL;
 
   bnep_cb.profile_registered = false;
-  L2CA_Deregister(BT_PSM_BNEP);
+  stack::l2cap::get_interface().L2CA_Deregister(BT_PSM_BNEP);
 }
 
 /*******************************************************************************
@@ -131,22 +132,25 @@ void BNEP_Deregister(void) {
  *                  BNEP_NO_RESOURCES           if no resources
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid,
-                          const Uuid& dst_uuid, uint16_t* p_handle,
-                          uint32_t mx_chan_id) {
+tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid, const Uuid& dst_uuid,
+                          uint16_t* p_handle, uint32_t /* mx_chan_id */) {
   uint16_t cid;
   tBNEP_CONN* p_bcb = bnepu_find_bcb_by_bd_addr(p_rem_bda);
 
   log::verbose("BDA:{}", p_rem_bda);
 
-  if (!bnep_cb.profile_registered) return BNEP_WRONG_STATE;
+  if (!bnep_cb.profile_registered) {
+    return BNEP_WRONG_STATE;
+  }
 
   if (!p_bcb) {
     p_bcb = bnepu_allocate_bcb(p_rem_bda);
-    if (p_bcb == NULL) return (BNEP_NO_RESOURCES);
-  } else if (p_bcb->con_state != BNEP_STATE_CONNECTED)
+    if (p_bcb == NULL) {
+      return BNEP_NO_RESOURCES;
+    }
+  } else if (p_bcb->con_state != BNEP_STATE_CONNECTED) {
     return BNEP_WRONG_STATE;
-  else {
+  } else {
     /* Backup current UUID values to restore if role change fails */
     p_bcb->prv_src_uuid = p_bcb->src_uuid;
     p_bcb->prv_dst_uuid = p_bcb->dst_uuid;
@@ -163,8 +167,7 @@ tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid,
      */
     p_bcb->con_state = BNEP_STATE_SEC_CHECKING;
 
-    log::verbose("BNEP initiating security procedures for src uuid {}",
-                 p_bcb->src_uuid.ToString());
+    log::verbose("BNEP initiating security procedures for src uuid {}", p_bcb->src_uuid.ToString());
 
     bnep_sec_check_complete(&p_bcb->rem_bda, BT_TRANSPORT_BR_EDR, p_bcb);
   } else {
@@ -172,76 +175,78 @@ tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const Uuid& src_uuid,
      */
     p_bcb->con_state = BNEP_STATE_CONN_START;
 
-    cid = L2CA_ConnectReqWithSecurity(BT_PSM_BNEP, p_bcb->rem_bda,
-                                      BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+    cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+            BT_PSM_BNEP, p_bcb->rem_bda, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
     if (cid != 0) {
       p_bcb->l2cap_cid = cid;
 
     } else {
       log::error("BNEP - Originate failed");
-      if (bnep_cb.p_conn_state_cb)
-        (*bnep_cb.p_conn_state_cb)(p_bcb->handle, p_bcb->rem_bda,
-                                   BNEP_CONN_FAILED, false);
+      if (bnep_cb.p_conn_state_cb) {
+        (*bnep_cb.p_conn_state_cb)(p_bcb->handle, p_bcb->rem_bda, BNEP_CONN_FAILED, false);
+      }
       bnepu_release_bcb(p_bcb);
       return BNEP_CONN_FAILED;
     }
 
     /* Start timer waiting for connect */
-    alarm_set_on_mloop(p_bcb->conn_timer, BNEP_CONN_TIMEOUT_MS,
-                       bnep_conn_timer_timeout, p_bcb);
+    alarm_set_on_mloop(p_bcb->conn_timer, BNEP_CONN_TIMEOUT_MS, bnep_conn_timer_timeout, p_bcb);
   }
 
   *p_handle = p_bcb->handle;
-  return (BNEP_SUCCESS);
+  return BNEP_SUCCESS;
 }
 
 /*******************************************************************************
  *
  * Function         BNEP_ConnectResp
  *
- * Description      This function is called in responce to connection indication
+ * Description      This function is called in response to connection indication
  *
  *
  * Parameters:      handle  - handle given in the connection indication
- *                  resp    - responce for the connection indication
+ *                  resp    - response for the connection indication
  *
  * Returns          BNEP_SUCCESS                if connection started
  *                  BNEP_WRONG_HANDLE           if the connection is not found
- *                  BNEP_WRONG_STATE            if the responce is not expected
+ *                  BNEP_WRONG_STATE            if the response is not expected
  *
  ******************************************************************************/
 tBNEP_RESULT BNEP_ConnectResp(uint16_t handle, tBNEP_RESULT resp) {
   tBNEP_CONN* p_bcb;
   uint16_t resp_code = BNEP_SETUP_CONN_OK;
 
-  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) return (BNEP_WRONG_HANDLE);
+  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) {
+    return BNEP_WRONG_HANDLE;
+  }
 
   p_bcb = &(bnep_cb.bcb[handle - 1]);
 
-  if (p_bcb->con_state != BNEP_STATE_CONN_SETUP ||
-      (!(p_bcb->con_flags & BNEP_FLAGS_SETUP_RCVD)))
-    return (BNEP_WRONG_STATE);
+  if (p_bcb->con_state != BNEP_STATE_CONN_SETUP || (!(p_bcb->con_flags & BNEP_FLAGS_SETUP_RCVD))) {
+    return BNEP_WRONG_STATE;
+  }
 
-  log::debug("handle {}, responce {}", handle, resp);
+  log::debug("handle {}, response {}", handle, resp);
 
-  /* Form appropriate responce based on profile responce */
-  if (resp == BNEP_CONN_FAILED_SRC_UUID)
+  /* Form appropriate response based on profile response */
+  if (resp == BNEP_CONN_FAILED_SRC_UUID) {
     resp_code = BNEP_SETUP_INVALID_SRC_UUID;
-  else if (resp == BNEP_CONN_FAILED_DST_UUID)
+  } else if (resp == BNEP_CONN_FAILED_DST_UUID) {
     resp_code = BNEP_SETUP_INVALID_DEST_UUID;
-  else if (resp == BNEP_CONN_FAILED_UUID_SIZE)
+  } else if (resp == BNEP_CONN_FAILED_UUID_SIZE) {
     resp_code = BNEP_SETUP_INVALID_UUID_SIZE;
-  else if (resp == BNEP_SUCCESS)
+  } else if (resp == BNEP_SUCCESS) {
     resp_code = BNEP_SETUP_CONN_OK;
-  else
+  } else {
     resp_code = BNEP_SETUP_CONN_NOT_ALLOWED;
+  }
 
   bnep_send_conn_response(p_bcb, resp_code);
   p_bcb->con_flags &= (~BNEP_FLAGS_SETUP_RCVD);
 
-  if (resp == BNEP_SUCCESS)
+  if (resp == BNEP_SUCCESS) {
     bnep_connected(p_bcb);
-  else if (p_bcb->con_flags & BNEP_FLAGS_CONN_COMPLETED) {
+  } else if (p_bcb->con_flags & BNEP_FLAGS_CONN_COMPLETED) {
     /* Restore the original parameters */
     p_bcb->con_state = BNEP_STATE_CONNECTED;
     p_bcb->con_flags &= (~BNEP_FLAGS_SETUP_RCVD);
@@ -264,14 +269,16 @@ tBNEP_RESULT BNEP_ConnectResp(uint16_t handle, tBNEP_RESULT resp) {
       ext_type &= 0x7F;
 
       /* if unknown extension present stop processing */
-      if (ext_type) break;
+      if (ext_type) {
+        break;
+      }
 
       p = bnep_process_control_packet(p_bcb, p, &rem_len, true);
     }
 
     osi_free_and_reset((void**)&p_bcb->p_pending_data);
   }
-  return (BNEP_SUCCESS);
+  return BNEP_SUCCESS;
 }
 
 /*******************************************************************************
@@ -289,22 +296,26 @@ tBNEP_RESULT BNEP_ConnectResp(uint16_t handle, tBNEP_RESULT resp) {
 tBNEP_RESULT BNEP_Disconnect(uint16_t handle) {
   tBNEP_CONN* p_bcb;
 
-  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) return (BNEP_WRONG_HANDLE);
+  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) {
+    return BNEP_WRONG_HANDLE;
+  }
 
   p_bcb = &(bnep_cb.bcb[handle - 1]);
 
-  if (p_bcb->con_state == BNEP_STATE_IDLE) return (BNEP_WRONG_HANDLE);
+  if (p_bcb->con_state == BNEP_STATE_IDLE) {
+    return BNEP_WRONG_HANDLE;
+  }
 
   log::verbose("BNEP_Disconnect()  for handle {}", handle);
 
-  if (!L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
-    log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}",
-              p_bcb->rem_bda, p_bcb->l2cap_cid);
+  if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_bcb->l2cap_cid)) {
+    log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_bcb->rem_bda,
+              p_bcb->l2cap_cid);
   }
 
   bnepu_release_bcb(p_bcb);
 
-  return (BNEP_SUCCESS);
+  return BNEP_SUCCESS;
 }
 
 /*******************************************************************************
@@ -323,22 +334,21 @@ tBNEP_RESULT BNEP_Disconnect(uint16_t handle) {
  *                  fw_ext_present - forwarded extensions present
  *
  * Returns:         BNEP_WRONG_HANDLE       - if passed handle is not valid
- *                  BNEP_MTU_EXCEDED        - If the data length is greater than
+ *                  BNEP_MTU_EXCEEDED       - If the data length is greater than
  *                                            the MTU
  *                  BNEP_IGNORE_CMD         - If the packet is filtered out
  *                  BNEP_Q_SIZE_EXCEEDED    - If the Tx Q is full
  *                  BNEP_SUCCESS            - If written successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
-                           BT_HDR* p_buf, uint16_t protocol,
-                           const RawAddress& src_addr, bool fw_ext_present) {
+tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr, BT_HDR* p_buf,
+                           uint16_t protocol, const RawAddress& src_addr, bool fw_ext_present) {
   tBNEP_CONN* p_bcb;
   uint8_t* p_data;
 
   if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) {
     osi_free(p_buf);
-    return (BNEP_WRONG_HANDLE);
+    return BNEP_WRONG_HANDLE;
   }
 
   p_bcb = &(bnep_cb.bcb[handle - 1]);
@@ -346,13 +356,13 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
   if (p_buf->len > BNEP_MTU_SIZE) {
     log::error("length {} exceeded MTU {}", p_buf->len, BNEP_MTU_SIZE);
     osi_free(p_buf);
-    return (BNEP_MTU_EXCEDED);
+    return BNEP_MTU_EXCEEDED;
   }
 
   /* Check if the packet should be filtered out */
   p_data = (uint8_t*)(p_buf + 1) + p_buf->offset;
-  if (bnep_is_packet_allowed(p_bcb, dest_addr, protocol, fw_ext_present, p_data,
-                             p_buf->len) != BNEP_SUCCESS) {
+  if (bnep_is_packet_allowed(p_bcb, dest_addr, protocol, fw_ext_present, p_data, p_buf->len) !=
+      BNEP_SUCCESS) {
     /*
     ** If packet is filtered and ext headers are present
     ** drop the data and forward the ext headers
@@ -382,9 +392,9 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
 
       } while (ext & 0x80);
 
-      if (protocol != BNEP_802_1_P_PROTOCOL)
+      if (protocol != BNEP_802_1_P_PROTOCOL) {
         protocol = 0;
-      else {
+      } else {
         new_len += 4;
         if (new_len > org_len) {
           osi_free(p_buf);
@@ -403,17 +413,16 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
   /* Check transmit queue */
   if (fixed_queue_length(p_bcb->xmit_q) >= BNEP_MAX_XMITQ_DEPTH) {
     osi_free(p_buf);
-    return (BNEP_Q_SIZE_EXCEEDED);
+    return BNEP_Q_SIZE_EXCEEDED;
   }
 
   /* Build the BNEP header */
-  bnepu_build_bnep_hdr(p_bcb, p_buf, protocol, src_addr, dest_addr,
-                       fw_ext_present);
+  bnepu_build_bnep_hdr(p_bcb, p_buf, protocol, src_addr, dest_addr, fw_ext_present);
 
   /* Send the data or queue it up */
   bnepu_check_send_packet(p_bcb, p_buf);
 
-  return (BNEP_SUCCESS);
+  return BNEP_SUCCESS;
 }
 
 /*******************************************************************************
@@ -432,7 +441,7 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
  *                  fw_ext_present - forwarded extensions present
  *
  * Returns:         BNEP_WRONG_HANDLE       - if passed handle is not valid
- *                  BNEP_MTU_EXCEDED        - If the data length is greater than
+ *                  BNEP_MTU_EXCEEDED       - If the data length is greater than
  *                                            the MTU
  *                  BNEP_IGNORE_CMD         - If the packet is filtered out
  *                  BNEP_Q_SIZE_EXCEEDED    - If the Tx Q is full
@@ -440,25 +449,26 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
  *                  BNEP_SUCCESS            - If written successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr,
-                        uint8_t* p_data, uint16_t len, uint16_t protocol,
-                        const RawAddress& src_addr, bool fw_ext_present) {
+tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr, uint8_t* p_data, uint16_t len,
+                        uint16_t protocol, const RawAddress& src_addr, bool fw_ext_present) {
   tBNEP_CONN* p_bcb;
   uint8_t* p;
 
   /* Check MTU size. Consider the possibility of having extension headers */
   if (len > BNEP_MTU_SIZE) {
     log::error("length {} exceeded MTU {}", len, BNEP_MTU_SIZE);
-    return (BNEP_MTU_EXCEDED);
+    return BNEP_MTU_EXCEEDED;
   }
 
-  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) return (BNEP_WRONG_HANDLE);
+  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) {
+    return BNEP_WRONG_HANDLE;
+  }
 
   p_bcb = &(bnep_cb.bcb[handle - 1]);
 
   /* Check if the packet should be filtered out */
-  if (bnep_is_packet_allowed(p_bcb, dest_addr, protocol, fw_ext_present, p_data,
-                             len) != BNEP_SUCCESS) {
+  if (bnep_is_packet_allowed(p_bcb, dest_addr, protocol, fw_ext_present, p_data, len) !=
+      BNEP_SUCCESS) {
     /*
     ** If packet is filtered and ext headers are present
     ** drop the data and forward the ext headers
@@ -481,27 +491,33 @@ tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr,
 
         new_len += (length + 2);
 
-        if (new_len > org_len) return BNEP_IGNORE_CMD;
+        if (new_len > org_len) {
+          return BNEP_IGNORE_CMD;
+        }
 
       } while (ext & 0x80);
 
-      if (protocol != BNEP_802_1_P_PROTOCOL)
+      if (protocol != BNEP_802_1_P_PROTOCOL) {
         protocol = 0;
-      else {
+      } else {
         new_len += 4;
-        if (new_len > org_len) return BNEP_IGNORE_CMD;
+        if (new_len > org_len) {
+          return BNEP_IGNORE_CMD;
+        }
         p_data[2] = 0;
         p_data[3] = 0;
       }
       len = new_len;
       p_data = p;
-    } else
+    } else {
       return BNEP_IGNORE_CMD;
+    }
   }
 
   /* Check transmit queue */
-  if (fixed_queue_length(p_bcb->xmit_q) >= BNEP_MAX_XMITQ_DEPTH)
-    return (BNEP_Q_SIZE_EXCEEDED);
+  if (fixed_queue_length(p_bcb->xmit_q) >= BNEP_MAX_XMITQ_DEPTH) {
+    return BNEP_Q_SIZE_EXCEEDED;
+  }
 
   /* Get a buffer to copy the data into */
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(BNEP_BUF_SIZE);
@@ -513,13 +529,12 @@ tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr,
   memcpy(p, p_data, len);
 
   /* Build the BNEP header */
-  bnepu_build_bnep_hdr(p_bcb, p_buf, protocol, src_addr, dest_addr,
-                       fw_ext_present);
+  bnepu_build_bnep_hdr(p_bcb, p_buf, protocol, src_addr, dest_addr, fw_ext_present);
 
   /* Send the data or queue it up */
   bnepu_check_send_packet(p_bcb, p_buf);
 
-  return (BNEP_SUCCESS);
+  return BNEP_SUCCESS;
 }
 
 /*******************************************************************************
@@ -541,26 +556,31 @@ tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr,
  *                  BNEP_SUCCESS                - if request sent successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
-                                     uint16_t* p_start_array,
+tBNEP_RESULT BNEP_SetProtocolFilters(uint16_t handle, uint16_t num_filters, uint16_t* p_start_array,
                                      uint16_t* p_end_array) {
   uint16_t xx;
   tBNEP_CONN* p_bcb;
 
-  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) return (BNEP_WRONG_HANDLE);
+  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) {
+    return BNEP_WRONG_HANDLE;
+  }
 
   p_bcb = &(bnep_cb.bcb[handle - 1]);
 
   /* Check the connection state */
   if ((p_bcb->con_state != BNEP_STATE_CONNECTED) &&
-      (!(p_bcb->con_flags & BNEP_FLAGS_CONN_COMPLETED)))
-    return (BNEP_WRONG_STATE);
+      (!(p_bcb->con_flags & BNEP_FLAGS_CONN_COMPLETED))) {
+    return BNEP_WRONG_STATE;
+  }
 
   /* Validate the parameters */
-  if (num_filters && (!p_start_array || !p_end_array))
-    return (BNEP_SET_FILTER_FAIL);
+  if (num_filters && (!p_start_array || !p_end_array)) {
+    return BNEP_SET_FILTER_FAIL;
+  }
 
-  if (num_filters > BNEP_MAX_PROT_FILTERS) return (BNEP_TOO_MANY_FILTERS);
+  if (num_filters > BNEP_MAX_PROT_FILTERS) {
+    return BNEP_TOO_MANY_FILTERS;
+  }
 
   /* Fill the filter values in connnection block */
   for (xx = 0; xx < num_filters; xx++) {
@@ -572,7 +592,7 @@ tBNEP_RESULT BNEP_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
 
   bnepu_send_peer_our_filters(p_bcb);
 
-  return (BNEP_SUCCESS);
+  return BNEP_SUCCESS;
 }
 
 /*******************************************************************************
@@ -597,31 +617,35 @@ tBNEP_RESULT BNEP_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
  *                  BNEP_SUCCESS                - if request sent successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_SetMulticastFilters(uint16_t handle, uint16_t num_filters,
-                                      uint8_t* p_start_array,
+tBNEP_RESULT BNEP_SetMulticastFilters(uint16_t handle, uint16_t num_filters, uint8_t* p_start_array,
                                       uint8_t* p_end_array) {
   uint16_t xx;
   tBNEP_CONN* p_bcb;
 
-  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) return (BNEP_WRONG_HANDLE);
+  if ((!handle) || (handle > BNEP_MAX_CONNECTIONS)) {
+    return BNEP_WRONG_HANDLE;
+  }
 
   p_bcb = &(bnep_cb.bcb[handle - 1]);
 
   /* Check the connection state */
   if ((p_bcb->con_state != BNEP_STATE_CONNECTED) &&
-      (!(p_bcb->con_flags & BNEP_FLAGS_CONN_COMPLETED)))
-    return (BNEP_WRONG_STATE);
+      (!(p_bcb->con_flags & BNEP_FLAGS_CONN_COMPLETED))) {
+    return BNEP_WRONG_STATE;
+  }
 
   /* Validate the parameters */
-  if (num_filters && (!p_start_array || !p_end_array))
-    return (BNEP_SET_FILTER_FAIL);
+  if (num_filters && (!p_start_array || !p_end_array)) {
+    return BNEP_SET_FILTER_FAIL;
+  }
 
-  if (num_filters > BNEP_MAX_MULTI_FILTERS) return (BNEP_TOO_MANY_FILTERS);
+  if (num_filters > BNEP_MAX_MULTI_FILTERS) {
+    return BNEP_TOO_MANY_FILTERS;
+  }
 
   /* Fill the multicast filter values in connnection block */
   for (xx = 0; xx < num_filters; xx++) {
-    memcpy(p_bcb->sent_mcast_filter_start[xx].address, p_start_array,
-           BD_ADDR_LEN);
+    memcpy(p_bcb->sent_mcast_filter_start[xx].address, p_start_array, BD_ADDR_LEN);
     memcpy(p_bcb->sent_mcast_filter_end[xx].address, p_end_array, BD_ADDR_LEN);
 
     p_start_array += BD_ADDR_LEN;
@@ -632,5 +656,5 @@ tBNEP_RESULT BNEP_SetMulticastFilters(uint16_t handle, uint16_t num_filters,
 
   bnepu_send_peer_our_multi_filters(p_bcb);
 
-  return (BNEP_SUCCESS);
+  return BNEP_SUCCESS;
 }

@@ -65,20 +65,17 @@ using ::bluetooth::audio::hidl::codec::IsCodecOffloadingEnabled;
 using ::bluetooth::audio::hidl::codec::UpdateOffloadingCapabilities;
 
 extern "C" {
-struct android_namespace_t* android_get_exported_namespace(const char*) {
-  return nullptr;
-}
+struct android_namespace_t* android_get_exported_namespace(const char*) { return nullptr; }
 }
 
 constexpr SessionType kSessionTypes[] = {
-    SessionType::UNKNOWN,
-    SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH,
-    SessionType::A2DP_HARDWARE_OFFLOAD_DATAPATH,
-    SessionType::HEARING_AID_SOFTWARE_ENCODING_DATAPATH,
+        SessionType::UNKNOWN,
+        SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH,
+        SessionType::A2DP_HARDWARE_OFFLOAD_DATAPATH,
+        SessionType::HEARING_AID_SOFTWARE_ENCODING_DATAPATH,
 };
 
-constexpr bluetooth::audio::hidl::BluetoothAudioCtrlAck
-    kBluetoothAudioCtrlAcks[] = {
+constexpr bluetooth::audio::hidl::BluetoothAudioCtrlAck kBluetoothAudioCtrlAcks[] = {
         bluetooth::audio::hidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED,
         bluetooth::audio::hidl::BluetoothAudioCtrlAck::PENDING,
         bluetooth::audio::hidl::BluetoothAudioCtrlAck::FAILURE_UNSUPPORTED,
@@ -87,68 +84,64 @@ constexpr bluetooth::audio::hidl::BluetoothAudioCtrlAck
         bluetooth::audio::hidl::BluetoothAudioCtrlAck::FAILURE};
 
 constexpr SessionType_2_1 kSessionTypes_2_1[] = {
-    SessionType_2_1::UNKNOWN,
-    SessionType_2_1::A2DP_SOFTWARE_ENCODING_DATAPATH,
-    SessionType_2_1::A2DP_HARDWARE_OFFLOAD_DATAPATH,
-    SessionType_2_1::HEARING_AID_SOFTWARE_ENCODING_DATAPATH,
-    SessionType_2_1::LE_AUDIO_SOFTWARE_ENCODING_DATAPATH,
-    SessionType_2_1::LE_AUDIO_SOFTWARE_DECODED_DATAPATH,
-    SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH,
-    SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH,
+        SessionType_2_1::UNKNOWN,
+        SessionType_2_1::A2DP_SOFTWARE_ENCODING_DATAPATH,
+        SessionType_2_1::A2DP_HARDWARE_OFFLOAD_DATAPATH,
+        SessionType_2_1::HEARING_AID_SOFTWARE_ENCODING_DATAPATH,
+        SessionType_2_1::LE_AUDIO_SOFTWARE_ENCODING_DATAPATH,
+        SessionType_2_1::LE_AUDIO_SOFTWARE_DECODED_DATAPATH,
+        SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH,
+        SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH,
 };
 
 constexpr SampleRate kSampleRates[] = {
-    SampleRate::RATE_UNKNOWN, SampleRate::RATE_44100, SampleRate::RATE_48000,
-    SampleRate::RATE_88200,   SampleRate::RATE_96000, SampleRate::RATE_176400,
-    SampleRate::RATE_192000,  SampleRate::RATE_16000, SampleRate::RATE_24000};
+        SampleRate::RATE_UNKNOWN, SampleRate::RATE_44100, SampleRate::RATE_48000,
+        SampleRate::RATE_88200,   SampleRate::RATE_96000, SampleRate::RATE_176400,
+        SampleRate::RATE_192000,  SampleRate::RATE_16000, SampleRate::RATE_24000};
 
 constexpr btav_a2dp_codec_sample_rate_t kBtavSampleRates[] = {
-    BTAV_A2DP_CODEC_SAMPLE_RATE_NONE,   BTAV_A2DP_CODEC_SAMPLE_RATE_44100,
-    BTAV_A2DP_CODEC_SAMPLE_RATE_48000,  BTAV_A2DP_CODEC_SAMPLE_RATE_88200,
-    BTAV_A2DP_CODEC_SAMPLE_RATE_96000,  BTAV_A2DP_CODEC_SAMPLE_RATE_176400,
-    BTAV_A2DP_CODEC_SAMPLE_RATE_192000, BTAV_A2DP_CODEC_SAMPLE_RATE_16000,
-    BTAV_A2DP_CODEC_SAMPLE_RATE_24000};
+        BTAV_A2DP_CODEC_SAMPLE_RATE_NONE,   BTAV_A2DP_CODEC_SAMPLE_RATE_44100,
+        BTAV_A2DP_CODEC_SAMPLE_RATE_48000,  BTAV_A2DP_CODEC_SAMPLE_RATE_88200,
+        BTAV_A2DP_CODEC_SAMPLE_RATE_96000,  BTAV_A2DP_CODEC_SAMPLE_RATE_176400,
+        BTAV_A2DP_CODEC_SAMPLE_RATE_192000, BTAV_A2DP_CODEC_SAMPLE_RATE_16000,
+        BTAV_A2DP_CODEC_SAMPLE_RATE_24000};
 
 constexpr SampleRate_2_1 kSampleRates_2_1[] = {
-    SampleRate_2_1::RATE_UNKNOWN, SampleRate_2_1::RATE_8000,
-    SampleRate_2_1::RATE_16000,   SampleRate_2_1::RATE_24000,
-    SampleRate_2_1::RATE_32000,   SampleRate_2_1::RATE_44100,
-    SampleRate_2_1::RATE_48000};
+        SampleRate_2_1::RATE_UNKNOWN, SampleRate_2_1::RATE_8000,  SampleRate_2_1::RATE_16000,
+        SampleRate_2_1::RATE_24000,   SampleRate_2_1::RATE_32000, SampleRate_2_1::RATE_44100,
+        SampleRate_2_1::RATE_48000};
 
-constexpr BitsPerSample kBitsPerSamples[] = {
-    BitsPerSample::BITS_UNKNOWN, BitsPerSample::BITS_16, BitsPerSample::BITS_24,
-    BitsPerSample::BITS_32};
+constexpr BitsPerSample kBitsPerSamples[] = {BitsPerSample::BITS_UNKNOWN, BitsPerSample::BITS_16,
+                                             BitsPerSample::BITS_24, BitsPerSample::BITS_32};
 
 constexpr btav_a2dp_codec_bits_per_sample_t kBtavA2dpCodecBitsPerSample[] = {
-    BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16,
-    BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32};
+        BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16,
+        BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32};
 
-constexpr ChannelMode kChannelModes[] = {
-    ChannelMode::UNKNOWN, ChannelMode::MONO, ChannelMode::STEREO};
+constexpr ChannelMode kChannelModes[] = {ChannelMode::UNKNOWN, ChannelMode::MONO,
+                                         ChannelMode::STEREO};
 
 constexpr btav_a2dp_codec_channel_mode_t kBtavA2dpCodecChannelModes[] = {
-    BTAV_A2DP_CODEC_CHANNEL_MODE_NONE, BTAV_A2DP_CODEC_CHANNEL_MODE_MONO,
-    BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO};
+        BTAV_A2DP_CODEC_CHANNEL_MODE_NONE, BTAV_A2DP_CODEC_CHANNEL_MODE_MONO,
+        BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO};
 
 constexpr uint16_t kPeerMtus[] = {660, 663, 883, 1005, 1500};
 
 constexpr btav_a2dp_codec_index_t kCodecIndices[] = {
-    BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,  BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
-    BTAV_A2DP_CODEC_INDEX_SOURCE_APTX, BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
-    BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, BTAV_A2DP_CODEC_INDEX_SINK_SBC,
-    BTAV_A2DP_CODEC_INDEX_SINK_AAC,    BTAV_A2DP_CODEC_INDEX_SINK_LDAC};
+        BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,  BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_APTX, BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, BTAV_A2DP_CODEC_INDEX_SINK_SBC,
+        BTAV_A2DP_CODEC_INDEX_SINK_AAC,    BTAV_A2DP_CODEC_INDEX_SINK_LDAC};
 
-class TestSinkTransport
-    : public bluetooth::audio::hidl::IBluetoothSinkTransportInstance {
- private:
- public:
+class TestSinkTransport : public bluetooth::audio::hidl::IBluetoothSinkTransportInstance {
+private:
+public:
   TestSinkTransport(SessionType session_type)
-      : bluetooth::audio::hidl::IBluetoothSinkTransportInstance(session_type,
-                                                                {}){};
+      : bluetooth::audio::hidl::IBluetoothSinkTransportInstance(session_type, {}) {}
 
   TestSinkTransport(SessionType_2_1 session_type_2_1)
-      : bluetooth::audio::hidl::IBluetoothSinkTransportInstance(
-            session_type_2_1, (AudioConfiguration_2_1){}){};
+      : bluetooth::audio::hidl::IBluetoothSinkTransportInstance(session_type_2_1,
+                                                                (AudioConfiguration_2_1){}) {}
 
   bluetooth::audio::hidl::BluetoothAudioCtrlAck StartRequest() override {
     return bluetooth::audio::hidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED;
@@ -160,28 +153,24 @@ class TestSinkTransport
 
   void StopRequest() override {}
 
-  bool GetPresentationPosition(uint64_t*, uint64_t*, timespec*) override {
-    return true;
-  }
+  bool GetPresentationPosition(uint64_t*, uint64_t*, timespec*) override { return true; }
 
   void MetadataChanged(const source_metadata_t&) override {}
 
-  void ResetPresentationPosition() override{};
+  void ResetPresentationPosition() override {}
 
-  void LogBytesRead(size_t) override{};
+  void LogBytesRead(size_t) override {}
 };
 
-class TestSourceTransport
-    : public bluetooth::audio::hidl::IBluetoothSourceTransportInstance {
- private:
- public:
+class TestSourceTransport : public bluetooth::audio::hidl::IBluetoothSourceTransportInstance {
+private:
+public:
   TestSourceTransport(SessionType session_type)
-      : bluetooth::audio::hidl::IBluetoothSourceTransportInstance(session_type,
-                                                                  {}){};
+      : bluetooth::audio::hidl::IBluetoothSourceTransportInstance(session_type, {}) {}
 
   TestSourceTransport(SessionType_2_1 session_type_2_1)
-      : bluetooth::audio::hidl::IBluetoothSourceTransportInstance(
-            session_type_2_1, (AudioConfiguration_2_1){}){};
+      : bluetooth::audio::hidl::IBluetoothSourceTransportInstance(session_type_2_1,
+                                                                  (AudioConfiguration_2_1){}) {}
 
   bluetooth::audio::hidl::BluetoothAudioCtrlAck StartRequest() override {
     return bluetooth::audio::hidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED;
@@ -193,19 +182,17 @@ class TestSourceTransport
 
   void StopRequest() override {}
 
-  bool GetPresentationPosition(uint64_t*, uint64_t*, timespec*) override {
-    return true;
-  }
+  bool GetPresentationPosition(uint64_t*, uint64_t*, timespec*) override { return true; }
 
   void MetadataChanged(const source_metadata_t&) override {}
 
-  void ResetPresentationPosition() override{};
+  void ResetPresentationPosition() override {}
 
-  void LogBytesWritten(size_t) override{};
+  void LogBytesWritten(size_t) override {}
 };
 
 class ClientInterfaceFuzzer {
- public:
+public:
   ~ClientInterfaceFuzzer() {
     delete (mFdp);
     delete (mTestSinkTransport);
@@ -215,7 +202,7 @@ class ClientInterfaceFuzzer {
   }
   void process(const uint8_t* data, size_t size);
 
- private:
+private:
   FuzzedDataProvider* mFdp = nullptr;
   TestSinkTransport* mTestSinkTransport = nullptr;
   TestSourceTransport* mTestSourceTransport = nullptr;
@@ -223,23 +210,18 @@ class ClientInterfaceFuzzer {
   BluetoothAudioSourceClientInterface* mClientIfSource = nullptr;
 };
 
-static CodecConfiguration SbcCodecConfigurationsGenerator(
-    FuzzedDataProvider* mFdp) {
-  SbcNumSubbands numSubbands[] = {SbcNumSubbands::SUBBAND_4,
-                                  SbcNumSubbands::SUBBAND_8};
+static CodecConfiguration SbcCodecConfigurationsGenerator(FuzzedDataProvider* mFdp) {
+  SbcNumSubbands numSubbands[] = {SbcNumSubbands::SUBBAND_4, SbcNumSubbands::SUBBAND_8};
 
-  SbcAllocMethod allocMethods[] = {SbcAllocMethod::ALLOC_MD_S,
-                                   SbcAllocMethod::ALLOC_MD_L};
+  SbcAllocMethod allocMethods[] = {SbcAllocMethod::ALLOC_MD_S, SbcAllocMethod::ALLOC_MD_L};
 
   SbcChannelMode channelModes[] = {
-      SbcChannelMode::UNKNOWN, SbcChannelMode::JOINT_STEREO,
-      SbcChannelMode::STEREO,  SbcChannelMode::DUAL,
-      SbcChannelMode::MONO,
+          SbcChannelMode::UNKNOWN, SbcChannelMode::JOINT_STEREO, SbcChannelMode::STEREO,
+          SbcChannelMode::DUAL,    SbcChannelMode::MONO,
   };
 
-  SbcBlockLength blockLengths[] = {
-      SbcBlockLength::BLOCKS_4, SbcBlockLength::BLOCKS_8,
-      SbcBlockLength::BLOCKS_12, SbcBlockLength::BLOCKS_16};
+  SbcBlockLength blockLengths[] = {SbcBlockLength::BLOCKS_4, SbcBlockLength::BLOCKS_8,
+                                   SbcBlockLength::BLOCKS_12, SbcBlockLength::BLOCKS_16};
 
   SbcParameters sbc = {};
   sbc.sampleRate = mFdp->PickValueInArray(kSampleRates);
@@ -261,11 +243,9 @@ static CodecConfiguration SbcCodecConfigurationsGenerator(
   return codecConfig;
 }
 
-static CodecConfiguration AacCodecConfigurationsGenerator(
-    FuzzedDataProvider* mFdp) {
-  AacObjectType objectTypes[] = {
-      AacObjectType::MPEG2_LC, AacObjectType::MPEG4_LC,
-      AacObjectType::MPEG4_LTP, AacObjectType::MPEG4_SCALABLE};
+static CodecConfiguration AacCodecConfigurationsGenerator(FuzzedDataProvider* mFdp) {
+  AacObjectType objectTypes[] = {AacObjectType::MPEG2_LC, AacObjectType::MPEG4_LC,
+                                 AacObjectType::MPEG4_LTP, AacObjectType::MPEG4_SCALABLE};
 
   AacVariableBitRate variableBitrates[] = {AacVariableBitRate::DISABLED,
                                            AacVariableBitRate::ENABLED};
@@ -287,17 +267,16 @@ static CodecConfiguration AacCodecConfigurationsGenerator(
   return codecConfig;
 }
 
-static CodecConfiguration LdacCodecConfigurationsGenerator(
-    FuzzedDataProvider* mFdp) {
-  LdacQualityIndex qualityIndexes[] = {
-      LdacQualityIndex::QUALITY_HIGH, LdacQualityIndex::QUALITY_MID,
-      LdacQualityIndex::QUALITY_LOW, LdacQualityIndex::QUALITY_ABR};
+static CodecConfiguration LdacCodecConfigurationsGenerator(FuzzedDataProvider* mFdp) {
+  LdacQualityIndex qualityIndexes[] = {LdacQualityIndex::QUALITY_HIGH,
+                                       LdacQualityIndex::QUALITY_MID, LdacQualityIndex::QUALITY_LOW,
+                                       LdacQualityIndex::QUALITY_ABR};
 
   LdacChannelMode kChannelModes[] = {
-      LdacChannelMode::UNKNOWN,
-      LdacChannelMode::STEREO,
-      LdacChannelMode::DUAL,
-      LdacChannelMode::MONO,
+          LdacChannelMode::UNKNOWN,
+          LdacChannelMode::STEREO,
+          LdacChannelMode::DUAL,
+          LdacChannelMode::MONO,
   };
 
   LdacParameters ldac = {};
@@ -316,8 +295,7 @@ static CodecConfiguration LdacCodecConfigurationsGenerator(
   return codecConfig;
 }
 
-static CodecConfiguration AptxCodecConfigurationsGenerator(
-    FuzzedDataProvider* mFdp) {
+static CodecConfiguration AptxCodecConfigurationsGenerator(FuzzedDataProvider* mFdp) {
   CodecType codecTypes[] = {CodecType::APTX, CodecType::APTX_HD};
 
   AptxParameters aptx = {};
@@ -335,20 +313,17 @@ static CodecConfiguration AptxCodecConfigurationsGenerator(
   return codecConfig;
 }
 
-std::vector<std::vector<btav_a2dp_codec_config_t>>
-CodecOffloadingPreferenceGenerator() {
+std::vector<std::vector<btav_a2dp_codec_config_t>> CodecOffloadingPreferenceGenerator() {
   std::vector<std::vector<btav_a2dp_codec_config_t>> offloadingPreferences = {
-      std::vector<btav_a2dp_codec_config_t>(0)};
+          std::vector<btav_a2dp_codec_config_t>(0)};
   btav_a2dp_codec_config_t a2dpCodecConfig = {};
   for (btav_a2dp_codec_index_t i : kCodecIndices) {
     a2dpCodecConfig.codec_type = i;
     auto duplicated_preferences = offloadingPreferences;
-    for (auto iter = duplicated_preferences.begin();
-         iter != duplicated_preferences.end(); ++iter) {
+    for (auto iter = duplicated_preferences.begin(); iter != duplicated_preferences.end(); ++iter) {
       iter->push_back(a2dpCodecConfig);
     }
-    offloadingPreferences.insert(offloadingPreferences.end(),
-                                 duplicated_preferences.begin(),
+    offloadingPreferences.insert(offloadingPreferences.end(), duplicated_preferences.begin(),
                                  duplicated_preferences.end());
   }
   return offloadingPreferences;
@@ -361,10 +336,8 @@ void ClientInterfaceFuzzer::process(const uint8_t* data, size_t size) {
 
   btav_a2dp_codec_config_t a2dpCodecConfig = {};
   a2dpCodecConfig.sample_rate = mFdp->PickValueInArray(kBtavSampleRates);
-  a2dpCodecConfig.bits_per_sample =
-      mFdp->PickValueInArray(kBtavA2dpCodecBitsPerSample);
-  a2dpCodecConfig.channel_mode =
-      mFdp->PickValueInArray(kBtavA2dpCodecChannelModes);
+  a2dpCodecConfig.bits_per_sample = mFdp->PickValueInArray(kBtavA2dpCodecBitsPerSample);
+  a2dpCodecConfig.channel_mode = mFdp->PickValueInArray(kBtavA2dpCodecChannelModes);
 
   A2dpCodecToHalSampleRate(a2dpCodecConfig);
   A2dpCodecToHalBitsPerSample(a2dpCodecConfig);
@@ -384,13 +357,11 @@ void ClientInterfaceFuzzer::process(const uint8_t* data, size_t size) {
     mTestSourceTransport = new TestSourceTransport(sessionType);
   }
 
-  mClientIfSink =
-      new BluetoothAudioSinkClientInterface(mTestSinkTransport, nullptr);
+  mClientIfSink = new BluetoothAudioSinkClientInterface(mTestSinkTransport, nullptr);
   mClientIfSink->GetTransportInstance();
   mClientIfSink->IsValid();
 
-  mClientIfSource =
-      new BluetoothAudioSourceClientInterface(mTestSourceTransport, nullptr);
+  mClientIfSource = new BluetoothAudioSourceClientInterface(mTestSourceTransport, nullptr);
   mClientIfSource->IsValid();
 
   CodecConfiguration codecConfig = {};
@@ -409,10 +380,8 @@ void ClientInterfaceFuzzer::process(const uint8_t* data, size_t size) {
       break;
   }
 
-  if ((!isSessionType_2_1) &&
-      (sessionType == SessionType::A2DP_HARDWARE_OFFLOAD_DATAPATH)) {
-    for (auto codec_offloading_preference :
-         CodecOffloadingPreferenceGenerator()) {
+  if ((!isSessionType_2_1) && (sessionType == SessionType::A2DP_HARDWARE_OFFLOAD_DATAPATH)) {
+    for (auto codec_offloading_preference : CodecOffloadingPreferenceGenerator()) {
       UpdateOffloadingCapabilities(codec_offloading_preference);
       update_codec_offloading_capabilities(codec_offloading_preference, false);
     }
@@ -451,15 +420,13 @@ void ClientInterfaceFuzzer::process(const uint8_t* data, size_t size) {
 
   if (((bluetooth::audio::HalVersionManager::GetHalVersion() ==
         bluetooth::audio::BluetoothAudioHalVersion::VERSION_2_1) &&
-       (mTestSinkTransport->GetSessionType_2_1() !=
-        SessionType_2_1::UNKNOWN)) ||
+       (mTestSinkTransport->GetSessionType_2_1() != SessionType_2_1::UNKNOWN)) ||
       (mTestSinkTransport->GetSessionType() != SessionType::UNKNOWN)) {
     mClientIfSink->RenewAudioProviderAndSession();
   }
 
   mClientIfSink->StreamStarted(mFdp->PickValueInArray(kBluetoothAudioCtrlAcks));
-  mClientIfSink->StreamSuspended(
-      mFdp->PickValueInArray(kBluetoothAudioCtrlAcks));
+  mClientIfSink->StreamSuspended(mFdp->PickValueInArray(kBluetoothAudioCtrlAcks));
   mClientIfSink->EndSession();
 }
 

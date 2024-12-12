@@ -27,7 +27,8 @@ impl Alarm {
 
     /// Completes when the alarm has expired
     pub async fn expired(&self) {
-        let mut read_ready = self.fd.readable().await.unwrap();
+        let mut read_ready =
+            self.fd.readable().await.expect("TimerFd is never expected to fail to be readable");
         read_ready.clear_ready();
         drop(read_ready);
         // Will not block, since we have confirmed it is readable

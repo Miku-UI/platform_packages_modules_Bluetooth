@@ -26,14 +26,14 @@ namespace common {
 
 template <typename T>
 class BlockingQueue {
- public:
+public:
   void push(T data) {
     std::unique_lock<std::mutex> lock(mutex_);
     queue_.push(std::move(data));
     if (queue_.size() == 1) {
       not_empty_.notify_all();
     }
-  };
+  }
 
   T take() {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -43,7 +43,7 @@ class BlockingQueue {
     T data = queue_.front();
     queue_.pop();
     return data;
-  };
+  }
 
   // Returns true if take() will not block within a time period
   bool wait_to_take(std::chrono::milliseconds time) {
@@ -59,15 +59,15 @@ class BlockingQueue {
   bool empty() const {
     std::unique_lock<std::mutex> lock(mutex_);
     return queue_.empty();
-  };
+  }
 
   void clear() {
     std::unique_lock<std::mutex> lock(mutex_);
     std::queue<T> empty;
     std::swap(queue_, empty);
-  };
+  }
 
- private:
+private:
   std::queue<T> queue_;
   mutable std::mutex mutex_;
   std::condition_variable not_empty_;

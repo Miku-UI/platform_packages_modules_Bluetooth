@@ -36,7 +36,7 @@ enum class BatchScanMode : uint8_t {
 };
 
 class LeScanningManager : public bluetooth::Module {
- public:
+public:
   static constexpr uint8_t kMaxAppNum = 32;
   static constexpr uint8_t kAdvertisingDataInfoNotPresent = 0xff;
   static constexpr uint8_t kTxPowerInformationNotPresent = 0x7f;
@@ -52,58 +52,44 @@ class LeScanningManager : public bluetooth::Module {
 
   virtual void Scan(bool start);
 
-  virtual void SetScanParameters(
-      ScannerId scanner_id,
-      LeScanType scan_type,
-      uint16_t scan_interval,
-      uint16_t scan_window,
-      uint8_t scan_phy);
+  virtual void SetScanParameters(ScannerId scanner_id, LeScanType scan_type, uint16_t scan_interval,
+                                 uint16_t scan_window, uint8_t scan_phy);
 
   virtual void SetScanFilterPolicy(LeScanningFilterPolicy filter_policy);
 
   /* Scan filter */
   virtual void ScanFilterEnable(bool enable);
 
-  virtual void ScanFilterParameterSetup(
-      ApcfAction action, uint8_t filter_index, AdvertisingFilterParameter advertising_filter_parameter);
+  virtual void ScanFilterParameterSetup(ApcfAction action, uint8_t filter_index,
+                                        AdvertisingFilterParameter advertising_filter_parameter);
 
-  virtual void ScanFilterAdd(uint8_t filter_index, std::vector<AdvertisingPacketContentFilterCommand> filters);
+  virtual void ScanFilterAdd(uint8_t filter_index,
+                             std::vector<AdvertisingPacketContentFilterCommand> filters);
 
   /*Batch Scan*/
-  virtual void BatchScanConifgStorage(
-      uint8_t batch_scan_full_max,
-      uint8_t batch_scan_truncated_max,
-      uint8_t batch_scan_notify_threshold,
-      ScannerId scanner_id);
-  virtual void BatchScanEnable(
-      BatchScanMode scan_mode,
-      uint32_t duty_cycle_scan_window_slots,
-      uint32_t duty_cycle_scan_interval_slots,
-      BatchScanDiscardRule batch_scan_discard_rule);
+  virtual void BatchScanConifgStorage(uint8_t batch_scan_full_max, uint8_t batch_scan_truncated_max,
+                                      uint8_t batch_scan_notify_threshold, ScannerId scanner_id);
+  virtual void BatchScanEnable(BatchScanMode scan_mode, uint32_t duty_cycle_scan_window_slots,
+                               uint32_t duty_cycle_scan_interval_slots,
+                               BatchScanDiscardRule batch_scan_discard_rule);
   virtual void BatchScanDisable();
   virtual void BatchScanReadReport(ScannerId scanner_id, BatchScanMode scan_mode);
 
-  virtual void StartSync(uint8_t sid, const AddressWithType& address, uint16_t skip, uint16_t timeout, int reg_id);
+  virtual void StartSync(uint8_t sid, const AddressWithType& address, uint16_t skip,
+                         uint16_t timeout, int reg_id);
 
   virtual void StopSync(uint16_t handle);
 
   virtual void CancelCreateSync(uint8_t sid, const Address& address);
 
-  virtual void TransferSync(
-      const Address& address,
-      uint16_t handle,
-      uint16_t service_data,
-      uint16_t sync_handle,
-      int pa_source);
+  virtual void TransferSync(const Address& address, uint16_t handle, uint16_t service_data,
+                            uint16_t sync_handle, int pa_source);
 
-  virtual void TransferSetInfo(
-      const Address& address,
-      uint16_t handle,
-      uint16_t service_data,
-      uint8_t adv_handle,
-      int pa_source);
+  virtual void TransferSetInfo(const Address& address, uint16_t handle, uint16_t service_data,
+                               uint8_t adv_handle, int pa_source);
 
-  virtual void SyncTxParameters(const Address& addr, uint8_t mode, uint16_t skip, uint16_t timeout, int reg_id);
+  virtual void SyncTxParameters(const Address& addr, uint8_t mode, uint16_t skip, uint16_t timeout,
+                                int reg_id);
 
   virtual void TrackAdvertiser(uint8_t filter_index, ScannerId scanner_id);
 
@@ -113,7 +99,7 @@ class LeScanningManager : public bluetooth::Module {
 
   static const ModuleFactory Factory;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
 
   void Start() override;
@@ -122,7 +108,7 @@ class LeScanningManager : public bluetooth::Module {
 
   std::string ToString() const override;
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
 };

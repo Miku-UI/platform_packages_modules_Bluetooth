@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assert;
@@ -60,6 +62,7 @@ public class BipDatetimeTest {
                 cal.get(Calendar.SECOND));
     }
 
+    @SuppressLint("UndefinedEquals")
     private void testParse(String date, Date expectedDate, boolean isUtc, String expectedStr) {
         BipDateTime bipDateTime = new BipDateTime(date);
         Assert.assertEquals(expectedDate, bipDateTime.getTime());
@@ -67,6 +70,7 @@ public class BipDatetimeTest {
         Assert.assertEquals(expectedStr, bipDateTime.toString());
     }
 
+    @SuppressLint("UndefinedEquals")
     private void testCreate(Date date, String dateStr) {
         BipDateTime bipDate = new BipDateTime(date);
         Assert.assertEquals(date, bipDate.getTime());

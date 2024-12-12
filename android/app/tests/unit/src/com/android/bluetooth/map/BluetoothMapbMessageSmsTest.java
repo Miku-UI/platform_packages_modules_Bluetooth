@@ -34,7 +34,7 @@ import org.junit.runner.RunWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.util.List;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -45,7 +45,7 @@ public class BluetoothMapbMessageSmsTest {
 
     private SmsManager mSmsManager = SmsManager.getDefault();
     private Context mTargetContext;
-    private ArrayList<SmsPdu> TEST_SMS_BODY_PDUS;
+    private List<SmsPdu> TEST_SMS_BODY_PDUS;
 
     @Before
     public void setUp() throws Exception {

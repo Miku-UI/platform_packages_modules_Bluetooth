@@ -36,10 +36,8 @@ void MockBleAdvertisingManager::CleanUp() {
   bt_le_advertiser_instance = nullptr;
 }
 
-MockBleAdvertisingManager* MockBleAdvertisingManager::Get() {
-  return bt_le_advertiser_instance;
-}
+MockBleAdvertisingManager* MockBleAdvertisingManager::Get() { return bt_le_advertiser_instance; }
 
-BleAdvertiserInterface* bluetooth::shim::get_ble_advertiser_instance() {
-  return static_cast<BleAdvertiserInterface*>(bt_le_advertiser_instance);
+::BleAdvertiserInterface* bluetooth::shim::get_ble_advertiser_instance() {
+  return static_cast<::BleAdvertiserInterface*>(bt_le_advertiser_instance);
 }

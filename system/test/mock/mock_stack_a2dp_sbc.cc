@@ -62,12 +62,7 @@ struct A2DP_GetTrackSampleRateSbc A2DP_GetTrackSampleRateSbc;
 struct A2DP_InitCodecConfigSbc A2DP_InitCodecConfigSbc;
 struct A2DP_InitCodecConfigSbcSink A2DP_InitCodecConfigSbcSink;
 struct A2DP_InitDefaultCodecSbc A2DP_InitDefaultCodecSbc;
-struct A2DP_IsPeerSinkCodecValidSbc A2DP_IsPeerSinkCodecValidSbc;
-struct A2DP_IsPeerSourceCodecSupportedSbc A2DP_IsPeerSourceCodecSupportedSbc;
-struct A2DP_IsPeerSourceCodecValidSbc A2DP_IsPeerSourceCodecValidSbc;
 struct A2DP_IsSinkCodecSupportedSbc A2DP_IsSinkCodecSupportedSbc;
-struct A2DP_IsSinkCodecValidSbc A2DP_IsSinkCodecValidSbc;
-struct A2DP_IsSourceCodecValidSbc A2DP_IsSourceCodecValidSbc;
 struct A2DP_SinkCodecIndexSbc A2DP_SinkCodecIndexSbc;
 struct A2DP_SourceCodecIndexSbc A2DP_SourceCodecIndexSbc;
 
@@ -91,10 +86,8 @@ bool A2DP_CodecTypeEqualsSbc::return_value = false;
 int A2DP_GetAllocationMethodCodeSbc::return_value = 0;
 uint32_t A2DP_GetBitrateSbc::return_value = 0;
 int A2DP_GetChannelModeCodeSbc::return_value = 0;
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc::return_value =
-    nullptr;
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc::return_value =
-    nullptr;
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc::return_value = nullptr;
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc::return_value = nullptr;
 int A2DP_GetMaxBitpoolSbc::return_value = 0;
 int A2DP_GetMinBitpoolSbc::return_value = 0;
 int A2DP_GetNumberOfBlocksSbc::return_value = 0;
@@ -107,12 +100,7 @@ int A2DP_GetTrackChannelCountSbc::return_value = 0;
 int A2DP_GetTrackSampleRateSbc::return_value = 0;
 bool A2DP_InitCodecConfigSbc::return_value = false;
 bool A2DP_InitCodecConfigSbcSink::return_value = false;
-bool A2DP_IsPeerSinkCodecValidSbc::return_value = false;
-bool A2DP_IsPeerSourceCodecSupportedSbc::return_value = false;
-bool A2DP_IsPeerSourceCodecValidSbc::return_value = false;
-bool A2DP_IsSinkCodecSupportedSbc::return_value = false;
-bool A2DP_IsSinkCodecValidSbc::return_value = false;
-bool A2DP_IsSourceCodecValidSbc::return_value = false;
+tA2DP_STATUS A2DP_IsSinkCodecSupportedSbc::return_value = A2DP_NOT_SUPPORTED_CODEC_TYPE;
 btav_a2dp_codec_index_t A2DP_SinkCodecIndexSbc::return_value =
     BTAV_A2DP_CODEC_INDEX_SOURCE_MIN;
 btav_a2dp_codec_index_t A2DP_SourceCodecIndexSbc::return_value =
@@ -130,14 +118,12 @@ bool A2DP_AdjustCodecSbc(uint8_t* p_codec_info) {
 bool A2DP_BuildCodecHeaderSbc(const uint8_t* p_codec_info, BT_HDR* p_buf,
                               uint16_t frames_per_packet) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_BuildCodecHeaderSbc(
-      p_codec_info, p_buf, frames_per_packet);
+  return test::mock::stack_a2dp_sbc::A2DP_BuildCodecHeaderSbc(p_codec_info, p_buf,
+                                                              frames_per_packet);
 }
-bool A2DP_CodecEqualsSbc(const uint8_t* p_codec_info_a,
-                         const uint8_t* p_codec_info_b) {
+bool A2DP_CodecEqualsSbc(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_CodecEqualsSbc(p_codec_info_a,
-                                                         p_codec_info_b);
+  return test::mock::stack_a2dp_sbc::A2DP_CodecEqualsSbc(p_codec_info_a, p_codec_info_b);
 }
 const char* A2DP_CodecIndexStrSbc(void) {
   inc_func_call_count(__func__);
@@ -155,16 +141,13 @@ const char* A2DP_CodecNameSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
   return test::mock::stack_a2dp_sbc::A2DP_CodecNameSbc(p_codec_info);
 }
-bool A2DP_CodecTypeEqualsSbc(const uint8_t* p_codec_info_a,
-                             const uint8_t* p_codec_info_b) {
+bool A2DP_CodecTypeEqualsSbc(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_CodecTypeEqualsSbc(p_codec_info_a,
-                                                             p_codec_info_b);
+  return test::mock::stack_a2dp_sbc::A2DP_CodecTypeEqualsSbc(p_codec_info_a, p_codec_info_b);
 }
 int A2DP_GetAllocationMethodCodeSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_GetAllocationMethodCodeSbc(
-      p_codec_info);
+  return test::mock::stack_a2dp_sbc::A2DP_GetAllocationMethodCodeSbc(p_codec_info);
 }
 uint32_t A2DP_GetBitrateSbc() {
   inc_func_call_count(__func__);
@@ -174,13 +157,11 @@ int A2DP_GetChannelModeCodeSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
   return test::mock::stack_a2dp_sbc::A2DP_GetChannelModeCodeSbc(p_codec_info);
 }
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc(
-    const uint8_t* p_codec_info) {
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
   return test::mock::stack_a2dp_sbc::A2DP_GetDecoderInterfaceSbc(p_codec_info);
 }
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(
-    const uint8_t* p_codec_info) {
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
   return test::mock::stack_a2dp_sbc::A2DP_GetEncoderInterfaceSbc(p_codec_info);
 }
@@ -200,26 +181,22 @@ int A2DP_GetNumberOfSubbandsSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
   return test::mock::stack_a2dp_sbc::A2DP_GetNumberOfSubbandsSbc(p_codec_info);
 }
-bool A2DP_GetPacketTimestampSbc(const uint8_t* p_codec_info,
-                                const uint8_t* p_data, uint32_t* p_timestamp) {
+bool A2DP_GetPacketTimestampSbc(const uint8_t* p_codec_info, const uint8_t* p_data,
+                                uint32_t* p_timestamp) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_GetPacketTimestampSbc(
-      p_codec_info, p_data, p_timestamp);
+  return test::mock::stack_a2dp_sbc::A2DP_GetPacketTimestampSbc(p_codec_info, p_data, p_timestamp);
 }
 int A2DP_GetSamplingFrequencyCodeSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_GetSamplingFrequencyCodeSbc(
-      p_codec_info);
+  return test::mock::stack_a2dp_sbc::A2DP_GetSamplingFrequencyCodeSbc(p_codec_info);
 }
 int A2DP_GetSinkTrackChannelTypeSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_GetSinkTrackChannelTypeSbc(
-      p_codec_info);
+  return test::mock::stack_a2dp_sbc::A2DP_GetSinkTrackChannelTypeSbc(p_codec_info);
 }
 int A2DP_GetTrackBitsPerSampleSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_GetTrackBitsPerSampleSbc(
-      p_codec_info);
+  return test::mock::stack_a2dp_sbc::A2DP_GetTrackBitsPerSampleSbc(p_codec_info);
 }
 int A2DP_GetTrackChannelCountSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
@@ -241,31 +218,9 @@ void A2DP_InitDefaultCodecSbc(uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
   test::mock::stack_a2dp_sbc::A2DP_InitDefaultCodecSbc(p_codec_info);
 }
-bool A2DP_IsPeerSinkCodecValidSbc(const uint8_t* p_codec_info) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_IsPeerSinkCodecValidSbc(p_codec_info);
-}
-bool A2DP_IsPeerSourceCodecSupportedSbc(const uint8_t* p_codec_info) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_IsPeerSourceCodecSupportedSbc(
-      p_codec_info);
-}
-bool A2DP_IsPeerSourceCodecValidSbc(const uint8_t* p_codec_info) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_IsPeerSourceCodecValidSbc(
-      p_codec_info);
-}
-bool A2DP_IsSinkCodecSupportedSbc(const uint8_t* p_codec_info) {
+tA2DP_STATUS A2DP_IsSinkCodecSupportedSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
   return test::mock::stack_a2dp_sbc::A2DP_IsSinkCodecSupportedSbc(p_codec_info);
-}
-bool A2DP_IsSinkCodecValidSbc(const uint8_t* p_codec_info) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_IsSinkCodecValidSbc(p_codec_info);
-}
-bool A2DP_IsSourceCodecValidSbc(const uint8_t* p_codec_info) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_a2dp_sbc::A2DP_IsSourceCodecValidSbc(p_codec_info);
 }
 btav_a2dp_codec_index_t A2DP_SinkCodecIndexSbc(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);

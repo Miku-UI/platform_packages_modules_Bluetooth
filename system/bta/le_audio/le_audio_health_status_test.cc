@@ -23,7 +23,6 @@
 #include <gtest/gtest.h>
 
 #include "bta/include/bta_groups.h"
-#include "common/init_flags.h"
 #include "test/common/mock_functions.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -37,8 +36,7 @@ using bluetooth::le_audio::LeAudioHealthDeviceStatType;
 using bluetooth::le_audio::LeAudioHealthGroupStatType;
 using bluetooth::le_audio::LeAudioHealthStatus;
 
-LeAudioHealthBasedAction recommendation_in_callback =
-    LeAudioHealthBasedAction::NONE;
+LeAudioHealthBasedAction recommendation_in_callback = LeAudioHealthBasedAction::NONE;
 RawAddress address_in_callback = RawAddress::kEmpty;
 int group_id_in_callback = kGroupUnknown;
 
@@ -50,13 +48,12 @@ static void healthCallback(const RawAddress& address, int group_id,
 }
 
 class LeAudioHealthStatusTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     reset_mock_function_count_map();
     group_ = new LeAudioDeviceGroup(group_id_);
     le_audio_health_status_instance_ = LeAudioHealthStatus::Get();
-    le_audio_health_status_instance_->RegisterCallback(
-        base::BindRepeating(healthCallback));
+    le_audio_health_status_instance_->RegisterCallback(base::BindRepeating(healthCallback));
   }
 
   void TearDown() override {
@@ -83,40 +80,37 @@ TEST_F(LeAudioHealthStatusTest, test_initialize) {
 
 TEST_F(LeAudioHealthStatusTest, test_invalid_db) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(
-      test_address0, DeviceConnectState::DISCONNECTED);
-  le_audio_health_status_instance_->AddStatisticForDevice(
-      device.get(), LeAudioHealthDeviceStatType::INVALID_DB);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::DISCONNECTED);
+  le_audio_health_status_instance_->AddStatisticForDevice(device.get(),
+                                                          LeAudioHealthDeviceStatType::INVALID_DB);
   ASSERT_TRUE(address_in_callback == test_address0);
   ASSERT_TRUE(recommendation_in_callback == LeAudioHealthBasedAction::DISABLE);
 }
 
 TEST_F(LeAudioHealthStatusTest, test_invalid_csis_member) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(
-      test_address0, DeviceConnectState::DISCONNECTED);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::DISCONNECTED);
   le_audio_health_status_instance_->AddStatisticForDevice(
-      device.get(), LeAudioHealthDeviceStatType::INVALID_CSIS);
+          device.get(), LeAudioHealthDeviceStatType::INVALID_CSIS);
   ASSERT_TRUE(address_in_callback == test_address0);
   ASSERT_TRUE(recommendation_in_callback == LeAudioHealthBasedAction::DISABLE);
 }
 
 TEST_F(LeAudioHealthStatusTest, test_remove_statistic) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(
-      test_address0, DeviceConnectState::DISCONNECTED);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::DISCONNECTED);
   group_->AddNode(device);
   le_audio_health_status_instance_->AddStatisticForDevice(
-      device.get(), LeAudioHealthDeviceStatType::INVALID_CSIS);
+          device.get(), LeAudioHealthDeviceStatType::INVALID_CSIS);
   le_audio_health_status_instance_->AddStatisticForGroup(
-      group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
+          group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
   le_audio_health_status_instance_->RemoveStatistics(test_address0, group_id_);
 }
 
 TEST_F(LeAudioHealthStatusTest, test_all_is_good) {
   for (int i = 0; i < 100; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
   }
 
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
@@ -125,12 +119,11 @@ TEST_F(LeAudioHealthStatusTest, test_all_is_good) {
 
 TEST_F(LeAudioHealthStatusTest, test_disable_cis_no_stream_creation) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(test_address0,
-                                                DeviceConnectState::CONNECTED);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::CONNECTED);
   group_->AddNode(device);
   for (int i = 0; i < 3; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
   }
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
   ASSERT_TRUE(group_id_in_callback == group_id_);
@@ -139,12 +132,11 @@ TEST_F(LeAudioHealthStatusTest, test_disable_cis_no_stream_creation) {
 
 TEST_F(LeAudioHealthStatusTest, test_disable_signaling_no_stream_creation) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(test_address0,
-                                                DeviceConnectState::CONNECTED);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::CONNECTED);
   group_->AddNode(device);
   for (int i = 0; i < 3; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
   }
   /* No recommendation shall be sent */
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
@@ -154,15 +146,14 @@ TEST_F(LeAudioHealthStatusTest, test_disable_signaling_no_stream_creation) {
 
 TEST_F(LeAudioHealthStatusTest, test_disable_signaling_cis_no_stream_creation) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(test_address0,
-                                                DeviceConnectState::CONNECTED);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::CONNECTED);
   group_->AddNode(device);
   for (int i = 0; i < 2; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
   }
   le_audio_health_status_instance_->AddStatisticForGroup(
-      group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
+          group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
 
   /* No recommendation shall be sent */
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
@@ -172,63 +163,59 @@ TEST_F(LeAudioHealthStatusTest, test_disable_signaling_cis_no_stream_creation) {
 
 TEST_F(LeAudioHealthStatusTest, test_consider_disabling) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(test_address0,
-                                                DeviceConnectState::CONNECTED);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::CONNECTED);
   group_->AddNode(device);
   for (int i = 0; i < 10; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
   }
 
   for (int i = 0; i < 2; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
   }
 
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
 
   for (int i = 0; i < 2; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED);
   }
 
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
 
   for (int i = 0; i < 3; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED);
   }
 
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
   ASSERT_TRUE(group_id_in_callback == group_id_);
-  ASSERT_TRUE(recommendation_in_callback ==
-              LeAudioHealthBasedAction::CONSIDER_DISABLING);
+  ASSERT_TRUE(recommendation_in_callback == LeAudioHealthBasedAction::CONSIDER_DISABLING);
 }
 
 TEST_F(LeAudioHealthStatusTest, test_inactivate_group) {
   const RawAddress test_address0 = GetTestAddress(0);
-  auto device = std::make_shared<LeAudioDevice>(test_address0,
-                                                DeviceConnectState::CONNECTED);
+  auto device = std::make_shared<LeAudioDevice>(test_address0, DeviceConnectState::CONNECTED);
   group_->AddNode(device);
   for (int i = 0; i < 10; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
+            group_, LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS);
   }
 
   for (int i = 0; i < 2; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CONTEXT_NOT_AVAILABLE);
+            group_, LeAudioHealthGroupStatType::STREAM_CONTEXT_NOT_AVAILABLE);
   }
 
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
 
   for (int i = 0; i < 1; i++) {
     le_audio_health_status_instance_->AddStatisticForGroup(
-        group_, LeAudioHealthGroupStatType::STREAM_CONTEXT_NOT_AVAILABLE);
+            group_, LeAudioHealthGroupStatType::STREAM_CONTEXT_NOT_AVAILABLE);
   }
 
   ASSERT_TRUE(address_in_callback == RawAddress::kEmpty);
   ASSERT_TRUE(group_id_in_callback == group_id_);
-  ASSERT_TRUE(recommendation_in_callback ==
-              LeAudioHealthBasedAction::INACTIVATE_GROUP);
+  ASSERT_TRUE(recommendation_in_callback == LeAudioHealthBasedAction::INACTIVATE_GROUP);
 }

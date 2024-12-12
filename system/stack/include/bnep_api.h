@@ -27,8 +27,8 @@
 
 #include <cstdint>
 
-#include "l2c_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_types.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -40,7 +40,7 @@
  * sending BNEP packets. Note, we are currently not sending
  * extension headers, but may in the future, so allow
  * space for them
-*/
+ */
 #define BNEP_MINIMUM_OFFSET (15 + L2CAP_MIN_OFFSET)
 #define BNEP_INVALID_HANDLE 0xFFFF
 
@@ -49,12 +49,12 @@
  ****************************************************************************/
 
 /* Define the result codes from BNEP
-*/
+ */
 enum {
   BNEP_SUCCESS,               /* Success                           */
   BNEP_CONN_DISCONNECTED,     /* Connection terminated   */
   BNEP_NO_RESOURCES,          /* No resources                      */
-  BNEP_MTU_EXCEDED,           /* Attempt to write long data        */
+  BNEP_MTU_EXCEEDED,          /* Attempt to write long data        */
   BNEP_INVALID_OFFSET,        /* Insufficient offset in GKI buffer */
   BNEP_CONN_FAILED,           /* Connection failed                 */
   BNEP_CONN_FAILED_CFG,       /* Connection failed cos of config   */
@@ -85,20 +85,19 @@ typedef uint8_t tBNEP_RESULT;
  *                  BNEP_SUCCESS indicates connection is success
  *                  All values are used to indicate the reason for failure
  *              Flag to indicate if it is just a role change
-*/
-typedef void(tBNEP_CONN_STATE_CB)(uint16_t handle, const RawAddress& rem_bda,
-                                  tBNEP_RESULT result, bool is_role_change);
+ */
+typedef void(tBNEP_CONN_STATE_CB)(uint16_t handle, const RawAddress& rem_bda, tBNEP_RESULT result,
+                                  bool is_role_change);
 
 /* Connection indication callback prototype. Parameters are
  *              BD Address of remote, remote UUID and local UUID
  *              and flag to indicate role change and handle to the connection
  *              When BNEP calls this function profile should
  *              use BNEP_ConnectResp call to accept or reject the request
-*/
+ */
 typedef void(tBNEP_CONNECT_IND_CB)(uint16_t handle, const RawAddress& bd_addr,
                                    const bluetooth::Uuid& remote_uuid,
-                                   const bluetooth::Uuid& local_uuid,
-                                   bool is_role_change);
+                                   const bluetooth::Uuid& local_uuid, bool is_role_change);
 
 /* Data buffer received indication callback prototype. Parameters are
  *              Handle to the connection
@@ -109,9 +108,8 @@ typedef void(tBNEP_CONNECT_IND_CB)(uint16_t handle, const RawAddress& bd_addr,
  *              Flag to indicate whether extension headers to be forwarded are
  *                present
  */
-typedef void(tBNEP_DATA_BUF_CB)(uint16_t handle, const RawAddress& src,
-                                const RawAddress& dst, uint16_t protocol,
-                                BT_HDR* p_buf, bool fw_ext_present);
+typedef void(tBNEP_DATA_BUF_CB)(uint16_t handle, const RawAddress& src, const RawAddress& dst,
+                                uint16_t protocol, BT_HDR* p_buf, bool fw_ext_present);
 
 /* Data received indication callback prototype. Parameters are
  *              Handle to the connection
@@ -123,15 +121,14 @@ typedef void(tBNEP_DATA_BUF_CB)(uint16_t handle, const RawAddress& src,
  *              Flag to indicate whether extension headers to be forwarded are
  *                present
  */
-typedef void(tBNEP_DATA_IND_CB)(uint16_t handle, const RawAddress& src,
-                                const RawAddress& dst, uint16_t protocol,
-                                uint8_t* p_data, uint16_t len,
+typedef void(tBNEP_DATA_IND_CB)(uint16_t handle, const RawAddress& src, const RawAddress& dst,
+                                uint16_t protocol, uint8_t* p_data, uint16_t len,
                                 bool fw_ext_present);
 
 /* Flow control callback for TX data. Parameters are
  *              Handle to the connection
  *              Event  flow status
-*/
+ */
 typedef void(tBNEP_TX_DATA_FLOW_CB)(uint16_t handle, tBNEP_RESULT event);
 
 /* Filters received indication callback prototype. Parameters are
@@ -146,10 +143,9 @@ typedef void(tBNEP_TX_DATA_FLOW_CB)(uint16_t handle, tBNEP_RESULT event);
  *                      They will be present in big endian order. First
  *                      two bytes will be starting of the first range and
  *                      next two bytes will be ending of the range.
-*/
-typedef void(tBNEP_FILTER_IND_CB)(uint16_t handle, bool indication,
-                                  tBNEP_RESULT result, uint16_t num_filters,
-                                  uint8_t* p_filters);
+ */
+typedef void(tBNEP_FILTER_IND_CB)(uint16_t handle, bool indication, tBNEP_RESULT result,
+                                  uint16_t num_filters, uint8_t* p_filters);
 
 /* Multicast Filters received indication callback prototype. Parameters are
  *              Handle to the connection
@@ -162,22 +158,19 @@ typedef void(tBNEP_FILTER_IND_CB)(uint16_t handle, bool indication,
  *                      of start of the range and end of the range.
  *                      First six bytes will be starting of the first range and
  *                      next six bytes will be ending of the range.
-*/
-typedef void(tBNEP_MFILTER_IND_CB)(uint16_t handle, bool indication,
-                                   tBNEP_RESULT result, uint16_t num_mfilters,
-                                   uint8_t* p_mfilters);
+ */
+typedef void(tBNEP_MFILTER_IND_CB)(uint16_t handle, bool indication, tBNEP_RESULT result,
+                                   uint16_t num_mfilters, uint8_t* p_mfilters);
 
 /* This is the structure used by profile to register with BNEP */
 typedef struct {
-  tBNEP_CONNECT_IND_CB* p_conn_ind_cb;  /* To indicate the conn request */
-  tBNEP_CONN_STATE_CB* p_conn_state_cb; /* To indicate conn state change */
-  tBNEP_DATA_IND_CB* p_data_ind_cb;     /* To pass the data received */
-  tBNEP_DATA_BUF_CB* p_data_buf_cb;     /* To pass the data buffer received */
+  tBNEP_CONNECT_IND_CB* p_conn_ind_cb;      /* To indicate the conn request */
+  tBNEP_CONN_STATE_CB* p_conn_state_cb;     /* To indicate conn state change */
+  tBNEP_DATA_IND_CB* p_data_ind_cb;         /* To pass the data received */
+  tBNEP_DATA_BUF_CB* p_data_buf_cb;         /* To pass the data buffer received */
   tBNEP_TX_DATA_FLOW_CB* p_tx_data_flow_cb; /* data flow callback */
-  tBNEP_FILTER_IND_CB*
-      p_filter_ind_cb; /* To indicate that peer set protocol filters */
-  tBNEP_MFILTER_IND_CB*
-      p_mfilter_ind_cb; /* To indicate that peer set mcast filters */
+  tBNEP_FILTER_IND_CB* p_filter_ind_cb;     /* To indicate that peer set protocol filters */
+  tBNEP_MFILTER_IND_CB* p_mfilter_ind_cb;   /* To indicate that peer set mcast filters */
 
 } tBNEP_REGISTER;
 
@@ -231,24 +224,22 @@ void BNEP_Deregister(void);
  *                  BNEP_NO_RESOURCES           if no resources
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda,
-                          const bluetooth::Uuid& src_uuid,
-                          const bluetooth::Uuid& dst_uuid, uint16_t* p_handle,
-                          uint32_t mx_chan_id);
+tBNEP_RESULT BNEP_Connect(const RawAddress& p_rem_bda, const bluetooth::Uuid& src_uuid,
+                          const bluetooth::Uuid& dst_uuid, uint16_t* p_handle, uint32_t mx_chan_id);
 
 /*******************************************************************************
  *
  * Function         BNEP_ConnectResp
  *
- * Description      This function is called in responce to connection indication
+ * Description      This function is called in response to connection indication
  *
  *
  * Parameters:      handle  - handle given in the connection indication
- *                  resp    - responce for the connection indication
+ *                  resp    - response for the connection indication
  *
  * Returns          BNEP_SUCCESS                if connection started
  *                  BNEP_WRONG_HANDLE           if the connection is not found
- *                  BNEP_WRONG_STATE            if the responce is not expected
+ *                  BNEP_WRONG_STATE            if the response is not expected
  *
  ******************************************************************************/
 tBNEP_RESULT BNEP_ConnectResp(uint16_t handle, tBNEP_RESULT resp);
@@ -282,16 +273,15 @@ tBNEP_RESULT BNEP_Disconnect(uint16_t handle);
  *BD Addr) fw_ext_present - forwarded extensions present
  *
  * Returns:         BNEP_WRONG_HANDLE       - if passed handle is not valid
- *                  BNEP_MTU_EXCEDED        - If the data length is greater
+ *                  BNEP_MTU_EXCEEDED       - If the data length is greater
  *                                            than MTU
  *                  BNEP_IGNORE_CMD         - If the packet is filtered out
  *                  BNEP_Q_SIZE_EXCEEDED    - If the Tx Q is full
  *                  BNEP_SUCCESS            - If written successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
-                           BT_HDR* p_buf, uint16_t protocol,
-                           const RawAddress& src_addr, bool fw_ext_present);
+tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr, BT_HDR* p_buf,
+                           uint16_t protocol, const RawAddress& src_addr, bool fw_ext_present);
 
 /*******************************************************************************
  *
@@ -308,7 +298,7 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
  *BD Addr) fw_ext_present - forwarded extensions present
  *
  * Returns:         BNEP_WRONG_HANDLE       - if passed handle is not valid
- *                  BNEP_MTU_EXCEDED        - If the data length is greater than
+ *                  BNEP_MTU_EXCEEDED       - If the data length is greater than
  *                                            the MTU
  *                  BNEP_IGNORE_CMD         - If the packet is filtered out
  *                  BNEP_Q_SIZE_EXCEEDED    - If the Tx Q is full
@@ -316,9 +306,8 @@ tBNEP_RESULT BNEP_WriteBuf(uint16_t handle, const RawAddress& dest_addr,
  *                  BNEP_SUCCESS            - If written successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr,
-                        uint8_t* p_data, uint16_t len, uint16_t protocol,
-                        const RawAddress& src_addr, bool fw_ext_present);
+tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr, uint8_t* p_data, uint16_t len,
+                        uint16_t protocol, const RawAddress& src_addr, bool fw_ext_present);
 
 /*******************************************************************************
  *
@@ -339,8 +328,7 @@ tBNEP_RESULT BNEP_Write(uint16_t handle, const RawAddress& dest_addr,
  *                  BNEP_SUCCESS                - if request sent successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
-                                     uint16_t* p_start_array,
+tBNEP_RESULT BNEP_SetProtocolFilters(uint16_t handle, uint16_t num_filters, uint16_t* p_start_array,
                                      uint16_t* p_end_array);
 
 /*******************************************************************************
@@ -365,8 +353,7 @@ tBNEP_RESULT BNEP_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
  *                  BNEP_SUCCESS                - if request sent successfully
  *
  ******************************************************************************/
-tBNEP_RESULT BNEP_SetMulticastFilters(uint16_t handle, uint16_t num_filters,
-                                      uint8_t* p_start_array,
+tBNEP_RESULT BNEP_SetMulticastFilters(uint16_t handle, uint16_t num_filters, uint8_t* p_start_array,
                                       uint8_t* p_end_array);
 
 /*******************************************************************************

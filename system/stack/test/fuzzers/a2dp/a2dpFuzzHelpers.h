@@ -32,8 +32,7 @@
 
 #define MAX_DB_SIZE 4096
 
-tA2DP_SDP_DB_PARAMS generateDBParams(FuzzedDataProvider* fdp,
-                                     std::vector<uint16_t>& attr_list) {
+tA2DP_SDP_DB_PARAMS generateDBParams(FuzzedDataProvider* fdp, std::vector<uint16_t>& attr_list) {
   attr_list = generateArbitraryAttrList(fdp);
 
   tA2DP_SDP_DB_PARAMS db_params;
@@ -45,8 +44,7 @@ tA2DP_SDP_DB_PARAMS generateDBParams(FuzzedDataProvider* fdp,
 }
 
 // Define our empty callback function
-void a2dp_find_callback(bool found, tA2DP_Service* p_service,
-                        const RawAddress& peer_address) {
+void a2dp_find_callback(bool found, tA2DP_Service* p_service, const RawAddress& peer_address) {
   // Free the RawAddress we created in the generate function
   delete &peer_address;
 }

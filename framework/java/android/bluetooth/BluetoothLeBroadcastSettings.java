@@ -161,7 +161,7 @@ public final class BluetoothLeBroadcastSettings implements Parcelable {
     @Override
     public void writeToParcel(Parcel out, int flags) {
         out.writeBoolean(mIsPublicBroadcast);
-        out.writeString(mBroadcastName);
+        BluetoothUtils.writeStringToParcel(out, mBroadcastName);
         if (mBroadcastCode != null) {
             out.writeInt(mBroadcastCode.length);
             out.writeByteArray(mBroadcastCode);

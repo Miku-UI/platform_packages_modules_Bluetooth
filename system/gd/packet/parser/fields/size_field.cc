@@ -15,6 +15,7 @@
  */
 
 #include "fields/size_field.h"
+
 #include "util.h"
 
 const std::string SizeField::kFieldType = "SizeField";
@@ -22,9 +23,7 @@ const std::string SizeField::kFieldType = "SizeField";
 SizeField::SizeField(std::string name, int size, ParseLocation loc)
     : ScalarField(name + "_size", size, loc), sized_field_name_(name) {}
 
-const std::string& SizeField::GetFieldType() const {
-  return SizeField::kFieldType;
-}
+const std::string& SizeField::GetFieldType() const { return SizeField::kFieldType; }
 
 void SizeField::GenGetter(std::ostream& s, Size start_offset, Size end_offset) const {
   s << "protected:";
@@ -32,18 +31,14 @@ void SizeField::GenGetter(std::ostream& s, Size start_offset, Size end_offset) c
   s << "public:\n";
 }
 
-std::string SizeField::GetBuilderParameterType() const {
-  return "";
-}
+std::string SizeField::GetBuilderParameterType() const { return ""; }
 
 bool SizeField::GenBuilderParameter(std::ostream&) const {
   // There is no builder parameter for a size field
   return false;
 }
 
-bool SizeField::HasParameterValidator() const {
-  return false;
-}
+bool SizeField::HasParameterValidator() const { return false; }
 
 void SizeField::GenParameterValidator(std::ostream&) const {
   // There is no builder parameter for a size field
@@ -58,9 +53,7 @@ void SizeField::GenValidator(std::ostream&) const {
   // Do nothing since the fixed size fields will be handled specially.
 }
 
-std::string SizeField::GetSizedFieldName() const {
-  return sized_field_name_;
-}
+std::string SizeField::GetSizedFieldName() const { return sized_field_name_; }
 
 void SizeField::GenStringRepresentation(std::ostream& s, std::string accessor) const {
   s << accessor;

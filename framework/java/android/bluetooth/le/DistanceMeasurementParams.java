@@ -186,11 +186,15 @@ public final class DistanceMeasurementParams implements Parcelable {
      */
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeParcelable(mDevice, 0);
+        mDevice.writeToParcel(out, flags);
         out.writeInt(mDuration);
         out.writeInt(mFrequency);
         out.writeInt(mMethodId);
-        out.writeParcelable(mChannelSoundingParams, 0);
+
+        out.writeInt(mChannelSoundingParams == null ? 0 : 1);
+        if (mChannelSoundingParams != null) {
+            mChannelSoundingParams.writeToParcel(out, flags);
+        }
     }
 
     /** A {@link Parcelable.Creator} to create {@link DistanceMeasurementParams} from parcel. */
@@ -198,12 +202,14 @@ public final class DistanceMeasurementParams implements Parcelable {
             new Parcelable.Creator<DistanceMeasurementParams>() {
                 @Override
                 public @NonNull DistanceMeasurementParams createFromParcel(@NonNull Parcel in) {
-                    Builder builder = new Builder((BluetoothDevice) in.readParcelable(null));
+                    Builder builder = new Builder(BluetoothDevice.CREATOR.createFromParcel(in));
                     builder.setDurationSeconds(in.readInt());
                     builder.setFrequency(in.readInt());
                     builder.setMethodId(in.readInt());
-                    builder.setChannelSoundingParams(
-                            (ChannelSoundingParams) in.readParcelable(null));
+                    if (in.readInt() == 1) {
+                        builder.setChannelSoundingParams(
+                                ChannelSoundingParams.CREATOR.createFromParcel(in));
+                    }
                     return builder.build();
                 }
 

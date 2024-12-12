@@ -21,7 +21,10 @@ import static android.net.TetheringManager.TETHER_ERROR_SERVICE_UNAVAIL;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
@@ -54,6 +57,8 @@ import org.mockito.junit.MockitoRule;
 public class PanServiceTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
     private static final byte[] REMOTE_DEVICE_ADDRESS_AS_ARRAY = new byte[] {0, 0, 0, 0, 0, 0};
+
+    private static final int TIMEOUT_MS = 5_000;
 
     private PanService mService = null;
     private BluetoothAdapter mAdapter = null;
@@ -124,11 +129,13 @@ public class PanServiceTest {
                         BluetoothProfile.STATE_DISCONNECTED, PAN_ROLE_NONE, PAN_ROLE_NONE));
 
         assertThat(mService.connect(mRemoteDevice)).isTrue();
+        verify(mNativeInterface, timeout(TIMEOUT_MS)).connect(any());
     }
 
     @Test
     public void disconnect_returnsTrue() {
         assertThat(mService.disconnect(mRemoteDevice)).isTrue();
+        verify(mNativeInterface, timeout(TIMEOUT_MS)).disconnect(any());
     }
 
     @Test
@@ -192,6 +199,7 @@ public class PanServiceTest {
                         mService.setConnectionPolicy(
                                 mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED))
                 .isTrue();
+        verify(mNativeInterface, timeout(TIMEOUT_MS)).connect(any());
 
         when(mDatabaseManager.setProfileConnectionPolicy(
                         mRemoteDevice,
@@ -202,6 +210,7 @@ public class PanServiceTest {
                         mService.setConnectionPolicy(
                                 mRemoteDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN))
                 .isTrue();
+        verify(mNativeInterface, timeout(TIMEOUT_MS)).disconnect(any());
     }
 
     @Test

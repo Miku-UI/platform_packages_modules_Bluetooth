@@ -24,22 +24,23 @@ static list_node_t* list_free_node_(list_t* list, list_node_t* node);
 // Hidden constructor, only to be used by the hash map for the allocation
 // tracker.
 // Behaves the same as |list_new|, except you get to specify the allocator.
-list_t* list_new_internal(list_free_cb callback,
-                          const allocator_t* zeroed_allocator) {
+list_t* list_new_internal(list_free_cb callback, const allocator_t* zeroed_allocator) {
   list_t* list = (list_t*)zeroed_allocator->alloc(sizeof(list_t));
-  if (!list) return NULL;
+  if (!list) {
+    return NULL;
+  }
 
   list->free_cb = callback;
   list->allocator = zeroed_allocator;
   return list;
 }
 
-list_t* list_new(list_free_cb callback) {
-  return list_new_internal(callback, &allocator_calloc);
-}
+list_t* list_new(list_free_cb callback) { return list_new_internal(callback, &allocator_calloc); }
 
 void list_free(list_t* list) {
-  if (!list) return;
+  if (!list) {
+    return;
+  }
 
   list_clear(list);
   list->allocator->free(list);
@@ -47,16 +48,17 @@ void list_free(list_t* list) {
 
 bool list_is_empty(const list_t* list) {
   log::assert_that(list != NULL, "assert failed: list != NULL");
-  return (list->length == 0);
+  return list->length == 0;
 }
 
 bool list_contains(const list_t* list, const void* data) {
   log::assert_that(list != NULL, "assert failed: list != NULL");
   log::assert_that(data != NULL, "assert failed: data != NULL");
 
-  for (const list_node_t* node = list_begin(list); node != list_end(list);
-       node = list_next(node)) {
-    if (list_node(node) == data) return true;
+  for (const list_node_t* node = list_begin(list); node != list_end(list); node = list_next(node)) {
+    if (list_node(node) == data) {
+      return true;
+    }
   }
 
   return false;
@@ -94,12 +96,16 @@ bool list_insert_after(list_t* list, list_node_t* prev_node, void* data) {
   log::assert_that(data != NULL, "assert failed: data != NULL");
 
   list_node_t* node = (list_node_t*)list->allocator->alloc(sizeof(list_node_t));
-  if (!node) return false;
+  if (!node) {
+    return false;
+  }
 
   node->next = prev_node->next;
   node->data = data;
   prev_node->next = node;
-  if (list->tail == prev_node) list->tail = node;
+  if (list->tail == prev_node) {
+    list->tail = node;
+  }
   ++list->length;
   return true;
 }
@@ -109,11 +115,15 @@ bool list_prepend(list_t* list, void* data) {
   log::assert_that(data != NULL, "assert failed: data != NULL");
 
   list_node_t* node = (list_node_t*)list->allocator->alloc(sizeof(list_node_t));
-  if (!node) return false;
+  if (!node) {
+    return false;
+  }
   node->next = list->head;
   node->data = data;
   list->head = node;
-  if (list->tail == NULL) list->tail = list->head;
+  if (list->tail == NULL) {
+    list->tail = list->head;
+  }
   ++list->length;
   return true;
 }
@@ -123,7 +133,9 @@ bool list_append(list_t* list, void* data) {
   log::assert_that(data != NULL, "assert failed: data != NULL");
 
   list_node_t* node = (list_node_t*)list->allocator->alloc(sizeof(list_node_t));
-  if (!node) return false;
+  if (!node) {
+    return false;
+  }
   node->next = NULL;
   node->data = data;
   if (list->tail == NULL) {
@@ -141,43 +153,52 @@ bool list_remove(list_t* list, void* data) {
   log::assert_that(list != NULL, "assert failed: list != NULL");
   log::assert_that(data != NULL, "assert failed: data != NULL");
 
-  if (list_is_empty(list)) return false;
+  if (list_is_empty(list)) {
+    return false;
+  }
 
   if (list->head->data == data) {
     list_node_t* next = list_free_node_(list, list->head);
-    if (list->tail == list->head) list->tail = next;
+    if (list->tail == list->head) {
+      list->tail = next;
+    }
     list->head = next;
     return true;
   }
 
   for (list_node_t *prev = list->head, *node = list->head->next; node;
-       prev = node, node = node->next)
+       prev = node, node = node->next) {
     if (node->data == data) {
       prev->next = list_free_node_(list, node);
-      if (list->tail == node) list->tail = prev;
+      if (list->tail == node) {
+        list->tail = prev;
+      }
       return true;
     }
+  }
 
   return false;
 }
 
 void list_clear(list_t* list) {
   log::assert_that(list != NULL, "assert failed: list != NULL");
-  for (list_node_t* node = list->head; node;)
+  for (list_node_t* node = list->head; node;) {
     node = list_free_node_(list, node);
+  }
   list->head = NULL;
   list->tail = NULL;
   list->length = 0;
 }
 
-list_node_t* list_foreach(const list_t* list, list_iter_cb callback,
-                          void* context) {
+list_node_t* list_foreach(const list_t* list, list_iter_cb callback, void* context) {
   log::assert_that(list != NULL, "assert failed: list != NULL");
   log::assert_that(callback != NULL, "assert failed: callback != NULL");
 
   for (list_node_t* node = list->head; node;) {
     list_node_t* next = node->next;
-    if (!callback(node->data, context)) return node;
+    if (!callback(node->data, context)) {
+      return node;
+    }
     node = next;
   }
   return NULL;
@@ -209,7 +230,9 @@ static list_node_t* list_free_node_(list_t* list, list_node_t* node) {
 
   list_node_t* next = node->next;
 
-  if (list->free_cb) list->free_cb(node->data);
+  if (list->free_cb) {
+    list->free_cb(node->data);
+  }
   list->allocator->free(node);
   --list->length;
 

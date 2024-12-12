@@ -60,18 +60,18 @@ struct TestGdxModule::PrivateImpl : public ModuleMainloop, public ModuleJniloop 
     private_impl_promise.set_value(base::PlatformThread::CurrentId());
   }
 
-  void privateCallableRepostOnMainMethod(
-      std::shared_ptr<TestGdxModule::PrivateImpl> ptr, int a, double b, char c) {
+  void privateCallableRepostOnMainMethod(std::shared_ptr<TestGdxModule::PrivateImpl> ptr, int a,
+                                         double b, char c) {
     PostMethodOnMain(ptr, &PrivateImpl::repostMethodTest, a, b, c);
   }
 
-  void privateCallableRepostOnJniMethod(
-      std::shared_ptr<TestGdxModule::PrivateImpl> ptr, int a, double b, char c) {
+  void privateCallableRepostOnJniMethod(std::shared_ptr<TestGdxModule::PrivateImpl> ptr, int a,
+                                        double b, char c) {
     PostMethodOnJni(ptr, &PrivateImpl::repostMethodTest, a, b, c);
   }
 
-  void privateCallableRecursiveOnMainMethod(
-      std::shared_ptr<TestGdxModule::PrivateImpl> ptr, int depth, double b, char c) {
+  void privateCallableRecursiveOnMainMethod(std::shared_ptr<TestGdxModule::PrivateImpl> ptr,
+                                            int depth, double b, char c) {
     if (depth > kMaxTestGdxModuleRecurseDepth) {
       private_impl_promise.set_value(base::PlatformThread::CurrentId());
       return;
@@ -79,8 +79,8 @@ struct TestGdxModule::PrivateImpl : public ModuleMainloop, public ModuleJniloop 
     PostMethodOnMain(ptr, &PrivateImpl::privateCallableRecursiveOnMainMethod, ptr, depth + 1, b, c);
   }
 
-  void privateCallableRecursiveOnJniMethod(
-      std::shared_ptr<TestGdxModule::PrivateImpl> ptr, int depth, double b, char c) {
+  void privateCallableRecursiveOnJniMethod(std::shared_ptr<TestGdxModule::PrivateImpl> ptr,
+                                           int depth, double b, char c) {
     if (depth > kMaxTestGdxModuleRecurseDepth) {
       private_impl_promise.set_value(base::PlatformThread::CurrentId());
       return;
@@ -120,8 +120,8 @@ void TestGdxModule::call_on_main(int loop_tid, int a, int b, int c) {
 void TestGdxModule::call_on_main_repost(int loop_tid, int a, int b, int c) {
   private_impl_promise = std::promise<pid_t>();
   auto future = private_impl_promise.get_future();
-  PostMethodOnMain(
-      pimpl_, &TestGdxModule::PrivateImpl::privateCallableRepostOnMainMethod, pimpl_, a, b, c);
+  PostMethodOnMain(pimpl_, &TestGdxModule::PrivateImpl::privateCallableRepostOnMainMethod, pimpl_,
+                   a, b, c);
   ASSERT_EQ(future.wait_for(std::chrono::seconds(3)), std::future_status::ready);
   ASSERT_EQ(future.get(), loop_tid);
 }
@@ -130,13 +130,8 @@ void TestGdxModule::call_on_main_repost(int loop_tid, int a, int b, int c) {
 void TestGdxModule::call_on_main_recurse(int loop_tid, int depth, int b, int c) {
   private_impl_promise = std::promise<pid_t>();
   auto future = private_impl_promise.get_future();
-  PostMethodOnMain(
-      pimpl_,
-      &TestGdxModule::PrivateImpl::privateCallableRecursiveOnMainMethod,
-      pimpl_,
-      depth,
-      b,
-      c);
+  PostMethodOnMain(pimpl_, &TestGdxModule::PrivateImpl::privateCallableRecursiveOnMainMethod,
+                   pimpl_, depth, b, c);
   ASSERT_EQ(future.wait_for(std::chrono::seconds(3)), std::future_status::ready);
   ASSERT_EQ(future.get(), loop_tid);
 }
@@ -163,8 +158,8 @@ void TestGdxModule::call_on_jni(int loop_tid, int a, int b, int c) {
 void TestGdxModule::call_on_jni_repost(int loop_tid, int a, int b, int c) {
   private_impl_promise = std::promise<pid_t>();
   auto future = private_impl_promise.get_future();
-  PostMethodOnJni(
-      pimpl_, &TestGdxModule::PrivateImpl::privateCallableRepostOnJniMethod, pimpl_, a, b, c);
+  PostMethodOnJni(pimpl_, &TestGdxModule::PrivateImpl::privateCallableRepostOnJniMethod, pimpl_, a,
+                  b, c);
   ASSERT_EQ(future.wait_for(std::chrono::seconds(3)), std::future_status::ready);
   ASSERT_EQ(future.get(), loop_tid);
 }
@@ -173,13 +168,8 @@ void TestGdxModule::call_on_jni_repost(int loop_tid, int a, int b, int c) {
 void TestGdxModule::call_on_jni_recurse(int loop_tid, int depth, int b, int c) {
   private_impl_promise = std::promise<pid_t>();
   auto future = private_impl_promise.get_future();
-  PostMethodOnJni(
-      pimpl_,
-      &TestGdxModule::PrivateImpl::privateCallableRecursiveOnJniMethod,
-      pimpl_,
-      depth,
-      b,
-      c);
+  PostMethodOnJni(pimpl_, &TestGdxModule::PrivateImpl::privateCallableRecursiveOnJniMethod, pimpl_,
+                  depth, b, c);
   ASSERT_EQ(future.wait_for(std::chrono::seconds(3)), std::future_status::ready);
   ASSERT_EQ(future.get(), loop_tid);
 }
@@ -187,9 +177,7 @@ void TestGdxModule::protected_method(int /* a */, int /* b */, int /* c */) {
   protected_method_promise.set_value(base::PlatformThread::CurrentId());
 }
 
-bool TestGdxModule::IsStarted() const {
-  return pimpl_ != nullptr;
-}
+bool TestGdxModule::IsStarted() const { return pimpl_ != nullptr; }
 
 void TestGdxModule::Start() {
   ASSERT_FALSE(IsStarted());
@@ -201,12 +189,10 @@ void TestGdxModule::Stop() {
   pimpl_.reset();
 }
 
-std::string TestGdxModule::ToString() const {
-  return "TestGdxModule";
-}
+std::string TestGdxModule::ToString() const { return "TestGdxModule"; }
 
 const bluetooth::ModuleFactory TestGdxModule::Factory =
-    bluetooth::ModuleFactory([]() { return new TestGdxModule(); });
+        bluetooth::ModuleFactory([]() { return new TestGdxModule(); });
 
 void TestGdxModule::set_callback(common::ContextualCallback<void(std::string)> callback) {
   call_many_ = callback;
@@ -217,21 +203,15 @@ void TestGdxModule::set_once_callback(common::ContextualOnceCallback<void(std::s
 }
 
 void TestGdxModule::call_callback_on_handler(std::string message) {
-  GetHandler()->Post(common::BindOnce(
-      [](common::ContextualCallback<void(std::string)> callback, std::string message) {
-        callback(message);
-      },
-      call_many_,
-      message));
+  GetHandler()->Post(common::BindOnce([](common::ContextualCallback<void(std::string)> callback,
+                                         std::string message) { callback(message); },
+                                      call_many_, message));
 }
 
 void TestGdxModule::call_once_callback_on_handler(std::string message) {
-  GetHandler()->Post(common::BindOnce(
-      [](common::ContextualOnceCallback<void(std::string)> callback, std::string message) {
-        callback(message);
-      },
-      std::move(call_once_),
-      message));
+  GetHandler()->Post(common::BindOnce([](common::ContextualOnceCallback<void(std::string)> callback,
+                                         std::string message) { callback(message); },
+                                      std::move(call_once_), message));
 }
 
 void TestGdxModule::call_callback_on_main(std::string message) {
@@ -254,7 +234,7 @@ void TestGdxModule::call_once_callback_on_jni(std::string message) {
 // Module GDx Testing Below
 //
 class ModuleGdxTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     test_framework_tid_ = base::PlatformThread::CurrentId();
     module_ = new TestGdxModule();
@@ -276,14 +256,14 @@ class ModuleGdxTest : public ::testing::Test {
     std::future future = promise.get_future();
     post_on_bt_main([&promise]() { promise.set_value(); });
     future.wait_for(std::chrono::milliseconds(sync_timeout_in_ms));
-  };
+  }
 
   void sync_jni_handler() {
     std::promise promise = std::promise<void>();
     std::future future = promise.get_future();
     post_on_bt_jni([&promise]() { promise.set_value(); });
     future.wait_for(std::chrono::milliseconds(sync_timeout_in_ms));
-  };
+  }
 
   static pid_t get_mainloop_tid() {
     std::promise<pid_t> pid_promise = std::promise<pid_t>();
@@ -307,7 +287,7 @@ class ModuleGdxTest : public ::testing::Test {
 };
 
 class ModuleGdxWithStackTest : public ModuleGdxTest {
- protected:
+protected:
   void SetUp() override {
     ModuleGdxTest::SetUp();
     module_registry_.InjectTestModule(&TestGdxModule::Factory, module_ /* pass ownership */);
@@ -319,8 +299,10 @@ class ModuleGdxWithStackTest : public ModuleGdxTest {
     std::promise<pid_t> handler_tid_promise = std::promise<pid_t>();
     std::future<pid_t> future = handler_tid_promise.get_future();
     handler->Post(common::BindOnce(
-        [](std::promise<pid_t> promise) { promise.set_value(base::PlatformThread::CurrentId()); },
-        std::move(handler_tid_promise)));
+            [](std::promise<pid_t> promise) {
+              promise.set_value(base::PlatformThread::CurrentId());
+            },
+            std::move(handler_tid_promise)));
     return future.get();
   }
 
@@ -329,9 +311,7 @@ class ModuleGdxWithStackTest : public ModuleGdxTest {
     ModuleGdxTest::TearDown();
   }
 
-  TestGdxModule* Mod() {
-    return module_registry_.GetModuleUnderTest<TestGdxModule>();
-  }
+  TestGdxModule* Mod() { return module_registry_.GetModuleUnderTest<TestGdxModule>(); }
 
   pid_t handler_tid_{-1};
 };
@@ -340,7 +320,7 @@ TEST_F(ModuleGdxTest, nop) {}
 
 TEST_F(ModuleGdxTest, lifecycle) {
   ::bluetooth::os::Thread* thread =
-      new bluetooth::os::Thread("Name", bluetooth::os::Thread::Priority::REAL_TIME);
+          new bluetooth::os::Thread("Name", bluetooth::os::Thread::Priority::REAL_TIME);
   ASSERT_FALSE(module_registry_.IsStarted<TestGdxModule>());
   module_registry_.Start<TestGdxModule>(thread);
   ASSERT_TRUE(module_registry_.IsStarted<TestGdxModule>());
@@ -354,9 +334,7 @@ TEST_F(ModuleGdxWithStackTest, call_on_handler_protected_method) {
   Mod()->call_on_handler_protected_method(handler_tid_, 1, 2, 3);
 }
 
-TEST_F(ModuleGdxWithStackTest, test_call_on_main) {
-  Mod()->call_on_main(mainloop_tid_, 1, 2, 3);
-}
+TEST_F(ModuleGdxWithStackTest, test_call_on_main) { Mod()->call_on_main(mainloop_tid_, 1, 2, 3); }
 
 TEST_F(ModuleGdxWithStackTest, test_call_gdx_external_function_on_main) {
   Mod()->call_on_main_external_function(mainloop_tid_, 1, 2.3, 'c');
@@ -370,9 +348,7 @@ TEST_F(ModuleGdxWithStackTest, test_call_on_main_recurse) {
   Mod()->call_on_main_recurse(mainloop_tid_, 1, 2, 3);
 }
 
-TEST_F(ModuleGdxWithStackTest, test_call_on_jni) {
-  Mod()->call_on_jni(jniloop_tid_, 1, 2, 3);
-}
+TEST_F(ModuleGdxWithStackTest, test_call_on_jni) { Mod()->call_on_jni(jniloop_tid_, 1, 2, 3); }
 
 TEST_F(ModuleGdxWithStackTest, test_call_gdx_external_function_on_jni) {
   Mod()->call_on_jni_external_function(jniloop_tid_, 1, 2.3, 'c');
@@ -387,18 +363,14 @@ TEST_F(ModuleGdxWithStackTest, test_call_on_jni_recurse) {
 }
 
 class ModuleGdxWithInstrumentedCallback : public ModuleGdxWithStackTest {
- protected:
-  void SetUp() override {
-    ModuleGdxWithStackTest::SetUp();
-  }
+protected:
+  void SetUp() override { ModuleGdxWithStackTest::SetUp(); }
 
-  void TearDown() override {
-    ModuleGdxWithStackTest::TearDown();
-  }
+  void TearDown() override { ModuleGdxWithStackTest::TearDown(); }
 
   // A helper class to promise/future for synchronization
   class Promises {
-   public:
+  public:
     std::promise<std::string> result;
     std::future<std::string> result_future = result.get_future();
     std::promise<void> blocking;
@@ -408,13 +380,13 @@ class ModuleGdxWithInstrumentedCallback : public ModuleGdxWithStackTest {
   };
 
   class InstrumentedCallback {
-   public:
+  public:
     Promises promises;
     common::ContextualCallback<void(std::string)> callback;
   };
 
   class InstrumentedOnceCallback {
-   public:
+  public:
     Promises promises;
     common::ContextualOnceCallback<void(std::string)> callback;
   };
@@ -422,21 +394,18 @@ class ModuleGdxWithInstrumentedCallback : public ModuleGdxWithStackTest {
   std::unique_ptr<InstrumentedCallback> GetNewCallbackOnMain() {
     auto to_return = std::make_unique<InstrumentedCallback>();
     to_return->callback = get_main()->Bind(
-        [](std::promise<std::string>* promise_ptr,
-           std::promise<void>* blocking,
-           std::future<void>* unblock,
-           std::string result) {
-          // Tell the test that this callback is running (and blocking)
-          blocking->set_value();
-          // Block until the test is ready to continue
-          ASSERT_EQ(std::future_status::ready, unblock->wait_for(std::chrono::seconds(1)));
-          // Send the result back to the test
-          promise_ptr->set_value(result);
-          log::info("set_value {}", result);
-        },
-        &to_return->promises.result,
-        &to_return->promises.blocking,
-        &to_return->promises.unblock_future);
+            [](std::promise<std::string>* promise_ptr, std::promise<void>* blocking,
+               std::future<void>* unblock, std::string result) {
+              // Tell the test that this callback is running (and blocking)
+              blocking->set_value();
+              // Block until the test is ready to continue
+              ASSERT_EQ(std::future_status::ready, unblock->wait_for(std::chrono::seconds(1)));
+              // Send the result back to the test
+              promise_ptr->set_value(result);
+              log::info("set_value {}", result);
+            },
+            &to_return->promises.result, &to_return->promises.blocking,
+            &to_return->promises.unblock_future);
 
     return to_return;
   }
@@ -444,18 +413,15 @@ class ModuleGdxWithInstrumentedCallback : public ModuleGdxWithStackTest {
   std::unique_ptr<InstrumentedOnceCallback> GetNewOnceCallbackOnMain() {
     auto to_return = std::make_unique<InstrumentedOnceCallback>();
     to_return->callback = get_main()->BindOnce(
-        [](std::promise<std::string>* promise_ptr,
-           std::promise<void>* blocking,
-           std::future<void>* unblock,
-           std::string result) {
-          blocking->set_value();
-          ASSERT_EQ(std::future_status::ready, unblock->wait_for(std::chrono::seconds(1)));
-          promise_ptr->set_value(result);
-          log::info("set_value {}", result);
-        },
-        &to_return->promises.result,
-        &to_return->promises.blocking,
-        &to_return->promises.unblock_future);
+            [](std::promise<std::string>* promise_ptr, std::promise<void>* blocking,
+               std::future<void>* unblock, std::string result) {
+              blocking->set_value();
+              ASSERT_EQ(std::future_status::ready, unblock->wait_for(std::chrono::seconds(1)));
+              promise_ptr->set_value(result);
+              log::info("set_value {}", result);
+            },
+            &to_return->promises.result, &to_return->promises.blocking,
+            &to_return->promises.unblock_future);
 
     return to_return;
   }
@@ -468,17 +434,14 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_callback_on_handler) {
   // Enqueue the callback and wait for it to block on main thread
   std::string result = "This was called on the handler";
   Mod()->call_callback_on_handler(result);
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
   log::info("Waiting");
 
   // Enqueue something else on the main thread and verify that it hasn't run
   static auto second_task_promise = std::promise<void>();
   auto final_future = second_task_promise.get_future();
-  do_in_main_thread(
-      FROM_HERE,
-      common::BindOnce(
+  do_in_main_thread(common::BindOnce(
           [](std::promise<void> promise) {
             promise.set_value();
             log::info("Finally");
@@ -488,9 +451,8 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_callback_on_handler) {
 
   // Let the callback start
   instrumented->promises.unblock.set_value();
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
   ASSERT_EQ(result, instrumented->promises.result_future.get());
 
   // Let the second task finish
@@ -504,17 +466,14 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_once_callback_on_handler) {
   // Enqueue the callback and wait for it to block on main thread
   std::string result = "This was called on the handler";
   Mod()->call_once_callback_on_handler(result);
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
   log::info("Waiting");
 
   // Enqueue something else on the main thread and verify that it hasn't run
   static auto second_task_promise = std::promise<void>();
   auto final_future = second_task_promise.get_future();
-  do_in_main_thread(
-      FROM_HERE,
-      common::BindOnce(
+  do_in_main_thread(common::BindOnce(
           [](std::promise<void> promise) {
             promise.set_value();
             log::info("Finally");
@@ -524,9 +483,8 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_once_callback_on_handler) {
 
   // Let the callback start
   instrumented->promises.unblock.set_value();
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
   ASSERT_EQ(result, instrumented->promises.result_future.get());
 
   // Let the second task finish
@@ -540,17 +498,14 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_callback_on_main) {
   // Enqueue the callback and wait for it to block on main thread
   std::string result = "This was called on the main";
   Mod()->call_callback_on_main(result);
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
   log::info("Waiting");
 
   // Enqueue something else on the main thread and verify that it hasn't run
   static auto second_task_promise = std::promise<void>();
   auto final_future = second_task_promise.get_future();
-  do_in_main_thread(
-      FROM_HERE,
-      common::BindOnce(
+  do_in_main_thread(common::BindOnce(
           [](std::promise<void> promise) {
             promise.set_value();
             log::info("Finally");
@@ -560,9 +515,8 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_callback_on_main) {
 
   // Let the callback start
   instrumented->promises.unblock.set_value();
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
   ASSERT_EQ(result, instrumented->promises.result_future.get());
 
   // Let the second task finish
@@ -576,17 +530,14 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_once_callback_on_main) {
   // Enqueue the callback and wait for it to block on main thread
   std::string result = "This was called on the main";
   Mod()->call_once_callback_on_main(result);
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
   log::info("Waiting");
 
   // Enqueue something else on the main thread and verify that it hasn't run
   static auto second_task_promise = std::promise<void>();
   auto final_future = second_task_promise.get_future();
-  do_in_main_thread(
-      FROM_HERE,
-      common::BindOnce(
+  do_in_main_thread(common::BindOnce(
           [](std::promise<void> promise) {
             promise.set_value();
             log::info("Finally");
@@ -596,9 +547,8 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_once_callback_on_main) {
 
   // Let the callback start
   instrumented->promises.unblock.set_value();
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
   ASSERT_EQ(result, instrumented->promises.result_future.get());
 
   // Let the second task finish
@@ -612,17 +562,14 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_callback_on_jni) {
   // Enqueue the callback and wait for it to block on main thread
   std::string result = "This was called on the jni";
   Mod()->call_callback_on_jni(result);
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
   log::info("Waiting");
 
   // Enqueue something else on the main thread and verify that it hasn't run
   static auto second_task_promise = std::promise<void>();
   auto final_future = second_task_promise.get_future();
-  do_in_main_thread(
-      FROM_HERE,
-      common::BindOnce(
+  do_in_main_thread(common::BindOnce(
           [](std::promise<void> promise) {
             promise.set_value();
             log::info("Finally");
@@ -632,9 +579,8 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_callback_on_jni) {
 
   // Let the callback start
   instrumented->promises.unblock.set_value();
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
   ASSERT_EQ(result, instrumented->promises.result_future.get());
 
   // Let the second task finish
@@ -648,17 +594,14 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_once_callback_on_jni) {
   // Enqueue the callback and wait for it to block on main thread
   std::string result = "This was called on the jni";
   Mod()->call_once_callback_on_jni(result);
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.blocking_future.wait_for(std::chrono::seconds(1)));
   log::info("Waiting");
 
   // Enqueue something else on the main thread and verify that it hasn't run
   static auto second_task_promise = std::promise<void>();
   auto final_future = second_task_promise.get_future();
-  do_in_main_thread(
-      FROM_HERE,
-      common::BindOnce(
+  do_in_main_thread(common::BindOnce(
           [](std::promise<void> promise) {
             promise.set_value();
             log::info("Finally");
@@ -668,9 +611,8 @@ TEST_F(ModuleGdxWithInstrumentedCallback, test_call_once_callback_on_jni) {
 
   // Let the callback start
   instrumented->promises.unblock.set_value();
-  ASSERT_EQ(
-      std::future_status::ready,
-      instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
+  ASSERT_EQ(std::future_status::ready,
+            instrumented->promises.result_future.wait_for(std::chrono::seconds(1)));
   ASSERT_EQ(result, instrumented->promises.result_future.get());
 
   // Let the second task finish

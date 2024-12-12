@@ -28,13 +28,9 @@ namespace grpc {
 
 void GrpcModule::ListDependencies(ModuleList* /* list */) const {}
 
-void GrpcModule::Start() {
-  log::assert_that(!started_, "assert failed: !started_");
-}
+void GrpcModule::Start() { log::assert_that(!started_, "assert failed: !started_"); }
 
-void GrpcModule::Stop() {
-  log::assert_that(!started_, "assert failed: !started_");
-}
+void GrpcModule::Stop() { log::assert_that(!started_, "assert failed: !started_"); }
 
 void GrpcModule::StartServer(const std::string& address, int port) {
   log::assert_that(!started_, "assert failed: !started_");
@@ -101,27 +97,18 @@ void GrpcModule::RunGrpcLoop() {
   }
 }
 
-std::string GrpcModule::ToString() const {
-  return "Grpc Module";
-}
+std::string GrpcModule::ToString() const { return "Grpc Module"; }
 
-const ::bluetooth::ModuleFactory GrpcModule::Factory = ::bluetooth::ModuleFactory([]() { return new GrpcModule(); });
+const ::bluetooth::ModuleFactory GrpcModule::Factory =
+        ::bluetooth::ModuleFactory([]() { return new GrpcModule(); });
 
-void GrpcFacadeModule::ListDependencies(ModuleList* list) const {
-  list->add<GrpcModule>();
-}
+void GrpcFacadeModule::ListDependencies(ModuleList* list) const { list->add<GrpcModule>(); }
 
-void GrpcFacadeModule::Start() {
-  GetDependency<GrpcModule>()->Register(this);
-}
+void GrpcFacadeModule::Start() { GetDependency<GrpcModule>()->Register(this); }
 
-void GrpcFacadeModule::Stop() {
-  GetDependency<GrpcModule>()->Unregister(this);
-}
+void GrpcFacadeModule::Stop() { GetDependency<GrpcModule>()->Unregister(this); }
 
-std::string GrpcFacadeModule::ToString() const {
-  return "Grpc Facade Module";
-}
+std::string GrpcFacadeModule::ToString() const { return "Grpc Facade Module"; }
 
 }  // namespace grpc
 }  // namespace bluetooth

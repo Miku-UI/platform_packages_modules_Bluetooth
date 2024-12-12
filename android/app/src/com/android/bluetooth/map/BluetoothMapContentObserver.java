@@ -66,6 +66,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.ResponseCodes;
 
 import com.google.android.mms.pdu.PduHeaders;
+import com.google.common.base.Ascii;
 
 import org.xmlpull.v1.XmlSerializer;
 
@@ -74,7 +75,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,6 +83,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -787,7 +789,7 @@ public class BluetoothMapContentObserver {
             }
         }
 
-        public byte[] encode() throws UnsupportedEncodingException {
+        public byte[] encode() {
             StringWriter sw = new StringWriter();
             XmlSerializer xmlEvtReport = Xml.newSerializer();
 
@@ -914,7 +916,7 @@ public class BluetoothMapContentObserver {
 
             Log.v(TAG, sw.toString());
 
-            return sw.toString().getBytes("UTF-8");
+            return sw.toString().getBytes(StandardCharsets.UTF_8);
         }
     }
 
@@ -993,7 +995,7 @@ public class BluetoothMapContentObserver {
             if (mMnsClient.isValidMnsRecord()) {
                 msg.what = BluetoothMnsObexClient.MSG_MNS_NOTIFICATION_REGISTRATION;
             } else {
-                // Trigger SDP Search and notificaiton registration , if SDP record not found.
+                // Trigger SDP Search and notification registration , if SDP record not found.
                 msg.what = BluetoothMnsObexClient.MSG_MNS_SDP_SEARCH_REGISTRATION;
                 if (mMnsClient.mMnsLstRegRqst != null
                         && (mMnsClient.mMnsLstRegRqst.isSearchInProgress())) {
@@ -1303,17 +1305,7 @@ public class BluetoothMapContentObserver {
             }
         }
 
-        try {
-            mMnsClient.sendEvent(evt.encode(), mMasId);
-        } catch (UnsupportedEncodingException ex) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    8);
-            /* do nothing */
-            Log.w(TAG, "Exception encoding sendEvent response", ex);
-        }
+        mMnsClient.sendEvent(evt.encode(), mMasId);
     }
 
     @VisibleForTesting
@@ -1679,7 +1671,7 @@ public class BluetoothMapContentObserver {
                                 if (threadId == DELETED_THREAD_ID) { // Message deleted
                                     // TODO:
                                     // We shall only use the folder attribute, but can't remember
-                                    // wether to set it to "deleted" or the name of the folder
+                                    // whether to set it to "deleted" or the name of the folder
                                     // from which the message have been deleted.
                                     // "old_folder" used only for MessageShift event
                                     Event evt =
@@ -2647,7 +2639,7 @@ public class BluetoothMapContentObserver {
                         /* Update the folder ID to avoid triggering an event for MCE
                          * initiated actions. */
                         /* UPDATE: Actually the BT-Spec. states that an undelete is a move of the
-                         * message to INBOX - clearified in errata 5591.
+                         * message to INBOX - clarified in errata 5591.
                          * Therefore we update the cache to INBOX-folderId - to trigger a message
                          * shift event to the old-folder. */
                         if (inboxFolder != null) {
@@ -2770,7 +2762,7 @@ public class BluetoothMapContentObserver {
                             // after undelete.
                             // We do this by changing the cached folder value to being inbox - hence
                             // the event handler will se the update as the message have been shifted
-                            // from INBOX to old-folder. (Errata 5591 clearifies this)
+                            // from INBOX to old-folder. (Errata 5591 clarifies this)
                             msg.type = Mms.MESSAGE_BOX_INBOX;
                         }
                     }
@@ -2863,7 +2855,7 @@ public class BluetoothMapContentObserver {
                              * after undelete.
                              * We do this by changing the cached folder value to being inbox - hence
                              * the event handler will se the update as the message have been shifted
-                             * from INBOX to old-folder. (Errata 5591 clearifies this)
+                             * from INBOX to old-folder. (Errata 5591 clarifies this)
                              * */
                             msg.type = Sms.MESSAGE_TYPE_INBOX;
                         }
@@ -3073,7 +3065,7 @@ public class BluetoothMapContentObserver {
             String emailBaseUri)
             throws IllegalArgumentException, RemoteException, IOException {
         Log.d(TAG, "pushMessage");
-        ArrayList<BluetoothMapbMessage.VCard> recipientList = msg.getRecipients();
+        List<BluetoothMapbMessage.VCard> recipientList = msg.getRecipients();
         int transparent =
                 (ap.getTransparent() == BluetoothMapAppParams.INVALID_VALUE_PARAMETER)
                         ? 0
@@ -3204,7 +3196,7 @@ public class BluetoothMapContentObserver {
         } else if (msg.getType().equals(TYPE.MMS) && (recipientList.size() > 1)) {
             // Group MMS
             String folder = folderElement.getName();
-            ArrayList<String> telNums = new ArrayList<String>();
+            List<String> telNums = new ArrayList<String>();
             for (BluetoothMapbMessage.VCard recipient : recipientList) {
                 // Only send the message to the top level recipient
                 if (recipient.getEnvLevel() == 0) {
@@ -3236,7 +3228,7 @@ public class BluetoothMapContentObserver {
                             && (((BluetoothMapbMessageMime) msg).getTextOnly())) {
                         msgBody = ((BluetoothMapbMessageMime) msg).getMessageAsText();
                         SmsManager smsMng = SmsManager.getDefault();
-                        ArrayList<String> parts = smsMng.divideMessage(msgBody);
+                        List<String> parts = smsMng.divideMessage(msgBody);
                         int smsParts = parts.size();
                         if (smsParts <= CONVERT_MMS_TO_SMS_PART_COUNT) {
                             Log.d(
@@ -3461,7 +3453,7 @@ public class BluetoothMapContentObserver {
     }
 
     private long pushMmsToFolder(int folder, String[] toAddress, BluetoothMapbMessageMime msg) {
-        /**
+        /*
          * strategy: 1) parse msg into parts + header 2) create thread id (abuse the ease of adding
          * an SMS to get id for thread) 3) push parts into content://mms/parts/ table 3)
          */
@@ -3558,7 +3550,7 @@ public class BluetoothMapContentObserver {
                     count++;
                     values.clear();
                     if (part.mContentType != null
-                            && part.mContentType.toUpperCase().contains("TEXT")) {
+                            && Ascii.toUpperCase(part.mContentType).contains("TEXT")) {
                         values.put(Mms.Part.CONTENT_TYPE, "text/plain");
                         values.put(Mms.Part.CHARSET, 106);
                         if (part.mPartName != null) {
@@ -3598,7 +3590,7 @@ public class BluetoothMapContentObserver {
                         Log.v(TAG, "Added TEXT part");
 
                     } else if (part.mContentType != null
-                            && part.mContentType.toUpperCase().contains("SMIL")) {
+                            && Ascii.toUpperCase(part.mContentType).contains("SMIL")) {
                         values.put(Mms.Part.SEQ, -1);
                         values.put(Mms.Part.CONTENT_TYPE, "application/smil");
                         if (part.mContentId != null) {
@@ -3617,7 +3609,7 @@ public class BluetoothMapContentObserver {
                         }
                         values.put(Mms.Part.FILENAME, "smil.xml");
                         values.put(Mms.Part.NAME, "smil.xml");
-                        values.put(Mms.Part.TEXT, new String(part.mData, "UTF-8"));
+                        values.put(Mms.Part.TEXT, new String(part.mData, StandardCharsets.UTF_8));
 
                         uri = Uri.parse(Mms.CONTENT_URI + "/" + handle + "/part");
                         uri = mResolver.insert(uri, values);
@@ -3637,13 +3629,6 @@ public class BluetoothMapContentObserver {
                     }
                 }
             }
-        } catch (UnsupportedEncodingException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    26);
-            Log.w(TAG, e);
         } catch (IOException e) {
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.MAP,
@@ -3734,15 +3719,15 @@ public class BluetoothMapContentObserver {
 
     public void sendMessage(PushMsgInfo msgInfo, String msgBody) {
         SmsManager smsMng = SmsManager.getDefault();
-        ArrayList<String> parts = smsMng.divideMessage(msgBody);
+        List<String> parts = smsMng.divideMessage(msgBody);
         msgInfo.parts = parts.size();
         // We add a time stamp to differentiate delivery reports from each other for resent messages
         msgInfo.timestamp = Calendar.getInstance().getTimeInMillis();
         msgInfo.partsDelivered = 0;
         msgInfo.partsSent = 0;
 
-        ArrayList<PendingIntent> deliveryIntents = new ArrayList<PendingIntent>(msgInfo.parts);
-        ArrayList<PendingIntent> sentIntents = new ArrayList<PendingIntent>(msgInfo.parts);
+        List<PendingIntent> deliveryIntents = new ArrayList<PendingIntent>(msgInfo.parts);
+        List<PendingIntent> sentIntents = new ArrayList<PendingIntent>(msgInfo.parts);
 
         /*       We handle the SENT intent in the MAP service, as this object
          *       is destroyed at disconnect, hence if a disconnect occur while sending

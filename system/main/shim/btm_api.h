@@ -19,12 +19,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "device/include/esco_parameters.h"
-#include "hci/le_rand_callback.h"
-#include "stack/btm/neighbor_inquiry.h"
-#include "stack/include/btm_api_types.h"
-#include "stack/include/btm_ble_api_types.h"
-#include "types/hci_role.h"
+#include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
 namespace bluetooth {
@@ -94,9 +89,8 @@ tBTM_STATUS BTM_SetEventFilterConnectionSetupAllDevices(void);
  * Parameters      std::vector of RawAddress
  *
  *******************************************************************************/
-tBTM_STATUS BTM_AllowWakeByHid(
-    std::vector<RawAddress> classic_hid_devices,
-    std::vector<std::pair<RawAddress, uint8_t>> le_hid_devices);
+tBTM_STATUS BTM_AllowWakeByHid(std::vector<RawAddress> classic_hid_devices,
+                               std::vector<std::pair<RawAddress, uint8_t>> le_hid_devices);
 
 /*******************************************************************************
  *
@@ -107,8 +101,7 @@ tBTM_STATUS BTM_AllowWakeByHid(
  * Parameters
  *
  *******************************************************************************/
-tBTM_STATUS BTM_RestoreFilterAcceptList(
-    std::vector<std::pair<RawAddress, uint8_t>> le_devices);
+tBTM_STATUS BTM_RestoreFilterAcceptList(std::vector<std::pair<RawAddress, uint8_t>> le_devices);
 
 /*******************************************************************************
  *

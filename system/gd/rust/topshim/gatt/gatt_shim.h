@@ -19,7 +19,6 @@
 #include <memory>
 
 #include "include/hardware/bt_gatt.h"
-
 #include "rust/cxx.h"
 
 namespace bluetooth {
@@ -27,26 +26,26 @@ namespace topshim {
 namespace rust {
 
 class GattClientIntf {
- public:
-  GattClientIntf(const btgatt_client_interface_t* client_intf) : client_intf_(client_intf){};
+public:
+  GattClientIntf(const btgatt_client_interface_t* client_intf) : client_intf_(client_intf) {}
   ~GattClientIntf() = default;
 
   int read_phy(int client_if, RawAddress bt_addr);
 
- private:
+private:
   const btgatt_client_interface_t* client_intf_;
 };
 
 std::unique_ptr<GattClientIntf> GetGattClientProfile(const unsigned char* gatt_intf);
 
 class GattServerIntf {
- public:
-  GattServerIntf(const btgatt_server_interface_t* server_intf) : server_intf_(server_intf){};
+public:
+  GattServerIntf(const btgatt_server_interface_t* server_intf) : server_intf_(server_intf) {}
   ~GattServerIntf() = default;
 
   int server_read_phy(int server_if, RawAddress bt_addr);
 
- private:
+private:
   const btgatt_server_interface_t* server_intf_;
 };
 

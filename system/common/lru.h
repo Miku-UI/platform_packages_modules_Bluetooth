@@ -34,7 +34,7 @@ namespace common {
 
 template <typename K, typename V>
 class LegacyLruCache {
- public:
+public:
   using Node = std::pair<K, V>;
   /**
    * Constructor of the cache
@@ -42,8 +42,7 @@ class LegacyLruCache {
    * @param capacity maximum size of the cache
    * @param log_tag, keyword to put at the head of log.
    */
-  LegacyLruCache(const size_t& capacity, const std::string& log_tag)
-      : capacity_(capacity) {
+  LegacyLruCache(const size_t& capacity, const std::string& log_tag) : capacity_(capacity) {
     if (capacity_ == 0) {
       // don't allow invalid capacity
       log::fatal("{} unable to have 0 LRU Cache capacity", log_tag);
@@ -177,7 +176,7 @@ class LegacyLruCache {
     return lru_map_.size();
   }
 
- private:
+private:
   std::list<Node> node_list_;
   size_t capacity_;
   std::unordered_map<K, typename std::list<Node>::iterator> lru_map_;

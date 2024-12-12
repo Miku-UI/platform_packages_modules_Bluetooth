@@ -25,6 +25,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -61,20 +62,20 @@ using namespace bluetooth;
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hf_client_sdp_cback(tBTA_HF_CLIENT_CB* client_cb,
-                                    const RawAddress& /* bd_addr */,
+static void bta_hf_client_sdp_cback(tBTA_HF_CLIENT_CB* client_cb, const RawAddress& /* bd_addr */,
                                     tSDP_STATUS status) {
   uint16_t event;
-  tBTA_HF_CLIENT_DISC_RESULT* p_buf = (tBTA_HF_CLIENT_DISC_RESULT*)osi_malloc(
-      sizeof(tBTA_HF_CLIENT_DISC_RESULT));
+  tBTA_HF_CLIENT_DISC_RESULT* p_buf =
+          (tBTA_HF_CLIENT_DISC_RESULT*)osi_malloc(sizeof(tBTA_HF_CLIENT_DISC_RESULT));
 
   log::verbose("bta_hf_client_sdp_cback status:0x{:x}", status);
 
   /* set event according to int/acp */
-  if (client_cb->role == BTA_HF_CLIENT_ACP)
+  if (client_cb->role == BTA_HF_CLIENT_ACP) {
     event = BTA_HF_CLIENT_DISC_ACP_RES_EVT;
-  else
+  } else {
     event = BTA_HF_CLIENT_DISC_INT_RES_EVT;
+  }
 
   p_buf->hdr.event = event;
   p_buf->hdr.layer_specific = client_cb->handle;
@@ -97,8 +98,7 @@ static void bta_hf_client_sdp_cback(tBTA_HF_CLIENT_CB* client_cb,
  *                  false if function execution failed.
  *
  *****************************************************************************/
-bool bta_hf_client_add_record(const char* p_service_name, uint8_t scn,
-                              tBTA_HF_CLIENT_FEAT features,
+bool bta_hf_client_add_record(const char* p_service_name, uint8_t scn, tBTA_HF_CLIENT_FEAT features,
                               uint32_t sdp_handle) {
   tSDP_PROTOCOL_ELEM proto_elem_list[BTA_HF_CLIENT_NUM_PROTO_ELEMS];
   uint16_t svc_class_id_list[BTA_HF_CLIENT_NUM_SVC_ELEMS];
@@ -112,8 +112,7 @@ bool bta_hf_client_add_record(const char* p_service_name, uint8_t scn,
   log::verbose("bta_hf_client_add_record");
   log::info("features: {}", features);
 
-  memset(proto_elem_list, 0,
-         BTA_HF_CLIENT_NUM_PROTO_ELEMS * sizeof(tSDP_PROTOCOL_ELEM));
+  memset(proto_elem_list, 0, BTA_HF_CLIENT_NUM_PROTO_ELEMS * sizeof(tSDP_PROTOCOL_ELEM));
 
   /* add the protocol element sequence */
   proto_elem_list[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
@@ -122,57 +121,66 @@ bool bta_hf_client_add_record(const char* p_service_name, uint8_t scn,
   proto_elem_list[1].num_params = 1;
   proto_elem_list[1].params[0] = scn;
   result &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-      sdp_handle, BTA_HF_CLIENT_NUM_PROTO_ELEMS, proto_elem_list);
+          sdp_handle, BTA_HF_CLIENT_NUM_PROTO_ELEMS, proto_elem_list);
 
   /* add service class id list */
   svc_class_id_list[0] = UUID_SERVCLASS_HF_HANDSFREE;
   svc_class_id_list[1] = UUID_SERVCLASS_GENERIC_AUDIO;
   result &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, BTA_HF_CLIENT_NUM_SVC_ELEMS, svc_class_id_list);
+          sdp_handle, BTA_HF_CLIENT_NUM_SVC_ELEMS, svc_class_id_list);
 
   /* add profile descriptor list */
   profile_uuid = UUID_SERVCLASS_HF_HANDSFREE;
   version = get_default_hfp_version();
 
-  result &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, profile_uuid, version);
+  result &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(sdp_handle,
+                                                                            profile_uuid, version);
 
   /* add service name */
   if (p_service_name != NULL && p_service_name[0] != 0) {
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE,
-        (uint32_t)(strlen(p_service_name) + 1), (uint8_t*)p_service_name);
+            sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE,
+            (uint32_t)(strlen(p_service_name) + 1), (uint8_t*)p_service_name);
   }
 
   /* add features */
-  if (features & BTA_HF_CLIENT_FEAT_ECNR)
+  if (features & BTA_HF_CLIENT_FEAT_ECNR) {
     sdp_features |= BTA_HF_CLIENT_FEAT_ECNR;
+  }
 
-  if (features & BTA_HF_CLIENT_FEAT_3WAY)
+  if (features & BTA_HF_CLIENT_FEAT_3WAY) {
     sdp_features |= BTA_HF_CLIENT_FEAT_3WAY;
+  }
 
-  if (features & BTA_HF_CLIENT_FEAT_CLI) sdp_features |= BTA_HF_CLIENT_FEAT_CLI;
+  if (features & BTA_HF_CLIENT_FEAT_CLI) {
+    sdp_features |= BTA_HF_CLIENT_FEAT_CLI;
+  }
 
-  if (features & BTA_HF_CLIENT_FEAT_VREC)
+  if (features & BTA_HF_CLIENT_FEAT_VREC) {
     sdp_features |= BTA_HF_CLIENT_FEAT_VREC;
+  }
 
-  if (features & BTA_HF_CLIENT_FEAT_VOL) sdp_features |= BTA_HF_CLIENT_FEAT_VOL;
+  if (features & BTA_HF_CLIENT_FEAT_VOL) {
+    sdp_features |= BTA_HF_CLIENT_FEAT_VOL;
+  }
 
   /* Codec bit position is different in SDP (bit 5) and in BRSF (bit 7) */
-  if (features & BTA_HF_CLIENT_FEAT_CODEC)
+  if (features & BTA_HF_CLIENT_FEAT_CODEC) {
     sdp_features |= BTA_HF_CLIENT_WBS_SUPPORT;
+  }
 
   /* Support swb */
-  if (features & BTA_HF_CLIENT_FEAT_SWB)
-    features |= BTA_HF_CLIENT_FEAT_SWB_SUPPORT;
+  if (features & BTA_HF_CLIENT_FEAT_SWB) {
+    sdp_features |= BTA_HF_CLIENT_FEAT_SWB_SUPPORT;
+  }
 
   UINT16_TO_BE_FIELD(buf, sdp_features);
   result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_SUPPORTED_FEATURES, UINT_DESC_TYPE, 2, buf);
+          sdp_handle, ATTR_ID_SUPPORTED_FEATURES, UINT_DESC_TYPE, 2, buf);
 
   /* add browse group list */
   result &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, browse_list);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, browse_list);
 
   return result;
 }
@@ -187,15 +195,12 @@ bool bta_hf_client_add_record(const char* p_service_name, uint8_t scn,
  * Returns          void
  *
  ******************************************************************************/
-void bta_hf_client_create_record(tBTA_HF_CLIENT_CB_ARR* client_cb_arr,
-                                 const char* p_service_name) {
+void bta_hf_client_create_record(tBTA_HF_CLIENT_CB_ARR* client_cb_arr, const char* p_service_name) {
   /* add sdp record if not already registered */
   if (client_cb_arr->sdp_handle == 0) {
-    client_cb_arr->sdp_handle =
-        get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
+    client_cb_arr->sdp_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
     client_cb_arr->scn = BTA_AllocateSCN();
-    bta_hf_client_add_record(p_service_name, client_cb_arr->scn,
-                             client_cb_arr->features,
+    bta_hf_client_add_record(p_service_name, client_cb_arr->scn, client_cb_arr->features,
                              client_cb_arr->sdp_handle);
 
     bta_sys_add_uuid(UUID_SERVCLASS_HF_HANDSFREE);
@@ -216,8 +221,7 @@ void bta_hf_client_del_record(tBTA_HF_CLIENT_CB_ARR* client_cb) {
   log::verbose("");
 
   if (client_cb->sdp_handle != 0) {
-    if (get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-            client_cb->sdp_handle)) {
+    if (get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(client_cb->sdp_handle)) {
       log::warn("Unable to delete SDP record handle:{}", client_cb->sdp_handle);
     }
     client_cb->sdp_handle = 0;
@@ -247,8 +251,8 @@ bool bta_hf_client_sdp_find_attr(tBTA_HF_CLIENT_CB* client_cb) {
   /* loop through all records we found */
   while (true) {
     /* get next record; if none found, we're done */
-    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
-        client_cb->p_disc_db, UUID_SERVCLASS_AG_HANDSFREE, p_rec);
+    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(client_cb->p_disc_db,
+                                                               UUID_SERVCLASS_AG_HANDSFREE, p_rec);
     if (p_rec == NULL) {
       break;
     }
@@ -256,7 +260,7 @@ bool bta_hf_client_sdp_find_attr(tBTA_HF_CLIENT_CB* client_cb) {
     /* get scn from proto desc list if initiator */
     if (client_cb->role == BTA_HF_CLIENT_INT) {
       if (get_legacy_stack_sdp_api()->record.SDP_FindProtocolListElemInRec(
-              p_rec, UUID_PROTOCOL_RFCOMM, &pe)) {
+                  p_rec, UUID_PROTOCOL_RFCOMM, &pe)) {
         client_cb->peer_scn = (uint8_t)pe.params[0];
       } else {
         continue;
@@ -265,16 +269,14 @@ bool bta_hf_client_sdp_find_attr(tBTA_HF_CLIENT_CB* client_cb) {
 
     /* get profile version (if failure, version parameter is not updated) */
     if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
-            p_rec, UUID_SERVCLASS_HF_HANDSFREE, &client_cb->peer_version)) {
-      log::warn("Uable to find HFP profile version in SDP record peer:{}",
-                p_rec->remote_bd_addr);
+                p_rec, UUID_SERVCLASS_HF_HANDSFREE, &client_cb->peer_version)) {
+      log::warn("Uable to find HFP profile version in SDP record peer:{}", p_rec->remote_bd_addr);
     }
 
     /* get features */
-    p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-        p_rec, ATTR_ID_SUPPORTED_FEATURES);
-    if (p_attr != NULL &&
-        SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE &&
+    p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(p_rec,
+                                                                       ATTR_ID_SUPPORTED_FEATURES);
+    if (p_attr != NULL && SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE &&
         SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
       /* Found attribute. Get value. */
       /* There might be race condition between SDP and BRSF.  */
@@ -289,10 +291,8 @@ bool bta_hf_client_sdp_find_attr(tBTA_HF_CLIENT_CB* client_cb) {
         }
 
         /* get network for ability to reject calls */
-        p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-            p_rec, ATTR_ID_NETWORK);
-        if (p_attr != NULL &&
-            SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE &&
+        p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(p_rec, ATTR_ID_NETWORK);
+        if (p_attr != NULL && SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE &&
             SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
           if (p_attr->attr_value.v.u16 == 0x01) {
             client_cb->peer_features |= BTA_HF_CLIENT_PEER_REJECT;
@@ -306,8 +306,8 @@ bool bta_hf_client_sdp_find_attr(tBTA_HF_CLIENT_CB* client_cb) {
     break;
   }
 
-  log::verbose("peer_version=0x{:x} peer_features=0x{:x}",
-               client_cb->peer_version, client_cb->peer_features);
+  log::verbose("peer_version=0x{:x} peer_features=0x{:x}", client_cb->peer_version,
+               client_cb->peer_features);
 
   return result;
 }
@@ -347,25 +347,35 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_AG_HANDSFREE);
   }
 
+  /* If we already have a non-null discovery database at this point, we can get
+   * into a race condition leading to UAF once this connection is closed.
+   * This should only happen with malicious modifications to a client. */
+  if (com::android::bluetooth::flags::btsec_check_valid_discovery_database() &&
+      client_cb->p_disc_db != NULL) {
+    log::error("Tried to set up a HF client with a preexisting discovery database.");
+    client_cb->p_disc_db = NULL;
+    // We manually set the state here because it's possible to call this from an
+    // OPEN state, in which case the discovery fail event will be ignored.
+    client_cb->state = 0;  // BTA_HF_CLIENT_INIT_ST
+    return;
+  }
+
   /* allocate buffer for sdp database */
   client_cb->p_disc_db = (tSDP_DISCOVERY_DB*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
 
   /* set up service discovery database; attr happens to be attr_list len */
   db_inited = get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
-      client_cb->p_disc_db, BT_DEFAULT_BUFFER_SIZE, num_uuid, uuid_list,
-      num_attr, attr_list);
+          client_cb->p_disc_db, BT_DEFAULT_BUFFER_SIZE, num_uuid, uuid_list, num_attr, attr_list);
 
   if (db_inited) {
     /*Service discovery not initiated */
-    db_inited =
-        get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
+    db_inited = get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
             client_cb->peer_addr, client_cb->p_disc_db,
             base::BindRepeating(&bta_hf_client_sdp_cback, client_cb));
   }
 
   if (!db_inited) {
-    log::warn("Unable to start SDP service search request peer:{}",
-              client_cb->peer_addr);
+    log::warn("Unable to start SDP service search request peer:{}", client_cb->peer_addr);
     /*free discover db */
     osi_free_and_reset((void**)&client_cb->p_disc_db);
     /* sent failed event */
@@ -387,8 +397,7 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
  ******************************************************************************/
 void bta_hf_client_free_db(tBTA_HF_CLIENT_DATA* p_data) {
   log::assert_that(p_data != NULL, "assert failed: p_data != NULL");
-  tBTA_HF_CLIENT_CB* client_cb =
-      bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
+  tBTA_HF_CLIENT_CB* client_cb = bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
   if (client_cb == NULL) {
     log::error("cb not found for handle {}", p_data->hdr.layer_specific);
     return;

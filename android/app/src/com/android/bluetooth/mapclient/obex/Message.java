@@ -21,7 +21,7 @@ import org.json.JSONObject;
 
 import java.math.BigInteger;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Object representation of message received in messages listing
@@ -64,7 +64,7 @@ public class Message {
 
     private final boolean mProtected;
 
-    Message(HashMap<String, String> attrs) throws IllegalArgumentException {
+    Message(Map<String, String> attrs) throws IllegalArgumentException {
         int size;
 
         try {
@@ -82,7 +82,7 @@ public class Message {
 
         mSubject = attrs.get("subject");
         String dateTime = attrs.get("datetime");
-        // Handle possible NPE when not able to retreive datetime attribute
+        // Handle possible NPE when not able to retrieve datetime attribute
         if (dateTime != null) {
             mDateTime = (new ObexTime(dateTime)).getTime();
         } else {
@@ -262,7 +262,7 @@ public class Message {
     }
 
     /**
-     * @return {@link .ReceptionStatus} object corresponding to <code>reception_status</code>
+     * @return {@link ReceptionStatus} object corresponding to <code>reception_status</code>
      *     parameter in MAP specification
      */
     public ReceptionStatus getReceptionStatus() {

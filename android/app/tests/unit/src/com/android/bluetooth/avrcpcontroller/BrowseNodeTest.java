@@ -18,15 +18,21 @@ package com.android.bluetooth.avrcpcontroller;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.avrcpcontroller.BrowseTree.BrowseNode;
+import com.android.bluetooth.flags.Flags;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -39,6 +45,8 @@ public class BrowseNodeTest {
     private static final int TEST_PLAYER_ID = 1;
     private static final String TEST_UUID = "1111";
     private static final String TEST_NAME = "item";
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
     private BluetoothAdapter mAdapter;
@@ -69,6 +77,31 @@ public class BrowseNodeTest {
         assertThat(browseNode.getBluetoothID()).isEqualTo(TEST_PLAYER_ID);
         assertThat(browseNode.getDevice()).isEqualTo(mTestDevice);
         assertThat(browseNode.isBrowsable()).isTrue();
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
+    public void constructor_withBluetoothDevice() {
+        BrowseNode browseNode = mBrowseTree.new BrowseNode(mTestDevice);
+
+        assertThat(browseNode.getID()).isNotNull();
+        assertThat(browseNode.getDevice()).isEqualTo(mTestDevice);
+        assertThat(browseNode.isPlayer()).isFalse();
+        assertThat(browseNode.isBrowsable()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
+    public void constructor_withBluetoothDevice_withRandomUuid() {
+        BrowseNode browseNode1 = mBrowseTree.new BrowseNode(mTestDevice);
+
+        assertThat(browseNode1.getID()).isNotNull();
+        assertThat(browseNode1.getDevice()).isEqualTo(mTestDevice);
+        assertThat(browseNode1.isPlayer()).isFalse();
+        assertThat(browseNode1.isBrowsable()).isTrue();
+
+        BrowseNode browseNode2 = mBrowseTree.new BrowseNode(mTestDevice);
+        assertThat(browseNode1.getID()).isNotEqualTo(browseNode2.getID());
     }
 
     @Test
@@ -152,6 +185,49 @@ public class BrowseNodeTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_UNCACHE_PLAYER_WHEN_BROWSED_PLAYER_CHANGES)
+    public void setUncached_whenNodeHasChildrenNodes() {
+        BrowseNode deviceNode = mBrowseTree.new BrowseNode(mTestDevice);
+        mRootNode.addChild(deviceNode);
+        mRootNode.setCached(true);
+
+        BrowseNode browseNodeChild1 =
+                mBrowseTree.new BrowseNode(new AvrcpItem.Builder().setUuid("child1").build());
+        BrowseNode browseNodeChild2 =
+                mBrowseTree.new BrowseNode(new AvrcpItem.Builder().setUuid("child2").build());
+        BrowseNode browseNodeChild3 =
+                mBrowseTree.new BrowseNode(new AvrcpItem.Builder().setUuid("child3").build());
+        deviceNode.addChild(browseNodeChild1);
+        deviceNode.addChild(browseNodeChild2);
+        deviceNode.addChild(browseNodeChild3);
+        deviceNode.setCached(true);
+
+        BrowseNode browseNodeChild1_1 =
+                mBrowseTree.new BrowseNode(new AvrcpItem.Builder().setUuid("child1_1").build());
+        browseNodeChild1.addChild(browseNodeChild1_1);
+        browseNodeChild1.setCached(true);
+
+        assertThat(mRootNode.isCached()).isTrue();
+        assertThat(deviceNode.isCached()).isTrue();
+        assertThat(browseNodeChild1.isCached()).isTrue();
+        assertThat(mRootNode.getChildrenCount()).isEqualTo(1);
+        assertThat(deviceNode.getChildrenCount()).isEqualTo(3);
+        assertThat(browseNodeChild1.getChildrenCount()).isEqualTo(1);
+
+        deviceNode.setCached(false);
+
+        assertThat(mRootNode.isCached()).isTrue();
+        assertThat(deviceNode.isCached()).isFalse();
+        assertThat(browseNodeChild1.isCached()).isFalse();
+        assertThat(browseNodeChild2.isCached()).isFalse();
+        assertThat(browseNodeChild3.isCached()).isFalse();
+        assertThat(browseNodeChild1_1.isCached()).isFalse();
+        assertThat(mRootNode.getChildrenCount()).isEqualTo(1);
+        assertThat(deviceNode.getChildrenCount()).isEqualTo(0);
+        assertThat(browseNodeChild1.getChildrenCount()).isEqualTo(0);
+    }
+
+    @Test
     public void getters() {
         BrowseNode browseNode =
                 mBrowseTree.new BrowseNode(new AvrcpItem.Builder().setUuid(TEST_UUID).build());
@@ -162,6 +238,7 @@ public class BrowseNodeTest {
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void equals_withDifferentClass() {
         AvrcpItem avrcpItem = new AvrcpItem.Builder().setUuid(TEST_UUID).build();
 
@@ -190,10 +267,10 @@ public class BrowseNodeTest {
     @Test
     public void toTreeString_returnFormattedString() {
         final String expected =
-                "  [Id: 1111 Name: item Size: 2]\n"
-                        + "    [Id: child1 Name: child1 Size: 1]\n"
-                        + "      [Id: child3 Name: child3 Size: 0]\n"
-                        + "    [Id: child2 Name: child2 Size: 0]\n";
+                "  [id=1111, name=item, cached=false, size=2]\n"
+                        + "    [id=child1, name=child1, cached=false, size=1]\n"
+                        + "      [id=child3, name=child3, cached=false, size=0]\n"
+                        + "    [id=child2, name=child2, cached=false, size=0]\n";
 
         BrowseNode browseNode =
                 mBrowseTree
@@ -243,6 +320,6 @@ public class BrowseNodeTest {
                                 .build());
 
         assertThat(browseNode.toString())
-                .isEqualTo("[Id: " + TEST_UUID + " Name: " + TEST_NAME + " Size: 0]");
+                .isEqualTo("[id=" + TEST_UUID + ", name=" + TEST_NAME + ", cached=false, size=0]");
     }
 }

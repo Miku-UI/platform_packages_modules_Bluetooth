@@ -29,7 +29,7 @@ fn main() {
     Config::new().probe("fmt").unwrap();
 
     // Include ChromeOS-specific dependencies.
-    if option_env!("TARGET_OS_VARIANT").unwrap_or("None").to_string() == "chromeos" {
+    if option_env!("TARGET_OS_VARIANT").unwrap_or("None") == "chromeos" {
         Config::new().probe("libstructuredmetrics").unwrap();
     }
 

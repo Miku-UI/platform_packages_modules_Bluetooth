@@ -33,12 +33,15 @@
 #include <vector>
 
 #include "a2dp_api.h"
-#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "avdt_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
 class tBT_A2DP_OFFLOAD;
+
+typedef uint32_t tA2DP_SAMPLE_RATE;
+typedef uint8_t tA2DP_CHANNEL_COUNT;
+typedef uint8_t tA2DP_BITS_PER_SAMPLE;
 
 /**
  * Structure used to initialize the A2DP encoder with A2DP peer information
@@ -52,13 +55,12 @@ typedef struct {
 class A2dpCodecConfig {
   friend class A2dpCodecs;
 
- public:
+public:
   // Creates a codec entry. The selected codec is defined by |codec_index|,
   // Returns the codec entry on success, otherwise nullptr.
   static A2dpCodecConfig* createCodec(
-      btav_a2dp_codec_index_t codec_index,
-      btav_a2dp_codec_priority_t codec_priority =
-          BTAV_A2DP_CODEC_PRIORITY_DEFAULT);
+          btav_a2dp_codec_index_t codec_index,
+          btav_a2dp_codec_priority_t codec_priority = BTAV_A2DP_CODEC_PRIORITY_DEFAULT);
 
   virtual ~A2dpCodecConfig() = 0;
 
@@ -75,7 +77,7 @@ class A2dpCodecConfig {
   //      set to 0, if octet 0 is not 0xFF.
   //  - Bits 24-39: Vendor-defined codec ID,
   //      set to 0, if octet 0 is not 0xFF.
-  uint64_t codecId() const { return codec_id_; }
+  tA2DP_CODEC_ID codecId() const { return codec_id_; }
 
   // Gets the codec name.
   const std::string& name() const { return name_; }
@@ -143,7 +145,7 @@ class A2dpCodecConfig {
   // Returns true if |codec_config| is empty, otherwise false.
   static bool isCodecConfigEmpty(const btav_a2dp_codec_config_t& codec_config);
 
- protected:
+protected:
   // Sets the current priority of the codec to |codec_priority|.
   // If |codec_priority| is BTAV_A2DP_CODEC_PRIORITY_DEFAULT, the priority is
   // reset to its default value.
@@ -161,10 +163,9 @@ class A2dpCodecConfig {
   // The result codec configuration is stored in |p_result_codec_config|.
   // See |A2dpCodecs.setCodecConfig| for detailed description of
   // the actual mechanism used to compute the configuration.
-  // Returns true on success, othewise false.
-  virtual bool setCodecConfig(const uint8_t* p_peer_codec_info,
-                              bool is_capability,
-                              uint8_t* p_result_codec_config) = 0;
+  // Returns A2DP_SUCCESS on success, a descriptive error code otherwise.
+  virtual tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
+                                      uint8_t* p_result_codec_config) = 0;
 
   // Sets the user prefered codec configuration.
   // |codec_user_config| contains the preferred codec user configuration.
@@ -182,34 +183,29 @@ class A2dpCodecConfig {
   // If there is any change in the codec configuration, flag |p_config_updated|
   // is set to true.
   // Returns true on success, otherwise false.
-  bool setCodecUserConfig(const btav_a2dp_codec_config_t& codec_user_config,
-                          const btav_a2dp_codec_config_t& codec_audio_config,
-                          const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-                          const uint8_t* p_peer_codec_info, bool is_capability,
-                          uint8_t* p_result_codec_config, bool* p_restart_input,
-                          bool* p_restart_output, bool* p_config_updated);
+  tA2DP_STATUS setCodecUserConfig(const btav_a2dp_codec_config_t& codec_user_config,
+                                  const btav_a2dp_codec_config_t& codec_audio_config,
+                                  const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+                                  const uint8_t* p_peer_codec_info, bool is_capability,
+                                  uint8_t* p_result_codec_config, bool* p_restart_input,
+                                  bool* p_restart_output, bool* p_config_updated);
 
   // Sets the codec capabilities for a peer.
   // |p_peer_codec_capabiltities| is the peer codec capabilities to set.
   // Returns true on success, otherwise false.
-  virtual bool setPeerCodecCapabilities(
-      const uint8_t* p_peer_codec_capabilities) = 0;
+  virtual bool setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) = 0;
 
   // Constructor where |codec_index| is the unique index that identifies the
   // codec. The user-friendly name is |name|.
   // The default codec priority is |codec_priority|. If the value is
   // |BTAV_A2DP_CODEC_PRIORITY_DEFAULT|, the codec priority is computed
   // internally.
-  A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, uint64_t codec_id,
-                  const std::string& name,
-                  btav_a2dp_codec_priority_t codec_priority);
+  A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, tA2DP_CODEC_ID codec_id,
+                  const std::string& name, btav_a2dp_codec_priority_t codec_priority);
 
   // Initializes the codec entry.
   // Returns true on success, otherwise false.
   virtual bool init() = 0;
-
-  // Checks whether the internal state is valid
-  virtual bool isValid() const;
 
   // Checks whether the A2DP Codec Configuration is valid.
   // Returns true if A2DP Codec Configuration stored in |codec_config|
@@ -220,29 +216,26 @@ class A2dpCodecConfig {
   // Returns the string representation of A2DP Codec Configuration stored
   // in |codec_config|. The format is:
   // "Rate=44100|48000 Bits=16|24 Mode=MONO|STEREO"
-  static std::string codecConfig2Str(
-      const btav_a2dp_codec_config_t& codec_config);
+  static std::string codecConfig2Str(const btav_a2dp_codec_config_t& codec_config);
 
   // Gets the string representation of A2DP Codec Sample Rate.
   // Returns the string representation of A2DP Codec Sample Rate stored
   // in |codec_sample_rate|. If there are multiple values stored in
   // |codec_sample_rate|, the return string format is "rate1|rate2|rate3".
-  static std::string codecSampleRate2Str(
-      btav_a2dp_codec_sample_rate_t codec_sample_rate);
+  static std::string codecSampleRate2Str(btav_a2dp_codec_sample_rate_t codec_sample_rate);
 
   // Gets the string representation of A2DP Codec Bits Per Sample.
   // Returns the string representation of A2DP Codec Bits Per Sample stored
   // in |codec_bits_per_sample|. If there are multiple values stored in
   // |codec_bits_per_sample|, the return string format is "bits1|bits2|bits3".
   static std::string codecBitsPerSample2Str(
-      btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample);
+          btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample);
 
   // Gets the string representation of A2DP Codec Channel Mode.
   // Returns the string representation of A2DP Channel Mode stored
   // in |codec_channel_mode|. If there are multiple values stored in
   // |codec_channel_mode|, the return string format is "mode1|mode2|mode3".
-  static std::string codecChannelMode2Str(
-      btav_a2dp_codec_channel_mode_t codec_channel_mode);
+  static std::string codecChannelMode2Str(btav_a2dp_codec_channel_mode_t codec_channel_mode);
 
   // Dumps codec-related information.
   // The information is written in user-friendly form to file descriptor |fd|.
@@ -250,7 +243,7 @@ class A2dpCodecConfig {
 
   std::recursive_mutex codec_mutex_;
   const btav_a2dp_codec_index_t codec_index_;  // The unique codec index
-  const uint64_t codec_id_;                    // The standardized codec id
+  const tA2DP_CODEC_ID codec_id_;              // The standardized codec id
   const std::string name_;                     // The codec name
   btav_a2dp_codec_priority_t codec_priority_;  // Codec priority: must be unique
   btav_a2dp_codec_priority_t default_codec_priority_;
@@ -274,7 +267,7 @@ class A2dpCodecConfig {
 };
 
 class A2dpCodecs {
- public:
+public:
   // Constructor for class |A2dpCodecs|.
   // |codec_priorities| contains the codec priorities to use.
   A2dpCodecs(const std::vector<btav_a2dp_codec_config_t>& codec_priorities);
@@ -306,9 +299,7 @@ class A2dpCodecs {
   // Gets the codec config that is currently selected.
   // Returns the codec config that is currently selected, or nullptr if
   // no codec is selected.
-  A2dpCodecConfig* getCurrentCodecConfig() const {
-    return current_codec_config_;
-  }
+  A2dpCodecConfig* getCurrentCodecConfig() const { return current_codec_config_; }
 
   // Selects the codec config.
   // /!\ Must only be used with offloaded codecs.
@@ -318,14 +309,10 @@ class A2dpCodecs {
   }
 
   // Gets the list of Source codecs ordered by priority: higher priority first.
-  const std::list<A2dpCodecConfig*> orderedSourceCodecs() const {
-    return ordered_source_codecs_;
-  }
+  const std::list<A2dpCodecConfig*> orderedSourceCodecs() const { return ordered_source_codecs_; }
 
   // Gets the list of Sink codecs ordered by priority: higher priority first.
-  const std::list<A2dpCodecConfig*> orderedSinkCodecs() const {
-    return ordered_sink_codecs_;
-  }
+  const std::list<A2dpCodecConfig*> orderedSinkCodecs() const { return ordered_sink_codecs_; }
 
   // Sets the A2DP Source-to-Sink codec configuration to be used
   // with a peer Sink device.
@@ -363,15 +350,13 @@ class A2dpCodecs {
   // The result codec configuration is stored in |p_result_codec_config|.
   // Returns true on success, othewise false.
   bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                      uint8_t* p_result_codec_config,
-                      bool select_current_codec);
+                      uint8_t* p_result_codec_config, bool select_current_codec);
 
   // Sets the A2DP Sink codec configuration to be used with a peer Source
   // device.
   // [See setCodecConfig() for description]
   bool setSinkCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                          uint8_t* p_result_codec_config,
-                          bool select_current_codec);
+                          uint8_t* p_result_codec_config, bool select_current_codec);
 
   // Sets the user prefered codec configuration.
   // |codec_user_config| contains the preferred codec configuration.
@@ -388,9 +373,8 @@ class A2dpCodecs {
   // Returns true on success, otherwise false.
   bool setCodecUserConfig(const btav_a2dp_codec_config_t& codec_user_config,
                           const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-                          const uint8_t* p_peer_sink_capabilities,
-                          uint8_t* p_result_codec_config, bool* p_restart_input,
-                          bool* p_restart_output, bool* p_config_updated);
+                          const uint8_t* p_peer_sink_capabilities, uint8_t* p_result_codec_config,
+                          bool* p_restart_input, bool* p_restart_output, bool* p_config_updated);
 
   // Sets the Audio HAL selected audio feeding parameters.
   // Those parameters are applied only to the currently selected codec.
@@ -406,8 +390,7 @@ class A2dpCodecs {
   // Returns true on success, otherwise false.
   bool setCodecAudioConfig(const btav_a2dp_codec_config_t& codec_audio_config,
                            const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-                           const uint8_t* p_peer_sink_capabilities,
-                           uint8_t* p_result_codec_config,
+                           const uint8_t* p_peer_sink_capabilities, uint8_t* p_result_codec_config,
                            bool* p_restart_output, bool* p_config_updated);
 
   // Sets the Over-The-Air preferred codec configuration.
@@ -427,10 +410,10 @@ class A2dpCodecs {
   // If there is any change in the codec configuration, flag |p_config_updated|
   // is set to true.
   // Returns true on success, otherwise false.
-  bool setCodecOtaConfig(const uint8_t* p_ota_codec_config,
-                         const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-                         uint8_t* p_result_codec_config, bool* p_restart_input,
-                         bool* p_restart_output, bool* p_config_updated);
+  tA2DP_STATUS setCodecOtaConfig(const uint8_t* p_ota_codec_config,
+                                 const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+                                 uint8_t* p_result_codec_config, bool* p_restart_input,
+                                 bool* p_restart_output, bool* p_config_updated);
 
   // Sets the codec capabilities for a Sink peer.
   // |p_peer_codec_capabiltities| is the peer codec capabilities to set.
@@ -451,29 +434,28 @@ class A2dpCodecs {
   // and the remote device are stored in |p_codecs_selectable_capabilities|.
   // Returns true on success, otherwise false.
   bool getCodecConfigAndCapabilities(
-      btav_a2dp_codec_config_t* p_codec_config,
-      std::vector<btav_a2dp_codec_config_t>* p_codecs_local_capabilities,
-      std::vector<btav_a2dp_codec_config_t>* p_codecs_selectable_capabilities);
+          btav_a2dp_codec_config_t* p_codec_config,
+          std::vector<btav_a2dp_codec_config_t>* p_codecs_local_capabilities,
+          std::vector<btav_a2dp_codec_config_t>* p_codecs_selectable_capabilities);
 
   // Dumps codec-related information.
   // The information is written in user-friendly form to file descriptor |fd|.
   void debug_codec_dump(int fd);
 
- private:
+private:
   struct CompareBtBdaddr {
     bool operator()(const RawAddress& lhs, const RawAddress& rhs) const {
-      return (memcmp(&lhs, &rhs, sizeof(lhs)) < 0);
+      return memcmp(&lhs, &rhs, sizeof(lhs)) < 0;
     }
   };
   typedef std::map<btav_a2dp_codec_index_t, A2dpCodecConfig*> IndexedCodecs;
 
   std::recursive_mutex codec_mutex_;
   A2dpCodecConfig* current_codec_config_;  // Currently selected codec
-  std::map<btav_a2dp_codec_index_t, btav_a2dp_codec_priority_t>
-      codec_priorities_;
+  std::map<btav_a2dp_codec_index_t, btav_a2dp_codec_priority_t> codec_priorities_;
 
-  IndexedCodecs indexed_codecs_;           // The codecs indexed by codec index
-  IndexedCodecs disabled_codecs_;          // The disabled codecs
+  IndexedCodecs indexed_codecs_;   // The codecs indexed by codec index
+  IndexedCodecs disabled_codecs_;  // The disabled codecs
 
   // A2DP Source codecs ordered by priority
   std::list<A2dpCodecConfig*> ordered_source_codecs_;
@@ -507,8 +489,7 @@ typedef uint32_t (*a2dp_source_read_callback_t)(uint8_t* p_buf, uint32_t len);
 // |num_bytes| is the number of audio bytes in |p_buf| - it is used for
 // delay reporting.
 // Returns true if the packet was enqueued, otherwise false.
-typedef bool (*a2dp_source_enqueue_callback_t)(BT_HDR* p_buf, size_t frames_n,
-                                               uint32_t num_bytes);
+typedef bool (*a2dp_source_enqueue_callback_t)(BT_HDR* p_buf, size_t frames_n, uint32_t num_bytes);
 
 //
 // A2DP encoder callbacks interface.
@@ -557,7 +538,7 @@ typedef void (*decoded_data_callback_t)(uint8_t* buf, uint32_t len);
 // A2DP decoder callbacks interface.
 //
 typedef struct {
-  // Initialize the decoder. Can be called multiple times, will reinitalize.
+  // Initialize the decoder. Can be called multiple times, will reinitialize.
   bool (*decoder_init)(decoded_data_callback_t decode_callback);
 
   // Cleanup the A2DP decoder.
@@ -581,17 +562,14 @@ typedef struct {
 // |p_codec_info| contains information about the codec capabilities.
 tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* p_codec_info);
 
+// Check whether the codec type is valid.
+bool A2DP_IsCodecTypeValid(tA2DP_CODEC_TYPE);
+
 // Checks whether the codec capabilities contain a valid A2DP Source codec.
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid codec,
 // otherwise false.
 bool A2DP_IsSourceCodecValid(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid A2DP Sink codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid codec,
-// otherwise false.
-bool A2DP_IsSinkCodecValid(const uint8_t* p_codec_info);
 
 // Checks whether the codec capabilities contain a valid peer A2DP Source
 // codec.
@@ -602,25 +580,19 @@ bool A2DP_IsPeerSourceCodecValid(const uint8_t* p_codec_info);
 
 // Checks whether the codec capabilities contain a valid peer A2DP Sink codec.
 // NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid codec,
-// otherwise false.
+// Returns true if the A2DP Sink codec is valid, otherwise false.
 bool A2DP_IsPeerSinkCodecValid(const uint8_t* p_codec_info);
 
 // Checks whether an A2DP Sink codec is supported.
 // |p_codec_info| contains information about the codec capabilities.
-// Returns true if the A2DP Sink codec is supported, otherwise false.
-bool A2DP_IsSinkCodecSupported(const uint8_t* p_codec_info);
+// Returns A2DP_SUCCESS if |p_codec_info| contains information about a valid
+// codec with features compatible with the local capabilities,
+// otherwise an appropriate error code.
+tA2DP_STATUS A2DP_IsSinkCodecSupported(const uint8_t* p_codec_info);
 
 // Gets peer sink endpoint codec type.
 // |p_codec_info| contains information about the codec capabilities.
 int A2DP_IotGetPeerSinkCodecType(const uint8_t* p_codec_info);
-
-// Checks whether an A2DP Source codec for a peer Source device is supported.
-// |p_codec_info| contains information about the codec capabilities of the
-// peer device.
-// Returns true if the A2DP Source codec for a peer Source device is supported,
-// otherwise false.
-bool A2DP_IsPeerSourceCodecSupported(const uint8_t* p_codec_info);
 
 // Initialize state with the default A2DP codec.
 // The initialized state with the codec capabilities is stored in
@@ -632,8 +604,7 @@ void A2DP_InitDefaultCodec(uint8_t* p_codec_info);
 // enabled. |p_codec_info| contains information about the codec capabilities.
 // Returns true if the A2DP data packets should contain RTP header, otherwise
 // false.
-bool A2DP_UsesRtpHeader(bool content_protection_enabled,
-                        const uint8_t* p_codec_info);
+bool A2DP_UsesRtpHeader(bool content_protection_enabled, const uint8_t* p_codec_info);
 
 // Gets the |AVDT_MEDIA_TYPE_*| media type from the codec capability
 // in |p_codec_info|.
@@ -646,15 +617,13 @@ const char* A2DP_CodecName(const uint8_t* p_codec_info);
 // the same type.
 // Returns true if the two codecs have the same type, otherwise false.
 // If the codec type is not recognized, the return value is false.
-bool A2DP_CodecTypeEquals(const uint8_t* p_codec_info_a,
-                          const uint8_t* p_codec_info_b);
+bool A2DP_CodecTypeEquals(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Checks whether two A2DP codecs p_codec_info_a| and |p_codec_info_b| are
 // exactly the same.
 // Returns true if the two codecs are exactly the same, otherwise false.
 // If the codec type is not recognized, the return value is false.
-bool A2DP_CodecEquals(const uint8_t* p_codec_info_a,
-                      const uint8_t* p_codec_info_b);
+bool A2DP_CodecEquals(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Gets the track sample rate value for the A2DP codec.
 // |p_codec_info| is a pointer to the codec_info to decode.
@@ -694,24 +663,21 @@ bool A2DP_GetPacketTimestamp(const uint8_t* p_codec_info, const uint8_t* p_data,
 // |p_buf| contains the audio data.
 // |frames_per_packet| is the number of frames in this packet.
 // Returns true on success, otherwise false.
-bool A2DP_BuildCodecHeader(const uint8_t* p_codec_info, BT_HDR* p_buf,
-                           uint16_t frames_per_packet);
+bool A2DP_BuildCodecHeader(const uint8_t* p_codec_info, BT_HDR* p_buf, uint16_t frames_per_packet);
 
 // Gets the A2DP encoder interface that can be used to encode and prepare
 // A2DP packets for transmission - see |tA2DP_ENCODER_INTERFACE|.
 // |p_codec_info| contains the codec information.
 // Returns the A2DP encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterface(
-    const uint8_t* p_codec_info);
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterface(const uint8_t* p_codec_info);
 
 // Gets the A2DP decoder interface that can be used to decode received A2DP
 // packets - see |tA2DP_DECODER_INTERFACE|.
 // |p_codec_info| contains the codec information.
 // Returns the A2DP decoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterface(
-    const uint8_t* p_codec_info);
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterface(const uint8_t* p_codec_info);
 
 // Adjusts the A2DP codec, based on local support and Bluetooth specification.
 // |p_codec_info| contains the codec information to adjust.
@@ -735,8 +701,7 @@ const char* A2DP_CodecIndexStr(btav_a2dp_codec_index_t codec_index);
 // configuration entry pointed by |p_cfg|. The selected codec is defined
 // by |codec_index|.
 // Returns true on success, otherwise false.
-bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index,
-                          AvdtpSepConfig* p_cfg);
+bool A2DP_InitCodecConfig(btav_a2dp_codec_index_t codec_index, AvdtpSepConfig* p_cfg);
 
 // Gets the A2DP effective frame size that each encoded media frame should not
 // exceed this value.
@@ -755,27 +720,27 @@ std::string A2DP_CodecInfoString(const uint8_t* p_codec_info);
 // Use NOLINT to suppress missing parentheses warnings around bitmask.
 #define DEFINE_ENUM_FLAG_OPERATORS(bitmask)                                 \
   extern "C++" {                                                            \
-  inline constexpr bitmask operator&(bitmask X, bitmask Y) {  /* NOLINT */  \
+  inline constexpr bitmask operator&(bitmask X, bitmask Y) { /* NOLINT */   \
     return static_cast<bitmask>(static_cast<int>(X) & static_cast<int>(Y)); \
   }                                                                         \
-  inline constexpr bitmask operator|(bitmask X, bitmask Y) {  /* NOLINT */  \
+  inline constexpr bitmask operator|(bitmask X, bitmask Y) { /* NOLINT */   \
     return static_cast<bitmask>(static_cast<int>(X) | static_cast<int>(Y)); \
   }                                                                         \
-  inline constexpr bitmask operator^(bitmask X, bitmask Y) {  /* NOLINT */  \
+  inline constexpr bitmask operator^(bitmask X, bitmask Y) { /* NOLINT */   \
     return static_cast<bitmask>(static_cast<int>(X) ^ static_cast<int>(Y)); \
   }                                                                         \
-  inline constexpr bitmask operator~(bitmask X) {             /* NOLINT */  \
+  inline constexpr bitmask operator~(bitmask X) { /* NOLINT */              \
     return static_cast<bitmask>(~static_cast<int>(X));                      \
   }                                                                         \
-  inline bitmask& operator&=(bitmask& X, bitmask Y) {         /* NOLINT */  \
+  inline bitmask& operator&=(bitmask& X, bitmask Y) { /* NOLINT */          \
     X = X & Y;                                                              \
     return X;                                                               \
   }                                                                         \
-  inline bitmask& operator|=(bitmask& X, bitmask Y) {         /* NOLINT */  \
+  inline bitmask& operator|=(bitmask& X, bitmask Y) { /* NOLINT */          \
     X = X | Y;                                                              \
     return X;                                                               \
   }                                                                         \
-  inline bitmask& operator^=(bitmask& X, bitmask Y) {         /* NOLINT */  \
+  inline bitmask& operator^=(bitmask& X, bitmask Y) { /* NOLINT */          \
     X = X ^ Y;                                                              \
     return X;                                                               \
   }                                                                         \

@@ -19,7 +19,7 @@
 #include "stack/include/bt_dev_class.h"
 
 class StackIncludeTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {}
 
   void TearDown() override {}

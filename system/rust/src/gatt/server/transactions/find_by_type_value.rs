@@ -1,4 +1,5 @@
 use log::warn;
+use pdl_runtime::EncodeError;
 
 use crate::{
     core::uuid::Uuid,
@@ -6,10 +7,7 @@ use crate::{
         ids::AttHandle,
         server::att_database::{AttAttribute, StableAttDatabase},
     },
-    packets::{
-        AttChild, AttErrorCode, AttErrorResponseBuilder, AttFindByTypeValueRequestView,
-        AttFindByTypeValueResponseBuilder, AttOpcode, AttributeHandleRangeBuilder,
-    },
+    packets::att::{self, AttErrorCode},
 };
 
 use super::helpers::{
@@ -18,34 +16,34 @@ use super::helpers::{
 };
 
 pub async fn handle_find_by_type_value_request(
-    request: AttFindByTypeValueRequestView<'_>,
+    request: att::AttFindByTypeValueRequest,
     mtu: usize,
     db: &impl StableAttDatabase,
-) -> AttChild {
+) -> Result<att::Att, EncodeError> {
     let Some(attrs) = filter_to_range(
-        request.get_starting_handle().into(),
-        request.get_ending_handle().into(),
+        request.starting_handle.clone().into(),
+        request.ending_handle.into(),
         db.list_attributes().into_iter(),
     ) else {
-        return AttErrorResponseBuilder {
-            opcode_in_error: AttOpcode::FIND_BY_TYPE_VALUE_REQUEST,
-            handle_in_error: AttHandle::from(request.get_starting_handle()).into(),
-            error_code: AttErrorCode::INVALID_HANDLE,
+        return att::AttErrorResponse {
+            opcode_in_error: att::AttOpcode::FindByTypeValueRequest,
+            handle_in_error: AttHandle::from(request.starting_handle).into(),
+            error_code: AttErrorCode::InvalidHandle,
         }
-        .into();
+        .try_into();
     };
 
     // ATT_MTU-1 limit comes from Spec 5.3 Vol 3F Sec 3.4.3.4
     let mut matches = PayloadAccumulator::new(mtu - 1);
 
     for attr @ AttAttribute { handle, type_, .. } in attrs {
-        if Uuid::from(request.get_attribute_type()) != type_ {
+        if Uuid::from(request.attribute_type.clone()) != type_ {
             continue;
         }
         if let Ok(value) = db.read_attribute(handle).await {
-            if value == request.get_attribute_value().get_raw_payload().collect::<Vec<_>>() {
+            if value == request.attribute_value {
                 // match found
-                if !matches.push(AttributeHandleRangeBuilder {
+                if !matches.push(att::AttributeHandleRange {
                     found_attribute_handle: handle.into(),
                     group_end_handle: find_group_end(db, attr)
                         .map(|attr| attr.handle)
@@ -61,14 +59,14 @@ pub async fn handle_find_by_type_value_request(
     }
 
     if matches.is_empty() {
-        AttErrorResponseBuilder {
-            opcode_in_error: AttOpcode::FIND_BY_TYPE_VALUE_REQUEST,
-            handle_in_error: AttHandle::from(request.get_starting_handle()).into(),
-            error_code: AttErrorCode::ATTRIBUTE_NOT_FOUND,
+        att::AttErrorResponse {
+            opcode_in_error: att::AttOpcode::FindByTypeValueRequest,
+            handle_in_error: request.starting_handle,
+            error_code: AttErrorCode::AttributeNotFound,
         }
-        .into()
+        .try_into()
     } else {
-        AttFindByTypeValueResponseBuilder { handles_info: matches.into_boxed_slice() }.into()
+        att::AttFindByTypeValueResponse { handles_info: matches.into_vec() }.try_into()
     }
 }
 
@@ -84,8 +82,7 @@ mod test {
                 test::test_att_db::TestAttDatabase,
             },
         },
-        packets::{AttAttributeDataChild, AttFindByTypeValueRequestBuilder},
-        utils::packet::{build_att_data, build_view_or_crash},
+        packets::att,
     };
 
     use super::*;
@@ -127,34 +124,30 @@ mod test {
         ]);
 
         // act
-        let att_view = build_view_or_crash(AttFindByTypeValueRequestBuilder {
+        let att_view = att::AttFindByTypeValueRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(5).into(),
             attribute_type: UUID.try_into().unwrap(),
-            attribute_value: build_att_data(AttAttributeDataChild::RawData(VALUE.into())),
-        });
-        let response =
-            tokio_test::block_on(handle_find_by_type_value_request(att_view.view(), 128, &db));
+            attribute_value: VALUE.to_vec(),
+        };
+        let response = tokio_test::block_on(handle_find_by_type_value_request(att_view, 128, &db));
 
         // assert: we only matched the ones with the correct UUID
-        let AttChild::AttFindByTypeValueResponse(response) = response else {
-            unreachable!("{response:?}")
-        };
         assert_eq!(
             response,
-            AttFindByTypeValueResponseBuilder {
-                handles_info: [
-                    AttributeHandleRangeBuilder {
+            att::AttFindByTypeValueResponse {
+                handles_info: vec![
+                    att::AttributeHandleRange {
                         found_attribute_handle: AttHandle(3).into(),
                         group_end_handle: AttHandle(3).into(),
                     },
-                    AttributeHandleRangeBuilder {
+                    att::AttributeHandleRange {
                         found_attribute_handle: AttHandle(5).into(),
                         group_end_handle: AttHandle(5).into(),
                     },
                 ]
-                .into()
             }
+            .try_into()
         );
     }
 
@@ -189,34 +182,30 @@ mod test {
         ]);
 
         // act
-        let att_view = build_view_or_crash(AttFindByTypeValueRequestBuilder {
+        let att_view = att::AttFindByTypeValueRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(5).into(),
             attribute_type: UUID.try_into().unwrap(),
-            attribute_value: build_att_data(AttAttributeDataChild::RawData(VALUE.into())),
-        });
-        let response =
-            tokio_test::block_on(handle_find_by_type_value_request(att_view.view(), 128, &db));
+            attribute_value: VALUE.to_vec(),
+        };
+        let response = tokio_test::block_on(handle_find_by_type_value_request(att_view, 128, &db));
 
         // assert
-        let AttChild::AttFindByTypeValueResponse(response) = response else {
-            unreachable!("{response:?}")
-        };
         assert_eq!(
             response,
-            AttFindByTypeValueResponseBuilder {
-                handles_info: [
-                    AttributeHandleRangeBuilder {
+            att::AttFindByTypeValueResponse {
+                handles_info: vec![
+                    att::AttributeHandleRange {
                         found_attribute_handle: AttHandle(3).into(),
                         group_end_handle: AttHandle(3).into(),
                     },
-                    AttributeHandleRangeBuilder {
+                    att::AttributeHandleRange {
                         found_attribute_handle: AttHandle(5).into(),
                         group_end_handle: AttHandle(5).into(),
                     },
                 ]
-                .into()
             }
+            .try_into()
         );
     }
 
@@ -226,24 +215,23 @@ mod test {
         let db = TestAttDatabase::new(vec![]);
 
         // act: provide an invalid handle range
-        let att_view = build_view_or_crash(AttFindByTypeValueRequestBuilder {
+        let att_view = att::AttFindByTypeValueRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(1).into(),
             attribute_type: UUID.try_into().unwrap(),
-            attribute_value: build_att_data(AttAttributeDataChild::RawData(VALUE.into())),
-        });
-        let response =
-            tokio_test::block_on(handle_find_by_type_value_request(att_view.view(), 128, &db));
+            attribute_value: VALUE.to_vec(),
+        };
+        let response = tokio_test::block_on(handle_find_by_type_value_request(att_view, 128, &db));
 
         // assert
-        let AttChild::AttErrorResponse(response) = response else { unreachable!("{response:?}") };
         assert_eq!(
             response,
-            AttErrorResponseBuilder {
-                opcode_in_error: AttOpcode::FIND_BY_TYPE_VALUE_REQUEST,
+            att::AttErrorResponse {
+                opcode_in_error: att::AttOpcode::FindByTypeValueRequest,
                 handle_in_error: AttHandle(3).into(),
-                error_code: AttErrorCode::INVALID_HANDLE,
+                error_code: AttErrorCode::InvalidHandle,
             }
+            .try_into()
         );
     }
 
@@ -260,24 +248,23 @@ mod test {
         )]);
 
         // act: query using a range that does not overlap with matching attributes
-        let att_view = build_view_or_crash(AttFindByTypeValueRequestBuilder {
+        let att_view = att::AttFindByTypeValueRequest {
             starting_handle: AttHandle(4).into(),
             ending_handle: AttHandle(5).into(),
             attribute_type: UUID.try_into().unwrap(),
-            attribute_value: build_att_data(AttAttributeDataChild::RawData(VALUE.into())),
-        });
-        let response =
-            tokio_test::block_on(handle_find_by_type_value_request(att_view.view(), 128, &db));
+            attribute_value: VALUE.to_vec(),
+        };
+        let response = tokio_test::block_on(handle_find_by_type_value_request(att_view, 128, &db));
 
-        // assert: got ATTRIBUTE_NOT_FOUND erro
-        let AttChild::AttErrorResponse(response) = response else { unreachable!("{response:?}") };
+        // assert: got ATTRIBUTE_NOT_FOUND error
         assert_eq!(
             response,
-            AttErrorResponseBuilder {
-                opcode_in_error: AttOpcode::FIND_BY_TYPE_VALUE_REQUEST,
+            att::AttErrorResponse {
+                opcode_in_error: att::AttOpcode::FindByTypeValueRequest,
                 handle_in_error: AttHandle(4).into(),
-                error_code: AttErrorCode::ATTRIBUTE_NOT_FOUND,
+                error_code: AttErrorCode::AttributeNotFound,
             }
+            .try_into()
         );
     }
 
@@ -312,28 +299,24 @@ mod test {
         ]);
 
         // act: look for a particular characteristic declaration
-        let att_view = build_view_or_crash(AttFindByTypeValueRequestBuilder {
+        let att_view = att::AttFindByTypeValueRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(4).into(),
             attribute_type: CHARACTERISTIC_UUID.try_into().unwrap(),
-            attribute_value: build_att_data(AttAttributeDataChild::RawData(VALUE.into())),
-        });
-        let response =
-            tokio_test::block_on(handle_find_by_type_value_request(att_view.view(), 128, &db));
+            attribute_value: VALUE.to_vec(),
+        };
+        let response = tokio_test::block_on(handle_find_by_type_value_request(att_view, 128, &db));
 
         // assert
-        let AttChild::AttFindByTypeValueResponse(response) = response else {
-            unreachable!("{response:?}")
-        };
         assert_eq!(
             response,
-            AttFindByTypeValueResponseBuilder {
-                handles_info: [AttributeHandleRangeBuilder {
+            att::AttFindByTypeValueResponse {
+                handles_info: vec![att::AttributeHandleRange {
                     found_attribute_handle: AttHandle(3).into(),
                     group_end_handle: AttHandle(4).into(),
                 },]
-                .into()
             }
+            .try_into()
         );
     }
 
@@ -360,28 +343,24 @@ mod test {
         ]);
 
         // act: use MTU = 5, so we can only fit one element in the output
-        let att_view = build_view_or_crash(AttFindByTypeValueRequestBuilder {
+        let att_view = att::AttFindByTypeValueRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(4).into(),
             attribute_type: UUID.try_into().unwrap(),
-            attribute_value: build_att_data(AttAttributeDataChild::RawData(VALUE.into())),
-        });
-        let response =
-            tokio_test::block_on(handle_find_by_type_value_request(att_view.view(), 5, &db));
+            attribute_value: VALUE.to_vec(),
+        };
+        let response = tokio_test::block_on(handle_find_by_type_value_request(att_view, 5, &db));
 
         // assert: only one of the two matches produced
-        let AttChild::AttFindByTypeValueResponse(response) = response else {
-            unreachable!("{response:?}")
-        };
         assert_eq!(
             response,
-            AttFindByTypeValueResponseBuilder {
-                handles_info: [AttributeHandleRangeBuilder {
+            att::AttFindByTypeValueResponse {
+                handles_info: vec![att::AttributeHandleRange {
                     found_attribute_handle: AttHandle(3).into(),
                     group_end_handle: AttHandle(3).into(),
                 },]
-                .into()
             }
+            .try_into()
         );
     }
 }

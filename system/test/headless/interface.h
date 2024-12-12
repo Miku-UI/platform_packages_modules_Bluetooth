@@ -54,31 +54,25 @@ struct callback_data_t {
   std::string Name() const { return std::string(name_); }
   Callback CallbackType() const { return callback_type_; }
 
-  uint64_t TimestampInMs() const {
-    return static_cast<uint64_t>(timestamp_ms_);
-  }
+  uint64_t TimestampInMs() const { return static_cast<uint64_t>(timestamp_ms_); }
   virtual ~callback_data_t() = default;
 
   virtual std::string ToString() const = 0;
 
- protected:
+protected:
   callback_data_t(const char* name, Callback callback_type_)
-      : name_(name),
-        callback_type_(callback_type_),
-        timestamp_ms_(GetTimestampMs()) {}
+      : name_(name), callback_type_(callback_type_), timestamp_ms_(GetTimestampMs()) {}
 
- private:
+private:
   const char* name_;
   const Callback callback_type_;
   const long long timestamp_ms_;
 };
 
 struct callback_params_t : public callback_data_t {
-  virtual std::string ToString() const override {
-    return std::string("VIRTUAL");
-  }
+  virtual std::string ToString() const override { return std::string("VIRTUAL"); }
 
- protected:
+protected:
   callback_params_t(const char* name, Callback callback_type)
       : callback_data_t(name, callback_type) {}
   virtual ~callback_params_t() = default;
@@ -93,35 +87,31 @@ std::shared_ptr<T> Cast(std::shared_ptr<callback_params_t> params) {
 }
 
 struct callback_params_with_properties_t : public callback_params_t {
- public:
+public:
   std::deque<bluetooth::test::headless::bt_property_t*> properties() const {
     return property_queue_;
   }
   size_t num_properties() const { return property_queue_.size(); }
 
- protected:
-  callback_params_with_properties_t(const char* name, Callback callback_type,
-                                    int num_properties,
+protected:
+  callback_params_with_properties_t(const char* name, Callback callback_type, int num_properties,
                                     ::bt_property_t* properties)
       : callback_params_t(name, callback_type) {
     for (int i = 0; i < num_properties; i++) {
-      log::debug("Processing property {}/{} {} type:{} val:{}", i,
-                 num_properties, fmt::ptr(&properties[i]), properties[i].type,
-                 fmt::ptr(properties[i].val));
-      property_queue_.push_back(
-          bluetooth::test::headless::property_factory(properties[i]));
+      log::debug("Processing property {}/{} {} type:{} val:{}", i, num_properties,
+                 fmt::ptr(&properties[i]), properties[i].type, fmt::ptr(properties[i].val));
+      property_queue_.push_back(bluetooth::test::headless::property_factory(properties[i]));
     }
   }
   virtual ~callback_params_with_properties_t() = default;
 
- private:
+private:
   std::deque<bluetooth::test::headless::bt_property_t*> property_queue_;
 };
 
 struct acl_state_changed_params_t : public callback_params_t {
-  acl_state_changed_params_t(bt_status_t status, RawAddress remote_bd_addr,
-                             bt_acl_state_t state, int transport_link_type,
-                             bt_hci_error_code_t hci_reason,
+  acl_state_changed_params_t(bt_status_t status, RawAddress remote_bd_addr, bt_acl_state_t state,
+                             int transport_link_type, bt_hci_error_code_t hci_reason,
                              bt_conn_direction_t direction, uint16_t acl_handle)
       : callback_params_t("acl_state_changed", Callback::AclStateChanged),
         status(status),
@@ -131,8 +121,7 @@ struct acl_state_changed_params_t : public callback_params_t {
         hci_reason(hci_reason),
         direction(direction),
         acl_handle(acl_handle) {}
-  acl_state_changed_params_t(const acl_state_changed_params_t& params) =
-      default;
+  acl_state_changed_params_t(const acl_state_changed_params_t& params) = default;
   virtual ~acl_state_changed_params_t() {}
 
   bt_status_t status;
@@ -145,24 +134,21 @@ struct acl_state_changed_params_t : public callback_params_t {
 
   std::string ToString() const override {
     return fmt::format(
-        "status:{} remote_bd_addr:{} state:{} transport:{} reason:{}"
-        " direction:{} handle:{}",
-        bt_status_text(status), remote_bd_addr.ToString(),
-        (state == BT_ACL_STATE_CONNECTED) ? "CONNECTED" : "DISCONNECTED",
-        bt_transport_text(
-            static_cast<const tBT_TRANSPORT>(transport_link_type)),
-        bt_status_text(static_cast<const bt_status_t>(hci_reason)),
-        bt_conn_direction_text(direction), acl_handle);
+            "status:{} remote_bd_addr:{} state:{} transport:{} reason:{}"
+            " direction:{} handle:{}",
+            bt_status_text(status), remote_bd_addr.ToString(),
+            (state == BT_ACL_STATE_CONNECTED) ? "CONNECTED" : "DISCONNECTED",
+            bt_transport_text(static_cast<const tBT_TRANSPORT>(transport_link_type)),
+            bt_status_text(static_cast<const bt_status_t>(hci_reason)),
+            bt_conn_direction_text(direction), acl_handle);
   }
 };
 
 struct discovery_state_changed_params_t : public callback_params_t {
   discovery_state_changed_params_t(bt_discovery_state_t state)
-      : callback_params_t("discovery_state_changed",
-                          Callback::DiscoveryStateChanged),
+      : callback_params_t("discovery_state_changed", Callback::DiscoveryStateChanged),
         state(state) {}
-  discovery_state_changed_params_t(
-      const discovery_state_changed_params_t& params) = default;
+  discovery_state_changed_params_t(const discovery_state_changed_params_t& params) = default;
 
   virtual ~discovery_state_changed_params_t() {}
 
@@ -173,52 +159,44 @@ struct discovery_state_changed_params_t : public callback_params_t {
 };
 
 struct adapter_properties_params_t : public callback_params_with_properties_t {
-  adapter_properties_params_t(bt_status_t status, int num_properties,
-                              ::bt_property_t* properties)
-      : callback_params_with_properties_t("adapter_properties",
-                                          Callback::AdapterProperties,
+  adapter_properties_params_t(bt_status_t status, int num_properties, ::bt_property_t* properties)
+      : callback_params_with_properties_t("adapter_properties", Callback::AdapterProperties,
                                           num_properties, properties),
         status(status) {}
-  adapter_properties_params_t(const adapter_properties_params_t& params) =
-      default;
+  adapter_properties_params_t(const adapter_properties_params_t& params) = default;
 
   virtual ~adapter_properties_params_t() {}
   bt_status_t status;
 
   std::string ToString() const override {
-    return fmt::format("status:{} num_properties:{}", bt_status_text(status),
-                       num_properties());
+    return fmt::format("status:{} num_properties:{}", bt_status_text(status), num_properties());
   }
 };
 
-struct remote_device_properties_params_t
-    : public callback_params_with_properties_t {
-  remote_device_properties_params_t(bt_status_t status, RawAddress bd_addr,
-                                    int num_properties,
+struct remote_device_properties_params_t : public callback_params_with_properties_t {
+  remote_device_properties_params_t(bt_status_t status, RawAddress bd_addr, int num_properties,
                                     ::bt_property_t* properties)
       : callback_params_with_properties_t("remote_device_properties",
-                                          Callback::RemoteDeviceProperties,
-                                          num_properties, properties),
+                                          Callback::RemoteDeviceProperties, num_properties,
+                                          properties),
         status(status),
         bd_addr(bd_addr) {}
-  remote_device_properties_params_t(
-      const remote_device_properties_params_t& params) = default;
+  remote_device_properties_params_t(const remote_device_properties_params_t& params) = default;
 
   virtual ~remote_device_properties_params_t() {}
   bt_status_t status;
   RawAddress bd_addr;
 
   std::string ToString() const override {
-    return fmt::format("status:{} bd_addr:{} num_properties:{}",
-                       bt_status_text(status), bd_addr.ToString(),
-                       num_properties());
+    return fmt::format("status:{} bd_addr:{} num_properties:{}", bt_status_text(status),
+                       bd_addr.ToString(), num_properties());
   }
 };
 
 struct device_found_params_t : public callback_params_with_properties_t {
   device_found_params_t(int num_properties, ::bt_property_t* properties)
-      : callback_params_with_properties_t("device_found", Callback::DeviceFound,
-                                          num_properties, properties) {}
+      : callback_params_with_properties_t("device_found", Callback::DeviceFound, num_properties,
+                                          properties) {}
 
   device_found_params_t(const device_found_params_t& params) = default;
   virtual ~device_found_params_t() {}
@@ -230,6 +208,5 @@ struct device_found_params_t : public callback_params_with_properties_t {
 
 using callback_function_t = void (*)(callback_data_t*);
 
-void headless_add_callback(const std::string interface_name,
-                           callback_function_t function);
+void headless_add_callback(const std::string interface_name, callback_function_t function);
 void headless_remove_callback(const std::string interface_name);

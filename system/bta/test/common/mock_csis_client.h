@@ -21,24 +21,20 @@
 #include "bta_csis_api.h"
 
 class MockCsisClient : public bluetooth::csis::CsisClient {
- public:
+public:
   /* Overrides */
   MOCK_METHOD((void), Connect, (const RawAddress& addr), (override));
   MOCK_METHOD((void), Disconnect, (const RawAddress& addr), (override));
   MOCK_METHOD((void), RemoveDevice, (const RawAddress& address), (override));
-  MOCK_METHOD((int), GetGroupId, (const RawAddress& addr, bluetooth::Uuid uuid),
+  MOCK_METHOD((int), GetGroupId, (const RawAddress& addr, bluetooth::Uuid uuid), (override));
+  MOCK_METHOD((void), LockGroup, (const int group_id, bool lock, bluetooth::csis::CsisLockCb cb),
               (override));
-  MOCK_METHOD((void), LockGroup,
-              (const int group_id, bool lock, bluetooth::csis::CsisLockCb cb),
-              (override));
-  MOCK_METHOD((std::vector<RawAddress>), GetDeviceList, (int group_id),
-              (override));
+  MOCK_METHOD((std::vector<RawAddress>), GetDeviceList, (int group_id), (override));
   MOCK_METHOD((int), GetDesiredSize, (int group_id), (const override));
 
   /* Called from static methods */
   MOCK_METHOD((void), Initialize,
-              (bluetooth::csis::CsisClientCallbacks * callbacks,
-               base::Closure initCb));
+              (bluetooth::csis::CsisClientCallbacks * callbacks, base::Closure initCb));
   MOCK_METHOD((void), CleanUp, ());
   MOCK_METHOD((void), DebugDump, (int fd));
   MOCK_METHOD((bool), IsCsisClientRunning, ());

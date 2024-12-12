@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
+#include "general_reject_packet.h"
+
 #include <gtest/gtest.h>
 
 #include "avrcp_test_packets.h"
-#include "general_reject_packet.h"
 #include "packet_test_helper.h"
 
 namespace bluetooth {

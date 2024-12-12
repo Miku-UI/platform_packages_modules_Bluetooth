@@ -43,8 +43,8 @@
  * Returns          void
  *
  ******************************************************************************/
-void BTM_SecAddDevice(const RawAddress& bd_addr, const DEV_CLASS dev_class,
-                      LinkKey link_key, uint8_t key_type, uint8_t pin_length);
+void BTM_SecAddDevice(const RawAddress& bd_addr, const DEV_CLASS dev_class, LinkKey link_key,
+                      uint8_t key_type, uint8_t pin_length);
 
 /** Free resources associated with the device associated with |bd_addr| address.
  *
@@ -92,8 +92,7 @@ bool btm_sec_is_a_bonded_dev(const RawAddress& bda);
  *                                 the results
  *
  ******************************************************************************/
-tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr,
-                                    tBTM_CMPL_CB* p_cb);
+tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr, tBTM_CMPL_CB* p_cb);
 
 /*******************************************************************************
  *
@@ -102,27 +101,11 @@ tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr,
  * Description      This procedure confirms requested to validate set device.
  *
  * Parameter        bd_addr     - BD address of the peer
- *                  res         - confirmation result BTM_SUCCESS if success
+ *                  res         - confirmation result tBTM_STATUS::BTM_SUCCESS if success
  *
  * Returns          void
  *
  ******************************************************************************/
-void BTM_BleSirkConfirmDeviceReply(const RawAddress& bd_addr, uint8_t res);
+void BTM_BleSirkConfirmDeviceReply(const RawAddress& bd_addr, tBTM_STATUS res);
 
 uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr);
-
-/*******************************************************************************
- *
- * Function         BTM_IsRemoteNameKnown
- *
- * Description      This function checks if the remote name is known.
- *
- * Input Params:    bd_addr: Address of remote
- *                  transport: Transport, auto if unknown
- *
- * Returns
- *                  true if name is known, false otherwise
- *
- ******************************************************************************/
-bool BTM_IsRemoteNameKnown(const RawAddress& remote_bda,
-                           tBT_TRANSPORT transport);

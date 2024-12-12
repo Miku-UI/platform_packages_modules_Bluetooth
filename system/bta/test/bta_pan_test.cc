@@ -43,40 +43,36 @@ struct EventPiece {
 };
 
 std::function<void(tBTA_PAN_EVT, tBTA_PAN*)> bta_pan_event_closure;
-void BTA_PAN_CBACK(tBTA_PAN_EVT event, tBTA_PAN* p_data) {
-  bta_pan_event_closure(event, p_data);
-}
+void BTA_PAN_CBACK(tBTA_PAN_EVT event, tBTA_PAN* p_data) { bta_pan_event_closure(event, p_data); }
 
 std::function<void(uint16_t, bool)> bta_sys_eir_closure;
-void BTA_SYS_EIR_CBACK(uint16_t uuid16, bool adding) {
-  bta_sys_eir_closure(uuid16, adding);
-}
+void BTA_SYS_EIR_CBACK(uint16_t uuid16, bool adding) { bta_sys_eir_closure(uuid16, adding); }
 
 constexpr tBTA_PAN kNoData = {};
 
 }  // namespace
 
 class BtaPanTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     uuids.clear();
     main_thread_start_up();
     bta_pan_event_closure = [this](tBTA_PAN_EVT event, tBTA_PAN* data) {
       events.push_back({
-          .event = event,
-          .data = (data == nullptr) ? kNoData : *data,
+              .event = event,
+              .data = (data == nullptr) ? kNoData : *data,
       });
     };
     tBTA_PAN_DATA data = {
-        .api_enable =
-            {
-                .p_cback = BTA_PAN_CBACK,
-            },
+            .api_enable =
+                    {
+                            .p_cback = BTA_PAN_CBACK,
+                    },
     };
     bta_sys_eir_closure = [this](uint16_t uuid16, bool adding) {
       uuids.push_back({
-          .uuid16 = uuid16,
-          .adding = adding,
+              .uuid16 = uuid16,
+              .adding = adding,
       });
     };
     bta_pan_enable(&data);
@@ -97,7 +93,7 @@ class BtaPanTest : public ::testing::Test {
 };
 
 class BtaPanRegisteredTest : public BtaPanTest {
- protected:
+protected:
   void SetUp() {
     BtaPanTest::SetUp();
     bta_sys_eir_register(BTA_SYS_EIR_CBACK);
@@ -114,13 +110,13 @@ TEST_F(BtaPanTest, nop) {}
 TEST_F(BtaPanRegisteredTest, BTA_PanSetRole_Null) {
   tBTA_PAN_ROLE role = BTA_PAN_ROLE_PANU | BTA_PAN_ROLE_NAP;
   tBTA_PAN_ROLE_INFO user_info = {
-      .p_srv_name = std::string(),
-      .app_id = 12,
+          .p_srv_name = std::string(),
+          .app_id = 12,
   };
 
   tBTA_PAN_ROLE_INFO nap_info = {
-      .p_srv_name = std::string(),
-      .app_id = 34,
+          .p_srv_name = std::string(),
+          .app_id = 34,
   };
 
   BTA_PanSetRole(role, user_info, nap_info);
@@ -142,12 +138,12 @@ TEST_F(BtaPanRegisteredTest, BTA_PanSetRole_Null) {
 TEST_F(BtaPanRegisteredTest, BTA_PanSetRole_WithNames) {
   tBTA_PAN_ROLE role = BTA_PAN_ROLE_PANU | BTA_PAN_ROLE_NAP;
   tBTA_PAN_ROLE_INFO user_info = {
-      .p_srv_name = "TestPanUser",
-      .app_id = 12,
+          .p_srv_name = "TestPanUser",
+          .app_id = 12,
   };
   tBTA_PAN_ROLE_INFO nap_info = {
-      .p_srv_name = "TestPanNap",
-      .app_id = 34,
+          .p_srv_name = "TestPanNap",
+          .app_id = 34,
   };
 
   uint8_t stack_pan_role;
@@ -155,9 +151,8 @@ TEST_F(BtaPanRegisteredTest, BTA_PanSetRole_WithNames) {
   std::string stack_pan_nap_name;
 
   test::mock::stack_pan_api::PAN_SetRole.body =
-      [&stack_pan_role, &stack_pan_user_name, &stack_pan_nap_name](
-          uint8_t role, std::string user_name,
-          std::string nap_name) -> tPAN_RESULT {
+          [&stack_pan_role, &stack_pan_user_name, &stack_pan_nap_name](
+                  uint8_t role, std::string user_name, std::string nap_name) -> tPAN_RESULT {
     stack_pan_role = role;
     stack_pan_user_name = user_name;
     stack_pan_nap_name = nap_name;
@@ -189,14 +184,14 @@ constexpr size_t kBtaServiceNameLen = static_cast<size_t>(BTA_SERVICE_NAME_LEN);
 TEST_F(BtaPanRegisteredTest, BTA_PanSetRole_WithLongNames) {
   tBTA_PAN_ROLE role = BTA_PAN_ROLE_PANU | BTA_PAN_ROLE_NAP;
   tBTA_PAN_ROLE_INFO user_info = {
-      .p_srv_name = std::string(200, 'A'),
-      .app_id = 12,
+          .p_srv_name = std::string(200, 'A'),
+          .app_id = 12,
   };
   ASSERT_EQ(200UL, user_info.p_srv_name.size());
 
   tBTA_PAN_ROLE_INFO nap_info = {
-      .p_srv_name = std::string(201, 'A'),
-      .app_id = 34,
+          .p_srv_name = std::string(201, 'A'),
+          .app_id = 34,
   };
   ASSERT_EQ(201UL, nap_info.p_srv_name.size());
 
@@ -205,9 +200,8 @@ TEST_F(BtaPanRegisteredTest, BTA_PanSetRole_WithLongNames) {
   std::string stack_pan_nap_name;
 
   test::mock::stack_pan_api::PAN_SetRole.body =
-      [&stack_pan_role, &stack_pan_user_name, &stack_pan_nap_name](
-          uint8_t role, std::string user_name,
-          std::string nap_name) -> tPAN_RESULT {
+          [&stack_pan_role, &stack_pan_user_name, &stack_pan_nap_name](
+                  uint8_t role, std::string user_name, std::string nap_name) -> tPAN_RESULT {
     stack_pan_role = role;
     stack_pan_user_name = user_name;
     stack_pan_nap_name = nap_name;
@@ -233,8 +227,7 @@ TEST_F(BtaPanRegisteredTest, BTA_PanSetRole_WithLongNames) {
   ASSERT_EQ(kBtaServiceNameLen, stack_pan_nap_name.size());
 
   ASSERT_THAT(stack_pan_user_name, StrEq(std::string(kBtaServiceNameLen, 'A')));
-  ASSERT_THAT(stack_pan_user_name,
-              StrEq("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+  ASSERT_THAT(stack_pan_user_name, StrEq("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
   ASSERT_THAT(stack_pan_nap_name, StrEq(std::string(kBtaServiceNameLen, 'A')));
   ASSERT_THAT(stack_pan_nap_name, StrEq("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
 

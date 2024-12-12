@@ -24,8 +24,8 @@
 
 // Callback invoked for each HCI packet.
 // Highlander mode - there can be only one...
-typedef void (*btsnoop_data_cb)(const uint16_t type, const uint8_t* p_data,
-                                const size_t len, const uint64_t timestamp_us);
+typedef void (*btsnoop_data_cb)(const uint16_t type, const uint8_t* p_data, const size_t len,
+                                const uint64_t timestamp_us);
 
 // This call sets the (one and only) callback that will
 // be invoked once for each HCI packet/event.

@@ -38,17 +38,16 @@ unsigned kTimeoutMs = 5000;
 int get_adapter_info([[maybe_unused]] unsigned int num_loops) {
   log::info("Started Device Adapter Properties");
 
-  log::assert_that(
-      bluetoothInterface.get_adapter_properties() == BT_STATUS_SUCCESS,
-      "assert failed: bluetoothInterface.get_adapter_properties() == "
-      "BT_STATUS_SUCCESS");
+  log::assert_that(bluetoothInterface.get_adapter_properties() == BT_STATUS_SUCCESS,
+                   "assert failed: bluetoothInterface.get_adapter_properties() == "
+                   "BT_STATUS_SUCCESS");
   LOG_CONSOLE("Started get adapter properties");
 
   headless::messenger::Context context{
-      .stop_watch = Stopwatch(__func__),
-      .timeout = 1s,  // Poll time
-      .check_point = {},
-      .callbacks = {Callback::AdapterProperties},
+          .stop_watch = Stopwatch(__func__),
+          .timeout = 1s,  // Poll time
+          .check_point = {},
+          .callbacks = {Callback::AdapterProperties},
   };
 
   bool adapter_properties_found = false;
@@ -60,22 +59,21 @@ int get_adapter_info([[maybe_unused]] unsigned int num_loops) {
         context.callback_ready_q.pop_front();
         switch (p->CallbackType()) {
           case Callback::AdapterProperties: {
-            adapter_properties_params_t* q =
-                static_cast<adapter_properties_params_t*>(p.get());
+            adapter_properties_params_t* q = static_cast<adapter_properties_params_t*>(p.get());
             for (const auto& p2 : q->properties()) {
-              LOG_CONSOLE("  %s prop:%s", p->Name().c_str(),
-                          p2->ToString().c_str());
+              LOG_CONSOLE("  %s prop:%s", p->Name().c_str(), p2->ToString().c_str());
             }
             adapter_properties_found = true;
           } break;
           default:
-            LOG_CONSOLE("WARN Received callback for unasked:%s",
-                        p->Name().c_str());
+            LOG_CONSOLE("WARN Received callback for unasked:%s", p->Name().c_str());
             break;
         }
       }
     }
-    if (adapter_properties_found) break;
+    if (adapter_properties_found) {
+      break;
+    }
   }
 
   LOG_CONSOLE("Retrieved adapter properties");
@@ -90,6 +88,5 @@ int bluetooth::test::headless::Adapter::Run() {
     options_.Usage();
     return -1;
   }
-  return RunOnHeadlessStack<int>(
-      [this]() { return get_adapter_info(options_.loop_); });
+  return RunOnHeadlessStack<int>([this]() { return get_adapter_info(options_.loop_); });
 }

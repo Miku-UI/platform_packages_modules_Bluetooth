@@ -42,7 +42,7 @@ struct ScanModule::impl {
   void Start();
   void Stop();
 
- private:
+private:
   ScanModule& module_;
 
   bool inquiry_scan_enabled_;
@@ -57,7 +57,8 @@ struct ScanModule::impl {
   os::Handler* handler_;
 };
 
-const ModuleFactory neighbor::ScanModule::Factory = ModuleFactory([]() { return new neighbor::ScanModule(); });
+const ModuleFactory neighbor::ScanModule::Factory =
+        ModuleFactory([]() { return new neighbor::ScanModule(); });
 
 neighbor::ScanModule::impl::impl(neighbor::ScanModule& module)
     : module_(module), inquiry_scan_enabled_(false), page_scan_enabled_(false) {}
@@ -67,18 +68,16 @@ void neighbor::ScanModule::impl::OnCommandComplete(hci::CommandCompleteView view
     case hci::OpCode::READ_SCAN_ENABLE: {
       auto packet = hci::ReadScanEnableCompleteView::Create(view);
       log::assert_that(packet.IsValid(), "assert failed: packet.IsValid()");
-      log::assert_that(
-          packet.GetStatus() == hci::ErrorCode::SUCCESS,
-          "assert failed: packet.GetStatus() == hci::ErrorCode::SUCCESS");
+      log::assert_that(packet.GetStatus() == hci::ErrorCode::SUCCESS,
+                       "assert failed: packet.GetStatus() == hci::ErrorCode::SUCCESS");
       ReadScanEnable(packet.GetScanEnable());
     } break;
 
     case hci::OpCode::WRITE_SCAN_ENABLE: {
       auto packet = hci::WriteScanEnableCompleteView::Create(view);
       log::assert_that(packet.IsValid(), "assert failed: packet.IsValid()");
-      log::assert_that(
-          packet.GetStatus() == hci::ErrorCode::SUCCESS,
-          "assert failed: packet.GetStatus() == hci::ErrorCode::SUCCESS");
+      log::assert_that(packet.GetStatus() == hci::ErrorCode::SUCCESS,
+                       "assert failed: packet.GetStatus() == hci::ErrorCode::SUCCESS");
     } break;
 
     default:
@@ -101,13 +100,16 @@ void neighbor::ScanModule::impl::WriteScanEnable() {
   }
 
   {
-    std::unique_ptr<hci::WriteScanEnableBuilder> packet = hci::WriteScanEnableBuilder::Create(scan_enable);
-    hci_layer_->EnqueueCommand(std::move(packet), handler_->BindOnceOn(this, &impl::OnCommandComplete));
+    std::unique_ptr<hci::WriteScanEnableBuilder> packet =
+            hci::WriteScanEnableBuilder::Create(scan_enable);
+    hci_layer_->EnqueueCommand(std::move(packet),
+                               handler_->BindOnceOn(this, &impl::OnCommandComplete));
   }
 
   {
     std::unique_ptr<hci::ReadScanEnableBuilder> packet = hci::ReadScanEnableBuilder::Create();
-    hci_layer_->EnqueueCommand(std::move(packet), handler_->BindOnceOn(this, &impl::OnCommandComplete));
+    hci_layer_->EnqueueCommand(std::move(packet),
+                               handler_->BindOnceOn(this, &impl::OnCommandComplete));
   }
 }
 
@@ -145,68 +147,45 @@ void neighbor::ScanModule::impl::SetPageScan(bool enabled) {
   WriteScanEnable();
 }
 
-bool neighbor::ScanModule::impl::IsInquiryEnabled() const {
-  return inquiry_scan_enabled_;
-}
+bool neighbor::ScanModule::impl::IsInquiryEnabled() const { return inquiry_scan_enabled_; }
 
-bool neighbor::ScanModule::impl::IsPageEnabled() const {
-  return page_scan_enabled_;
-}
+bool neighbor::ScanModule::impl::IsPageEnabled() const { return page_scan_enabled_; }
 
 void neighbor::ScanModule::impl::Start() {
   hci_layer_ = module_.GetDependency<hci::HciLayer>();
   handler_ = module_.GetHandler();
 
   std::unique_ptr<hci::ReadScanEnableBuilder> packet = hci::ReadScanEnableBuilder::Create();
-  hci_layer_->EnqueueCommand(std::move(packet), handler_->BindOnceOn(this, &impl::OnCommandComplete));
+  hci_layer_->EnqueueCommand(std::move(packet),
+                             handler_->BindOnceOn(this, &impl::OnCommandComplete));
 }
 
 void neighbor::ScanModule::impl::Stop() {
-  log::info(
-      "inquiry scan enabled:{} page scan enabled:{}", inquiry_scan_enabled_, page_scan_enabled_);
+  log::info("inquiry scan enabled:{} page scan enabled:{}", inquiry_scan_enabled_,
+            page_scan_enabled_);
 }
 
 neighbor::ScanModule::ScanModule() : pimpl_(std::make_unique<impl>(*this)) {}
 
-neighbor::ScanModule::~ScanModule() {
-  pimpl_.reset();
-}
+neighbor::ScanModule::~ScanModule() { pimpl_.reset(); }
 
-void neighbor::ScanModule::SetInquiryScan() {
-  pimpl_->SetInquiryScan(true);
-}
+void neighbor::ScanModule::SetInquiryScan() { pimpl_->SetInquiryScan(true); }
 
-void neighbor::ScanModule::ClearInquiryScan() {
-  pimpl_->SetInquiryScan(false);
-}
+void neighbor::ScanModule::ClearInquiryScan() { pimpl_->SetInquiryScan(false); }
 
-void neighbor::ScanModule::SetPageScan() {
-  pimpl_->SetPageScan(true);
-}
+void neighbor::ScanModule::SetPageScan() { pimpl_->SetPageScan(true); }
 
-void neighbor::ScanModule::ClearPageScan() {
-  pimpl_->SetPageScan(false);
-}
+void neighbor::ScanModule::ClearPageScan() { pimpl_->SetPageScan(false); }
 
-bool neighbor::ScanModule::IsInquiryEnabled() const {
-  return pimpl_->IsInquiryEnabled();
-}
+bool neighbor::ScanModule::IsInquiryEnabled() const { return pimpl_->IsInquiryEnabled(); }
 
-bool neighbor::ScanModule::IsPageEnabled() const {
-  return pimpl_->IsPageEnabled();
-}
+bool neighbor::ScanModule::IsPageEnabled() const { return pimpl_->IsPageEnabled(); }
 
-void neighbor::ScanModule::ListDependencies(ModuleList* list) const {
-  list->add<hci::HciLayer>();
-}
+void neighbor::ScanModule::ListDependencies(ModuleList* list) const { list->add<hci::HciLayer>(); }
 
-void neighbor::ScanModule::Start() {
-  pimpl_->Start();
-}
+void neighbor::ScanModule::Start() { pimpl_->Start(); }
 
-void neighbor::ScanModule::Stop() {
-  pimpl_->Stop();
-}
+void neighbor::ScanModule::Stop() { pimpl_->Stop(); }
 
 }  // namespace neighbor
 }  // namespace bluetooth

@@ -28,25 +28,20 @@ namespace common {
  * A queue implementation which supports items with multiple priorities.
  * Items with greater priority value will be dequeued first.
  * When Enqueuing, the user can specify the priority (0 by default).
- * This can be used by ACL or L2CAP lower queue end sender to prioritize some link or channel, used by A2DP.
+ * This can be used by ACL or L2CAP lower queue end sender to prioritize some link or channel, used
+ * by A2DP.
  */
 template <typename T, int NUM_PRIORITY_LEVELS = 2>
 class MultiPriorityQueue {
   static_assert(NUM_PRIORITY_LEVELS > 1);
 
- public:
+public:
   // Get the front item with the highest priority.  Queue must be non-empty.
-  T& front() {
-    return queues_[next_to_dequeue_.top()].front();
-  }
+  T& front() { return queues_[next_to_dequeue_.top()].front(); }
 
-  [[nodiscard]] bool empty() const {
-    return next_to_dequeue_.empty();
-  }
+  [[nodiscard]] bool empty() const { return next_to_dequeue_.empty(); }
 
-  [[nodiscard]] size_t size() const {
-    return next_to_dequeue_.size();
-  }
+  [[nodiscard]] size_t size() const { return next_to_dequeue_.size(); }
 
   // Push the item with specified priority
   void push(const T& t, int priority = 0) {
@@ -66,7 +61,7 @@ class MultiPriorityQueue {
     next_to_dequeue_.pop();
   }
 
- private:
+private:
   std::array<std::queue<T>, NUM_PRIORITY_LEVELS> queues_;
   std::priority_queue<int> next_to_dequeue_;
 };

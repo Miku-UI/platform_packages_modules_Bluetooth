@@ -18,6 +18,8 @@ package com.android.bluetooth.map;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.annotation.SuppressLint;
+
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -67,6 +69,7 @@ public class MsgTest {
     }
 
     @Test
+    @SuppressLint("TruthIncompatibleType") // That the point of this test
     public void equals_withDifferentClass() {
         BluetoothMapContentObserver.Msg msg =
                 new BluetoothMapContentObserver.Msg(TEST_ID, TEST_FOLDER_ID, TEST_READ_FLAG);

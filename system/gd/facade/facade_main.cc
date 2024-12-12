@@ -20,7 +20,6 @@
 
 #include <csignal>
 #include <cstring>
-#include <memory>
 #include <optional>
 #include <string>
 #include <thread>
@@ -32,11 +31,9 @@
 #include <unwindstack/AndroidUnwinder.h>
 // clang-format on
 
-#include "common/init_flags.h"
 #include "facade/grpc_root_server.h"
 #include "hal/hci_hal_host.h"
 #include "hal/snoop_logger.h"
-#include "os/log.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"
 
@@ -46,9 +43,7 @@ using ::bluetooth::hal::HciHalHostRootcanalConfig;
 using ::bluetooth::os::Thread;
 using namespace bluetooth;
 
-extern "C" const char* __asan_default_options() {
-  return "detect_container_overflow=0";
-}
+extern "C" const char* __asan_default_options() { return "detect_container_overflow=0"; }
 
 namespace {
 ::bluetooth::facade::GrpcRootServer grpc_root_server;
@@ -60,13 +55,14 @@ struct sigaction old_act = {};
 void interrupt_handler(int signal_number) {
   if (!interrupted) {
     interrupted = true;
-    log::info(
-        "Stopping gRPC root server due to signal: {}[{}]", strsignal(signal_number), signal_number);
+    log::info("Stopping gRPC root server due to signal: {}[{}]", strsignal(signal_number),
+              signal_number);
     interrupt_promise.set_value();
   } else {
     log::warn("Already interrupted by signal: {}[{}]", strsignal(signal_number), signal_number);
   }
-  if (old_act.sa_handler != nullptr && old_act.sa_handler != SIG_IGN && old_act.sa_handler != SIG_DFL) {
+  if (old_act.sa_handler != nullptr && old_act.sa_handler != SIG_IGN &&
+      old_act.sa_handler != SIG_DFL) {
     log::info("Calling saved signal handler");
     old_act.sa_handler(signal_number);
   }
@@ -79,11 +75,8 @@ bool crash_callback(const void* crash_context, size_t crash_context_size, void* 
     auto* ctx = static_cast<const google_breakpad::ExceptionHandler::CrashContext*>(crash_context);
     tid = ctx->tid;
     int signal_number = ctx->siginfo.si_signo;
-    log::error(
-        "Process crashed, signal: {}[{}], tid: {}",
-        strsignal(signal_number),
-        signal_number,
-        ctx->tid);
+    log::error("Process crashed, signal: {}[{}], tid: {}", strsignal(signal_number), signal_number,
+               ctx->tid);
   } else {
     log::error("Process crashed, signal: unknown, tid: unknown");
   }
@@ -113,14 +106,13 @@ void thread_check_shutdown() {
 
 // The entry point for the binary with libbluetooth + facades
 int main(int argc, const char** argv) {
-  google_breakpad::MinidumpDescriptor descriptor(google_breakpad::MinidumpDescriptor::kMicrodumpOnConsole);
+  google_breakpad::MinidumpDescriptor descriptor(
+          google_breakpad::MinidumpDescriptor::kMicrodumpOnConsole);
   google_breakpad::ExceptionHandler eh(descriptor, nullptr, nullptr, nullptr, true, -1);
   eh.set_crash_handler(crash_callback);
 
   int root_server_port = 8897;
   int grpc_port = 8899;
-
-  bluetooth::common::InitFlags::SetAllForTesting();
 
   const std::string arg_grpc_root_server_port = "--root-server-port=";
   const std::string arg_grpc_server_port = "--grpc-port=";
@@ -145,13 +137,12 @@ int main(int argc, const char** argv) {
     if (arg.find(arg_btsnoop_path) == 0) {
       auto btsnoop_path = arg.substr(arg_btsnoop_path.size());
       ::bluetooth::os::ParameterProvider::OverrideSnoopLogFilePath(btsnoop_path);
-      log::assert_that(
-          ::bluetooth::os::SetSystemProperty(
-              ::bluetooth::hal::SnoopLogger::kBtSnoopLogModeProperty,
-              ::bluetooth::hal::SnoopLogger::kBtSnoopLogModeFull),
-          "assert failed: ::bluetooth::os::SetSystemProperty( "
-          "::bluetooth::hal::SnoopLogger::kBtSnoopLogModeProperty, "
-          "::bluetooth::hal::SnoopLogger::kBtSnoopLogModeFull)");
+      log::assert_that(::bluetooth::os::SetSystemProperty(
+                               ::bluetooth::hal::SnoopLogger::kBtSnoopLogModeProperty,
+                               ::bluetooth::hal::SnoopLogger::kBtSnoopLogModeFull),
+                       "assert failed: ::bluetooth::os::SetSystemProperty( "
+                       "::bluetooth::hal::SnoopLogger::kBtSnoopLogModeProperty, "
+                       "::bluetooth::hal::SnoopLogger::kBtSnoopLogModeFull)");
     }
     if (arg.find(arg_btsnooz_path) == 0) {
       auto btsnooz_path = arg.substr(arg_btsnooz_path.size());

@@ -39,19 +39,22 @@ class Mutation;
 
 // A memory operated section-key-value structured config
 //
-// A section can be either persistent or temporary. When a section becomes persistent, all its properties are
-// written to disk.
+// A section can be either persistent or temporary. When a section becomes persistent, all its
+// properties are written to disk.
 //
-// A section becomes persistent when a property that is part of persistent_property_names_ is written to config cache;
-// A section becomes temporary when all properties that are part of persistent_property_names_ is removed
+// A section becomes persistent when a property that is part of persistent_property_names_ is
+// written to config cache; A section becomes temporary when all properties that are part of
+// persistent_property_names_ is removed
 //
-// The definition of persistent sections is up to the user and is defined through the |persistent_property_names|
-// argument. When these properties are link key properties, then persistent sections is equal to bonded devices
+// The definition of persistent sections is up to the user and is defined through the
+// |persistent_property_names| argument. When these properties are link key properties, then
+// persistent sections is equal to bonded devices
 //
 // This class is thread safe
 class ConfigCache {
- public:
-  ConfigCache(size_t temp_device_capacity, std::unordered_set<std::string_view> persistent_property_names);
+public:
+  ConfigCache(size_t temp_device_capacity,
+              std::unordered_set<std::string_view> persistent_property_names);
 
   ConfigCache(const ConfigCache&) = delete;
   ConfigCache& operator=(const ConfigCache&) = delete;
@@ -72,14 +75,16 @@ class ConfigCache {
   virtual bool HasSection(const std::string& section) const;
   virtual bool HasProperty(const std::string& section, const std::string& property) const;
   // Get property, return std::nullopt if section or property does not exist
-  virtual std::optional<std::string> GetProperty(const std::string& section, const std::string& property) const;
+  virtual std::optional<std::string> GetProperty(const std::string& section,
+                                                 const std::string& property) const;
   // Returns a copy of persistent device MAC addresses
   virtual std::vector<std::string> GetPersistentSections() const;
   // Return true if a section is persistent
   virtual bool IsPersistentSection(const std::string& section) const;
   // Return true if a section has one of the properties in |property_names|
   virtual bool HasAtLeastOneMatchingPropertiesInSection(
-      const std::string& section, const std::unordered_set<std::string_view>& property_names) const;
+          const std::string& section,
+          const std::unordered_set<std::string_view>& property_names) const;
   // Return true if a property is part of persistent_property_names_
   virtual bool IsPersistentProperty(const std::string& property) const;
   // Serialize to legacy config format
@@ -91,11 +96,10 @@ class ConfigCache {
     bool operator==(const SectionAndPropertyValue& rhs) const {
       return section == rhs.section && property == rhs.property;
     }
-    bool operator!=(const SectionAndPropertyValue& rhs) const {
-      return !(*this == rhs);
-    }
+    bool operator!=(const SectionAndPropertyValue& rhs) const { return !(*this == rhs); }
   };
-  virtual std::vector<SectionAndPropertyValue> GetSectionNamesWithProperty(const std::string& property) const;
+  virtual std::vector<SectionAndPropertyValue> GetSectionNamesWithProperty(
+          const std::string& property) const;
   // Returns all property names in the specific section.
   virtual std::vector<std::string> GetPropertyNames(const std::string& section) const;
 
@@ -112,11 +116,13 @@ class ConfigCache {
   // remove all content in this config cache, restore it to the state after the explicit constructor
   virtual void Clear();
   // Set a callback to notify interested party that a persistent config change has just happened
-  virtual void SetPersistentConfigChangedCallback(std::function<void()> persistent_config_changed_callback);
+  virtual void SetPersistentConfigChangedCallback(
+          std::function<void()> persistent_config_changed_callback);
 
   // Device config specific methods
-  // TODO: methods here should be moved to a device specific config cache if this config cache is supposed to be generic
-  // Legacy stack has device type inconsistencies, this method is trying to fix it
+  // TODO: methods here should be moved to a device specific config cache if this config cache is
+  // supposed to be generic Legacy stack has device type inconsistencies, this method is trying to
+  // fix it
   virtual bool FixDeviceTypeInconsistencies();
 
   // static methods
@@ -126,19 +132,20 @@ class ConfigCache {
   // constants
   static const std::string kDefaultSectionName;
 
- private:
+private:
   mutable std::recursive_mutex mutex_;
-  // A callback to notify interested party that a persistent config change has just happened, empty by default
+  // A callback to notify interested party that a persistent config change has just happened, empty
+  // by default
   std::function<void()> persistent_config_changed_callback_;
-  // A set of property names that if set would make a section persistent and if non of these properties are set, a
-  // section would become temporary again
+  // A set of property names that if set would make a section persistent and if non of these
+  // properties are set, a section would become temporary again
   std::unordered_set<std::string_view> persistent_property_names_;
   // Common section that does not relate to remote device, will be written to disk
   common::ListMap<std::string, common::ListMap<std::string, std::string>> information_sections_;
   // Information about persistent devices, normally paired, will be written to disk
   common::ListMap<std::string, common::ListMap<std::string, std::string>> persistent_devices_;
-  // Information about temporary devices, normally unpaired, will not be written to disk, will be evicted automatically
-  // if capacity exceeds given value during initialization
+  // Information about temporary devices, normally unpaired, will not be written to disk, will be
+  // evicted automatically if capacity exceeds given value during initialization
   common::LruCache<std::string, common::ListMap<std::string, std::string>> temporary_devices_;
 
   // Convenience method to check if the callback is valid before calling it

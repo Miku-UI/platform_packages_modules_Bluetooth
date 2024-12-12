@@ -33,6 +33,7 @@ namespace bluetooth::le_audio {
 
 // Maps to BluetoothProfile#LE_AUDIO
 #define LE_AUDIO_PROFILE_CONSTANT 22
+#define LE_AUDIO_INVALID_CIS_HANDLE 0xFFFF
 
 /* Enums */
 enum class DeviceConnectState : uint8_t {
@@ -74,7 +75,7 @@ std::ostream& operator<<(std::ostream& os, const DeviceConnectState& state);
  * according to requested by upper context type.
  */
 class LeAudioDevice {
- public:
+public:
   RawAddress address_;
 
   DeviceConnectState connection_state_;
@@ -82,7 +83,7 @@ class LeAudioDevice {
   bool notify_connected_after_read_;
   bool closing_stream_for_disconnection_;
   bool autoconnect_flag_;
-  uint16_t conn_id_;
+  tCONN_ID conn_id_;
   uint16_t mtu_;
   bool encrypted_;
   int group_id_;
@@ -134,7 +135,8 @@ class LeAudioDevice {
         link_quality_timer(nullptr),
         dsa_({{DsaMode::DISABLED},
               types::DataPathState::IDLE,
-              GATT_INVALID_CONN_ID}) {}
+              LE_AUDIO_INVALID_CIS_HANDLE,
+              false}) {}
   ~LeAudioDevice(void);
 
   void SetConnectionState(DeviceConnectState state);
@@ -146,25 +148,22 @@ class LeAudioDevice {
   int GetAseCount(uint8_t direction);
   struct types::ase* GetFirstActiveAse(void);
   struct types::ase* GetFirstActiveAseByDirection(uint8_t direction);
-  struct types::ase* GetNextActiveAseWithSameDirection(
-      struct types::ase* base_ase);
-  struct types::ase* GetNextActiveAseWithDifferentDirection(
-      struct types::ase* base_ase);
-  struct types::ase* GetFirstActiveAseByCisAndDataPathState(
-      types::CisState cis_state, types::DataPathState data_path_state);
-  struct types::ase* GetFirstInactiveAse(uint8_t direction,
-                                         bool reconnect = false);
-  struct types::ase* GetFirstAseWithState(uint8_t direction,
-                                          types::AseState state);
+  struct types::ase* GetNextActiveAseWithSameDirection(struct types::ase* base_ase);
+  struct types::ase* GetNextActiveAseWithDifferentDirection(struct types::ase* base_ase);
+  struct types::ase* GetFirstActiveAseByCisAndDataPathState(types::CisState cis_state,
+                                                            types::DataPathState data_path_state);
+  struct types::ase* GetFirstInactiveAse(uint8_t direction, bool reconnect = false);
+  struct types::ase* GetFirstAseWithState(uint8_t direction, types::AseState state);
   struct types::ase* GetNextActiveAse(struct types::ase* ase);
   struct types::ase* GetAseToMatchBidirectionCis(struct types::ase* ase);
-  types::BidirectionalPair<struct types::ase*> GetAsesByCisConnHdl(
-      uint16_t conn_hdl);
+  types::BidirectionalPair<struct types::ase*> GetAsesByCisConnHdl(uint16_t conn_hdl);
   types::BidirectionalPair<struct types::ase*> GetAsesByCisId(uint8_t cis_id);
   bool HaveActiveAse(void);
   bool HaveAllActiveAsesSameState(types::AseState state);
   bool HaveAllActiveAsesSameDataPathState(types::DataPathState state) const;
   bool HaveAnyUnconfiguredAses(void);
+  bool HaveAnyStreamingAses(void);
+  bool HaveAnyReleasingAse(void);
   bool IsReadyToCreateStream(void);
   bool IsReadyToStream(void) const {
     return HaveAllActiveAsesCisEst() &&
@@ -177,52 +176,46 @@ class LeAudioDevice {
   uint8_t GetPhyBitmask(void) const;
   uint8_t GetPreferredPhyBitmask(uint8_t preferred_phy) const;
   bool IsAudioSetConfigurationSupported(
-      const set_configurations::AudioSetConfiguration* audio_set_conf) const;
-  bool ConfigureAses(
-      const set_configurations::AudioSetConfiguration* audio_set_conf,
-      uint8_t group_size, uint8_t direction,
-      types::LeAudioContextType context_type,
-      uint8_t* number_of_already_active_group_ase,
-      types::AudioLocations& group_audio_locations_out,
-      const types::AudioContexts& metadata_context_types,
-      const std::vector<uint8_t>& ccid_lists, bool reuse_cis_id);
+          const set_configurations::AudioSetConfiguration* audio_set_conf) const;
+  bool ConfigureAses(const set_configurations::AudioSetConfiguration* audio_set_conf,
+                     uint8_t group_size, uint8_t direction, types::LeAudioContextType context_type,
+                     uint8_t* number_of_already_active_group_ase,
+                     types::AudioLocations& group_audio_locations_out,
+                     const types::AudioContexts& metadata_context_types,
+                     const std::vector<uint8_t>& ccid_lists, bool reuse_cis_id);
 
   inline types::AudioContexts GetSupportedContexts(
-      int direction = types::kLeAudioDirectionBoth) const {
-    log::assert_that(direction <= (types::kLeAudioDirectionBoth),
-                     "Invalid direction used.");
+          int direction = types::kLeAudioDirectionBoth) const {
+    log::assert_that(direction <= (types::kLeAudioDirectionBoth), "Invalid direction used.");
 
-    if (direction < types::kLeAudioDirectionBoth)
+    if (direction < types::kLeAudioDirectionBoth) {
       return supp_contexts_.get(direction);
-    else
+    } else {
       return types::get_bidirectional(supp_contexts_);
+    }
   }
-  inline void SetSupportedContexts(
-      types::BidirectionalPair<types::AudioContexts> contexts) {
+  inline void SetSupportedContexts(types::BidirectionalPair<types::AudioContexts> contexts) {
     supp_contexts_ = contexts;
   }
 
   inline types::AudioContexts GetAvailableContexts(
-      int direction = types::kLeAudioDirectionBoth) const {
-    log::assert_that(direction <= (types::kLeAudioDirectionBoth),
-                     "Invalid direction used.");
+          int direction = types::kLeAudioDirectionBoth) const {
+    log::assert_that(direction <= (types::kLeAudioDirectionBoth), "Invalid direction used.");
 
-    if (direction < types::kLeAudioDirectionBoth)
+    if (direction < types::kLeAudioDirectionBoth) {
       return avail_contexts_.get(direction);
-    else
+    } else {
       return types::get_bidirectional(avail_contexts_);
+    }
   }
-  void SetAvailableContexts(
-      types::BidirectionalPair<types::AudioContexts> cont_val);
+  void SetAvailableContexts(types::BidirectionalPair<types::AudioContexts> cont_val);
 
   void DeactivateAllAses(void);
   bool ActivateConfiguredAses(
-      types::LeAudioContextType context_type,
-      const types::BidirectionalPair<types::AudioContexts>&
-          metadata_context_types,
-      types::BidirectionalPair<std::vector<uint8_t>> ccid_lists);
-  void SetMetadataToAse(struct types::ase* ase,
-                        const types::AudioContexts& metadata_context_types,
+          types::LeAudioContextType context_type,
+          const types::BidirectionalPair<types::AudioContexts>& metadata_context_types,
+          types::BidirectionalPair<std::vector<uint8_t>> ccid_lists);
+  void SetMetadataToAse(struct types::ase* ase, const types::AudioContexts& metadata_context_types,
                         const std::vector<uint8_t>& ccid_lists);
 
   void PrintDebugState(void);
@@ -232,32 +225,31 @@ class LeAudioDevice {
   void DisconnectAcl(void);
   std::vector<uint8_t> GetMetadata(types::AudioContexts context_type,
                                    const std::vector<uint8_t>& ccid_list);
-  bool IsMetadataChanged(
-      const types::BidirectionalPair<types::AudioContexts>& context_types,
-      const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists);
+  bool IsMetadataChanged(const types::BidirectionalPair<types::AudioContexts>& context_types,
+                         const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists);
 
   void GetDeviceModelName(void);
   void UpdateDeviceAllowlistFlag(void);
   DsaModes GetDsaModes(void);
+  bool DsaReducedSduSizeSupported();
   types::DataPathState GetDsaDataPathState(void);
   void SetDsaDataPathState(types::DataPathState state);
   uint16_t GetDsaCisHandle(void);
   void SetDsaCisHandle(uint16_t cis_handle);
 
- private:
+private:
   types::BidirectionalPair<types::AudioContexts> avail_contexts_;
   types::BidirectionalPair<types::AudioContexts> supp_contexts_;
   struct {
     DsaModes modes;
     types::DataPathState state;
     uint16_t cis_handle;
+    bool reduced_sdu;  // TODO: Remove when earbud implementations move to approved DSA 2.0 standard
   } dsa_;
 
-  static constexpr char kLeAudioDeviceAllowListProp[] =
-      "persist.bluetooth.leaudio.allow_list";
+  static constexpr char kLeAudioDeviceAllowListProp[] = "persist.bluetooth.leaudio.allow_list";
 
-  void DumpPacsDebugState(std::stringstream& stream,
-                          types::PublishedAudioCapabilities pacs);
+  void DumpPacsDebugState(std::stringstream& stream, types::PublishedAudioCapabilities pacs);
   void ParseHeadtrackingCodec(const struct types::acs_ac_record& pac);
 };
 
@@ -266,14 +258,13 @@ class LeAudioDevice {
  * using determinants like address, connection id etc.
  */
 class LeAudioDevices {
- public:
-  void Add(const RawAddress& address,
-           bluetooth::le_audio::DeviceConnectState state,
+public:
+  void Add(const RawAddress& address, bluetooth::le_audio::DeviceConnectState state,
            int group_id = bluetooth::groups::kGroupUnknown);
   void Remove(const RawAddress& address);
   LeAudioDevice* FindByAddress(const RawAddress& address) const;
   std::shared_ptr<LeAudioDevice> GetByAddress(const RawAddress& address) const;
-  LeAudioDevice* FindByConnId(uint16_t conn_id) const;
+  LeAudioDevice* FindByConnId(tCONN_ID conn_id) const;
   LeAudioDevice* FindByCisConnHdl(uint8_t cig_id, uint16_t conn_hdl) const;
   void SetInitialGroupAutoconnectState(int group_id, int gatt_if,
                                        tBTM_BLE_CONN_TYPE reconnection_mode,
@@ -282,7 +273,7 @@ class LeAudioDevices {
   void Dump(int fd, int group_id) const;
   void Cleanup(tGATT_IF client_if);
 
- private:
+private:
   std::vector<std::shared_ptr<LeAudioDevice>> leAudioDevices_;
 };
 

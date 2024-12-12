@@ -30,8 +30,8 @@
 #define LISTEN_BACKLOG 4
 
 /* Documented in header file. */
-int osi_socket_make_sockaddr_un(const char* name, int namespaceId,
-                                struct sockaddr_un* p_addr, socklen_t* alen) {
+int osi_socket_make_sockaddr_un(const char* name, int namespaceId, struct sockaddr_un* p_addr,
+                                socklen_t* alen) {
   memset(p_addr, 0, sizeof(*p_addr));
   size_t namelen;
 
@@ -57,8 +57,7 @@ int osi_socket_make_sockaddr_un(const char* name, int namespaceId,
 
       namelen = strlen(name) + strlen(FILESYSTEM_SOCKET_PREFIX);
       /* unix_path_max appears to be missing on linux */
-      if (namelen >
-          sizeof(*p_addr) - offsetof(struct sockaddr_un, sun_path) - 1) {
+      if (namelen > sizeof(*p_addr) - offsetof(struct sockaddr_un, sun_path) - 1) {
         goto error;
       }
 
@@ -70,8 +69,7 @@ int osi_socket_make_sockaddr_un(const char* name, int namespaceId,
     case ANDROID_SOCKET_NAMESPACE_RESERVED:
       namelen = strlen(name) + strlen(ANDROID_RESERVED_SOCKET_PREFIX);
       /* unix_path_max appears to be missing on linux */
-      if (namelen >
-          sizeof(*p_addr) - offsetof(struct sockaddr_un, sun_path) - 1) {
+      if (namelen > sizeof(*p_addr) - offsetof(struct sockaddr_un, sun_path) - 1) {
         goto error;
       }
 
@@ -82,8 +80,7 @@ int osi_socket_make_sockaddr_un(const char* name, int namespaceId,
     case ANDROID_SOCKET_NAMESPACE_FILESYSTEM:
       namelen = strlen(name);
       /* unix_path_max appears to be missing on linux */
-      if (namelen >
-          sizeof(*p_addr) - offsetof(struct sockaddr_un, sun_path) - 1) {
+      if (namelen > sizeof(*p_addr) - offsetof(struct sockaddr_un, sun_path) - 1) {
         goto error;
       }
 
@@ -108,8 +105,7 @@ error:
  *
  * Used by AndroidSocketImpl
  */
-int osi_socket_local_client_connect(int fd, const char* name, int namespaceId,
-                                    int /* type */) {
+int osi_socket_local_client_connect(int fd, const char* name, int namespaceId, int /* type */) {
   struct sockaddr_un addr;
   socklen_t alen;
   int err;
@@ -139,7 +135,9 @@ int osi_socket_local_client(const char* name, int namespaceId, int type) {
   int s;
 
   s = socket(AF_LOCAL, type, 0);
-  if (s < 0) return -1;
+  if (s < 0) {
+    return -1;
+  }
 
   if (0 > osi_socket_local_client_connect(s, name, namespaceId, type)) {
     close(s);

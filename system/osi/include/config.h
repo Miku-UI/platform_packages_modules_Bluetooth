@@ -17,6 +17,7 @@
 // - All strings are case sensitive.
 
 #include <stdbool.h>
+
 #include <list>
 #include <memory>
 #include <string>
@@ -70,14 +71,13 @@ bool config_has_section(const config_t& config, const std::string& section);
 
 // Returns true if the config file has a key named |key| under |section|.
 // Returns false otherwise.
-bool config_has_key(const config_t& config, const std::string& section,
-                    const std::string& key);
+bool config_has_key(const config_t& config, const std::string& section, const std::string& key);
 
 // Returns the integral value for a given |key| in |section|. If |section|
 // or |key| do not exist, or the value cannot be fully converted to an integer,
 // this function returns |def_value|.
-int config_get_int(const config_t& config, const std::string& section,
-                   const std::string& key, int def_value);
+int config_get_int(const config_t& config, const std::string& section, const std::string& key,
+                   int def_value);
 
 // Returns the uint64_t value for a given |key| in |section|. If |section|
 // or |key| do not exist, or the value cannot be fully converted to an integer,
@@ -88,37 +88,35 @@ uint64_t config_get_uint64(const config_t& config, const std::string& section,
 // Returns the boolean value for a given |key| in |section|. If |section|
 // or |key| do not exist, or the value cannot be converted to a boolean, this
 // function returns |def_value|.
-bool config_get_bool(const config_t& config, const std::string& section,
-                     const std::string& key, bool def_value);
+bool config_get_bool(const config_t& config, const std::string& section, const std::string& key,
+                     bool def_value);
 
 // Returns the string value for a given |key| in |section|. If |section| or
 // |key| do not exist, this function returns |def_value|. The returned string
 // is owned by the config module and must not be freed or modified. |def_value|
 // may be NULL.
-const std::string* config_get_string(const config_t& config,
-                                     const std::string& section,
-                                     const std::string& key,
-                                     const std::string* def_value);
+const std::string* config_get_string(const config_t& config, const std::string& section,
+                                     const std::string& key, const std::string* def_value);
 
 // Sets an integral value for the |key| in |section|. If |key| or |section| do
 // not already exist, this function creates them. |config| must not be NULL.
-void config_set_int(config_t* config, const std::string& section,
-                    const std::string& key, int value);
+void config_set_int(config_t* config, const std::string& section, const std::string& key,
+                    int value);
 
 // Sets a uint64_t value for the |key| in |section|. If |key| or |section| do
 // not already exist, this function creates them. |config| must not be NULL.
-void config_set_uint64(config_t* config, const std::string& section,
-                       const std::string& key, uint64_t value);
+void config_set_uint64(config_t* config, const std::string& section, const std::string& key,
+                       uint64_t value);
 
 // Sets a boolean value for the |key| in |section|. If |key| or |section| do
 // not already exist, this function creates them. |config| must not be NULL.
-void config_set_bool(config_t* config, const std::string& section,
-                     const std::string& key, bool value);
+void config_set_bool(config_t* config, const std::string& section, const std::string& key,
+                     bool value);
 
 // Sets a string value for the |key| in |section|. If |key| or |section| do
 // not already exist, this function creates them. |config| must not be NULL.
-void config_set_string(config_t* config, const std::string& section,
-                       const std::string& key, const std::string& value);
+void config_set_string(config_t* config, const std::string& section, const std::string& key,
+                       const std::string& value);
 
 // Removes |section| from the |config| (and, as a result, all keys in the
 // section).
@@ -131,8 +129,7 @@ bool config_remove_section(config_t* config, const std::string& section);
 // true
 // if the section and key were found and the key was removed, false otherwise.
 // |config|may not be NULL.
-bool config_remove_key(config_t* config, const std::string& section,
-                       const std::string& key);
+bool config_remove_key(config_t* config, const std::string& section, const std::string& key);
 
 // Saves |config| to a file given by |filename|. Note that this could be a
 // destructive operation: if |filename| already exists, it will be overwritten.

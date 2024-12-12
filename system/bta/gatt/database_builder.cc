@@ -38,39 +38,36 @@ using namespace bluetooth;
 
 namespace gatt {
 
-void DatabaseBuilder::AddService(uint16_t handle, uint16_t end_handle,
-                                 const Uuid& uuid, bool is_primary) {
+void DatabaseBuilder::AddService(uint16_t handle, uint16_t end_handle, const Uuid& uuid,
+                                 bool is_primary) {
   // general case optimization - we add services in order
-  if (database.services.empty() ||
-      database.services.back().end_handle < handle) {
+  if (database.services.empty() || database.services.back().end_handle < handle) {
     database.services.emplace_back(Service{
-        .handle = handle,
-        .uuid = uuid,
-        .is_primary = is_primary,
-        .end_handle = end_handle,
+            .handle = handle,
+            .uuid = uuid,
+            .is_primary = is_primary,
+            .end_handle = end_handle,
     });
   } else {
     auto& vec = database.services;
 
     // Find first service whose start handle is bigger than new service handle
-    auto it = std::lower_bound(
-        vec.begin(), vec.end(), handle,
-        [](Service s, uint16_t handle) { return s.end_handle < handle; });
+    auto it = std::lower_bound(vec.begin(), vec.end(), handle,
+                               [](Service s, uint16_t handle) { return s.end_handle < handle; });
 
     // Insert new service just before it
     vec.emplace(it, Service{
-                        .handle = handle,
-                        .uuid = uuid,
-                        .is_primary = is_primary,
-                        .end_handle = end_handle,
+                            .handle = handle,
+                            .uuid = uuid,
+                            .is_primary = is_primary,
+                            .end_handle = end_handle,
                     });
   }
 
   services_to_discover.insert({handle, end_handle});
 }
 
-void DatabaseBuilder::AddIncludedService(uint16_t handle, const Uuid& uuid,
-                                         uint16_t start_handle,
+void DatabaseBuilder::AddIncludedService(uint16_t handle, const Uuid& uuid, uint16_t start_handle,
                                          uint16_t end_handle) {
   Service* service = FindService(database.services, handle);
   if (!service) {
@@ -85,32 +82,31 @@ void DatabaseBuilder::AddIncludedService(uint16_t handle, const Uuid& uuid,
   }
 
   service->included_services.push_back(IncludedService{
-      .handle = handle,
-      .uuid = uuid,
-      .start_handle = start_handle,
-      .end_handle = end_handle,
+          .handle = handle,
+          .uuid = uuid,
+          .start_handle = start_handle,
+          .end_handle = end_handle,
   });
 }
 
-void DatabaseBuilder::AddCharacteristic(uint16_t handle, uint16_t value_handle,
-                                        const Uuid& uuid, uint8_t properties) {
+void DatabaseBuilder::AddCharacteristic(uint16_t handle, uint16_t value_handle, const Uuid& uuid,
+                                        uint8_t properties) {
   Service* service = FindService(database.services, handle);
   if (!service) {
     log::error("Illegal action to add to non-existing service!");
     return;
   }
 
-  if (service->end_handle < value_handle)
-    log::warn(
-        "Remote device violates spec: value_handle=0x{:x} is after service "
-        "end_handle=0x{:x}",
-        value_handle, service->end_handle);
+  if (service->end_handle < value_handle) {
+    log::warn("Remote device violates spec: value_handle=0x{:x} is after service end_handle=0x{:x}",
+              value_handle, service->end_handle);
+  }
 
   service->characteristics.emplace_back(Characteristic{
-      .declaration_handle = handle,
-      .uuid = uuid,
-      .value_handle = value_handle,
-      .properties = properties,
+          .declaration_handle = handle,
+          .uuid = uuid,
+          .value_handle = value_handle,
+          .properties = properties,
   });
   return;
 }
@@ -128,14 +124,14 @@ void DatabaseBuilder::AddDescriptor(uint16_t handle, const Uuid& uuid) {
   }
 
   Characteristic* char_node = &service->characteristics.front();
-  for (auto it = service->characteristics.begin();
-       it != service->characteristics.end(); it++) {
-    if (it->declaration_handle > handle) break;
+  for (auto it = service->characteristics.begin(); it != service->characteristics.end(); it++) {
+    if (it->declaration_handle > handle) {
+      break;
+    }
     char_node = &(*it);
   }
 
-  char_node->descriptors.emplace_back(
-      gatt::Descriptor{.handle = handle, .uuid = uuid});
+  char_node->descriptors.emplace_back(gatt::Descriptor{.handle = handle, .uuid = uuid});
 
   // We must read value for Characteristic Extended Properties
   if (uuid == Uuid::From16Bit(GATT_UUID_CHAR_EXT_PROP)) {
@@ -150,7 +146,9 @@ bool DatabaseBuilder::StartNextServiceExploration() {
     services_to_discover.erase(handle_range);
 
     // Empty service declaration, nothing to explore, skip to next.
-    if (pending_service.first == pending_service.second) continue;
+    if (pending_service.first == pending_service.second) {
+      continue;
+    }
 
     pending_characteristic = HANDLE_MIN;
     return true;
@@ -158,8 +156,7 @@ bool DatabaseBuilder::StartNextServiceExploration() {
   return false;
 }
 
-const std::pair<uint16_t, uint16_t>&
-DatabaseBuilder::CurrentlyExploredService() {
+const std::pair<uint16_t, uint16_t>& DatabaseBuilder::CurrentlyExploredService() {
   return pending_service;
 }
 
@@ -169,8 +166,7 @@ std::pair<uint16_t, uint16_t> DatabaseBuilder::NextDescriptorRangeToExplore() {
     return {HANDLE_MAX, HANDLE_MAX};
   }
 
-  for (auto it = service->characteristics.cbegin();
-       it != service->characteristics.cend(); it++) {
+  for (auto it = service->characteristics.cbegin(); it != service->characteristics.cend(); it++) {
     if (it->declaration_handle > pending_characteristic) {
       auto next = std::next(it);
 
@@ -179,13 +175,16 @@ std::pair<uint16_t, uint16_t> DatabaseBuilder::NextDescriptorRangeToExplore() {
        * Part G 3.3.2 and 3.3.3 */
       uint16_t start = it->declaration_handle + 2;
       uint16_t end;
-      if (next != service->characteristics.end())
+      if (next != service->characteristics.end()) {
         end = next->declaration_handle - 1;
-      else
+      } else {
         end = service->end_handle;
+      }
 
       // No place for descriptor - skip to next characteristic
-      if (start > end) continue;
+      if (start > end) {
+        continue;
+      }
 
       pending_characteristic = start;
       return {start, end};
@@ -196,27 +195,30 @@ std::pair<uint16_t, uint16_t> DatabaseBuilder::NextDescriptorRangeToExplore() {
   return {HANDLE_MAX, HANDLE_MAX};
 }
 
-Descriptor* FindDescriptorByHandle(std::list<Service>& services,
-                                   uint16_t handle) {
+Descriptor* FindDescriptorByHandle(std::list<Service>& services, uint16_t handle) {
   Service* service = FindService(services, handle);
-  if (!service) return nullptr;
+  if (!service) {
+    return nullptr;
+  }
 
   Characteristic* char_node = &service->characteristics.front();
-  for (auto it = service->characteristics.begin();
-       it != service->characteristics.end(); it++) {
-    if (it->declaration_handle > handle) break;
+  for (auto it = service->characteristics.begin(); it != service->characteristics.end(); it++) {
+    if (it->declaration_handle > handle) {
+      break;
+    }
     char_node = &(*it);
   }
 
   for (auto& descriptor : char_node->descriptors) {
-    if (descriptor.handle == handle) return &descriptor;
+    if (descriptor.handle == handle) {
+      return &descriptor;
+    }
   }
 
   return nullptr;
 }
 
-bool DatabaseBuilder::SetValueOfDescriptors(
-    const std::vector<uint16_t>& values) {
+bool DatabaseBuilder::SetValueOfDescriptors(const std::vector<uint16_t>& values) {
   if (values.size() > descriptor_handles_to_read.size()) {
     log::error("values.size() <= descriptors.size() expected");
     descriptor_handles_to_read.clear();
@@ -224,8 +226,7 @@ bool DatabaseBuilder::SetValueOfDescriptors(
   }
 
   for (size_t i = 0; i < values.size(); i++) {
-    Descriptor* d = FindDescriptorByHandle(database.services,
-                                           descriptor_handles_to_read[i]);
+    Descriptor* d = FindDescriptorByHandle(database.services, descriptor_handles_to_read[i]);
     if (!d) {
       log::error("non-existing descriptor!");
       descriptor_handles_to_read.clear();
@@ -235,9 +236,8 @@ bool DatabaseBuilder::SetValueOfDescriptors(
     d->characteristic_extended_properties = values[i];
   }
 
-  descriptor_handles_to_read.erase(
-      descriptor_handles_to_read.begin(),
-      descriptor_handles_to_read.begin() + values.size());
+  descriptor_handles_to_read.erase(descriptor_handles_to_read.begin(),
+                                   descriptor_handles_to_read.begin() + values.size());
   return true;
 }
 

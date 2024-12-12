@@ -17,13 +17,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void RunL2capClassicDynamicChannelAllocatorFuzzTest(const uint8_t* data, size_t size);
-void RunL2capPacketFuzzTest(const uint8_t* data, size_t size);
 void RunHciPacketFuzzTest(const uint8_t* data, size_t size);
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  RunL2capClassicDynamicChannelAllocatorFuzzTest(data, size);
-  RunL2capPacketFuzzTest(data, size);
   RunHciPacketFuzzTest(data, size);
   return 0;
 }

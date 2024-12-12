@@ -27,9 +27,8 @@ namespace bluetooth {
 
 using pair = std::pair<size_t, size_t>;
 
-class IteratorTest
-    : public ::testing::TestWithParam<std::pair<size_t, size_t>> {
- public:
+class IteratorTest : public ::testing::TestWithParam<std::pair<size_t, size_t>> {
+public:
   std::shared_ptr<TestPacket> GetTestPacket() {
     auto bounds = GetParam();
     auto lower_bound = bounds.first;
@@ -56,15 +55,13 @@ INSTANTIATE_TEST_CASE_P(IteratorParameterTest, IteratorDeathTest,
                                           pair(3, test_l2cap_data.size() - 2)));
 
 TEST_F(IteratorDeathTest, iteratorCreateDeathTest) {
-  auto packet =
-      TestPacket::Make(test_l2cap_data, 3, test_l2cap_data.size() - 2);
+  auto packet = TestPacket::Make(test_l2cap_data, 3, test_l2cap_data.size() - 2);
 
   // this will silent SIGABRT sent in ASSERT_DEATH below
   ScopedSilentDeath _silentDeath;
 
   ASSERT_DEATH(Iterator(packet, 0), "index_ >= packet->packet_start_index_");
-  ASSERT_DEATH(Iterator(packet, test_l2cap_data.size()),
-               "index_ <= packet->packet_end_index_");
+  ASSERT_DEATH(Iterator(packet, test_l2cap_data.size()), "index_ <= packet->packet_end_index_");
 }
 
 TEST_F(IteratorTest, extractTest) {
@@ -89,8 +86,7 @@ TEST_F(IteratorTest, extractBETest) {
 
 TEST_P(IteratorTest, payloadBoundsTest) {
   auto packet = GetTestPacket();
-  ASSERT_EQ(static_cast<size_t>(packet->end() - packet->begin()),
-            GetTestPacketLength());
+  ASSERT_EQ(static_cast<size_t>(packet->end() - packet->begin()), GetTestPacketLength());
 
   auto it = packet->begin();
   for (size_t i = 0; i < GetTestPacketLength(); i++) {
@@ -105,14 +101,10 @@ TEST_P(IteratorDeathTest, extractBoundsDeathTest) {
   // this will silent SIGABRT sent in ASSERT_DEATH below
   ScopedSilentDeath _silentDeath;
 
-  ASSERT_DEATH(bounds_test.extract<uint8_t>(),
-               "index_ != packet_->packet_end_index_");
-  ASSERT_DEATH(bounds_test.extract<uint16_t>(),
-               "index_ != packet_->packet_end_index_");
-  ASSERT_DEATH(bounds_test.extract<uint32_t>(),
-               "index_ != packet_->packet_end_index_");
-  ASSERT_DEATH(bounds_test.extract<uint64_t>(),
-               "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extract<uint8_t>(), "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extract<uint16_t>(), "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extract<uint32_t>(), "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extract<uint64_t>(), "index_ != packet_->packet_end_index_");
 }
 
 TEST_P(IteratorDeathTest, extractBEBoundsDeathTest) {
@@ -122,22 +114,17 @@ TEST_P(IteratorDeathTest, extractBEBoundsDeathTest) {
   // this will silent SIGABRT sent in ASSERT_DEATH below
   ScopedSilentDeath _silentDeath;
 
-  ASSERT_DEATH(bounds_test.extractBE<uint8_t>(),
-               "index_ != packet_->packet_end_index_");
-  ASSERT_DEATH(bounds_test.extractBE<uint16_t>(),
-               "index_ != packet_->packet_end_index_");
-  ASSERT_DEATH(bounds_test.extractBE<uint32_t>(),
-               "index_ != packet_->packet_end_index_");
-  ASSERT_DEATH(bounds_test.extractBE<uint64_t>(),
-               "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extractBE<uint8_t>(), "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extractBE<uint16_t>(), "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extractBE<uint32_t>(), "index_ != packet_->packet_end_index_");
+  ASSERT_DEATH(bounds_test.extractBE<uint64_t>(), "index_ != packet_->packet_end_index_");
 }
 
 TEST_P(IteratorDeathTest, dereferenceDeathTest) {
   auto packet = GetTestPacket();
   Iterator dereference_test = packet->end();
 
-  ASSERT_EQ((*packet)[GetTestPacketLength() - 1],
-            *(dereference_test - static_cast<size_t>(1)));
+  ASSERT_EQ((*packet)[GetTestPacketLength() - 1], *(dereference_test - static_cast<size_t>(1)));
 
   // this will silent SIGABRT sent in ASSERT_DEATH below
   ScopedSilentDeath _silentDeath;
@@ -150,8 +137,7 @@ TEST_P(IteratorTest, plusEqTest) {
   Iterator plus_eq = packet->begin();
   for (size_t i = 0; i < GetTestPacketLength(); i += 2) {
     ASSERT_EQ(test_l2cap_data[i + GetLowerBound()], *plus_eq)
-        << "+= test: Dereferenced iterator does not equal expected at index "
-        << i;
+            << "+= test: Dereferenced iterator does not equal expected at index " << i;
     plus_eq += 2;
   }
 
@@ -163,8 +149,8 @@ TEST_P(IteratorTest, preIncrementTest) {
   Iterator plus_plus = packet->begin();
   for (size_t i = 0; i < GetTestPacketLength() - 1; i++) {
     ASSERT_EQ(test_l2cap_data[i + GetLowerBound() + 1], *(++plus_plus))
-        << "Pre-increment test: Dereferenced iterator does not equal expected "
-        << "at index " << i;
+            << "Pre-increment test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
   }
 }
 
@@ -173,8 +159,8 @@ TEST_P(IteratorTest, postIncrementTest) {
   Iterator plus_plus = packet->begin();
   for (size_t i = 0; i < GetTestPacketLength(); i++) {
     ASSERT_EQ(test_l2cap_data[i + GetLowerBound()], *(plus_plus++))
-        << "Post-increment test: Dereferenced iterator does not equal expected "
-        << "at index " << i;
+            << "Post-increment test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
   }
 }
 
@@ -183,8 +169,7 @@ TEST_P(IteratorTest, additionTest) {
   Iterator plus = packet->begin();
   for (size_t i = 0; i < GetTestPacketLength(); i++) {
     ASSERT_EQ(test_l2cap_data[i + GetLowerBound()], *plus)
-        << "+ test: Dereferenced iterator does not equal expected at index "
-        << i;
+            << "+ test: Dereferenced iterator does not equal expected at index " << i;
     plus = plus + static_cast<size_t>(1);
   }
 }
@@ -194,10 +179,8 @@ TEST_P(IteratorTest, minusEqTest) {
   Iterator minus_eq = packet->end();
   minus_eq -= 1;
   for (int i = GetTestPacketLength() - 1; i > 0; i -= 2) {
-    ASSERT_EQ(test_l2cap_data[static_cast<size_t>(i) + GetLowerBound()],
-              *minus_eq)
-        << "-= test: Dereferenced iterator does not equal expected at index "
-        << i;
+    ASSERT_EQ(test_l2cap_data[static_cast<size_t>(i) + GetLowerBound()], *minus_eq)
+            << "-= test: Dereferenced iterator does not equal expected at index " << i;
     minus_eq -= 2;
   }
 }
@@ -206,10 +189,9 @@ TEST_P(IteratorTest, preDecrementTest) {
   auto packet = GetTestPacket();
   Iterator minus_minus = packet->end();
   for (int i = GetTestPacketLength(); i > 0; i--) {
-    ASSERT_EQ(test_l2cap_data[static_cast<size_t>(i) + GetLowerBound() - 1],
-              *(--minus_minus))
-        << "Pre-decrement test: Dereferenced iterator does not equal expected "
-        << "at index " << i;
+    ASSERT_EQ(test_l2cap_data[static_cast<size_t>(i) + GetLowerBound() - 1], *(--minus_minus))
+            << "Pre-decrement test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
   }
 }
 
@@ -218,10 +200,9 @@ TEST_P(IteratorTest, postDecrementTest) {
   Iterator minus_minus = packet->end();
   minus_minus--;
   for (int i = GetTestPacketLength() - 1; i > 0; i--) {
-    ASSERT_EQ(test_l2cap_data[static_cast<size_t>(i) + GetLowerBound()],
-              *(minus_minus--))
-        << "Post-decrement test: Dereferenced iterator does not equal expected "
-        << "at index " << i;
+    ASSERT_EQ(test_l2cap_data[static_cast<size_t>(i) + GetLowerBound()], *(minus_minus--))
+            << "Post-decrement test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
   }
 }
 
@@ -231,8 +212,7 @@ TEST_P(IteratorTest, subtractionTest) {
   minus = minus - static_cast<size_t>(1);
   for (int i = GetTestPacketLength() - 1; i > 0; i--) {
     ASSERT_EQ(test_l2cap_data[static_cast<size_t>(i) + GetLowerBound()], *minus)
-        << "- test: Dereferenced iterator does not equal expected at index "
-        << i;
+            << "- test: Dereferenced iterator does not equal expected at index " << i;
     minus = minus - static_cast<size_t>(1);
   }
 }
@@ -243,7 +223,7 @@ TEST_P(IteratorTest, plusEqBoundsTest) {
   for (size_t i = 0; i < 100; i++) {
     plus_eq += i;
     ASSERT_EQ(packet->end(), plus_eq)
-        << "+= test: Iterator exceeded the upper bound set by get_length()";
+            << "+= test: Iterator exceeded the upper bound set by get_length()";
   }
 }
 
@@ -253,8 +233,7 @@ TEST_P(IteratorTest, preIncrementBoundsTest) {
   plus_plus--;
   for (size_t i = 0; i < 100; i++) {
     ASSERT_EQ(packet->end(), ++plus_plus)
-        << "Pre-increment test: Iterator exceeded the upper bound set "
-           "by get_length()";
+            << "Pre-increment test: Iterator exceeded the upper bound set by get_length()";
   }
 }
 
@@ -263,8 +242,7 @@ TEST_P(IteratorTest, postIncrementBoundsTest) {
   Iterator plus_plus = packet->end();
   for (size_t i = 0; i < 100; i++) {
     ASSERT_EQ(packet->end(), plus_plus++)
-        << "Post-increment test: Iterator exceeded the upper bound set "
-           "by get_length()";
+            << "Post-increment test: Iterator exceeded the upper bound set by get_length()";
   }
 }
 
@@ -274,7 +252,7 @@ TEST_P(IteratorTest, additionBoundsTest) {
   for (size_t i = 0; i < 100; i++) {
     plus = plus + static_cast<size_t>(i);
     ASSERT_EQ(packet->end(), plus)
-        << "+ test: Iterator exceeded the upper bound set by get_length()";
+            << "+ test: Iterator exceeded the upper bound set by get_length()";
   }
 }
 
@@ -284,8 +262,7 @@ TEST_P(IteratorTest, minusEqBoundsTest) {
   for (size_t i = 0; i < 100; i++) {
     minus_eq -= i;
     ASSERT_EQ(test_l2cap_data[GetLowerBound()], *minus_eq)
-        << "-= test: Iterator is less than the lower bound set by "
-           "packet->begin()";
+            << "-= test: Iterator is less than the lower bound set by packet->begin()";
   }
 }
 
@@ -294,8 +271,7 @@ TEST_P(IteratorTest, preDecrementBoundsTest) {
   Iterator minus_minus = packet->begin();
   for (size_t i = 0; i < 100; i++) {
     ASSERT_EQ(test_l2cap_data[GetLowerBound()], *(--minus_minus))
-        << "Pre-decrement test: Iterator is less than the lower bound set by "
-           "packet->begin()";
+            << "Pre-decrement test: Iterator is less than the lower bound set by packet->begin()";
   }
 }
 
@@ -304,8 +280,7 @@ TEST_P(IteratorTest, postDecrementBoundsTest) {
   Iterator minus_minus = packet->begin();
   for (size_t i = 0; i < 100; i++) {
     ASSERT_EQ(test_l2cap_data[GetLowerBound()], *(minus_minus--))
-        << "Post-decrement test: Iterator is less than the lower bound set by "
-           "packet->begin()";
+            << "Post-decrement test: Iterator is less than the lower bound set by packet->begin()";
   }
 }
 
@@ -315,8 +290,7 @@ TEST_P(IteratorTest, subtractionBoundsTest) {
   for (size_t i = 0; i < 100; i++) {
     minus = minus - static_cast<size_t>(i);
     ASSERT_EQ(test_l2cap_data[GetLowerBound()], *minus)
-        << "- test: Iterator is less than the lower bound set "
-           "by packet->begin()";
+            << "- test: Iterator is less than the lower bound set by packet->begin()";
   }
 }
 

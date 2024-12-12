@@ -16,9 +16,9 @@
  *
  ******************************************************************************/
 
-#include <gtest/gtest.h>
-
 #include "common/multi_priority_queue.h"
+
+#include <gtest/gtest.h>
 
 namespace bluetooth {
 namespace common {

@@ -219,7 +219,7 @@ impl PowerdSuspendManager {
     }
 
     pub fn get_suspend_manager_context(&mut self) -> Arc<Mutex<SuspendManagerContext>> {
-        return self.context.clone();
+        self.context.clone()
     }
 
     /// Sets up all required D-Bus listeners.
@@ -296,7 +296,9 @@ impl PowerdSuspendManager {
         let mr = MatchRule::new_signal(POWERD_INTERFACE, SUSPEND_IMMINENT_SIGNAL)
             .with_sender(POWERD_SERVICE)
             .with_path(POWERD_PATH);
-        self.conn.add_match_no_cb(&mr.match_str()).await.unwrap();
+        self.conn.add_match_no_cb(&mr.match_str()).await.expect(
+            "Unable to add match to D-Bus for monitoring SuspendImminent signal from powerd",
+        );
 
         let tx = self.tx.clone();
         self.conn.start_receive(
@@ -330,7 +332,10 @@ impl PowerdSuspendManager {
         let mr = MatchRule::new_signal(POWERD_INTERFACE, SUSPEND_DONE_SIGNAL)
             .with_sender(POWERD_SERVICE)
             .with_path(POWERD_PATH);
-        self.conn.add_match_no_cb(&mr.match_str()).await.unwrap();
+        self.conn
+            .add_match_no_cb(&mr.match_str())
+            .await
+            .expect("Unable to add match to D-Bus for monitoring SuspendDone signal from powerd");
         let tx = self.tx.clone();
         self.conn.start_receive(
             mr,
@@ -552,7 +557,7 @@ impl PowerdSuspendManager {
             let context = self.context.clone();
             tokio::spawn(async move {
                 let suspend_cb_objpath: String =
-                    format!("/org/chromium/bluetooth/Manager/suspend_callback");
+                    "/org/chromium/bluetooth/Manager/suspend_callback".to_string();
                 let status = suspend_dbus_rpc
                     .register_callback(Box::new(SuspendCallback::new(
                         suspend_cb_objpath,

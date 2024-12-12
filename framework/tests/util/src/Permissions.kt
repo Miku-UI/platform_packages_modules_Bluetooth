@@ -64,6 +64,8 @@ object Permissions {
     private fun restorePermissions(permissions: Set<String>) {
         if (UiAutomation.ALL_PERMISSIONS.equals(permissions)) {
             uiAutomation.adoptShellPermissionIdentity()
+        } else if (permissions.size == 0) {
+            uiAutomation.dropShellPermissionIdentity()
         } else {
             uiAutomation.adoptShellPermissionIdentity(*permissions.map { it }.toTypedArray())
         }

@@ -48,12 +48,12 @@ void osi_free(void* ptr);
 void osi_free_and_reset(void** p_ptr);
 
 class OsiObject {
- public:
+public:
   OsiObject(void* ptr);
   OsiObject(const void* ptr);
   ~OsiObject();
   void* Release();
 
- private:
+private:
   void* ptr_;
 };

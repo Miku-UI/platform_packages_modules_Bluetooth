@@ -76,12 +76,11 @@ static constexpr uint8_t kHasPresetIndexInvalid = 0x00;
 static constexpr int kHasGroupIdInvalid = -1;
 
 class HasClientCallbacks {
- public:
+public:
   virtual ~HasClientCallbacks() = default;
 
   /** Callback for profile connection state change */
-  virtual void OnConnectionState(ConnectionState state,
-                                 const RawAddress& addr) = 0;
+  virtual void OnConnectionState(ConnectionState state, const RawAddress& addr) = 0;
 
   /** Callback for the new available device */
   virtual void OnDeviceAvailable(const RawAddress& addr, uint8_t features) = 0;
@@ -90,31 +89,28 @@ class HasClientCallbacks {
   virtual void OnFeaturesUpdate(const RawAddress& addr, uint8_t features) = 0;
 
   /** Callback for the currently active preset */
-  virtual void OnActivePresetSelected(
-      std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index) = 0;
+  virtual void OnActivePresetSelected(std::variant<RawAddress, int> addr_or_group_id,
+                                      uint8_t preset_index) = 0;
 
   /** Callbacks for the active preset selection error */
-  virtual void OnActivePresetSelectError(
-      std::variant<RawAddress, int> addr_or_group_id, ErrorCode error_code) = 0;
+  virtual void OnActivePresetSelectError(std::variant<RawAddress, int> addr_or_group_id,
+                                         ErrorCode error_code) = 0;
 
   /** Callbacks for the preset details event */
   virtual void OnPresetInfo(std::variant<RawAddress, int> addr_or_group_id,
-                            PresetInfoReason change_id,
-                            std::vector<PresetInfo> info_records) = 0;
+                            PresetInfoReason change_id, std::vector<PresetInfo> info_records) = 0;
 
   /** Callback for the preset details get error */
   virtual void OnPresetInfoError(std::variant<RawAddress, int> addr_or_group_id,
-                                 uint8_t preset_index,
-                                 ErrorCode error_code) = 0;
+                                 uint8_t preset_index, ErrorCode error_code) = 0;
 
   /** Callback for the preset name set error */
-  virtual void OnSetPresetNameError(
-      std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,
-      ErrorCode error_code) = 0;
+  virtual void OnSetPresetNameError(std::variant<RawAddress, int> addr_or_group_id,
+                                    uint8_t preset_index, ErrorCode error_code) = 0;
 };
 
 class HasClientInterface {
- public:
+public:
   virtual ~HasClientInterface() = default;
 
   /** Register the Hearing Aid Service Client profile callbacks */
@@ -127,23 +123,21 @@ class HasClientInterface {
   virtual void Disconnect(const RawAddress& addr) = 0;
 
   /** Select preset by the index as currently active */
-  virtual void SelectActivePreset(
-      std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index) = 0;
+  virtual void SelectActivePreset(std::variant<RawAddress, int> addr_or_group_id,
+                                  uint8_t preset_index) = 0;
 
   /** Select next preset as currently active */
-  virtual void NextActivePreset(
-      std::variant<RawAddress, int> addr_or_group_id) = 0;
+  virtual void NextActivePreset(std::variant<RawAddress, int> addr_or_group_id) = 0;
 
   /** Select previous preset as currently active */
-  virtual void PreviousActivePreset(
-      std::variant<RawAddress, int> addr_or_group_id) = 0;
+  virtual void PreviousActivePreset(std::variant<RawAddress, int> addr_or_group_id) = 0;
 
   /** Get preset name by the index */
   virtual void GetPresetInfo(const RawAddress& addr, uint8_t preset_index) = 0;
 
   /** Set preset name by the index */
-  virtual void SetPresetName(std::variant<RawAddress, int> addr_or_group_id,
-                             uint8_t preset_index, std::string name) = 0;
+  virtual void SetPresetName(std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,
+                             std::string name) = 0;
 
   /** Called when HAS capable device is unbonded */
   virtual void RemoveDevice(const RawAddress& addr) = 0;

@@ -35,10 +35,9 @@ using ::aidl::android::hardware::bluetooth::audio::SessionType;
  * HAL.
  ***/
 class IBluetoothTransportInstance {
- public:
-  IBluetoothTransportInstance(SessionType sessionType,
-                              AudioConfiguration audioConfig)
-      : session_type_(sessionType), audio_config_(std::move(audioConfig)){};
+public:
+  IBluetoothTransportInstance(SessionType sessionType, AudioConfiguration audioConfig)
+      : session_type_(sessionType), audio_config_(std::move(audioConfig)) {}
   virtual ~IBluetoothTransportInstance() = default;
 
   SessionType GetSessionType() const { return session_type_; }
@@ -49,27 +48,26 @@ class IBluetoothTransportInstance {
     switch (audio_config.getTag()) {
       case AudioConfiguration::pcmConfig:
         audio_config_.set<AudioConfiguration::pcmConfig>(
-            audio_config.get<AudioConfiguration::pcmConfig>());
+                audio_config.get<AudioConfiguration::pcmConfig>());
         break;
       case AudioConfiguration::a2dpConfig:
         audio_config_.set<AudioConfiguration::a2dpConfig>(
-            audio_config.get<AudioConfiguration::a2dpConfig>());
+                audio_config.get<AudioConfiguration::a2dpConfig>());
         break;
       case AudioConfiguration::hfpConfig:
         audio_config_.set<AudioConfiguration::hfpConfig>(
-            audio_config.get<AudioConfiguration::hfpConfig>());
+                audio_config.get<AudioConfiguration::hfpConfig>());
         break;
       case AudioConfiguration::leAudioConfig:
         audio_config_.set<AudioConfiguration::leAudioConfig>(
-            audio_config.get<AudioConfiguration::leAudioConfig>());
+                audio_config.get<AudioConfiguration::leAudioConfig>());
         break;
       case AudioConfiguration::leAudioBroadcastConfig:
         audio_config_.set<AudioConfiguration::leAudioBroadcastConfig>(
-            audio_config.get<AudioConfiguration::leAudioBroadcastConfig>());
+                audio_config.get<AudioConfiguration::leAudioBroadcastConfig>());
         break;
       case AudioConfiguration::a2dp:
-        audio_config_.set<AudioConfiguration::a2dp>(
-            audio_config.get<AudioConfiguration::a2dp>());
+        audio_config_.set<AudioConfiguration::a2dp>(audio_config.get<AudioConfiguration::a2dp>());
         break;
     }
   }
@@ -83,11 +81,9 @@ class IBluetoothTransportInstance {
   virtual void SetLatencyMode(LatencyMode latency_mode) = 0;
 
   virtual bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                                       uint64_t* total_bytes_readed,
-                                       timespec* data_position) = 0;
+                                       uint64_t* total_bytes_readed, timespec* data_position) = 0;
 
-  virtual void SourceMetadataChanged(
-      const source_metadata_v7_t& source_metadata) = 0;
+  virtual void SourceMetadataChanged(const source_metadata_v7_t& source_metadata) = 0;
   virtual void SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) = 0;
 
   /***
@@ -95,7 +91,7 @@ class IBluetoothTransportInstance {
    ***/
   virtual void ResetPresentationPosition() = 0;
 
- private:
+private:
   const SessionType session_type_;
   AudioConfiguration audio_config_;
 };
@@ -106,9 +102,8 @@ class IBluetoothTransportInstance {
  * from Audio HAL.
  ***/
 class IBluetoothSinkTransportInstance : public IBluetoothTransportInstance {
- public:
-  IBluetoothSinkTransportInstance(SessionType sessionType,
-                                  AudioConfiguration audioConfig)
+public:
+  IBluetoothSinkTransportInstance(SessionType sessionType, AudioConfiguration audioConfig)
       : IBluetoothTransportInstance{sessionType, audioConfig} {}
   virtual ~IBluetoothSinkTransportInstance() = default;
 
@@ -119,9 +114,8 @@ class IBluetoothSinkTransportInstance : public IBluetoothTransportInstance {
 };
 
 class IBluetoothSourceTransportInstance : public IBluetoothTransportInstance {
- public:
-  IBluetoothSourceTransportInstance(SessionType sessionType,
-                                    AudioConfiguration audioConfig)
+public:
+  IBluetoothSourceTransportInstance(SessionType sessionType, AudioConfiguration audioConfig)
       : IBluetoothTransportInstance{sessionType, audioConfig} {}
   virtual ~IBluetoothSourceTransportInstance() = default;
 

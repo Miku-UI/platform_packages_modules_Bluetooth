@@ -25,7 +25,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "os/log.h"           // android log only
+#include "os/log.h"  // android log only
 #include "test/headless/adapter/adapter.h"
 #include "test/headless/connect/connect.h"
 #include "test/headless/discovery/discovery.h"
@@ -61,13 +61,11 @@ FILE* redirected_stderr_{nullptr};
 // This keeps everybody happy.
 void start_trick_the_android_logging_subsystem() {
   redirected_stderr_ = freopen(kRedirectedStderrFilename, "w", stderr);
-  log::assert_that(redirected_stderr_ != nullptr,
-                   "Unable to open redirected stderr file");
+  log::assert_that(redirected_stderr_ != nullptr, "Unable to open redirected stderr file");
 }
 
 void stop_trick_the_android_logging_subsystem() {
-  log::assert_that(redirected_stderr_ != nullptr,
-                   "assert failed: redirected_stderr_ != nullptr");
+  log::assert_that(redirected_stderr_ != nullptr, "assert failed: redirected_stderr_ != nullptr");
   fclose(redirected_stderr_);
   redirected_stderr_ = nullptr;
 }
@@ -91,34 +89,19 @@ void clear_logcat() {
 }
 
 class Main : public HeadlessTest<int> {
- public:
-  Main(const bluetooth::test::headless::GetOpt& options)
-      : HeadlessTest<int>(options) {
-    test_nodes_.emplace(
-        "adapter",
-        std::make_unique<bluetooth::test::headless::Adapter>(options));
-    test_nodes_.emplace(
-        "dumpsys",
-        std::make_unique<bluetooth::test::headless::Dumpsys>(options));
-    test_nodes_.emplace(
-        "connect",
-        std::make_unique<bluetooth::test::headless::Connect>(options));
-    test_nodes_.emplace(
-        "mode", std::make_unique<bluetooth::test::headless::Mode>(options));
-    test_nodes_.emplace(
-        "nop", std::make_unique<bluetooth::test::headless::Nop>(options));
-    test_nodes_.emplace(
-        "pairing",
-        std::make_unique<bluetooth::test::headless::Pairing>(options));
-    test_nodes_.emplace(
-        "read", std::make_unique<bluetooth::test::headless::Read>(options));
-    test_nodes_.emplace(
-        "scan", std::make_unique<bluetooth::test::headless::Scan>(options));
-    test_nodes_.emplace(
-        "sdp", std::make_unique<bluetooth::test::headless::Sdp>(options));
-    test_nodes_.emplace(
-        "discovery",
-        std::make_unique<bluetooth::test::headless::Discovery>(options));
+public:
+  Main(const bluetooth::test::headless::GetOpt& options) : HeadlessTest<int>(options) {
+    test_nodes_.emplace("adapter", std::make_unique<bluetooth::test::headless::Adapter>(options));
+    test_nodes_.emplace("dumpsys", std::make_unique<bluetooth::test::headless::Dumpsys>(options));
+    test_nodes_.emplace("connect", std::make_unique<bluetooth::test::headless::Connect>(options));
+    test_nodes_.emplace("mode", std::make_unique<bluetooth::test::headless::Mode>(options));
+    test_nodes_.emplace("nop", std::make_unique<bluetooth::test::headless::Nop>(options));
+    test_nodes_.emplace("pairing", std::make_unique<bluetooth::test::headless::Pairing>(options));
+    test_nodes_.emplace("read", std::make_unique<bluetooth::test::headless::Read>(options));
+    test_nodes_.emplace("scan", std::make_unique<bluetooth::test::headless::Scan>(options));
+    test_nodes_.emplace("sdp", std::make_unique<bluetooth::test::headless::Sdp>(options));
+    test_nodes_.emplace("discovery",
+                        std::make_unique<bluetooth::test::headless::Discovery>(options));
   }
 
   int Run() override {

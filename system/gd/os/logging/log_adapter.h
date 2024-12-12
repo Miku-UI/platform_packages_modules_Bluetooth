@@ -20,31 +20,12 @@
 
 #include <string>
 
-#include "os/logging/log_redaction.h"
-
-// as RawAddress does not implement IRedactableLoggable
-// here we use a template function as a tricky workaround.
-// in the future. we want to convert it into a function
-// that takes a reference to IRedactableLoggable
-template <typename Loggable>
-std::string ToLoggableStr(const Loggable& loggable) {
-  if (bluetooth::os::should_log_be_redacted()) {
-    return loggable.ToRedactedStringForLogging();
-  } else {
-    return loggable.ToStringForLogging();
-  }
-}
-
-#define ADDRESS_TO_LOGGABLE_STR(addr) ToLoggableStr(addr)
+#define ADDRESS_TO_LOGGABLE_STR(addr) (addr).ToRedactedStringForLogging()
 #define ADDRESS_TO_LOGGABLE_CSTR(addr) ADDRESS_TO_LOGGABLE_STR(addr).c_str()
 
-#define PRIVATE_CELL(number)                            \
-  (number                                               \
-       .replace(                                        \
-           0,                                           \
-           (number.size() > 2) ? number.size() - 2 : 0, \
-           (number.size() > 2) ? number.size() - 2 : 0, \
-           '*')                                         \
-       .c_str())
+#define PRIVATE_CELL(number)                                        \
+  (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
+                  (number.size() > 2) ? number.size() - 2 : 0, '*') \
+           .c_str())
 
 #define PRIVATE_NAME(name) (name)

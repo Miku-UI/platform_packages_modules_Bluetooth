@@ -30,7 +30,7 @@ namespace bluetooth {
 namespace common {
 
 class MetricIdManager {
- public:
+public:
   using Callback = std::function<bool(const hci::Address& address, const int id)>;
 
   static const size_t kMaxNumUnpairedDevicesInMemory;
@@ -59,10 +59,8 @@ class MetricIdManager {
    * successful id deletion for forgotten device,
    * @return true if successfully initialized
    */
-  bool Init(
-      const std::unordered_map<hci::Address, int>& paired_device_map,
-      Callback save_id_callback,
-      Callback forget_device_callback);
+  bool Init(const std::unordered_map<hci::Address, int>& paired_device_map,
+            Callback save_id_callback, Callback forget_device_callback);
 
   /**
    * Close the allocator. should be called when Bluetooth process is killed
@@ -112,11 +110,11 @@ class MetricIdManager {
    */
   static bool IsValidId(const int id);
 
- protected:
+protected:
   // Singleton
   MetricIdManager();
 
- private:
+private:
   mutable std::mutex id_allocator_mutex_;
 
   LruCache<hci::Address, int> paired_device_cache_;
@@ -128,8 +126,7 @@ class MetricIdManager {
   Callback save_id_callback_;
   Callback forget_device_callback_;
 
-  void ForgetDevicePostprocess(const hci::Address& mac_address,
-      const int id);
+  void ForgetDevicePostprocess(const hci::Address& mac_address, const int id);
 
   // delete copy constructor for singleton
   MetricIdManager(MetricIdManager const&) = delete;

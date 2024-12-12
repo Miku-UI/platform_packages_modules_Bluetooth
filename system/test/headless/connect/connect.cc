@@ -45,8 +45,7 @@ namespace {
 
 bool f_simulate_stack_crash = false;
 
-int do_connect([[maybe_unused]] unsigned int num_loops,
-               [[maybe_unused]] const RawAddress& bd_addr,
+int do_connect([[maybe_unused]] unsigned int num_loops, [[maybe_unused]] const RawAddress& bd_addr,
                [[maybe_unused]] std::list<std::string> options) {
   int disconnect_wait_time{0};
 
@@ -55,16 +54,18 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
     options.pop_front();
     auto v = bluetooth::test::headless::GetOpt::Split(opt);
     if (v.size() == 2) {
-      if (v[0] == "wait") disconnect_wait_time = std::stoi(v[1]);
+      if (v[0] == "wait") {
+        disconnect_wait_time = std::stoi(v[1]);
+      }
     }
   }
   log::assert_that(disconnect_wait_time >= 0, "Time cannot go backwards");
 
   headless::messenger::Context context{
-      .stop_watch = Stopwatch("Connect_timeout"),
-      .timeout = 3s,
-      .check_point = {},
-      .callbacks = {Callback::AclStateChanged},
+          .stop_watch = Stopwatch("Connect_timeout"),
+          .timeout = 3s,
+          .check_point = {},
+          .callbacks = {Callback::AclStateChanged},
   };
 
   LOG_CONSOLE("Creating connection to:%s", bd_addr.ToString().c_str());
@@ -83,13 +84,14 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
             acl = p;
           } break;
           default:
-            LOG_CONSOLE("WARN Received callback for unasked:%s",
-                        p->Name().c_str());
+            LOG_CONSOLE("WARN Received callback for unasked:%s", p->Name().c_str());
             break;
         }
       }
     }
-    if (acl != nullptr) break;
+    if (acl != nullptr) {
+      break;
+    }
   }
 
   if (acl != nullptr) {
@@ -97,8 +99,8 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
   }
 
   uint64_t connect = std::chrono::duration_cast<std::chrono::milliseconds>(
-                         std::chrono::system_clock::now().time_since_epoch())
-                         .count();
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
 
   if (f_simulate_stack_crash) {
     LOG_CONSOLE("Just crushing stack");
@@ -113,35 +115,32 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
       // If we have received callback results within this timeframe...
       if (headless::messenger::await_callback(context)) {
         while (!context.callback_ready_q.empty()) {
-          std::shared_ptr<callback_params_t> p =
-              context.callback_ready_q.front();
+          std::shared_ptr<callback_params_t> p = context.callback_ready_q.front();
           context.callback_ready_q.pop_front();
           switch (p->CallbackType()) {
             case Callback::AclStateChanged: {
               acl2 = p;
             } break;
             default:
-              LOG_CONSOLE("WARN Received callback for unasked:%s",
-                          p->Name().c_str());
+              LOG_CONSOLE("WARN Received callback for unasked:%s", p->Name().c_str());
               break;
           }
         }
       }
-      if (acl2 != nullptr) break;
+      if (acl2 != nullptr) {
+        break;
+      }
     }
-    uint64_t disconnect =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
+    uint64_t disconnect = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  std::chrono::system_clock::now().time_since_epoch())
+                                  .count();
 
-    LOG_CONSOLE("Disconnected after:%" PRId64 "ms from:%s acl:%s",
-                disconnect - connect, bd_addr.ToString().c_str(),
-                acl->ToString().c_str());
+    LOG_CONSOLE("Disconnected after:%" PRId64 "ms from:%s acl:%s", disconnect - connect,
+                bd_addr.ToString().c_str(), acl->ToString().c_str());
   }
 
-  acl_disconnect_from_handle(
-      ((acl_state_changed_params_t*)(acl2.get()))->acl_handle, HCI_SUCCESS,
-      "BT headless disconnect");
+  acl_disconnect_from_handle(((acl_state_changed_params_t*)(acl2.get()))->acl_handle, HCI_SUCCESS,
+                             "BT headless disconnect");
 
   sleep(3);
 
@@ -152,7 +151,6 @@ int do_connect([[maybe_unused]] unsigned int num_loops,
 
 int bluetooth::test::headless::Connect::Run() {
   return RunOnHeadlessStack<int>([this]() {
-    return do_connect(options_.loop_, options_.device_.front(),
-                      options_.non_options_);
+    return do_connect(options_.loop_, options_.device_.front(), options_.non_options_);
   });
 }

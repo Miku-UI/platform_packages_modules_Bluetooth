@@ -44,7 +44,6 @@
 #include <cerrno>
 #include <mutex>
 
-#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "os/log.h"
 #include "osi/include/osi.h"
 #include "osi/include/socket_utils/sockets.h"
@@ -54,6 +53,21 @@ using namespace bluetooth;
 /*****************************************************************************
  *  Constants & Macros
  *****************************************************************************/
+
+// AUDIO_STREAM_OUTPUT_BUFFER_SZ controls the size of the audio socket buffer.
+// If one assumes the write buffer is always full during normal BT playback,
+// then increasing this value increases our playback latency.
+//
+// FIXME: The BT HAL should consume data at a constant rate.
+// AudioFlinger assumes that the HAL draws data at a constant rate, which is
+// true for most audio devices; however, the BT engine reads data at a variable
+// rate (over the short term), which confuses both AudioFlinger as well as
+// applications which deliver data at a (generally) fixed rate.
+//
+// 20 * 512 is not sufficient to smooth the variability for some BT devices,
+// resulting in mixer sleep and throttling. We increase this to 28 * 512 to help
+// reduce the effect of variable data consumption.
+#define AUDIO_STREAM_OUTPUT_BUFFER_SZ (28 * 512)
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -106,7 +120,9 @@ const char* dump_uipc_event(tUIPC_EVENT event) {
 
 static inline int create_server_socket(const char* name) {
   int s = socket(AF_LOCAL, SOCK_STREAM, 0);
-  if (s < 0) return -1;
+  if (s < 0) {
+    return -1;
+  }
 
   log::debug("create_server_socket {}", name);
 
@@ -159,8 +175,7 @@ static int accept_server_socket(int sfd) {
 
   // match socket buffer size option with client
   const int size = AUDIO_STREAM_OUTPUT_BUFFER_SZ;
-  int ret =
-      setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char*)&size, (int)sizeof(size));
+  int ret = setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char*)&size, (int)sizeof(size));
   if (ret < 0) {
     log::error("setsockopt failed ({})", strerror(errno));
   }
@@ -215,7 +230,9 @@ void uipc_main_cleanup(tUIPC_STATE& uipc) {
   close(uipc.signal_fds[1]);
 
   /* close any open channels */
-  for (i = 0; i < UIPC_CH_NUM; i++) uipc_close_ch_locked(uipc, i);
+  for (i = 0; i < UIPC_CH_NUM; i++) {
+    uipc_close_ch_locked(uipc, i);
+  }
 }
 
 /* check pending events in read task */
@@ -233,7 +250,9 @@ static void uipc_check_task_flags_locked(tUIPC_STATE& uipc) {
 }
 
 static int uipc_check_fd_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
-  if (ch_id >= UIPC_CH_NUM) return -1;
+  if (ch_id >= UIPC_CH_NUM) {
+    return -1;
+  }
 
   if (SAFE_FD_ISSET(uipc.ch[ch_id].srvfd, &uipc.read_set)) {
     log::debug("INCOMING CONNECTION ON CH {}", ch_id);
@@ -263,13 +282,15 @@ static int uipc_check_fd_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
       return -1;
     }
 
-    if (uipc.ch[ch_id].cback) uipc.ch[ch_id].cback(ch_id, UIPC_OPEN_EVT);
+    if (uipc.ch[ch_id].cback) {
+      uipc.ch[ch_id].cback(ch_id, UIPC_OPEN_EVT);
+    }
   }
 
   if (SAFE_FD_ISSET(uipc.ch[ch_id].fd, &uipc.read_set)) {
-
-    if (uipc.ch[ch_id].cback)
+    if (uipc.ch[ch_id].cback) {
       uipc.ch[ch_id].cback(ch_id, UIPC_RX_DATA_READY_EVT);
+    }
   }
   return 0;
 }
@@ -277,8 +298,7 @@ static int uipc_check_fd_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
 static void uipc_check_interrupt_locked(tUIPC_STATE& uipc) {
   if (SAFE_FD_ISSET(uipc.signal_fds[0], &uipc.read_set)) {
     char sig_recv = 0;
-    OSI_NO_INTR(
-        recv(uipc.signal_fds[0], &sig_recv, sizeof(sig_recv), MSG_WAITALL));
+    OSI_NO_INTR(recv(uipc.signal_fds[0], &sig_recv, sizeof(sig_recv), MSG_WAITALL));
   }
 }
 
@@ -289,13 +309,15 @@ static inline void uipc_wakeup_locked(tUIPC_STATE& uipc) {
   OSI_NO_INTR(send(uipc.signal_fds[1], &sig_on, sizeof(sig_on), 0));
 }
 
-static int uipc_setup_server_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id,
-                                    const char* name, tUIPC_RCV_CBACK* cback) {
+static int uipc_setup_server_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, const char* name,
+                                    tUIPC_RCV_CBACK* cback) {
   int fd;
 
   log::debug("SETUP CHANNEL SERVER {}", ch_id);
 
-  if (ch_id >= UIPC_CH_NUM) return -1;
+  if (ch_id >= UIPC_CH_NUM) {
+    return -1;
+  }
 
   std::lock_guard<std::recursive_mutex> guard(uipc.mutex);
 
@@ -340,12 +362,10 @@ static void uipc_flush_ch_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
       return;
     }
     if (ret < 0) {
-      log::warn("poll() failed: return {} errno {} ({}). Exiting", ret, errno,
-                strerror(errno));
+      log::warn("poll() failed: return {} errno {} ({}). Exiting", ret, errno, strerror(errno));
       return;
     }
-    log::verbose("polling fd {}, revents: 0x{:x}, ret {}", pfd.fd, pfd.revents,
-                 ret);
+    log::verbose("polling fd {}, revents: 0x{:x}, ret {}", pfd.fd, pfd.revents, ret);
     if (pfd.revents & (POLLERR | POLLHUP)) {
       log::warn("POLLERR or POLLHUP. Exiting");
       return;
@@ -358,7 +378,9 @@ static void uipc_flush_ch_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
 }
 
 static void uipc_flush_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
-  if (ch_id >= UIPC_CH_NUM) return;
+  if (ch_id >= UIPC_CH_NUM) {
+    return;
+  }
 
   switch (ch_id) {
     case UIPC_CH_ID_AV_CTRL:
@@ -376,7 +398,9 @@ static int uipc_close_ch_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
 
   log::debug("CLOSE CHANNEL {}", ch_id);
 
-  if (ch_id >= UIPC_CH_NUM) return -1;
+  if (ch_id >= UIPC_CH_NUM) {
+    return -1;
+  }
 
   if (uipc.ch[ch_id].srvfd != UIPC_DISCONNECTED) {
     log::debug("CLOSE SERVER (FD {})", uipc.ch[ch_id].srvfd);
@@ -395,10 +419,14 @@ static int uipc_close_ch_locked(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
   }
 
   /* notify this connection is closed */
-  if (uipc.ch[ch_id].cback) uipc.ch[ch_id].cback(ch_id, UIPC_CLOSE_EVT);
+  if (uipc.ch[ch_id].cback) {
+    uipc.ch[ch_id].cback(ch_id, UIPC_CLOSE_EVT);
+  }
 
   /* trigger main thread update if something was updated */
-  if (wakeup) uipc_wakeup_locked(uipc);
+  if (wakeup) {
+    uipc_wakeup_locked(uipc);
+  }
 
   return 0;
 }
@@ -451,7 +479,9 @@ static void* uipc_read_task(void* arg) {
 
       /* check for other connections */
       for (ch_id = 0; ch_id < UIPC_CH_NUM; ch_id++) {
-        if (ch_id != UIPC_CH_ID_AV_AUDIO) uipc_check_fd_locked(uipc, ch_id);
+        if (ch_id != UIPC_CH_ID_AV_AUDIO) {
+          uipc_check_fd_locked(uipc, ch_id);
+        }
       }
     }
   }
@@ -470,8 +500,7 @@ static void* uipc_read_task(void* arg) {
 int uipc_start_main_server_thread(tUIPC_STATE& uipc) {
   uipc.running = 1;
 
-  if (pthread_create(&uipc.tid, (const pthread_attr_t*)NULL, uipc_read_task,
-                     &uipc) != 0) {
+  if (pthread_create(&uipc.tid, (const pthread_attr_t*)NULL, uipc_read_task, &uipc) != 0) {
     log::error("uipc_thread_create pthread_create failed:{}", errno);
     return -1;
   }
@@ -490,9 +519,11 @@ void uipc_stop_main_server_thread(tUIPC_STATE& uipc) {
 
   /* wait until read thread is fully terminated */
   /* tid might hold pointer value where it's value
-     is negative vaule with singed bit is set, so
+     is negative value with signed bit is set, so
      corrected the logic to check zero or non zero */
-  if (uipc.tid) pthread_join(uipc.tid, NULL);
+  if (uipc.tid) {
+    pthread_join(uipc.tid, NULL);
+  }
 }
 
 /*******************************************************************************
@@ -578,8 +609,8 @@ void UIPC_Close(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id) {
  ** Returns          true in case of success, false in case of failure.
  **
  ******************************************************************************/
-bool UIPC_Send(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint16_t /* msg_evt */,
-               const uint8_t* p_buf, uint16_t msglen) {
+bool UIPC_Send(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint16_t /* msg_evt */, const uint8_t* p_buf,
+               uint16_t msglen) {
   log::verbose("UIPC_Send : ch_id:{} {} bytes", ch_id, msglen);
 
   std::lock_guard<std::recursive_mutex> lock(uipc.mutex);
@@ -604,8 +635,7 @@ bool UIPC_Send(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint16_t /* msg_evt */,
  **
  ******************************************************************************/
 
-uint32_t UIPC_Read(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint8_t* p_buf,
-                   uint32_t len) {
+uint32_t UIPC_Read(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint8_t* p_buf, uint32_t len) {
   if (ch_id >= UIPC_CH_NUM) {
     log::error("UIPC_Read : invalid ch id {}", ch_id);
     return 0;
@@ -634,8 +664,7 @@ uint32_t UIPC_Read(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint8_t* p_buf,
       break;
     }
     if (poll_ret < 0) {
-      log::error("poll() failed: return {} errno {} ({})", poll_ret, errno,
-                 strerror(errno));
+      log::error("poll() failed: return {} errno {} ({})", poll_ret, errno, strerror(errno));
       break;
     }
 
@@ -677,8 +706,7 @@ uint32_t UIPC_Read(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint8_t* p_buf,
  *
  ******************************************************************************/
 
-bool UIPC_Ioctl(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint32_t request,
-                void* param) {
+bool UIPC_Ioctl(tUIPC_STATE& uipc, tUIPC_CH_ID ch_id, uint32_t request, void* param) {
   log::debug("#### UIPC_Ioctl : ch_id {}, request {} ####", ch_id, request);
   std::lock_guard<std::recursive_mutex> lock(uipc.mutex);
 

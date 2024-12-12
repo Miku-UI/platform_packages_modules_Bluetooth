@@ -18,13 +18,13 @@
 #define LIBOSI_FUZZ_HELPERS_H_
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include <vector>
 
 char* generateBuffer(FuzzedDataProvider* dataProvider, size_t max_buffer_size,
                      bool null_terminate) {
   // Get our buffer size
-  size_t buf_size =
-      dataProvider->ConsumeIntegralInRange<size_t>(0, max_buffer_size);
+  size_t buf_size = dataProvider->ConsumeIntegralInRange<size_t>(0, max_buffer_size);
   if (buf_size == 0) {
     return nullptr;
   }

@@ -17,6 +17,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <unistd.h>
 
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec_cb.h"
@@ -24,7 +25,7 @@
 #include "test/mock/mock_main_shim_entry.h"
 
 class StackBtmDevTest : public BtmWithMocksTest {
- protected:
+protected:
   void SetUp() override { BtmWithMocksTest::SetUp(); }
   void TearDown() override { BtmWithMocksTest::TearDown(); }
 };
@@ -41,3 +42,5 @@ TEST_F(StackBtmDevTest, btm_sec_allocate_dev_rec__with_list) {
   ASSERT_NE(nullptr, btm_sec_allocate_dev_rec());
   ::btm_sec_cb.Free();
 }
+
+TEST_F(StackBtmDevTest, DumpsysRecord) { DumpsysRecord(STDOUT_FILENO); }

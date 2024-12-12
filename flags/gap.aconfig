@@ -9,13 +9,6 @@ flag {
 }
 
 flag {
-    name: "divide_long_single_gap_data"
-    namespace: "bluetooth"
-    description: "Divide long single gap data if length is longer than HCI data length limit"
-    bug: "310217895"
-}
-
-flag {
     name: "fix_nonconnectable_scannable_advertisement"
     namespace: "bluetooth"
     description: "Fix adv_scan_ind being reported as connectable"
@@ -66,31 +59,10 @@ flag {
 }
 
 flag {
-    name: "le_periodic_scanning_reassembler"
-    namespace: "bluetooth"
-    description: "Enable reassembly of LE periodic advertising events"
-    bug: "324886466"
-}
-
-flag {
     name: "phy_to_native"
     namespace: "bluetooth"
     description: "Expose advertising PHY settings to native layer"
     bug: "326249470"
-}
-
-flag {
-    name: "gatt_reconnect_on_bt_on_fix"
-    namespace: "bluetooth"
-    description: "Fix reconnect issue on Bluetooth startup"
-    bug: "325595120"
-}
-
-flag {
-    name: "gatt_drop_acl_on_out_of_resources_fix"
-    namespace: "bluetooth"
-    description: "Remove ACL when there is not resource to handle more gatt connections."
-    bug: "325929235"
 }
 
 flag {
@@ -115,26 +87,6 @@ flag {
     namespace: "bluetooth"
     description: "Add data length checks for legacy advertising"
     bug: "329011868"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "ensure_valid_adv_flag"
-    namespace: "bluetooth"
-    description: "Check ADV flag is valid before processing"
-    bug: "329888460"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "update_inquiry_result_on_flag_change"
-    namespace: "bluetooth"
-    description: "Update ADV flag in inquiry result as soon as updated flag received"
-    bug: "329872838"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -203,9 +155,100 @@ flag {
 flag {
     name: "le_scan_use_address_type"
     namespace: "bluetooth"
-    description: "Fix an issue that le scanner omits athe ddress type for MATCH_FIRST scan"
+    description: "Fix an issue that le scanner omits address type for MATCH_FIRST scan"
     bug: "342127181"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "gatt_client_dynamic_allocation"
+    namespace: "bluetooth"
+    description: "Allocate GATT clients in heap to unlimit the number of clients"
+    bug: "348559823"
+}
+
+flag {
+    name: "gatt_fix_multiple_direct_connect"
+    namespace: "bluetooth"
+    description: "Do not remove device when multiple clients attempt to connect"
+    bug: "349232327"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "pan_use_identity_address"
+    namespace: "bluetooth"
+    description: "Use identity address when communicate with native interface"
+    bug: "351961492"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "android_os_identifier"
+    namespace: "bluetooth"
+    description: "Add a custom service to provide Android OS identifier"
+    bug: "351860033"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_callback_on_failure"
+    namespace: "bluetooth"
+    description: "Invoke callbacks on early failure from the native stack"
+    bug: "356550596"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_inquiry_duration"
+    namespace: "bluetooth"
+    description: "Use the same duration for LE inquiry scan that classic discovery uses"
+    bug: "357894405"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "non_wake_alarm_for_rpa_rotation"
+    namespace: "bluetooth"
+    description: "Use non-wake alarm for LE RPA rotation. go/non-wake-alarm-for-rpa-rotation"
+    bug: "360743527"
+}
+
+flag {
+    name: "gatt_disconnect_fix"
+    namespace: "bluetooth"
+    description: "Fix GATT disconnect handling"
+    bug: "361538527"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_server_requests_fix"
+    namespace: "bluetooth"
+    description: "Fix GATT server handling"
+    bug: "361331170"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_scan_msft_support"
+    namespace: "bluetooth"
+    description: "Support MSFT HCI extension for LE Scanning. go/bt-msft-aosp-dd"
+    bug: "365787977"
 }

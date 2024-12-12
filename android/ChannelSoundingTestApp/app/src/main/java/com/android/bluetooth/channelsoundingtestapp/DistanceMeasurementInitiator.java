@@ -19,10 +19,7 @@ package com.android.bluetooth.channelsoundingtestapp;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.le.DistanceMeasurementManager;
 import android.bluetooth.le.DistanceMeasurementMethod;
@@ -36,14 +33,12 @@ import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 class DistanceMeasurementInitiator {
 
     private static final int DISTANCE_MEASUREMENT_DURATION_SEC = 3600;
-    private static final int GATT_MTU_SIZE = 512;
     private static final List<Pair<Integer, String>> mDistanceMeasurementMethodMapping =
             List.of(
                     new Pair<>(DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO, "AUTO"),
@@ -58,9 +53,8 @@ class DistanceMeasurementInitiator {
     private final Context mApplicationContext;
     private final Executor mBtExecutor;
     private final BtDistanceMeasurementCallback mBtDistanceMeasurementCallback;
-    private String mTargetBtAddress = "";
-    @Nullable private BluetoothGatt mBluetoothGatt = null;
     @Nullable private DistanceMeasurementSession mSession = null;
+    @Nullable private BluetoothDevice mTargetDevice = null;
 
     DistanceMeasurementInitiator(
             Context applicationContext,
@@ -77,70 +71,8 @@ class DistanceMeasurementInitiator {
         mBtExecutor = Executors.newSingleThreadExecutor();
     }
 
-    void setTargetBtAddress(String btAddress) {
-        mTargetBtAddress = btAddress;
-    }
-
-    @SuppressLint("MissingPermission") // permissions are checked upfront
-    List<String> updatePairedDevice() {
-        List<String> arrayList = new ArrayList<>();
-        Set<BluetoothDevice> bonded_devices = mBluetoothAdapter.getBondedDevices();
-        for (BluetoothDevice device : bonded_devices) {
-            arrayList.add(device.getAddress());
-        }
-        printLog("Num of paired Devices: " + arrayList.size());
-        return arrayList;
-    }
-
-    @SuppressLint("MissingPermission") // permissions are checked upfront
-    void connectGatt() {
-        if (mTargetBtAddress == null) {
-            printLog("A paired device must be selected first.");
-            return;
-        }
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mTargetBtAddress);
-        BluetoothGattCallback gattCallback =
-                new BluetoothGattCallback() {
-                    @Override
-                    public void onConnectionStateChange(
-                            BluetoothGatt gatt, int status, int newState) {
-                        printLog(
-                                "onConnectionStateChange status:"
-                                        + status
-                                        + ", newState:"
-                                        + newState);
-                        if (newState == BluetoothProfile.STATE_CONNECTED) {
-                            printLog(gatt.getDevice().getName() + " is connected");
-                            gatt.requestMtu(GATT_MTU_SIZE);
-                            mBluetoothGatt = gatt;
-                            mBtDistanceMeasurementCallback.onGattConnected();
-                        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                            printLog("disconnected from " + gatt.getDevice().getName());
-                            mBtDistanceMeasurementCallback.onGattDisconnected();
-                            mBluetoothGatt.close();
-                            mBluetoothGatt = null;
-                        }
-                    }
-
-                    public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
-                        if (status == BluetoothGatt.GATT_SUCCESS) {
-                            printLog("MTU changed to: " + mtu);
-                        } else {
-                            printLog("MTU change failed: " + status);
-                        }
-                    }
-                };
-        printLog("Connect gatt to " + device.getAddress());
-
-        device.connectGatt(mApplicationContext, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
-    }
-
-    @SuppressLint("MissingPermission") // permissions are checked upfront
-    void disconnectGatt() {
-        if (mBluetoothGatt != null) {
-            printLog("disconnect from " + mBluetoothGatt.getDevice().getName());
-            mBluetoothGatt.disconnect();
-        }
+    void setTargetDevice(BluetoothDevice targetDevice) {
+        mTargetDevice = targetDevice;
     }
 
     private void printLog(String log) {
@@ -190,16 +122,15 @@ class DistanceMeasurementInitiator {
     @SuppressLint("MissingPermission") // permissions are checked upfront
     void startDistanceMeasurement(String distanceMeasurementMethodName) {
 
-        if (mTargetBtAddress == null) {
-            printLog("pair and select a valid address.");
+        if (mTargetDevice == null) {
+            printLog("do Gatt connect first");
             return;
         }
 
-        printLog("start CS with address: " + mTargetBtAddress);
+        printLog("start CS with device: " + mTargetDevice.getName());
 
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(mTargetBtAddress);
         DistanceMeasurementParams params =
-                new DistanceMeasurementParams.Builder(device)
+                new DistanceMeasurementParams.Builder(mTargetDevice)
                         .setDurationSeconds(DISTANCE_MEASUREMENT_DURATION_SEC)
                         .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
                         .setMethodId(getDistanceMeasurementMethodId(distanceMeasurementMethodName))
@@ -255,9 +186,5 @@ class DistanceMeasurementInitiator {
         void onStop();
 
         void onDistanceResult(double distanceMeters);
-
-        void onGattConnected();
-
-        void onGattDisconnected();
     }
 }

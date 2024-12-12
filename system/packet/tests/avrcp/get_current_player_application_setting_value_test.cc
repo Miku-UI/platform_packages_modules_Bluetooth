@@ -25,16 +25,13 @@ namespace bluetooth {
 namespace avrcp {
 
 using GetCurrentPlayerApplicationSettingValueRequestTestPacket =
-    TestPacketType<GetCurrentPlayerApplicationSettingValueRequest>;
-using GetCurrentPlayerApplicationSettingValueRspTestPacket =
-    TestPacketType<Packet>;
+        TestPacketType<GetCurrentPlayerApplicationSettingValueRequest>;
+using GetCurrentPlayerApplicationSettingValueRspTestPacket = TestPacketType<Packet>;
 
 // Test parsing a Get Current Player Application Setting Value Request
 TEST(GetCurrentPlayerApplicationSettingValueRequestPacketTest, getterTest) {
-  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT,
-                                        PlayerAttribute::SHUFFLE};
-  auto test_packet =
-      GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(
+  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT, PlayerAttribute::SHUFFLE};
+  auto test_packet = GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(
           get_current_player_application_setting_value_request);
 
   ASSERT_EQ(test_packet->GetNumberOfRequestedAttributes(), 2);
@@ -42,45 +39,34 @@ TEST(GetCurrentPlayerApplicationSettingValueRequestPacketTest, getterTest) {
 }
 
 TEST(GetCurrentPlayerApplicationSettingValueRequestPacketTest, validTest) {
-  auto test_packet =
-      GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(
+  auto test_packet = GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(
           get_current_player_application_setting_value_request);
   ASSERT_TRUE(test_packet->IsValid());
 }
 
 TEST(GetCurrentPlayerApplicationSettingValueRequestPacketTest, invalidTest) {
-  std::vector<uint8_t> packet_copy =
-      get_current_player_application_setting_value_request;
+  std::vector<uint8_t> packet_copy = get_current_player_application_setting_value_request;
   packet_copy.push_back(0x00);
-  auto test_packet =
-      GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(
-          packet_copy);
+  auto test_packet = GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(packet_copy);
   ASSERT_FALSE(test_packet->IsValid());
 
   std::vector<uint8_t> short_packet = {
-      0, 1, 2, 3, 4, 5, 6,
+          0, 1, 2, 3, 4, 5, 6,
   };
-  test_packet = GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(
-      short_packet);
+  test_packet = GetCurrentPlayerApplicationSettingValueRequestTestPacket::Make(short_packet);
   ASSERT_FALSE(test_packet->IsValid());
 }
 
 TEST(GetCurrentPlayerApplicationSettingValueResponseBuilderTest, builderTest) {
-  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT,
-                                        PlayerAttribute::SHUFFLE};
+  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT, PlayerAttribute::SHUFFLE};
   std::vector<uint8_t> vals = {0x01, 0x01};  // All values: OFF
-  auto builder =
-      GetCurrentPlayerApplicationSettingValueResponseBuilder::MakeBuilder(attrs,
-                                                                          vals);
+  auto builder = GetCurrentPlayerApplicationSettingValueResponseBuilder::MakeBuilder(attrs, vals);
 
-  ASSERT_EQ(builder->size(),
-            get_current_player_application_setting_value_response.size());
+  ASSERT_EQ(builder->size(), get_current_player_application_setting_value_response.size());
 
-  auto test_packet =
-      GetCurrentPlayerApplicationSettingValueRspTestPacket::Make();
+  auto test_packet = GetCurrentPlayerApplicationSettingValueRspTestPacket::Make();
   builder->Serialize(test_packet);
-  ASSERT_EQ(test_packet->GetData(),
-            get_current_player_application_setting_value_response);
+  ASSERT_EQ(test_packet->GetData(), get_current_player_application_setting_value_response);
 }
 
 }  // namespace avrcp

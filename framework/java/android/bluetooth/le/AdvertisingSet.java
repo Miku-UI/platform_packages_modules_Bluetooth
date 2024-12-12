@@ -16,6 +16,9 @@
 
 package android.bluetooth.le;
 
+import static android.Manifest.permission.BLUETOOTH_ADVERTISE;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.RequiresNoPermission;
@@ -71,7 +74,7 @@ public final class AdvertisingSet {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+    @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void enableAdvertising(boolean enable, int duration, int maxExtendedAdvertisingEvents) {
         try {
             mGatt.enableAdvertisingSet(
@@ -99,7 +102,7 @@ public final class AdvertisingSet {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+    @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setAdvertisingData(AdvertiseData advertiseData) {
         try {
             mGatt.setAdvertisingData(mAdvertiserId, advertiseData, mAttributionSource);
@@ -119,7 +122,7 @@ public final class AdvertisingSet {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+    @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setScanResponseData(AdvertiseData scanResponse) {
         try {
             mGatt.setScanResponseData(mAdvertiserId, scanResponse, mAttributionSource);
@@ -137,7 +140,7 @@ public final class AdvertisingSet {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+    @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setAdvertisingParameters(AdvertisingSetParameters parameters) {
         try {
             mGatt.setAdvertisingParameters(mAdvertiserId, parameters, mAttributionSource);
@@ -153,7 +156,7 @@ public final class AdvertisingSet {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+    @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setPeriodicAdvertisingParameters(PeriodicAdvertisingParameters parameters) {
         try {
             mGatt.setPeriodicAdvertisingParameters(mAdvertiserId, parameters, mAttributionSource);
@@ -174,7 +177,7 @@ public final class AdvertisingSet {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+    @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setPeriodicAdvertisingData(AdvertiseData periodicData) {
         try {
             mGatt.setPeriodicAdvertisingData(mAdvertiserId, periodicData, mAttributionSource);
@@ -191,7 +194,7 @@ public final class AdvertisingSet {
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_ADVERTISE)
+    @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setPeriodicAdvertisingEnabled(boolean enable) {
         try {
             mGatt.setPeriodicAdvertisingEnable(mAdvertiserId, enable, mAttributionSource);
@@ -209,8 +212,8 @@ public final class AdvertisingSet {
     @RequiresBluetoothAdvertisePermission
     @RequiresPermission(
             allOf = {
-                android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
+                BLUETOOTH_ADVERTISE,
+                BLUETOOTH_PRIVILEGED,
             })
     public void getOwnAddress() {
         try {

@@ -33,7 +33,7 @@ namespace testing {
 using namespace bluetooth;
 
 class ReflectionSchemaTest : public Test {
- protected:
+protected:
   void SetUp() override {}
 
   void TearDown() override {}

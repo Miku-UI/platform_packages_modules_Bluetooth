@@ -27,12 +27,12 @@ using HciPacket = std::vector<uint8_t>;
 
 enum class Status : int32_t { SUCCESS, TRANSPORT_ERROR, INITIALIZATION_ERROR, UNKNOWN };
 
-// Mirrors hardware/interfaces/bluetooth/1.0/IBluetoothHciCallbacks.hal in Android, but moved initializationComplete
-// callback to BluetoothInitializationCompleteCallback
+// Mirrors hardware/interfaces/bluetooth/1.0/IBluetoothHciCallbacks.hal in Android, but moved
+// initializationComplete callback to BluetoothInitializationCompleteCallback
 
 // The interface from the Bluetooth Controller to the stack
 class HciHalCallbacks {
- public:
+public:
   virtual ~HciHalCallbacks() = default;
 
   // This function is invoked when an HCI event is received from the
@@ -62,7 +62,7 @@ class HciHalCallbacks {
 // implementation-specific details related to the hardware.
 // LINT.IfChange
 class HciHal : public ::bluetooth::Module {
- public:
+public:
   static const ModuleFactory Factory;
 
   virtual ~HciHal() = default;
@@ -100,9 +100,10 @@ class HciHal : public ::bluetooth::Module {
 
   // Get the MSFT opcode (as specified in Microsoft-defined Bluetooth HCI
   // extensions)
-  virtual uint16_t getMsftOpcode() {
-    return 0;
-  }
+  virtual uint16_t getMsftOpcode() { return 0; }
+
+  // Mark the controller as broken to prevent further read / write operation.
+  virtual void markControllerBroken() { return; }
 };
 // LINT.ThenChange(fuzz/fuzz_hci_hal.h)
 

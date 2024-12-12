@@ -19,9 +19,7 @@
 GroupField::GroupField(ParseLocation loc, std::list<PacketField*>* fields)
     : PacketField("Groups have no name", loc), fields_(fields) {}
 
-GroupField::~GroupField() {
-  delete fields_;
-}
+GroupField::~GroupField() { delete fields_; }
 
 const std::string GroupField::kFieldType = "GroupField";
 
@@ -30,9 +28,7 @@ std::string GroupField::GetName() const {
   return "";
 }
 
-const std::string& GroupField::GetFieldType() const {
-  return GroupField::kFieldType;
-}
+const std::string& GroupField::GetFieldType() const { return GroupField::kFieldType; }
 
 Size GroupField::GetSize() const {
   ERROR(this) << "GetSize should never be called.";
@@ -67,9 +63,7 @@ bool GroupField::HasParameterValidator() const {
   return false;
 }
 
-void GroupField::GenParameterValidator(std::ostream&) const {
-  ERROR(this) << "Not implemented";
-}
+void GroupField::GenParameterValidator(std::ostream&) const { ERROR(this) << "Not implemented"; }
 
 void GroupField::GenInserter(std::ostream&) const {
   ERROR(this) << "GenInserter should never be called.";
@@ -79,6 +73,4 @@ void GroupField::GenValidator(std::ostream&) const {
   ERROR(this) << "GenValidator should never be called.";
 }
 
-const std::list<PacketField*>* GroupField::GetFields() const {
-  return fields_;
-}
+const std::list<PacketField*>* GroupField::GetFields() const { return fields_; }

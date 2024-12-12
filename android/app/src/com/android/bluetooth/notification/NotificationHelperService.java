@@ -160,26 +160,30 @@ public class NotificationHelperService extends Service {
     }
 
     private boolean shouldDisplayNotification(String countKey) {
-        final LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         final String dateKey = countKey + "_date";
-        final String date = Settings.Secure.getString(getContentResolver(), dateKey);
         final int countShown = Settings.Secure.getInt(getContentResolver(), countKey, 0);
-
-        // The notification is always displayed the first time and if it has been at least…:
-        //  * … 1 week since the first display (aka recurring only once)
-        //  * … 6 months since the last display (aka recurring forever)
-
+        final LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         LocalDateTime savedDate = null;
-        if (date != null) {
-            savedDate = LocalDateTime.parse(date);
-            if ((countShown == 1 && now.isBefore(savedDate.plusWeeks(1)))
-                    || now.isBefore(savedDate.plusMonths(6))) {
-                Log.i(
-                        TAG,
-                        ("shouldDisplayNotification(" + countKey + "): Notification discarded.")
-                                + (" countShown=" + countShown)
-                                + (" savedDate=" + savedDate));
-                return false;
+        if (countShown != 0) {
+            // Check the saved date only if there is a count of notification.
+            // This will detect manual override of the count setting.
+            final String date = Settings.Secure.getString(getContentResolver(), dateKey);
+
+            // The notification is always displayed the first time and if it has been at least…:
+            //  * … 1 week since the first display (aka recurring only once)
+            //  * … 6 months since the last display (aka recurring forever)
+
+            if (date != null) {
+                savedDate = LocalDateTime.parse(date);
+                if ((countShown == 1 && now.isBefore(savedDate.plusWeeks(1)))
+                        || now.isBefore(savedDate.plusMonths(6))) {
+                    Log.i(
+                            TAG,
+                            ("shouldDisplayNotification(" + countKey + "): Notification discarded.")
+                                    + (" countShown=" + countShown)
+                                    + (" savedDate=" + savedDate));
+                    return false;
+                }
             }
         }
 

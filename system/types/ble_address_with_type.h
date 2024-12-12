@@ -61,16 +61,12 @@ inline bool is_ble_addr_type_known(tBLE_ADDR_TYPE type) {
   }
 }
 
-inline tBLE_ADDR_TYPE to_ble_addr_type(uint8_t raw_type) {
-  return (tBLE_ADDR_TYPE)raw_type;
-}
+inline tBLE_ADDR_TYPE to_ble_addr_type(uint8_t raw_type) { return (tBLE_ADDR_TYPE)raw_type; }
 inline uint8_t from_ble_addr_type(tBLE_ADDR_TYPE type) { return (uint8_t)type; }
 
 /* BLE ADDR type ID bit */
 #define BLE_ADDR_TYPE_ID_BIT 0x02
-inline bool is_identity_type(const tBLE_ADDR_TYPE& type) {
-  return type & BLE_ADDR_TYPE_ID_BIT;
-}
+inline bool is_identity_type(const tBLE_ADDR_TYPE& type) { return type & BLE_ADDR_TYPE_ID_BIT; }
 
 #define STREAM_TO_BLE_ADDR_TYPE(type, p) \
   {                                      \
@@ -84,10 +80,8 @@ inline bool is_identity_type(const tBLE_ADDR_TYPE& type) {
 constexpr uint8_t kBleAddressPublicDevice = BLE_ADDR_PUBLIC;
 constexpr uint8_t kBleAddressRandomDevice = BLE_ADDR_RANDOM;
 constexpr uint8_t kBleAddressIdentityBit = BLE_ADDR_TYPE_ID_BIT;
-constexpr uint8_t kBleAddressPublicIdentity =
-    kBleAddressIdentityBit | kBleAddressPublicDevice;
-constexpr uint8_t kBleAddressRandomIdentity =
-    kBleAddressIdentityBit | kBleAddressRandomDevice;
+constexpr uint8_t kBleAddressPublicIdentity = kBleAddressIdentityBit | kBleAddressPublicDevice;
+constexpr uint8_t kBleAddressRandomIdentity = kBleAddressIdentityBit | kBleAddressRandomDevice;
 
 constexpr uint8_t kResolvableAddressMask = 0xc0;
 constexpr uint8_t kResolvableAddressMsb = 0x40;
@@ -98,25 +92,16 @@ struct tBLE_BD_ADDR {
   bool AddressEquals(const RawAddress& other) const { return other == bda; }
   bool IsPublicDeviceType() const { return type == kBleAddressPublicDevice; }
   bool IsRandomDeviceType() const { return type == kBleAddressRandomDevice; }
-  bool IsPublicIdentityType() const {
-    return type == kBleAddressPublicIdentity;
-  }
-  bool lsRandomIdentityType() const {
-    return type == kBleAddressRandomIdentity;
-  }
+  bool IsPublicIdentityType() const { return type == kBleAddressPublicIdentity; }
+  bool lsRandomIdentityType() const { return type == kBleAddressRandomIdentity; }
   bool IsAddressResolvable() const {
     return ((bda.address)[0] & kResolvableAddressMask) == kResolvableAddressMsb;
   }
   bool IsPublic() const { return !(type & 0x01); }
-  bool IsResolvablePrivateAddress() const {
-    return IsAddressResolvable() && IsRandomDeviceType();
-  }
-  bool IsIdentityType() const {
-    return IsPublicIdentityType() || lsRandomIdentityType();
-  }
+  bool IsResolvablePrivateAddress() const { return IsAddressResolvable() && IsRandomDeviceType(); }
+  bool IsIdentityType() const { return IsPublicIdentityType() || lsRandomIdentityType(); }
   bool TypeWithoutIdentityEquals(const tBLE_ADDR_TYPE other) const {
-    return (other & ~kBleAddressIdentityBit) ==
-           (type & ~kBleAddressIdentityBit);
+    return (other & ~kBleAddressIdentityBit) == (type & ~kBleAddressIdentityBit);
   }
 
   std::string ToString() const {
@@ -131,22 +116,18 @@ struct tBLE_BD_ADDR {
     return bda.ToRedactedStringForLogging() + "[" + AddressTypeText(type) + "]";
   }
 
-  bool operator==(const tBLE_BD_ADDR rhs) const {
-    return rhs.type == type && rhs.bda == bda;
-  }
+  bool operator==(const tBLE_BD_ADDR rhs) const { return rhs.type == type && rhs.bda == bda; }
   bool operator!=(const tBLE_BD_ADDR rhs) const { return !(*this == rhs); }
 };
 
 template <>
 struct std::hash<tBLE_BD_ADDR> {
   std::size_t operator()(const tBLE_BD_ADDR& val) const {
-    static_assert(sizeof(uint64_t) >=
-                  (RawAddress::kLength + sizeof(tBLE_ADDR_TYPE)));
+    static_assert(sizeof(uint64_t) >= (RawAddress::kLength + sizeof(tBLE_ADDR_TYPE)));
     uint64_t int_addr = 0;
-    memcpy(reinterpret_cast<uint8_t*>(&int_addr), val.bda.address,
-           RawAddress::kLength);
-    memcpy(reinterpret_cast<uint8_t*>(&int_addr) + RawAddress::kLength,
-           (const void*)&val.type, sizeof(tBLE_ADDR_TYPE));
+    memcpy(reinterpret_cast<uint8_t*>(&int_addr), val.bda.address, RawAddress::kLength);
+    memcpy(reinterpret_cast<uint8_t*>(&int_addr) + RawAddress::kLength, (const void*)&val.type,
+           sizeof(tBLE_ADDR_TYPE));
     return std::hash<uint64_t>{}(int_addr);
   }
 };
@@ -156,7 +137,9 @@ struct tAclLinkSpec {
   tBT_TRANSPORT transport;
 
   bool operator==(const tAclLinkSpec rhs) const {
-    if (rhs.addrt != addrt) return false;
+    if (rhs.addrt != addrt) {
+      return false;
+    }
 
     if (rhs.transport == BT_TRANSPORT_AUTO || transport == BT_TRANSPORT_AUTO) {
       return true;
@@ -172,48 +155,35 @@ struct tAclLinkSpec {
   }
 
   std::string ToString() const {
-    return std::string(addrt.ToString() + "[" + bt_transport_text(transport) +
-                       "]");
+    return std::string(addrt.ToString() + "[" + bt_transport_text(transport) + "]");
   }
 
   std::string ToStringForLogging() const {
-    return addrt.ToStringForLogging() + "[" + bt_transport_text(transport) +
-           "]";
+    return addrt.ToStringForLogging() + "[" + bt_transport_text(transport) + "]";
   }
 
   std::string ToRedactedStringForLogging() const {
-    return addrt.ToRedactedStringForLogging() + "[" +
-           bt_transport_text(transport) + "]";
+    return addrt.ToRedactedStringForLogging() + "[" + bt_transport_text(transport) + "]";
   }
 };
 
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace bluetooth::os {
-bool should_log_be_redacted();
-}  // namespace bluetooth::os
-
 namespace fmt {
 template <>
 struct formatter<tBLE_BD_ADDR> : formatter<std::string> {
   template <class Context>
-  typename Context::iterator format(const tBLE_BD_ADDR& address,
-                                    Context& ctx) const {
-    std::string repr = bluetooth::os::should_log_be_redacted()
-                           ? address.ToRedactedStringForLogging()
-                           : address.ToStringForLogging();
+  typename Context::iterator format(const tBLE_BD_ADDR& address, Context& ctx) const {
+    std::string repr = address.ToRedactedStringForLogging();
     return fmt::formatter<std::string>::format(repr, ctx);
   }
 };
 template <>
 struct formatter<tAclLinkSpec> : formatter<std::string> {
   template <class Context>
-  typename Context::iterator format(const tAclLinkSpec& address,
-                                    Context& ctx) const {
-    std::string repr = bluetooth::os::should_log_be_redacted()
-                           ? address.ToRedactedStringForLogging()
-                           : address.ToStringForLogging();
+  typename Context::iterator format(const tAclLinkSpec& address, Context& ctx) const {
+    std::string repr = address.ToRedactedStringForLogging();
     return fmt::formatter<std::string>::format(repr, ctx);
   }
 };

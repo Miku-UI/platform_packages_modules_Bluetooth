@@ -24,7 +24,7 @@ namespace test {
 namespace headless {
 
 class Read : public HeadlessTest<int> {
- public:
+public:
   Read(const bluetooth::test::headless::GetOpt& options);
 };
 

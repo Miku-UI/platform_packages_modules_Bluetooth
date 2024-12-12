@@ -23,8 +23,6 @@ rust_defaults {
     ],
     static_libs: [
         "libbt_shim_bridge",
-        "libbt_shim_ffi",
-
         "libchrome",
         "libevent",
         "libmodpb64",
@@ -37,13 +35,12 @@ rust_defaults {
         "libanyhow",
         "libbitflags",
         "libbt_common",
+        "libbt_shim",
+        "libbytes",
         "libcxx",
         "liblog_rust",
+        "libpdl_runtime",
         "libscopeguard",
-
-        // needed to work around duplicate symbols
-        // caused by bug in Soong
-        "libbt_shim",
     ],
     whole_static_libs: [
         "libbluetooth_core_rs_bridge",
@@ -76,6 +73,7 @@ rust_library {
     crate_name: "bluetooth_core_rs_for_facade",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
+        "libbluetooth_aconfig_flags_rust",
         "libtokio",
     ],
     host_supported: true,
@@ -86,6 +84,7 @@ rust_ffi_static {
     crate_name: "bluetooth_core",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
+        "libbluetooth_aconfig_flags_rust",
         "libtokio",
     ],
     target: {
@@ -102,6 +101,7 @@ rust_test_host {
     name: "libbluetooth_core_rs_test",
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
+        "libbluetooth_aconfig_flags_rust",
         "libtokio_for_test",
         "libtokio_test",
     ],
@@ -198,7 +198,7 @@ gensrcs {
 
 genrule {
     name: "bluetooth_core_rust_packets",
-    defaults: ["pdl_rust_noalloc_generator_defaults"],
+    defaults: ["pdl_rust_generator_defaults"],
     srcs: ["src/packets.pdl"],
     out: ["_packets.rs"],
 }

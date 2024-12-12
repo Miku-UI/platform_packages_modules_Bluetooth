@@ -240,7 +240,7 @@ class MediaPlayerBrowserService : MediaBrowserServiceCompat() {
             result.sendResult(mediaIdToChildren[NOW_PLAYING_PREFIX])
         } else {
             Log.i(TAG, "onloadchildren inside else")
-            result.sendResult(null)
+            result.sendResult(mediaIdToChildren[ROOT])
         }
     }
 

@@ -22,7 +22,7 @@
 
 // Generates the C++ code for an enum.
 class EnumGen {
- public:
+public:
   EnumGen(EnumDef e);
 
   void GenDefinition(std::ostream& stream);

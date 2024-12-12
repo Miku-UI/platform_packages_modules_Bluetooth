@@ -20,10 +20,13 @@ cc_library_static {
     ],
     export_include_dirs: ["./"],
     srcs: [
+        "avrcp_sdp_records.cc",
+        "avrcp_sdp_service.cc",
         "connection_handler.cc",
         "device.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "libbluetooth-types",
         "libbluetooth_log",
@@ -70,6 +73,7 @@ cc_test {
     ],
     static_libs: [
         "avrcp-target-service",
+        "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
@@ -112,8 +116,13 @@ cc_fuzz {
         "packages/modules/Bluetooth/system/packet/tests",
         "packages/modules/Bluetooth/system/stack/include",
     ],
+    shared_libs: [
+        "libaconfig_storage_read_api_cc",
+        "server_configurable_flags",
+    ],
     static_libs: [
         "avrcp-target-service",
+        "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",

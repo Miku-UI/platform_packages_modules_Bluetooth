@@ -39,11 +39,10 @@ XBT_INLINE_ int32_t packCodeword(Encoder_data* EncoderDataPt) {
    * such that the XOR of the sync contributions from the left and right
    * channel give the actual sync bit value. The per-channel sync bit
    * contribution overwrites the HH code lsb in the packed codeword. */
-  syncContribution =
-      (EncoderDataPt->m_qdata[0].qCode ^ EncoderDataPt->m_qdata[1].qCode ^
-       EncoderDataPt->m_qdata[2].qCode ^ EncoderDataPt->m_qdata[3].qCode ^
-       EncoderDataPt->m_dithSyncRandBit) &
-      0x1;
+  syncContribution = (EncoderDataPt->m_qdata[0].qCode ^ EncoderDataPt->m_qdata[1].qCode ^
+                      EncoderDataPt->m_qdata[2].qCode ^ EncoderDataPt->m_qdata[3].qCode ^
+                      EncoderDataPt->m_dithSyncRandBit) &
+                     0x1;
   hhCode = (EncoderDataPt->m_qdata[HH].qCode & 0x1eL) | syncContribution;
 
   /* Pack the 24-bit codeword with the appropriate number of lsbs from each

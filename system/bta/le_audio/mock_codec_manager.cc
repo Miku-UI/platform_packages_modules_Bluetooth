@@ -27,7 +27,7 @@ MockCodecManager* MockCodecManager::GetInstance() {
 namespace bluetooth::le_audio {
 
 struct CodecManager::impl : public MockCodecManager {
- public:
+public:
   impl() = default;
   ~impl() = default;
 };
@@ -35,7 +35,9 @@ struct CodecManager::impl : public MockCodecManager {
 CodecManager::CodecManager() {}
 
 types::CodecLocation CodecManager::GetCodecLocation() const {
-  if (!pimpl_) return types::CodecLocation::HOST;
+  if (!pimpl_) {
+    return types::CodecLocation::HOST;
+  }
   return pimpl_->GetCodecLocation();
 }
 
@@ -48,93 +50,95 @@ bool CodecManager::IsDualBiDirSwbSupported(void) const {
 }
 
 bool CodecManager::UpdateActiveUnicastAudioHalClient(
-    LeAudioSourceAudioHalClient* source_unicast_client,
-    LeAudioSinkAudioHalClient* sink_unicast_client, bool is_active) {
+        LeAudioSourceAudioHalClient* source_unicast_client,
+        LeAudioSinkAudioHalClient* sink_unicast_client, bool is_active) {
   if (pimpl_) {
-    return pimpl_->UpdateActiveUnicastAudioHalClient(
-        source_unicast_client, sink_unicast_client, is_active);
+    return pimpl_->UpdateActiveUnicastAudioHalClient(source_unicast_client, sink_unicast_client,
+                                                     is_active);
   }
   return true;
 }
 
 bool CodecManager::UpdateActiveBroadcastAudioHalClient(
-    LeAudioSourceAudioHalClient* source_broadcast_client, bool is_active) {
+        LeAudioSourceAudioHalClient* source_broadcast_client, bool is_active) {
   if (pimpl_) {
-    return pimpl_->UpdateActiveBroadcastAudioHalClient(source_broadcast_client,
-                                                       is_active);
+    return pimpl_->UpdateActiveBroadcastAudioHalClient(source_broadcast_client, is_active);
   }
   return true;
 }
 
 void CodecManager::UpdateActiveAudioConfig(
-    const types::BidirectionalPair<stream_parameters>& stream_params,
-    types::BidirectionalPair<uint16_t> delays_ms,
-    std::function<void(const ::bluetooth::le_audio::offload_config& config,
-                       uint8_t direction)>
-        update_receiver) {
-  if (pimpl_)
-    return pimpl_->UpdateActiveAudioConfig(stream_params, delays_ms,
-                                           update_receiver);
+        const types::BidirectionalPair<stream_parameters>& stream_params,
+        types::BidirectionalPair<uint16_t> delays_ms,
+        std::function<void(const ::bluetooth::le_audio::offload_config& config, uint8_t direction)>
+                update_receiver) {
+  if (pimpl_) {
+    return pimpl_->UpdateActiveAudioConfig(stream_params, delays_ms, update_receiver);
+  }
 }
 
-std::unique_ptr<set_configurations::AudioSetConfiguration>
-CodecManager::GetCodecConfig(
-    const CodecManager::UnicastConfigurationRequirements& requirements,
-    CodecManager::UnicastConfigurationVerifier verifier) {
-  if (!pimpl_) return nullptr;
+std::unique_ptr<set_configurations::AudioSetConfiguration> CodecManager::GetCodecConfig(
+        const CodecManager::UnicastConfigurationRequirements& requirements,
+        CodecManager::UnicastConfigurationProvider verifier) {
+  if (!pimpl_) {
+    return nullptr;
+  }
   return pimpl_->GetCodecConfig(requirements, verifier);
 }
 
 std::unique_ptr<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
 CodecManager::GetBroadcastConfig(
-    const bluetooth::le_audio::CodecManager::BroadcastConfigurationRequirements&
-        requirements) const {
-  if (!pimpl_)
-    return std::unique_ptr<
-        bluetooth::le_audio::broadcaster::BroadcastConfiguration>(nullptr);
+        const bluetooth::le_audio::CodecManager::BroadcastConfigurationRequirements& requirements)
+        const {
+  if (!pimpl_) {
+    return std::unique_ptr<bluetooth::le_audio::broadcaster::BroadcastConfiguration>(nullptr);
+  }
   return pimpl_->GetBroadcastConfig(requirements);
 }
 
 bool CodecManager::CheckCodecConfigIsBiDirSwb(
-    const bluetooth::le_audio::set_configurations::AudioSetConfiguration&
-        config) const {
-  if (!pimpl_) return false;
+        const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) const {
+  if (!pimpl_) {
+    return false;
+  }
   return pimpl_->CheckCodecConfigIsBiDirSwb(config);
 }
 
 bool CodecManager::CheckCodecConfigIsDualBiDirSwb(
-    const bluetooth::le_audio::set_configurations::AudioSetConfiguration&
-        config) const {
-  if (!pimpl_) return false;
+        const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) const {
+  if (!pimpl_) {
+    return false;
+  }
   return pimpl_->CheckCodecConfigIsDualBiDirSwb(config);
 }
 
 std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
 CodecManager::GetLocalAudioOutputCodecCapa() {
-  if (!pimpl_)
+  if (!pimpl_) {
     return std::vector<bluetooth::le_audio::btle_audio_codec_config_t>{};
+  }
   return pimpl_->GetLocalAudioOutputCodecCapa();
 }
 
 std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
 CodecManager::GetLocalAudioInputCodecCapa() {
-  if (!pimpl_)
+  if (!pimpl_) {
     return std::vector<bluetooth::le_audio::btle_audio_codec_config_t>{};
+  }
   return pimpl_->GetLocalAudioInputCodecCapa();
 }
 
 void CodecManager::UpdateBroadcastConnHandle(
-    const std::vector<uint16_t>& conn_handle,
-    std::function<
-        void(const ::bluetooth::le_audio::broadcast_offload_config& config)>
-        update_receiver) {
-  if (pimpl_)
+        const std::vector<uint16_t>& conn_handle,
+        std::function<void(const ::bluetooth::le_audio::broadcast_offload_config& config)>
+                update_receiver) {
+  if (pimpl_) {
     return pimpl_->UpdateBroadcastConnHandle(conn_handle, update_receiver);
+  }
 }
 
-void CodecManager::Start(
-    const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>&
-    /*offloading_preference*/) {
+void CodecManager::Start(const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>&
+                         /*offloading_preference*/) {
   // It is needed here as CodecManager which is a singleton creates it, but in
   // this mock we want to destroy and recreate the mock on each test case.
   if (!pimpl_) {
@@ -156,24 +160,28 @@ void CodecManager::Stop() {
   mock_codec_manager_pimpl_ = nullptr;
 }
 
-void CodecManager::UpdateCisConfiguration(
-    const std::vector<struct types::cis>& cises,
-    const stream_parameters& stream_params, uint8_t direction) {
-  if (pimpl_)
+void CodecManager::UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
+                                          const stream_parameters& stream_params,
+                                          uint8_t direction) {
+  if (pimpl_) {
     return pimpl_->UpdateCisConfiguration(cises, stream_params, direction);
+  }
 }
 
 void CodecManager::ClearCisConfiguration(uint8_t direction) {
-  if (pimpl_) return pimpl_->ClearCisConfiguration(direction);
+  if (pimpl_) {
+    return pimpl_->ClearCisConfiguration(direction);
+  }
 }
 
 bool CodecManager::IsUsingCodecExtensibility() const {
-  if (pimpl_) return pimpl_->IsUsingCodecExtensibility();
+  if (pimpl_) {
+    return pimpl_->IsUsingCodecExtensibility();
+  }
   return false;
 }
 
-std::ostream& operator<<(
-    std::ostream& os, const CodecManager::UnicastConfigurationRequirements&) {
+std::ostream& operator<<(std::ostream& os, const CodecManager::UnicastConfigurationRequirements&) {
   return os;
 }
 

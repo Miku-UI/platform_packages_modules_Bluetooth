@@ -23,7 +23,8 @@ namespace bluetooth {
 namespace packet {
 
 View::View(std::shared_ptr<const std::vector<uint8_t>> data, size_t begin, size_t end)
-    : data_(data), begin_(begin < data_->size() ? begin : data_->size()),
+    : data_(data),
+      begin_(begin < data_->size() ? begin : data_->size()),
       end_(end < data_->size() ? end : data_->size()) {}
 
 View::View(const View& view, size_t begin, size_t end) : data_(view.data_) {
@@ -38,8 +39,6 @@ uint8_t View::operator[](size_t i) const {
   return data_->operator[](i + begin_);
 }
 
-size_t View::size() const {
-  return end_ - begin_;
-}
+size_t View::size() const { return end_ - begin_; }
 }  // namespace packet
 }  // namespace bluetooth

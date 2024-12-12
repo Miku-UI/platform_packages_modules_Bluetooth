@@ -22,23 +22,18 @@
 
 const std::string ScalarField::kFieldType = "ScalarField";
 
-ScalarField::ScalarField(std::string name, int size, ParseLocation loc) : PacketField(name, loc), size_(size) {
+ScalarField::ScalarField(std::string name, int size, ParseLocation loc)
+    : PacketField(name, loc), size_(size) {
   if (size_ > 64 || size_ < 0) {
     ERROR(this) << "Not implemented for size_ = " << size_;
   }
 }
 
-const std::string& ScalarField::GetFieldType() const {
-  return ScalarField::kFieldType;
-}
+const std::string& ScalarField::GetFieldType() const { return ScalarField::kFieldType; }
 
-Size ScalarField::GetSize() const {
-  return size_;
-}
+Size ScalarField::GetSize() const { return size_; }
 
-std::string ScalarField::GetDataType() const {
-  return util::GetTypeForSize(size_);
-}
+std::string ScalarField::GetDataType() const { return util::GetTypeForSize(size_); }
 
 int GetShiftBits(int i) {
   int bits_past_byte_boundary = i % 8;
@@ -59,7 +54,8 @@ int ScalarField::GenBounds(std::ostream& s, Size start_offset, Size end_offset, 
   } else if (!end_offset.empty()) {
     num_leading_bits = GetShiftBits(end_offset.bits() + size.bits());
     Size byte_offset = Size(num_leading_bits + size.bits()) + end_offset;
-    s << "auto " << GetName() << "_it = to_bound + (to_bound.NumBytesRemaining() - (" << byte_offset << ") / 8);";
+    s << "auto " << GetName() << "_it = to_bound + (to_bound.NumBytesRemaining() - (" << byte_offset
+      << ") / 8);";
   } else {
     ERROR(this) << "Ambiguous offset for field.";
   }
@@ -108,9 +104,7 @@ void ScalarField::GenGetter(std::ostream& s, Size start_offset, Size end_offset)
   s << "}";
 }
 
-std::string ScalarField::GetBuilderParameterType() const {
-  return GetDataType();
-}
+std::string ScalarField::GetBuilderParameterType() const { return GetDataType(); }
 
 bool ScalarField::HasParameterValidator() const {
   return util::RoundSizeUp(GetSize().bits()) != GetSize().bits();

@@ -32,8 +32,7 @@ const int HFP_LC3_PKT_FRAME_LEN = 58;
 const int HFP_LC3_PCM_BYTES = 480;
 
 static mmc::CodecClient* client = nullptr;
-static const uint8_t plc_buf[HFP_LC3_H2_HEADER_LEN + HFP_LC3_PKT_FRAME_LEN] = {
-    0};
+static const uint8_t plc_buf[HFP_LC3_H2_HEADER_LEN + HFP_LC3_PKT_FRAME_LEN] = {0};
 
 bool hfp_lc3_decoder_init() {
   hfp_lc3_decoder_cleanup();
@@ -70,11 +69,9 @@ void hfp_lc3_decoder_cleanup() {
   }
 }
 
-bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
-                                   size_t out_len) {
+bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf, size_t out_len) {
   if (o_buf == nullptr || out_len < HFP_LC3_PCM_BYTES) {
-    log::error("Output buffer size {} is less than LC3 frame size {}", out_len,
-               HFP_LC3_PCM_BYTES);
+    log::error("Output buffer size {} is less than LC3 frame size {}", out_len, HFP_LC3_PCM_BYTES);
     return false;
   }
 
@@ -89,8 +86,7 @@ bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
   // One extra byte in the beginning to indicate whether PLC was conducted.
   uint8_t* o_packet = new uint8_t[out_len + 1];
 
-  int rc = client->transcode((uint8_t*)frame,
-                             HFP_LC3_PKT_FRAME_LEN + HFP_LC3_H2_HEADER_LEN,
+  int rc = client->transcode((uint8_t*)frame, HFP_LC3_PKT_FRAME_LEN + HFP_LC3_H2_HEADER_LEN,
                              o_packet, out_len + 1);
 
   if (rc < 0) {

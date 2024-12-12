@@ -54,27 +54,27 @@ using bluetooth::Uuid;
 #define BTA_PBS_USERID_REQ FALSE
 
 static const tBTA_PBS_CFG bta_pbs_cfg = {
-    BTA_PBS_REALM_CHARSET,  // realm_charset: Server only
-    BTA_PBS_USERID_REQ,     // userid_req: Server only
-    (BTA_PBS_SUPF_DOWNLOAD | BTA_PBS_SURF_BROWSE),  // supported_features
-    BTA_PBS_REPOSIT_LOCAL,                          // supported_repositories
+        BTA_PBS_REALM_CHARSET,                          // realm_charset: Server only
+        BTA_PBS_USERID_REQ,                             // userid_req: Server only
+        (BTA_PBS_SUPF_DOWNLOAD | BTA_PBS_SURF_BROWSE),  // supported_features
+        BTA_PBS_REPOSIT_LOCAL,                          // supported_repositories
 };
 
 // object format lookup table
 #define OBEX_PUSH_NUM_FORMATS 7
 
 static const tBTA_OP_FMT bta_ops_obj_fmt[OBEX_PUSH_NUM_FORMATS] = {
-    BTA_OP_VCARD21_FMT, BTA_OP_VCARD30_FMT, BTA_OP_VCAL_FMT, BTA_OP_ICAL_FMT,
-    BTA_OP_VNOTE_FMT,   BTA_OP_VMSG_FMT,    BTA_OP_OTHER_FMT};
+        BTA_OP_VCARD21_FMT, BTA_OP_VCARD30_FMT, BTA_OP_VCAL_FMT, BTA_OP_ICAL_FMT,
+        BTA_OP_VNOTE_FMT,   BTA_OP_VMSG_FMT,    BTA_OP_OTHER_FMT};
 
 // TODO(jtgans): Figure out if we actually need this define. This is ifndef
 // defined in bt_target.h, but nowhere else, so right now, unless something
 // overrides this before bt_target.h sets it, it will always be bt_target.h's
 // version.
 #ifndef BTUI_OPS_FORMATS
-#define BTUI_OPS_FORMATS                                          \
-  (BTA_OP_VCARD21_MASK | BTA_OP_VCARD30_MASK | BTA_OP_VCAL_MASK | \
-   BTA_OP_ICAL_MASK | BTA_OP_VNOTE_MASK | BTA_OP_VMSG_MASK | BTA_OP_ANY_MASK)
+#define BTUI_OPS_FORMATS                                                             \
+  (BTA_OP_VCARD21_MASK | BTA_OP_VCARD30_MASK | BTA_OP_VCAL_MASK | BTA_OP_ICAL_MASK | \
+   BTA_OP_VNOTE_MASK | BTA_OP_VMSG_MASK | BTA_OP_ANY_MASK)
 #endif
 
 #define RESERVED_SCN_PBS 19
@@ -91,10 +91,9 @@ static const tBTA_OP_FMT bta_ops_obj_fmt[OBEX_PUSH_NUM_FORMATS] = {
 // at the end of the protocol list.
 //
 // Returns true if successful, otherwise false.
-static bool create_base_record(const uint32_t sdp_handle, const char* name,
-                               const uint16_t channel, const bool with_obex) {
-  log::verbose("create_base_record: scn: {}, name: {}, with_obex: {}", channel,
-               name, with_obex);
+static bool create_base_record(const uint32_t sdp_handle, const char* name, const uint16_t channel,
+                               const bool with_obex) {
+  log::verbose("create_base_record: scn: {}, name: {}, with_obex: {}", channel, name, with_obex);
 
   // Setup the protocol list and add it.
   tSDP_PROTOCOL_ELEM proto_list[SDP_MAX_LIST_ELEMS];
@@ -117,50 +116,50 @@ static bool create_base_record(const uint32_t sdp_handle, const char* name,
   uint16_t list = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
 
   const char* stage = "protocol_list";
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-          sdp_handle, num_proto_elements, proto_list))
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(sdp_handle, num_proto_elements,
+                                                              proto_list)) {
     goto error;
+  }
 
   // Add the name to the SDP record.
   if (name[0] != '\0') {
     stage = "service_name";
     if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-            sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE,
-            (uint32_t)strlen(name), (uint8_t*)name))
+                sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE, (uint32_t)strlen(name),
+                (uint8_t*)name)) {
       goto error;
+    }
   }
 
   stage = "browseable";
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &list))
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(sdp_handle, ATTR_ID_BROWSE_GROUP_LIST,
+                                                              1, &list)) {
     goto error;
+  }
 
   log::verbose(
-      "create_base_record: successfully created base service record, handle: "
-      "0x{:08x}, scn: {}, name: {}, with_obex: {}",
-      sdp_handle, channel, name, with_obex);
+          "create_base_record: successfully created base service record, handle: "
+          "0x{:08x}, scn: {}, name: {}, with_obex: {}",
+          sdp_handle, channel, name, with_obex);
   return true;
 
 error:
   log::error(
-      "create_base_record: failed to create base service record, stage: {}, "
-      "scn: {}, name: {}, with_obex: {}",
-      stage, channel, name, with_obex);
+          "create_base_record: failed to create base service record, stage: {}, "
+          "scn: {}, name: {}, with_obex: {}",
+          stage, channel, name, with_obex);
   return false;
 }
 
 // Registers a service with the given |name|, |uuid|, and |channel| in the SDP
 // database as a generic L2CAP RFCOMM protocol, storing its |uuid| as a service
 // class sequence.
-static int add_sdp_by_uuid(const char* name, const Uuid& uuid,
-                           const uint16_t channel) {
-  log::verbose("uuid: {}, scn: {}, service_name: {}", uuid.ToString(), channel,
-               name);
+static int add_sdp_by_uuid(const char* name, const Uuid& uuid, const uint16_t channel) {
+  log::verbose("uuid: {}, scn: {}, service_name: {}", uuid.ToString(), channel, name);
 
   uint32_t handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
   if (handle == 0) {
-    log::error("failed to create sdp record, scn: {}, service_name: {}",
-               channel, name);
+    log::error("failed to create sdp record, scn: {}, service_name: {}", channel, name);
     return 0;
   }
 
@@ -176,8 +175,9 @@ static int add_sdp_by_uuid(const char* name, const Uuid& uuid,
 
   // Create the base SDP record.
   const char* stage = "create_base_record";
-  if (!create_base_record(handle, name, channel, false /* with_obex */))
+  if (!create_base_record(handle, name, channel, false /* with_obex */)) {
     goto error;
+  }
 
   // Do the conversion to big-endian -- tmp is only used to iterate through the
   // UUID array in the macro and serves no other purpose as the conversion
@@ -186,14 +186,13 @@ static int add_sdp_by_uuid(const char* name, const Uuid& uuid,
   { ARRAY_TO_BE_STREAM(tmp, uuid.To128BitBE().data(), UUID_MAX_LENGTH); }
 
   stage = "service_class_sequence";
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddSequence(
-          handle, (uint16_t)ATTR_ID_SERVICE_CLASS_ID_LIST, 1, &type, &type_len,
-          &type_buf_ptr))
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddSequence(handle,
+                                                          (uint16_t)ATTR_ID_SERVICE_CLASS_ID_LIST,
+                                                          1, &type, &type_len, &type_buf_ptr)) {
     goto error;
+  }
 
-  log::verbose(
-      "service registered successfully, service_name: {}, handle: 0x{:08x}",
-      name, handle);
+  log::verbose("service registered successfully, service_name: {}, handle: 0x{:08x}", name, handle);
 
   {
     // Write the custom 128-bit UUID to EIR
@@ -207,8 +206,7 @@ error:
   if (get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(handle)) {
     log::warn("Unable to delete SDP record handle:{}", handle);
   }
-  log::error("failed to register service stage: {}, service_name: {}", stage,
-             name);
+  log::error("failed to register service stage: {}, service_name: {}", stage, name);
   return 0;
 }
 
@@ -219,8 +217,7 @@ static int add_pbap_sdp(const char* name, const int channel) {
 
   uint32_t handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
   if (handle == 0) {
-    log::error("add_pbap_sdp: failed to create sdp record, service_name: {}",
-               name);
+    log::error("add_pbap_sdp: failed to create sdp record, service_name: {}", name);
     return 0;
   }
 
@@ -228,34 +225,37 @@ static int add_pbap_sdp(const char* name, const int channel) {
 
   // Create the base SDP record.
   const char* stage = "create_base_record";
-  if (!create_base_record(handle, name, channel, true /* with_obex */))
+  if (!create_base_record(handle, name, channel, true /* with_obex */)) {
     goto error;
+  }
 
   // Add service class
   stage = "service_class";
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(handle, 1,
-                                                                    &service))
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(handle, 1, &service)) {
     goto error;
+  }
 
   // Add in the phone access descriptor
   stage = "profile_descriptor_list";
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-          handle, UUID_SERVCLASS_PHONE_ACCESS, BTA_PBS_DEFAULT_VERSION))
+              handle, UUID_SERVCLASS_PHONE_ACCESS, BTA_PBS_DEFAULT_VERSION)) {
     goto error;
+  }
 
   // Set up our supported repositories
   stage = "supported_repositories";
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          handle, ATTR_ID_SUPPORTED_REPOSITORIES, UINT_DESC_TYPE, 1,
-          (uint8_t*)&bta_pbs_cfg.supported_repositories))
+              handle, ATTR_ID_SUPPORTED_REPOSITORIES, UINT_DESC_TYPE, 1,
+              (uint8_t*)&bta_pbs_cfg.supported_repositories)) {
     goto error;
+  }
 
   // Notify the system that we've got a new service class UUID.
   bta_sys_add_uuid(UUID_SERVCLASS_PBAP_PSE);
   log::verbose(
-      "add_pbap_sdp: service registered successfully, service_name: {}, "
-      "handle: 0x{:08x}",
-      name, handle);
+          "add_pbap_sdp: service registered successfully, service_name: {}, "
+          "handle: 0x{:08x}",
+          name, handle);
 
   return handle;
 
@@ -264,9 +264,9 @@ error:
     log::warn("Unable to delete SDP record handle:{}", handle);
   }
   log::error(
-      "add_pbap_sdp: failed to register PBAP service, stage: {}, service_name: "
-      "{}",
-      stage, name);
+          "add_pbap_sdp: failed to register PBAP service, stage: {}, service_name: "
+          "{}",
+          stage, name);
   return 0;
 }
 // Registers a service with the given |name| and |channel| as an OBEX Push
@@ -276,8 +276,7 @@ static int add_ops_sdp(const char* name, const int channel) {
 
   uint32_t handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
   if (handle == 0) {
-    log::error("add_ops_sdp: failed to create sdp record, service_name: {}",
-               name);
+    log::error("add_ops_sdp: failed to create sdp record, service_name: {}", name);
     return 0;
   }
 
@@ -292,20 +291,22 @@ static int add_ops_sdp(const char* name, const int channel) {
 
   // Create the base SDP record.
   const char* stage = "create_base_record";
-  if (!create_base_record(handle, name, channel, true /* with_obex */))
+  if (!create_base_record(handle, name, channel, true /* with_obex */)) {
     goto error;
+  }
 
   // Add service class.
   stage = "service_class";
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(handle, 1,
-                                                                    &service))
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(handle, 1, &service)) {
     goto error;
+  }
 
   // Add the OBEX push profile descriptor.
   stage = "profile_descriptor_list";
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-          handle, UUID_SERVCLASS_OBEX_OBJECT_PUSH, 0x0100))
+              handle, UUID_SERVCLASS_OBEX_OBJECT_PUSH, 0x0100)) {
     goto error;
+  }
 
   for (int i = 0; i < OBEX_PUSH_NUM_FORMATS; i++) {
     if ((BTUI_OPS_FORMATS >> i) & 1) {
@@ -316,22 +317,25 @@ static int add_ops_sdp(const char* name, const int channel) {
   }
 
   stage = "supported_types";
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddSequence(
-          handle, (uint16_t)ATTR_ID_SUPPORTED_FORMATS_LIST, j, desc_type,
-          type_len, type_value))
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddSequence(handle,
+                                                          (uint16_t)ATTR_ID_SUPPORTED_FORMATS_LIST,
+                                                          j, desc_type, type_len, type_value)) {
     goto error;
+  }
 
   // Set class of device.
   cod.service = BTM_COD_SERVICE_OBJ_TRANSFER;
   stage = "class_of_device";
-  if (!utl_set_device_class(&cod, BTA_UTL_SET_COD_SERVICE_CLASS)) goto error;
+  if (!utl_set_device_class(&cod, BTA_UTL_SET_COD_SERVICE_CLASS)) {
+    goto error;
+  }
 
   // Notify the system that we've got a new service class UUID.
   bta_sys_add_uuid(UUID_SERVCLASS_OBEX_OBJECT_PUSH);
   log::verbose(
-      "ad_maps_sdp: service registered successfully, service_name: {}, handle "
-      "0x{:08x})",
-      name, handle);
+          "ad_maps_sdp: service registered successfully, service_name: {}, handle "
+          "0x{:08x})",
+          name, handle);
 
   return handle;
 
@@ -340,9 +344,9 @@ error:
     log::warn("Unable to delete SDP record handle:{}", handle);
   }
   log::error(
-      "add_ops_sdp: failed to register OPS service, stage: {}, service_name: "
-      "{}",
-      stage, name);
+          "add_ops_sdp: failed to register OPS service, stage: {}, service_name: "
+          "{}",
+          stage, name);
   return 0;
 }
 
@@ -353,8 +357,7 @@ static int add_spp_sdp(const char* name, const int channel) {
 
   int handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
   if (handle == 0) {
-    log::error("add_spp_sdp: failed to create sdp record, service_name: {}",
-               name);
+    log::error("add_spp_sdp: failed to create sdp record, service_name: {}", name);
     return 0;
   }
 
@@ -362,23 +365,25 @@ static int add_spp_sdp(const char* name, const int channel) {
   const char* stage = "create_base_record";
   uint16_t service = UUID_SERVCLASS_SERIAL_PORT;
 
-  if (!create_base_record(handle, name, channel, false /* with_obex */))
+  if (!create_base_record(handle, name, channel, false /* with_obex */)) {
     goto error;
+  }
 
   stage = "service_class";
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(handle, 1,
-                                                                    &service))
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(handle, 1, &service)) {
     goto error;
+  }
 
   stage = "profile_descriptor_list";
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-          handle, UUID_SERVCLASS_SERIAL_PORT, SPP_PROFILE_VERSION))
+              handle, UUID_SERVCLASS_SERIAL_PORT, SPP_PROFILE_VERSION)) {
     goto error;
+  }
 
   log::verbose(
-      "add_spp_sdp: service registered successfully, service_name: {}, handle "
-      "0x{:08x})",
-      name, handle);
+          "add_spp_sdp: service registered successfully, service_name: {}, handle "
+          "0x{:08x})",
+          name, handle);
 
   return handle;
 
@@ -387,9 +392,9 @@ error:
     log::warn("Unable to delete SDP record handle:{}", handle);
   }
   log::error(
-      "add_spp_sdp: failed to register SPP service, stage: {}, service_name: "
-      "{}",
-      stage, name);
+          "add_spp_sdp: failed to register SPP service, stage: {}, service_name: "
+          "{}",
+          stage, name);
   return 0;
 }
 
@@ -397,10 +402,8 @@ error:
 // |channel|. This function attempts to identify the type of the service based
 // upon its |uuid|, and will override the |channel| with a reserved channel
 // number if the |uuid| matches one of the preregistered bluez SDP records.
-static int add_rfc_sdp_by_uuid(const char* name, const Uuid& uuid,
-                               const int channel) {
-  log::verbose("uuid: {}, service_name: {}, channel: {}", uuid.ToString(), name,
-               channel);
+static int add_rfc_sdp_by_uuid(const char* name, const Uuid& uuid, const int channel) {
+  log::verbose("uuid: {}, service_name: {}, channel: {}", uuid.ToString(), name, channel);
 
   /*
    * Bluetooth Socket API relies on having preregistered bluez sdp records for

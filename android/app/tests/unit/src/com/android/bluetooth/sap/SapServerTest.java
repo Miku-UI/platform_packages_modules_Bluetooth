@@ -83,7 +83,6 @@ import org.mockito.junit.MockitoRule;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.atomic.AtomicLong;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)

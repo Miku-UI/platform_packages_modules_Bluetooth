@@ -20,14 +20,11 @@
 
 #include "stack/include/btm_sec_api_types.h"
 
-static bluetooth::manager::MockBtifStorageInterface* btif_storage_interface =
-    nullptr;
+static bluetooth::manager::MockBtifStorageInterface* btif_storage_interface = nullptr;
 
 void bluetooth::manager::SetMockBtifStorageInterface(
-    MockBtifStorageInterface* mock_btif_storage_interface) {
+        MockBtifStorageInterface* mock_btif_storage_interface) {
   btif_storage_interface = mock_btif_storage_interface;
 }
 
-void btif_storage_load_bonded_eatt(void) {
-  btif_storage_interface->LoadBondedEatt();
-}
+void btif_storage_load_bonded_eatt(void) { btif_storage_interface->LoadBondedEatt(); }

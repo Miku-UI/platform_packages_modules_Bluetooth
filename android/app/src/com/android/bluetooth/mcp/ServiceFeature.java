@@ -115,16 +115,16 @@ public final class ServiceFeature {
 
     static String featuresToString(long serviceFeatures, String indent) {
         BitSet bs = BitSet.valueOf(new long[] {serviceFeatures});
-        String string = "";
+        StringBuilder sb = new StringBuilder();
 
         for (int i = bs.nextSetBit(0); i >= 0; i = bs.nextSetBit(i + 1)) {
             if (i == Integer.MAX_VALUE) {
                 break;
             } else {
-                string += indent + toString(1 << i);
+                sb.append(indent).append(toString(1 << i));
             }
         }
 
-        return string;
+        return sb.toString();
     }
 }

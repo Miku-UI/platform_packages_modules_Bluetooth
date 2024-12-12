@@ -41,8 +41,8 @@ uint16_t AVCT_GetPeerMtu(uint8_t /* handle */) {
   inc_func_call_count(__func__);
   return 0;
 }
-uint16_t AVCT_MsgReq(uint8_t /* handle */, uint8_t /* label */,
-                     uint8_t /* cr */, BT_HDR* /* p_msg */) {
+uint16_t AVCT_MsgReq(uint8_t /* handle */, uint8_t /* label */, uint8_t /* cr */,
+                     BT_HDR* /* p_msg */) {
   inc_func_call_count(__func__);
   return 0;
 }

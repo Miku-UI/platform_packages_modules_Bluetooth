@@ -53,18 +53,6 @@ public class BluetoothCsisBinderTest {
     }
 
     @Test
-    public void connect() {
-        mBinder.connect(mTestDevice, mAttributionSource);
-        verify(mService).connect(mTestDevice);
-    }
-
-    @Test
-    public void disconnect() {
-        mBinder.disconnect(mTestDevice, mAttributionSource);
-        verify(mService).disconnect(mTestDevice);
-    }
-
-    @Test
     public void getConnectedDevices() {
         mBinder.getConnectedDevices(mAttributionSource);
         verify(mService).getConnectedDevices();

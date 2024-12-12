@@ -27,7 +27,6 @@ import android.bluetooth.IBluetoothOobDataCallback;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,11 +55,6 @@ public class AdapterServiceBinderTest {
         mAttributionSource = new AttributionSource.Builder(0).build();
     }
 
-    @After
-    public void cleanUp() {
-        mBinder.cleanup();
-    }
-
     @Test
     public void getAddress() {
         mBinder.getAddress(mAttributionSource);
@@ -73,10 +67,16 @@ public class AdapterServiceBinderTest {
         String[] args = new String[] {};
         mBinder.dump(fd, args);
         verify(mService).dump(any(), any(), any());
+    }
 
-        Mockito.clearInvocations(mService);
-        mBinder.cleanup();
+    @Test
+    public void dumpWhenNotAvailable() {
+        FileDescriptor fd = new FileDescriptor();
+        String[] args = new String[] {};
+        doReturn(false).when(mService).isAvailable();
+
         mBinder.dump(fd, args);
+
         verify(mService, never()).dump(any(), any(), any());
     }
 
@@ -86,11 +86,18 @@ public class AdapterServiceBinderTest {
         IBluetoothOobDataCallback cb = Mockito.mock(IBluetoothOobDataCallback.class);
 
         mBinder.generateLocalOobData(transport, cb, mAttributionSource);
-        verify(mService).generateLocalOobData(transport, cb);
 
-        Mockito.clearInvocations(mService);
-        mBinder.cleanup();
+        verify(mService).generateLocalOobData(transport, cb);
+    }
+
+    @Test
+    public void generateLocalOobDataWhenNotAvailable() {
+        int transport = 0;
+        IBluetoothOobDataCallback cb = Mockito.mock(IBluetoothOobDataCallback.class);
+        doReturn(false).when(mService).isAvailable();
+
         mBinder.generateLocalOobData(transport, cb, mAttributionSource);
+
         verify(mService, never()).generateLocalOobData(transport, cb);
     }
 

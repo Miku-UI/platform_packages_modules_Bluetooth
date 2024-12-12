@@ -24,6 +24,6 @@ void l2cu_set_non_flushable_pbf(bool is_supported);
 
 void l2c_link_init(const uint16_t acl_buffer_count_classic);
 
-void l2c_link_processs_ble_num_bufs(uint16_t num_lm_acl_bufs);
+void l2c_link_process_ble_num_bufs(uint16_t num_lm_acl_bufs);
 
 void l2cu_device_reset(void);

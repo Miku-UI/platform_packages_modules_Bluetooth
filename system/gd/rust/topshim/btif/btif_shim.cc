@@ -43,7 +43,9 @@ void InitFlags::Convert(::rust::Vec<::rust::String>& initFlags) {
   // Allocate number of flags + 1 (last entry must be null to signify end)
   // Must be calloc so our cleanup correctly frees everything
   flags_ = static_cast<const char**>(std::calloc(initFlags.size() + 1, sizeof(char*)));
-  if (!flags_) return;
+  if (!flags_) {
+    return;
+  }
 
   for (size_t i = 0; i < initFlags.size(); ++i) {
     flags_[i] = strndup(initFlags[i].data(), initFlags[i].size());

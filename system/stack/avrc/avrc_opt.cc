@@ -52,17 +52,16 @@ static BT_HDR* avrc_vendor_msg(tAVRC_MSG_VENDOR* p_msg) {
   BT_HDR* p_cmd;
   uint8_t* p_data;
 
-  /*
-    An AVRC cmd consists of at least of:
-    - A BT_HDR, plus
-    - AVCT_MSG_OFFSET, plus
-    - 3 bytes for ctype, subunit_type and op_vendor, plus
-    - 3 bytes for company_id
-  */
-  #define AVRC_MIN_VENDOR_CMD_LEN (sizeof(BT_HDR) + AVCT_MSG_OFFSET + 3 + 3)
+/*
+  An AVRC cmd consists of at least of:
+  - A BT_HDR, plus
+  - AVCT_MSG_OFFSET, plus
+  - 3 bytes for ctype, subunit_type and op_vendor, plus
+  - 3 bytes for company_id
+*/
+#define AVRC_MIN_VENDOR_CMD_LEN (sizeof(BT_HDR) + AVCT_MSG_OFFSET + 3 + 3)
 
-  if (p_msg == nullptr ||
-      AVRC_META_CMD_BUF_SIZE < AVRC_MIN_VENDOR_CMD_LEN + p_msg->vendor_len) {
+  if (p_msg == nullptr || AVRC_META_CMD_BUF_SIZE < AVRC_MIN_VENDOR_CMD_LEN + p_msg->vendor_len) {
     return nullptr;
   }
 
@@ -71,14 +70,13 @@ static BT_HDR* avrc_vendor_msg(tAVRC_MSG_VENDOR* p_msg) {
   p_cmd->offset = AVCT_MSG_OFFSET;
   p_data = (uint8_t*)(p_cmd + 1) + p_cmd->offset;
   *p_data++ = (p_msg->hdr.ctype & AVRC_CTYPE_MASK);
-  *p_data++ =
-      (p_msg->hdr.subunit_type << AVRC_SUBTYPE_SHIFT) | p_msg->hdr.subunit_id;
+  *p_data++ = (p_msg->hdr.subunit_type << AVRC_SUBTYPE_SHIFT) | p_msg->hdr.subunit_id;
   *p_data++ = AVRC_OP_VENDOR;
   AVRC_CO_ID_TO_BE_STREAM(p_data, p_msg->company_id);
-  if (p_msg->vendor_len && p_msg->p_vendor_data)
+  if (p_msg->vendor_len && p_msg->p_vendor_data) {
     memcpy(p_data, p_msg->p_vendor_data, p_msg->vendor_len);
-  p_cmd->len = (uint16_t)(p_data + p_msg->vendor_len - (uint8_t*)(p_cmd + 1) -
-                          p_cmd->offset);
+  }
+  p_cmd->len = (uint16_t)(p_data + p_msg->vendor_len - (uint8_t*)(p_cmd + 1) - p_cmd->offset);
   p_cmd->layer_specific = AVCT_DATA_CTRL;
 
   return p_cmd;
@@ -116,8 +114,7 @@ uint16_t AVRC_UnitCmd(uint8_t handle, uint8_t label) {
   *p_data++ = (AVRC_SUB_UNIT << AVRC_SUBTYPE_SHIFT) | AVRC_SUBID_IGNORE;
   *p_data++ = AVRC_OP_UNIT_INFO;
   memset(p_data, AVRC_CMD_OPRND_PAD, AVRC_UNIT_OPRND_BYTES);
-  p_cmd->len =
-      p_data + AVRC_UNIT_OPRND_BYTES - (uint8_t*)(p_cmd + 1) - p_cmd->offset;
+  p_cmd->len = p_data + AVRC_UNIT_OPRND_BYTES - (uint8_t*)(p_cmd + 1) - p_cmd->offset;
   p_cmd->layer_specific = AVCT_DATA_CTRL;
 
   return AVCT_MsgReq(handle, label, AVCT_CMD, p_cmd);
@@ -158,11 +155,9 @@ uint16_t AVRC_SubCmd(uint8_t handle, uint8_t label, uint8_t page) {
   /* unit & id ignore */
   *p_data++ = (AVRC_SUB_UNIT << AVRC_SUBTYPE_SHIFT) | AVRC_SUBID_IGNORE;
   *p_data++ = AVRC_OP_SUB_INFO;
-  *p_data++ =
-      ((page & AVRC_SUB_PAGE_MASK) << AVRC_SUB_PAGE_SHIFT) | AVRC_SUB_EXT_CODE;
+  *p_data++ = ((page & AVRC_SUB_PAGE_MASK) << AVRC_SUB_PAGE_SHIFT) | AVRC_SUB_EXT_CODE;
   memset(p_data, AVRC_CMD_OPRND_PAD, AVRC_SUB_OPRND_BYTES);
-  p_cmd->len =
-      p_data + AVRC_SUB_OPRND_BYTES - (uint8_t*)(p_cmd + 1) - p_cmd->offset;
+  p_cmd->len = p_data + AVRC_SUB_OPRND_BYTES - (uint8_t*)(p_cmd + 1) - p_cmd->offset;
   p_cmd->layer_specific = AVCT_DATA_CTRL;
 
   return AVCT_MsgReq(handle, label, AVCT_CMD, p_cmd);
@@ -191,13 +186,13 @@ uint16_t AVRC_SubCmd(uint8_t handle, uint8_t label, uint8_t page) {
  *                  AVRC_BAD_HANDLE if handle is invalid.
  *
  *****************************************************************************/
-uint16_t AVRC_VendorCmd(uint8_t handle, uint8_t label,
-                        tAVRC_MSG_VENDOR* p_msg) {
+uint16_t AVRC_VendorCmd(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg) {
   BT_HDR* p_buf = avrc_vendor_msg(p_msg);
-  if (p_buf)
+  if (p_buf) {
     return AVCT_MsgReq(handle, label, AVCT_CMD, p_buf);
-  else
+  } else {
     return AVCT_NO_RESOURCES;
+  }
 }
 
 /******************************************************************************
@@ -226,11 +221,11 @@ uint16_t AVRC_VendorCmd(uint8_t handle, uint8_t label,
  *                  AVRC_BAD_HANDLE if handle is invalid.
  *
  *****************************************************************************/
-uint16_t AVRC_VendorRsp(uint8_t handle, uint8_t label,
-                        tAVRC_MSG_VENDOR* p_msg) {
+uint16_t AVRC_VendorRsp(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg) {
   BT_HDR* p_buf = avrc_vendor_msg(p_msg);
-  if (p_buf)
+  if (p_buf) {
     return AVCT_MsgReq(handle, label, AVCT_RSP, p_buf);
-  else
+  } else {
     return AVCT_NO_RESOURCES;
+  }
 }

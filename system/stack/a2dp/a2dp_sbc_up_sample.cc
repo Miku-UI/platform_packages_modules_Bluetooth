@@ -25,8 +25,8 @@
 
 #include "a2dp_sbc_up_sample.h"
 
-typedef int(tA2DP_SBC_ACT)(void* p_src, void* p_dst, uint32_t src_samples,
-                           uint32_t dst_samples, uint32_t* p_ret);
+typedef int(tA2DP_SBC_ACT)(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                           uint32_t* p_ret);
 
 typedef struct {
   int32_t cur_pos;      /* current position */
@@ -56,8 +56,7 @@ tA2DP_SBC_UPS_CB a2dp_sbc_ups_cb;
  * Returns          none
  *
  ******************************************************************************/
-void a2dp_sbc_init_up_sample(uint32_t src_sps, uint32_t dst_sps, uint8_t bits,
-                             uint8_t n_channels) {
+void a2dp_sbc_init_up_sample(uint32_t src_sps, uint32_t dst_sps, uint8_t bits, uint8_t n_channels) {
   a2dp_sbc_ups_cb.cur_pos = -1;
   a2dp_sbc_ups_cb.src_sps = src_sps;
   a2dp_sbc_ups_cb.dst_sps = dst_sps;
@@ -111,8 +110,8 @@ void a2dp_sbc_init_up_sample(uint32_t src_sps, uint32_t dst_sps, uint8_t bits,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample(void* p_src, void* p_dst, uint32_t src_samples,
-                       uint32_t dst_samples, uint32_t* p_ret) {
+int a2dp_sbc_up_sample(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                       uint32_t* p_ret) {
   uint32_t src;
   uint32_t dst;
 
@@ -145,8 +144,8 @@ int a2dp_sbc_up_sample(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_16s(void* p_src, void* p_dst, uint32_t src_samples,
-                           uint32_t dst_samples, uint32_t* p_ret) {
+int a2dp_sbc_up_sample_16s(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                           uint32_t* p_ret) {
   int16_t* p_src_tmp = (int16_t*)p_src;
   int16_t* p_dst_tmp = (int16_t*)p_dst;
   int16_t* p_worker1 = &a2dp_sbc_ups_cb.worker1;
@@ -179,10 +178,12 @@ int a2dp_sbc_up_sample_16s(void* p_src, void* p_dst, uint32_t src_samples,
     a2dp_sbc_ups_cb.cur_pos += dst_sps;
   }
 
-  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) a2dp_sbc_ups_cb.cur_pos = 0;
+  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) {
+    a2dp_sbc_ups_cb.cur_pos = 0;
+  }
 
   *p_ret = ((char*)p_src_tmp - (char*)p_src);
-  return ((char*)p_dst_tmp - (char*)p_dst);
+  return (char*)p_dst_tmp - (char*)p_dst;
 }
 
 /*******************************************************************************
@@ -204,8 +205,8 @@ int a2dp_sbc_up_sample_16s(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples,
-                           uint32_t dst_samples, uint32_t* p_ret) {
+int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                           uint32_t* p_ret) {
   int16_t* p_src_tmp = (int16_t*)p_src;
   int16_t* p_dst_tmp = (int16_t*)p_dst;
   int16_t* p_worker = &a2dp_sbc_ups_cb.worker1;
@@ -239,10 +240,12 @@ int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples,
     a2dp_sbc_ups_cb.cur_pos += dst_sps;
   }
 
-  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) a2dp_sbc_ups_cb.cur_pos = 0;
+  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) {
+    a2dp_sbc_ups_cb.cur_pos = 0;
+  }
 
   *p_ret = ((char*)p_src_tmp - (char*)p_src);
-  return ((char*)p_dst_tmp - (char*)p_dst);
+  return (char*)p_dst_tmp - (char*)p_dst;
 }
 
 /*******************************************************************************
@@ -264,8 +267,8 @@ int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_8s(void* p_src, void* p_dst, uint32_t src_samples,
-                          uint32_t dst_samples, uint32_t* p_ret) {
+int a2dp_sbc_up_sample_8s(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                          uint32_t* p_ret) {
   uint8_t* p_src_tmp = (uint8_t*)p_src;
   int16_t* p_dst_tmp = (int16_t*)p_dst;
   int16_t* p_worker1 = &a2dp_sbc_ups_cb.worker1;
@@ -304,10 +307,12 @@ int a2dp_sbc_up_sample_8s(void* p_src, void* p_dst, uint32_t src_samples,
     a2dp_sbc_ups_cb.cur_pos += dst_sps;
   }
 
-  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) a2dp_sbc_ups_cb.cur_pos = 0;
+  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) {
+    a2dp_sbc_ups_cb.cur_pos = 0;
+  }
 
   *p_ret = ((char*)p_src_tmp - (char*)p_src);
-  return ((char*)p_dst_tmp - (char*)p_dst);
+  return (char*)p_dst_tmp - (char*)p_dst;
 }
 
 /*******************************************************************************
@@ -328,8 +333,8 @@ int a2dp_sbc_up_sample_8s(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_8m(void* p_src, void* p_dst, uint32_t src_samples,
-                          uint32_t dst_samples, uint32_t* p_ret) {
+int a2dp_sbc_up_sample_8m(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                          uint32_t* p_ret) {
   uint8_t* p_src_tmp = (uint8_t*)p_src;
   int16_t* p_dst_tmp = (int16_t*)p_dst;
   int16_t* p_worker = &a2dp_sbc_ups_cb.worker1;
@@ -363,8 +368,10 @@ int a2dp_sbc_up_sample_8m(void* p_src, void* p_dst, uint32_t src_samples,
     a2dp_sbc_ups_cb.cur_pos += dst_sps;
   }
 
-  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) a2dp_sbc_ups_cb.cur_pos = 0;
+  if (a2dp_sbc_ups_cb.cur_pos == (int32_t)dst_sps) {
+    a2dp_sbc_ups_cb.cur_pos = 0;
+  }
 
   *p_ret = ((char*)p_src_tmp - (char*)p_src);
-  return ((char*)p_dst_tmp - (char*)p_dst);
+  return (char*)p_dst_tmp - (char*)p_dst;
 }

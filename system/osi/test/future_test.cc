@@ -27,7 +27,7 @@ using bluetooth::common::MessageLoopThread;
 
 static const char* pass_back_data0 = "fancy a sandwich? it's a fancy sandwich";
 static const char* pass_back_data1 =
-    "what kind of ice cream truck plays the worst christmas song of all time?";
+        "what kind of ice cream truck plays the worst christmas song of all time?";
 
 class FutureTest : public ::testing::Test {};
 

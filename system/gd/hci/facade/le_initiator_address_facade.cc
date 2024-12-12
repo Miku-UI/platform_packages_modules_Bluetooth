@@ -36,7 +36,7 @@ namespace facade {
 using namespace blueberry::facade::hci;
 
 class LeInitiatorAddressFacadeService : public LeInitiatorAddressFacade::Service {
- public:
+public:
   LeInitiatorAddressFacadeService(AclManager* acl_manager, ::bluetooth::os::Handler* facade_handler)
       : acl_manager_(acl_manager),
         address_manager_(acl_manager_->GetLeAddressManager()),
@@ -45,19 +45,20 @@ class LeInitiatorAddressFacadeService : public LeInitiatorAddressFacade::Service
   }
 
   ::grpc::Status SetPrivacyPolicyForInitiatorAddress(
-      ::grpc::ServerContext* /* context */,
-      const PrivacyPolicy* request,
-      ::google::protobuf::Empty* /* writer */) override {
+          ::grpc::ServerContext* /* context */, const PrivacyPolicy* request,
+          ::google::protobuf::Empty* /* writer */) override {
     Address address = Address::kEmpty;
     LeAddressManager::AddressPolicy address_policy =
-        static_cast<LeAddressManager::AddressPolicy>(request->address_policy());
+            static_cast<LeAddressManager::AddressPolicy>(request->address_policy());
     if (address_policy == LeAddressManager::AddressPolicy::USE_STATIC_ADDRESS) {
       log::assert_that(
-          Address::FromString(request->address_with_type().address().address(), address),
-          "assert failed: Address::FromString(request->address_with_type().address().address(), "
-          "address)");
+              Address::FromString(request->address_with_type().address().address(), address),
+              "assert failed: "
+              "Address::FromString(request->address_with_type().address().address(), "
+              "address)");
     }
-    AddressWithType address_with_type(address, static_cast<AddressType>(request->address_with_type().type()));
+    AddressWithType address_with_type(
+            address, static_cast<AddressType>(request->address_with_type().type()));
     auto minimum_rotation_time = std::chrono::milliseconds(request->minimum_rotation_time());
     auto maximum_rotation_time = std::chrono::milliseconds(request->maximum_rotation_time());
     Octet16 irk = {};
@@ -66,40 +67,40 @@ class LeInitiatorAddressFacadeService : public LeInitiatorAddressFacade::Service
       std::vector<uint8_t> irk_data(request->rotation_irk().begin(), request->rotation_irk().end());
       std::copy_n(irk_data.begin(), kOctet16Length, irk.begin());
       acl_manager_->SetPrivacyPolicyForInitiatorAddressForTest(
-          address_policy, address_with_type, irk, minimum_rotation_time, maximum_rotation_time);
+              address_policy, address_with_type, irk, minimum_rotation_time, maximum_rotation_time);
     } else {
       acl_manager_->SetPrivacyPolicyForInitiatorAddress(
-          address_policy, address_with_type, minimum_rotation_time, maximum_rotation_time);
+              address_policy, address_with_type, minimum_rotation_time, maximum_rotation_time);
       log::assert_that(request_irk_length == 0, "assert failed: request_irk_length == 0");
     }
     return ::grpc::Status::OK;
   }
 
   ::grpc::Status GetCurrentInitiatorAddress(
-      ::grpc::ServerContext* /* context */,
-      const ::google::protobuf::Empty* /* request */,
-      ::blueberry::facade::BluetoothAddressWithType* response) override {
+          ::grpc::ServerContext* /* context */, const ::google::protobuf::Empty* /* request */,
+          ::blueberry::facade::BluetoothAddressWithType* response) override {
     AddressWithType current = address_manager_->GetInitiatorAddress();
     auto bluetooth_address = new ::blueberry::facade::BluetoothAddress();
     bluetooth_address->set_address(current.GetAddress().ToString());
-    response->set_type(static_cast<::blueberry::facade::BluetoothAddressTypeEnum>(current.GetAddressType()));
+    response->set_type(
+            static_cast<::blueberry::facade::BluetoothAddressTypeEnum>(current.GetAddressType()));
     response->set_allocated_address(bluetooth_address);
     return ::grpc::Status::OK;
   }
 
   ::grpc::Status NewResolvableAddress(
-      ::grpc::ServerContext* /* context */,
-      const ::google::protobuf::Empty* /* request */,
-      ::blueberry::facade::BluetoothAddressWithType* response) override {
+          ::grpc::ServerContext* /* context */, const ::google::protobuf::Empty* /* request */,
+          ::blueberry::facade::BluetoothAddressWithType* response) override {
     AddressWithType another = address_manager_->NewResolvableAddress();
     auto bluetooth_address = new ::blueberry::facade::BluetoothAddress();
     bluetooth_address->set_address(another.GetAddress().ToString());
-    response->set_type(static_cast<::blueberry::facade::BluetoothAddressTypeEnum>(another.GetAddressType()));
+    response->set_type(
+            static_cast<::blueberry::facade::BluetoothAddressTypeEnum>(another.GetAddressType()));
     response->set_allocated_address(bluetooth_address);
     return ::grpc::Status::OK;
   }
 
- private:
+private:
   AclManager* acl_manager_;
   LeAddressManager* address_manager_;
   ::bluetooth::os::Handler* facade_handler_;
@@ -120,12 +121,10 @@ void LeInitiatorAddressFacadeModule::Stop() {
   ::bluetooth::grpc::GrpcFacadeModule::Stop();
 }
 
-::grpc::Service* LeInitiatorAddressFacadeModule::GetService() const {
-  return service_;
-}
+::grpc::Service* LeInitiatorAddressFacadeModule::GetService() const { return service_; }
 
 const ModuleFactory LeInitiatorAddressFacadeModule::Factory =
-    ::bluetooth::ModuleFactory([]() { return new LeInitiatorAddressFacadeModule(); });
+        ::bluetooth::ModuleFactory([]() { return new LeInitiatorAddressFacadeModule(); });
 
 }  // namespace facade
 }  // namespace hci

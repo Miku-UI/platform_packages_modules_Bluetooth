@@ -7,7 +7,7 @@ mod parser;
 
 use crate::engine::RuleEngine;
 use crate::groups::{collisions, connections, controllers, informational};
-use crate::parser::{LinuxSnoopOpcodes, LogParser, LogType, Packet};
+use crate::parser::{LogParser, Packet, SnoopOpcodes};
 
 fn main() {
     let matches = Command::new("hcidoc")
@@ -63,7 +63,7 @@ fn main() {
         report_signals = true;
     }
 
-    let mut parser = match LogParser::new(filename) {
+    let parser = match LogParser::new(filename) {
         Ok(p) => p,
         Err(e) => {
             println!(
@@ -71,14 +71,6 @@ fn main() {
                 if filename.len() == 0 { "stdin" } else { filename },
                 e
             );
-            return;
-        }
-    };
-
-    let log_type = match parser.read_log_type() {
-        Ok(v) => v,
-        Err(e) => {
-            println!("Parsing {} failed: {}", filename, e);
             return;
         }
     };
@@ -93,29 +85,27 @@ fn main() {
     // Decide where to write output.
     let mut writer: Box<dyn Write> = Box::new(std::io::stdout());
 
-    if let LogType::LinuxSnoop(_header) = log_type {
-        for (pos, v) in parser.get_snoop_iterator().expect("Not a linux snoop file").enumerate() {
-            match Packet::try_from((pos, &v)) {
-                Ok(p) => engine.process(p),
-                Err(e) => {
-                    if !ignore_unknown_opcode {
-                        match v.opcode() {
-                            LinuxSnoopOpcodes::Command | LinuxSnoopOpcodes::Event => {
-                                eprintln!("#{}: {}", pos, e);
-                            }
-                            _ => (),
+    for (pos, v) in parser.get_snoop_iterator().enumerate() {
+        match Packet::try_from((pos, &*v)) {
+            Ok(p) => engine.process(p),
+            Err(e) => {
+                if !ignore_unknown_opcode {
+                    match v.opcode() {
+                        SnoopOpcodes::Command | SnoopOpcodes::Event => {
+                            eprintln!("#{}: {}", pos, e);
                         }
+                        _ => (),
                     }
                 }
             }
         }
+    }
 
-        if !report_only_signals {
-            engine.report(&mut writer);
-        }
-        if report_signals {
-            let _ = writeln!(&mut writer, "### Signals ###");
-            engine.report_signals(&mut writer);
-        }
+    if !report_only_signals {
+        engine.report(&mut writer);
+    }
+    if report_signals {
+        let _ = writeln!(&mut writer, "### Signals ###");
+        engine.report_signals(&mut writer);
     }
 }

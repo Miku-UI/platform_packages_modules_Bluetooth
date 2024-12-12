@@ -34,8 +34,12 @@ interface IBluetoothManager
     boolean enable(in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     boolean enableNoAutoConnect(in AttributionSource attributionSource);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED}, conditional=true)")
     boolean disable(in AttributionSource attributionSource, boolean persist);
+
+    const String IPC_CACHE_MODULE_SYSTEM = "system_server"; // See IpcDataCache.MODULE_SYSTEM
+    const String GET_SYSTEM_STATE_API = "BluetoothAdapter_getSystemState";
+
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     int getState();
 

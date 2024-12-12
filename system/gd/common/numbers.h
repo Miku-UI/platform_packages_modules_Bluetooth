@@ -28,9 +28,8 @@ bool IsNumberInNumericLimits(InputType input) {
   // Only arithmetic types are supported
   static_assert(std::is_arithmetic_v<RawType> && std::is_arithmetic_v<InputType>);
   // Either both are signed or both are unsigned
-  static_assert(
-      (std::is_signed_v<RawType> && std::is_signed_v<InputType>) ||
-      (std::is_unsigned_v<RawType> && std::is_unsigned_v<InputType>));
+  static_assert((std::is_signed_v<RawType> && std::is_signed_v<InputType>) ||
+                (std::is_unsigned_v<RawType> && std::is_unsigned_v<InputType>));
   if (std::numeric_limits<InputType>::max() > std::numeric_limits<RawType>::max()) {
     if (input > std::numeric_limits<RawType>::max()) {
       return false;

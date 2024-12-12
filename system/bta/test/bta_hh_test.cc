@@ -28,22 +28,18 @@
 
 namespace {
 std::array<uint8_t, 32> data32 = {
-    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
-    0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
-    0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
+        0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
 };
 }
 
 class BtaHhTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     reset_mock_function_count_map();
-    test::mock::osi_allocator::osi_malloc.body = [](size_t size) {
-      return malloc(size);
-    };
-    test::mock::osi_allocator::osi_calloc.body = [](size_t size) {
-      return calloc(1UL, size);
-    };
+    test::mock::osi_allocator::osi_malloc.body = [](size_t size) { return malloc(size); };
+    test::mock::osi_allocator::osi_calloc.body = [](size_t size) { return calloc(1UL, size); };
     test::mock::osi_allocator::osi_free.body = [](void* ptr) { free(ptr); };
     test::mock::osi_allocator::osi_free_and_reset.body = [](void** ptr) {
       free(*ptr);
@@ -65,25 +61,25 @@ TEST_F(BtaHhTest, simple) {}
 
 TEST_F(BtaHhTest, bta_hh_ctrl_dat_act__BTA_HH_GET_RPT_EVT) {
   tBTA_HH_DEV_CB cb = {
-      .w4_evt = BTA_HH_GET_RPT_EVT,
+          .w4_evt = BTA_HH_GET_RPT_EVT,
   };
 
   tBTA_HH_DATA data = {
-      .hid_cback =
-          {
-              .hdr =
+          .hid_cback =
                   {
-                      .event = 0,
-                      .len = 0,
-                      .offset = 0,
-                      .layer_specific = 0,
+                          .hdr =
+                                  {
+                                          .event = 0,
+                                          .len = 0,
+                                          .offset = 0,
+                                          .layer_specific = 0,
+                                  },
+                          .link_spec.addrt.bda = RawAddress::kEmpty,
+                          .link_spec.addrt.type = BLE_ADDR_PUBLIC,
+                          .link_spec.transport = BT_TRANSPORT_AUTO,
+                          .data = 32,
+                          .p_data = static_cast<BT_HDR*>(osi_calloc(32 + sizeof(BT_HDR))),
                   },
-              .link_spec.addrt.bda = RawAddress::kEmpty,
-              .link_spec.addrt.type = BLE_ADDR_PUBLIC,
-              .link_spec.transport = BT_TRANSPORT_AUTO,
-              .data = 32,
-              .p_data = static_cast<BT_HDR*>(osi_calloc(32 + sizeof(BT_HDR))),
-          },
   };
 
   data.hid_cback.p_data->len = static_cast<uint16_t>(data32.size());

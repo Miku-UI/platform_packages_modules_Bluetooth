@@ -33,7 +33,6 @@ void hfp_lc3_decoder_cleanup();
 // Decodes |i_buf| into |o_buf| with size |out_len| in bytes. |i_buf| should
 // point to a complete LC3 packet with 60 bytes of data including the header,
 // otherwise PLC will be conducted.
-bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
-                                   size_t out_len);
+bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf, size_t out_len);
 
 #endif  // HFP_LC3_DECODER_H

@@ -26,7 +26,7 @@ namespace storage {
 // A config serializable module
 template <typename T>
 class Serializable {
- public:
+public:
   Serializable() = default;
   virtual ~Serializable() = default;
 
@@ -36,9 +36,7 @@ class Serializable {
   virtual std::string ToString() const = 0;
   // T must implement FromString(const std::string&), otherwise, it will fail to compile
   // Parse string from GD stack
-  static std::optional<T> FromString(const std::string& str) {
-    return T::FromString(str);
-  }
+  static std::optional<T> FromString(const std::string& str) { return T::FromString(str); }
 
   // Legacy handling
 

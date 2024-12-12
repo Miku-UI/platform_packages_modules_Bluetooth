@@ -25,7 +25,7 @@ using bluetooth::eatt::EattChannel;
 using bluetooth::eatt::EattExtension;
 
 class MockEattExtension : public EattExtension {
- public:
+public:
   MockEattExtension() = default;
   MockEattExtension(const MockEattExtension&) = delete;
   MockEattExtension& operator=(const MockEattExtension&) = delete;
@@ -36,35 +36,24 @@ class MockEattExtension : public EattExtension {
 
   MOCK_METHOD((void), Connect, (const RawAddress& bd_addr));
   MOCK_METHOD((void), Disconnect, (const RawAddress& bd_addr, uint16_t cid));
-  MOCK_METHOD((void), Reconfigure,
-              (const RawAddress& bd_addr, uint16_t cid, uint16_t mtu));
-  MOCK_METHOD((void), ReconfigureAll,
-              (const RawAddress& bd_addr, uint16_t mtu));
+  MOCK_METHOD((void), Reconfigure, (const RawAddress& bd_addr, uint16_t cid, uint16_t mtu));
+  MOCK_METHOD((void), ReconfigureAll, (const RawAddress& bd_addr, uint16_t mtu));
 
   MOCK_METHOD((bool), IsEattSupportedByPeer, (const RawAddress& bd_addr));
-  MOCK_METHOD((EattChannel*), FindEattChannelByCid,
-              (const RawAddress& bd_addr, uint16_t cid));
+  MOCK_METHOD((EattChannel*), FindEattChannelByCid, (const RawAddress& bd_addr, uint16_t cid));
   MOCK_METHOD((EattChannel*), FindEattChannelByTransId,
               (const RawAddress& bd_addr, uint32_t trans_id));
-  MOCK_METHOD((bool), IsIndicationPending,
-              (const RawAddress& bd_addr, uint16_t indication_handle));
-  MOCK_METHOD((EattChannel*), GetChannelAvailableForIndication,
-              (const RawAddress& bd_addr));
+  MOCK_METHOD((bool), IsIndicationPending, (const RawAddress& bd_addr, uint16_t indication_handle));
+  MOCK_METHOD((EattChannel*), GetChannelAvailableForIndication, (const RawAddress& bd_addr));
   MOCK_METHOD((void), FreeGattResources, (const RawAddress& bd_addr));
   MOCK_METHOD((bool), IsOutstandingMsgInSendQueue, (const RawAddress& bd_addr));
-  MOCK_METHOD((EattChannel*), GetChannelWithQueuedDataToSend,
-              (const RawAddress& bd_addr));
-  MOCK_METHOD((EattChannel*), GetChannelAvailableForClientRequest,
-              (const RawAddress& bd_addr));
-  MOCK_METHOD((void), StartIndicationConfirmationTimer,
-              (const RawAddress& bd_addr, uint16_t cid));
-  MOCK_METHOD((void), StopIndicationConfirmationTimer,
-              (const RawAddress& bd_addr, uint16_t cid));
+  MOCK_METHOD((EattChannel*), GetChannelWithQueuedDataToSend, (const RawAddress& bd_addr));
+  MOCK_METHOD((EattChannel*), GetChannelAvailableForClientRequest, (const RawAddress& bd_addr));
+  MOCK_METHOD((void), StartIndicationConfirmationTimer, (const RawAddress& bd_addr, uint16_t cid));
+  MOCK_METHOD((void), StopIndicationConfirmationTimer, (const RawAddress& bd_addr, uint16_t cid));
 
-  MOCK_METHOD((void), StartAppIndicationTimer,
-              (const RawAddress& bd_addr, uint16_t cid));
-  MOCK_METHOD((void), StopAppIndicationTimer,
-              (const RawAddress& bd_addr, uint16_t cid));
+  MOCK_METHOD((void), StartAppIndicationTimer, (const RawAddress& bd_addr, uint16_t cid));
+  MOCK_METHOD((void), StopAppIndicationTimer, (const RawAddress& bd_addr, uint16_t cid));
 
   MOCK_METHOD((void), Start, ());
   MOCK_METHOD((void), Stop, ());

@@ -15,6 +15,7 @@
  */
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include "osi/include/list.h"
 #include "osi/test/fuzzers/include/libosiFuzzHelperFunctions.h"
 
@@ -29,8 +30,7 @@ struct list_node_t {
 void cb(void* data) {}
 // Pass a ptr to FuzzedDataProvider in context
 bool list_iter_cb_impl(void* data, void* context) {
-  FuzzedDataProvider* dataProvider =
-      reinterpret_cast<FuzzedDataProvider*>(context);
+  FuzzedDataProvider* dataProvider = reinterpret_cast<FuzzedDataProvider*>(context);
   return dataProvider->ConsumeBool();
 }
 
@@ -43,14 +43,12 @@ list_t* createList(FuzzedDataProvider* dataProvider) {
   }
 }
 
-void* getArbitraryElement(std::vector<void*>* vector,
-                          FuzzedDataProvider* dataProvider) {
+void* getArbitraryElement(std::vector<void*>* vector, FuzzedDataProvider* dataProvider) {
   if (vector->size() == 0) {
     return nullptr;
   }
   // Get an index
-  size_t index =
-      dataProvider->ConsumeIntegralInRange<size_t>(0, vector->size() - 1);
+  size_t index = dataProvider->ConsumeIntegralInRange<size_t>(0, vector->size() - 1);
   return vector->at(index);
 }
 
@@ -58,8 +56,7 @@ list_node_t* getArbitraryNode(list_t* list, FuzzedDataProvider* dataProvider) {
   if (list == nullptr || list_is_empty(list)) {
     return nullptr;
   }
-  size_t index =
-      dataProvider->ConsumeIntegralInRange<size_t>(0, list_length(list) - 1);
+  size_t index = dataProvider->ConsumeIntegralInRange<size_t>(0, list_length(list) - 1);
   list_node_t* node = list_begin(list);
   for (size_t i = 0; i < index; i++) {
     node = node->next;
@@ -68,8 +65,7 @@ list_node_t* getArbitraryNode(list_t* list, FuzzedDataProvider* dataProvider) {
   return node;
 }
 
-void callArbitraryFunction(std::vector<void*>* list_vector,
-                           std::vector<void*>* alloc_vector,
+void callArbitraryFunction(std::vector<void*>* list_vector, std::vector<void*>* alloc_vector,
                            FuzzedDataProvider* dataProvider) {
   list_t* list = nullptr;
   // Get our function identifier
@@ -88,8 +84,7 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       size_t index = 0;
       if (list_vector->size() > 0) {
         // Get an index
-        index = dataProvider->ConsumeIntegralInRange<size_t>(
-            0, list_vector->size() - 1);
+        index = dataProvider->ConsumeIntegralInRange<size_t>(0, list_vector->size() - 1);
         list = reinterpret_cast<list_t*>(list_vector->at(index));
       }
       list_free(list);
@@ -100,15 +95,13 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       return;
     }
     case 3:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr) {
         list_is_empty(list);
       }
       return;
     case 4:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr) {
         void* search_buf = getArbitraryElement(alloc_vector, dataProvider);
         if (search_buf != nullptr) {
@@ -117,36 +110,31 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       }
       return;
     case 5:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr) {
         list_length(list);
       }
       return;
     case 6:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr && !list_is_empty(list)) {
         list_front(list);
       }
       return;
     case 7:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr && !list_is_empty(list)) {
         list_back(list);
       }
       return;
     case 8:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr && !list_is_empty(list)) {
         list_back_node(list);
       }
       return;
     case 9: {
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list == nullptr) {
         return;
       }
@@ -159,8 +147,7 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       return;
     }
     case 10: {
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       void* buf = generateBuffer(dataProvider, MAX_BUF_SIZE, false);
       alloc_vector->push_back(buf);
       if (list != nullptr && buf != nullptr) {
@@ -169,8 +156,7 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       return;
     }
     case 11: {
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       void* buf = generateBuffer(dataProvider, MAX_BUF_SIZE, false);
       alloc_vector->push_back(buf);
       if (list != nullptr && buf != nullptr) {
@@ -179,8 +165,7 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       return;
     }
     case 12: {
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       // The buffer will be valid, but may be for a different list
       void* buf = getArbitraryElement(alloc_vector, dataProvider);
       if (list != nullptr && buf != nullptr) {
@@ -189,36 +174,31 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       return;
     }
     case 13:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr) {
         list_clear(list);
       }
       return;
     case 14:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr) {
         list_foreach(list, list_iter_cb_impl, dataProvider);
       }
       return;
     case 15:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr) {
         list_begin(list);
       }
       return;
     case 16:
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list != nullptr) {
         list_end(list);
       }
       return;
     case 17: {
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list == nullptr) {
         return;
       }
@@ -229,8 +209,7 @@ void callArbitraryFunction(std::vector<void*>* list_vector,
       return;
     }
     case 18: {
-      list = reinterpret_cast<list_t*>(
-          getArbitraryElement(list_vector, dataProvider));
+      list = reinterpret_cast<list_t*>(getArbitraryElement(list_vector, dataProvider));
       if (list == nullptr) {
         return;
       }
@@ -254,8 +233,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
   std::vector<void*> alloc_vector;
 
   // Call some functions, create some buffers
-  size_t num_functions =
-      dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
+  size_t num_functions = dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
   for (size_t i = 0; i < num_functions; i++) {
     callArbitraryFunction(&list_vector, &alloc_vector, &dataProvider);
   }

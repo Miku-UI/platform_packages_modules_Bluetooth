@@ -16,22 +16,21 @@
 
 #include "btif_avrcp_audio_track.h"
 
-void* BtifAvrcpAudioTrackCreate(int trackFreq, int bits_per_sample,
-                                int channelType) {
+void* BtifAvrcpAudioTrackCreate(int /* trackFreq */, int /* bits_per_sample */,
+                                int /* channelType */) {
   return nullptr;
 }
 
-void BtifAvrcpAudioTrackStart(void* handle) {}
+void BtifAvrcpAudioTrackStart(void* /* handle */) {}
 
-void BtifAvrcpAudioTrackStop(void* handle) {}
+void BtifAvrcpAudioTrackStop(void* /* handle */) {}
 
-void BtifAvrcpAudioTrackDelete(void* handle) {}
+void BtifAvrcpAudioTrackDelete(void* /* handle */) {}
 
-void BtifAvrcpAudioTrackPause(void* handle) {}
+void BtifAvrcpAudioTrackPause(void* /* handle */) {}
 
-void BtifAvrcpSetAudioTrackGain(void* handle, float gain) {}
+void BtifAvrcpSetAudioTrackGain(void* /* handle */, float /* gain */) {}
 
-int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer,
-                                 int bufferlen) {
+int BtifAvrcpAudioTrackWriteData(void* /* handle */, void* /* audioBuffer */, int /* bufferlen */) {
   return 0;
 }

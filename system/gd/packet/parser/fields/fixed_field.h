@@ -24,7 +24,7 @@
 #include "parse_location.h"
 
 class FixedField : public ScalarField {
- public:
+public:
   FixedField(std::string name, int size, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -45,7 +45,7 @@ class FixedField : public ScalarField {
 
   virtual void GenValidator(std::ostream& s) const override;
 
- private:
+private:
   virtual void GenValue(std::ostream& s) const = 0;
 
   static int unique_id_;

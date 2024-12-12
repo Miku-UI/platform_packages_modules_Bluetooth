@@ -20,13 +20,11 @@ namespace bluetooth {
 namespace shim {
 namespace arbiter {
 
-void AclArbiter::OnLeConnect(uint8_t /* tcb_idx */,
-                             uint16_t /* advertiser_id */) {}
+void AclArbiter::OnLeConnect(uint8_t /* tcb_idx */, uint16_t /* advertiser_id */) {}
 
 void AclArbiter::OnLeDisconnect(uint8_t /* tcb_idx */) {}
 
-InterceptAction AclArbiter::InterceptAttPacket(uint8_t /* tcb_idx */,
-                                               const BT_HDR* /* packet */) {
+InterceptAction AclArbiter::InterceptAttPacket(uint8_t /* tcb_idx */, const BT_HDR* /* packet */) {
   return InterceptAction::FORWARD;
 }
 

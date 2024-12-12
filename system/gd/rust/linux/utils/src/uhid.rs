@@ -30,6 +30,7 @@ const RDESC: [u8; 34] = [
     0xc0, // END_COLLECTION
 ];
 
+#[derive(Default)]
 pub struct UHid {
     /// Open UHID objects.
     devices: Vec<UHIDDevice<File>>,
@@ -44,7 +45,7 @@ impl Drop for UHid {
 impl UHid {
     /// Create a new UHid struct that holds a vector of uhid objects.
     pub fn new() -> Self {
-        UHid { devices: Vec::<UHIDDevice<File>>::new() }
+        Default::default()
     }
 
     /// Initialize a uhid device with kernel.

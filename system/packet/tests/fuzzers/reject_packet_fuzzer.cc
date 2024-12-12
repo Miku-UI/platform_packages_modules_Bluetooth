@@ -36,8 +36,7 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
       rejected_volume_changed_notification.push_back(data[x]);
     }
 
-    auto test_packet =
-        TestAvrcpPacket::Make(rejected_volume_changed_notification);
+    auto test_packet = TestAvrcpPacket::Make(rejected_volume_changed_notification);
 
     test_packet->GetData();
   }

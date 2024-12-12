@@ -22,12 +22,10 @@
 
 namespace bluetooth::legacy::hci::testing {
 class MockInterface : public Interface {
- public:
+public:
   MOCK_METHOD(void, Disconnect, (uint16_t handle, uint8_t reason), (const));
-  MOCK_METHOD(void, ChangeConnectionPacketType,
-              (uint16_t handle, uint16_t packet_types), (const));
-  MOCK_METHOD(void, StartRoleSwitch, (const RawAddress& bd_addr, uint8_t role),
-              (const));
+  MOCK_METHOD(void, ChangeConnectionPacketType, (uint16_t handle, uint16_t packet_types), (const));
+  MOCK_METHOD(void, StartRoleSwitch, (const RawAddress& bd_addr, uint8_t role), (const));
   MOCK_METHOD(void, ConfigureDataPath,
               (hci_data_direction_t data_path_direction, uint8_t data_path_id,
                std::vector<uint8_t> vendor_config),

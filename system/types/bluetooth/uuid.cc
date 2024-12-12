@@ -35,72 +35,90 @@ using UUID128Bit = Uuid::UUID128Bit;
 const Uuid Uuid::kEmpty = Uuid::From128BitBE(UUID128Bit{{0x00}});
 
 namespace {
-constexpr Uuid kBase = Uuid::From128BitBE(
-    UUID128Bit{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00,
-                0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}});
+constexpr Uuid kBase =
+        Uuid::From128BitBE(UUID128Bit{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00,
+                                       0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}});
 }  // namespace
 
 size_t Uuid::GetShortestRepresentationSize() const {
-  if (memcmp(uu.data() + kNumBytes32, kBase.uu.data() + kNumBytes32,
-             kNumBytes128 - kNumBytes32) != 0) {
+  if (memcmp(uu.data() + kNumBytes32, kBase.uu.data() + kNumBytes32, kNumBytes128 - kNumBytes32) !=
+      0) {
     return kNumBytes128;
   }
 
-  if (uu[0] == 0 && uu[1] == 0) return kNumBytes16;
+  if (uu[0] == 0 && uu[1] == 0) {
+    return kNumBytes16;
+  }
 
   return kNumBytes32;
 }
 
-bool Uuid::Is16Bit() const {
-  return GetShortestRepresentationSize() == kNumBytes16;
-}
+bool Uuid::Is16Bit() const { return GetShortestRepresentationSize() == kNumBytes16; }
 
 uint16_t Uuid::As16Bit() const { return (((uint16_t)uu[2]) << 8) + uu[3]; }
 
 uint32_t Uuid::As32Bit() const {
-  return (((uint32_t)uu[0]) << 24) + (((uint32_t)uu[1]) << 16) +
-         (((uint32_t)uu[2]) << 8) + uu[3];
+  return (((uint32_t)uu[0]) << 24) + (((uint32_t)uu[1]) << 16) + (((uint32_t)uu[2]) << 8) + uu[3];
 }
 
 Uuid Uuid::FromString(const std::string& uuid, bool* is_valid) {
-  if (is_valid) *is_valid = false;
+  if (is_valid) {
+    *is_valid = false;
+  }
   Uuid ret = kBase;
 
-  if (uuid.empty()) return ret;
+  if (uuid.empty()) {
+    return ret;
+  }
 
   uint8_t* p = ret.uu.data();
   if (uuid.size() == kString128BitLen) {
-    if (uuid[8] != '-' || uuid[13] != '-' || uuid[18] != '-' ||
-        uuid[23] != '-') {
+    if (uuid[8] != '-' || uuid[13] != '-' || uuid[18] != '-' || uuid[23] != '-') {
       return ret;
     }
 
     int c;
-    int rc =
-        sscanf(uuid.c_str(),
-               "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx"
-               "-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%n",
-               &p[0], &p[1], &p[2], &p[3], &p[4], &p[5], &p[6], &p[7], &p[8],
-               &p[9], &p[10], &p[11], &p[12], &p[13], &p[14], &p[15], &c);
-    if (rc != 16) return ret;
-    if (c != kString128BitLen) return ret;
+    int rc = sscanf(uuid.c_str(),
+                    "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx"
+                    "-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%n",
+                    &p[0], &p[1], &p[2], &p[3], &p[4], &p[5], &p[6], &p[7], &p[8], &p[9], &p[10],
+                    &p[11], &p[12], &p[13], &p[14], &p[15], &c);
+    if (rc != 16) {
+      return ret;
+    }
+    if (c != kString128BitLen) {
+      return ret;
+    }
 
-    if (is_valid) *is_valid = true;
+    if (is_valid) {
+      *is_valid = true;
+    }
   } else if (uuid.size() == 8) {
     int c;
-    int rc = sscanf(uuid.c_str(), "%02hhx%02hhx%02hhx%02hhx%n", &p[0], &p[1],
-                    &p[2], &p[3], &c);
-    if (rc != 4) return ret;
-    if (c != 8) return ret;
+    int rc = sscanf(uuid.c_str(), "%02hhx%02hhx%02hhx%02hhx%n", &p[0], &p[1], &p[2], &p[3], &c);
+    if (rc != 4) {
+      return ret;
+    }
+    if (c != 8) {
+      return ret;
+    }
 
-    if (is_valid) *is_valid = true;
+    if (is_valid) {
+      *is_valid = true;
+    }
   } else if (uuid.size() == 4) {
     int c;
     int rc = sscanf(uuid.c_str(), "%02hhx%02hhx%n", &p[2], &p[3], &c);
-    if (rc != 2) return ret;
-    if (c != 4) return ret;
+    if (rc != 2) {
+      return ret;
+    }
+    if (c != 4) {
+      return ret;
+    }
 
-    if (is_valid) *is_valid = true;
+    if (is_valid) {
+      *is_valid = true;
+    }
   }
 
   return ret;
@@ -154,13 +172,10 @@ bool Uuid::IsEmpty() const { return *this == kEmpty; }
 
 bool Uuid::IsBase() const { return *this == kBase; }
 
-void Uuid::UpdateUuid(const Uuid& uuid) {
-  uu = uuid.uu;
-}
+void Uuid::UpdateUuid(const Uuid& uuid) { uu = uuid.uu; }
 
 bool Uuid::operator<(const Uuid& rhs) const {
-  return std::lexicographical_compare(uu.begin(), uu.end(), rhs.uu.begin(),
-                                      rhs.uu.end());
+  return std::lexicographical_compare(uu.begin(), uu.end(), rhs.uu.begin(), rhs.uu.end());
 }
 
 bool Uuid::operator==(const Uuid& rhs) const { return uu == rhs.uu; }

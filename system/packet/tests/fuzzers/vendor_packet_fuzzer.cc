@@ -17,6 +17,7 @@
 // Adapted from vendor_packet_test.cc
 
 #include <gtest/gtest.h>
+
 #include <tuple>
 
 #include "avrcp_test_packets.h"
@@ -31,7 +32,7 @@ using TestVendorPacket = TestPacketType<VendorPacket>;
 
 using TestParam = std::tuple<std::vector<uint8_t>, CommandPdu>;
 class VendorPacketTest : public ::testing::TestWithParam<TestParam> {
- public:
+public:
   std::vector<uint8_t> GetPacketData() { return std::get<0>(GetParam()); }
   CommandPdu GetCommandPdu() { return std::get<1>(GetParam()); }
 };

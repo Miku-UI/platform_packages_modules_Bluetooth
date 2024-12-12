@@ -19,7 +19,7 @@
 #include "bta_le_audio_api.h"
 
 class LeAudioClientImpl : public LeAudioClient {
- public:
+public:
   LeAudioClientImpl(void) = default;
   ~LeAudioClientImpl(void) override = default;
 
@@ -34,48 +34,38 @@ class LeAudioClientImpl : public LeAudioClient {
   void GroupDestroy(const int group_id) override {}
   void GroupSetActive(const int group_id) override {}
   void SetCodecConfigPreference(
-      int group_id,
-      bluetooth::le_audio::btle_audio_codec_config_t input_codec_config,
-      bluetooth::le_audio::btle_audio_codec_config_t output_codec_config)
-      override {}
+          int group_id, bluetooth::le_audio::btle_audio_codec_config_t input_codec_config,
+          bluetooth::le_audio::btle_audio_codec_config_t output_codec_config) override {}
   void SetCcidInformation(int ccid, int context_type) override {}
   void SetInCall(bool in_call) override {}
-  std::vector<RawAddress> GetGroupDevices(const int group_id) override {
-    return {};
-  }
+  std::vector<RawAddress> GetGroupDevices(const int group_id) override { return {}; }
 };
 
 void LeAudioClient::Initialize(
-    bluetooth::le_audio::LeAudioClientCallbacks* callbacks,
-    base::Closure initCb, base::Callback<bool()> hal_2_1_verifier,
-    const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>&
-        offloading_preference) {}
+        bluetooth::le_audio::LeAudioClientCallbacks* callbacks, base::Closure initCb,
+        base::Callback<bool()> hal_2_1_verifier,
+        const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>& offloading_preference) {}
 void LeAudioClient::Cleanup(void) {}
 LeAudioClient* LeAudioClient::Get(void) { return nullptr; }
 void LeAudioClient::DebugDump(int fd) {}
 void LeAudioClient::AddFromStorage(const RawAddress& addr, bool autoconnect,
-                                   int sink_audio_location,
-                                   int source_audio_location,
+                                   int sink_audio_location, int source_audio_location,
                                    int sink_supported_context_types,
                                    int source_supported_context_types,
                                    const std::vector<uint8_t>& handles,
                                    const std::vector<uint8_t>& sink_pacs,
                                    const std::vector<uint8_t>& source_pacs,
                                    const std::vector<uint8_t>& ases) {}
-bool LeAudioClient::GetHandlesForStorage(const RawAddress& addr,
-                                         std::vector<uint8_t>& out) {
+bool LeAudioClient::GetHandlesForStorage(const RawAddress& addr, std::vector<uint8_t>& out) {
   return false;
 }
-bool LeAudioClient::GetSinkPacsForStorage(const RawAddress& addr,
-                                          std::vector<uint8_t>& out) {
+bool LeAudioClient::GetSinkPacsForStorage(const RawAddress& addr, std::vector<uint8_t>& out) {
   return false;
 }
-bool LeAudioClient::GetSourcePacsForStorage(const RawAddress& addr,
-                                            std::vector<uint8_t>& out) {
+bool LeAudioClient::GetSourcePacsForStorage(const RawAddress& addr, std::vector<uint8_t>& out) {
   return false;
 }
-bool LeAudioClient::GetAsesForStorage(const RawAddress& addr,
-                                      std::vector<uint8_t>& out) {
+bool LeAudioClient::GetAsesForStorage(const RawAddress& addr, std::vector<uint8_t>& out) {
   return false;
 }
 bool LeAudioClient::IsLeAudioClientRunning() { return false; }

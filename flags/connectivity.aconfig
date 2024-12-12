@@ -14,3 +14,23 @@ flag {
     description: "Guard the le shim connection map with a mutex"
     bug: "302054609"
 }
+
+flag {
+    name: "improve_create_connection_for_already_connecting_device"
+    namespace: "bluetooth"
+    description: "Make sure to not stop controller with create connection cancel when not needed"
+    bug: "356593752"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "progress_acl_scheduler_upon_incoming_connection"
+    namespace: "bluetooth"
+    description: "Allow outgoing connections to other devices and rnr to same device"
+    bug: "355256744"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

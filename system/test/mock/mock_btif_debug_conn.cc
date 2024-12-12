@@ -25,8 +25,7 @@
 #include "types/raw_address.h"
 
 void btif_debug_conn_dump(int /* fd */) { inc_func_call_count(__func__); }
-void btif_debug_conn_state(const RawAddress& /* bda */,
-                           const btif_debug_conn_state_t /* state */,
+void btif_debug_conn_state(const RawAddress& /* bda */, const btif_debug_conn_state_t /* state */,
                            const tGATT_DISCONN_REASON /* disconnect_reason */) {
   inc_func_call_count(__func__);
 }

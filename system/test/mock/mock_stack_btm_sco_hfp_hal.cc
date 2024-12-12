@@ -104,20 +104,17 @@ bool get_swb_supported() {
 }
 bool is_coding_format_supported(esco_coding_format_t coding_format) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_sco_hfp_hal::is_coding_format_supported(
-      coding_format);
+  return test::mock::stack_btm_sco_hfp_hal::is_coding_format_supported(coding_format);
 }
 void init() {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sco_hfp_hal::init();
 }
-void notify_sco_connection_change(RawAddress device, bool is_connected,
-                                  int codec) {
+void notify_sco_connection_change(RawAddress device, bool is_connected, int codec) {
   inc_func_call_count(__func__);
-  test::mock::stack_btm_sco_hfp_hal::notify_sco_connection_change(
-      device, is_connected, codec);
+  test::mock::stack_btm_sco_hfp_hal::notify_sco_connection_change(device, is_connected, codec);
 }
-void set_codec_datapath(int coding_format) {
+void set_codec_datapath(tBTA_AG_UUID_CODEC coding_format) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sco_hfp_hal::set_codec_datapath(coding_format);
 }

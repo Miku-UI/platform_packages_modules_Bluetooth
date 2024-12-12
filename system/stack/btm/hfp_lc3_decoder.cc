@@ -47,8 +47,7 @@ bool hfp_lc3_decoder_init() {
   const unsigned dec_size = lc3_decoder_size(dt_us, sr_pcm_hz);
 
   hfp_lc3_decoder_mem = osi_malloc(dec_size);
-  hfp_lc3_decoder =
-      lc3_setup_decoder(dt_us, sr_hz, sr_pcm_hz, hfp_lc3_decoder_mem);
+  hfp_lc3_decoder = lc3_setup_decoder(dt_us, sr_hz, sr_pcm_hz, hfp_lc3_decoder_mem);
 
   return true;
 }
@@ -59,19 +58,16 @@ void hfp_lc3_decoder_cleanup() {
   }
 }
 
-bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
-                                   size_t out_len) {
+bool hfp_lc3_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf, size_t out_len) {
   if (o_buf == nullptr || out_len < HFP_LC3_PCM_BYTES) {
-    log::error("Output buffer size {} is less than LC3 frame size {}", out_len,
-               HFP_LC3_PCM_BYTES);
+    log::error("Output buffer size {} is less than LC3 frame size {}", out_len, HFP_LC3_PCM_BYTES);
     return false;
   }
 
   const uint8_t* frame = i_buf ? i_buf + HFP_LC3_H2_HEADER_LEN : nullptr;
 
   /* Note this only fails when wrong parameters are supplied. */
-  int rc = lc3_decode(hfp_lc3_decoder, frame, HFP_LC3_PKT_FRAME_LEN,
-                      LC3_PCM_FORMAT_S16, o_buf, 1);
+  int rc = lc3_decode(hfp_lc3_decoder, frame, HFP_LC3_PKT_FRAME_LEN, LC3_PCM_FORMAT_S16, o_buf, 1);
 
   log::assert_that(rc == 0 || rc == 1, "assert failed: rc == 0 || rc == 1");
 

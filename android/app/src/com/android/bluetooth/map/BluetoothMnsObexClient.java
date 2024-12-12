@@ -14,6 +14,7 @@
  */
 package com.android.bluetooth.map;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
@@ -307,6 +308,7 @@ public class BluetoothMnsObexClient {
         }
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public void connect() {
 
         mConnected = true;

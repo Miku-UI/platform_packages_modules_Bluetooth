@@ -28,7 +28,7 @@
 namespace testing {
 
 class SyspropsModuleTest : public Test {
- protected:
+protected:
   void SetUp() override {
     EXPECT_TRUE(bluetooth::os::ClearSystemPropertiesForHost());
     temp_config_ = std::filesystem::temp_directory_path() / "temp_sysprops.conf";
@@ -62,16 +62,16 @@ static const std::string kSupportedSyspropName = "bluetooth.device.class_of_devi
 static const std::string kSupportedSyspropValue = "0,1,4";
 static const std::string kUnsupportedSyspropName = "i.am.an.unsupported.sysprop";
 static const std::string kCorrectPrefixAflagName =
-    "persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.msft_addr_tracking_"
-    "quirk";
+        "persist.device_config.aconfig_flags.bluetooth.com.android.bluetooth.flags.msft_addr_"
+        "tracking_quirk";
 static const std::string kCorrectPrefixAflagValue = "true";
 static const std::string kIncorrectPrefixAflagName =
-    "persist.device_config.aconfig_flags.not_bluetooth.testing_flag";
+        "persist.device_config.aconfig_flags.not_bluetooth.testing_flag";
 
 static const std::string kParseConfigTestConfig =
-    "[Sysprops]\n" + kSupportedSyspropName + "=" + kSupportedSyspropValue + "\n" +
-    kUnsupportedSyspropName + "=true\n" + "\n" + "[Aflags]\n" + kCorrectPrefixAflagName + "=" +
-    kCorrectPrefixAflagValue + "\n" + kIncorrectPrefixAflagName + "=true\n";
+        "[Sysprops]\n" + kSupportedSyspropName + "=" + kSupportedSyspropValue + "\n" +
+        kUnsupportedSyspropName + "=true\n" + "\n" + "[Aflags]\n" + kCorrectPrefixAflagName + "=" +
+        kCorrectPrefixAflagValue + "\n" + kIncorrectPrefixAflagName + "=true\n";
 
 TEST_F(SyspropsModuleTest, parse_config_test) {
   // Verify the state before test
@@ -84,13 +84,11 @@ TEST_F(SyspropsModuleTest, parse_config_test) {
   auto* sysprops_module = new bluetooth::sysprops::SyspropsModule();
   test_registry_.InjectTestModule(&bluetooth::sysprops::SyspropsModule::Factory, sysprops_module);
 
-  EXPECT_THAT(
-      bluetooth::os::GetSystemProperty(kSupportedSyspropName),
-      Optional(StrEq(kSupportedSyspropValue)));
+  EXPECT_THAT(bluetooth::os::GetSystemProperty(kSupportedSyspropName),
+              Optional(StrEq(kSupportedSyspropValue)));
   EXPECT_THAT(bluetooth::os::GetSystemProperty(kUnsupportedSyspropName), std::nullopt);
-  EXPECT_THAT(
-      bluetooth::os::GetSystemProperty(kCorrectPrefixAflagName),
-      Optional(StrEq(kCorrectPrefixAflagValue)));
+  EXPECT_THAT(bluetooth::os::GetSystemProperty(kCorrectPrefixAflagName),
+              Optional(StrEq(kCorrectPrefixAflagValue)));
   EXPECT_THAT(bluetooth::os::GetSystemProperty(kIncorrectPrefixAflagName), std::nullopt);
 }
 

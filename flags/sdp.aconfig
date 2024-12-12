@@ -7,10 +7,3 @@ flag {
     description: "Check for NIL SDP property length"
     bug: "329171845"
 }
-
-flag {
-    name: "stack_sdp_disconnect_when_cancel_in_pending_state"
-    namespace: "bluetooth"
-    description: "Send disconnect when cancel in pending state"
-    bug: "329918955"
-}

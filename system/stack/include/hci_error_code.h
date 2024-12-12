@@ -135,17 +135,23 @@ inline std::string hci_reason_code_text(const tHCI_REASON& reason_code) {
 
 // Conversion from raw packet value
 inline tHCI_ERROR_CODE to_hci_error_code(const uint8_t& error_code) {
-  if (error_code > _HCI_ERR_MAX_ERR) return HCI_ERR_UNDEFINED;
+  if (error_code > _HCI_ERR_MAX_ERR) {
+    return HCI_ERR_UNDEFINED;
+  }
   return static_cast<tHCI_ERROR_CODE>(error_code);
 }
 
 inline tHCI_STATUS to_hci_status_code(const uint8_t& status_code) {
-  if (status_code > _HCI_ERR_MAX_ERR) return HCI_ERR_UNDEFINED;
+  if (status_code > _HCI_ERR_MAX_ERR) {
+    return HCI_ERR_UNDEFINED;
+  }
   return static_cast<tHCI_STATUS>(status_code);
 }
 
 inline tHCI_REASON to_hci_reason_code(const uint8_t& reason_code) {
-  if (reason_code > _HCI_ERR_MAX_ERR) return HCI_ERR_UNDEFINED;
+  if (reason_code > _HCI_ERR_MAX_ERR) {
+    return HCI_ERR_UNDEFINED;
+  }
   return static_cast<tHCI_REASON>(reason_code);
 }
 

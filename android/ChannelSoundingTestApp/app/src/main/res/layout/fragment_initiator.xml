@@ -11,38 +11,16 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:padding="5dp">
+        <FrameLayout
+            android:id="@+id/init_ble_connection_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            app:layout_constraintBottom_toTopOf="@id/spinner_dm_method"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <Spinner
-            android:id="@+id/spinner_bt_address"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_margin="10dp"
-            android:padding="10dp"
-            android:paddingTop="30dp"
-            app:layout_constraintEnd_toStartOf="@id/btn_update_devices"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-        <Button
-            android:id="@+id/btn_update_devices"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="10dp"
-            android:padding="10dp"
-            android:paddingTop="30dp"
-            android:text="Update Targets"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/spinner_bt_address"
-            app:layout_constraintTop_toTopOf="parent" />
-        <Button
-            android:id="@+id/btn_connect_gatt"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_margin="10dp"
-            android:padding="15dp"
-            android:text="Connect Gatt"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btn_update_devices" />
 
         <Spinner
             android:id="@+id/spinner_dm_method"
@@ -52,7 +30,7 @@
             android:padding="10dp"
             app:layout_constraintEnd_toStartOf="@id/btn_cs"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btn_connect_gatt" />
+            app:layout_constraintTop_toBottomOf="@id/init_ble_connection_container" />
         <Button
             android:id="@+id/btn_cs"
             android:layout_width="wrap_content"
@@ -63,7 +41,7 @@
             android:text="Start Distance Measurement"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/spinner_dm_method"
-            app:layout_constraintTop_toBottomOf="@id/btn_connect_gatt" />
+            app:layout_constraintTop_toBottomOf="@id/init_ble_connection_container" />
         <TextView
             android:id="@+id/text_log"
             android:layout_width="match_parent"

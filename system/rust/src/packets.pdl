@@ -133,40 +133,36 @@ struct GattCharacteristicProperties {
   extended_properties: 1,
 }
 
-struct GattCharacteristicDeclarationValue : AttAttributeData {
+struct GattCharacteristicDeclarationValue {
   properties: GattCharacteristicProperties,
   handle: AttHandle,
   uuid: Uuid,
 }
 
-struct GattServiceDeclarationValue : AttAttributeData {
+struct GattServiceDeclarationValue {
   uuid: Uuid,
 }
 
-struct GattClientCharacteristicConfiguration : AttAttributeData {
+struct GattClientCharacteristicConfiguration {
   notification: 1,
   indication: 1,
   _reserved_: 14,
 }
 
-struct GattServiceChanged : AttAttributeData {
+struct GattServiceChanged {
   start_handle: AttHandle,
   end_handle: AttHandle,
 }
 
-struct UuidAsAttData : AttAttributeData {
+struct UuidAsAttData {
   uuid: Uuid,
-}
-
-struct AttAttributeData {
-  _payload_
 }
 
 packet AttFindByTypeValueRequest : Att(opcode = FIND_BY_TYPE_VALUE_REQUEST) {
   starting_handle : AttHandle,
   ending_handle : AttHandle,
   attribute_type : Uuid16,
-  attribute_value : AttAttributeData,
+  attribute_value : 8[],
 }
 
 struct AttributeHandleRange {
@@ -187,7 +183,7 @@ packet AttReadByGroupTypeRequest : Att(opcode = READ_BY_GROUP_TYPE_REQUEST) {
 struct AttReadByGroupTypeDataElement {
   handle : AttHandle,
   end_group_handle : AttHandle,
-  value : AttAttributeData,
+  value : 8[],
 }
 
 packet AttReadByGroupTypeResponse : Att(opcode = READ_BY_GROUP_TYPE_RESPONSE) {
@@ -203,7 +199,7 @@ packet AttReadByTypeRequest : Att(opcode = READ_BY_TYPE_REQUEST) {
 
 struct AttReadByTypeDataElement {
   handle : AttHandle,
-  value : AttAttributeData,
+  value : 8[],
 }
 
 packet AttReadByTypeResponse : Att(opcode = READ_BY_TYPE_RESPONSE) {
@@ -216,12 +212,12 @@ packet AttReadRequest : Att(opcode = READ_REQUEST) {
 }
 
 packet AttReadResponse : Att(opcode = READ_RESPONSE) {
-  value: AttAttributeData,
+  value: 8[],
 }
 
 packet AttWriteRequest : Att(opcode = WRITE_REQUEST) {
   handle : AttHandle,
-  value : AttAttributeData,
+  value : 8[],
 }
 
 packet AttWriteResponse : Att(opcode = WRITE_RESPONSE) {}
@@ -234,7 +230,7 @@ packet AttErrorResponse : Att(opcode = ERROR_RESPONSE) {
 
 packet AttHandleValueIndication : Att(opcode = HANDLE_VALUE_INDICATION) {
   handle: AttHandle,
-  value: AttAttributeData,
+  value: 8[],
 }
 
 packet AttHandleValueConfirmation : Att(opcode = HANDLE_VALUE_CONFIRMATION) {}
@@ -249,5 +245,5 @@ packet AttExchangeMtuResponse : Att(opcode = EXCHANGE_MTU_RESPONSE) {
 
 packet AttWriteCommand : Att(opcode = WRITE_COMMAND) {
   handle : AttHandle,
-  value : AttAttributeData,
+  value : 8[],
 }

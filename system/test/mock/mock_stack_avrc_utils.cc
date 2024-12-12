@@ -77,18 +77,15 @@ bool avrc_is_valid_opcode(uint8_t opcode) {
 }
 bool avrc_is_valid_player_attrib_value(uint8_t attrib, uint8_t value) {
   inc_func_call_count(__func__);
-  return test::mock::stack_avrc_utils::avrc_is_valid_player_attrib_value(attrib,
-                                                                         value);
+  return test::mock::stack_avrc_utils::avrc_is_valid_player_attrib_value(attrib, value);
 }
 uint8_t avrc_opcode_from_pdu(uint8_t pdu) {
   inc_func_call_count(__func__);
   return test::mock::stack_avrc_utils::avrc_opcode_from_pdu(pdu);
 }
-tAVRC_STS avrc_pars_pass_thru(tAVRC_MSG_PASS* p_msg,
-                              uint16_t* p_vendor_unique_id) {
+tAVRC_STS avrc_pars_pass_thru(tAVRC_MSG_PASS* p_msg, uint16_t* p_vendor_unique_id) {
   inc_func_call_count(__func__);
-  return test::mock::stack_avrc_utils::avrc_pars_pass_thru(p_msg,
-                                                           p_vendor_unique_id);
+  return test::mock::stack_avrc_utils::avrc_pars_pass_thru(p_msg, p_vendor_unique_id);
 }
 // Mocked functions complete
 // END mockcify generation

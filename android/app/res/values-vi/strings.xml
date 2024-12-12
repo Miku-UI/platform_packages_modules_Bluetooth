@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Xóa khỏi danh sách"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Xóa"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Phát hiện nhạc"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Lưu"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Hủy"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Chọn tài khoản mà bạn muốn chia sẻ qua Bluetooth. Bạn vẫn phải chấp nhận mọi quyền truy cập vào tài khoản khi kết nối."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Số khe cắm còn lại:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Biểu tượng ứng dụng"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Cài đặt cách chia sẻ thư qua Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Không chọn được tài khoản. Còn lại 0 khe cắm"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Đã kết nối âm thanh Bluetooth"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Đã ngắt kết nối âm thanh Bluetooth"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Âm thanh Bluetooth"</string>

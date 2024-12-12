@@ -28,18 +28,17 @@ namespace bluetooth {
 namespace avrcp {
 
 class PacketBuilder : public ::bluetooth::PacketBuilder {
- public:
+public:
   virtual ~PacketBuilder() = default;
 
   static std::unique_ptr<PacketBuilder> MakeBuilder(
-      CType cType, uint8_t subunit_type, uint8_t subunit_id, Opcode opcode,
-      std::unique_ptr<::bluetooth::PacketBuilder> packet);
+          CType cType, uint8_t subunit_type, uint8_t subunit_id, Opcode opcode,
+          std::unique_ptr<::bluetooth::PacketBuilder> packet);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   CType c_type_;
   uint8_t subunit_type_ : 5;
   uint8_t subunit_id_ : 3;
@@ -47,19 +46,14 @@ class PacketBuilder : public ::bluetooth::PacketBuilder {
   std::unique_ptr<::bluetooth::PacketBuilder> payload_;
 
   void PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt);
-  bool PushCompanyId(const std::shared_ptr<::bluetooth::Packet>& pkt,
-                     uint32_t company_id);
+  bool PushCompanyId(const std::shared_ptr<::bluetooth::Packet>& pkt, uint32_t company_id);
 
-  PacketBuilder(CType type, uint8_t subunit_type, uint8_t subunit_id,
-                Opcode opcode)
-      : c_type_(type),
-        subunit_type_(subunit_type),
-        subunit_id_(subunit_id),
-        opcode_(opcode){};
+  PacketBuilder(CType type, uint8_t subunit_type, uint8_t subunit_id, Opcode opcode)
+      : c_type_(type), subunit_type_(subunit_type), subunit_id_(subunit_id), opcode_(opcode) {}
 };
 
 class Packet : public ::bluetooth::Packet {
- public:
+public:
   Packet(const Packet&) = delete;
   Packet& operator=(const Packet&) = delete;
 
@@ -68,8 +62,7 @@ class Packet : public ::bluetooth::Packet {
   // TODO (apanicke): Right now we can use this to build an AvrcpPacket from
   // another packet type. In the future, we can remove this in favor of
   // getting an AVRCP Packet directly from an AVCTP Packet
-  static std::shared_ptr<Packet> Parse(
-      std::shared_ptr<::bluetooth::Packet> pkt);
+  static std::shared_ptr<Packet> Parse(std::shared_ptr<::bluetooth::Packet> pkt);
 
   /**
    * Avrcp Packet Layout
@@ -79,7 +72,7 @@ class Packet : public ::bluetooth::Packet {
    *   Opcode opcode_;
    *   uint8_t[] payload_;
    */
-  static constexpr size_t kMinSize() { return 3; };
+  static constexpr size_t kMinSize() { return 3; }
 
   // Getter Functions
   CType GetCType() const;
@@ -91,7 +84,7 @@ class Packet : public ::bluetooth::Packet {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using ::bluetooth::Packet::Packet;
 
   static inline uint32_t PullCompanyId(Iterator it) {
@@ -103,7 +96,7 @@ class Packet : public ::bluetooth::Packet {
     return value;
   }
 
- private:
+private:
   virtual std::pair<size_t, size_t> GetPayloadIndecies() const override;
 };
 

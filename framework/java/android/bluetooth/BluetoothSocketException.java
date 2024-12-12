@@ -21,6 +21,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.annotation.RequiresNoPermission;
 
 import com.android.bluetooth.flags.Flags;
 
@@ -214,6 +215,7 @@ public class BluetoothSocketException extends IOException {
     }
 
     /** Returns the error code associated to this failure. */
+    @RequiresNoPermission
     public @ErrorCode int getErrorCode() {
         return mErrorCode;
     }

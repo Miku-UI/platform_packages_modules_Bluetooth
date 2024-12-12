@@ -31,8 +31,7 @@
  * Returns          true is updated; false otherwise.
  *
  ******************************************************************************/
-bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec,
-                              const RawAddress& new_pseudo_addr);
+bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec, const RawAddress& new_pseudo_addr);
 
 /*******************************************************************************
  *
@@ -42,12 +41,11 @@ bool btm_ble_init_pseudo_addr(tBTM_SEC_DEV_REC* p_dev_rec,
  *                  address in security database.
  *
  ******************************************************************************/
-bool btm_identity_addr_to_random_pseudo(RawAddress* bd_addr,
-                                        tBLE_ADDR_TYPE* p_addr_type,
+bool btm_identity_addr_to_random_pseudo(RawAddress* bd_addr, tBLE_ADDR_TYPE* p_addr_type,
                                         bool refresh);
 
-bool btm_identity_addr_to_random_pseudo_from_address_with_type(
-    tBLE_BD_ADDR* address_with_type, bool refresh);
+bool btm_identity_addr_to_random_pseudo_from_address_with_type(tBLE_BD_ADDR* address_with_type,
+                                                               bool refresh);
 
 bool maybe_resolve_address(RawAddress* bda, tBLE_ADDR_TYPE* bda_type);
 

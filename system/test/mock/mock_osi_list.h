@@ -41,8 +41,8 @@ namespace osi_list {
 struct list_append {
   bool return_value{false};
   std::function<bool(list_t* list, void* data)> body{
-      [this](list_t* /* list */, void* /* data */) { return return_value; }};
-  bool operator()(list_t* list, void* data) { return body(list, data); };
+          [this](list_t* /* list */, void* /* data */) { return return_value; }};
+  bool operator()(list_t* list, void* data) { return body(list, data); }
 };
 extern struct list_append list_append;
 
@@ -52,8 +52,8 @@ extern struct list_append list_append;
 struct list_back {
   void* return_value{};
   std::function<void*(const list_t* list)> body{
-      [this](const list_t* /* list */) { return return_value; }};
-  void* operator()(const list_t* list) { return body(list); };
+          [this](const list_t* /* list */) { return return_value; }};
+  void* operator()(const list_t* list) { return body(list); }
 };
 extern struct list_back list_back;
 
@@ -63,8 +63,8 @@ extern struct list_back list_back;
 struct list_back_node {
   list_node_t* return_value{0};
   std::function<list_node_t*(const list_t* list)> body{
-      [this](const list_t* /* list */) { return return_value; }};
-  list_node_t* operator()(const list_t* list) { return body(list); };
+          [this](const list_t* /* list */) { return return_value; }};
+  list_node_t* operator()(const list_t* list) { return body(list); }
 };
 extern struct list_back_node list_back_node;
 
@@ -74,8 +74,8 @@ extern struct list_back_node list_back_node;
 struct list_begin {
   list_node_t* return_value{0};
   std::function<list_node_t*(const list_t* list)> body{
-      [this](const list_t* /* list */) { return return_value; }};
-  list_node_t* operator()(const list_t* list) { return body(list); };
+          [this](const list_t* /* list */) { return return_value; }};
+  list_node_t* operator()(const list_t* list) { return body(list); }
 };
 extern struct list_begin list_begin;
 
@@ -84,7 +84,7 @@ extern struct list_begin list_begin;
 // Return: void
 struct list_clear {
   std::function<void(list_t* list)> body{[](list_t* /* list */) {}};
-  void operator()(list_t* list) { body(list); };
+  void operator()(list_t* list) { body(list); }
 };
 extern struct list_clear list_clear;
 
@@ -94,12 +94,8 @@ extern struct list_clear list_clear;
 struct list_contains {
   bool return_value{false};
   std::function<bool(const list_t* list, const void* data)> body{
-      [this](const list_t* /* list */, const void* /* data */) {
-        return return_value;
-      }};
-  bool operator()(const list_t* list, const void* data) {
-    return body(list, data);
-  };
+          [this](const list_t* /* list */, const void* /* data */) { return return_value; }};
+  bool operator()(const list_t* list, const void* data) { return body(list, data); }
 };
 extern struct list_contains list_contains;
 
@@ -109,8 +105,8 @@ extern struct list_contains list_contains;
 struct list_end {
   list_node_t* return_value{0};
   std::function<list_node_t*(const list_t* list)> body{
-      [this](const list_t* /* list */) { return return_value; }};
-  list_node_t* operator()(const list_t* list) { return body(list); };
+          [this](const list_t* /* list */) { return return_value; }};
+  list_node_t* operator()(const list_t* list) { return body(list); }
 };
 extern struct list_end list_end;
 
@@ -119,14 +115,13 @@ extern struct list_end list_end;
 // Return: list_node_t*
 struct list_foreach {
   list_node_t* return_value{0};
-  std::function<list_node_t*(const list_t* list, list_iter_cb callback,
-                             void* context)>
-      body{[this](const list_t* /* list */, list_iter_cb /* callback */,
-                  void* /* context */) { return return_value; }};
-  list_node_t* operator()(const list_t* list, list_iter_cb callback,
-                          void* context) {
+  std::function<list_node_t*(const list_t* list, list_iter_cb callback, void* context)> body{
+          [this](const list_t* /* list */, list_iter_cb /* callback */, void* /* context */) {
+            return return_value;
+          }};
+  list_node_t* operator()(const list_t* list, list_iter_cb callback, void* context) {
     return body(list, callback, context);
-  };
+  }
 };
 extern struct list_foreach list_foreach;
 
@@ -135,7 +130,7 @@ extern struct list_foreach list_foreach;
 // Return: void
 struct list_free {
   std::function<void(list_t* list)> body{[](list_t* /* list */) {}};
-  void operator()(list_t* list) { body(list); };
+  void operator()(list_t* list) { body(list); }
 };
 extern struct list_free list_free;
 
@@ -145,8 +140,8 @@ extern struct list_free list_free;
 struct list_front {
   void* return_value{};
   std::function<void*(const list_t* list)> body{
-      [this](const list_t* /* list */) { return return_value; }};
-  void* operator()(const list_t* list) { return body(list); };
+          [this](const list_t* /* list */) { return return_value; }};
+  void* operator()(const list_t* list) { return body(list); }
 };
 extern struct list_front list_front;
 
@@ -156,11 +151,12 @@ extern struct list_front list_front;
 struct list_insert_after {
   bool return_value{false};
   std::function<bool(list_t* list, list_node_t* prev_node, void* data)> body{
-      [this](list_t* /* list */, list_node_t* /* prev_node */,
-             void* /* data */) { return return_value; }};
+          [this](list_t* /* list */, list_node_t* /* prev_node */, void* /* data */) {
+            return return_value;
+          }};
   bool operator()(list_t* list, list_node_t* prev_node, void* data) {
     return body(list, prev_node, data);
-  };
+  }
 };
 extern struct list_insert_after list_insert_after;
 
@@ -170,8 +166,8 @@ extern struct list_insert_after list_insert_after;
 struct list_is_empty {
   bool return_value{false};
   std::function<bool(const list_t* list)> body{
-      [this](const list_t* /* list */) { return return_value; }};
-  bool operator()(const list_t* list) { return body(list); };
+          [this](const list_t* /* list */) { return return_value; }};
+  bool operator()(const list_t* list) { return body(list); }
 };
 extern struct list_is_empty list_is_empty;
 
@@ -181,8 +177,8 @@ extern struct list_is_empty list_is_empty;
 struct list_length {
   size_t return_value{0};
   std::function<size_t(const list_t* list)> body{
-      [this](const list_t* /* list */) { return return_value; }};
-  size_t operator()(const list_t* list) { return body(list); };
+          [this](const list_t* /* list */) { return return_value; }};
+  size_t operator()(const list_t* list) { return body(list); }
 };
 extern struct list_length list_length;
 
@@ -192,8 +188,8 @@ extern struct list_length list_length;
 struct list_new {
   list_t* return_value{0};
   std::function<list_t*(list_free_cb callback)> body{
-      [this](list_free_cb /* callback */) { return return_value; }};
-  list_t* operator()(list_free_cb callback) { return body(callback); };
+          [this](list_free_cb /* callback */) { return return_value; }};
+  list_t* operator()(list_free_cb callback) { return body(callback); }
 };
 extern struct list_new list_new;
 
@@ -202,16 +198,13 @@ extern struct list_new list_new;
 // Return: list_t*
 struct list_new_internal {
   list_t* return_value{0};
-  std::function<list_t*(list_free_cb callback,
-                        const allocator_t* zeroed_allocator)>
-      body{[this](list_free_cb /* callback */,
-                  const allocator_t* /* zeroed_allocator */) {
-        return return_value;
-      }};
-  list_t* operator()(list_free_cb callback,
-                     const allocator_t* zeroed_allocator) {
+  std::function<list_t*(list_free_cb callback, const allocator_t* zeroed_allocator)> body{
+          [this](list_free_cb /* callback */, const allocator_t* /* zeroed_allocator */) {
+            return return_value;
+          }};
+  list_t* operator()(list_free_cb callback, const allocator_t* zeroed_allocator) {
     return body(callback, zeroed_allocator);
-  };
+  }
 };
 extern struct list_new_internal list_new_internal;
 
@@ -221,8 +214,8 @@ extern struct list_new_internal list_new_internal;
 struct list_next {
   list_node_t* return_value{0};
   std::function<list_node_t*(const list_node_t* node)> body{
-      [this](const list_node_t* /* node */) { return return_value; }};
-  list_node_t* operator()(const list_node_t* node) { return body(node); };
+          [this](const list_node_t* /* node */) { return return_value; }};
+  list_node_t* operator()(const list_node_t* node) { return body(node); }
 };
 extern struct list_next list_next;
 
@@ -232,8 +225,8 @@ extern struct list_next list_next;
 struct list_node {
   void* return_value{};
   std::function<void*(const list_node_t* node)> body{
-      [this](const list_node_t* /* node */) { return return_value; }};
-  void* operator()(const list_node_t* node) { return body(node); };
+          [this](const list_node_t* /* node */) { return return_value; }};
+  void* operator()(const list_node_t* node) { return body(node); }
 };
 extern struct list_node list_node;
 
@@ -243,8 +236,8 @@ extern struct list_node list_node;
 struct list_prepend {
   bool return_value{false};
   std::function<bool(list_t* list, void* data)> body{
-      [this](list_t* /* list */, void* /* data */) { return return_value; }};
-  bool operator()(list_t* list, void* data) { return body(list, data); };
+          [this](list_t* /* list */, void* /* data */) { return return_value; }};
+  bool operator()(list_t* list, void* data) { return body(list, data); }
 };
 extern struct list_prepend list_prepend;
 
@@ -254,8 +247,8 @@ extern struct list_prepend list_prepend;
 struct list_remove {
   bool return_value{false};
   std::function<bool(list_t* list, void* data)> body{
-      [this](list_t* /* list */, void* /* data */) { return return_value; }};
-  bool operator()(list_t* list, void* data) { return body(list, data); };
+          [this](list_t* /* list */, void* /* data */) { return return_value; }};
+  bool operator()(list_t* list, void* data) { return body(list, data); }
 };
 extern struct list_remove list_remove;
 

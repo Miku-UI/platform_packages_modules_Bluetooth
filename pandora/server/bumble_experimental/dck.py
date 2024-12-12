@@ -16,9 +16,9 @@ import grpc
 import logging
 
 from bumble.core import UUID as BumbleUUID, AdvertisingData
-from bumble.device import Device
+from bumble.device import Connection, Device
 from bumble.gatt import Characteristic, CharacteristicValue, TemplateService
-from bumble.l2cap import Channel
+from bumble.l2cap import LeCreditBasedChannel, LeCreditBasedChannelSpec
 from bumble.pandora import utils
 from google.protobuf.empty_pb2 import Empty
 from pandora_experimental.dck_grpc_aio import DckServicer
@@ -36,13 +36,17 @@ class DckGattService(TemplateService):
     def __init__(self, device: Device):
         logger = logging.getLogger(__name__)
 
-        def on_l2cap_server(channel: Channel) -> None:
-            logger.info(f"--- DckGattService on_l2cap_server")
+        def on_l2cap_channel(channel: LeCreditBasedChannel) -> None:
+            logger.info(f"--- DckGattService on_l2cap_channel {channel}")
 
         self.device_dk_version_value = None
-        self.psm = device.register_l2cap_channel_server(0, on_l2cap_server)  # type: ignore
+        self.l2cap_server = device.create_l2cap_server(
+            spec=LeCreditBasedChannelSpec(),
+            handler=on_l2cap_channel,
+        )
+        self.psm = self.l2cap_server.psm
 
-        def on_device_version_write(value: bytes) -> None:
+        def on_device_version_write(connection: Connection, value: bytes) -> None:
             logger.info(f"--- DK Device Version Write: {value!r}")
             self.device_dk_version_value = value
 
@@ -51,13 +55,15 @@ class DckGattService(TemplateService):
                 DckGattService.UUID_SPSM,
                 Characteristic.Properties.READ,
                 Characteristic.READABLE,
-                CharacteristicValue(read=bytes(self.psm)),  # type: ignore[no-untyped-call]
+                # CCC Specification Digital-Key R3-1.2.3
+                # 19.2.1.6 DK Service
+                self.psm.to_bytes(2, 'big'),
             ),
             Characteristic(
                 DckGattService.UUID_SPSM_DK_VERSION,
                 Characteristic.Properties.READ,
                 Characteristic.READ_REQUIRES_ENCRYPTION,
-                CharacteristicValue(read=b''),  # type: ignore[no-untyped-call]
+                b'',
             ),
             Characteristic(
                 DckGattService.UUID_DEVICE_DK_VERSION,
@@ -69,11 +75,15 @@ class DckGattService(TemplateService):
                 DckGattService.UUID_ANTENNA_IDENTIFIER,
                 Characteristic.READ,
                 Characteristic.READABLE,
-                CharacteristicValue(read=b''),  # type: ignore[no-untyped-call]
+                b'',
             ),
         ]
 
         super().__init__(characteristics)  # type: ignore[no-untyped-call]
+
+    def __del__(self):
+        if self.l2cap_server:
+            self.l2cap_server.close()
 
     def get_advertising_data(self) -> bytes:
         # CCC Specification Digital-Key R3-1.2.0-r14

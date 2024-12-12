@@ -31,19 +31,17 @@ namespace hci {
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 ClassOfDevice::ClassOfDevice(const uint8_t (&class_of_device)[kLength]) {
   std::copy(class_of_device, class_of_device + kLength, cod.data());
-};
+}
 
 std::string ClassOfDevice::ToString() const {
   char buffer[] = "000-0-00";
-  std::snprintf(&buffer[0], sizeof(buffer), "%03x-%01x-%02x", (static_cast<uint16_t>(cod[2]) << 4) | cod[1] >> 4,
-                cod[1] & 0x0f, cod[0]);
+  std::snprintf(&buffer[0], sizeof(buffer), "%03x-%01x-%02x",
+                (static_cast<uint16_t>(cod[2]) << 4) | cod[1] >> 4, cod[1] & 0x0f, cod[0]);
   std::string str(buffer);
   return str;
 }
 
-std::string ClassOfDevice::ToLegacyConfigString() const {
-  return std::to_string(ToUint32Legacy());
-}
+std::string ClassOfDevice::ToLegacyConfigString() const { return std::to_string(ToUint32Legacy()); }
 
 std::optional<ClassOfDevice> ClassOfDevice::FromString(const std::string& str) {
   if (str.length() != 8) {
@@ -118,14 +116,12 @@ std::optional<ClassOfDevice> ClassOfDevice::FromLegacyConfigString(const std::st
   return FromUint32Legacy(static_cast<uint32_t>(num));
 }
 
-uint32_t ClassOfDevice::ToUint32Legacy() const {
-  return (cod[2]) | (cod[1] << 8) | (cod[0] << 16);
-}
+uint32_t ClassOfDevice::ToUint32Legacy() const { return (cod[2]) | (cod[1] << 8) | (cod[0] << 16); }
 
 size_t ClassOfDevice::FromOctets(const uint8_t* from) {
   std::copy(from, from + kLength, data());
   return kLength;
-};
+}
 
 bool ClassOfDevice::IsValid(const std::string& cod) {
   return ClassOfDevice::FromString(cod).has_value();

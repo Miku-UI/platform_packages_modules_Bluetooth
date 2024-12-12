@@ -36,8 +36,7 @@ bool VolumeControl::IsVolumeControlRunning() {
   inc_func_call_count(__func__);
   return false;
 }
-void VolumeControl::Initialize(
-    bluetooth::vc::VolumeControlCallbacks* /* callbacks */,
-    const base::Closure& /* initCb */) {
+void VolumeControl::Initialize(bluetooth::vc::VolumeControlCallbacks* /* callbacks */,
+                               const base::Closure& /* initCb */) {
   inc_func_call_count(__func__);
 }

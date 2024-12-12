@@ -37,6 +37,18 @@
 // TODO(b/198260375): Make A2DP data owner group configurable.
 #define A2DP_HOST_DATA_GROUP "bluetooth-audio"
 
+typedef enum {
+  A2DP_CTRL_CMD_NONE,
+  A2DP_CTRL_CMD_CHECK_READY,
+  A2DP_CTRL_CMD_START,
+  A2DP_CTRL_CMD_STOP,
+  A2DP_CTRL_CMD_SUSPEND,
+  A2DP_CTRL_GET_INPUT_AUDIO_CONFIG,
+  A2DP_CTRL_GET_OUTPUT_AUDIO_CONFIG,
+  A2DP_CTRL_SET_OUTPUT_AUDIO_CONFIG,
+  A2DP_CTRL_GET_PRESENTATION_POSITION,
+} tA2DP_CTRL_CMD;
+
 namespace fmt {
 template <>
 struct formatter<tUIPC_EVENT> : enum_formatter<tUIPC_EVENT> {};
@@ -48,10 +60,8 @@ namespace {
 
 std::unique_ptr<tUIPC_STATE> a2dp_uipc = nullptr;
 
-static void btif_a2dp_data_cb([[maybe_unused]] tUIPC_CH_ID ch_id,
-                              tUIPC_EVENT event) {
-  bluetooth::log::warn("BTIF MEDIA (A2DP-DATA) EVENT {}",
-                       dump_uipc_event(event));
+static void btif_a2dp_data_cb([[maybe_unused]] tUIPC_CH_ID ch_id, tUIPC_EVENT event) {
+  bluetooth::log::warn("BTIF MEDIA (A2DP-DATA) EVENT {}", dump_uipc_event(event));
 
   switch (event) {
     case UIPC_OPEN_EVT:
@@ -59,8 +69,7 @@ static void btif_a2dp_data_cb([[maybe_unused]] tUIPC_CH_ID ch_id,
        * Read directly from media task from here on (keep callback for
        * connection events.
        */
-      UIPC_Ioctl(*a2dp_uipc, UIPC_CH_ID_AV_AUDIO,
-                 UIPC_REG_REMOVE_ACTIVE_READSET, NULL);
+      UIPC_Ioctl(*a2dp_uipc, UIPC_CH_ID_AV_AUDIO, UIPC_REG_REMOVE_ACTIVE_READSET, NULL);
       UIPC_Ioctl(*a2dp_uipc, UIPC_CH_ID_AV_AUDIO, UIPC_SET_READ_POLL_TMO,
                  reinterpret_cast<void*>(A2DP_DATA_READ_POLL_MS));
 
@@ -85,8 +94,7 @@ static void btif_a2dp_data_cb([[maybe_unused]] tUIPC_CH_ID ch_id,
 // server should be in the same group that BT stack runs with to access
 // A2DP socket.
 static void a2dp_data_path_open() {
-  UIPC_Open(*a2dp_uipc, UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb,
-            A2DP_HOST_DATA_PATH);
+  UIPC_Open(*a2dp_uipc, UIPC_CH_ID_AV_AUDIO, btif_a2dp_data_cb, A2DP_HOST_DATA_PATH);
   struct group* grp = getgrnam(A2DP_HOST_DATA_GROUP);
   chmod(A2DP_HOST_DATA_PATH, 0770);
   if (grp) {
@@ -196,22 +204,20 @@ bool SuspendRequest() {
 // Invoked by audio server to check audio presentation position periodically.
 PresentationPosition GetPresentationPosition() {
   PresentationPosition presentation_position{
-      .remote_delay_report_ns = remote_delay_report_ * 100000u,
-      .total_bytes_read = total_bytes_read_,
-      .data_position = data_position_,
+          .remote_delay_report_ns = remote_delay_report_ * 100000u,
+          .total_bytes_read = total_bytes_read_,
+          .data_position = data_position_,
   };
   return presentation_position;
 }
 
 // delay reports from AVDTP is based on 1/10 ms (100us)
-void set_remote_delay(uint16_t delay_report) {
-  remote_delay_report_ = delay_report;
-}
+void set_remote_delay(uint16_t delay_report) { remote_delay_report_ = delay_report; }
 
 // Inform audio server about offloading codec; not used for now
 bool update_codec_offloading_capabilities(
-    const std::vector<btav_a2dp_codec_config_t>& framework_preference,
-    bool supports_a2dp_hw_offload_v2) {
+        const std::vector<btav_a2dp_codec_config_t>& framework_preference,
+        bool supports_a2dp_hw_offload_v2) {
   return false;
 }
 
@@ -242,7 +248,8 @@ void cleanup() {
 }
 
 // Set up the codec into BluetoothAudio HAL
-bool setup_codec() {
+bool setup_codec(A2dpCodecConfig* /*a2dp_config*/, uint16_t /*peer_mtu*/,
+                 int /*preferred_encoding_interval_us*/) {
   // TODO: setup codec
   return true;
 }
@@ -260,16 +267,14 @@ void end_session() {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
 }
 
-void set_audio_low_latency_mode_allowed(bool allowed){
-}
+void set_audio_low_latency_mode_allowed(bool allowed) {}
 
-
-void ack_stream_started(const tA2DP_CTRL_ACK& ack) {
+void ack_stream_started(BluetoothAudioStatus /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }
 
-void ack_stream_suspended(const tA2DP_CTRL_ACK& ack) {
+void ack_stream_suspended(BluetoothAudioStatus /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }
@@ -294,14 +299,12 @@ bool is_opus_supported() { return true; }
 namespace provider {
 
 // Lookup the codec info in the list of supported offloaded sink codecs.
-std::optional<btav_a2dp_codec_index_t> sink_codec_index(
-    const uint8_t* p_codec_info) {
+std::optional<btav_a2dp_codec_index_t> sink_codec_index(const uint8_t* p_codec_info) {
   return std::nullopt;
 }
 
 // Lookup the codec info in the list of supported offloaded source codecs.
-std::optional<btav_a2dp_codec_index_t> source_codec_index(
-    const uint8_t* p_codec_info) {
+std::optional<btav_a2dp_codec_index_t> source_codec_index(const uint8_t* p_codec_info) {
   return std::nullopt;
 }
 
@@ -311,8 +314,7 @@ std::optional<btav_a2dp_codec_index_t> source_codec_index(
 // BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN..BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MAX.
 // Returns nullopt if the codec_index is not assigned or codec extensibility
 // is not supported or enabled.
-std::optional<const char*> codec_index_str(
-    btav_a2dp_codec_index_t codec_index) {
+std::optional<const char*> codec_index_str(btav_a2dp_codec_index_t codec_index) {
   return std::nullopt;
 }
 
@@ -321,8 +323,8 @@ std::optional<const char*> codec_index_str(
 bool supports_codec(btav_a2dp_codec_index_t codec_index) { return false; }
 
 // Return the A2DP capabilities for the selected codec.
-bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
-                uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config) {
+bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
+                btav_a2dp_codec_config_t* codec_config) {
   return false;
 }
 
@@ -330,9 +332,8 @@ bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
 // The HAL is expected to pick the best audio configuration based on the
 // discovered remote SEPs.
 std::optional<a2dp_configuration> get_a2dp_configuration(
-    RawAddress peer_address,
-    std::vector<a2dp_remote_capabilities> const& remote_seps,
-    btav_a2dp_codec_config_t const& user_preferences) {
+        RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
+        btav_a2dp_codec_config_t const& user_preferences) {
   return std::nullopt;
 }
 
@@ -343,10 +344,10 @@ std::optional<a2dp_configuration> get_a2dp_configuration(
 // In case any of these checks fails, the corresponding A2DP
 // status is returned. If the configuration is valid and supported,
 // A2DP_OK is returned.
-tA2DP_STATUS parse_a2dp_configuration(
-    btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
-    btav_a2dp_codec_config_t* codec_parameters,
-    std::vector<uint8_t>* vendor_specific_parameters) {
+tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
+                                      const uint8_t* codec_info,
+                                      btav_a2dp_codec_config_t* codec_parameters,
+                                      std::vector<uint8_t>* vendor_specific_parameters) {
   return A2DP_FAIL;
 }
 

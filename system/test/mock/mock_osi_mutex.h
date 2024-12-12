@@ -39,7 +39,7 @@ namespace osi_mutex {
 // Return: void
 struct mutex_global_lock {
   std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
+  void operator()(void) { body(); }
 };
 extern struct mutex_global_lock mutex_global_lock;
 
@@ -48,7 +48,7 @@ extern struct mutex_global_lock mutex_global_lock;
 // Return: void
 struct mutex_global_unlock {
   std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
+  void operator()(void) { body(); }
 };
 extern struct mutex_global_unlock mutex_global_unlock;
 

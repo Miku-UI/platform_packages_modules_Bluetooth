@@ -82,8 +82,8 @@ typedef struct {
  ******************************************************************************/
 
 extern btpan_cb_t btpan_cb;
-btpan_conn_t* btpan_new_conn(int handle, const RawAddress& addr,
-                             tBTA_PAN_ROLE local_role, tBTA_PAN_ROLE peer_role);
+btpan_conn_t* btpan_new_conn(int handle, const RawAddress& addr, tBTA_PAN_ROLE local_role,
+                             tBTA_PAN_ROLE peer_role);
 btpan_conn_t* btpan_find_conn_addr(const RawAddress& addr);
 btpan_conn_t* btpan_find_conn_handle(uint16_t handle);
 void btpan_set_flow_control(bool enable);
@@ -92,16 +92,15 @@ int btpan_tap_open(void);
 void create_tap_read_thread(int tap_fd);
 void destroy_tap_read_thread(void);
 int btpan_tap_close(int tap_fd);
-int btpan_tap_send(int tap_fd, const RawAddress& src, const RawAddress& dst,
-                   uint16_t protocol, const char* buff, uint16_t size, bool ext,
-                   bool forward);
+int btpan_tap_send(int tap_fd, const RawAddress& src, const RawAddress& dst, uint16_t protocol,
+                   const char* buff, uint16_t size, bool ext, bool forward);
 
-static inline int is_empty_eth_addr(const RawAddress& addr) {
-  return addr == RawAddress::kEmpty;
-}
+static inline int is_empty_eth_addr(const RawAddress& addr) { return addr == RawAddress::kEmpty; }
 
 static inline int is_valid_bt_eth_addr(const RawAddress& addr) {
-  if (is_empty_eth_addr(addr)) return 0;
+  if (is_empty_eth_addr(addr)) {
+    return 0;
+  }
   return addr.address[0] & 1 ? 0 : 1; /* Cannot be multicasting address */
 }
 

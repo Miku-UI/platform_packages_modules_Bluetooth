@@ -36,4 +36,3 @@ typedef struct btsnooz_header_t {
   uint32_t delta_time_ms;
   uint8_t type;
 } __attribute__((__packed__)) btsnooz_header_t;
-

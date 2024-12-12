@@ -36,7 +36,7 @@ public class BluetoothEventLogger {
         }
 
         public String toString() {
-            return (new StringBuilder(mTimeStamp).append(" ").append(mMsg).toString());
+            return mTimeStamp + " " + mMsg;
         }
     }
 

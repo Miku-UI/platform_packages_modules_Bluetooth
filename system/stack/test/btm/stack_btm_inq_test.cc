@@ -14,35 +14,74 @@
  * limitations under the License.
  */
 
-#include <base/strings/stringprintf.h>
+#include <bluetooth/log.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <stdlib.h>
 
-#include "hci_error_code.h"
+#include <future>
+
+#include "common/contextual_callback.h"
+#include "hci/address.h"
+#include "hci/class_of_device.h"
+#include "hci/hci_layer_fake.h"
+#include "hci/hci_packets.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/include/btm_inq.h"
+#include "stack/include/btm_status.h"
+#include "stack/include/hci_error_code.h"
 #include "stack/include/inq_hci_link_interface.h"
+#include "stack/include/main_thread.h"
 #include "stack/test/btm/btm_test_fixtures.h"
-#include "test/fake/fake_looper.h"
-#include "test/mock/mock_osi_allocator.h"
-#include "test/mock/mock_osi_thread.h"
+#include "test/common/mock_functions.h"
+#include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
 extern tBTM_CB btm_cb;
 
+using bluetooth::common::ContextualCallback;
+using bluetooth::common::ContextualOnceCallback;
+using bluetooth::hci::Address;
+using bluetooth::hci::CommandCompleteView;
+using bluetooth::hci::CommandStatusView;
+using bluetooth::hci::EventView;
+using bluetooth::hci::ExtendedInquiryResultBuilder;
+using bluetooth::hci::ExtendedInquiryResultView;
+using bluetooth::hci::InquiryResponse;
+using bluetooth::hci::InquiryResultBuilder;
+using bluetooth::hci::InquiryResultView;
+using bluetooth::hci::InquiryResultWithRssiBuilder;
+using bluetooth::hci::InquiryResultWithRssiView;
+using bluetooth::hci::InquiryStatusBuilder;
+using bluetooth::hci::InquiryView;
+using bluetooth::hci::OpCode;
+using bluetooth::hci::EventCode::EXTENDED_INQUIRY_RESULT;
+using bluetooth::hci::EventCode::INQUIRY_COMPLETE;
+using bluetooth::hci::EventCode::INQUIRY_RESULT;
+using bluetooth::hci::EventCode::INQUIRY_RESULT_WITH_RSSI;
+using testing::_;
+using testing::A;
+using testing::Matcher;
+using testing::NiceMock;
+using testing::Return;
+using testing::SaveArg;
+
 namespace {
+const Address kAddress = Address({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+const Address kAddress2 = Address({0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc});
 const RawAddress kRawAddress = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
-const RawAddress kRawAddress2 =
-    RawAddress({0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc});
+const RawAddress kRawAddress2 = RawAddress({0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc});
 const BD_NAME kBdName = {'A', ' ', 'B', 'd', ' ', 'N', 'a', 'm', 'e', '\0'};
 const BD_NAME kEmptyName = "";
 
 tBTM_REMOTE_DEV_NAME gBTM_REMOTE_DEV_NAME{};
 bool gBTM_REMOTE_DEV_NAME_sent{false};
 
+static constexpr uint8_t kNumCommandPackets = 1;
+
 }  // namespace
 
 class BtmInqTest : public BtmWithMocksTest {
- protected:
+protected:
   void SetUp() override {
     BtmWithMocksTest::SetUp();
     btm_cb = {};
@@ -52,93 +91,103 @@ class BtmInqTest : public BtmWithMocksTest {
 };
 
 class BtmInqActiveTest : public BtmInqTest {
- protected:
+protected:
   void SetUp() override {
     BtmInqTest::SetUp();
     gBTM_REMOTE_DEV_NAME = {};
     gBTM_REMOTE_DEV_NAME_sent = false;
 
-    btm_cb.btm_inq_vars.remname_active = true;
-    btm_cb.btm_inq_vars.remname_bda = kRawAddress;
-    btm_cb.btm_inq_vars.remname_dev_type = BT_DEVICE_TYPE_BREDR;
-    btm_cb.btm_inq_vars.p_remname_cmpl_cb =
-        [](const tBTM_REMOTE_DEV_NAME* name) {
-          gBTM_REMOTE_DEV_NAME = *name;
-          gBTM_REMOTE_DEV_NAME_sent = true;
-        };
+    btm_cb.rnr.remname_active = true;
+    btm_cb.rnr.remname_bda = kRawAddress;
+    btm_cb.rnr.remname_dev_type = BT_DEVICE_TYPE_BREDR;
+    btm_cb.rnr.p_remname_cmpl_cb = [](const tBTM_REMOTE_DEV_NAME* name) {
+      gBTM_REMOTE_DEV_NAME = *name;
+      gBTM_REMOTE_DEV_NAME_sent = true;
+    };
   }
 
   void TearDown() override { BtmInqTest::TearDown(); }
 };
 
-TEST_F(BtmInqActiveTest, btm_process_remote_name__typical) {
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.remname_active);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+class BtmInquiryCallbacks {
+public:
+  virtual ~BtmInquiryCallbacks() = default;
+  virtual void btm_inq_results_cb(tBTM_INQ_RESULTS*, const uint8_t*, uint16_t) = 0;
+  virtual void btm_inq_cmpl_cb(void*) = 0;
+};
 
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kBdName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
+class MockBtmInquiryCallbacks : public BtmInquiryCallbacks {
+public:
+  MOCK_METHOD(void, btm_inq_results_cb,
+              (tBTM_INQ_RESULTS * p_inq_results, const uint8_t* p_eir, uint16_t eir_len),
+              (override));
+  MOCK_METHOD(void, btm_inq_cmpl_cb, (void*), (override));
+};
+
+MockBtmInquiryCallbacks* inquiry_callback_ptr = nullptr;
+
+void btm_inq_results_cb(tBTM_INQ_RESULTS* p_inq_results, const uint8_t* p_eir, uint16_t eir_len) {
+  inquiry_callback_ptr->btm_inq_results_cb(p_inq_results, p_eir, eir_len);
 }
 
-TEST_F(BtmInqActiveTest, btm_process_remote_name__no_name) {
-  btm_process_remote_name(&kRawAddress, nullptr, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.remname_active);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+void btm_inq_cmpl_cb(void* p1) { inquiry_callback_ptr->btm_inq_cmpl_cb(p1); }
 
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kEmptyName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
+class BtmDeviceInquiryTest : public BtmInqTest {
+protected:
+  void SetUp() override {
+    BtmInqTest::SetUp();
+    main_thread_start_up();
+    inquiry_callback_ptr = &callbacks_;
+    bluetooth::hci::testing::mock_controller_ = &controller_;
+    ON_CALL(controller_, SupportsBle()).WillByDefault(Return(true));
+    bluetooth::hci::testing::mock_hci_layer_ = &hci_layer_;
 
-TEST_F(BtmInqActiveTest, btm_process_remote_name__bad_status) {
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_ERR_PAGE_TIMEOUT);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.remname_active);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+    // Start Inquiry
+    EXPECT_EQ(tBTM_STATUS::BTM_CMD_STARTED, BTM_StartInquiry(btm_inq_results_cb, btm_inq_cmpl_cb));
+    auto view = hci_layer_.GetCommand(OpCode::INQUIRY);
+    hci_layer_.IncomingEvent(
+            InquiryStatusBuilder::Create(bluetooth::hci::ErrorCode::SUCCESS, kNumCommandPackets));
 
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_BAD_VALUE_RET, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_ERR_PAGE_TIMEOUT, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(kRawAddress, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kEmptyName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
+    // Send one response to synchronize
+    std::promise<void> first_result_promise;
+    auto first_result = first_result_promise.get_future();
+    EXPECT_CALL(*inquiry_callback_ptr, btm_inq_results_cb(_, _, _))
+            .WillOnce([&first_result_promise]() { first_result_promise.set_value(); })
+            .RetiresOnSaturation();
 
-TEST_F(BtmInqActiveTest, btm_process_remote_name__no_address) {
-  btm_process_remote_name(nullptr, kBdName, 0, HCI_SUCCESS);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.p_remname_cmpl_cb);
-  ASSERT_FALSE(btm_cb.btm_inq_vars.remname_active);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_bda, RawAddress::kEmpty);
-  ASSERT_EQ(btm_cb.btm_inq_vars.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(1, get_func_call_count("alarm_cancel"));
+    InquiryResponse one_device(kAddress, bluetooth::hci::PageScanRepetitionMode::R0,
+                               bluetooth::hci::ClassOfDevice(), 0x1234);
+    hci_layer_.IncomingEvent(InquiryResultBuilder::Create({one_device}));
 
-  ASSERT_TRUE(gBTM_REMOTE_DEV_NAME_sent);
-  ASSERT_EQ(BTM_SUCCESS, gBTM_REMOTE_DEV_NAME.status);
-  ASSERT_EQ(HCI_SUCCESS, gBTM_REMOTE_DEV_NAME.hci_status);
-  ASSERT_EQ(RawAddress::kEmpty, gBTM_REMOTE_DEV_NAME.bd_addr);
-  ASSERT_STREQ((char*)kBdName, (char*)gBTM_REMOTE_DEV_NAME.remote_bd_name);
-}
+    EXPECT_EQ(std::future_status::ready, first_result.wait_for(std::chrono::seconds(1)));
+  }
 
-TEST_F(BtmInqActiveTest, btm_process_remote_name__different_address) {
-  btm_cb.btm_inq_vars.remname_bda = kRawAddress2;
-  btm_process_remote_name(&kRawAddress, kBdName, 0, HCI_SUCCESS);
-  ASSERT_TRUE(btm_cb.btm_inq_vars.p_remname_cmpl_cb);
-  ASSERT_TRUE(btm_cb.btm_inq_vars.remname_active);
-  ASSERT_NE(btm_cb.btm_inq_vars.remname_bda, RawAddress::kEmpty);
-  ASSERT_NE(btm_cb.btm_inq_vars.remname_dev_type, BT_DEVICE_TYPE_UNKNOWN);
-  ASSERT_EQ(0, get_func_call_count("alarm_cancel"));
+  void TearDown() override {
+    BTM_CancelInquiry();
+    inquiry_callback_ptr = nullptr;
+    main_thread_shut_down();
+    BtmInqTest::TearDown();
+  }
 
-  ASSERT_FALSE(gBTM_REMOTE_DEV_NAME_sent);
+  NiceMock<bluetooth::hci::testing::MockControllerInterface> controller_;
+  bluetooth::hci::HciLayerFake hci_layer_;
+  ContextualCallback<void(EventView)> on_exteneded_inq_result_;
+  ContextualCallback<void(EventView)> on_inq_complete_;
+  ContextualCallback<void(EventView)> on_inq_result_;
+  ContextualCallback<void(EventView)> on_inq_result_with_rssi_;
+  MockBtmInquiryCallbacks callbacks_;
+};
+
+TEST_F(BtmDeviceInquiryTest, bta_dm_disc_device_discovery_single_result) {
+  std::promise<void> one_result_promise;
+  auto one_result = one_result_promise.get_future();
+  EXPECT_CALL(*inquiry_callback_ptr, btm_inq_results_cb(_, _, _))
+          .WillOnce([&one_result_promise]() { one_result_promise.set_value(); })
+          .RetiresOnSaturation();
+
+  InquiryResponse one_device(kAddress2, bluetooth::hci::PageScanRepetitionMode::R0,
+                             bluetooth::hci::ClassOfDevice(), 0x2345);
+  hci_layer_.IncomingEvent(InquiryResultBuilder::Create({one_device}));
+
+  EXPECT_EQ(std::future_status::ready, one_result.wait_for(std::chrono::seconds(1)));
 }

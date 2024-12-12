@@ -22,37 +22,33 @@ namespace bluetooth {
 namespace avrcp {
 
 class VendorPacketBuilder : public avrcp::PacketBuilder {
- public:
+public:
   virtual ~VendorPacketBuilder() = default;
 
   static std::unique_ptr<VendorPacketBuilder> MakeBuilder(
-      CType ctype, CommandPdu pdu, PacketType packet_type,
-      std::unique_ptr<::bluetooth::PacketBuilder> payload);
+          CType ctype, CommandPdu pdu, PacketType packet_type,
+          std::unique_ptr<::bluetooth::PacketBuilder> payload);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   CommandPdu pdu_;
   PacketType packet_type_;
   uint16_t param_length_;
 
-  void PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt,
-                  uint16_t parameter_length);
+  void PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt, uint16_t parameter_length);
 
   // Helper function used a couple other AVRCP packet builders
   bool PushAttributeValue(const std::shared_ptr<::bluetooth::Packet>& pkt,
                           const AttributeEntry& entry);
 
   VendorPacketBuilder(CType ctype, CommandPdu pdu, PacketType packet_type)
-      : PacketBuilder(ctype, 0x09, 0x00, Opcode::VENDOR),
-        pdu_(pdu),
-        packet_type_(packet_type){};
+      : PacketBuilder(ctype, 0x09, 0x00, Opcode::VENDOR), pdu_(pdu), packet_type_(packet_type) {}
 };
 
 class VendorPacket : public avrcp::Packet {
- public:
+public:
   virtual ~VendorPacket() = default;
 
   /**
@@ -69,7 +65,7 @@ class VendorPacket : public avrcp::Packet {
    *     uint16_t parameter_length;
    *   uint8_t[] payload;
    */
-  static constexpr size_t kMinSize() { return Packet::kMinSize() + 7; };
+  static constexpr size_t kMinSize() { return Packet::kMinSize() + 7; }
 
   // Getter Functions
   uint32_t GetCompanyId() const;
@@ -81,7 +77,7 @@ class VendorPacket : public avrcp::Packet {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using Packet::Packet;
 };
 

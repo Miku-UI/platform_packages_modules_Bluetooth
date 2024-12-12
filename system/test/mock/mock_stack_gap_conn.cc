@@ -20,7 +20,6 @@
  */
 
 #include "gap_api.h"
-#include "l2c_api.h"
 #include "stack/include/bt_hdr.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
@@ -45,18 +44,16 @@ uint16_t GAP_ConnGetRemMtuSize(uint16_t /* gap_handle */) {
   inc_func_call_count(__func__);
   return 0;
 }
-uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t /* service_id */,
-                      bool /* is_server */, const RawAddress* /* p_rem_bda */,
-                      uint16_t /* psm */, uint16_t /* le_mps */,
-                      tL2CAP_CFG_INFO* /* p_cfg */,
-                      tL2CAP_ERTM_INFO* /* ertm_info */,
+uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t /* service_id */, bool /* is_server */,
+                      const RawAddress* /* p_rem_bda */, uint16_t /* psm */, uint16_t /* le_mps */,
+                      tL2CAP_CFG_INFO* /* p_cfg */, tL2CAP_ERTM_INFO* /* ertm_info */,
                       uint16_t /* security */, tGAP_CONN_CALLBACK* /* p_cb */,
                       tBT_TRANSPORT /* transport */) {
   inc_func_call_count(__func__);
   return 0;
 }
-uint16_t GAP_ConnReadData(uint16_t /* gap_handle */, uint8_t* /* p_data */,
-                          uint16_t /* max_len */, uint16_t* /* p_len */) {
+uint16_t GAP_ConnReadData(uint16_t /* gap_handle */, uint8_t* /* p_data */, uint16_t /* max_len */,
+                          uint16_t* /* p_len */) {
   inc_func_call_count(__func__);
   return 0;
 }

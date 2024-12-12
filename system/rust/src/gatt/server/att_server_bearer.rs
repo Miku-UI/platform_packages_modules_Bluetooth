@@ -2,6 +2,7 @@
 //! It handles ATT transactions and unacknowledged operations, backed by an
 //! AttDatabase (that may in turn be backed by an upper-layer protocol)
 
+use pdl_runtime::EncodeError;
 use std::{cell::Cell, future::Future};
 
 use anyhow::Result;
@@ -18,11 +19,8 @@ use crate::{
         mtu::{AttMtu, MtuEvent},
         opcode_types::{classify_opcode, OperationType},
     },
-    packets::{
-        AttAttributeDataChild, AttBuilder, AttChild, AttErrorCode, AttErrorResponseBuilder,
-        AttView, Packet, SerializeError,
-    },
-    utils::{owned_handle::OwnedHandle, packet::HACK_child_to_opcode},
+    packets::att::{self, AttErrorCode},
+    utils::owned_handle::OwnedHandle,
 };
 
 use super::{
@@ -42,7 +40,7 @@ enum AttRequestState<T: AttDatabase> {
 #[derive(Debug)]
 pub enum SendError {
     /// The packet failed to serialize
-    SerializeError(SerializeError),
+    SerializeError(EncodeError),
     /// The connection no longer exists
     ConnectionDropped,
 }
@@ -52,7 +50,7 @@ pub enum SendError {
 /// take place at a time
 pub struct AttServerBearer<T: AttDatabase> {
     // general
-    send_packet: Box<dyn Fn(AttBuilder) -> Result<(), SerializeError>>,
+    send_packet: Box<dyn Fn(att::Att) -> Result<(), EncodeError>>,
     mtu: AttMtu,
 
     // request state
@@ -69,10 +67,7 @@ pub struct AttServerBearer<T: AttDatabase> {
 impl<T: AttDatabase + Clone + 'static> AttServerBearer<T> {
     /// Constructor, wrapping an ATT channel (for outgoing packets) and an
     /// AttDatabase
-    pub fn new(
-        db: T,
-        send_packet: impl Fn(AttBuilder) -> Result<(), SerializeError> + 'static,
-    ) -> Self {
+    pub fn new(db: T, send_packet: impl Fn(att::Att) -> Result<(), EncodeError> + 'static) -> Self {
         let (indication_handler, pending_confirmation) = IndicationHandler::new(db.clone());
         Self {
             send_packet: Box::new(send_packet),
@@ -87,9 +82,7 @@ impl<T: AttDatabase + Clone + 'static> AttServerBearer<T> {
         }
     }
 
-    fn send_packet(&self, packet: impl Into<AttChild>) -> Result<(), SerializeError> {
-        let child = packet.into();
-        let packet = AttBuilder { opcode: HACK_child_to_opcode(&child), _child_: child };
+    fn send_packet(&self, packet: att::Att) -> Result<(), EncodeError> {
         (self.send_packet)(packet)
     }
 }
@@ -97,8 +90,8 @@ impl<T: AttDatabase + Clone + 'static> AttServerBearer<T> {
 impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
     /// Handle an incoming packet, and send outgoing packets as appropriate
     /// using the owned ATT channel.
-    pub fn handle_packet(&self, packet: AttView<'_>) {
-        match classify_opcode(packet.get_opcode()) {
+    pub fn handle_packet(&self, packet: att::Att) {
+        match classify_opcode(packet.opcode) {
             OperationType::Command => {
                 self.command_handler.process_packet(packet);
             }
@@ -118,7 +111,7 @@ impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
     pub fn send_indication(
         &self,
         handle: AttHandle,
-        data: AttAttributeDataChild,
+        data: Vec<u8>,
     ) -> impl Future<Output = Result<(), IndicationError>> {
         trace!("sending indication for handle {handle:?}");
 
@@ -143,7 +136,7 @@ impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
                     IndicationError::SendError(SendError::ConnectionDropped)
                 })?;
             // finally, send, and wait for a response
-            indication_handler.send(handle, data, mtu, |packet| this.try_send_packet(packet)).await
+            indication_handler.send(handle, &data, mtu, |packet| this.try_send_packet(packet)).await
         }
     }
 
@@ -153,18 +146,18 @@ impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
         self.mtu.handle_event(mtu_event)
     }
 
-    fn handle_request(&self, packet: AttView<'_>) {
+    fn handle_request(&self, packet: att::Att) {
         let curr_request = self.curr_request.replace(AttRequestState::Replacing);
         self.curr_request.replace(match curr_request {
             AttRequestState::Idle(mut request_handler) => {
                 // even if the MTU is updated afterwards, 5.3 3F 3.4.2.2 states that the
                 // request-time MTU should be used
                 let mtu = self.mtu.snapshot_or_default();
-                let packet = packet.to_owned_packet();
                 let this = self.downgrade();
+                let opcode = packet.opcode;
                 let task = spawn_local(async move {
                     trace!("starting ATT transaction");
-                    let reply = request_handler.process_packet(packet.view(), mtu).await;
+                    let reply = request_handler.process_packet(packet, mtu).await;
                     this.with(|this| {
                         this.map(|this| {
                             match this.send_packet(reply) {
@@ -174,11 +167,11 @@ impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
                                 Err(err) => {
                                     error!("serializer failure {err:?}, dropping packet and sending failed reply");
                                     // if this also fails, we're stuck
-                                    if let Err(err) = this.send_packet(AttErrorResponseBuilder {
-                                        opcode_in_error: packet.view().get_opcode(),
+                                    if let Err(err) = this.send_packet(att::AttErrorResponse {
+                                        opcode_in_error: opcode,
                                         handle_in_error: AttHandle(0).into(),
-                                        error_code: AttErrorCode::UNLIKELY_ERROR,
-                                    }) {
+                                        error_code: AttErrorCode::UnlikelyError,
+                                    }.try_into().unwrap()) {
                                         panic!("unexpected serialize error for known-good packet {err:?}")
                                     }
                                 }
@@ -203,7 +196,7 @@ impl<T: AttDatabase + Clone + 'static> WeakBoxRef<'_, AttServerBearer<T>> {
 }
 
 impl<T: AttDatabase + Clone + 'static> WeakBox<AttServerBearer<T>> {
-    fn try_send_packet(&self, packet: impl Into<AttChild>) -> Result<(), SendError> {
+    fn try_send_packet(&self, packet: att::Att) -> Result<(), SendError> {
         self.with(|this| {
             this.ok_or_else(|| {
                 warn!("connection dropped before packet sent");
@@ -237,14 +230,8 @@ mod test {
                 test::test_att_db::TestAttDatabase,
             },
         },
-        packets::{
-            AttAttributeDataBuilder, AttAttributeDataChild, AttHandleValueConfirmationBuilder,
-            AttOpcode, AttReadRequestBuilder, AttReadResponseBuilder,
-        },
-        utils::{
-            packet::build_att_view_or_crash,
-            task::{block_on_locally, try_await},
-        },
+        packets::att,
+        utils::task::{block_on_locally, try_await},
     };
 
     const VALID_HANDLE: AttHandle = AttHandle(3);
@@ -254,7 +241,7 @@ mod test {
     const TCB_IDX: TransportIndex = TransportIndex(1);
 
     fn open_connection(
-    ) -> (SharedBox<AttServerBearer<TestAttDatabase>>, UnboundedReceiver<AttBuilder>) {
+    ) -> (SharedBox<AttServerBearer<TestAttDatabase>>, UnboundedReceiver<att::Att>) {
         let db = TestAttDatabase::new(vec![
             (
                 AttAttribute {
@@ -287,12 +274,9 @@ mod test {
         block_on_locally(async {
             let (conn, mut rx) = open_connection();
             conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttReadRequestBuilder {
-                    attribute_handle: VALID_HANDLE.into(),
-                })
-                .view(),
+                att::AttReadRequest { attribute_handle: VALID_HANDLE.into() }.try_into().unwrap(),
             );
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::READ_RESPONSE);
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::ReadResponse);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
         });
     }
@@ -302,21 +286,15 @@ mod test {
         block_on_locally(async {
             let (conn, mut rx) = open_connection();
             conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttReadRequestBuilder {
-                    attribute_handle: INVALID_HANDLE.into(),
-                })
-                .view(),
+                att::AttReadRequest { attribute_handle: INVALID_HANDLE.into() }.try_into().unwrap(),
             );
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::ERROR_RESPONSE);
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::ErrorResponse);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
 
             conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttReadRequestBuilder {
-                    attribute_handle: VALID_HANDLE.into(),
-                })
-                .view(),
+                att::AttReadRequest { attribute_handle: VALID_HANDLE.into() }.try_into().unwrap(),
             );
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::READ_RESPONSE);
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::ReadResponse);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
         });
     }
@@ -361,15 +339,11 @@ mod test {
         // act: send two read requests before replying to either read
         // first request
         block_on_locally(async {
-            let req1 = build_att_view_or_crash(AttReadRequestBuilder {
-                attribute_handle: VALID_HANDLE.into(),
-            });
-            conn.as_ref().handle_packet(req1.view());
+            let req1 = att::AttReadRequest { attribute_handle: VALID_HANDLE.into() };
+            conn.as_ref().handle_packet(req1.try_into().unwrap());
             // second request
-            let req2 = build_att_view_or_crash(AttReadRequestBuilder {
-                attribute_handle: ANOTHER_VALID_HANDLE.into(),
-            });
-            conn.as_ref().handle_packet(req2.view());
+            let req2 = att::AttReadRequest { attribute_handle: ANOTHER_VALID_HANDLE.into() };
+            conn.as_ref().handle_packet(req2.try_into().unwrap());
             // handle first reply
             let MockDatastoreEvents::Read(
                 TCB_IDX,
@@ -385,20 +359,7 @@ mod test {
 
             // assert: that the first reply was made
             let resp = rx.recv().await.unwrap();
-            assert_eq!(
-                resp,
-                AttBuilder {
-                    opcode: AttOpcode::READ_RESPONSE,
-                    _child_: AttReadResponseBuilder {
-                        value: AttAttributeDataBuilder {
-                            _child_: AttAttributeDataChild::RawData(
-                                data.to_vec().into_boxed_slice()
-                            )
-                        },
-                    }
-                    .into()
-                }
-            );
+            assert_eq!(resp, att::AttReadResponse { value: data.to_vec() }.try_into().unwrap());
             // assert no other replies were made
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
             // assert no callbacks are pending
@@ -414,16 +375,11 @@ mod test {
 
             // act: send an indication
             let pending_send =
-                spawn_local(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ));
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::HANDLE_VALUE_INDICATION);
+                spawn_local(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3]));
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::HandleValueIndication);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
             // and the confirmation
-            conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttHandleValueConfirmationBuilder {}).view(),
-            );
+            conn.as_ref().handle_packet(att::AttHandleValueConfirmation {}.try_into().unwrap());
 
             // assert: the indication was correctly sent
             assert!(matches!(pending_send.await.unwrap(), Ok(())));
@@ -438,32 +394,22 @@ mod test {
 
             // act: send the first indication
             let pending_send1 =
-                spawn_local(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ));
+                spawn_local(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3]));
             // wait for/capture the outgoing packet
             let sent1 = rx.recv().await.unwrap();
             // send the response
-            conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttHandleValueConfirmationBuilder {}).view(),
-            );
+            conn.as_ref().handle_packet(att::AttHandleValueConfirmation {}.try_into().unwrap());
             // send the second indication
             let pending_send2 =
-                spawn_local(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ));
+                spawn_local(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3]));
             // wait for/capture the outgoing packet
             let sent2 = rx.recv().await.unwrap();
             // and the response
-            conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttHandleValueConfirmationBuilder {}).view(),
-            );
+            conn.as_ref().handle_packet(att::AttHandleValueConfirmation {}.try_into().unwrap());
 
             // assert: exactly two indications were sent
-            assert_eq!(sent1.opcode, AttOpcode::HANDLE_VALUE_INDICATION);
-            assert_eq!(sent2.opcode, AttOpcode::HANDLE_VALUE_INDICATION);
+            assert_eq!(sent1.opcode, att::AttOpcode::HandleValueIndication);
+            assert_eq!(sent2.opcode, att::AttOpcode::HandleValueIndication);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
             // and that both got successful responses
             assert!(matches!(pending_send1.await.unwrap(), Ok(())));
@@ -479,16 +425,11 @@ mod test {
 
             // act: send two indications simultaneously
             let pending_send1 =
-                spawn_local(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ));
-            let pending_send2 = spawn_local(conn.as_ref().send_indication(
-                ANOTHER_VALID_HANDLE,
-                AttAttributeDataChild::RawData([1, 2, 3].into()),
-            ));
+                spawn_local(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3]));
+            let pending_send2 =
+                spawn_local(conn.as_ref().send_indication(ANOTHER_VALID_HANDLE, vec![1, 2, 3]));
             // assert: only one was initially sent
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::HANDLE_VALUE_INDICATION);
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::HandleValueIndication);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
             // and both are still pending
             assert!(!pending_send1.is_finished());
@@ -504,20 +445,13 @@ mod test {
 
             // act: send two indications simultaneously
             let pending_send1 =
-                spawn_local(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ));
-            let pending_send2 = spawn_local(conn.as_ref().send_indication(
-                ANOTHER_VALID_HANDLE,
-                AttAttributeDataChild::RawData([1, 2, 3].into()),
-            ));
+                spawn_local(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3]));
+            let pending_send2 =
+                spawn_local(conn.as_ref().send_indication(ANOTHER_VALID_HANDLE, vec![1, 2, 3]));
             // wait for/capture the outgoing packet
             let sent1 = rx.recv().await.unwrap();
             // send response for the first one
-            conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttHandleValueConfirmationBuilder {}).view(),
-            );
+            conn.as_ref().handle_packet(att::AttHandleValueConfirmation {}.try_into().unwrap());
             // wait for/capture the outgoing packet
             let sent2 = rx.recv().await.unwrap();
 
@@ -526,8 +460,8 @@ mod test {
             assert!(matches!(pending_send1.await.unwrap(), Ok(())));
             assert!(!pending_send2.is_finished());
             // and that both indications have been sent
-            assert_eq!(sent1.opcode, AttOpcode::HANDLE_VALUE_INDICATION);
-            assert_eq!(sent2.opcode, AttOpcode::HANDLE_VALUE_INDICATION);
+            assert_eq!(sent1.opcode, att::AttOpcode::HandleValueIndication);
+            assert_eq!(sent2.opcode, att::AttOpcode::HandleValueIndication);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
         });
     }
@@ -540,33 +474,24 @@ mod test {
 
             // act: send two indications simultaneously
             let pending_send1 =
-                spawn_local(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ));
-            let pending_send2 = spawn_local(conn.as_ref().send_indication(
-                ANOTHER_VALID_HANDLE,
-                AttAttributeDataChild::RawData([1, 2, 3].into()),
-            ));
+                spawn_local(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3]));
+            let pending_send2 =
+                spawn_local(conn.as_ref().send_indication(ANOTHER_VALID_HANDLE, vec![1, 2, 3]));
             // wait for/capture the outgoing packet
             let sent1 = rx.recv().await.unwrap();
             // send response for the first one
-            conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttHandleValueConfirmationBuilder {}).view(),
-            );
+            conn.as_ref().handle_packet(att::AttHandleValueConfirmation {}.try_into().unwrap());
             // wait for/capture the outgoing packet
             let sent2 = rx.recv().await.unwrap();
             // and now the second
-            conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttHandleValueConfirmationBuilder {}).view(),
-            );
+            conn.as_ref().handle_packet(att::AttHandleValueConfirmation {}.try_into().unwrap());
 
             // assert: both futures have completed successfully
             assert!(matches!(pending_send1.await.unwrap(), Ok(())));
             assert!(matches!(pending_send2.await.unwrap(), Ok(())));
             // and both indications have been sent
-            assert_eq!(sent1.opcode, AttOpcode::HANDLE_VALUE_INDICATION);
-            assert_eq!(sent2.opcode, AttOpcode::HANDLE_VALUE_INDICATION);
+            assert_eq!(sent1.opcode, att::AttOpcode::HandleValueIndication);
+            assert_eq!(sent2.opcode, att::AttOpcode::HandleValueIndication);
             assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
         });
     }
@@ -577,10 +502,7 @@ mod test {
             // arrange: a pending indication
             let (conn, mut rx) = open_connection();
             let pending_send =
-                spawn_local(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ));
+                spawn_local(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3]));
 
             // act: drop the connection after the indication is sent
             rx.recv().await.unwrap();
@@ -602,17 +524,12 @@ mod test {
             conn.as_ref().handle_mtu_event(MtuEvent::OutgoingRequest).unwrap();
 
             // act: try to send an indication with a large payload size
-            let _ =
-                try_await(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData((1..50).collect()),
-                ))
-                .await;
+            let _ = try_await(conn.as_ref().send_indication(VALID_HANDLE, (1..50).collect())).await;
             // then resolve the MTU negotiation with a large MTU
             conn.as_ref().handle_mtu_event(MtuEvent::IncomingResponse(100)).unwrap();
 
             // assert: the indication was sent
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::HANDLE_VALUE_INDICATION);
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::HandleValueIndication);
         });
     }
 
@@ -625,12 +542,9 @@ mod test {
 
             // act: try to send an indication with a large payload size
             let pending_mtu =
-                try_await(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData((1..50).collect()),
-                ))
-                .await
-                .unwrap_err();
+                try_await(conn.as_ref().send_indication(VALID_HANDLE, (1..50).collect()))
+                    .await
+                    .unwrap_err();
             // then resolve the MTU negotiation with a small MTU
             conn.as_ref().handle_mtu_event(MtuEvent::IncomingResponse(32)).unwrap();
 
@@ -648,14 +562,11 @@ mod test {
 
             // act: send server packet
             conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttReadRequestBuilder {
-                    attribute_handle: VALID_HANDLE.into(),
-                })
-                .view(),
+                att::AttReadRequest { attribute_handle: VALID_HANDLE.into() }.try_into().unwrap(),
             );
 
             // assert: that we reply even while the MTU req is outstanding
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::READ_RESPONSE);
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::ReadResponse);
         });
     }
 
@@ -664,31 +575,19 @@ mod test {
         block_on_locally(async {
             // arrange: an outstanding indication
             let (conn, mut rx) = open_connection();
-            let _ =
-                try_await(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                ))
-                .await;
+            let _ = try_await(conn.as_ref().send_indication(VALID_HANDLE, vec![1, 2, 3])).await;
             rx.recv().await.unwrap(); // flush rx_queue
 
             // act: enqueue an indication with a large payload
-            let _ =
-                try_await(conn.as_ref().send_indication(
-                    VALID_HANDLE,
-                    AttAttributeDataChild::RawData((1..50).collect()),
-                ))
-                .await;
+            let _ = try_await(conn.as_ref().send_indication(VALID_HANDLE, (1..50).collect())).await;
             // then perform MTU negotiation to upgrade to a large MTU
             conn.as_ref().handle_mtu_event(MtuEvent::OutgoingRequest).unwrap();
             conn.as_ref().handle_mtu_event(MtuEvent::IncomingResponse(512)).unwrap();
             // finally resolve the first indication, so the second indication can be sent
-            conn.as_ref().handle_packet(
-                build_att_view_or_crash(AttHandleValueConfirmationBuilder {}).view(),
-            );
+            conn.as_ref().handle_packet(att::AttHandleValueConfirmation {}.try_into().unwrap());
 
             // assert: the second indication successfully sent (so it used the new MTU)
-            assert_eq!(rx.recv().await.unwrap().opcode, AttOpcode::HANDLE_VALUE_INDICATION);
+            assert_eq!(rx.recv().await.unwrap().opcode, att::AttOpcode::HandleValueIndication);
         });
     }
 }

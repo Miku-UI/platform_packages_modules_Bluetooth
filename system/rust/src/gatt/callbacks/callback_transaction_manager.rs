@@ -9,7 +9,7 @@ use crate::{
         ids::{AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex},
         GattCallbacks,
     },
-    packets::AttErrorCode,
+    packets::att::AttErrorCode,
 };
 
 use super::{
@@ -121,7 +121,7 @@ impl PendingTransactionWatcher {
                 .pending_transactions
                 .remove(&(self.conn_id, self.trans_id));
             warn!("no response received from Java after timeout - returning UNLIKELY_ERROR");
-            Err(AttErrorCode::UNLIKELY_ERROR)
+            Err(AttErrorCode::UnlikelyError)
         }
     }
 }

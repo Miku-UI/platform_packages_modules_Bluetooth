@@ -43,8 +43,7 @@ tBTA_JV_STATUS BTA_JvEnable(tBTA_JV_DM_CBACK* /* p_cback */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvFreeChannel(uint16_t /* channel */,
-                                 tBTA_JV_CONN_TYPE /* conn_type */) {
+tBTA_JV_STATUS BTA_JvFreeChannel(uint16_t /* channel */, tBTA_JV_CONN_TYPE /* conn_type */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
@@ -52,49 +51,43 @@ tBTA_JV_STATUS BTA_JvL2capClose(uint32_t /* handle */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvL2capRead(uint32_t /* handle */, uint32_t /* req_id */,
-                               uint8_t* /* p_data */, uint16_t /* len */) {
+tBTA_JV_STATUS BTA_JvL2capRead(uint32_t /* handle */, uint32_t /* req_id */, uint8_t* /* p_data */,
+                               uint16_t /* len */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvL2capReady(uint32_t /* handle */,
-                                uint32_t* /* p_data_size */) {
+tBTA_JV_STATUS BTA_JvL2capReady(uint32_t /* handle */, uint32_t* /* p_data_size */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvL2capStopServer(uint16_t /* local_psm */,
-                                     uint32_t /* l2cap_socket_id */) {
+tBTA_JV_STATUS BTA_JvL2capStopServer(uint16_t /* local_psm */, uint32_t /* l2cap_socket_id */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t /* handle */, uint32_t /* req_id */,
-                                BT_HDR* /* msg */, uint32_t /* user_id */) {
+tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t /* handle */, uint32_t /* req_id */, BT_HDR* /* msg */,
+                                uint32_t /* user_id */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvRfcommClose(uint32_t /* handle */,
-                                 uint32_t /* rfcomm_slot_id */) {
+tBTA_JV_STATUS BTA_JvRfcommClose(uint32_t /* handle */, uint32_t /* rfcomm_slot_id */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC /* sec_mask */,
-                                   uint8_t /* remote_scn */,
+tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC /* sec_mask */, uint8_t /* remote_scn */,
                                    const RawAddress& /* peer_bd_addr */,
                                    tBTA_JV_RFCOMM_CBACK* /* p_cback */,
                                    uint32_t /* rfcomm_slot_id */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC /* sec_mask */,
-                                       uint8_t /* local_scn */,
+tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC /* sec_mask */, uint8_t /* local_scn */,
                                        uint8_t /* max_session */,
                                        tBTA_JV_RFCOMM_CBACK* /* p_cback */,
                                        uint32_t /* rfcomm_slot_id */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvRfcommStopServer(uint32_t /* handle */,
-                                      uint32_t /* rfcomm_slot_id */) {
+tBTA_JV_STATUS BTA_JvRfcommStopServer(uint32_t /* handle */, uint32_t /* rfcomm_slot_id */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
@@ -102,14 +95,12 @@ tBTA_JV_STATUS BTA_JvRfcommWrite(uint32_t /* handle */, uint32_t /* req_id */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvSetPmProfile(uint32_t /* handle */,
-                                  tBTA_JV_PM_ID /* app_id */,
+tBTA_JV_STATUS BTA_JvSetPmProfile(uint32_t /* handle */, tBTA_JV_PM_ID /* app_id */,
                                   tBTA_JV_CONN_STATE /* init_st */) {
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
-tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& /* bd_addr */,
-                                    uint16_t /* num_uuid */,
+tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& /* bd_addr */, uint16_t /* num_uuid */,
                                     const bluetooth::Uuid* /* p_uuid_list */,
                                     uint32_t /* rfcomm_slot_id */) {
   inc_func_call_count(__func__);
@@ -124,22 +115,18 @@ void BTA_JvGetChannelId(tBTA_JV_CONN_TYPE /* conn_type */, uint32_t /* id */,
                         int32_t /* channel */) {
   inc_func_call_count(__func__);
 }
-void BTA_JvL2capConnect(tBTA_JV_CONN_TYPE /* conn_type */,
-                        tBTA_SEC /* sec_mask */,
+void BTA_JvL2capConnect(tBTA_JV_CONN_TYPE /* conn_type */, tBTA_SEC /* sec_mask */,
                         std::unique_ptr<tL2CAP_ERTM_INFO> /* ertm_info */,
                         uint16_t /* remote_psm */, uint16_t /* rx_mtu */,
                         std::unique_ptr<tL2CAP_CFG_INFO> /* cfg */,
-                        const RawAddress& /* peer_bd_addr */,
-                        tBTA_JV_L2CAP_CBACK* /* p_cback */,
+                        const RawAddress& /* peer_bd_addr */, tBTA_JV_L2CAP_CBACK* /* p_cback */,
                         uint32_t /* l2cap_socket_id */) {
   inc_func_call_count(__func__);
 }
-void BTA_JvL2capStartServer(tBTA_JV_CONN_TYPE /* conn_type */,
-                            tBTA_SEC /* sec_mask */,
+void BTA_JvL2capStartServer(tBTA_JV_CONN_TYPE /* conn_type */, tBTA_SEC /* sec_mask */,
                             std::unique_ptr<tL2CAP_ERTM_INFO> /* ertm_info */,
                             uint16_t /* local_psm */, uint16_t /* rx_mtu */,
                             std::unique_ptr<tL2CAP_CFG_INFO> /* cfg */,
-                            tBTA_JV_L2CAP_CBACK* /* p_cback */,
-                            uint32_t /* l2cap_socket_id */) {
+                            tBTA_JV_L2CAP_CBACK* /* p_cback */, uint32_t /* l2cap_socket_id */) {
   inc_func_call_count(__func__);
 }

@@ -25,10 +25,8 @@
 using namespace bluetooth;
 
 // Macro to convert BTA AV audio handle to index and vice versa
-#define BTA_AV_CO_AUDIO_HANDLE_TO_INDEX(bta_av_handle) \
-  (((bta_av_handle) & (~BTA_AV_CHNL_MSK)) - 1)
-#define BTA_AV_CO_AUDIO_INDEX_TO_HANDLE(index) \
-  (((index) + 1) | BTA_AV_CHNL_AUDIO)
+#define BTA_AV_CO_AUDIO_HANDLE_TO_INDEX(bta_av_handle) (((bta_av_handle) & (~BTA_AV_CHNL_MSK)) - 1)
+#define BTA_AV_CO_AUDIO_INDEX_TO_HANDLE(index) (((index) + 1) | BTA_AV_CHNL_AUDIO)
 
 BtaAvCoPeer::BtaAvCoPeer()
     : addr(RawAddress::kEmpty),
@@ -53,8 +51,7 @@ BtaAvCoPeer::BtaAvCoPeer()
   Reset(0);
 }
 
-void BtaAvCoPeer::Init(
-    const std::vector<btav_a2dp_codec_config_t>& codec_priorities) {
+void BtaAvCoPeer::Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities) {
   Reset(bta_av_handle_);
   // Reset the current config
   codecs_ = new A2dpCodecs(codec_priorities);
@@ -94,9 +91,14 @@ void BtaAvCoPeer::Reset(tBTA_AV_HNDL bta_av_handle) {
   content_protect_active_ = false;
 }
 
-void BtaAvCoPeerCache::Init(
-    const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
-    std::vector<btav_a2dp_codec_info_t>* supported_codecs) {
+uint8_t* BtaAvCoPeer::getCodecConfig() { return codec_config; }
+
+void BtaAvCoPeer::setCodecConfig(const uint8_t* new_codec_config) {
+  memcpy(codec_config, new_codec_config, AVDT_CODEC_SIZE);
+}
+
+void BtaAvCoPeerCache::Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
+                            std::vector<btav_a2dp_codec_info_t>* supported_codecs) {
   std::lock_guard<std::recursive_mutex> lock(codec_lock_);
 
   codec_priorities_ = codec_priorities;
@@ -127,9 +129,9 @@ BtaAvCoPeer* BtaAvCoPeerCache::FindPeer(const RawAddress& peer_address) {
   return nullptr;
 }
 
-BtaAvCoSep* BtaAvCoPeerCache::FindPeerSource(
-    BtaAvCoPeer* p_peer, btav_a2dp_codec_index_t codec_index,
-    const uint8_t content_protect_flag) {
+BtaAvCoSep* BtaAvCoPeerCache::FindPeerSource(BtaAvCoPeer* p_peer,
+                                             btav_a2dp_codec_index_t codec_index,
+                                             const uint8_t content_protect_flag) {
   if (codec_index == BTAV_A2DP_CODEC_INDEX_MAX) {
     log::warn("invalid codec index for peer {}", p_peer->addr);
     return nullptr;
@@ -138,15 +140,13 @@ BtaAvCoSep* BtaAvCoPeerCache::FindPeerSource(
   // Find the peer Source for the codec
   for (size_t index = 0; index < p_peer->num_sup_sources; index++) {
     BtaAvCoSep* p_source = &p_peer->sources[index];
-    btav_a2dp_codec_index_t peer_codec_index =
-        A2DP_SinkCodecIndex(p_source->codec_caps);
+    btav_a2dp_codec_index_t peer_codec_index = A2DP_SinkCodecIndex(p_source->codec_caps);
     if (peer_codec_index != codec_index) {
       continue;
     }
     if (!AudioSepHasContentProtection(p_source, content_protect_flag)) {
-      log::verbose(
-          "peer Source for codec {} does not support Content Protection",
-          A2DP_CodecIndexStr(codec_index));
+      log::verbose("peer Source for codec {} does not support Content Protection",
+                   A2DP_CodecIndexStr(codec_index));
       continue;
     }
     return p_source;
@@ -154,8 +154,7 @@ BtaAvCoSep* BtaAvCoPeerCache::FindPeerSource(
   return nullptr;
 }
 
-BtaAvCoSep* BtaAvCoPeerCache::FindPeerSink(BtaAvCoPeer* p_peer,
-                                           btav_a2dp_codec_index_t codec_index,
+BtaAvCoSep* BtaAvCoPeerCache::FindPeerSink(BtaAvCoPeer* p_peer, btav_a2dp_codec_index_t codec_index,
                                            const uint8_t content_protect_flag) {
   if (codec_index == BTAV_A2DP_CODEC_INDEX_MAX) {
     log::warn("invalid codec index for peer {}", p_peer->addr);
@@ -165,8 +164,7 @@ BtaAvCoSep* BtaAvCoPeerCache::FindPeerSink(BtaAvCoPeer* p_peer,
   // Find the peer Sink for the codec
   for (size_t index = 0; index < p_peer->num_sup_sinks; index++) {
     BtaAvCoSep* p_sink = &p_peer->sinks[index];
-    btav_a2dp_codec_index_t peer_codec_index =
-        A2DP_SourceCodecIndex(p_sink->codec_caps);
+    btav_a2dp_codec_index_t peer_codec_index = A2DP_SourceCodecIndex(p_sink->codec_caps);
     if (peer_codec_index != codec_index) {
       continue;
     }
@@ -188,27 +186,26 @@ BtaAvCoPeer* BtaAvCoPeerCache::FindPeer(tBTA_AV_HNDL bta_av_handle) {
 
   // Sanity check
   if (index >= BTA_AV_CO_NUM_ELEMENTS(peers_)) {
-    log::error("peer index {} for BTA AV handle 0x{:x} is out of bounds", index,
-               bta_av_handle);
+    log::error("peer index {} for BTA AV handle 0x{:x} is out of bounds", index, bta_av_handle);
     return nullptr;
   }
 
   return &peers_[index];
 }
 
-BtaAvCoPeer* BtaAvCoPeerCache::FindPeerAndUpdate(
-    tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address) {
+BtaAvCoPeer* BtaAvCoPeerCache::FindPeerAndUpdate(tBTA_AV_HNDL bta_av_handle,
+                                                 const RawAddress& peer_address) {
   log::verbose("peer {} bta_av_handle = 0x{:x}", peer_address, bta_av_handle);
 
   BtaAvCoPeer* p_peer = FindPeer(bta_av_handle);
   if (p_peer == nullptr) {
-    log::error("peer entry for BTA AV handle 0x{:x} peer {} not found",
-               bta_av_handle, peer_address);
+    log::error("peer entry for BTA AV handle 0x{:x} peer {} not found", bta_av_handle,
+               peer_address);
     return nullptr;
   }
 
-  log::verbose("peer {} bta_av_handle = 0x{:x} previous address {}",
-               peer_address, bta_av_handle, p_peer->addr);
+  log::verbose("peer {} bta_av_handle = 0x{:x} previous address {}", peer_address, bta_av_handle,
+               p_peer->addr);
   p_peer->addr = peer_address;
   return p_peer;
 }
@@ -239,7 +236,9 @@ bool ContentProtectIsScmst(const uint8_t* p_protect_info) {
 bool AudioProtectHasScmst(uint8_t num_protect, const uint8_t* p_protect_info) {
   log::verbose("");
   while (num_protect--) {
-    if (ContentProtectIsScmst(p_protect_info)) return true;
+    if (ContentProtectIsScmst(p_protect_info)) {
+      return true;
+    }
     // Move to the next Content Protect schema
     p_protect_info += *p_protect_info + 1;
   }
@@ -247,8 +246,7 @@ bool AudioProtectHasScmst(uint8_t num_protect, const uint8_t* p_protect_info) {
   return false;
 }
 
-bool AudioSepHasContentProtection(const BtaAvCoSep* p_sep,
-                                  const uint8_t content_protect_flag) {
+bool AudioSepHasContentProtection(const BtaAvCoSep* p_sep, const uint8_t content_protect_flag) {
   log::verbose("");
 
   // Check if content protection is enabled for this stream

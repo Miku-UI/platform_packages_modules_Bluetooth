@@ -39,6 +39,8 @@ import com.android.obex.Operation;
 import com.android.obex.ResponseCodes;
 import com.android.obex.ServerRequestHandler;
 
+import com.google.common.base.Ascii;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -47,6 +49,7 @@ import java.text.StringCharacterIterator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 34
 public class BluetoothPbapObexServer extends ServerRequestHandler {
@@ -893,7 +896,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             }
             // Call history listing request
         } else {
-            ArrayList<String> nameList = mVcardManager.loadCallHistoryList(appParamValue.needTag);
+            List<String> nameList = mVcardManager.loadCallHistoryList(appParamValue.needTag);
             int requestSize =
                     nameList.size() >= appParamValue.maxListCount
                             ? appParamValue.maxListCount
@@ -930,7 +933,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             ContactsType contactType) {
         int itemsFound = 0;
 
-        ArrayList<String> nameList = null;
+        List<String> nameList = null;
         if (mVcardSelector) {
             if (contactType == ContactsType.TYPE_PHONEBOOK) {
                 nameList =
@@ -971,10 +974,10 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
                         + appParamValue.searchValue);
 
         if (type.equals("number")) {
-            ArrayList<Integer> savedPosList = new ArrayList<>();
-            ArrayList<String> selectedNameList = new ArrayList<String>();
+            List<Integer> savedPosList = new ArrayList<>();
+            List<String> selectedNameList = new ArrayList<String>();
             // query the number, to get the names
-            ArrayList<String> names = new ArrayList<>();
+            List<String> names = new ArrayList<>();
             if (contactType == ContactsType.TYPE_PHONEBOOK) {
                 names = mVcardManager.getContactNamesByNumber(appParamValue.searchValue);
             } else if (contactType == ContactsType.TYPE_SIM) {
@@ -1005,10 +1008,10 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
             }
 
         } else {
-            ArrayList<Integer> savedPosList = new ArrayList<>();
-            ArrayList<String> selectedNameList = new ArrayList<String>();
+            List<Integer> savedPosList = new ArrayList<>();
+            List<String> selectedNameList = new ArrayList<String>();
             if (appParamValue.searchValue != null) {
-                compareValue = appParamValue.searchValue.trim().toLowerCase();
+                compareValue = Ascii.toLowerCase(appParamValue.searchValue.trim());
             }
 
             for (int pos = 0; pos < listSize; pos++) {
@@ -1020,8 +1023,8 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
                 if (appParamValue.searchValue != null) {
                     if (appParamValue.searchValue.isEmpty()
-                            || ((currentValue.toLowerCase())
-                                    .startsWith(compareValue.toLowerCase()))) {
+                            || Ascii.toLowerCase(currentValue)
+                                    .startsWith(Ascii.toLowerCase(compareValue))) {
                         selectedNameList.add(currentValue);
                         savedPosList.add(pos);
                     }
@@ -1506,7 +1509,7 @@ public class BluetoothPbapObexServer extends ServerRequestHandler {
 
         int requestSize =
                 pbSize >= appParamValue.maxListCount ? appParamValue.maxListCount : pbSize;
-        /**
+        /*
          * startIndex (resp., lastIndex) corresponds to the index of the first (resp., last) vcard
          * entry in the phonebook object. PBAP v1.2.3: only pb starts indexing at 0.vcf (owner
          * card), the other phonebook objects (e.g., fav) start at 1.vcf. Additionally, the owner

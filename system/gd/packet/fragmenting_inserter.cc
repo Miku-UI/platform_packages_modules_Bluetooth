@@ -22,15 +22,18 @@
 namespace bluetooth {
 namespace packet {
 
-FragmentingInserter::FragmentingInserter(size_t mtu,
-                                         std::back_insert_iterator<std::vector<std::unique_ptr<RawBuilder>>> iterator)
-    : BitInserter(to_construct_bit_inserter_), mtu_(mtu), curr_packet_(std::make_unique<RawBuilder>(mtu)),
+FragmentingInserter::FragmentingInserter(
+        size_t mtu, std::back_insert_iterator<std::vector<std::unique_ptr<RawBuilder>>> iterator)
+    : BitInserter(to_construct_bit_inserter_),
+      mtu_(mtu),
+      curr_packet_(std::make_unique<RawBuilder>(mtu)),
       iterator_(iterator) {}
 
 void FragmentingInserter::insert_bits(uint8_t byte, size_t num_bits) {
   assert(curr_packet_ != nullptr);
   size_t total_bits = num_bits + num_saved_bits_;
-  uint16_t new_value = static_cast<uint8_t>(saved_bits_) | (static_cast<uint16_t>(byte) << num_saved_bits_);
+  uint16_t new_value =
+          static_cast<uint8_t>(saved_bits_) | (static_cast<uint16_t>(byte) << num_saved_bits_);
   if (total_bits >= 8) {
     uint8_t new_byte = static_cast<uint8_t>(new_value);
     on_byte(new_byte);

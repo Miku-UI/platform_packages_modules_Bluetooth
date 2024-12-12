@@ -28,8 +28,7 @@ void CsisClient::AddFromStorage(const RawAddress& /* addr */,
                                 const std::vector<uint8_t>& /* in */) {
   inc_func_call_count(__func__);
 }
-bool CsisClient::GetForStorage(const RawAddress& /* addr */,
-                               std::vector<uint8_t>& /* out */) {
+bool CsisClient::GetForStorage(const RawAddress& /* addr */, std::vector<uint8_t>& /* out */) {
   inc_func_call_count(__func__);
   return false;
 }
@@ -42,8 +41,7 @@ bool CsisClient::IsCsisClientRunning() {
   inc_func_call_count(__func__);
   return false;
 }
-void CsisClient::Initialize(CsisClientCallbacks* /* callbacks */,
-                            base::Closure /* initCb */) {
+void CsisClient::Initialize(CsisClientCallbacks* /* callbacks */, base::Closure /* initCb */) {
   inc_func_call_count(__func__);
 }
 void CsisClient::DebugDump(int /* fd */) { inc_func_call_count(__func__); }

@@ -75,6 +75,7 @@ public class BluetoothMapMessageListingElement
         return mDateTime;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getDateTimeString() {
         /* TODO: if the feature bit mask of the client supports it, add the time-zone
          *       (as for MSETime) */
@@ -266,14 +267,14 @@ public class BluetoothMapMessageListingElement
      * */
     public void encode(XmlSerializer xmlMsgElement, boolean includeThreadId)
             throws IllegalArgumentException, IllegalStateException, IOException {
-        // contruct the XML tag for a single msg in the msglisting
+        // construct the XML tag for a single msg in the msglisting
         xmlMsgElement.startTag(null, "msg");
         xmlMsgElement.attribute(null, "handle", BluetoothMapUtils.getMapHandle(mCpHandle, mType));
         if (mSubject != null) {
             String stripped = BluetoothMapUtils.stripInvalidChars(mSubject);
 
             if (DeviceWorkArounds.addressStartsWith(
-                    BluetoothMapService.getRemoteDevice().getAddress(),
+                    BluetoothMapService.getBluetoothMapService().getRemoteDevice().getAddress(),
                     DeviceWorkArounds.MERCEDES_BENZ_CARKIT)) {
                 stripped = stripped.replaceAll("[\\P{ASCII}&\"><]", "");
                 if (stripped.isEmpty()) {

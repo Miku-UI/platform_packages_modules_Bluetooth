@@ -26,7 +26,7 @@ namespace bluetooth {
 namespace dumpsys {
 
 class ReflectionSchema {
- public:
+public:
   ReflectionSchema(const std::string& pre_bundled_schema);
 
   std::string GetTitle() const;
@@ -38,7 +38,7 @@ class ReflectionSchema {
   const reflection::Schema* FindInReflectionSchema(const std::string& name) const;
   void PrintReflectionSchema() const;
 
- private:
+private:
   const BundledSchema* bundled_schema_;
   const std::string pre_bundled_schema_;
 };

@@ -55,39 +55,37 @@ constexpr uint8_t kDummyRemoteAddr[] = {0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC};
 static tL2CAP_APPL_INFO avct_appl, avct_br_appl;
 
 class FakeBtStack {
- public:
+public:
   FakeBtStack() {
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid,
-                                                          BT_HDR* hdr) {
+    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid, BT_HDR* hdr) {
       log::assert_that(cid == kDummyCid, "assert failed: cid == kDummyCid");
       ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
       osi_free(hdr);
-      return L2CAP_DW_SUCCESS;
+      return tL2CAP_DW_RESULT::SUCCESS;
     };
     test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t cid) {
       log::assert_that(cid == kDummyCid, "assert failed: cid == kDummyCid");
       return true;
     };
     test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
-        [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
-          log::assert_that(p_bd_addr == kDummyRemoteAddr,
-                           "assert failed: p_bd_addr == kDummyRemoteAddr");
-          return kDummyCid;
-        };
+            [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
+              log::assert_that(p_bd_addr == kDummyRemoteAddr,
+                               "assert failed: p_bd_addr == kDummyRemoteAddr");
+              return kDummyCid;
+            };
     test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
-        [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
-           tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
-           uint16_t required_remote_mtu, uint16_t sec_level) {
-          log::assert_that(
-              psm == AVCT_PSM || psm == AVCT_BR_PSM,
-              "assert failed: psm == AVCT_PSM || psm == AVCT_BR_PSM");
-          if (psm == AVCT_PSM) {
-            avct_appl = p_cb_info;
-          } else if (psm == AVCT_BR_PSM) {
-            avct_br_appl = p_cb_info;
-          }
-          return psm;
-        };
+            [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
+               tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
+               uint16_t sec_level) {
+              log::assert_that(psm == AVCT_PSM || psm == AVCT_BR_PSM,
+                               "assert failed: psm == AVCT_PSM || psm == AVCT_BR_PSM");
+              if (psm == AVCT_PSM) {
+                avct_appl = p_cb_info;
+              } else if (psm == AVCT_BR_PSM) {
+                avct_br_appl = p_cb_info;
+              }
+              return psm;
+            };
     test::mock::stack_l2cap_api::L2CA_Deregister.body = [](uint16_t psm) {};
   }
 
@@ -101,7 +99,7 @@ class FakeBtStack {
 };
 
 class Fakes {
- public:
+public:
   test::fake::FakeOsi fake_osi;
   FakeBtStack fake_stack;
 };
@@ -128,11 +126,9 @@ std::optional<bool> nap() { return false; }
 }  // namespace android
 #endif
 
-static void ctrl_cb(uint8_t handle, uint8_t event, uint16_t result,
-                    const RawAddress* peer_addr) {}
+static void ctrl_cb(uint8_t handle, uint8_t event, uint16_t result, const RawAddress* peer_addr) {}
 
-static void msg_cb(uint8_t handle, uint8_t label, uint8_t opcode,
-                   tAVRC_MSG* p_msg) {
+static void msg_cb(uint8_t handle, uint8_t label, uint8_t opcode, tAVRC_MSG* p_msg) {
   uint8_t scratch_buf[512];
   tAVRC_STS status;
 
@@ -184,10 +180,10 @@ static void Fuzz(const uint8_t* data, size_t size) {
   tL2CAP_APPL_INFO* appl_info = is_br ? &avct_br_appl : &avct_appl;
 
   tAVRC_CONN_CB ccb = {
-      .ctrl_cback = base::Bind(ctrl_cb),
-      .msg_cback = base::Bind(msg_cb),
-      .conn = (uint8_t)(is_initiator ? AVCT_INT : AVCT_ACP),
-      .control = (uint8_t)(is_controller ? AVCT_CONTROL : AVCT_TARGET),
+          .ctrl_cback = base::Bind(ctrl_cb),
+          .msg_cback = base::Bind(msg_cb),
+          .conn = (uint8_t)(is_initiator ? AVCT_INT : AVCT_ACP),
+          .control = (uint8_t)(is_controller ? AVCT_CONTROL : AVCT_TARGET),
   };
 
   appl_info->pL2CA_ConnectInd_Cb(kDummyRemoteAddr, kDummyCid, 0, kDummyId);

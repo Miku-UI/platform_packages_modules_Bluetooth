@@ -57,8 +57,7 @@ typedef struct {
   tHCI_STATUS hci_status;
 } tBTA_DM_REMOTE_NAME;
 
-using tBTA_DM_SEARCH_MSG =
-    std::variant<tBTA_DM_API_SEARCH, tBTA_DM_REMOTE_NAME>;
+using tBTA_DM_SEARCH_MSG = std::variant<tBTA_DM_API_SEARCH, tBTA_DM_REMOTE_NAME>;
 
 /* DM search state */
 typedef enum {
@@ -93,9 +92,7 @@ typedef struct {
 
 namespace fmt {
 template <>
-struct formatter<tBTA_DM_DEV_SEARCH_EVT>
-    : enum_formatter<tBTA_DM_DEV_SEARCH_EVT> {};
+struct formatter<tBTA_DM_DEV_SEARCH_EVT> : enum_formatter<tBTA_DM_DEV_SEARCH_EVT> {};
 template <>
-struct formatter<tBTA_DM_DEVICE_SEARCH_STATE>
-    : enum_formatter<tBTA_DM_DEVICE_SEARCH_STATE> {};
+struct formatter<tBTA_DM_DEVICE_SEARCH_STATE> : enum_formatter<tBTA_DM_DEVICE_SEARCH_STATE> {};
 }  // namespace fmt

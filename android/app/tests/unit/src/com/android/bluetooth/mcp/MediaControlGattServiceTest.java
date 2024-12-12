@@ -623,7 +623,7 @@ public class MediaControlGattServiceTest {
                 mCurrentDevice, 1, characteristic, false, true, 0, bb.array());
 
         verify(mMockMcsCallbacks)
-                .onPlaybackSpeedSetRequest(eq((float) Math.pow(2, playback_speed / 64)));
+                .onPlaybackSpeedSetRequest(eq((float) Math.pow(2, playback_speed / 64.0)));
 
         verify(mMockGattServer)
                 .sendResponse(
@@ -915,10 +915,7 @@ public class MediaControlGattServiceTest {
     }
 
     private void verifyMediaControlPointRequest(
-            int opcode,
-            Integer value,
-            int expectedGattResult,
-            int invocation_count) {
+            int opcode, Integer value, int expectedGattResult, int invocation_count) {
         ByteBuffer bb;
 
         if (expectedGattResult == BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH) {
@@ -986,44 +983,23 @@ public class MediaControlGattServiceTest {
         verifyMediaControlPointRequest(
                 Request.Opcodes.FAST_REWIND, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.FAST_FORWARD,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.FAST_FORWARD, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.STOP, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.MOVE_RELATIVE,
-                100,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.MOVE_RELATIVE, 100, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.PREVIOUS_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.PREVIOUS_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.NEXT_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.NEXT_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.FIRST_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.FIRST_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.LAST_SEGMENT,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.LAST_SEGMENT, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.GOTO_SEGMENT, 10, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.PREVIOUS_TRACK,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.PREVIOUS_TRACK, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.NEXT_TRACK, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
@@ -1033,10 +1009,7 @@ public class MediaControlGattServiceTest {
         verifyMediaControlPointRequest(
                 Request.Opcodes.GOTO_TRACK, 7, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
-                Request.Opcodes.PREVIOUS_GROUP,
-                null,
-                expectedGattResult,
-                invocation_count++);
+                Request.Opcodes.PREVIOUS_GROUP, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
                 Request.Opcodes.NEXT_GROUP, null, expectedGattResult, invocation_count++);
         verifyMediaControlPointRequest(
@@ -1095,7 +1068,7 @@ public class MediaControlGattServiceTest {
                 mCurrentDevice, 1, characteristic, false, true, 0, bb.array());
 
         verify(mMockMcsCallbacks)
-                .onPlaybackSpeedSetRequest(eq((float) Math.pow(2, playback_speed / 64)));
+                .onPlaybackSpeedSetRequest(eq((float) Math.pow(2, playback_speed / 64.0)));
 
         // Fake characteristic write - this is done by player status update
         characteristic.setValue(playback_speed, BluetoothGattCharacteristic.FORMAT_SINT8, 0);

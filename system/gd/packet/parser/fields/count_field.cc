@@ -15,6 +15,7 @@
  */
 
 #include "fields/count_field.h"
+
 #include "util.h"
 
 const std::string CountField::kFieldType = "CountField";
@@ -22,9 +23,7 @@ const std::string CountField::kFieldType = "CountField";
 CountField::CountField(std::string name, int size, ParseLocation loc)
     : ScalarField(name + "_count", size, loc), sized_field_name_(name) {}
 
-const std::string& CountField::GetFieldType() const {
-  return CountField::kFieldType;
-}
+const std::string& CountField::GetFieldType() const { return CountField::kFieldType; }
 
 void CountField::GenGetter(std::ostream& s, Size start_offset, Size end_offset) const {
   s << "protected:";
@@ -37,9 +36,7 @@ bool CountField::GenBuilderParameter(std::ostream&) const {
   return false;
 }
 
-bool CountField::HasParameterValidator() const {
-  return false;
-}
+bool CountField::HasParameterValidator() const { return false; }
 
 void CountField::GenParameterValidator(std::ostream&) const {
   // There is no builder parameter for a size field
@@ -54,6 +51,4 @@ void CountField::GenValidator(std::ostream&) const {
   // Do nothing since the fixed count fields will be handled specially.
 }
 
-std::string CountField::GetSizedFieldName() const {
-  return sized_field_name_;
-}
+std::string CountField::GetSizedFieldName() const { return sized_field_name_; }

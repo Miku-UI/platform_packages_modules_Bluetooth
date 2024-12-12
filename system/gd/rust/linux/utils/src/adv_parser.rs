@@ -6,8 +6,11 @@ use bt_topshim::bindings::root::bluetooth::Uuid;
 
 // Advertising data types.
 const FLAGS: u8 = 0x01;
+const INCOMPLETE_LIST_16_BIT_SERVICE_UUIDS: u8 = 0x02;
 const COMPLETE_LIST_16_BIT_SERVICE_UUIDS: u8 = 0x03;
+const INCOMPLETE_LIST_32_BIT_SERVICE_UUIDS: u8 = 0x04;
 const COMPLETE_LIST_32_BIT_SERVICE_UUIDS: u8 = 0x05;
+const INCOMPLETE_LIST_128_BIT_SERVICE_UUIDS: u8 = 0x06;
 const COMPLETE_LIST_128_BIT_SERVICE_UUIDS: u8 = 0x07;
 const SHORTENED_LOCAL_NAME: u8 = 0x08;
 const COMPLETE_LOCAL_NAME: u8 = 0x09;
@@ -65,6 +68,21 @@ pub fn extract_service_uuids(bytes: &[u8]) -> Vec<Uuid> {
         )
         .chain(
             iterate_adv_data(bytes, COMPLETE_LIST_128_BIT_SERVICE_UUIDS)
+                .flat_map(|slice| slice.chunks(16))
+                .filter_map(|chunk| Uuid::try_from_little_endian(chunk).ok()),
+        )
+        .chain(
+            iterate_adv_data(bytes, INCOMPLETE_LIST_16_BIT_SERVICE_UUIDS)
+                .flat_map(|slice| slice.chunks(2))
+                .filter_map(|chunk| Uuid::try_from_little_endian(chunk).ok()),
+        )
+        .chain(
+            iterate_adv_data(bytes, INCOMPLETE_LIST_32_BIT_SERVICE_UUIDS)
+                .flat_map(|slice| slice.chunks(4))
+                .filter_map(|chunk| Uuid::try_from_little_endian(chunk).ok()),
+        )
+        .chain(
+            iterate_adv_data(bytes, INCOMPLETE_LIST_128_BIT_SERVICE_UUIDS)
                 .flat_map(|slice| slice.chunks(16))
                 .filter_map(|chunk| Uuid::try_from_little_endian(chunk).ok()),
         )
@@ -164,6 +182,57 @@ mod tests {
             5,
             17,
             COMPLETE_LIST_128_BIT_SERVICE_UUIDS,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+        ];
+        let uuids = extract_service_uuids(payload.as_slice());
+        assert_eq!(uuids.len(), 3);
+        assert_eq!(
+            uuids[0],
+            Uuid::from([
+                0x0, 0x0, 0xFE, 0x2C, 0x0, 0x0, 0x10, 0x0, 0x80, 0x0, 0x0, 0x80, 0x5f, 0x9b, 0x34,
+                0xfb
+            ])
+        );
+        assert_eq!(
+            uuids[1],
+            Uuid::from([
+                0x5, 0x4, 0x3, 0x2, 0x0, 0x0, 0x10, 0x0, 0x80, 0x0, 0x0, 0x80, 0x5f, 0x9b, 0x34,
+                0xfb
+            ])
+        );
+        assert_eq!(uuids[2], Uuid::from([15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]));
+
+        let payload: Vec<u8> = vec![
+            2,
+            FLAGS,
+            3,
+            3,
+            INCOMPLETE_LIST_16_BIT_SERVICE_UUIDS,
+            0x2C,
+            0xFE,
+            5,
+            INCOMPLETE_LIST_32_BIT_SERVICE_UUIDS,
+            2,
+            3,
+            4,
+            5,
+            17,
+            INCOMPLETE_LIST_128_BIT_SERVICE_UUIDS,
             0,
             1,
             2,

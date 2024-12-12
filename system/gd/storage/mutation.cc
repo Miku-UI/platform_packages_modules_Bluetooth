@@ -39,7 +39,8 @@ void Mutation::Add(MutationEntry entry) {
     case MutationEntry::PropertyType::MEMORY_ONLY:
       memory_only_config_entries_.emplace(std::move(entry));
       break;
-      // do not write a default case so that when a new enum is defined, compilation would fail automatically
+      // do not write a default case so that when a new enum is defined, compilation would fail
+      // automatically
   }
 }
 

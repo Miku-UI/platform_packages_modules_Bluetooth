@@ -3,7 +3,7 @@ package {
 }
 
 java_library {
-    name: "pandora_experimental-grpc-java",
+    name: "pandora-grpc-java",
     visibility: [
         "//packages/modules/Bluetooth/android/pandora/server",
         "//packages/modules/Bluetooth/framework/tests/bumble",
@@ -19,7 +19,7 @@ java_library {
         "javax_annotation-api_1.3.2",
         "libprotobuf-java-lite",
         "opencensus-java-api",
-        "pandora_experimental-proto-java",
+        "pandora-proto-java",
     ],
     proto: {
         include_dirs: [
@@ -35,7 +35,7 @@ java_library {
 }
 
 java_library {
-    name: "pandora_experimental-proto-java",
+    name: "pandora-proto-java",
     visibility: [
         "//packages/modules/Bluetooth/android/pandora/server",
         "//packages/modules/Bluetooth/framework/tests/bumble",

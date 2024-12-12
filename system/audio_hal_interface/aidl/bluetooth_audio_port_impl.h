@@ -32,10 +32,9 @@ using ::aidl::android::hardware::bluetooth::audio::LatencyMode;
 using ::aidl::android::hardware::bluetooth::audio::PresentationPosition;
 
 class BluetoothAudioPortImpl : public BnBluetoothAudioPort {
- public:
-  BluetoothAudioPortImpl(
-      IBluetoothTransportInstance* transport_instance,
-      const std::shared_ptr<IBluetoothAudioProvider>& provider);
+public:
+  BluetoothAudioPortImpl(IBluetoothTransportInstance* transport_instance,
+                         const std::shared_ptr<IBluetoothAudioProvider>& provider);
 
   ndk::ScopedAStatus startStream(bool is_low_latency) override;
 
@@ -43,25 +42,22 @@ class BluetoothAudioPortImpl : public BnBluetoothAudioPort {
 
   ndk::ScopedAStatus stopStream() override;
 
-  ndk::ScopedAStatus getPresentationPosition(
-      PresentationPosition* _aidl_return) override;
+  ndk::ScopedAStatus getPresentationPosition(PresentationPosition* _aidl_return) override;
 
-  ndk::ScopedAStatus updateSourceMetadata(
-      const SourceMetadata& source_metadata) override;
+  ndk::ScopedAStatus updateSourceMetadata(const SourceMetadata& source_metadata) override;
 
-  ndk::ScopedAStatus updateSinkMetadata(
-      const SinkMetadata& sink_metadata) override;
+  ndk::ScopedAStatus updateSinkMetadata(const SinkMetadata& sink_metadata) override;
 
   ndk::ScopedAStatus setLatencyMode(LatencyMode latency_mode) override;
 
- protected:
+protected:
   virtual ~BluetoothAudioPortImpl();
 
   IBluetoothTransportInstance* transport_instance_;
   const std::shared_ptr<IBluetoothAudioProvider> provider_;
   PresentationPosition::TimeSpec timespec_convert_to_hal(const timespec& ts);
 
- private:
+private:
   ndk::ScopedAStatus switchCodec(bool isLowLatency);
 
   ndk::SpAIBinder createBinder() override;

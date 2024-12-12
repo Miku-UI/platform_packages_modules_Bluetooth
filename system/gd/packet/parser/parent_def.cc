@@ -23,7 +23,8 @@ ParentDef::ParentDef(std::string name, FieldList fields) : ParentDef(name, field
 ParentDef::ParentDef(std::string name, FieldList fields, ParentDef* parent)
     : TypeDef(name), fields_(fields), parent_(parent) {}
 
-void ParentDef::AddParentConstraint(std::string field_name, std::variant<int64_t, std::string> value) {
+void ParentDef::AddParentConstraint(std::string field_name,
+                                    std::variant<int64_t, std::string> value) {
   // NOTE: This could end up being very slow if there are a lot of constraints.
   const auto& parent_params = parent_->GetParamList();
   const auto& constrained_field = parent_params.GetField(field_name);
@@ -34,11 +35,13 @@ void ParentDef::AddParentConstraint(std::string field_name, std::variant<int64_t
 
   if (constrained_field->GetFieldType() == ScalarField::kFieldType) {
     if (!std::holds_alternative<int64_t>(value)) {
-      ERROR(constrained_field) << "Attempting to constrain a scalar field to an enum value in " << parent_->name_;
+      ERROR(constrained_field) << "Attempting to constrain a scalar field to an enum value in "
+                               << parent_->name_;
     }
   } else if (constrained_field->GetFieldType() == EnumField::kFieldType) {
     if (!std::holds_alternative<std::string>(value)) {
-      ERROR(constrained_field) << "Attempting to constrain an enum field to a scalar value in " << parent_->name_;
+      ERROR(constrained_field) << "Attempting to constrain an enum field to a scalar value in "
+                               << parent_->name_;
     }
     const auto& enum_def = static_cast<EnumField*>(constrained_field)->GetEnumDef();
     if (!enum_def.HasEntry(std::get<std::string>(value))) {
@@ -49,7 +52,8 @@ void ParentDef::AddParentConstraint(std::string field_name, std::variant<int64_t
     // For enums, we have to qualify the value using the enum type name.
     value = enum_def.GetTypeName() + "::" + std::get<std::string>(value);
   } else {
-    ERROR(constrained_field) << "Field in parent " << parent_->name_ << " is not viable for constraining.";
+    ERROR(constrained_field) << "Field in parent " << parent_->name_
+                             << " is not viable for constraining.";
   }
 
   parent_constraints_.insert(std::pair(field_name, value));
@@ -68,7 +72,8 @@ void ParentDef::AssignSizeFields() {
   for (const auto& field : fields_) {
     DEBUG() << "field name: " << field->GetName();
 
-    if (field->GetFieldType() != SizeField::kFieldType && field->GetFieldType() != CountField::kFieldType) {
+    if (field->GetFieldType() != SizeField::kFieldType &&
+        field->GetFieldType() != CountField::kFieldType) {
       continue;
     }
 
@@ -84,7 +89,8 @@ void ParentDef::AssignSizeFields() {
     for (auto it = fields_.begin(); *it != size_field; it++) {
       DEBUG() << "field name: " << (*it)->GetName();
       if (*it == var_len_field) {
-        ERROR(var_len_field, size_field) << "Size/count field must come before the variable length field it describes.";
+        ERROR(var_len_field, size_field)
+                << "Size/count field must come before the variable length field it describes.";
       }
     }
 
@@ -112,17 +118,16 @@ void ParentDef::AssignSizeFields() {
   }
 }
 
-void ParentDef::SetEndianness(bool is_little_endian) {
-  is_little_endian_ = is_little_endian;
-}
+void ParentDef::SetEndianness(bool is_little_endian) { is_little_endian_ = is_little_endian; }
 
-// Get the size. You scan specify without_payload in order to exclude payload fields as children will be overriding it.
+// Get the size. You scan specify without_payload in order to exclude payload fields as children
+// will be overriding it.
 Size ParentDef::GetSize(bool without_payload) const {
   auto size = Size(0);
 
   for (const auto& field : fields_) {
-    if (without_payload &&
-        (field->GetFieldType() == PayloadField::kFieldType || field->GetFieldType() == BodyField::kFieldType)) {
+    if (without_payload && (field->GetFieldType() == PayloadField::kFieldType ||
+                            field->GetFieldType() == BodyField::kFieldType)) {
       continue;
     }
 
@@ -144,8 +149,12 @@ Size ParentDef::GetSize(bool without_payload) const {
       if (offset.bits() % 8 != 0) {
         ERROR(field) << "Custom fields must be byte aligned.";
       }
-      if (offset.has_bits()) custom_field_size << " + " << offset.bits() / 8;
-      if (offset.has_dynamic()) custom_field_size << " + " << offset.dynamic_string();
+      if (offset.has_bits()) {
+        custom_field_size << " + " << offset.bits() / 8;
+      }
+      if (offset.has_dynamic()) {
+        custom_field_size << " + " << offset.dynamic_string();
+      }
       custom_field_size << ")";
 
       size += custom_field_size.str();
@@ -169,7 +178,8 @@ Size ParentDef::GetSize(bool without_payload) const {
 Size ParentDef::GetOffsetForField(std::string field_name, bool from_end) const {
   // Check first if the field exists.
   if (fields_.GetField(field_name) == nullptr) {
-    ERROR() << "Can't find a field offset for nonexistent field named: " << field_name << " in " << name_;
+    ERROR() << "Can't find a field offset for nonexistent field named: " << field_name << " in "
+            << name_;
   }
 
   PacketField* padded_field = nullptr;
@@ -189,7 +199,9 @@ Size ParentDef::GetOffsetForField(std::string field_name, bool from_end) const {
     auto size = Size(0);
     for (auto it = from; it != to; it++) {
       // We've reached the field, end the loop.
-      if ((*it)->GetName() == field_name) break;
+      if ((*it)->GetName() == field_name) {
+        break;
+      }
       const auto& field = *it;
       // If there is a field with an unknown size before the field, return an empty Size.
       if (field->GetSize().empty() && padded_field != field) {
@@ -206,24 +218,29 @@ Size ParentDef::GetOffsetForField(std::string field_name, bool from_end) const {
 
   // Change iteration direction based on from_end.
   auto size = Size();
-  if (from_end)
+  if (from_end) {
     size = size_lambda(fields_.rbegin(), fields_.rend());
-  else
+  } else {
     size = size_lambda(fields_.begin(), fields_.end());
-  if (size.empty()) return size;
+  }
+  if (size.empty()) {
+    return size;
+  }
 
   // We need the offset until a payload or body field.
   if (parent_ != nullptr) {
     if (parent_->fields_.HasPayload()) {
       auto parent_payload_offset = parent_->GetOffsetForField("payload", from_end);
       if (parent_payload_offset.empty()) {
-        ERROR() << "Empty offset for payload in " << parent_->name_ << " finding the offset for field: " << field_name;
+        ERROR() << "Empty offset for payload in " << parent_->name_
+                << " finding the offset for field: " << field_name;
       }
       size += parent_payload_offset;
     } else {
       auto parent_body_offset = parent_->GetOffsetForField("body", from_end);
       if (parent_body_offset.empty()) {
-        ERROR() << "Empty offset for body in " << parent_->name_ << " finding the offset for field: " << field_name;
+        ERROR() << "Empty offset for body in " << parent_->name_
+                << " finding the offset for field: " << field_name;
       }
       size += parent_body_offset;
     }
@@ -236,14 +253,14 @@ FieldList ParentDef::GetParamList() const {
   FieldList params;
 
   std::set<std::string> param_types = {
-      ScalarField::kFieldType,
-      EnumField::kFieldType,
-      ArrayField::kFieldType,
-      VectorField::kFieldType,
-      CustomField::kFieldType,
-      StructField::kFieldType,
-      VariableLengthStructField::kFieldType,
-      PayloadField::kFieldType,
+          ScalarField::kFieldType,
+          EnumField::kFieldType,
+          ArrayField::kFieldType,
+          VectorField::kFieldType,
+          CustomField::kFieldType,
+          StructField::kFieldType,
+          VariableLengthStructField::kFieldType,
+          PayloadField::kFieldType,
   };
 
   if (parent_ != nullptr) {
@@ -400,15 +417,18 @@ void ParentDef::GenSerialize(std::ostream& s) const {
         if (modifier != "") {
           s << "payload_bytes = payload_bytes + " << modifier.substr(1) << ";";
         }
-        s << "ASSERT(payload_bytes < (static_cast<size_t>(1) << " << field->GetSize().bits() << "));";
-        s << "insert(static_cast<" << field->GetDataType() << ">(payload_bytes), i," << field->GetSize().bits() << ");";
+        s << "ASSERT(payload_bytes < (static_cast<size_t>(1) << " << field->GetSize().bits()
+          << "));";
+        s << "insert(static_cast<" << field->GetDataType() << ">(payload_bytes), i,"
+          << field->GetSize().bits() << ");";
       } else if (sized_field->GetFieldType() == BodyField::kFieldType) {
         s << field->GetName() << "_extracted_ = 0;";
         s << "size_t local_size = " << name_ << "::size();";
 
-        s << "ASSERT((size() - local_size) < (static_cast<size_t>(1) << " << field->GetSize().bits() << "));";
-        s << "insert(static_cast<" << field->GetDataType() << ">(size() - local_size), i," << field->GetSize().bits()
-          << ");";
+        s << "ASSERT((size() - local_size) < (static_cast<size_t>(1) << " << field->GetSize().bits()
+          << "));";
+        s << "insert(static_cast<" << field->GetDataType() << ">(size() - local_size), i,"
+          << field->GetSize().bits() << ");";
       } else {
         if (sized_field->GetFieldType() != VectorField::kFieldType) {
           ERROR(field) << __func__ << ": Unhandled sized field type for " << field_name;
@@ -436,14 +456,15 @@ void ParentDef::GenSerialize(std::ostream& s) const {
       const auto& field_name = ((ChecksumStartField*)field)->GetStartedFieldName();
       const auto& started_field = fields_.GetField(field_name);
       if (started_field == nullptr) {
-        ERROR(field) << __func__ << ": Can't find checksum field named " << field_name << "(" << field->GetName()
-                     << ")";
+        ERROR(field) << __func__ << ": Can't find checksum field named " << field_name << "("
+                     << field->GetName() << ")";
       }
       s << "auto shared_checksum_ptr = std::make_shared<" << started_field->GetDataType() << ">();";
       s << "shared_checksum_ptr->Initialize();";
       s << "i.RegisterObserver(packet::ByteObserver(";
       s << "[shared_checksum_ptr](uint8_t byte){ shared_checksum_ptr->AddByte(byte);},";
-      s << "[shared_checksum_ptr](){ return static_cast<uint64_t>(shared_checksum_ptr->GetChecksum());}));";
+      s << "[shared_checksum_ptr](){ return "
+           "static_cast<uint64_t>(shared_checksum_ptr->GetChecksum());}));";
     } else if (field->GetFieldType() == PaddingField::kFieldType) {
       s << "ASSERT(unpadded_size <= " << field->GetSize().bytes() << ");";
       s << "size_t padding_bytes = ";
@@ -495,8 +516,8 @@ void ParentDef::GenInstanceOf(std::ostream& s) const {
     s << "static bool IsInstance(const " << parent_->name_ << "& parent) {";
     // Get the list of parent params.
     FieldList parent_params = parent_->GetParamList().GetFieldsWithoutTypes({
-        PayloadField::kFieldType,
-        BodyField::kFieldType,
+            PayloadField::kFieldType,
+            BodyField::kFieldType,
     });
 
     // Check if constrained parent fields are set to their correct values.
@@ -570,8 +591,7 @@ std::string ParentDef::FindConstraintField() const {
 }
 
 std::map<const ParentDef*, const std::variant<int64_t, std::string>>
-    ParentDef::FindDescendantsWithConstraint(
-    std::string constraint_name) const {
+ParentDef::FindDescendantsWithConstraint(std::string constraint_name) const {
   std::map<const ParentDef*, const std::variant<int64_t, std::string>> res;
 
   for (auto const& child : children_) {
@@ -602,6 +622,4 @@ std::vector<const ParentDef*> ParentDef::FindPathToDescendant(std::string descen
   return res;
 }
 
-bool ParentDef::HasChildEnums() const {
-  return !children_.empty() || fields_.HasPayload();
-}
+bool ParentDef::HasChildEnums() const { return !children_.empty() || fields_.HasPayload(); }

@@ -33,28 +33,28 @@ namespace bluetooth {
 namespace hci {
 
 class AddressWithType final : public bluetooth::common::IRedactableLoggable {
- public:
+public:
   AddressWithType(Address address, AddressType address_type)
       : address_(std::move(address)), address_type_(address_type) {}
 
-  explicit AddressWithType() : address_(Address::kEmpty), address_type_(AddressType::PUBLIC_DEVICE_ADDRESS) {}
+  explicit AddressWithType()
+      : address_(Address::kEmpty), address_type_(AddressType::PUBLIC_DEVICE_ADDRESS) {}
 
-  inline Address GetAddress() const {
-    return address_;
-  }
+  inline Address GetAddress() const { return address_; }
 
-  inline AddressType GetAddressType() const {
-    return address_type_;
-  }
+  inline AddressType GetAddressType() const { return address_type_; }
 
   /* Is this an Resolvable Private Address ? */
   inline bool IsRpa() const {
-    return address_type_ == hci::AddressType::RANDOM_DEVICE_ADDRESS && ((address_.data())[5] & 0xc0) == 0x40;
+    return address_type_ == hci::AddressType::RANDOM_DEVICE_ADDRESS &&
+           ((address_.data())[5] & 0xc0) == 0x40;
   }
 
   /* Is this an Resolvable Private Address, that was generated from given irk ? */
   bool IsRpaThatMatchesIrk(const hci::Octet16& irk) const {
-    if (!IsRpa()) return false;
+    if (!IsRpa()) {
+      return false;
+    }
 
     /* use the 3 MSB of bd address as prand */
     Octet16 prand{};
@@ -81,18 +81,10 @@ class AddressWithType final : public bluetooth::common::IRedactableLoggable {
   bool operator==(const AddressWithType& rhs) const {
     return address_ == rhs.address_ && address_type_ == rhs.address_type_;
   }
-  bool operator>(const AddressWithType& rhs) const {
-    return (rhs < *this);
-  }
-  bool operator<=(const AddressWithType& rhs) const {
-    return !(*this > rhs);
-  }
-  bool operator>=(const AddressWithType& rhs) const {
-    return !(*this < rhs);
-  }
-  bool operator!=(const AddressWithType& rhs) const {
-    return !(*this == rhs);
-  }
+  bool operator>(const AddressWithType& rhs) const { return rhs < *this; }
+  bool operator<=(const AddressWithType& rhs) const { return !(*this > rhs); }
+  bool operator>=(const AddressWithType& rhs) const { return !(*this < rhs); }
+  bool operator!=(const AddressWithType& rhs) const { return !(*this == rhs); }
 
   FilterAcceptListAddressType ToFilterAcceptListAddressType() const {
     switch (address_type_) {
@@ -127,10 +119,10 @@ class AddressWithType final : public bluetooth::common::IRedactableLoggable {
   }
 
   std::string ToRedactedStringForLogging() const override {
-    return address_.ToStringForLogging() + "[" + AddressTypeText(address_type_) + "]";
+    return address_.ToRedactedStringForLogging() + "[" + AddressTypeText(address_type_) + "]";
   }
 
- private:
+private:
   Address address_;
   AddressType address_type_;
 };
@@ -147,12 +139,14 @@ namespace std {
 template <>
 struct hash<bluetooth::hci::AddressWithType> {
   std::size_t operator()(const bluetooth::hci::AddressWithType& val) const {
-    static_assert(sizeof(uint64_t) >= (bluetooth::hci::Address::kLength + sizeof(bluetooth::hci::AddressType)));
+    static_assert(sizeof(uint64_t) >=
+                  (bluetooth::hci::Address::kLength + sizeof(bluetooth::hci::AddressType)));
     uint64_t int_addr = 0;
-    memcpy(reinterpret_cast<uint8_t*>(&int_addr), val.GetAddress().data(), bluetooth::hci::Address::kLength);
+    memcpy(reinterpret_cast<uint8_t*>(&int_addr), val.GetAddress().data(),
+           bluetooth::hci::Address::kLength);
     bluetooth::hci::AddressType address_type = val.GetAddressType();
-    memcpy(
-        reinterpret_cast<uint8_t*>(&int_addr) + bluetooth::hci::Address::kLength, &address_type, sizeof(address_type));
+    memcpy(reinterpret_cast<uint8_t*>(&int_addr) + bluetooth::hci::Address::kLength, &address_type,
+           sizeof(address_type));
     return std::hash<uint64_t>{}(int_addr);
   }
 };
@@ -165,11 +159,9 @@ namespace fmt {
 template <>
 struct formatter<bluetooth::hci::AddressWithType> : formatter<std::string> {
   template <class Context>
-  typename Context::iterator format(
-      const bluetooth::hci::AddressWithType& address, Context& ctx) const {
-    std::string repr = bluetooth::os::should_log_be_redacted()
-                           ? address.ToRedactedStringForLogging()
-                           : address.ToStringForLogging();
+  typename Context::iterator format(const bluetooth::hci::AddressWithType& address,
+                                    Context& ctx) const {
+    std::string repr = address.ToRedactedStringForLogging();
     return fmt::formatter<std::string>::format(repr, ctx);
   }
 };

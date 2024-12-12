@@ -67,9 +67,8 @@
 
 #define AVRC_SINGLE_PARAM_SIZE 1
 #define AVRC_METADATA_PKT_TYPE_MASK 0x03
-#define AVRC_PASS_THOUGH_MSG_MASK \
-  0x80 /* MSB of msg_type indicates the PAS THROUGH msg */
-#define AVRC_VENDOR_UNIQUE_MASK 0x70 /* vendor unique id */
+#define AVRC_PASS_THOUGH_MSG_MASK 0x80 /* MSB of msg_type indicates the PAS THROUGH msg */
+#define AVRC_VENDOR_UNIQUE_MASK 0x70   /* vendor unique id */
 
 /* Company ID is 24-bit integer We can not use the macros in bt_types.h */
 #define AVRC_CO_ID_TO_BE_STREAM(p, u32) \
@@ -92,15 +91,13 @@
 
 #define AVRC_VENDOR_HDR_SIZE 6 /* ctype, subunit*, opcode, CO_ID */
 #define AVRC_MSG_VENDOR_OFFSET 23
-#define AVRC_MIN_VENDOR_SIZE \
-  (AVRC_MSG_VENDOR_OFFSET + BT_HDR_SIZE + AVRC_MIN_META_HDR_SIZE)
+#define AVRC_MIN_VENDOR_SIZE (AVRC_MSG_VENDOR_OFFSET + BT_HDR_SIZE + AVRC_MIN_META_HDR_SIZE)
 
 #define AVRC_PASS_THRU_SIZE 8
 #define AVRC_MSG_PASS_THRU_OFFSET 25
 #define AVRC_MIN_PASS_THRU_SIZE (AVRC_MSG_PASS_THRU_OFFSET + BT_HDR_SIZE + 4)
 
-#define AVRC_MIN_BROWSE_SIZE \
-  (AVCT_BROWSE_OFFSET + BT_HDR_SIZE + AVRC_MIN_BROWSE_HDR_SIZE)
+#define AVRC_MIN_BROWSE_SIZE (AVCT_BROWSE_OFFSET + BT_HDR_SIZE + AVRC_MIN_BROWSE_HDR_SIZE)
 
 #define AVRC_CTRL_PKT_LEN(pf, pk) \
   { (pf) = (uint8_t*)((pk) + 1) + (pk)->offset + 2; }
@@ -135,22 +132,19 @@ typedef struct {
 
 /* AVRC internal connection control block */
 typedef struct {
-  fixed_queue_t*
-      cmd_q;     /* Command queue for serializing vendor specific commands */
-  uint8_t flags; /* See AVRC_CB_FLAGS_* definitions */
-  alarm_t* tle;  /* Command timeout timer */
+  fixed_queue_t* cmd_q; /* Command queue for serializing vendor specific commands */
+  uint8_t flags;        /* See AVRC_CB_FLAGS_* definitions */
+  alarm_t* tle;         /* Command timeout timer */
 } tAVRC_CONN_INT_CB;
 
 typedef struct {
-  tAVRC_CONN_CB
-      ccb[AVCT_NUM_CONN]; /* Connection control block from AVRC_Open API */
-  tAVRC_CONN_INT_CB
-      ccb_int[AVCT_NUM_CONN]; /* Internal connection control block  */
+  tAVRC_CONN_CB ccb[AVCT_NUM_CONN];         /* Connection control block from AVRC_Open API */
+  tAVRC_CONN_INT_CB ccb_int[AVCT_NUM_CONN]; /* Internal connection control block  */
   tAVRC_FRAG_CB fcb[AVCT_NUM_CONN];
   tAVRC_RASM_CB rcb[AVCT_NUM_CONN];
   tAVRC_FIND_CBACK find_cback; /* sdp discovery callback */
-  tSDP_DISCOVERY_DB* p_db;   /* pointer to discovery database */
-  uint16_t service_uuid;     /* service UUID to search */
+  tSDP_DISCOVERY_DB* p_db;     /* pointer to discovery database */
+  uint16_t service_uuid;       /* service UUID to search */
 } tAVRC_CB;
 
 /******************************************************************************
@@ -161,8 +155,7 @@ extern tAVRC_CB avrc_cb;
 bool avrc_is_valid_pdu_id(uint8_t pdu_id);
 bool avrc_is_valid_player_attrib_value(uint8_t attrib, uint8_t value);
 BT_HDR* avrc_alloc_ctrl_pkt(uint8_t pdu);
-tAVRC_STS avrc_pars_pass_thru(tAVRC_MSG_PASS* p_msg,
-                              uint16_t* p_vendor_unique_id);
+tAVRC_STS avrc_pars_pass_thru(tAVRC_MSG_PASS* p_msg, uint16_t* p_vendor_unique_id);
 uint8_t avrc_opcode_from_pdu(uint8_t pdu);
 bool avrc_is_valid_opcode(uint8_t opcode);
 void avrc_flush_cmd_q(uint8_t handle);

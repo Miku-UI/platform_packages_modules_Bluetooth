@@ -39,14 +39,10 @@ namespace acl_manager {
 namespace {
 
 class TestController : public Controller {
- public:
-  uint16_t GetNumAclPacketBuffers() const {
-    return max_acl_packet_credits_;
-  }
+public:
+  uint16_t GetNumAclPacketBuffers() const { return max_acl_packet_credits_; }
 
-  uint16_t GetAclPacketLength() const {
-    return hci_mtu_;
-  }
+  uint16_t GetAclPacketLength() const { return hci_mtu_; }
 
   LeBufferSize GetLeBufferSize() const {
     LeBufferSize le_buffer_size;
@@ -63,28 +59,27 @@ class TestController : public Controller {
     acl_credits_callback_(handle, credits);
   }
 
-  void UnregisterCompletedAclPacketsCallback() {
-    acl_credits_callback_ = {};
-  }
+  void UnregisterCompletedAclPacketsCallback() { acl_credits_callback_ = {}; }
 
   const uint16_t max_acl_packet_credits_ = 10;
   const uint16_t hci_mtu_ = 1024;
   const uint16_t le_max_acl_packet_credits_ = 15;
   const uint16_t le_hci_mtu_ = 27;
 
- private:
+private:
   CompletedAclPacketsCallback acl_credits_callback_;
 };
 
 class RoundRobinSchedulerTest : public ::testing::Test {
- public:
+public:
   void SetUp() override {
     thread_ = new Thread("thread", Thread::Priority::NORMAL);
     handler_ = new Handler(thread_);
     controller_ = new TestController();
     round_robin_scheduler_ = new RoundRobinScheduler(handler_, controller_, hci_queue_.GetUpEnd());
     hci_queue_.GetDownEnd()->RegisterDequeue(
-        handler_, common::Bind(&RoundRobinSchedulerTest::HciDownEndDequeue, common::Unretained(this)));
+            handler_,
+            common::Bind(&RoundRobinSchedulerTest::HciDownEndDequeue, common::Unretained(this)));
   }
 
   void TearDown() override {
@@ -98,9 +93,8 @@ class RoundRobinSchedulerTest : public ::testing::Test {
 
   void sync_handler() {
     log::assert_that(thread_ != nullptr, "assert failed: thread_ != nullptr");
-    log::assert_that(
-        thread_->GetReactor()->WaitForIdle(2s),
-        "assert failed: thread_->GetReactor()->WaitForIdle(2s)");
+    log::assert_that(thread_->GetReactor()->WaitForIdle(2s),
+                     "assert failed: thread_->GetReactor()->WaitForIdle(2s)");
   }
 
   void EnqueueAclUpEnd(AclConnection::QueueUpEnd* queue_up_end, std::vector<uint8_t> packet) {
@@ -109,18 +103,19 @@ class RoundRobinSchedulerTest : public ::testing::Test {
     }
     enqueue_promise_ = std::make_unique<std::promise<void>>();
     enqueue_future_ = std::make_unique<std::future<void>>(enqueue_promise_->get_future());
-    queue_up_end->RegisterEnqueue(handler_, common::Bind(&RoundRobinSchedulerTest::enqueue_callback,
-                                                         common::Unretained(this), queue_up_end, packet));
+    queue_up_end->RegisterEnqueue(handler_,
+                                  common::Bind(&RoundRobinSchedulerTest::enqueue_callback,
+                                               common::Unretained(this), queue_up_end, packet));
   }
 
-  std::unique_ptr<packet::BasePacketBuilder> enqueue_callback(AclConnection::QueueUpEnd* queue_up_end,
-                                                              std::vector<uint8_t> packet) {
+  std::unique_ptr<packet::BasePacketBuilder> enqueue_callback(
+          AclConnection::QueueUpEnd* queue_up_end, std::vector<uint8_t> packet) {
     auto packet_one = std::make_unique<packet::RawBuilder>(2000);
     packet_one->AddOctets(packet);
     queue_up_end->UnregisterEnqueue();
     enqueue_promise_->set_value();
     return packet_one;
-  };
+  }
 
   void HciDownEndDequeue() {
     auto packet = hci_queue_.GetDownEnd()->TryDequeue();
@@ -178,14 +173,16 @@ TEST_F(RoundRobinSchedulerTest, startup_teardown) {}
 TEST_F(RoundRobinSchedulerTest, register_unregister_connection) {
   uint16_t handle = 0x01;
   auto connection_queue = std::make_shared<AclConnection::Queue>(10);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle, connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   connection_queue);
   round_robin_scheduler_->Unregister(handle);
 }
 
 TEST_F(RoundRobinSchedulerTest, buffer_packet) {
   uint16_t handle = 0x01;
   auto connection_queue = std::make_shared<AclConnection::Queue>(10);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle, connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   connection_queue);
 
   ASSERT_NO_FATAL_FAILURE(SetPacketFuture(2));
   AclConnection::QueueUpEnd* queue_up_end = connection_queue->GetUpEnd();
@@ -208,8 +205,10 @@ TEST_F(RoundRobinSchedulerTest, buffer_packet_from_two_connections) {
   auto connection_queue = std::make_shared<AclConnection::Queue>(10);
   auto le_connection_queue = std::make_shared<AclConnection::Queue>(10);
 
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle, connection_queue);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle, le_connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle,
+                                   le_connection_queue);
 
   ASSERT_NO_FATAL_FAILURE(SetPacketFuture(2));
   AclConnection::QueueUpEnd* queue_up_end = connection_queue->GetUpEnd();
@@ -232,7 +231,8 @@ TEST_F(RoundRobinSchedulerTest, buffer_packet_from_two_connections) {
 TEST_F(RoundRobinSchedulerTest, do_not_register_when_credits_is_zero) {
   uint16_t handle = 0x01;
   auto connection_queue = std::make_shared<AclConnection::Queue>(15);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle, connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   connection_queue);
 
   ASSERT_NO_FATAL_FAILURE(SetPacketFuture(10));
   AclConnection::QueueUpEnd* queue_up_end = connection_queue->GetUpEnd();
@@ -284,10 +284,14 @@ TEST_F(RoundRobinSchedulerTest, buffer_packet_intervally) {
   AclConnection::QueueUpEnd* le_queue_up_end1 = le_connection_queue1->GetUpEnd();
   AclConnection::QueueUpEnd* le_queue_up_end2 = le_connection_queue2->GetUpEnd();
 
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle1, connection_queue1);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle2, connection_queue2);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle1, le_connection_queue1);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle2, le_connection_queue2);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle1,
+                                   connection_queue1);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle2,
+                                   connection_queue2);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle1,
+                                   le_connection_queue1);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle2,
+                                   le_connection_queue2);
 
   std::vector<uint8_t> packet = {0x01, 0x02, 0x03};
   EnqueueAclUpEnd(queue_up_end1, packet);
@@ -332,8 +336,10 @@ TEST_F(RoundRobinSchedulerTest, send_fragments_without_interval) {
   auto connection_queue = std::make_shared<AclConnection::Queue>(10);
   auto le_connection_queue = std::make_shared<AclConnection::Queue>(10);
 
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle, connection_queue);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle, le_connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle,
+                                   le_connection_queue);
 
   ASSERT_NO_FATAL_FAILURE(SetPacketFuture(5));
   AclConnection::QueueUpEnd* queue_up_end = connection_queue->GetUpEnd();
@@ -378,11 +384,13 @@ TEST_F(RoundRobinSchedulerTest, receive_le_credit_when_next_fragment_is_classic)
   auto connection_queue = std::make_shared<AclConnection::Queue>(20);
   auto le_connection_queue = std::make_shared<AclConnection::Queue>(20);
 
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle, connection_queue);
-  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle, le_connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   connection_queue);
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::LE, le_handle,
+                                   le_connection_queue);
 
-  ASSERT_NO_FATAL_FAILURE(
-      SetPacketFuture(controller_->le_max_acl_packet_credits_ + controller_->max_acl_packet_credits_));
+  ASSERT_NO_FATAL_FAILURE(SetPacketFuture(controller_->le_max_acl_packet_credits_ +
+                                          controller_->max_acl_packet_credits_));
   AclConnection::QueueUpEnd* queue_up_end = connection_queue->GetUpEnd();
   AclConnection::QueueUpEnd* le_queue_up_end = le_connection_queue->GetUpEnd();
   std::vector<uint8_t> huge_packet(2000);

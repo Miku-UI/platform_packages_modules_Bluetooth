@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include "avrcp_packet.h"
+
 #include <gtest/gtest.h>
 
-#include "avrcp_packet.h"
 #include "avrcp_test_packets.h"
 #include "packet_test_helper.h"
 
@@ -24,23 +25,22 @@ namespace bluetooth {
 
 // A helper class that has public accessors to protected methods
 class TestPacketBuilder : public PacketBuilder {
- public:
-  static std::unique_ptr<TestPacketBuilder> MakeBuilder(
-      std::vector<uint8_t> data) {
+public:
+  static std::unique_ptr<TestPacketBuilder> MakeBuilder(std::vector<uint8_t> data) {
     std::unique_ptr<TestPacketBuilder> builder(new TestPacketBuilder(data));
     return builder;
-  };
+  }
 
   // Make all the utility functions public
-  using PacketBuilder::ReserveSpace;
   using PacketBuilder::AddPayloadOctets1;
   using PacketBuilder::AddPayloadOctets2;
   using PacketBuilder::AddPayloadOctets3;
   using PacketBuilder::AddPayloadOctets4;
   using PacketBuilder::AddPayloadOctets6;
   using PacketBuilder::AddPayloadOctets8;
+  using PacketBuilder::ReserveSpace;
 
-  size_t size() const override { return data_.size(); };
+  size_t size() const override { return data_.size(); }
 
   bool Serialize(const std::shared_ptr<Packet>& pkt) override {
     ReserveSpace(pkt, size());
@@ -52,7 +52,7 @@ class TestPacketBuilder : public PacketBuilder {
     return true;
   }
 
-  TestPacketBuilder(std::vector<uint8_t> data) : data_(data){};
+  TestPacketBuilder(std::vector<uint8_t> data) : data_(data) {}
 
   std::vector<uint8_t> data_;
 };
@@ -62,13 +62,12 @@ namespace avrcp {
 using TestAvrcpPacket = TestPacketType<Packet>;
 
 TEST(AvrcpPacketBuilderTest, buildPacketTest) {
-  std::vector<uint8_t> get_capabilities_request_payload = {
-      0x00, 0x19, 0x58, 0x10, 0x00, 0x00, 0x01, 0x03};
-  auto cap_req_builder =
-      TestPacketBuilder::MakeBuilder(get_capabilities_request_payload);
+  std::vector<uint8_t> get_capabilities_request_payload = {0x00, 0x19, 0x58, 0x10,
+                                                           0x00, 0x00, 0x01, 0x03};
+  auto cap_req_builder = TestPacketBuilder::MakeBuilder(get_capabilities_request_payload);
 
-  auto builder = PacketBuilder::MakeBuilder(
-      CType::STATUS, 0x09, 0x00, Opcode::VENDOR, std::move(cap_req_builder));
+  auto builder = PacketBuilder::MakeBuilder(CType::STATUS, 0x09, 0x00, Opcode::VENDOR,
+                                            std::move(cap_req_builder));
 
   ASSERT_EQ(builder->size(), get_capabilities_request.size());
 
@@ -101,8 +100,7 @@ TEST(AvrcpPacketTest, getterMaskTests) {
 TEST(AvrcpPacketTest, payloadBoundsTest) {
   auto test_avrcp_packet = TestAvrcpPacket::Make(get_capabilities_request);
 
-  std::vector<uint8_t> get_cap_payload_data = {0x00, 0x19, 0x58, 0x10,
-                                               0x00, 0x00, 0x01, 0x03};
+  std::vector<uint8_t> get_cap_payload_data = {0x00, 0x19, 0x58, 0x10, 0x00, 0x00, 0x01, 0x03};
 
   auto get_cap_payload_packet = TestAvrcpPacket::Make(test_avrcp_packet);
 

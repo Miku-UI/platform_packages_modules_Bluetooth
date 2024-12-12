@@ -21,17 +21,14 @@ namespace avrcp {
 
 std::unique_ptr<GeneralRejectBuilder> GeneralRejectBuilder::MakeBuilder(Status reason) {
   std::unique_ptr<GeneralRejectBuilder> builder =
-      std::unique_ptr<GeneralRejectBuilder>(new GeneralRejectBuilder(reason));
+          std::unique_ptr<GeneralRejectBuilder>(new GeneralRejectBuilder(reason));
 
   return builder;
 }
 
-size_t GeneralRejectBuilder::size() const {
-  return BrowsePacket::kMinSize() + 1;
-}
+size_t GeneralRejectBuilder::size() const { return BrowsePacket::kMinSize() + 1; }
 
-bool GeneralRejectBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool GeneralRejectBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   BrowsePacketBuilder::PushHeader(pkt, size() - BrowsePacket::kMinSize());

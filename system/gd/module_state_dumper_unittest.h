@@ -23,10 +23,10 @@
 using namespace bluetooth;
 
 class StateDumperTestModule : public Module, public ModuleMainloop {
- public:
+public:
   static const bluetooth::ModuleFactory Factory;
 
- protected:
+protected:
   bool IsStarted() const;
 
   void ListDependencies(bluetooth::ModuleList* /* list */) const override {}
@@ -36,7 +36,7 @@ class StateDumperTestModule : public Module, public ModuleMainloop {
 
   DumpsysDataFinisher GetDumpsysData(flatbuffers::FlatBufferBuilder* builder) const override;
 
- private:
+private:
   struct PrivateImpl;
   std::shared_ptr<StateDumperTestModule::PrivateImpl> pimpl_;
 

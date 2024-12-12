@@ -19,13 +19,9 @@
 #include <android/hardware/bluetooth/1.1/IBluetoothHciCallbacks.h>
 #include <bluetooth/log.h>
 
-#include "common/init_flags.h"
 #include "common/stop_watch.h"
-#include "common/strings.h"
 #include "hal/hci_backend.h"
-#include "hal/hci_hal.h"
 #include "os/alarm.h"
-#include "os/log.h"
 #include "os/system_properties.h"
 
 using ::android::hardware::hidl_vec;
@@ -41,7 +37,7 @@ using IBluetoothHciCallbacks_1_1 = ::android::hardware::bluetooth::V1_1::IBlueto
 namespace bluetooth::hal {
 
 class HidlHciCallbacks : public IBluetoothHciCallbacks_1_1 {
- public:
+public:
   HidlHciCallbacks(std::shared_ptr<HciBackendCallbacks> callbacks) : callbacks_(callbacks) {}
 
   using HidlStatus = ::android::hardware::bluetooth::V1_0::Status;
@@ -71,15 +67,15 @@ class HidlHciCallbacks : public IBluetoothHciCallbacks_1_1 {
     return Void();
   }
 
- private:
+private:
   std::shared_ptr<HciBackendCallbacks> callbacks_;
 };
 
 class HidlHci : public HciBackend {
   class DeathRecipient : public ::android::hardware::hidl_death_recipient {
-   public:
-    virtual void serviceDied(
-        uint64_t /*cookie*/, const android::wp<::android::hidl::base::V1_0::IBase>& /*who*/) {
+  public:
+    virtual void serviceDied(uint64_t /*cookie*/,
+                             const android::wp<::android::hidl::base::V1_0::IBase>& /*who*/) {
       log::error("The Bluetooth HAL service died. Dumping logs and crashing in 1 second.");
       common::StopWatch::DumpStopWatchLog();
       // At shutdown, sometimes the HAL service gets killed before Bluetooth.
@@ -88,35 +84,44 @@ class HidlHci : public HciBackend {
     }
   };
 
- public:
+public:
   HidlHci(Handler* module_handler) {
     log::info("Trying to find a HIDL interface");
+    const int32_t timeout_ms = get_adjusted_timeout(500);
 
     auto get_service_alarm = new os::Alarm(module_handler);
     get_service_alarm->Schedule(
-        BindOnce([] {
-          const std::string kBoardProperty = "ro.product.board";
-          const std::string kCuttlefishBoard = "cutf";
-          auto board_name = os::GetSystemProperty(kBoardProperty);
-          bool emulator = board_name.has_value() && board_name.value() == kCuttlefishBoard;
-          if (emulator) {
-            log::error("board_name: {}", board_name.value());
-            log::error(
-                "Unable to get a Bluetooth service after 500ms, start the HAL before starting "
-                "Bluetooth");
-            return;
-          }
-          log::fatal(
-              "Unable to get a Bluetooth service after 500ms, start the HAL before starting "
-              "Bluetooth");
-        }),
-        std::chrono::milliseconds(500));
+            BindOnce(
+                    [](uint32_t timeout_ms) {
+                      const std::string kBoardProperty = "ro.product.board";
+                      const std::string kCuttlefishBoard = "cutf";
+                      auto board_name = os::GetSystemProperty(kBoardProperty);
+                      bool emulator =
+                              board_name.has_value() && board_name.value() == kCuttlefishBoard;
+                      if (emulator) {
+                        log::error("board_name: {}", board_name.value());
+                        log::error(
+                                "Unable to get a Bluetooth service after {}ms, start "
+                                "the HAL before starting "
+                                "Bluetooth",
+                                timeout_ms);
+                        return;
+                      }
+                      log::fatal(
+                              "Unable to get a Bluetooth service after {}ms, start "
+                              "the HAL before starting "
+                              "Bluetooth",
+                              timeout_ms);
+                    },
+                    timeout_ms),
+            std::chrono::milliseconds(timeout_ms));
 
     hci_1_1_ = IBluetoothHci_1_1::getService();
-    if (hci_1_1_)
+    if (hci_1_1_) {
       hci_ = hci_1_1_;
-    else
+    } else {
       hci_ = IBluetoothHci_1_0::getService();
+    }
 
     get_service_alarm->Cancel();
     delete get_service_alarm;
@@ -144,23 +149,20 @@ class HidlHci : public HciBackend {
 
   void initialize(std::shared_ptr<HciBackendCallbacks> callbacks) override {
     hci_callbacks_ = new HidlHciCallbacks(callbacks);
-    if (hci_1_1_ != nullptr)
+    if (hci_1_1_ != nullptr) {
       hci_1_1_->initialize_1_1(hci_callbacks_);
-    else
+    } else {
       hci_->initialize(hci_callbacks_);
+    }
   }
 
   void sendHciCommand(const std::vector<uint8_t>& command) override {
     hci_->sendHciCommand(command);
   }
 
-  void sendAclData(const std::vector<uint8_t>& packet) override {
-    hci_->sendAclData(packet);
-  }
+  void sendAclData(const std::vector<uint8_t>& packet) override { hci_->sendAclData(packet); }
 
-  void sendScoData(const std::vector<uint8_t>& packet) override {
-    hci_->sendScoData(packet);
-  }
+  void sendScoData(const std::vector<uint8_t>& packet) override { hci_->sendScoData(packet); }
 
   void sendIsoData(const std::vector<uint8_t>& packet) override {
     if (hci_1_1_ == nullptr) {
@@ -170,7 +172,21 @@ class HidlHci : public HciBackend {
     hci_1_1_->sendIsoData(packet);
   }
 
- private:
+private:
+  static int32_t get_adjusted_timeout(int32_t timeout) {
+    // Slower devices set this property.  While waiting longer for bluetooth
+    // is a poor user experience, it's not unexpected on these devices.
+    // At the same time, we don't get arbitrarily long to start up bluetooth.
+    // There are other, more concretely set timeouts which can get triggered,
+    // and having a timeout here helps narrow down the problematic area.
+    // As a pragmatic compromise, we cap this multiplier at 2.
+    const uint32_t multiplier = os::GetSystemPropertyUint32("ro.hw_timeout_multiplier", 1);
+    if (multiplier > 1) {
+      return timeout * 2;
+    }
+    return timeout;
+  }
+
   android::sp<DeathRecipient> death_recipient_;
   android::sp<HidlHciCallbacks> hci_callbacks_;
   android::sp<IBluetoothHci_1_0> hci_;

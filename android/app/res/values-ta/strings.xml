@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"பட்டியலிலிருந்து அழி"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"அழி"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"பாடல் விவரம்"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"சேமி"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"ரத்துசெய்"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"புளூடூத் வழியாகப் பகிர விரும்பும் கணக்குகளைத் தேர்ந்தெடுக்கவும். இணைக்கும் போது கணக்குகளுக்கான அணுகலை மீண்டும் ஏற்க வேண்டும்."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"மீதமுள்ள ஸ்லாட்கள்:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ஆப்ஸ் ஐகான்"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"புளூடூத் செய்தி பகிர்தல் அமைப்புகள்"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"கணக்கைத் தேர்வுசெய்ய முடியாது. ஸ்லாட்கள் எதுவுமில்லை"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"புளூடூத் ஆடியோ இணைக்கப்பட்டது"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"புளூடூத் ஆடியோ துண்டிக்கப்பட்டது"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"புளூடூத் ஆடியோ"</string>

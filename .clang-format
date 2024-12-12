@@ -19,6 +19,28 @@
 # accommodate for handling of the large legacy code base.
 #
 
+# AOSP is based on google style with some modification commented below
 BasedOnStyle: Google
-CommentPragmas: NOLINT:.*
-DerivePointerAlignment: false
+
+---
+Language: Cpp
+# AOSP ask for 4, but we are not ready to touch every single line
+# IndentWidth: 4 # vs 2
+ColumnLimit: 100 # vs 80
+ContinuationIndentWidth: 8 # vs 4
+AccessModifierOffset: -2 # vs -1 Should be -4 when updating IndentWidth to 4
+Standard: c++20 # vs Auto
+AllowShortIfStatementsOnASingleLine: Never # vs WithoutElse
+AllowShortLoopsOnASingleLine: false # vs true
+# AOSP suggest 1, but ask to follow clang-format settings. CppLint ask for 2
+# SpacesBeforeTrailingComments: 1 # vs 2
+
+# Allow clang-format to automatically fix more things
+RemoveSemicolon: true
+InsertBraces: true
+RemoveParentheses: ReturnStatement
+
+---
+Language: Java
+# Java format is handled by google-java-format
+DisableFormat: true

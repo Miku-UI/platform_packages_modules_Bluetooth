@@ -24,7 +24,7 @@ namespace bluetooth {
 namespace hal {
 
 class SnoopLoggerSocketInterface {
- public:
+public:
   virtual ~SnoopLoggerSocketInterface() = default;
 
   virtual void Write(const void* data, size_t length) = 0;

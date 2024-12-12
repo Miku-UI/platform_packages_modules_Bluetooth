@@ -22,7 +22,7 @@
 #include "parse_location.h"
 
 class GroupField : public PacketField {
- public:
+public:
   GroupField(ParseLocation loc, std::list<PacketField*>* fields);
 
   ~GroupField();
@@ -55,6 +55,6 @@ class GroupField : public PacketField {
 
   const std::list<PacketField*>* GetFields() const;
 
- private:
+private:
   std::list<PacketField*>* fields_;
 };

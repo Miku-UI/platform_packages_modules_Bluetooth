@@ -28,8 +28,9 @@
 namespace bluetooth {
 namespace common {
 
-// A map that maintains order of its element as a list. An element that is put earlier will appear before an element
-// that is put later when iterating through this map's entries. Keys must be unique.
+// A map that maintains order of its element as a list. An element that is put earlier will appear
+// before an element that is put later when iterating through this map's entries. Keys must be
+// unique.
 //
 // Performance:
 //   - Key look-up and modification is O(1)
@@ -43,7 +44,7 @@ namespace common {
 //   - T value
 template <typename Key, typename T>
 class ListMap {
- public:
+public:
   using value_type = std::pair<const Key, T>;
   // different from c++17 node_type on purpose as we want node to be copyable
   using node_type = std::pair<Key, T>;
@@ -80,16 +81,10 @@ class ListMap {
   }
 
   // comparison operators
-  bool operator==(const ListMap& rhs) const {
-    return node_list_ == rhs.node_list_;
-  }
-  bool operator!=(const ListMap& rhs) const {
-    return !(*this == rhs);
-  }
+  bool operator==(const ListMap& rhs) const { return node_list_ == rhs.node_list_; }
+  bool operator!=(const ListMap& rhs) const { return !(*this == rhs); }
 
-  ~ListMap() {
-    clear();
-  }
+  ~ListMap() { clear(); }
 
   // Clear the list map
   void clear() {
@@ -98,9 +93,7 @@ class ListMap {
   }
 
   // const version of find()
-  const_iterator find(const Key& key) const {
-    return const_cast<ListMap*>(this)->find(key);
-  }
+  const_iterator find(const Key& key) const { return const_cast<ListMap*>(this)->find(key); }
 
   // Get the value of a key. Return iterator to the item if found, end() if not found
   iterator find(const Key& key) {
@@ -112,13 +105,12 @@ class ListMap {
   }
 
   // Check if key exist in the map. Return true if key exist in map, false if not.
-  bool contains(const Key& key) const {
-    return find(key) != end();
-  }
+  bool contains(const Key& key) const { return find(key) != end(); }
 
-  // Try emplace an element before a specific position |pos| of the list map. If the |key| already exists, does nothing.
-  // Moved arguments won't be moved when key already exists. Return <iterator, true> when key does not exist, <iterator,
-  // false> when key exist and iterator is the position where it was placed.
+  // Try emplace an element before a specific position |pos| of the list map. If the |key| already
+  // exists, does nothing. Moved arguments won't be moved when key already exists. Return <iterator,
+  // true> when key does not exist, <iterator, false> when key exist and iterator is the position
+  // where it was placed.
   template <class... Args>
   std::pair<iterator, bool> try_emplace(const_iterator pos, const Key& key, Args&&... args) {
     auto map_iterator = key_map_.find(key);
@@ -130,16 +122,16 @@ class ListMap {
     return std::make_pair(list_iterator, true);
   }
 
-  // Try emplace an element before the end of the list map. If the key already exists, does nothing. Moved arguments
-  // won't be moved when key already exists return <iterator, true> when key does not exist, <iterator, false> when key
-  // exist and iterator is the position where it was placed
+  // Try emplace an element before the end of the list map. If the key already exists, does nothing.
+  // Moved arguments won't be moved when key already exists return <iterator, true> when key does
+  // not exist, <iterator, false> when key exist and iterator is the position where it was placed
   template <class... Args>
   std::pair<iterator, bool> try_emplace_back(const Key& key, Args&&... args) {
     return try_emplace(end(), key, std::forward<Args>(args)...);
   }
 
-  // Put a key-value pair to the map before position. If key already exist, |pos| will be ignored and existing value
-  // will be replaced
+  // Put a key-value pair to the map before position. If key already exist, |pos| will be ignored
+  // and existing value will be replaced
   void insert_or_assign(const_iterator pos, const Key& key, T value) {
     auto map_iterator = key_map_.find(key);
     if (map_iterator != key_map_.end()) {
@@ -150,10 +142,9 @@ class ListMap {
     key_map_.emplace(key, list_iterator);
   }
 
-  // Put a key-value pair to the tail of the map or replace the current value without moving the key if key exists
-  void insert_or_assign(const Key& key, T value) {
-    insert_or_assign(end(), key, std::move(value));
-  }
+  // Put a key-value pair to the tail of the map or replace the current value without moving the key
+  // if key exists
+  void insert_or_assign(const Key& key, T value) { insert_or_assign(end(), key, std::move(value)); }
 
   // STL splice, same as std::list::splice
   // - pos: element before which the content will be inserted
@@ -167,8 +158,9 @@ class ListMap {
     node_list_.splice(pos, other.node_list_, it);
   }
 
-  // Remove a key from the list map and return removed value if key exits, std::nullopt if not. The return value will be
-  // evaluated to true in a boolean context if a value is contained by std::optional, false otherwise.
+  // Remove a key from the list map and return removed value if key exits, std::nullopt if not. The
+  // return value will be evaluated to true in a boolean context if a value is contained by
+  // std::optional, false otherwise.
   std::optional<node_type> extract(const Key& key) {
     auto map_iterator = key_map_.find(key);
     if (map_iterator == key_map_.end()) {
@@ -180,38 +172,29 @@ class ListMap {
     return removed_node;
   }
 
-  // Remove an iterator pointed item from the list map and return the iterator immediately after the erased item
+  // Remove an iterator pointed item from the list map and return the iterator immediately after the
+  // erased item
   iterator erase(const_iterator iter) {
     key_map_.erase(iter->first);
     return node_list_.erase(iter);
   }
 
   // Return size of the list map
-  inline size_t size() const {
-    return node_list_.size();
-  }
+  inline size_t size() const { return node_list_.size(); }
 
   // Return iterator interface for begin
-  inline iterator begin() {
-    return node_list_.begin();
-  }
+  inline iterator begin() { return node_list_.begin(); }
 
   // Iterator interface for begin, const
-  inline const_iterator begin() const {
-    return node_list_.begin();
-  }
+  inline const_iterator begin() const { return node_list_.begin(); }
 
   // Iterator interface for end
-  inline iterator end() {
-    return node_list_.end();
-  }
+  inline iterator end() { return node_list_.end(); }
 
   // Iterator interface for end, const
-  inline const_iterator end() const {
-    return node_list_.end();
-  }
+  inline const_iterator end() const { return node_list_.end(); }
 
- private:
+private:
   std::list<value_type> node_list_;
   std::unordered_map<Key, iterator> key_map_;
 };

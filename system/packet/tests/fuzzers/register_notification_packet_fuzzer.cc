@@ -42,8 +42,7 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
       register_play_status_notification.push_back(data[x]);
     }
 
-    auto test_packet =
-        TestRegNotifReqPacket::Make(register_play_status_notification);
+    auto test_packet = TestRegNotifReqPacket::Make(register_play_status_notification);
 
     test_packet->GetEventRegistered();
     test_packet->GetInterval();

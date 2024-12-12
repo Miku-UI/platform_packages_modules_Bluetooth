@@ -25,7 +25,7 @@ namespace bluetooth {
 namespace facade {
 
 class GrpcRootServer {
- public:
+public:
   GrpcRootServer();
   ~GrpcRootServer();
 
@@ -35,7 +35,7 @@ class GrpcRootServer {
 
   void RunGrpcLoop();
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
 };

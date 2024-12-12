@@ -35,10 +35,10 @@
 // TODO(ajm): We'd prefer to control platform defines here, but this is
 // currently provided by the Android makefiles. Commented to avoid duplicate
 // definition warnings.
-//#define WEBRTC_ARCH_ARM
+// #define WEBRTC_ARCH_ARM
 // TODO(ajm): Chromium uses the following two defines. Should we switch?
-//#define WEBRTC_ARCH_ARM_FAMILY
-//#define WEBRTC_ARCH_ARMEL
+// #define WEBRTC_ARCH_ARM_FAMILY
+// #define WEBRTC_ARCH_ARMEL
 #define WEBRTC_ARCH_32_BITS
 #define WEBRTC_ARCH_LITTLE_ENDIAN
 #elif defined(__MIPSEL__)
@@ -58,8 +58,8 @@
 #error Define either WEBRTC_ARCH_LITTLE_ENDIAN or WEBRTC_ARCH_BIG_ENDIAN
 #endif
 
-#if (defined(WEBRTC_ARCH_X86_FAMILY) && !defined(__SSE2__)) ||  \
-    (defined(WEBRTC_ARCH_ARM_V7) && !defined(WEBRTC_ARCH_ARM_NEON))
+#if (defined(WEBRTC_ARCH_X86_FAMILY) && !defined(__SSE2__)) || \
+        (defined(WEBRTC_ARCH_ARM_V7) && !defined(WEBRTC_ARCH_ARM_NEON))
 #define WEBRTC_CPU_DETECTION
 #endif
 
@@ -67,14 +67,14 @@
 #include <stdint.h>
 #else
 // Define C99 equivalent types, since pre-2010 MSVC doesn't provide stdint.h.
-typedef signed char         int8_t;
-typedef signed short        int16_t;
-typedef signed int          int32_t;
-typedef __int64             int64_t;
-typedef unsigned char       uint8_t;
-typedef unsigned short      uint16_t;
-typedef unsigned int        uint32_t;
-typedef unsigned __int64    uint64_t;
+typedef signed char int8_t;
+typedef signed short int16_t;
+typedef signed int int32_t;
+typedef __int64 int64_t;
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned __int64 uint64_t;
 #endif
 
 // Borrowed from Chromium's base/compiler_specific.h.
@@ -92,7 +92,7 @@ typedef unsigned __int64    uint64_t;
 #pragma clang diagnostic ignored "-Wc++11-extensions"
 #define OVERRIDE override
 #elif defined(__GNUC__) && __cplusplus >= 201103 && \
-    (__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >= 40700
+        (__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >= 40700
 // GCC 4.7 supports explicit virtual overrides when C++11 support is enabled.
 #define OVERRIDE override
 #else

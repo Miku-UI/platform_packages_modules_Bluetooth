@@ -22,7 +22,7 @@ namespace bluetooth {
 namespace hci {
 
 class ControllerUnitTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {}
 
   void TearDown() override {}
@@ -35,24 +35,22 @@ TEST_F(ControllerUnitTest, testLeEventMask) {
   // Update the function and this test when adding new bits.
   ASSERT_TRUE(Controller::kLeEventMask53 > Controller::kDefaultLeEventMask);
 
-  ASSERT_EQ(
-      Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
-      Controller::kDefaultLeEventMask);
-  ASSERT_LE(
-      Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
-      Controller::kLeEventMask53);
+  ASSERT_EQ(Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
+            Controller::kDefaultLeEventMask);
+  ASSERT_LE(Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
+            Controller::kLeEventMask53);
   version.hci_version_ = HciVersion::V_5_2;
-  ASSERT_LE(
-      Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask), Controller::kLeEventMask52);
+  ASSERT_LE(Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
+            Controller::kLeEventMask52);
   version.hci_version_ = HciVersion::V_5_1;
-  ASSERT_LE(
-      Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask), Controller::kLeEventMask51);
+  ASSERT_LE(Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
+            Controller::kLeEventMask51);
   version.hci_version_ = HciVersion::V_4_2;
-  ASSERT_LE(
-      Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask), Controller::kLeEventMask42);
+  ASSERT_LE(Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
+            Controller::kLeEventMask42);
   version.hci_version_ = HciVersion::V_4_1;
-  ASSERT_LE(
-      Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask), Controller::kLeEventMask41);
+  ASSERT_LE(Controller::MaskLeEventMask(version.hci_version_, Controller::kDefaultLeEventMask),
+            Controller::kLeEventMask41);
 }
 
 }  // namespace hci

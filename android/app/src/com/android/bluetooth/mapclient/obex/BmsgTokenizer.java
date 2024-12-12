@@ -19,6 +19,7 @@ package com.android.bluetooth.mapclient;
 import android.util.Log;
 
 import java.text.ParseException;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -99,10 +100,16 @@ public final class BmsgTokenizer {
         }
 
         @Override
-        public boolean equals(Object o) {
-            return ((o instanceof Property)
-                    && ((Property) o).name.equals(name)
-                    && ((Property) o).value.equals(value));
+        public boolean equals(Object obj) {
+            if (!(obj instanceof Property other)) {
+                return false;
+            }
+            return other.name.equals(name) && other.value.equals(value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, value);
         }
     }
 }

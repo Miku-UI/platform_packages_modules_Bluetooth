@@ -25,21 +25,19 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.List;
 
 class FolderListing {
 
     private static final String TAG = "FolderListing";
 
-    private final ArrayList<String> mFolders;
+    private final List<String> mFolders = new ArrayList<>();
 
     FolderListing(InputStream in) {
-        mFolders = new ArrayList<String>();
-
         parse(in);
     }
 
     public void parse(InputStream in) {
-
         try {
             XmlPullParser xpp = XmlPullParserFactory.newInstance().newPullParser();
             xpp.setInput(in, "utf-8");
@@ -64,7 +62,7 @@ class FolderListing {
         }
     }
 
-    public ArrayList<String> getList() {
+    public List<String> getList() {
         return mFolders;
     }
 }

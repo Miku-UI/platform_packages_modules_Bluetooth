@@ -21,8 +21,9 @@ import android.util.Log;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 1
 public class BluetoothMapbMessageEmail extends BluetoothMapbMessage {
@@ -44,7 +45,7 @@ public class BluetoothMapbMessageEmail extends BluetoothMapbMessage {
         if (mEmailBody == null) {
             mEmailBody = msgPart;
         } else {
-            mEmailBody += msgPart;
+            mEmailBody = mEmailBody + msgPart;
         }
     }
 
@@ -57,8 +58,8 @@ public class BluetoothMapbMessageEmail extends BluetoothMapbMessage {
     }
 
     @Override
-    public byte[] encode() throws UnsupportedEncodingException {
-        ArrayList<byte[]> bodyFragments = new ArrayList<byte[]>();
+    public byte[] encode() {
+        List<byte[]> bodyFragments = new ArrayList<>();
 
         /* Store the messages in an ArrayList to be able to handle the different message types in
         a generic way.
@@ -68,7 +69,7 @@ public class BluetoothMapbMessageEmail extends BluetoothMapbMessage {
                     mEmailBody.replaceAll(
                             "END:MSG",
                             "/END\\:MSG"); // Replace any occurrences of END:MSG with \END:MSG
-            bodyFragments.add(tmpBody.getBytes("UTF-8"));
+            bodyFragments.add(tmpBody.getBytes(StandardCharsets.UTF_8));
         } else {
             Log.e(TAG, "Email has no body - this should not be possible");
             ContentProfileErrorReportUtils.report(

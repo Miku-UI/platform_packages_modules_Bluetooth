@@ -27,8 +27,8 @@ namespace topshim {
 namespace rust {
 
 class VolumeControlIntf {
- public:
-  VolumeControlIntf(vc::VolumeControlInterface* intf) : intf_(intf){};
+public:
+  VolumeControlIntf(vc::VolumeControlInterface* intf) : intf_(intf) {}
 
   void init(/*VolumeControlCallbacks* callbacks*/);
   void cleanup();
@@ -45,7 +45,7 @@ class VolumeControlIntf {
   void get_ext_audio_out_description(RawAddress addr, uint8_t ext_output_id);
   void set_ext_audio_out_description(RawAddress addr, uint8_t ext_output_id, const char* descr);
 
- private:
+private:
   vc::VolumeControlInterface* intf_;
 };
 

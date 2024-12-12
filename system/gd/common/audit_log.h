@@ -21,7 +21,8 @@
 namespace bluetooth {
 namespace common {
 
-void LogConnectionAdminAuditEvent(const char* action, const hci::Address& address, hci::ErrorCode status);
+void LogConnectionAdminAuditEvent(const char* action, const hci::Address& address,
+                                  hci::ErrorCode status);
 
 }  // namespace common
 }  // namespace bluetooth

@@ -27,7 +27,7 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btm_api.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/sdp_api.h"
 #include "types/raw_address.h"
 
@@ -79,27 +79,27 @@ typedef void (*tBTA_HF_CLIENT_ACTION)(tBTA_HF_CLIENT_DATA* p_data);
 
 /* action functions table, indexed with action enum */
 const tBTA_HF_CLIENT_ACTION bta_hf_client_action[] = {
-    /* BTA_HF_CLIENT_RFC_DO_CLOSE */ bta_hf_client_rfc_do_close,
-    /* BTA_HF_CLIENT_START_CLOSE */ bta_hf_client_start_close,
-    /* BTA_HF_CLIENT_START_OPEN */ bta_hf_client_start_open,
-    /* BTA_HF_CLIENT_RFC_ACP_OPEN */ bta_hf_client_rfc_acp_open,
-    /* BTA_HF_CLIENT_SCO_LISTEN */ NULL,
-    /* BTA_HF_CLIENT_SCO_CONN_OPEN */ bta_hf_client_sco_conn_open,
-    /* BTA_HF_CLIENT_SCO_CONN_CLOSE*/ bta_hf_client_sco_conn_close,
-    /* BTA_HF_CLIENT_SCO_OPEN */ bta_hf_client_sco_open,
-    /* BTA_HF_CLIENT_SCO_CLOSE */ bta_hf_client_sco_close,
-    /* BTA_HF_CLIENT_FREE_DB */ bta_hf_client_free_db,
-    /* BTA_HF_CLIENT_OPEN_FAIL */ bta_hf_client_open_fail,
-    /* BTA_HF_CLIENT_RFC_OPEN */ bta_hf_client_rfc_open,
-    /* BTA_HF_CLIENT_RFC_FAIL */ bta_hf_client_rfc_fail,
-    /* BTA_HF_CLIENT_DISC_INT_RES */ bta_hf_client_disc_int_res,
-    /* BTA_HF_CLIENT_RFC_DO_OPEN */ bta_hf_client_rfc_do_open,
-    /* BTA_HF_CLIENT_DISC_FAIL */ bta_hf_client_disc_fail,
-    /* BTA_HF_CLIENT_RFC_CLOSE */ bta_hf_client_rfc_close,
-    /* BTA_HF_CLIENT_RFC_DATA */ bta_hf_client_rfc_data,
-    /* BTA_HF_CLIENT_DISC_ACP_RES */ bta_hf_client_disc_acp_res,
-    /* BTA_HF_CLIENT_SVC_CONN_OPEN */ bta_hf_client_svc_conn_open,
-    /* BTA_HF_CLIENT_SEND_AT_CMD */ bta_hf_client_send_at_cmd,
+        /* BTA_HF_CLIENT_RFC_DO_CLOSE */ bta_hf_client_rfc_do_close,
+        /* BTA_HF_CLIENT_START_CLOSE */ bta_hf_client_start_close,
+        /* BTA_HF_CLIENT_START_OPEN */ bta_hf_client_start_open,
+        /* BTA_HF_CLIENT_RFC_ACP_OPEN */ bta_hf_client_rfc_acp_open,
+        /* BTA_HF_CLIENT_SCO_LISTEN */ NULL,
+        /* BTA_HF_CLIENT_SCO_CONN_OPEN */ bta_hf_client_sco_conn_open,
+        /* BTA_HF_CLIENT_SCO_CONN_CLOSE*/ bta_hf_client_sco_conn_close,
+        /* BTA_HF_CLIENT_SCO_OPEN */ bta_hf_client_sco_open,
+        /* BTA_HF_CLIENT_SCO_CLOSE */ bta_hf_client_sco_close,
+        /* BTA_HF_CLIENT_FREE_DB */ bta_hf_client_free_db,
+        /* BTA_HF_CLIENT_OPEN_FAIL */ bta_hf_client_open_fail,
+        /* BTA_HF_CLIENT_RFC_OPEN */ bta_hf_client_rfc_open,
+        /* BTA_HF_CLIENT_RFC_FAIL */ bta_hf_client_rfc_fail,
+        /* BTA_HF_CLIENT_DISC_INT_RES */ bta_hf_client_disc_int_res,
+        /* BTA_HF_CLIENT_RFC_DO_OPEN */ bta_hf_client_rfc_do_open,
+        /* BTA_HF_CLIENT_DISC_FAIL */ bta_hf_client_disc_fail,
+        /* BTA_HF_CLIENT_RFC_CLOSE */ bta_hf_client_rfc_close,
+        /* BTA_HF_CLIENT_RFC_DATA */ bta_hf_client_rfc_data,
+        /* BTA_HF_CLIENT_DISC_ACP_RES */ bta_hf_client_disc_acp_res,
+        /* BTA_HF_CLIENT_SVC_CONN_OPEN */ bta_hf_client_svc_conn_open,
+        /* BTA_HF_CLIENT_SEND_AT_CMD */ bta_hf_client_send_at_cmd,
 };
 
 /* state table information */
@@ -109,146 +109,112 @@ const tBTA_HF_CLIENT_ACTION bta_hf_client_action[] = {
 
 /* state table for init state */
 const uint8_t bta_hf_client_st_init[][BTA_HF_CLIENT_NUM_COLS] = {
-    /* Event                    Action 1                       Action 2
-       Next state */
-    /* API_OPEN_EVT */ {BTA_HF_CLIENT_START_OPEN, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPENING_ST},
-    /* API_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* API_AUDIO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                              BTA_HF_CLIENT_INIT_ST},
-    /* API_AUDIO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                               BTA_HF_CLIENT_INIT_ST},
-    /* RFC_OPEN_EVT */ {BTA_HF_CLIENT_RFC_ACP_OPEN, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPEN_ST},
-    /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* RFC_SRV_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                             BTA_HF_CLIENT_INIT_ST},
-    /* RFC_DATA_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_INIT_ST},
-    /* DISC_ACP_RES_EVT */ {BTA_HF_CLIENT_FREE_DB, BTA_HF_CLIENT_IGNORE,
-                            BTA_HF_CLIENT_INIT_ST},
-    /* DISC_INT_RES_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                            BTA_HF_CLIENT_INIT_ST},
-    /* DISC_OK_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                       BTA_HF_CLIENT_INIT_ST},
-    /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_INIT_ST},
-    /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* SEND_AT_CMD_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                           BTA_HF_CLIENT_INIT_ST},
+        /* Event                    Action 1                       Action 2
+           Next state */
+        /* API_OPEN_EVT */ {BTA_HF_CLIENT_START_OPEN, BTA_HF_CLIENT_IGNORE,
+                            BTA_HF_CLIENT_OPENING_ST},
+        /* API_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* API_AUDIO_OPEN_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* API_AUDIO_CLOSE_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* RFC_OPEN_EVT */
+        {BTA_HF_CLIENT_RFC_ACP_OPEN, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* RFC_SRV_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* RFC_DATA_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* DISC_ACP_RES_EVT */ {BTA_HF_CLIENT_FREE_DB, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* DISC_INT_RES_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* DISC_OK_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* SEND_AT_CMD_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
 };
 
 /* state table for opening state */
 const uint8_t bta_hf_client_st_opening[][BTA_HF_CLIENT_NUM_COLS] = {
-    /* Event                    Action 1                       Action 2
-       Next state */
-    /* API_OPEN_EVT */ {BTA_HF_CLIENT_OPEN_FAIL, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPENING_ST},
-    /* API_CLOSE_EVT */ {BTA_HF_CLIENT_RFC_DO_CLOSE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_CLOSING_ST},
-    /* API_AUDIO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                              BTA_HF_CLIENT_OPENING_ST},
-    /* API_AUDIO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                               BTA_HF_CLIENT_OPENING_ST},
-    /* RFC_OPEN_EVT */ {BTA_HF_CLIENT_RFC_OPEN, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPEN_ST},
-    /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_RFC_FAIL, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* RFC_SRV_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                             BTA_HF_CLIENT_OPENING_ST},
-    /* RFC_DATA_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPENING_ST},
-    /* DISC_ACP_RES_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
+        /* Event                    Action 1                       Action 2
+           Next state */
+        /* API_OPEN_EVT */ {BTA_HF_CLIENT_OPEN_FAIL, BTA_HF_CLIENT_IGNORE,
                             BTA_HF_CLIENT_OPENING_ST},
-    /* DISC_INT_RES_EVT */ {BTA_HF_CLIENT_DISC_INT_RES, BTA_HF_CLIENT_IGNORE,
-                            BTA_HF_CLIENT_OPENING_ST},
-    /* DISC_OK_EVT */ {BTA_HF_CLIENT_RFC_DO_OPEN, BTA_HF_CLIENT_IGNORE,
-                       BTA_HF_CLIENT_OPENING_ST},
-    /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_DISC_FAIL, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPENING_ST},
-    /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_OPENING_ST},
-    /* SEND_AT_CMD_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                           BTA_HF_CLIENT_OPENING_ST},
+        /* API_CLOSE_EVT */
+        {BTA_HF_CLIENT_RFC_DO_CLOSE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* API_AUDIO_OPEN_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* API_AUDIO_CLOSE_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* RFC_OPEN_EVT */ {BTA_HF_CLIENT_RFC_OPEN, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_RFC_FAIL, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* RFC_SRV_CLOSE_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* RFC_DATA_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* DISC_ACP_RES_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* DISC_INT_RES_EVT */
+        {BTA_HF_CLIENT_DISC_INT_RES, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* DISC_OK_EVT */
+        {BTA_HF_CLIENT_RFC_DO_OPEN, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_DISC_FAIL, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
+        /* SEND_AT_CMD_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPENING_ST},
 };
 
 /* state table for open state */
 const uint8_t bta_hf_client_st_open[][BTA_HF_CLIENT_NUM_COLS] = {
-    /* Event                    Action 1                       Action 2
-       Next state */
-    /* API_OPEN_EVT */ {BTA_HF_CLIENT_OPEN_FAIL, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPEN_ST},
-    /* API_CLOSE_EVT */ {BTA_HF_CLIENT_START_CLOSE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_CLOSING_ST},
-    /* API_AUDIO_OPEN_EVT */ {BTA_HF_CLIENT_SCO_OPEN, BTA_HF_CLIENT_IGNORE,
-                              BTA_HF_CLIENT_OPEN_ST},
-    /* API_AUDIO_CLOSE_EVT */ {BTA_HF_CLIENT_SCO_CLOSE, BTA_HF_CLIENT_IGNORE,
-                               BTA_HF_CLIENT_OPEN_ST},
-    /* RFC_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPEN_ST},
-    /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_RFC_CLOSE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* RFC_SRV_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                             BTA_HF_CLIENT_OPEN_ST},
-    /* RFC_DATA_EVT */ {BTA_HF_CLIENT_RFC_DATA, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPEN_ST},
-    /* DISC_ACP_RES_EVT */ {BTA_HF_CLIENT_DISC_ACP_RES, BTA_HF_CLIENT_IGNORE,
-                            BTA_HF_CLIENT_OPEN_ST},
-    /* DISC_INT_RES_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                            BTA_HF_CLIENT_OPEN_ST},
-    /* DISC_OK_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                       BTA_HF_CLIENT_OPEN_ST},
-    /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_OPEN_ST},
-    /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_SCO_CONN_OPEN, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_OPEN_ST},
-    /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_SCO_CONN_CLOSE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_OPEN_ST},
-    /* SEND_AT_CMD_EVT */ {BTA_HF_CLIENT_SEND_AT_CMD, BTA_HF_CLIENT_IGNORE,
-                           BTA_HF_CLIENT_OPEN_ST},
+        /* Event                    Action 1                       Action 2
+           Next state */
+        /* API_OPEN_EVT */ {BTA_HF_CLIENT_OPEN_FAIL, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* API_CLOSE_EVT */
+        {BTA_HF_CLIENT_START_CLOSE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* API_AUDIO_OPEN_EVT */
+        {BTA_HF_CLIENT_SCO_OPEN, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* API_AUDIO_CLOSE_EVT */
+        {BTA_HF_CLIENT_SCO_CLOSE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* RFC_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_RFC_CLOSE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* RFC_SRV_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* RFC_DATA_EVT */ {BTA_HF_CLIENT_RFC_DATA, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* DISC_ACP_RES_EVT */
+        {BTA_HF_CLIENT_DISC_ACP_RES, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* DISC_INT_RES_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* DISC_OK_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* SCO_OPEN_EVT */
+        {BTA_HF_CLIENT_SCO_CONN_OPEN, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* SCO_CLOSE_EVT */
+        {BTA_HF_CLIENT_SCO_CONN_CLOSE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
+        /* SEND_AT_CMD_EVT */
+        {BTA_HF_CLIENT_SEND_AT_CMD, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_OPEN_ST},
 };
 
 /* state table for closing state */
 const uint8_t bta_hf_client_st_closing[][BTA_HF_CLIENT_NUM_COLS] = {
-    /* Event                    Action 1                       Action 2
-       Next state */
-    /* API_OPEN_EVT */ {BTA_HF_CLIENT_OPEN_FAIL, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_CLOSING_ST},
-    /* API_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_CLOSING_ST},
-    /* API_AUDIO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                              BTA_HF_CLIENT_CLOSING_ST},
-    /* API_AUDIO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                               BTA_HF_CLIENT_CLOSING_ST},
-    /* RFC_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_CLOSING_ST},
-    /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_RFC_CLOSE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_INIT_ST},
-    /* RFC_SRV_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                             BTA_HF_CLIENT_CLOSING_ST},
-    /* RFC_DATA_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_CLOSING_ST},
-    /* DISC_ACP_RES_EVT */ {BTA_HF_CLIENT_FREE_DB, BTA_HF_CLIENT_IGNORE,
+        /* Event                    Action 1                       Action 2
+           Next state */
+        /* API_OPEN_EVT */ {BTA_HF_CLIENT_OPEN_FAIL, BTA_HF_CLIENT_IGNORE,
                             BTA_HF_CLIENT_CLOSING_ST},
-    /* DISC_INT_RES_EVT */ {BTA_HF_CLIENT_FREE_DB, BTA_HF_CLIENT_IGNORE,
-                            BTA_HF_CLIENT_INIT_ST},
-    /* DISC_OK_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                       BTA_HF_CLIENT_CLOSING_ST},
-    /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_CLOSING_ST},
-    /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                        BTA_HF_CLIENT_CLOSING_ST},
-    /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                         BTA_HF_CLIENT_CLOSING_ST},
-    /* SEND_AT_CMD_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE,
-                           BTA_HF_CLIENT_CLOSING_ST},
+        /* API_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* API_AUDIO_OPEN_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* API_AUDIO_CLOSE_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* RFC_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* RFC_CLOSE_EVT */ {BTA_HF_CLIENT_RFC_CLOSE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* RFC_SRV_CLOSE_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* RFC_DATA_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* DISC_ACP_RES_EVT */
+        {BTA_HF_CLIENT_FREE_DB, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* DISC_INT_RES_EVT */ {BTA_HF_CLIENT_FREE_DB, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_INIT_ST},
+        /* DISC_OK_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* DISC_FAIL_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* SCO_OPEN_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* SCO_CLOSE_EVT */ {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
+        /* SEND_AT_CMD_EVT */
+        {BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_IGNORE, BTA_HF_CLIENT_CLOSING_ST},
 };
 
 /* type for state table */
@@ -256,15 +222,14 @@ typedef const uint8_t (*tBTA_HF_CLIENT_ST_TBL)[BTA_HF_CLIENT_NUM_COLS];
 
 /* state table */
 const tBTA_HF_CLIENT_ST_TBL bta_hf_client_st_tbl[] = {
-    bta_hf_client_st_init, bta_hf_client_st_opening, bta_hf_client_st_open,
-    bta_hf_client_st_closing};
+        bta_hf_client_st_init, bta_hf_client_st_opening, bta_hf_client_st_open,
+        bta_hf_client_st_closing};
 
 /* HF Client control block */
 tBTA_HF_CLIENT_CB_ARR bta_hf_client_cb_arr;
 
 /* Event handler for the state machine */
-static const tBTA_SYS_REG bta_hf_client_reg = {bta_hf_client_hdl_event,
-                                               BTA_HfClientDisable};
+static const tBTA_SYS_REG bta_hf_client_reg = {bta_hf_client_hdl_event, BTA_HfClientDisable};
 
 /*******************************************************************************
  *
@@ -370,9 +335,8 @@ static void bta_hf_client_collision_timer_cback(void* data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_hf_client_collision_cback(tBTA_SYS_CONN_STATUS /* status */,
-                                   tBTA_SYS_ID id, uint8_t /* app_id */,
-                                   const RawAddress& peer_addr) {
+void bta_hf_client_collision_cback(tBTA_SYS_CONN_STATUS /* status */, tBTA_SYS_ID id,
+                                   uint8_t /* app_id */, const RawAddress& peer_addr) {
   tBTA_HF_CLIENT_CB* client_cb = bta_hf_client_find_cb_by_bda(peer_addr);
   if (client_cb != NULL && client_cb->state == BTA_HF_CLIENT_OPENING_ST) {
     if (id == BTA_ID_SYS) /* ACL collision */
@@ -389,8 +353,7 @@ void bta_hf_client_collision_cback(tBTA_SYS_CONN_STATUS /* status */,
 
     /* Cancel SDP if it had been started. */
     if (client_cb->p_disc_db) {
-      if (!get_legacy_stack_sdp_api()->service.SDP_CancelServiceSearch(
-              client_cb->p_disc_db)) {
+      if (!get_legacy_stack_sdp_api()->service.SDP_CancelServiceSearch(client_cb->p_disc_db)) {
         log::warn("Unable to cancel SDP service discovery peer:{}", peer_addr);
       }
       osi_free_and_reset((void**)&client_cb->p_disc_db);
@@ -401,8 +364,7 @@ void bta_hf_client_collision_cback(tBTA_SYS_CONN_STATUS /* status */,
     bta_hf_client_start_server();
 
     /* Start timer to handle connection opening restart */
-    alarm_set_on_mloop(client_cb->collision_timer,
-                       BTA_HF_CLIENT_COLLISION_TIMER_MS,
+    alarm_set_on_mloop(client_cb->collision_timer, BTA_HF_CLIENT_COLLISION_TIMER_MS,
                        bta_hf_client_collision_timer_cback, (void*)client_cb);
   }
 }
@@ -417,8 +379,7 @@ void bta_hf_client_collision_cback(tBTA_SYS_CONN_STATUS /* status */,
  * Returns          void
  *
  ******************************************************************************/
-tBTA_STATUS bta_hf_client_api_enable(tBTA_HF_CLIENT_CBACK* p_cback,
-                                     tBTA_HF_CLIENT_FEAT features,
+tBTA_STATUS bta_hf_client_api_enable(tBTA_HF_CLIENT_CBACK* p_cback, tBTA_HF_CLIENT_FEAT features,
                                      const char* p_service_name) {
   /* If already registered then return error */
   if (bta_sys_is_register(BTA_ID_HS)) {
@@ -440,15 +401,15 @@ tBTA_STATUS bta_hf_client_api_enable(tBTA_HF_CLIENT_CBACK* p_cback,
   bta_hf_client_create_record(&bta_hf_client_cb_arr, p_service_name);
 
   /* set same setting as AG does */
-  BTM_WriteVoiceSettings(AG_VOICE_SETTINGS);
+  get_btm_client_interface().sco.BTM_WriteVoiceSettings(AG_VOICE_SETTINGS);
 
   bta_sys_collision_register(BTA_ID_HS, bta_hf_client_collision_cback);
 
   /* Set the Audio service class bit */
   tBTA_UTL_COD cod = {
-    .minor = BTM_COD_MINOR_UNCLASSIFIED,
-    .major = BTM_COD_MAJOR_UNCLASSIFIED,
-    .service = BTM_COD_SERVICE_AUDIO,
+          .minor = BTM_COD_MINOR_UNCLASSIFIED,
+          .major = BTM_COD_MAJOR_UNCLASSIFIED,
+          .service = BTM_COD_SERVICE_AUDIO,
   };
   utl_set_device_class(&cod, BTA_UTL_SET_COD_SERVICE_CLASS);
 
@@ -474,14 +435,14 @@ tBTA_STATUS bta_hf_client_api_enable(tBTA_HF_CLIENT_CBACK* p_cback,
 tBTA_HF_CLIENT_CB* bta_hf_client_find_cb_by_handle(uint16_t handle) {
   // Handles are limited from 1 through HF_CLIENT_MAX_DEVICES
   if (handle < 1 || handle > HF_CLIENT_MAX_DEVICES) {
-    log::error("handle out of range ({}, {}) {}", 1, HF_CLIENT_MAX_DEVICES,
-               handle);
+    log::error("handle out of range ({}, {}) {}", 1, HF_CLIENT_MAX_DEVICES, handle);
     return NULL;
   }
 
   // Check if the associated index is allocated. Index is (handle - 1).
-  if (bta_hf_client_cb_arr.cb[handle - 1].is_allocated)
+  if (bta_hf_client_cb_arr.cb[handle - 1].is_allocated) {
     return &(bta_hf_client_cb_arr.cb[handle - 1]);
+  }
 
   log::error("block not found for handle {}", handle);
   return NULL;
@@ -508,8 +469,7 @@ tBTA_HF_CLIENT_CB* bta_hf_client_find_cb_by_bda(const RawAddress& peer_addr) {
     if (client_cb->is_allocated && peer_addr == client_cb->peer_addr) {
       return client_cb;
     } else {
-      log::warn("bdaddr mismatch for handle {} alloc {}", i,
-                client_cb->is_allocated);
+      log::warn("bdaddr mismatch for handle {} alloc {}", i, client_cb->is_allocated);
     }
   }
   log::error("block not found");
@@ -535,15 +495,13 @@ tBTA_HF_CLIENT_CB* bta_hf_client_find_cb_by_rfc_handle(uint16_t handle) {
     bool is_allocated = client_cb->is_allocated;
     uint16_t conn_handle = client_cb->conn_handle;
 
-    log::verbose("cb rfc_handle {} alloc {} conn_handle {}", handle,
-                 is_allocated, conn_handle);
+    log::verbose("cb rfc_handle {} alloc {} conn_handle {}", handle, is_allocated, conn_handle);
 
     if (is_allocated && conn_handle == handle) {
       return client_cb;
     }
 
-    log::warn("no cb yet {} alloc {} conn_handle {}", handle, is_allocated,
-              conn_handle);
+    log::warn("no cb yet {} alloc {} conn_handle {}", handle, is_allocated, conn_handle);
   }
 
   log::error("no cb found for rfc handle {}", handle);
@@ -591,8 +549,7 @@ tBTA_HF_CLIENT_CB* bta_hf_client_find_cb_by_sco_handle(uint16_t handle) {
  * Returns          true if the creation of p_handle succeeded, false otherwise
  *
  ******************************************************************************/
-bool bta_hf_client_allocate_handle(const RawAddress& bd_addr,
-                                   uint16_t* p_handle) {
+bool bta_hf_client_allocate_handle(const RawAddress& bd_addr, uint16_t* p_handle) {
   tBTA_HF_CLIENT_CB* existing_cb = bta_hf_client_find_cb_by_bda(bd_addr);
   if (existing_cb != NULL) {
     log::error("cannot allocate handle since BDADDR already exists");
@@ -688,8 +645,7 @@ void bta_hf_client_api_disable() {
  *
  ******************************************************************************/
 bool bta_hf_client_hdl_event(const BT_HDR_RIGID* p_msg) {
-  log::verbose("{} (0x{:x})", bta_hf_client_evt_str(p_msg->event),
-               p_msg->event);
+  log::verbose("{} (0x{:x})", bta_hf_client_evt_str(p_msg->event), p_msg->event);
   bta_hf_client_sm_execute(p_msg->event, (tBTA_HF_CLIENT_DATA*)p_msg);
   return true;
 }
@@ -705,8 +661,7 @@ bool bta_hf_client_hdl_event(const BT_HDR_RIGID* p_msg) {
  *
  ******************************************************************************/
 void bta_hf_client_sm_execute(uint16_t event, tBTA_HF_CLIENT_DATA* p_data) {
-  tBTA_HF_CLIENT_CB* client_cb =
-      bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
+  tBTA_HF_CLIENT_CB* client_cb = bta_hf_client_find_cb_by_handle(p_data->hdr.layer_specific);
   if (client_cb == NULL) {
     log::error("cb not found for handle {}", p_data->hdr.layer_specific);
     return;
@@ -722,9 +677,8 @@ void bta_hf_client_sm_execute(uint16_t event, tBTA_HF_CLIENT_DATA* p_data) {
   /* Ignore displaying of AT results when not connected (Ignored in state
    * machine) */
   if (client_cb->state == BTA_HF_CLIENT_OPEN_ST) {
-    log::verbose("HF Client evt : State {} ({}), Event 0x{:04x} ({})",
-                 client_cb->state, bta_hf_client_state_str(client_cb->state),
-                 event, bta_hf_client_evt_str(event));
+    log::verbose("HF Client evt : State {} ({}), Event 0x{:04x} ({})", client_cb->state,
+                 bta_hf_client_state_str(client_cb->state), event, bta_hf_client_evt_str(event));
   }
 
   event &= 0x00FF;
@@ -751,8 +705,8 @@ void bta_hf_client_sm_execute(uint16_t event, tBTA_HF_CLIENT_DATA* p_data) {
 
   /* If the state has changed then notify the app of the corresponding change */
   if (in_state != client_cb->state) {
-    log::verbose("notifying state change to {} -> {} device {}", in_state,
-                 client_cb->state, client_cb->peer_addr);
+    log::verbose("notifying state change to {} -> {} device {}", in_state, client_cb->state,
+                 client_cb->peer_addr);
     tBTA_HF_CLIENT evt;
     memset(&evt, 0, sizeof(evt));
     evt.bd_addr = client_cb->peer_addr;
@@ -766,9 +720,8 @@ void bta_hf_client_sm_execute(uint16_t event, tBTA_HF_CLIENT_DATA* p_data) {
     }
   }
 
-  log::verbose("device {} state change: [{}] -> [{}] after Event [{}]",
-               client_cb->peer_addr, bta_hf_client_state_str(in_state),
-               bta_hf_client_state_str(client_cb->state),
+  log::verbose("device {} state change: [{}] -> [{}] after Event [{}]", client_cb->peer_addr,
+               bta_hf_client_state_str(in_state), bta_hf_client_state_str(client_cb->state),
                bta_hf_client_evt_str(in_event));
 }
 
@@ -801,9 +754,8 @@ void bta_hf_client_slc_seq(tBTA_HF_CLIENT_CB* client_cb, bool error) {
 
   if (error) {
     /* SLC establishment error, sent close rfcomm event */
-    log::error(
-        "HFPClient: Failed to create SLC due to AT error, disconnecting ({})",
-        client_cb->at_cb.current_cmd);
+    log::error("HFPClient: Failed to create SLC due to AT error, disconnecting ({})",
+               client_cb->at_cb.current_cmd);
 
     tBTA_HF_CLIENT_DATA msg;
     msg.hdr.layer_specific = client_cb->handle;
@@ -888,9 +840,9 @@ void bta_hf_client_slc_seq(tBTA_HF_CLIENT_CB* client_cb, bool error) {
     default: {
       /* If happen there is a bug in SLC creation procedure... */
       log::error(
-          "HFPClient: Failed to create SLCdue to unexpected AT command, "
-          "disconnecting ({})",
-          client_cb->at_cb.current_cmd);
+              "HFPClient: Failed to create SLCdue to unexpected AT command, "
+              "disconnecting ({})",
+              client_cb->at_cb.current_cmd);
 
       tBTA_HF_CLIENT_DATA msg;
       msg.hdr.layer_specific = client_cb->handle;
@@ -956,12 +908,11 @@ void bta_hf_client_dump_statistics(int fd) {
 
     uint8_t* a = client_cb->peer_addr.address;
     // Device name
-    dprintf(fd, "    Peer Device: %02x:%02x:%02x:%02x:%02x:%02x\n", a[0], a[1],
-            a[2], a[3], a[4], a[5]);
+    dprintf(fd, "    Peer Device: %02x:%02x:%02x:%02x:%02x:%02x\n", a[0], a[1], a[2], a[3], a[4],
+            a[5]);
 
     // State machine state
-    dprintf(fd, "    State Machine State: %s\n",
-            bta_hf_client_state_str(client_cb->state));
+    dprintf(fd, "    State Machine State: %s\n", bta_hf_client_state_str(client_cb->state));
 
     // Local RFC channelfor communication
     dprintf(fd, "    RFCOMM Channel (local) %d\n", client_cb->conn_handle);

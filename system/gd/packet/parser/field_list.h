@@ -27,7 +27,7 @@ using FieldListIterator = std::vector<PacketField*>::const_iterator;
 using ReverseFieldListIterator = std::vector<PacketField*>::const_reverse_iterator;
 
 class FieldList {
- public:
+public:
   FieldList() = default;
 
   FieldList(std::vector<PacketField*> fields) {
@@ -44,9 +44,7 @@ class FieldList {
     }
   }
 
-  PacketField* operator[](int index) const {
-    return field_list_[index];
-  }
+  PacketField* operator[](int index) const { return field_list_[index]; }
 
   PacketField* GetField(std::string field_name) const {
     auto it = field_map_.find(field_name);
@@ -71,7 +69,8 @@ class FieldList {
     FieldList ret;
     for (auto it = begin(); it != end(); it++) {
       const auto& field = *it;
-      if (field->GetFieldType() == PayloadField::kFieldType || field->GetFieldType() == BodyField::kFieldType) {
+      if (field->GetFieldType() == PayloadField::kFieldType ||
+          field->GetFieldType() == BodyField::kFieldType) {
         break;
       }
       ret.AppendField(*it);
@@ -84,7 +83,8 @@ class FieldList {
     FieldListIterator it;
     for (it = begin(); it != end(); it++) {
       const auto& field = *it;
-      if (field->GetFieldType() == PayloadField::kFieldType || field->GetFieldType() == BodyField::kFieldType) {
+      if (field->GetFieldType() == PayloadField::kFieldType ||
+          field->GetFieldType() == BodyField::kFieldType) {
         // Increment it once to get first field after payload/body.
         it++;
         break;
@@ -148,39 +148,23 @@ class FieldList {
     return ret;
   }
 
-  bool HasPayloadOrBody() const {
-    return has_payload_ || has_body_;
-  }
+  bool HasPayloadOrBody() const { return has_payload_ || has_body_; }
 
-  bool HasPayload() const {
-    return has_payload_;
-  }
+  bool HasPayload() const { return has_payload_; }
 
-  bool HasBody() const {
-    return has_body_;
-  }
+  bool HasBody() const { return has_body_; }
 
-  FieldListIterator begin() const {
-    return field_list_.begin();
-  }
+  FieldListIterator begin() const { return field_list_.begin(); }
 
-  FieldListIterator end() const {
-    return field_list_.end();
-  }
+  FieldListIterator end() const { return field_list_.end(); }
 
-  ReverseFieldListIterator rbegin() const {
-    return field_list_.rbegin();
-  }
+  ReverseFieldListIterator rbegin() const { return field_list_.rbegin(); }
 
-  ReverseFieldListIterator rend() const {
-    return field_list_.rend();
-  }
+  ReverseFieldListIterator rend() const { return field_list_.rend(); }
 
-  size_t size() const {
-    return field_list_.size();
-  }
+  size_t size() const { return field_list_.size(); }
 
- private:
+private:
   void AddField(PacketField* field) {
     if (field_map_.find(field->GetName()) != field_map_.end()) {
       ERROR(field) << "Field with name \"" << field->GetName() << "\" was previously defined.\n";

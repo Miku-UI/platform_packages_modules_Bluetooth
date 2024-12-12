@@ -23,20 +23,17 @@
 namespace bluetooth {
 namespace avrcp {
 
-std::unique_ptr<GetCapabilitiesRequestBuilder>
-GetCapabilitiesRequestBuilder::MakeBuilder(Capability capability) {
+std::unique_ptr<GetCapabilitiesRequestBuilder> GetCapabilitiesRequestBuilder::MakeBuilder(
+        Capability capability) {
   std::unique_ptr<GetCapabilitiesRequestBuilder> builder(
-      new GetCapabilitiesRequestBuilder(capability));
+          new GetCapabilitiesRequestBuilder(capability));
 
   return builder;
 }
 
-size_t GetCapabilitiesRequestBuilder::size() const {
-  return GetCapabilitiesRequest::kMinSize();
-}
+size_t GetCapabilitiesRequestBuilder::size() const { return GetCapabilitiesRequest::kMinSize(); }
 
-bool GetCapabilitiesRequestBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool GetCapabilitiesRequestBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   // Push the standard avrcp headers
@@ -55,8 +52,10 @@ Capability GetCapabilitiesRequest::GetCapabilityRequested() const {
 }
 
 bool GetCapabilitiesRequest::IsValid() const {
-  if (!VendorPacket::IsValid()) return false;
-  return (size() == VendorPacket::kMinSize() + 1);
+  if (!VendorPacket::IsValid()) {
+    return false;
+  }
+  return size() == VendorPacket::kMinSize() + 1;
 }
 
 std::string GetCapabilitiesRequest::ToString() const {
@@ -75,10 +74,9 @@ std::string GetCapabilitiesRequest::ToString() const {
 }
 
 std::unique_ptr<GetCapabilitiesResponseBuilder>
-GetCapabilitiesResponseBuilder::MakeCompanyIdBuilder(
-    uint32_t company_id_element) {
+GetCapabilitiesResponseBuilder::MakeCompanyIdBuilder(uint32_t company_id_element) {
   std::unique_ptr<GetCapabilitiesResponseBuilder> builder(
-      new GetCapabilitiesResponseBuilder(Capability::COMPANY_ID));
+          new GetCapabilitiesResponseBuilder(Capability::COMPANY_ID));
 
   company_id_element &= 0x00FFFFFF;
   builder->elements_.insert(company_id_element);
@@ -89,19 +87,17 @@ GetCapabilitiesResponseBuilder::MakeCompanyIdBuilder(
 std::unique_ptr<GetCapabilitiesResponseBuilder>
 GetCapabilitiesResponseBuilder::MakeEventsSupportedBuilder(Event event) {
   std::unique_ptr<GetCapabilitiesResponseBuilder> builder(
-      new GetCapabilitiesResponseBuilder(Capability::EVENTS_SUPPORTED));
+          new GetCapabilitiesResponseBuilder(Capability::EVENTS_SUPPORTED));
 
   builder->elements_.insert(static_cast<uint8_t>(event));
 
   return builder;
 }
 
-GetCapabilitiesResponseBuilder* GetCapabilitiesResponseBuilder::AddCompanyId(
-    uint32_t company_id) {
+GetCapabilitiesResponseBuilder* GetCapabilitiesResponseBuilder::AddCompanyId(uint32_t company_id) {
   log::assert_that(capability_ == Capability::COMPANY_ID,
                    "assert failed: capability_ == Capability::COMPANY_ID");
-  log::assert_that(elements_.size() < size_t(0xFF),
-                   "maximum capability count reached");
+  log::assert_that(elements_.size() < size_t(0xFF), "maximum capability count reached");
 
   company_id &= 0x00FFFFFF;
   elements_.insert(company_id);
@@ -109,13 +105,10 @@ GetCapabilitiesResponseBuilder* GetCapabilitiesResponseBuilder::AddCompanyId(
   return this;
 }
 
-GetCapabilitiesResponseBuilder* GetCapabilitiesResponseBuilder::AddEvent(
-    Event event) {
-  log::assert_that(
-      capability_ == Capability::EVENTS_SUPPORTED,
-      "assert failed: capability_ == Capability::EVENTS_SUPPORTED");
-  log::assert_that(elements_.size() < size_t(0xFF),
-                   "maximum capability count reached");
+GetCapabilitiesResponseBuilder* GetCapabilitiesResponseBuilder::AddEvent(Event event) {
+  log::assert_that(capability_ == Capability::EVENTS_SUPPORTED,
+                   "assert failed: capability_ == Capability::EVENTS_SUPPORTED");
+  log::assert_that(elements_.size() < size_t(0xFF), "maximum capability count reached");
 
   elements_.insert(static_cast<uint8_t>(event));
 
@@ -127,12 +120,10 @@ size_t GetCapabilitiesResponseBuilder::size() const {
   size_t capability_count = elements_.size();
   size_t capability_size = capability_ == Capability::COMPANY_ID ? 3 : 1;
 
-  return GetCapabilitiesResponse::kMinSize() +
-         (capability_count * capability_size);
+  return GetCapabilitiesResponse::kMinSize() + (capability_count * capability_size);
 }
 
-bool GetCapabilitiesResponseBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool GetCapabilitiesResponseBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   // Push the standard avrcp headers
@@ -146,10 +137,11 @@ bool GetCapabilitiesResponseBuilder::Serialize(
   AddPayloadOctets1(pkt, static_cast<uint8_t>(capability_));
   AddPayloadOctets1(pkt, elements_.size());
   for (auto it = elements_.begin(); it != elements_.end(); it++) {
-    if (capability_ == Capability::COMPANY_ID)
+    if (capability_ == Capability::COMPANY_ID) {
       PushCompanyId(pkt, *it);
-    else
+    } else {
       AddPayloadOctets1(pkt, *it);
+    }
   }
 
   return true;

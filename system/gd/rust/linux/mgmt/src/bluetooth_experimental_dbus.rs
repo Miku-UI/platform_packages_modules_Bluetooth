@@ -7,6 +7,7 @@ use crate::iface_bluetooth_experimental::IBluetoothExperimental;
 use crate::iface_bluetooth_manager::BluetoothManagerMixin;
 
 /// D-Bus projection of IBluetoothExperimental.
+#[allow(dead_code)]
 struct BluetoothExperimentalDBus {}
 
 #[generate_dbus_exporter(

@@ -21,7 +21,7 @@
 #include "parse_location.h"
 
 class SizeField : public ScalarField {
- public:
+public:
   SizeField(std::string name, int size, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -48,7 +48,7 @@ class SizeField : public ScalarField {
 
   virtual void GenStringRepresentation(std::ostream& s, std::string accessor) const override;
 
- private:
+private:
   int size_;
   std::string sized_field_name_;
 };

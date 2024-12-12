@@ -25,8 +25,7 @@ namespace audio {
 namespace host {
 namespace le_audio {
 
-LeAudioTransport::LeAudioTransport(std::function<void()> flush,
-                                   StreamCallbacks stream_cb,
+LeAudioTransport::LeAudioTransport(std::function<void()> flush, StreamCallbacks stream_cb,
                                    PcmParameters pcm_config)
     : flush_(std::move(flush)),
       stream_cb_(std::move(stream_cb)),
@@ -34,7 +33,7 @@ LeAudioTransport::LeAudioTransport(std::function<void()> flush,
       total_bytes_processed_(0),
       data_position_({}),
       pcm_config_(std::move(pcm_config)),
-      start_request_state_(StartRequestState::IDLE){};
+      start_request_state_(StartRequestState::IDLE) {}
 
 bool LeAudioTransport::StartRequest() {
   SetStartRequestState(StartRequestState::PENDING_BEFORE_RESUME);
@@ -81,21 +80,22 @@ void LeAudioTransport::StopRequest() {
 bool LeAudioTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
                                                uint64_t* total_bytes_processed,
                                                timespec* data_position) {
-  log::verbose("data={} byte(s), timestamp={}.{}s, delay report={} msec.",
-               total_bytes_processed_, data_position_.tv_sec,
-               data_position_.tv_nsec, remote_delay_report_ms_);
+  log::verbose("data={} byte(s), timestamp={}.{}s, delay report={} msec.", total_bytes_processed_,
+               data_position_.tv_sec, data_position_.tv_nsec, remote_delay_report_ms_);
   if (remote_delay_report_ns != nullptr) {
     *remote_delay_report_ns = remote_delay_report_ms_ * 1000000u;
   }
-  if (total_bytes_processed != nullptr)
+  if (total_bytes_processed != nullptr) {
     *total_bytes_processed = total_bytes_processed_;
-  if (data_position != nullptr) *data_position = data_position_;
+  }
+  if (data_position != nullptr) {
+    *data_position = data_position_;
+  }
 
   return true;
 }
 
-void LeAudioTransport::SourceMetadataChanged(
-    const source_metadata_v7_t& source_metadata) {
+void LeAudioTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {
   auto track_count = source_metadata.track_count;
 
   if (track_count == 0) {
@@ -103,12 +103,10 @@ void LeAudioTransport::SourceMetadataChanged(
     return;
   }
 
-  stream_cb_.on_metadata_update_(source_metadata,
-                                 ::bluetooth::le_audio::DsaMode::DISABLED);
+  stream_cb_.on_metadata_update_(source_metadata, ::bluetooth::le_audio::DsaMode::DISABLED);
 }
 
-void LeAudioTransport::SinkMetadataChanged(
-    const sink_metadata_v7_t& sink_metadata) {
+void LeAudioTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) {
   auto track_count = sink_metadata.track_count;
 
   if (track_count == 0) {
@@ -138,12 +136,9 @@ void LeAudioTransport::SetRemoteDelay(uint16_t delay_report_ms) {
   remote_delay_report_ms_ = delay_report_ms;
 }
 
-const PcmParameters& LeAudioTransport::LeAudioGetSelectedHalPcmConfig() {
-  return pcm_config_;
-}
+const PcmParameters& LeAudioTransport::LeAudioGetSelectedHalPcmConfig() { return pcm_config_; }
 
-void LeAudioTransport::LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz,
-                                                      uint8_t bit_rate,
+void LeAudioTransport::LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz, uint8_t bit_rate,
                                                       uint8_t channels_count,
                                                       uint32_t data_interval) {
   pcm_config_.sample_rate = sample_rate_hz;
@@ -152,9 +147,7 @@ void LeAudioTransport::LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz,
   pcm_config_.data_interval_us = data_interval;
 }
 
-StartRequestState LeAudioTransport::GetStartRequestState(void) {
-  return start_request_state_;
-}
+StartRequestState LeAudioTransport::GetStartRequestState(void) { return start_request_state_; }
 
 void LeAudioTransport::ClearStartRequestState(void) {
   log::verbose("");
@@ -168,19 +161,19 @@ void LeAudioTransport::SetStartRequestState(StartRequestState state) {
 
 static PcmParameters get_source_default_pcm_parameters() {
   return PcmParameters{
-      .data_interval_us = 0,
-      .sample_rate = 16000,
-      .bits_per_sample = 16,
-      .channels_count = 1,
+          .data_interval_us = 0,
+          .sample_rate = 16000,
+          .bits_per_sample = 16,
+          .channels_count = 1,
   };
 }
 
 static PcmParameters get_sink_default_pcm_parameters() {
   return PcmParameters{
-      .data_interval_us = 0,
-      .sample_rate = 16000,
-      .bits_per_sample = 16,
-      .channels_count = 2,
+          .data_interval_us = 0,
+          .sample_rate = 16000,
+          .bits_per_sample = 16,
+          .channels_count = 2,
   };
 }
 
@@ -189,40 +182,34 @@ LeAudioSinkTransport::LeAudioSinkTransport(StreamCallbacks stream_cb) {
     // TODO(b/331315361): investigate the effect of flushing the buffer
   };
 
-  transport_ = new LeAudioTransport(flush_sink, std::move(stream_cb),
-                                    get_sink_default_pcm_parameters());
-};
+  transport_ =
+          new LeAudioTransport(flush_sink, std::move(stream_cb), get_sink_default_pcm_parameters());
+}
 
 LeAudioSinkTransport::~LeAudioSinkTransport() { delete transport_; }
 
 bool LeAudioSinkTransport::StartRequest() { return transport_->StartRequest(); }
 
-bool LeAudioSinkTransport::SuspendRequest() {
-  return transport_->SuspendRequest();
-}
+bool LeAudioSinkTransport::SuspendRequest() { return transport_->SuspendRequest(); }
 
 void LeAudioSinkTransport::StopRequest() { transport_->StopRequest(); }
 
-bool LeAudioSinkTransport::GetPresentationPosition(
-    uint64_t* remote_delay_report_ns, uint64_t* total_bytes_read,
-    timespec* data_position) {
-  return transport_->GetPresentationPosition(remote_delay_report_ns,
-                                             total_bytes_read, data_position);
+bool LeAudioSinkTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
+                                                   uint64_t* total_bytes_read,
+                                                   timespec* data_position) {
+  return transport_->GetPresentationPosition(remote_delay_report_ns, total_bytes_read,
+                                             data_position);
 }
 
-void LeAudioSinkTransport::SourceMetadataChanged(
-    const source_metadata_v7_t& source_metadata) {
+void LeAudioSinkTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {
   transport_->SourceMetadataChanged(source_metadata);
 }
 
-void LeAudioSinkTransport::SinkMetadataChanged(
-    const sink_metadata_v7_t& sink_metadata) {
+void LeAudioSinkTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) {
   transport_->SinkMetadataChanged(sink_metadata);
 }
 
-void LeAudioSinkTransport::ResetPresentationPosition() {
-  transport_->ResetPresentationPosition();
-}
+void LeAudioSinkTransport::ResetPresentationPosition() { transport_->ResetPresentationPosition(); }
 
 void LeAudioSinkTransport::LogBytesRead(size_t bytes_read) {
   transport_->LogBytesProcessed(bytes_read);
@@ -236,11 +223,11 @@ const PcmParameters& LeAudioSinkTransport::LeAudioGetSelectedHalPcmConfig() {
   return transport_->LeAudioGetSelectedHalPcmConfig();
 }
 
-void LeAudioSinkTransport::LeAudioSetSelectedHalPcmConfig(
-    uint32_t sample_rate_hz, uint8_t bit_rate, uint8_t channels_count,
-    uint32_t data_interval) {
-  transport_->LeAudioSetSelectedHalPcmConfig(sample_rate_hz, bit_rate,
-                                             channels_count, data_interval);
+void LeAudioSinkTransport::LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz, uint8_t bit_rate,
+                                                          uint8_t channels_count,
+                                                          uint32_t data_interval) {
+  transport_->LeAudioSetSelectedHalPcmConfig(sample_rate_hz, bit_rate, channels_count,
+                                             data_interval);
 }
 
 StartRequestState LeAudioSinkTransport::GetStartRequestState(void) {
@@ -263,32 +250,26 @@ LeAudioSourceTransport::LeAudioSourceTransport(StreamCallbacks stream_cb) {
 
   transport_ = new LeAudioTransport(flush_source, std::move(stream_cb),
                                     get_source_default_pcm_parameters());
-};
+}
 
 LeAudioSourceTransport::~LeAudioSourceTransport() { delete transport_; }
 
-bool LeAudioSourceTransport::StartRequest() {
-  return transport_->StartRequest();
-}
+bool LeAudioSourceTransport::StartRequest() { return transport_->StartRequest(); }
 
-bool LeAudioSourceTransport::SuspendRequest() {
-  return transport_->SuspendRequest();
-}
+bool LeAudioSourceTransport::SuspendRequest() { return transport_->SuspendRequest(); }
 
 void LeAudioSourceTransport::StopRequest() { transport_->StopRequest(); }
 
-bool LeAudioSourceTransport::GetPresentationPosition(
-    uint64_t* remote_delay_report_ns, uint64_t* total_bytes_written,
-    timespec* data_position) {
-  return transport_->GetPresentationPosition(
-      remote_delay_report_ns, total_bytes_written, data_position);
+bool LeAudioSourceTransport::GetPresentationPosition(uint64_t* remote_delay_report_ns,
+                                                     uint64_t* total_bytes_written,
+                                                     timespec* data_position) {
+  return transport_->GetPresentationPosition(remote_delay_report_ns, total_bytes_written,
+                                             data_position);
 }
 
-void LeAudioSourceTransport::SourceMetadataChanged(
-    const source_metadata_v7_t& source_metadata) {}
+void LeAudioSourceTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {}
 
-void LeAudioSourceTransport::SinkMetadataChanged(
-    const sink_metadata_v7_t& sink_metadata) {
+void LeAudioSourceTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) {
   transport_->SinkMetadataChanged(sink_metadata);
 }
 
@@ -308,11 +289,12 @@ const PcmParameters& LeAudioSourceTransport::LeAudioGetSelectedHalPcmConfig() {
   return transport_->LeAudioGetSelectedHalPcmConfig();
 }
 
-void LeAudioSourceTransport::LeAudioSetSelectedHalPcmConfig(
-    uint32_t sample_rate_hz, uint8_t bit_rate, uint8_t channels_count,
-    uint32_t data_interval) {
-  transport_->LeAudioSetSelectedHalPcmConfig(sample_rate_hz, bit_rate,
-                                             channels_count, data_interval);
+void LeAudioSourceTransport::LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz,
+                                                            uint8_t bit_rate,
+                                                            uint8_t channels_count,
+                                                            uint32_t data_interval) {
+  transport_->LeAudioSetSelectedHalPcmConfig(sample_rate_hz, bit_rate, channels_count,
+                                             data_interval);
 }
 
 StartRequestState LeAudioSourceTransport::GetStartRequestState(void) {

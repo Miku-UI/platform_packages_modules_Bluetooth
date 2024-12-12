@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include "osi/include/compat.h"
 
 #define MAX_BUFFER_SIZE 4096
@@ -24,8 +25,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
   // Init our wrapper
   FuzzedDataProvider dataProvider(Data, Size);
 
-  size_t buf_size =
-      dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_BUFFER_SIZE);
+  size_t buf_size = dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_BUFFER_SIZE);
   if (buf_size == 0) {
     return 0;
   }
@@ -33,8 +33,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
   // Set up our buffers
   // NOTE: If the src buffer is not NULL-terminated, the strlcpy will
   //       overread regardless of the len arg. Force null-term for now.
-  std::vector<char> bytes =
-      dataProvider.ConsumeBytesWithTerminator<char>(buf_size, '\0');
+  std::vector<char> bytes = dataProvider.ConsumeBytesWithTerminator<char>(buf_size, '\0');
   if (bytes.empty()) {
     return 0;
   }
@@ -49,8 +48,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
 
   // Copy, then concat
   size_t len_to_cpy = dataProvider.ConsumeIntegralInRange<size_t>(0, buf_size);
-  strlcpy(reinterpret_cast<char*>(dst_buf),
-          reinterpret_cast<char*>(bytes.data()), len_to_cpy);
+  strlcpy(reinterpret_cast<char*>(dst_buf), reinterpret_cast<char*>(bytes.data()), len_to_cpy);
 
   // Clear out our dest buffer
   free(dst_buf);

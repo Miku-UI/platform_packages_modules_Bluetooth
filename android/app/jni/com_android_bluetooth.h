@@ -33,99 +33,93 @@ bool isCallbackThread();
 
 class CallbackEnv {
 public:
-    CallbackEnv(const char *methodName) : mName(methodName) {
-        mCallbackEnv = getCallbackEnv();
-    }
+  CallbackEnv(const char* methodName) : mName(methodName) { mCallbackEnv = getCallbackEnv(); }
 
-    ~CallbackEnv() {
-      if (mCallbackEnv && mCallbackEnv->ExceptionCheck()) {
-        log::error("An exception was thrown by callback '{}'.", mName);
-        jniLogException(mCallbackEnv, ANDROID_LOG_ERROR, LOG_TAG);
-        mCallbackEnv->ExceptionClear();
-      }
+  ~CallbackEnv() {
+    if (mCallbackEnv && mCallbackEnv->ExceptionCheck()) {
+      log::error("An exception was thrown by callback '{}'.", mName);
+      jniLogException(mCallbackEnv, ANDROID_LOG_ERROR, LOG_TAG);
+      mCallbackEnv->ExceptionClear();
     }
+  }
 
-    bool valid() const {
-      if (!mCallbackEnv || !isCallbackThread()) {
-        log::error("{}: Callback env fail", mName);
-        return false;
-      }
-      return true;
+  bool valid() const {
+    if (!mCallbackEnv || !isCallbackThread()) {
+      log::error("{}: Callback env fail", mName);
+      return false;
     }
+    return true;
+  }
 
-    // stolen from art/runtime/jni/check_jni.cc
-    bool isValidUtf(const char* bytes) const {
-      while (*bytes != '\0') {
-        const uint8_t* utf8 = reinterpret_cast<const uint8_t*>(bytes++);
-        // Switch on the high four bits.
-        switch (*utf8 >> 4) {
-          case 0x00:
-          case 0x01:
-          case 0x02:
-          case 0x03:
-          case 0x04:
-          case 0x05:
-          case 0x06:
-          case 0x07:
-            // Bit pattern 0xxx. No need for any extra bytes.
-            break;
-          case 0x08:
-          case 0x09:
-          case 0x0a:
-          case 0x0b:
-            // Bit patterns 10xx, which are illegal start bytes.
+  // stolen from art/runtime/jni/check_jni.cc
+  bool isValidUtf(const char* bytes) const {
+    while (*bytes != '\0') {
+      const uint8_t* utf8 = reinterpret_cast<const uint8_t*>(bytes++);
+      // Switch on the high four bits.
+      switch (*utf8 >> 4) {
+        case 0x00:
+        case 0x01:
+        case 0x02:
+        case 0x03:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+          // Bit pattern 0xxx. No need for any extra bytes.
+          break;
+        case 0x08:
+        case 0x09:
+        case 0x0a:
+        case 0x0b:
+          // Bit patterns 10xx, which are illegal start bytes.
+          return false;
+        case 0x0f:
+          // Bit pattern 1111, which might be the start of a 4 byte sequence.
+          if ((*utf8 & 0x08) == 0) {
+            // Bit pattern 1111 0xxx, which is the start of a 4 byte sequence.
+            // We consume one continuation byte here, and fall through to
+            // consume two more.
+            utf8 = reinterpret_cast<const uint8_t*>(bytes++);
+            if ((*utf8 & 0xc0) != 0x80) {
+              return false;
+            }
+          } else {
             return false;
-          case 0x0f:
-            // Bit pattern 1111, which might be the start of a 4 byte sequence.
-            if ((*utf8 & 0x08) == 0) {
-              // Bit pattern 1111 0xxx, which is the start of a 4 byte sequence.
-              // We consume one continuation byte here, and fall through to
-              // consume two more.
-              utf8 = reinterpret_cast<const uint8_t*>(bytes++);
-              if ((*utf8 & 0xc0) != 0x80) {
-                return false;
-              }
-            } else {
-              return false;
-            }
-            // Fall through to the cases below to consume two more continuation
-            // bytes.
-            FALLTHROUGH_INTENDED;
-          case 0x0e:
-            // Bit pattern 1110, so there are two additional bytes.
-            utf8 = reinterpret_cast<const uint8_t*>(bytes++);
-            if ((*utf8 & 0xc0) != 0x80) {
-              return false;
-            }
-            // Fall through to consume one more continuation byte.
-            FALLTHROUGH_INTENDED;
-          case 0x0c:
-          case 0x0d:
-            // Bit pattern 110x, so there is one additional byte.
-            utf8 = reinterpret_cast<const uint8_t*>(bytes++);
-            if ((*utf8 & 0xc0) != 0x80) {
-              return false;
-            }
-            break;
-        }
+          }
+          // Fall through to the cases below to consume two more continuation
+          // bytes.
+          [[fallthrough]];
+        case 0x0e:
+          // Bit pattern 1110, so there are two additional bytes.
+          utf8 = reinterpret_cast<const uint8_t*>(bytes++);
+          if ((*utf8 & 0xc0) != 0x80) {
+            return false;
+          }
+          // Fall through to consume one more continuation byte.
+          [[fallthrough]];
+        case 0x0c:
+        case 0x0d:
+          // Bit pattern 110x, so there is one additional byte.
+          utf8 = reinterpret_cast<const uint8_t*>(bytes++);
+          if ((*utf8 & 0xc0) != 0x80) {
+            return false;
+          }
+          break;
       }
-      return true;
     }
+    return true;
+  }
 
-    JNIEnv *operator-> () const {
-        return mCallbackEnv;
-    }
+  JNIEnv* operator->() const { return mCallbackEnv; }
 
-    JNIEnv *get() const {
-        return mCallbackEnv;
-    }
+  JNIEnv* get() const { return mCallbackEnv; }
 
 private:
-    JNIEnv *mCallbackEnv;
-    const char *mName;
+  JNIEnv* mCallbackEnv;
+  const char* mName;
 
-    CallbackEnv(const CallbackEnv&) = delete;
-    void operator=(const CallbackEnv&) = delete;
+  CallbackEnv(const CallbackEnv&) = delete;
+  void operator=(const CallbackEnv&) = delete;
 };
 
 const bt_interface_t* getBluetoothInterface();
@@ -166,23 +160,22 @@ int register_com_android_bluetooth_vc(JNIEnv* env);
 
 int register_com_android_bluetooth_csip_set_coordinator(JNIEnv* env);
 
-int register_com_android_bluetooth_btservice_BluetoothQualityReport(
-    JNIEnv* env);
+int register_com_android_bluetooth_btservice_BluetoothQualityReport(JNIEnv* env);
 
 struct JNIJavaMethod {
-    const char* name;
-    const char* signature;
-    jmethodID* id;
-    bool is_static{false};
+  const char* name;
+  const char* signature;
+  jmethodID* id;
+  bool is_static{false};
 };
 
-void jniGetMethodsOrDie(JNIEnv* env, const char* className,
-                        const JNIJavaMethod* methods, int nMethods);
+void jniGetMethodsOrDie(JNIEnv* env, const char* className, const JNIJavaMethod* methods,
+                        int nMethods);
 
 #define REGISTER_NATIVE_METHODS(env, classname, methodsArray) \
-    jniRegisterNativeMethods(env, classname, methodsArray, NELEM(methodsArray))
+  jniRegisterNativeMethods(env, classname, methodsArray, NELEM(methodsArray))
 
 #define GET_JAVA_METHODS(env, classname, methodsArray) \
-    jniGetMethodsOrDie(env, classname, methodsArray, NELEM(methodsArray))
+  jniGetMethodsOrDie(env, classname, methodsArray, NELEM(methodsArray))
 
 }  // namespace android

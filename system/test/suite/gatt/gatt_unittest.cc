@@ -29,11 +29,10 @@ namespace bttest {
 TEST_F(GattTest, GattClientRegister) {
   // Registers gatt client.
   bluetooth::Uuid gatt_client_uuid = bluetooth::Uuid::From128BitBE(
-      bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
+          bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
   gatt_client_interface()->register_client(gatt_client_uuid, false);
   semaphore_wait(register_client_callback_sem_);
-  EXPECT_TRUE(status() == BT_STATUS_SUCCESS)
-      << "Error registering GATT client app callback.";
+  EXPECT_TRUE(status() == BT_STATUS_SUCCESS) << "Error registering GATT client app callback.";
 
   // Unregisters gatt client. No callback is expected.
   gatt_client_interface()->unregister_client(client_interface_id());
@@ -42,11 +41,10 @@ TEST_F(GattTest, GattClientRegister) {
 TEST_F(GattTest, GattServerRegister) {
   // Registers gatt server.
   bluetooth::Uuid gatt_server_uuid = bluetooth::Uuid::From128BitBE(
-      bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
+          bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
   gatt_server_interface()->register_server(gatt_server_uuid, false);
   semaphore_wait(register_server_callback_sem_);
-  EXPECT_TRUE(status() == BT_STATUS_SUCCESS)
-      << "Error registering GATT server app callback.";
+  EXPECT_TRUE(status() == BT_STATUS_SUCCESS) << "Error registering GATT server app callback.";
 
   // Unregisters gatt server. No callback is expected.
   gatt_server_interface()->unregister_server(server_interface_id());
@@ -55,46 +53,43 @@ TEST_F(GattTest, GattServerRegister) {
 TEST_F(GattTest, GattServerBuild) {
   // Registers gatt server.
   bluetooth::Uuid gatt_server_uuid = bluetooth::Uuid::From128BitBE(
-      bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
+          bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
   gatt_server_interface()->register_server(gatt_server_uuid, false);
   semaphore_wait(register_server_callback_sem_);
-  EXPECT_TRUE(status() == BT_STATUS_SUCCESS)
-      << "Error registering GATT server app callback.";
+  EXPECT_TRUE(status() == BT_STATUS_SUCCESS) << "Error registering GATT server app callback.";
 
   // Service UUID.
   bluetooth::Uuid srvc_uuid = bluetooth::Uuid::From128BitBE(
-      bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
+          bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
 
   // Characteristics UUID.
   bluetooth::Uuid char_uuid = bluetooth::Uuid::From128BitBE(
-      bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
+          bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
 
   // Descriptor UUID.
   bluetooth::Uuid desc_uuid = bluetooth::Uuid::From128BitBE(
-      bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
+          bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
 
   // Adds service.
   int server_if = server_interface_id();
 
-  std::vector<btgatt_db_element_t> service = {
-      {
-          .uuid = srvc_uuid,
-          .type = BTGATT_DB_PRIMARY_SERVICE,
-      },
-      {
-          .uuid = char_uuid,
-          .type = BTGATT_DB_CHARACTERISTIC,
-          .properties = 0x10,  /* notification */
-          .permissions = 0x01, /* read only */
-      },
-      {
-          .uuid = desc_uuid,
-          .type = BTGATT_DB_DESCRIPTOR,
-          .permissions = 0x01,
-      }};
+  std::vector<btgatt_db_element_t> service = {{
+                                                      .uuid = srvc_uuid,
+                                                      .type = BTGATT_DB_PRIMARY_SERVICE,
+                                              },
+                                              {
+                                                      .uuid = char_uuid,
+                                                      .type = BTGATT_DB_CHARACTERISTIC,
+                                                      .properties = 0x10,  /* notification */
+                                                      .permissions = 0x01, /* read only */
+                                              },
+                                              {
+                                                      .uuid = desc_uuid,
+                                                      .type = BTGATT_DB_DESCRIPTOR,
+                                                      .permissions = 0x01,
+                                              }};
 
-  gatt_server_interface()->add_service(server_if, service.data(),
-                                       service.size());
+  gatt_server_interface()->add_service(server_if, service.data(), service.size());
   semaphore_wait(service_added_callback_sem_);
   EXPECT_TRUE(status() == BT_STATUS_SUCCESS) << "Error adding service.";
   EXPECT_TRUE(server_interface_id() == server_if) << "Wrong server_if added.";
@@ -104,20 +99,18 @@ TEST_F(GattTest, GattServerBuild) {
   gatt_server_interface()->stop_service(server_if, service_handle());
   semaphore_wait(service_stopped_callback_sem_);
   EXPECT_TRUE(status() == BT_STATUS_SUCCESS) << "Error stopping server.";
-  EXPECT_TRUE(service_handle() == service_handle_added)
-      << "Wrong service handle stopped.";
+  EXPECT_TRUE(service_handle() == service_handle_added) << "Wrong service handle stopped.";
   EXPECT_TRUE(server_interface_id() == server_if) << "Wrong server_if stopped.";
 
   // Deletes service.
   gatt_server_interface()->delete_service(server_if, service_handle());
   semaphore_wait(service_deleted_callback_sem_);
   EXPECT_TRUE(status() == BT_STATUS_SUCCESS) << "Error deleting service.";
-  EXPECT_TRUE(service_handle() == service_handle_added)
-      << "Wrong service handle deleted.";
+  EXPECT_TRUE(service_handle() == service_handle_added) << "Wrong service handle deleted.";
   EXPECT_TRUE(server_interface_id() == server_if) << "Wrong server_if deleted.";
 
   // Unregisters gatt server. No callback is expected.
   gatt_server_interface()->unregister_server(server_if);
 }
 
-}  // bttest
+}  // namespace bttest

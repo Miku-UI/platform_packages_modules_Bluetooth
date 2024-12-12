@@ -19,8 +19,10 @@
 #pragma once
 
 #include <cstdint>
+
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/btm_status.h"
 
 //////////////////////////////////////////////////////////
 ////// from btm_ble_api_types.h
@@ -94,8 +96,8 @@ typedef union {
 /* Simple Pairing Events.  Called by the stack when Simple Pairing related
  * events occur.
  */
-typedef uint8_t(tBTM_LE_CALLBACK)(tBTM_LE_EVT event, const RawAddress& bda,
-                                  tBTM_LE_EVT_DATA* p_data);
+typedef tBTM_STATUS(tBTM_LE_CALLBACK)(tBTM_LE_EVT event, const RawAddress& bda,
+                                      tBTM_LE_EVT_DATA* p_data);
 
 #define BTM_BLE_KEY_TYPE_ID 1
 #define BTM_BLE_KEY_TYPE_ER 2
@@ -115,6 +117,4 @@ typedef union {
 
 /* New LE identity key for local device.
  */
-typedef void(tBTM_LE_KEY_CALLBACK)(uint8_t key_type,
-                                   tBTM_BLE_LOCAL_KEYS* p_key);
-
+typedef void(tBTM_LE_KEY_CALLBACK)(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key);

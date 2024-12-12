@@ -169,7 +169,7 @@ public class A2dpNativeInterface {
         if (device == null) {
             return Utils.getBytesFromAddress("00:00:00:00:00:00");
         }
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getByteBrEdrAddress(device);
         } else {
             return mAdapterService.getByteIdentityAddress(device);

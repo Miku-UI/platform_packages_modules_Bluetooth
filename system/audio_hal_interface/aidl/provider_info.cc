@@ -33,17 +33,16 @@ using ::aidl::android::hardware::bluetooth::audio::SessionType;
 ::hfp::sco_config recordHfpCodecInfo(CodecInfo codecInfo) {
   auto hfp_transport = codecInfo.transport.get<CodecInfo::Transport::hfp>();
   ::hfp::sco_config config{
-      .inputDataPath = hfp_transport.inputDataPath,
-      .outputDataPath = hfp_transport.outputDataPath,
-      .useControllerCodec = hfp_transport.useControllerCodec,
+          .inputDataPath = hfp_transport.inputDataPath,
+          .outputDataPath = hfp_transport.outputDataPath,
+          .useControllerCodec = hfp_transport.useControllerCodec,
   };
   return config;
 }
 
-std::unique_ptr<ProviderInfo>
-bluetooth::audio::aidl::ProviderInfo::GetProviderInfo(SessionType sessionType) {
-  auto provider_info =
-      BluetoothAudioClientInterface::GetProviderInfo(sessionType);
+std::unique_ptr<ProviderInfo> bluetooth::audio::aidl::ProviderInfo::GetProviderInfo(
+        SessionType sessionType) {
+  auto provider_info = BluetoothAudioClientInterface::GetProviderInfo(sessionType);
 
   std::vector<CodecInfo> codecInfos;
   if (provider_info.has_value()) {
@@ -53,26 +52,24 @@ bluetooth::audio::aidl::ProviderInfo::GetProviderInfo(SessionType sessionType) {
   return std::make_unique<ProviderInfo>(sessionType, std::move(codecInfos));
 }
 
-ProviderInfo::ProviderInfo(SessionType sessionType,
-                           std::vector<CodecInfo> codecs)
+ProviderInfo::ProviderInfo(SessionType sessionType, std::vector<CodecInfo> codecs)
     : codecInfos(std::move(codecs)) {
   for (auto codecInfo : codecInfos) {
     if (codecInfo.id == CodecId::Core::CVSD) {
-      hfpScoConfigMap[UUID_CODEC_CVSD] = recordHfpCodecInfo(codecInfo);
+      hfpScoConfigMap[tBTA_AG_UUID_CODEC::UUID_CODEC_CVSD] = recordHfpCodecInfo(codecInfo);
     } else if (codecInfo.id == CodecId::Core::MSBC) {
-      hfpScoConfigMap[UUID_CODEC_MSBC] = recordHfpCodecInfo(codecInfo);
+      hfpScoConfigMap[tBTA_AG_UUID_CODEC::UUID_CODEC_MSBC] = recordHfpCodecInfo(codecInfo);
     } else if (codecInfo.id == CodecId::Core::LC3) {
       if (sessionType == SessionType::HFP_HARDWARE_OFFLOAD_DATAPATH ||
           sessionType == SessionType::HFP_SOFTWARE_ENCODING_DATAPATH ||
           sessionType == SessionType::HFP_SOFTWARE_DECODING_DATAPATH) {
-        hfpScoConfigMap[UUID_CODEC_LC3] = recordHfpCodecInfo(codecInfo);
+        hfpScoConfigMap[tBTA_AG_UUID_CODEC::UUID_CODEC_LC3] = recordHfpCodecInfo(codecInfo);
       }
     }
   }
 }
 
-const std::unordered_map<int, ::hfp::sco_config>&
-ProviderInfo::GetHfpScoConfig() {
+const std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config>& ProviderInfo::GetHfpScoConfig() {
   return hfpScoConfigMap;
 }
 }  // namespace bluetooth::audio::aidl

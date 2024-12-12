@@ -30,22 +30,16 @@ typedef enum {
   BTPAN_STATE_DISCONNECTING = 3
 } btpan_connection_state_t;
 
-typedef enum {
-  BTPAN_STATE_ENABLED = 0,
-  BTPAN_STATE_DISABLED = 1
-} btpan_control_state_t;
+typedef enum { BTPAN_STATE_ENABLED = 0, BTPAN_STATE_DISABLED = 1 } btpan_control_state_t;
 
 /**
  * Callback for pan connection state
  */
-typedef void (*btpan_connection_state_callback)(btpan_connection_state_t state,
-                                                bt_status_t error,
-                                                const RawAddress* bd_addr,
-                                                int local_role,
+typedef void (*btpan_connection_state_callback)(btpan_connection_state_t state, bt_status_t error,
+                                                const RawAddress* bd_addr, int local_role,
                                                 int remote_role);
-typedef void (*btpan_control_state_callback)(btpan_control_state_t state,
-                                             int local_role, bt_status_t error,
-                                             const char* ifname);
+typedef void (*btpan_control_state_callback)(btpan_control_state_t state, int local_role,
+                                             bt_status_t error, const char* ifname);
 
 typedef struct {
   size_t size;
@@ -74,8 +68,7 @@ typedef struct {
    * start bluetooth pan connection to the remote device by specified pan role.
    * The result state will be returned by btpan_connection_state_callback
    */
-  bt_status_t (*connect)(const RawAddress* bd_addr, int local_role,
-                         int remote_role);
+  bt_status_t (*connect)(const RawAddress* bd_addr, int local_role, int remote_role);
   /**
    * stop bluetooth pan connection. The result state will be returned by
    * btpan_connection_state_callback
@@ -91,10 +84,8 @@ typedef struct {
 
 namespace fmt {
 template <>
-struct formatter<btpan_connection_state_t>
-    : enum_formatter<btpan_connection_state_t> {};
+struct formatter<btpan_connection_state_t> : enum_formatter<btpan_connection_state_t> {};
 
 template <>
-struct formatter<btpan_control_state_t>
-    : enum_formatter<btpan_control_state_t> {};
+struct formatter<btpan_control_state_t> : enum_formatter<btpan_control_state_t> {};
 }  // namespace fmt

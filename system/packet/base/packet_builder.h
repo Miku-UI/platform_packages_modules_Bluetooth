@@ -23,13 +23,13 @@ namespace bluetooth {
 class Packet;
 
 class PacketBuilder {
- public:
+public:
   virtual size_t size() const = 0;
   virtual bool Serialize(const std::shared_ptr<Packet>& pkt) = 0;
 
   virtual ~PacketBuilder() = default;
 
- protected:
+protected:
   // Only Builders should be able to call these
   void ReserveSpace(const std::shared_ptr<Packet>& pkt, size_t size);
   bool AddPayloadOctets1(const std::shared_ptr<Packet>& pkt, uint8_t value) {
@@ -51,12 +51,11 @@ class PacketBuilder {
     return AddPayloadOctets(pkt, 8, value);
   }
 
- private:
+private:
   // Add |octets| bytes to the payload.  Return true if:
   // - the value of |value| fits in |octets| bytes and
   // - the new size of the payload is still < |kMaxPayloadOctets|
-  bool AddPayloadOctets(const std::shared_ptr<Packet>& pkt, size_t octets,
-                        uint64_t value);
+  bool AddPayloadOctets(const std::shared_ptr<Packet>& pkt, size_t octets, uint64_t value);
 };
 
 }  // namespace bluetooth

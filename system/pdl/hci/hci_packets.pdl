@@ -862,6 +862,7 @@ enum EventCode : 8 {
   LE_META_EVENT = 0x3e,
   NUMBER_OF_COMPLETED_DATA_BLOCKS = 0x48,
   AUTHENTICATED_PAYLOAD_TIMEOUT_EXPIRED = 0x57,
+  ENCRYPTION_CHANGE_V2 = 0x59,
   VENDOR_SPECIFIC = 0xFF,
 }
 
@@ -5210,6 +5211,15 @@ struct CsPreferredPeerAntenna {
   _reserved_ : 4,
 }
 
+enum CsSnrControl : 8 {
+  ADJUST_18_DB = 0x00,
+  ADJUST_21_DB = 0x01,
+  ADJUST_24_DB = 0x02,
+  ADJUST_27_DB = 0x03,
+  ADJUST_30_DB = 0x04,
+  NOT_APPLIED = 0xFF,
+}
+
 packet LeCsSetProcedureParameters  : DistanceMeasurementCommand (op_code = LE_CS_SET_PROCEDURE_PARAMETERS) {
   connection_handle: 12,
   _reserved_ : 4,
@@ -5225,6 +5235,8 @@ packet LeCsSetProcedureParameters  : DistanceMeasurementCommand (op_code = LE_CS
   phy : CsPhy,
   tx_pwr_delta : 8,
   preferred_peer_antenna : CsPreferredPeerAntenna,
+  snr_control_initiator: CsSnrControl,
+  snr_control_reflector: CsSnrControl,
 }
 
 packet LeCsSetProcedureParametersComplete : CommandComplete (command_op_code = LE_CS_SET_PROCEDURE_PARAMETERS) {
@@ -5255,15 +5267,19 @@ packet LeCsTest : DistanceMeasurementCommand (op_code = LE_CS_TEST) {
   cs_sync_antenna_selection : 8,
   cs_subevent_length : 24,
   cs_subevent_interval : 16,
+  max_num_subevents : 8,
   transmit_power_level : 8,
   t_ip1_time : 8,
   t_ip2_time : 8,
   t_fcs_time : 8,
   t_pm_time : 8,
   t_sw_time : 8,
-  tone_antenna_config : 8,
-  companion_signal_enable : 8,
+  tone_antenna_config_selection : 8,
+  _reserved_ : 8,
+  snr_control_initiator: CsSnrControl,
+  snr_control_reflector: CsSnrControl,
   drbg_nonce : 16,
+  channel_map_repetition : 8,
   override_config : 8,
   override_parameters_length : 8,
   override_parameters_data : 8[],
@@ -6310,6 +6326,14 @@ packet NumberOfCompletedDataBlocks : Event (event_code = NUMBER_OF_COMPLETED_DAT
 packet AuthenticatedPayloadTimeoutExpired : Event (event_code = AUTHENTICATED_PAYLOAD_TIMEOUT_EXPIRED) {
   connection_handle : 12,
   _reserved_ : 4,
+}
+
+packet EncryptionChangeV2 : Event (event_code = ENCRYPTION_CHANGE_V2) {
+  status : ErrorCode,
+  connection_handle : 12,
+  _reserved_ : 4,
+  encryption_enabled : EncryptionEnabled,
+  key_size : 8,
 }
 
 // LE Events

@@ -29,14 +29,13 @@ namespace {
 constexpr int kCheckIsSameThread = 1;
 
 class SampleReactable {
- public:
-  explicit SampleReactable(Thread* thread) : thread_(thread), fd_(eventfd(0, 0)), is_same_thread_checked_(false) {
+public:
+  explicit SampleReactable(Thread* thread)
+      : thread_(thread), fd_(eventfd(0, 0)), is_same_thread_checked_(false) {
     EXPECT_NE(fd_, 0);
   }
 
-  ~SampleReactable() {
-    close(fd_);
-  }
+  ~SampleReactable() { close(fd_); }
 
   void OnReadReady() {
     EXPECT_TRUE(thread_->IsSameThread());
@@ -45,9 +44,7 @@ class SampleReactable {
     eventfd_read(fd_, &val);
   }
 
-  bool IsSameThreadCheckDone() {
-    return is_same_thread_checked_;
-  }
+  bool IsSameThreadCheckDone() { return is_same_thread_checked_; }
 
   Thread* thread_;
   int fd_;
@@ -55,44 +52,36 @@ class SampleReactable {
 };
 
 class ThreadTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    thread = new Thread("test", Thread::Priority::NORMAL);
-  }
+protected:
+  void SetUp() override { thread = new Thread("test", Thread::Priority::NORMAL); }
 
-  void TearDown() override {
-    delete thread;
-  }
+  void TearDown() override { delete thread; }
   Thread* thread = nullptr;
 };
 
-TEST_F(ThreadTest, just_stop_no_op) {
-  thread->Stop();
-}
+TEST_F(ThreadTest, just_stop_no_op) { thread->Stop(); }
 
-TEST_F(ThreadTest, thread_name) {
-  EXPECT_EQ(thread->GetThreadName(), "test");
-}
+TEST_F(ThreadTest, thread_name) { EXPECT_EQ(thread->GetThreadName(), "test"); }
 
 TEST_F(ThreadTest, thread_to_string) {
   EXPECT_NE(thread->ToString().find("test"), std::string::npos);
 }
 
-TEST_F(ThreadTest, not_same_thread) {
-  EXPECT_FALSE(thread->IsSameThread());
-}
+TEST_F(ThreadTest, not_same_thread) { EXPECT_FALSE(thread->IsSameThread()); }
 
 TEST_F(ThreadTest, same_thread) {
   Reactor* reactor = thread->GetReactor();
   SampleReactable sample_reactable(thread);
   auto* reactable = reactor->Register(
-      sample_reactable.fd_,
-      common::Bind(&SampleReactable::OnReadReady, common::Unretained(&sample_reactable)),
-      common::Closure());
+          sample_reactable.fd_,
+          common::Bind(&SampleReactable::OnReadReady, common::Unretained(&sample_reactable)),
+          common::Closure());
   int fd = sample_reactable.fd_;
   int write_result = eventfd_write(fd, kCheckIsSameThread);
   EXPECT_EQ(write_result, 0);
-  while (!sample_reactable.IsSameThreadCheckDone()) std::this_thread::yield();
+  while (!sample_reactable.IsSameThreadCheckDone()) {
+    std::this_thread::yield();
+  }
   reactor->Unregister(reactable);
 }
 

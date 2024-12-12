@@ -20,7 +20,7 @@
 #include "parse_location.h"
 
 class ReservedField : public PacketField {
- public:
+public:
   ReservedField(int size, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -47,7 +47,7 @@ class ReservedField : public PacketField {
 
   virtual void GenValidator(std::ostream&) const override;
 
- private:
+private:
   std::string name_;
   int size_;
   static int unique_id_;

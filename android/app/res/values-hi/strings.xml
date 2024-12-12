@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"सूची से साफ़ करें"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"साफ़ करें"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"अभी चल रहा है"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"सेव करें"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"रद्द करें"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"वे खाते चुनें जिन्हें आप ब्लूटूथ के ज़रिये शेयर करना चाहते हैं. आपको अब भी कनेक्ट करते समय खातों के किसी भी ऐक्सेस को स्वीकार करना होगा."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"शेष स्लॉट:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ऐप्लिकेशन आइकॉन"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"ब्लूटूथ संदेश साझाकरण सेटिंग"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"खाता नहीं चुना जा सकता. 0 स्लॉट शेष"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"ब्लूटूथ ऑडियो कनेक्ट किया गया"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ब्लूटूथ ऑडियो डिसकनेक्ट किया गया"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ब्लूटूथ ऑडियो"</string>

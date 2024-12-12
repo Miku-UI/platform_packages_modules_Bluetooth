@@ -14,7 +14,7 @@
  */
 package com.android.bluetooth;
 
-import android.annotation.RequiresPermission;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
@@ -72,7 +72,6 @@ public class ObexServerSockets {
      *     an incoming connection.
      * @return a reference to a {@link ObexServerSockets} object instance.
      */
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     public static ObexServerSockets create(IObexConnectionHandler validator) {
         return create(
                 validator,
@@ -89,7 +88,6 @@ public class ObexServerSockets {
      *     an incoming connection.
      * @return a reference to a {@link ObexServerSockets} object instance.
      */
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     public static ObexServerSockets createInsecure(IObexConnectionHandler validator) {
         return create(
                 validator,
@@ -108,12 +106,12 @@ public class ObexServerSockets {
      *
      * @param validator a reference to the {@link IObexConnectionHandler} object to call to validate
      *     an incoming connection.
-     * @param isSecure boolean flag to determine whther socket would be secured or inseucure.
+     * @param isSecure boolean flag to determine whether socket would be secured or inseucure.
      * @return a reference to a {@link ObexServerSockets} object instance.
      *     <p>TODO: Make public when it becomes possible to determine that the listen-call failed
      *     due to channel-in-use.
      */
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private static ObexServerSockets create(
             IObexConnectionHandler validator, int rfcommChannel, int l2capPsm, boolean isSecure) {
         Log.d(TAG, "create(rfcomm = " + rfcommChannel + ", l2capPsm = " + l2capPsm + ")");

@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Исчисти од списокот"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Исчисти"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Зачувај"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Откажи"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Изберете ги сметките што сакате да ги споделите преку Bluetooth. Сепак, ќе мора да го прифаќате секој пристап до сметките при поврзување."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Слободни отвори:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Икона на апликацијата"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Поставки за споделување пораки преку Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Не може да се избере сметка. 0 слободни отвори"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Аудиото преку Bluetooth е поврзано"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Аудиото преку Bluetooth е исклучено"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Аудио преку Bluetooth"</string>

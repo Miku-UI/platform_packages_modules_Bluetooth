@@ -63,28 +63,26 @@ public class TbsCall {
      * @param flags call flags
      * @return converted to string flags
      */
-    public static String flagsToString(Integer flags) {
-        String string = "";
+    public static String flagsToString(int flags) {
+        StringBuilder sb = new StringBuilder();
 
-        if (flags.equals(BluetoothLeCall.FLAG_OUTGOING_CALL)) {
-            if (string.isEmpty()) {
-                string += "OUTGOING";
-            }
+        if ((flags & BluetoothLeCall.FLAG_OUTGOING_CALL) != 0) {
+            sb.append("OUTGOING");
         }
-        if (flags.equals(BluetoothLeCall.FLAG_WITHHELD_BY_SERVER)) {
-            if (!string.isEmpty()) {
-                string += "|";
+        if ((flags & BluetoothLeCall.FLAG_WITHHELD_BY_SERVER) != 0) {
+            if (sb.length() != 0) {
+                sb.append("|");
             }
-            string += "WITHELD BY SERVER";
+            sb.append("WITHHELD BY SERVER");
         }
-        if (flags.equals(BluetoothLeCall.FLAG_WITHHELD_BY_NETWORK)) {
-            if (!string.isEmpty()) {
-                string += "|";
+        if ((flags & BluetoothLeCall.FLAG_WITHHELD_BY_NETWORK) != 0) {
+            if (sb.length() != 0) {
+                sb.append("|");
             }
-            string += "WITHELD BY NETWORK";
+            sb.append("WITHHELD BY NETWORK");
         }
 
-        return string;
+        return sb.toString();
     }
 
     private TbsCall(int state, String uri, int flags, String friendlyName) {
@@ -101,11 +99,19 @@ public class TbsCall {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        TbsCall that = (TbsCall) o;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof TbsCall that)) {
+            return false;
+        }
         // check the state only
         return mState == that.mState;
+    }
+
+    @Override
+    public int hashCode() {
+        return mState;
     }
 
     public int getState() {

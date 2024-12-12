@@ -31,14 +31,14 @@
  *                  scans are enabled.  If a value of '0' is entered for window
  *                  or interval, the default values are used.
  *
- * Returns          BTM_SUCCESS if successful
- *                  BTM_BUSY if a setting of the filter is already in progress
- *                  BTM_NO_RESOURCES if couldn't get a memory pool buffer
- *                  BTM_ILLEGAL_VALUE if a bad parameter was detected
- *                  BTM_WRONG_MODE if the device is not up.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful
+ *                  tBTM_STATUS::BTM_BUSY if a setting of the filter is already in progress
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if couldn't get a memory pool buffer
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter was detected
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
-tBTM_STATUS BTM_SetDiscoverability(uint16_t inq_mode);
+[[nodiscard]] tBTM_STATUS BTM_SetDiscoverability(uint16_t inq_mode);
 
 /*******************************************************************************
  *
@@ -66,16 +66,16 @@ tBTM_STATUS BTM_SetDiscoverability(uint16_t inq_mode);
  *                                NULL, the application is not notified when
  *                                completed.
  * Returns          tBTM_STATUS
- *                  BTM_CMD_STARTED if successfully initiated
- *                  BTM_BUSY if already in progress
- *                  BTM_ILLEGAL_VALUE if parameter(s) are out of range
- *                  BTM_NO_RESOURCES if could not allocate resources to start
+ *                  tBTM_STATUS::BTM_CMD_STARTED if successfully initiated
+ *                  tBTM_STATUS::BTM_BUSY if already in progress
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if parameter(s) are out of range
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if could not allocate resources to start
  *                                   the command
- *                  BTM_WRONG_MODE if the device is not up.
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
-tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb,
-                             tBTM_CMPL_CB* p_cmpl_cb);
+[[nodiscard]] tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb,
+                                           tBTM_CMPL_CB* p_cmpl_cb);
 
 /*******************************************************************************
  *
@@ -86,7 +86,7 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb,
  * Returns          Bitmask of current inquiry state
  *
  ******************************************************************************/
-uint16_t BTM_IsInquiryActive(void);
+[[nodiscard]] uint16_t BTM_IsInquiryActive(void);
 
 /*******************************************************************************
  *
@@ -105,13 +105,13 @@ void BTM_CancelInquiry(void);
  *                  connectable mode. Discoverable mode means page scans are
  *                  enabled.
  *
- * Returns          BTM_SUCCESS if successful
- *                  BTM_ILLEGAL_VALUE if a bad parameter is detected
- *                  BTM_NO_RESOURCES if could not allocate a message buffer
- *                  BTM_WRONG_MODE if the device is not up.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter is detected
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if could not allocate a message buffer
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
-tBTM_STATUS BTM_SetConnectability(uint16_t page_mode);
+[[nodiscard]] tBTM_STATUS BTM_SetConnectability(uint16_t page_mode);
 
 /*******************************************************************************
  *
@@ -123,14 +123,38 @@ tBTM_STATUS BTM_SetConnectability(uint16_t page_mode);
  * Input Params:    BTM_INQ_RESULT_STANDARD, BTM_INQ_RESULT_WITH_RSSI or
  *                  BTM_INQ_RESULT_EXTENDED
  *
- * Returns          BTM_SUCCESS if successful
- *                  BTM_NO_RESOURCES if couldn't get a memory pool buffer
- *                  BTM_ILLEGAL_VALUE if a bad parameter was detected
- *                  BTM_WRONG_MODE if the device is not up.
+ * Returns          tBTM_STATUS::BTM_SUCCESS if successful
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if couldn't get a memory pool buffer
+ *                  tBTM_STATUS::BTM_ILLEGAL_VALUE if a bad parameter was detected
+ *                  tBTM_STATUS::BTM_WRONG_MODE if the device is not up.
  *
  ******************************************************************************/
-tBTM_STATUS BTM_SetInquiryMode(uint8_t mode);
+[[nodiscard]] tBTM_STATUS BTM_SetInquiryMode(uint8_t mode);
 
+/*******************************************************************************
+ *
+ * Function         BTM_EnableInterlacedInquiryScan
+ *
+ * Description      Reads system property PROPERTY_INQ_SCAN_TYPE and
+ *                  enables interlaced inquiry scan with controller support.
+ *
+ * Input Params:    None
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
 void BTM_EnableInterlacedInquiryScan();
 
+/*******************************************************************************
+ *
+ * Function         BTM_EnableInterlacedPageScan
+ *
+ * Description      Reads system property PROPERTY_PAGE_SCAN_TYPE and
+ *                  enables interlaced page scan with controller support.
+ *
+ * Input Params:    None
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
 void BTM_EnableInterlacedPageScan();

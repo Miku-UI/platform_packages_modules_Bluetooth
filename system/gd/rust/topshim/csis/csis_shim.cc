@@ -77,8 +77,8 @@ static void connection_state_cb(const RawAddress& addr, csis::ConnectionState st
   csis_connection_state_callback(addr, to_rust_btcsis_connection_state(state));
 }
 
-static void device_available_cb(
-    const RawAddress& addr, int group_id, int group_size, int rank, const bluetooth::Uuid& uuid) {
+static void device_available_cb(const RawAddress& addr, int group_id, int group_size, int rank,
+                                const bluetooth::Uuid& uuid) {
   csis_device_available_callback(addr, group_id, group_size, rank, uuid);
 }
 
@@ -92,31 +92,23 @@ static void group_lock_changed_cb(int group_id, bool locked, csis::CsisGroupLock
 }  // namespace internal
 
 class DBusCsisClientCallbacks : public csis::CsisClientCallbacks {
- public:
+public:
   static csis::CsisClientCallbacks* GetInstance() {
     static auto instance = new DBusCsisClientCallbacks();
     return instance;
   }
 
-  DBusCsisClientCallbacks(){};
+  DBusCsisClientCallbacks() {}
 
   void OnConnectionState(const RawAddress& addr, csis::ConnectionState state) override {
     log::info("addr={}, state={}", ADDRESS_TO_LOGGABLE_CSTR(addr), static_cast<uint8_t>(state));
     topshim::rust::internal::connection_state_cb(addr, state);
   }
 
-  void OnDeviceAvailable(
-      const RawAddress& addr,
-      int group_id,
-      int group_size,
-      int rank,
-      const bluetooth::Uuid& uuid) override {
-    log::info(
-        "addr={}, group_id={}, group_size={}, rank={}",
-        ADDRESS_TO_LOGGABLE_CSTR(addr),
-        group_id,
-        group_size,
-        rank);
+  void OnDeviceAvailable(const RawAddress& addr, int group_id, int group_size, int rank,
+                         const bluetooth::Uuid& uuid) override {
+    log::info("addr={}, group_id={}, group_size={}, rank={}", ADDRESS_TO_LOGGABLE_CSTR(addr),
+              group_id, group_size, rank);
     topshim::rust::internal::device_available_cb(addr, group_id, group_size, rank, uuid);
   }
 
@@ -131,13 +123,15 @@ class DBusCsisClientCallbacks : public csis::CsisClientCallbacks {
 };
 
 std::unique_ptr<CsisClientIntf> GetCsisClientProfile(const unsigned char* btif) {
-  if (internal::g_csis_if) std::abort();
+  if (internal::g_csis_if) {
+    std::abort();
+  }
 
   const bt_interface_t* btif_ = reinterpret_cast<const bt_interface_t*>(btif);
 
   auto csis_if = std::make_unique<CsisClientIntf>(
-      const_cast<csis::CsisClientInterface*>(reinterpret_cast<const csis::CsisClientInterface*>(
-          btif_->get_profile_interface("csis_client"))));
+          const_cast<csis::CsisClientInterface*>(reinterpret_cast<const csis::CsisClientInterface*>(
+                  btif_->get_profile_interface("csis_client"))));
 
   internal::g_csis_if = csis_if.get();
 
@@ -148,25 +142,17 @@ void CsisClientIntf::init(/*CsisClientCallbacks* callbacks*/) {
   return intf_->Init(DBusCsisClientCallbacks::GetInstance());
 }
 
-void CsisClientIntf::connect(RawAddress addr) {
-  return intf_->Connect(addr);
-}
+void CsisClientIntf::connect(RawAddress addr) { return intf_->Connect(addr); }
 
-void CsisClientIntf::disconnect(RawAddress addr) {
-  return intf_->Disconnect(addr);
-}
+void CsisClientIntf::disconnect(RawAddress addr) { return intf_->Disconnect(addr); }
 
 void CsisClientIntf::lock_group(int group_id, bool lock) {
   return intf_->LockGroup(group_id, lock);
 }
 
-void CsisClientIntf::remove_device(RawAddress addr) {
-  return intf_->RemoveDevice(addr);
-}
+void CsisClientIntf::remove_device(RawAddress addr) { return intf_->RemoveDevice(addr); }
 
-void CsisClientIntf::cleanup() {
-  return intf_->Cleanup();
-}
+void CsisClientIntf::cleanup() { return intf_->Cleanup(); }
 }  // namespace rust
 }  // namespace topshim
 }  // namespace bluetooth

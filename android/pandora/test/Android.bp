@@ -44,6 +44,35 @@ python_test_host {
     ],
 }
 
+python_test_host {
+    name: "avatar_phy",
+    main: "main.py",
+    srcs: [
+        "**/*.py",
+    ],
+    test_config: "AndroidPhyTest.xml",
+    version: {
+        py3: {
+            embedded_launcher: false,
+        },
+    },
+    libs: [
+        "bumble_services_experimental-python",
+        "libavatar",
+    ],
+    required: [
+        "aapt",
+    ],
+    test_suites: ["general-tests"],
+    test_options: {
+        unit_test: false,
+    },
+    data: [
+        ":PandoraServer",
+        "config.yml",
+    ],
+}
+
 sh_binary_host {
     name: "avatar.sh",
     src: "avatar.sh",

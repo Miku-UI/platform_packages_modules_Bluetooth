@@ -17,7 +17,6 @@
 static_library("btif") {
   sources = [
     # TODO(abps) - Do we need this?
-    "//bt/system/audio_a2dp_hw/src/audio_a2dp_hw_utils.cc",
     "//bt/system/audio_hearing_aid_hw/src/audio_hearing_aid_hw_utils.cc",
 
     # AVRCP Target Service
@@ -37,7 +36,6 @@ static_library("btif") {
     # BTIF implementation
     "src/btif_a2dp.cc",
 
-    "src/btif_a2dp_control.cc",
     "src/btif_a2dp_sink.cc",
     "src/btif_a2dp_source.cc",
     "src/btif_av.cc",
@@ -94,7 +92,6 @@ static_library("btif") {
     "//bt/system/",
     "//bt/system/bta/dm",
     "//bt/system/linux_include",
-    "//bt/system/audio_a2dp_hw/include",
     "//bt/system/audio_hearing_aid_hw/include",
     "//bt/system/bta/include",
     "//bt/system/bta/sys",
@@ -118,6 +115,7 @@ static_library("btif") {
     "//bt/system/common",
     "//bt/system/gd/rust/shim:init_flags_bridge_header",
     "//bt/system/profile/avrcp:profile_avrcp",
+    "//bt/system/gd:libbluetooth-gdx",
   ]
 
   configs += [

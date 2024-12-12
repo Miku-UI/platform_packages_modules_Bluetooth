@@ -22,13 +22,13 @@
 
 template <typename T>
 class SyncMapCount {
- public:
+public:
   struct Item {
     T item;
     size_t count;
   };
 
- private:
+private:
   std::map<const T, std::size_t> map_;
   size_t max_size_{SIZE_MAX};
   mutable std::mutex mutex_;
@@ -43,18 +43,21 @@ class SyncMapCount {
 
   std::vector<Item> GetSorted(std::function<bool(const Item& a, const Item& b)> sort_func) const {
     std::vector<Item> vec = Vectorize();
-    sort(vec.begin(), vec.end(), [=](const Item& a, const Item& b) -> bool { return sort_func(a, b); });
+    sort(vec.begin(), vec.end(),
+         [=](const Item& a, const Item& b) -> bool { return sort_func(a, b); });
     return vec;
   }
 
- public:
+public:
   SyncMapCount() : max_size_(SIZE_MAX) {}
   explicit SyncMapCount(size_t max_size) : max_size_(max_size) {}
   ~SyncMapCount() = default;
 
   void Put(const T item) {
     std::unique_lock<std::mutex> lock(mutex_);
-    if (map_.size() == max_size_) return;
+    if (map_.size() == max_size_) {
+      return;
+    }
     (map_.count(item) > 0) ? map_[item] += 1 : map_[item] = 1;
   }
 

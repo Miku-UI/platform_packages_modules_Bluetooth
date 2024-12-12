@@ -27,9 +27,8 @@
 #ifndef AUDIO_HEARING_AID_HW_H
 #define AUDIO_HEARING_AID_HW_H
 
-#include <stdint.h>
-
 #include <hardware/bt_av.h>
+#include <stdint.h>
 
 /*****************************************************************************
  *  Constants & Macros
@@ -140,8 +139,8 @@ typedef uint8_t tHA_CHANNEL_COUNT;
 // Returns the computed buffer size. If any of the input parameters is
 // invalid, the return value is the default |AUDIO_STREAM_OUTPUT_BUFFER_SZ|.
 size_t audio_ha_hw_stream_compute_buffer_size(
-    btav_a2dp_codec_sample_rate_t codec_sample_rate,
-    btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample,
-    btav_a2dp_codec_channel_mode_t codec_channel_mode);
+        btav_a2dp_codec_sample_rate_t codec_sample_rate,
+        btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample,
+        btav_a2dp_codec_channel_mode_t codec_channel_mode);
 
 #endif /* AUDIO_HEARING_AID_HW_H */

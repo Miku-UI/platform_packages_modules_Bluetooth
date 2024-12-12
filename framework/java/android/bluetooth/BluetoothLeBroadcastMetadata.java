@@ -442,7 +442,7 @@ public final class BluetoothLeBroadcastMetadata implements Parcelable {
         out.writeInt(mPresentationDelayMicros);
         out.writeTypedList(mSubgroups);
         out.writeBoolean(mIsPublicBroadcast);
-        out.writeString(mBroadcastName);
+        BluetoothUtils.writeStringToParcel(out, mBroadcastName);
         out.writeInt(mAudioConfigQuality);
         out.writeTypedObject(mPublicBroadcastMetadata, 0);
         out.writeInt(mRssi);

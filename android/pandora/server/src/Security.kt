@@ -176,7 +176,7 @@ class Security(private val context: Context) : SecurityImplBase(), Closeable {
                 val isEncrypted = bluetoothDevice.isEncrypted()
                 when (level) {
                     LEVEL1 -> !isEncrypted || bondState == BOND_BONDED
-                    LEVEL2 -> isEncrypted && bondState == BOND_BONDED
+                    LEVEL2 -> isEncrypted
                     else -> false
                 }
             }

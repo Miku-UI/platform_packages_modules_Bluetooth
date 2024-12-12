@@ -28,11 +28,7 @@
 #include "bta/include/bta_hd_api.h"
 #include "types/raw_address.h"
 
-typedef enum {
-  BTIF_HD_DISABLED = 0,
-  BTIF_HD_ENABLED,
-  BTIF_HD_DISABLING
-} BTIF_HD_STATUS;
+typedef enum { BTIF_HD_DISABLED = 0, BTIF_HD_ENABLED, BTIF_HD_DISABLING } BTIF_HD_STATUS;
 
 /* BTIF-HD control block */
 typedef struct {

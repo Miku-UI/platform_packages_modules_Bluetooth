@@ -17,6 +17,10 @@ package com.android.server.bluetooth
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothAdapter.STATE_OFF
+import android.bluetooth.IBluetoothManager.GET_SYSTEM_STATE_API
+import android.bluetooth.IBluetoothManager.IPC_CACHE_MODULE_SYSTEM
+import android.os.IpcDataCache
+import com.android.bluetooth.flags.Flags
 import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -34,7 +38,12 @@ class BluetoothAdapterState {
         set(STATE_OFF)
     }
 
-    fun set(s: Int) = runBlocking { _uiState.emit(s) }
+    fun set(s: Int) = runBlocking {
+        _uiState.emit(s)
+        if (Flags.getStateFromSystemServer()) {
+            IpcDataCache.invalidateCache(IPC_CACHE_MODULE_SYSTEM, GET_SYSTEM_STATE_API)
+        }
+    }
 
     fun get(): Int = _uiState.replayCache.get(0)
 

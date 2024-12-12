@@ -20,12 +20,12 @@
 
 #include "a2dp_encoding.h"
 #include "a2dp_sbc_constants.h"
-#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_hf.h"
 #include "common/message_loop_thread.h"
+#include "hardware/bt_av.h"
 #include "os/log.h"
 #include "osi/include/properties.h"
 #include "types/raw_address.h"
@@ -36,8 +36,8 @@ namespace aidl {
 namespace a2dp {
 
 bool update_codec_offloading_capabilities(
-    const std::vector<btav_a2dp_codec_config_t>& framework_preference,
-    bool supports_a2dp_hw_offload_v2);
+        const std::vector<btav_a2dp_codec_config_t>& framework_preference,
+        bool supports_a2dp_hw_offload_v2);
 
 /***
  * Check if new bluetooth_audio is enabled
@@ -62,7 +62,8 @@ void cleanup();
 /***
  * Set up the codec into BluetoothAudio HAL
  ***/
-bool setup_codec();
+bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                 int preferred_encoding_interval_us);
 
 /***
  * Send command to the BluetoothAudio HAL: StartSession, EndSession,
@@ -70,8 +71,8 @@ bool setup_codec();
  ***/
 void start_session();
 void end_session();
-void ack_stream_started(const tA2DP_CTRL_ACK& status);
-void ack_stream_suspended(const tA2DP_CTRL_ACK& status);
+void ack_stream_started(::bluetooth::audio::a2dp::BluetoothAudioStatus status);
+void ack_stream_suspended(::bluetooth::audio::a2dp::BluetoothAudioStatus status);
 
 /***
  * Read from the FMQ of BluetoothAudio HAL
@@ -94,15 +95,13 @@ namespace provider {
  * Lookup the codec info in the list of supported offloaded sink codecs.
  * Should not be called before update_codec_offloading_capabilities.
  ***/
-std::optional<btav_a2dp_codec_index_t> sink_codec_index(
-    const uint8_t* p_codec_info);
+std::optional<btav_a2dp_codec_index_t> sink_codec_index(const uint8_t* p_codec_info);
 
 /***
  * Lookup the codec info in the list of supported offloaded source codecs.
  * Should not be called before update_codec_offloading_capabilities.
  ***/
-std::optional<btav_a2dp_codec_index_t> source_codec_index(
-    const uint8_t* p_codec_info);
+std::optional<btav_a2dp_codec_index_t> source_codec_index(const uint8_t* p_codec_info);
 
 /***
  * Return the name of the codec which is assigned to the input index.
@@ -124,21 +123,19 @@ bool supports_codec(btav_a2dp_codec_index_t codec_index);
 /***
  * Return the A2DP capabilities for the selected codec.
  ***/
-bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
-                uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config);
+bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
+                btav_a2dp_codec_config_t* codec_config);
 
 /***
  * Query the codec selection fromt the audio HAL.
  * The HAL is expected to pick the best audio configuration based on the
  * discovered remote SEPs.
  ***/
-std::optional<::bluetooth::audio::a2dp::provider::a2dp_configuration>
-get_a2dp_configuration(
-    RawAddress peer_address,
-    std::vector<
-        ::bluetooth::audio::a2dp::provider::a2dp_remote_capabilities> const&
-        remote_seps,
-    btav_a2dp_codec_config_t const& user_preferences);
+std::optional<::bluetooth::audio::a2dp::provider::a2dp_configuration> get_a2dp_configuration(
+        RawAddress peer_address,
+        std::vector<::bluetooth::audio::a2dp::provider::a2dp_remote_capabilities> const&
+                remote_seps,
+        btav_a2dp_codec_config_t const& user_preferences);
 
 /***
  * Query the codec parameters from the audio HAL.
@@ -146,10 +143,10 @@ get_a2dp_configuration(
  * received from the peer and decide whether accept
  * the it or not.
  ***/
-tA2DP_STATUS parse_a2dp_configuration(
-    btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
-    btav_a2dp_codec_config_t* codec_parameters,
-    std::vector<uint8_t>* vendor_specific_parameters);
+tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
+                                      const uint8_t* codec_info,
+                                      btav_a2dp_codec_config_t* codec_parameters,
+                                      std::vector<uint8_t>* vendor_specific_parameters);
 
 }  // namespace provider
 }  // namespace a2dp

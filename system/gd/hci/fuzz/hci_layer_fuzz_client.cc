@@ -25,7 +25,8 @@ namespace fuzz {
 using bluetooth::fuzz::GetArbitraryBytes;
 using bluetooth::hci::AclView;
 
-const ModuleFactory HciLayerFuzzClient::Factory = ModuleFactory([]() { return new HciLayerFuzzClient(); });
+const ModuleFactory HciLayerFuzzClient::Factory =
+        ModuleFactory([]() { return new HciLayerFuzzClient(); });
 
 void HciLayerFuzzClient::Start() {
   hci_ = GetDependency<hci::HciLayer>();
@@ -33,22 +34,23 @@ void HciLayerFuzzClient::Start() {
   aclDevNull_->Start();
   aclInject_ = new os::fuzz::FuzzInjectQueue<AclBuilder>(hci_->GetAclQueueEnd(), GetHandler());
 
-  // Can't do security right now, due to the Encryption Change conflict between ACL manager & security
-  // security_interface_ = hci_->GetSecurityInterface(common::Bind([](EventView){}), GetHandler());
+  // Can't do security right now, due to the Encryption Change conflict between ACL manager &
+  // security security_interface_ = hci_->GetSecurityInterface(common::Bind([](EventView){}),
+  // GetHandler());
   le_security_interface_ = hci_->GetLeSecurityInterface(GetHandler()->Bind([](LeMetaEventView) {}));
   acl_connection_interface_ = hci_->GetAclConnectionInterface(
-      GetHandler()->Bind([](EventView) {}),
-      GetHandler()->Bind([](uint16_t, hci::ErrorCode) {}),
-      GetHandler()->Bind([](Address, ClassOfDevice) {}),
-      GetHandler()->Bind([](hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t) {}));
+          GetHandler()->Bind([](EventView) {}), GetHandler()->Bind([](uint16_t, hci::ErrorCode) {}),
+          GetHandler()->Bind([](Address, ClassOfDevice) {}),
+          GetHandler()->Bind([](hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t) {}));
   le_acl_connection_interface_ = hci_->GetLeAclConnectionInterface(
-      GetHandler()->Bind([](LeMetaEventView) {}),
-      GetHandler()->Bind([](uint16_t, hci::ErrorCode) {}),
-      GetHandler()->Bind([](hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t) {}));
-  le_advertising_interface_ = hci_->GetLeAdvertisingInterface(GetHandler()->Bind([](LeMetaEventView) {}));
+          GetHandler()->Bind([](LeMetaEventView) {}),
+          GetHandler()->Bind([](uint16_t, hci::ErrorCode) {}),
+          GetHandler()->Bind([](hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t) {}));
+  le_advertising_interface_ =
+          hci_->GetLeAdvertisingInterface(GetHandler()->Bind([](LeMetaEventView) {}));
   le_scanning_interface_ = hci_->GetLeScanningInterface(GetHandler()->Bind([](LeMetaEventView) {}));
   distance_measurement_interface_ =
-      hci_->GetDistanceMeasurementInterface(GetHandler()->Bind([](LeMetaEventView) {}));
+          hci_->GetDistanceMeasurementInterface(GetHandler()->Bind([](LeMetaEventView) {}));
 }
 
 void HciLayerFuzzClient::Stop() {
@@ -117,7 +119,8 @@ void HciLayerFuzzClient::injectLeAclConnectionCommand(std::vector<uint8_t> data)
 }
 
 void HciLayerFuzzClient::injectLeAdvertisingCommand(std::vector<uint8_t> data) {
-  inject_command<LeAdvertisingCommandView, LeAdvertisingCommandBuilder>(data, le_advertising_interface_);
+  inject_command<LeAdvertisingCommandView, LeAdvertisingCommandBuilder>(data,
+                                                                        le_advertising_interface_);
 }
 
 void HciLayerFuzzClient::injectLeScanningCommand(std::vector<uint8_t> data) {

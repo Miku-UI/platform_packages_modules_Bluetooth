@@ -28,7 +28,7 @@
 #include "macros.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hiddefs.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_types.h"
 #include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
 
@@ -213,7 +213,7 @@ enum {
 typedef uint8_t tBTA_HH_RPT_TYPE;
 
 /* HID_CONTROL operation code used in BTA_HhSendCtrl()
-*/
+ */
 enum {
   BTA_HH_CTRL_NOP = 0 + HID_PAR_CONTROL_NOP, /* mapping from BTE */
   BTA_HH_CTRL_HARD_RESET,                    /* hard reset       */
@@ -239,9 +239,8 @@ typedef struct {
   uint16_t version;         /* version */
   uint16_t ssr_max_latency; /* SSR max latency, BTA_HH_SSR_PARAM_INVALID if
                                unknown */
-  uint16_t
-      ssr_min_tout;  /* SSR min timeout, BTA_HH_SSR_PARAM_INVALID if unknown */
-  uint8_t ctry_code; /*Country Code.*/
+  uint16_t ssr_min_tout;    /* SSR min timeout, BTA_HH_SSR_PARAM_INVALID if unknown */
+  uint8_t ctry_code;        /*Country Code.*/
 #define BTA_HH_LE_REMOTE_WAKE 0x01
 #define BTA_HH_LE_NORMAL_CONN 0x02
 
@@ -250,19 +249,18 @@ typedef struct {
   uint8_t hid_handle;
 
   std::string ToString() const {
-    return base::StringPrintf("%04x::%04x::%04x", vendor_id, product_id,
-                              version);
+    return base::StringPrintf("%04x::%04x::%04x", vendor_id, product_id, version);
   }
 } tBTA_HH_DEV_DSCP_INFO;
 
 /* callback event data for BTA_HH_OPEN_EVT */
 typedef struct {
   tAclLinkSpec link_spec; /* HID device ACL link specification */
-  tBTA_HH_STATUS status; /* operation status         */
-  uint8_t handle;        /* device handle            */
-  bool scps_supported;   /* scan parameter service supported */
-  uint8_t sub_class;     /* Cod sub class */
-  uint16_t attr_mask;    /* attribute mask */
+  tBTA_HH_STATUS status;  /* operation status         */
+  uint8_t handle;         /* device handle            */
+  bool scps_supported;    /* scan parameter service supported */
+  uint8_t sub_class;      /* Cod sub class */
+  uint16_t attr_mask;     /* attribute mask */
   uint8_t app_id;
 } tBTA_HH_CONN;
 
@@ -344,14 +342,10 @@ typedef union {
 /**
  * Android Headtracker Service UUIDs
  */
-#define ANDROID_HEADTRACKER_SERVICE_UUID_STRING \
-  "109b862f-50e3-45cc-8ea1-ac62de4846d1"
-#define ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING \
-  "b4eb9919-a910-46a2-a9dd-fec2525196fd"
-#define ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING \
-  "8584cbb5-2d58-45a3-ab9d-583e0958b067"
-#define ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING \
-  "e66dd173-b2ae-4f5a-ae16-0162af8038ae"
+#define ANDROID_HEADTRACKER_SERVICE_UUID_STRING "109b862f-50e3-45cc-8ea1-ac62de4846d1"
+#define ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING "b4eb9919-a910-46a2-a9dd-fec2525196fd"
+#define ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING "8584cbb5-2d58-45a3-ab9d-583e0958b067"
+#define ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING "e66dd173-b2ae-4f5a-ae16-0162af8038ae"
 
 extern const bluetooth::Uuid ANDROID_HEADTRACKER_SERVICE_UUID;
 extern const bluetooth::Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID;
@@ -443,8 +437,7 @@ void BTA_HhGetProtoMode(uint8_t dev_handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhSetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type,
-                     BT_HDR* p_data);
+void BTA_HhSetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type, BT_HDR* p_data);
 
 /*******************************************************************************
  *
@@ -455,8 +448,8 @@ void BTA_HhSetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhGetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type,
-                     uint8_t rpt_id, uint16_t buf_size);
+void BTA_HhGetReport(uint8_t dev_handle, tBTA_HH_RPT_TYPE r_type, uint8_t rpt_id,
+                     uint16_t buf_size);
 /*******************************************************************************
  *
  * Function         BTA_HhSetIdle
@@ -521,8 +514,7 @@ void BTA_HhGetIdle(uint8_t dev_handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhSendData(uint8_t dev_handle, const tAclLinkSpec& link_spec,
-                    BT_HDR* p_buf);
+void BTA_HhSendData(uint8_t dev_handle, const tAclLinkSpec& link_spec, BT_HDR* p_buf);
 
 /*******************************************************************************
  *
@@ -546,9 +538,8 @@ void BTA_HhGetDscpInfo(uint8_t dev_handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask,
-                  uint8_t sub_class, uint8_t app_id,
-                  tBTA_HH_DEV_DSCP_INFO dscp_info);
+void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask, uint8_t sub_class,
+                  uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info);
 /*******************************************************************************
  *
  * Function         BTA_HhRemoveDev
@@ -559,6 +550,17 @@ void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask,
  *
  ******************************************************************************/
 void BTA_HhRemoveDev(uint8_t dev_handle);
+
+/*******************************************************************************
+ *
+ * Function         BTA_HhDump
+ *
+ * Description      Dump BTA HH control block
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_HhDump(int fd);
 
 namespace fmt {
 template <>

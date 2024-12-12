@@ -24,6 +24,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstring>
@@ -31,39 +32,32 @@
 
 #include "hal/snoop_logger.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_status.h"
 #include "stack/l2cap/l2c_int.h"
 #include "stack/rfcomm/port_int.h"
 #include "stack/rfcomm/rfc_int.h"
+#include "stack/rfcomm/rfc_state.h"
 
 using namespace bluetooth;
 
 static const std::set<uint16_t> uuid_logging_acceptlist = {
-    UUID_SERVCLASS_HEADSET_AUDIO_GATEWAY,
-    UUID_SERVCLASS_AG_HANDSFREE,
+        UUID_SERVCLASS_HEADSET_AUDIO_GATEWAY,
+        UUID_SERVCLASS_AG_HANDSFREE,
 };
 
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
 /******************************************************************************/
-static void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event,
-                                     void* p_data);
-static void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
-                                      void* p_data);
-static void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event,
-                               void* p_data);
-static void rfc_port_sm_orig_wait_sec_check(tPORT* p_port,
-                                            tRFC_PORT_EVENT event,
-                                            void* p_data);
-static void rfc_port_sm_term_wait_sec_check(tPORT* p_port,
-                                            tRFC_PORT_EVENT event,
-                                            void* p_data);
-static void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
-                                     void* p_data);
+static void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data);
+static void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data);
+static void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data);
+static void rfc_port_sm_orig_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data);
+static void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data);
+static void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data);
 
 static void rfc_port_uplink_data(tPORT* p_port, BT_HDR* p_buf);
 
@@ -84,8 +78,8 @@ void rfc_port_sm_execute(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
 
   // logs for state RFC_STATE_OPENED handled in rfc_port_sm_opened()
   if (p_port->rfc.state != RFC_STATE_OPENED) {
-    log::info("bd_addr:{}, index:{}, state:{}, event:{}", p_port->bd_addr,
-              p_port->handle, p_port->rfc.state, event);
+    log::info("bd_addr:{}, handle:{}, state:{}, event:{}", p_port->bd_addr, p_port->handle,
+              rfcomm_port_state_text(p_port->rfc.state), rfcomm_port_event_text(event));
   }
   switch (p_port->rfc.state) {
     case RFC_STATE_CLOSED:
@@ -125,14 +119,12 @@ void rfc_port_sm_execute(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event,
-                              void* p_data) {
+void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_OPEN:
       p_port->rfc.state = RFC_STATE_ORIG_WAIT_SEC_CHECK;
-      btm_sec_mx_access_request(p_port->rfc.p_mcb->bd_addr, true,
-                                p_port->sec_mask, &rfc_sec_check_complete,
-                                p_port);
+      btm_sec_mx_access_request(p_port->rfc.p_mcb->bd_addr, true, p_port->sec_mask,
+                                &rfc_sec_check_complete, p_port);
       return;
 
     case RFC_PORT_EVENT_CLOSE:
@@ -152,16 +144,15 @@ void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event,
 
       /* Open will be continued after security checks are passed */
       p_port->rfc.state = RFC_STATE_TERM_WAIT_SEC_CHECK;
-      btm_sec_mx_access_request(p_port->rfc.p_mcb->bd_addr, false,
-                                p_port->sec_mask, &rfc_sec_check_complete,
-                                p_port);
+      btm_sec_mx_access_request(p_port->rfc.p_mcb->bd_addr, false, p_port->sec_mask,
+                                &rfc_sec_check_complete, p_port);
       return;
 
     case RFC_PORT_EVENT_UA:
       return;
 
     case RFC_PORT_EVENT_DM:
-      log::warn("RFC_EVENT_DM, index={}", p_port->handle);
+      log::warn("RFC_EVENT_DM, handle:{}", p_port->handle);
       rfc_port_closed(p_port);
       return;
 
@@ -179,11 +170,11 @@ void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event,
       log::error("Port error state {} event {}", p_port->rfc.state, event);
       return;
     default:
-      log::error("Received unexpected event:{} in state:{}", event,
-                 p_port->rfc.state);
+      log::error("Received unexpected event:{} in state:{}", rfcomm_port_event_text(event),
+                 rfcomm_port_state_text(p_port->rfc.state));
   }
 
-  log::warn("Port state closed Event ignored {}", event);
+  log::warn("Event ignored {}", rfcomm_port_event_text(event));
   return;
 }
 
@@ -197,12 +188,11 @@ void rfc_port_sm_state_closed(tPORT* p_port, tRFC_PORT_EVENT event,
  * Returns          void
  *
  ******************************************************************************/
-void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
-                               void* p_data) {
+void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_OPEN:
     case RFC_PORT_EVENT_ESTABLISH_RSP:
-      log::error("Port error state {} event {}", p_port->rfc.state, event);
+      log::error("Port error event:{}", event);
       return;
 
     case RFC_PORT_EVENT_CLOSE:
@@ -213,7 +203,7 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
       return;
 
     case RFC_PORT_EVENT_CLEAR:
-      log::warn("RFC_PORT_EVENT_CLEAR, index={}", p_port->handle);
+      log::warn("RFC_PORT_EVENT_CLEAR, handle:{}", p_port->handle);
       rfc_port_closed(p_port);
       return;
 
@@ -225,14 +215,12 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
       rfc_port_timer_stop(p_port);
       p_port->rfc.state = RFC_STATE_OPENED;
 
-      if (uuid_logging_acceptlist.find(p_port->uuid) !=
-          uuid_logging_acceptlist.end()) {
+      if (uuid_logging_acceptlist.find(p_port->uuid) != uuid_logging_acceptlist.end()) {
         // Find Channel Control Block by Channel ID
-        tL2C_CCB* p_ccb =
-            l2cu_find_ccb_by_cid(nullptr, p_port->rfc.p_mcb->lcid);
+        tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, p_port->rfc.p_mcb->lcid);
         if (p_ccb) {
           bluetooth::shim::GetSnoopLogger()->AcceptlistRfcommDlci(
-              p_ccb->p_lcb->Handle(), p_port->rfc.p_mcb->lcid, p_port->dlci);
+                  p_ccb->p_lcb->Handle(), p_port->rfc.p_mcb->lcid, p_port->dlci);
         }
       }
       if (p_port->rfc.p_mcb) {
@@ -244,28 +232,28 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
 
         if (ccb) {
           bluetooth::shim::GetSnoopLogger()->SetRfcommPortOpen(
-              ccb->p_lcb->Handle(), lcid, p_port->dlci, p_port->uuid,
-              p_port->rfc.p_mcb->flow == PORT_FC_CREDIT);
+                  ccb->p_lcb->Handle(), lcid, p_port->dlci, p_port->uuid,
+                  p_port->rfc.p_mcb->flow == PORT_FC_CREDIT);
         }
       }
 
-      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci,
-                           p_port->rfc.p_mcb->peer_l2cap_mtu, RFCOMM_SUCCESS);
+      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci, p_port->rfc.p_mcb->peer_l2cap_mtu,
+                           RFCOMM_SUCCESS);
       return;
 
     case RFC_PORT_EVENT_DM:
-      log::warn("RFC_EVENT_DM, index={}", p_port->handle);
+      log::warn("RFC_EVENT_DM, handle:{}", p_port->handle);
       p_port->rfc.p_mcb->is_disc_initiator = true;
-      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci,
-                           p_port->rfc.p_mcb->peer_l2cap_mtu, RFCOMM_ERROR);
+      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci, p_port->rfc.p_mcb->peer_l2cap_mtu,
+                           RFCOMM_ERROR);
       rfc_port_closed(p_port);
       return;
 
     case RFC_PORT_EVENT_DISC:
-      log::warn("RFC_EVENT_DISC, index={}", p_port->handle);
+      log::warn("RFC_EVENT_DISC, handle:{}", p_port->handle);
       rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
-      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci,
-                           p_port->rfc.p_mcb->peer_l2cap_mtu, RFCOMM_ERROR);
+      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci, p_port->rfc.p_mcb->peer_l2cap_mtu,
+                           RFCOMM_ERROR);
       rfc_port_closed(p_port);
       return;
 
@@ -280,14 +268,14 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
 
     case RFC_PORT_EVENT_TIMEOUT:
       p_port->rfc.state = RFC_STATE_CLOSED;
-      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci,
-                           p_port->rfc.p_mcb->peer_l2cap_mtu, RFCOMM_ERROR);
+      PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci, p_port->rfc.p_mcb->peer_l2cap_mtu,
+                           RFCOMM_ERROR);
       return;
     default:
-      log::error("Received unexpected event:{} in state:{}", event,
-                 p_port->rfc.state);
+      log::error("Received unexpected event:{} in state:{}", rfcomm_port_event_text(event),
+                 rfcomm_port_state_text(static_cast<tRFC_PORT_STATE>(p_port->rfc.state)));
   }
-  log::warn("Port state sabme_wait_ua Event ignored {}", event);
+  log::warn("Event ignored {}", rfcomm_port_event_text(event));
 }
 
 /*******************************************************************************
@@ -302,11 +290,13 @@ void rfc_port_sm_sabme_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
  * Returns          void
  *
  ******************************************************************************/
-void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
-                                     void* p_data) {
+void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_SEC_COMPLETE:
-      if (*((uint8_t*)p_data) != BTM_SUCCESS) {
+      if (*((tBTM_STATUS*)p_data) != tBTM_STATUS::BTM_SUCCESS) {
+        log::error("Security check failed result:{} state:{} port_handle:{}",
+                   btm_status_text(*((tBTM_STATUS*)p_data)),
+                   rfcomm_port_state_text(p_port->rfc.state), p_port->handle);
         /* Authentication/authorization failed.  If link is still  */
         /* up send DM and check if we need to start inactive timer */
         if (p_port->rfc.p_mcb) {
@@ -315,24 +305,26 @@ void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
           port_rfc_closed(p_port, PORT_SEC_FAILED);
         }
       } else {
-        PORT_DlcEstablishInd(p_port->rfc.p_mcb, p_port->dlci,
-                             p_port->rfc.p_mcb->peer_l2cap_mtu);
+        log::debug("Security check succeeded state:{} port_handle:{}",
+                   rfcomm_port_state_text(static_cast<tRFC_PORT_STATE>(p_port->rfc.state)),
+                   p_port->handle);
+        PORT_DlcEstablishInd(p_port->rfc.p_mcb, p_port->dlci, p_port->rfc.p_mcb->peer_l2cap_mtu);
       }
       return;
 
     case RFC_PORT_EVENT_OPEN:
     case RFC_PORT_EVENT_CLOSE:
-      log::error("Port error state {} event {}", p_port->rfc.state, event);
+      log::error("Port error event {}", rfcomm_port_event_text(event));
       return;
 
     case RFC_PORT_EVENT_CLEAR:
-      log::warn("RFC_PORT_EVENT_CLEAR, index={}", p_port->handle);
+      log::warn("RFC_PORT_EVENT_CLEAR, handle:{}", p_port->handle);
       btm_sec_abort_access_req(p_port->rfc.p_mcb->bd_addr);
       rfc_port_closed(p_port);
       return;
 
     case RFC_PORT_EVENT_DATA:
-      log::error("Port error state Term Wait Sec event Data");
+      log::error("Port error event {}", rfcomm_port_event_text(event));
       osi_free(p_data);
       return;
 
@@ -354,20 +346,19 @@ void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
 
     case RFC_PORT_EVENT_ESTABLISH_RSP:
       if (*((uint8_t*)p_data) != RFCOMM_SUCCESS) {
-        if (p_port->rfc.p_mcb)
+        if (p_port->rfc.p_mcb) {
           rfc_send_dm(p_port->rfc.p_mcb, p_port->dlci, true);
+        }
       } else {
         rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
         p_port->rfc.state = RFC_STATE_OPENED;
 
-        if (uuid_logging_acceptlist.find(p_port->uuid) !=
-            uuid_logging_acceptlist.end()) {
+        if (uuid_logging_acceptlist.find(p_port->uuid) != uuid_logging_acceptlist.end()) {
           // Find Channel Control Block by Channel ID
-          tL2C_CCB* p_ccb =
-              l2cu_find_ccb_by_cid(nullptr, p_port->rfc.p_mcb->lcid);
+          tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, p_port->rfc.p_mcb->lcid);
           if (p_ccb) {
             bluetooth::shim::GetSnoopLogger()->AcceptlistRfcommDlci(
-                p_ccb->p_lcb->Handle(), p_port->rfc.p_mcb->lcid, p_port->dlci);
+                    p_ccb->p_lcb->Handle(), p_port->rfc.p_mcb->lcid, p_port->dlci);
           }
         }
         if (p_port->rfc.p_mcb) {
@@ -379,17 +370,17 @@ void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
 
           if (ccb) {
             bluetooth::shim::GetSnoopLogger()->SetRfcommPortOpen(
-                ccb->p_lcb->Handle(), lcid, p_port->dlci, p_port->uuid,
-                p_port->rfc.p_mcb->flow == PORT_FC_CREDIT);
+                    ccb->p_lcb->Handle(), lcid, p_port->dlci, p_port->uuid,
+                    p_port->rfc.p_mcb->flow == PORT_FC_CREDIT);
           }
         }
       }
       return;
     default:
-      log::error("Received unexpected event:{} in state:{}", event,
-                 p_port->rfc.state);
+      log::error("Received unexpected event:{} in state:{}", rfcomm_port_event_text(event),
+                 rfcomm_port_state_text(p_port->rfc.state));
   }
-  log::warn("Port state term_wait_sec_check Event ignored {}", event);
+  log::warn("Event ignored {}", event);
 }
 
 /*******************************************************************************
@@ -403,37 +394,38 @@ void rfc_port_sm_term_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
  * Returns          void
  *
  ******************************************************************************/
-void rfc_port_sm_orig_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
-                                     void* p_data) {
+void rfc_port_sm_orig_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_SEC_COMPLETE:
-      if (*((uint8_t*)p_data) != BTM_SUCCESS) {
-        log::error("RFC_PORT_EVENT_SEC_COMPLETE, index={}, result={}",
-                   p_port->handle, *((uint8_t*)p_data));
+      if (*((tBTM_STATUS*)p_data) != tBTM_STATUS::BTM_SUCCESS) {
+        log::error("Security check failed result:{} state:{} handle:{}",
+                   btm_status_text(*((tBTM_STATUS*)p_data)),
+                   rfcomm_port_state_text(p_port->rfc.state), p_port->handle);
         p_port->rfc.p_mcb->is_disc_initiator = true;
-        PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci, 0,
-                             RFCOMM_SECURITY_ERR);
+        PORT_DlcEstablishCnf(p_port->rfc.p_mcb, p_port->dlci, 0, RFCOMM_SECURITY_ERR);
         rfc_port_closed(p_port);
-        return;
+      } else {
+        log::debug("Security check succeeded state:{} handle:{}",
+                   rfcomm_port_state_text(p_port->rfc.state), p_port->handle);
+        rfc_send_sabme(p_port->rfc.p_mcb, p_port->dlci);
+        rfc_port_timer_start(p_port, RFC_PORT_T1_TIMEOUT);
+        p_port->rfc.state = RFC_STATE_SABME_WAIT_UA;
       }
-      rfc_send_sabme(p_port->rfc.p_mcb, p_port->dlci);
-      rfc_port_timer_start(p_port, RFC_PORT_T1_TIMEOUT);
-      p_port->rfc.state = RFC_STATE_SABME_WAIT_UA;
       return;
 
     case RFC_PORT_EVENT_OPEN:
     case RFC_PORT_EVENT_SABME: /* Peer should not use the same dlci */
-      log::error("Port error state {} event {}", p_port->rfc.state, event);
+      log::error("Port error event {}", rfcomm_port_event_text(event));
       return;
 
     case RFC_PORT_EVENT_CLOSE:
-      log::warn("RFC_PORT_EVENT_CLOSE, index={}", p_port->handle);
+      log::warn("RFC_PORT_EVENT_CLOSE, handle:{}", p_port->handle);
       btm_sec_abort_access_req(p_port->rfc.p_mcb->bd_addr);
       rfc_port_closed(p_port);
       return;
 
     case RFC_PORT_EVENT_DATA:
-      log::error("Port error state Orig Wait Sec event Data");
+      log::error("Port error {}", rfcomm_port_event_text(event));
       osi_free(p_data);
       return;
 
@@ -441,10 +433,10 @@ void rfc_port_sm_orig_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
       osi_free(p_data);
       return;
     default:
-      log::error("Received unexpected event:{} in state:{}", event,
-                 p_port->rfc.state);
+      log::error("Received unexpected event:{} in state:{}", rfcomm_port_event_text(event),
+                 rfcomm_port_state_text(p_port->rfc.state));
   }
-  log::warn("Port state orig_wait_sec_check Event ignored {}", event);
+  log::warn("Event ignored {}", rfcomm_port_event_text(event));
 }
 
 /*******************************************************************************
@@ -460,13 +452,13 @@ void rfc_port_sm_orig_wait_sec_check(tPORT* p_port, tRFC_PORT_EVENT event,
 void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_OPEN:
-      log::error("RFC_PORT_EVENT_OPEN bd_addr:{} handle:{} dlci:{} scn:{}",
-                 p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::error("RFC_PORT_EVENT_OPEN bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                 p_port->handle, p_port->dlci, p_port->scn);
       return;
 
     case RFC_PORT_EVENT_CLOSE:
-      log::info("RFC_PORT_EVENT_CLOSE bd_addr:{}, handle:{} dlci:{} scn:{}",
-                p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::info("RFC_PORT_EVENT_CLOSE bd_addr:{}, handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                p_port->handle, p_port->dlci, p_port->scn);
       rfc_port_timer_start(p_port, RFC_DISC_TIMEOUT);
       rfc_send_disc(p_port->rfc.p_mcb, p_port->dlci);
       p_port->rfc.expected_rsp = 0;
@@ -474,25 +466,21 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       return;
 
     case RFC_PORT_EVENT_CLEAR:
-      log::warn("RFC_PORT_EVENT_CLEAR bd_addr:{} handle:{} dlci:{} scn:{}",
-                p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::warn("RFC_PORT_EVENT_CLEAR bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                p_port->handle, p_port->dlci, p_port->scn);
       rfc_port_closed(p_port);
       return;
 
     case RFC_PORT_EVENT_DATA:
-      /* Send credits in the frame.  Pass them in the layer specific member of
-       * the hdr. */
-      /* There might be an initial case when we reduced rx_max and credit_rx is
-       * still */
-      /* bigger.  Make sure that we do not send 255 */
-      log::verbose("RFC_PORT_EVENT_DATA bd_addr:{} handle:{} dlci:{} scn:{}",
-                   p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      // Send credits in the frame.  Pass them in the layer specific member of the hdr.
+      // There might be an initial case when we reduced rx_max and credit_rx is still bigger.
+      // Make sure that we do not send 255
+      log::verbose("RFC_PORT_EVENT_DATA bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                   p_port->handle, p_port->dlci, p_port->scn);
       if ((p_port->rfc.p_mcb->flow == PORT_FC_CREDIT) &&
-          (((BT_HDR*)p_data)->len < p_port->peer_mtu) &&
-          (!p_port->rx.user_fc) &&
+          (((BT_HDR*)p_data)->len < p_port->peer_mtu) && (!p_port->rx.user_fc) &&
           (p_port->credit_rx_max > p_port->credit_rx)) {
-        ((BT_HDR*)p_data)->layer_specific =
-            (uint8_t)(p_port->credit_rx_max - p_port->credit_rx);
+        ((BT_HDR*)p_data)->layer_specific = (uint8_t)(p_port->credit_rx_max - p_port->credit_rx);
         p_port->credit_rx = p_port->credit_rx_max;
       } else {
         ((BT_HDR*)p_data)->layer_specific = 0;
@@ -502,26 +490,26 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       return;
 
     case RFC_PORT_EVENT_UA:
-      log::verbose("RFC_PORT_EVENT_UA bd_addr:{} handle:{} dlci:{} scn:{}",
-                   p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::verbose("RFC_PORT_EVENT_UA bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                   p_port->handle, p_port->dlci, p_port->scn);
       return;
 
     case RFC_PORT_EVENT_SABME:
-      log::verbose("RFC_PORT_EVENT_SABME bd_addr:{} handle:{} dlci:{} scn:{}",
-                   p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::verbose("RFC_PORT_EVENT_SABME bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                   p_port->handle, p_port->dlci, p_port->scn);
       rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
       return;
 
     case RFC_PORT_EVENT_DM:
-      log::info("RFC_EVENT_DM bd_addr:{} handle:{} dlci:{} scn:{}",
-                p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::info("RFC_EVENT_DM bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr, p_port->handle,
+                p_port->dlci, p_port->scn);
       PORT_DlcReleaseInd(p_port->rfc.p_mcb, p_port->dlci);
       rfc_port_closed(p_port);
       return;
 
     case RFC_PORT_EVENT_DISC:
-      log::info("RFC_PORT_EVENT_DISC bd_addr:{} handle:{} dlci:{} scn:{}",
-                p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::info("RFC_PORT_EVENT_DISC bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                p_port->handle, p_port->dlci, p_port->scn);
       p_port->rfc.state = RFC_STATE_CLOSED;
       rfc_send_ua(p_port->rfc.p_mcb, p_port->dlci);
       if (!fixed_queue_is_empty(p_port->rx.queue)) {
@@ -534,23 +522,24 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
       return;
 
     case RFC_PORT_EVENT_UIH:
-      log::verbose("RFC_PORT_EVENT_UIH bd_addr:{}, handle:{} dlci:{} scn:{}",
-                   p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::verbose("RFC_PORT_EVENT_UIH bd_addr:{}, handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                   p_port->handle, p_port->dlci, p_port->scn);
       rfc_port_uplink_data(p_port, (BT_HDR*)p_data);
       return;
 
     case RFC_PORT_EVENT_TIMEOUT:
       PORT_TimeOutCloseMux(p_port->rfc.p_mcb);
-      log::error("RFC_PORT_EVENT_TIMEOUT bd_addr:{} handle:{} dlci:{} scn:{}",
-                 p_port->bd_addr, p_port->handle, p_port->dlci, p_port->scn);
+      log::error("RFC_PORT_EVENT_TIMEOUT bd_addr:{} handle:{} dlci:{} scn:{}", p_port->bd_addr,
+                 p_port->handle, p_port->dlci, p_port->scn);
       return;
 
     default:
+      log::error("Received unexpected event:{} bd_addr:{} handle:{} dlci:{} scn:{}",
+                 rfcomm_port_event_text(event), p_port->bd_addr, p_port->handle, p_port->dlci,
+                 p_port->scn);
       break;
   }
-  log::error("Received unexpected event:{} bd_addr:{} handle:{} dlci:{} scn:{}",
-             rfcomm_port_event_text(event), p_port->bd_addr, p_port->handle,
-             p_port->dlci, p_port->scn);
+  log::warn("Event ignored {}", rfcomm_port_event_text(event));
 }
 
 /*******************************************************************************
@@ -563,16 +552,15 @@ void rfc_port_sm_opened(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
-                              void* p_data) {
+void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void* p_data) {
   switch (event) {
     case RFC_PORT_EVENT_OPEN:
     case RFC_PORT_EVENT_ESTABLISH_RSP:
-      log::error("Port error state {} event {}", p_port->rfc.state, event);
+      log::error("Port error event {}", rfcomm_port_event_text(event));
       return;
 
     case RFC_PORT_EVENT_CLEAR:
-      log::warn("RFC_PORT_EVENT_CLEAR, index={}", p_port->handle);
+      log::warn("RFC_PORT_EVENT_CLEAR, handle:{}", p_port->handle);
       rfc_port_closed(p_port);
       return;
 
@@ -585,8 +573,18 @@ void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
       FALLTHROUGH_INTENDED; /* FALLTHROUGH */
 
     case RFC_PORT_EVENT_DM:
-      log::warn("RFC_EVENT_DM|RFC_EVENT_UA[{}], index={}", event,
-                p_port->handle);
+      log::warn("RFC_EVENT_DM|RFC_EVENT_UA[{}], handle:{}", event, p_port->handle);
+      if (com::android::bluetooth::flags::rfcomm_always_disc_initiator_in_disc_wait_ua()) {
+        // If we got a DM in RFC_STATE_DISC_WAIT_UA, it's likely that both ends
+        // attempt to DISC at the same time and both get a DM.
+        // Without setting this flag the both ends would start the same timers,
+        // wait, and still DISC the multiplexer at the same time eventually.
+        // The wait is meaningless and would block all other services that rely
+        // on RFCOMM such as HFP.
+        // Thus, setting this flag here to save us a timeout and doesn't
+        // introduce further RFCOMM event changes.
+        p_port->rfc.p_mcb->is_disc_initiator = true;
+      }
       rfc_port_closed(p_port);
       return;
 
@@ -604,15 +602,15 @@ void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event,
       return;
 
     case RFC_PORT_EVENT_TIMEOUT:
-      log::error("RFC_EVENT_TIMEOUT, index={}", p_port->handle);
+      log::error("RFC_EVENT_TIMEOUT, handle:{}", p_port->handle);
       rfc_port_closed(p_port);
       return;
     default:
-      log::error("Received unexpected event:{} in state:{}", event,
-                 p_port->rfc.state);
+      log::error("Received unexpected event:{} in state:{}", rfcomm_port_event_text(event),
+                 rfcomm_port_state_text(p_port->rfc.state));
   }
 
-  log::warn("Port state disc_wait_ua Event ignored {}", event);
+  log::warn("Event ignored {}", rfcomm_port_event_text(event));
 }
 
 /*******************************************************************************
@@ -635,18 +633,16 @@ void rfc_port_uplink_data(tPORT* p_port, BT_HDR* p_buf) {
  *
  ******************************************************************************/
 void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
-  log::verbose("is_initiator={}, is_cmd={}, state={}, bd_addr={}",
-               p_mcb->is_initiator, is_command, p_mcb->state, p_mcb->bd_addr);
+  log::verbose("is_initiator={}, is_cmd={}, state={}, bd_addr={}", p_mcb->is_initiator, is_command,
+               p_mcb->state, p_mcb->bd_addr);
   uint8_t dlci = p_frame->dlci;
 
   if (is_command) {
     /* Ignore if Multiplexer is being shut down */
     if (p_mcb->state != RFC_MX_STATE_DISC_WAIT_UA) {
-      PORT_ParNegInd(p_mcb, dlci, p_frame->u.pn.mtu, p_frame->u.pn.conv_layer,
-                     p_frame->u.pn.k);
+      PORT_ParNegInd(p_mcb, dlci, p_frame->u.pn.mtu, p_frame->u.pn.conv_layer, p_frame->u.pn.k);
     } else {
-      log::warn("MX PN while disconnecting, bd_addr={}, p_mcb={}",
-                p_mcb->bd_addr, fmt::ptr(p_mcb));
+      log::warn("MX PN while disconnecting, bd_addr={}, p_mcb={}", p_mcb->bd_addr, fmt::ptr(p_mcb));
       rfc_send_dm(p_mcb, dlci, false);
     }
 
@@ -655,8 +651,8 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
   /* If we are not awaiting response just ignore it */
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   if ((p_port == nullptr) || !(p_port->rfc.expected_rsp & RFC_RSP_PN)) {
-    log::warn(": Ignore unwanted response, p_mcb={}, bd_addr={}, dlci={}",
-              fmt::ptr(p_mcb), p_mcb->bd_addr, dlci);
+    log::warn(": Ignore unwanted response, p_mcb={}, bd_addr={}, dlci={}", fmt::ptr(p_mcb),
+              p_mcb->bd_addr, dlci);
     return;
   }
 
@@ -664,8 +660,7 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
 
   rfc_port_timer_stop(p_port);
 
-  PORT_ParNegCnf(p_mcb, dlci, p_frame->u.pn.mtu, p_frame->u.pn.conv_layer,
-                 p_frame->u.pn.k);
+  PORT_ParNegCnf(p_mcb, dlci, p_frame->u.pn.mtu, p_frame->u.pn.conv_layer, p_frame->u.pn.k);
 }
 
 /*******************************************************************************
@@ -676,8 +671,7 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
  *                  command/response.  Pass command to the user.
  *
  ******************************************************************************/
-void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request,
-                     MX_FRAME* p_frame) {
+void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request, MX_FRAME* p_frame) {
   tPORT_STATE port_pars;
   tPORT* p_port;
 
@@ -688,8 +682,7 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request,
       memset(&port_pars, 0, sizeof(tPORT_STATE));
       rfc_set_port_state(&port_pars, p_frame);
 
-      PORT_PortNegInd(p_mcb, p_frame->dlci, &port_pars,
-                      p_frame->u.rpn.param_mask);
+      PORT_PortNegInd(p_mcb, p_frame->dlci, &port_pars, p_frame->u.rpn.param_mask);
     }
     return;
   }
@@ -705,21 +698,18 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request,
   rfc_set_port_state(&port_pars, p_frame);
 
   if (is_command) {
-    PORT_PortNegInd(p_mcb, p_frame->dlci, &port_pars,
-                    p_frame->u.rpn.param_mask);
+    PORT_PortNegInd(p_mcb, p_frame->dlci, &port_pars, p_frame->u.rpn.param_mask);
     return;
   }
 
-  /* If we are not awaiting response just ignore it */
+  // If we are not awaiting response just ignore it
   p_port = port_find_mcb_dlci_port(p_mcb, p_frame->dlci);
-  if ((p_port == nullptr) ||
-      !(p_port->rfc.expected_rsp & (RFC_RSP_RPN | RFC_RSP_RPN_REPLY))) {
+  if ((p_port == nullptr) || !(p_port->rfc.expected_rsp & (RFC_RSP_RPN | RFC_RSP_RPN_REPLY))) {
     log::warn("ignore DLC parameter negotiation as we are not waiting for any");
     return;
   }
 
-  /* If we sent a request for port parameters to the peer it is replying with */
-  /* mask 0. */
+  // If we sent a request for port parameters to the peer it is replying with mask 0.
   rfc_port_timer_stop(p_port);
 
   if (p_port->rfc.expected_rsp & RFC_RSP_RPN_REPLY) {
@@ -727,16 +717,13 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request,
 
     p_port->peer_port_pars = port_pars;
 
-    if ((port_pars.fc_type ==
-         (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) ||
-        (port_pars.fc_type ==
-         (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT))) {
+    if ((port_pars.fc_type == (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) ||
+        (port_pars.fc_type == (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT))) {
       /* This is satisfactory port parameters.  Set mask as it was Ok */
       p_frame->u.rpn.param_mask = RFCOMM_RPN_PM_MASK;
     } else {
       /* Current peer parameters are not good, try to fix them */
-      p_port->peer_port_pars.fc_type =
-          (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT);
+      p_port->peer_port_pars.fc_type = (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT);
 
       p_port->rfc.expected_rsp |= RFC_RSP_RPN;
       rfc_send_rpn(p_mcb, p_frame->dlci, true, &p_port->peer_port_pars,
@@ -744,15 +731,14 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request,
       rfc_port_timer_start(p_port, RFC_T2_TIMEOUT);
       return;
     }
-  } else
+  } else {
     p_port->rfc.expected_rsp &= ~RFC_RSP_RPN;
+  }
 
   /* Check if all suggested parameters were accepted */
-  if (((p_frame->u.rpn.param_mask &
-        (RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT)) ==
+  if (((p_frame->u.rpn.param_mask & (RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT)) ==
        (RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT)) ||
-      ((p_frame->u.rpn.param_mask &
-        (RFCOMM_RPN_PM_RTC_ON_INPUT | RFCOMM_RPN_PM_RTC_ON_OUTPUT)) ==
+      ((p_frame->u.rpn.param_mask & (RFCOMM_RPN_PM_RTC_ON_INPUT | RFCOMM_RPN_PM_RTC_ON_OUTPUT)) ==
        (RFCOMM_RPN_PM_RTC_ON_INPUT | RFCOMM_RPN_PM_RTC_ON_OUTPUT))) {
     PORT_PortNegCnf(p_mcb, p_port->dlci, &port_pars, RFCOMM_SUCCESS);
     return;
@@ -761,11 +747,9 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request,
   /* If we were proposing RTR flow control try RTC flow control */
   /* If we were proposing RTC flow control try no flow control */
   /* otherwise drop the connection */
-  if (p_port->peer_port_pars.fc_type ==
-      (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) {
+  if (p_port->peer_port_pars.fc_type == (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) {
     /* Current peer parameters are not good, try to fix them */
-    p_port->peer_port_pars.fc_type =
-        (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT);
+    p_port->peer_port_pars.fc_type = (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT);
 
     p_port->rfc.expected_rsp |= RFC_RSP_RPN;
 
@@ -776,8 +760,7 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request,
   }
 
   /* Other side does not support flow control */
-  if (p_port->peer_port_pars.fc_type ==
-      (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT)) {
+  if (p_port->peer_port_pars.fc_type == (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT)) {
     p_port->peer_port_pars.fc_type = RFCOMM_FC_OFF;
     PORT_PortNegCnf(p_mcb, p_port->dlci, &port_pars, RFCOMM_SUCCESS);
   }
@@ -798,22 +781,31 @@ void rfc_process_msc(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
   bool new_peer_fc = false;
 
   p_port = port_find_mcb_dlci_port(p_mcb, p_frame->dlci);
-  if (p_port == NULL) return;
+  if (p_port == NULL) {
+    return;
+  }
 
   pars.modem_signal = 0;
 
-  if (modem_signals & RFCOMM_MSC_RTC) pars.modem_signal |= MODEM_SIGNAL_DTRDSR;
+  if (modem_signals & RFCOMM_MSC_RTC) {
+    pars.modem_signal |= MODEM_SIGNAL_DTRDSR;
+  }
 
-  if (modem_signals & RFCOMM_MSC_RTR) pars.modem_signal |= MODEM_SIGNAL_RTSCTS;
+  if (modem_signals & RFCOMM_MSC_RTR) {
+    pars.modem_signal |= MODEM_SIGNAL_RTSCTS;
+  }
 
-  if (modem_signals & RFCOMM_MSC_IC) pars.modem_signal |= MODEM_SIGNAL_RI;
+  if (modem_signals & RFCOMM_MSC_IC) {
+    pars.modem_signal |= MODEM_SIGNAL_RI;
+  }
 
-  if (modem_signals & RFCOMM_MSC_DV) pars.modem_signal |= MODEM_SIGNAL_DCD;
+  if (modem_signals & RFCOMM_MSC_DV) {
+    pars.modem_signal |= MODEM_SIGNAL_DCD;
+  }
 
   pars.fc = ((modem_signals & RFCOMM_MSC_FC) == RFCOMM_MSC_FC);
 
-  pars.break_signal =
-      (p_frame->u.msc.break_present) ? p_frame->u.msc.break_duration : 0;
+  pars.break_signal = (p_frame->u.msc.break_present) ? p_frame->u.msc.break_duration : 0;
   pars.discard_buffers = 0;
   pars.break_signal_seq = RFCOMM_CTRL_BREAK_IN_SEQ; /* this is default */
 
@@ -825,8 +817,9 @@ void rfc_process_msc(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
       /* Spec 1.1 indicates that only FC bit is used for flow control */
       p_port->peer_ctrl.fc = new_peer_fc = pars.fc;
 
-      if (new_peer_fc != p_port->tx.peer_fc)
+      if (new_peer_fc != p_port->tx.peer_fc) {
         PORT_FlowInd(p_mcb, p_frame->dlci, (bool)!new_peer_fc);
+      }
     }
 
     PORT_ControlInd(p_mcb, p_frame->dlci, &pars);
@@ -835,7 +828,9 @@ void rfc_process_msc(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
   }
 
   /* If we are not awaiting response just ignore it */
-  if (!(p_port->rfc.expected_rsp & RFC_RSP_MSC)) return;
+  if (!(p_port->rfc.expected_rsp & RFC_RSP_MSC)) {
+    return;
+  }
 
   p_port->rfc.expected_rsp &= ~RFC_RSP_MSC;
 
@@ -862,7 +857,9 @@ void rfc_process_rls(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
     p_port = port_find_mcb_dlci_port(p_mcb, p_frame->dlci);
 
     /* If we are not awaiting response just ignore it */
-    if (!p_port || !(p_port->rfc.expected_rsp & RFC_RSP_RLS)) return;
+    if (!p_port || !(p_port->rfc.expected_rsp & RFC_RSP_RLS)) {
+      return;
+    }
 
     p_port->rfc.expected_rsp &= ~RFC_RSP_RLS;
 
@@ -887,9 +884,7 @@ void rfc_process_nsc(tRFC_MCB* /* p_mcb */, MX_FRAME* /* p_frame */) {}
  *                  reply to it.  Otherwise pass response to the user.
  *
  ******************************************************************************/
-void rfc_process_test_rsp(tRFC_MCB* /* p_mcb */, BT_HDR* p_buf) {
-  osi_free(p_buf);
-}
+void rfc_process_test_rsp(tRFC_MCB* /* p_mcb */, BT_HDR* p_buf) { osi_free(p_buf); }
 
 /*******************************************************************************
  *
@@ -905,7 +900,9 @@ void rfc_process_fcon(tRFC_MCB* p_mcb, bool is_command) {
 
     rfc_send_fcon(p_mcb, false);
 
-    if (!p_mcb->l2cap_congested) PORT_FlowInd(p_mcb, 0, true);
+    if (!p_mcb->l2cap_congested) {
+      PORT_FlowInd(p_mcb, 0, true);
+    }
   }
 }
 
@@ -921,7 +918,9 @@ void rfc_process_fcoff(tRFC_MCB* p_mcb, bool is_command) {
   if (is_command) {
     rfc_cb.rfc.peer_rx_disabled = true;
 
-    if (!p_mcb->l2cap_congested) PORT_FlowInd(p_mcb, 0, false);
+    if (!p_mcb->l2cap_congested) {
+      PORT_FlowInd(p_mcb, 0, false);
+    }
 
     rfc_send_fcoff(p_mcb, false);
   }
@@ -956,23 +955,31 @@ void rfc_process_l2cap_congestion(tRFC_MCB* p_mcb, bool is_congested) {
  ******************************************************************************/
 
 void rfc_set_port_state(tPORT_STATE* port_pars, MX_FRAME* p_frame) {
-  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_BIT_RATE)
+  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_BIT_RATE) {
     port_pars->baud_rate = p_frame->u.rpn.baud_rate;
-  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_DATA_BITS)
+  }
+  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_DATA_BITS) {
     port_pars->byte_size = p_frame->u.rpn.byte_size;
-  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_STOP_BITS)
+  }
+  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_STOP_BITS) {
     port_pars->stop_bits = p_frame->u.rpn.stop_bits;
-  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_PARITY)
+  }
+  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_PARITY) {
     port_pars->parity = p_frame->u.rpn.parity;
-  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_PARITY_TYPE)
+  }
+  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_PARITY_TYPE) {
     port_pars->parity_type = p_frame->u.rpn.parity_type;
+  }
   if (p_frame->u.rpn.param_mask &
       (RFCOMM_RPN_PM_XONXOFF_ON_INPUT | RFCOMM_RPN_PM_XONXOFF_ON_OUTPUT |
-       RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT |
-       RFCOMM_RPN_PM_RTC_ON_INPUT | RFCOMM_RPN_PM_RTC_ON_OUTPUT))
+       RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT | RFCOMM_RPN_PM_RTC_ON_INPUT |
+       RFCOMM_RPN_PM_RTC_ON_OUTPUT)) {
     port_pars->fc_type = p_frame->u.rpn.fc_type;
-  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_XON_CHAR)
+  }
+  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_XON_CHAR) {
     port_pars->xon_char = p_frame->u.rpn.xon_char;
-  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_XOFF_CHAR)
+  }
+  if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_XOFF_CHAR) {
     port_pars->xoff_char = p_frame->u.rpn.xoff_char;
+  }
 }

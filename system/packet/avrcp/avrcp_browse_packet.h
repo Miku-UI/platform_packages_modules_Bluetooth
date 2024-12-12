@@ -28,35 +28,32 @@ namespace bluetooth {
 namespace avrcp {
 
 class BrowsePacketBuilder : public ::bluetooth::PacketBuilder {
- public:
+public:
   virtual ~BrowsePacketBuilder() = default;
 
   static std::unique_ptr<BrowsePacketBuilder> MakeBuilder(
-      BrowsePdu pdu, std::unique_ptr<::bluetooth::PacketBuilder> payload);
+          BrowsePdu pdu, std::unique_ptr<::bluetooth::PacketBuilder> payload);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   BrowsePdu pdu_;
   std::unique_ptr<::bluetooth::PacketBuilder> payload_;
 
-  void PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt,
-                  uint16_t length);
+  void PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt, uint16_t length);
 
-  BrowsePacketBuilder(BrowsePdu pdu) : pdu_(pdu){};
+  BrowsePacketBuilder(BrowsePdu pdu) : pdu_(pdu) {}
 };
 
 class BrowsePacket : public ::bluetooth::Packet {
- public:
+public:
   BrowsePacket(const BrowsePacket&) = delete;
   BrowsePacket& operator=(const BrowsePacket&) = delete;
 
   virtual ~BrowsePacket() = default;
 
-  static std::shared_ptr<BrowsePacket> Parse(
-      std::shared_ptr<::bluetooth::Packet> pkt);
+  static std::shared_ptr<BrowsePacket> Parse(std::shared_ptr<::bluetooth::Packet> pkt);
 
   /**
    * Avrcp Browse Packet Layout
@@ -72,10 +69,10 @@ class BrowsePacket : public ::bluetooth::Packet {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using ::bluetooth::Packet::Packet;
 
- private:
+private:
   virtual std::pair<size_t, size_t> GetPayloadIndecies() const override;
 };
 

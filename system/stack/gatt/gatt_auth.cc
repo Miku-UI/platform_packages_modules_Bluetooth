@@ -23,6 +23,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "gatt_api.h"
@@ -35,6 +36,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_sec_api.h"
+#include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -58,8 +60,7 @@ static bool gatt_sign_data(tGATT_CLCB* p_clcb) {
   /* do not need to mark channel securoty activity for data signing */
   gatt_set_sec_act(p_clcb->p_tcb, GATT_SEC_OK);
 
-  p_data =
-      (uint8_t*)osi_malloc(p_attr->len + 3); /* 3 = 2 byte handle + opcode */
+  p_data = (uint8_t*)osi_malloc(p_attr->len + 3); /* 3 = 2 byte handle + opcode */
 
   p = p_data;
   UINT8_TO_STREAM(p, GATT_SIGN_CMD_WRITE);
@@ -68,14 +69,14 @@ static bool gatt_sign_data(tGATT_CLCB* p_clcb) {
 
   /* sign data length should be attribulte value length plus 2B handle + 1B op
    * code */
-  if ((payload_size - GATT_AUTH_SIGN_LEN - 3) < p_attr->len)
+  if ((payload_size - GATT_AUTH_SIGN_LEN - 3) < p_attr->len) {
     p_attr->len = payload_size - GATT_AUTH_SIGN_LEN - 3;
+  }
 
   p_signature = p_attr->value + p_attr->len;
-  if (BTM_BleDataSignature(
-          p_clcb->p_tcb->peer_bda, p_data,
-          (uint16_t)(p_attr->len + 3), /* 3 = 2 byte handle + opcode */
-          p_signature)) {
+  if (BTM_BleDataSignature(p_clcb->p_tcb->peer_bda, p_data,
+                           (uint16_t)(p_attr->len + 3), /* 3 = 2 byte handle + opcode */
+                           p_signature)) {
     p_attr->len += BTM_BLE_AUTH_SIGN_LEN;
     gatt_set_ch_state(p_clcb->p_tcb, GATT_CH_OPEN);
     gatt_act_write(p_clcb, GATT_SEC_SIGN_DATA);
@@ -105,8 +106,7 @@ void gatt_verify_signature(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_buf) {
   uint32_t counter;
 
   if (p_buf->len < GATT_AUTH_SIGN_LEN + 4) {
-    log::error("Data length {} less than expected {}", p_buf->len,
-               GATT_AUTH_SIGN_LEN + 4);
+    log::error("Data length {} less than expected {}", p_buf->len, GATT_AUTH_SIGN_LEN + 4);
     return;
   }
   cmd_len = p_buf->len - GATT_AUTH_SIGN_LEN + 4;
@@ -120,8 +120,7 @@ void gatt_verify_signature(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_buf) {
   }
 
   STREAM_TO_UINT8(op_code, p_orig);
-  gatt_server_handle_client_req(tcb, cid, op_code, (uint16_t)(p_buf->len - 1),
-                                p_orig);
+  gatt_server_handle_client_req(tcb, cid, op_code, (uint16_t)(p_buf->len - 1), p_orig);
 }
 /*******************************************************************************
  *
@@ -132,8 +131,7 @@ void gatt_verify_signature(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_buf) {
  * Returns          void.
  *
  ******************************************************************************/
-static void gatt_sec_check_complete(bool sec_check_ok, tGATT_CLCB* p_clcb,
-                                    uint8_t sec_act) {
+static void gatt_sec_check_complete(bool sec_check_ok, tGATT_CLCB* p_clcb, uint8_t sec_act) {
   if (p_clcb && p_clcb->p_tcb && p_clcb->p_tcb->pending_enc_clcb.empty()) {
     gatt_set_sec_act(p_clcb->p_tcb, GATT_SEC_NONE);
   }
@@ -155,8 +153,8 @@ static void gatt_sec_check_complete(bool sec_check_ok, tGATT_CLCB* p_clcb,
  * Returns
  *
  ******************************************************************************/
-static void gatt_enc_cmpl_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
-                                void* /* p_ref_data */, tBTM_STATUS result) {
+static void gatt_enc_cmpl_cback(RawAddress bd_addr, tBT_TRANSPORT transport, void* /* p_ref_data */,
+                                tBTM_STATUS result) {
   log::verbose("");
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
   if (!p_tcb) {
@@ -164,7 +162,9 @@ static void gatt_enc_cmpl_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
     return;
   }
 
-  if (gatt_get_sec_act(p_tcb) == GATT_SEC_ENC_PENDING) return;
+  if (gatt_get_sec_act(p_tcb) == GATT_SEC_ENC_PENDING) {
+    return;
+  }
 
   if (p_tcb->pending_enc_clcb.empty()) {
     log::error("no operation waiting for encrypting");
@@ -176,7 +176,7 @@ static void gatt_enc_cmpl_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
 
   if (p_clcb != NULL) {
     bool status = false;
-    if (result == BTM_SUCCESS) {
+    if (result == tBTM_STATUS::BTM_SUCCESS) {
       if (gatt_get_sec_act(p_tcb) == GATT_SEC_ENCRYPT_MITM) {
         status = BTM_IsLinkKeyAuthed(bd_addr, transport);
       } else {
@@ -192,8 +192,9 @@ static void gatt_enc_cmpl_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
   while (!p_tcb->pending_enc_clcb.empty()) {
     tGATT_CLCB* p_clcb = p_tcb->pending_enc_clcb.front();
     p_tcb->pending_enc_clcb.pop_front();
-    if (p_clcb != NULL && gatt_security_check_start(p_clcb))
+    if (p_clcb != NULL && gatt_security_check_start(p_clcb)) {
       new_pending_clcbs.push_back(p_clcb);
+    }
   }
   p_tcb->pending_enc_clcb = new_pending_clcbs;
 }
@@ -215,10 +216,17 @@ void gatt_notify_enc_cmpl(const RawAddress& bd_addr) {
     return;
   }
 
-  for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-    if (gatt_cb.cl_rcb[i].in_use && gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb) {
-      (*gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb)(gatt_cb.cl_rcb[i].gatt_if,
-                                                bd_addr);
+  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    for (auto& [i, p_rcb] : gatt_cb.cl_rcb_map) {
+      if (p_rcb->app_cb.p_enc_cmpl_cb) {
+        (*p_rcb->app_cb.p_enc_cmpl_cb)(p_rcb->gatt_if, bd_addr);
+      }
+    }
+  } else {
+    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
+      if (gatt_cb.cl_rcb[i].in_use && gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb) {
+        (*gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb)(gatt_cb.cl_rcb[i].gatt_if, bd_addr);
+      }
     }
   }
 
@@ -229,8 +237,9 @@ void gatt_notify_enc_cmpl(const RawAddress& bd_addr) {
     while (!p_tcb->pending_enc_clcb.empty()) {
       tGATT_CLCB* p_clcb = p_tcb->pending_enc_clcb.front();
       p_tcb->pending_enc_clcb.pop_front();
-      if (p_clcb != NULL && gatt_security_check_start(p_clcb))
+      if (p_clcb != NULL && gatt_security_check_start(p_clcb)) {
         new_pending_clcbs.push_back(p_clcb);
+      }
     }
     p_tcb->pending_enc_clcb = new_pending_clcbs;
   }
@@ -279,30 +288,35 @@ tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB* p_clcb) {
   uint8_t key_type;
   tBTM_BLE_SEC_REQ_ACT sec_act = BTM_BLE_SEC_REQ_ACT_NONE;
 
-  if (auth_req == GATT_AUTH_REQ_NONE) return act;
+  if (auth_req == GATT_AUTH_REQ_NONE) {
+    return act;
+  }
 
   btm_ble_link_sec_check(p_tcb->peer_bda, auth_req, &sec_act);
 
   /* if a encryption is pending, need to wait */
-  if (sec_act == BTM_BLE_SEC_REQ_ACT_DISCARD && auth_req != GATT_AUTH_REQ_NONE)
+  if (sec_act == BTM_BLE_SEC_REQ_ACT_DISCARD && auth_req != GATT_AUTH_REQ_NONE) {
     return GATT_SEC_ENC_PENDING;
+  }
 
-  is_link_key_known =
-      BTM_IsLinkKeyKnown(p_tcb->peer_bda, p_clcb->p_tcb->transport);
-  is_link_encrypted =
-      BTM_IsEncrypted(p_tcb->peer_bda, p_clcb->p_tcb->transport);
+  is_link_key_known = BTM_IsLinkKeyKnown(p_tcb->peer_bda, p_clcb->p_tcb->transport);
+  is_link_encrypted = BTM_IsEncrypted(p_tcb->peer_bda, p_clcb->p_tcb->transport);
   is_key_mitm = BTM_IsLinkKeyAuthed(p_tcb->peer_bda, p_clcb->p_tcb->transport);
 
   /* first check link key upgrade required or not */
   switch (auth_req) {
     case GATT_AUTH_REQ_MITM:
     case GATT_AUTH_REQ_SIGNED_MITM:
-      if (!is_key_mitm) act = GATT_SEC_ENCRYPT_MITM;
+      if (!is_key_mitm) {
+        act = GATT_SEC_ENCRYPT_MITM;
+      }
       break;
 
     case GATT_AUTH_REQ_NO_MITM:
     case GATT_AUTH_REQ_SIGNED_NO_MITM:
-      if (!is_link_key_known) act = GATT_SEC_ENCRYPT_NO_MITM;
+      if (!is_link_key_known) {
+        act = GATT_SEC_ENCRYPT_NO_MITM;
+      }
       break;
     default:
       break;
@@ -311,17 +325,15 @@ tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB* p_clcb) {
   /* now check link needs to be encrypted or not if the link key upgrade is not
    * required */
   if (act == GATT_SEC_OK) {
-    if (p_tcb->transport == BT_TRANSPORT_LE &&
-        (p_clcb->operation == GATTC_OPTYPE_WRITE) &&
+    if (p_tcb->transport == BT_TRANSPORT_LE && (p_clcb->operation == GATTC_OPTYPE_WRITE) &&
         (p_clcb->op_subtype == GATT_WRITE_NO_RSP)) {
       /* this is a write command request
          check data signing required or not */
       if (!is_link_encrypted) {
         btm_ble_get_enc_key_type(p_tcb->peer_bda, &key_type);
 
-        if ((key_type & BTM_LE_KEY_LCSRK) &&
-            ((auth_req == GATT_AUTH_REQ_SIGNED_NO_MITM) ||
-             (auth_req == GATT_AUTH_REQ_SIGNED_MITM))) {
+        if ((key_type & BTM_LE_KEY_LCSRK) && ((auth_req == GATT_AUTH_REQ_SIGNED_NO_MITM) ||
+                                              (auth_req == GATT_AUTH_REQ_SIGNED_MITM))) {
           act = GATT_SEC_SIGN_DATA;
         } else {
           act = GATT_SEC_ENCRYPT;
@@ -403,7 +415,9 @@ bool gatt_security_check_start(tGATT_CLCB* p_clcb) {
 
   tGATT_SEC_ACTION gatt_sec_act = gatt_determine_sec_act(p_clcb);
 
-  if (sec_act_old == GATT_SEC_NONE) gatt_set_sec_act(p_tcb, gatt_sec_act);
+  if (sec_act_old == GATT_SEC_NONE) {
+    gatt_set_sec_act(p_tcb, gatt_sec_act);
+  }
 
   switch (gatt_sec_act) {
     case GATT_SEC_SIGN_DATA:
@@ -417,10 +431,10 @@ bool gatt_security_check_start(tGATT_CLCB* p_clcb) {
         log::verbose("Encrypt now or key upgreade first");
         tBTM_BLE_SEC_ACT btm_ble_sec_act;
         gatt_convert_sec_action(gatt_sec_act, &btm_ble_sec_act);
-        tBTM_STATUS btm_status =
-            BTM_SetEncryption(p_tcb->peer_bda, p_tcb->transport,
-                              gatt_enc_cmpl_cback, NULL, btm_ble_sec_act);
-        if ((btm_status != BTM_SUCCESS) && (btm_status != BTM_CMD_STARTED)) {
+        tBTM_STATUS btm_status = BTM_SetEncryption(p_tcb->peer_bda, p_tcb->transport,
+                                                   gatt_enc_cmpl_cback, NULL, btm_ble_sec_act);
+        if ((btm_status != tBTM_STATUS::BTM_SUCCESS) &&
+            (btm_status != tBTM_STATUS::BTM_CMD_STARTED)) {
           log::error("BTM_SetEncryption failed btm_status={}", btm_status);
           gatt_set_sec_act(p_tcb, GATT_SEC_NONE);
           gatt_set_ch_state(p_tcb, GATT_CH_OPEN);

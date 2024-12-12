@@ -88,7 +88,7 @@ public class Metadata implements Cloneable {
     @Override
     public int hashCode() {
         // Do not hash the Image as it does not implement hashCode
-        return Objects.hash(mediaId, title, artist, album, trackNum, numTracks, genre, duration);
+        return Objects.hash(title, artist, album, trackNum, numTracks, genre, duration);
     }
 
     @Override
@@ -101,6 +101,8 @@ public class Metadata implements Cloneable {
                 + artist
                 + "\" album=\""
                 + album
+                + "\" genre=\""
+                + genre
                 + "\" duration="
                 + duration
                 + " trackPosition="

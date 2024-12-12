@@ -6,7 +6,7 @@ use crate::{
         ffi::AttributeBackingType,
         ids::{AttHandle, TransportIndex},
     },
-    packets::AttErrorCode,
+    packets::att::AttErrorCode,
 };
 use async_trait::async_trait;
 use log::info;

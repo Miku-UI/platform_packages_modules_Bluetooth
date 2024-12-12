@@ -1,7 +1,8 @@
 //! This represents the TX end of an ATT Transport, to be either mocked (in
 //! test) or linked to FFI (in production).
 
-use crate::packets::{AttBuilder, SerializeError};
+use crate::packets::att;
+use pdl_runtime::EncodeError;
 
 use super::ids::TransportIndex;
 
@@ -14,9 +15,5 @@ pub trait AttTransport {
     ///
     /// The tcb_idx is an identifier for this transport supplied from the
     /// native stack, and represents an underlying ACL-LE connection.
-    fn send_packet(
-        &self,
-        tcb_idx: TransportIndex,
-        packet: AttBuilder,
-    ) -> Result<(), SerializeError>;
+    fn send_packet(&self, tcb_idx: TransportIndex, packet: att::Att) -> Result<(), EncodeError>;
 }

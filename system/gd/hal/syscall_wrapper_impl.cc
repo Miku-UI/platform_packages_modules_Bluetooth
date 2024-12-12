@@ -55,7 +55,8 @@ ssize_t SyscallWrapperImpl::Recv(int fd, void* buf, size_t n, int flags) {
   return ret;
 }
 
-int SyscallWrapperImpl::Setsockopt(int fd, int level, int optname, const void* optval, socklen_t optlen) {
+int SyscallWrapperImpl::Setsockopt(int fd, int level, int optname, const void* optval,
+                                   socklen_t optlen) {
   int ret = setsockopt(fd, level, optname, optval, optlen);
   errno_ = errno;
   return ret;
@@ -91,29 +92,10 @@ int SyscallWrapperImpl::Pipe2(int* pipefd, int flags) {
   return ret;
 }
 
-int SyscallWrapperImpl::GetErrno() const {
-  return errno_;
-}
+int SyscallWrapperImpl::GetErrno() const { return errno_; }
 
-void SyscallWrapperImpl::FDSet(int fd, fd_set* set) {
-  FD_SET(fd, set);
-}
-
-void SyscallWrapperImpl::FDClr(int fd, fd_set* set) {
-  FD_CLR(fd, set);
-}
-
-bool SyscallWrapperImpl::FDIsSet(int fd, fd_set* set) {
-  return FD_ISSET(fd, set);
-}
-
-void SyscallWrapperImpl::FDZero(fd_set* set) {
-  FD_ZERO(set);
-}
-
-int SyscallWrapperImpl::Select(
-    int __nfds, fd_set* __readfds, fd_set* __writefds, fd_set* __exceptfds, struct timeval* __timeout) {
-  int ret = select(__nfds, __readfds, __writefds, __exceptfds, __timeout);
+int SyscallWrapperImpl::Poll(struct pollfd* fds, nfds_t nfds, int timeout) {
+  int ret = poll(fds, nfds, timeout);
   errno_ = errno;
   return ret;
 }

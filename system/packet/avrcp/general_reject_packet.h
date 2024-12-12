@@ -22,19 +22,19 @@ namespace bluetooth {
 namespace avrcp {
 
 class GeneralRejectBuilder : public BrowsePacketBuilder {
- public:
+public:
   virtual ~GeneralRejectBuilder() = default;
 
   static std::unique_ptr<GeneralRejectBuilder> MakeBuilder(Status reason);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   Status reason_;
 
-  GeneralRejectBuilder(Status reason) : BrowsePacketBuilder(BrowsePdu::GENERAL_REJECT), reason_(reason){};
+  GeneralRejectBuilder(Status reason)
+      : BrowsePacketBuilder(BrowsePdu::GENERAL_REJECT), reason_(reason) {}
 };
 
 }  // namespace avrcp

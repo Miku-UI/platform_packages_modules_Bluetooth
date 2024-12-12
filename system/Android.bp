@@ -26,7 +26,6 @@ filegroup {
         "blueberry/facade/l2cap/le/facade.proto",
         "blueberry/facade/neighbor/facade.proto",
         "blueberry/facade/rootservice.proto",
-        "blueberry/facade/security/facade.proto",
         "blueberry/facade/topshim/facade.proto",
     ],
 }
@@ -76,8 +75,6 @@ genrule {
         "blueberry/facade/neighbor/facade.pb.h",
         "blueberry/facade/rootservice.grpc.pb.h",
         "blueberry/facade/rootservice.pb.h",
-        "blueberry/facade/security/facade.grpc.pb.h",
-        "blueberry/facade/security/facade.pb.h",
     ],
 }
 
@@ -119,8 +116,6 @@ genrule {
         "blueberry/facade/neighbor/facade.pb.cc",
         "blueberry/facade/rootservice.grpc.pb.cc",
         "blueberry/facade/rootservice.pb.cc",
-        "blueberry/facade/security/facade.grpc.pb.cc",
-        "blueberry/facade/security/facade.pb.cc",
     ],
 }
 
@@ -133,7 +128,7 @@ genrule {
     ],
     cmd: "mkdir -p $(genDir)/files && " +
         "$(location aprotoc) -Ipackages/modules/Bluetooth/system -Iexternal/protobuf/src --plugin=protoc-gen-grpc=$(location protoc-gen-grpc-python-plugin) $(locations :BlueberryFacadeProto) --grpc_out=$(genDir)/files --python_out=$(genDir)/files && " +
-        "find $(genDir)/files -type d -exec touch {}/__init__.py \\; &&" +
+        "for dir in `find $(genDir)/files -type d`; do touch $$dir/__init__.py; done &&" +
         "$(location soong_zip) -C $(genDir)/files -D $(genDir)/files -o $(out)",
     srcs: [
         ":BlueberryFacadeProto",
@@ -164,4 +159,167 @@ cc_library_headers {
         "com.android.btservices",
     ],
     min_sdk_version: "30",
+}
+
+genrule {
+    name: "bluetooth_cert_test_sources-zip",
+    tools: [
+        "soong_zip",
+    ],
+    srcs: [
+        "blueberry/**/*.py",
+        "blueberry/**/*.yaml",
+        "setup.py",
+    ],
+    out: ["bluetooth_cert_test_sources.zip"],
+    cmd: "echo $(in) > $(genDir)/file_list.txt && " +
+        "$(location soong_zip) -C packages/modules/Bluetooth/system -l $(genDir)/file_list.txt -o $(out)",
+}
+
+genrule {
+    name: "gd_hci_packets_python3_gen-zip",
+    tools: [
+        "soong_zip",
+    ],
+    srcs: [
+        ":gd_hci_packets_python3_gen",
+    ],
+    out: ["gd_hci_packets_python3_gen.zip"],
+    cmd: "echo $(in) > $(genDir)/file_list.txt && " +
+        "$(location soong_zip) -j -l $(genDir)/file_list.txt -o $(out)",
+}
+
+genrule {
+    name: "gd_smp_packets_python3_gen-zip",
+    tools: [
+        "soong_zip",
+    ],
+    srcs: [
+        ":gd_smp_packets_python3_gen",
+    ],
+    out: ["gd_smp_packets_python3_gen.zip"],
+    cmd: "echo $(in) > $(genDir)/file_list.txt && " +
+        "$(location soong_zip) -j -l $(genDir)/file_list.txt -o $(out)",
+}
+
+cc_genrule {
+    name: "bluetooth_cert_test_host_deps-zip",
+    host_supported: true,
+    device_supported: false,
+    compile_multilib: "first",
+    tools: [
+        "bluetooth_stack_with_facade",
+        "bt_topshim_facade",
+        "root-canal",
+        "soong_zip",
+    ],
+    srcs: [
+        ":libbase",
+        ":libbinder",
+        ":libbinder_ndk",
+        ":libbluetooth",
+        ":libbluetooth_gd",
+        ":libc++",
+        ":libchrome",
+        ":libcrypto",
+        ":libcutils",
+        ":libevent",
+        ":libflatbuffers-cpp",
+        ":libgrpc++",
+        ":libgrpc_wrap",
+        ":liblog",
+        ":liblzma",
+        ":libprotobuf-cpp-full",
+        ":libssl",
+        ":libunwindstack",
+        ":libutils",
+        ":libz",
+        ":server_configurable_flags",
+    ],
+    out: ["bluetooth_cert_test_host_deps.zip"],
+    cmd: "echo $(in) > $(genDir)/file_list.txt && " +
+        "$(location soong_zip) -j -f $(location bluetooth_stack_with_facade) -f $(location bt_topshim_facade) -f $(location root-canal) -P lib64 -l $(genDir)/file_list.txt -o $(out)",
+}
+
+cc_genrule {
+    name: "bluetooth_cert_test_target_deps-zip",
+    compile_multilib: "first",
+    tools: [
+        "soong_zip",
+    ],
+    srcs: [
+        // executables
+        ":bluetooth_stack_with_facade",
+        // libs
+        ":android.hardware.bluetooth@1.0",
+        ":android.hardware.bluetooth@1.1",
+        ":libandroid_runtime_lazy",
+        ":libbase",
+        ":libbinder",
+        ":libbinder_ndk",
+        ":libc++",
+        ":libcrypto",
+        ":libcutils",
+        ":libgrpc++",
+        ":libgrpc_wrap",
+        ":libhidlbase",
+        ":liblog",
+        ":liblzma",
+        ":libprotobuf-cpp-full",
+        ":libssl",
+        ":libunwindstack",
+        ":libutils",
+        ":libz",
+        ":server_configurable_flags",
+    ],
+    out: ["bluetooth_cert_test_target_deps.zip"],
+    cmd: "echo $(in) > $(genDir)/file_list.txt && " +
+        "$(location soong_zip) -j -P target -l $(genDir)/file_list.txt -o $(out)",
+}
+
+genrule {
+    name: "llvm-tools-zip",
+    tools: [
+        "soong_zip",
+    ],
+    srcs: [
+        ":llvm-tools",
+    ],
+    out: ["llvm-tools.zip"],
+    cmd: "mkdir -p $(genDir)/llvm_binutils/bin && mkdir -p $(genDir)/llvm_binutils/lib/x86_64-unknown-linux-gnu && " +
+        "cp prebuilts/clang/host/linux-x86/*/bin/llvm-cov $(genDir)/llvm_binutils/bin && " +
+        "cp prebuilts/clang/host/linux-x86/*/bin/llvm-profdata $(genDir)/llvm_binutils/bin && " +
+        "cp prebuilts/clang/host/linux-x86/*/bin/llvm-symbolizer $(genDir)/llvm_binutils/bin && " +
+        "cp prebuilts/clang/host/linux-x86/*/lib/x86_64-unknown-linux-gnu/libc++.so $(genDir)/llvm_binutils/lib/x86_64-unknown-linux-gnu && " +
+        "$(location soong_zip) -C $(genDir) -D $(genDir)/llvm_binutils -o $(out)",
+}
+
+cc_genrule {
+    name: "bluetooth_cert_tests.zip",
+    host_supported: true,
+    device_supported: false,
+    compile_multilib: "first",
+    tools: [
+        "merge_zips",
+        "soong_zip",
+    ],
+    srcs: [
+        ":BlueberryFacadeAndCertGeneratedStub_py",
+        ":bluetooth_cert_test_host_deps-zip",
+        ":bluetooth_cert_test_sources-zip",
+        ":bluetooth_cert_test_target_deps-zip",
+        ":gd_hci_packets_python3_gen-zip",
+        ":gd_smp_packets_python3_gen-zip",
+        ":llvm-tools-zip",
+    ],
+    out: ["bluetooth_cert_tests.zip"],
+    cmd: "$(location merge_zips) $(genDir)/temp.zip $(in) && " +
+        "unzip -q -d $(genDir)/files $(genDir)/temp.zip && " +
+        "for d in $$(find $(genDir)/files/blueberry -type d -name '*'); do touch -a $$d/__init__.py; done && " +
+        "$(location soong_zip) -C $(genDir)/files -D $(genDir)/files -o $(out)",
+    dist: {
+        targets: [
+            "bluetooth_stack_with_facade",
+        ],
+    },
 }

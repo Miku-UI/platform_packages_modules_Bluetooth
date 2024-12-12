@@ -392,12 +392,10 @@ public class DatabaseManager {
 
             Log.v(
                     TAG,
-                    "setProfileConnectionPolicy: device "
-                            + device.getAnonymizedAddress()
-                            + " profile="
-                            + profileStr
-                            + ", connectionPolicy="
-                            + newConnectionPolicy);
+                    "setProfileConnectionPolicy:"
+                            + (" device=" + device)
+                            + (" profile=" + profileStr)
+                            + (" connectionPolicy=" + newConnectionPolicy));
 
             data.setProfileConnectionPolicy(profile, newConnectionPolicy);
             updateDatabase(data);
@@ -433,11 +431,7 @@ public class DatabaseManager {
 
         synchronized (mMetadataCache) {
             if (!mMetadataCache.containsKey(address)) {
-                Log.d(
-                        TAG,
-                        "getProfileConnectionPolicy: device "
-                                + device.getAnonymizedAddress()
-                                + " is not in cache");
+                Log.d(TAG, "getProfileConnectionPolicy: device=" + device + " is not in cache");
                 return BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
             }
 
@@ -446,12 +440,10 @@ public class DatabaseManager {
 
             Log.v(
                     TAG,
-                    "getProfileConnectionPolicy: device "
-                            + device.getAnonymizedAddress()
-                            + " profile="
-                            + BluetoothProfile.getProfileName(profile)
-                            + ", connectionPolicy="
-                            + connectionPolicy);
+                    "getProfileConnectionPolicy:"
+                            + (" device=" + device)
+                            + (" profile=" + BluetoothProfile.getProfileName(profile))
+                            + (" connectionPolicy=" + connectionPolicy));
             return connectionPolicy;
         }
     }
@@ -598,6 +590,7 @@ public class DatabaseManager {
     }
 
     @GuardedBy("mMetadataCache")
+    @SuppressWarnings("LockOnNonEnclosingClassLiteral")
     private void setConnection(BluetoothDevice device, boolean isActiveA2dp, boolean isActiveHfp) {
         if (device == null) {
             Log.e(TAG, "setConnection: device is null");
@@ -768,8 +761,7 @@ public class DatabaseManager {
                 } catch (IllegalArgumentException ex) {
                     Log.d(
                             TAG,
-                            "getBondedDevicesOrdered: Invalid address for "
-                                    + "device "
+                            "getBondedDevicesOrdered: Invalid address for device "
                                     + metadata.getAnonymizedAddress());
                 }
             }
@@ -823,8 +815,7 @@ public class DatabaseManager {
                     } catch (IllegalArgumentException ex) {
                         Log.d(
                                 TAG,
-                                "getMostRecentlyConnectedA2dpDevice: Invalid address for "
-                                        + "device "
+                                "getMostRecentlyConnectedA2dpDevice: Invalid address for device "
                                         + metadata.getAnonymizedAddress());
                     }
                 }
@@ -854,8 +845,7 @@ public class DatabaseManager {
             } catch (IllegalArgumentException ex) {
                 Log.d(
                         TAG,
-                        "getMostRecentlyActiveHfpDevice: Invalid address for "
-                                + "device "
+                        "getMostRecentlyActiveHfpDevice: Invalid address for device "
                                 + entry.getValue().getAnonymizedAddress());
             }
         }
@@ -879,6 +869,7 @@ public class DatabaseManager {
     /**
      * @param metadataList is the list of metadata
      */
+    @SuppressWarnings("LockOnNonEnclosingClassLiteral")
     private void compactLastConnectionTime(List<Metadata> metadataList) {
         Log.d(TAG, "compactLastConnectionTime: Compacting metadata after load");
         synchronized (MetadataDatabase.class) {

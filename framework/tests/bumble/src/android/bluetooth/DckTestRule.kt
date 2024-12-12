@@ -139,8 +139,7 @@ class DckTestRule(
                                 val results =
                                     intent.getParcelableArrayListExtra<ScanResult>(
                                         BluetoothLeScanner.EXTRA_LIST_SCAN_RESULT
-                                    )
-                                        ?: return
+                                    ) ?: return
 
                                 val callbackType =
                                     intent.getIntExtra(BluetoothLeScanner.EXTRA_CALLBACK_TYPE, -1)

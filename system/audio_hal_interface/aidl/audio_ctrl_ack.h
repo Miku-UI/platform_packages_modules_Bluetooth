@@ -24,8 +24,6 @@ namespace bluetooth {
 namespace audio {
 namespace aidl {
 
-using ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus;
-
 enum class BluetoothAudioCtrlAck : uint8_t {
   SUCCESS_FINISHED = 0,
   SUCCESS_RECONFIGURATION,
@@ -38,8 +36,9 @@ enum class BluetoothAudioCtrlAck : uint8_t {
 
 std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack);
 
-inline BluetoothAudioStatus BluetoothAudioCtrlAckToHalStatus(
-    const BluetoothAudioCtrlAck& ack) {
+inline ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus
+BluetoothAudioCtrlAckToHalStatus(const BluetoothAudioCtrlAck& ack) {
+  using ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus;
   switch (ack) {
     case BluetoothAudioCtrlAck::SUCCESS_FINISHED:
       return BluetoothAudioStatus::SUCCESS;
@@ -64,6 +63,5 @@ inline BluetoothAudioStatus BluetoothAudioCtrlAckToHalStatus(
 
 namespace fmt {
 template <>
-struct formatter<bluetooth::audio::aidl::BluetoothAudioCtrlAck>
-    : ostream_formatter {};
+struct formatter<bluetooth::audio::aidl::BluetoothAudioCtrlAck> : ostream_formatter {};
 }  // namespace fmt

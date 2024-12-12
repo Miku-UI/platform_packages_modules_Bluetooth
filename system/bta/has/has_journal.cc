@@ -29,8 +29,7 @@ std::ostream& operator<<(std::ostream& os, const HasJournalRecord& r) {
   char temptime[20];
   struct tm* tstamp = localtime(&r.timestamp.tv_sec);
   strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp);
-  snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
-           r.timestamp.tv_nsec / 1000000);
+  snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime, r.timestamp.tv_nsec / 1000000);
   os << "\"time\": \"" << eventtime << "\", ";
 
   if (r.is_operation) {
@@ -41,12 +40,11 @@ std::ostream& operator<<(std::ostream& os, const HasJournalRecord& r) {
     os << std::get<HasCtpNtf>(r.event) << ", ";
 
   } else if (r.is_active_preset_change) {
-    os << "\"Active preset changed\": {\"active_preset_idx\": "
-       << +std::get<uint8_t>(r.event) << "}";
+    os << "\"Active preset changed\": {\"active_preset_idx\": " << +std::get<uint8_t>(r.event)
+       << "}";
 
   } else {
-    os << "\"Features changed\": {\"features\": \""
-       << loghex(std::get<uint8_t>(r.event)) << "\"}";
+    os << "\"Features changed\": {\"features\": \"" << loghex(std::get<uint8_t>(r.event)) << "\"}";
   }
 
   os << "}";

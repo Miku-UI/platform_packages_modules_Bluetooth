@@ -24,11 +24,8 @@ extern const struct ResamplerTables {
   static const int KERNEL_Q = 512;
   static const int KERNEL_A = 16;
 
-  const int32_t h alignas(2 * KERNEL_A *
-                          sizeof(int32_t))[KERNEL_Q][2 * KERNEL_A];
-  const int16_t d alignas(2 * KERNEL_A *
-                          sizeof(int16_t))[KERNEL_Q][2 * KERNEL_A];
-
+  const int32_t h alignas(2 * KERNEL_A * sizeof(int32_t))[KERNEL_Q][2 * KERNEL_A];
+  const int16_t d alignas(2 * KERNEL_A * sizeof(int16_t))[KERNEL_Q][2 * KERNEL_A];
 } resampler_tables;
 
 }  // namespace bluetooth::audio::asrc

@@ -22,27 +22,24 @@ namespace bluetooth {
 namespace avrcp {
 
 class SetAddressedPlayerResponseBuilder : public VendorPacketBuilder {
- public:
+public:
   virtual ~SetAddressedPlayerResponseBuilder() = default;
 
-  static std::unique_ptr<SetAddressedPlayerResponseBuilder> MakeBuilder(
-      Status status);
+  static std::unique_ptr<SetAddressedPlayerResponseBuilder> MakeBuilder(Status status);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   Status status_;
 
   SetAddressedPlayerResponseBuilder(Status status)
-      : VendorPacketBuilder(CType::ACCEPTED, CommandPdu::SET_ADDRESSED_PLAYER,
-                            PacketType::SINGLE),
-        status_(status){};
+      : VendorPacketBuilder(CType::ACCEPTED, CommandPdu::SET_ADDRESSED_PLAYER, PacketType::SINGLE),
+        status_(status) {}
 };
 
 class SetAddressedPlayerRequest : public VendorPacket {
- public:
+public:
   virtual ~SetAddressedPlayerRequest() = default;
 
   /**
@@ -67,7 +64,7 @@ class SetAddressedPlayerRequest : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 

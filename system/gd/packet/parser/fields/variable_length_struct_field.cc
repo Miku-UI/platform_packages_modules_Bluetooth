@@ -15,20 +15,20 @@
  */
 
 #include "fields/variable_length_struct_field.h"
+
 #include "util.h"
 
 const std::string VariableLengthStructField::kFieldType = "VariableLengthStructField";
 
-VariableLengthStructField::VariableLengthStructField(std::string name, std::string type_name, ParseLocation loc)
+VariableLengthStructField::VariableLengthStructField(std::string name, std::string type_name,
+                                                     ParseLocation loc)
     : PacketField(name, loc), type_name_(type_name) {}
 
 const std::string& VariableLengthStructField::GetFieldType() const {
   return VariableLengthStructField::kFieldType;
 }
 
-Size VariableLengthStructField::GetSize() const {
-  return Size();
-}
+Size VariableLengthStructField::GetSize() const { return Size(); }
 
 Size VariableLengthStructField::GetBuilderSize() const {
   std::string ret = "(" + GetName() + "_->size() * 8) ";
@@ -55,7 +55,8 @@ std::string VariableLengthStructField::GetGetterFunctionName() const {
   return ss.str();
 }
 
-void VariableLengthStructField::GenGetter(std::ostream& s, Size start_offset, Size end_offset) const {
+void VariableLengthStructField::GenGetter(std::ostream& s, Size start_offset,
+                                          Size end_offset) const {
   s << GetDataType() << " " << GetGetterFunctionName() << "() const {";
   s << "ASSERT(was_validated_);";
   s << "size_t end_index = size();";
@@ -67,17 +68,11 @@ void VariableLengthStructField::GenGetter(std::ostream& s, Size start_offset, Si
   s << "}\n";
 }
 
-std::string VariableLengthStructField::GetBuilderParameterType() const {
-  return GetDataType();
-}
+std::string VariableLengthStructField::GetBuilderParameterType() const { return GetDataType(); }
 
-bool VariableLengthStructField::BuilderParameterMustBeMoved() const {
-  return true;
-}
+bool VariableLengthStructField::BuilderParameterMustBeMoved() const { return true; }
 
-bool VariableLengthStructField::HasParameterValidator() const {
-  return false;
-}
+bool VariableLengthStructField::HasParameterValidator() const { return false; }
 
 void VariableLengthStructField::GenParameterValidator(std::ostream&) const {
   // Validated at compile time.

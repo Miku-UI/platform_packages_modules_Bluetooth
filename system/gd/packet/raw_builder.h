@@ -27,7 +27,7 @@ namespace bluetooth {
 namespace packet {
 
 class RawBuilder : public PacketBuilder<true> {
- public:
+public:
   RawBuilder() = default;
   explicit RawBuilder(size_t max_bytes);
   explicit RawBuilder(std::vector<uint8_t> vec);
@@ -66,7 +66,7 @@ class RawBuilder : public PacketBuilder<true> {
   bool AddOctets6(uint64_t value);
   bool AddOctets8(uint64_t value);
 
- private:
+private:
   // Add |octets| bytes to the payload.  Return true if:
   // - the value of |value| fits in |octets| bytes and
   // - the new size of the payload is still <= |max_bytes_|

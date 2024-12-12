@@ -100,7 +100,8 @@ bool WriteToFile(const std::string& path, const std::string& data) {
   // 5) Sync directory that has the conf file with fsync().
   //    This ensures directory entries are up-to-date.
   //
-  // We are using traditional C type file methods because C++ std::filesystem and std::ofstream do not support:
+  // We are using traditional C type file methods because C++ std::filesystem and std::ofstream do
+  // not support:
   // - Operation on directories
   // - fsync() to ensure content is written to disk
 
@@ -111,8 +112,9 @@ bool WriteToFile(const std::string& path, const std::string& data) {
   // TODO: switch to std::filesystem::path::parent_path
   std::string directory_path;
   {
-    // Make a temporary variable as inputs to dirname() will be modified and return value points to input char array
-    // temp_path_for_dir must not be destroyed until results from dirname is appended to directory_path
+    // Make a temporary variable as inputs to dirname() will be modified and return value points to
+    // input char array temp_path_for_dir must not be destroyed until results from dirname is
+    // appended to directory_path
     std::string temp_path_for_dir(path);
     directory_path.append(dirname(temp_path_for_dir.data()));
   }
@@ -189,8 +191,8 @@ bool WriteToFile(const std::string& path, const std::string& data) {
 
   // Rename written temp file to the actual config file.
   if (std::rename(temp_path.c_str(), path.c_str()) != 0) {
-    log::error(
-        "unable to commit file from '{}' to '{}', error: {}", temp_path, path, strerror(errno));
+    log::error("unable to commit file from '{}' to '{}', error: {}", temp_path, path,
+               strerror(errno));
     HandleError(temp_path, &dir_fd, &fp);
     return false;
   }
@@ -216,8 +218,8 @@ bool RemoveFile(const std::string& path) {
   return true;
 }
 
-std::optional<std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>> FileCreatedTime(
-    const std::string& path) {
+std::optional<std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>>
+FileCreatedTime(const std::string& path) {
   struct stat file_info;
   if (stat(path.c_str(), &file_info) != 0) {
     log::error("unable to read '{}' file metadata, error: {}", path, strerror(errno));

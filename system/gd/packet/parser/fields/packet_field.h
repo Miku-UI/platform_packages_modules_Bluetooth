@@ -25,7 +25,7 @@
 
 // The base field that every packet needs to inherit from.
 class PacketField : public Loggable {
- public:
+public:
   virtual ~PacketField() = default;
 
   PacketField(std::string name, ParseLocation loc);
@@ -50,7 +50,8 @@ class PacketField : public Loggable {
   // Given an iterator {name}_it, extract the type.
   virtual void GenExtractor(std::ostream& s, int num_leading_bits, bool for_struct) const = 0;
 
-  // Calculate field_begin and field_end using the given offsets and size, return the number of leading bits
+  // Calculate field_begin and field_end using the given offsets and size, return the number of
+  // leading bits
   virtual int GenBounds(std::ostream& s, Size start_offset, Size end_offset, Size size) const;
 
   // Get the name of the getter function, return empty string if there is a getter function
@@ -62,7 +63,8 @@ class PacketField : public Loggable {
   // calculate the offset.
   virtual void GenGetter(std::ostream& s, Size start_offset, Size end_offset) const = 0;
 
-  // Get the type of parameter used in Create(), return empty string if a parameter type was NOT generated
+  // Get the type of parameter used in Create(), return empty string if a parameter type was NOT
+  // generated
   virtual std::string GetBuilderParameterType() const = 0;
 
   // Generate the parameter for Create(), return true if a parameter was added.
@@ -106,7 +108,8 @@ class PacketField : public Loggable {
   // Get field of nested elements if this is a container field, nullptr if none
   virtual const PacketField* GetElementField() const;
 
-  // Return string representation of this field, that can be displayed for debugging or logging purposes
+  // Return string representation of this field, that can be displayed for debugging or logging
+  // purposes
   virtual void GenStringRepresentation(std::ostream& s, std::string accessor) const;
 
   std::string GetDebugName() const override;
@@ -115,11 +118,9 @@ class PacketField : public Loggable {
 
   virtual std::string GetName() const;
 
-  virtual bool GetterIsByRef() const {
-    return true;
-  }
+  virtual bool GetterIsByRef() const { return true; }
 
- private:
+private:
   ParseLocation loc_;
   std::string name_;
 };

@@ -19,27 +19,10 @@
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_opus.h"
 
-bool A2DP_IsVendorSourceCodecValidOpus(const uint8_t* p_codec_info) {
-  return false;
-}
+bool A2DP_IsCodecValidOpus(const uint8_t* p_codec_info) { return false; }
 
-bool A2DP_IsVendorSinkCodecValidOpus(const uint8_t* p_codec_info) {
-  return false;
-}
-
-bool A2DP_IsVendorPeerSourceCodecValidOpus(const uint8_t* p_codec_info) {
-  return false;
-}
-
-bool A2DP_IsVendorPeerSinkCodecValidOpus(const uint8_t* p_codec_info) {
-  return false;
-}
-
-bool A2DP_IsVendorSinkCodecSupportedOpus(const uint8_t* p_codec_info) {
-  return false;
-}
-bool A2DP_IsPeerSourceCodecSupportedOpus(const uint8_t* p_codec_info) {
-  return false;
+tA2DP_STATUS A2DP_IsVendorSinkCodecSupportedOpus(const uint8_t* p_codec_info) {
+  return A2DP_NOT_SUPPORTED_CODEC_TYPE;
 }
 
 bool A2DP_VendorUsesRtpHeaderOpus(bool content_protection_enabled,
@@ -63,30 +46,19 @@ bool A2DP_VendorCodecEqualsOpus(const uint8_t* p_codec_info_a,
 
 int A2DP_VendorGetBitRateOpus(const uint8_t* p_codec_info) { return -1; }
 
-int A2DP_VendorGetTrackSampleRateOpus(const uint8_t* p_codec_info) {
-  return -1;
-}
+int A2DP_VendorGetTrackSampleRateOpus(const uint8_t* p_codec_info) { return -1; }
 
-int A2DP_VendorGetTrackBitsPerSampleOpus(const uint8_t* p_codec_info) {
-  return -1;
-}
+int A2DP_VendorGetTrackBitsPerSampleOpus(const uint8_t* p_codec_info) { return -1; }
 
-int A2DP_VendorGetTrackChannelCountOpus(const uint8_t* p_codec_info) {
-  return -1;
-}
+int A2DP_VendorGetTrackChannelCountOpus(const uint8_t* p_codec_info) { return -1; }
 
-int A2DP_VendorGetSinkTrackChannelTypeOpus(const uint8_t* p_codec_info) {
-  return -1;
-}
+int A2DP_VendorGetSinkTrackChannelTypeOpus(const uint8_t* p_codec_info) { return -1; }
 
-int A2DP_VendorGetChannelModeCodeOpus(const uint8_t* p_codec_info) {
-  return -1;
-}
+int A2DP_VendorGetChannelModeCodeOpus(const uint8_t* p_codec_info) { return -1; }
 
 int A2DP_VendorGetFrameSizeOpus(const uint8_t* p_codec_info) { return -1; }
 
-bool A2DP_VendorGetPacketTimestampOpus(const uint8_t* p_codec_info,
-                                       const uint8_t* p_data,
+bool A2DP_VendorGetPacketTimestampOpus(const uint8_t* p_codec_info, const uint8_t* p_data,
                                        uint32_t* p_timestamp) {
   return false;
 }
@@ -100,25 +72,21 @@ std::string A2DP_VendorCodecInfoStringOpus(const uint8_t* p_codec_info) {
   return "Unsupported codec: Opus";
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceOpus(
-    const uint8_t* p_codec_info) {
+const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceOpus(const uint8_t* p_codec_info) {
   return nullptr;
 }
 
-const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceOpus(
-    const uint8_t* p_codec_info) {
+const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceOpus(const uint8_t* p_codec_info) {
   return nullptr;
 }
 
 bool A2DP_VendorAdjustCodecOpus(uint8_t* p_codec_info) { return false; }
 
-btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexOpus(
-    const uint8_t* p_codec_info) {
+btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexOpus(const uint8_t* p_codec_info) {
   return BTAV_A2DP_CODEC_INDEX_MAX;
 }
 
-btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndexOpus(
-    const uint8_t* p_codec_info) {
+btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndexOpus(const uint8_t* p_codec_info) {
   return BTAV_A2DP_CODEC_INDEX_MAX;
 }
 
@@ -130,11 +98,9 @@ bool A2DP_VendorInitCodecConfigOpus(AvdtpSepConfig* p_cfg) { return false; }
 
 bool A2DP_VendorInitCodecConfigOpusSink(AvdtpSepConfig* p_cfg) { return false; }
 
-A2dpCodecConfigOpusSource::A2dpCodecConfigOpusSource(
-    btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfigOpusBase(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS,
-                              A2DP_VendorCodecIndexStrOpus(), codec_priority,
-                              true) {}
+A2dpCodecConfigOpusSource::A2dpCodecConfigOpusSource(btav_a2dp_codec_priority_t codec_priority)
+    : A2dpCodecConfigOpusBase(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS, A2DP_VendorCodecIndexStrOpus(),
+                              codec_priority, true) {}
 
 A2dpCodecConfigOpusSource::~A2dpCodecConfigOpusSource() {}
 
@@ -144,21 +110,18 @@ bool A2dpCodecConfigOpusSource::useRtpHeaderMarkerBit() const { return false; }
 
 void A2dpCodecConfigOpusSource::debug_codec_dump(int fd) {}
 
-bool A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info,
-                                             bool is_capability,
-                                             uint8_t* p_result_codec_config) {
+tA2DP_STATUS A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec_info,
+                                                     bool is_capability,
+                                                     uint8_t* p_result_codec_config) {
+  return AVDTP_UNSUPPORTED_CONFIGURATION;
+}
+
+bool A2dpCodecConfigOpusBase::setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) {
   return false;
 }
 
-bool A2dpCodecConfigOpusBase::setPeerCodecCapabilities(
-    const uint8_t* p_peer_codec_capabilities) {
-  return false;
-}
-
-A2dpCodecConfigOpusSink::A2dpCodecConfigOpusSink(
-    btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfigOpusBase(BTAV_A2DP_CODEC_INDEX_SINK_OPUS,
-                              A2DP_VendorCodecIndexStrOpusSink(),
+A2dpCodecConfigOpusSink::A2dpCodecConfigOpusSink(btav_a2dp_codec_priority_t codec_priority)
+    : A2dpCodecConfigOpusBase(BTAV_A2DP_CODEC_INDEX_SINK_OPUS, A2DP_VendorCodecIndexStrOpusSink(),
                               codec_priority, false) {}
 
 A2dpCodecConfigOpusSink::~A2dpCodecConfigOpusSink() {}
@@ -168,7 +131,7 @@ bool A2dpCodecConfigOpusSink::init() { return false; }
 bool A2dpCodecConfigOpusSink::useRtpHeaderMarkerBit() const { return false; }
 
 bool A2dpCodecConfigOpusSink::updateEncoderUserConfig(
-    const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params, bool* p_restart_input,
-    bool* p_restart_output, bool* p_config_updated) {
+        const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params, bool* p_restart_input,
+        bool* p_restart_output, bool* p_config_updated) {
   return false;
 }

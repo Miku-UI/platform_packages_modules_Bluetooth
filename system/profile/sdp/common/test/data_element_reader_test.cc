@@ -28,7 +28,7 @@ using DataElement = DataElementReader::DataElement;
 
 // A helper class to help work with the Data Element classes.
 class ReaderPacket : public ::bluetooth::Packet {
- public:
+public:
   using Packet::Packet;
 
   static std::shared_ptr<ReaderPacket> Make(std::vector<uint8_t> payload) {
@@ -54,10 +54,14 @@ bool operator==(DataElementReader a, DataElementReader b) {
     DataElement a_elem = a.ReadNext();
     DataElement b_elem = b.ReadNext();
 
-    if (a_elem != b_elem) return false;
+    if (a_elem != b_elem) {
+      return false;
+    }
 
     // If we get here that means both a and b have reached the end.
-    if (a_elem == DataElement(std::monostate())) break;
+    if (a_elem == DataElement(std::monostate())) {
+      break;
+    }
   }
 
   return true;
@@ -81,111 +85,92 @@ using ValidTestParam = std::tuple<std::vector<uint8_t>, DataElement>;
 class ValidReadTest : public TestWithParam<ValidTestParam> {};
 
 std::vector<ValidTestParam> valid_values = {
-    // Boolean Tests
-    ValidTestParam{
-        {Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01},
-        true,
-    },
-    ValidTestParam{
-        {Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
-        false,
-    },
+        // Boolean Tests
+        ValidTestParam{
+                {Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01},
+                true,
+        },
+        ValidTestParam{
+                {Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
+                false,
+        },
 
-    // Signed Integer Tests
-    ValidTestParam{
-        {Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE1), 0xFF},
-        static_cast<int8_t>(-1)},
-    ValidTestParam{
-        {Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE2), 0xFF, 0xFF},
-        static_cast<int16_t>(-1)},
-    ValidTestParam{{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE4),
-                    0xFF, 0xFF, 0xFF, 0xFF},
-                   static_cast<int32_t>(-1)},
-    ValidTestParam{{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE8),
-                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-                   static_cast<int64_t>(-1)},
-    ValidTestParam{{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE16),
-                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-                   std::array<uint8_t, 16>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                                           0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                                           0xFF, 0xFF, 0xFF, 0xFF}},
+        // Signed Integer Tests
+        ValidTestParam{{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE1), 0xFF},
+                       static_cast<int8_t>(-1)},
+        ValidTestParam{{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE2), 0xFF, 0xFF},
+                       static_cast<int16_t>(-1)},
+        ValidTestParam{
+                {Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE4), 0xFF, 0xFF, 0xFF, 0xFF},
+                static_cast<int32_t>(-1)},
+        ValidTestParam{{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE8), 0xFF, 0xFF, 0xFF,
+                        0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                       static_cast<int64_t>(-1)},
+        ValidTestParam{
+                {Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE16), 0xFF, 0xFF, 0xFF, 0xFF,
+                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                std::array<uint8_t, 16>{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}},
 
-    // Unsigned Integer Tests
-    ValidTestParam{
-        {Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE1), 0x01},
-        static_cast<uint8_t>(1)},
-    ValidTestParam{{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE2),
-                    0x00, 0x01},
-                   static_cast<uint16_t>(1)},
-    ValidTestParam{{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE4),
-                    0x00, 0x00, 0x00, 0x01},
-                   static_cast<uint32_t>(1)},
-    ValidTestParam{{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE8),
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
-                   static_cast<uint64_t>(1)},
-    ValidTestParam{
-        {Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE16), 0x00,
-         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-         0x00, 0x00, 0x01},
-        std::array<uint8_t, 16>{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                0x01}},
+        // Unsigned Integer Tests
+        ValidTestParam{{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE1), 0x01},
+                       static_cast<uint8_t>(1)},
+        ValidTestParam{{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE2), 0x00, 0x01},
+                       static_cast<uint16_t>(1)},
+        ValidTestParam{{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE4), 0x00, 0x00,
+                        0x00, 0x01},
+                       static_cast<uint32_t>(1)},
+        ValidTestParam{{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE8), 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+                       static_cast<uint64_t>(1)},
+        ValidTestParam{
+                {Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE16), 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+                std::array<uint8_t, 16>{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                        0x00, 0x00, 0x00, 0x00, 0x00, 0x01}},
 
-    // UUID Tests
-    ValidTestParam{
-        {Desc(DataElementType::UUID, DataElementSize::BYTE2), 0x01, 0x02},
-        Uuid::From16Bit(0x0102)},
-    ValidTestParam{{Desc(DataElementType::UUID, DataElementSize::BYTE4), 0x01,
-                    0x02, 0x03, 0x04},
-                   Uuid::From32Bit(0x01020304)},
-    ValidTestParam{
-        {Desc(DataElementType::UUID, DataElementSize::BYTE16), 0x00, 0x01, 0x02,
-         0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-         0x0F},
-        Uuid::From128BitBE({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F})},
+        // UUID Tests
+        ValidTestParam{{Desc(DataElementType::UUID, DataElementSize::BYTE2), 0x01, 0x02},
+                       Uuid::From16Bit(0x0102)},
+        ValidTestParam{
+                {Desc(DataElementType::UUID, DataElementSize::BYTE4), 0x01, 0x02, 0x03, 0x04},
+                Uuid::From32Bit(0x01020304)},
+        ValidTestParam{
+                {Desc(DataElementType::UUID, DataElementSize::BYTE16), 0x00, 0x01, 0x02, 0x03, 0x04,
+                 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F},
+                Uuid::From128BitBE({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+                                    0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F})},
 
-    // String Tests
-    ValidTestParam{
-        {Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_8BIT), 0x05,
-         'T', 'e', 's', 't', '1'},
-        std::string("Test1")},
-    ValidTestParam{
-        {Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_16BIT), 0x00,
-         0x05, 'T', 'e', 's', 't', '2'},
-        std::string("Test2")},
-    ValidTestParam{
-        {Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_32BIT), 0x00,
-         0x00, 0x00, 0x05, 'T', 'e', 's', 't', '3'},
-        std::string("Test3")},
+        // String Tests
+        ValidTestParam{{Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_8BIT), 0x05, 'T',
+                        'e', 's', 't', '1'},
+                       std::string("Test1")},
+        ValidTestParam{{Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_16BIT), 0x00,
+                        0x05, 'T', 'e', 's', 't', '2'},
+                       std::string("Test2")},
+        ValidTestParam{{Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_32BIT), 0x00,
+                        0x00, 0x00, 0x05, 'T', 'e', 's', 't', '3'},
+                       std::string("Test3")},
 
-    // Nested Data Element List Tests
-    ValidTestParam{
-        {Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-              DataElementSize::ADDITIONAL_8BIT),
-         0x04, Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
-         Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
-        CreateReader(
-            {Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
-             Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00})},
-    ValidTestParam{
-        {Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-              DataElementSize::ADDITIONAL_16BIT),
-         0x00, 0x04, Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1),
-         0x01, Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
-        CreateReader(
-            {Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
-             Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00})},
-    ValidTestParam{
-        {Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-              DataElementSize::ADDITIONAL_32BIT),
-         0x00, 0x00, 0x00, 0x04,
-         Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
-         Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
-        CreateReader(
-            {Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
-             Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00})},
+        // Nested Data Element List Tests
+        ValidTestParam{
+                {Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_8BIT),
+                 0x04, Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
+                 Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
+                CreateReader({Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
+                              Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00})},
+        ValidTestParam{
+                {Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_16BIT),
+                 0x00, 0x04, Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
+                 Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
+                CreateReader({Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
+                              Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00})},
+        ValidTestParam{
+                {Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_32BIT),
+                 0x00, 0x00, 0x00, 0x04, Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1),
+                 0x01, Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00},
+                CreateReader({Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
+                              Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00})},
 };
 
 INSTANTIATE_TEST_CASE_P(ReadNext, ValidReadTest, ValuesIn(valid_values));
@@ -206,16 +191,15 @@ TEST_P(ValidReadTest, Test) {
 // defined end.
 TEST(ReadNext, BoundedSubreaderTest) {
   std::vector<uint8_t> payload = {
-      // Subsequence descriptor byte.
-      Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-           DataElementSize::ADDITIONAL_8BIT),
-      // Subsequence length.
-      0x04,
-      // Subsequence that contains two booleans with values true and false.
-      Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
-      Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00,
-      // Additional int16 at the end of the original sequence.
-      Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE2), 0x01, 0x23};
+          // Subsequence descriptor byte.
+          Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_8BIT),
+          // Subsequence length.
+          0x04,
+          // Subsequence that contains two booleans with values true and false.
+          Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x01,
+          Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1), 0x00,
+          // Additional int16 at the end of the original sequence.
+          Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE2), 0x01, 0x23};
 
   auto packet = ReaderPacket::Make(payload);
   DataElementReader reader(packet->begin(), packet->end());
@@ -268,131 +252,113 @@ using InvalidTestParam = std::vector<uint8_t>;
 class InvalidReadTest : public TestWithParam<InvalidTestParam> {};
 
 std::vector<InvalidTestParam> invalid_values = {
-    // Boolean Tests:
-    //   Invalid size field.
-    InvalidTestParam{
-        Desc(DataElementType::BOOLEAN, DataElementSize::BYTE2),
-    },
-    //   Insufficient data.
-    InvalidTestParam{Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1)},
+        // Boolean Tests:
+        //   Invalid size field.
+        InvalidTestParam{
+                Desc(DataElementType::BOOLEAN, DataElementSize::BYTE2),
+        },
+        //   Insufficient data.
+        InvalidTestParam{Desc(DataElementType::BOOLEAN, DataElementSize::BYTE1)},
 
-    // Signed Integer Tests:
-    //   Invalid size field.
-    InvalidTestParam{
-        Desc(DataElementType::SIGNED_INT, DataElementSize::ADDITIONAL_8BIT)},
-    //   1 byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE1)},
-    //   2 byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE2),
-                     0x00},
-    //   4 byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE4),
-                     0x00, 0x00, 0x00},
-    //  8 Byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE8),
-                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-    //  16 Byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE16),
-                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                     0x00, 0x00, 0x00},
+        // Signed Integer Tests:
+        //   Invalid size field.
+        InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::ADDITIONAL_8BIT)},
+        //   1 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE1)},
+        //   2 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE2), 0x00},
+        //   4 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE4), 0x00, 0x00,
+                         0x00},
+        //  8 Byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE8), 0x00, 0x00,
+                         0x00, 0x00, 0x00, 0x00, 0x00},
+        //  16 Byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::SIGNED_INT, DataElementSize::BYTE16), 0x00, 0x00,
+                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 
-    // Unsigned Integer Tests:
-    //   Invalid size field.
-    InvalidTestParam{
-        Desc(DataElementType::UNSIGNED_INT, DataElementSize::ADDITIONAL_8BIT)},
-    //   1 byte insufficient data.
-    InvalidTestParam{
-        Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE1)},
-    //   2 byte insufficient data.
-    InvalidTestParam{
-        Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE2), 0x00},
-    //   4 byte insufficient data.
-    InvalidTestParam{
-        Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE4), 0x00, 0x00,
-        0x00},
-    //  8 Byte insufficient data.
-    InvalidTestParam{
-        Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE8), 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00},
-    //  16 Byte insufficient data.
-    InvalidTestParam{
-        Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE16), 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+        // Unsigned Integer Tests:
+        //   Invalid size field.
+        InvalidTestParam{Desc(DataElementType::UNSIGNED_INT, DataElementSize::ADDITIONAL_8BIT)},
+        //   1 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE1)},
+        //   2 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE2), 0x00},
+        //   4 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE4), 0x00, 0x00,
+                         0x00},
+        //  8 Byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE8), 0x00, 0x00,
+                         0x00, 0x00, 0x00, 0x00, 0x00},
+        //  16 Byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UNSIGNED_INT, DataElementSize::BYTE16), 0x00, 0x00,
+                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 
-    // UUID Tests:
-    //   Invalid size field.
-    InvalidTestParam{
-        Desc(DataElementType::UUID, DataElementSize::ADDITIONAL_8BIT)},
-    //   2 byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::UUID, DataElementSize::BYTE2), 0x00},
-    //   4 byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::UUID, DataElementSize::BYTE4), 0x00,
-                     0x00, 0x00},
-    //  16 Byte insufficient data.
-    InvalidTestParam{Desc(DataElementType::UUID, DataElementSize::BYTE16), 0x00,
-                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                     0x00, 0x00},
+        // UUID Tests:
+        //   Invalid size field.
+        InvalidTestParam{Desc(DataElementType::UUID, DataElementSize::ADDITIONAL_8BIT)},
+        //   2 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UUID, DataElementSize::BYTE2), 0x00},
+        //   4 byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UUID, DataElementSize::BYTE4), 0x00, 0x00, 0x00},
+        //  16 Byte insufficient data.
+        InvalidTestParam{Desc(DataElementType::UUID, DataElementSize::BYTE16), 0x00, 0x00, 0x00,
+                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 
-    // String Tests:
-    //   Invalid size field.
-    InvalidTestParam{Desc(DataElementType::STRING, DataElementSize::BYTE1)},
-    //   Insufficient data for additional 8 bits len.
-    InvalidTestParam{
-        Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_8BIT)},
-    //   Insufficient data for additional 16 bits len.
-    InvalidTestParam{
-        Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_16BIT),
-        0x00,
-    },
-    //   Insufficient data for additional 32 bit len.
-    InvalidTestParam{
-        Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_32BIT),
-        0x00,
-        0x00,
-        0x00,
-    },
-    //   Insufficient data for reported length.
-    InvalidTestParam{
-        Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_8BIT), 0x04,
-        '1', '2', '3'},
+        // String Tests:
+        //   Invalid size field.
+        InvalidTestParam{Desc(DataElementType::STRING, DataElementSize::BYTE1)},
+        //   Insufficient data for additional 8 bits len.
+        InvalidTestParam{Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_8BIT)},
+        //   Insufficient data for additional 16 bits len.
+        InvalidTestParam{
+                Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_16BIT),
+                0x00,
+        },
+        //   Insufficient data for additional 32 bit len.
+        InvalidTestParam{
+                Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_32BIT),
+                0x00,
+                0x00,
+                0x00,
+        },
+        //   Insufficient data for reported length.
+        InvalidTestParam{Desc(DataElementType::STRING, DataElementSize::ADDITIONAL_8BIT), 0x04, '1',
+                         '2', '3'},
 
-    // Nested Data Element List Tests:
-    //   Invalid size field.
-    InvalidTestParam{
-        Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::BYTE1)},
-    //   Insufficient data for additional 8 bits len.
-    InvalidTestParam{Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-                          DataElementSize::ADDITIONAL_8BIT)},
-    //   Insufficient data for additional 16 bits len.
-    InvalidTestParam{
-        Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-             DataElementSize::ADDITIONAL_16BIT),
-        0x00,
-    },
-    //   Insufficient data for additional 32 bit len.
-    InvalidTestParam{
-        Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-             DataElementSize::ADDITIONAL_32BIT),
-        0x00,
-        0x00,
-        0x00,
-    },
-    //   Insufficient data for reported length.
-    InvalidTestParam{Desc(DataElementType::DATA_ELEMENT_SEQUENCE,
-                          DataElementSize::ADDITIONAL_8BIT),
-                     0x04, 0x00, 0x00, 0x00},
+        // Nested Data Element List Tests:
+        //   Invalid size field.
+        InvalidTestParam{Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::BYTE1)},
+        //   Insufficient data for additional 8 bits len.
+        InvalidTestParam{
+                Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_8BIT)},
+        //   Insufficient data for additional 16 bits len.
+        InvalidTestParam{
+                Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_16BIT),
+                0x00,
+        },
+        //   Insufficient data for additional 32 bit len.
+        InvalidTestParam{
+                Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_32BIT),
+                0x00,
+                0x00,
+                0x00,
+        },
+        //   Insufficient data for reported length.
+        InvalidTestParam{
+                Desc(DataElementType::DATA_ELEMENT_SEQUENCE, DataElementSize::ADDITIONAL_8BIT),
+                0x04, 0x00, 0x00, 0x00},
 
-    // Unhandled Data Element Types Tests:
-    // NOTE: These tests should go away as we begin to handle the types.
-    //   Nil Type.
-    InvalidTestParam{Desc(DataElementType::NIL, DataElementSize::BYTE1)},
-    //   Data Element Alternative List Type.
-    InvalidTestParam{Desc(DataElementType::DATA_ELEMENT_ALTERNATIVE,
-                          DataElementSize::ADDITIONAL_8BIT),
-                     0x00},
-    //   URL Type.
-    InvalidTestParam{
-        Desc(DataElementType::URL, DataElementSize::ADDITIONAL_8BIT), 0x00}};
+        // Unhandled Data Element Types Tests:
+        // NOTE: These tests should go away as we begin to handle the types.
+        //   Nil Type.
+        InvalidTestParam{Desc(DataElementType::NIL, DataElementSize::BYTE1)},
+        //   Data Element Alternative List Type.
+        InvalidTestParam{
+                Desc(DataElementType::DATA_ELEMENT_ALTERNATIVE, DataElementSize::ADDITIONAL_8BIT),
+                0x00},
+        //   URL Type.
+        InvalidTestParam{Desc(DataElementType::URL, DataElementSize::ADDITIONAL_8BIT), 0x00}};
 
 INSTANTIATE_TEST_CASE_P(ReadNext, InvalidReadTest, ValuesIn(invalid_values));
 TEST_P(InvalidReadTest, Test) {

@@ -16,12 +16,13 @@
  *
  ******************************************************************************/
 
+#include "stack_rfcomm_test_utils.h"
+
 #include <bitset>
 #include <string>
 #include <vector>
 
 #include "stack/rfcomm/rfc_int.h"
-#include "stack_rfcomm_test_utils.h"
 #include "stack_test_packet_utils.h"
 
 namespace bluetooth {
@@ -57,9 +58,8 @@ uint8_t GetFrameTypeFromControlField(uint8_t control_field) {
   return static_cast<uint8_t>(control_field & ~(0b10000));
 }
 
-std::vector<uint8_t> CreateMccPnFrame(uint8_t dlci, uint8_t i_bits,
-                                      uint8_t cl_bits, uint8_t priority,
-                                      uint8_t timer_value, uint16_t rfcomm_mtu,
+std::vector<uint8_t> CreateMccPnFrame(uint8_t dlci, uint8_t i_bits, uint8_t cl_bits,
+                                      uint8_t priority, uint8_t timer_value, uint16_t rfcomm_mtu,
                                       uint8_t max_num_retransmission,
                                       uint8_t err_recovery_window_k) {
   // Data in little endian order
@@ -75,8 +75,8 @@ std::vector<uint8_t> CreateMccPnFrame(uint8_t dlci, uint8_t i_bits,
   return result;
 }
 
-std::vector<uint8_t> CreateMccMscFrame(uint8_t dlci, bool fc, bool rtc,
-                                       bool rtr, bool ic, bool dv) {
+std::vector<uint8_t> CreateMccMscFrame(uint8_t dlci, bool fc, bool rtc, bool rtr, bool ic,
+                                       bool dv) {
   // Data in little endian order
   std::vector<uint8_t> result;
   result.push_back(static_cast<uint8_t>((dlci << 2) | 0b11));
@@ -92,8 +92,8 @@ std::vector<uint8_t> CreateMccMscFrame(uint8_t dlci, bool fc, bool rtc,
   return result;
 }
 
-std::vector<uint8_t> CreateMultiplexerControlFrame(
-    uint8_t command_type, bool cr, const std::vector<uint8_t>& data) {
+std::vector<uint8_t> CreateMultiplexerControlFrame(uint8_t command_type, bool cr,
+                                                   const std::vector<uint8_t>& data) {
   // Data in little endian order
   std::vector<uint8_t> result;
   std::bitset<8> header;
@@ -107,8 +107,7 @@ std::vector<uint8_t> CreateMultiplexerControlFrame(
   return result;
 }
 
-std::vector<uint8_t> CreateRfcommPacket(uint8_t address, uint8_t control,
-                                        int credits,
+std::vector<uint8_t> CreateRfcommPacket(uint8_t address, uint8_t control, int credits,
                                         const std::vector<uint8_t>& data) {
   // Data in little endian order
   std::vector<uint8_t> result;
@@ -132,86 +131,66 @@ std::vector<uint8_t> CreateRfcommPacket(uint8_t address, uint8_t control,
   if (GetFrameTypeFromControlField(control) == RFCOMM_UIH) {
     result.push_back(rfc_calc_fcs(2, result.data()));
   } else {
-    result.push_back(
-        rfc_calc_fcs(static_cast<uint16_t>(result.size()), result.data()));
+    result.push_back(rfc_calc_fcs(static_cast<uint16_t>(result.size()), result.data()));
   }
   return result;
 }
 
-std::vector<uint8_t> CreateQuickUaPacket(uint8_t dlci, uint16_t l2cap_lcid,
-                                         uint16_t acl_handle) {
+std::vector<uint8_t> CreateQuickUaPacket(uint8_t dlci, uint16_t l2cap_lcid, uint16_t acl_handle) {
   uint8_t address_field = GetAddressField(true, true, dlci);
   uint8_t control_field = GetControlField(true, RFCOMM_UA);
-  std::vector<uint8_t> rfcomm_packet =
-      CreateRfcommPacket(address_field, control_field, -1, {});
-  std::vector<uint8_t> l2cap_packet =
-      CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
+  std::vector<uint8_t> rfcomm_packet = CreateRfcommPacket(address_field, control_field, -1, {});
+  std::vector<uint8_t> l2cap_packet = CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
   return CreateAclPacket(acl_handle, 0b10, 0b00, l2cap_packet);
 }
 
-std::vector<uint8_t> CreateQuickSabmPacket(uint8_t dlci, uint16_t l2cap_lcid,
-                                           uint16_t acl_handle) {
+std::vector<uint8_t> CreateQuickSabmPacket(uint8_t dlci, uint16_t l2cap_lcid, uint16_t acl_handle) {
   uint8_t address_field = GetAddressField(true, true, dlci);
   uint8_t control_field = GetControlField(true, RFCOMM_SABME);
-  std::vector<uint8_t> rfcomm_packet =
-      CreateRfcommPacket(address_field, control_field, -1, {});
-  std::vector<uint8_t> l2cap_packet =
-      CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
+  std::vector<uint8_t> rfcomm_packet = CreateRfcommPacket(address_field, control_field, -1, {});
+  std::vector<uint8_t> l2cap_packet = CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
   return CreateAclPacket(acl_handle, 0b10, 0b00, l2cap_packet);
 }
 
-std::vector<uint8_t> CreateQuickPnPacket(bool rfc_cr, uint8_t target_dlci,
-                                         bool mx_cr, uint16_t rfc_mtu,
-                                         uint8_t cl, uint8_t priority,
-                                         uint8_t k, uint16_t l2cap_lcid,
-                                         uint16_t acl_handle) {
+std::vector<uint8_t> CreateQuickPnPacket(bool rfc_cr, uint8_t target_dlci, bool mx_cr,
+                                         uint16_t rfc_mtu, uint8_t cl, uint8_t priority, uint8_t k,
+                                         uint16_t l2cap_lcid, uint16_t acl_handle) {
   uint8_t address_field = GetAddressField(true, rfc_cr, RFCOMM_MX_DLCI);
   uint8_t control_field = GetControlField(false, RFCOMM_UIH);
-  std::vector<uint8_t> mcc_pn_data = CreateMccPnFrame(
-      target_dlci, 0x0, cl, priority, RFCOMM_T1_DSEC, rfc_mtu, RFCOMM_N2, k);
-  std::vector<uint8_t> mcc_payload =
-      CreateMultiplexerControlFrame(0x20, mx_cr, mcc_pn_data);
+  std::vector<uint8_t> mcc_pn_data =
+          CreateMccPnFrame(target_dlci, 0x0, cl, priority, RFCOMM_T1_DSEC, rfc_mtu, RFCOMM_N2, k);
+  std::vector<uint8_t> mcc_payload = CreateMultiplexerControlFrame(0x20, mx_cr, mcc_pn_data);
   std::vector<uint8_t> rfcomm_packet =
-      CreateRfcommPacket(address_field, control_field, -1, mcc_payload);
-  std::vector<uint8_t> l2cap_packet =
-      CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
+          CreateRfcommPacket(address_field, control_field, -1, mcc_payload);
+  std::vector<uint8_t> l2cap_packet = CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
   return CreateAclPacket(acl_handle, 0b10, 0b00, l2cap_packet);
 }
 
-std::vector<uint8_t> CreateQuickMscPacket(bool rfc_cr, uint8_t dlci,
-                                          uint16_t l2cap_lcid,
-                                          uint16_t acl_handle, bool mx_cr,
-                                          bool fc, bool rtc, bool rtr, bool ic,
-                                          bool dv) {
+std::vector<uint8_t> CreateQuickMscPacket(bool rfc_cr, uint8_t dlci, uint16_t l2cap_lcid,
+                                          uint16_t acl_handle, bool mx_cr, bool fc, bool rtc,
+                                          bool rtr, bool ic, bool dv) {
   uint8_t address_field = GetAddressField(true, rfc_cr, RFCOMM_MX_DLCI);
   uint8_t control_field = GetControlField(false, RFCOMM_UIH);
-  std::vector<uint8_t> mcc_msc_data =
-      CreateMccMscFrame(dlci, fc, rtc, rtr, ic, dv);
-  std::vector<uint8_t> mcc_payload =
-      CreateMultiplexerControlFrame(0x38, mx_cr, mcc_msc_data);
+  std::vector<uint8_t> mcc_msc_data = CreateMccMscFrame(dlci, fc, rtc, rtr, ic, dv);
+  std::vector<uint8_t> mcc_payload = CreateMultiplexerControlFrame(0x38, mx_cr, mcc_msc_data);
   std::vector<uint8_t> rfcomm_packet =
-      CreateRfcommPacket(address_field, control_field, -1, mcc_payload);
-  std::vector<uint8_t> l2cap_packet =
-      CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
+          CreateRfcommPacket(address_field, control_field, -1, mcc_payload);
+  std::vector<uint8_t> l2cap_packet = CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
   return CreateAclPacket(acl_handle, 0b10, 0b00, l2cap_packet);
 }
 
-std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr,
-                                           uint16_t l2cap_lcid,
+std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr, uint16_t l2cap_lcid,
                                            uint16_t acl_handle, int credits,
                                            const std::vector<uint8_t>& data) {
   uint8_t address_field = GetAddressField(true, cr, dlci);
-  uint8_t control_field =
-      GetControlField(credits > 0 ? true : false, RFCOMM_UIH);
+  uint8_t control_field = GetControlField(credits > 0 ? true : false, RFCOMM_UIH);
   std::vector<uint8_t> rfcomm_packet =
-      CreateRfcommPacket(address_field, control_field, credits, data);
-  std::vector<uint8_t> l2cap_packet =
-      CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
+          CreateRfcommPacket(address_field, control_field, credits, data);
+  std::vector<uint8_t> l2cap_packet = CreateL2capDataPacket(l2cap_lcid, rfcomm_packet);
   return CreateAclPacket(acl_handle, 0b10, 0b00, l2cap_packet);
 }
 
-std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr,
-                                           uint16_t l2cap_lcid,
+std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr, uint16_t l2cap_lcid,
                                            uint16_t acl_handle, int credits,
                                            const std::string& str) {
   std::vector<uint8_t> data(str.begin(), str.end());

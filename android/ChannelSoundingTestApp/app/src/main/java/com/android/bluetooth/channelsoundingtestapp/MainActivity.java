@@ -16,7 +16,7 @@
 
 package com.android.bluetooth.channelsoundingtestapp;
 
-import android.Manifest;
+import android.Manifest.permission;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 
@@ -55,12 +55,16 @@ public class MainActivity extends AppCompatActivity {
     private void requestBtPermissions() {
         String[] requiredPermissions =
                 new String[] {
-                    android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                    android.Manifest.permission.BLUETOOTH_CONNECT,
+                    permission.ACCESS_COARSE_LOCATION,
+                    permission.ACCESS_FINE_LOCATION,
+                    permission.BLUETOOTH_ADVERTISE,
+                    permission.BLUETOOTH_CONNECT,
+                    permission.BLUETOOTH_SCAN,
                 };
         List<String> permissionsToRequest = new ArrayList<>();
+
         for (String permission : requiredPermissions) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+            if (ActivityCompat.checkSelfPermission(this, permission)
                     != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(permission);
             }

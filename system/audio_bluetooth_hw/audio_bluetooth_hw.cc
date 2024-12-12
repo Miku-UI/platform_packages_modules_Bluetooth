@@ -28,15 +28,14 @@
 using ::android::bluetooth::audio::utils::GetAudioParamString;
 using ::android::bluetooth::audio::utils::ParseAudioParams;
 
-static int adev_set_parameters(struct audio_hw_device* dev,
-                               const char* kvpairs) {
+static int adev_set_parameters(struct audio_hw_device* dev, const char* kvpairs) {
   LOG(VERBOSE) << __func__ << ": kevpairs=[" << kvpairs << "]";
-  std::unordered_map<std::string, std::string> params =
-      ParseAudioParams(kvpairs);
-  if (params.empty()) return 0;
+  std::unordered_map<std::string, std::string> params = ParseAudioParams(kvpairs);
+  if (params.empty()) {
+    return 0;
+  }
 
-  LOG(VERBOSE) << __func__ << ": ParamsMap=[" << GetAudioParamString(params)
-               << "]";
+  LOG(VERBOSE) << __func__ << ": ParamsMap=[" << GetAudioParamString(params) << "]";
   if (params.find("A2dpSuspended") == params.end() &&
       params.find("LeAudioSuspended") == params.end()) {
     return -ENOSYS;
@@ -46,15 +45,13 @@ static int adev_set_parameters(struct audio_hw_device* dev,
   std::lock_guard<std::mutex> guard(bluetooth_device->mutex_);
   for (auto sout : bluetooth_device->opened_stream_outs_) {
     if (sout->stream_out_.common.set_parameters != nullptr) {
-      sout->stream_out_.common.set_parameters(&sout->stream_out_.common,
-                                              kvpairs);
+      sout->stream_out_.common.set_parameters(&sout->stream_out_.common, kvpairs);
     }
   }
   return 0;
 }
 
-static char* adev_get_parameters(const struct audio_hw_device* dev,
-                                 const char* keys) {
+static char* adev_get_parameters(const struct audio_hw_device* dev, const char* keys) {
   LOG(VERBOSE) << __func__ << ": keys=[" << keys << "]";
   return strdup("");
 }
@@ -71,18 +68,14 @@ static int adev_set_master_volume(struct audio_hw_device* dev, float volume) {
   return -ENOSYS;
 }
 
-static int adev_get_master_volume(struct audio_hw_device* dev, float* volume) {
-  return -ENOSYS;
-}
+static int adev_get_master_volume(struct audio_hw_device* dev, float* volume) { return -ENOSYS; }
 
 static int adev_set_master_mute(struct audio_hw_device* dev, bool muted) {
   LOG(VERBOSE) << __func__ << ": mute=" << muted;
   return -ENOSYS;
 }
 
-static int adev_get_master_mute(struct audio_hw_device* dev, bool* muted) {
-  return -ENOSYS;
-}
+static int adev_get_master_mute(struct audio_hw_device* dev, bool* muted) { return -ENOSYS; }
 
 static int adev_set_mode(struct audio_hw_device* dev, audio_mode_t mode) {
   LOG(VERBOSE) << __func__ << ": mode=" << mode;
@@ -94,19 +87,14 @@ static int adev_set_mic_mute(struct audio_hw_device* dev, bool state) {
   return -ENOSYS;
 }
 
-static int adev_get_mic_mute(const struct audio_hw_device* dev, bool* state) {
-  return -ENOSYS;
-}
+static int adev_get_mic_mute(const struct audio_hw_device* dev, bool* state) { return -ENOSYS; }
 
-static int adev_create_audio_patch(struct audio_hw_device* device,
-                                   unsigned int num_sources,
-                                   const struct audio_port_config* sources,
-                                   unsigned int num_sinks,
+static int adev_create_audio_patch(struct audio_hw_device* device, unsigned int num_sources,
+                                   const struct audio_port_config* sources, unsigned int num_sinks,
                                    const struct audio_port_config* sinks,
                                    audio_patch_handle_t* handle) {
-  if (device == nullptr || sources == nullptr || sinks == nullptr ||
-      handle == nullptr || num_sources != 1 || num_sinks == 0 ||
-      num_sinks > AUDIO_PATCH_PORTS_MAX) {
+  if (device == nullptr || sources == nullptr || sinks == nullptr || handle == nullptr ||
+      num_sources != 1 || num_sinks == 0 || num_sinks > AUDIO_PATCH_PORTS_MAX) {
     return -EINVAL;
   }
   if (sources[0].type == AUDIO_PORT_TYPE_DEVICE) {
@@ -143,16 +131,14 @@ static int adev_release_audio_patch(struct audio_hw_device* device,
   return 0;
 }
 
-static int adev_get_audio_port_v7(struct audio_hw_device* device,
-                                  struct audio_port_v7* port) {
+static int adev_get_audio_port_v7(struct audio_hw_device* device, struct audio_port_v7* port) {
   if (device == nullptr || port == nullptr) {
     return -EINVAL;
   }
   return -ENOSYS;
 }
 
-static int adev_get_audio_port(struct audio_hw_device* device,
-                               struct audio_port* port) {
+static int adev_get_audio_port(struct audio_hw_device* device, struct audio_port* port) {
   if (device == nullptr || port == nullptr) {
     return -EINVAL;
   }
@@ -167,14 +153,17 @@ static int adev_close(hw_device_t* device) {
   return 0;
 }
 
-static int adev_open(const hw_module_t* module, const char* name,
-                     hw_device_t** device) {
+static int adev_open(const hw_module_t* module, const char* name, hw_device_t** device) {
   LOG(VERBOSE) << __func__ << ": name=[" << name << "]";
-  if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0) return -EINVAL;
+  if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0) {
+    return -EINVAL;
+  }
 
   auto bluetooth_audio_device = new BluetoothAudioDevice{};
   struct audio_hw_device* adev = &bluetooth_audio_device->audio_device_;
-  if (!adev) return -ENOMEM;
+  if (!adev) {
+    return -ENOMEM;
+  }
 
   adev->common.tag = HARDWARE_DEVICE_TAG;
   adev->common.version = AUDIO_DEVICE_API_VERSION_3_2;
@@ -208,18 +197,18 @@ static int adev_open(const hw_module_t* module, const char* name,
 }
 
 static struct hw_module_methods_t hal_module_methods = {
-    .open = adev_open,
+        .open = adev_open,
 };
 
 struct audio_module HAL_MODULE_INFO_SYM = {
-    .common =
-        {
-            .tag = HARDWARE_MODULE_TAG,
-            .module_api_version = AUDIO_MODULE_API_VERSION_0_1,
-            .hal_api_version = HARDWARE_HAL_API_VERSION,
-            .id = AUDIO_HARDWARE_MODULE_ID,
-            .name = "Bluetooth Audio HW HAL",
-            .author = "The Android Open Source Project",
-            .methods = &hal_module_methods,
-        },
+        .common =
+                {
+                        .tag = HARDWARE_MODULE_TAG,
+                        .module_api_version = AUDIO_MODULE_API_VERSION_0_1,
+                        .hal_api_version = HARDWARE_HAL_API_VERSION,
+                        .id = AUDIO_HARDWARE_MODULE_ID,
+                        .name = "Bluetooth Audio HW HAL",
+                        .author = "The Android Open Source Project",
+                        .methods = &hal_module_methods,
+                },
 };

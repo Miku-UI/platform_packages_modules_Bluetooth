@@ -18,12 +18,12 @@
 
 #include <functional>
 #include <unordered_map>
+
 #include "types/raw_address.h"
 
 namespace bluetooth {
 namespace shim {
-using CallbackLegacy =
-    std::function<bool(const RawAddress& address, const int id)>;
+using CallbackLegacy = std::function<bool(const RawAddress& address, const int id)>;
 /**
  * Initialize the allocator
  *
@@ -35,9 +35,8 @@ using CallbackLegacy =
  * successful id deletion for forgotten device,
  * @return true if successfully initialized
  */
-bool InitMetricIdAllocator(
-    const std::unordered_map<RawAddress, int>& paired_device_map,
-    CallbackLegacy save_id_callback, CallbackLegacy forget_device_callback);
+bool InitMetricIdAllocator(const std::unordered_map<RawAddress, int>& paired_device_map,
+                           CallbackLegacy save_id_callback, CallbackLegacy forget_device_callback);
 
 /**
  * Close the allocator. should be called when Bluetooth process is killed

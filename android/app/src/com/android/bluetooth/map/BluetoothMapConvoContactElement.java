@@ -14,23 +14,19 @@
  */
 package com.android.bluetooth.map;
 
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.util.Log;
 
-import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.SignedLongLong;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Objects;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 1
 public class BluetoothMapConvoContactElement
@@ -92,16 +88,7 @@ public class BluetoothMapConvoContactElement
         this.mPresenceStatus = presenceStatus;
         this.mPriority = priority;
         if (btUid != null) {
-            try {
-                this.mBtUid = SignedLongLong.fromString(btUid);
-            } catch (UnsupportedEncodingException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONVO_CONTACT_ELEMENT,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        0);
-                Log.w(TAG, e);
-            }
+            this.mBtUid = SignedLongLong.fromString(btUid);
         }
     }
 
@@ -169,6 +156,7 @@ public class BluetoothMapConvoContactElement
         this.mChatState = Integer.valueOf(chatState);
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getLastActivityString() {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         Date date = new Date(mLastActivity);
@@ -179,6 +167,7 @@ public class BluetoothMapConvoContactElement
         this.mLastActivity = dateTime;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void setLastActivity(String lastActivity) throws ParseException {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         Date date = format.parse(lastActivity);
@@ -293,62 +282,48 @@ public class BluetoothMapConvoContactElement
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (!(obj instanceof BluetoothMapConvoContactElement other)) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        BluetoothMapConvoContactElement other = (BluetoothMapConvoContactElement) obj;
-        /*      As we use equals only for test, we don't compare auto assigned values
-        *      if (mBtUid == null) {
-                   if (other.mBtUid != null) {
-                       return false;
-                   }
-               } else if (!mBtUid.equals(other.mBtUid)) {
-                   return false;
-               }*/
+
+        // Skip comparing auto assigned value `mBtUid`. Equals is only used for test
+
         if (mChatState != other.mChatState) {
             return false;
         }
-        if (mDisplayName == null) {
-            if (other.mDisplayName != null) {
-                return false;
-            }
-        } else if (!mDisplayName.equals(other.mDisplayName)) {
+        if (!Objects.equals(mDisplayName, other.mDisplayName)) {
             return false;
         }
-        /*      As we use equals only for test, we don't compare auto assigned values
-        *      if (mId == null) {
-                   if (other.mId != null) {
-                       return false;
-                   }
-               } else if (!mId.equals(other.mId)) {
-                   return false;
-               }*/
+
+        // Skip comparing auto assigned value `mId`. Equals is only used for test
+
         if (mLastActivity != other.mLastActivity) {
             return false;
         }
-        if (mName == null) {
-            if (other.mName != null) {
-                return false;
-            }
-        } else if (!mName.equals(other.mName)) {
+        if (!Objects.equals(mName, other.mName)) {
             return false;
         }
         if (mPresenceAvailability != other.mPresenceAvailability) {
             return false;
         }
-        if (mPresenceStatus == null) {
-            if (other.mPresenceStatus != null) {
-                return false;
-            }
-        } else if (!mPresenceStatus.equals(other.mPresenceStatus)) {
+        if (!Objects.equals(mPresenceStatus, other.mPresenceStatus)) {
             return false;
         }
         if (mPriority != other.mPriority) {
             return false;
         }
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                mChatState,
+                mDisplayName,
+                mLastActivity,
+                mName,
+                mPresenceAvailability,
+                mPresenceStatus,
+                mPriority);
     }
 }

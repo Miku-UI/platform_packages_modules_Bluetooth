@@ -42,41 +42,38 @@ static void BTM_SecConfirmReqReply(tBTM_STATUS res, tBT_TRANSPORT transport,
 }
 
 static SecurityClientInterface security = {
-    .BTM_Sec_Init = BTM_Sec_Init,
-    .BTM_Sec_Free = BTM_Sec_Free,
-    .BTM_SecRegister = BTM_SecRegister,
+        .BTM_Sec_Init = BTM_Sec_Init,
+        .BTM_Sec_Free = BTM_Sec_Free,
+        .BTM_SecRegister = BTM_SecRegister,
 
-    .BTM_BleLoadLocalKeys = BTM_BleLoadLocalKeys,
+        .BTM_BleLoadLocalKeys = BTM_BleLoadLocalKeys,
 
-    .BTM_SecAddDevice = BTM_SecAddDevice,
-    .BTM_SecAddBleDevice = BTM_SecAddBleDevice,
-    .BTM_SecDeleteDevice = BTM_SecDeleteDevice,
-    .BTM_SecAddBleKey = BTM_SecAddBleKey,
-    .BTM_SecClearSecurityFlags = BTM_SecClearSecurityFlags,
-    .BTM_SetEncryption = BTM_SetEncryption,
-    .BTM_IsEncrypted = BTM_IsEncrypted,
-    .BTM_SecIsSecurityPending = BTM_SecIsSecurityPending,
-    .BTM_IsLinkKeyKnown = BTM_IsLinkKeyKnown,
+        .BTM_SecAddDevice = BTM_SecAddDevice,
+        .BTM_SecAddBleDevice = BTM_SecAddBleDevice,
+        .BTM_SecDeleteDevice = BTM_SecDeleteDevice,
+        .BTM_SecAddBleKey = BTM_SecAddBleKey,
+        .BTM_SecClearSecurityFlags = BTM_SecClearSecurityFlags,
+        .BTM_SetEncryption = BTM_SetEncryption,
+        .BTM_IsEncrypted = BTM_IsEncrypted,
+        .BTM_SecIsSecurityPending = BTM_SecIsSecurityPending,
+        .BTM_IsLinkKeyKnown = BTM_IsLinkKeyKnown,
 
-    .BTM_SetSecurityLevel = BTM_SetSecurityLevel,
-    .BTM_SecClrService = BTM_SecClrService,
-    .BTM_SecClrServiceByPsm = BTM_SecClrServiceByPsm,
+        .BTM_SetSecurityLevel = BTM_SetSecurityLevel,
+        .BTM_SecClrService = BTM_SecClrService,
+        .BTM_SecClrServiceByPsm = BTM_SecClrServiceByPsm,
 
-    .BTM_SecBond = BTM_SecBond,
-    .BTM_SecBondCancel = BTM_SecBondCancel,
-    .BTM_RemoteOobDataReply = BTM_RemoteOobDataReply,
-    .BTM_PINCodeReply = BTM_PINCodeReply,
-    .BTM_SecConfirmReqReply = BTM_SecConfirmReqReply,
-    .BTM_BleSirkConfirmDeviceReply = BTM_BleSirkConfirmDeviceReply,
-    .BTM_BlePasskeyReply = BTM_BlePasskeyReply,
+        .BTM_SecBond = BTM_SecBond,
+        .BTM_SecBondCancel = BTM_SecBondCancel,
+        .BTM_RemoteOobDataReply = BTM_RemoteOobDataReply,
+        .BTM_PINCodeReply = BTM_PINCodeReply,
+        .BTM_SecConfirmReqReply = BTM_SecConfirmReqReply,
+        .BTM_BleSirkConfirmDeviceReply = BTM_BleSirkConfirmDeviceReply,
+        .BTM_BlePasskeyReply = BTM_BlePasskeyReply,
 
-    .BTM_GetSecurityMode = BTM_GetSecurityMode,
+        .BTM_GetSecurityMode = BTM_GetSecurityMode,
 
-    .BTM_SecReadDevName = BTM_SecReadDevName,
-    .BTM_SecAddRmtNameNotifyCallback = BTM_SecAddRmtNameNotifyCallback,
-    .BTM_SecDeleteRmtNameNotifyCallback = BTM_SecDeleteRmtNameNotifyCallback,
+        .BTM_SecReadDevName = BTM_SecReadDevName,
+        .BTM_SecReadDevClass = BTM_SecReadDevClass,
 };
 
-const SecurityClientInterface& get_security_client_interface() {
-  return security;
-}
+const SecurityClientInterface& get_security_client_interface() { return security; }

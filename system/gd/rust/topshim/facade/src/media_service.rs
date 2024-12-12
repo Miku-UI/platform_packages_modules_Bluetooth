@@ -34,6 +34,7 @@ pub struct MediaServiceImpl {
     rt: Arc<Runtime>,
     pub btif_a2dp: Arc<Mutex<A2dp>>,
     btif_a2dp_sink: Arc<Mutex<A2dpSink>>,
+    #[allow(dead_code)]
     pub btif_avrcp: Arc<Mutex<Avrcp>>,
 }
 

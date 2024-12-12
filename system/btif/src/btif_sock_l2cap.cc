@@ -20,13 +20,14 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 
 #include "bta/include/bta_jv_api.h"
 #include "btif/include/btif_dm.h"
-#include "btif/include/btif_metrics_logging.h"
 #include "btif/include/btif_sock.h"
 #include "btif/include/btif_sock_logging.h"
 #include "btif/include/btif_sock_thread.h"
@@ -91,8 +92,7 @@ static uint32_t last_sock_id = 0;
 static uid_set_t* uid_set = NULL;
 static int pth = -1;
 
-static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data,
-                             uint32_t l2cap_socket_id);
+static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t l2cap_socket_id);
 
 /* TODO: Consider to remove this buffer, as we have a buffer in l2cap as well,
  * and we risk
@@ -109,21 +109,29 @@ static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data,
  *       confirming the l2cap_ind until we have more space in the buffer. */
 
 /* returns false if none - caller must free "data" memory when done with it */
-static char packet_get_head_l(l2cap_socket* sock, uint8_t** data,
-                              uint32_t* len) {
+static char packet_get_head_l(l2cap_socket* sock, uint8_t** data, uint32_t* len) {
   struct packet* p = sock->first_packet;
 
-  if (!p) return false;
+  if (!p) {
+    return false;
+  }
 
-  if (data) *data = sock->first_packet->data;
-  if (len) *len = sock->first_packet->len;
+  if (data) {
+    *data = sock->first_packet->data;
+  }
+  if (len) {
+    *len = sock->first_packet->len;
+  }
   sock->first_packet = p->next;
-  if (sock->first_packet)
+  if (sock->first_packet) {
     sock->first_packet->prev = NULL;
-  else
+  } else {
     sock->last_packet = NULL;
+  }
 
-  if (len) sock->bytes_buffered -= *len;
+  if (len) {
+    sock->bytes_buffered -= *len;
+  }
 
   osi_free(p);
 
@@ -141,8 +149,7 @@ static struct packet* packet_alloc(const uint8_t* data, uint32_t len) {
 }
 
 /* makes a copy of the data, returns true on success */
-static char packet_put_head_l(l2cap_socket* sock, const void* data,
-                              uint32_t len) {
+static char packet_put_head_l(l2cap_socket* sock, const void* data, uint32_t len) {
   struct packet* p = packet_alloc((const uint8_t*)data, len);
 
   /*
@@ -152,15 +159,18 @@ static char packet_put_head_l(l2cap_socket* sock, const void* data,
    * that function is used to put new data into the queue.
    */
 
-  if (!p) return false;
+  if (!p) {
+    return false;
+  }
 
   p->prev = NULL;
   p->next = sock->first_packet;
   sock->first_packet = p;
-  if (p->next)
+  if (p->next) {
     p->next->prev = p;
-  else
+  } else {
     sock->last_packet = p;
+  }
 
   sock->bytes_buffered += len;
 
@@ -168,11 +178,9 @@ static char packet_put_head_l(l2cap_socket* sock, const void* data,
 }
 
 /* makes a copy of the data, returns true on success */
-static char packet_put_tail_l(l2cap_socket* sock, const void* data,
-                              uint32_t len) {
+static char packet_put_tail_l(l2cap_socket* sock, const void* data, uint32_t len) {
   if (sock->bytes_buffered >= L2CAP_MAX_RX_BUFFER) {
-    log::error("Unable to add to buffer due to buffer overflow socket_id:{}",
-               sock->id);
+    log::error("Unable to add to buffer due to buffer overflow socket_id:{}", sock->id);
     return false;
   }
 
@@ -180,10 +188,11 @@ static char packet_put_tail_l(l2cap_socket* sock, const void* data,
   p->next = NULL;
   p->prev = sock->last_packet;
   sock->last_packet = p;
-  if (p->prev)
+  if (p->prev) {
     p->prev->next = p;
-  else
+  } else {
     sock->first_packet = p;
+  }
 
   sock->bytes_buffered += len;
 
@@ -199,7 +208,9 @@ static char is_inited(void) {
 static l2cap_socket* btsock_l2cap_find_by_id_l(uint32_t id) {
   l2cap_socket* sock = socks;
 
-  while (sock && sock->id != id) sock = sock->next;
+  while (sock && sock->id != id) {
+    sock = sock->next;
+  }
 
   return sock;
 }
@@ -222,37 +233,44 @@ static void btsock_l2cap_free_l(l2cap_socket* sock) {
   uint8_t* buf;
   l2cap_socket* t = socks;
 
-  while (t && t != sock) t = t->next;
+  while (t && t != sock) {
+    t = t->next;
+  }
 
-  if (!t) /* prever double-frees */
+  if (!t) { /* prever double-frees */
     return;
+  }
 
   log::info(
-      "Disconnected L2CAP connection for device: {}, channel: {}, app_uid: {}, "
-      "id: {}, is_le: {}",
-      sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
+          "Disconnected L2CAP connection for device: {}, channel: {}, app_uid: {}, "
+          "id: {}, is_le: {}",
+          sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
   btif_sock_connection_logger(
-      sock->addr, sock->id, sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
-      SOCKET_CONNECTION_STATE_DISCONNECTED,
-      sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, sock->app_uid,
-      sock->channel, sock->tx_bytes, sock->rx_bytes, sock->name);
-  if (sock->next) sock->next->prev = sock->prev;
+          sock->addr, sock->id, sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
+          SOCKET_CONNECTION_STATE_DISCONNECTED,
+          sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, sock->app_uid, sock->channel,
+          sock->tx_bytes, sock->rx_bytes, sock->name);
+  if (sock->next) {
+    sock->next->prev = sock->prev;
+  }
 
-  if (sock->prev)
+  if (sock->prev) {
     sock->prev->next = sock->next;
-  else
+  } else {
     socks = sock->next;
+  }
 
   shutdown(sock->our_fd, SHUT_RDWR);
   close(sock->our_fd);
   if (sock->app_fd != -1) {
     close(sock->app_fd);
   } else {
-    log::info("Application has already closed l2cap socket socket_id:{}",
-              sock->id);
+    log::info("Application has already closed l2cap socket socket_id:{}", sock->id);
   }
 
-  while (packet_get_head_l(sock, &buf, NULL)) osi_free(buf);
+  while (packet_get_head_l(sock, &buf, NULL)) {
+    osi_free(buf);
+  }
 
   // lower-level close() should be idempotent... so let's call it and see...
   if (sock->is_le_coc) {
@@ -262,8 +280,7 @@ static void btsock_l2cap_free_l(l2cap_socket* sock) {
     }
     if ((sock->channel >= 0) && (sock->server)) {
       BTA_JvFreeChannel(sock->channel, tBTA_JV_CONN_TYPE::L2CAP_LE);
-      log::info("Stopped L2CAP LE COC server socket_id:{} channel:{}", sock->id,
-                sock->channel);
+      log::info("Stopped L2CAP LE COC server socket_id:{} channel:{}", sock->id, sock->channel);
       BTA_JvL2capStopServer(sock->channel, sock->id);
     }
   } else {
@@ -280,25 +297,28 @@ static void btsock_l2cap_free_l(l2cap_socket* sock) {
   osi_free(sock);
 }
 
-static l2cap_socket* btsock_l2cap_alloc_l(const char* name,
-                                          const RawAddress* addr,
-                                          char is_server, int flags) {
+static l2cap_socket* btsock_l2cap_alloc_l(const char* name, const RawAddress* addr, char is_server,
+                                          int flags) {
   unsigned security = 0;
   int fds[2];
   l2cap_socket* sock = (l2cap_socket*)osi_calloc(sizeof(*sock));
   int sock_type = SOCK_SEQPACKET;
 
-  if (flags & BTSOCK_FLAG_ENCRYPT)
+  if (flags & BTSOCK_FLAG_ENCRYPT) {
     security |= is_server ? BTM_SEC_IN_ENCRYPT : BTM_SEC_OUT_ENCRYPT;
-  if (flags & BTSOCK_FLAG_AUTH)
+  }
+  if (flags & BTSOCK_FLAG_AUTH) {
     security |= is_server ? BTM_SEC_IN_AUTHENTICATE : BTM_SEC_OUT_AUTHENTICATE;
-  if (flags & BTSOCK_FLAG_AUTH_MITM)
+  }
+  if (flags & BTSOCK_FLAG_AUTH_MITM) {
     security |= is_server ? BTM_SEC_IN_MITM : BTM_SEC_OUT_MITM;
-  if (flags & BTSOCK_FLAG_AUTH_16_DIGIT)
+  }
+  if (flags & BTSOCK_FLAG_AUTH_16_DIGIT) {
     security |= BTM_SEC_IN_MIN_16_DIGIT_PIN;
+  }
 
-    // For Floss, set socket as SOCK_STREAM
-    // TODO(b:271828292): Set SOCK_STREAM for everyone after verification tests
+  // For Floss, set socket as SOCK_STREAM
+  // TODO(b:271828292): Set SOCK_STREAM for everyone after verification tests
 #if TARGET_FLOSS
   sock_type = SOCK_STREAM;
 #endif
@@ -316,8 +336,12 @@ static l2cap_socket* btsock_l2cap_alloc_l(const char* name,
   sock->server_psm_sent = false;
   sock->app_uid = -1;
 
-  if (name) strncpy(sock->name, name, sizeof(sock->name) - 1);
-  if (addr) sock->addr = *addr;
+  if (name) {
+    strncpy(sock->name, name, sizeof(sock->name) - 1);
+  }
+  if (addr) {
+    sock->addr = *addr;
+  }
 
   sock->first_packet = NULL;
   sock->last_packet = NULL;
@@ -326,7 +350,9 @@ static l2cap_socket* btsock_l2cap_alloc_l(const char* name,
 
   sock->next = socks;
   sock->prev = NULL;
-  if (socks) socks->prev = sock;
+  if (socks) {
+    socks->prev = sock;
+  }
   sock->id = last_sock_id + 1;
   sock->tx_bytes = 0;
   sock->rx_bytes = 0;
@@ -339,11 +365,13 @@ static l2cap_socket* btsock_l2cap_alloc_l(const char* name,
     while (t && t->id != sock->id) {
       t = t->next;
     }
-    if (!t && sock->id) /* non-zeor handle is unique -> we're done */
+    if (!t && sock->id) { /* non-zeor handle is unique -> we're done */
       break;
+    }
     /* if we're here, we found a duplicate */
-    if (!++sock->id) /* no zero IDs allowed */
+    if (!++sock->id) { /* no zero IDs allowed */
       sock->id++;
+    }
   }
   last_sock_id = sock->id;
   log::info("Allocated l2cap socket structure socket_id:{}", sock->id);
@@ -365,27 +393,26 @@ bt_status_t btsock_l2cap_init(int handle, uid_set_t* set) {
 bt_status_t btsock_l2cap_cleanup() {
   std::unique_lock<std::mutex> lock(state_lock);
   pth = -1;
-  while (socks) btsock_l2cap_free_l(socks);
+  while (socks) {
+    btsock_l2cap_free_l(socks);
+  }
   return BT_STATUS_SUCCESS;
 }
 
 static inline bool send_app_psm_or_chan_l(l2cap_socket* sock) {
-  log::info("Sending l2cap socket socket_id:{} channel:{}", sock->id,
-            sock->channel);
-  return sock_send_all(sock->our_fd, (const uint8_t*)&sock->channel,
-                       sizeof(sock->channel)) == sizeof(sock->channel);
+  log::info("Sending l2cap socket socket_id:{} channel:{}", sock->id, sock->channel);
+  return sock_send_all(sock->our_fd, (const uint8_t*)&sock->channel, sizeof(sock->channel)) ==
+         sizeof(sock->channel);
 }
 
 static bool send_app_err_code(l2cap_socket* sock, tBTA_JV_L2CAP_REASON code) {
-  log::info("Sending l2cap failure reason socket_id:{} reason code:{}",
-            sock->id, code);
+  log::info("Sending l2cap failure reason socket_id:{} reason code:{}", sock->id, code);
   int err_channel = 0;
-  if (sock_send_all(sock->our_fd, (const uint8_t*)&err_channel,
-                    sizeof(err_channel)) != sizeof(err_channel)) {
+  if (sock_send_all(sock->our_fd, (const uint8_t*)&err_channel, sizeof(err_channel)) !=
+      sizeof(err_channel)) {
     return false;
   }
-  return sock_send_all(sock->our_fd, (const uint8_t*)&code, sizeof(code)) ==
-         sizeof(code);
+  return sock_send_all(sock->our_fd, (const uint8_t*)&code, sizeof(code)) == sizeof(code);
 }
 
 static uint64_t uuid_lsb(const Uuid& uuid) {
@@ -412,9 +439,9 @@ static uint64_t uuid_msb(const Uuid& uuid) {
   return msb;
 }
 
-static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel,
-                                    int status, int send_fd, uint16_t rx_mtu,
-                                    uint16_t tx_mtu, const Uuid& conn_uuid) {
+static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel, int status,
+                                    int send_fd, uint16_t rx_mtu, uint16_t tx_mtu,
+                                    const Uuid& conn_uuid) {
   sock_connect_signal_t cs;
   cs.size = sizeof(cs);
   cs.bd_addr = *addr;
@@ -425,9 +452,9 @@ static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel,
   cs.conn_uuid_lsb = uuid_lsb(conn_uuid);
   cs.conn_uuid_msb = uuid_msb(conn_uuid);
   if (send_fd != -1) {
-    if (sock_send_fd(fd, (const uint8_t*)&cs, sizeof(cs), send_fd) ==
-        sizeof(cs))
+    if (sock_send_fd(fd, (const uint8_t*)&cs, sizeof(cs), send_fd) == sizeof(cs)) {
       return true;
+    }
   } else if (sock_send_all(fd, (const uint8_t*)&cs, sizeof(cs)) == sizeof(cs)) {
     return true;
   }
@@ -436,8 +463,7 @@ static bool send_app_connect_signal(int fd, const RawAddress* addr, int channel,
   return false;
 }
 
-static void on_srv_l2cap_listen_started(tBTA_JV_L2CAP_START* p_start,
-                                        uint32_t id) {
+static void on_srv_l2cap_listen_started(tBTA_JV_L2CAP_START* p_start, uint32_t id) {
   l2cap_socket* sock;
 
   std::unique_lock<std::mutex> lock(state_lock);
@@ -456,14 +482,14 @@ static void on_srv_l2cap_listen_started(tBTA_JV_L2CAP_START* p_start,
   sock->handle = p_start->handle;
 
   log::info(
-      "Listening for L2CAP connection for device: {}, channel: {}, app_uid: "
-      "{}, id: {}, is_le: {}",
-      sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
-  btif_sock_connection_logger(
-      sock->addr, sock->id, sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
-      SOCKET_CONNECTION_STATE_LISTENING,
-      sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, sock->app_uid,
-      sock->channel, 0, 0, sock->name);
+          "Listening for L2CAP connection for device: {}, channel: {}, app_uid: "
+          "{}, id: {}, is_le: {}",
+          sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
+  btif_sock_connection_logger(sock->addr, sock->id,
+                              sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
+                              SOCKET_CONNECTION_STATE_LISTENING,
+                              sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
+                              sock->app_uid, sock->channel, 0, 0, sock->name);
 
   if (!sock->server_psm_sent) {
     if (!send_app_psm_or_chan_l(sock)) {
@@ -499,24 +525,20 @@ static void on_cl_l2cap_init(tBTA_JV_L2CAP_CL_INIT* p_init, uint32_t id) {
  * Here we allocate a new sock instance to mimic the BluetoothSocket. The socket
  * will be a clone of the sock representing the BluetoothServerSocket.
  * */
-static void on_srv_l2cap_psm_connect_l(tBTA_JV_L2CAP_OPEN* p_open,
-                                       l2cap_socket* sock) {
+static void on_srv_l2cap_psm_connect_l(tBTA_JV_L2CAP_OPEN* p_open, l2cap_socket* sock) {
   // std::mutex locked by caller
-  l2cap_socket* accept_rs =
-      btsock_l2cap_alloc_l(sock->name, &p_open->rem_bda, false, 0);
+  l2cap_socket* accept_rs = btsock_l2cap_alloc_l(sock->name, &p_open->rem_bda, false, 0);
   accept_rs->connected = true;
   accept_rs->security = sock->security;
   accept_rs->channel = sock->channel;
   accept_rs->handle = sock->handle;
   accept_rs->app_uid = sock->app_uid;
-  sock->handle =
-      -1; /* We should no longer associate this handle with the server socket */
+  sock->handle = -1; /* We should no longer associate this handle with the server socket */
   accept_rs->is_le_coc = sock->is_le_coc;
   accept_rs->tx_mtu = sock->tx_mtu = p_open->tx_mtu;
   accept_rs->local_cid = p_open->local_cid;
   accept_rs->remote_cid = p_open->remote_cid;
-  Uuid uuid =
-      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
+  Uuid uuid = Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
   accept_rs->conn_uuid = uuid;
 
   /* Swap IDs to hand over the GAP connection to the accepted socket, and start
@@ -526,67 +548,57 @@ static void on_srv_l2cap_psm_connect_l(tBTA_JV_L2CAP_OPEN* p_open,
   sock->id = new_listen_id;
 
   log::info(
-      "Connected to L2CAP connection for device: {}, channel: {}, app_uid: {}, "
-      "id: {}, is_le: {}",
-      sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
-  btif_sock_connection_logger(
-      accept_rs->addr, accept_rs->id,
-      accept_rs->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
-      SOCKET_CONNECTION_STATE_CONNECTED,
-      accept_rs->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
-      accept_rs->app_uid, accept_rs->channel, 0, 0, accept_rs->name);
+          "Connected to L2CAP connection for device: {}, channel: {}, app_uid: {}, "
+          "id: {}, is_le: {}",
+          sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
+  btif_sock_connection_logger(accept_rs->addr, accept_rs->id,
+                              accept_rs->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
+                              SOCKET_CONNECTION_STATE_CONNECTED,
+                              accept_rs->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
+                              accept_rs->app_uid, accept_rs->channel, 0, 0, accept_rs->name);
 
   // start monitor the socket
-  btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP,
-                       SOCK_THREAD_FD_EXCEPTION, sock->id);
-  btsock_thread_add_fd(pth, accept_rs->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD,
-                       accept_rs->id);
-  send_app_connect_signal(sock->our_fd, &accept_rs->addr, sock->channel, 0,
-                          accept_rs->app_fd, sock->rx_mtu, p_open->tx_mtu,
-                          accept_rs->conn_uuid);
-  accept_rs->app_fd =
-      -1;  // The fd is closed after sent to app in send_app_connect_signal()
+  btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_EXCEPTION, sock->id);
+  btsock_thread_add_fd(pth, accept_rs->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD, accept_rs->id);
+  send_app_connect_signal(sock->our_fd, &accept_rs->addr, sock->channel, 0, accept_rs->app_fd,
+                          sock->rx_mtu, p_open->tx_mtu, accept_rs->conn_uuid);
+  accept_rs->app_fd = -1;  // The fd is closed after sent to app in send_app_connect_signal()
   // But for some reason we still leak a FD - either the server socket
   // one or the accept socket one.
   btsock_l2cap_server_listen(sock);
 }
 
-static void on_cl_l2cap_psm_connect_l(tBTA_JV_L2CAP_OPEN* p_open,
-                                      l2cap_socket* sock) {
+static void on_cl_l2cap_psm_connect_l(tBTA_JV_L2CAP_OPEN* p_open, l2cap_socket* sock) {
   sock->addr = p_open->rem_bda;
   sock->tx_mtu = p_open->tx_mtu;
   sock->local_cid = p_open->local_cid;
   sock->remote_cid = p_open->remote_cid;
-  Uuid uuid =
-      Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
+  Uuid uuid = Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
   sock->conn_uuid = uuid;
 
   if (!send_app_psm_or_chan_l(sock)) {
-    log::error("Unable to send l2cap socket to application socket_id:{}",
-               sock->id);
+    log::error("Unable to send l2cap socket to application socket_id:{}", sock->id);
     return;
   }
 
-  if (!send_app_connect_signal(sock->our_fd, &sock->addr, sock->channel, 0, -1,
-                               sock->rx_mtu, p_open->tx_mtu, sock->conn_uuid)) {
-    log::error("Unable to connect l2cap socket to application socket_id:{}",
-               sock->id);
+  if (!send_app_connect_signal(sock->our_fd, &sock->addr, sock->channel, 0, -1, sock->rx_mtu,
+                               p_open->tx_mtu, sock->conn_uuid)) {
+    log::error("Unable to connect l2cap socket to application socket_id:{}", sock->id);
     return;
   }
 
   log::info(
-      "Connected to L2CAP connection for device: {}, channel: {}, app_uid: {}, "
-      "id: {}, is_le: {}",
-      sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
-  btif_sock_connection_logger(
-      sock->addr, sock->id, sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
-      SOCKET_CONNECTION_STATE_CONNECTED,
-      sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, sock->app_uid,
-      sock->channel, 0, 0, sock->name);
+          "Connected to L2CAP connection for device: {}, channel: {}, app_uid: {}, "
+          "id: {}, is_le: {}",
+          sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
+  btif_sock_connection_logger(sock->addr, sock->id,
+                              sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
+                              SOCKET_CONNECTION_STATE_CONNECTED,
+                              sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
+                              sock->app_uid, sock->channel, 0, 0, sock->name);
 
   // start monitoring the socketpair to get call back when app writing data
-  btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD,
-                       sock->id);
+  btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD, sock->id);
   log::info("Connected l2cap socket socket_id:{}", sock->id);
   sock->connected = true;
 }
@@ -611,8 +623,7 @@ static void on_l2cap_connect(tBTA_JV* p_data, uint32_t id) {
       on_srv_l2cap_psm_connect_l(psm_open, sock);
     }
   } else {
-    log::error("Unable to open socket after receiving connection socket_id:{}",
-               sock->id);
+    log::error("Unable to open socket after receiving connection socket_id:{}", sock->id);
     btsock_l2cap_free_l(sock);
   }
 }
@@ -623,25 +634,31 @@ static void on_l2cap_close(tBTA_JV_L2CAP_CLOSE* p_close, uint32_t id) {
   std::unique_lock<std::mutex> lock(state_lock);
   sock = btsock_l2cap_find_by_id_l(id);
   if (!sock) {
-    log::info(
-        "Unable to find probably already closed l2cap socket with socket_id:{}",
-        id);
+    log::info("Unable to find probably already closed l2cap socket with socket_id:{}", id);
     return;
   }
 
   log::info(
-      "Disconnecting from L2CAP connection for device: {}, channel: {}, "
-      "app_uid: {}, id: {}, is_le: {}",
-      sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
-  btif_sock_connection_logger(
-      sock->addr, sock->id, sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
-      SOCKET_CONNECTION_STATE_DISCONNECTING,
-      sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION, sock->app_uid,
-      sock->channel, 0, 0, sock->name);
-
-  if (!send_app_err_code(sock, p_close->reason)) {
-    log::error("Unable to send l2cap socket to application socket_id:{}",
-               sock->id);
+          "Disconnecting from L2CAP connection for device: {}, channel: {}, "
+          "app_uid: {}, id: {}, is_le: {}",
+          sock->addr, sock->channel, sock->app_uid, sock->id, sock->is_le_coc);
+  btif_sock_connection_logger(sock->addr, sock->id,
+                              sock->is_le_coc ? BTSOCK_L2CAP_LE : BTSOCK_L2CAP,
+                              SOCKET_CONNECTION_STATE_DISCONNECTING,
+                              sock->server ? SOCKET_ROLE_LISTEN : SOCKET_ROLE_CONNECTION,
+                              sock->app_uid, sock->channel, 0, 0, sock->name);
+  if (com::android::bluetooth::flags::donot_push_error_code_to_app_when_connected()) {
+    if (!sock->connected) {
+      if (!send_app_err_code(sock, p_close->reason)) {
+        log::error("Unable to send l2cap socket to application socket_id:{}", sock->id);
+      }
+    } else {
+      log::info("Don't push error for already connected socket:{}", sock->id);
+    }
+  } else {
+    if (!send_app_err_code(sock, p_close->reason)) {
+      log::error("Unable to send l2cap socket to application socket_id:{}", sock->id);
+    }
   }
   // TODO: This does not seem to be called...
   // I'm not sure if this will be called for non-server sockets?
@@ -664,10 +681,8 @@ static void on_l2cap_outgoing_congest(tBTA_JV_L2CAP_CONG* p, uint32_t id) {
   sock->outgoing_congest = p->cong ? 1 : 0;
 
   if (!sock->outgoing_congest) {
-    log::verbose("Monitoring l2cap socket for outgoing data socket_id:{}",
-                 sock->id);
-    btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD,
-                         sock->id);
+    log::verbose("Monitoring l2cap socket for outgoing data socket_id:{}", sock->id);
+    btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD, sock->id);
   }
 }
 
@@ -681,8 +696,7 @@ static void on_l2cap_write_done(uint16_t len, uint32_t id) {
 
   int app_uid = sock->app_uid;
   if (!sock->outgoing_congest) {
-    btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD,
-                         sock->id);
+    btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_RD, sock->id);
   } else {
     log::info("Socket congestion on socket_id:{}", sock->id);
   }
@@ -691,7 +705,7 @@ static void on_l2cap_write_done(uint16_t len, uint32_t id) {
   uid_set_add_tx(uid_set, app_uid, len);
 }
 
-static void on_l2cap_data_ind(tBTA_JV* evt, uint32_t id) {
+static void on_l2cap_data_ind(tBTA_JV* /* evt */, uint32_t id) {
   l2cap_socket* sock;
 
   int app_uid = -1;
@@ -710,16 +724,12 @@ static void on_l2cap_data_ind(tBTA_JV* evt, uint32_t id) {
 
   if (BTA_JvL2capReady(sock->handle, &count) == tBTA_JV_STATUS::SUCCESS) {
     std::vector<uint8_t> buffer(count);
-    if (BTA_JvL2capRead(sock->handle, sock->id, buffer.data(), count) ==
-        tBTA_JV_STATUS::SUCCESS) {
+    if (BTA_JvL2capRead(sock->handle, sock->id, buffer.data(), count) == tBTA_JV_STATUS::SUCCESS) {
       if (packet_put_tail_l(sock, buffer.data(), count)) {
         bytes_read = count;
-        btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_WR,
-                             sock->id);
+        btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_WR, sock->id);
       } else {  // connection must be dropped
-        log::warn(
-            "Closing socket as unable to push data to socket socket_id:{}",
-            sock->id);
+        log::warn("Closing socket as unable to push data to socket socket_id:{}", sock->id);
         BTA_JvL2capClose(sock->handle);
         btsock_l2cap_free_l(sock);
         return;
@@ -731,8 +741,7 @@ static void on_l2cap_data_ind(tBTA_JV* evt, uint32_t id) {
   uid_set_add_rx(uid_set, app_uid, bytes_read);
 }
 
-static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data,
-                             uint32_t l2cap_socket_id) {
+static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t l2cap_socket_id) {
   switch (event) {
     case BTA_JV_L2CAP_START_EVT:
       on_srv_l2cap_listen_started(&p_data->l2c_start, l2cap_socket_id);
@@ -744,8 +753,7 @@ static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data,
 
     case BTA_JV_L2CAP_OPEN_EVT:
       on_l2cap_connect(p_data, l2cap_socket_id);
-      BTA_JvSetPmProfile(p_data->l2c_open.handle, BTA_JV_PM_ID_1,
-                         BTA_JV_CONN_OPEN);
+      BTA_JvSetPmProfile(p_data->l2c_open.handle, BTA_JV_PM_ID_1, BTA_JV_CONN_OPEN);
       break;
 
     case BTA_JV_L2CAP_CLOSE_EVT:
@@ -768,8 +776,8 @@ static void btsock_l2cap_cbk(tBTA_JV_EVT event, tBTA_JV* p_data,
       break;
 
     default:
-      log::error("Unhandled event:{} l2cap_socket_id:{}",
-                 bta_jv_event_text(event), l2cap_socket_id);
+      log::error("Unhandled event:{} l2cap_socket_id:{}", bta_jv_event_text(event),
+                 l2cap_socket_id);
       break;
   }
 }
@@ -801,7 +809,7 @@ void on_l2cap_psm_assigned(int id, int psm) {
 
 static void btsock_l2cap_server_listen(l2cap_socket* sock) {
   tBTA_JV_CONN_TYPE connection_type =
-      sock->is_le_coc ? tBTA_JV_CONN_TYPE::L2CAP_LE : tBTA_JV_CONN_TYPE::L2CAP;
+          sock->is_le_coc ? tBTA_JV_CONN_TYPE::L2CAP_LE : tBTA_JV_CONN_TYPE::L2CAP;
 
   /* If we have a channel specified in the request, just start the server,
    * else we request a PSM and start the server after we receive a PSM. */
@@ -812,24 +820,23 @@ static void btsock_l2cap_server_listen(l2cap_socket* sock) {
 
   /* Setup ETM settings: mtu will be set below */
   std::unique_ptr<tL2CAP_CFG_INFO> cfg = std::make_unique<tL2CAP_CFG_INFO>(
-      tL2CAP_CFG_INFO{.fcr_present = true, .fcr = kDefaultErtmOptions});
+          tL2CAP_CFG_INFO{.fcr_present = true, .fcr = kDefaultErtmOptions});
 
   std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info;
   if (!sock->is_le_coc) {
     ertm_info.reset(new tL2CAP_ERTM_INFO(obex_l2c_etm_opt));
   }
 
-  BTA_JvL2capStartServer(connection_type, sock->security, std::move(ertm_info),
-                         sock->channel, sock->rx_mtu, std::move(cfg),
-                         btsock_l2cap_cbk, sock->id);
+  BTA_JvL2capStartServer(connection_type, sock->security, std::move(ertm_info), sock->channel,
+                         sock->rx_mtu, std::move(cfg), btsock_l2cap_cbk, sock->id);
 }
 
-static bt_status_t btsock_l2cap_listen_or_connect(const char* name,
-                                                  const RawAddress* addr,
-                                                  int channel, int* sock_fd,
-                                                  int flags, char listen,
+static bt_status_t btsock_l2cap_listen_or_connect(const char* name, const RawAddress* addr,
+                                                  int channel, int* sock_fd, int flags, char listen,
                                                   int app_uid) {
-  if (!is_inited()) return BT_STATUS_NOT_READY;
+  if (!is_inited()) {
+    return BT_STATUS_NOT_READY;
+  }
 
   bool is_le_coc = (flags & BTSOCK_FLAG_LE_COC) != 0;
 
@@ -870,22 +877,20 @@ static bt_status_t btsock_l2cap_listen_or_connect(const char* name,
   if (listen) {
     btsock_l2cap_server_listen(sock);
   } else {
-    tBTA_JV_CONN_TYPE connection_type = sock->is_le_coc
-                                            ? tBTA_JV_CONN_TYPE::L2CAP_LE
-                                            : tBTA_JV_CONN_TYPE::L2CAP;
+    tBTA_JV_CONN_TYPE connection_type =
+            sock->is_le_coc ? tBTA_JV_CONN_TYPE::L2CAP_LE : tBTA_JV_CONN_TYPE::L2CAP;
 
     /* Setup ETM settings: mtu will be set below */
     std::unique_ptr<tL2CAP_CFG_INFO> cfg = std::make_unique<tL2CAP_CFG_INFO>(
-        tL2CAP_CFG_INFO{.fcr_present = true, .fcr = kDefaultErtmOptions});
+            tL2CAP_CFG_INFO{.fcr_present = true, .fcr = kDefaultErtmOptions});
 
     std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info;
     if (!sock->is_le_coc) {
       ertm_info.reset(new tL2CAP_ERTM_INFO(obex_l2c_etm_opt));
     }
 
-    BTA_JvL2capConnect(connection_type, sock->security, std::move(ertm_info),
-                       channel, sock->rx_mtu, std::move(cfg), sock->addr,
-                       btsock_l2cap_cbk, sock->id);
+    BTA_JvL2capConnect(connection_type, sock->security, std::move(ertm_info), channel, sock->rx_mtu,
+                       std::move(cfg), sock->addr, btsock_l2cap_cbk, sock->id);
   }
 
   *sock_fd = sock->app_fd;
@@ -895,22 +900,19 @@ static bt_status_t btsock_l2cap_listen_or_connect(const char* name,
   sock->app_fd = -1;
   /*This leaks the file descriptor. The FD should be closed in JAVA but it
    * apparently do not work */
-  btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP,
-                       SOCK_THREAD_FD_EXCEPTION, sock->id);
+  btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_EXCEPTION, sock->id);
 
   return BT_STATUS_SUCCESS;
 }
 
-bt_status_t btsock_l2cap_listen(const char* name, int channel, int* sock_fd,
-                                int flags, int app_uid) {
-  return btsock_l2cap_listen_or_connect(name, NULL, channel, sock_fd, flags, 1,
-                                        app_uid);
+bt_status_t btsock_l2cap_listen(const char* name, int channel, int* sock_fd, int flags,
+                                int app_uid) {
+  return btsock_l2cap_listen_or_connect(name, NULL, channel, sock_fd, flags, 1, app_uid);
 }
 
-bt_status_t btsock_l2cap_connect(const RawAddress* bd_addr, int channel,
-                                 int* sock_fd, int flags, int app_uid) {
-  return btsock_l2cap_listen_or_connect(NULL, bd_addr, channel, sock_fd, flags,
-                                        0, app_uid);
+bt_status_t btsock_l2cap_connect(const RawAddress* bd_addr, int channel, int* sock_fd, int flags,
+                                 int app_uid) {
+  return btsock_l2cap_listen_or_connect(NULL, bd_addr, channel, sock_fd, flags, 0, app_uid);
 }
 
 /* return true if we have more to send and should wait for user readiness, false
@@ -926,13 +928,14 @@ static bool flush_incoming_que_on_wr_signal_l(l2cap_socket* sock) {
     OSI_NO_INTR(sent = send(sock->our_fd, buf, len, MSG_DONTWAIT));
     int saved_errno = errno;
 
-    if (sent == (signed)len)
+    if (sent == (signed)len) {
       osi_free(buf);
-    else if (sent >= 0) {
+    } else if (sent >= 0) {
       packet_put_head_l(sock, buf + sent, len - sent);
       osi_free(buf);
-      if (!sent) /* special case if other end not keeping up */
+      if (!sent) { /* special case if other end not keeping up */
         return true;
+      }
     } else {
       packet_put_head_l(sock, buf, len);
       osi_free(buf);
@@ -945,8 +948,7 @@ static bool flush_incoming_que_on_wr_signal_l(l2cap_socket* sock) {
 
 inline BT_HDR* malloc_l2cap_buf(uint16_t len) {
   // We need FCS only for L2CAP_FCR_ERTM_MODE, but it's just 2 bytes so it's ok
-  BT_HDR* msg = (BT_HDR*)osi_malloc(BT_HDR_SIZE + L2CAP_MIN_OFFSET + len +
-                                    L2CAP_FCS_LENGTH);
+  BT_HDR* msg = (BT_HDR*)osi_malloc(BT_HDR_SIZE + L2CAP_MIN_OFFSET + len + L2CAP_FCS_LENGTH);
   msg->offset = L2CAP_MIN_OFFSET;
   msg->len = len;
   return msg;
@@ -963,7 +965,9 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id) {
    * hold the lock. */
   std::unique_lock<std::mutex> lock(state_lock);
   l2cap_socket* sock = btsock_l2cap_find_by_id_l(user_id);
-  if (!sock) return;
+  if (!sock) {
+    return;
+  }
 
   if ((flags & SOCK_THREAD_FD_RD) && !sock->server) {
     // app sending data
@@ -1001,25 +1005,31 @@ void btsock_l2cap_signaled(int fd, int flags, uint32_t user_id) {
         // will take care of freeing buffer
         BTA_JvL2capWrite(sock->handle, PTR_TO_UINT(buffer), buffer, user_id);
       }
-    } else
+    } else {
       drop_it = true;
+    }
   }
   if (flags & SOCK_THREAD_FD_WR) {
     // app is ready to receive more data, tell stack to enable the data flow
-    if (flush_incoming_que_on_wr_signal_l(sock) && sock->connected)
-      btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_WR,
-                           sock->id);
+    if (flush_incoming_que_on_wr_signal_l(sock) && sock->connected) {
+      btsock_thread_add_fd(pth, sock->our_fd, BTSOCK_L2CAP, SOCK_THREAD_FD_WR, sock->id);
+    }
   }
   if (drop_it || (flags & SOCK_THREAD_FD_EXCEPTION)) {
     int size = 0;
-    if (drop_it || ioctl(sock->our_fd, FIONREAD, &size) != 0 || size == 0)
+    if (drop_it || ioctl(sock->our_fd, FIONREAD, &size) != 0 || size == 0) {
       btsock_l2cap_free_l(sock);
+    }
   }
 }
 
 bt_status_t btsock_l2cap_disconnect(const RawAddress* bd_addr) {
-  if (!bd_addr) return BT_STATUS_PARM_INVALID;
-  if (!is_inited()) return BT_STATUS_NOT_READY;
+  if (!bd_addr) {
+    return BT_STATUS_PARM_INVALID;
+  }
+  if (!is_inited()) {
+    return BT_STATUS_NOT_READY;
+  }
 
   std::unique_lock<std::mutex> lock(state_lock);
   l2cap_socket* sock = socks;
@@ -1041,8 +1051,7 @@ bt_status_t btsock_l2cap_get_l2cap_local_cid(Uuid& conn_uuid, uint16_t* cid) {
   std::unique_lock<std::mutex> lock(state_lock);
   sock = btsock_l2cap_find_by_conn_uuid_l(conn_uuid);
   if (!sock) {
-    log::error("Unable to find l2cap socket with conn_uuid:{}",
-               conn_uuid.ToString());
+    log::error("Unable to find l2cap socket with conn_uuid:{}", conn_uuid.ToString());
     return BT_STATUS_SOCKET_ERROR;
   }
   *cid = sock->local_cid;
@@ -1055,8 +1064,7 @@ bt_status_t btsock_l2cap_get_l2cap_remote_cid(Uuid& conn_uuid, uint16_t* cid) {
   std::unique_lock<std::mutex> lock(state_lock);
   sock = btsock_l2cap_find_by_conn_uuid_l(conn_uuid);
   if (!sock) {
-    log::error("Unable to find l2cap socket with conn_uuid:{}",
-               conn_uuid.ToString());
+    log::error("Unable to find l2cap socket with conn_uuid:{}", conn_uuid.ToString());
     return BT_STATUS_SOCKET_ERROR;
   }
   *cid = sock->remote_cid;

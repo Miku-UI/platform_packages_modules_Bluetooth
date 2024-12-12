@@ -15,6 +15,7 @@
  */
 
 #include "stack/acl/acl.h"
+
 #include "types/raw_address.h"
 
 void tACL_CONN::Reset() {

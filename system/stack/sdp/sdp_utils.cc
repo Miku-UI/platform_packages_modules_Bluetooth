@@ -16,7 +16,7 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "SDP_Utils"
+#define LOG_TAG "stack::sdp"
 
 /******************************************************************************
  *
@@ -36,7 +36,6 @@
 
 #include "btif/include/btif_config.h"
 #include "btif/include/stack_manager_t.h"
-#include "common/init_flags.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
@@ -49,6 +48,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/include/stack_metrics_logging.h"
 #include "stack/sdp/internal/sdp_api.h"
@@ -60,14 +60,12 @@
 using bluetooth::Uuid;
 using namespace bluetooth;
 
-static const uint8_t sdp_base_uuid[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                        0x10, 0x00, 0x80, 0x00, 0x00, 0x80,
-                                        0x5F, 0x9B, 0x34, 0xFB};
+static const uint8_t sdp_base_uuid[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+                                        0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB};
 
 template <typename T>
 static std::array<char, sizeof(T)> to_little_endian_array(T x) {
-  static_assert(std::is_integral<T>::value,
-                "to_little_endian_array parameter must be integral.");
+  static_assert(std::is_integral<T>::value, "to_little_endian_array parameter must be integral.");
   std::array<char, sizeof(T)> array = {};
   for (size_t i = 0; i < array.size(); i++) {
     array[i] = static_cast<char>((x >> (8 * i)) & 0xFF);
@@ -82,8 +80,7 @@ static std::array<char, sizeof(T)> to_little_endian_array(T x) {
  * @param p_rec SDP record to search
  * @return a vector of <UUID, VERSION> pairs, empty if not found
  */
-static std::vector<std::pair<uint16_t, uint16_t>> sdpu_find_profile_version(
-    tSDP_DISC_REC* p_rec) {
+static std::vector<std::pair<uint16_t, uint16_t>> sdpu_find_profile_version(tSDP_DISC_REC* p_rec) {
   std::vector<std::pair<uint16_t, uint16_t>> result;
   for (tSDP_DISC_ATTR* p_attr = p_rec->p_first_attr; p_attr != nullptr;
        p_attr = p_attr->p_next_attr) {
@@ -93,18 +90,17 @@ static std::vector<std::pair<uint16_t, uint16_t>> sdpu_find_profile_version(
       continue;
     }
     // Walk through the protocol descriptor list
-    for (tSDP_DISC_ATTR* p_sattr = p_attr->attr_value.v.p_sub_attr;
-         p_sattr != nullptr; p_sattr = p_sattr->p_next_attr) {
+    for (tSDP_DISC_ATTR* p_sattr = p_attr->attr_value.v.p_sub_attr; p_sattr != nullptr;
+         p_sattr = p_sattr->p_next_attr) {
       // Safety check - each entry should itself be a sequence
-      if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) !=
-          DATA_ELE_SEQ_DESC_TYPE) {
+      if (SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type) != DATA_ELE_SEQ_DESC_TYPE) {
         log::warn("Descriptor type is not sequence: 0x{:x}",
                   SDP_DISC_ATTR_TYPE(p_sattr->attr_len_type));
         return std::vector<std::pair<uint16_t, uint16_t>>();
       }
       // Now, see if the entry contains the profile UUID we are interested in
-      for (tSDP_DISC_ATTR* p_ssattr = p_sattr->attr_value.v.p_sub_attr;
-           p_ssattr != nullptr; p_ssattr = p_ssattr->p_next_attr) {
+      for (tSDP_DISC_ATTR* p_ssattr = p_sattr->attr_value.v.p_sub_attr; p_ssattr != nullptr;
+           p_ssattr = p_ssattr->p_next_attr) {
         if (SDP_DISC_ATTR_TYPE(p_ssattr->attr_len_type) != UUID_DESC_TYPE ||
             SDP_DISC_ATTR_LEN(p_ssattr->attr_len_type) != 2) {
           continue;
@@ -152,17 +148,13 @@ static uint16_t sdpu_find_most_specific_service_uuid(tSDP_DISC_REC* p_rec) {
       if (SDP_DISC_ATTR_TYPE(p_first_attr->attr_len_type) == UUID_DESC_TYPE &&
           SDP_DISC_ATTR_LEN(p_first_attr->attr_len_type) == 2) {
         return p_first_attr->attr_value.v.u16;
-      } else if (SDP_DISC_ATTR_TYPE(p_first_attr->attr_len_type) ==
-                 DATA_ELE_SEQ_DESC_TYPE) {
+      } else if (SDP_DISC_ATTR_TYPE(p_first_attr->attr_len_type) == DATA_ELE_SEQ_DESC_TYPE) {
         // Workaround for Toyota G Block car kit:
         // It incorrectly puts an extra data element sequence in this attribute
-        for (tSDP_DISC_ATTR* p_extra_sattr =
-                 p_first_attr->attr_value.v.p_sub_attr;
-             p_extra_sattr != nullptr;
-             p_extra_sattr = p_extra_sattr->p_next_attr) {
+        for (tSDP_DISC_ATTR* p_extra_sattr = p_first_attr->attr_value.v.p_sub_attr;
+             p_extra_sattr != nullptr; p_extra_sattr = p_extra_sattr->p_next_attr) {
           // Return the first UUID data element
-          if (SDP_DISC_ATTR_TYPE(p_extra_sattr->attr_len_type) ==
-                  UUID_DESC_TYPE &&
+          if (SDP_DISC_ATTR_TYPE(p_extra_sattr->attr_len_type) == UUID_DESC_TYPE &&
               SDP_DISC_ATTR_LEN(p_extra_sattr->attr_len_type) == 2) {
             return p_extra_sattr->attr_value.v.u16;
           }
@@ -181,12 +173,10 @@ static uint16_t sdpu_find_most_specific_service_uuid(tSDP_DISC_REC* p_rec) {
   return 0;
 }
 
-void sdpu_log_attribute_metrics(const RawAddress& bda,
-                                tSDP_DISCOVERY_DB* p_db) {
+void sdpu_log_attribute_metrics(const RawAddress& bda, tSDP_DISCOVERY_DB* p_db) {
   log::assert_that(p_db != nullptr, "assert failed: p_db != nullptr");
   bool has_di_record = false;
-  for (tSDP_DISC_REC* p_rec = p_db->p_first_rec; p_rec != nullptr;
-       p_rec = p_rec->p_next_rec) {
+  for (tSDP_DISC_REC* p_rec = p_db->p_first_rec; p_rec != nullptr; p_rec = p_rec->p_next_rec) {
     uint16_t service_uuid = sdpu_find_most_specific_service_uuid(p_rec);
     if (service_uuid == 0) {
       log::info("skipping record without service uuid {}", bda);
@@ -201,8 +191,8 @@ void sdpu_log_attribute_metrics(const RawAddress& bda,
       uint16_t profile_uuid = uuid_version_pair.first;
       uint16_t version = uuid_version_pair.second;
       auto version_array = to_little_endian_array(version);
-      log_sdp_attribute(bda, profile_uuid, ATTR_ID_BT_PROFILE_DESC_LIST,
-                        version_array.size(), version_array.data());
+      log_sdp_attribute(bda, profile_uuid, ATTR_ID_BT_PROFILE_DESC_LIST, version_array.size(),
+                        version_array.data());
     }
     // Log protocol version from Protocol Descriptor List
     uint16_t protocol_uuid = 0;
@@ -223,13 +213,12 @@ void sdpu_log_attribute_metrics(const RawAddress& bda,
     }
     if (protocol_uuid != 0) {
       tSDP_PROTOCOL_ELEM protocol_elements = {};
-      if (SDP_FindProtocolListElemInRec(p_rec, protocol_uuid,
-                                        &protocol_elements)) {
+      if (SDP_FindProtocolListElemInRec(p_rec, protocol_uuid, &protocol_elements)) {
         if (protocol_elements.num_params >= 1) {
           uint16_t version = protocol_elements.params[0];
           auto version_array = to_little_endian_array(version);
-          log_sdp_attribute(bda, protocol_uuid, ATTR_ID_PROTOCOL_DESC_LIST,
-                            version_array.size(), version_array.data());
+          log_sdp_attribute(bda, protocol_uuid, ATTR_ID_PROTOCOL_DESC_LIST, version_array.size(),
+                            version_array.data());
         }
       }
     }
@@ -242,47 +231,41 @@ void sdpu_log_attribute_metrics(const RawAddress& bda,
       case UUID_SERVCLASS_AV_REM_CTRL_TARGET:
       case UUID_SERVCLASS_AUDIO_SOURCE:
       case UUID_SERVCLASS_AUDIO_SINK: {
-        tSDP_DISC_ATTR* p_attr =
-            SDP_FindAttributeInRec(p_rec, ATTR_ID_SUPPORTED_FEATURES);
-        if (p_attr == nullptr ||
-            SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != UINT_DESC_TYPE ||
+        tSDP_DISC_ATTR* p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_SUPPORTED_FEATURES);
+        if (p_attr == nullptr || SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != UINT_DESC_TYPE ||
             SDP_DISC_ATTR_LEN(p_attr->attr_len_type) < 2) {
           break;
         }
         uint16_t supported_features = p_attr->attr_value.v.u16;
         auto version_array = to_little_endian_array(supported_features);
-        log_sdp_attribute(bda, service_uuid, ATTR_ID_SUPPORTED_FEATURES,
-                          version_array.size(), version_array.data());
+        log_sdp_attribute(bda, service_uuid, ATTR_ID_SUPPORTED_FEATURES, version_array.size(),
+                          version_array.data());
         break;
       }
       case UUID_SERVCLASS_MESSAGE_NOTIFICATION:
       case UUID_SERVCLASS_MESSAGE_ACCESS: {
-        tSDP_DISC_ATTR* p_attr =
-            SDP_FindAttributeInRec(p_rec, ATTR_ID_MAP_SUPPORTED_FEATURES);
-        if (p_attr == nullptr ||
-            SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != UINT_DESC_TYPE ||
+        tSDP_DISC_ATTR* p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_MAP_SUPPORTED_FEATURES);
+        if (p_attr == nullptr || SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != UINT_DESC_TYPE ||
             SDP_DISC_ATTR_LEN(p_attr->attr_len_type) < 4) {
           break;
         }
         uint32_t map_supported_features = p_attr->attr_value.v.u32;
         auto features_array = to_little_endian_array(map_supported_features);
-        log_sdp_attribute(bda, service_uuid, ATTR_ID_MAP_SUPPORTED_FEATURES,
-                          features_array.size(), features_array.data());
+        log_sdp_attribute(bda, service_uuid, ATTR_ID_MAP_SUPPORTED_FEATURES, features_array.size(),
+                          features_array.data());
         break;
       }
       case UUID_SERVCLASS_PBAP_PCE:
       case UUID_SERVCLASS_PBAP_PSE: {
-        tSDP_DISC_ATTR* p_attr =
-            SDP_FindAttributeInRec(p_rec, ATTR_ID_PBAP_SUPPORTED_FEATURES);
-        if (p_attr == nullptr ||
-            SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != UINT_DESC_TYPE ||
+        tSDP_DISC_ATTR* p_attr = SDP_FindAttributeInRec(p_rec, ATTR_ID_PBAP_SUPPORTED_FEATURES);
+        if (p_attr == nullptr || SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) != UINT_DESC_TYPE ||
             SDP_DISC_ATTR_LEN(p_attr->attr_len_type) < 4) {
           break;
         }
         uint32_t pbap_supported_features = p_attr->attr_value.v.u32;
         auto features_array = to_little_endian_array(pbap_supported_features);
-        log_sdp_attribute(bda, service_uuid, ATTR_ID_PBAP_SUPPORTED_FEATURES,
-                          features_array.size(), features_array.data());
+        log_sdp_attribute(bda, service_uuid, ATTR_ID_PBAP_SUPPORTED_FEATURES, features_array.size(),
+                          features_array.data());
         break;
       }
     }
@@ -293,28 +276,23 @@ void sdpu_log_attribute_metrics(const RawAddress& bda,
   // Log the first DI record if there is one
   if (has_di_record) {
     tSDP_DI_GET_RECORD di_record = {};
-    if (SDP_GetDiRecord(1, &di_record, p_db) == SDP_SUCCESS) {
+    if (SDP_GetDiRecord(1, &di_record, p_db) == tSDP_STATUS::SDP_SUCCESS) {
       auto version_array = to_little_endian_array(di_record.spec_id);
-      log_sdp_attribute(bda, UUID_SERVCLASS_PNP_INFORMATION,
-                        ATTR_ID_SPECIFICATION_ID, version_array.size(),
-                        version_array.data());
+      log_sdp_attribute(bda, UUID_SERVCLASS_PNP_INFORMATION, ATTR_ID_SPECIFICATION_ID,
+                        version_array.size(), version_array.data());
       std::stringstream ss;
       // [N - native]::SDP::[DIP - Device ID Profile]
       ss << "N:SDP::DIP::" << loghex(di_record.rec.vendor_id_source);
-      log_manufacturer_info(
-          bda, android::bluetooth::AddressTypeEnum::ADDRESS_TYPE_PUBLIC,
-          android::bluetooth::DeviceInfoSrcEnum::DEVICE_INFO_INTERNAL, ss.str(),
-          loghex(di_record.rec.vendor), loghex(di_record.rec.product),
-          loghex(di_record.rec.version), "");
+      log_manufacturer_info(bda, android::bluetooth::AddressTypeEnum::ADDRESS_TYPE_PUBLIC,
+                            android::bluetooth::DeviceInfoSrcEnum::DEVICE_INFO_INTERNAL, ss.str(),
+                            loghex(di_record.rec.vendor), loghex(di_record.rec.product),
+                            loghex(di_record.rec.version), "");
 
       std::string bda_string = bda.ToString();
       // write manufacturer, model, HW version to config
-      btif_config_set_int(bda_string, BTIF_STORAGE_KEY_SDP_DI_MANUFACTURER,
-                          di_record.rec.vendor);
-      btif_config_set_int(bda_string, BTIF_STORAGE_KEY_SDP_DI_MODEL,
-                          di_record.rec.product);
-      btif_config_set_int(bda_string, BTIF_STORAGE_KEY_SDP_DI_HW_VERSION,
-                          di_record.rec.version);
+      btif_config_set_int(bda_string, BTIF_STORAGE_KEY_SDP_DI_MANUFACTURER, di_record.rec.vendor);
+      btif_config_set_int(bda_string, BTIF_STORAGE_KEY_SDP_DI_MODEL, di_record.rec.product);
+      btif_config_set_int(bda_string, BTIF_STORAGE_KEY_SDP_DI_HW_VERSION, di_record.rec.version);
       btif_config_set_int(bda_string, BTIF_STORAGE_KEY_SDP_DI_VENDOR_ID_SRC,
                           di_record.rec.vendor_id_source);
     }
@@ -333,19 +311,18 @@ void sdpu_log_attribute_metrics(const RawAddress& bda,
  ******************************************************************************/
 tCONN_CB* sdpu_find_ccb_by_cid(uint16_t cid) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   /* Look through each connection control block */
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
-    if ((p_ccb->con_state != SDP_STATE_IDLE) &&
-        (p_ccb->con_state != SDP_STATE_CONN_PEND) &&
+    if ((p_ccb->con_state != tSDP_STATE::IDLE) && (p_ccb->con_state != tSDP_STATE::CONN_PEND) &&
         (p_ccb->connection_id == cid)) {
-      return (p_ccb);
+      return p_ccb;
     }
   }
 
   /* If here, not found */
-  return (NULL);
+  return NULL;
 }
 
 /*******************************************************************************
@@ -360,17 +337,18 @@ tCONN_CB* sdpu_find_ccb_by_cid(uint16_t cid) {
  ******************************************************************************/
 tCONN_CB* sdpu_find_ccb_by_db(const tSDP_DISCOVERY_DB* p_db) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   if (p_db) {
     /* Look through each connection control block */
     for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
-      if ((p_ccb->con_state != SDP_STATE_IDLE) && (p_ccb->p_db == p_db))
-        return (p_ccb);
+      if ((p_ccb->con_state != tSDP_STATE::IDLE) && (p_ccb->p_db == p_db)) {
+        return p_ccb;
+      }
     }
   }
   /* If here, not found */
-  return (NULL);
+  return NULL;
 }
 
 /*******************************************************************************
@@ -384,20 +362,20 @@ tCONN_CB* sdpu_find_ccb_by_db(const tSDP_DISCOVERY_DB* p_db) {
  ******************************************************************************/
 tCONN_CB* sdpu_allocate_ccb(void) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   /* Look through each connection control block for a free one */
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
-    if (p_ccb->con_state == SDP_STATE_IDLE) {
+    if (p_ccb->con_state == tSDP_STATE::IDLE) {
       alarm_t* alarm = p_ccb->sdp_conn_timer;
       *p_ccb = {};
       p_ccb->sdp_conn_timer = alarm;
-      return (p_ccb);
+      return p_ccb;
     }
   }
 
   /* If here, no free CCB found */
-  return (NULL);
+  return NULL;
 }
 
 /*******************************************************************************
@@ -409,7 +387,7 @@ tCONN_CB* sdpu_allocate_ccb(void) {
  * Returns          void
  *
  ******************************************************************************/
-void sdpu_callback(tCONN_CB& ccb, tSDP_REASON reason) {
+void sdpu_callback(const tCONN_CB& ccb, tSDP_REASON reason) {
   if (ccb.p_cb) {
     (ccb.p_cb)(ccb.device_address, reason);
   } else if (ccb.complete_callback) {
@@ -431,12 +409,33 @@ void sdpu_release_ccb(tCONN_CB& ccb) {
   alarm_cancel(ccb.sdp_conn_timer);
 
   /* Drop any response pointer we may be holding */
-  ccb.con_state = SDP_STATE_IDLE;
+  ccb.con_state = tSDP_STATE::IDLE;
   ccb.is_attr_search = false;
 
   /* Free the response buffer */
-  if (ccb.rsp_list) log::verbose("releasing SDP rsp_list");
-  osi_free_and_reset((void**)&ccb.rsp_list);
+  if (ccb.rsp_list) {
+    log::verbose("releasing SDP rsp_list");
+  }
+  osi_free_and_reset(reinterpret_cast<void**>(&ccb.rsp_list));
+}
+
+/*******************************************************************************
+ *
+ * Function         sdpu_dump_all_ccb
+ *
+ * Description      Dump relevant data for all control blocks.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void sdpu_dump_all_ccb() {
+  uint16_t xx{};
+  tCONN_CB* p_ccb{};
+
+  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+    log::info("peer:{} cid:{} state:{} flags:{} ", p_ccb->device_address, p_ccb->connection_id,
+              sdp_state_text(p_ccb->con_state), sdp_flags_text(p_ccb->con_flags));
+  }
 }
 
 /*******************************************************************************
@@ -453,15 +452,14 @@ void sdpu_release_ccb(tCONN_CB& ccb) {
  ******************************************************************************/
 uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   // Look through each connection control block for active sdp on given remote
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
-    if ((p_ccb->con_state == SDP_STATE_CONN_SETUP) ||
-        (p_ccb->con_state == SDP_STATE_CFG_SETUP) ||
-        (p_ccb->con_state == SDP_STATE_CONNECTED)) {
-      if (p_ccb->con_flags & SDP_FLAGS_IS_ORIG &&
-          p_ccb->device_address == bd_addr) {
+    if ((p_ccb->con_state == tSDP_STATE::CONN_SETUP) ||
+        (p_ccb->con_state == tSDP_STATE::CFG_SETUP) ||
+        (p_ccb->con_state == tSDP_STATE::CONNECTED)) {
+      if (p_ccb->con_flags & SDP_FLAGS_IS_ORIG && p_ccb->device_address == bd_addr) {
         return p_ccb->connection_id;
       }
     }
@@ -483,16 +481,15 @@ uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr) {
  * Returns          returns true if any pending ccb, else false.
  *
  ******************************************************************************/
-bool sdpu_process_pend_ccb_same_cid(tCONN_CB& ccb) {
+bool sdpu_process_pend_ccb_same_cid(const tCONN_CB& ccb) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   // Look through each connection control block for active sdp on given remote
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
-    if ((p_ccb->con_state == SDP_STATE_CONN_PEND) &&
-        (p_ccb->connection_id == ccb.connection_id) &&
-        (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
-      p_ccb->con_state = SDP_STATE_CONNECTED;
+    if ((p_ccb->con_state == tSDP_STATE::CONN_PEND) &&
+        (p_ccb->connection_id == ccb.connection_id) && (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
+      p_ccb->con_state = tSDP_STATE::CONNECTED;
       sdp_disc_connected(p_ccb);
       return true;
     }
@@ -513,22 +510,21 @@ bool sdpu_process_pend_ccb_same_cid(tCONN_CB& ccb) {
  * Returns          returns true if any pending ccb, else false.
  *
  ******************************************************************************/
-bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb) {
+bool sdpu_process_pend_ccb_new_cid(const tCONN_CB& ccb) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
   uint16_t new_cid = 0;
   bool new_conn = false;
 
   // Look through each ccb to replace the obsolete cid with a new one.
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
-    if ((p_ccb->con_state == SDP_STATE_CONN_PEND) &&
-        (p_ccb->connection_id == ccb.connection_id) &&
-        (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
+    if ((p_ccb->con_state == tSDP_STATE::CONN_PEND) &&
+        (p_ccb->connection_id == ccb.connection_id) && (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
       if (!new_conn) {
         // Only change state of the first ccb
-        p_ccb->con_state = SDP_STATE_CONN_SETUP;
-        new_cid = L2CA_ConnectReqWithSecurity(BT_PSM_SDP, p_ccb->device_address,
-                                              BTM_SEC_NONE);
+        p_ccb->con_state = tSDP_STATE::CONN_SETUP;
+        new_cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+                BT_PSM_SDP, p_ccb->device_address, BTM_SEC_NONE);
         new_conn = true;
       }
       // Check if L2CAP started the connection process
@@ -536,7 +532,7 @@ bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb) {
         // update alls cid to the new one for future reference
         p_ccb->connection_id = new_cid;
       } else {
-        sdpu_callback(*p_ccb, SDP_CONN_FAILED);
+        sdpu_callback(*p_ccb, tSDP_STATUS::SDP_CONN_FAILED);
         sdpu_release_ccb(*p_ccb);
       }
     }
@@ -555,16 +551,15 @@ bool sdpu_process_pend_ccb_new_cid(tCONN_CB& ccb) {
  * Returns          returns none.
  *
  ******************************************************************************/
-void sdpu_clear_pend_ccb(tCONN_CB& ccb) {
+void sdpu_clear_pend_ccb(const tCONN_CB& ccb) {
   uint16_t xx;
-  tCONN_CB* p_ccb;
+  tCONN_CB* p_ccb{};
 
   // Look through each connection control block for active sdp on given remote
   for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
-    if ((p_ccb->con_state == SDP_STATE_CONN_PEND) &&
-        (p_ccb->connection_id == ccb.connection_id) &&
-        (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
-      sdpu_callback(*p_ccb, SDP_CONN_FAILED);
+    if ((p_ccb->con_state == tSDP_STATE::CONN_PEND) &&
+        (p_ccb->connection_id == ccb.connection_id) && (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
+      sdpu_callback(*p_ccb, tSDP_STATUS::SDP_CONN_FAILED);
       sdpu_release_ccb(*p_ccb);
     }
   }
@@ -582,24 +577,22 @@ void sdpu_clear_pend_ccb(tCONN_CB& ccb) {
  * Returns          Pointer to next byte in the output buffer.
  *
  ******************************************************************************/
-uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr,
-                               uint16_t num_attrs) {
+uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr, uint16_t num_attrs) {
   uint16_t xx;
 
   /* First thing is the data element header. See if the length fits 1 byte */
   /* If no attributes, assume a 4-byte wildcard */
-  if (!p_attr)
+  if (!p_attr) {
     xx = 5;
-  else
+  } else {
     xx = num_attrs * 3;
+  }
 
   if (xx > 255) {
-    UINT8_TO_BE_STREAM(p_out,
-                       (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_WORD);
+    UINT8_TO_BE_STREAM(p_out, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_WORD);
     UINT16_TO_BE_STREAM(p_out, xx);
   } else {
-    UINT8_TO_BE_STREAM(p_out,
-                       (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
+    UINT8_TO_BE_STREAM(p_out, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
     UINT8_TO_BE_STREAM(p_out, xx);
   }
 
@@ -616,7 +609,7 @@ uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr,
     }
   }
 
-  return (p_out);
+  return p_out;
 }
 
 /*******************************************************************************
@@ -649,7 +642,7 @@ uint8_t* sdpu_build_attrib_entry(uint8_t* p_out, const tSDP_ATTRIBUTE* p_attr) {
       } else
 #endif /* 0xFFFF - 0xFF */
 #if (SDP_MAX_ATTR_LEN > 0xFF)
-          if (p_attr->len > 0xFF) {
+              if (p_attr->len > 0xFF) {
         UINT8_TO_BE_STREAM(p_out, (p_attr->type << 3) | SIZE_IN_NEXT_WORD);
         UINT16_TO_BE_STREAM(p_out, p_attr->len);
       } else
@@ -663,7 +656,7 @@ uint8_t* sdpu_build_attrib_entry(uint8_t* p_out, const tSDP_ATTRIBUTE* p_attr) {
         ARRAY_TO_BE_STREAM(p_out, p_attr->value_ptr, (int)p_attr->len);
       }
 
-      return (p_out);
+      return p_out;
   }
 
   /* Now, store the attribute value */
@@ -693,7 +686,7 @@ uint8_t* sdpu_build_attrib_entry(uint8_t* p_out, const tSDP_ATTRIBUTE* p_attr) {
     ARRAY_TO_BE_STREAM(p_out, p_attr->value_ptr, (int)p_attr->len);
   }
 
-  return (p_out);
+  return p_out;
 }
 
 /*******************************************************************************
@@ -705,18 +698,18 @@ uint8_t* sdpu_build_attrib_entry(uint8_t* p_out, const tSDP_ATTRIBUTE* p_attr) {
  * Returns          void
  *
  ******************************************************************************/
-void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num,
-                             uint16_t error_code, char* p_error_text) {
+void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num, tSDP_STATUS error_code,
+                             char* p_error_text) {
   uint8_t *p_rsp, *p_rsp_start, *p_rsp_param_len;
   uint16_t rsp_param_len;
-  BT_HDR* p_buf = (BT_HDR*)osi_malloc(SDP_DATA_BUF_SIZE);
+  BT_HDR* p_buf = reinterpret_cast<BT_HDR*>(osi_malloc(SDP_DATA_BUF_SIZE));
 
-  log::warn("SDP - sdpu_build_n_send_error  code: 0x{:x}  CID: 0x{:x}",
-            error_code, p_ccb->connection_id);
+  log::warn("SDP - sdpu_build_n_send_error  code: 0x{:x}  CID: 0x{:x}", error_code,
+            p_ccb->connection_id);
 
   /* Send the packet to L2CAP */
   p_buf->offset = L2CAP_MIN_OFFSET;
-  p_rsp = p_rsp_start = (uint8_t*)(p_buf + 1) + L2CAP_MIN_OFFSET;
+  p_rsp = p_rsp_start = reinterpret_cast<uint8_t*>(p_buf + 1) + L2CAP_MIN_OFFSET;
 
   UINT8_TO_BE_STREAM(p_rsp, SDP_PDU_ERROR_RESPONSE);
   UINT16_TO_BE_STREAM(p_rsp, trans_num);
@@ -725,11 +718,13 @@ void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num,
   p_rsp_param_len = p_rsp;
   p_rsp += 2;
 
-  UINT16_TO_BE_STREAM(p_rsp, error_code);
+  const uint16_t response = static_cast<uint16_t>(error_code);
+  UINT16_TO_BE_STREAM(p_rsp, response);
 
   /* Unplugfest example traces do not have any error text */
-  if (p_error_text)
+  if (p_error_text) {
     ARRAY_TO_BE_STREAM(p_rsp, p_error_text, (int)strlen(p_error_text));
+  }
 
   /* Go back and put the parameter length into the buffer */
   rsp_param_len = p_rsp - p_rsp_param_len - 2;
@@ -739,7 +734,8 @@ void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num,
   p_buf->len = p_rsp - p_rsp_start;
 
   /* Send the buffer through L2CAP */
-  if (L2CA_DataWrite(p_ccb->connection_id, p_buf) != L2CAP_DW_SUCCESS) {
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data cid:{}", p_ccb->connection_id);
   }
 }
@@ -754,8 +750,7 @@ void sdpu_build_n_send_error(tCONN_CB* p_ccb, uint16_t trans_num,
  * Returns          Pointer to next byte in the input buffer after the sequence.
  *
  ******************************************************************************/
-uint8_t* sdpu_extract_uid_seq(uint8_t* p, uint16_t param_len,
-                              tSDP_UUID_SEQ* p_seq) {
+uint8_t* sdpu_extract_uid_seq(uint8_t* p, uint16_t param_len, tSDP_UUID_SEQ* p_seq) {
   uint8_t* p_seq_end;
   uint8_t descr, type, size;
   uint32_t seq_len, uuid_len;
@@ -764,14 +759,18 @@ uint8_t* sdpu_extract_uid_seq(uint8_t* p, uint16_t param_len,
   p_seq->num_uids = 0;
 
   /* A UID sequence is composed of a bunch of UIDs. */
-  if (sizeof(descr) > param_len) return (NULL);
+  if (sizeof(descr) > param_len) {
+    return NULL;
+  }
   param_len -= sizeof(descr);
 
   BE_STREAM_TO_UINT8(descr, p);
   type = descr >> 3;
   size = descr & 7;
 
-  if (type != DATA_ELE_SEQ_DESC_TYPE) return (NULL);
+  if (type != DATA_ELE_SEQ_DESC_TYPE) {
+    return NULL;
+  }
 
   switch (size) {
     case SIZE_TWO_BYTES:
@@ -784,25 +783,33 @@ uint8_t* sdpu_extract_uid_seq(uint8_t* p, uint16_t param_len,
       seq_len = 16;
       break;
     case SIZE_IN_NEXT_BYTE:
-      if (sizeof(uint8_t) > param_len) return (NULL);
+      if (sizeof(uint8_t) > param_len) {
+        return NULL;
+      }
       param_len -= sizeof(uint8_t);
       BE_STREAM_TO_UINT8(seq_len, p);
       break;
     case SIZE_IN_NEXT_WORD:
-      if (sizeof(uint16_t) > param_len) return (NULL);
+      if (sizeof(uint16_t) > param_len) {
+        return NULL;
+      }
       param_len -= sizeof(uint16_t);
       BE_STREAM_TO_UINT16(seq_len, p);
       break;
     case SIZE_IN_NEXT_LONG:
-      if (sizeof(uint32_t) > param_len) return (NULL);
+      if (sizeof(uint32_t) > param_len) {
+        return NULL;
+      }
       param_len -= sizeof(uint32_t);
       BE_STREAM_TO_UINT32(seq_len, p);
       break;
     default:
-      return (NULL);
+      return NULL;
   }
 
-  if (seq_len > param_len) return (NULL);
+  if (seq_len > param_len) {
+    return NULL;
+  }
 
   p_seq_end = p + seq_len;
 
@@ -812,7 +819,9 @@ uint8_t* sdpu_extract_uid_seq(uint8_t* p, uint16_t param_len,
     type = descr >> 3;
     size = descr & 7;
 
-    if (type != UUID_DESC_TYPE) return (NULL);
+    if (type != UUID_DESC_TYPE) {
+      return NULL;
+    }
 
     switch (size) {
       case SIZE_TWO_BYTES:
@@ -825,38 +834,47 @@ uint8_t* sdpu_extract_uid_seq(uint8_t* p, uint16_t param_len,
         uuid_len = 16;
         break;
       case SIZE_IN_NEXT_BYTE:
-        if (p + sizeof(uint8_t) > p_seq_end) return NULL;
+        if (p + sizeof(uint8_t) > p_seq_end) {
+          return NULL;
+        }
         BE_STREAM_TO_UINT8(uuid_len, p);
         break;
       case SIZE_IN_NEXT_WORD:
-        if (p + sizeof(uint16_t) > p_seq_end) return NULL;
+        if (p + sizeof(uint16_t) > p_seq_end) {
+          return NULL;
+        }
         BE_STREAM_TO_UINT16(uuid_len, p);
         break;
       case SIZE_IN_NEXT_LONG:
-        if (p + sizeof(uint32_t) > p_seq_end) return NULL;
+        if (p + sizeof(uint32_t) > p_seq_end) {
+          return NULL;
+        }
         BE_STREAM_TO_UINT32(uuid_len, p);
         break;
       default:
-        return (NULL);
+        return NULL;
     }
 
     /* If UUID length is valid, copy it across */
-    if (((uuid_len == 2) || (uuid_len == 4) || (uuid_len == 16)) &&
-        (p + uuid_len <= p_seq_end)) {
+    if (((uuid_len == 2) || (uuid_len == 4) || (uuid_len == 16)) && (p + uuid_len <= p_seq_end)) {
       p_seq->uuid_entry[p_seq->num_uids].len = (uint16_t)uuid_len;
-      BE_STREAM_TO_ARRAY(p, p_seq->uuid_entry[p_seq->num_uids].value,
-                         (int)uuid_len);
+      BE_STREAM_TO_ARRAY(p, p_seq->uuid_entry[p_seq->num_uids].value, (int)uuid_len);
       p_seq->num_uids++;
-    } else
-      return (NULL);
+    } else {
+      return NULL;
+    }
 
     /* We can only do so many */
-    if (p_seq->num_uids >= MAX_UUIDS_PER_SEQ) return (NULL);
+    if (p_seq->num_uids >= MAX_UUIDS_PER_SEQ) {
+      return NULL;
+    }
   }
 
-  if (p != p_seq_end) return (NULL);
+  if (p != p_seq_end) {
+    return NULL;
+  }
 
-  return (p);
+  return p;
 }
 
 /*******************************************************************************
@@ -869,8 +887,7 @@ uint8_t* sdpu_extract_uid_seq(uint8_t* p, uint16_t param_len,
  * Returns          Pointer to next byte in the input buffer after the sequence.
  *
  ******************************************************************************/
-uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
-                               tSDP_ATTR_SEQ* p_seq) {
+uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len, tSDP_ATTR_SEQ* p_seq) {
   uint8_t* p_end_list;
   uint8_t descr, type, size;
   uint32_t list_len, attr_len;
@@ -879,29 +896,39 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
   p_seq->num_attr = 0;
 
   /* Get attribute sequence info */
-  if (param_len < sizeof(descr)) return NULL;
+  if (param_len < sizeof(descr)) {
+    return NULL;
+  }
   param_len -= sizeof(descr);
   BE_STREAM_TO_UINT8(descr, p);
   type = descr >> 3;
   size = descr & 7;
 
-  if (type != DATA_ELE_SEQ_DESC_TYPE) return NULL;
+  if (type != DATA_ELE_SEQ_DESC_TYPE) {
+    return NULL;
+  }
 
   switch (size) {
     case SIZE_IN_NEXT_BYTE:
-      if (param_len < sizeof(uint8_t)) return NULL;
+      if (param_len < sizeof(uint8_t)) {
+        return NULL;
+      }
       param_len -= sizeof(uint8_t);
       BE_STREAM_TO_UINT8(list_len, p);
       break;
 
     case SIZE_IN_NEXT_WORD:
-      if (param_len < sizeof(uint16_t)) return NULL;
+      if (param_len < sizeof(uint16_t)) {
+        return NULL;
+      }
       param_len -= sizeof(uint16_t);
       BE_STREAM_TO_UINT16(list_len, p);
       break;
 
     case SIZE_IN_NEXT_LONG:
-      if (param_len < sizeof(uint32_t)) return NULL;
+      if (param_len < sizeof(uint32_t)) {
+        return NULL;
+      }
       param_len -= sizeof(uint32_t);
       BE_STREAM_TO_UINT32(list_len, p);
       break;
@@ -910,7 +937,9 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
       return NULL;
   }
 
-  if (list_len > param_len) return NULL;
+  if (list_len > param_len) {
+    return NULL;
+  }
 
   p_end_list = p + list_len;
 
@@ -920,7 +949,9 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
     type = descr >> 3;
     size = descr & 7;
 
-    if (type != UINT_DESC_TYPE) return NULL;
+    if (type != UINT_DESC_TYPE) {
+      return NULL;
+    }
 
     switch (size) {
       case SIZE_TWO_BYTES:
@@ -930,15 +961,21 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
         attr_len = 4;
         break;
       case SIZE_IN_NEXT_BYTE:
-        if (p + sizeof(uint8_t) > p_end_list) return NULL;
+        if (p + sizeof(uint8_t) > p_end_list) {
+          return NULL;
+        }
         BE_STREAM_TO_UINT8(attr_len, p);
         break;
       case SIZE_IN_NEXT_WORD:
-        if (p + sizeof(uint16_t) > p_end_list) return NULL;
+        if (p + sizeof(uint16_t) > p_end_list) {
+          return NULL;
+        }
         BE_STREAM_TO_UINT16(attr_len, p);
         break;
       case SIZE_IN_NEXT_LONG:
-        if (p + sizeof(uint32_t) > p_end_list) return NULL;
+        if (p + sizeof(uint32_t) > p_end_list) {
+          return NULL;
+        }
         BE_STREAM_TO_UINT32(attr_len, p);
         break;
       default:
@@ -947,22 +984,26 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
     }
 
     /* Attribute length must be 2-bytes or 4-bytes for a paired entry. */
-    if (p + attr_len > p_end_list) return NULL;
+    if (p + attr_len > p_end_list) {
+      return NULL;
+    }
     if (attr_len == 2) {
       BE_STREAM_TO_UINT16(p_seq->attr_entry[p_seq->num_attr].start, p);
-      p_seq->attr_entry[p_seq->num_attr].end =
-          p_seq->attr_entry[p_seq->num_attr].start;
+      p_seq->attr_entry[p_seq->num_attr].end = p_seq->attr_entry[p_seq->num_attr].start;
     } else if (attr_len == 4) {
       BE_STREAM_TO_UINT16(p_seq->attr_entry[p_seq->num_attr].start, p);
       BE_STREAM_TO_UINT16(p_seq->attr_entry[p_seq->num_attr].end, p);
-    } else
-      return (NULL);
+    } else {
+      return NULL;
+    }
 
     /* We can only do so many */
-    if (++p_seq->num_attr >= MAX_ATTR_PER_SEQ) return (NULL);
+    if (++p_seq->num_attr >= MAX_ATTR_PER_SEQ) {
+      return NULL;
+    }
   }
 
-  return (p);
+  return p;
 }
 
 /*******************************************************************************
@@ -980,16 +1021,14 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len,
  * @return          pointer to the start of the data or nullptr on failure
  *
  ******************************************************************************/
-uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type,
-                                uint32_t* p_len) {
+uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type, uint32_t* p_len) {
   uint8_t u8;
   uint16_t u16;
   uint32_t u32;
 
   switch (type & 7) {
     case SIZE_ONE_BYTE:
-      if (com::android::bluetooth::flags::
-              stack_sdp_detect_nil_property_type()) {
+      if (com::android::bluetooth::flags::stack_sdp_detect_nil_property_type()) {
         // Return NIL type if appropriate
         *p_len = (type == 0) ? 0 : sizeof(uint8_t);
       } else {
@@ -1034,7 +1073,7 @@ uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type,
       break;
   }
 
-  return (p);
+  return p;
 }
 
 /*******************************************************************************
@@ -1050,11 +1089,14 @@ uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type,
 bool sdpu_is_base_uuid(uint8_t* p_uuid) {
   uint16_t xx;
 
-  for (xx = 4; xx < Uuid::kNumBytes128; xx++)
-    if (p_uuid[xx] != sdp_base_uuid[xx]) return (false);
+  for (xx = 4; xx < Uuid::kNumBytes128; xx++) {
+    if (p_uuid[xx] != sdp_base_uuid[xx]) {
+      return false;
+    }
+  }
 
   /* If here, matched */
-  return (true);
+  return true;
 }
 
 /*******************************************************************************
@@ -1069,8 +1111,8 @@ bool sdpu_is_base_uuid(uint8_t* p_uuid) {
  * Returns          true if matched, else false
  *
  ******************************************************************************/
-bool sdpu_compare_uuid_arrays(const uint8_t* p_uuid1, uint32_t len1,
-                              const uint8_t* p_uuid2, uint16_t len2) {
+bool sdpu_compare_uuid_arrays(const uint8_t* p_uuid1, uint32_t len1, const uint8_t* p_uuid2,
+                              uint16_t len2) {
   uint8_t nu1[Uuid::kNumBytes128];
   uint8_t nu2[Uuid::kNumBytes128];
 
@@ -1082,47 +1124,51 @@ bool sdpu_compare_uuid_arrays(const uint8_t* p_uuid1, uint32_t len1,
 
   /* If lengths match, do a straight compare */
   if (len1 == len2) {
-    if (len1 == 2)
-      return ((p_uuid1[0] == p_uuid2[0]) && (p_uuid1[1] == p_uuid2[1]));
-    if (len1 == 4)
-      return ((p_uuid1[0] == p_uuid2[0]) && (p_uuid1[1] == p_uuid2[1]) &&
-              (p_uuid1[2] == p_uuid2[2]) && (p_uuid1[3] == p_uuid2[3]));
-    else
-      return (memcmp(p_uuid1, p_uuid2, (size_t)len1) == 0);
+    if (len1 == 2) {
+      return (p_uuid1[0] == p_uuid2[0]) && (p_uuid1[1] == p_uuid2[1]);
+    }
+    if (len1 == 4) {
+      return (p_uuid1[0] == p_uuid2[0]) && (p_uuid1[1] == p_uuid2[1]) &&
+             (p_uuid1[2] == p_uuid2[2]) && (p_uuid1[3] == p_uuid2[3]);
+    } else {
+      return memcmp(p_uuid1, p_uuid2, static_cast<size_t>(len1)) == 0;
+    }
   } else if (len1 > len2) {
     /* If the len1 was 4-byte, (so len2 is 2-byte), compare on the fly */
     if (len1 == 4) {
-      return ((p_uuid1[0] == 0) && (p_uuid1[1] == 0) &&
-              (p_uuid1[2] == p_uuid2[0]) && (p_uuid1[3] == p_uuid2[1]));
+      return (p_uuid1[0] == 0) && (p_uuid1[1] == 0) && (p_uuid1[2] == p_uuid2[0]) &&
+             (p_uuid1[3] == p_uuid2[1]);
     } else {
       /* Normalize UUIDs to 16-byte form, then compare. Len1 must be 16 */
       memcpy(nu1, p_uuid1, Uuid::kNumBytes128);
       memcpy(nu2, sdp_base_uuid, Uuid::kNumBytes128);
 
-      if (len2 == 4)
+      if (len2 == 4) {
         memcpy(nu2, p_uuid2, len2);
-      else if (len2 == 2)
+      } else if (len2 == 2) {
         memcpy(nu2 + 2, p_uuid2, len2);
+      }
 
-      return (memcmp(nu1, nu2, Uuid::kNumBytes128) == 0);
+      return memcmp(nu1, nu2, Uuid::kNumBytes128) == 0;
     }
   } else {
     /* len2 is greater than len1 */
     /* If the len2 was 4-byte, (so len1 is 2-byte), compare on the fly */
     if (len2 == 4) {
-      return ((p_uuid2[0] == 0) && (p_uuid2[1] == 0) &&
-              (p_uuid2[2] == p_uuid1[0]) && (p_uuid2[3] == p_uuid1[1]));
+      return (p_uuid2[0] == 0) && (p_uuid2[1] == 0) && (p_uuid2[2] == p_uuid1[0]) &&
+             (p_uuid2[3] == p_uuid1[1]);
     } else {
       /* Normalize UUIDs to 16-byte form, then compare. Len1 must be 16 */
       memcpy(nu2, p_uuid2, Uuid::kNumBytes128);
       memcpy(nu1, sdp_base_uuid, Uuid::kNumBytes128);
 
-      if (len1 == 4)
-        memcpy(nu1, p_uuid1, (size_t)len1);
-      else if (len1 == 2)
-        memcpy(nu1 + 2, p_uuid1, (size_t)len1);
+      if (len1 == 4) {
+        memcpy(nu1, p_uuid1, static_cast<size_t>(len1));
+      } else if (len1 == 2) {
+        memcpy(nu1 + 2, p_uuid1, static_cast<size_t>(len1));
+      }
 
-      return (memcmp(nu1, nu2, Uuid::kNumBytes128) == 0);
+      return memcmp(nu1, nu2, Uuid::kNumBytes128) == 0;
     }
   }
 }
@@ -1150,7 +1196,7 @@ bool sdpu_compare_uuid_with_attr(const Uuid& uuid, tSDP_DISC_ATTR* p_attr) {
       return uuid.As16Bit() == p_attr->attr_value.v.u16;
     } else {
       log::error("invalid length for 16bit discovery attribute len:{}", len);
-      return (false);
+      return false;
     }
   }
   if (len == 4) {
@@ -1158,20 +1204,21 @@ bool sdpu_compare_uuid_with_attr(const Uuid& uuid, tSDP_DISC_ATTR* p_attr) {
       return uuid.As32Bit() == p_attr->attr_value.v.u32;
     } else {
       log::error("invalid length for 32bit discovery attribute len:{}", len);
-      return (false);
+      return false;
     }
   }
 
   if (SDP_DISC_ATTR_LEN(p_attr->attr_len_type) != Uuid::kNumBytes128) {
     log::error("invalid length for 128bit discovery attribute len:{}", len);
-    return (false);
+    return false;
   }
 
-  if (memcmp(uuid.To128BitBE().data(), (void*)p_attr->attr_value.v.array,
-             Uuid::kNumBytes128) == 0)
-    return (true);
+  if (memcmp(uuid.To128BitBE().data(), static_cast<void*>(p_attr->attr_value.v.array),
+             Uuid::kNumBytes128) == 0) {
+    return true;
+  }
 
-  return (false);
+  return false;
 }
 
 /*******************************************************************************
@@ -1204,8 +1251,9 @@ void sdpu_sort_attr_list(uint16_t num_attr, tSDP_DISCOVERY_DB* p_db) {
       p_db->attr_filters[i + 1] = x;
 
       i = 0;
-    } else
+    } else {
       i++;
+    }
   }
 }
 
@@ -1230,10 +1278,11 @@ uint16_t sdpu_get_list_len(tSDP_UUID_SEQ* uid_seq, tSDP_ATTR_SEQ* attr_seq) {
 
     len1 = sdpu_get_attrib_seq_len(p_rec, attr_seq);
 
-    if (len1 != 0)
+    if (len1 != 0) {
       len += len1;
-    else
+    } else {
       len -= 3;
+    }
   }
   return len;
 }
@@ -1248,8 +1297,7 @@ uint16_t sdpu_get_list_len(tSDP_UUID_SEQ* uid_seq, tSDP_ATTR_SEQ* attr_seq) {
  * Returns          void
  *
  ******************************************************************************/
-uint16_t sdpu_get_attrib_seq_len(const tSDP_RECORD* p_rec,
-                                 const tSDP_ATTR_SEQ* attr_seq) {
+uint16_t sdpu_get_attrib_seq_len(const tSDP_RECORD* p_rec, const tSDP_ATTR_SEQ* attr_seq) {
   const tSDP_ATTRIBUTE* p_attr;
   uint16_t len1 = 0;
   uint16_t xx;
@@ -1271,10 +1319,12 @@ uint16_t sdpu_get_attrib_seq_len(const tSDP_RECORD* p_rec,
         start_id = p_attr->id + 1;
         xx--;
         is_range = true;
-      } else
+      } else {
         is_range = false;
-    } else
+      }
+    } else {
       is_range = false;
+    }
   }
   return len1;
 }
@@ -1304,7 +1354,7 @@ uint16_t sdpu_get_attrib_entry_len(const tSDP_ATTRIBUTE* p_attr) {
       } else
 #endif /* 0xFFFF - 0xFF */
 #if (SDP_MAX_ATTR_LEN > 0xFF)
-          if (p_attr->len > 0xFF) {
+              if (p_attr->len > 0xFF) {
         len += 3;
       } else
 #endif /* 0xFF and less*/
@@ -1350,11 +1400,9 @@ uint16_t sdpu_get_attrib_entry_len(const tSDP_ATTRIBUTE* p_attr) {
  *                  offset is also updated
  *
  ******************************************************************************/
-uint8_t* sdpu_build_partial_attrib_entry(uint8_t* p_out,
-                                         const tSDP_ATTRIBUTE* p_attr,
-                                         uint16_t len, uint16_t* offset) {
-  uint8_t* p_attr_buff =
-      (uint8_t*)osi_malloc(sizeof(uint8_t) * SDP_MAX_ATTR_LEN);
+uint8_t* sdpu_build_partial_attrib_entry(uint8_t* p_out, const tSDP_ATTRIBUTE* p_attr, uint16_t len,
+                                         uint16_t* offset) {
+  uint8_t* p_attr_buff = reinterpret_cast<uint8_t*>(osi_malloc(sizeof(uint8_t) * SDP_MAX_ATTR_LEN));
   sdpu_build_attrib_entry(p_attr_buff, p_attr);
 
   uint16_t attr_len = sdpu_get_attrib_entry_len(p_attr);
@@ -1364,8 +1412,7 @@ uint8_t* sdpu_build_partial_attrib_entry(uint8_t* p_out,
     len = SDP_MAX_ATTR_LEN;
   }
 
-  size_t len_to_copy =
-      ((attr_len - *offset) < len) ? (attr_len - *offset) : len;
+  size_t len_to_copy = ((attr_len - *offset) < len) ? (attr_len - *offset) : len;
   memcpy(p_out, &p_attr_buff[*offset], len_to_copy);
 
   p_out = &p_out[len_to_copy];
@@ -1450,9 +1497,8 @@ bool sdpu_is_service_id_avrc_target(const tSDP_ATTRIBUTE* p_attr) {
  *
  ******************************************************************************/
 bool spdu_is_avrcp_version_valid(const uint16_t version) {
-  return version == AVRC_REV_1_0 || version == AVRC_REV_1_3 ||
-         version == AVRC_REV_1_4 || version == AVRC_REV_1_5 ||
-         version == AVRC_REV_1_6;
+  return version == AVRC_REV_1_0 || version == AVRC_REV_1_3 || version == AVRC_REV_1_4 ||
+         version == AVRC_REV_1_5 || version == AVRC_REV_1_6;
 }
 /*******************************************************************************
  *
@@ -1467,32 +1513,25 @@ bool spdu_is_avrcp_version_valid(const uint16_t version) {
  * Returns          void
  *
  ******************************************************************************/
-void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
-                                  const RawAddress* bdaddr) {
+void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress* bdaddr) {
   // Check attribute is AVRCP profile description list and get AVRC Target
   // version
   uint16_t avrcp_version = sdpu_is_avrcp_profile_description_list(p_attr);
   log::info("SDP AVRCP DB Version {:x}", avrcp_version);
   if (avrcp_version == 0) {
-    log::info("Not AVRCP version attribute or version not valid for device {}",
-              *bdaddr);
+    log::info("Not AVRCP version attribute or version not valid for device {}", *bdaddr);
     return;
   }
 
   uint16_t dut_avrcp_version =
-      (bluetooth::common::init_flags::
-           dynamic_avrcp_version_enhancement_is_enabled())
-          ? GetInterfaceToProfiles()
-                ->profileSpecific_HACK->AVRC_GetProfileVersion()
-          : avrcp_version;
+          GetInterfaceToProfiles()->profileSpecific_HACK->AVRC_GetProfileVersion();
 
   log::info("Current DUT AVRCP Version {:x}", dut_avrcp_version);
   // Some remote devices will have interoperation issue when receive higher
   // AVRCP version. If those devices are in IOP database and our version higher
   // than device, we reply a lower version to them.
   uint16_t iop_version = 0;
-  if (dut_avrcp_version > AVRC_REV_1_4 &&
-      interop_match_addr(INTEROP_AVRCP_1_4_ONLY, bdaddr)) {
+  if (dut_avrcp_version > AVRC_REV_1_4 && interop_match_addr(INTEROP_AVRCP_1_4_ONLY, bdaddr)) {
     iop_version = AVRC_REV_1_4;
   } else if (dut_avrcp_version > AVRC_REV_1_3 &&
              interop_match_addr(INTEROP_AVRCP_1_3_ONLY, bdaddr)) {
@@ -1501,9 +1540,9 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
 
   if (iop_version != 0) {
     log::info(
-        "device={} is in IOP database. Reply AVRC Target version {:x} instead "
-        "of {:x}.",
-        *bdaddr, iop_version, avrcp_version);
+            "device={} is in IOP database. Reply AVRC Target version {:x} instead "
+            "of {:x}.",
+            *bdaddr, iop_version, avrcp_version);
     uint8_t* p_version = p_attr->value_ptr + 6;
     UINT16_TO_BE_FIELD(p_version, iop_version);
     return;
@@ -1512,51 +1551,42 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
   // Dynamic AVRCP version. If our version high than remote device's version,
   // reply version same as its. Otherwise, reply default version.
   if (!osi_property_get_bool(AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY, true)) {
-    log::info(
-        "Dynamic AVRCP version feature is not enabled, skipping this method");
+    log::info("Dynamic AVRCP version feature is not enabled, skipping this method");
     return;
   }
 
   // Read the remote device's AVRC Controller version from local storage
   uint16_t cached_version = 0;
-  size_t version_value_size = btif_config_get_bin_length(
-      bdaddr->ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION);
+  size_t version_value_size =
+          btif_config_get_bin_length(bdaddr->ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION);
   if (version_value_size != sizeof(cached_version)) {
-    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.",
-               *bdaddr, version_value_size, sizeof(cached_version));
+    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.", *bdaddr,
+               version_value_size, sizeof(cached_version));
     return;
   }
 
-  if (!btif_config_get_bin(bdaddr->ToString(),
-                           BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION,
-                           (uint8_t*)&cached_version, &version_value_size)) {
+  if (!btif_config_get_bin(bdaddr->ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION,
+                           reinterpret_cast<uint8_t*>(&cached_version), &version_value_size)) {
     log::info(
-        "no cached AVRC Controller version for {}. Reply default AVRC Target "
-        "version {:x}.DUT AVRC Target version {:x}.",
-        *bdaddr, avrcp_version, dut_avrcp_version);
+            "no cached AVRC Controller version for {}. Reply default AVRC Target "
+            "version {:x}.DUT AVRC Target version {:x}.",
+            *bdaddr, avrcp_version, dut_avrcp_version);
     return;
   }
 
   if (!spdu_is_avrcp_version_valid(cached_version)) {
     log::error(
-        "cached AVRC Controller version {:x} of {} is not valid. Reply default "
-        "AVRC Target version {:x}.",
-        cached_version, *bdaddr, avrcp_version);
+            "cached AVRC Controller version {:x} of {} is not valid. Reply default "
+            "AVRC Target version {:x}.",
+            cached_version, *bdaddr, avrcp_version);
     return;
   }
 
-  if (!bluetooth::common::init_flags::
-          dynamic_avrcp_version_enhancement_is_enabled() &&
-      dut_avrcp_version <= cached_version) {
-    return;
-  }
-
-  uint16_t negotiated_avrcp_version =
-      std::min(dut_avrcp_version, cached_version);
+  uint16_t negotiated_avrcp_version = std::min(dut_avrcp_version, cached_version);
   log::info(
-      "read cached AVRC Controller version {:x} of {}. DUT AVRC Target version "
-      "{:x}.Negotiated AVRCP version to update peer {:x}.",
-      cached_version, *bdaddr, dut_avrcp_version, negotiated_avrcp_version);
+          "read cached AVRC Controller version {:x} of {}. DUT AVRC Target version "
+          "{:x}.Negotiated AVRCP version to update peer {:x}.",
+          cached_version, *bdaddr, dut_avrcp_version, negotiated_avrcp_version);
   uint8_t* p_version = p_attr->value_ptr + 6;
   UINT16_TO_BE_FIELD(p_version, negotiated_avrcp_version);
 }
@@ -1573,8 +1603,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr,
  * Returns          void
  *
  ******************************************************************************/
-void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr,
-                                   const RawAddress* bdaddr,
+void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr, const RawAddress* bdaddr,
                                    uint16_t avrcp_version) {
   log::info("SDP AVRCP Version {:x}", avrcp_version);
 
@@ -1592,62 +1621,52 @@ void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr,
   // Dynamic AVRCP version. If our version high than remote device's version,
   // reply version same as its. Otherwise, reply default version.
   if (!osi_property_get_bool(AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY, false)) {
-    log::info(
-        "Dynamic AVRCP version feature is not enabled, skipping this method");
+    log::info("Dynamic AVRCP version feature is not enabled, skipping this method");
     return;
   }
   // Read the remote device's AVRC Controller version from local storage
   uint16_t avrcp_peer_features = 0;
-  size_t version_value_size = btif_config_get_bin_length(
-      bdaddr->ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES);
+  size_t version_value_size =
+          btif_config_get_bin_length(bdaddr->ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES);
   if (version_value_size != sizeof(avrcp_peer_features)) {
-    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.",
-               *bdaddr, version_value_size, sizeof(avrcp_peer_features));
+    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.", *bdaddr,
+               version_value_size, sizeof(avrcp_peer_features));
     return;
   }
 
-  if (!btif_config_get_bin(
-          bdaddr->ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES,
-          (uint8_t*)&avrcp_peer_features, &version_value_size)) {
+  if (!btif_config_get_bin(bdaddr->ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES,
+                           reinterpret_cast<uint8_t*>(&avrcp_peer_features), &version_value_size)) {
     log::error("Unable to fetch cached AVRC features");
     return;
   }
 
-  bool browsing_supported =
-      ((AVRCP_FEAT_BRW_BIT & avrcp_peer_features) == AVRCP_FEAT_BRW_BIT);
-  bool coverart_supported =
-      ((AVRCP_FEAT_CA_BIT & avrcp_peer_features) == AVRCP_FEAT_CA_BIT);
+  bool browsing_supported = ((AVRCP_FEAT_BRW_BIT & avrcp_peer_features) == AVRCP_FEAT_BRW_BIT);
+  bool coverart_supported = ((AVRCP_FEAT_CA_BIT & avrcp_peer_features) == AVRCP_FEAT_CA_BIT);
 
   log::info(
-      "SDP AVRCP DB Version 0x{:x}, browse supported {}, cover art supported "
-      "{}",
-      avrcp_peer_features, browsing_supported, coverart_supported);
+          "SDP AVRCP DB Version 0x{:x}, browse supported {}, cover art supported "
+          "{}",
+          avrcp_peer_features, browsing_supported, coverart_supported);
   if (avrcp_version < AVRC_REV_1_4 || !browsing_supported) {
     log::info("Reset Browsing Feature");
-    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] &=
-        ~AVRCP_BROWSE_SUPPORT_BITMASK;
-    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] &=
-        ~AVRCP_MULTI_PLAYER_SUPPORT_BITMASK;
+    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] &= ~AVRCP_BROWSE_SUPPORT_BITMASK;
+    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] &= ~AVRCP_MULTI_PLAYER_SUPPORT_BITMASK;
   }
 
   if (avrcp_version < AVRC_REV_1_6 || !coverart_supported) {
     log::info("Reset CoverArt Feature");
-    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION - 1] &=
-        ~AVRCP_CA_SUPPORT_BITMASK;
+    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION - 1] &= ~AVRCP_CA_SUPPORT_BITMASK;
   }
 
   if (avrcp_version >= AVRC_REV_1_4 && browsing_supported) {
     log::info("Set Browsing Feature");
-    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] |=
-        AVRCP_BROWSE_SUPPORT_BITMASK;
-    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] |=
-        AVRCP_MULTI_PLAYER_SUPPORT_BITMASK;
+    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] |= AVRCP_BROWSE_SUPPORT_BITMASK;
+    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION] |= AVRCP_MULTI_PLAYER_SUPPORT_BITMASK;
   }
 
   if (avrcp_version == AVRC_REV_1_6 && coverart_supported) {
     log::info("Set CoverArt Feature");
-    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION - 1] |=
-        AVRCP_CA_SUPPORT_BITMASK;
+    p_attr->value_ptr[AVRCP_SUPPORTED_FEATURES_POSITION - 1] |= AVRCP_CA_SUPPORT_BITMASK;
   }
 }
 

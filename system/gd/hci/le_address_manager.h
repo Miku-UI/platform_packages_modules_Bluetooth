@@ -31,21 +31,23 @@ namespace hci {
 constexpr std::chrono::milliseconds kUnregisterSyncTimeoutInMs = std::chrono::milliseconds(10);
 
 class LeAddressManagerCallback {
- public:
+public:
   virtual ~LeAddressManagerCallback() = default;
   virtual void OnPause() = 0;
   virtual void OnResume() = 0;
-  virtual void NotifyOnIRKChange(){};
+  virtual void NotifyOnIRKChange() {}
+};
+
+struct PrivateAddressIntervalRange {
+  std::chrono::milliseconds min;
+  std::chrono::milliseconds max;
 };
 
 class LeAddressManager {
- public:
-  LeAddressManager(
-      common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
-      os::Handler* handler,
-      Address public_address,
-      uint8_t accept_list_size,
-      uint8_t resolving_list_size);
+public:
+  LeAddressManager(common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
+                   os::Handler* handler, Address public_address, uint8_t accept_list_size,
+                   uint8_t resolving_list_size);
   virtual ~LeAddressManager();
 
   enum AddressPolicy {
@@ -57,59 +59,56 @@ class LeAddressManager {
   };
 
   // Aborts if called more than once
-  void SetPrivacyPolicyForInitiatorAddress(
-      AddressPolicy address_policy,
-      AddressWithType fixed_address,
-      Octet16 rotation_irk,
-      bool supports_ble_privacy,
-      std::chrono::milliseconds minimum_rotation_time,
-      std::chrono::milliseconds maximum_rotation_time);
+  void SetPrivacyPolicyForInitiatorAddress(AddressPolicy address_policy,
+                                           AddressWithType fixed_address, Octet16 rotation_irk,
+                                           bool supports_ble_privacy,
+                                           std::chrono::milliseconds minimum_rotation_time,
+                                           std::chrono::milliseconds maximum_rotation_time);
   // TODO(jpawlowski): remove once we have config file abstraction in cert tests
-  void SetPrivacyPolicyForInitiatorAddressForTest(
-      AddressPolicy address_policy,
-      AddressWithType fixed_address,
-      Octet16 rotation_irk,
-      std::chrono::milliseconds minimum_rotation_time,
-      std::chrono::milliseconds maximum_rotation_time);
+  void SetPrivacyPolicyForInitiatorAddressForTest(AddressPolicy address_policy,
+                                                  AddressWithType fixed_address,
+                                                  Octet16 rotation_irk,
+                                                  std::chrono::milliseconds minimum_rotation_time,
+                                                  std::chrono::milliseconds maximum_rotation_time);
   AddressPolicy GetAddressPolicy();
   bool RotatingAddress();
   virtual void AckPause(LeAddressManagerCallback* callback);
   virtual void AckResume(LeAddressManagerCallback* callback);
   virtual AddressPolicy Register(LeAddressManagerCallback* callback);
   virtual void Unregister(LeAddressManagerCallback* callback);
-  virtual bool UnregisterSync(
-      LeAddressManagerCallback* callback,
-      std::chrono::milliseconds timeout = kUnregisterSyncTimeoutInMs);
+  virtual bool UnregisterSync(LeAddressManagerCallback* callback,
+                              std::chrono::milliseconds timeout = kUnregisterSyncTimeoutInMs);
   virtual AddressWithType GetInitiatorAddress();      // What was set in SetRandomAddress()
   virtual AddressWithType NewResolvableAddress();     // A new random address without rotating.
   virtual AddressWithType NewNonResolvableAddress();  // A new non-resolvable address
 
   uint8_t GetFilterAcceptListSize();
   uint8_t GetResolvingListSize();
-  void AddDeviceToFilterAcceptList(FilterAcceptListAddressType accept_list_address_type, Address address);
-  void AddDeviceToResolvingList(
-      PeerAddressType peer_identity_address_type,
-      Address peer_identity_address,
-      const std::array<uint8_t, 16>& peer_irk,
-      const std::array<uint8_t, 16>& local_irk);
-  void RemoveDeviceFromFilterAcceptList(FilterAcceptListAddressType accept_list_address_type, Address address);
-  void RemoveDeviceFromResolvingList(PeerAddressType peer_identity_address_type, Address peer_identity_address);
+  void AddDeviceToFilterAcceptList(FilterAcceptListAddressType accept_list_address_type,
+                                   Address address);
+  void AddDeviceToResolvingList(PeerAddressType peer_identity_address_type,
+                                Address peer_identity_address,
+                                const std::array<uint8_t, 16>& peer_irk,
+                                const std::array<uint8_t, 16>& local_irk);
+  void RemoveDeviceFromFilterAcceptList(FilterAcceptListAddressType accept_list_address_type,
+                                        Address address);
+  void RemoveDeviceFromResolvingList(PeerAddressType peer_identity_address_type,
+                                     Address peer_identity_address);
   void ClearFilterAcceptList();
   void ClearResolvingList();
   void OnCommandComplete(CommandCompleteView view);
   std::chrono::milliseconds GetNextPrivateAddressIntervalMs();
+  PrivateAddressIntervalRange GetNextPrivateAddressIntervalRange();
 
   // Unsynchronized check for testing purposes
-  size_t NumberCachedCommands() const {
-    return cached_commands_.size();
-  }
+  size_t NumberCachedCommands() const { return cached_commands_.size(); }
 
- protected:
+protected:
   AddressPolicy address_policy_ = AddressPolicy::POLICY_NOT_SET;
   std::chrono::milliseconds minimum_rotation_time_;
   std::chrono::milliseconds maximum_rotation_time_;
 
- private:
+private:
   enum class ClientState;
   std::string ClientStateText(const ClientState cs);
 
@@ -139,7 +138,8 @@ class LeAddressManager {
   };
 
   struct Command {
-    CommandType command_type;  // Note that this field is only intended for logging, not control flow
+    CommandType
+            command_type;  // Note that this field is only intended for logging, not control flow
     std::variant<RotateRandomAddressCommand, UpdateIRKCommand, HCICommand> contents;
   };
 
@@ -170,7 +170,8 @@ class LeAddressManager {
   AddressWithType le_address_;
   AddressWithType cached_address_;
   Address public_address_;
-  std::unique_ptr<os::Alarm> address_rotation_alarm_;
+  std::unique_ptr<os::Alarm> address_rotation_wake_alarm_;
+  std::unique_ptr<os::Alarm> address_rotation_non_wake_alarm_;
   Octet16 rotation_irk_;
   uint8_t accept_list_size_;
   uint8_t resolving_list_size_;

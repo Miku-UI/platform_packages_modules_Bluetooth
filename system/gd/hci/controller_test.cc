@@ -27,7 +27,6 @@
 #include <sstream>
 
 #include "common/bind.h"
-#include "common/init_flags.h"
 #include "hci/address.h"
 #include "hci/hci_layer_fake.h"
 #include "module_dumper.h"
@@ -61,26 +60,23 @@ constexpr char title[] = "hci_controller_test";
 namespace {
 
 class HciLayerFakeForController : public HciLayerFake {
- public:
+public:
   void EnqueueCommand(
-      std::unique_ptr<CommandBuilder> command,
-      common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override {
-    GetHandler()->Post(common::BindOnce(
-        &HciLayerFakeForController::HandleCommand,
-        common::Unretained(this),
-        std::move(command),
-        std::move(on_complete)));
+          std::unique_ptr<CommandBuilder> command,
+          common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override {
+    GetHandler()->Post(common::BindOnce(&HciLayerFakeForController::HandleCommand,
+                                        common::Unretained(this), std::move(command),
+                                        std::move(on_complete)));
   }
 
   void EnqueueCommand(
-      std::unique_ptr<CommandBuilder> /* command */,
-      common::ContextualOnceCallback<void(CommandStatusView)> /* on_status */) override {
+          std::unique_ptr<CommandBuilder> /* command */,
+          common::ContextualOnceCallback<void(CommandStatusView)> /* on_status */) override {
     FAIL() << "Controller properties should not generate Command Status";
   }
 
-  void HandleCommand(
-      std::unique_ptr<CommandBuilder> command_builder,
-      common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) {
+  void HandleCommand(std::unique_ptr<CommandBuilder> command_builder,
+                     common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) {
     auto bytes = std::make_shared<std::vector<uint8_t>>();
     BitInserter i(*bytes);
     bytes->reserve((command_builder)->size());
@@ -94,7 +90,8 @@ class HciLayerFakeForController : public HciLayerFake {
     switch (command.GetOpCode()) {
       case (OpCode::READ_LOCAL_NAME): {
         std::array<uint8_t, 248> local_name = {'D', 'U', 'T', '\0'};
-        event_builder = ReadLocalNameCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, local_name);
+        event_builder =
+                ReadLocalNameCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, local_name);
       } break;
       case (OpCode::READ_LOCAL_VERSION_INFORMATION): {
         LocalVersionInformation local_version_information;
@@ -104,7 +101,7 @@ class HciLayerFakeForController : public HciLayerFake {
         local_version_information.manufacturer_name_ = 0xBAD;
         local_version_information.lmp_subversion_ = 0x5678;
         event_builder = ReadLocalVersionInformationCompleteBuilder::Create(
-            num_packets, ErrorCode::SUCCESS, local_version_information);
+                num_packets, ErrorCode::SUCCESS, local_version_information);
       } break;
       case (OpCode::READ_LOCAL_SUPPORTED_COMMANDS): {
         std::array<uint8_t, 64> supported_commands;
@@ -114,14 +111,14 @@ class HciLayerFakeForController : public HciLayerFake {
         for (int i = 37; i < 64; i++) {
           supported_commands[i] = 0x00;
         }
-        event_builder =
-            ReadLocalSupportedCommandsCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, supported_commands);
+        event_builder = ReadLocalSupportedCommandsCompleteBuilder::Create(
+                num_packets, ErrorCode::SUCCESS, supported_commands);
       } break;
       case (OpCode::READ_LOCAL_SUPPORTED_CODECS_V1): {
         std::vector<uint8_t> supported_codecs{0, 1, 2, 3, 4, 5, 6};
         std::vector<uint32_t> supported_vendor_codecs;
         event_builder = ReadLocalSupportedCodecsV1CompleteBuilder::Create(
-            num_packets, ErrorCode::SUCCESS, supported_codecs, supported_vendor_codecs);
+                num_packets, ErrorCode::SUCCESS, supported_codecs, supported_vendor_codecs);
       } break;
       case (OpCode::READ_LOCAL_EXTENDED_FEATURES): {
         ReadLocalExtendedFeaturesView read_command = ReadLocalExtendedFeaturesView::Create(command);
@@ -130,33 +127,32 @@ class HciLayerFakeForController : public HciLayerFake {
         uint64_t lmp_features = 0x012345678abcdef;
         lmp_features += page_bumber;
         event_builder = ReadLocalExtendedFeaturesCompleteBuilder::Create(
-            num_packets, ErrorCode::SUCCESS, page_bumber, 0x02, lmp_features);
+                num_packets, ErrorCode::SUCCESS, page_bumber, 0x02, lmp_features);
       } break;
       case (OpCode::READ_BUFFER_SIZE): {
         event_builder = ReadBufferSizeCompleteBuilder::Create(
-            num_packets,
-            ErrorCode::SUCCESS,
-            acl_data_packet_length,
-            synchronous_data_packet_length,
-            total_num_acl_data_packets,
-            total_num_synchronous_data_packets);
+                num_packets, ErrorCode::SUCCESS, acl_data_packet_length,
+                synchronous_data_packet_length, total_num_acl_data_packets,
+                total_num_synchronous_data_packets);
       } break;
       case (OpCode::READ_BD_ADDR): {
-        event_builder = ReadBdAddrCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, Address::kAny);
+        event_builder =
+                ReadBdAddrCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, Address::kAny);
       } break;
       case (OpCode::LE_READ_BUFFER_SIZE_V1): {
         LeBufferSize le_buffer_size;
         le_buffer_size.le_data_packet_length_ = 0x16;
         le_buffer_size.total_num_le_packets_ = 0x08;
-        event_builder = LeReadBufferSizeV1CompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, le_buffer_size);
+        event_builder = LeReadBufferSizeV1CompleteBuilder::Create(num_packets, ErrorCode::SUCCESS,
+                                                                  le_buffer_size);
       } break;
       case (OpCode::LE_READ_LOCAL_SUPPORTED_FEATURES): {
-        event_builder =
-            LeReadLocalSupportedFeaturesCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, 0x001f123456789abc);
+        event_builder = LeReadLocalSupportedFeaturesCompleteBuilder::Create(
+                num_packets, ErrorCode::SUCCESS, 0x001f123456789abc);
       } break;
       case (OpCode::LE_READ_SUPPORTED_STATES): {
-        event_builder =
-            LeReadSupportedStatesCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, 0x001f123456789abe);
+        event_builder = LeReadSupportedStatesCompleteBuilder::Create(
+                num_packets, ErrorCode::SUCCESS, 0x001f123456789abe);
       } break;
       case (OpCode::LE_READ_MAXIMUM_DATA_LENGTH): {
         LeMaximumDataLength le_maximum_data_length;
@@ -164,16 +160,16 @@ class HciLayerFakeForController : public HciLayerFake {
         le_maximum_data_length.supported_max_tx_time_ = 0x34;
         le_maximum_data_length.supported_max_rx_octets_ = 0x56;
         le_maximum_data_length.supported_max_rx_time_ = 0x78;
-        event_builder =
-            LeReadMaximumDataLengthCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, le_maximum_data_length);
+        event_builder = LeReadMaximumDataLengthCompleteBuilder::Create(
+                num_packets, ErrorCode::SUCCESS, le_maximum_data_length);
       } break;
       case (OpCode::LE_READ_MAXIMUM_ADVERTISING_DATA_LENGTH): {
-        event_builder =
-            LeReadMaximumAdvertisingDataLengthCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, 0x0672);
+        event_builder = LeReadMaximumAdvertisingDataLengthCompleteBuilder::Create(
+                num_packets, ErrorCode::SUCCESS, 0x0672);
       } break;
       case (OpCode::LE_READ_NUMBER_OF_SUPPORTED_ADVERTISING_SETS): {
-        event_builder =
-            LeReadNumberOfSupportedAdvertisingSetsCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, 0xF0);
+        event_builder = LeReadNumberOfSupportedAdvertisingSetsCompleteBuilder::Create(
+                num_packets, ErrorCode::SUCCESS, 0xF0);
       } break;
       case (OpCode::LE_GET_VENDOR_CAPABILITIES):
         if (vendor_capabilities_ == nullptr) {
@@ -188,13 +184,13 @@ class HciLayerFakeForController : public HciLayerFake {
 
           auto payload = std::make_unique<RawBuilder>();
           if (feature_spec_version > 55) {
-            std::vector<uint8_t> payload_bytes = {
-                0x20, 0x00, 0x01, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00, 0x00};
+            std::vector<uint8_t> payload_bytes = {0x20, 0x00, 0x01, 0x00, 0x00,
+                                                  0x1f, 0x00, 0x00, 0x00, 0x00};
             payload->AddOctets2(feature_spec_version);
             payload->AddOctets(payload_bytes);
           }
           event_builder = LeGetVendorCapabilitiesCompleteBuilder::Create(
-              num_packets, ErrorCode::SUCCESS, base_vendor_capabilities, std::move(payload));
+                  num_packets, ErrorCode::SUCCESS, base_vendor_capabilities, std::move(payload));
         } else {
           event_builder = std::move(vendor_capabilities_);
           vendor_capabilities_.reset();
@@ -202,22 +198,22 @@ class HciLayerFakeForController : public HciLayerFake {
         break;
       case (OpCode::DYNAMIC_AUDIO_BUFFER): {
         auto dab_command =
-            DynamicAudioBufferView::CreateOptional(VendorCommandView::Create(command));
+                DynamicAudioBufferView::CreateOptional(VendorCommandView::Create(command));
         if (dab_command->GetDabCommand() == DabCommand::GET_AUDIO_BUFFER_TIME_CAPABILITY) {
           std::array<DynamicAudioBufferCodecCapability, 32> capabilities{};
           capabilities[0] =
-              DynamicAudioBufferCodecCapability(0x123, 0x103, 0x1234);  // sbc_capabilities
+                  DynamicAudioBufferCodecCapability(0x123, 0x103, 0x1234);  // sbc_capabilities
           capabilities[1] =
-              DynamicAudioBufferCodecCapability(0x223, 0x123, 0x2340);  // aac_capabilities
+                  DynamicAudioBufferCodecCapability(0x223, 0x123, 0x2340);  // aac_capabilities
           capabilities[4] =
-              DynamicAudioBufferCodecCapability(0x323, 0x223, 0x3456);  // ldac_capabilities
+                  DynamicAudioBufferCodecCapability(0x323, 0x223, 0x3456);  // ldac_capabilities
           event_builder = DabGetAudioBufferTimeCapabilityCompleteBuilder::Create(
-              1, ErrorCode::SUCCESS, kDynamicAudioBufferSupport, capabilities);
+                  1, ErrorCode::SUCCESS, kDynamicAudioBufferSupport, capabilities);
         } else {
           auto set_command = DabSetAudioBufferTimeView::CreateOptional(*dab_command);
           dynamic_audio_buffer_time = set_command->GetBufferTimeMs();
-          event_builder = DabSetAudioBufferTimeCompleteBuilder::Create(
-              1, ErrorCode::SUCCESS, dynamic_audio_buffer_time);
+          event_builder = DabSetAudioBufferTimeCompleteBuilder::Create(1, ErrorCode::SUCCESS,
+                                                                       dynamic_audio_buffer_time);
         }
       } break;
       case (OpCode::SET_EVENT_MASK): {
@@ -236,7 +232,8 @@ class HciLayerFakeForController : public HciLayerFake {
       case (OpCode::LE_RAND): {
         auto view = LeRandView::Create(LeSecurityCommandView::Create(command));
         ASSERT_TRUE(view.IsValid());
-        event_builder = LeRandCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, kRandomNumber);
+        event_builder =
+                LeRandCompleteBuilder::Create(num_packets, ErrorCode::SUCCESS, kRandomNumber);
       } break;
 
       // Let the test check and handle these commands.
@@ -281,10 +278,9 @@ class HciLayerFakeForController : public HciLayerFake {
 };
 
 class ControllerTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     feature_spec_version = feature_spec_version_;
-    bluetooth::common::InitFlags::SetAllForTesting();
     test_hci_layer_ = new HciLayerFakeForController;
     test_hci_layer_->vendor_capabilities_ = std::move(vendor_capabilities_);
     vendor_capabilities_.reset();
@@ -294,9 +290,7 @@ class ControllerTest : public ::testing::Test {
     controller_ = static_cast<Controller*>(fake_registry_.GetModuleUnderTest(&Controller::Factory));
   }
 
-  void TearDown() override {
-    fake_registry_.StopAll();
-  }
+  void TearDown() override { fake_registry_.StopAll(); }
 
   TestModuleRegistry fake_registry_;
   HciLayerFakeForController* test_hci_layer_ = nullptr;
@@ -309,7 +303,7 @@ class ControllerTest : public ::testing::Test {
 }  // namespace
 
 class Controller055Test : public ControllerTest {
- protected:
+protected:
   void SetUp() override {
     feature_spec_version_ = 55;
     ControllerTest::SetUp();
@@ -317,7 +311,7 @@ class Controller055Test : public ControllerTest {
 };
 
 class Controller095Test : public ControllerTest {
- protected:
+protected:
   void SetUp() override {
     feature_spec_version_ = 95;
     ControllerTest::SetUp();
@@ -325,7 +319,7 @@ class Controller095Test : public ControllerTest {
 };
 
 class Controller096Test : public ControllerTest {
- protected:
+protected:
   void SetUp() override {
     feature_spec_version_ = 96;
     ControllerTest::SetUp();
@@ -333,7 +327,7 @@ class Controller096Test : public ControllerTest {
 };
 
 class Controller103Test : public ControllerTest {
- protected:
+protected:
   void SetUp() override {
     feature_spec_version_ = 0x100 + 0x03;
     BaseVendorCapabilities base_vendor_capabilities;
@@ -345,24 +339,19 @@ class Controller103Test : public ControllerTest {
     base_vendor_capabilities.max_filter_ = 0x10;
     base_vendor_capabilities.activity_energy_info_support_ = 0x01;
     vendor_capabilities_ = LeGetVendorCapabilitiesComplete103Builder::Create(
-        1,
-        ErrorCode::SUCCESS,
-        base_vendor_capabilities,
-        feature_spec_version_,
-        0x102,
-        /*extended_scan_support=*/1,
-        /*debug_logging_supported=*/1,
-        /*le_address_generation_offloading_support=*/0,
-        /*a2dp_source_offload_capability_mask=*/0x4,
-        /*bluetooth_quality_report_support=*/1,
-        kDynamicAudioBufferSupport,
-        std::make_unique<RawBuilder>());
+            1, ErrorCode::SUCCESS, base_vendor_capabilities, feature_spec_version_, 0x102,
+            /*extended_scan_support=*/1,
+            /*debug_logging_supported=*/1,
+            /*le_address_generation_offloading_support=*/0,
+            /*a2dp_source_offload_capability_mask=*/0x4,
+            /*bluetooth_quality_report_support=*/1, kDynamicAudioBufferSupport,
+            std::make_unique<RawBuilder>());
     ControllerTest::SetUp();
   }
 };
 
 class Controller104Test : public ControllerTest {
- protected:
+protected:
   void SetUp() override {
     feature_spec_version_ = 0x100 + 0x04;
     BaseVendorCapabilities base_vendor_capabilities;
@@ -374,19 +363,13 @@ class Controller104Test : public ControllerTest {
     base_vendor_capabilities.max_filter_ = 0x10;
     base_vendor_capabilities.activity_energy_info_support_ = 0x01;
     vendor_capabilities_ = LeGetVendorCapabilitiesComplete104Builder::Create(
-        1,
-        ErrorCode::SUCCESS,
-        base_vendor_capabilities,
-        feature_spec_version_,
-        0x102,
-        /*extended_scan_support=*/1,
-        /*debug_logging_supported=*/1,
-        /*le_address_generation_offloading_support=*/0,
-        /*a2dp_source_offload_capability_mask=*/0x4,
-        /*bluetooth_quality_report_support=*/1,
-        kDynamicAudioBufferSupport,
-        /*a2dp_offload_v2_support=*/1,
-        std::make_unique<RawBuilder>());
+            1, ErrorCode::SUCCESS, base_vendor_capabilities, feature_spec_version_, 0x102,
+            /*extended_scan_support=*/1,
+            /*debug_logging_supported=*/1,
+            /*le_address_generation_offloading_support=*/0,
+            /*a2dp_source_offload_capability_mask=*/0x4,
+            /*bluetooth_quality_report_support=*/1, kDynamicAudioBufferSupport,
+            /*a2dp_offload_v2_support=*/1, std::make_unique<RawBuilder>());
     ControllerTest::SetUp();
   }
 };
@@ -397,7 +380,8 @@ TEST_F(ControllerTest, read_controller_info) {
   ASSERT_EQ(controller_->GetAclPacketLength(), test_hci_layer_->acl_data_packet_length);
   ASSERT_EQ(controller_->GetNumAclPacketBuffers(), test_hci_layer_->total_num_acl_data_packets);
   ASSERT_EQ(controller_->GetScoPacketLength(), test_hci_layer_->synchronous_data_packet_length);
-  ASSERT_EQ(controller_->GetNumScoPacketBuffers(), test_hci_layer_->total_num_synchronous_data_packets);
+  ASSERT_EQ(controller_->GetNumScoPacketBuffers(),
+            test_hci_layer_->total_num_synchronous_data_packets);
   ASSERT_EQ(controller_->GetMacAddress(), Address::kAny);
   LocalVersionInformation local_version_information = controller_->GetLocalVersionInformation();
   ASSERT_EQ(local_version_information.hci_version_, HciVersion::V_5_0);
@@ -443,8 +427,10 @@ TEST_F(ControllerTest, send_set_event_filter_command) {
   controller_->SetEventFilterInquiryResultAllDevices();
   auto packet = test_hci_layer_->GetCommand(OpCode::SET_EVENT_FILTER);
   auto set_event_filter_view1 = SetEventFilterView::Create(packet);
-  auto set_event_filter_inquiry_result_view1 = SetEventFilterInquiryResultView::Create(set_event_filter_view1);
-  auto command1 = SetEventFilterInquiryResultAllDevicesView::Create(set_event_filter_inquiry_result_view1);
+  auto set_event_filter_inquiry_result_view1 =
+          SetEventFilterInquiryResultView::Create(set_event_filter_view1);
+  auto command1 =
+          SetEventFilterInquiryResultAllDevicesView::Create(set_event_filter_inquiry_result_view1);
   ASSERT_TRUE(command1.IsValid());
 
   ClassOfDevice class_of_device({0xab, 0xcd, 0xef});
@@ -452,17 +438,22 @@ TEST_F(ControllerTest, send_set_event_filter_command) {
   controller_->SetEventFilterInquiryResultClassOfDevice(class_of_device, class_of_device_mask);
   packet = test_hci_layer_->GetCommand(OpCode::SET_EVENT_FILTER);
   auto set_event_filter_view2 = SetEventFilterView::Create(packet);
-  auto set_event_filter_inquiry_result_view2 = SetEventFilterInquiryResultView::Create(set_event_filter_view2);
-  auto command2 = SetEventFilterInquiryResultClassOfDeviceView::Create(set_event_filter_inquiry_result_view2);
+  auto set_event_filter_inquiry_result_view2 =
+          SetEventFilterInquiryResultView::Create(set_event_filter_view2);
+  auto command2 = SetEventFilterInquiryResultClassOfDeviceView::Create(
+          set_event_filter_inquiry_result_view2);
   ASSERT_TRUE(command2.IsValid());
   ASSERT_EQ(command2.GetClassOfDevice(), class_of_device);
 
   Address bdaddr({0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc});
-  controller_->SetEventFilterConnectionSetupAddress(bdaddr, AutoAcceptFlag::AUTO_ACCEPT_ON_ROLE_SWITCH_ENABLED);
+  controller_->SetEventFilterConnectionSetupAddress(
+          bdaddr, AutoAcceptFlag::AUTO_ACCEPT_ON_ROLE_SWITCH_ENABLED);
   packet = test_hci_layer_->GetCommand(OpCode::SET_EVENT_FILTER);
   auto set_event_filter_view3 = SetEventFilterView::Create(packet);
-  auto set_event_filter_connection_setup_view = SetEventFilterConnectionSetupView::Create(set_event_filter_view3);
-  auto command3 = SetEventFilterConnectionSetupAddressView::Create(set_event_filter_connection_setup_view);
+  auto set_event_filter_connection_setup_view =
+          SetEventFilterConnectionSetupView::Create(set_event_filter_view3);
+  auto command3 =
+          SetEventFilterConnectionSetupAddressView::Create(set_event_filter_connection_setup_view);
   ASSERT_TRUE(command3.IsValid());
   ASSERT_EQ(command3.GetAddress(), bdaddr);
 }
@@ -561,11 +552,7 @@ TEST_F(Controller103Test, set_dynamic_audio_buffer_time) {
 
 TEST_F(Controller104Test, feature_spec_version_104_test) {
   ASSERT_EQ(controller_->GetVendorCapabilities().version_supported_, 0x100 + 4);
-  if (com::android::bluetooth::flags::a2dp_offload_codec_extensibility()) {
-    ASSERT_TRUE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
-  } else {
-    ASSERT_FALSE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
-  }
+  ASSERT_TRUE(controller_->GetVendorCapabilities().a2dp_offload_v2_support_);
   ASSERT_TRUE(controller_->IsSupported(OpCode::LE_MULTI_ADVT));
   ASSERT_TRUE(controller_->IsSupported(OpCode::CONTROLLER_DEBUG_INFO));
   ASSERT_TRUE(controller_->IsSupported(OpCode::CONTROLLER_A2DP_OPCODE));
@@ -629,9 +616,7 @@ TEST_F(ControllerTest, aclCreditCallbackListenerUnregistered) {
 
 std::promise<uint64_t> le_rand_set;
 
-void le_rand_callback(uint64_t random) {
-  le_rand_set.set_value(random);
-}
+void le_rand_callback(uint64_t random) { le_rand_set.set_value(random); }
 
 TEST_F(ControllerTest, leRandTest) {
   le_rand_set = std::promise<uint64_t>();

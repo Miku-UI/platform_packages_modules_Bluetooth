@@ -1,9 +1,9 @@
 //! Collection of Profile UUIDs and helpers to use them.
 
-use lazy_static::lazy_static;
 use num_derive::{FromPrimitive, ToPrimitive};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::LazyLock;
 
 use bt_topshim::btif::Uuid;
 
@@ -85,11 +85,11 @@ impl Display for Profile {
 
 pub struct UuidHelper {}
 
-lazy_static! {
-    // AVRCP fights with A2DP when initializing, so let's initiate profiles in a known good order.
-    // Specifically, A2DP must be initialized before AVRCP.
-    // TODO (b/286991526): remove after issue is resolved
-    static ref ORDERED_SUPPORTED_PROFILES: Vec<Profile> = vec![
+// AVRCP fights with A2DP when initializing, so let's initiate profiles in a known good order.
+// Specifically, A2DP must be initialized before AVRCP.
+// TODO (b/286991526): remove after issue is resolved
+static ORDERED_SUPPORTED_PROFILES: LazyLock<Vec<Profile>> = LazyLock::new(|| {
+    vec![
         Profile::A2dpSink,
         Profile::A2dpSource,
         Profile::AvrcpController,
@@ -106,16 +106,14 @@ lazy_static! {
         Profile::HearingAid,
         Profile::VolumeControl,
         Profile::CoordinatedSet,
-    ];
-}
+    ]
+});
 
-lazy_static! {
-    static ref SUPPORTED_PROFILES: HashSet<Profile> =
-        ORDERED_SUPPORTED_PROFILES.iter().cloned().collect();
-}
+static SUPPORTED_PROFILES: LazyLock<HashSet<Profile>> =
+    LazyLock::new(|| ORDERED_SUPPORTED_PROFILES.iter().cloned().collect());
 
-lazy_static! {
-    static ref PROFILES: HashMap<Uuid, Profile> = [
+static PROFILES: LazyLock<HashMap<Uuid, Profile>> = LazyLock::new(|| {
+    [
         (Uuid::from_string(A2DP_SINK).unwrap(), Profile::A2dpSink),
         (Uuid::from_string(A2DP_SOURCE).unwrap(), Profile::A2dpSource),
         (Uuid::from_string(ADV_AUDIO_DIST).unwrap(), Profile::AdvAudioDist),
@@ -149,13 +147,11 @@ lazy_static! {
     ]
     .iter()
     .cloned()
-    .collect();
-}
+    .collect()
+});
 
-lazy_static! {
-    static ref PROFILES_UUIDS: HashMap<Profile, Uuid> =
-        PROFILES.iter().map(|(k, v)| (v.clone(), k.clone())).collect();
-}
+static PROFILES_UUIDS: LazyLock<HashMap<Profile, Uuid>> =
+    LazyLock::new(|| PROFILES.iter().map(|(k, v)| (*v, *k)).collect());
 
 impl UuidHelper {
     /// Checks whether a UUID corresponds to a currently enabled profile.
@@ -187,7 +183,7 @@ impl UuidHelper {
     /// string that shows the service name. Else just format the uuid.
     pub fn known_uuid_to_string(uuid: &Uuid) -> String {
         if let Some(p) = Self::is_known_profile(uuid) {
-            format!("{}: {:?}", uuid.to_string(), p)
+            format!("{}: {:?}", uuid, p)
         } else {
             uuid.to_string()
         }

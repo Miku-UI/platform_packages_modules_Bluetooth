@@ -29,15 +29,12 @@ namespace hci {
 namespace iso_manager {
 struct CigCallbacks {
   virtual ~CigCallbacks() = default;
-  virtual void OnSetupIsoDataPath(uint8_t status, uint16_t conn_handle,
-                                  uint8_t cig_id) = 0;
-  virtual void OnRemoveIsoDataPath(uint8_t status, uint16_t conn_handle,
-                                   uint8_t cig_id) = 0;
-  virtual void OnIsoLinkQualityRead(
-      uint8_t conn_handle, uint8_t cig_id, uint32_t txUnackedPackets,
-      uint32_t txFlushedPackets, uint32_t txLastSubeventPackets,
-      uint32_t retransmittedPackets, uint32_t crcErrorPackets,
-      uint32_t rxUnreceivedPackets, uint32_t duplicatePackets) = 0;
+  virtual void OnSetupIsoDataPath(uint8_t status, uint16_t conn_handle, uint8_t cig_id) = 0;
+  virtual void OnRemoveIsoDataPath(uint8_t status, uint16_t conn_handle, uint8_t cig_id) = 0;
+  virtual void OnIsoLinkQualityRead(uint8_t conn_handle, uint8_t cig_id, uint32_t txUnackedPackets,
+                                    uint32_t txFlushedPackets, uint32_t txLastSubeventPackets,
+                                    uint32_t retransmittedPackets, uint32_t crcErrorPackets,
+                                    uint32_t rxUnreceivedPackets, uint32_t duplicatePackets) = 0;
 
   virtual void OnCisEvent(uint8_t event, void* data) = 0;
   virtual void OnCigEvent(uint8_t event, void* data) = 0;
@@ -45,17 +42,15 @@ struct CigCallbacks {
 
 struct BigCallbacks {
   virtual ~BigCallbacks() = default;
-  virtual void OnSetupIsoDataPath(uint8_t status, uint16_t conn_handle,
-                                  uint8_t big_id) = 0;
-  virtual void OnRemoveIsoDataPath(uint8_t status, uint16_t conn_handle,
-                                   uint8_t big_id) = 0;
+  virtual void OnSetupIsoDataPath(uint8_t status, uint16_t conn_handle, uint8_t big_id) = 0;
+  virtual void OnRemoveIsoDataPath(uint8_t status, uint16_t conn_handle, uint8_t big_id) = 0;
 
   virtual void OnBigEvent(uint8_t event, void* data) = 0;
 };
 }  // namespace iso_manager
 
 class IsoManager {
- public:
+public:
   IsoManager();
   IsoManager(const IsoManager&) = delete;
   IsoManager& operator=(const IsoManager&) = delete;
@@ -95,8 +90,7 @@ class IsoManager {
    * @param cig_id connected isochronous group id
    * @param cig_params CIG parameters
    */
-  virtual void CreateCig(uint8_t cig_id,
-                         struct iso_manager::cig_create_params cig_params);
+  virtual void CreateCig(uint8_t cig_id, struct iso_manager::cig_create_params cig_params);
 
   /**
    * Reconfigures connected isochronous group (CIG) according to given params.
@@ -104,8 +98,7 @@ class IsoManager {
    * @param cig_id connected isochronous group id
    * @param cig_params CIG parameters
    */
-  virtual void ReconfigureCig(uint8_t cig_id,
-                              struct iso_manager::cig_create_params cig_params);
+  virtual void ReconfigureCig(uint8_t cig_id, struct iso_manager::cig_create_params cig_params);
 
   /**
    * Initiates removing of connected isochronous group (CIG).
@@ -120,8 +113,7 @@ class IsoManager {
    *
    * @param conn_params A set of cis and acl connection handles
    */
-  virtual void EstablishCis(
-      struct iso_manager::cis_establish_params conn_params);
+  virtual void EstablishCis(struct iso_manager::cis_establish_params conn_params);
 
   /**
    * Initiates disconnection of connected isochronous stream (CIS).
@@ -138,9 +130,8 @@ class IsoManager {
    * @param conn_handle handle of BIS or CIS connection
    * @param path_params iso data path parameters
    */
-  virtual void SetupIsoDataPath(
-      uint16_t conn_handle,
-      struct iso_manager::iso_data_path_params path_params);
+  virtual void SetupIsoDataPath(uint16_t conn_handle,
+                                struct iso_manager::iso_data_path_params path_params);
 
   /**
    * Initiates removal of isochronous data path for connected isochronous
@@ -166,8 +157,7 @@ class IsoManager {
    * @param data data buffer. The ownership of data is not being transferred.
    * @param data_len data buffer length
    */
-  virtual void SendIsoData(uint16_t conn_handle, const uint8_t* data,
-                           uint16_t data_len);
+  virtual void SendIsoData(uint16_t conn_handle, const uint8_t* data, uint16_t data_len);
 
   /**
    * Creates the Broadcast Isochronous Group
@@ -175,8 +165,7 @@ class IsoManager {
    * @param big_id host assigned BIG identifier
    * @param big_params BIG parameters
    */
-  virtual void CreateBig(uint8_t big_id,
-                         struct iso_manager::big_create_params big_params);
+  virtual void CreateBig(uint8_t big_id, struct iso_manager::big_create_params big_params);
 
   /**
    * Terminates the Broadcast Isochronous Group
@@ -223,8 +212,12 @@ class IsoManager {
    * not being transferred
    * @param length event packet buffer length
    */
-  virtual void HandleHciEvent(uint8_t sub_code, uint8_t* params,
-                              uint16_t length);
+  virtual void HandleHciEvent(uint8_t sub_code, uint8_t* params, uint16_t length);
+
+  /**
+   * Return the current number of ISO channels
+   */
+  virtual int GetNumberOfActiveIso();
 
   /**
    * Starts the IsoManager module
@@ -241,7 +234,7 @@ class IsoManager {
    */
   void Dump(int fd);
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
 };

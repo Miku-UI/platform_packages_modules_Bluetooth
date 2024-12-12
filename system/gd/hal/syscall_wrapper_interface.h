@@ -18,14 +18,14 @@
 
 #pragma once
 
-#include <sys/select.h>
+#include <poll.h>
 #include <sys/socket.h>
 
 namespace bluetooth {
 namespace hal {
 
 class SyscallWrapperInterface {
- public:
+public:
   virtual ~SyscallWrapperInterface() = default;
 
   /* Wrapper for  <sys/socket.h> socket() API */
@@ -64,21 +64,8 @@ class SyscallWrapperInterface {
   /* Wrapper for <unistd.h> close() API */
   virtual int Close(int fd) = 0;
 
-  /* Wrapper for <sys/select.h> FD_SET() API */
-  virtual void FDSet(int fd, fd_set* set) = 0;
-
-  /* Wrapper for <sys/select.h> FD_CLR() API */
-  virtual void FDClr(int fd, fd_set* set) = 0;
-
-  /* Wrapper for <sys/select.h> FD_ISSET() API */
-  virtual bool FDIsSet(int fd, fd_set* set) = 0;
-
-  /* Wrapper for <sys/select.h> FD_ZERO() API */
-  virtual void FDZero(fd_set* set) = 0;
-
-  /* Wrapper for <sys/select.h> select() API */
-  virtual int Select(
-      int __nfds, fd_set* __readfds, fd_set* __writefds, fd_set* __exceptfds, struct timeval* __timeout) = 0;
+  /* Wrapper for <poll.h> poll() API */
+  virtual int Poll(struct pollfd* fds, nfds_t nfds, int timeout) = 0;
 };
 
 }  // namespace hal

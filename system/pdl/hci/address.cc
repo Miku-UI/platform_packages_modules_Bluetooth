@@ -32,9 +32,7 @@ const Address Address::kEmpty{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 // Address cannot initialize member variables as it is a POD type
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-Address::Address(const uint8_t (&addr)[6]) {
-  std::copy(addr, addr + kLength, data());
-}
+Address::Address(const uint8_t (&addr)[6]) { std::copy(addr, addr + kLength, data()); }
 
 Address::Address(std::initializer_list<uint8_t> l) {
   std::copy(l.begin(), std::min(l.begin() + kLength, l.end()), data());
@@ -47,8 +45,7 @@ std::string Address::_ToMaskedColonSepHexString(int bytes_to_mask) const {
     if (count++ < bytes_to_mask) {
       ss << "xx";
     } else {
-      ss << std::nouppercase << std::hex << std::setw(2) << std::setfill('0')
-         << +*it;
+      ss << std::nouppercase << std::hex << std::setw(2) << std::setfill('0') << +*it;
     }
     if (std::next(it) != address.rend()) {
       ss << ':';
@@ -59,17 +56,11 @@ std::string Address::_ToMaskedColonSepHexString(int bytes_to_mask) const {
 
 std::string Address::ToString() const { return _ToMaskedColonSepHexString(0); }
 
-std::string Address::ToColonSepHexString() const {
-  return _ToMaskedColonSepHexString(0);
-}
+std::string Address::ToColonSepHexString() const { return _ToMaskedColonSepHexString(0); }
 
-std::string Address::ToStringForLogging() const {
-  return _ToMaskedColonSepHexString(0);
-}
+std::string Address::ToStringForLogging() const { return _ToMaskedColonSepHexString(0); }
 
-std::string Address::ToRedactedStringForLogging() const {
-  return _ToMaskedColonSepHexString(4);
-}
+std::string Address::ToRedactedStringForLogging() const { return _ToMaskedColonSepHexString(4); }
 
 std::string Address::ToLegacyConfigString() const { return ToString(); }
 
@@ -129,7 +120,7 @@ bool Address::FromString(const std::string& from, Address& to) {
 size_t Address::FromOctets(const uint8_t* from) {
   std::copy(from, from + kLength, data());
   return kLength;
-};
+}
 
 bool Address::IsValidAddress(const std::string& address) {
   return Address::FromString(address).has_value();

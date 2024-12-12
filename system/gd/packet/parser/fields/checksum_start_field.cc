@@ -15,6 +15,7 @@
  */
 
 #include "fields/checksum_start_field.h"
+
 #include "util.h"
 
 const std::string ChecksumStartField::kFieldType = "ChecksumStartField";
@@ -26,9 +27,7 @@ const std::string& ChecksumStartField::GetFieldType() const {
   return ChecksumStartField::kFieldType;
 }
 
-Size ChecksumStartField::GetSize() const {
-  return Size(0);
-}
+Size ChecksumStartField::GetSize() const { return Size(0); }
 
 std::string ChecksumStartField::GetDataType() const {
   return "There's no type for Checksum Start fields";
@@ -36,19 +35,13 @@ std::string ChecksumStartField::GetDataType() const {
 
 void ChecksumStartField::GenExtractor(std::ostream&, int, bool) const {}
 
-std::string ChecksumStartField::GetGetterFunctionName() const {
-  return "";
-}
+std::string ChecksumStartField::GetGetterFunctionName() const { return ""; }
 
 void ChecksumStartField::GenGetter(std::ostream&, Size, Size) const {}
 
-std::string ChecksumStartField::GetBuilderParameterType() const {
-  return "";
-}
+std::string ChecksumStartField::GetBuilderParameterType() const { return ""; }
 
-bool ChecksumStartField::HasParameterValidator() const {
-  return false;
-}
+bool ChecksumStartField::HasParameterValidator() const { return false; }
 
 void ChecksumStartField::GenParameterValidator(std::ostream&) const {}
 
@@ -58,9 +51,7 @@ void ChecksumStartField::GenInserter(std::ostream&) const {
 
 void ChecksumStartField::GenValidator(std::ostream&) const {}
 
-std::string ChecksumStartField::GetStartedFieldName() const {
-  return started_field_name_;
-}
+std::string ChecksumStartField::GetStartedFieldName() const { return started_field_name_; }
 
 void ChecksumStartField::GenStringRepresentation(std::ostream&, std::string) const {
   // Print nothing for checksum start

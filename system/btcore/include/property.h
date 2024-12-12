@@ -28,8 +28,7 @@
 
 // Copies an array of consecutive properties of |count| to a newly
 // allocated array. |properties| must not be NULL.
-bt_property_t* property_copy_array(const bt_property_t* properties,
-                                   size_t count);
+bt_property_t* property_copy_array(const bt_property_t* properties, size_t count);
 
 // Copies |src| to |dest|. Returns the value of |dest|.
 // |src| and |dest| must not be NULL.
@@ -49,7 +48,6 @@ bt_property_t* property_new_device_type(bt_device_type_t device_type);
 bt_property_t* property_new_discoverable_timeout(const uint32_t timeout);
 bt_property_t* property_new_name(const char* name);
 bt_property_t* property_new_rssi(const int8_t rssi);
-bt_property_t* property_new_scan_mode(bt_scan_mode_t scan_mode);
 bt_property_t* property_new_uuids(const bluetooth::Uuid* uuid, size_t count);
 
 // Property resource frees both property and value.
@@ -65,18 +63,14 @@ bool property_is_device_type(const bt_property_t* property);
 bool property_is_discoverable_timeout(const bt_property_t* property);
 bool property_is_name(const bt_property_t* property);
 bool property_is_rssi(const bt_property_t* property);
-bool property_is_scan_mode(const bt_property_t* property);
 bool property_is_uuids(const bt_property_t* property);
 
 // Value conversion convenience methods. The contents of the property are
 // properly typed and returned to the caller. |property| must not be NULL.
 const RawAddress* property_as_addr(const bt_property_t* property);
-const bt_device_class_t* property_as_device_class(
-    const bt_property_t* property);
+const bt_device_class_t* property_as_device_class(const bt_property_t* property);
 bt_device_type_t property_as_device_type(const bt_property_t* property);
 uint32_t property_as_discoverable_timeout(const bt_property_t* property);
 const bt_bdname_t* property_as_name(const bt_property_t* property);
 int8_t property_as_rssi(const bt_property_t* property);
-bt_scan_mode_t property_as_scan_mode(const bt_property_t* property);
-const bluetooth::Uuid* property_as_uuids(const bt_property_t* property,
-                                         size_t* count);
+const bluetooth::Uuid* property_as_uuids(const bt_property_t* property, size_t* count);

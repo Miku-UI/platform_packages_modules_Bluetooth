@@ -4,18 +4,18 @@ use bitflags::bitflags;
 use crate::{
     core::uuid::Uuid,
     gatt::ids::AttHandle,
-    packets::{AttErrorCode, AttHandleBuilder, AttHandleView},
+    packets::att::{self, AttErrorCode},
 };
 
-impl From<AttHandleView<'_>> for AttHandle {
-    fn from(value: AttHandleView) -> Self {
-        AttHandle(value.get_handle())
+impl From<att::AttHandle> for AttHandle {
+    fn from(value: att::AttHandle) -> Self {
+        AttHandle(value.handle)
     }
 }
 
-impl From<AttHandle> for AttHandleBuilder {
+impl From<AttHandle> for att::AttHandle {
     fn from(value: AttHandle) -> Self {
-        AttHandleBuilder { handle: value.0 }
+        att::AttHandle { handle: value.0 }
     }
 }
 

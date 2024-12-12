@@ -15,7 +15,7 @@ use crate::{
             AttPermissions, GattCharacteristicWithHandle, GattDatabase, GattServiceWithHandle,
         },
     },
-    packets::AttErrorCode,
+    packets::att::AttErrorCode,
 };
 
 struct GapService;
@@ -44,7 +44,7 @@ impl GattDatastore for GapService {
             DEVICE_NAME_HANDLE => {
                 // for non-bonded peers, don't let them read the device name
                 // TODO(aryarahul): support discoverability, when we make this the main GATT server
-                Err(AttErrorCode::INSUFFICIENT_AUTHENTICATION)
+                Err(AttErrorCode::InsufficientAuthentication)
             }
             // 0x0000 from AssignedNumbers => "Unknown"
             DEVICE_APPEARANCE_HANDLE => Ok(vec![0x00, 0x00]),
@@ -148,7 +148,7 @@ mod test {
         let name = block_on_locally(att_db.read_attribute(DEVICE_NAME_HANDLE));
 
         // assert: the name is not readable
-        assert_eq!(name, Err(AttErrorCode::INSUFFICIENT_AUTHENTICATION));
+        assert_eq!(name, Err(AttErrorCode::InsufficientAuthentication));
     }
 
     #[test]

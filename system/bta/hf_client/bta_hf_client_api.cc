@@ -60,8 +60,7 @@ using namespace bluetooth;
  * Returns          BTA_SUCCESS if OK, BTA_FAILURE otherwise.
  *
  ******************************************************************************/
-tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback,
-                               tBTA_HF_CLIENT_FEAT features,
+tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback, tBTA_HF_CLIENT_FEAT features,
                                const char* p_service_name) {
   return bta_hf_client_api_enable(p_cback, features, p_service_name);
 }
@@ -90,7 +89,7 @@ void BTA_HfClientDisable(void) { bta_hf_client_api_disable(); }
 bt_status_t BTA_HfClientOpen(const RawAddress& bd_addr, uint16_t* p_handle) {
   log::verbose("");
   tBTA_HF_CLIENT_API_OPEN* p_buf =
-      (tBTA_HF_CLIENT_API_OPEN*)osi_malloc(sizeof(tBTA_HF_CLIENT_API_OPEN));
+          (tBTA_HF_CLIENT_API_OPEN*)osi_malloc(sizeof(tBTA_HF_CLIENT_API_OPEN));
 
   if (!bta_hf_client_allocate_handle(bd_addr, p_handle)) {
     log::error("could not allocate handle");
@@ -175,10 +174,10 @@ void BTA_HfClientAudioClose(uint16_t handle) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at,
-                        uint32_t val1, uint32_t val2, const char* str) {
+void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at, uint32_t val1,
+                        uint32_t val2, const char* str) {
   tBTA_HF_CLIENT_DATA_VAL* p_buf =
-      (tBTA_HF_CLIENT_DATA_VAL*)osi_malloc(sizeof(tBTA_HF_CLIENT_DATA_VAL));
+          (tBTA_HF_CLIENT_DATA_VAL*)osi_malloc(sizeof(tBTA_HF_CLIENT_DATA_VAL));
 
   p_buf->hdr.event = BTA_HF_CLIENT_SEND_AT_CMD_EVT;
   p_buf->uint8_val = at;
@@ -220,10 +219,11 @@ void BTA_HfClientDumpStatistics(int fd) { bta_hf_client_dump_statistics(fd); }
  *
  ******************************************************************************/
 int get_default_hf_client_features() {
-#define DEFAULT_BTIF_HF_CLIENT_FEATURES                                        \
-  (BTA_HF_CLIENT_FEAT_ECNR | BTA_HF_CLIENT_FEAT_3WAY |                         \
-   BTA_HF_CLIENT_FEAT_CLI | BTA_HF_CLIENT_FEAT_VREC | BTA_HF_CLIENT_FEAT_VOL | \
-   BTA_HF_CLIENT_FEAT_ECS | BTA_HF_CLIENT_FEAT_ECC | BTA_HF_CLIENT_FEAT_CODEC)
+#define DEFAULT_BTIF_HF_CLIENT_FEATURES                                         \
+  (BTA_HF_CLIENT_FEAT_ECNR | BTA_HF_CLIENT_FEAT_3WAY | BTA_HF_CLIENT_FEAT_CLI | \
+   BTA_HF_CLIENT_FEAT_VREC | BTA_HF_CLIENT_FEAT_VOL | BTA_HF_CLIENT_FEAT_ECS |  \
+   BTA_HF_CLIENT_FEAT_ECC | BTA_HF_CLIENT_FEAT_CODEC)
 
-  return GET_SYSPROP(Hfp, hf_client_features, DEFAULT_BTIF_HF_CLIENT_FEATURES);
+  return android::sysprop::bluetooth::Hfp::hf_client_features().value_or(
+          DEFAULT_BTIF_HF_CLIENT_FEATURES);
 }

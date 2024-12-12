@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assert;
@@ -44,6 +46,7 @@ public class BipAttachmentFormatTest {
         return makeDate(month, day, year, hours, min, sec, null);
     }
 
+    @SuppressLint("UndefinedEquals")
     private void testParse(
             String contentType,
             String charset,
@@ -78,6 +81,7 @@ public class BipAttachmentFormatTest {
         }
     }
 
+    @SuppressLint("UndefinedEquals")
     private void testCreate(
             String contentType,
             String charset,

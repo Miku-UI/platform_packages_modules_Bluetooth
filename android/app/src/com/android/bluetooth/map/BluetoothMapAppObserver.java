@@ -34,6 +34,7 @@ import com.android.bluetooth.mapapi.BluetoothMapContract;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /** Class to construct content observers for email applications on the system. */
@@ -43,9 +44,8 @@ public class BluetoothMapAppObserver {
     private static final String TAG = "BluetoothMapAppObserver";
 
     /*  */
-    private LinkedHashMap<BluetoothMapAccountItem, ArrayList<BluetoothMapAccountItem>> mFullList;
-    private LinkedHashMap<String, ContentObserver> mObserverMap =
-            new LinkedHashMap<String, ContentObserver>();
+    private Map<BluetoothMapAccountItem, List<BluetoothMapAccountItem>> mFullList;
+    private Map<String, ContentObserver> mObserverMap = new LinkedHashMap<>();
     private ContentResolver mResolver;
     private Context mContext;
     private BroadcastReceiver mReceiver;
@@ -85,17 +85,16 @@ public class BluetoothMapAppObserver {
         // String packageName = packageNameWithProvider.replaceFirst("\\.[^\\.]+$", "");
         BluetoothMapAccountItem app = getApp(packageNameWithProvider);
         if (app != null) {
-            ArrayList<BluetoothMapAccountItem> newAccountList = mLoader.parseAccounts(app);
-            ArrayList<BluetoothMapAccountItem> oldAccountList = mFullList.get(app);
-            ArrayList<BluetoothMapAccountItem> addedAccountList =
-                    (ArrayList<BluetoothMapAccountItem>) newAccountList.clone();
+            List<BluetoothMapAccountItem> newAccountList = mLoader.parseAccounts(app);
+            List<BluetoothMapAccountItem> oldAccountList = mFullList.get(app);
+            List<BluetoothMapAccountItem> addedAccountList = new ArrayList<>(newAccountList);
             // Same as oldAccountList.clone
-            ArrayList<BluetoothMapAccountItem> removedAccountList = mFullList.get(app);
+            List<BluetoothMapAccountItem> removedAccountList = mFullList.get(app);
             if (oldAccountList == null) {
-                oldAccountList = new ArrayList<BluetoothMapAccountItem>();
+                oldAccountList = new ArrayList<>();
             }
             if (removedAccountList == null) {
-                removedAccountList = new ArrayList<BluetoothMapAccountItem>();
+                removedAccountList = new ArrayList<>();
             }
 
             mFullList.put(app, newAccountList);
@@ -302,9 +301,7 @@ public class BluetoothMapAppObserver {
                                 if (app != null) {
                                     registerObserver(app);
                                     // Add all accounts to mFullList
-                                    ArrayList<BluetoothMapAccountItem> newAccountList =
-                                            mLoader.parseAccounts(app);
-                                    mFullList.put(app, newAccountList);
+                                    mFullList.put(app, mLoader.parseAccounts(app));
                                 }
                             }
 
@@ -356,14 +353,14 @@ public class BluetoothMapAppObserver {
     /**
      * Method to get a list of the accounts (across all apps) that are set to be shared through MAP.
      *
-     * @return Arraylist<BluetoothMapAccountItem> containing all enabled accounts
+     * @return List containing all enabled accounts
      */
-    public ArrayList<BluetoothMapAccountItem> getEnabledAccountItems() {
+    public List<BluetoothMapAccountItem> getEnabledAccountItems() {
         Log.d(TAG, "getEnabledAccountItems()\n");
-        ArrayList<BluetoothMapAccountItem> list = new ArrayList<BluetoothMapAccountItem>();
+        List<BluetoothMapAccountItem> list = new ArrayList<>();
         for (BluetoothMapAccountItem app : mFullList.keySet()) {
             if (app != null) {
-                ArrayList<BluetoothMapAccountItem> accountList = mFullList.get(app);
+                List<BluetoothMapAccountItem> accountList = mFullList.get(app);
                 if (accountList != null) {
                     for (BluetoothMapAccountItem acc : accountList) {
                         if (acc.mIsChecked) {
@@ -394,14 +391,13 @@ public class BluetoothMapAppObserver {
     /**
      * Method to get a list of the accounts (across all apps).
      *
-     * @return Arraylist<BluetoothMapAccountItem> containing all accounts
+     * @return List containing all accounts
      */
-    public ArrayList<BluetoothMapAccountItem> getAllAccountItems() {
+    public List<BluetoothMapAccountItem> getAllAccountItems() {
         Log.d(TAG, "getAllAccountItems()\n");
-        ArrayList<BluetoothMapAccountItem> list = new ArrayList<BluetoothMapAccountItem>();
+        List<BluetoothMapAccountItem> list = new ArrayList<>();
         for (BluetoothMapAccountItem app : mFullList.keySet()) {
-            ArrayList<BluetoothMapAccountItem> accountList = mFullList.get(app);
-            list.addAll(accountList);
+            list.addAll(mFullList.get(app));
         }
         return list;
     }

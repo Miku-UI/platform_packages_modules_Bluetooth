@@ -13,8 +13,10 @@ use bt_topshim::btif::Uuid;
 use btstack::bluetooth::BluetoothDevice;
 use btstack::RPCProxy;
 
+#[allow(dead_code)]
 struct IBluetoothAdminDBus {}
 
+#[allow(dead_code)]
 struct IBluetoothAdminPolicyCallbackDBus {}
 
 #[dbus_propmap(PolicyEffect)]

@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -197,9 +198,11 @@ public class BipPixel {
     private static int determinePixelType(String pixel) {
         if (pixel == null || pixel.length() > 23) return TYPE_UNKNOWN;
         int delimCount = 0;
-        for (char c : pixel.toCharArray()) {
+        for (int i = 0; i < pixel.length(); i++) {
+            char c = pixel.charAt(i);
             if (c == '*') delimCount++;
         }
+
         return delimCount > 0 && delimCount <= 3 ? delimCount : TYPE_UNKNOWN;
     }
 
@@ -209,15 +212,24 @@ public class BipPixel {
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof BipPixel)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof BipPixel p)) {
+            return false;
+        }
 
-        BipPixel p = (BipPixel) o;
         return p.getType() == getType()
                 && p.getMinWidth() == getMinWidth()
                 && p.getMaxWidth() == getMaxWidth()
                 && p.getMinHeight() == getMinHeight()
                 && p.getMaxHeight() == getMaxHeight();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                getType(), getMinWidth(), getMaxWidth(), getMinHeight(), getMaxHeight());
     }
 
     @Override

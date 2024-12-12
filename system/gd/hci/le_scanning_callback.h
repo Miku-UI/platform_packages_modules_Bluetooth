@@ -29,7 +29,7 @@ namespace hci {
 using ScannerId = uint8_t;
 
 class AdvertisingFilterOnFoundOnLostInfo {
- public:
+public:
   // For MSFT-based advertisement events, the monitor handle associates every event with the monitor
   // filter this event comes from.
   uint8_t monitor_handle;
@@ -47,7 +47,7 @@ class AdvertisingFilterOnFoundOnLostInfo {
 };
 
 class ScanningCallback {
- public:
+public:
   enum ScanningStatus {
     SUCCESS,
     NO_RESOURCES = 0x80,
@@ -56,46 +56,34 @@ class ScanningCallback {
   };
 
   virtual ~ScanningCallback() = default;
-  virtual void OnScannerRegistered(
-      const bluetooth::hci::Uuid app_uuid, ScannerId scanner_id, ScanningStatus status) = 0;
+  virtual void OnScannerRegistered(const bluetooth::hci::Uuid app_uuid, ScannerId scanner_id,
+                                   ScanningStatus status) = 0;
   virtual void OnSetScannerParameterComplete(ScannerId scanner_id, ScanningStatus status) = 0;
-  virtual void OnScanResult(
-      uint16_t event_type,
-      uint8_t address_type,
-      Address address,
-      uint8_t primary_phy,
-      uint8_t secondary_phy,
-      uint8_t advertising_sid,
-      int8_t tx_power,
-      int8_t rssi,
-      uint16_t periodic_advertising_interval,
-      std::vector<uint8_t> advertising_data) = 0;
+  virtual void OnScanResult(uint16_t event_type, uint8_t address_type, Address address,
+                            uint8_t primary_phy, uint8_t secondary_phy, uint8_t advertising_sid,
+                            int8_t tx_power, int8_t rssi, uint16_t periodic_advertising_interval,
+                            std::vector<uint8_t> advertising_data) = 0;
   virtual void OnTrackAdvFoundLost(AdvertisingFilterOnFoundOnLostInfo on_found_on_lost_info) = 0;
-  virtual void OnBatchScanReports(
-      int client_if, int status, int report_format, int num_records, std::vector<uint8_t> data) = 0;
+  virtual void OnBatchScanReports(int client_if, int status, int report_format, int num_records,
+                                  std::vector<uint8_t> data) = 0;
   virtual void OnBatchScanThresholdCrossed(int client_if) = 0;
   virtual void OnTimeout() = 0;
   virtual void OnFilterEnable(Enable enable, uint8_t status) = 0;
   virtual void OnFilterParamSetup(uint8_t available_spaces, ApcfAction action, uint8_t status) = 0;
-  virtual void OnFilterConfigCallback(
-      ApcfFilterType filter_type, uint8_t available_spaces, ApcfAction action, uint8_t status) = 0;
-  virtual void OnPeriodicSyncStarted(
-      int request_id,
-      uint8_t status,
-      uint16_t sync_handle,
-      uint8_t advertising_sid,
-      AddressWithType address_with_type,
-      uint8_t phy,
-      uint16_t interval) = 0;
-  virtual void OnPeriodicSyncReport(
-      uint16_t sync_handle, int8_t tx_power, int8_t rssi, uint8_t status, std::vector<uint8_t> data) = 0;
+  virtual void OnFilterConfigCallback(ApcfFilterType filter_type, uint8_t available_spaces,
+                                      ApcfAction action, uint8_t status) = 0;
+  virtual void OnPeriodicSyncStarted(int request_id, uint8_t status, uint16_t sync_handle,
+                                     uint8_t advertising_sid, AddressWithType address_with_type,
+                                     uint8_t phy, uint16_t interval) = 0;
+  virtual void OnPeriodicSyncReport(uint16_t sync_handle, int8_t tx_power, int8_t rssi,
+                                    uint8_t status, std::vector<uint8_t> data) = 0;
   virtual void OnPeriodicSyncLost(uint16_t sync_handle) = 0;
   virtual void OnPeriodicSyncTransferred(int pa_source, uint8_t status, Address address) = 0;
   virtual void OnBigInfoReport(uint16_t sync_handle, bool encrypted) = 0;
 };
 
 class AdvertisingPacketContentFilterCommand {
- public:
+public:
   ApcfFilterType filter_type;
   Address address;
   ApcfApplicationAddressType application_address_type;
@@ -116,7 +104,7 @@ class AdvertisingPacketContentFilterCommand {
 };
 
 class AdvertisingFilterParameter {
- public:
+public:
   uint16_t feature_selection;
   uint16_t list_logic_type;
   uint8_t filter_logic_type;

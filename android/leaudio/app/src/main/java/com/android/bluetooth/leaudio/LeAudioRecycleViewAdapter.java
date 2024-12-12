@@ -77,6 +77,7 @@ public class LeAudioRecycleViewAdapter
     private OnVolumeControlInteractionListener volumeControlInteractionListener;
     private OnBassInteractionListener bassInteractionListener;
     private OnHapInteractionListener hapInteractionListener;
+    private OnGattBrListener gattBrListener;
     private final ArrayList<LeAudioDeviceStateWrapper> devices;
 
     private int GROUP_NODE_ADDED = 1;
@@ -139,6 +140,11 @@ public class LeAudioRecycleViewAdapter
                                         .contains(
                                                 ParcelUuid.fromString(
                                                         parent.getString(R.string.svc_uuid_has))));
+                holder.itemView
+                        .findViewById(R.id.gatt_br_switch)
+                        .setEnabled(
+                                leAudioDeviceStateWrapper.device.getType()
+                                        == BluetoothDevice.DEVICE_TYPE_DUAL);
 
                 holder.itemView
                         .findViewById(R.id.bass_switch)
@@ -153,12 +159,30 @@ public class LeAudioRecycleViewAdapter
         }
 
         // Set state observables
+        setGattBrConnectionObserver(holder, leAudioDeviceStateWrapper);
         setLeAudioStateObservers(holder, leAudioDeviceStateWrapper);
         setVolumeControlStateObservers(holder, leAudioDeviceStateWrapper);
         setVolumeControlUiStateObservers(holder, leAudioDeviceStateWrapper);
         setBassStateObservers(holder, leAudioDeviceStateWrapper);
         setHasStateObservers(holder, leAudioDeviceStateWrapper);
         setBassUiStateObservers(holder, leAudioDeviceStateWrapper);
+    }
+
+    private void setGattBrConnectionObserver(
+            @NonNull ViewHolder holder, LeAudioDeviceStateWrapper leAudioDeviceStateWrapper) {
+        if (leAudioDeviceStateWrapper.isGattBrConnectedMutable.hasObservers()) {
+            leAudioDeviceStateWrapper.isGattBrConnectedMutable.removeObservers(this.parent);
+        }
+        leAudioDeviceStateWrapper.isGattBrConnectedMutable.observe(
+                this.parent,
+                is_connected -> {
+                    // FIXME: How to prevent the callback from firing when we set this by code
+                    if (is_connected != holder.gattBrConnectionSwitch.isChecked()) {
+                        holder.gattBrConnectionSwitch.setActivated(false);
+                        holder.gattBrConnectionSwitch.setChecked(is_connected);
+                        holder.gattBrConnectionSwitch.setActivated(true);
+                    }
+                });
     }
 
     private void setLeAudioStateObservers(
@@ -997,6 +1021,10 @@ public class LeAudioRecycleViewAdapter
         this.hapInteractionListener = listener;
     }
 
+    public void setOnGattBrConnectListener(@Nullable OnGattBrListener listener) {
+        this.gattBrListener = listener;
+    }
+
     // Device list update routine
     // -----------------------------
     public void updateLeAudioDeviceList(@Nullable List<LeAudioDeviceStateWrapper> devices) {
@@ -1119,6 +1147,10 @@ public class LeAudioRecycleViewAdapter
                 String description);
     }
 
+    public interface OnGattBrListener {
+        void onToggleSwitch(LeAudioDeviceStateWrapper device, boolean switchState);
+    }
+
     public interface OnHapInteractionListener {
         void onConnectClick(LeAudioDeviceStateWrapper leAudioDeviceStateWrapper);
 
@@ -1184,6 +1216,7 @@ public class LeAudioRecycleViewAdapter
 
         // LeAudio HAP stuff
         private Switch hapConnectionSwitch;
+        private Switch gattBrConnectionSwitch;
         private TextView leAudioHapState;
         private TextView leAudioHapFeatures;
         private TextView leAudioHapActivePresetIndex;
@@ -1249,6 +1282,7 @@ public class LeAudioRecycleViewAdapter
             SetupLeAudioView(itemView);
             setupVcView(itemView);
             setupHapView(itemView);
+            setupGattBrView(itemView);
             setupBassView(itemView);
 
             // Notify viewmodel via parent's click listener
@@ -1261,6 +1295,21 @@ public class LeAudioRecycleViewAdapter
                     });
         }
 
+        private void setupGattBrView(@NonNull View itemView) {
+            gattBrConnectionSwitch = itemView.findViewById(R.id.gatt_br_switch);
+            gattBrConnectionSwitch.setActivated(true);
+
+            gattBrConnectionSwitch.setOnCheckedChangeListener(
+                    (compoundButton, b) -> {
+                        if (!compoundButton.isActivated()) return;
+
+                        if (gattBrListener != null) {
+                            gattBrListener.onToggleSwitch(
+                                    devices.get(ViewHolder.this.getAdapterPosition()), b);
+                        }
+                    });
+        }
+
         private void setupHapView(@NonNull View itemView) {
             hapConnectionSwitch = itemView.findViewById(R.id.hap_switch);
             hapConnectionSwitch.setActivated(true);
@@ -1269,7 +1318,7 @@ public class LeAudioRecycleViewAdapter
                     (compoundButton, b) -> {
                         if (!compoundButton.isActivated()) return;
 
-                        if (bassInteractionListener != null) {
+                        if (hapInteractionListener != null) {
                             if (b)
                                 hapInteractionListener.onConnectClick(
                                         devices.get(ViewHolder.this.getAdapterPosition()));

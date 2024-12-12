@@ -29,7 +29,7 @@ namespace bluetooth {
 namespace storage {
 
 class ClassicDevice {
- public:
+public:
   ClassicDevice(ConfigCache* config, ConfigCache* memory_only_config, std::string section);
 
   // for move
@@ -42,11 +42,10 @@ class ClassicDevice {
 
   // operators
   bool operator==(const ClassicDevice& other) const {
-    return config_ == other.config_ && memory_only_config_ == other.memory_only_config_ && section_ == other.section_;
+    return config_ == other.config_ && memory_only_config_ == other.memory_only_config_ &&
+           section_ == other.section_;
   }
-  bool operator!=(const ClassicDevice& other) const {
-    return !(*this == other);
-  }
+  bool operator!=(const ClassicDevice& other) const { return !(*this == other); }
   bool operator<(const ClassicDevice& other) const {
     if (config_ != other.config_) {
       return config_ < other.config_;
@@ -56,15 +55,9 @@ class ClassicDevice {
     }
     return section_ < other.section_;
   }
-  bool operator>(const ClassicDevice& rhs) const {
-    return (rhs < *this);
-  }
-  bool operator<=(const ClassicDevice& rhs) const {
-    return !(*this > rhs);
-  }
-  bool operator>=(const ClassicDevice& rhs) const {
-    return !(*this < rhs);
-  }
+  bool operator>(const ClassicDevice& rhs) const { return rhs < *this; }
+  bool operator<=(const ClassicDevice& rhs) const { return !(*this > rhs); }
+  bool operator>=(const ClassicDevice& rhs) const { return !(*this < rhs); }
 
   // Get the parent device
   Device Parent();
@@ -81,13 +74,13 @@ class ClassicDevice {
   // Property names that correspond to a link key used in Bluetooth classic device
   static const std::unordered_set<std::string_view> kLinkKeyProperties;
 
- private:
+private:
   ConfigCache* config_;
   ConfigCache* memory_only_config_;
   std::string section_;
   friend std::hash<ClassicDevice>;
 
- public:
+public:
   GENERATE_PROPERTY_GETTER_SETTER_REMOVER(LinkKey, hci::LinkKey, "LinkKey");
   GENERATE_PROPERTY_GETTER_SETTER_REMOVER(LinkKeyType, hci::KeyType, "LinkKeyType");
   GENERATE_PROPERTY_GETTER_SETTER_REMOVER(SdpDiManufacturer, uint16_t, "SdpDiManufacturer");

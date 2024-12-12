@@ -38,7 +38,7 @@ using ::bluetooth::audio::le_audio::StreamCallbacks;
 typedef LeAudioClientInterface::PcmParameters PcmParameters;
 
 class LeAudioTransport {
- public:
+public:
   LeAudioTransport(std::function<void()> flush, StreamCallbacks stream_cb,
                    PcmParameters pcm_config);
 
@@ -48,8 +48,7 @@ class LeAudioTransport {
 
   void StopRequest();
 
-  bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                               uint64_t* total_bytes_processed,
+  bool GetPresentationPosition(uint64_t* remote_delay_report_ns, uint64_t* total_bytes_processed,
                                timespec* data_position);
 
   void SourceMetadataChanged(const source_metadata_v7_t& source_metadata);
@@ -65,14 +64,13 @@ class LeAudioTransport {
   const PcmParameters& LeAudioGetSelectedHalPcmConfig();
 
   void LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz, uint8_t bit_rate,
-                                      uint8_t channels_count,
-                                      uint32_t data_interval);
+                                      uint8_t channels_count, uint32_t data_interval);
 
   StartRequestState GetStartRequestState(void);
   void ClearStartRequestState(void);
   void SetStartRequestState(StartRequestState state);
 
- private:
+private:
   std::function<void()> flush_;
   StreamCallbacks stream_cb_;
   uint16_t remote_delay_report_ms_;
@@ -84,7 +82,7 @@ class LeAudioTransport {
 
 // Sink transport implementation for Le Audio
 class LeAudioSinkTransport {
- public:
+public:
   LeAudioSinkTransport(StreamCallbacks stream_cb);
 
   ~LeAudioSinkTransport();
@@ -95,8 +93,7 @@ class LeAudioSinkTransport {
 
   void StopRequest();
 
-  bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                               uint64_t* total_bytes_read,
+  bool GetPresentationPosition(uint64_t* remote_delay_report_ns, uint64_t* total_bytes_read,
                                timespec* data_position);
 
   void SourceMetadataChanged(const source_metadata_v7_t& source_metadata);
@@ -112,23 +109,21 @@ class LeAudioSinkTransport {
   const PcmParameters& LeAudioGetSelectedHalPcmConfig();
 
   void LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz, uint8_t bit_rate,
-                                      uint8_t channels_count,
-                                      uint32_t data_interval);
+                                      uint8_t channels_count, uint32_t data_interval);
 
   StartRequestState GetStartRequestState(void);
   void ClearStartRequestState(void);
   void SetStartRequestState(StartRequestState state);
 
   static inline LeAudioSinkTransport* instance = nullptr;
-  static inline btle_stream_started_status stream_started =
-      btle_stream_started_status::IDLE;
+  static inline btle_stream_started_status stream_started = btle_stream_started_status::IDLE;
 
- private:
+private:
   LeAudioTransport* transport_;
 };
 
 class LeAudioSourceTransport {
- public:
+public:
   LeAudioSourceTransport(StreamCallbacks stream_cb);
 
   ~LeAudioSourceTransport();
@@ -139,8 +134,7 @@ class LeAudioSourceTransport {
 
   void StopRequest();
 
-  bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                               uint64_t* total_bytes_written,
+  bool GetPresentationPosition(uint64_t* remote_delay_report_ns, uint64_t* total_bytes_written,
                                timespec* data_position);
 
   void SourceMetadataChanged(const source_metadata_v7_t& source_metadata);
@@ -156,18 +150,16 @@ class LeAudioSourceTransport {
   const PcmParameters& LeAudioGetSelectedHalPcmConfig();
 
   void LeAudioSetSelectedHalPcmConfig(uint32_t sample_rate_hz, uint8_t bit_rate,
-                                      uint8_t channels_count,
-                                      uint32_t data_interval);
+                                      uint8_t channels_count, uint32_t data_interval);
 
   StartRequestState GetStartRequestState(void);
   void ClearStartRequestState(void);
   void SetStartRequestState(StartRequestState state);
 
   static inline LeAudioSourceTransport* instance = nullptr;
-  static inline btle_stream_started_status stream_started =
-      btle_stream_started_status::IDLE;
+  static inline btle_stream_started_status stream_started = btle_stream_started_status::IDLE;
 
- private:
+private:
   LeAudioTransport* transport_;
 };
 

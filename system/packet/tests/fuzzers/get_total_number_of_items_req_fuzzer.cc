@@ -25,8 +25,7 @@
 namespace bluetooth {
 namespace avrcp {
 
-using TestGetTotalNumItemsReqPacket =
-    TestPacketType<GetTotalNumberOfItemsRequest>;
+using TestGetTotalNumItemsReqPacket = TestPacketType<GetTotalNumberOfItemsRequest>;
 
 extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
   std::vector<uint8_t> get_total_number_of_items_request_now_playing;
@@ -37,8 +36,8 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
       get_total_number_of_items_request_now_playing.push_back(data[x]);
     }
 
-    auto test_packet = TestGetTotalNumItemsReqPacket::Make(
-        get_total_number_of_items_request_now_playing);
+    auto test_packet =
+            TestGetTotalNumItemsReqPacket::Make(get_total_number_of_items_request_now_playing);
     test_packet->GetScope();
     test_packet->IsValid();
     test_packet->GetData();

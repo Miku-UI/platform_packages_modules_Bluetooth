@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "shim/dumpsys.h"
+
 #include <gtest/gtest.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -22,7 +24,6 @@
 
 #include "module.h"
 #include "os/thread.h"
-#include "shim/dumpsys.h"
 #include "shim/dumpsys_args.h"
 #include "test_data/dumpsys_test_data_bin.h"
 
@@ -64,23 +65,19 @@ bool SimpleJsonValidator(int fd, int* dumpsys_byte_cnt) {
 
 // To create dumpsys_test_header_bin.h:
 // make bluetooth_flatbuffer_bundler
-// ${ANDROID_BUILD_TOP}/out/host/linux-x86/bin/bluetooth_flatbuffer_bundler -w -m bluetooth.DumpsysData -f
-// test_gen/dumpsys_test_data_bin -n bluetooth::test test_gen/*
+// ${ANDROID_BUILD_TOP}/out/host/linux-x86/bin/bluetooth_flatbuffer_bundler -w -m
+// bluetooth.DumpsysData -f test_gen/dumpsys_test_data_bin -n bluetooth::test test_gen/*
 
 class DumpsysTest : public Test {
- protected:
+protected:
   void SetUp() override {
     dumpsys_module_ = new bluetooth::shim::Dumpsys(bluetooth::test::GetBundledSchemaData());
     fake_registry_.InjectTestModule(&shim::Dumpsys::Factory, dumpsys_module_);
   }
 
-  void TearDown() override {
-    fake_registry_.StopAll();
-  }
+  void TearDown() override { fake_registry_.StopAll(); }
 
-  void Print() {
-    dumpsys_module_->Dump(0, nullptr);
-  }
+  void Print() { dumpsys_module_->Dump(0, nullptr); }
 
   int GetSocketBufferSize(int sockfd) {
     int socket_buffer_size;
@@ -91,7 +88,8 @@ class DumpsysTest : public Test {
 
   void SetSocketBufferSize(int sockfd, int socket_buffer_size) {
     socklen_t optlen = sizeof(socket_buffer_size);
-    ASSERT_EQ(0, setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (const void*)&socket_buffer_size, optlen));
+    ASSERT_EQ(0,
+              setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (const void*)&socket_buffer_size, optlen));
   }
 
   TestModuleRegistry fake_registry_;

@@ -16,14 +16,15 @@
 
 #include "change_path.h"
 
+#include <base/sys_byteorder.h>
+
 namespace bluetooth {
 namespace avrcp {
 
-std::unique_ptr<ChangePathResponseBuilder>
-ChangePathResponseBuilder::MakeBuilder(Status status,
-                                       uint32_t num_items_in_folder) {
+std::unique_ptr<ChangePathResponseBuilder> ChangePathResponseBuilder::MakeBuilder(
+        Status status, uint32_t num_items_in_folder) {
   std::unique_ptr<ChangePathResponseBuilder> builder(
-      new ChangePathResponseBuilder(status, num_items_in_folder));
+          new ChangePathResponseBuilder(status, num_items_in_folder));
 
   return builder;
 }
@@ -31,20 +32,23 @@ ChangePathResponseBuilder::MakeBuilder(Status status,
 size_t ChangePathResponseBuilder::size() const {
   size_t len = BrowsePacket::kMinSize();
   len += 1;  // Status
-  if (status_ != Status::NO_ERROR) return len;
+  if (status_ != Status::NO_ERROR) {
+    return len;
+  }
 
   len += 4;  // Number of items in folder
   return len;
 }
 
-bool ChangePathResponseBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool ChangePathResponseBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   BrowsePacketBuilder::PushHeader(pkt, size() - BrowsePacket::kMinSize());
 
   AddPayloadOctets1(pkt, (uint8_t)status_);
-  if (status_ != Status::NO_ERROR) return true;
+  if (status_ != Status::NO_ERROR) {
+    return true;
+  }
 
   AddPayloadOctets4(pkt, base::ByteSwap(num_items_in_folder_));
   return true;
@@ -66,7 +70,9 @@ uint64_t ChangePathRequest::GetUid() const {
 }
 
 bool ChangePathRequest::IsValid() const {
-  if (!BrowsePacket::IsValid()) return false;
+  if (!BrowsePacket::IsValid()) {
+    return false;
+  }
   // Change path request packets are always the same size
   return size() == kMinSize();
 }
@@ -85,19 +91,16 @@ std::string ChangePathRequest::ToString() const {
 }
 
 std::unique_ptr<ChangePathRequestBuilder> ChangePathRequestBuilder::MakeBuilder(
-    uint16_t uid_counter, Direction direction, uint64_t folder_uid) {
+        uint16_t uid_counter, Direction direction, uint64_t folder_uid) {
   std::unique_ptr<ChangePathRequestBuilder> builder(
-      new ChangePathRequestBuilder(uid_counter, direction, folder_uid));
+          new ChangePathRequestBuilder(uid_counter, direction, folder_uid));
 
   return builder;
 }
 
-size_t ChangePathRequestBuilder::size() const {
-  return ChangePathRequest::kMinSize();
-}
+size_t ChangePathRequestBuilder::size() const { return ChangePathRequest::kMinSize(); }
 
-bool ChangePathRequestBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool ChangePathRequestBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   BrowsePacketBuilder::PushHeader(pkt, size() - BrowsePacket::kMinSize());

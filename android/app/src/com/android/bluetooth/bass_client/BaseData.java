@@ -22,24 +22,18 @@ import android.util.Pair;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.MissingResourceException;
-import java.util.Set;
 
 /** Helper class to parse the Broadcast Announcement BASE data */
 class BaseData {
     private static final String TAG = "Bassclient-BaseData";
-    private static final byte UNKNOWN_CODEC = (byte) 0xFE;
     private static final int METADATA_LEVEL1 = 1;
     private static final int METADATA_LEVEL2 = 2;
     private static final int METADATA_LEVEL3 = 3;
     private static final int METADATA_PRESENTATIONDELAY_LENGTH = 3;
     private static final int METADATA_CODEC_LENGTH = 5;
-    private static final int METADATA_UNKNOWN_CODEC_LENGTH = 1;
     private static final int CODEC_CONFIGURATION_SAMPLE_RATE_TYPE = 0x01;
     private static final int CODEC_CONFIGURATION_FRAME_DURATION_TYPE = 0x02;
     private static final int CODEC_CONFIGURATION_CHANNEL_ALLOCATION_TYPE = 0x03;
@@ -57,8 +51,8 @@ class BaseData {
     private static final int CODEC_AUDIO_FRAME_DURATION_10MS = 0x01;
 
     private final BaseInformation mLevelOne;
-    private final ArrayList<BaseInformation> mLevelTwo;
-    private final ArrayList<BaseInformation> mLevelThree;
+    private final List<BaseInformation> mLevelTwo;
+    private final List<BaseInformation> mLevelThree;
 
     private int mNumBISIndices = 0;
 
@@ -70,19 +64,9 @@ class BaseData {
         public int metaDataLength;
         public byte[] metaData;
         public byte numSubGroups;
-        public byte[] bisIndices;
         public byte index;
         public int subGroupId;
         public int level;
-        public LinkedHashSet<String> keyCodecCfgDiff;
-        public LinkedHashSet<String> keyMetadataDiff;
-        public String diffText;
-        public String description;
-        public byte[] consolidatedCodecId;
-        public Set<String> consolidatedMetadata;
-        public Set<String> consolidatedCodecInfo;
-        public HashMap<Integer, String> consolidatedUniqueCodecInfo;
-        public HashMap<Integer, String> consolidatedUniqueMetadata;
 
         BaseInformation() {
             presentationDelay = new byte[3];
@@ -92,23 +76,9 @@ class BaseData {
             metaDataLength = 0;
             metaData = new byte[0];
             numSubGroups = 0;
-            bisIndices = null;
             index = (byte) 0xFF;
             level = 0;
-            keyCodecCfgDiff = new LinkedHashSet<String>();
-            keyMetadataDiff = new LinkedHashSet<String>();
-            consolidatedMetadata = new LinkedHashSet<String>();
-            consolidatedCodecInfo = new LinkedHashSet<String>();
-            consolidatedCodecId = new byte[5];
-            consolidatedUniqueMetadata = new HashMap<Integer, String>();
-            consolidatedUniqueCodecInfo = new HashMap<Integer, String>();
-            diffText = new String("");
-            description = new String("");
             log("BaseInformation is Initialized");
-        }
-
-        boolean isCodecIdUnknown() {
-            return (codecId != null && codecId[4] == (byte) UNKNOWN_CODEC);
         }
 
         void print() {
@@ -136,57 +106,14 @@ class BaseData {
                     log("numSubGroups: " + numSubGroups);
                 }
             }
-            if (level == 2) {
-                log("Level2: Key Metadata differentiators");
-                if (keyMetadataDiff != null) {
-                    Iterator<String> itr = keyMetadataDiff.iterator();
-                    for (int k = 0; itr.hasNext(); k++) {
-                        log(
-                                "keyMetadataDiff:["
-                                        + k
-                                        + "]:"
-                                        + Arrays.toString(itr.next().getBytes()));
-                    }
-                }
-                log("END: Level2: Key Metadata differentiators");
-                log("Level2: Key CodecConfig differentiators");
-                if (keyCodecCfgDiff != null) {
-                    Iterator<String> itr = keyCodecCfgDiff.iterator();
-                    for (int k = 0; itr.hasNext(); k++) {
-                        log(
-                                "LEVEL2: keyCodecCfgDiff:["
-                                        + k
-                                        + "]:"
-                                        + Arrays.toString(itr.next().getBytes()));
-                    }
-                }
-                log("END: Level2: Key CodecConfig differentiators");
-                log("LEVEL2: diffText: " + diffText);
-            }
-            if (level == 3) {
-                log("Level3: Key CodecConfig differentiators");
-                if (keyCodecCfgDiff != null) {
-                    Iterator<String> itr = keyCodecCfgDiff.iterator();
-                    for (int k = 0; itr.hasNext(); k++) {
-                        log(
-                                "LEVEL3: keyCodecCfgDiff:["
-                                        + k
-                                        + "]:"
-                                        + Arrays.toString(itr.next().getBytes()));
-                    }
-                }
-                log("END: Level3: Key CodecConfig differentiators");
-                log("index: " + index);
-                log("LEVEL3: diffText: " + diffText);
-            }
             log("**END: Base Information****");
         }
     }
 
     BaseData(
             BaseInformation levelOne,
-            ArrayList<BaseInformation> levelTwo,
-            ArrayList<BaseInformation> levelThree,
+            List<BaseInformation> levelTwo,
+            List<BaseInformation> levelThree,
             int numOfBISIndices) {
         mLevelOne = levelOne;
         mLevelTwo = levelTwo;
@@ -200,8 +127,8 @@ class BaseData {
             throw new IllegalArgumentException("Basedata: serviceData is null");
         }
         BaseInformation levelOne = new BaseInformation();
-        ArrayList<BaseInformation> levelTwo = new ArrayList<BaseInformation>();
-        ArrayList<BaseInformation> levelThree = new ArrayList<BaseInformation>();
+        List<BaseInformation> levelTwo = new ArrayList<>();
+        List<BaseInformation> levelThree = new ArrayList<>();
         int numOfBISIndices = 0;
         log("BASE input" + Arrays.toString(serviceData));
 
@@ -246,21 +173,9 @@ class BaseData {
         BaseInformation node = new BaseInformation();
         node.level = METADATA_LEVEL2;
         node.subGroupId = groupIndex;
-        node.numSubGroups = serviceData[offset++];
-        if (serviceData[offset] == (byte) UNKNOWN_CODEC) {
-            // Place It in the last byte of codecID
-            System.arraycopy(
-                    serviceData,
-                    offset,
-                    node.codecId,
-                    METADATA_CODEC_LENGTH - 1,
-                    METADATA_UNKNOWN_CODEC_LENGTH);
-            offset += METADATA_UNKNOWN_CODEC_LENGTH;
-            log("codecId is FE");
-        } else {
-            System.arraycopy(serviceData, offset, node.codecId, 0, METADATA_CODEC_LENGTH);
-            offset += METADATA_CODEC_LENGTH;
-        }
+        node.numSubGroups = serviceData[offset++]; // NumBis
+        System.arraycopy(serviceData, offset, node.codecId, 0, METADATA_CODEC_LENGTH);
+        offset += METADATA_CODEC_LENGTH;
         node.codecConfigLength = serviceData[offset++] & 0xff;
         if (node.codecConfigLength != 0) {
             node.codecConfigInfo = new byte[node.codecConfigLength];
@@ -291,7 +206,7 @@ class BaseData {
     }
 
     static void consolidateBaseofLevelTwo(
-            ArrayList<BaseInformation> levelTwo, ArrayList<BaseInformation> levelThree) {
+            List<BaseInformation> levelTwo, List<BaseInformation> levelThree) {
         int startIdx = 0;
         int children = 0;
         for (int i = 0; i < levelTwo.size(); i++) {
@@ -300,82 +215,16 @@ class BaseData {
             consolidateBaseofLevelThree(
                     levelTwo, levelThree, i, startIdx, levelTwo.get(i).numSubGroups);
         }
-        // Eliminate Duplicates at Level 3
-        for (int i = 0; i < levelThree.size(); i++) {
-            Map<Integer, String> uniqueMds = new HashMap<Integer, String>();
-            Map<Integer, String> uniqueCcis = new HashMap<Integer, String>();
-            Set<String> Csfs = levelThree.get(i).consolidatedCodecInfo;
-            if (Csfs.size() > 0) {
-                for (String codecInfo : Csfs) {
-                    byte[] ltvEntries = codecInfo.getBytes();
-                    int k = 0;
-                    byte length = ltvEntries[k++];
-                    byte[] ltv = new byte[length + 1];
-                    ltv[0] = length;
-                    System.arraycopy(ltvEntries, k, ltv, 1, length);
-                    int type = (int) ltv[1];
-                    String s = uniqueCcis.get(type);
-                    String ltvS = new String(ltv);
-                    if (s == null) {
-                        uniqueCcis.put(type, ltvS);
-                    } else {
-                        // if same type exists, replace
-                        uniqueCcis.replace(type, ltvS);
-                    }
-                }
-            }
-            Set<String> Mds = levelThree.get(i).consolidatedMetadata;
-            if (Mds.size() > 0) {
-                for (String metadata : Mds) {
-                    byte[] ltvEntries = metadata.getBytes();
-                    int k = 0;
-                    byte length = ltvEntries[k++];
-                    byte[] ltv = new byte[length + 1];
-                    ltv[0] = length;
-                    System.arraycopy(ltvEntries, k, ltv, 1, length);
-                    int type = (int) ltv[1];
-                    String s = uniqueCcis.get(type);
-                    String ltvS = new String(ltv);
-                    if (s == null) {
-                        uniqueMds.put(type, ltvS);
-                    } else {
-                        uniqueMds.replace(type, ltvS);
-                    }
-                }
-            }
-            levelThree.get(i).consolidatedUniqueMetadata = new HashMap<Integer, String>(uniqueMds);
-            levelThree.get(i).consolidatedUniqueCodecInfo =
-                    new HashMap<Integer, String>(uniqueCcis);
-        }
     }
 
     static void consolidateBaseofLevelThree(
-            ArrayList<BaseInformation> levelTwo,
-            ArrayList<BaseInformation> levelThree,
+            List<BaseInformation> levelTwo,
+            List<BaseInformation> levelThree,
             int parentSubgroup,
             int startIdx,
             int numNodes) {
         for (int i = startIdx; i < startIdx + numNodes || i < levelThree.size(); i++) {
             levelThree.get(i).subGroupId = levelTwo.get(parentSubgroup).subGroupId;
-            log("Copy Codec Id from Level2 Parent" + parentSubgroup);
-            System.arraycopy(
-                    levelTwo.get(parentSubgroup).consolidatedCodecId,
-                    0,
-                    levelThree.get(i).consolidatedCodecId,
-                    0,
-                    5);
-            // Metadata clone from Parent
-            levelThree.get(i).consolidatedMetadata =
-                    new LinkedHashSet<String>(levelTwo.get(parentSubgroup).consolidatedMetadata);
-            // CCI clone from Parent
-            levelThree.get(i).consolidatedCodecInfo =
-                    new LinkedHashSet<String>(levelTwo.get(parentSubgroup).consolidatedCodecInfo);
-            // Append Level 2 Codec Config
-            if (levelThree.get(i).codecConfigLength != 0) {
-                log("append level 3 cci to level 3 cons:" + i);
-                String s = new String(levelThree.get(i).codecConfigInfo);
-                levelThree.get(i).consolidatedCodecInfo.add(s);
-            }
         }
     }
 
@@ -387,11 +236,11 @@ class BaseData {
         return mLevelOne;
     }
 
-    public ArrayList<BaseInformation> getLevelTwo() {
+    public List<BaseInformation> getLevelTwo() {
         return mLevelTwo;
     }
 
-    public ArrayList<BaseInformation> getLevelThree() {
+    public List<BaseInformation> getLevelThree() {
         return mLevelThree;
     }
 
@@ -403,7 +252,7 @@ class BaseData {
         return ret;
     }
 
-    public ArrayList<BaseInformation> getBISIndexInfos() {
+    public List<BaseInformation> getBISIndexInfos() {
         return mLevelThree;
     }
 

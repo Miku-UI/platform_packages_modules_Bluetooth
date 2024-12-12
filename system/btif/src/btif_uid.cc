@@ -22,9 +22,10 @@
  *                 socket usage per app UID.
  *
  ******************************************************************************/
+#include "btif_uid.h"
+
 #include <mutex>
 
-#include "btif_uid.h"
 #include "osi/include/allocator.h"
 
 static std::mutex set_lock;
@@ -56,8 +57,7 @@ void uid_set_destroy(uid_set_t* set) {
 }
 
 // Lock in uid_set_t must be held.
-static uid_set_node_t* uid_set_find_or_create_node(uid_set_t* set,
-                                                   int32_t app_uid) {
+static uid_set_node_t* uid_set_find_or_create_node(uid_set_t* set, int32_t app_uid) {
   uid_set_node_t* node = set->head;
   while (node && node->data.app_uid != app_uid) {
     node = node->next;
@@ -73,7 +73,9 @@ static uid_set_node_t* uid_set_find_or_create_node(uid_set_t* set,
 }
 
 void uid_set_add_tx(uid_set_t* set, int32_t app_uid, uint64_t bytes) {
-  if (app_uid == -1 || bytes == 0) return;
+  if (set == nullptr || app_uid == -1 || bytes == 0) {
+    return;
+  }
 
   std::unique_lock<std::mutex> guard(set_lock);
   uid_set_node_t* node = uid_set_find_or_create_node(set, app_uid);
@@ -81,7 +83,9 @@ void uid_set_add_tx(uid_set_t* set, int32_t app_uid, uint64_t bytes) {
 }
 
 void uid_set_add_rx(uid_set_t* set, int32_t app_uid, uint64_t bytes) {
-  if (app_uid == -1 || bytes == 0) return;
+  if (set == nullptr || app_uid == -1 || bytes == 0) {
+    return;
+  }
 
   std::unique_lock<std::mutex> guard(set_lock);
   uid_set_node_t* node = uid_set_find_or_create_node(set, app_uid);
@@ -101,8 +105,7 @@ bt_uid_traffic_t* uid_set_read_and_clear(uid_set_t* set) {
 
   // Allocate an array of elements + 1, to signify the end with app_uid set to
   // -1.
-  bt_uid_traffic_t* result =
-      (bt_uid_traffic_t*)osi_calloc(sizeof(bt_uid_traffic_t) * (len + 1));
+  bt_uid_traffic_t* result = (bt_uid_traffic_t*)osi_calloc(sizeof(bt_uid_traffic_t) * (len + 1));
 
   bt_uid_traffic_t* data = result;
   node = set->head;

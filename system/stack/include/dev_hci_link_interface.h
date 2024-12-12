@@ -20,4 +20,3 @@
 #include <cstdint>
 
 void btm_delete_stored_link_key_complete(uint8_t* p, uint16_t evt_len);
-void btm_read_local_name_complete(uint8_t* p, uint16_t evt_len);

@@ -19,25 +19,27 @@
  *   Functions generated:47
  */
 
+#include <base/functional/callback.h>
+
 #include <cstdint>
 #include <vector>
 
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_ble_int_types.h"
 #include "stack/include/bt_dev_class.h"
-#include "stack/include/btm_api_types.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
+#include "stack/include/rnr_interface.h"
 #include "test/common/mock_functions.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
 using StartSyncCb = base::Callback<void(
-    uint8_t /*status*/, uint16_t /*sync_handle*/, uint8_t /*advertising_sid*/,
-    uint8_t /*address_type*/, RawAddress /*address*/, uint8_t /*phy*/,
-    uint16_t /*interval*/)>;
-using SyncReportCb = base::Callback<void(
-    uint16_t /*sync_handle*/, int8_t /*tx_power*/, int8_t /*rssi*/,
-    uint8_t /*status*/, std::vector<uint8_t> /*data*/)>;
+        uint8_t /*status*/, uint16_t /*sync_handle*/, uint8_t /*advertising_sid*/,
+        uint8_t /*address_type*/, RawAddress /*address*/, uint8_t /*phy*/, uint16_t /*interval*/)>;
+using SyncReportCb =
+        base::Callback<void(uint16_t /*sync_handle*/, int8_t /*tx_power*/, int8_t /*rssi*/,
+                            uint8_t /*status*/, std::vector<uint8_t> /*data*/)>;
 using SyncLostCb = base::Callback<void(uint16_t /*sync_handle*/)>;
 using SyncTransferCb = base::Callback<void(uint8_t /*status*/, RawAddress)>;
 
@@ -50,6 +52,10 @@ bool BTM_BleConfigPrivacy(bool /* privacy_mode */) {
   return false;
 }
 bool BTM_BleLocalPrivacyEnabled(void) {
+  inc_func_call_count(__func__);
+  return false;
+}
+bool btm_ble_read_remote_cod(const RawAddress& /* remote_bda */) {
   inc_func_call_count(__func__);
   return false;
 }
@@ -69,117 +75,93 @@ bool btm_ble_topology_check(tBTM_BLE_STATE_MASK /* request_state_mask */) {
   inc_func_call_count(__func__);
   return false;
 }
-tBTM_STATUS BTM_BleObserve(bool /* start */, uint8_t /* duration */,
-                           tBTM_INQ_RESULTS_CB* /* p_results_cb */,
-                           tBTM_CMPL_CB* /* p_cmpl_cb */,
-                           bool /* low_latency_scan */) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-void BTM_BleOpportunisticObserve(bool /* enable */,
-                                 tBTM_INQ_RESULTS_CB* /* p_results_cb */) {
+void BTM_BleOpportunisticObserve(bool /* enable */, tBTM_INQ_RESULTS_CB* /* p_results_cb */) {
   inc_func_call_count(__func__);
 }
-void BTM_BleTargetAnnouncementObserve(bool /* enable */,
-                                      tBTM_INQ_RESULTS_CB* /* p_results_cb */) {
+void BTM_BleTargetAnnouncementObserve(bool /* enable */, tBTM_INQ_RESULTS_CB* /* p_results_cb */) {
   inc_func_call_count(__func__);
 }
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& /* remote_bda */,
-                                     tBTM_CMPL_CB* /* p_cb */) {
+                                     tBTM_NAME_CMPL_CB* /* p_cb */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 tBTM_STATUS btm_ble_set_connectability(uint16_t /* combined_mode */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 tBTM_STATUS btm_ble_set_discoverability(uint16_t /* combined_mode */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 tBTM_STATUS btm_ble_start_inquiry(uint8_t /* duration */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 void BTM_BleGetDynamicAudioBuffer(
-    tBTM_BT_DYNAMIC_AUDIO_BUFFER_CB /* p_dynamic_audio_buffer_cb*/[]) {
+        tBTM_BT_DYNAMIC_AUDIO_BUFFER_CB /* p_dynamic_audio_buffer_cb*/[]) {
   inc_func_call_count(__func__);
 }
 void BTM_BleGetVendorCapabilities(tBTM_BLE_VSC_CB* /* p_cmn_vsc_cb */) {
   inc_func_call_count(__func__);
 }
-void BTM_BleSetScanParams(uint32_t /* scan_interval */,
-                          uint32_t /* scan_window */,
-                          tBLE_SCAN_MODE /* scan_mode */,
-                          base::Callback<void(uint8_t)> /* cb */) {
+void BTM_BleSetScanParams(uint32_t /* scan_interval */, uint32_t /* scan_window */,
+                          tBLE_SCAN_MODE /* scan_mode */, base::Callback<void(uint8_t)> /* cb */) {
   inc_func_call_count(__func__);
 }
 void btm_ble_decrement_link_topology_mask(uint8_t /* link_role */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_free() { inc_func_call_count(__func__); }
 void btm_ble_increment_link_topology_mask(uint8_t /* link_role */) {
   inc_func_call_count(__func__);
 }
 void btm_ble_init(void) { inc_func_call_count(__func__); }
-DEV_CLASS btm_ble_get_appearance_as_cod(
-    std::vector<uint8_t> const& /* data */) {
+DEV_CLASS btm_ble_get_appearance_as_cod(std::vector<uint8_t> const& /* data */) {
   inc_func_call_count(__func__);
   return kDevClassUnclassified;
 }
-void btm_ble_process_adv_addr(RawAddress& /* bda */,
-                              tBLE_ADDR_TYPE* /* addr_type */) {
+void btm_ble_process_adv_addr(RawAddress& /* bda */, tBLE_ADDR_TYPE* /* addr_type */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_process_adv_pkt_cont(
-    uint16_t /* evt_type */, tBLE_ADDR_TYPE /* addr_type */,
-    const RawAddress& /* bda */, uint8_t /* primary_phy */,
-    uint8_t /* secondary_phy */, uint8_t /* advertising_sid */,
-    int8_t /* tx_power */, int8_t /* rssi */, uint16_t /* periodic_adv_int */,
-    uint8_t /* data_len */, const uint8_t* /* data */,
-    const RawAddress& /* original_bda */) {
+void btm_ble_process_adv_pkt_cont(uint16_t /* evt_type */, tBLE_ADDR_TYPE /* addr_type */,
+                                  const RawAddress& /* bda */, uint8_t /* primary_phy */,
+                                  uint8_t /* secondary_phy */, uint8_t /* advertising_sid */,
+                                  int8_t /* tx_power */, int8_t /* rssi */,
+                                  uint16_t /* periodic_adv_int */, uint8_t /* data_len */,
+                                  const uint8_t* /* data */, const RawAddress& /* original_bda */) {
   inc_func_call_count(__func__);
 }
 void btm_ble_process_adv_pkt_cont_for_inquiry(
-    uint16_t /* evt_type */, tBLE_ADDR_TYPE /* addr_type */,
-    const RawAddress& /* bda */, uint8_t /* primary_phy */,
-    uint8_t /* secondary_phy */, uint8_t /* advertising_sid */,
-    int8_t /* tx_power */, int8_t /* rssi */, uint16_t /* periodic_adv_int */,
-    std::vector<uint8_t> /* advertising_data */) {
+        uint16_t /* evt_type */, tBLE_ADDR_TYPE /* addr_type */, const RawAddress& /* bda */,
+        uint8_t /* primary_phy */, uint8_t /* secondary_phy */, uint8_t /* advertising_sid */,
+        int8_t /* tx_power */, int8_t /* rssi */, uint16_t /* periodic_adv_int */,
+        std::vector<uint8_t> /* advertising_data */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_read_remote_features_complete(uint8_t* /* p */,
-                                           uint8_t /* length */) {
+void btm_ble_read_remote_features_complete(uint8_t* /* p */, uint8_t /* length */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_read_remote_name_cmpl(bool /* status */,
-                                   const RawAddress& /* bda */,
+void btm_ble_read_remote_name_cmpl(bool /* status */, const RawAddress& /* bda */,
                                    uint16_t /* length */, char* /* p_name */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_set_adv_flag(uint16_t /* connect_mode */,
-                          uint16_t /* disc_mode */) {
+void btm_ble_set_adv_flag(uint16_t /* connect_mode */, uint16_t /* disc_mode */) {
   inc_func_call_count(__func__);
 }
 void btm_ble_stop_inquiry(void) { inc_func_call_count(__func__); }
-void btm_ble_update_dmt_flag_bits(uint8_t* /* adv_flag_value */,
-                                  const uint16_t /* connect_mode */,
+void btm_ble_update_dmt_flag_bits(uint8_t* /* adv_flag_value */, const uint16_t /* connect_mode */,
                                   const uint16_t /* disc_mode */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_update_mode_operation(uint8_t /* link_role */,
-                                   const RawAddress* /* bd_addr */,
+void btm_ble_update_mode_operation(uint8_t /* link_role */, const RawAddress* /* bd_addr */,
                                    tHCI_STATUS /* status */) {
   inc_func_call_count(__func__);
 }
-void btm_ble_write_adv_enable_complete(uint8_t* /* p */,
-                                       uint16_t /* evt_len */) {
+void btm_ble_write_adv_enable_complete(uint8_t* /* p */, uint16_t /* evt_len */) {
   inc_func_call_count(__func__);
 }
-void btm_send_hci_set_scan_params(uint8_t /* scan_type */,
-                                  uint16_t /* scan_int */,
-                                  uint16_t /* scan_win */,
-                                  tBLE_ADDR_TYPE /* addr_type_own */,
+void btm_send_hci_set_scan_params(uint8_t /* scan_type */, uint16_t /* scan_int */,
+                                  uint16_t /* scan_win */, tBLE_ADDR_TYPE /* addr_type_own */,
                                   uint8_t /* scan_filter_policy */) {
   inc_func_call_count(__func__);
 }

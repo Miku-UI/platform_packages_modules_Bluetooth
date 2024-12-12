@@ -26,26 +26,24 @@ namespace bluetooth {
 namespace bqr {
 
 class BluetoothQualityReportCallbacks {
- public:
+public:
   virtual ~BluetoothQualityReportCallbacks() = default;
 
   /** Callback for BQR delivery to app level. */
-  virtual void bqr_delivery_callback(const RawAddress remote_bd_addr,
-                                     uint8_t lmp_ver, uint16_t lmp_subver,
-                                     uint16_t manufacturer_id,
+  virtual void bqr_delivery_callback(const RawAddress remote_bd_addr, uint8_t lmp_ver,
+                                     uint16_t lmp_subver, uint16_t manufacturer_id,
                                      std::vector<uint8_t> bqr_raw_data) = 0;
 };
 
 class BluetoothQualityReportInterface {
- public:
+public:
   virtual ~BluetoothQualityReportInterface() = default;
 
   /** Register the bluetooth keystore callbacks */
   virtual void init(BluetoothQualityReportCallbacks* callbacks) = 0;
 
   /** Event for BQR delivery to app level. */
-  virtual void bqr_delivery_event(const RawAddress& bd_addr,
-                                  const uint8_t* bqr_raw_data,
+  virtual void bqr_delivery_event(const RawAddress& bd_addr, const uint8_t* bqr_raw_data,
                                   uint32_t bqr_raw_data_len) = 0;
 };
 

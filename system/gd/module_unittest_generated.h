@@ -17,8 +17,8 @@ struct ModuleUnitTestData FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return GetPointer<const flatbuffers::String*>(VT_TITLE);
   }
   bool Verify(flatbuffers::Verifier& verifier) const {
-    return VerifyTableStart(verifier) && VerifyOffset(verifier, VT_TITLE) && verifier.VerifyString(title()) &&
-           verifier.EndTable();
+    return VerifyTableStart(verifier) && VerifyOffset(verifier, VT_TITLE) &&
+           verifier.VerifyString(title()) && verifier.EndTable();
   }
 };
 
@@ -41,14 +41,14 @@ struct ModuleUnitTestDataBuilder {
 };
 
 inline flatbuffers::Offset<ModuleUnitTestData> CreateModuleUnitTestData(
-    flatbuffers::FlatBufferBuilder& _fbb, flatbuffers::Offset<flatbuffers::String> title = 0) {
+        flatbuffers::FlatBufferBuilder& _fbb, flatbuffers::Offset<flatbuffers::String> title = 0) {
   ModuleUnitTestDataBuilder builder_(_fbb);
   builder_.add_title(title);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<ModuleUnitTestData> CreateModuleUnitTestDataDirect(
-    flatbuffers::FlatBufferBuilder& _fbb, const char* title = nullptr) {
+        flatbuffers::FlatBufferBuilder& _fbb, const char* title = nullptr) {
   auto title__ = title ? _fbb.CreateString(title) : 0;
   return bluetooth::CreateModuleUnitTestData(_fbb, title__);
 }
@@ -70,12 +70,14 @@ inline bool VerifySizePrefixedModuleUnitTestDataBuffer(flatbuffers::Verifier& ve
 }
 
 inline void FinishModuleUnitTestDataBuffer(
-    flatbuffers::FlatBufferBuilder& fbb, flatbuffers::Offset<bluetooth::ModuleUnitTestData> root) {
+        flatbuffers::FlatBufferBuilder& fbb,
+        flatbuffers::Offset<bluetooth::ModuleUnitTestData> root) {
   fbb.Finish(root);
 }
 
 inline void FinishSizePrefixedModuleUnitTestDataBuffer(
-    flatbuffers::FlatBufferBuilder& fbb, flatbuffers::Offset<bluetooth::ModuleUnitTestData> root) {
+        flatbuffers::FlatBufferBuilder& fbb,
+        flatbuffers::Offset<bluetooth::ModuleUnitTestData> root) {
   fbb.FinishSizePrefixed(root);
 }
 

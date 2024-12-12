@@ -18,24 +18,10 @@ flag {
 }
 
 flag {
-    name: "leaudio_enable_health_based_actions"
-    namespace: "bluetooth"
-    description: "Le audio device and group health actions for fallback mechanism"
-    bug: "290845728"
-}
-
-flag {
     name: "leaudio_broadcast_audio_handover_policies"
     namespace: "bluetooth"
     description: "Support le audio broadcast audio routing policies"
     bug: "308171251"
-}
-
-flag {
-    name: "leaudio_unicast_inactivate_device_based_on_context"
-    namespace: "bluetooth"
-    description: "Inactivate audio device when stream cannot be created due to unavailable context type"
-    bug: "313054788"
 }
 
 flag {
@@ -74,13 +60,6 @@ flag {
 }
 
 flag {
-    name: "le_audio_dev_type_detection_fix"
-    namespace: "bluetooth"
-    description: "Better LE Audio devices detection"
-    bug: "319511584"
-}
-
-flag {
     name: "metadata_api_inactive_audio_device_upon_connection"
     is_exported: true
     namespace: "bluetooth"
@@ -89,77 +68,11 @@ flag {
 }
 
 flag {
-    name: "leaudio_add_sampling_frequencies"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Adds missing frequencies defined by the Bluetooth SIG"
-    bug: "323287937"
-}
-
-flag {
-    name: "leaudio_callback_on_group_stream_status"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Add group stream status callback to notify about playing state"
-    bug: "323288608"
-}
-
-flag {
-    name: "leaudio_mcs_tbs_authorization_rebond_fix"
-    namespace: "bluetooth"
-    description: "Removes authorization data for unbonded devices in MCS and TBS service"
-    bug: "323339440"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_multiple_vocs_instances_api"
     is_exported: true
     namespace: "bluetooth"
     description: "Support multiple audio outputs for volume offset"
     bug: "323156655"
-}
-
-flag {
-    name: "leaudio_volume_change_on_ringtone_fix"
-    namespace: "bluetooth"
-    description: "Apply the volume update to call volume during ringtone"
-    bug: "324041939"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_active_device_manager_group_handling_fix"
-    namespace: "bluetooth"
-    description: "Make sure Active Device Manager understands LeAudio groups"
-    bug: "324364321"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_start_stream_race_fix"
-    namespace: "bluetooth"
-    description: "Fix possible race on start stream request"
-    bug: "325181889"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_api_synchronized_block_fix"
-    namespace: "bluetooth"
-    description: "Fix possible deadlocks when synchronizing LeAudioService states"
-    bug: "326295400"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -183,16 +96,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_resume_active_after_hfp_handover"
-    namespace: "bluetooth"
-    description: "Fix for if HFP- LE Audio handover happened, LE audio resume active after the call"
-    bug: "331468678"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_allow_leaudio_only_devices"
     namespace: "bluetooth"
     description: "Enable Le Audio for LeAudio only devices"
@@ -204,26 +107,6 @@ flag {
     namespace: "bluetooth"
     description: "Add mono location as per Bluetooth Assigned Numbers"
     bug: "331139722"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_quick_leaudio_toggle_switch_fix"
-    namespace: "bluetooth"
-    description: "Fix for one device being not connected when toggle LeAudio is switch during bonding"
-    bug: "328595942"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_assistant_handle_command_statuses"
-    namespace: "bluetooth"
-    description: "Handle command statuses to recover from errors"
-    bug: "331167629"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -327,6 +210,16 @@ flag {
 }
 
 flag {
+    name: "leaudio_call_start_scan_directly"
+    namespace: "bluetooth"
+    description: "Calling the framework is working only when we are expecting IPC. This will call the underlying implementation directly"
+    bug: "348562830"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "leaudio_no_context_validate_streaming_request"
     namespace: "bluetooth"
     description: "Request streaming would be send without available cotext validation"
@@ -341,16 +234,6 @@ flag {
     namespace: "bluetooth"
     description: "Do not post on main looper when starting le_audio"
     bug: "341385684"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_stop_on_streaming_request"
-    namespace: "bluetooth"
-    description: "Stop instead of pause on unicast stream request"
-    bug: "336740254"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -381,6 +264,107 @@ flag {
     namespace: "bluetooth"
     description: "BIG creation/termination depends on audio resume/pause"
     bug: "347204335"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_update_metadata_callback"
+    namespace: "bluetooth"
+    description: "Notify upper layer with callback when medadata is updated"
+    bug: "347710374"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "headtracker_sdu_size"
+    namespace: "bluetooth"
+    description: "Use updated headtracker SDU size"
+    bug: "350090733"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_ase_read_multiple_variable"
+    namespace: "bluetooth"
+    description: "Use GATT read multiple variable length characteristic values"
+    bug: "352085435"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_speed_up_reconfiguration_between_call"
+    namespace: "bluetooth"
+    description: "Fix reconfiguration time between call and media"
+    bug: "352686917"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_volume_control_primary_group_only"
+    namespace: "bluetooth"
+    description: "Only control broadcast primary group volume"
+    bug: "354201794"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unbonded_profile_forbid_fix"
+    namespace: "bluetooth"
+    description: "Do not mark profiles as forbidden for unbonded devices"
+    bug: "356325069"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_set_codec_config_preference"
+    namespace: "bluetooth"
+    description: "New apis to set codec config preference"
+    bug: "353909820"
+}
+
+flag {
+    name: "leaudio_add_aics_support"
+    namespace: "bluetooth"
+    description: "Add AICS support"
+    bug: "361263965"
+}
+
+flag {
+    name: "leaudio_gmap_client"
+    namespace: "bluetooth"
+    description: "enable Gaming Audio Profile"
+    bug: "353978074"
+}
+
+flag {
+    name: "leaudio_broadcast_resync_helper"
+    namespace: "bluetooth"
+    description: "Helps sinks to resync to external broadcast when BIS or PA unsynced"
+    bug: "363168099"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_unicast_no_available_contexts"
+    namespace: "bluetooth"
+    description: "Fix handling initial zero available contexts"
+    bug: "367325041"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

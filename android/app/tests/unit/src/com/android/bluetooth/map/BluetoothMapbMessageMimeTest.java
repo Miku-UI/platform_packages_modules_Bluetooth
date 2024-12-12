@@ -47,6 +47,8 @@ public class BluetoothMapbMessageMimeTest {
 
     private final SimpleDateFormat format =
             new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
+
+    @SuppressWarnings("JavaUtilDate")
     private final Date date = new Date(TEST_DATE);
 
     private final ArrayList<Rfc822Token> TEST_FROM =

@@ -46,14 +46,13 @@ uint8_t BTA_AllocateSCN(void) {
       bta_jv_cb.scn_in_use[i] = true;
       bta_jv_cb.scn_search_index = (i + 1);
       log::debug("Allocating scn: {}", i + 1);
-      return (i + 1);  // allocated scn is index + 1
+      return i + 1;  // allocated scn is index + 1
     }
   }
 
   // In order to avoid OOB, scn_search_index must be no more than
   // RFCOMM_MAX_SCN.
-  bta_jv_cb.scn_search_index =
-      std::min(bta_jv_cb.scn_search_index, (uint8_t)(RFCOMM_MAX_SCN));
+  bta_jv_cb.scn_search_index = std::min(bta_jv_cb.scn_search_index, (uint8_t)(RFCOMM_MAX_SCN));
 
   // If there's no empty SCN from scn_search_index to RFCOMM_MAX_SCN
   // Start from index 1 because index 0 (scn 1) is reserved for HFP
@@ -62,11 +61,11 @@ uint8_t BTA_AllocateSCN(void) {
       bta_jv_cb.scn_in_use[i] = true;
       bta_jv_cb.scn_search_index = (i + 1);
       log::debug("Allocating scn: {}", i + 1);
-      return (i + 1);  // allocated scn is index + 1
+      return i + 1;  // allocated scn is index + 1
     }
   }
   log::debug("Unable to allocate an scn");
-  return (0); /* No free ports */
+  return 0; /* No free ports */
 }
 
 /*******************************************************************************
@@ -83,7 +82,9 @@ bool BTA_TryAllocateSCN(uint8_t scn) {
   /* Make sure we don't exceed max scn range.
    * Stack reserves scn 1 for HFP and HSP
    */
-  if ((scn > RFCOMM_MAX_SCN) || (scn == 1) || (scn == 0)) return false;
+  if ((scn > RFCOMM_MAX_SCN) || (scn == 1) || (scn == 0)) {
+    return false;
+  }
 
   /* check if this scn is available */
   if (!bta_jv_cb.scn_in_use[scn - 1]) {
@@ -92,7 +93,7 @@ bool BTA_TryAllocateSCN(uint8_t scn) {
     return true;
   }
   log::debug("Unable to allocate scn {}", scn);
-  return (false); /* scn was busy */
+  return false; /* scn was busy */
 }
 
 /*******************************************************************************
@@ -111,9 +112,9 @@ bool BTA_FreeSCN(uint8_t scn) {
   if (scn < RFCOMM_MAX_SCN && scn > 1) {
     bta_jv_cb.scn_in_use[scn - 1] = false;
     log::debug("Freed SCN: {}", scn);
-    return (true);
+    return true;
   } else {
     log::warn("Invalid SCN: {}", scn);
-    return (false); /* Illegal SCN passed in */
+    return false; /* Illegal SCN passed in */
   }
 }

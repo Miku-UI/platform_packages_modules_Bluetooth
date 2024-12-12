@@ -32,15 +32,13 @@ namespace utils {
 //   "key0=value0;key1=value1;"  -> map: [key0]="value0" [key1]="value1"
 //   "key0=;key1=value1;"        -> map: [key0]="" [key1]="value1"
 //   "=value0;key1=value1;"      -> map: [key1]="value1"
-std::unordered_map<std::string, std::string> ParseAudioParams(
-    const std::string& params);
+std::unordered_map<std::string, std::string> ParseAudioParams(const std::string& params);
 
 // Dumps the contents of the hash_map to the log for debugging purposes.
 // If |map| is not NULL, all entries of |map| will be dumped, otherwise
 // nothing will be dumped. Note that this function does not take the ownership
 // of the |map|.
-std::string GetAudioParamString(
-    std::unordered_map<std::string, std::string>& params_map);
+std::string GetAudioParamString(std::unordered_map<std::string, std::string>& params_map);
 
 size_t FrameCount(uint64_t microseconds, uint32_t sample_rate);
 }  // namespace utils

@@ -54,11 +54,11 @@ public class A2dpStackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("A2dpStackEvent {type:" + eventTypeToString(type));
-        result.append(", device:" + device);
-        result.append(", value1:" + eventTypeValueIntToString(type, valueInt));
+        result.append("A2dpStackEvent {type:").append(eventTypeToString(type));
+        result.append(", device:").append(device);
+        result.append(", value1:").append(eventTypeValueIntToString(type, valueInt));
         if (codecStatus != null) {
-            result.append(", codecStatus:" + codecStatus);
+            result.append(", codecStatus:").append(codecStatus);
         }
         result.append("}");
         return result.toString();

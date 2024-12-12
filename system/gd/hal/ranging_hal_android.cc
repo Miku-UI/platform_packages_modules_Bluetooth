@@ -44,11 +44,10 @@ namespace bluetooth {
 namespace hal {
 
 class BluetoothChannelSoundingSessionTracker : public BnBluetoothChannelSoundingSessionCallback {
- public:
-  BluetoothChannelSoundingSessionTracker(
-      uint16_t connection_handle,
-      RangingHalCallback* ranging_hal_callback,
-      bool for_vendor_specific_reply)
+public:
+  BluetoothChannelSoundingSessionTracker(uint16_t connection_handle,
+                                         RangingHalCallback* ranging_hal_callback,
+                                         bool for_vendor_specific_reply)
       : connection_handle_(connection_handle),
         ranging_hal_callback_(ranging_hal_callback),
         for_vendor_specific_reply_(for_vendor_specific_reply) {}
@@ -59,10 +58,10 @@ class BluetoothChannelSoundingSessionTracker : public BnBluetoothChannelSounding
       ranging_hal_callback_->OnHandleVendorSpecificReplyComplete(connection_handle_, true);
     }
     return ::ndk::ScopedAStatus::ok();
-  };
+  }
 
   ::ndk::ScopedAStatus onOpenFailed(
-      ::aidl::android::hardware::bluetooth::ranging::Reason in_reason) {
+          ::aidl::android::hardware::bluetooth::ranging::Reason in_reason) {
     log::info("connection_handle 0x{:04x}, reason {}", connection_handle_, (uint16_t)in_reason);
     bluetooth_channel_sounding_session_ = nullptr;
     if (for_vendor_specific_reply_) {
@@ -71,33 +70,33 @@ class BluetoothChannelSoundingSessionTracker : public BnBluetoothChannelSounding
       ranging_hal_callback_->OnOpenFailed(connection_handle_);
     }
     return ::ndk::ScopedAStatus::ok();
-  };
+  }
 
   ::ndk::ScopedAStatus onResult(
-      const ::aidl::android::hardware::bluetooth::ranging::RangingResult& in_result) {
+          const ::aidl::android::hardware::bluetooth::ranging::RangingResult& in_result) {
     log::verbose("resultMeters {}", in_result.resultMeters);
     hal::RangingResult ranging_result;
     ranging_result.result_meters_ = in_result.resultMeters;
     ranging_hal_callback_->OnResult(connection_handle_, ranging_result);
     return ::ndk::ScopedAStatus::ok();
-  };
+  }
 
   ::ndk::ScopedAStatus onClose(::aidl::android::hardware::bluetooth::ranging::Reason in_reason) {
     log::info("reason {}", (uint16_t)in_reason);
     bluetooth_channel_sounding_session_ = nullptr;
     return ::ndk::ScopedAStatus::ok();
-  };
+  }
   ::ndk::ScopedAStatus onCloseFailed(
-      ::aidl::android::hardware::bluetooth::ranging::Reason in_reason) {
+          ::aidl::android::hardware::bluetooth::ranging::Reason in_reason) {
     log::info("reason {}", (uint16_t)in_reason);
     return ::ndk::ScopedAStatus::ok();
-  };
+  }
 
   std::shared_ptr<IBluetoothChannelSoundingSession>& GetSession() {
     return bluetooth_channel_sounding_session_;
-  };
+  }
 
- private:
+private:
   std::shared_ptr<IBluetoothChannelSoundingSession> bluetooth_channel_sounding_session_ = nullptr;
   uint16_t connection_handle_;
   RangingHalCallback* ranging_hal_callback_;
@@ -105,14 +104,10 @@ class BluetoothChannelSoundingSessionTracker : public BnBluetoothChannelSounding
 };
 
 class RangingHalAndroid : public RangingHal {
- public:
-  bool IsBound() override {
-    return bluetooth_channel_sounding_ != nullptr;
-  }
+public:
+  bool IsBound() override { return bluetooth_channel_sounding_ != nullptr; }
 
-  void RegisterCallback(RangingHalCallback* callback) {
-    ranging_hal_callback_ = callback;
-  }
+  void RegisterCallback(RangingHalCallback* callback) { ranging_hal_callback_ = callback; }
 
   std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() override {
     std::vector<VendorSpecificCharacteristic> vendor_specific_characteristics = {};
@@ -123,7 +118,7 @@ class RangingHalAndroid : public RangingHal {
         for (auto vendor_specific_data : vendorSpecificDataOptional.value()) {
           VendorSpecificCharacteristic vendor_specific_characteristic;
           vendor_specific_characteristic.characteristicUuid_ =
-              vendor_specific_data->characteristicUuid;
+                  vendor_specific_data->characteristicUuid;
           vendor_specific_characteristic.value_ = vendor_specific_data->opaqueValue;
           vendor_specific_characteristics.emplace_back(vendor_specific_characteristic);
         }
@@ -134,20 +129,15 @@ class RangingHalAndroid : public RangingHal {
     }
 
     return vendor_specific_characteristics;
-  };
+  }
 
-  void OpenSession(
-      uint16_t connection_handle,
-      uint16_t att_handle,
-      const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data) {
-    log::info(
-        "connection_handle 0x{:04x}, att_handle 0x{:04x} size of vendor_specific_data {}",
-        connection_handle,
-        att_handle,
-        vendor_specific_data.size());
+  void OpenSession(uint16_t connection_handle, uint16_t att_handle,
+                   const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data) {
+    log::info("connection_handle 0x{:04x}, att_handle 0x{:04x} size of vendor_specific_data {}",
+              connection_handle, att_handle, vendor_specific_data.size());
     session_trackers_[connection_handle] =
-        ndk::SharedRefBase::make<BluetoothChannelSoundingSessionTracker>(
-            connection_handle, ranging_hal_callback_, false);
+            ndk::SharedRefBase::make<BluetoothChannelSoundingSessionTracker>(
+                    connection_handle, ranging_hal_callback_, false);
     BluetoothChannelSoundingParameters parameters;
     parameters.aclHandle = connection_handle;
     parameters.role = aidl::android::hardware::bluetooth::ranging::Role::INITIATOR;
@@ -175,12 +165,12 @@ class RangingHalAndroid : public RangingHal {
   }
 
   void HandleVendorSpecificReply(
-      uint16_t connection_handle,
-      const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply) {
+          uint16_t connection_handle,
+          const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply) {
     log::info("connection_handle 0x{:04x}", connection_handle);
     session_trackers_[connection_handle] =
-        ndk::SharedRefBase::make<BluetoothChannelSoundingSessionTracker>(
-            connection_handle, ranging_hal_callback_, true);
+            ndk::SharedRefBase::make<BluetoothChannelSoundingSessionTracker>(
+                    connection_handle, ranging_hal_callback_, true);
     BluetoothChannelSoundingParameters parameters;
     parameters.aclHandle = connection_handle;
     parameters.role = aidl::android::hardware::bluetooth::ranging::Role::REFLECTOR;
@@ -226,11 +216,10 @@ class RangingHalAndroid : public RangingHal {
       hal_raw_data.reflectorData.stepTonePcts.value().emplace_back(step_tone_pct);
     }
     session_trackers_[connection_handle]->GetSession()->writeRawData(hal_raw_data);
-  };
+  }
 
-  void CopyVendorSpecificData(
-      const std::vector<hal::VendorSpecificCharacteristic>& source,
-      std::optional<std::vector<std::optional<VendorSpecificData>>>& dist) {
+  void CopyVendorSpecificData(const std::vector<hal::VendorSpecificCharacteristic>& source,
+                              std::optional<std::vector<std::optional<VendorSpecificData>>>& dist) {
     dist = std::make_optional<std::vector<std::optional<VendorSpecificData>>>();
     for (auto& data : source) {
       VendorSpecificData vendor_specific_data;
@@ -240,7 +229,7 @@ class RangingHalAndroid : public RangingHal {
     }
   }
 
- protected:
+protected:
   void ListDependencies(ModuleList* /*list*/) const {}
 
   void Start() override {
@@ -253,19 +242,15 @@ class RangingHalAndroid : public RangingHal {
     }
   }
 
-  void Stop() override {
-    bluetooth_channel_sounding_ = nullptr;
-  }
+  void Stop() override { bluetooth_channel_sounding_ = nullptr; }
 
-  std::string ToString() const override {
-    return std::string("RangingHalAndroid");
-  }
+  std::string ToString() const override { return std::string("RangingHalAndroid"); }
 
- private:
+private:
   std::shared_ptr<IBluetoothChannelSounding> bluetooth_channel_sounding_;
   RangingHalCallback* ranging_hal_callback_;
   std::unordered_map<uint16_t, std::shared_ptr<BluetoothChannelSoundingSessionTracker>>
-      session_trackers_;
+          session_trackers_;
 };
 
 const ModuleFactory RangingHal::Factory = ModuleFactory([]() { return new RangingHalAndroid(); });

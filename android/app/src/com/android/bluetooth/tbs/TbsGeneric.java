@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
@@ -233,7 +234,7 @@ public class TbsGeneric {
      *
      * @param device device for which authorization is changed
      */
-    public void onDeviceAuthorizationSet(BluetoothDevice device) {
+    public synchronized void onDeviceAuthorizationSet(BluetoothDevice device) {
         // Notify TBS GATT service instance in case of pending operations
         if (mTbsGatt != null) {
             mTbsGatt.onDeviceAuthorizationSet(device);
@@ -366,11 +367,11 @@ public class TbsGeneric {
         }
 
         if (callback != null) {
+            Log.d(TAG, "ccid=" + bearer.ccid);
             try {
-                Log.d(TAG, "ccid=" + bearer.ccid);
                 callback.onBearerRegistered(bearer.ccid);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
 
@@ -693,9 +694,8 @@ public class TbsGeneric {
                 mCurrentCallsList.put(callIndex, TbsCall.create(call));
                 cclc |= true;
             } else {
-                TbsCall tbsCall = mCurrentCallsList.get(callIndex);
                 TbsCall tbsCallNew = TbsCall.create(call);
-                if (tbsCall != tbsCallNew) {
+                if (!tbsCallNew.equals(mCurrentCallsList.get(callIndex))) {
                     mCurrentCallsList.replace(callIndex, tbsCallNew);
                     cclc |= true;
                 }
@@ -791,7 +791,7 @@ public class TbsGeneric {
             try {
                 bearer.callback.onPlaceCall(requestId, new ParcelUuid(callId), uri);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 return TbsGatt.CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;
             }
 
@@ -915,7 +915,11 @@ public class TbsGeneric {
                                                     requestId, new ParcelUuid(callId));
                                         }
                                     } catch (RemoteException e) {
-                                        e.printStackTrace();
+                                        Log.e(
+                                                TAG,
+                                                e.toString()
+                                                        + "\n"
+                                                        + Log.getStackTraceString(new Throwable()));
                                         result =
                                                 TbsGatt
                                                         .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;
@@ -986,7 +990,11 @@ public class TbsGeneric {
                                     try {
                                         bearer.callback.onJoinCalls(requestId, parcelUuids);
                                     } catch (RemoteException e) {
-                                        e.printStackTrace();
+                                        Log.e(
+                                                TAG,
+                                                e.toString()
+                                                        + "\n"
+                                                        + Log.getStackTraceString(new Throwable()));
                                         result =
                                                 TbsGatt
                                                         .CALL_CONTROL_POINT_RESULT_OPERATION_NOT_POSSIBLE;
@@ -1006,7 +1014,7 @@ public class TbsGeneric {
                         }
 
                         if (result == TbsGatt.CALL_CONTROL_POINT_RESULT_SUCCESS) {
-                            // return here and wait for the request completition from application
+                            // return here and wait for the request completion from application
                             return;
                         }
 
@@ -1058,8 +1066,7 @@ public class TbsGeneric {
         return null;
     }
 
-    private synchronized Map.Entry<Integer, TbsCall> getCallByStates(
-            LinkedHashSet<Integer> states) {
+    private synchronized Map.Entry<Integer, TbsCall> getCallByStates(Set<Integer> states) {
         for (Map.Entry<Integer, TbsCall> entry : mCurrentCallsList.entrySet()) {
             if (states.contains(entry.getValue().getState())) {
                 return entry;
@@ -1244,14 +1251,14 @@ public class TbsGeneric {
      * @param sb string builder object that TBS module will be appending
      */
     public void dump(StringBuilder sb) {
-        sb.append("\tRinger Mode: " + mStoredRingerMode);
+        sb.append("\tRinger Mode: ").append(mStoredRingerMode);
 
         sb.append("\n\tCurrent call list:");
         for (TbsCall call : mCurrentCallsList.values()) {
-            sb.append("\n\t\tFriendly name: " + call.getSafeFriendlyName());
-            sb.append("\n\t\t\tState: " + TbsCall.stateToString(call.getState()));
-            sb.append("\n\t\t\tURI: " + call.getSafeUri());
-            sb.append("\n\t\t\tFlags: " + TbsCall.flagsToString(call.getFlags()));
+            sb.append("\n\t\tFriendly name: ").append(call.getSafeFriendlyName());
+            sb.append("\n\t\t\tState: ").append(TbsCall.stateToString(call.getState()));
+            sb.append("\n\t\t\tURI: ").append(call.getSafeUri());
+            sb.append("\n\t\t\tFlags: ").append(TbsCall.flagsToString(call.getFlags()));
         }
 
         mTbsGatt.dump(sb);

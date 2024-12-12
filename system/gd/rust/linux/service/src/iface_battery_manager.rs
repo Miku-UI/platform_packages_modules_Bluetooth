@@ -22,6 +22,7 @@ pub struct BatteryDBus {
     variant: String,
 }
 
+#[allow(dead_code)]
 struct IBatteryManagerCallbackDBus {}
 
 #[dbus_proxy_obj(BatteryManagerCallback, "org.chromium.bluetooth.BatteryManagerCallback")]
@@ -32,6 +33,7 @@ impl IBatteryManagerCallback for IBatteryManagerCallbackDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBatteryManagerDBus {}
 
 #[generate_dbus_exporter(export_battery_manager_dbus_intf, "org.chromium.bluetooth.BatteryManager")]

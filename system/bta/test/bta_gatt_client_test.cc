@@ -38,7 +38,7 @@ std::vector<TimestampedEntry<std::string>> PullCopyOfGattHistory();
 }  // namespace bluetooth
 
 class BtaDiscTest : public testing::Test {
- protected:
+protected:
   void SetUp() override {}
 
   void TearDown() override {}
@@ -48,9 +48,9 @@ TEST_F(BtaDiscTest, nop) {}
 
 TEST_F(BtaDiscTest, gatt_history_callback) {
   std::array<std::string, 3> a = {
-      "ThisIsATest 0",
-      "ThisIsATest 1",
-      "ThisIsATest 2",
+          "ThisIsATest 0",
+          "ThisIsATest 1",
+          "ThisIsATest 2",
   };
 
   // C string
@@ -61,7 +61,7 @@ TEST_F(BtaDiscTest, gatt_history_callback) {
   gatt_history_callback(base::StringPrintf("%s", a[2].c_str()));
 
   std::vector<bluetooth::common::TimestampedEntry<std::string>> history =
-      bluetooth::legacy::testing::PullCopyOfGattHistory();
+          bluetooth::legacy::testing::PullCopyOfGattHistory();
   ASSERT_EQ(3UL, history.size());
   ASSERT_STREQ(a[0].c_str(), history[0].entry.c_str());
   ASSERT_STREQ(a[1].c_str(), history[1].entry.c_str());

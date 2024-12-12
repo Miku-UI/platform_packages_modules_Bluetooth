@@ -20,7 +20,7 @@
 #include "parse_location.h"
 
 class StructField : public PacketField {
- public:
+public:
   StructField(std::string name, std::string type_name, Size size, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -51,9 +51,9 @@ class StructField : public PacketField {
 
   virtual void GenStringRepresentation(std::ostream& s, std::string accessor) const override;
 
- private:
+private:
   std::string type_name_;
 
- public:
+public:
   const Size size_{};
 };

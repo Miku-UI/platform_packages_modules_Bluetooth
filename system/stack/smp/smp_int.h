@@ -257,27 +257,24 @@ typedef union {
 #define SMP_PAIR_FLAGS_PEER_STARTED_DD (1 << 1)
 #define SMP_PAIR_FLAGS_CMD_CONFIRM_RCVD (1 << SMP_OPCODE_CONFIRM) /* 1 << 3 */
 #define SMP_PAIR_FLAG_ENC_AFTER_PAIR (1 << 4)
-#define SMP_PAIR_FLAG_HAVE_PEER_DHK_CHK \
-  (1 << 5) /* used on peripheral to resolve race condition */
-#define SMP_PAIR_FLAG_HAVE_PEER_PUBL_KEY \
-  (1 << 6) /* used on peripheral to resolve race condition */
-#define SMP_PAIR_FLAG_HAVE_PEER_COMM \
-  (1 << 7) /* used to resolve race condition */
+#define SMP_PAIR_FLAG_HAVE_PEER_DHK_CHK (1 << 5)   // used on peripheral to resolve race condition
+#define SMP_PAIR_FLAG_HAVE_PEER_PUBL_KEY (1 << 6)  // used on peripheral to resolve race condition
+#define SMP_PAIR_FLAG_HAVE_PEER_COMM (1 << 7)      // used to resolve race condition
 #define SMP_PAIR_FLAG_HAVE_LOCAL_PUBL_KEY \
   (1 << 8) /* used on peripheral to resolve race condition */
 
 #define SMP_PAIR_FLAGS_CMD_CONFIRM_SENT (1 << 9)
 
 /* check if authentication requirement need MITM protection */
-#define SMP_NO_MITM_REQUIRED(x) (((x)&SMP_AUTH_YN_BIT) == 0)
+#define SMP_NO_MITM_REQUIRED(x) (((x) & SMP_AUTH_YN_BIT) == 0)
 
 /* SMP control block */
 class tSMP_CB {
- public:
+public:
   void init(uint8_t security_mode);
   void reset();
 
- public:
+public:
   uint8_t init_security_mode{0};
   tSMP_CALLBACK* p_callback;
   alarm_t* smp_rsp_timer_ent;
@@ -330,8 +327,7 @@ class tSMP_CB {
   bool le_sc_kp_notif_is_used;
   tSMP_SC_KEY_TYPE local_keypress_notification;
   tSMP_SC_KEY_TYPE peer_keypress_notification;
-  uint8_t
-      round; /* authentication stage 1 round for passkey association model */
+  uint8_t round; /* authentication stage 1 round for passkey association model */
   uint32_t number_to_display;
   Octet16 mac_key;
   uint8_t peer_enc_size;
@@ -372,8 +368,7 @@ tSMP_STATE smp_get_state(void);
 void smp_set_state(tSMP_STATE state);
 
 /* smp_br_main */
-void smp_br_state_machine_event(tSMP_CB* p_cb, tSMP_BR_EVENT event,
-                                tSMP_INT_DATA* p_data);
+void smp_br_state_machine_event(tSMP_CB* p_cb, tSMP_BR_EVENT event, tSMP_INT_DATA* p_data);
 tSMP_BR_STATE smp_get_br_state(void);
 void smp_set_br_state(tSMP_BR_STATE state);
 
@@ -427,23 +422,19 @@ void smp_process_peer_nonce(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_process_dhkey_check(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_match_dhkey_checks(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_process_keypress_notification(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
-void smp_move_to_secure_connections_phase2(tSMP_CB* p_cb,
-                                           tSMP_INT_DATA* p_data);
+void smp_move_to_secure_connections_phase2(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_phase_2_dhkey_checks_are_present(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_wait_for_both_public_keys(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_start_passkey_verification(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
-void smp_process_secure_connection_oob_data(tSMP_CB* p_cb,
-                                            tSMP_INT_DATA* p_data);
+void smp_process_secure_connection_oob_data(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_process_secure_connection_long_term_key(void);
 void smp_set_local_oob_keys(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_set_local_oob_random_commitment(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_set_derive_link_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
-void smp_derive_link_key_from_long_term_key(tSMP_CB* p_cb,
-                                            tSMP_INT_DATA* p_data);
+void smp_derive_link_key_from_long_term_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_br_process_pairing_command(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_br_process_security_grant(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
-void smp_br_process_peripheral_keys_response(tSMP_CB* p_cb,
-                                             tSMP_INT_DATA* p_data);
+void smp_br_process_peripheral_keys_response(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_br_send_pair_response(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_br_check_authorization_request(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_br_select_next_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
@@ -455,8 +446,8 @@ void smp_l2cap_if_init(void);
 void smp_data_ind(const RawAddress& bd_addr, BT_HDR* p_buf);
 
 /* smp_util.cc */
-void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing,
-                     const uint8_t* p_buf, size_t buf_len, bool is_over_br);
+void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t* p_buf,
+                     size_t buf_len, bool is_over_br);
 bool smp_send_cmd(uint8_t cmd_code, tSMP_CB* p_cb);
 void smp_reset_control_value(tSMP_CB* p_cb);
 void smp_proc_pairing_cmpl(tSMP_CB* p_cb);
@@ -491,8 +482,7 @@ void smp_use_oob_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_compute_dhkey(tSMP_CB* p_cb);
 void smp_calculate_local_commitment(tSMP_CB* p_cb);
 Octet16 smp_calculate_peer_commitment(tSMP_CB* p_cb);
-void smp_calculate_numeric_comparison_display_number(tSMP_CB* p_cb,
-                                                     tSMP_INT_DATA* p_data);
+void smp_calculate_numeric_comparison_display_number(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_calculate_local_dhkey_check(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_calculate_peer_dhkey_check(tSMP_CB* p_cb, tSMP_INT_DATA* p_data);
 void smp_start_nonce_generation(tSMP_CB* p_cb);

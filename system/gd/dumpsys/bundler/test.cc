@@ -29,14 +29,13 @@ constexpr char kTestFilename[] = "test.bfbs";
 bool LoadBinarySchema(const char* filename, std::string* binary_schema);
 bool VerifyBinarySchema(const std::vector<uint8_t>& raw_schema);
 bool CreateBinarySchemaBundle(
-    flatbuffers::FlatBufferBuilder* builder,
-    const std::vector<std::string>& filenames,
-    std::vector<flatbuffers::Offset<bluetooth::dumpsys::BundledSchemaMap>>* vector_map,
-    std::list<std::string>* bundled_names);
+        flatbuffers::FlatBufferBuilder* builder, const std::vector<std::string>& filenames,
+        std::vector<flatbuffers::Offset<bluetooth::dumpsys::BundledSchemaMap>>* vector_map,
+        std::list<std::string>* bundled_names);
 int WriteHeaderFile(FILE* fp, const uint8_t* data, size_t data_len);
 
 class BundlerTest : public ::testing::Test {
- public:
+public:
   void SetUp() override {}
 
   void TearDown() override {}

@@ -15,12 +15,12 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-#include <thread>
+#include "common/metric_id_manager.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "common/metric_id_manager.h"
+#include <thread>
 
 namespace testing {
 
@@ -36,8 +36,7 @@ bluetooth::hci::Address kthAddress(uint32_t k) {
   return addr;
 }
 
-std::unordered_map<bluetooth::hci::Address, int> generateAddresses(
-    const uint32_t num) {
+std::unordered_map<bluetooth::hci::Address, int> generateAddresses(const uint32_t num) {
   // generate first num of mac address -> id pairs
   // input may is always valid 256^6 = 2^48 > 2^32
   std::unordered_map<bluetooth::hci::Address, int> device_map;
@@ -50,8 +49,7 @@ std::unordered_map<bluetooth::hci::Address, int> generateAddresses(
 TEST(BluetoothMetricIdManagerTest, MetricIdManagerInitCloseTest) {
   auto& manager = MetricIdManager::GetInstance();
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
-  MetricIdManager::Callback callback = [](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback callback = [](const bluetooth::hci::Address&, const int) {
     return true;
   };
   ASSERT_TRUE(manager.Init(paired_device_map, callback, callback));
@@ -62,8 +60,7 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerInitCloseTest) {
 TEST(BluetoothMetricIdManagerTest, MetricIdManagerNotCloseTest) {
   auto& manager = MetricIdManager::GetInstance();
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
-  MetricIdManager::Callback callback = [](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback callback = [](const bluetooth::hci::Address&, const int) {
     return true;
   };
   ASSERT_TRUE(manager.Init(paired_device_map, callback, callback));
@@ -76,8 +73,7 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerNotCloseTest) {
 TEST(BluetoothMetricIdManagerTest, MetricIdManagerScanDeviceFromEmptyTest) {
   auto& manager = MetricIdManager::GetInstance();
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
-  MetricIdManager::Callback callback = [](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback callback = [](const bluetooth::hci::Address&, const int) {
     return true;
   };
   // test empty map, next id should be kMinId
@@ -89,19 +85,16 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerScanDeviceFromEmptyTest) {
   ASSERT_TRUE(manager.Close());
 }
 
-TEST(BluetoothMetricIdManagerTest,
-     MetricIdManagerScanDeviceFromFilledTest) {
+TEST(BluetoothMetricIdManagerTest, MetricIdManagerScanDeviceFromFilledTest) {
   auto& manager = MetricIdManager::GetInstance();
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
-  MetricIdManager::Callback callback = [](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback callback = [](const bluetooth::hci::Address&, const int) {
     return true;
   };
-  int id = static_cast<int>(MetricIdManager::kMaxNumPairedDevicesInMemory) +
-           MetricIdManager::kMinId;
+  int id =
+          static_cast<int>(MetricIdManager::kMaxNumPairedDevicesInMemory) + MetricIdManager::kMinId;
   // next id should be MetricIdManager::kMaxNumPairedDevicesInMemory
-  paired_device_map =
-      generateAddresses(MetricIdManager::kMaxNumPairedDevicesInMemory);
+  paired_device_map = generateAddresses(MetricIdManager::kMaxNumPairedDevicesInMemory);
   ASSERT_TRUE(manager.Init(paired_device_map, callback, callback));
   // try new values not in the map, should get new id.
   ASSERT_EQ(manager.AllocateId(kthAddress(INT_MAX)), id);
@@ -114,10 +107,9 @@ TEST(BluetoothMetricIdManagerTest,
 TEST(BluetoothMetricIdManagerTest, MetricIdManagerAllocateExistingTest) {
   auto& manager = MetricIdManager::GetInstance();
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map =
-      generateAddresses(MetricIdManager::kMaxNumPairedDevicesInMemory);
+          generateAddresses(MetricIdManager::kMaxNumPairedDevicesInMemory);
 
-  MetricIdManager::Callback callback = [](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback callback = [](const bluetooth::hci::Address&, const int) {
     return true;
   };
   int id = MetricIdManager::kMinId;
@@ -125,16 +117,10 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerAllocateExistingTest) {
   ASSERT_TRUE(manager.Init(paired_device_map, callback, callback));
 
   // try values already in the map, should get new id.
-  ASSERT_EQ(
-      manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})), id);
-  ASSERT_EQ(
-      manager.AllocateId(
-          bluetooth::hci::Address({0, 0, 0, 0, 0, 1})), id + 1);
-  ASSERT_EQ(
-      manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})), id);
-  ASSERT_EQ(
-      manager.AllocateId(
-          bluetooth::hci::Address({0, 0, 0, 0, 0, 2})), id + 2);
+  ASSERT_EQ(manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})), id);
+  ASSERT_EQ(manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 1})), id + 1);
+  ASSERT_EQ(manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})), id);
+  ASSERT_EQ(manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 2})), id + 2);
   ASSERT_TRUE(manager.Close());
 }
 
@@ -143,31 +129,24 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerMainTest1) {
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
   int placeholder = 22;
   int* pointer = &placeholder;
-  MetricIdManager::Callback save_callback = [pointer](
-      const bluetooth::hci::Address&,
-      const int) {
+  MetricIdManager::Callback save_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer * 2;
     return true;
   };
-  MetricIdManager::Callback forget_callback = [pointer](
-      const bluetooth::hci::Address&,
-      const int) {
+  MetricIdManager::Callback forget_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer / 2;
     return true;
   };
 
-  ASSERT_TRUE(
-      manager.Init(paired_device_map, save_callback, forget_callback));
+  ASSERT_TRUE(manager.Init(paired_device_map, save_callback, forget_callback));
   ASSERT_EQ(manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})),
             MetricIdManager::kMinId);
   // save it and make sure the callback is called
-  ASSERT_TRUE(
-      manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})));
+  ASSERT_TRUE(manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})));
   ASSERT_EQ(placeholder, 44);
 
   // should fail, since id of device is not allocated
-  ASSERT_FALSE(
-      manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 1})));
+  ASSERT_FALSE(manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 1})));
   ASSERT_EQ(placeholder, 44);
 
   // save it and make sure the callback is called
@@ -175,16 +154,13 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerMainTest1) {
             MetricIdManager::kMinId + 1);
   ASSERT_EQ(manager.AllocateId(bluetooth::hci::Address({0, 0, 0, 0, 0, 3})),
             MetricIdManager::kMinId + 2);
-  ASSERT_TRUE(
-      manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 2})));
+  ASSERT_TRUE(manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 2})));
   ASSERT_EQ(placeholder, 88);
-  ASSERT_TRUE(
-      manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 3})));
+  ASSERT_TRUE(manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 3})));
   ASSERT_EQ(placeholder, 176);
 
   // should be true but callback won't be called, since id had been saved
-  ASSERT_TRUE(
-      manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})));
+  ASSERT_TRUE(manager.SaveDevice(bluetooth::hci::Address({0, 0, 0, 0, 0, 0})));
   ASSERT_EQ(placeholder, 176);
 
   // forget
@@ -200,39 +176,31 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerFullPairedMap) {
   auto& manager = MetricIdManager::GetInstance();
   // preset a full map
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map =
-      generateAddresses(MetricIdManager::kMaxNumPairedDevicesInMemory);
+          generateAddresses(MetricIdManager::kMaxNumPairedDevicesInMemory);
   int placeholder = 243;
   int* pointer = &placeholder;
-  MetricIdManager::Callback save_callback = [pointer](
-      const bluetooth::hci::Address&,
-      const int) {
+  MetricIdManager::Callback save_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer * 2;
     return true;
   };
-  MetricIdManager::Callback forget_callback = [pointer](
-      const bluetooth::hci::Address&,
-      const int) {
+  MetricIdManager::Callback forget_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer / 3;
     return true;
   };
 
-  ASSERT_TRUE(
-      manager.Init(paired_device_map, save_callback, forget_callback));
+  ASSERT_TRUE(manager.Init(paired_device_map, save_callback, forget_callback));
 
   // check if all preset ids are there.
   // comments based on kMaxNumPairedDevicesInMemory = 200. It can change.
   int key = 0;
-  for (key = 0;
-       key < static_cast<int>(MetricIdManager::kMaxNumPairedDevicesInMemory);
-       key++) {
-    ASSERT_EQ(manager.AllocateId(kthAddress(key)),
-              key + MetricIdManager::kMinId);
+  for (key = 0; key < static_cast<int>(MetricIdManager::kMaxNumPairedDevicesInMemory); key++) {
+    ASSERT_EQ(manager.AllocateId(kthAddress(key)), key + MetricIdManager::kMinId);
   }
   // paired: 0, 1, 2 ... 199,
   // scanned:
 
-  int id = static_cast<int>(MetricIdManager::kMaxNumPairedDevicesInMemory +
-                            MetricIdManager::kMinId);
+  int id =
+          static_cast<int>(MetricIdManager::kMaxNumPairedDevicesInMemory + MetricIdManager::kMinId);
   // next id should be MetricIdManager::kMaxNumPairedDevicesInMemory +
   // MetricIdManager::kMinId
 
@@ -335,8 +303,7 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerFullPairedMap) {
   placeholder = 4;
   ASSERT_TRUE(manager.SaveDevice(kthAddress(0)));
   ASSERT_TRUE(manager.SaveDevice(kthAddress(1)));
-  ASSERT_TRUE(manager.SaveDevice(
-      kthAddress(MetricIdManager::kMaxNumPairedDevicesInMemory + 5)));
+  ASSERT_TRUE(manager.SaveDevice(kthAddress(MetricIdManager::kMaxNumPairedDevicesInMemory + 5)));
   ASSERT_EQ(placeholder, 32);
 
   ASSERT_TRUE(manager.Close());
@@ -347,36 +314,28 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerFullScannedMap) {
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
   int placeholder = 22;
   int* pointer = &placeholder;
-  MetricIdManager::Callback save_callback = [pointer](
-      const bluetooth::hci::Address&,const int) {
+  MetricIdManager::Callback save_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer * 2;
     return true;
   };
-  MetricIdManager::Callback forget_callback = [pointer](
-      const bluetooth::hci::Address&,const int) {
+  MetricIdManager::Callback forget_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer / 2;
     return true;
   };
 
-  ASSERT_TRUE(
-      manager.Init(paired_device_map, save_callback, forget_callback));
+  ASSERT_TRUE(manager.Init(paired_device_map, save_callback, forget_callback));
 
   // allocate kMaxNumUnpairedDevicesInMemory ids
   // comments based on kMaxNumUnpairedDevicesInMemory = 200
-  for (int key = 0;
-       key <
-       static_cast<int>(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
+  for (int key = 0; key < static_cast<int>(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
        key++) {
-    ASSERT_EQ(manager.AllocateId(kthAddress(key)),
-              key + MetricIdManager::kMinId);
+    ASSERT_EQ(manager.AllocateId(kthAddress(key)), key + MetricIdManager::kMinId);
   }
   // scanned: 0, 1, 2 ... 199,
   // paired:
 
-  int id = MetricIdManager::kMaxNumUnpairedDevicesInMemory +
-           MetricIdManager::kMinId;
-  bluetooth::hci::Address addr =
-      kthAddress(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
+  int id = MetricIdManager::kMaxNumUnpairedDevicesInMemory + MetricIdManager::kMinId;
+  bluetooth::hci::Address addr = kthAddress(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
   ASSERT_EQ(manager.AllocateId(addr), id);
   // scanned: 1, 2 ... 199, 200
 
@@ -396,9 +355,7 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerFullScannedMap) {
   // try to allocate for device 0, 1, 2, 3, 4....199
   // we should have a new id every time,
   // since the scanned map is full at this point
-  for (int key = 0;
-       key <
-       static_cast<int>(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
+  for (int key = 0; key < static_cast<int>(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
        key++) {
     ASSERT_EQ(manager.AllocateId(kthAddress(key)), id++);
   }
@@ -410,24 +367,19 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerMultiThreadPressureTest) {
   auto& manager = MetricIdManager::GetInstance();
   int placeholder = 22;
   int* pointer = &placeholder;
-  MetricIdManager::Callback save_callback = [pointer](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback save_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer + 1;
     return true;
   };
-  MetricIdManager::Callback forget_callback = [pointer](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback forget_callback = [pointer](const bluetooth::hci::Address&, const int) {
     *pointer = *pointer - 1;
     return true;
   };
-  ASSERT_TRUE(
-      manager.Init(paired_device_map, save_callback, forget_callback));
+  ASSERT_TRUE(manager.Init(paired_device_map, save_callback, forget_callback));
 
   // make sure no deadlock
   std::vector<std::thread> workers;
-  for (int key = 0;
-       key <
-       static_cast<int>(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
+  for (int key = 0; key < static_cast<int>(MetricIdManager::kMaxNumUnpairedDevicesInMemory);
        key++) {
     workers.push_back(std::thread([key]() {
       auto& manager = MetricIdManager::GetInstance();
@@ -447,8 +399,7 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerMultiThreadPressureTest) {
 TEST(BluetoothMetricIdManagerTest, MetricIdManagerWrapAroundTest1) {
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
   auto& manager = MetricIdManager::GetInstance();
-  MetricIdManager::Callback callback = [](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback callback = [](const bluetooth::hci::Address&, const int) {
     return true;
   };
 
@@ -478,8 +429,7 @@ TEST(BluetoothMetricIdManagerTest, MetricIdManagerWrapAroundTest1) {
 TEST(BluetoothMetricIdManagerTest, MetricIdManagerWrapAroundTest2) {
   std::unordered_map<bluetooth::hci::Address, int> paired_device_map;
   auto& manager = MetricIdManager::GetInstance();
-  MetricIdManager::Callback callback = [](
-      const bluetooth::hci::Address&, const int) {
+  MetricIdManager::Callback callback = [](const bluetooth::hci::Address&, const int) {
     return true;
   };
 

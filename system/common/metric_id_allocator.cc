@@ -40,7 +40,7 @@ const int MetricIdAllocator::kMaxId = 65534;  // 2^16 - 2
 // kMaxNumUnpairedDevicesInMemory
 static_assert((MetricIdAllocator::kMaxNumUnpairedDevicesInMemory +
                MetricIdAllocator::kMaxNumPairedDevicesInMemory) <
-                  (MetricIdAllocator::kMaxId - MetricIdAllocator::kMinId),
+                      (MetricIdAllocator::kMaxId - MetricIdAllocator::kMinId),
               "id space should always be larger than "
               "kMaxNumPairedDevicesInMemory + MaxNumUnpairedDevicesInMemory");
 
@@ -48,9 +48,8 @@ MetricIdAllocator::MetricIdAllocator()
     : paired_device_cache_(kMaxNumPairedDevicesInMemory, LOGGING_TAG),
       temporary_device_cache_(kMaxNumUnpairedDevicesInMemory, LOGGING_TAG) {}
 
-bool MetricIdAllocator::Init(
-    const std::unordered_map<RawAddress, int>& paired_device_map,
-    Callback save_id_callback, Callback forget_device_callback) {
+bool MetricIdAllocator::Init(const std::unordered_map<RawAddress, int>& paired_device_map,
+                             Callback save_id_callback, Callback forget_device_callback) {
   std::lock_guard<std::mutex> lock(id_allocator_mutex_);
   if (initialized_) {
     return false;
@@ -58,9 +57,7 @@ bool MetricIdAllocator::Init(
 
   // init paired_devices_map
   if (paired_device_map.size() > kMaxNumPairedDevicesInMemory) {
-    log::fatal(
-        "{}Paired device map is bigger than kMaxNumPairedDevicesInMemory",
-        LOGGING_TAG);
+    log::fatal("{}Paired device map is bigger than kMaxNumPairedDevicesInMemory", LOGGING_TAG);
     // fail loudly to let caller know
     return false;
   }
@@ -109,8 +106,7 @@ MetricIdAllocator& MetricIdAllocator::GetInstance() {
 
 bool MetricIdAllocator::IsEmpty() const {
   std::lock_guard<std::mutex> lock(id_allocator_mutex_);
-  return paired_device_cache_.Size() == 0 &&
-         temporary_device_cache_.Size() == 0;
+  return paired_device_cache_.Size() == 0 && temporary_device_cache_.Size() == 0;
 }
 
 // call this function when a new device is scanned
@@ -155,14 +151,13 @@ bool MetricIdAllocator::SaveDevice(const RawAddress& mac_address) {
   }
   if (!temporary_device_cache_.Get(mac_address, &id)) {
     log::error(
-        "{}Failed to save device because device is not in "
-        "temporary_device_cache_",
-        LOGGING_TAG);
+            "{}Failed to save device because device is not in "
+            "temporary_device_cache_",
+            LOGGING_TAG);
     return false;
   }
   if (!temporary_device_cache_.Remove(mac_address)) {
-    log::error("{}Failed to remove device from temporary_device_cache_",
-               LOGGING_TAG);
+    log::error("{}Failed to remove device from temporary_device_cache_", LOGGING_TAG);
     return false;
   }
   auto evicted = paired_device_cache_.Put(mac_address, id);
@@ -170,8 +165,7 @@ bool MetricIdAllocator::SaveDevice(const RawAddress& mac_address) {
     ForgetDevicePostprocess(evicted->first, evicted->second);
   }
   if (!save_id_callback_(mac_address, id)) {
-    log::error("{}Callback returned false after saving the device",
-               LOGGING_TAG);
+    log::error("{}Callback returned false after saving the device", LOGGING_TAG);
     return false;
   }
   return true;
@@ -183,25 +177,21 @@ void MetricIdAllocator::ForgetDevice(const RawAddress& mac_address) {
   int id = 0;
   if (!paired_device_cache_.Get(mac_address, &id)) {
     log::error(
-        "{}Failed to forget device because device is not in "
-        "paired_device_cache_",
-        LOGGING_TAG);
+            "{}Failed to forget device because device is not in "
+            "paired_device_cache_",
+            LOGGING_TAG);
     return;
   }
   if (!paired_device_cache_.Remove(mac_address)) {
-    log::error("{}Failed to remove device from paired_device_cache_",
-               LOGGING_TAG);
+    log::error("{}Failed to remove device from paired_device_cache_", LOGGING_TAG);
     return;
   }
   ForgetDevicePostprocess(mac_address, id);
 }
 
-bool MetricIdAllocator::IsValidId(const int id) {
-  return id >= kMinId && id <= kMaxId;
-}
+bool MetricIdAllocator::IsValidId(const int id) { return id >= kMinId && id <= kMaxId; }
 
-void MetricIdAllocator::ForgetDevicePostprocess(const RawAddress& mac_address,
-                                                const int id) {
+void MetricIdAllocator::ForgetDevicePostprocess(const RawAddress& mac_address, const int id) {
   id_set_.erase(id);
   forget_device_callback_(mac_address, id);
 }

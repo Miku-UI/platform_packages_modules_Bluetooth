@@ -33,11 +33,10 @@ struct CodecInterface::Impl {
   Impl(const types::LeAudioCodecId& codec_id) : codec_id_(codec_id) {}
   ~Impl() { Cleanup(); }
 
-  bool IsReady() { return pcm_config_.has_value(); };
+  bool IsReady() { return pcm_config_.has_value(); }
 
-  CodecInterface::Status InitEncoder(
-      const LeAudioCodecConfiguration& pcm_config,
-      const LeAudioCodecConfiguration& codec_config) {
+  CodecInterface::Status InitEncoder(const LeAudioCodecConfiguration& pcm_config,
+                                     const LeAudioCodecConfiguration& codec_config) {
     // Output codec configuration
     bt_codec_config_ = codec_config;
 
@@ -48,29 +47,27 @@ struct CodecInterface::Impl {
       }
       pcm_config_ = pcm_config;
 
-      lc3_.pcm_format_ = (pcm_config_->bits_per_sample == 24)
-                             ? LC3_PCM_FORMAT_S24
-                             : LC3_PCM_FORMAT_S16;
+      lc3_.pcm_format_ =
+              (pcm_config_->bits_per_sample == 24) ? LC3_PCM_FORMAT_S24 : LC3_PCM_FORMAT_S16;
 
       // Prepare the encoder
-      const auto encoder_size = lc3_encoder_size(
-          bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+      const auto encoder_size =
+              lc3_encoder_size(bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
       lc3_.codec_mem_.reset(malloc(encoder_size));
-      lc3_.encoder_ = lc3_setup_encoder(
-          bt_codec_config_.data_interval_us, bt_codec_config_.sample_rate,
-          pcm_config_->sample_rate, lc3_.codec_mem_.get());
+      lc3_.encoder_ =
+              lc3_setup_encoder(bt_codec_config_.data_interval_us, bt_codec_config_.sample_rate,
+                                pcm_config_->sample_rate, lc3_.codec_mem_.get());
 
       return Status::STATUS_OK;
     }
 
-    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format,
-               codec_id_.vendor_company_id, codec_id_.vendor_codec_id);
+    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format, codec_id_.vendor_company_id,
+               codec_id_.vendor_codec_id);
     return Status::STATUS_ERR_INVALID_CODEC_ID;
   }
 
-  CodecInterface::Status InitDecoder(
-      const LeAudioCodecConfiguration& codec_config,
-      const LeAudioCodecConfiguration& pcm_config) {
+  CodecInterface::Status InitDecoder(const LeAudioCodecConfiguration& codec_config,
+                                     const LeAudioCodecConfiguration& pcm_config) {
     // Input codec configuration
     bt_codec_config_ = codec_config;
 
@@ -81,28 +78,27 @@ struct CodecInterface::Impl {
       }
       pcm_config_ = pcm_config;
 
-      lc3_.pcm_format_ = (pcm_config_->bits_per_sample == 24)
-                             ? LC3_PCM_FORMAT_S24
-                             : LC3_PCM_FORMAT_S16;
+      lc3_.pcm_format_ =
+              (pcm_config_->bits_per_sample == 24) ? LC3_PCM_FORMAT_S24 : LC3_PCM_FORMAT_S16;
 
       // Prepare the decoded output buffer
-      output_channel_samples_ = lc3_frame_samples(
-          bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+      output_channel_samples_ =
+              lc3_frame_samples(bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
       adjustOutputBufferSizeIfNeeded(&output_channel_data_);
 
       // Prepare the decoder
-      const auto decoder_size = lc3_decoder_size(
-          bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+      const auto decoder_size =
+              lc3_decoder_size(bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
       lc3_.codec_mem_.reset(malloc(decoder_size));
-      lc3_.decoder_ = lc3_setup_decoder(
-          bt_codec_config_.data_interval_us, bt_codec_config_.sample_rate,
-          pcm_config_->sample_rate, lc3_.codec_mem_.get());
+      lc3_.decoder_ =
+              lc3_setup_decoder(bt_codec_config_.data_interval_us, bt_codec_config_.sample_rate,
+                                pcm_config_->sample_rate, lc3_.codec_mem_.get());
 
       return Status::STATUS_OK;
     }
 
-    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format,
-               codec_id_.vendor_company_id, codec_id_.vendor_codec_id);
+    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format, codec_id_.vendor_company_id,
+               codec_id_.vendor_codec_id);
     return Status::STATUS_ERR_INVALID_CODEC_ID;
   }
 
@@ -126,13 +122,12 @@ struct CodecInterface::Impl {
       return Status::STATUS_OK;
     }
 
-    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format,
-               codec_id_.vendor_company_id, codec_id_.vendor_codec_id);
+    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format, codec_id_.vendor_company_id,
+               codec_id_.vendor_codec_id);
     return Status::STATUS_ERR_INVALID_CODEC_ID;
   }
 
-  CodecInterface::Status Encode(const uint8_t* data, int stride,
-                                uint16_t out_size,
+  CodecInterface::Status Encode(const uint8_t* data, int stride, uint16_t out_size,
                                 std::vector<int16_t>* out_buffer = nullptr,
                                 uint16_t out_offset = 0) {
     if (!IsReady()) {
@@ -161,9 +156,8 @@ struct CodecInterface::Impl {
       adjustOutputBufferSizeIfNeeded(out_buffer);
 
       // Encode
-      auto err =
-          lc3_encode(lc3_.encoder_, lc3_.pcm_format_, data, stride, out_size,
-                     ((uint8_t*)out_buffer->data()) + out_offset);
+      auto err = lc3_encode(lc3_.encoder_, lc3_.pcm_format_, data, stride, out_size,
+                            ((uint8_t*)out_buffer->data()) + out_offset);
       if (err < 0) {
         log::error("bad encoding parameters: {}", static_cast<int>(err));
         return Status::STATUS_ERR_CODING_ERROR;
@@ -172,8 +166,8 @@ struct CodecInterface::Impl {
       return Status::STATUS_OK;
     }
 
-    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format,
-               codec_id_.vendor_company_id, codec_id_.vendor_codec_id);
+    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format, codec_id_.vendor_company_id,
+               codec_id_.vendor_codec_id);
     return Status::STATUS_ERR_INVALID_CODEC_ID;
   }
 
@@ -193,12 +187,11 @@ struct CodecInterface::Impl {
     }
 
     if (codec_id_.coding_format == types::kLeAudioCodingFormatLC3) {
-      return lc3_frame_samples(bt_codec_config_.data_interval_us,
-                               pcm_config_->sample_rate);
+      return lc3_frame_samples(bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
     }
 
-    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format,
-               codec_id_.vendor_company_id, codec_id_.vendor_codec_id);
+    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format, codec_id_.vendor_company_id,
+               codec_id_.vendor_codec_id);
     return 0;
   }
 
@@ -207,12 +200,12 @@ struct CodecInterface::Impl {
       return lc3_.bits_to_bytes_per_sample(bt_codec_config_.bits_per_sample);
     }
 
-    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format,
-               codec_id_.vendor_company_id, codec_id_.vendor_codec_id);
+    log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format, codec_id_.vendor_company_id,
+               codec_id_.vendor_codec_id);
     return 0;
   }
 
- private:
+private:
   inline void adjustOutputBufferSizeIfNeeded(std::vector<int16_t>* out_buffer) {
     if (out_buffer->size() < output_channel_samples_) {
       out_buffer->resize(output_channel_samples_);
@@ -232,7 +225,9 @@ struct CodecInterface::Impl {
   struct lc3_t {
     static inline uint8_t bits_to_bytes_per_sample(uint8_t bits_per_sample) {
       // 24 bit audio stream is sent as unpacked, each sample takes 4 bytes.
-      if (bits_per_sample == 24) return 4;
+      if (bits_per_sample == 24) {
+        return 4;
+      }
       return bits_per_sample / 8;
     }
 
@@ -256,43 +251,34 @@ CodecInterface::CodecInterface(const types::LeAudioCodecId& codec_id) {
   if (codec_id.coding_format == types::kLeAudioCodingFormatLC3) {
     impl = new Impl(codec_id);
   } else {
-    log::error("Invalid codec ID: [{}:{}:{}]", codec_id.coding_format,
-               codec_id.vendor_company_id, codec_id.vendor_codec_id);
+    log::error("Invalid codec ID: [{}:{}:{}]", codec_id.coding_format, codec_id.vendor_company_id,
+               codec_id.vendor_codec_id);
   }
 }
 
 CodecInterface::~CodecInterface() { delete impl; }
 
-bool CodecInterface::IsReady() { return impl->IsReady(); };
-CodecInterface::Status CodecInterface::InitEncoder(
-    const LeAudioCodecConfiguration& pcm_config,
-    const LeAudioCodecConfiguration& codec_config) {
+bool CodecInterface::IsReady() { return impl->IsReady(); }
+CodecInterface::Status CodecInterface::InitEncoder(const LeAudioCodecConfiguration& pcm_config,
+                                                   const LeAudioCodecConfiguration& codec_config) {
   return impl->InitEncoder(pcm_config, codec_config);
 }
-CodecInterface::Status CodecInterface::InitDecoder(
-    const LeAudioCodecConfiguration& codec_config,
-    const LeAudioCodecConfiguration& pcm_config) {
+CodecInterface::Status CodecInterface::InitDecoder(const LeAudioCodecConfiguration& codec_config,
+                                                   const LeAudioCodecConfiguration& pcm_config) {
   return impl->InitDecoder(codec_config, pcm_config);
 }
-std::vector<int16_t>& CodecInterface::GetDecodedSamples() {
-  return impl->GetDecodedSamples();
-}
+std::vector<int16_t>& CodecInterface::GetDecodedSamples() { return impl->GetDecodedSamples(); }
 CodecInterface::Status CodecInterface::Decode(uint8_t* data, uint16_t size) {
   return impl->Decode(data, size);
 }
-CodecInterface::Status CodecInterface::Encode(const uint8_t* data, int stride,
-                                              uint16_t out_size,
+CodecInterface::Status CodecInterface::Encode(const uint8_t* data, int stride, uint16_t out_size,
                                               std::vector<int16_t>* out_buffer,
                                               uint16_t out_offset) {
   return impl->Encode(data, stride, out_size, out_buffer, out_offset);
 }
 void CodecInterface::Cleanup() { return impl->Cleanup(); }
 
-uint16_t CodecInterface::GetNumOfSamplesPerChannel() {
-  return impl->GetNumOfSamplesPerChannel();
-};
-uint8_t CodecInterface::GetNumOfBytesPerSample() {
-  return impl->GetNumOfBytesPerSample();
-};
+uint16_t CodecInterface::GetNumOfSamplesPerChannel() { return impl->GetNumOfSamplesPerChannel(); }
+uint8_t CodecInterface::GetNumOfBytesPerSample() { return impl->GetNumOfBytesPerSample(); }
 
 }  // namespace bluetooth::le_audio

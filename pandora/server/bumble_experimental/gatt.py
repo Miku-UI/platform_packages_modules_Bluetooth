@@ -19,7 +19,7 @@ import logging
 from bumble.att import Attribute
 from bumble.core import ProtocolError
 from bumble.device import Connection as BumbleConnection, Device, Peer
-from bumble.gatt import Characteristic, Descriptor, Service
+from bumble.gatt import Characteristic, Descriptor, Service, GATT_PRIMARY_SERVICE_ATTRIBUTE_TYPE
 from bumble.gatt_client import CharacteristicProxy, ServiceProxy
 from bumble.pandora import utils
 from pandora_experimental.gatt_grpc_aio import GATTServicer
@@ -42,6 +42,7 @@ from pandora_experimental.gatt_pb2 import (
     IndicateOnCharacteristicResponse,
     NotifyOnCharacteristicRequest,
     NotifyOnCharacteristicResponse,
+    PRIMARY as PRIMARY_SERVICE,
     ReadCharacteristicDescriptorRequest,
     ReadCharacteristicDescriptorResponse,
     ReadCharacteristicRequest,
@@ -50,6 +51,8 @@ from pandora_experimental.gatt_pb2 import (
     ReadCharacteristicsFromUuidResponse,
     RegisterServiceRequest,
     RegisterServiceResponse,
+    SECONDARY as SECONDARY_SERVICE,
+    ServiceType,
     WriteRequest,
     WriteResponse,
 )
@@ -171,7 +174,8 @@ class GATTService(GATTServicer):
         return DiscoverServicesResponse(services=[
             GattService(
                 handle=service.handle,
-                type=int.from_bytes(bytes(service.type), 'little'),
+                service_type=PRIMARY_SERVICE if service.type ==
+                GATT_PRIMARY_SERVICE_ATTRIBUTE_TYPE else SECONDARY_SERVICE,
                 uuid=service.uuid.to_hex_str('-'),  # type: ignore
                 characteristics=[
                     GattCharacteristic(

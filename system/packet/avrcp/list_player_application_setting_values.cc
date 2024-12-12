@@ -20,10 +20,9 @@ namespace bluetooth {
 namespace avrcp {
 
 std::unique_ptr<ListPlayerApplicationSettingValuesResponseBuilder>
-ListPlayerApplicationSettingValuesResponseBuilder::MakeBuilder(
-    std::vector<uint8_t> values) {
+ListPlayerApplicationSettingValuesResponseBuilder::MakeBuilder(std::vector<uint8_t> values) {
   std::unique_ptr<ListPlayerApplicationSettingValuesResponseBuilder> builder(
-      new ListPlayerApplicationSettingValuesResponseBuilder(std::move(values)));
+          new ListPlayerApplicationSettingValuesResponseBuilder(std::move(values)));
 
   return builder;
 }
@@ -36,7 +35,7 @@ size_t ListPlayerApplicationSettingValuesResponseBuilder::size() const {
 }
 
 bool ListPlayerApplicationSettingValuesResponseBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+        const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   PacketBuilder::PushHeader(pkt);
@@ -51,14 +50,15 @@ bool ListPlayerApplicationSettingValuesResponseBuilder::Serialize(
   return true;
 }
 
-PlayerAttribute
-ListPlayerApplicationSettingValuesRequest::GetRequestedAttribute() const {
+PlayerAttribute ListPlayerApplicationSettingValuesRequest::GetRequestedAttribute() const {
   auto it = begin() + VendorPacket::kMinSize();
   return static_cast<PlayerAttribute>(it.extract8());
 }
 
 bool ListPlayerApplicationSettingValuesRequest::IsValid() const {
-  if (!VendorPacket::IsValid()) return false;
+  if (!VendorPacket::IsValid()) {
+    return false;
+  }
   return size() == kMinSize();
 }
 
@@ -73,8 +73,7 @@ std::string ListPlayerApplicationSettingValuesRequest::ToString() const {
   ss << "  └ Command PDU = " << GetCommandPdu() << std::endl;
   ss << "  └ PacketType = " << GetPacketType() << std::endl;
   ss << "  └ Parameter Length = " << loghex(GetParameterLength()) << std::endl;
-  ss << "  └ Player Setting Attribute = " << GetRequestedAttribute()
-     << std::endl;
+  ss << "  └ Player Setting Attribute = " << GetRequestedAttribute() << std::endl;
   ss << std::endl;
 
   return ss.str();

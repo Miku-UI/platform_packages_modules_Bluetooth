@@ -49,15 +49,12 @@ void Thread::run(Priority priority) {
   reactor_.Run();
 }
 
-Thread::~Thread() {
-  Stop();
-}
+Thread::~Thread() { Stop(); }
 
 bool Thread::Stop() {
   std::lock_guard<std::mutex> lock(mutex_);
-  log::assert_that(
-      std::this_thread::get_id() != running_thread_.get_id(),
-      "assert failed: std::this_thread::get_id() != running_thread_.get_id()");
+  log::assert_that(std::this_thread::get_id() != running_thread_.get_id(),
+                   "assert failed: std::this_thread::get_id() != running_thread_.get_id()");
 
   if (!running_thread_.joinable()) {
     return false;
@@ -67,21 +64,13 @@ bool Thread::Stop() {
   return true;
 }
 
-bool Thread::IsSameThread() const {
-  return std::this_thread::get_id() == running_thread_.get_id();
-}
+bool Thread::IsSameThread() const { return std::this_thread::get_id() == running_thread_.get_id(); }
 
-Reactor* Thread::GetReactor() const {
-  return &reactor_;
-}
+Reactor* Thread::GetReactor() const { return &reactor_; }
 
-std::string Thread::GetThreadName() const {
-  return name_;
-}
+std::string Thread::GetThreadName() const { return name_; }
 
-std::string Thread::ToString() const {
-  return "Thread " + name_;
-}
+std::string Thread::ToString() const { return "Thread " + name_; }
 
 }  // namespace os
 }  // namespace bluetooth

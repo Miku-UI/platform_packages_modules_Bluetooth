@@ -37,8 +37,8 @@ import com.android.vcard.VCardEntry.PhoneData;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class CallLogPullRequest extends PullRequest {
     private static final String TAG = "CallLogPullRequest";
@@ -48,10 +48,10 @@ public class CallLogPullRequest extends PullRequest {
 
     private final Account mAccount;
     private Context mContext;
-    private HashMap<String, Integer> mCallCounter;
+    private Map<String, Integer> mCallCounter;
 
     public CallLogPullRequest(
-            Context context, String path, HashMap<String, Integer> map, Account account) {
+            Context context, String path, Map<String, Integer> map, Account account) {
         mContext = context;
         this.path = path;
         mCallCounter = map;
@@ -59,6 +59,7 @@ public class CallLogPullRequest extends PullRequest {
     }
 
     @Override
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void onPullComplete() {
         if (mEntries == null) {
             Log.e(TAG, "onPullComplete entries is null.");

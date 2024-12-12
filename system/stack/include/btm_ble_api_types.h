@@ -203,9 +203,8 @@ typedef uint8_t tBTM_BLE_SFP;
 #define BTM_BLE_CONN_INT_MIN_HEARINGAID 0x0010
 #endif
 
-#define BTM_CMAC_TLEN_SIZE 8 /* 64 bits */
-#define BTM_BLE_AUTH_SIGN_LEN \
-  12 /* BLE data signature length 8 Bytes + 4 bytes counter*/
+#define BTM_CMAC_TLEN_SIZE 8     /* 64 bits */
+#define BTM_BLE_AUTH_SIGN_LEN 12 /* BLE data signature length 8 Bytes + 4 bytes counter*/
 typedef uint8_t BLE_SIGNATURE[BTM_BLE_AUTH_SIGN_LEN]; /* Device address */
 
 #ifndef BTM_BLE_HOST_SUPPORT
@@ -283,7 +282,7 @@ typedef struct {
 /* General callback function for notifying an application that a synchronous
  * BTM function is complete. The pointer contains the address of any returned
  * data.
-*/
+ */
 typedef void(tBTM_RAND_ENC_CB)(tBTM_RAND_ENC* p1);
 
 /* ADV data flag bit definition used for BTM_BLE_AD_TYPE_FLAG */
@@ -298,9 +297,9 @@ typedef void(tBTM_RAND_ENC_CB)(tBTM_RAND_ENC* p1);
 #define BTM_BLE_AD_BIT_FLAGS (0x00000001 << 1)
 
 #define BTM_BLE_AD_TYPE_FLAG HCI_EIR_FLAGS_TYPE /* 0x01 */
-#define BTM_BLE_AD_TYPE_16SRV_CMPL          \
-  HCI_EIR_COMPLETE_16BITS_UUID_TYPE /* 0x03 \
-                                       */
+#define BTM_BLE_AD_TYPE_16SRV_CMPL                                          \
+  HCI_EIR_COMPLETE_16BITS_UUID_TYPE                                 /* 0x03 \
+                                                                     */
 #define BTM_BLE_AD_TYPE_SERVICE_DATA_TYPE HCI_EIR_SERVICE_DATA_TYPE /* 0x16 */
 #define BTM_BLE_AD_TYPE_APPEARANCE 0x19
 #define BTM_BLE_AD_TYPE_RSI HCI_EIR_RSI_TYPE /* 0x2E */
@@ -313,8 +312,8 @@ typedef void(tBTM_RAND_ENC_CB)(tBTM_RAND_ENC* p1);
 
 /*  Preferred maximum number of microseconds that the local Controller
     should use to transmit a single Link Layer Data Channel PDU. */
-#define BTM_BLE_DATA_TX_TIME_MAX_LEGACY  0x0848
-#define BTM_BLE_DATA_TX_TIME_MAX         0x4290
+#define BTM_BLE_DATA_TX_TIME_MAX_LEGACY 0x0848
+#define BTM_BLE_DATA_TX_TIME_MAX 0x4290
 
 /* adv tx power in dBm */
 typedef struct {
@@ -355,7 +354,9 @@ typedef void(tBTM_BLE_ADV_DATA_CMPL_CBACK)(tBTM_STATUS status);
         than this number */
 #endif
 
+typedef uint16_t tCONN_ID;
 typedef uint8_t tGATT_IF;
+typedef uint8_t tTCB_IDX;
 
 typedef enum : uint8_t {
   BTM_BLE_DIRECT_CONNECTION = 0x00,
@@ -365,8 +366,8 @@ typedef enum : uint8_t {
 
 typedef void(tBTM_BLE_SCAN_THRESHOLD_CBACK)(tBTM_BLE_REF_VALUE ref_value);
 using tBTM_BLE_SCAN_REP_CBACK =
-    base::Callback<void(tBTM_STATUS /* status */, uint8_t /* report_format */,
-                        uint8_t /* num_reports */, std::vector<uint8_t>)>;
+        base::Callback<void(tBTM_STATUS /* status */, uint8_t /* report_format */,
+                            uint8_t /* num_reports */, std::vector<uint8_t>)>;
 
 #ifndef BTM_BLE_BATCH_SCAN_MAX
 #define BTM_BLE_BATCH_SCAN_MAX 5
@@ -435,26 +436,22 @@ typedef uint8_t tBTM_BLE_PF_LOGIC_TYPE;
 
 typedef uint8_t tBTM_BLE_PF_FILT_INDEX;
 
-enum {
-  BTM_BLE_SCAN_COND_ADD,
-  BTM_BLE_SCAN_COND_DELETE,
-  BTM_BLE_SCAN_COND_CLEAR = 2
-};
+enum { BTM_BLE_SCAN_COND_ADD, BTM_BLE_SCAN_COND_DELETE, BTM_BLE_SCAN_COND_CLEAR = 2 };
 typedef uint8_t tBTM_BLE_SCAN_COND_OP;
 
 /* BLE adv payload filtering config complete callback */
-using tBTM_BLE_PF_CFG_CBACK = base::Callback<void(
-    uint8_t /* avbl_space */, tBTM_BLE_SCAN_COND_OP /* action */,
-    tBTM_STATUS /* btm_status */)>;
+using tBTM_BLE_PF_CFG_CBACK =
+        base::Callback<void(uint8_t /* avbl_space */, tBTM_BLE_SCAN_COND_OP /* action */,
+                            tBTM_STATUS /* btm_status */)>;
 
 /* BLE adv payload filtering status setup complete callback */
-using tBTM_BLE_PF_STATUS_CBACK = base::Callback<void(
-    tBTM_BLE_SCAN_COND_OP /*action*/, tBTM_STATUS /* btm_status */)>;
+using tBTM_BLE_PF_STATUS_CBACK =
+        base::Callback<void(tBTM_BLE_SCAN_COND_OP /*action*/, tBTM_STATUS /* btm_status */)>;
 
 /* BLE adv payload filtering param setup complete callback */
-using tBTM_BLE_PF_PARAM_CB = base::Callback<void(
-    uint8_t /* avbl_space */, tBTM_BLE_SCAN_COND_OP /* action */,
-    tBTM_STATUS /* btm_status */)>;
+using tBTM_BLE_PF_PARAM_CB =
+        base::Callback<void(uint8_t /* avbl_space */, tBTM_BLE_SCAN_COND_OP /* action */,
+                            tBTM_STATUS /* btm_status */)>;
 
 #ifndef BTM_CS_IRK_LIST_MAX
 #define BTM_CS_IRK_LIST_MAX 0x20
@@ -490,8 +487,7 @@ typedef struct {
 
 typedef btgatt_track_adv_info_t tBTM_BLE_TRACK_ADV_DATA;
 
-typedef void(tBTM_BLE_TRACK_ADV_CBACK)(
-    tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data);
+typedef void(tBTM_BLE_TRACK_ADV_CBACK)(tBTM_BLE_TRACK_ADV_DATA* p_track_adv_data);
 
 typedef struct {
   tBTM_BLE_REF_VALUE ref_value;
@@ -503,11 +499,9 @@ typedef uint32_t tBTM_BLE_RX_TIME_MS;
 typedef uint32_t tBTM_BLE_IDLE_TIME_MS;
 typedef uint32_t tBTM_BLE_ENERGY_USED;
 
-typedef void(tBTM_BLE_ENERGY_INFO_CBACK)(tBTM_BLE_TX_TIME_MS tx_time,
-                                         tBTM_BLE_RX_TIME_MS rx_time,
+typedef void(tBTM_BLE_ENERGY_INFO_CBACK)(tBTM_BLE_TX_TIME_MS tx_time, tBTM_BLE_RX_TIME_MS rx_time,
                                          tBTM_BLE_IDLE_TIME_MS idle_time,
-                                         tBTM_BLE_ENERGY_USED energy_used,
-                                         tHCI_STATUS status);
+                                         tBTM_BLE_ENERGY_USED energy_used, tHCI_STATUS status);
 
 typedef struct {
   tBTM_BLE_ENERGY_INFO_CBACK* p_ener_cback;

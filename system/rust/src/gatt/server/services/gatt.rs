@@ -1,5 +1,6 @@
 //! The GATT service as defined in Core Spec 5.3 Vol 3G Section 7
 
+use pdl_runtime::Packet;
 use std::{cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc};
 
 use anyhow::Result;
@@ -24,10 +25,7 @@ use crate::{
             },
         },
     },
-    packets::{
-        AttErrorCode, GattClientCharacteristicConfigurationBuilder,
-        GattClientCharacteristicConfigurationView, GattServiceChangedBuilder, Packet, Serializable,
-    },
+    packets::att::{self, AttErrorCode},
 };
 
 #[derive(Default)]
@@ -62,7 +60,7 @@ impl GattDatastore for GattService {
         _: AttributeBackingType,
     ) -> Result<Vec<u8>, AttErrorCode> {
         if handle == SERVICE_CHANGE_CCC_DESCRIPTOR_HANDLE {
-            GattClientCharacteristicConfigurationBuilder {
+            att::GattClientCharacteristicConfiguration {
                 notification: 0,
                 indication: self
                     .clients
@@ -72,8 +70,8 @@ impl GattDatastore for GattService {
                     .unwrap_or(false)
                     .into(),
             }
-            .to_vec()
-            .map_err(|_| AttErrorCode::UNLIKELY_ERROR)
+            .encode_to_vec()
+            .map_err(|_| AttErrorCode::UnlikelyError)
         } else {
             unreachable!()
         }
@@ -87,18 +85,18 @@ impl GattDatastore for GattService {
         data: &[u8],
     ) -> Result<(), AttErrorCode> {
         if handle == SERVICE_CHANGE_CCC_DESCRIPTOR_HANDLE {
-            let ccc = GattClientCharacteristicConfigurationView::try_parse_from_buffer(data)
-                .map_err(|err| {
+            let ccc =
+                att::GattClientCharacteristicConfiguration::decode_full(data).map_err(|err| {
                     warn!("failed to parse CCC descriptor, got: {err:?}");
-                    AttErrorCode::APPLICATION_ERROR
+                    AttErrorCode::ApplicationError
                 })?;
             let mut clients = self.clients.borrow_mut();
             let state = clients.get_mut(&tcb_idx);
             let Some(state) = state else {
                 error!("Received write request from disconnected client...");
-                return Err(AttErrorCode::UNLIKELY_ERROR);
+                return Err(AttErrorCode::UnlikelyError);
             };
-            state.registered_for_service_change = ccc.get_indication() != 0;
+            state.registered_for_service_change = ccc.indication != 0;
             Ok(())
         } else {
             unreachable!()
@@ -131,11 +129,12 @@ impl GattDatabaseCallbacks for GattService {
                         spawn_local(
                             bearer.send_indication(
                                 SERVICE_CHANGE_HANDLE,
-                                GattServiceChangedBuilder {
+                                att::GattServiceChanged {
                                     start_handle: (*range.start()).into(),
                                     end_handle: (*range.end()).into(),
                                 }
-                                .into(),
+                                .encode_to_vec()
+                                .unwrap(),
                             ),
                         );
                     }
@@ -190,7 +189,7 @@ mod test {
                 },
             },
         },
-        packets::{AttAttributeDataChild, AttBuilder, AttChild},
+        packets::att,
         utils::task::{block_on_locally, try_await},
     };
 
@@ -208,7 +207,7 @@ mod test {
     fn add_connection(
         gatt_database: &SharedBox<GattDatabase>,
         tcb_idx: TransportIndex,
-    ) -> (AttDatabaseImpl, SharedBox<AttServerBearer<AttDatabaseImpl>>, UnboundedReceiver<AttBuilder>)
+    ) -> (AttDatabaseImpl, SharedBox<AttServerBearer<AttDatabaseImpl>>, UnboundedReceiver<att::Att>)
     {
         let att_database = gatt_database.get_att_database(tcb_idx);
         let (tx, rx) = unbounded_channel();
@@ -259,8 +258,8 @@ mod test {
 
         assert_eq!(
             Ok(resp),
-            GattClientCharacteristicConfigurationBuilder { notification: 0, indication: 0 }
-                .to_vec()
+            att::GattClientCharacteristicConfiguration { notification: 0, indication: 0 }
+                .encode_to_vec()
         );
     }
 
@@ -271,8 +270,8 @@ mod test {
         att_db
             .write_attribute(
                 handle,
-                &GattClientCharacteristicConfigurationBuilder { notification: 0, indication: 1 }
-                    .to_vec()
+                &att::GattClientCharacteristicConfiguration { notification: 0, indication: 1 }
+                    .encode_to_vec()
                     .unwrap(),
             )
             .await
@@ -294,8 +293,8 @@ mod test {
         // assert: we are registered for indications
         assert_eq!(
             Ok(resp),
-            GattClientCharacteristicConfigurationBuilder { notification: 0, indication: 1 }
-                .to_vec()
+            att::GattClientCharacteristicConfiguration { notification: 0, indication: 1 }
+                .encode_to_vec()
         );
     }
 
@@ -309,8 +308,8 @@ mod test {
         block_on_locally(
             att_db.write_attribute(
                 SERVICE_CHANGE_CCC_DESCRIPTOR_HANDLE,
-                &GattClientCharacteristicConfigurationBuilder { notification: 0, indication: 1 }
-                    .to_vec()
+                &att::GattClientCharacteristicConfiguration { notification: 0, indication: 1 }
+                    .encode_to_vec()
                     .unwrap(),
             ),
         )
@@ -319,8 +318,8 @@ mod test {
         block_on_locally(
             att_db.write_attribute(
                 SERVICE_CHANGE_CCC_DESCRIPTOR_HANDLE,
-                &GattClientCharacteristicConfigurationBuilder { notification: 0, indication: 0 }
-                    .to_vec()
+                &att::GattClientCharacteristicConfiguration { notification: 0, indication: 0 }
+                    .encode_to_vec()
                     .unwrap(),
             ),
         )
@@ -332,8 +331,8 @@ mod test {
         // assert: we are not registered for indications
         assert_eq!(
             Ok(resp),
-            GattClientCharacteristicConfigurationBuilder { notification: 0, indication: 0 }
-                .to_vec()
+            att::GattClientCharacteristicConfiguration { notification: 0, indication: 0 }
+                .encode_to_vec()
         );
     }
 
@@ -366,10 +365,10 @@ mod test {
 
             // assert: we received the service change indication
             let resp = rx.recv().await.unwrap();
-            let AttChild::AttHandleValueIndication(resp) = resp._child_ else {
+            let Ok(resp): Result<att::AttHandleValueIndication, _> = resp.try_into() else {
                 unreachable!();
             };
-            let AttAttributeDataChild::GattServiceChanged(resp) = resp.value._child_ else {
+            let Ok(resp) = att::GattServiceChanged::decode_full(resp.value.as_slice()) else {
                 unreachable!();
             };
             assert_eq!(resp.start_handle.handle, 15);
@@ -411,8 +410,8 @@ mod test {
             // assert: both connections received the service change indication
             let resp1 = rx1.recv().await.unwrap();
             let resp2 = rx2.recv().await.unwrap();
-            assert!(matches!(resp1._child_, AttChild::AttHandleValueIndication(_)));
-            assert!(matches!(resp2._child_, AttChild::AttHandleValueIndication(_)));
+            assert!(matches!(resp1.try_into(), Ok(att::AttHandleValueIndication { .. })));
+            assert!(matches!(resp2.try_into(), Ok(att::AttHandleValueIndication { .. })));
         });
     }
 
@@ -448,7 +447,7 @@ mod test {
 
             // assert: the first connection received the service change indication
             let resp1 = rx1.recv().await.unwrap();
-            assert!(matches!(resp1._child_, AttChild::AttHandleValueIndication(_)));
+            assert!(matches!(resp1.try_into(), Ok(att::AttHandleValueIndication { .. })));
             // assert: the second connection received nothing
             assert!(try_await(async move { rx2.recv().await }).await.is_err());
         });
@@ -490,7 +489,7 @@ mod test {
 
             // assert: the first connection received the service change indication
             let resp1 = rx1.recv().await.unwrap();
-            assert!(matches!(resp1._child_, AttChild::AttHandleValueIndication(_)));
+            assert!(matches!(resp1.try_into(), Ok(att::AttHandleValueIndication { .. })));
             // assert: the second connection is closed
             assert!(rx2.recv().await.is_none());
         });

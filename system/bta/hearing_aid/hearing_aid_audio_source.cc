@@ -41,11 +41,9 @@ namespace fmt {
 template <>
 struct formatter<tUIPC_EVENT> : enum_formatter<tUIPC_EVENT> {};
 template <>
-struct formatter<tHEARING_AID_CTRL_ACK>
-    : enum_formatter<tHEARING_AID_CTRL_ACK> {};
+struct formatter<tHEARING_AID_CTRL_ACK> : enum_formatter<tHEARING_AID_CTRL_ACK> {};
 template <>
-struct formatter<tHEARING_AID_CTRL_CMD>
-    : enum_formatter<tHEARING_AID_CTRL_CMD> {};
+struct formatter<tHEARING_AID_CTRL_CMD> : enum_formatter<tHEARING_AID_CTRL_CMD> {};
 }  // namespace fmt
 
 namespace {
@@ -99,8 +97,7 @@ bool hearing_aid_on_resume_req(bool start_media_task);
 bool hearing_aid_on_suspend_req();
 
 void send_audio_data() {
-  uint32_t bytes_per_tick =
-      (num_channels * sample_rate * data_interval_ms * (bit_rate / 8)) / 1000;
+  uint32_t bytes_per_tick = (num_channels * sample_rate * data_interval_ms * (bit_rate / 8)) / 1000;
 
   uint8_t p_buf[bytes_per_tick];
 
@@ -108,16 +105,14 @@ void send_audio_data() {
   if (bluetooth::audio::hearing_aid::is_hal_enabled()) {
     bytes_read = bluetooth::audio::hearing_aid::read(p_buf, bytes_per_tick);
   } else {
-    bytes_read = UIPC_Read(*uipc_hearing_aid, UIPC_CH_ID_AV_AUDIO, p_buf,
-                           bytes_per_tick);
+    bytes_read = UIPC_Read(*uipc_hearing_aid, UIPC_CH_ID_AV_AUDIO, p_buf, bytes_per_tick);
   }
 
   log::debug("bytes_read: {}", bytes_read);
   if (bytes_read < bytes_per_tick) {
     stats.media_read_total_underflow_bytes += bytes_per_tick - bytes_read;
     stats.media_read_total_underflow_count++;
-    stats.media_read_last_underflow_us =
-        bluetooth::common::time_get_os_boottime_us();
+    stats.media_read_last_underflow_us = bluetooth::common::time_get_os_boottime_us();
   }
 
   std::vector<uint8_t> data(p_buf, p_buf + bytes_read);
@@ -134,8 +129,7 @@ void hearing_aid_send_ack(tHEARING_AID_CTRL_ACK status) {
 }
 
 void start_audio_ticks() {
-  if (data_interval_ms != HA_INTERVAL_10_MS &&
-      data_interval_ms != HA_INTERVAL_20_MS) {
+  if (data_interval_ms != HA_INTERVAL_10_MS && data_interval_ms != HA_INTERVAL_20_MS) {
     log::fatal("Unsupported data interval: {}", data_interval_ms);
   }
 
@@ -161,17 +155,16 @@ void hearing_aid_data_cb(tUIPC_CH_ID, tUIPC_EVENT event) {
        * Read directly from media task from here on (keep callback for
        * connection events.
        */
-      UIPC_Ioctl(*uipc_hearing_aid, UIPC_CH_ID_AV_AUDIO,
-                 UIPC_REG_REMOVE_ACTIVE_READSET, NULL);
+      UIPC_Ioctl(*uipc_hearing_aid, UIPC_CH_ID_AV_AUDIO, UIPC_REG_REMOVE_ACTIVE_READSET, NULL);
       UIPC_Ioctl(*uipc_hearing_aid, UIPC_CH_ID_AV_AUDIO, UIPC_SET_READ_POLL_TMO,
                  reinterpret_cast<void*>(0));
 
-      do_in_main_thread(FROM_HERE, base::BindOnce(start_audio_ticks));
+      do_in_main_thread(base::BindOnce(start_audio_ticks));
       break;
     case UIPC_CLOSE_EVT:
       log::info("UIPC_CLOSE_EVT");
       hearing_aid_send_ack(HEARING_AID_CTRL_ACK_SUCCESS);
-      do_in_main_thread(FROM_HERE, base::BindOnce(stop_audio_ticks));
+      do_in_main_thread(base::BindOnce(stop_audio_ticks));
       break;
     default:
       log::error("Hearing Aid audio data event not recognized: {}", event);
@@ -217,9 +210,7 @@ void hearing_aid_recv_ctrl_data() {
 
     case HEARING_AID_CTRL_CMD_STOP:
       if (!hearing_aid_on_suspend_req()) {
-        log::info(
-            "HEARING_AID_CTRL_CMD_STOP: hearing_aid_on_suspend_req() errs, but "
-            "ignored.");
+        log::info("HEARING_AID_CTRL_CMD_STOP: hearing_aid_on_suspend_req() errs, but ignored.");
       }
       hearing_aid_send_ack(HEARING_AID_CTRL_ACK_SUCCESS);
       break;
@@ -266,14 +257,12 @@ void hearing_aid_recv_ctrl_data() {
       UIPC_Send(*uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, 0,
                 reinterpret_cast<const uint8_t*>(&codec_capability.sample_rate),
                 sizeof(btav_a2dp_codec_sample_rate_t));
-      UIPC_Send(
-          *uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, 0,
-          reinterpret_cast<const uint8_t*>(&codec_capability.bits_per_sample),
-          sizeof(btav_a2dp_codec_bits_per_sample_t));
-      UIPC_Send(
-          *uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, 0,
-          reinterpret_cast<const uint8_t*>(&codec_capability.channel_mode),
-          sizeof(btav_a2dp_codec_channel_mode_t));
+      UIPC_Send(*uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, 0,
+                reinterpret_cast<const uint8_t*>(&codec_capability.bits_per_sample),
+                sizeof(btav_a2dp_codec_bits_per_sample_t));
+      UIPC_Send(*uipc_hearing_aid, UIPC_CH_ID_AV_CTRL, 0,
+                reinterpret_cast<const uint8_t*>(&codec_capability.channel_mode),
+                sizeof(btav_a2dp_codec_channel_mode_t));
       break;
     }
 
@@ -310,10 +299,9 @@ void hearing_aid_recv_ctrl_data() {
         break;
       }
       log::info(
-          "HEARING_AID_CTRL_SET_OUTPUT_AUDIO_CONFIG: sample_rate={}, "
-          "bits_per_sample={},channel_mode={}",
-          codec_config.sample_rate, codec_config.bits_per_sample,
-          codec_config.channel_mode);
+              "HEARING_AID_CTRL_SET_OUTPUT_AUDIO_CONFIG: sample_rate={}, "
+              "bits_per_sample={},channel_mode={}",
+              codec_config.sample_rate, codec_config.bits_per_sample, codec_config.channel_mode);
       break;
     }
 
@@ -352,18 +340,14 @@ bool hearing_aid_on_resume_req(bool start_media_task) {
   }
   bt_status_t status;
   if (start_media_task) {
-    status = do_in_main_thread(
-        FROM_HERE, base::BindOnce(&HearingAidAudioReceiver::OnAudioResume,
-                                  base::Unretained(localAudioReceiver),
-                                  start_audio_ticks));
+    status = do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioResume,
+                                              base::Unretained(localAudioReceiver),
+                                              start_audio_ticks));
   } else {
-    auto start_dummy_ticks = []() {
-      log::info("start_audio_ticks: waiting for data path opened");
-    };
-    status = do_in_main_thread(
-        FROM_HERE, base::BindOnce(&HearingAidAudioReceiver::OnAudioResume,
-                                  base::Unretained(localAudioReceiver),
-                                  start_dummy_ticks));
+    auto start_dummy_ticks = []() { log::info("start_audio_ticks: waiting for data path opened"); };
+    status = do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioResume,
+                                              base::Unretained(localAudioReceiver),
+                                              start_dummy_ticks));
   }
   if (status != BT_STATUS_SUCCESS) {
     log::error("HEARING_AID_CTRL_CMD_START: do_in_main_thread err={}", status);
@@ -377,13 +361,11 @@ bool hearing_aid_on_suspend_req() {
     log::error("HEARING_AID_CTRL_CMD_SUSPEND: audio receiver not started");
     return false;
   }
-  bt_status_t status = do_in_main_thread(
-      FROM_HERE,
-      base::BindOnce(&HearingAidAudioReceiver::OnAudioSuspend,
-                     base::Unretained(localAudioReceiver), stop_audio_ticks));
+  bt_status_t status =
+          do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioSuspend,
+                                           base::Unretained(localAudioReceiver), stop_audio_ticks));
   if (status != BT_STATUS_SUCCESS) {
-    log::error("HEARING_AID_CTRL_CMD_SUSPEND: do_in_main_thread err={}",
-               status);
+    log::error("HEARING_AID_CTRL_CMD_SUSPEND: do_in_main_thread err={}", status);
     return false;
   }
   return true;
@@ -421,8 +403,8 @@ void HearingAidAudioSource::Stop() {
 
 void HearingAidAudioSource::Initialize() {
   auto stream_cb = bluetooth::audio::hearing_aid::StreamCallbacks{
-      .on_resume_ = hearing_aid_on_resume_req,
-      .on_suspend_ = hearing_aid_on_suspend_req,
+          .on_resume_ = hearing_aid_on_resume_req,
+          .on_suspend_ = hearing_aid_on_suspend_req,
   };
   if (!bluetooth::audio::hearing_aid::init(stream_cb, get_main_thread())) {
     log::warn("Using legacy HAL");
@@ -450,10 +432,8 @@ void HearingAidAudioSource::DebugDump(int fd) {
          << stats.media_read_total_underflow_bytes
          << "\n    Last update time ago in ms (underflow)                  : "
          << (stats.media_read_last_underflow_us > 0
-                 ? (unsigned long long)(now_us -
-                                        stats.media_read_last_underflow_us) /
-                       1000
-                 : 0)
+                     ? (unsigned long long)(now_us - stats.media_read_last_underflow_us) / 1000
+                     : 0)
          << std::endl;
   dprintf(fd, "%s", stream.str().c_str());
 }

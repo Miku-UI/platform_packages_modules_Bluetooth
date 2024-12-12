@@ -53,31 +53,32 @@ TEST(LegacyConfigFileTest, write_and_read_loop_back_test) {
   EXPECT_EQ(config, *config_read);
   EXPECT_THAT(config_read->GetPersistentSections(), ElementsAre("CC:DD:EE:FF:00:11"));
   EXPECT_THAT(config_read->GetProperty("A", "B"), Optional(StrEq("C")));
-  EXPECT_THAT(config_read->GetProperty("CC:DD:EE:FF:00:11", "LinkKey"), Optional(StrEq("AABBAABBCCDDEE")));
+  EXPECT_THAT(config_read->GetProperty("CC:DD:EE:FF:00:11", "LinkKey"),
+              Optional(StrEq("AABBAABBCCDDEE")));
 
   EXPECT_TRUE(std::filesystem::remove(temp_config));
 }
 
 static const std::string kReadTestConfig =
-    "[Info]\n"
-    "FileSource = Empty\n"
-    "TimeCreated = 2020-05-20 01:20:56\n"
-    "\n"
-    "[Metrics]\n"
-    "Salt256Bit = 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\n"
-    "\n"
-    "[Adapter]\n"
-    "Address = 01:02:03:ab:cd:ef\n"
-    "LE_LOCAL_KEY_IRK = fedcba0987654321fedcba0987654321\n"
-    "LE_LOCAL_KEY_IR = fedcba0987654321fedcba0987654322\n"
-    "LE_LOCAL_KEY_DHK = fedcba0987654321fedcba0987654323\n"
-    "LE_LOCAL_KEY_ER = fedcba0987654321fedcba0987654324\n"
-    "ScanMode = 2\n"
-    "DiscoveryTimeout = 120\n"
-    "\n"
-    "[01:02:03:ab:cd:ea]\n"
-    "name = hello world\n"
-    "LinkKey = fedcba0987654321fedcba0987654328\n";
+        "[Info]\n"
+        "FileSource = Empty\n"
+        "TimeCreated = 2020-05-20 01:20:56\n"
+        "\n"
+        "[Metrics]\n"
+        "Salt256Bit = 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\n"
+        "\n"
+        "[Adapter]\n"
+        "Address = 01:02:03:ab:cd:ef\n"
+        "LE_LOCAL_KEY_IRK = fedcba0987654321fedcba0987654321\n"
+        "LE_LOCAL_KEY_IR = fedcba0987654321fedcba0987654322\n"
+        "LE_LOCAL_KEY_DHK = fedcba0987654321fedcba0987654323\n"
+        "LE_LOCAL_KEY_ER = fedcba0987654321fedcba0987654324\n"
+        "ScanMode = 2\n"
+        "DiscoveryTimeout = 120\n"
+        "\n"
+        "[01:02:03:ab:cd:ea]\n"
+        "name = hello world\n"
+        "LinkKey = fedcba0987654321fedcba0987654328\n";
 
 TEST(LegacyConfigFileTest, read_test) {
   auto temp_dir = std::filesystem::temp_directory_path();
@@ -89,24 +90,24 @@ TEST(LegacyConfigFileTest, read_test) {
   EXPECT_THAT(config_read->GetPersistentSections(), ElementsAre("01:02:03:ab:cd:ea"));
   EXPECT_THAT(config_read->GetProperty("Info", "FileSource"), Optional(StrEq("Empty")));
   EXPECT_THAT(config_read->GetProperty("Info", "FileSource"), Optional(StrEq("Empty")));
-  EXPECT_THAT(
-      config_read->GetProperty("01:02:03:ab:cd:ea", "LinkKey"), Optional(StrEq("fedcba0987654321fedcba0987654328")));
+  EXPECT_THAT(config_read->GetProperty("01:02:03:ab:cd:ea", "LinkKey"),
+              Optional(StrEq("fedcba0987654321fedcba0987654328")));
 
   EXPECT_TRUE(std::filesystem::remove(temp_config));
 }
 
 static const std::string kWriteTestConfig =
-    "[Info]\n"
-    "FileSource = Empty\n"
-    "TimeCreated = \n"
-    "\n"
-    "[Adapter]\n"
-    "Address = 01:02:03:ab:cd:ef\n"
-    "\n"
-    "[01:02:03:ab:cd:ea]\n"
-    "Name = hello world\n"
-    "LinkKey = fedcba0987654321fedcba0987654328\n"
-    "\n";
+        "[Info]\n"
+        "FileSource = Empty\n"
+        "TimeCreated = \n"
+        "\n"
+        "[Adapter]\n"
+        "Address = 01:02:03:ab:cd:ef\n"
+        "\n"
+        "[01:02:03:ab:cd:ea]\n"
+        "Name = hello world\n"
+        "LinkKey = fedcba0987654321fedcba0987654328\n"
+        "\n";
 
 TEST(LegacyConfigFileTest, write_test) {
   auto temp_dir = std::filesystem::temp_directory_path();
@@ -117,8 +118,8 @@ TEST(LegacyConfigFileTest, write_test) {
   config.SetProperty("Info", "TimeCreated", "");
   config.SetProperty(BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_ADDRESS, "01:02:03:ab:cd:ef");
   config.SetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME, "hello world");
-  config.SetProperty(
-      "01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_LINK_KEY, "fedcba0987654321fedcba0987654328");
+  config.SetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_LINK_KEY,
+                     "fedcba0987654321fedcba0987654328");
   EXPECT_TRUE(LegacyConfigFile::FromPath(temp_config.string()).Write(config));
 
   EXPECT_THAT(ReadSmallFile(temp_config.string()), Optional(StrEq(kWriteTestConfig)));
@@ -127,7 +128,7 @@ TEST(LegacyConfigFileTest, write_test) {
 }
 
 static const std::string kConfigWithDuplicateSectionAndKey =
-    "                                                                                \n\
+        "                                                                                \n\
 first_key=value                                                                      \n\
                                                                                      \n\
 # Device ID (DID) configuration                                                      \n\
@@ -177,7 +178,8 @@ TEST(LegacyConfigFileTest, duplicate_section_and_key_test) {
 
   auto config_read = LegacyConfigFile::FromPath(temp_config.string()).Read(100);
   ASSERT_TRUE(config_read);
-  EXPECT_THAT(config_read->GetProperty(ConfigCache::kDefaultSectionName, "first_key"), Optional(StrEq("value")));
+  EXPECT_THAT(config_read->GetProperty(ConfigCache::kDefaultSectionName, "first_key"),
+              Optional(StrEq("value")));
   // All sections with the same name merge into the same key-value pair
   EXPECT_THAT(config_read->GetProperty("DID", "primaryRecord"), Optional(StrEq("true")));
   // When keys are repeated, the later one wins

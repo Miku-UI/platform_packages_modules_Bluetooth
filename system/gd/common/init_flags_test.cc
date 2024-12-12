@@ -16,26 +16,4 @@
  *
  ******************************************************************************/
 
-#include "common/init_flags.h"
-
 #include <gtest/gtest.h>
-
-using bluetooth::common::InitFlags;
-
-TEST(InitFlagsTest, test_enable_btm_flush_discovery_queue_on_search_cancel) {
-  const char* input[] = {"INIT_btm_dm_flush_discovery_queue_on_search_cancel=true", nullptr};
-  InitFlags::Load(input);
-  ASSERT_TRUE(InitFlags::IsBtmDmFlushDiscoveryQueueOnSearchCancel());
-}
-
-TEST(InitFlagsTest, test_leaudio_targeted_announcement_reconnection_mode) {
-  const char* input[] = {"INIT_leaudio_targeted_announcement_reconnection_mode=true", nullptr};
-  InitFlags::Load(input);
-  ASSERT_TRUE(InitFlags::IsTargetedAnnouncementReconnectionMode());
-}
-
-TEST(InitFlagsTest, test_enable_use_rsi_from_cached_inqiry_results) {
-  const char* input[] = {"INIT_use_rsi_from_cached_inqiry_results=true", nullptr};
-  InitFlags::Load(input);
-  ASSERT_TRUE(InitFlags::UseRsiFromCachedInquiryResults());
-}

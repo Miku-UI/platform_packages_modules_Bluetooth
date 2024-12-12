@@ -26,16 +26,13 @@
 namespace bluetooth {
 namespace csis {
 
-using CsisLockCb = base::OnceCallback<void(int group_id, bool locked,
-                                           CsisGroupLockStatus status)>;
+using CsisLockCb = base::OnceCallback<void(int group_id, bool locked, CsisGroupLockStatus status)>;
 
 class CsisClient {
- public:
+public:
   virtual ~CsisClient() = default;
-  static void Initialize(bluetooth::csis::CsisClientCallbacks* callbacks,
-                         base::Closure initCb);
-  static void AddFromStorage(const RawAddress& addr,
-                             const std::vector<uint8_t>& in);
+  static void Initialize(bluetooth::csis::CsisClientCallbacks* callbacks, base::Closure initCb);
+  static void AddFromStorage(const RawAddress& addr, const std::vector<uint8_t>& in);
   static bool GetForStorage(const RawAddress& addr, std::vector<uint8_t>& out);
   static void CleanUp();
   static CsisClient* Get();
@@ -44,9 +41,8 @@ class CsisClient {
   virtual void Connect(const RawAddress& addr) = 0;
   virtual void Disconnect(const RawAddress& addr) = 0;
   virtual void RemoveDevice(const RawAddress& address) = 0;
-  virtual int GetGroupId(
-      const RawAddress& addr,
-      bluetooth::Uuid uuid = bluetooth::groups::kGenericContextUuid) = 0;
+  virtual int GetGroupId(const RawAddress& addr,
+                         bluetooth::Uuid uuid = bluetooth::groups::kGenericContextUuid) = 0;
   virtual void LockGroup(int group_id, bool lock, CsisLockCb cb) = 0;
   virtual std::vector<RawAddress> GetDeviceList(int group_id) = 0;
   virtual int GetDesiredSize(int group_id) const = 0;

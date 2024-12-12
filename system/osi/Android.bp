@@ -42,9 +42,6 @@ cc_library_static {
         "fluoride_defaults",
         "fluoride_osi_defaults",
     ],
-    whole_static_libs: [
-        "bluetooth_flags_c_lib",
-    ],
     // TODO(mcchou): Remove socket_utils sources after platform specific
     // dependencies are abstracted.
     srcs: [
@@ -91,6 +88,7 @@ cc_library_static {
     ],
     header_libs: ["libbluetooth_headers"],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libaconfig_storage_read_api_cc",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
@@ -138,6 +136,7 @@ cc_test {
         "test",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",

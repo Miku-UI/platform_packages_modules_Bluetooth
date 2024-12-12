@@ -18,7 +18,8 @@
 
 #include "util.h"
 
-CustomFieldDef::CustomFieldDef(std::string name, std::string include) : TypeDef(name), include_(include) {}
+CustomFieldDef::CustomFieldDef(std::string name, std::string include)
+    : TypeDef(name), include_(include) {}
 
 CustomFieldDef::CustomFieldDef(std::string name, std::string include, int size)
     : TypeDef(name, size), include_(include) {
@@ -35,9 +36,7 @@ PacketField* CustomFieldDef::GetNewField(const std::string& name, ParseLocation 
   }
 }
 
-TypeDef::Type CustomFieldDef::GetDefinitionType() const {
-  return TypeDef::Type::CUSTOM;
-}
+TypeDef::Type CustomFieldDef::GetDefinitionType() const { return TypeDef::Type::CUSTOM; }
 
 void CustomFieldDef::GenInclude(std::ostream& s) const {
   s << "#include \"" << include_ << util::CamelCaseToUnderScore(GetTypeName()) << ".h\"\n";
@@ -58,11 +57,13 @@ void CustomFieldDef::GenUsing(std::ostream& s) const {
 }
 
 void CustomFieldDef::GenFixedSizeCustomFieldCheck(std::ostream& s) const {
-  s << "static_assert(std::is_base_of_v<CustomFieldFixedSizeInterface<" << name_ << ">, " << name_ << ">, \"";
-  s << name_ << " is not a valid fixed size custom field type. Please see README for more details.\");";
+  s << "static_assert(std::is_base_of_v<CustomFieldFixedSizeInterface<" << name_ << ">, " << name_
+    << ">, \"";
+  s << name_
+    << " is not a valid fixed size custom field type. Please see README for more details.\");";
   s << "static_assert(CustomFieldFixedSizeInterface<" << name_ << ">::length() * 8 == " << size_
-    << ", \"CustomFieldFixedSizeInterface<" << name_ << ">::length * 8 should match PDL defined size (in bits) "
-    << size_ << "\");";
+    << ", \"CustomFieldFixedSizeInterface<" << name_
+    << ">::length * 8 should match PDL defined size (in bits) " << size_ << "\");";
 }
 
 void CustomFieldDef::GenCustomFieldCheck(std::ostream& s, bool little_endian) const {

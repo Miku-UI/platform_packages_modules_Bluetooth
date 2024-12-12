@@ -25,42 +25,36 @@
 
 namespace hcic {
 class HcicInterface {
- public:
+public:
   // iso_manager::cig_create_params is a workaround for the 10 params function
   // limitation that gmock sets
-  virtual void SetCigParams(
-      uint8_t cig_id,
-      struct bluetooth::hci::iso_manager::cig_create_params cig_params,
-      base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
+  virtual void SetCigParams(uint8_t cig_id,
+                            struct bluetooth::hci::iso_manager::cig_create_params cig_params,
+                            base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
 
-  virtual void RemoveCig(uint8_t cig_id,
-                         base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
+  virtual void RemoveCig(uint8_t cig_id, base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
 
-  virtual void CreateCis(uint8_t num_cis,
-                         const EXT_CIS_CREATE_CFG* cis_create_cfg,
+  virtual void CreateCis(uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_create_cfg,
                          base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
 
   virtual void Disconnect(uint16_t handle, uint8_t reason) = 0;
 
-  virtual void SetupIsoDataPath(
-      uint16_t iso_handle, uint8_t data_path_dir, uint8_t data_path_id,
-      uint8_t codec_id_format, uint16_t codec_id_company,
-      uint16_t codec_id_vendor, uint32_t controller_delay,
-      std::vector<uint8_t> codec_conf,
-      base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
+  virtual void SetupIsoDataPath(uint16_t iso_handle, uint8_t data_path_dir, uint8_t data_path_id,
+                                uint8_t codec_id_format, uint16_t codec_id_company,
+                                uint16_t codec_id_vendor, uint32_t controller_delay,
+                                std::vector<uint8_t> codec_conf,
+                                base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
 
-  virtual void RemoveIsoDataPath(
-      uint16_t iso_handle, uint8_t data_path_dir,
-      base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
+  virtual void RemoveIsoDataPath(uint16_t iso_handle, uint8_t data_path_dir,
+                                 base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
 
-  virtual void ReadIsoLinkQuality(
-      uint16_t iso_handle, base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
+  virtual void ReadIsoLinkQuality(uint16_t iso_handle,
+                                  base::OnceCallback<void(uint8_t*, uint16_t)> cb) = 0;
 
   // iso_manager::big_create_params is a workaround for the 10 params function
   // limitation that gmock sets
-  virtual void CreateBig(
-      uint8_t big_handle,
-      struct bluetooth::hci::iso_manager::big_create_params big_params) = 0;
+  virtual void CreateBig(uint8_t big_handle,
+                         struct bluetooth::hci::iso_manager::big_create_params big_params) = 0;
 
   virtual void TerminateBig(uint8_t big_handle, uint8_t reason) = 0;
 
@@ -68,15 +62,13 @@ class HcicInterface {
 };
 
 class MockHcicInterface : public HcicInterface {
- public:
+public:
   MOCK_METHOD((void), SetCigParams,
-              (uint8_t cig_id,
-               struct bluetooth::hci::iso_manager::cig_create_params cig_params,
+              (uint8_t cig_id, struct bluetooth::hci::iso_manager::cig_create_params cig_params,
                base::OnceCallback<void(uint8_t*, uint16_t)> cb),
               (override));
 
-  MOCK_METHOD((void), RemoveCig,
-              (uint8_t cig_id, base::OnceCallback<void(uint8_t*, uint16_t)> cb),
+  MOCK_METHOD((void), RemoveCig, (uint8_t cig_id, base::OnceCallback<void(uint8_t*, uint16_t)> cb),
               (override));
 
   MOCK_METHOD((void), CreateCis,
@@ -84,14 +76,12 @@ class MockHcicInterface : public HcicInterface {
                base::OnceCallback<void(uint8_t*, uint16_t)> cb),
               (override));
 
-  MOCK_METHOD((void), Disconnect, (uint16_t handle, uint8_t reason),
-              (override));
+  MOCK_METHOD((void), Disconnect, (uint16_t handle, uint8_t reason), (override));
 
   MOCK_METHOD((void), SetupIsoDataPath,
               (uint16_t iso_handle, uint8_t data_path_dir, uint8_t data_path_id,
-               uint8_t codec_id_format, uint16_t codec_id_company,
-               uint16_t codec_id_vendor, uint32_t controller_delay,
-               std::vector<uint8_t> codec_conf,
+               uint8_t codec_id_format, uint16_t codec_id_company, uint16_t codec_id_vendor,
+               uint32_t controller_delay, std::vector<uint8_t> codec_conf,
                base::OnceCallback<void(uint8_t*, uint16_t)> cb),
               (override));
 
@@ -101,18 +91,14 @@ class MockHcicInterface : public HcicInterface {
               (override));
 
   MOCK_METHOD((void), ReadIsoLinkQuality,
-              (uint16_t iso_handle,
-               base::OnceCallback<void(uint8_t*, uint16_t)> cb),
+              (uint16_t iso_handle, base::OnceCallback<void(uint8_t*, uint16_t)> cb), (override));
+
+  MOCK_METHOD((void), CreateBig,
+              (uint8_t big_handle,
+               struct bluetooth::hci::iso_manager::big_create_params big_params),
               (override));
 
-  MOCK_METHOD(
-      (void), CreateBig,
-      (uint8_t big_handle,
-       struct bluetooth::hci::iso_manager::big_create_params big_params),
-      (override));
-
-  MOCK_METHOD((void), TerminateBig, (uint8_t big_handle, uint8_t reason),
-              (override));
+  MOCK_METHOD((void), TerminateBig, (uint8_t big_handle, uint8_t reason), (override));
 };
 
 void SetMockHcicInterface(MockHcicInterface* mock_hcic_interface);

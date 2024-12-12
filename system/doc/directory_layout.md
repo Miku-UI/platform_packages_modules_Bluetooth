@@ -9,7 +9,6 @@ of one or more modules.
 * test/ - All unit tests for the subsystem.
 
 ### Top level directory layout
-* audio_a2dp_hw - A2DP audio HAL implementation.
 * bta - *Bluetooth Application* - Strange collection of a-lot of things **Deprecate?**
 * btcore - *Bluetooth Core* - Bluetooth data type definitions and operations on those data types.
 * btif - *Bluetooth Interface* - JNI interface to Android.

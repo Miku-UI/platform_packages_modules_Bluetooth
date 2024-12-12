@@ -64,7 +64,7 @@ class A2dpCodecConfig {
 
         AudioManager audioManager = mContext.getSystemService(AudioManager.class);
         if (audioManager == null) {
-            Log.w(TAG, "Can't obtain the codec offloading prefernece from null AudioManager");
+            Log.w(TAG, "Can't obtain the codec offloading preference from null AudioManager");
             return;
         }
         mCodecConfigOffloading =

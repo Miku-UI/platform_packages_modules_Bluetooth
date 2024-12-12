@@ -20,6 +20,7 @@ java_defaults {
     static_libs: [
         "PlatformProperties",
         "bluetooth_flags_java_lib",
+        "modules-utils-build",
         "modules-utils-expresslog",
         "service-bluetooth-binder-aidl",
     ],
@@ -54,6 +55,7 @@ java_library {
 java_sdk_library {
     name: "framework-bluetooth",
     defaults: [
+        "bluetooth_framework_errorprone_rules",
         "framework-bluetooth-defaults",
         "framework-module-defaults",
     ],
@@ -73,7 +75,7 @@ java_sdk_library {
         "//packages/modules/Bluetooth/service",
         "//packages/services/Car/car-builtin-lib",
         // TODO(240720385)
-        "//packages/services/Car/tests/carservice_unit_test",
+        "//packages/services/Car/tests/CarBuiltinLibUnitTest",
         ":__subpackages__",
     ],
 
@@ -86,34 +88,12 @@ java_sdk_library {
         "com.android.bluetooth.flags",
         "com.android.bluetooth.jarjar",
     ],
-    errorprone: {
-        javacflags: [
-            "-Xep:InlineMeSuggester:OFF", // The @InlineMe annotation is not available
-
-            "-Xep:BadImport:ERROR",
-            "-Xep:CatchFail:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:EmptyCatch:ERROR",
-            "-Xep:FutureReturnValueIgnored:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidInlineTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:NonApiType:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:StringCharset:ERROR",
-            "-Xep:UnnecessaryAssignment:ERROR",
-            "-Xep:UnnecessaryAsync:ERROR",
-
-            "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files
-        ],
-        enabled: true,
-    },
+    plugins: [
+        "error_prone_android_framework",
+    ],
     lint: {
         strict_updatability_linting: true,
+        baseline_filename: "lint-baseline.xml",
     },
 }
 

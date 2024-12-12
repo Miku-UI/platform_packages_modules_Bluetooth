@@ -17,16 +17,15 @@
 #pragma once
 
 #include <cstdint>
+
 #include "stack/include/hci_error_code.h"
 #include "types/bt_transport.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
 struct acl_client_callback_s {
-  virtual void on_acl_link_down(const RawAddress bd_addr,
-                                tBT_TRANSPORT transport) = 0;
-  virtual void on_acl_link_up(const RawAddress bd_addr,
-                              tBT_TRANSPORT transport) = 0;
+  virtual void on_acl_link_down(const RawAddress bd_addr, tBT_TRANSPORT transport) = 0;
+  virtual void on_acl_link_up(const RawAddress bd_addr, tBT_TRANSPORT transport) = 0;
   virtual void on_acl_remote_features_complete(const RawAddress bd_addr) = 0;
   virtual void on_acl_role_change(const RawAddress bd_addr, hci_role_t new_role,
                                   tHCI_STATUS hci_status) = 0;

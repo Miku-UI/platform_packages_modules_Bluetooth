@@ -56,7 +56,6 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.IState;
@@ -66,15 +65,15 @@ import com.android.internal.util.StateMachine;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class HeadsetClientStateMachine extends StateMachine {
     private static final String TAG = HeadsetClientStateMachine.class.getSimpleName();
@@ -118,9 +117,6 @@ public class HeadsetClientStateMachine extends StateMachine {
     @VisibleForTesting static final int CONNECTING_TIMEOUT_MS = 10000; // 10s
     private static final int ROUTING_DELAY_MS = 250;
 
-    @VisibleForTesting static final int MAX_HFP_SCO_VOICE_CALL_VOLUME = 15; // HFP 1.5 spec.
-    @VisibleForTesting static final int MIN_HFP_SCO_VOICE_CALL_VOLUME = 1; // HFP 1.5 spec.
-
     static final int HF_ORIGINATED_CALL_ID = -1;
     private static final long OUTGOING_TIMEOUT_MILLI = 10 * 1000; // 10 seconds
     private static final long QUERY_CURRENT_CALLS_WAIT_MILLIS = 2 * 1000; // 2 seconds
@@ -134,15 +130,16 @@ public class HeadsetClientStateMachine extends StateMachine {
     private final AudioOn mAudioOn;
     private State mPrevState;
 
+    private final AdapterService mAdapterService;
     private final HeadsetClientService mService;
     private final HeadsetService mHeadsetService;
 
     // Set of calls that represent the accurate state of calls that exists on AG and the calls that
     // are currently in process of being notified to the AG from HF.
-    @VisibleForTesting final Hashtable<Integer, HfpClientCall> mCalls = new Hashtable<>();
+    @VisibleForTesting final Map<Integer, HfpClientCall> mCalls = new ConcurrentHashMap<>();
     // Set of calls received from AG via the AT+CLCC command. We use this map to update the mCalls
     // which is eventually used to inform the telephony stack of any changes to call on HF.
-    private final Hashtable<Integer, HfpClientCall> mCallsUpdate = new Hashtable<>();
+    private final Map<Integer, HfpClientCall> mCallsUpdate = new ConcurrentHashMap<>();
 
     private int mIndicatorNetworkState;
     private int mIndicatorNetworkType;
@@ -153,11 +150,8 @@ public class HeadsetClientStateMachine extends StateMachine {
     private String mOperatorName;
     @VisibleForTesting String mSubscriberInfo;
 
-    private static int sMaxAmVcVol;
-    private static int sMinAmVcVol;
-
     // queue of send actions (pair action, action_data)
-    @VisibleForTesting Queue<Pair<Integer, Object>> mQueuedActions;
+    @VisibleForTesting ArrayDeque<Pair<Integer, Object>> mQueuedActions;
 
     @VisibleForTesting int mAudioState;
     // Indicates whether audio can be routed to the device
@@ -176,7 +170,6 @@ public class HeadsetClientStateMachine extends StateMachine {
     @VisibleForTesting boolean mAudioSWB;
 
     private int mVoiceRecognitionActive;
-    private final BluetoothAdapter mAdapter;
 
     // currently connected device
     @VisibleForTesting BluetoothDevice mCurrentDevice = null;
@@ -433,7 +426,7 @@ public class HeadsetClientStateMachine extends StateMachine {
         // 1. If from the above procedure we get N extra calls (i.e. {3}):
         // choose the first call as the one to associate with the HF call.
 
-        // Create set of IDs for added calls, removed calls and consitent calls.
+        // Create set of IDs for added calls, removed calls and consistent calls.
         // WARN!!! Java Map -> Set has association hence changes to Set are reflected in the Map
         // itself (i.e. removing an element from Set removes it from the Map hence use copy).
         Set<Integer> currCallIdSet = new HashSet<Integer>();
@@ -879,11 +872,13 @@ public class HeadsetClientStateMachine extends StateMachine {
     }
 
     HeadsetClientStateMachine(
+            AdapterService adapterService,
             HeadsetClientService context,
             HeadsetService headsetService,
             Looper looper,
             NativeInterface nativeInterface) {
         super(TAG, looper);
+        mAdapterService = requireNonNull(adapterService);
         mService = requireNonNull(context);
         mNativeInterface = nativeInterface;
         mAudioManager = mService.getAudioManager();
@@ -891,7 +886,6 @@ public class HeadsetClientStateMachine extends StateMachine {
 
         mVendorProcessor = new VendorCommandResponseProcessor(mService, mNativeInterface);
 
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
         mAudioState = BluetoothHeadsetClient.STATE_AUDIO_DISCONNECTED;
         mAudioWbs = false;
         mAudioSWB = false;
@@ -926,13 +920,10 @@ public class HeadsetClientStateMachine extends StateMachine {
         mIndicatorNetworkSignal = 0;
         mIndicatorBatteryLevel = 0;
 
-        sMaxAmVcVol = mAudioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL);
-        sMinAmVcVol = mAudioManager.getStreamMinVolume(AudioManager.STREAM_VOICE_CALL);
-
         mOperatorName = null;
         mSubscriberInfo = null;
 
-        mQueuedActions = new LinkedList<Pair<Integer, Object>>();
+        mQueuedActions = new ArrayDeque<>();
 
         mCalls.clear();
         mCallsUpdate.clear();
@@ -951,6 +942,7 @@ public class HeadsetClientStateMachine extends StateMachine {
     }
 
     static HeadsetClientStateMachine make(
+            AdapterService adapterService,
             HeadsetClientService context,
             HeadsetService headsetService,
             Looper looper,
@@ -958,17 +950,12 @@ public class HeadsetClientStateMachine extends StateMachine {
         Log.d(TAG, "make");
         HeadsetClientStateMachine hfcsm =
                 new HeadsetClientStateMachine(
-                        context, headsetService,
-                        looper, nativeInterface);
+                        adapterService, context, headsetService, looper, nativeInterface);
         hfcsm.start();
         return hfcsm;
     }
 
     synchronized void routeHfpAudio(boolean enable) {
-        if (mAudioManager == null) {
-            error("AudioManager is null!");
-            return;
-        }
         debug("hfp_enable=" + enable);
         if (enable && !sAudioIsRouted) {
             mAudioManager.setHfpEnabled(true);
@@ -1013,41 +1000,6 @@ public class HeadsetClientStateMachine extends StateMachine {
         mAudioFocusRequest = null;
     }
 
-    static int hfToAmVol(int hfVol) {
-        int amRange = sMaxAmVcVol - sMinAmVcVol;
-        int hfRange = MAX_HFP_SCO_VOICE_CALL_VOLUME - MIN_HFP_SCO_VOICE_CALL_VOLUME;
-        int amVol = 0;
-        if (Flags.headsetClientAmHfVolumeSymmetric()) {
-            amVol =
-                    (int)
-                                    Math.round(
-                                            (hfVol - MIN_HFP_SCO_VOICE_CALL_VOLUME)
-                                                    * ((double) amRange / hfRange))
-                            + sMinAmVcVol;
-        } else {
-            int amOffset = (amRange * (hfVol - MIN_HFP_SCO_VOICE_CALL_VOLUME)) / hfRange;
-            amVol = sMinAmVcVol + amOffset;
-        }
-        Log.d(TAG, "HF -> AM " + hfVol + " " + amVol);
-        return amVol;
-    }
-
-    static int amToHfVol(int amVol) {
-        int amRange = (sMaxAmVcVol > sMinAmVcVol) ? (sMaxAmVcVol - sMinAmVcVol) : 1;
-        int hfRange = MAX_HFP_SCO_VOICE_CALL_VOLUME - MIN_HFP_SCO_VOICE_CALL_VOLUME;
-        int hfVol = 0;
-        if (Flags.headsetClientAmHfVolumeSymmetric()) {
-            hfVol =
-                    (int) Math.round((amVol - sMinAmVcVol) * ((double) hfRange / amRange))
-                            + MIN_HFP_SCO_VOICE_CALL_VOLUME;
-        } else {
-            int hfOffset = (hfRange * (amVol - sMinAmVcVol)) / amRange;
-            hfVol = MIN_HFP_SCO_VOICE_CALL_VOLUME + hfOffset;
-        }
-        Log.d(TAG, "AM -> HF " + amVol + " " + hfVol);
-        return hfVol;
-    }
-
     class Disconnected extends State {
         @Override
         public void enter() {
@@ -1068,7 +1020,7 @@ public class HeadsetClientStateMachine extends StateMachine {
             mOperatorName = null;
             mSubscriberInfo = null;
 
-            mQueuedActions = new LinkedList<Pair<Integer, Object>>();
+            mQueuedActions = new ArrayDeque<>();
 
             mCalls.clear();
             mCallsUpdate.clear();
@@ -1164,7 +1116,7 @@ public class HeadsetClientStateMachine extends StateMachine {
                                 "Incoming AG rejected. connectionPolicy="
                                         + mService.getConnectionPolicy(device)
                                         + " bondState="
-                                        + device.getBondState());
+                                        + mAdapterService.getBondState(device));
                         // reject the connection and stay in Disconnected state
                         // itself
                         mNativeInterface.disconnect(device);
@@ -1531,7 +1483,7 @@ public class HeadsetClientStateMachine extends StateMachine {
                 case SET_SPEAKER_VOLUME:
                     // This message should always contain the volume in AudioManager max normalized.
                     int amVol = message.arg1;
-                    int hfVol = amToHfVol(amVol);
+                    int hfVol = mService.amToHfVol(amVol);
                     if (amVol != mCommandedSpeakerVolume) {
                         debug("Volume" + amVol + ":" + mCommandedSpeakerVolume);
                         // Volume was changed by a 3rd party
@@ -1737,7 +1689,7 @@ public class HeadsetClientStateMachine extends StateMachine {
                             break;
                         case StackEvent.EVENT_TYPE_VOLUME_CHANGED:
                             if (event.valueInt == HeadsetClientHalConstants.VOLUME_TYPE_SPK) {
-                                mCommandedSpeakerVolume = hfToAmVol(event.valueInt2);
+                                mCommandedSpeakerVolume = mService.hfToAmVol(event.valueInt2);
                                 debug("AM volume set to " + mCommandedSpeakerVolume);
                                 boolean show_volume =
                                         SystemProperties.getBoolean(
@@ -1789,6 +1741,7 @@ public class HeadsetClientStateMachine extends StateMachine {
                                     break;
                                 case SEND_ANDROID_AT_COMMAND:
                                     debug("Connected: Received OK for AT+ANDROID");
+                                    break;
                                 default:
                                     warn("Unhandled AT OK " + event);
                                     break;
@@ -1918,7 +1871,7 @@ public class HeadsetClientStateMachine extends StateMachine {
                     // We need to set the volume after switching into HFP mode as some Audio HALs
                     // reset the volume to a known-default on mode switch.
                     final int amVol = mAudioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
-                    final int hfVol = amToHfVol(amVol);
+                    final int hfVol = mService.amToHfVol(amVol);
 
                     debug("hfp_enable=true mAudioSWB is " + mAudioSWB);
                     debug("hfp_enable=true mAudioWbs is " + mAudioWbs);
@@ -2126,10 +2079,10 @@ public class HeadsetClientStateMachine extends StateMachine {
 
         BluetoothStatsLog.write(
                 BluetoothStatsLog.BLUETOOTH_SCO_CONNECTION_STATE_CHANGED,
-                AdapterService.getAdapterService().obfuscateAddress(device),
+                mAdapterService.obfuscateAddress(device),
                 getConnectionStateFromAudioState(newState),
                 sco_codec,
-                AdapterService.getAdapterService().getMetricId(device));
+                mAdapterService.getMetricId(device));
         Intent intent = new Intent(BluetoothHeadsetClient.ACTION_AUDIO_STATE_CHANGED);
         intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
         intent.putExtra(BluetoothProfile.EXTRA_STATE, newState);
@@ -2267,11 +2220,14 @@ public class HeadsetClientStateMachine extends StateMachine {
 
     List<BluetoothDevice> getDevicesMatchingConnectionStates(int[] states) {
         List<BluetoothDevice> deviceList = new ArrayList<BluetoothDevice>();
-        Set<BluetoothDevice> bondedDevices = mAdapter.getBondedDevices();
+        final BluetoothDevice[] bondedDevices = mAdapterService.getBondedDevices();
+        if (bondedDevices == null) {
+            return deviceList;
+        }
         int connectionState;
         synchronized (this) {
             for (BluetoothDevice device : bondedDevices) {
-                ParcelUuid[] featureUuids = device.getUuids();
+                final ParcelUuid[] featureUuids = mAdapterService.getRemoteUuids(device);
                 if (!Utils.arrayContains(featureUuids, BluetoothUuid.HFP_AG)) {
                     continue;
                 }
@@ -2296,7 +2252,7 @@ public class HeadsetClientStateMachine extends StateMachine {
         // connection. Allow this connection, provided the device is bonded
         if ((BluetoothProfile.CONNECTION_POLICY_FORBIDDEN < connectionPolicy)
                 || ((BluetoothProfile.CONNECTION_POLICY_UNKNOWN == connectionPolicy)
-                        && (device.getBondState() != BluetoothDevice.BOND_NONE))) {
+                        && (mAdapterService.getBondState(device) != BluetoothDevice.BOND_NONE))) {
             ret = true;
         }
         return ret;
@@ -2418,9 +2374,9 @@ public class HeadsetClientStateMachine extends StateMachine {
     private String createMaskString(BluetoothSinkAudioPolicy policies) {
         StringBuilder mask = new StringBuilder();
         mask.append(BluetoothSinkAudioPolicy.HFP_SET_SINK_AUDIO_POLICY_ID);
-        mask.append("," + policies.getCallEstablishPolicy());
-        mask.append("," + policies.getActiveDevicePolicyAfterConnection());
-        mask.append("," + policies.getInBandRingtonePolicy());
+        mask.append(",").append(policies.getCallEstablishPolicy());
+        mask.append(",").append(policies.getActiveDevicePolicyAfterConnection());
+        mask.append(",").append(policies.getInBandRingtonePolicy());
         return mask.toString();
     }
 

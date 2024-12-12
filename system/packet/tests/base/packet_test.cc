@@ -28,8 +28,8 @@ namespace bluetooth {
 // same payload bounds as the old packet.
 TEST(PacketTest, newPacketFromPacketTest) {
   // Create a packet with payload bounds
-  auto packet = TestPacket::Make(
-      test_avctp_data, test_avctp_data_payload_offset, test_avctp_data.size());
+  auto packet =
+          TestPacket::Make(test_avctp_data, test_avctp_data_payload_offset, test_avctp_data.size());
 
   // Create packet from bounded packet
   auto new_packet = TestPacket::Make(packet);
@@ -46,8 +46,8 @@ TEST(PacketTest, sizeTest) {
   auto packet = TestPacket::Make(test_avctp_data);
   ASSERT_EQ(packet->size(), test_avctp_data.size());
 
-  packet = TestPacket::Make(test_avctp_data, test_avctp_data_payload_offset,
-                            test_avctp_data.size());
+  packet =
+          TestPacket::Make(test_avctp_data, test_avctp_data_payload_offset, test_avctp_data.size());
   ASSERT_EQ(packet->size(), test_avrcp_data.size());
 }
 
@@ -58,8 +58,8 @@ TEST(PacketTest, arrayAccessTest) {
     ASSERT_EQ(test_l2cap_data[i], (*packet)[i]);
   }
 
-  packet = TestPacket::Make(test_avctp_data, test_avctp_data_payload_offset,
-                            test_avctp_data.size());
+  packet =
+          TestPacket::Make(test_avctp_data, test_avctp_data_payload_offset, test_avctp_data.size());
   for (size_t i = 0; i < test_avrcp_data.size(); i++) {
     ASSERT_EQ(test_avrcp_data[i], (*packet)[i]);
   }
@@ -67,8 +67,7 @@ TEST(PacketTest, arrayAccessTest) {
 
 // Test that accessing past the end of the defined payload dies
 TEST(PacketDeathTest, arrayAccessDeathTest) {
-  auto packet =
-      TestPacket::Make(test_l2cap_data, 3, test_l2cap_data.size() - 2);
+  auto packet = TestPacket::Make(test_l2cap_data, 3, test_l2cap_data.size() - 2);
 
   // this will silent SIGABRT sent in ASSERT_DEATH below
   ScopedSilentDeath _silentDeath;
@@ -78,8 +77,8 @@ TEST(PacketDeathTest, arrayAccessDeathTest) {
 
 // Test that the iterator and array access operator return the same data
 TEST(PacketTest, iteratorTest) {
-  auto packet = TestPacket::Make(
-      test_avctp_data, test_avctp_data_payload_offset, test_avctp_data.size());
+  auto packet =
+          TestPacket::Make(test_avctp_data, test_avctp_data_payload_offset, test_avctp_data.size());
 
   // Check to see if the data matches
   auto it = packet->begin();
@@ -92,18 +91,17 @@ TEST(PacketTest, iteratorTest) {
 }
 
 class ChildTestPacket : public TestPacket {
- public:
+public:
   using TestPacket::TestPacket;
 
-  std::string ToString() const override { return "ChildTestPacket"; };
+  std::string ToString() const override { return "ChildTestPacket"; }
 };
 
 // Test specializing a packet to another packet type
 TEST(PacketTest, specializeTest) {
   auto packet = TestPacket::Make(test_l2cap_data);
 
-  std::shared_ptr<ChildTestPacket> specialized_packet =
-      Packet::Specialize<ChildTestPacket>(packet);
+  std::shared_ptr<ChildTestPacket> specialized_packet = Packet::Specialize<ChildTestPacket>(packet);
 
   // Test that the new packet is an instance of ChildTestPacket
   ASSERT_EQ(specialized_packet->ToString(), "ChildTestPacket");

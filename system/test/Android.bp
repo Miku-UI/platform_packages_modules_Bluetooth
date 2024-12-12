@@ -209,7 +209,7 @@ filegroup {
         "mock/mock_main_shim_BtifConfigInterface.cc",
         "mock/mock_main_shim_acl.cc",
         "mock/mock_main_shim_acl_api.cc",
-        "mock/mock_main_shim_acl_legacy_interface.cc",
+        "mock/mock_main_shim_acl_interface.cc",
         "mock/mock_main_shim_btm_api.cc",
         "mock/mock_main_shim_distance_measurement_manager.cc",
         "mock/mock_main_shim_hci_layer.cc",
@@ -277,9 +277,23 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockStackL2capInterface",
+    srcs: [
+        "mock/mock_stack_l2cap_interface.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockStackRfcomm",
     srcs: [
         "mock/mock_stack_rfcomm*.cc",
+    ],
+}
+
+filegroup {
+    name: "TestMockStackRnr",
+    srcs: [
+        "mock/mock_stack_rnr_interface.cc",
     ],
 }
 
@@ -410,6 +424,13 @@ filegroup {
     name: "TestMockStackBtmInterface",
     srcs: [
         "mock/mock_stack_btm_interface.cc",
+    ],
+}
+
+filegroup {
+    name: "TestMockStackSecurityClientInterface",
+    srcs: [
+        "mock/mock_stack_security_client_interface.cc",
     ],
 }
 
@@ -577,13 +598,6 @@ filegroup {
     name: "TestMockSrvcDis",
     srcs: [
         "mock/mock_stack_srvc_dis.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockGdOsLoggingLogRedaction",
-    srcs: [
-        "mock/mock_gd_os_logging_log_redaction.cc",
     ],
 }
 

@@ -27,7 +27,7 @@ namespace mmc {
 // Implementation of MmcInterface.
 // HfpLc3Decoder wraps lc3 decode libraries.
 class HfpLc3Decoder : public MmcInterface {
- public:
+public:
   explicit HfpLc3Decoder();
   ~HfpLc3Decoder();
 
@@ -52,7 +52,7 @@ class HfpLc3Decoder : public MmcInterface {
   //   Negative errno on error, otherwise.
   int transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf, int o_len) override;
 
- private:
+private:
   void* hfp_lc3_decoder_mem_;
   lc3_decoder_t hfp_lc3_decoder_;
   Lc3Param param_;

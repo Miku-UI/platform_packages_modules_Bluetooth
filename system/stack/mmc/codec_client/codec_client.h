@@ -31,7 +31,7 @@ namespace mmc {
 // Implementation of MmcInterface.
 // CodecClient serves as proxy of MMC codec service.
 class CodecClient : public MmcInterface {
- public:
+public:
   // Connects to DBus.
   explicit CodecClient();
 
@@ -60,7 +60,7 @@ class CodecClient : public MmcInterface {
   //   Negative errno on error, otherwise.
   int transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf, int o_len) override;
 
- private:
+private:
   int skt_fd_;
   dbus::ObjectProxy* codec_manager_;  // Owned by the Bus object.
   scoped_refptr<dbus::Bus> bus_;

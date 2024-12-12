@@ -63,8 +63,8 @@ const AT_COMMAND_ARG_DELIMITER: &str = ",";
 pub fn parse_at_command_data(at_string: String) -> Result<AtCommand, String> {
     // All AT commands should be of the form AT+<command> but may be passed around as +<command> or
     // <command>. We remove those here for convenience.
-    let clean_at_string = at_string.strip_prefix("+").unwrap_or(&at_string);
-    let clean_at_string = clean_at_string.strip_prefix("AT+").unwrap_or(&clean_at_string);
+    let clean_at_string = at_string.strip_prefix('+').unwrap_or(&at_string);
+    let clean_at_string = clean_at_string.strip_prefix("AT+").unwrap_or(clean_at_string);
     if clean_at_string.is_empty() {
         return Err("Cannot parse empty AT command".to_string());
     }
@@ -92,7 +92,7 @@ pub fn parse_at_command_data(at_string: String) -> Result<AtCommand, String> {
     };
     let raw_args = match command_parts.next() {
         Some(arg_string) => {
-            if arg_string == "" {
+            if arg_string.is_empty() {
                 None
             } else {
                 Some(
@@ -113,11 +113,11 @@ pub fn parse_at_command_data(at_string: String) -> Result<AtCommand, String> {
     };
     Ok(AtCommand {
         raw: at_string.to_string(),
-        at_type: at_type,
+        at_type,
         command: command.to_string(),
-        raw_args: raw_args,
-        vendor: vendor,
-        data: data,
+        raw_args,
+        vendor,
+        data,
     })
 }
 
@@ -190,7 +190,7 @@ fn parse_at_command_type(command: String) -> AtCommandType {
     if command.contains(AT_COMMAND_DELIMITER_SET) {
         return AtCommandType::Set;
     }
-    return AtCommandType::Execute;
+    AtCommandType::Execute
 }
 
 // Format:
@@ -419,19 +419,19 @@ mod tests {
     fn test_calculate_battery_percent() {
         // Non-battery command
         let at_command = parse_at_command_data("AT+CMD".to_string());
-        assert!(!at_command.is_err());
+        assert!(at_command.is_ok());
         let battery_level = calculate_battery_percent(at_command.unwrap());
         assert!(battery_level.is_err());
 
         // Apple - no battery
         let at_command = parse_at_command_data("AT+IPHONEACCEV=1,2,3".to_string());
-        assert!(!at_command.is_err());
+        assert!(at_command.is_ok());
         let battery_level = calculate_battery_percent(at_command.unwrap());
         assert!(battery_level.is_err());
 
         // Apple
         let at_command = parse_at_command_data("AT+IPHONEACCEV=1,1,2".to_string());
-        assert!(!at_command.is_err());
+        assert!(at_command.is_ok());
         let battery_level = calculate_battery_percent(at_command.unwrap()).unwrap();
         assert_eq!(battery_level, 30);
 
@@ -441,7 +441,7 @@ mod tests {
 
         // Plantronics
         let at_command = parse_at_command_data("AT+XEVENT=BATTERY,5,11,10,0".to_string());
-        assert!(!at_command.is_err());
+        assert!(at_command.is_ok());
         let battery_level = calculate_battery_percent(at_command.unwrap()).unwrap();
         assert_eq!(battery_level, 50);
     }

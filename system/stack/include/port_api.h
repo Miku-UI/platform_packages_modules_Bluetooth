@@ -37,7 +37,7 @@
 /*
  * Define port settings structure send from the application in the
  * set settings request, or to the application in the set settings indication.
-*/
+ */
 typedef struct {
 #define PORT_BAUD_RATE_9600 0x03
 
@@ -76,21 +76,19 @@ typedef struct {
 /*
  * Define the callback function prototypes.  Parameters are specific
  * to each event and are described bellow
-*/
-typedef int(tPORT_DATA_CALLBACK)(uint16_t port_handle, void* p_data,
-                                 uint16_t len);
+ */
+typedef int(tPORT_DATA_CALLBACK)(uint16_t port_handle, void* p_data, uint16_t len);
 
 #define DATA_CO_CALLBACK_TYPE_INCOMING 1
 #define DATA_CO_CALLBACK_TYPE_OUTGOING_SIZE 2
 #define DATA_CO_CALLBACK_TYPE_OUTGOING 3
-typedef int(tPORT_DATA_CO_CALLBACK)(uint16_t port_handle, uint8_t* p_buf,
-                                    uint16_t len, int type);
+typedef int(tPORT_DATA_CO_CALLBACK)(uint16_t port_handle, uint8_t* p_buf, uint16_t len, int type);
 
 typedef void(tPORT_CALLBACK)(uint32_t code, uint16_t port_handle);
 
 /*
  * Define events that registered application can receive in the callback
-*/
+ */
 
 #define PORT_EV_RXCHAR 0x00000001  /* Any Character received */
 #define PORT_EV_RXFLAG 0x00000002  /* Received certain character */
@@ -118,7 +116,7 @@ typedef void(tPORT_CALLBACK)(uint32_t code, uint16_t port_handle);
 
 /*
  * Define port result codes
-*/
+ */
 typedef enum {
   PORT_SUCCESS = 0,
   PORT_UNKNOWN_ERROR = 1,
@@ -187,8 +185,7 @@ template <>
 struct formatter<tPORT_RESULT> : enum_formatter<tPORT_RESULT> {};
 }  // namespace fmt
 
-typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
-                                  uint16_t port_handle);
+typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle);
 
 /*****************************************************************************
  *  External Function Declarations
@@ -225,10 +222,11 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  * (scn * 2 + 1) dlci.
  *
  ******************************************************************************/
-[[nodiscard]] int RFCOMM_CreateConnectionWithSecurity(
-    uint16_t uuid, uint8_t scn, bool is_server, uint16_t mtu,
-    const RawAddress& bd_addr, uint16_t* p_handle,
-    tPORT_MGMT_CALLBACK* p_mgmt_callback, uint16_t sec_mask);
+[[nodiscard]] int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_server,
+                                                      uint16_t mtu, const RawAddress& bd_addr,
+                                                      uint16_t* p_handle,
+                                                      tPORT_MGMT_CALLBACK* p_mgmt_callback,
+                                                      uint16_t sec_mask);
 
 /*******************************************************************************
  *
@@ -250,10 +248,10 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  *                                     frames
  *
  ******************************************************************************/
-[[nodiscard]] int RFCOMM_ControlReqFromBTSOCK(
-    uint8_t dlci, const RawAddress& bd_addr, uint8_t modem_signal,
-    uint8_t break_signal, uint8_t discard_buffers, uint8_t break_signal_seq,
-    bool fc);
+[[nodiscard]] int RFCOMM_ControlReqFromBTSOCK(uint8_t dlci, const RawAddress& bd_addr,
+                                              uint8_t modem_signal, uint8_t break_signal,
+                                              uint8_t discard_buffers, uint8_t break_signal_seq,
+                                              bool fc);
 
 /*******************************************************************************
  *
@@ -291,8 +289,7 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  *                                 specified in the mask occurs.
  *
  ******************************************************************************/
-[[nodiscard]] int PORT_SetEventMaskAndCallback(uint16_t port_handle,
-                                               uint32_t mask,
+[[nodiscard]] int PORT_SetEventMaskAndCallback(uint16_t port_handle, uint32_t mask,
                                                tPORT_CALLBACK* p_port_cb);
 
 /*******************************************************************************
@@ -307,8 +304,7 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  ******************************************************************************/
 [[nodiscard]] int PORT_ClearKeepHandleFlag(uint16_t port_handle);
 
-[[nodiscard]] int PORT_SetDataCOCallback(uint16_t port_handle,
-                                         tPORT_DATA_CO_CALLBACK* p_port_cb);
+[[nodiscard]] int PORT_SetDataCOCallback(uint16_t port_handle, tPORT_DATA_CO_CALLBACK* p_port_cb);
 /*******************************************************************************
  *
  * Function         PORT_CheckConnection
@@ -321,8 +317,7 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  *                  p_lcid     - OUT L2CAP's LCID
  *
  ******************************************************************************/
-[[nodiscard]] int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr,
-                                       uint16_t* p_lcid);
+[[nodiscard]] int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr, uint16_t* p_lcid);
 
 /*******************************************************************************
  *
@@ -336,6 +331,19 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  *
  ******************************************************************************/
 [[nodiscard]] bool PORT_IsOpening(RawAddress* bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         PORT_IsCollisionDetected
+ *
+ * Description      This function returns true if there is already an incoming
+ *                  RFCOMM connection in progress for this device
+ *
+ * Parameters:      true if any connection opening is found
+ *                  bd_addr    - bd_addr of the peer
+ *
+ ******************************************************************************/
+[[nodiscard]] bool PORT_IsCollisionDetected(RawAddress bd_addr);
 
 /*******************************************************************************
  *
@@ -387,20 +395,17 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
 
 /*
  * Define default initial local modem signals state after connection established
-*/
-#define PORT_OBEX_DEFAULT_SIGNAL_STATE \
-  (PORT_DTRDSR_ON | PORT_CTSRTS_ON | PORT_DCD_ON)
-#define PORT_SPP_DEFAULT_SIGNAL_STATE \
-  (PORT_DTRDSR_ON | PORT_CTSRTS_ON | PORT_DCD_ON)
-#define PORT_PPP_DEFAULT_SIGNAL_STATE \
-  (PORT_DTRDSR_ON | PORT_CTSRTS_ON | PORT_DCD_ON)
+ */
+#define PORT_OBEX_DEFAULT_SIGNAL_STATE (PORT_DTRDSR_ON | PORT_CTSRTS_ON | PORT_DCD_ON)
+#define PORT_SPP_DEFAULT_SIGNAL_STATE (PORT_DTRDSR_ON | PORT_CTSRTS_ON | PORT_DCD_ON)
+#define PORT_PPP_DEFAULT_SIGNAL_STATE (PORT_DTRDSR_ON | PORT_CTSRTS_ON | PORT_DCD_ON)
 #define PORT_DUN_DEFAULT_SIGNAL_STATE (PORT_DTRDSR_ON | PORT_CTSRTS_ON)
 
-#define PORT_ERR_BREAK 0x01   /* Break condition occured on the peer device */
+#define PORT_ERR_BREAK 0x01   /* Break condition occurred on the peer device */
 #define PORT_ERR_OVERRUN 0x02 /* Overrun is reported by peer device */
 #define PORT_ERR_FRAME 0x04   /* Framing error reported by peer device */
-#define PORT_ERR_RXOVER 0x08  /* Input queue overflow occured */
-#define PORT_ERR_TXFULL 0x10  /* Output queue overflow occured */
+#define PORT_ERR_RXOVER 0x08  /* Input queue overflow occurred */
+#define PORT_ERR_TXFULL 0x10  /* Output queue overflow occurred */
 
 /*******************************************************************************
  *
@@ -416,8 +421,7 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  *                  p_len       - Byte count received
  *
  ******************************************************************************/
-[[nodiscard]] int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len,
-                                uint16_t* p_len);
+[[nodiscard]] int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len, uint16_t* p_len);
 
 /*******************************************************************************
  *
@@ -432,8 +436,8 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code,
  *                  p_len       - Bytes written
  *
  ******************************************************************************/
-[[nodiscard]] int PORT_WriteData(uint16_t handle, const char* p_data,
-                                 uint16_t max_len, uint16_t* p_len);
+[[nodiscard]] int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len,
+                                 uint16_t* p_len);
 
 /*******************************************************************************
  *

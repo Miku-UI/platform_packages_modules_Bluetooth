@@ -30,8 +30,8 @@ android_test_helper_app {
         "grpc-java-okhttp-client-lite",
         "kotlinx_coroutines_test",
         "opencensus-java-contrib-grpc-metrics",
-        "pandora_experimental-grpc-java",
-        "pandora_experimental-proto-java",
+        "pandora-grpc-java",
+        "pandora-proto-java",
     ],
 
     // Include all test java files.

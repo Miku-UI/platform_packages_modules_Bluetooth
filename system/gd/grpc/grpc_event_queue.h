@@ -32,17 +32,18 @@ namespace grpc {
 
 template <typename T>
 class GrpcEventQueue {
- public:
+public:
   /**
    * Create a GrpcEventQueue that can be used to shuffle event from one thread to another
    * @param log_name
    */
-  explicit GrpcEventQueue(std::string log_name) : log_name_(std::move(log_name)){};
+  explicit GrpcEventQueue(std::string log_name) : log_name_(std::move(log_name)) {}
 
   /**
    * Run the event loop and blocks until client cancels the stream request
-   * Event queue will be cleared before entering the loop. Hence, only events occurred after gRPC request will be
-   * delivered to the user. Hence user is advised to run the loop before generating pending events.
+   * Event queue will be cleared before entering the loop. Hence, only events occurred after gRPC
+   * request will be delivered to the user. Hence user is advised to run the loop before generating
+   * pending events.
    *
    * @param context client context
    * @param writer output writer
@@ -76,7 +77,7 @@ class GrpcEventQueue {
     pending_events_.push(std::move(event));
   }
 
- private:
+private:
   std::string log_name_;
   std::atomic<bool> running_{true};
   common::BlockingQueue<T> pending_events_;

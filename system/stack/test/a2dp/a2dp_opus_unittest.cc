@@ -21,9 +21,7 @@
 #include <future>
 #include <string>
 
-#include "common/init_flags.h"
 #include "common/time_util.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/a2dp_vendor_opus.h"
 #include "stack/include/a2dp_vendor_opus_constants.h"
@@ -35,22 +33,22 @@ namespace {
 constexpr uint32_t kA2dpTickUs = 23 * 1000;
 constexpr char kWavFile[] = "test/a2dp/raw_data/pcm1644s.wav";
 const uint8_t kCodecInfoOpusCapability[AVDT_CODEC_SIZE] = {
-  A2DP_OPUS_CODEC_LEN,         // Length
-  AVDT_MEDIA_TYPE_AUDIO << 4,  // Media Type
-  A2DP_MEDIA_CT_NON_A2DP,      // Media Codec Type Vendor
-  (A2DP_OPUS_VENDOR_ID & 0x000000FF),
-  (A2DP_OPUS_VENDOR_ID & 0x0000FF00) >> 8,
-  (A2DP_OPUS_VENDOR_ID & 0x00FF0000) >> 16,
-  (A2DP_OPUS_VENDOR_ID & 0xFF000000) >> 24,
-  (A2DP_OPUS_CODEC_ID & 0x00FF),
-  (A2DP_OPUS_CODEC_ID & 0xFF00) >> 8,
-  A2DP_OPUS_CHANNEL_MODE_STEREO | A2DP_OPUS_20MS_FRAMESIZE |
-      A2DP_OPUS_SAMPLING_FREQ_48000
-};
+        A2DP_OPUS_CODEC_LEN,         // Length
+        AVDT_MEDIA_TYPE_AUDIO << 4,  // Media Type
+        A2DP_MEDIA_CT_NON_A2DP,      // Media Codec Type Vendor
+        (A2DP_OPUS_VENDOR_ID & 0x000000FF),
+        (A2DP_OPUS_VENDOR_ID & 0x0000FF00) >> 8,
+        (A2DP_OPUS_VENDOR_ID & 0x00FF0000) >> 16,
+        (A2DP_OPUS_VENDOR_ID & 0xFF000000) >> 24,
+        (A2DP_OPUS_CODEC_ID & 0x00FF),
+        (A2DP_OPUS_CODEC_ID & 0xFF00) >> 8,
+        A2DP_OPUS_CHANNEL_MODE_STEREO | A2DP_OPUS_20MS_FRAMESIZE | A2DP_OPUS_SAMPLING_FREQ_48000};
 uint8_t* Data(BT_HDR* packet) { return packet->data + packet->offset; }
 
 uint32_t GetReadSize() {
-  return A2DP_VendorGetFrameSizeOpus(kCodecInfoOpusCapability) * A2DP_VendorGetTrackChannelCountOpus(kCodecInfoOpusCapability) * (A2DP_VendorGetTrackBitsPerSampleOpus(kCodecInfoOpusCapability) / 8);
+  return A2DP_VendorGetFrameSizeOpus(kCodecInfoOpusCapability) *
+         A2DP_VendorGetTrackChannelCountOpus(kCodecInfoOpusCapability) *
+         (A2DP_VendorGetTrackBitsPerSampleOpus(kCodecInfoOpusCapability) / 8);
 }
 }  // namespace
 
@@ -62,15 +60,14 @@ static WavReader wav_reader = WavReader(GetWavFilePath(kWavFile).c_str());
 static std::promise<void> promise;
 
 class A2dpOpusTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
-    common::InitFlags::SetAllForTesting();
     SetCodecConfig();
     encoder_iface_ = const_cast<tA2DP_ENCODER_INTERFACE*>(
-        A2DP_VendorGetEncoderInterfaceOpus(kCodecInfoOpusCapability));
+            A2DP_VendorGetEncoderInterfaceOpus(kCodecInfoOpusCapability));
     ASSERT_NE(encoder_iface_, nullptr);
     decoder_iface_ = const_cast<tA2DP_DECODER_INTERFACE*>(
-        A2DP_VendorGetDecoderInterfaceOpus(kCodecInfoOpusCapability));
+            A2DP_VendorGetDecoderInterfaceOpus(kCodecInfoOpusCapability));
     ASSERT_NE(decoder_iface_, nullptr);
   }
 
@@ -99,8 +96,8 @@ class A2dpOpusTest : public ::testing::Test {
     ASSERT_NE(peer_codec_index, BTAV_A2DP_CODEC_INDEX_MAX);
     codec_config_ = a2dp_codecs_->findSinkCodecConfig(kCodecInfoOpusCapability);
     ASSERT_NE(codec_config_, nullptr);
-    ASSERT_TRUE(a2dp_codecs_->setSinkCodecConfig(kCodecInfoOpusCapability, true,
-                                                 codec_info_result, true));
+    ASSERT_TRUE(a2dp_codecs_->setSinkCodecConfig(kCodecInfoOpusCapability, true, codec_info_result,
+                                                 true));
     ASSERT_EQ(a2dp_codecs_->getCurrentCodecConfig(), codec_config_);
     // Compare the result codec with the local test codec info
     for (size_t i = 0; i < kCodecInfoOpusCapability[0] + 1; i++) {
@@ -112,13 +109,10 @@ class A2dpOpusTest : public ::testing::Test {
   void InitializeEncoder(a2dp_source_read_callback_t read_cb,
                          a2dp_source_enqueue_callback_t enqueue_cb) {
     tA2DP_ENCODER_INIT_PEER_PARAMS peer_params = {true, true, 1000};
-    encoder_iface_->encoder_init(&peer_params, codec_config_, read_cb,
-                                 enqueue_cb);
+    encoder_iface_->encoder_init(&peer_params, codec_config_, read_cb, enqueue_cb);
   }
 
-  void InitializeDecoder(decoded_data_callback_t data_cb) {
-    decoder_iface_->decoder_init(data_cb);
-  }
+  void InitializeDecoder(decoded_data_callback_t data_cb) { decoder_iface_->decoder_init(data_cb); }
 
   BT_HDR* AllocateL2capPacket(const std::vector<uint8_t> data) const {
     auto packet = AllocatePacket(data.size());
@@ -127,8 +121,7 @@ class A2dpOpusTest : public ::testing::Test {
   }
 
   BT_HDR* AllocatePacket(size_t packet_length) const {
-    BT_HDR* packet =
-        static_cast<BT_HDR*>(osi_calloc(sizeof(BT_HDR) + packet_length));
+    BT_HDR* packet = static_cast<BT_HDR*>(osi_calloc(sizeof(BT_HDR) + packet_length));
     packet->len = packet_length;
     return packet;
   }
@@ -162,8 +155,7 @@ TEST_F(A2dpOpusTest, a2dp_source_read_underflow) {
 TEST_F(A2dpOpusTest, a2dp_enqueue_cb_is_invoked) {
   promise = {};
   auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
-    log::assert_that(GetReadSize() == len,
-                     "assert failed: GetReadSize() == len");
+    log::assert_that(GetReadSize() == len, "assert failed: GetReadSize() == len");
     return len;
   };
   auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
@@ -207,8 +199,7 @@ TEST_F(A2dpOpusTest, decoded_data_cb_invoked) {
   auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
     static bool first_invocation = true;
     if (first_invocation) {
-      packet = reinterpret_cast<BT_HDR*>(
-          osi_malloc(sizeof(*p_buf) + p_buf->len + 1));
+      packet = reinterpret_cast<BT_HDR*>(osi_malloc(sizeof(*p_buf) + p_buf->len + 1));
       memcpy(packet, p_buf, sizeof(*p_buf));
       packet->offset = 0;
       memcpy(packet->data + 1, p_buf->data + p_buf->offset, p_buf->len);

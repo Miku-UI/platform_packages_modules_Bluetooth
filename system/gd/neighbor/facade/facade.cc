@@ -33,15 +33,11 @@ namespace facade {
 using namespace blueberry::facade::neighbor;
 
 class NeighborFacadeService : public NeighborFacade::Service {
- public:
-  NeighborFacadeService(
-      ScanModule* scan_module)
-      : scan_module_(scan_module) {}
+public:
+  NeighborFacadeService(ScanModule* scan_module) : scan_module_(scan_module) {}
 
-  ::grpc::Status EnablePageScan(
-      ::grpc::ServerContext* /* context */,
-      const EnableMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status EnablePageScan(::grpc::ServerContext* /* context */, const EnableMsg* request,
+                                ::google::protobuf::Empty* /* response */) override {
     if (request->enabled()) {
       scan_module_->SetPageScan();
     } else {
@@ -50,7 +46,7 @@ class NeighborFacadeService : public NeighborFacade::Service {
     return ::grpc::Status::OK;
   }
 
- private:
+private:
   ScanModule* scan_module_;
 };
 
@@ -69,12 +65,10 @@ void NeighborFacadeModule::Stop() {
   ::bluetooth::grpc::GrpcFacadeModule::Stop();
 }
 
-::grpc::Service* NeighborFacadeModule::GetService() const {
-  return service_;
-}
+::grpc::Service* NeighborFacadeModule::GetService() const { return service_; }
 
 const ModuleFactory NeighborFacadeModule::Factory =
-    ::bluetooth::ModuleFactory([]() { return new NeighborFacadeModule(); });
+        ::bluetooth::ModuleFactory([]() { return new NeighborFacadeModule(); });
 
 }  // namespace facade
 }  // namespace neighbor

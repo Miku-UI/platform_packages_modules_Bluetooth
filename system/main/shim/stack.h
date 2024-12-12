@@ -28,15 +28,12 @@
 namespace bluetooth {
 namespace shim {
 
-class Btm;
-
-namespace legacy {
 class Acl;
-};  // namespace legacy
+class Btm;
 
 // GD shim stack, having modes corresponding to legacy stack
 class Stack {
- public:
+public:
   static Stack* GetInstance();
 
   Stack();
@@ -55,7 +52,7 @@ class Stack {
   StackManager* GetStackManager();
   const StackManager* GetStackManager() const;
 
-  legacy::Acl* GetAcl();
+  Acl* GetAcl();
 
   os::Handler* GetHandler();
 
@@ -76,7 +73,7 @@ class Stack {
 
   size_t NumModules() const { return num_modules_; }
 
- private:
+private:
   struct impl;
   std::shared_ptr<impl> pimpl_;
 

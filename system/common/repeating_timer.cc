@@ -25,8 +25,7 @@ namespace bluetooth {
 
 namespace common {
 
-constexpr std::chrono::microseconds kMinimumPeriod =
-    std::chrono::microseconds(1);
+constexpr std::chrono::microseconds kMinimumPeriod = std::chrono::microseconds(1);
 
 // This runs on user thread
 RepeatingTimer::~RepeatingTimer() {
@@ -37,10 +36,9 @@ RepeatingTimer::~RepeatingTimer() {
 }
 
 // This runs on user thread
-bool RepeatingTimer::SchedulePeriodic(
-    const base::WeakPtr<MessageLoopThread>& thread,
-    const base::Location& from_here, base::RepeatingClosure task,
-    std::chrono::microseconds period) {
+bool RepeatingTimer::SchedulePeriodic(const base::WeakPtr<MessageLoopThread>& thread,
+                                      const base::Location& from_here, base::RepeatingClosure task,
+                                      std::chrono::microseconds period) {
   if (period < kMinimumPeriod) {
     log::error("period must be at least {}", kMinimumPeriod.count());
     return false;
@@ -56,16 +54,14 @@ bool RepeatingTimer::SchedulePeriodic(
   CancelAndWait();
   expected_time_next_task_us_ = time_next_task_us;
   task_ = std::move(task);
-  task_wrapper_.Reset(
-      base::Bind(&RepeatingTimer::RunTask, base::Unretained(this)));
+  task_wrapper_.Reset(base::Bind(&RepeatingTimer::RunTask, base::Unretained(this)));
   message_loop_thread_ = thread;
   period_ = period;
   uint64_t time_until_next_us = time_next_task_us - clock_tick_us_();
-  if (!thread->DoInThreadDelayed(
-          from_here, task_wrapper_.callback(),
-          std::chrono::microseconds(time_until_next_us))) {
-    log::error("failed to post task to message loop for thread {}, from {}",
-               *thread, from_here.ToString());
+  if (!thread->DoInThreadDelayed(from_here, task_wrapper_.callback(),
+                                 std::chrono::microseconds(time_until_next_us))) {
+    log::error("failed to post task to message loop for thread {}, from {}", *thread,
+               from_here.ToString());
     expected_time_next_task_us_ = 0;
     task_wrapper_.Cancel();
     message_loop_thread_ = nullptr;
@@ -102,8 +98,8 @@ void RepeatingTimer::CancelHelper(std::promise<void> promise) {
     return;
   }
   scheduled_thread->DoInThread(
-      FROM_HERE, base::BindOnce(&RepeatingTimer::CancelClosure,
-                                base::Unretained(this), std::move(promise)));
+          FROM_HERE, base::BindOnce(&RepeatingTimer::CancelClosure, base::Unretained(this),
+                                    std::move(promise)));
 }
 
 // This runs on message loop thread
@@ -132,9 +128,8 @@ void RepeatingTimer::RunTask() {
     log::error("message_loop_thread_ is null or is not running");
     return;
   }
-  log::assert_that(
-      message_loop_thread_->GetThreadId() == base::PlatformThread::CurrentId(),
-      "task must run on message loop thread");
+  log::assert_that(message_loop_thread_->GetThreadId() == base::PlatformThread::CurrentId(),
+                   "task must run on message loop thread");
 
   int64_t period_us = period_.count();
   expected_time_next_task_us_ += period_us;
@@ -145,20 +140,16 @@ void RepeatingTimer::RunTask() {
     // multiple of period
     remaining_time_us = (remaining_time_us % period_us + period_us) % period_us;
   }
-  message_loop_thread_->DoInThreadDelayed(
-      FROM_HERE, task_wrapper_.callback(),
-      std::chrono::microseconds(remaining_time_us));
+  message_loop_thread_->DoInThreadDelayed(FROM_HERE, task_wrapper_.callback(),
+                                          std::chrono::microseconds(remaining_time_us));
 
   uint64_t time_before_task_us = clock_tick_us_();
   task_.Run();
   uint64_t time_after_task_us = clock_tick_us_();
-  auto task_time_us =
-      static_cast<int64_t>(time_after_task_us - time_before_task_us);
+  auto task_time_us = static_cast<int64_t>(time_after_task_us - time_before_task_us);
   if (task_time_us > period_.count()) {
-    log::error(
-        "Periodic task execution took {} microseconds, longer than interval {} "
-        "microseconds",
-        task_time_us, period_.count());
+    log::error("Periodic task execution took {} microseconds, longer than interval {} microseconds",
+               task_time_us, period_.count());
   }
 }
 

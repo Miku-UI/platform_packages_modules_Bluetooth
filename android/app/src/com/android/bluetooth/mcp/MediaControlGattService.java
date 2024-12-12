@@ -26,6 +26,7 @@ import static android.bluetooth.BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RE
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -139,16 +140,17 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
                     | Request.SupportedOpcodes.PREVIOUS_TRACK;
 
     private final int mCcid;
-    private Map<String, Map<UUID, Short>> mCccDescriptorValues = new HashMap<>();
+    private final Map<String, Map<UUID, Short>> mCccDescriptorValues = new HashMap<>();
     private long mFeatures;
     private Context mContext;
     private MediaControlServiceCallbacks mCallbacks;
     private BluetoothGattServerProxy mBluetoothGattServer;
     private BluetoothGattService mGattService = null;
-    private Handler mHandler = new Handler(Looper.getMainLooper());
-    private Map<Integer, BluetoothGattCharacteristic> mCharacteristics = new HashMap<>();
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private final Map<Integer, BluetoothGattCharacteristic> mCharacteristics = new HashMap<>();
     private MediaState mCurrentMediaState = MediaState.INACTIVE;
-    private Map<BluetoothDevice, List<GattOpContext>> mPendingGattOperations = new HashMap<>();
+    private final Map<BluetoothDevice, List<GattOpContext>> mPendingGattOperations =
+            new HashMap<>();
     private McpService mMcpService;
     private LeAudioService mLeAudioService;
     private AdapterService mAdapterService;
@@ -1206,6 +1208,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
      * to test the correct functioning of the McpService class, the final class must be put into a
      * container that can be mocked correctly.
      */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public static class BluetoothGattServerProxy {
         private BluetoothGattServer mBluetoothGattServer;
         private BluetoothManager mBluetoothManager;
@@ -1297,7 +1300,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
     }
 
     private void handlePlaybackSpeedRequest(int speed) {
-        float floatingSpeed = (float) Math.pow(2, speed / 64);
+        float floatingSpeed = (float) Math.pow(2, speed / 64.0);
         mEventLogger.add("handlePlaybackSpeedRequest: floatingSpeed= " + floatingSpeed);
         mCallbacks.onPlaybackSpeedSetRequest(floatingSpeed);
     }
@@ -1415,6 +1418,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
         mLeAudioService = leAudioService;
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission")
     private boolean initGattService(UUID serviceUuid) {
         mEventLogger.logd(TAG, "initGattService: uuid= " + serviceUuid);
 
@@ -1584,7 +1588,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
             SearchRequest request, SearchRequest.Results resultStatus, long resultObjectId) {
         Log.d(TAG, "setSearchRequestResult");
 
-        // TODO: There is no Object Trasfer Service implementation.
+        // TODO: There is no Object Transfer Service implementation.
         BluetoothGattCharacteristic characteristic =
                 mCharacteristics.get(CharId.SEARCH_CONTROL_POINT);
         characteristic.setValue(new byte[] {SEARCH_CONTROL_POINT_RESULT_FAILURE});
@@ -2489,28 +2493,26 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
 
     public void dump(StringBuilder sb) {
         sb.append("\tMediaControlService instance current state:");
-        sb.append("\n\t\tCcid = " + mCcid);
-        sb.append("\n\t\tFeatures:" + ServiceFeature.featuresToString(mFeatures, "\n\t\t\t"));
+        sb.append("\n\t\tCcid = ").append(mCcid);
+        sb.append("\n\t\tFeatures:").append(ServiceFeature.featuresToString(mFeatures, "\n\t\t\t"));
 
         BluetoothGattCharacteristic characteristic = mCharacteristics.get(CharId.PLAYER_NAME);
         if (characteristic == null) {
             sb.append("\n\t\tPlayer name: <No Player>");
         } else {
-            sb.append("\n\t\tPlayer name: " + characteristic.getStringValue(0));
+            sb.append("\n\t\tPlayer name: ").append(characteristic.getStringValue(0));
         }
 
-        sb.append("\n\t\tCurrentPlaybackState = " + mCurrentMediaState);
+        sb.append("\n\t\tCurrentPlaybackState = ").append(mCurrentMediaState);
         for (Map.Entry<String, Map<UUID, Short>> deviceEntry : mCccDescriptorValues.entrySet()) {
-            sb.append(
-                    "\n\t\tCCC states for device: "
-                            + "xx:xx:xx:xx:"
-                            + deviceEntry.getKey().substring(12));
+            sb.append("\n\t\tCCC states for device: ")
+                    .append("xx:xx:xx:xx:")
+                    .append(deviceEntry.getKey().substring(12));
             for (Map.Entry<UUID, Short> entry : deviceEntry.getValue().entrySet()) {
-                sb.append(
-                        "\n\t\t\tCharacteristic: "
-                                + mcsUuidToString(entry.getKey())
-                                + ", value: "
-                                + Utils.cccIntToStr(entry.getValue()));
+                sb.append("\n\t\t\tCharacteristic: ")
+                        .append(mcsUuidToString(entry.getKey()))
+                        .append(", value: ")
+                        .append(Utils.cccIntToStr(entry.getValue()));
             }
         }
 

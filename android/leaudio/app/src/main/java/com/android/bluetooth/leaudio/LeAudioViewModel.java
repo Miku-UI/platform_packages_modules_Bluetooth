@@ -20,6 +20,7 @@ package com.android.bluetooth.leaudio;
 import android.app.Application;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeBroadcastMetadata;
+import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -71,6 +72,11 @@ public class LeAudioViewModel extends AndroidViewModel {
 
     public void connectHap(BluetoothDevice device, boolean connect) {
         bluetoothProxy.connectHap(device, connect);
+    }
+
+    public void connectGattBr(
+            Context context, LeAudioDeviceStateWrapper device_wrapper, boolean connect) {
+        bluetoothProxy.connectGattBr(context, device_wrapper, connect);
     }
 
     public void hapReadPresetInfo(BluetoothDevice device, int preset_index) {

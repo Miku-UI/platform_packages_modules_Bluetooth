@@ -1,9 +1,9 @@
 ///! Rule group for tracking controller related issues.
 use chrono::NaiveDateTime;
-use lazy_static::lazy_static;
 use std::collections::HashSet;
 use std::convert::Into;
 use std::io::Write;
+use std::sync::LazyLock;
 
 use crate::engine::{Rule, RuleGroup, Signal};
 use crate::parser::{NewIndex, Packet, PacketChild};
@@ -23,16 +23,17 @@ impl Into<&'static str> for ControllerSignal {
     }
 }
 
-lazy_static! {
-    static ref KNOWN_CONTROLLER_NAMES: [String; 6] = [
-        String::from("Bluemoon Universal Bluetooth Host Controller"),    // AC7625
-        String::from("MTK MT7961 #1"),    // MT7921LE/MT7921LS
-        String::from("MTK MT7922 #1"),    // MT7922
-        String::from("RTK_BT_5.0"),       // RTL8822CE
-        String::from("RT_BT"),            // RTL8852AE
-        String::from(""),                 // AC9260/AC9560/AX200/AX201/AX203/AX211/MVL8897/QCA6174A3/QCA6174A5/QC_WCN6856
-    ];
-}
+static KNOWN_CONTROLLER_NAMES: LazyLock<[String; 6]> = LazyLock::new(|| {
+    [
+        String::from("Bluemoon Universal Bluetooth Host Controller"), // AC7625
+        String::from("MTK MT7961 #1"),                                // MT7921LE/MT7921LS
+        String::from("MTK MT7922 #1"),                                // MT7922
+        String::from("RTK_BT_5.0"),                                   // RTL8822CE
+        String::from("RT_BT"),                                        // RTL8852AE
+        String::from(""), // AC9260/AC9560/AX200/AX201/AX203/AX211/MVL8897/QCA6174A3/QCA6174A5/QC_WCN6856
+    ]
+});
+
 const KNOWN_CONTROLLER_MANUFACTURERS: [u16; 5] = [
     2,  // Intel.
     29, // Qualcomm

@@ -23,26 +23,31 @@
 const std::string ArrayField::kFieldType = "ArrayField";
 
 ArrayField::ArrayField(std::string name, int element_size, int array_size, ParseLocation loc)
-    : PacketField(name, loc), element_field_(new ScalarField("val", element_size, loc)), element_size_(element_size),
+    : PacketField(name, loc),
+      element_field_(new ScalarField("val", element_size, loc)),
+      element_size_(element_size),
       array_size_(array_size) {
-  if (element_size > 64 || element_size < 0)
+  if (element_size > 64 || element_size < 0) {
     ERROR(this) << __func__ << ": Not implemented for element size = " << element_size;
+  }
   if (element_size % 8 != 0) {
-    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size << ")";
+    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size
+                << ")";
   }
 }
 
 ArrayField::ArrayField(std::string name, TypeDef* type_def, int array_size, ParseLocation loc)
-    : PacketField(name, loc), element_field_(type_def->GetNewField("val", loc)),
-      element_size_(element_field_->GetSize()), array_size_(array_size) {
+    : PacketField(name, loc),
+      element_field_(type_def->GetNewField("val", loc)),
+      element_size_(element_field_->GetSize()),
+      array_size_(array_size) {
   if (!element_size_.empty() && element_size_.bits() % 8 != 0) {
-    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size_ << ")";
+    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size_
+                << ")";
   }
 }
 
-const std::string& ArrayField::GetFieldType() const {
-  return ArrayField::kFieldType;
-}
+const std::string& ArrayField::GetFieldType() const { return ArrayField::kFieldType; }
 
 Size ArrayField::GetSize() const {
   if (!element_size_.empty() && !element_size_.has_dynamic()) {
@@ -87,7 +92,8 @@ void ArrayField::GenExtractor(std::ostream& s, int num_leading_bits, bool for_st
   s << GetDataType() << "::iterator ret_it = " << GetName() << "_ptr->begin();";
   s << "auto " << element_field_->GetName() << "_it = " << GetName() << "_it;";
   if (!element_size_.empty()) {
-    s << "while (" << element_field_->GetName() << "_it.NumBytesRemaining() >= " << element_size_.bytes();
+    s << "while (" << element_field_->GetName()
+      << "_it.NumBytesRemaining() >= " << element_size_.bytes();
     s << " && ret_it < " << GetName() << "_ptr->end()) {";
   } else {
     s << "while (" << element_field_->GetName() << "_it.NumBytesRemaining() > 0 ";
@@ -146,9 +152,7 @@ bool ArrayField::GenBuilderMember(std::ostream& s) const {
   return true;
 }
 
-bool ArrayField::HasParameterValidator() const {
-  return false;
-}
+bool ArrayField::HasParameterValidator() const { return false; }
 
 void ArrayField::GenParameterValidator(std::ostream&) const {
   // Array length is validated by the compiler
@@ -161,20 +165,16 @@ void ArrayField::GenInserter(std::ostream& s) const {
 }
 
 void ArrayField::GenValidator(std::ostream&) const {
-  // NOTE: We could check if the element size divides cleanly into the array size, but we decided to forgo that
-  // in favor of just returning as many elements as possible in a best effort style.
+  // NOTE: We could check if the element size divides cleanly into the array size, but we decided to
+  // forgo that in favor of just returning as many elements as possible in a best effort style.
   //
-  // Other than that there is nothing that arrays need to be validated on other than length so nothing needs to
-  // be done here.
+  // Other than that there is nothing that arrays need to be validated on other than length so
+  // nothing needs to be done here.
 }
 
-bool ArrayField::IsContainerField() const {
-  return true;
-}
+bool ArrayField::IsContainerField() const { return true; }
 
-const PacketField* ArrayField::GetElementField() const {
-  return element_field_;
-}
+const PacketField* ArrayField::GetElementField() const { return element_field_; }
 
 void ArrayField::GenStringRepresentation(std::ostream& s, std::string accessor) const {
   s << "\"ARRAY[\";";

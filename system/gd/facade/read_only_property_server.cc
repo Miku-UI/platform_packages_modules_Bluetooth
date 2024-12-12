@@ -22,18 +22,17 @@ namespace bluetooth {
 namespace facade {
 
 class ReadOnlyPropertyService : public blueberry::facade::ReadOnlyProperty::Service {
- public:
+public:
   ReadOnlyPropertyService(hci::Controller* controller) : controller_(controller) {}
-  ::grpc::Status ReadLocalAddress(
-      ::grpc::ServerContext* /* context */,
-      const ::google::protobuf::Empty* /* request */,
-      ::blueberry::facade::BluetoothAddress* response) override {
+  ::grpc::Status ReadLocalAddress(::grpc::ServerContext* /* context */,
+                                  const ::google::protobuf::Empty* /* request */,
+                                  ::blueberry::facade::BluetoothAddress* response) override {
     auto address = controller_->GetMacAddress().ToString();
     response->set_address(address);
     return ::grpc::Status::OK;
   }
 
- private:
+private:
   hci::Controller* controller_;
 };
 
@@ -49,12 +48,10 @@ void ReadOnlyPropertyServerModule::Stop() {
   service_.reset();
   GrpcFacadeModule::Stop();
 }
-::grpc::Service* ReadOnlyPropertyServerModule::GetService() const {
-  return service_.get();
-}
+::grpc::Service* ReadOnlyPropertyServerModule::GetService() const { return service_.get(); }
 
 const ModuleFactory ReadOnlyPropertyServerModule::Factory =
-    ::bluetooth::ModuleFactory([]() { return new ReadOnlyPropertyServerModule(); });
+        ::bluetooth::ModuleFactory([]() { return new ReadOnlyPropertyServerModule(); });
 
 }  // namespace facade
 }  // namespace bluetooth

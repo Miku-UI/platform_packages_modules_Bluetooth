@@ -14,20 +14,22 @@
  * limitations under the License.
  */
 
+#include "avrcp_packet.h"
+
+#include <base/sys_byteorder.h>
+
 #include <iomanip>
 #include <sstream>
 #include <type_traits>
-
-#include "avrcp_packet.h"
 
 namespace bluetooth {
 namespace avrcp {
 
 std::unique_ptr<PacketBuilder> PacketBuilder::MakeBuilder(
-    CType type, uint8_t subunit_type, uint8_t subunit_id, Opcode opcode,
-    std::unique_ptr<::bluetooth::PacketBuilder> payload) {
-  std::unique_ptr<PacketBuilder> builder = std::unique_ptr<PacketBuilder>(
-      new PacketBuilder(type, subunit_type, subunit_id, opcode));
+        CType type, uint8_t subunit_type, uint8_t subunit_id, Opcode opcode,
+        std::unique_ptr<::bluetooth::PacketBuilder> payload) {
+  std::unique_ptr<PacketBuilder> builder =
+          std::unique_ptr<PacketBuilder>(new PacketBuilder(type, subunit_type, subunit_id, opcode));
 
   builder->payload_ = std::move(payload);
 
@@ -49,15 +51,14 @@ bool PacketBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   return payload_->Serialize(pkt);
 }
 
-void PacketBuilder::PushHeader(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+void PacketBuilder::PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   AddPayloadOctets1(pkt, static_cast<uint8_t>(c_type_));
   AddPayloadOctets1(pkt, (subunit_type_ << 3) | subunit_id_);
   AddPayloadOctets1(pkt, static_cast<uint8_t>(opcode_));
 }
 
-bool PacketBuilder::PushCompanyId(
-    const std::shared_ptr<::bluetooth::Packet>& pkt, uint32_t company_id) {
+bool PacketBuilder::PushCompanyId(const std::shared_ptr<::bluetooth::Packet>& pkt,
+                                  uint32_t company_id) {
   company_id = base::ByteSwap(company_id);
   for (int i = 0; i < 3; i++) {
     company_id >>= 8;
@@ -67,8 +68,7 @@ bool PacketBuilder::PushCompanyId(
   return true;
 }
 
-std::shared_ptr<Packet> Packet::Parse(
-    std::shared_ptr<::bluetooth::Packet> pkt) {
+std::shared_ptr<Packet> Packet::Parse(std::shared_ptr<::bluetooth::Packet> pkt) {
   return std::shared_ptr<Packet>(new Packet(pkt));
 }
 
@@ -77,13 +77,9 @@ CType Packet::GetCType() const {
   return static_cast<CType>(value);
 }
 
-uint8_t Packet::GetSubunitType() const {
-  return *(begin() + static_cast<size_t>(1)) >> 3;
-}
+uint8_t Packet::GetSubunitType() const { return *(begin() + static_cast<size_t>(1)) >> 3; }
 
-uint8_t Packet::GetSubunitId() const {
-  return *(begin() + static_cast<size_t>(1)) & 0b00000111;
-}
+uint8_t Packet::GetSubunitId() const { return *(begin() + static_cast<size_t>(1)) & 0b00000111; }
 
 Opcode Packet::GetOpcode() const {
   auto value = *(begin() + static_cast<size_t>(2));

@@ -81,7 +81,7 @@ public class BluetoothOppReceiver extends BroadcastReceiver {
                     TAG,
                     "Received BT device selected intent, bt device: "
                             + BluetoothUtils.toAnonymizedAddress(
-                                    Flags.identityAddressNullIfUnknown()
+                                    Flags.identityAddressNullIfNotKnown()
                                             ? Utils.getBrEdrAddress(remoteDevice)
                                             : remoteDevice.getIdentityAddress()));
 

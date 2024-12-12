@@ -72,15 +72,14 @@ struct ListItem {
 };
 
 class MediaCallbacks {
- public:
-  virtual void SendMediaUpdate(bool track_changed, bool play_state,
-                               bool queue) = 0;
+public:
+  virtual void SendMediaUpdate(bool track_changed, bool play_state, bool queue) = 0;
   virtual void SendFolderUpdate(bool available_players, bool addressed_players,
                                 bool uids_changed) = 0;
   virtual void SendActiveDeviceChanged(const RawAddress& address) = 0;
 
-  virtual void SendPlayerSettingsChanged(
-      std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values) = 0;
+  virtual void SendPlayerSettingsChanged(std::vector<PlayerAttribute> attributes,
+                                         std::vector<uint8_t> values) = 0;
   virtual ~MediaCallbacks() = default;
 };
 
@@ -105,7 +104,7 @@ class MediaCallbacks {
 // allowing the threading model to be totally encapsulated and allow correct
 // behavior in case the threading model changes on either side.
 class MediaInterface {
- public:
+public:
   virtual void SendKeyEvent(uint8_t key, KeyState state) = 0;
 
   using SongInfoCallback = base::Callback<void(SongInfo)>;
@@ -116,28 +115,31 @@ class MediaInterface {
 
   // Contains the current queue and the media ID of the currently playing item
   // in the queue
-  using NowPlayingCallback =
-      base::Callback<void(std::string, std::vector<SongInfo>)>;
+  using NowPlayingCallback = base::Callback<void(std::string, std::vector<SongInfo>)>;
   virtual void GetNowPlayingList(NowPlayingCallback now_playing_cb) = 0;
 
   // TODO (apanicke): Use a map with the ID as the key instead of vector
   // in follow up cleanup patches. This allows simplification of the
   // MediaPlayerInfo object
   using MediaListCallback =
-      base::Callback<void(uint16_t curr_player, std::vector<MediaPlayerInfo>)>;
+          base::Callback<void(uint16_t curr_player, std::vector<MediaPlayerInfo>)>;
   virtual void GetMediaPlayerList(MediaListCallback list_cb) = 0;
 
   using FolderItemsCallback = base::Callback<void(std::vector<ListItem>)>;
   virtual void GetFolderItems(uint16_t player_id, std::string media_id,
                               FolderItemsCallback folder_cb) = 0;
 
-  using SetBrowsedPlayerCallback = base::Callback<void(
-      bool success, std::string root_id, uint32_t num_items)>;
-  virtual void SetBrowsedPlayer(uint16_t player_id,
-                                SetBrowsedPlayerCallback browse_cb) = 0;
+  using GetAddressedPlayerCallback = base::Callback<void(uint16_t)>;
+  virtual void GetAddressedPlayer(GetAddressedPlayerCallback addressed_player) = 0;
 
-  virtual void PlayItem(uint16_t player_id, bool now_playing,
-                        std::string media_id) = 0;
+  using SetBrowsedPlayerCallback =
+          base::Callback<void(bool success, std::string root_id, uint32_t num_items)>;
+  virtual void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) = 0;
+
+  using SetAddressedPlayerCallback = base::Callback<void(uint16_t)>;
+  virtual void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback new_player) = 0;
+
+  virtual void PlayItem(uint16_t player_id, bool now_playing, std::string media_id) = 0;
 
   virtual void SetActiveDevice(const RawAddress& address) = 0;
 
@@ -150,7 +152,7 @@ class MediaInterface {
 };
 
 class VolumeInterface {
- public:
+public:
   // TODO (apanicke): Investigate the best value type for volume. Right now it
   // is a value from 0-127 because thats what AVRCP uses.
   using VolumeChangedCb = base::Callback<void(int8_t volume)>;
@@ -162,8 +164,7 @@ class VolumeInterface {
   // Indicate that a device has been connected that does support absolute
   // volume. The callback will be immediately called with the current volume
   // which will be sent to the device.
-  virtual void DeviceConnected(const RawAddress& bdaddr,
-                               VolumeChangedCb cb) = 0;
+  virtual void DeviceConnected(const RawAddress& bdaddr, VolumeChangedCb cb) = 0;
 
   // Indicate that a device has been disconnected from AVRCP. Will unregister
   // any callbacks if absolute volume is supported.
@@ -175,36 +176,32 @@ class VolumeInterface {
 };
 
 class PlayerSettingsInterface {
- public:
-  using ListPlayerSettingsCallback =
-      base::Callback<void(std::vector<PlayerAttribute> attributes)>;
+public:
+  using ListPlayerSettingsCallback = base::Callback<void(std::vector<PlayerAttribute> attributes)>;
   virtual void ListPlayerSettings(ListPlayerSettingsCallback cb) = 0;
 
-  using ListPlayerSettingValuesCallback = base::Callback<void(
-      PlayerAttribute setting, std::vector<uint8_t> values)>;
+  using ListPlayerSettingValuesCallback =
+          base::Callback<void(PlayerAttribute setting, std::vector<uint8_t> values)>;
   virtual void ListPlayerSettingValues(PlayerAttribute setting,
                                        ListPlayerSettingValuesCallback cb) = 0;
 
   using GetCurrentPlayerSettingValueCallback = base::Callback<void(
-      std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values)>;
-  virtual void GetCurrentPlayerSettingValue(
-      std::vector<PlayerAttribute> attributes,
-      GetCurrentPlayerSettingValueCallback cb) = 0;
+          std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values)>;
+  virtual void GetCurrentPlayerSettingValue(std::vector<PlayerAttribute> attributes,
+                                            GetCurrentPlayerSettingValueCallback cb) = 0;
 
   using SetPlayerSettingValueCallback = base::Callback<void(bool success)>;
   virtual void SetPlayerSettings(std::vector<PlayerAttribute> attributes,
-                                 std::vector<uint8_t> values,
-                                 SetPlayerSettingValueCallback cb) = 0;
+                                 std::vector<uint8_t> values, SetPlayerSettingValueCallback cb) = 0;
 
   virtual ~PlayerSettingsInterface() = default;
 };
 
 class ServiceInterface {
- public:
+public:
   // mediaInterface can not be null. If volumeInterface is null then Absolute
   // Volume is disabled.
-  virtual void Init(MediaInterface* mediaInterface,
-                    VolumeInterface* volumeInterface,
+  virtual void Init(MediaInterface* mediaInterface, VolumeInterface* volumeInterface,
                     PlayerSettingsInterface* player_settings_interface) = 0;
   virtual void RegisterBipServer(int psm) = 0;
   virtual void UnregisterBipServer() = 0;
@@ -213,7 +210,7 @@ class ServiceInterface {
   virtual void SetBipClientStatus(const RawAddress& bdaddr, bool connected) = 0;
   virtual bool Cleanup() = 0;
 
- protected:
+protected:
   virtual ~ServiceInterface() = default;
 };
 

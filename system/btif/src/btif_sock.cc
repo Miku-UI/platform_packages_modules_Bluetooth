@@ -28,15 +28,12 @@
 #include <atomic>
 
 #include "bta/include/bta_api.h"
-#include "bta_sec_api.h"
-#include "btif_metrics_logging.h"
 #include "btif_sock_l2cap.h"
 #include "btif_sock_logging.h"
 #include "btif_sock_rfc.h"
 #include "btif_sock_sco.h"
 #include "btif_sock_thread.h"
 #include "btif_uid.h"
-#include "os/log.h"
 #include "osi/include/osi.h"  // INVALID_FD
 #include "osi/include/thread.h"
 #include "types/bluetooth/uuid.h"
@@ -45,17 +42,13 @@
 using bluetooth::Uuid;
 using namespace bluetooth;
 
-static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
-                                 const Uuid* uuid, int channel, int* sock_fd,
-                                 int flags, int app_uid);
-static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
-                                  const Uuid* uuid, int channel, int* sock_fd,
-                                  int flags, int app_uid);
+static bt_status_t btsock_listen(btsock_type_t type, const char* service_name, const Uuid* uuid,
+                                 int channel, int* sock_fd, int flags, int app_uid);
+static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type, const Uuid* uuid,
+                                  int channel, int* sock_fd, int flags, int app_uid);
 static void btsock_request_max_tx_data_length(const RawAddress& bd_addr);
-static bt_status_t btsock_control_req(uint8_t dlci, const RawAddress& bd_addr,
-                                      uint8_t modem_signal,
-                                      uint8_t break_signal,
-                                      uint8_t discard_buffers,
+static bt_status_t btsock_control_req(uint8_t dlci, const RawAddress& bd_addr, uint8_t modem_signal,
+                                      uint8_t break_signal, uint8_t discard_buffers,
                                       uint8_t break_signal_seq, bool fc);
 
 static void btsock_signaled(int fd, int type, int flags, uint32_t user_id);
@@ -68,14 +61,14 @@ static thread_t* thread;
 
 const btsock_interface_t* btif_sock_get_interface(void) {
   static btsock_interface_t interface = {
-      sizeof(interface),
-      btsock_listen,
-      btsock_connect,
-      btsock_request_max_tx_data_length,
-      btsock_control_req,
-      btsock_disconnect_all,
-      btsock_get_l2cap_local_cid,
-      btsock_get_l2cap_remote_cid,
+          sizeof(interface),
+          btsock_listen,
+          btsock_connect,
+          btsock_request_max_tx_data_length,
+          btsock_control_req,
+          btsock_disconnect_all,
+          btsock_get_l2cap_local_cid,
+          btsock_get_l2cap_remote_cid,
   };
 
   return &interface;
@@ -124,7 +117,9 @@ bt_status_t btif_sock_init(uid_set_t* uid_set) {
 error:;
   thread_free(thread);
   thread = NULL;
-  if (thread_handle != -1) btsock_thread_exit(thread_handle);
+  if (thread_handle != -1) {
+    btsock_thread_exit(thread_handle);
+  }
   thread_handle = -1;
   uid_set = NULL;
   return BT_STATUS_SOCKET_ERROR;
@@ -132,7 +127,9 @@ error:;
 
 void btif_sock_cleanup(void) {
   int saved_handle = thread_handle;
-  if (std::atomic_exchange(&thread_handle, -1) == -1) return;
+  if (std::atomic_exchange(&thread_handle, -1) == -1) {
+    return;
+  }
 
   btsock_thread_exit(saved_handle);
   btsock_rfc_cleanup();
@@ -142,18 +139,16 @@ void btif_sock_cleanup(void) {
   thread = NULL;
 }
 
-static bt_status_t btsock_control_req(uint8_t dlci, const RawAddress& bd_addr,
-                                      uint8_t modem_signal,
-                                      uint8_t break_signal,
-                                      uint8_t discard_buffers,
+static bt_status_t btsock_control_req(uint8_t dlci, const RawAddress& bd_addr, uint8_t modem_signal,
+                                      uint8_t break_signal, uint8_t discard_buffers,
                                       uint8_t break_signal_seq, bool fc) {
-  return btsock_rfc_control_req(dlci, bd_addr, modem_signal, break_signal,
-                                discard_buffers, break_signal_seq, fc);
+  return btsock_rfc_control_req(dlci, bd_addr, modem_signal, break_signal, discard_buffers,
+                                break_signal_seq, fc);
 }
 
 static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
-                                 const Uuid* service_uuid, int channel,
-                                 int* sock_fd, int flags, int app_uid) {
+                                 const Uuid* service_uuid, int channel, int* sock_fd, int flags,
+                                 int app_uid) {
   if ((flags & BTSOCK_FLAG_NO_SDP) == 0) {
     log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
   }
@@ -162,24 +157,21 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
   bt_status_t status = BT_STATUS_SOCKET_ERROR;
 
   log::info(
-      "Attempting listen for socket connections for device: {}, type: {}, "
-      "channel: {}, app_uid: {}",
-      RawAddress::kEmpty, type, channel, app_uid);
-  btif_sock_connection_logger(
-      RawAddress::kEmpty, 0, type, SOCKET_CONNECTION_STATE_LISTENING,
-      SOCKET_ROLE_LISTEN, app_uid, channel, 0, 0, service_name);
+          "Attempting listen for socket connections for device: {}, type: {}, "
+          "channel: {}, app_uid: {}",
+          RawAddress::kEmpty, type, channel, app_uid);
+  btif_sock_connection_logger(RawAddress::kEmpty, 0, type, SOCKET_CONNECTION_STATE_LISTENING,
+                              SOCKET_ROLE_LISTEN, app_uid, channel, 0, 0, service_name);
   switch (type) {
     case BTSOCK_RFCOMM:
-      status = btsock_rfc_listen(service_name, service_uuid, channel, sock_fd,
-                                 flags, app_uid);
+      status = btsock_rfc_listen(service_name, service_uuid, channel, sock_fd, flags, app_uid);
       break;
     case BTSOCK_L2CAP:
-      status =
-          btsock_l2cap_listen(service_name, channel, sock_fd, flags, app_uid);
+      status = btsock_l2cap_listen(service_name, channel, sock_fd, flags, app_uid);
       break;
     case BTSOCK_L2CAP_LE:
-      status = btsock_l2cap_listen(service_name, channel, sock_fd,
-                                   flags | BTSOCK_FLAG_LE_COC, app_uid);
+      status = btsock_l2cap_listen(service_name, channel, sock_fd, flags | BTSOCK_FLAG_LE_COC,
+                                   app_uid);
       break;
     case BTSOCK_SCO:
       status = btsock_sco_listen(sock_fd, flags);
@@ -192,46 +184,42 @@ static bt_status_t btsock_listen(btsock_type_t type, const char* service_name,
   }
   if (status != BT_STATUS_SUCCESS) {
     log::error(
-        "failed to listen for socket connections for device: {}, type: {}, "
-        "channel: {}, app_uid: {}",
-        RawAddress::kEmpty, type, channel, app_uid);
-    btif_sock_connection_logger(
-        RawAddress::kEmpty, 0, type, SOCKET_CONNECTION_STATE_DISCONNECTED,
-        SOCKET_ROLE_LISTEN, app_uid, channel, 0, 0, service_name);
+            "failed to listen for socket connections for device: {}, type: {}, "
+            "channel: {}, app_uid: {}",
+            RawAddress::kEmpty, type, channel, app_uid);
+    btif_sock_connection_logger(RawAddress::kEmpty, 0, type, SOCKET_CONNECTION_STATE_DISCONNECTED,
+                                SOCKET_ROLE_LISTEN, app_uid, channel, 0, 0, service_name);
   }
   return status;
 }
 
-static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
-                                  const Uuid* uuid, int channel, int* sock_fd,
-                                  int flags, int app_uid) {
+static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type, const Uuid* uuid,
+                                  int channel, int* sock_fd, int flags, int app_uid) {
   log::assert_that(bd_addr != NULL, "assert failed: bd_addr != NULL");
   log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
 
   log::info(
-      "Attempting socket connection for device: {}, type: {}, channel: {}, "
-      "app_uid: {}",
-      *bd_addr, type, channel, app_uid);
+          "Attempting socket connection for device: {}, type: {}, channel: {}, "
+          "app_uid: {}",
+          *bd_addr, type, channel, app_uid);
 
   *sock_fd = INVALID_FD;
   bt_status_t status = BT_STATUS_SOCKET_ERROR;
 
-  btif_sock_connection_logger(*bd_addr, 0, type,
-                              SOCKET_CONNECTION_STATE_CONNECTING,
+  btif_sock_connection_logger(*bd_addr, 0, type, SOCKET_CONNECTION_STATE_CONNECTING,
                               SOCKET_ROLE_CONNECTION, app_uid, channel, 0, 0,
                               uuid ? uuid->ToString().c_str() : "");
   switch (type) {
     case BTSOCK_RFCOMM:
-      status =
-          btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid);
+      status = btsock_rfc_connect(bd_addr, uuid, channel, sock_fd, flags, app_uid);
       break;
 
     case BTSOCK_L2CAP:
       status = btsock_l2cap_connect(bd_addr, channel, sock_fd, flags, app_uid);
       break;
     case BTSOCK_L2CAP_LE:
-      status = btsock_l2cap_connect(bd_addr, channel, sock_fd,
-                                    (flags | BTSOCK_FLAG_LE_COC), app_uid);
+      status = btsock_l2cap_connect(bd_addr, channel, sock_fd, (flags | BTSOCK_FLAG_LE_COC),
+                                    app_uid);
       break;
     case BTSOCK_SCO:
       status = btsock_sco_connect(bd_addr, sock_fd, flags);
@@ -244,11 +232,10 @@ static bt_status_t btsock_connect(const RawAddress* bd_addr, btsock_type_t type,
   }
   if (status != BT_STATUS_SUCCESS) {
     log::error(
-        "Socket connection failed for device: {}, type: {}, channel: {}, "
-        "app_uid: {}",
-        *bd_addr, type, channel, app_uid);
-    btif_sock_connection_logger(*bd_addr, 0, type,
-                                SOCKET_CONNECTION_STATE_DISCONNECTED,
+            "Socket connection failed for device: {}, type: {}, channel: {}, "
+            "app_uid: {}",
+            *bd_addr, type, channel, app_uid);
+    btif_sock_connection_logger(*bd_addr, 0, type, SOCKET_CONNECTION_STATE_DISCONNECTED,
                                 SOCKET_ROLE_CONNECTION, app_uid, channel, 0, 0,
                                 uuid ? uuid->ToString().c_str() : "");
   }
@@ -271,8 +258,8 @@ static void btsock_signaled(int fd, int type, int flags, uint32_t user_id) {
       btsock_l2cap_signaled(fd, flags, user_id);
       break;
     default:
-      log::fatal("Invalid socket type! type={} fd={} flags={} user_id={}", type,
-                 fd, flags, user_id);
+      log::fatal("Invalid socket type! type={} fd={} flags={} user_id={}", type, fd, flags,
+                 user_id);
       break;
   }
 }

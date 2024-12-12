@@ -28,6 +28,11 @@ public class VolumeControlStackEvent {
     public static final int EVENT_TYPE_EXT_AUDIO_OUT_VOL_OFFSET_CHANGED = 4;
     public static final int EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED = 5;
     public static final int EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED = 6;
+    public static final int EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED = 7;
+    public static final int EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED = 8;
+    public static final int EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED = 9;
+    public static final int EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED = 10;
+    public static final int EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED = 11;
 
     // Do not modify without updating the HAL bt_vc_aid.h files.
     // Match up with enum class ConnectionState of bt_vc_aid.h.
@@ -40,6 +45,8 @@ public class VolumeControlStackEvent {
     public BluetoothDevice device;
     public int valueInt1;
     public int valueInt2;
+    public int valueInt3;
+    public int valueInt4;
     public boolean valueBool1;
     public boolean valueBool2;
     public String valueString1;
@@ -54,13 +61,15 @@ public class VolumeControlStackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("VolumeControlStackEvent {type:" + eventTypeToString(type));
-        result.append(", device:" + device);
-        result.append(", valueInt1:" + eventTypeValue1ToString(type, valueInt1));
-        result.append(", valueInt2:" + eventTypeValue2ToString(type, valueInt2));
-        result.append(", valueBool1:" + eventTypeValueBool1ToString(type, valueBool1));
-        result.append(", valueBool2:" + eventTypeValueBool2ToString(type, valueBool2));
-        result.append(", valueString1:" + eventTypeString1ToString(type, valueString1));
+        result.append("VolumeControlStackEvent {type:").append(eventTypeToString(type));
+        result.append(", device:").append(device);
+        result.append(", valueInt1:").append(eventTypeValue1ToString(type, valueInt1));
+        result.append(", valueInt2:").append(eventTypeValue2ToString(type, valueInt2));
+        result.append(", valueInt3:").append(eventTypeValue3ToString(type, valueInt3));
+        result.append(", valueInt4:").append(eventTypeValue4ToString(type, valueInt4));
+        result.append(", valueBool1:").append(eventTypeValueBool1ToString(type, valueBool1));
+        result.append(", valueBool2:").append(eventTypeValueBool2ToString(type, valueBool2));
+        result.append(", valueString1:").append(eventTypeString1ToString(type, valueString1));
         result.append("}");
         return result.toString();
     }
@@ -81,6 +90,16 @@ public class VolumeControlStackEvent {
                 return "EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED";
             case EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED:
                 return "EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED";
+            case EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED:
+                return "EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED";
+            case EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED:
+                return "EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED";
+            case EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED:
+                return "EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED";
+            case EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED:
+                return "EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED";
+            case EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED:
+                return "EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED";
             default:
                 return "EVENT_TYPE_UNKNOWN:" + type;
         }
@@ -109,6 +128,12 @@ public class VolumeControlStackEvent {
             case EVENT_TYPE_EXT_AUDIO_OUT_LOCATION_CHANGED:
             case EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED:
                 return "{ext output id:" + value + "}";
+            case EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED:
+            case EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED:
+            case EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED:
+            case EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED:
+            case EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED:
+                return "{ext input id:" + value + "}";
             default:
                 break;
         }
@@ -132,6 +157,36 @@ public class VolumeControlStackEvent {
                 }
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
                 return "{volume:" + value + "}";
+            case EVENT_TYPE_DEVICE_AVAILABLE:
+                return "{num_ext_inputs:" + value + "}";
+            case EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED:
+                return "{ext gain val:" + value + "}";
+            case EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED:
+                return "{status:" + value + "}";
+            case EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED:
+                return "{type:" + value + "}";
+            default:
+                break;
+        }
+        return Integer.toString(value);
+    }
+
+    private static String eventTypeValue3ToString(int type, int value) {
+        switch (type) {
+            case EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED:
+                return "{ext gain mode:" + value + "}";
+            case EVENT_TYPE_VOLUME_STATE_CHANGED:
+                return "{flags:" + value + "}";
+            default:
+                break;
+        }
+        return Integer.toString(value);
+    }
+
+    private static String eventTypeValue4ToString(int type, int value) {
+        switch (type) {
+            case EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED:
+                return "{gain set max:" + value + "}";
             default:
                 break;
         }
@@ -141,6 +196,7 @@ public class VolumeControlStackEvent {
     private static String eventTypeValueBool1ToString(int type, boolean value) {
         switch (type) {
             case EVENT_TYPE_VOLUME_STATE_CHANGED:
+            case EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED:
                 return "{muted:" + value + "}";
             default:
                 break;
@@ -161,7 +217,8 @@ public class VolumeControlStackEvent {
     private static String eventTypeString1ToString(int type, String value) {
         switch (type) {
             case EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED:
-                return "{descrition:" + value + "}";
+            case EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED:
+                return "{description:" + value + "}";
             default:
                 break;
         }

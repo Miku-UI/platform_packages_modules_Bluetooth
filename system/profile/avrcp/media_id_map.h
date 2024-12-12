@@ -25,7 +25,7 @@ namespace avrcp {
 // received from the AVRCP Media Interface layer into UID's to be used
 // with connected devices.
 class MediaIdMap {
- public:
+public:
   void clear() {
     media_id_to_uid_.clear();
     uid_to_media_id_.clear();
@@ -33,13 +33,17 @@ class MediaIdMap {
 
   std::string get_media_id(uint64_t uid) {
     const auto& uid_it = uid_to_media_id_.find(uid);
-    if (uid_it == uid_to_media_id_.end()) return "";
+    if (uid_it == uid_to_media_id_.end()) {
+      return "";
+    }
     return uid_it->second;
   }
 
   uint64_t get_uid(std::string media_id) {
     const auto& media_id_it = media_id_to_uid_.find(media_id);
-    if (media_id_it == media_id_to_uid_.end()) return 0;
+    if (media_id_it == media_id_to_uid_.end()) {
+      return 0;
+    }
     return media_id_it->second;
   }
 
@@ -54,7 +58,7 @@ class MediaIdMap {
     return uid;
   }
 
- private:
+private:
   std::map<std::string, uint64_t> media_id_to_uid_;
   std::map<uint64_t, std::string> uid_to_media_id_;
 };

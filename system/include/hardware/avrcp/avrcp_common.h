@@ -18,8 +18,6 @@
 
 #include <set>
 
-#include <base/sys_byteorder.h>
-
 namespace bluetooth {
 namespace avrcp {
 
@@ -168,7 +166,7 @@ enum class PlayerShuffleValue : uint8_t {
 };
 
 class AttributeEntry {
- public:
+public:
   AttributeEntry(const Attribute& attribute, const std::string& value)
       : attribute_(attribute), value_(value) {}
 
@@ -199,11 +197,9 @@ class AttributeEntry {
 
   bool empty() { return value_.empty(); }
 
-  bool operator<(const AttributeEntry& rhs) const {
-    return attribute_ < rhs.attribute_;
-  }
+  bool operator<(const AttributeEntry& rhs) const { return attribute_ < rhs.attribute_; }
 
- private:
+private:
   Attribute attribute_;
   std::string value_;
 };
@@ -247,12 +243,8 @@ struct FolderItem {
   bool is_playable_;
   std::string name_;
 
-  FolderItem(uint64_t uid, uint8_t folder_type, bool is_playable,
-             const std::string& name)
-      : uid_(uid),
-        folder_type_(folder_type),
-        is_playable_(is_playable),
-        name_(name) {
+  FolderItem(uint64_t uid, uint8_t folder_type, bool is_playable, const std::string& name)
+      : uid_(uid), folder_type_(folder_type), is_playable_(is_playable), name_(name) {
     if (name_.size() > MAX_FIELD_LEN) {
       name_.resize(MAX_FIELD_LEN);
     }
@@ -283,8 +275,7 @@ struct MediaElementItem {
 
   // Truncate the name and attribute fields so that we don't have a single item
   // that can exceed the Browsing MTU
-  MediaElementItem(uint64_t uid, const std::string& name,
-                   std::set<AttributeEntry> attributes)
+  MediaElementItem(uint64_t uid, const std::string& name, std::set<AttributeEntry> attributes)
       : uid_(uid), name_(name) {
     if (name_.size() > MAX_FIELD_LEN) {
       name_.resize(MAX_FIELD_LEN);

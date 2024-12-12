@@ -34,26 +34,19 @@ using ::android::hardware::bluetooth::audio::V2_0::SampleRate;
 
 extern const CodecConfiguration kInvalidCodecConfiguration;
 
-SampleRate A2dpCodecToHalSampleRate(
-    const btav_a2dp_codec_config_t& a2dp_codec_config);
-BitsPerSample A2dpCodecToHalBitsPerSample(
-    const btav_a2dp_codec_config_t& a2dp_codec_config);
-ChannelMode A2dpCodecToHalChannelMode(
-    const btav_a2dp_codec_config_t& a2dp_codec_config);
+SampleRate A2dpCodecToHalSampleRate(const btav_a2dp_codec_config_t& a2dp_codec_config);
+BitsPerSample A2dpCodecToHalBitsPerSample(const btav_a2dp_codec_config_t& a2dp_codec_config);
+ChannelMode A2dpCodecToHalChannelMode(const btav_a2dp_codec_config_t& a2dp_codec_config);
 
-bool A2dpSbcToHalConfig(CodecConfiguration* codec_config,
-                        A2dpCodecConfig* a2dp_config);
-bool A2dpAacToHalConfig(CodecConfiguration* codec_config,
-                        A2dpCodecConfig* a2dp_config);
-bool A2dpAptxToHalConfig(CodecConfiguration* codec_config,
-                         A2dpCodecConfig* a2dp_config);
-bool A2dpLdacToHalConfig(CodecConfiguration* codec_config,
-                         A2dpCodecConfig* a2dp_config);
+bool A2dpSbcToHalConfig(CodecConfiguration* codec_config, A2dpCodecConfig* a2dp_config);
+bool A2dpAacToHalConfig(CodecConfiguration* codec_config, A2dpCodecConfig* a2dp_config);
+bool A2dpAptxToHalConfig(CodecConfiguration* codec_config, A2dpCodecConfig* a2dp_config);
+bool A2dpLdacToHalConfig(CodecConfiguration* codec_config, A2dpCodecConfig* a2dp_config);
 
 bool UpdateOffloadingCapabilities(
-    const std::vector<btav_a2dp_codec_config_t>& framework_preference);
+        const std::vector<btav_a2dp_codec_config_t>& framework_preference);
 // Check whether this codec is supported by the audio HAL and is allowed to use
-// by prefernece of framework / Bluetooth SoC / runtime property.
+// by preference of framework / Bluetooth SoC / runtime property.
 bool IsCodecOffloadingEnabled(const CodecConfiguration& codec_config);
 
 }  // namespace codec

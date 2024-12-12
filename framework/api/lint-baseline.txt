@@ -29,9 +29,3 @@ BroadcastBehavior: android.bluetooth.BluetoothDevice#ACTION_PAIRING_REQUEST:
     Field 'ACTION_PAIRING_REQUEST' is missing @BroadcastBehavior
 BroadcastBehavior: android.bluetooth.BluetoothDevice#ACTION_UUID:
     Field 'ACTION_UUID' is missing @BroadcastBehavior
-
-
-RequiresPermission: android.bluetooth.BluetoothAdapter#getAddress():
-    Method 'getAddress' documentation mentions permissions without declaring @RequiresPermission
-RequiresPermission: android.bluetooth.BluetoothDevice#setAlias(String):
-    Method 'setAlias' documentation mentions permissions already declared by @RequiresPermission

@@ -27,18 +27,15 @@
 
 enum reg64_reg { reg64_H = 1, reg64_L = 0 };
 
-void processSubband_HD(const int32_t qCode, const int32_t ditherVal,
-                       Subband_data* SubbandDataPt, IQuantiser_data* iqDataPt);
-void processSubband_HDLL(const int32_t qCode, const int32_t ditherVal,
-                         Subband_data* SubbandDataPt,
+void processSubband_HD(const int32_t qCode, const int32_t ditherVal, Subband_data* SubbandDataPt,
+                       IQuantiser_data* iqDataPt);
+void processSubband_HDLL(const int32_t qCode, const int32_t ditherVal, Subband_data* SubbandDataPt,
                          IQuantiser_data* iqDataPt);
-void processSubband_HDHL(const int32_t qCode, const int32_t ditherVal,
-                         Subband_data* SubbandDataPt,
+void processSubband_HDHL(const int32_t qCode, const int32_t ditherVal, Subband_data* SubbandDataPt,
                          IQuantiser_data* iqDataPt);
 
 /* Function to carry out inverse quantisation for a subband */
-XBT_INLINE_ void invertQuantisation(const int32_t qCode,
-                                    const int32_t ditherVal,
+XBT_INLINE_ void invertQuantisation(const int32_t qCode, const int32_t ditherVal,
                                     IQuantiser_data* iqdata_pt) {
   int32_t invQ;
   int32_t index;
@@ -135,8 +132,7 @@ XBT_INLINE_ void invertQuantisation(const int32_t qCode,
   iqdata_pt->invQ = invQ;
 }
 
-XBT_INLINE_ void invertQuantisationHL(const int32_t qCode,
-                                      const int32_t ditherVal,
+XBT_INLINE_ void invertQuantisationHL(const int32_t qCode, const int32_t ditherVal,
                                       IQuantiser_data* iqdata_pt) {
   int32_t invQ;
   int32_t index;
@@ -235,8 +231,7 @@ XBT_INLINE_ void invertQuantisationHL(const int32_t qCode,
 
 /* Function to carry out prediction ARMA filtering for the current subband
  * performPredictionFiltering should only be used for HH and LH subband! */
-XBT_INLINE_ void performPredictionFiltering(const int32_t invQ,
-                                            Subband_data* SubbandDataPt) {
+XBT_INLINE_ void performPredictionFiltering(const int32_t invQ, Subband_data* SubbandDataPt) {
   int32_t poleVal;
   int32_t acc;
   int64_t accL;
@@ -263,8 +258,7 @@ XBT_INLINE_ void performPredictionFiltering(const int32_t invQ,
   /* Pole filter convolution. Shift convolution result 1 place to the left
    * before retrieving it, since the pole coefficients are Q22 (data is Q23)
    * and we want a Q23 result */
-  accL = ((int64_t)poleCoeff[a2] *
-          (int64_t)SubbandDataPt->m_predData.m_poleDelayLine[a2]);
+  accL = ((int64_t)poleCoeff[a2] * (int64_t)SubbandDataPt->m_predData.m_poleDelayLine[a2]);
   /* Update the pole delay line for the next pass by writing the new input
    * sample into the 2nd element */
   SubbandDataPt->m_predData.m_poleDelayLine[a2] = poleDelayLine;
@@ -333,15 +327,14 @@ XBT_INLINE_ void performPredictionFiltering(const int32_t invQ,
   /* Update the zero filter delay line by writing the new input sample to the
    * circular buffer. */
   SubbandDataPt->m_predData.m_zeroDelayLine
-      .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer] =
-      SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
+          .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer] =
+          SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
   SubbandDataPt->m_predData.m_zeroDelayLine
-      .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer + 12] =
-      SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
+          .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer + 12] =
+          SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
 }
 
-XBT_INLINE_ void performPredictionFilteringLL(const int32_t invQ,
-                                              Subband_data* SubbandDataPt) {
+XBT_INLINE_ void performPredictionFilteringLL(const int32_t invQ, Subband_data* SubbandDataPt) {
   int32_t poleVal;
   int32_t acc;
   int64_t accL;
@@ -368,8 +361,7 @@ XBT_INLINE_ void performPredictionFilteringLL(const int32_t invQ,
   /* Pole filter convolution. Shift convolution result 1 place to the left
    * before retrieving it, since the pole coefficients are Q22 (data is Q23)
    * and we want a Q23 result */
-  accL = ((int64_t)poleCoeff[a2] *
-          (int64_t)SubbandDataPt->m_predData.m_poleDelayLine[a2]);
+  accL = ((int64_t)poleCoeff[a2] * (int64_t)SubbandDataPt->m_predData.m_poleDelayLine[a2]);
   /* Update the pole delay line for the next pass by writing the new input
    * sample into the 2nd element */
   SubbandDataPt->m_predData.m_poleDelayLine[a2] = poleDelayLine;
@@ -438,15 +430,14 @@ XBT_INLINE_ void performPredictionFilteringLL(const int32_t invQ,
   /* Update the zero filter delay line by writing the new input sample to the
    * circular buffer. */
   SubbandDataPt->m_predData.m_zeroDelayLine
-      .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer] =
-      SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
+          .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer] =
+          SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
   SubbandDataPt->m_predData.m_zeroDelayLine
-      .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer + 24] =
-      SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
+          .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer + 24] =
+          SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
 }
 
-XBT_INLINE_ void performPredictionFilteringHL(const int32_t invQ,
-                                              Subband_data* SubbandDataPt) {
+XBT_INLINE_ void performPredictionFilteringHL(const int32_t invQ, Subband_data* SubbandDataPt) {
   int32_t poleVal;
   int32_t acc;
   int64_t accL;
@@ -474,8 +465,7 @@ XBT_INLINE_ void performPredictionFilteringHL(const int32_t invQ,
   /* Pole filter convolution. Shift convolution result 1 place to the left
    * before retrieving it, since the pole coefficients are Q22 (data is Q23)
    * and we want a Q23 result */
-  accL = ((int64_t)poleCoeff[a2] *
-          (int64_t)SubbandDataPt->m_predData.m_poleDelayLine[a2]);
+  accL = ((int64_t)poleCoeff[a2] * (int64_t)SubbandDataPt->m_predData.m_poleDelayLine[a2]);
   /* Update the pole delay line for the next pass by writing the new input
    * sample into the 2nd element */
   SubbandDataPt->m_predData.m_poleDelayLine[a2] = poleDelayLine;
@@ -544,11 +534,11 @@ XBT_INLINE_ void performPredictionFilteringHL(const int32_t invQ,
   /* Update the zero filter delay line by writing the new input sample to the
    * circular buffer. */
   SubbandDataPt->m_predData.m_zeroDelayLine
-      .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer] =
-      SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
+          .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer] =
+          SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
   SubbandDataPt->m_predData.m_zeroDelayLine
-      .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer + 6] =
-      SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
+          .buffer[SubbandDataPt->m_predData.m_zeroDelayLine.pointer + 6] =
+          SubbandDataPt->m_predData.m_zeroDelayLine.modulo;
 }
 
 #endif  // SUBBANDFUNCTIONSCOMMON_H

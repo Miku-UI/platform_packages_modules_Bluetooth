@@ -9,10 +9,20 @@ flag {
 }
 
 flag {
-    name: "rfcomm_bypass_post_to_main"
+    name: "rfcomm_prevent_unnecessary_collisions"
     namespace: "bluetooth"
-    description: "Remove unnecessary posts to main thread to prevent race condition b/321318665"
-    bug: "344994073"
+    description: "Restrict collision handling to exclude unrelated connections"
+    bug: "349892756"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "rfcomm_always_disc_initiator_in_disc_wait_ua"
+    namespace: "bluetooth"
+    description: "Always be the DISC initiator in the DISC_WAIT_UA state to avoid unnecessary hang"
+    bug: "350839022"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -30,8 +30,7 @@ namespace bluetooth {
 namespace common {
 
 bool AddressObfuscator::IsSaltValid(const Octet32& salt_256bit) {
-  return !std::all_of(salt_256bit.begin(), salt_256bit.end(),
-                      [](uint8_t i) { return i == 0; });
+  return !std::all_of(salt_256bit.begin(), salt_256bit.end(), [](uint8_t i) { return i == 0; });
 }
 
 void AddressObfuscator::Initialize(const Octet32& salt_256bit) {
@@ -49,15 +48,13 @@ std::string AddressObfuscator::Obfuscate(const RawAddress& address) {
   log::assert_that(IsInitialized(), "assert failed: IsInitialized()");
   std::array<uint8_t, EVP_MAX_MD_SIZE> result = {};
   unsigned int out_len = 0;
-  log::assert_that(::HMAC(EVP_sha256(), salt_256bit_.data(),
-                          salt_256bit_.size(), address.address, address.kLength,
-                          result.data(), &out_len) != nullptr,
+  log::assert_that(::HMAC(EVP_sha256(), salt_256bit_.data(), salt_256bit_.size(), address.address,
+                          address.kLength, result.data(), &out_len) != nullptr,
                    "assert failed: ::HMAC(EVP_sha256(), salt_256bit_.data(), "
                    "salt_256bit_.size(), address.address, address.kLength, "
                    "result.data(), &out_len) != nullptr");
-  log::assert_that(
-      out_len == static_cast<unsigned int>(kOctet32Length),
-      "assert failed: out_len == static_cast<unsigned int>(kOctet32Length)");
+  log::assert_that(out_len == static_cast<unsigned int>(kOctet32Length),
+                   "assert failed: out_len == static_cast<unsigned int>(kOctet32Length)");
   return std::string(reinterpret_cast<const char*>(result.data()), out_len);
 }
 

@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"I-clear mula sa listahan"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"I-clear"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Nagpi-play Ngayon"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"I-save"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Kanselahin"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Piliin ang mga account na gusto mong ibahagi sa pamamagitan ng Bluetooth. Kailangan mo pa ring tanggapin ang anumang pag-access sa mga account kapag kumokonekta."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Mga slot na natitira:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Icon ng Application"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Mga Setting ng Pagbabahagi ng Mensahe sa Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Hindi mapili ang account. 0 slot ang natitira"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Nakakonekta ang Bluetooth audio"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Nadiskonekta ang Bluetooth audio"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth Audio"</string>

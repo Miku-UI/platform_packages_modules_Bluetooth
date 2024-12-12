@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include <gtest/gtest.h>
-#include <unordered_map>
-
 #include "utils.h"
+
+#include <gtest/gtest.h>
+
+#include <unordered_map>
 
 namespace {
 
@@ -25,7 +26,7 @@ using ::android::bluetooth::audio::utils::FrameCount;
 using ::android::bluetooth::audio::utils::ParseAudioParams;
 
 class UtilsTest : public testing::Test {
- protected:
+protected:
   void SetUp() override {}
   void TearDown() override { map_.clear(); }
 

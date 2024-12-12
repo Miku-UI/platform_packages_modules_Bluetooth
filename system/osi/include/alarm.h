@@ -70,14 +70,12 @@ void alarm_free(alarm_t* alarm);
 // thread is not same as the caller’s thread. If two (or more)
 // alarms are set back-to-back with the same |interval_ms|, the
 // callbacks will be called in the order the alarms are set.
-void alarm_set(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb,
-               void* data);
+void alarm_set(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data);
 
 // Sets an |alarm| to execute a callback in the main message loop. This function
 // is same as |alarm_set| except that the |cb| callback is scheduled for
 // execution in the context of the main message loop.
-void alarm_set_on_mloop(alarm_t* alarm, uint64_t interval_ms,
-                        alarm_callback_t cb, void* data);
+void alarm_set_on_mloop(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data);
 
 // This function cancels the |alarm| if it was previously set.
 // When this call returns, the caller has a guarantee that the

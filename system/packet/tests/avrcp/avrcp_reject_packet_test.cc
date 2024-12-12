@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include "avrcp_reject_packet.h"
+
 #include <gtest/gtest.h>
 
-#include "avrcp_reject_packet.h"
 #include "avrcp_test_packets.h"
 #include "packet_test_helper.h"
 
@@ -26,9 +27,8 @@ namespace avrcp {
 using TestAvrcpPacket = TestPacketType<Packet>;
 
 TEST(RejectPacketBuilderTest, buildPacketTest) {
-  auto builder = RejectBuilder::MakeBuilder(
-      CommandPdu::LIST_PLAYER_APPLICATION_SETTING_ATTRIBUTES,
-      Status::INVALID_COMMAND);
+  auto builder = RejectBuilder::MakeBuilder(CommandPdu::LIST_PLAYER_APPLICATION_SETTING_ATTRIBUTES,
+                                            Status::INVALID_COMMAND);
 
   ASSERT_EQ(builder->size(), reject_player_app_settings_response.size());
 

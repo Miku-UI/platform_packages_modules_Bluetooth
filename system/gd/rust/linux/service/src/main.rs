@@ -2,15 +2,15 @@ use clap::{App, AppSettings, Arg};
 use dbus_projection::DisconnectWatcher;
 use dbus_tokio::connection;
 use futures::future;
-use lazy_static::lazy_static;
 use nix::sys::signal;
 use std::error::Error;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
+use tokio::runtime::Builder;
 use tokio::sync::mpsc::Sender;
 
 // Necessary to link right entries.
-#[allow(unused_imports)]
+#[allow(clippy::single_component_path_imports, unused_imports)]
 use bt_shim;
 
 use bt_topshim::{btif::get_btinterface, topstack};
@@ -48,7 +48,11 @@ const ADMIN_SETTINGS_FILE_PATH: &str = "/var/lib/bluetooth/admin_policy.json";
 // and BTA_DM_DISABLE_TIMER_RETRIAL_MS
 const STACK_TURN_OFF_TIMEOUT_MS: Duration = Duration::from_millis(4000);
 // Time bt_stack_manager waits for cleanup
-const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(1000);
+const STACK_CLEANUP_TIMEOUT_MS: Duration = Duration::from_millis(11000);
+// Time bt_stack_manager waits for cleanup profiles
+const STACK_CLEANUP_PROFILES_TIMEOUT_MS: Duration = Duration::from_millis(100);
+// Extra time to wait before terminating the process
+const EXTRA_WAIT_BEFORE_KILL_MS: Duration = Duration::from_millis(1000);
 
 const INIT_LOGGING_MAX_RETRY: u8 = 3;
 
@@ -97,13 +101,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let hci_index = matches.value_of("hci").map_or(0, |idx| idx.parse::<i32>().unwrap_or(0));
 
     // The remaining flags are passed down to Fluoride as is.
-    let mut init_flags: Vec<String> = match matches.values_of("init-flags") {
-        Some(args) => args.map(|s| String::from(s)).collect(),
+    let init_flags: Vec<String> = match matches.values_of("init-flags") {
+        Some(args) => args.map(String::from).collect(),
         None => vec![],
     };
-
-    // Forward --hci to Fluoride.
-    init_flags.push(format!("--hci={}", hci_index));
 
     let logging = Arc::new(Mutex::new(Box::new(BluetoothLogging::new(
         is_debug,
@@ -119,9 +120,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Always treat discovery as classic only
-    init_flags.push(String::from("INIT_classic_discovery_only=true"));
-
     let (tx, rx) = Stack::create_channel();
     let (api_tx, api_rx) = interface_manager::InterfaceManager::create_channel();
     let sig_notifier = Arc::new(SigData {
@@ -131,56 +129,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         thread_notify: Condvar::new(),
     });
 
-    let intf = Arc::new(Mutex::new(get_btinterface().unwrap()));
-    let bluetooth_gatt =
-        Arc::new(Mutex::new(Box::new(BluetoothGatt::new(intf.clone(), tx.clone()))));
-    let battery_provider_manager =
-        Arc::new(Mutex::new(Box::new(BatteryProviderManager::new(tx.clone()))));
-    let battery_service = Arc::new(Mutex::new(Box::new(BatteryService::new(
-        bluetooth_gatt.clone(),
-        battery_provider_manager.clone(),
-        tx.clone(),
-        api_tx.clone(),
-    ))));
-    let battery_manager = Arc::new(Mutex::new(Box::new(BatteryManager::new(
-        battery_provider_manager.clone(),
-        tx.clone(),
-    ))));
-    let bluetooth_media = Arc::new(Mutex::new(Box::new(BluetoothMedia::new(
-        tx.clone(),
-        intf.clone(),
-        battery_provider_manager.clone(),
-    ))));
-    let bluetooth_admin = Arc::new(Mutex::new(Box::new(BluetoothAdmin::new(
-        String::from(ADMIN_SETTINGS_FILE_PATH),
-        tx.clone(),
-    ))));
-    let bluetooth = Arc::new(Mutex::new(Box::new(Bluetooth::new(
-        virt_index,
-        hci_index,
-        tx.clone(),
-        api_tx.clone(),
-        sig_notifier.clone(),
-        intf.clone(),
-        bluetooth_admin.clone(),
-        bluetooth_gatt.clone(),
-        bluetooth_media.clone(),
-    ))));
-    let suspend = Arc::new(Mutex::new(Box::new(Suspend::new(
-        bluetooth.clone(),
-        intf.clone(),
-        bluetooth_gatt.clone(),
-        bluetooth_media.clone(),
-        tx.clone(),
-    ))));
-    let bt_sock_mgr = Arc::new(Mutex::new(Box::new(BluetoothSocketManager::new(
-        tx.clone(),
-        bluetooth_admin.clone(),
-    ))));
-    let bluetooth_qa = Arc::new(Mutex::new(Box::new(BluetoothQA::new(tx.clone()))));
-
-    let dis =
-        Arc::new(Mutex::new(Box::new(DeviceInformation::new(bluetooth_gatt.clone(), tx.clone()))));
+    // This needs to be built before any |topstack::get_runtime()| call!
+    let bt_sock_mgr_runtime = Arc::new(
+        Builder::new_multi_thread()
+            .worker_threads(1)
+            .max_blocking_threads(1)
+            .enable_all()
+            .build()
+            .expect("Failed to make socket runtime."),
+    );
 
     topstack::get_runtime().block_on(async {
         // Connect to D-Bus system bus.
@@ -195,6 +152,81 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Request a service name and quit if not able to.
         conn.request_name(DBUS_SERVICE_NAME, false, true, false).await?;
+
+        // Install SIGTERM handler so that we can properly shutdown
+        *SIG_DATA.lock().unwrap() = Some((tx.clone(), sig_notifier.clone()));
+        let sig_action_term = signal::SigAction::new(
+            signal::SigHandler::Handler(handle_sigterm),
+            signal::SaFlags::empty(),
+            signal::SigSet::empty(),
+        );
+        unsafe {
+            signal::sigaction(signal::SIGTERM, &sig_action_term).unwrap();
+        }
+
+        // Construct btstack profiles.
+        let intf = Arc::new(Mutex::new(get_btinterface()));
+        let bluetooth = Arc::new(Mutex::new(Box::new(Bluetooth::new(
+            virt_index,
+            hci_index,
+            tx.clone(),
+            api_tx.clone(),
+            sig_notifier.clone(),
+            intf.clone(),
+        ))));
+        let bluetooth_qa = Arc::new(Mutex::new(Box::new(BluetoothQA::new(tx.clone()))));
+        let battery_provider_manager =
+            Arc::new(Mutex::new(Box::new(BatteryProviderManager::new(tx.clone()))));
+
+        bluetooth.lock().unwrap().init(init_flags, hci_index);
+        bluetooth.lock().unwrap().enable();
+
+        // These constructions require |intf| to be already init-ed.
+        let bt_sock_mgr = Arc::new(Mutex::new(Box::new(BluetoothSocketManager::new(
+            tx.clone(),
+            bt_sock_mgr_runtime,
+            intf.clone(),
+            bluetooth.clone(),
+        ))));
+        let bluetooth_media = Arc::new(Mutex::new(Box::new(BluetoothMedia::new(
+            tx.clone(),
+            api_tx.clone(),
+            intf.clone(),
+            bluetooth.clone(),
+            battery_provider_manager.clone(),
+        ))));
+        let bluetooth_gatt =
+            Arc::new(Mutex::new(Box::new(BluetoothGatt::new(intf.clone(), tx.clone()))));
+
+        // These constructions don't need |intf| to be init-ed, but just depend on those who need.
+        let bluetooth_admin = Arc::new(Mutex::new(Box::new(BluetoothAdmin::new(
+            String::from(ADMIN_SETTINGS_FILE_PATH),
+            tx.clone(),
+            bluetooth.clone(),
+            bluetooth_media.clone(),
+            bt_sock_mgr.clone(),
+        ))));
+        let suspend = Arc::new(Mutex::new(Box::new(Suspend::new(
+            bluetooth.clone(),
+            intf.clone(),
+            bluetooth_gatt.clone(),
+            bluetooth_media.clone(),
+            tx.clone(),
+        ))));
+        let battery_service = Arc::new(Mutex::new(Box::new(BatteryService::new(
+            bluetooth_gatt.clone(),
+            battery_provider_manager.clone(),
+            tx.clone(),
+            api_tx.clone(),
+        ))));
+        let battery_manager = Arc::new(Mutex::new(Box::new(BatteryManager::new(
+            battery_provider_manager.clone(),
+            tx.clone(),
+        ))));
+        let dis = Arc::new(Mutex::new(Box::new(DeviceInformation::new(
+            bluetooth_gatt.clone(),
+            tx.clone(),
+        ))));
 
         // Run the stack main dispatch loop.
         topstack::get_runtime().spawn(Stack::dispatch(
@@ -215,8 +247,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         ));
 
         // Set up the disconnect watcher to monitor client disconnects.
-        let disconnect_watcher = Arc::new(Mutex::new(DisconnectWatcher::new()));
-        disconnect_watcher.lock().unwrap().setup_watch(conn.clone()).await;
+        let mut disconnect_watcher = DisconnectWatcher::new();
+        disconnect_watcher.setup_watch(conn.clone()).await;
+        let disconnect_watcher = Arc::new(Mutex::new(disconnect_watcher));
 
         tokio::spawn(interface_manager::InterfaceManager::dispatch(
             api_rx,
@@ -228,7 +261,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             bluetooth.clone(),
             bluetooth_admin.clone(),
             bluetooth_gatt.clone(),
-            battery_service.clone(),
             battery_manager.clone(),
             battery_provider_manager.clone(),
             bluetooth_media.clone(),
@@ -238,58 +270,21 @@ fn main() -> Result<(), Box<dyn Error>> {
             logging.clone(),
         ));
 
-        // Hold locks and initialize all interfaces. This must be done AFTER DBus is
-        // initialized so DBus can properly enforce user policies.
-        {
-            let adapter = bluetooth.clone();
-            bluetooth_media.lock().unwrap().set_adapter(adapter.clone());
-            bluetooth_admin.lock().unwrap().set_adapter(adapter.clone());
-
-            let mut bluetooth = bluetooth.lock().unwrap();
-            bluetooth.init(init_flags);
-            bluetooth.enable();
-
-            bluetooth_gatt.lock().unwrap().init_profiles(tx.clone(), api_tx.clone());
-            bt_sock_mgr.lock().unwrap().initialize(intf.clone());
-
-            // Install SIGTERM handler so that we can properly shutdown
-            *SIG_DATA.lock().unwrap() = Some((tx.clone(), sig_notifier.clone()));
-
-            let sig_action_term = signal::SigAction::new(
-                signal::SigHandler::Handler(handle_sigterm),
-                signal::SaFlags::empty(),
-                signal::SigSet::empty(),
-            );
-
-            let sig_action_int = signal::SigAction::new(
-                signal::SigHandler::Handler(handle_sigint),
-                signal::SaFlags::empty(),
-                signal::SigSet::empty(),
-            );
-
-            unsafe {
-                signal::sigaction(signal::SIGTERM, &sig_action_term).unwrap();
-                signal::sigaction(signal::SIGINT, &sig_action_int).unwrap();
-            }
-        }
-
         // Serve clients forever.
         future::pending::<()>().await;
         unreachable!()
     })
 }
 
-lazy_static! {
-    /// Data needed for signal handling.
-    static ref SIG_DATA: Mutex<Option<(Sender<Message>, Arc<SigData>)>> = Mutex::new(None);
-}
+/// Data needed for signal handling.
+static SIG_DATA: Mutex<Option<(Sender<Message>, Arc<SigData>)>> = Mutex::new(None);
 
 extern "C" fn handle_sigterm(_signum: i32) {
     let guard = SIG_DATA.lock().unwrap();
     if let Some((tx, notifier)) = guard.as_ref() {
         log::debug!("Handling SIGTERM by disabling the adapter!");
         let txl = tx.clone();
-        tokio::spawn(async move {
+        topstack::get_runtime().spawn(async move {
             // Send the shutdown message here.
             let _ = txl.send(Message::InterfaceShutdown).await;
         });
@@ -302,8 +297,13 @@ extern "C" fn handle_sigterm(_signum: i32) {
 
         log::debug!("SIGTERM cleaning up the stack.");
         let txl = tx.clone();
-        tokio::spawn(async move {
-            // Send the cleanup message here.
+        topstack::get_runtime().spawn(async move {
+            // Clean up the profiles first as some of them might require main thread to clean up.
+            let _ = txl.send(Message::CleanupProfiles).await;
+            // Currently there is no good way to know when the profile is cleaned.
+            // Simply add a small delay here.
+            tokio::time::sleep(STACK_CLEANUP_PROFILES_TIMEOUT_MS).await;
+            // Send the cleanup message to clean up the main thread.
             let _ = txl.send(Message::Cleanup).await;
         });
 
@@ -312,15 +312,12 @@ extern "C" fn handle_sigterm(_signum: i32) {
             log::debug!("Waiting for stack to clean up for {:?}", STACK_CLEANUP_TIMEOUT_MS);
             let _ = notifier.thread_notify.wait_timeout(guard, STACK_CLEANUP_TIMEOUT_MS);
         }
+
+        // Extra delay to give the rest of the cleanup processes some time to finish after
+        // finishing btif cleanup.
+        std::thread::sleep(EXTRA_WAIT_BEFORE_KILL_MS);
     }
 
     log::debug!("Sigterm completed");
-    std::process::exit(0);
-}
-
-extern "C" fn handle_sigint(_signum: i32) {
-    // Assumed this is from HAL Host, which is likely caused by chipset error.
-    // In this case, don't crash the daemon and don't try to power off the adapter.
-    log::debug!("Sigint completed");
     std::process::exit(0);
 }

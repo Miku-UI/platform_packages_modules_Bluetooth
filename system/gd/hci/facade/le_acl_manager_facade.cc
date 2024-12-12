@@ -53,7 +53,7 @@ using acl_manager::LeConnectionManagementCallbacks;
 using namespace blueberry::facade::hci;
 
 class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeConnectionCallbacks {
- public:
+public:
   LeAclManagerFacadeService(AclManager* acl_manager, ::bluetooth::os::Handler* facade_handler)
       : acl_manager_(acl_manager), facade_handler_(facade_handler) {
     acl_manager_->RegisterLeCallbacks(this, facade_handler_);
@@ -69,67 +69,61 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
     }
   }
 
-  ::grpc::Status CreateConnection(
-      ::grpc::ServerContext* context,
-      const CreateConnectionMsg* request,
-      ::grpc::ServerWriter<LeConnectionEvent>* writer) override {
-    log::info(
-        "peer={}, type={}, id_direct={}",
-        request->peer_address().address().address(),
-        request->peer_address().type(),
-        request->is_direct());
+  ::grpc::Status CreateConnection(::grpc::ServerContext* context,
+                                  const CreateConnectionMsg* request,
+                                  ::grpc::ServerWriter<LeConnectionEvent>* writer) override {
+    log::info("peer={}, type={}, id_direct={}", request->peer_address().address().address(),
+              request->peer_address().type(), request->is_direct());
     Address peer_address;
     log::assert_that(
-        Address::FromString(request->peer_address().address().address(), peer_address),
-        "assert failed: Address::FromString(request->peer_address().address().address(), "
-        "peer_address)");
+            Address::FromString(request->peer_address().address().address(), peer_address),
+            "assert failed: Address::FromString(request->peer_address().address().address(), "
+            "peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer_address().type()));
     bool is_direct = request->is_direct();
     acl_manager_->CreateLeConnection(peer, is_direct);
 
     if (is_direct) {
       if (direct_connection_events_ != nullptr) {
-        return ::grpc::Status(
-            ::grpc::StatusCode::RESOURCE_EXHAUSTED, "Only one outstanding direct request is supported");
+        return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED,
+                              "Only one outstanding direct request is supported");
       }
-      direct_connection_events_ = std::make_shared<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>(
-          std::string("direct connection attempt ") + peer.ToString());
+      direct_connection_events_ =
+              std::make_shared<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>(
+                      std::string("direct connection attempt ") + peer.ToString());
       direct_connection_address_ = peer;
       return direct_connection_events_->RunLoop(context, writer);
     }
     per_connection_events_.emplace(
-        peer,
-        std::make_unique<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>(
-            std::string("connection attempt ") + peer.ToString()));
+            peer, std::make_unique<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>(
+                          std::string("connection attempt ") + peer.ToString()));
     return per_connection_events_[peer]->RunLoop(context, writer);
   }
 
-  ::grpc::Status CancelConnection(
-      ::grpc::ServerContext* /* context */,
-      const ::blueberry::facade::BluetoothAddressWithType* request,
-      google::protobuf::Empty* /* response */) override {
+  ::grpc::Status CancelConnection(::grpc::ServerContext* /* context */,
+                                  const ::blueberry::facade::BluetoothAddressWithType* request,
+                                  google::protobuf::Empty* /* response */) override {
     log::info("peer={}, type={}", request->address().address(), request->type());
     Address peer_address;
     log::assert_that(
-        Address::FromString(request->address().address(), peer_address),
-        "assert failed: Address::FromString(request->address().address(), peer_address)");
+            Address::FromString(request->address().address(), peer_address),
+            "assert failed: Address::FromString(request->address().address(), peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->type()));
     if (peer == direct_connection_address_) {
       direct_connection_address_ = AddressWithType();
       direct_connection_events_.reset();
     } else {
       if (per_connection_events_.count(peer) == 0) {
-        return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "No matching outstanding connection");
+        return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT,
+                              "No matching outstanding connection");
       }
     }
     acl_manager_->CancelLeConnect(peer);
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status Disconnect(
-      ::grpc::ServerContext* /* context */,
-      const LeHandleMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status Disconnect(::grpc::ServerContext* /* context */, const LeHandleMsg* request,
+                            ::google::protobuf::Empty* /* response */) override {
     log::info("handle={}", request->handle());
     std::unique_lock<std::mutex> lock(acl_connections_mutex_);
     auto connection = acl_connections_.find(request->handle());
@@ -137,7 +131,8 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
       log::error("Invalid handle");
       return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid handle");
     } else {
-      connection->second.connection_->Disconnect(DisconnectReason::REMOTE_USER_TERMINATED_CONNECTION);
+      connection->second.connection_->Disconnect(
+              DisconnectReason::REMOTE_USER_TERMINATED_CONNECTION);
       return ::grpc::Status::OK;
     }
   }
@@ -155,14 +150,13 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
     }                                                                                \
   } while (0)
 
-  ::grpc::Status ConnectionCommand(
-      ::grpc::ServerContext* /* context */,
-      const LeConnectionCommandMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status ConnectionCommand(::grpc::ServerContext* /* context */,
+                                   const LeConnectionCommandMsg* request,
+                                   ::google::protobuf::Empty* /* response */) override {
     log::info("size={}", request->packet().size());
-    auto command_view =
-        ConnectionManagementCommandView::Create(AclCommandView::Create(CommandView::Create(PacketView<kLittleEndian>(
-            std::make_shared<std::vector<uint8_t>>(request->packet().begin(), request->packet().end())))));
+    auto command_view = ConnectionManagementCommandView::Create(AclCommandView::Create(
+            CommandView::Create(PacketView<kLittleEndian>(std::make_shared<std::vector<uint8_t>>(
+                    request->packet().begin(), request->packet().end())))));
     if (!command_view.IsValid()) {
       return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid command packet");
     }
@@ -180,29 +174,28 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
   }
 #undef GET_CONNECTION
 
-  ::grpc::Status FetchIncomingConnection(
-      ::grpc::ServerContext* context,
-      const google::protobuf::Empty* /* request */,
-      ::grpc::ServerWriter<LeConnectionEvent>* writer) override {
+  ::grpc::Status FetchIncomingConnection(::grpc::ServerContext* context,
+                                         const google::protobuf::Empty* /* request */,
+                                         ::grpc::ServerWriter<LeConnectionEvent>* writer) override {
     log::info("wait for one incoming connection");
     if (incoming_connection_events_ != nullptr) {
-      return ::grpc::Status(
-          ::grpc::StatusCode::RESOURCE_EXHAUSTED, "Only one outstanding incoming connection is supported");
+      return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "Only one outstanding incoming connection is supported");
     }
     incoming_connection_events_ =
-        std::make_unique<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>(std::string("incoming connection "));
+            std::make_unique<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>(
+                    std::string("incoming connection "));
     return incoming_connection_events_->RunLoop(context, writer);
   }
 
-  ::grpc::Status AddDeviceToResolvingList(
-      ::grpc::ServerContext* /* context */,
-      const IrkMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status AddDeviceToResolvingList(::grpc::ServerContext* /* context */,
+                                          const IrkMsg* request,
+                                          ::google::protobuf::Empty* /* response */) override {
     log::info("peer={}, type={}", request->peer().address().address(), request->peer().type());
     Address peer_address;
-    log::assert_that(
-        Address::FromString(request->peer().address().address(), peer_address),
-        "assert failed: Address::FromString(request->peer().address().address(), peer_address)");
+    log::assert_that(Address::FromString(request->peer().address().address(), peer_address),
+                     "assert failed: Address::FromString(request->peer().address().address(), "
+                     "peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer().type()));
 
     auto request_peer_irk_length = request->peer_irk().end() - request->peer_irk().begin();
@@ -229,10 +222,8 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status SendAclData(
-      ::grpc::ServerContext* /* context */,
-      const LeAclData* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status SendAclData(::grpc::ServerContext* /* context */, const LeAclData* request,
+                             ::google::protobuf::Empty* /* response */) override {
     log::info("handle={}, size={}", request->handle(), request->payload().size());
     std::promise<void> promise;
     auto future = promise.get_future();
@@ -243,12 +234,9 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
         return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid handle");
       }
       connection->second.connection_->GetAclQueueEnd()->RegisterEnqueue(
-          facade_handler_,
-          common::Bind(
-              &LeAclManagerFacadeService::enqueue_packet,
-              common::Unretained(this),
-              common::Unretained(request),
-              common::Passed(std::move(promise))));
+              facade_handler_,
+              common::Bind(&LeAclManagerFacadeService::enqueue_packet, common::Unretained(this),
+                           common::Unretained(request), common::Passed(std::move(promise))));
       auto status = future.wait_for(std::chrono::milliseconds(1000));
       if (status != std::future_status::ready) {
         return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED, "Can't send packet");
@@ -257,18 +245,19 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
     return ::grpc::Status::OK;
   }
 
-  std::unique_ptr<BasePacketBuilder> enqueue_packet(const LeAclData* request, std::promise<void> promise) {
+  std::unique_ptr<BasePacketBuilder> enqueue_packet(const LeAclData* request,
+                                                    std::promise<void> promise) {
     auto connection = acl_connections_.find(request->handle());
     log::assert_that(connection != acl_connections_.end(), "handle {}", request->handle());
     connection->second.connection_->GetAclQueueEnd()->UnregisterEnqueue();
-    std::unique_ptr<RawBuilder> packet =
-        std::make_unique<RawBuilder>(std::vector<uint8_t>(request->payload().begin(), request->payload().end()));
+    std::unique_ptr<RawBuilder> packet = std::make_unique<RawBuilder>(
+            std::vector<uint8_t>(request->payload().begin(), request->payload().end()));
     promise.set_value();
     return packet;
   }
 
-  ::grpc::Status FetchAclData(
-      ::grpc::ServerContext* context, const LeHandleMsg* request, ::grpc::ServerWriter<LeAclData>* writer) override {
+  ::grpc::Status FetchAclData(::grpc::ServerContext* context, const LeHandleMsg* request,
+                              ::grpc::ServerWriter<LeAclData>* writer) override {
     log::info("handle={}", request->handle());
     auto connection = acl_connections_.find(request->handle());
     if (connection == acl_connections_.end()) {
@@ -295,16 +284,16 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
     connection_tracker->second.pending_acl_data_.OnIncomingEvent(acl_data);
   }
 
-  void OnLeConnectSuccess(AddressWithType peer, std::unique_ptr<LeAclConnection> connection) override {
+  void OnLeConnectSuccess(AddressWithType peer,
+                          std::unique_ptr<LeAclConnection> connection) override {
     log::info("handle={}, addr={}", connection->GetHandle(), peer);
     std::unique_lock<std::mutex> lock(acl_connections_mutex_);
     std::shared_ptr<LeAclConnection> shared_connection = std::move(connection);
     uint16_t handle = shared_connection->GetHandle();
     auto role = shared_connection->GetRole();
     if (role == Role::PERIPHERAL) {
-      log::assert_that(
-          incoming_connection_events_ != nullptr,
-          "assert failed: incoming_connection_events_ != nullptr");
+      log::assert_that(incoming_connection_events_ != nullptr,
+                       "assert failed: incoming_connection_events_ != nullptr");
       if (per_connection_events_.find(peer) == per_connection_events_.end()) {
         per_connection_events_.emplace(peer, incoming_connection_events_);
       } else {
@@ -316,24 +305,22 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
       per_connection_events_.emplace(peer, direct_connection_events_);
       direct_connection_events_.reset();
     } else {
-      log::assert_that(
-          per_connection_events_.count(peer) > 0,
-          "No connection request for {}",
-          ADDRESS_TO_LOGGABLE_CSTR(peer));
+      log::assert_that(per_connection_events_.count(peer) > 0, "No connection request for {}",
+                       ADDRESS_TO_LOGGABLE_CSTR(peer));
     }
     acl_connections_.erase(handle);
     acl_connections_.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(handle),
-        std::forward_as_tuple(handle, shared_connection, per_connection_events_[peer]));
+            std::piecewise_construct, std::forward_as_tuple(handle),
+            std::forward_as_tuple(handle, shared_connection, per_connection_events_[peer]));
     shared_connection->GetAclQueueEnd()->RegisterDequeue(
-        facade_handler_,
-        common::Bind(&LeAclManagerFacadeService::on_incoming_acl, common::Unretained(this), shared_connection, handle));
+            facade_handler_, common::Bind(&LeAclManagerFacadeService::on_incoming_acl,
+                                          common::Unretained(this), shared_connection, handle));
     auto callbacks = acl_connections_.find(handle)->second.GetCallbacks();
     shared_connection->RegisterCallbacks(callbacks, facade_handler_);
     {
       std::unique_ptr<BasePacketBuilder> builder = LeConnectionCompleteBuilder::Create(
-          ErrorCode::SUCCESS, handle, role, peer.GetAddressType(), peer.GetAddress(), 1, 2, 3, ClockAccuracy::PPM_20);
+              ErrorCode::SUCCESS, handle, role, peer.GetAddressType(), peer.GetAddress(), 1, 2, 3,
+              ClockAccuracy::PPM_20);
       LeConnectionEvent success;
       success.set_payload(builder_to_string(std::move(builder)));
       per_connection_events_[peer]->OnIncomingEvent(success);
@@ -343,7 +330,8 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
   void OnLeConnectFail(AddressWithType address, ErrorCode reason) override {
     log::info("addr={}, reason={}", address, ErrorCodeText(reason));
     std::unique_ptr<BasePacketBuilder> builder = LeConnectionCompleteBuilder::Create(
-        reason, 0, Role::CENTRAL, address.GetAddressType(), address.GetAddress(), 0, 0, 0, ClockAccuracy::PPM_20);
+            reason, 0, Role::CENTRAL, address.GetAddressType(), address.GetAddress(), 0, 0, 0,
+            ClockAccuracy::PPM_20);
     LeConnectionEvent fail;
     fail.set_payload(builder_to_string(std::move(builder)));
     if (address == direct_connection_address_) {
@@ -355,69 +343,58 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
   }
 
   class Connection : public LeConnectionManagementCallbacks {
-   public:
-    Connection(
-        uint16_t handle,
-        std::shared_ptr<LeAclConnection> connection,
-        std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>> event_stream)
-        : handle_(handle), connection_(std::move(connection)), event_stream_(std::move(event_stream)) {}
-    void OnConnectionUpdate(
-        hci::ErrorCode /* hci_status */,
-        uint16_t connection_interval,
-        uint16_t connection_latency,
-        uint16_t supervision_timeout) override {
-      log::info(
-          "interval: 0x{:x}, latency: 0x{:x}, timeout 0x{:x}",
-          connection_interval,
-          connection_latency,
-          supervision_timeout);
+  public:
+    Connection(uint16_t handle, std::shared_ptr<LeAclConnection> connection,
+               std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>> event_stream)
+        : handle_(handle),
+          connection_(std::move(connection)),
+          event_stream_(std::move(event_stream)) {}
+    void OnConnectionUpdate(hci::ErrorCode /* hci_status */, uint16_t connection_interval,
+                            uint16_t connection_latency, uint16_t supervision_timeout) override {
+      log::info("interval: 0x{:x}, latency: 0x{:x}, timeout 0x{:x}", connection_interval,
+                connection_latency, supervision_timeout);
     }
 
-    void OnDataLengthChange(uint16_t tx_octets, uint16_t tx_time, uint16_t rx_octets, uint16_t rx_time) override {
-      log::info(
-          "tx_octets: 0x{:x}, tx_time: 0x{:x}, rx_octets 0x{:x}, rx_time 0x{:x}",
-          tx_octets,
-          tx_time,
-          rx_octets,
-          rx_time);
+    void OnParameterUpdateRequest(uint16_t interval_min, uint16_t interval_max, uint16_t latency,
+                                  uint16_t supervision_timeout) override {
+      log::info("interval_min: 0x{:x}, interval_max: 0x{:x}, latency: 0x{:x}, timeout 0x{:x}",
+                interval_min, interval_max, latency, supervision_timeout);
     }
 
-    void OnPhyUpdate(
-        hci::ErrorCode /* hci_status */, uint8_t /* tx_phy */, uint8_t /* rx_phy */) override {}
+    void OnDataLengthChange(uint16_t tx_octets, uint16_t tx_time, uint16_t rx_octets,
+                            uint16_t rx_time) override {
+      log::info("tx_octets: 0x{:x}, tx_time: 0x{:x}, rx_octets 0x{:x}, rx_time 0x{:x}", tx_octets,
+                tx_time, rx_octets, rx_time);
+    }
+
+    void OnPhyUpdate(hci::ErrorCode /* hci_status */, uint8_t /* tx_phy */,
+                     uint8_t /* rx_phy */) override {}
     void OnDisconnection(ErrorCode reason) override {
       log::info("reason: {}", ErrorCodeText(reason));
       std::unique_ptr<BasePacketBuilder> builder =
-          DisconnectionCompleteBuilder::Create(ErrorCode::SUCCESS, handle_, reason);
+              DisconnectionCompleteBuilder::Create(ErrorCode::SUCCESS, handle_, reason);
       LeConnectionEvent disconnection;
       disconnection.set_payload(builder_to_string(std::move(builder)));
       event_stream_->OnIncomingEvent(disconnection);
     }
 
-    void OnReadRemoteVersionInformationComplete(
-        hci::ErrorCode /* hci_status */,
-        uint8_t /* lmp_version */,
-        uint16_t /* manufacturer_name */,
-        uint16_t /* sub_version */) override {}
-    void OnLeReadRemoteFeaturesComplete(
-        hci::ErrorCode /* hci_status */, uint64_t /* features */) override {}
+    void OnReadRemoteVersionInformationComplete(hci::ErrorCode /* hci_status */,
+                                                uint8_t /* lmp_version */,
+                                                uint16_t /* manufacturer_name */,
+                                                uint16_t /* sub_version */) override {}
+    void OnLeReadRemoteFeaturesComplete(hci::ErrorCode /* hci_status */,
+                                        uint64_t /* features */) override {}
 
-    LeConnectionManagementCallbacks* GetCallbacks() {
-      return this;
-    }
-    void OnLeSubrateChange(
-        hci::ErrorCode hci_status,
-        uint16_t subrate_factor,
-        uint16_t peripheral_latency,
-        uint16_t continuation_number,
-        uint16_t supervision_timeout) override {
+    LeConnectionManagementCallbacks* GetCallbacks() { return this; }
+    void OnLeSubrateChange(hci::ErrorCode hci_status, uint16_t subrate_factor,
+                           uint16_t peripheral_latency, uint16_t continuation_number,
+                           uint16_t supervision_timeout) override {
       log::info(
-          "hci_status: {}, subrate_factor: {:#x}, peripheral_latency: {:#x}, continuation_number: "
-          "{:#x}, supervision_timeout: {:#x}",
-          ErrorCodeText(hci_status),
-          subrate_factor,
-          peripheral_latency,
-          continuation_number,
-          supervision_timeout);
+              "hci_status: {}, subrate_factor: {:#x}, peripheral_latency: {:#x}, "
+              "continuation_number: "
+              "{:#x}, supervision_timeout: {:#x}",
+              ErrorCodeText(hci_status), subrate_factor, peripheral_latency, continuation_number,
+              supervision_timeout);
     }
 
     uint16_t handle_;
@@ -427,15 +404,14 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
                                                                    std::to_string(handle_)};
   };
 
-  ::grpc::Status IsOnBackgroundList(
-      ::grpc::ServerContext* /* context */,
-      const ::blueberry::facade::hci::BackgroundRequestMsg* request,
-      ::blueberry::facade::hci::BackgroundResultMsg* msg) {
+  ::grpc::Status IsOnBackgroundList(::grpc::ServerContext* /* context */,
+                                    const ::blueberry::facade::hci::BackgroundRequestMsg* request,
+                                    ::blueberry::facade::hci::BackgroundResultMsg* msg) {
     Address peer_address;
     log::assert_that(
-        Address::FromString(request->peer_address().address().address(), peer_address),
-        "assert failed: Address::FromString(request->peer_address().address().address(), "
-        "peer_address)");
+            Address::FromString(request->peer_address().address().address(), peer_address),
+            "assert failed: Address::FromString(request->peer_address().address().address(), "
+            "peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer_address().type()));
     std::promise<bool> promise;
     auto future = promise.get_future();
@@ -445,25 +421,26 @@ class LeAclManagerFacadeService : public LeAclManagerFacade::Service, public LeC
   }
 
   ::grpc::Status RemoveFromBackgroundList(
-      ::grpc::ServerContext* /* context */,
-      const ::blueberry::facade::hci::BackgroundRequestMsg* request,
-      ::google::protobuf::Empty* /* response */) {
+          ::grpc::ServerContext* /* context */,
+          const ::blueberry::facade::hci::BackgroundRequestMsg* request,
+          ::google::protobuf::Empty* /* response */) {
     Address peer_address;
     log::assert_that(
-        Address::FromString(request->peer_address().address().address(), peer_address),
-        "assert failed: Address::FromString(request->peer_address().address().address(), "
-        "peer_address)");
+            Address::FromString(request->peer_address().address().address(), peer_address),
+            "assert failed: Address::FromString(request->peer_address().address().address(), "
+            "peer_address)");
     AddressWithType peer(peer_address, static_cast<AddressType>(request->peer_address().type()));
     acl_manager_->RemoveFromBackgroundList(peer);
     return ::grpc::Status::OK;
   }
 
- private:
+private:
   AclManager* acl_manager_;
   ::bluetooth::os::Handler* facade_handler_;
   mutable std::mutex acl_connections_mutex_;
-  std::map<bluetooth::hci::AddressWithType, std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>>
-      per_connection_events_;
+  std::map<bluetooth::hci::AddressWithType,
+           std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>>>
+          per_connection_events_;
   std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>> direct_connection_events_;
   bluetooth::hci::AddressWithType direct_connection_address_;
   std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<LeConnectionEvent>> incoming_connection_events_;
@@ -485,12 +462,10 @@ void LeAclManagerFacadeModule::Stop() {
   ::bluetooth::grpc::GrpcFacadeModule::Stop();
 }
 
-::grpc::Service* LeAclManagerFacadeModule::GetService() const {
-  return service_;
-}
+::grpc::Service* LeAclManagerFacadeModule::GetService() const { return service_; }
 
 const ModuleFactory LeAclManagerFacadeModule::Factory =
-    ::bluetooth::ModuleFactory([]() { return new LeAclManagerFacadeModule(); });
+        ::bluetooth::ModuleFactory([]() { return new LeAclManagerFacadeModule(); });
 
 }  // namespace facade
 }  // namespace hci

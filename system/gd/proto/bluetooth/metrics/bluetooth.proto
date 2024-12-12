@@ -312,4 +312,17 @@ message BluetoothRemoteDeviceInformation {
 
   // The first three bytes of MAC address
   optional int32 oui = 3;
+
+  enum RemoteDeviceTypeMetadata {
+    WATCH = 0;
+    UNTETHERED_HEADSET = 1;
+    STYLUS = 2;
+    SPEAKER = 3;
+    HEADSET = 4;
+    CARKIT = 5;
+    DEFAULT = 6;
+    NOT_AVAILABLE = 7;
+  }
+  // Device type metadata
+  optional RemoteDeviceTypeMetadata device_type_metadata = 4;
 }

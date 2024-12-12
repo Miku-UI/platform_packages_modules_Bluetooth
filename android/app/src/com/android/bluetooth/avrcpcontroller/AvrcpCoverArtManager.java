@@ -128,7 +128,8 @@ public class AvrcpCoverArtManager {
      */
     public static boolean isValidImageHandle(String handle) {
         if (handle == null || handle.length() != 7) return false;
-        for (char c : handle.toCharArray()) {
+        for (int i = 0; i < handle.length(); i++) {
+            char c = handle.charAt(i);
             if (!Character.isDigit(c)) {
                 return false;
             }
@@ -479,20 +480,24 @@ public class AvrcpCoverArtManager {
 
     @Override
     public String toString() {
-        String s = "CoverArtManager:\n";
-        s += "    Download Scheme: " + mDownloadScheme + "\n";
+        StringBuilder sb = new StringBuilder("CoverArtManager:\n");
+        sb.append("    Download Scheme: ").append(mDownloadScheme).append("\n");
         for (BluetoothDevice device : mClients.keySet()) {
             AvrcpBipClient client = getClient(device);
             AvrcpBipSession session = getSession(device);
-            s += "    " + device + ":" + "\n";
-            s += "      Client: " + client.toString() + "\n";
-            s += "      Handles: " + "\n";
+            sb.append("    ").append(device).append(":").append("\n");
+            sb.append("      Client: ").append(client.toString()).append("\n");
+            sb.append("      Handles: ").append("\n");
             for (String handle : session.getSessionHandles()) {
-                s += "        " + handle + " -> " + session.getHandleUuid(handle) + "\n";
+                sb.append("        ")
+                        .append(handle)
+                        .append(" -> ")
+                        .append(session.getHandleUuid(handle))
+                        .append("\n");
             }
         }
-        s += "  " + mCoverArtStorage.toString();
-        return s;
+        sb.append("  ").append(mCoverArtStorage.toString());
+        return sb.toString();
     }
 
     /** Print to debug if debug is enabled for this class */

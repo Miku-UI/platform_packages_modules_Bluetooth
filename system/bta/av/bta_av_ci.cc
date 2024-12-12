@@ -67,32 +67,20 @@ void bta_av_ci_src_data_ready(tBTA_AV_CHNL chnl) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_ci_setconfig(tBTA_AV_HNDL bta_av_handle, uint8_t err_code,
-                         uint8_t category, uint8_t num_seid, uint8_t* p_seid,
+void bta_av_ci_setconfig(tBTA_AV_HNDL bta_av_handle, uint8_t err_code, uint8_t category,
                          bool recfg_needed, uint8_t avdt_handle) {
-  log::info(
-      "bta_av_handle=0x{:x} err_code={} category={} num_seid={} "
-      "recfg_needed={} avdt_handle={}",
-      bta_av_handle, err_code, category, num_seid, recfg_needed, avdt_handle);
+  log::info("bta_av_handle=0x{:x} err_code={} category={} recfg_needed={} avdt_handle={}",
+            bta_av_handle, err_code, category, recfg_needed, avdt_handle);
 
-  tBTA_AV_CI_SETCONFIG* p_buf =
-      (tBTA_AV_CI_SETCONFIG*)osi_malloc(sizeof(tBTA_AV_CI_SETCONFIG));
+  tBTA_AV_CI_SETCONFIG* p_buf = (tBTA_AV_CI_SETCONFIG*)osi_malloc(sizeof(tBTA_AV_CI_SETCONFIG));
 
   p_buf->hdr.layer_specific = bta_av_handle;
-  p_buf->hdr.event = (err_code == A2DP_SUCCESS) ? BTA_AV_CI_SETCONFIG_OK_EVT
-                                                : BTA_AV_CI_SETCONFIG_FAIL_EVT;
+  p_buf->hdr.event =
+          (err_code == A2DP_SUCCESS) ? BTA_AV_CI_SETCONFIG_OK_EVT : BTA_AV_CI_SETCONFIG_FAIL_EVT;
   p_buf->err_code = err_code;
   p_buf->category = category;
   p_buf->recfg_needed = recfg_needed;
-  p_buf->num_seid = num_seid;
   p_buf->avdt_handle = avdt_handle;
-  if (p_seid && num_seid) {
-    p_buf->p_seid = (uint8_t*)(p_buf + 1);
-    memcpy(p_buf->p_seid, p_seid, num_seid);
-  } else {
-    p_buf->p_seid = NULL;
-    p_buf->num_seid = 0;
-  }
 
   bta_sys_sendmsg(p_buf);
 }

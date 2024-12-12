@@ -47,7 +47,8 @@ typedef struct {
 thread_local tCMAC_CB cmac_cb;
 
 /* Rb for AES-128 as block cipher, LSB as [0] */
-Octet16 const_Rb{0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+Octet16 const_Rb{0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 /** utility function to do an biteise exclusive-OR of two bit strings of the
  * length of kOctet16Length. Result is stored in first argument.
@@ -85,7 +86,9 @@ Octet16 aes_128(const Octet16& key, const Octet16& message) {
 static void padding(Octet16* dest, uint8_t length) {
   uint8_t i, *p = dest->data();
   /* original last block */
-  for (i = length; i < kOctet16Length; i++) p[kOctet16Length - i - 1] = (i == length) ? 0x80 : 0;
+  for (i = length; i < kOctet16Length; i++) {
+    p[kOctet16Length - i - 1] = (i == length) ? 0x80 : 0;
+  }
 }
 
 /** utility function to left shift one bit for a 128 bits value. */
@@ -179,7 +182,9 @@ Octet16 aes_cmac(const Octet16& key, const uint8_t* input, uint16_t length) {
   /* n is number of rounds */
   uint16_t n = (length + kOctet16Length - 1) / kOctet16Length;
 
-  if (n == 0) n = 1;
+  if (n == 0) {
+    n = 1;
+  }
   len = n * kOctet16Length;
 
   // log::verbose("AES128_CMAC started, allocate buffer size={}", len);

@@ -26,14 +26,14 @@
 namespace bluetooth {
 namespace os {
 
-// Reactor-based looper thread implementation. The thread runs immediately after it is constructed, and stops after
-// Stop() is invoked. To assign task to this thread, user needs to register a reactable object to the underlying
-// reactor.
+// Reactor-based looper thread implementation. The thread runs immediately after it is constructed,
+// and stops after Stop() is invoked. To assign task to this thread, user needs to register a
+// reactable object to the underlying reactor.
 class Thread {
- public:
-  // Used by thread constructor. Suggest the priority to the kernel scheduler. Use REAL_TIME if we need (soft) real-time
-  // scheduling guarantee for this thread; use NORMAL if no real-time guarantee is needed to save CPU time slice for
-  // other threads
+public:
+  // Used by thread constructor. Suggest the priority to the kernel scheduler. Use REAL_TIME if we
+  // need (soft) real-time scheduling guarantee for this thread; use NORMAL if no real-time
+  // guarantee is needed to save CPU time slice for other threads
   enum class Priority {
     REAL_TIME,
     NORMAL,
@@ -49,7 +49,8 @@ class Thread {
   // Stop and destroy this thread
   ~Thread();
 
-  // Stop this thread. Must be invoked from another thread. After this thread is stopped, it cannot be started again.
+  // Stop this thread. Must be invoked from another thread. After this thread is stopped, it cannot
+  // be started again.
   bool Stop();
 
   // Return true if this function is invoked from this thread
@@ -64,7 +65,7 @@ class Thread {
   // Return the pointer of underlying reactor. The ownership is NOT transferred.
   Reactor* GetReactor() const;
 
- private:
+private:
   void run(Priority priority);
   mutable std::mutex mutex_;
   const std::string name_;

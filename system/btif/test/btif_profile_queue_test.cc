@@ -32,8 +32,8 @@ typedef void(tBTIF_COPY_CBACK)(uint16_t event, char* p_dest, const char* p_src);
 // NOTE: Local re-implementation of functions to avoid thread context switching
 static bool sStackRunning;
 bool get_stack_is_running(void) { return sStackRunning; }
-static stack_manager_t sStackManager = {nullptr, nullptr, nullptr, nullptr,
-                                        get_stack_is_running};
+static stack_manager_t sStackManager = {
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, get_stack_is_running};
 const stack_manager_t* stack_manager_get_interface() { return &sStackManager; }
 bt_status_t do_in_jni_thread(base::OnceClosure task) {
   std::move(task).Run();
@@ -41,36 +41,27 @@ bt_status_t do_in_jni_thread(base::OnceClosure task) {
 }
 bool is_on_jni_thread() { return true; }
 
-enum ResultType {
-  NOT_SET = 0,
-  UNKNOWN,
-  UUID1_ADDR1,
-  UUID1_ADDR2,
-  UUID2_ADDR1,
-  UUID2_ADDR2
-};
+enum ResultType { NOT_SET = 0, UNKNOWN, UUID1_ADDR1, UUID1_ADDR2, UUID2_ADDR1, UUID2_ADDR2 };
 
 static ResultType sResult;
 
 class BtifProfileQueueTest : public ::testing::Test {
- public:
+public:
   static const uint16_t kTestUuid1 = 0x9527;
   static const uint16_t kTestUuid2 = 0x819F;
   static const RawAddress kTestAddr1;
   static const RawAddress kTestAddr2;
 
- protected:
+protected:
   void SetUp() override {
     sStackRunning = true;
     sResult = NOT_SET;
-  };
-  void TearDown() override { btif_queue_release(); };
+  }
+  void TearDown() override { btif_queue_release(); }
 };
 
-const RawAddress BtifProfileQueueTest::kTestAddr1{
-    {0x11, 0x22, 0x33, 0x44, 0x55, 0x66}};
-const RawAddress BtifProfileQueueTest::kTestAddr2{
-    {0xAB, 0xCD, 0xEF, 0x12, 0x34, 0x56}};
+const RawAddress BtifProfileQueueTest::kTestAddr1{{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}};
+const RawAddress BtifProfileQueueTest::kTestAddr2{{0xAB, 0xCD, 0xEF, 0x12, 0x34, 0x56}};
 
 static bt_status_t test_connect_cb(RawAddress* bda, uint16_t uuid) {
   sResult = UNKNOWN;

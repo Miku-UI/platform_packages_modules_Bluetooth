@@ -61,19 +61,16 @@ uint32_t A2DP_VendorCodecGetVendorId(const uint8_t* p_codec_info) {
   const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_VENDOR_ID_START_IDX];
 
   uint32_t vendor_id = (p[0] & 0x000000ff) | ((p[1] << 8) & 0x0000ff00) |
-                       ((p[2] << 16) & 0x00ff0000) |
-                       ((p[3] << 24) & 0xff000000);
+                       ((p[2] << 16) & 0x00ff0000) | ((p[3] << 24) & 0xff000000);
 
   return vendor_id;
 }
 
 class MockBluetoothAudioClientInterface {
- public:
-  MOCK_METHOD(
-      std::optional<IBluetoothAudioProviderFactory::ProviderInfo>,
-      GetProviderInfo,
-      (SessionType session_type,
-       std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory));
+public:
+  MOCK_METHOD(std::optional<IBluetoothAudioProviderFactory::ProviderInfo>, GetProviderInfo,
+              (SessionType session_type,
+               std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory));
 };
 
 static MockBluetoothAudioClientInterface* mock_bt_audio_client_itf = nullptr;
@@ -84,10 +81,9 @@ namespace aidl {
 
 std::optional<IBluetoothAudioProviderFactory::ProviderInfo>
 BluetoothAudioClientInterface::GetProviderInfo(
-    SessionType session_type,
-    std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory) {
-  return mock_bt_audio_client_itf->GetProviderInfo(session_type,
-                                                   provider_factory);
+        SessionType session_type,
+        std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory) {
+  return mock_bt_audio_client_itf->GetProviderInfo(session_type, provider_factory);
 }
 
 }  // namespace aidl
@@ -96,36 +92,31 @@ BluetoothAudioClientInterface::GetProviderInfo(
 
 namespace {
 
-std::vector<uint8_t> test_sbc_codec_info = {0x06, 0x00, 0x00, 0x3f,
-                                            0xff, 0x02, 0x25};
-std::vector<uint8_t> test_aac_codec_info = {0x08, 0x00, 0x02, 0x80, 0x01,
-                                            0x8c, 0x83, 0xe8, 0x00};
+std::vector<uint8_t> test_sbc_codec_info = {0x06, 0x00, 0x00, 0x3f, 0xff, 0x02, 0x25};
+std::vector<uint8_t> test_aac_codec_info = {0x08, 0x00, 0x02, 0x80, 0x01, 0x8c, 0x83, 0xe8, 0x00};
 std::vector<uint8_t> test_opus_codec_info = {0x09, 0x00, 0xff, 0xe0, 0x00,
                                              0x00, 0x00, 0x01, 0x00, 0x3c};
 std::vector<uint8_t> test_foobar_codec_info = {0x09, 0x00, 0xff, 0x44, 0x33,
                                                0x00, 0x00, 0x22, 0x11, 0x3c};
 
-CodecId::Vendor test_opus_codec_id = {.id = A2DP_OPUS_VENDOR_ID,
-                                      .codecId = A2DP_OPUS_CODEC_ID};
+CodecId::Vendor test_opus_codec_id = {.id = A2DP_OPUS_VENDOR_ID, .codecId = A2DP_OPUS_CODEC_ID};
 CodecId::Vendor test_foobar_codec_id = {.id = 0x00003344, .codecId = 0x1122};
-CodecId::Vendor test_unknown_vendor_codec_id = {.id = 0x12345678,
-                                                .codecId = 0x1234};
+CodecId::Vendor test_unknown_vendor_codec_id = {.id = 0x12345678, .codecId = 0x1234};
 
 IBluetoothAudioProviderFactory::ProviderInfo test_source_provider_info = {
-    .name = "TEST_PROVIDER_SOURCE_CODECS",
+        .name = "TEST_PROVIDER_SOURCE_CODECS",
 };
 
 IBluetoothAudioProviderFactory::ProviderInfo test_sink_provider_info = {
-    .name = "TEST_PROVIDER_SINK_CODECS",
+        .name = "TEST_PROVIDER_SINK_CODECS",
 };
 
 class ProviderInfoTest : public Test {
- public:
+public:
   std::unique_ptr<ProviderInfo> provider_info;
   MockBluetoothAudioClientInterface client_itf_mock;
 
-  void CreateTestA2dpCodecInfo(CodecInfo& codecInfo, CodecId codecId,
-                               std::string codecName,
+  void CreateTestA2dpCodecInfo(CodecInfo& codecInfo, CodecId codecId, std::string codecName,
                                std::vector<uint8_t> capabilities,
                                std::vector<ChannelMode> channelMode,
                                std::vector<int32_t> samplingFrequencyHz,
@@ -142,28 +133,23 @@ class ProviderInfoTest : public Test {
     a2dpInfo.lossless = lossless;
   }
 
-  void GetProviderInfoForTesting(bool include_source_codecs,
-                                 bool include_sink_codecs) {
+  void GetProviderInfoForTesting(bool include_source_codecs, bool include_sink_codecs) {
     if (include_source_codecs) {
       EXPECT_CALL(client_itf_mock,
-                  GetProviderInfo(
-                      SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH, _))
-          .WillOnce(Return(std::make_optional(test_source_provider_info)));
+                  GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH, _))
+              .WillOnce(Return(std::make_optional(test_source_provider_info)));
     } else {
       EXPECT_CALL(client_itf_mock,
-                  GetProviderInfo(
-                      SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH, _));
+                  GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH, _));
     }
 
     if (include_sink_codecs) {
       EXPECT_CALL(client_itf_mock,
-                  GetProviderInfo(
-                      SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH, _))
-          .WillOnce(Return(std::make_optional(test_sink_provider_info)));
+                  GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH, _))
+              .WillOnce(Return(std::make_optional(test_sink_provider_info)));
     } else {
       EXPECT_CALL(client_itf_mock,
-                  GetProviderInfo(
-                      SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH, _));
+                  GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH, _));
     }
 
     provider_info = ProviderInfo::GetProviderInfo(true);
@@ -174,54 +160,49 @@ class ProviderInfoTest : public Test {
     }
   }
 
- protected:
+protected:
   void SetUp() override {
     mock_bt_audio_client_itf = &client_itf_mock;
 
     auto& codec_info_sbc = test_source_provider_info.codecInfos.emplace_back();
-    CreateTestA2dpCodecInfo(
-        codec_info_sbc, CodecId::A2dp::SBC, std::string("SBC"),
-        std::vector<uint8_t>{0x3f, 0xff, 0x02, 0x25}, /* capabilities */
-        std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
-                                 ChannelMode::DUALMONO}, /* channelMode */
-        std::vector<int32_t>{44100, 48000}, /* samplingFrequencyHz */
-        std::vector<int32_t>{16, 24, 32},   /* bitdepth */
-        false                               /* lossless */
+    CreateTestA2dpCodecInfo(codec_info_sbc, CodecId::A2dp::SBC, std::string("SBC"),
+                            std::vector<uint8_t>{0x3f, 0xff, 0x02, 0x25}, /* capabilities */
+                            std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
+                                                     ChannelMode::DUALMONO}, /* channelMode */
+                            std::vector<int32_t>{44100, 48000}, /* samplingFrequencyHz */
+                            std::vector<int32_t>{16, 24, 32},   /* bitdepth */
+                            false                               /* lossless */
     );
 
     auto& codec_info_aac = test_source_provider_info.codecInfos.emplace_back();
     CreateTestA2dpCodecInfo(
-        codec_info_aac, CodecId::A2dp::AAC, std::string("AAC"),
-        std::vector<uint8_t>{0x80, 0x01, 0x8c, 0x83, 0xe8,
-                             0x00}, /* capabilities */
-        std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
-                                 ChannelMode::DUALMONO}, /* channelMode */
-        std::vector<int32_t>{44100, 48000}, /* samplingFrequencyHz */
-        std::vector<int32_t>{16, 24, 32},   /* bitdepth */
-        false                               /* lossless */
+            codec_info_aac, CodecId::A2dp::AAC, std::string("AAC"),
+            std::vector<uint8_t>{0x80, 0x01, 0x8c, 0x83, 0xe8, 0x00}, /* capabilities */
+            std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
+                                     ChannelMode::DUALMONO}, /* channelMode */
+            std::vector<int32_t>{44100, 48000},              /* samplingFrequencyHz */
+            std::vector<int32_t>{16, 24, 32},                /* bitdepth */
+            false                                            /* lossless */
     );
 
     auto& codec_info_opus = test_source_provider_info.codecInfos.emplace_back();
-    CreateTestA2dpCodecInfo(
-        codec_info_opus, test_opus_codec_id, std::string("Opus"),
-        std::vector<uint8_t>{0x3c}, /* capabilities */
-        std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
-                                 ChannelMode::DUALMONO}, /* channelMode */
-        std::vector<int32_t>{44100, 48000}, /* samplingFrequencyHz */
-        std::vector<int32_t>{16, 24, 32},   /* bitdepth */
-        false                               /* lossless */
+    CreateTestA2dpCodecInfo(codec_info_opus, test_opus_codec_id, std::string("Opus"),
+                            std::vector<uint8_t>{0x3c}, /* capabilities */
+                            std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
+                                                     ChannelMode::DUALMONO}, /* channelMode */
+                            std::vector<int32_t>{44100, 48000}, /* samplingFrequencyHz */
+                            std::vector<int32_t>{16, 24, 32},   /* bitdepth */
+                            false                               /* lossless */
     );
 
-    auto& codec_info_foobar =
-        test_source_provider_info.codecInfos.emplace_back();
-    CreateTestA2dpCodecInfo(
-        codec_info_foobar, test_foobar_codec_id, std::string("FooBar"),
-        std::vector<uint8_t>{0x3c}, /* capabilities */
-        std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
-                                 ChannelMode::DUALMONO}, /* channelMode */
-        std::vector<int32_t>{44100, 48000}, /* samplingFrequencyHz */
-        std::vector<int32_t>{16, 24, 32},   /* bitdepth */
-        false                               /* lossless */
+    auto& codec_info_foobar = test_source_provider_info.codecInfos.emplace_back();
+    CreateTestA2dpCodecInfo(codec_info_foobar, test_foobar_codec_id, std::string("FooBar"),
+                            std::vector<uint8_t>{0x3c}, /* capabilities */
+                            std::vector<ChannelMode>{ChannelMode::MONO, ChannelMode::STEREO,
+                                                     ChannelMode::DUALMONO}, /* channelMode */
+                            std::vector<int32_t>{44100, 48000}, /* samplingFrequencyHz */
+                            std::vector<int32_t>{16, 24, 32},   /* bitdepth */
+                            false                               /* lossless */
     );
 
     test_sink_provider_info.codecInfos = test_source_provider_info.codecInfos;
@@ -234,41 +215,16 @@ class ProviderInfoTest : public Test {
 };
 }  // namespace
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetProviderInfoFlagDisabled,
-                  REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
-  EXPECT_CALL(
-      client_itf_mock,
-      GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH, _))
-      .Times(0);
-  EXPECT_CALL(
-      client_itf_mock,
-      GetProviderInfo(SessionType::A2DP_HARDWARE_OFFLOAD_DECODING_DATAPATH, _))
-      .Times(0);
-
-  provider_info = ProviderInfo::GetProviderInfo(true);
-  ASSERT_EQ(provider_info, nullptr);
-}
-
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetProviderInfoEmptyProviderInfo,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetProviderInfoEmptyProviderInfo) {
   GetProviderInfoForTesting(false, false);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetProviderInfo,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
-  GetProviderInfoForTesting(true, false);
-}
+TEST_F(ProviderInfoTest, TestGetProviderInfo) { GetProviderInfoForTesting(true, false); }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecSbc,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecSbc) {
   GetProviderInfoForTesting(true, false);
 
-  auto received_codec_info_sbc =
-      provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC);
+  auto received_codec_info_sbc = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC);
   ASSERT_TRUE(received_codec_info_sbc.has_value());
   auto codec_info = received_codec_info_sbc.value();
   log::error("{}", codec_info->toString());
@@ -276,13 +232,10 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecSbc,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[0]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecAac,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecAac) {
   GetProviderInfoForTesting(true, false);
 
-  auto received_codec_info_aac =
-      provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC);
+  auto received_codec_info_aac = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC);
   ASSERT_TRUE(received_codec_info_aac.has_value());
   auto codec_info = received_codec_info_aac.value();
   log::error("{}", codec_info->toString());
@@ -290,13 +243,10 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecAac,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[1]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecOpus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecOpus) {
   GetProviderInfoForTesting(true, false);
 
-  auto received_codec_info_opus =
-      provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
+  auto received_codec_info_opus = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
   ASSERT_TRUE(received_codec_info_opus.has_value());
   auto codec_info = received_codec_info_opus.value();
   log::error("{}", codec_info->toString());
@@ -304,13 +254,10 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecOpus,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[2]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecFoobar,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecFoobar) {
   GetProviderInfoForTesting(true, false);
 
-  auto received_codec_info_foobar =
-      provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN);
+  auto received_codec_info_foobar = provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN);
   ASSERT_TRUE(received_codec_info_foobar.has_value());
   auto codec_info = received_codec_info_foobar.value();
   log::error("{}", codec_info->toString());
@@ -318,19 +265,15 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecFoobar,
   ASSERT_EQ(*codec_info, test_source_provider_info.codecInfos[3]);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestGetCodecNotSupported,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestGetCodecNotSupported) {
   GetProviderInfoForTesting(true, false);
 
   auto received_codec_info_not_supported_codec =
-      provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SINK_LDAC);
+          provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SINK_LDAC);
   ASSERT_FALSE(received_codec_info_not_supported_codec.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByCodecId) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -352,14 +295,11 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCodecId,
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN);
 
-  a2dp_codec_index_opt =
-      provider_info->SourceCodecIndex(test_unknown_vendor_codec_id);
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_unknown_vendor_codec_id);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecId) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -373,47 +313,37 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecId,
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN);
 
-  a2dp_codec_index_opt =
-      provider_info->SourceCodecIndex(test_unknown_vendor_codec_id);
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_unknown_vendor_codec_id);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSourceCodecIndexByCapabilities,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByCapabilities) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
 
-  a2dp_codec_index_opt =
-      provider_info->SourceCodecIndex(test_sbc_codec_info.data());
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_sbc_codec_info.data());
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SOURCE_SBC);
 
-  a2dp_codec_index_opt =
-      provider_info->SourceCodecIndex(test_aac_codec_info.data());
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_aac_codec_info.data());
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SOURCE_AAC);
 
-  a2dp_codec_index_opt =
-      provider_info->SourceCodecIndex(test_opus_codec_info.data());
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_opus_codec_info.data());
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
 
-  a2dp_codec_index_opt =
-      provider_info->SourceCodecIndex(test_foobar_codec_info.data());
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_foobar_codec_info.data());
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN);
 
-  a2dp_codec_index_opt = provider_info->SourceCodecIndex(
-      std::vector<uint8_t>({0xde, 0xad, 0xbe, 0xef}).data());
+  a2dp_codec_index_opt =
+          provider_info->SourceCodecIndex(std::vector<uint8_t>({0xde, 0xad, 0xbe, 0xef}).data());
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest,
-                  TestSourceCodecIndexByCodecIdAssertNoSources,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByCodecIdAssertNoSources) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -431,43 +361,37 @@ TEST_F_WITH_FLAGS(ProviderInfoTest,
   a2dp_codec_index_opt = provider_info->SourceCodecIndex(codecInfoArray[3].id);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt =
-      provider_info->SourceCodecIndex(test_unknown_vendor_codec_id);
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_unknown_vendor_codec_id);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest,
-                  TestSourceCodecIndexByVendorAndCodecIdAssertNoSources,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSourceCodecIndexByVendorAndCodecIdAssertNoSources) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
 
-  a2dp_codec_index_opt = provider_info->SourceCodecIndex(
-      0, static_cast<uint16_t>(CodecId::A2dp::SBC));
+  a2dp_codec_index_opt =
+          provider_info->SourceCodecIndex(0, static_cast<uint16_t>(CodecId::A2dp::SBC));
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SourceCodecIndex(
-      0, static_cast<uint16_t>(CodecId::A2dp::AAC));
+  a2dp_codec_index_opt =
+          provider_info->SourceCodecIndex(0, static_cast<uint16_t>(CodecId::A2dp::AAC));
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SourceCodecIndex(
-      test_opus_codec_id.id, test_opus_codec_id.codecId);
+  a2dp_codec_index_opt =
+          provider_info->SourceCodecIndex(test_opus_codec_id.id, test_opus_codec_id.codecId);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SourceCodecIndex(
-      test_foobar_codec_id.id, test_foobar_codec_id.codecId);
+  a2dp_codec_index_opt =
+          provider_info->SourceCodecIndex(test_foobar_codec_id.id, test_foobar_codec_id.codecId);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SourceCodecIndex(
-      test_unknown_vendor_codec_id.id, test_unknown_vendor_codec_id.codecId);
+  a2dp_codec_index_opt = provider_info->SourceCodecIndex(test_unknown_vendor_codec_id.id,
+                                                         test_unknown_vendor_codec_id.codecId);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSinkCodecIndexByCodecId) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
@@ -489,75 +413,65 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByCodecId,
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SINK_EXT_MIN);
 
-  a2dp_codec_index_opt =
-      provider_info->SinkCodecIndex(test_unknown_vendor_codec_id);
+  a2dp_codec_index_opt = provider_info->SinkCodecIndex(test_unknown_vendor_codec_id);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecId,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecId) {
   GetProviderInfoForTesting(false, true);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      test_opus_codec_id.id, test_opus_codec_id.codecId);
+  a2dp_codec_index_opt =
+          provider_info->SinkCodecIndex(test_opus_codec_id.id, test_opus_codec_id.codecId);
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SINK_OPUS);
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      test_foobar_codec_id.id, test_foobar_codec_id.codecId);
+  a2dp_codec_index_opt =
+          provider_info->SinkCodecIndex(test_foobar_codec_id.id, test_foobar_codec_id.codecId);
   ASSERT_TRUE(a2dp_codec_index_opt.has_value());
   ASSERT_EQ(a2dp_codec_index_opt.value(), BTAV_A2DP_CODEC_INDEX_SINK_EXT_MIN);
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      test_unknown_vendor_codec_id.id, test_unknown_vendor_codec_id.codecId);
+  a2dp_codec_index_opt = provider_info->SinkCodecIndex(test_unknown_vendor_codec_id.id,
+                                                       test_unknown_vendor_codec_id.codecId);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest,
-                  TestSinkCodecIndexByVendorAndCodecIdAssertNoSinks,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSinkCodecIndexByVendorAndCodecIdAssertNoSinks) {
   GetProviderInfoForTesting(true, false);
 
   std::optional<btav_a2dp_codec_index_t> a2dp_codec_index_opt;
   auto codecInfoArray = test_sink_provider_info.codecInfos;
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      0, static_cast<uint16_t>(CodecId::A2dp::SBC));
+  a2dp_codec_index_opt =
+          provider_info->SinkCodecIndex(0, static_cast<uint16_t>(CodecId::A2dp::SBC));
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      0, static_cast<uint16_t>(CodecId::A2dp::AAC));
+  a2dp_codec_index_opt =
+          provider_info->SinkCodecIndex(0, static_cast<uint16_t>(CodecId::A2dp::AAC));
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      test_opus_codec_id.id, test_opus_codec_id.codecId);
+  a2dp_codec_index_opt =
+          provider_info->SinkCodecIndex(test_opus_codec_id.id, test_opus_codec_id.codecId);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      test_foobar_codec_id.id, test_foobar_codec_id.codecId);
+  a2dp_codec_index_opt =
+          provider_info->SinkCodecIndex(test_foobar_codec_id.id, test_foobar_codec_id.codecId);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 
-  a2dp_codec_index_opt = provider_info->SinkCodecIndex(
-      test_unknown_vendor_codec_id.id, test_unknown_vendor_codec_id.codecId);
+  a2dp_codec_index_opt = provider_info->SinkCodecIndex(test_unknown_vendor_codec_id.id,
+                                                       test_unknown_vendor_codec_id.codecId);
   ASSERT_FALSE(a2dp_codec_index_opt.has_value());
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecIndexStr,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecIndexStr) {
   GetProviderInfoForTesting(true, false);
 
   auto codecInfoArray = test_source_provider_info.codecInfos;
 
-  ASSERT_EQ(provider_info->CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC),
-            codecInfoArray[0].name);
+  ASSERT_EQ(provider_info->CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC), codecInfoArray[0].name);
 
-  ASSERT_EQ(provider_info->CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC),
-            codecInfoArray[1].name);
+  ASSERT_EQ(provider_info->CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC), codecInfoArray[1].name);
 
   ASSERT_EQ(provider_info->CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS),
             codecInfoArray[2].name);
@@ -566,9 +480,7 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecIndexStr,
             codecInfoArray[3].name);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestSupportsCodec,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestSupportsCodec) {
   GetProviderInfoForTesting(true, true);
 
   for (int i = static_cast<int>(BTAV_A2DP_CODEC_INDEX_SOURCE_MIN);
@@ -582,191 +494,153 @@ TEST_F_WITH_FLAGS(ProviderInfoTest, TestSupportsCodec,
       case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
       case BTAV_A2DP_CODEC_INDEX_SINK_OPUS:
       case BTAV_A2DP_CODEC_INDEX_SINK_EXT_MIN:
-        ASSERT_TRUE(provider_info->SupportsCodec(
-            static_cast<btav_a2dp_codec_index_t>(i)));
+        ASSERT_TRUE(provider_info->SupportsCodec(static_cast<btav_a2dp_codec_index_t>(i)));
         break;
       default:
-        ASSERT_FALSE(provider_info->SupportsCodec(
-            static_cast<btav_a2dp_codec_index_t>(i)));
+        ASSERT_FALSE(provider_info->SupportsCodec(static_cast<btav_a2dp_codec_index_t>(i)));
         break;
     }
   }
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesSbc,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesSbc) {
   GetProviderInfoForTesting(true, false);
 
   std::vector<uint8_t> sbc_caps = {0x3f, 0xff, 0x02, 0x25};
   uint8_t result_sbc_codec_info[7];
 
-  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(
-      CodecId::A2dp(CodecId::A2dp::SBC), sbc_caps, result_sbc_codec_info));
+  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(CodecId::A2dp(CodecId::A2dp::SBC), sbc_caps,
+                                                   result_sbc_codec_info));
   ASSERT_EQ(std::memcmp(result_sbc_codec_info, test_sbc_codec_info.data(),
                         test_sbc_codec_info.size()),
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesAac,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesAac) {
   GetProviderInfoForTesting(true, false);
   std::vector<uint8_t> aac_caps = {0x80, 0x01, 0x8c, 0x83, 0xe8, 0x00};
   uint8_t result_aac_codec_info[9];
 
-  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(
-      CodecId::A2dp(CodecId::A2dp::AAC), aac_caps, result_aac_codec_info));
+  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(CodecId::A2dp(CodecId::A2dp::AAC), aac_caps,
+                                                   result_aac_codec_info));
   ASSERT_EQ(std::memcmp(result_aac_codec_info, test_aac_codec_info.data(),
                         test_aac_codec_info.size()),
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesOpus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesOpus) {
   std::vector<uint8_t> opus_caps = {0x3c};
   uint8_t result_opus_codec_info[10];
 
-  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(
-      test_opus_codec_id, opus_caps, result_opus_codec_info));
+  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(test_opus_codec_id, opus_caps,
+                                                   result_opus_codec_info));
   ASSERT_EQ(std::memcmp(result_opus_codec_info, test_opus_codec_info.data(),
                         test_opus_codec_info.size()),
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesFoobar,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesFoobar) {
   std::vector<uint8_t> foobar_caps = {0x3c};
   uint8_t result_foobar_codec_info[10];
 
-  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(
-      test_foobar_codec_id, foobar_caps, result_foobar_codec_info));
+  ASSERT_TRUE(ProviderInfo::BuildCodecCapabilities(test_foobar_codec_id, foobar_caps,
+                                                   result_foobar_codec_info));
   ASSERT_EQ(std::memcmp(result_foobar_codec_info, test_foobar_codec_info.data(),
                         test_foobar_codec_info.size()),
             0);
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestBuildCodecCapabilitiesNotSupported,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestBuildCodecCapabilitiesNotSupported) {
   std::vector<uint8_t> foobar_caps = {0x3c};
   uint8_t result_foobar_codec_info[10];
 
-  ASSERT_FALSE(ProviderInfo::BuildCodecCapabilities(
-      CodecId::Core(CodecId::Core::CVSD), foobar_caps,
-      result_foobar_codec_info));
+  ASSERT_FALSE(ProviderInfo::BuildCodecCapabilities(CodecId::Core(CodecId::Core::CVSD), foobar_caps,
+                                                    result_foobar_codec_info));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesSbc,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesSbc) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];
   btav_a2dp_codec_config_t result_codec_config;
   uint64_t result_codec_id;
 
-  ASSERT_TRUE(provider_info->CodecCapabilities(
-      BTAV_A2DP_CODEC_INDEX_SOURCE_SBC, &result_codec_id, result_codec_info,
-      &result_codec_config));
+  ASSERT_TRUE(provider_info->CodecCapabilities(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC, &result_codec_id,
+                                               result_codec_info, &result_codec_config));
   ASSERT_EQ(result_codec_id, A2DP_CODEC_ID_SBC);
-  ASSERT_EQ(std::memcmp(result_codec_info, test_sbc_codec_info.data(),
-                        test_sbc_codec_info.size()),
+  ASSERT_EQ(std::memcmp(result_codec_info, test_sbc_codec_info.data(), test_sbc_codec_info.size()),
             0);
   ASSERT_TRUE(result_codec_config.channel_mode ==
-              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO |
-               BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
-  ASSERT_TRUE(
-      result_codec_config.sample_rate ==
-      (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
+              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO | BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
+  ASSERT_TRUE(result_codec_config.sample_rate ==
+              (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
   ASSERT_TRUE(result_codec_config.bits_per_sample ==
-              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 |
-               BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
+              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 | BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
                BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesAac,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesAac) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];
   btav_a2dp_codec_config_t result_codec_config;
   uint64_t result_codec_id;
 
-  ASSERT_TRUE(provider_info->CodecCapabilities(
-      BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, &result_codec_id, result_codec_info,
-      &result_codec_config));
+  ASSERT_TRUE(provider_info->CodecCapabilities(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, &result_codec_id,
+                                               result_codec_info, &result_codec_config));
   ASSERT_EQ(result_codec_id, A2DP_CODEC_ID_AAC);
-  ASSERT_EQ(std::memcmp(result_codec_info, test_aac_codec_info.data(),
-                        test_aac_codec_info.size()),
+  ASSERT_EQ(std::memcmp(result_codec_info, test_aac_codec_info.data(), test_aac_codec_info.size()),
             0);
   ASSERT_TRUE(result_codec_config.channel_mode ==
-              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO |
-               BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
-  ASSERT_TRUE(
-      result_codec_config.sample_rate ==
-      (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
+              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO | BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
+  ASSERT_TRUE(result_codec_config.sample_rate ==
+              (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
   ASSERT_TRUE(result_codec_config.bits_per_sample ==
-              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 |
-               BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
+              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 | BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
                BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesOpus,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesOpus) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];
   btav_a2dp_codec_config_t result_codec_config;
   uint64_t result_codec_id;
 
-  ASSERT_TRUE(provider_info->CodecCapabilities(
-      BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS, &result_codec_id, result_codec_info,
-      &result_codec_config));
+  ASSERT_TRUE(provider_info->CodecCapabilities(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS, &result_codec_id,
+                                               result_codec_info, &result_codec_config));
   ASSERT_EQ(result_codec_id, A2DP_CODEC_ID_OPUS);
-  ASSERT_EQ(std::memcmp(result_codec_info, test_opus_codec_info.data(),
-                        test_opus_codec_info.size()),
-            0);
+  ASSERT_EQ(
+          std::memcmp(result_codec_info, test_opus_codec_info.data(), test_opus_codec_info.size()),
+          0);
   ASSERT_TRUE(result_codec_config.channel_mode ==
-              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO |
-               BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
-  ASSERT_TRUE(
-      result_codec_config.sample_rate ==
-      (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
+              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO | BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
+  ASSERT_TRUE(result_codec_config.sample_rate ==
+              (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
   ASSERT_TRUE(result_codec_config.bits_per_sample ==
-              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 |
-               BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
+              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 | BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
                BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32));
 }
 
-TEST_F_WITH_FLAGS(ProviderInfoTest, TestCodecCapabilitiesFoobar,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, a2dp_offload_codec_extensibility))) {
+TEST_F(ProviderInfoTest, TestCodecCapabilitiesFoobar) {
   GetProviderInfoForTesting(true, false);
 
   uint8_t result_codec_info[20];
   btav_a2dp_codec_config_t result_codec_config;
   uint64_t result_codec_id;
 
-  ASSERT_TRUE(provider_info->CodecCapabilities(
-      BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN, &result_codec_id, result_codec_info,
-      &result_codec_config));
+  ASSERT_TRUE(provider_info->CodecCapabilities(BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN,
+                                               &result_codec_id, result_codec_info,
+                                               &result_codec_config));
   ASSERT_EQ(result_codec_id, static_cast<uint64_t>(0x11223344ff));
   ASSERT_EQ(std::memcmp(result_codec_info, test_foobar_codec_info.data(),
                         test_foobar_codec_info.size()),
             0);
   ASSERT_TRUE(result_codec_config.channel_mode ==
-              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO |
-               BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
-  ASSERT_TRUE(
-      result_codec_config.sample_rate ==
-      (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
+              (BTAV_A2DP_CODEC_CHANNEL_MODE_MONO | BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO));
+  ASSERT_TRUE(result_codec_config.sample_rate ==
+              (BTAV_A2DP_CODEC_SAMPLE_RATE_44100 | BTAV_A2DP_CODEC_SAMPLE_RATE_48000));
   ASSERT_TRUE(result_codec_config.bits_per_sample ==
-              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 |
-               BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
+              (BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16 | BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24 |
                BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32));
 }

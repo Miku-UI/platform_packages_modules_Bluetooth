@@ -25,9 +25,7 @@ bool A2DP_LoadDecoderAac(void) { return false; }
 
 void A2DP_UnloadDecoderAac(void) {}
 
-bool a2dp_aac_decoder_init(decoded_data_callback_t decode_callback) {
-  return false;
-}
+bool a2dp_aac_decoder_init(decoded_data_callback_t decode_callback) { return false; }
 
 void a2dp_aac_decoder_cleanup(void) {}
 

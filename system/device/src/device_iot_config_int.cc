@@ -74,8 +74,7 @@ future_t* device_iot_config_module_init(void) {
   config = config_new(IOT_CONFIG_FILE_PATH);
   device_iot_config_source = ORIGINAL;
   if (!config) {
-    log::warn("Unable to load config file: {}; using backup.",
-              IOT_CONFIG_FILE_PATH);
+    log::warn("Unable to load config file: {}; using backup.", IOT_CONFIG_FILE_PATH);
     config = config_new(IOT_CONFIG_BACKUP_PATH);
     device_iot_config_source = BACKUP;
   }
@@ -116,8 +115,7 @@ future_t* device_iot_config_module_init(void) {
       cleanup();
       return future_new_immediate(FUTURE_FAIL);
     }
-    config_set_int(config.get(), INFO_SECTION, VERSION_KEY,
-                   DEVICE_IOT_INFO_CURRENT_VERSION);
+    config_set_int(config.get(), INFO_SECTION, VERSION_KEY, DEVICE_IOT_INFO_CURRENT_VERSION);
     device_iot_config_source = NEW_FILE;
   }
 
@@ -126,17 +124,16 @@ future_t* device_iot_config_module_init(void) {
 
   // Read or set config file creation timestamp
   const std::string* time_str =
-      config_get_string(*config, INFO_SECTION, FILE_CREATED_TIMESTAMP, NULL);
+          config_get_string(*config, INFO_SECTION, FILE_CREATED_TIMESTAMP, NULL);
   if (time_str != NULL) {
-    strncpy(device_iot_config_time_created, time_str->c_str(),
-            TIME_STRING_LENGTH);
+    strncpy(device_iot_config_time_created, time_str->c_str(), TIME_STRING_LENGTH);
   } else {
     // Read or set config file creation timestamp
     time_t current_time = time(NULL);
     struct tm* time_created = localtime(&current_time);
     if (time_created) {
-      strftime(device_iot_config_time_created, TIME_STRING_LENGTH,
-               TIME_STRING_FORMAT, time_created);
+      strftime(device_iot_config_time_created, TIME_STRING_LENGTH, TIME_STRING_FORMAT,
+               time_created);
       config_set_string(config.get(), INFO_SECTION, FILE_CREATED_TIMESTAMP,
                         std::string(device_iot_config_time_created));
     }
@@ -168,8 +165,9 @@ future_t* device_iot_config_module_shut_down(void) {
 
 future_t* device_iot_config_module_clean_up(void) {
   log::info("");
-  if (config_timer != NULL && alarm_is_scheduled(config_timer))
+  if (config_timer != NULL && alarm_is_scheduled(config_timer)) {
     device_iot_config_flush();
+  }
 
   alarm_free(config_timer);
   config_timer = NULL;
@@ -180,15 +178,16 @@ future_t* device_iot_config_module_clean_up(void) {
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
-EXPORT_SYMBOL module_t device_iot_config_module = {
-    .name = DEVICE_IOT_CONFIG_MODULE,
-    .init = device_iot_config_module_init,
-    .start_up = device_iot_config_module_start_up,
-    .shut_down = device_iot_config_module_shut_down,
-    .clean_up = device_iot_config_module_clean_up};
+EXPORT_SYMBOL module_t device_iot_config_module = {.name = DEVICE_IOT_CONFIG_MODULE,
+                                                   .init = device_iot_config_module_init,
+                                                   .start_up = device_iot_config_module_start_up,
+                                                   .shut_down = device_iot_config_module_shut_down,
+                                                   .clean_up = device_iot_config_module_clean_up};
 
 void device_iot_config_write(uint16_t event, UNUSED_ATTR char* p_param) {
-  if (!com::android::bluetooth::flags::device_iot_config_logging()) return;
+  if (!com::android::bluetooth::flags::device_iot_config_logging()) {
+    return;
+  }
 
   log::assert_that(config != NULL, "assert failed: config != NULL");
   log::assert_that(config_timer != NULL, "assert failed: config_timer != NULL");
@@ -201,44 +200,45 @@ void device_iot_config_write(uint16_t event, UNUSED_ATTR char* p_param) {
 
   rename(IOT_CONFIG_FILE_PATH, IOT_CONFIG_BACKUP_PATH);
   device_iot_config_restrict_device_num(*config);
-  device_iot_config_sections_sort_by_entry_key(*config,
-                                               device_iot_config_compare_key);
+  device_iot_config_sections_sort_by_entry_key(*config, device_iot_config_compare_key);
   config_save(*config, IOT_CONFIG_FILE_PATH);
 }
 
-void device_iot_config_sections_sort_by_entry_key(config_t& config,
-                                                  compare_func comp) {
+void device_iot_config_sections_sort_by_entry_key(config_t& config, compare_func comp) {
   for (auto& entry : config.sections) {
     entry.entries.sort(comp);
   }
 }
 
-bool device_iot_config_has_key_value(const std::string& section,
-                                     const std::string& key,
+bool device_iot_config_has_key_value(const std::string& section, const std::string& key,
                                      const std::string& value_str) {
   log::assert_that(config != NULL, "assert failed: config != NULL");
 
-  const std::string* stored_value =
-      config_get_string(*config, section, key, NULL);
+  const std::string* stored_value = config_get_string(*config, section, key, NULL);
 
-  if (!stored_value || value_str.compare(*stored_value) != 0) return false;
+  if (!stored_value || value_str.compare(*stored_value) != 0) {
+    return false;
+  }
 
   return true;
 }
 
 void device_iot_config_save_async(void) {
-  if (!com::android::bluetooth::flags::device_iot_config_logging()) return;
+  if (!com::android::bluetooth::flags::device_iot_config_logging()) {
+    return;
+  }
 
   log::assert_that(config != NULL, "assert failed: config != NULL");
   log::assert_that(config_timer != NULL, "assert failed: config_timer != NULL");
 
   log::verbose("");
-  alarm_set(config_timer, CONFIG_SETTLE_PERIOD_MS,
-            device_iot_config_timer_save_cb, NULL);
+  alarm_set(config_timer, CONFIG_SETTLE_PERIOD_MS, device_iot_config_timer_save_cb, NULL);
 }
 
 int device_iot_config_get_device_num(const config_t& conf) {
-  if (!com::android::bluetooth::flags::device_iot_config_logging()) return 0;
+  if (!com::android::bluetooth::flags::device_iot_config_logging()) {
+    return 0;
+  }
 
   int devices = 0;
 
@@ -259,10 +259,8 @@ void device_iot_config_restrict_device_num(config_t& config) {
     return;
   }
 
-  need_remove_devices_num =
-      curr_num - DEVICES_MAX_NUM_IN_IOT_INFO_FILE + DEVICES_NUM_MARGIN;
-  log::info("curr_num={}, need_remove_num={}", curr_num,
-            need_remove_devices_num);
+  need_remove_devices_num = curr_num - DEVICES_MAX_NUM_IN_IOT_INFO_FILE + DEVICES_NUM_MARGIN;
+  log::info("curr_num={}, need_remove_num={}", curr_num, need_remove_devices_num);
 
   std::list<section_t>::iterator i = config.sections.begin();
   while (i != config.sections.end()) {
@@ -278,11 +276,9 @@ void device_iot_config_restrict_device_num(config_t& config) {
   }
 }
 
-bool device_iot_config_compare_key(const entry_t& first,
-                                   const entry_t& second) {
+bool device_iot_config_compare_key(const entry_t& first, const entry_t& second) {
   bool first_is_profile_key = strncasecmp(first.key.c_str(), "Profile", 7) == 0;
-  bool second_is_profile_key =
-      strncasecmp(second.key.c_str(), "Profile", 7) == 0;
+  bool second_is_profile_key = strncasecmp(second.key.c_str(), "Profile", 7) == 0;
   if (!first_is_profile_key && !second_is_profile_key) {
     return true;
   } else if (first_is_profile_key && second_is_profile_key) {
@@ -297,8 +293,7 @@ void device_iot_config_timer_save_cb(void* /* data */) {
   // it usually takes a lot of time to be completed, introducing
   // delays during A2DP playback causing blips or choppiness.
   log::verbose("");
-  btif_transfer_context(device_iot_config_write,
-                        IOT_CONFIG_SAVE_TIMER_FIRED_EVT, NULL, 0, NULL);
+  btif_transfer_context(device_iot_config_write, IOT_CONFIG_SAVE_TIMER_FIRED_EVT, NULL, 0, NULL);
 }
 
 void device_iot_config_set_modified_time() {
@@ -306,8 +301,8 @@ void device_iot_config_set_modified_time() {
   struct tm* time_modified = localtime(&current_time);
   char device_iot_config_time_modified[TIME_STRING_LENGTH];
   if (time_modified) {
-    strftime(device_iot_config_time_modified, TIME_STRING_LENGTH,
-             TIME_STRING_FORMAT, time_modified);
+    strftime(device_iot_config_time_modified, TIME_STRING_LENGTH, TIME_STRING_FORMAT,
+             time_modified);
     config_set_string(config.get(), INFO_SECTION, FILE_MODIFIED_TIMESTAMP,
                       device_iot_config_time_modified);
   }

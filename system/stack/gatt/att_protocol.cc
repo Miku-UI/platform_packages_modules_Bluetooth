@@ -26,10 +26,10 @@
 
 #include "gatt_int.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "types/bluetooth/uuid.h"
 
@@ -55,8 +55,7 @@ using namespace bluetooth;
  ******************************************************************************/
 static BT_HDR* attp_build_mtu_cmd(uint8_t op_code, uint16_t rx_mtu) {
   uint8_t* p;
-  BT_HDR* p_buf =
-      (BT_HDR*)osi_malloc(sizeof(BT_HDR) + GATT_HDR_SIZE + L2CAP_MIN_OFFSET);
+  BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + GATT_HDR_SIZE + L2CAP_MIN_OFFSET);
 
   p = (uint8_t*)(p_buf + 1) + L2CAP_MIN_OFFSET;
   UINT8_TO_STREAM(p, op_code);
@@ -105,8 +104,7 @@ static BT_HDR* attp_build_exec_write_cmd(uint8_t op_code, uint8_t flag) {
  * Returns          None.
  *
  ******************************************************************************/
-static BT_HDR* attp_build_err_cmd(uint8_t cmd_code, uint16_t err_handle,
-                                  uint8_t reason) {
+static BT_HDR* attp_build_err_cmd(uint8_t cmd_code, uint16_t err_handle, uint8_t reason) {
   uint8_t* p;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + L2CAP_MIN_OFFSET + 5);
 
@@ -132,13 +130,11 @@ static BT_HDR* attp_build_err_cmd(uint8_t cmd_code, uint16_t err_handle,
  * Returns          None.
  *
  ******************************************************************************/
-static BT_HDR* attp_build_browse_cmd(uint8_t op_code, uint16_t s_hdl,
-                                     uint16_t e_hdl,
+static BT_HDR* attp_build_browse_cmd(uint8_t op_code, uint16_t s_hdl, uint16_t e_hdl,
                                      const bluetooth::Uuid& uuid) {
   const size_t payload_size =
-      (GATT_OP_CODE_SIZE) + (GATT_START_END_HANDLE_SIZE) + (Uuid::kNumBytes128);
-  BT_HDR* p_buf =
-      (BT_HDR*)osi_malloc(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
+          (GATT_OP_CODE_SIZE) + (GATT_START_END_HANDLE_SIZE) + (Uuid::kNumBytes128);
+  BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
 
   uint8_t* p = (uint8_t*)(p_buf + 1) + L2CAP_MIN_OFFSET;
   /* Describe the built message location and size */
@@ -162,8 +158,8 @@ static BT_HDR* attp_build_browse_cmd(uint8_t op_code, uint16_t s_hdl,
  * Returns          pointer to the command buffer.
  *
  ******************************************************************************/
-static BT_HDR* attp_build_read_by_type_value_cmd(
-    uint16_t payload_size, tGATT_FIND_TYPE_VALUE* p_value_type) {
+static BT_HDR* attp_build_read_by_type_value_cmd(uint16_t payload_size,
+                                                 tGATT_FIND_TYPE_VALUE* p_value_type) {
   uint8_t* p;
   uint16_t len = p_value_type->value_len;
   BT_HDR* p_buf = nullptr;
@@ -172,8 +168,7 @@ static BT_HDR* attp_build_read_by_type_value_cmd(
     return nullptr;
   }
 
-  p_buf =
-      (BT_HDR*)osi_malloc(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
+  p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
 
   p = (uint8_t*)(p_buf + 1) + L2CAP_MIN_OFFSET;
   p_buf->offset = L2CAP_MIN_OFFSET;
@@ -185,8 +180,9 @@ static BT_HDR* attp_build_read_by_type_value_cmd(
 
   p_buf->len += gatt_build_uuid_to_stream(&p, p_value_type->uuid);
 
-  if (p_value_type->value_len + p_buf->len > payload_size)
+  if (p_value_type->value_len + p_buf->len > payload_size) {
     len = payload_size - p_buf->len;
+  }
 
   memcpy(p, p_value_type->value, len);
   p_buf->len += len;
@@ -233,8 +229,7 @@ static BT_HDR* attp_build_read_multi_cmd(uint8_t op_code, uint16_t payload_size,
  * Returns          None.
  *
  ******************************************************************************/
-static BT_HDR* attp_build_handle_cmd(uint8_t op_code, uint16_t handle,
-                                     uint16_t offset) {
+static BT_HDR* attp_build_handle_cmd(uint8_t op_code, uint16_t handle, uint16_t offset) {
   uint8_t* p;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + 5 + L2CAP_MIN_OFFSET);
 
@@ -286,9 +281,8 @@ static BT_HDR* attp_build_opcode_cmd(uint8_t op_code) {
  * Returns          None.
  *
  ******************************************************************************/
-static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
-                                    uint16_t handle, uint16_t offset,
-                                    uint16_t len, uint8_t* p_data) {
+static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code, uint16_t handle,
+                                    uint16_t offset, uint16_t len, uint8_t* p_data) {
   uint8_t *p, *pp, *p_pair_len;
   size_t pair_len;
   size_t size_now = 1;
@@ -302,8 +296,7 @@ static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
     }                                       \
   } while (false)
 
-  BT_HDR* p_buf =
-      (BT_HDR*)osi_malloc(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
+  BT_HDR* p_buf = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + payload_size + L2CAP_MIN_OFFSET);
 
   p = pp = (uint8_t*)(p_buf + 1) + L2CAP_MIN_OFFSET;
 
@@ -372,22 +365,21 @@ static BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
  * Description      Send message to L2CAP.
  *
  ******************************************************************************/
-tGATT_STATUS attp_send_msg_to_l2cap(tGATT_TCB& tcb, uint16_t lcid,
-                                    BT_HDR* p_toL2CAP) {
-  uint16_t l2cap_ret;
+tGATT_STATUS attp_send_msg_to_l2cap(tGATT_TCB& tcb, uint16_t lcid, BT_HDR* p_toL2CAP) {
+  tL2CAP_DW_RESULT l2cap_ret;
 
   if (lcid == L2CAP_ATT_CID) {
     log::debug("Sending ATT message on att fixed channel");
-    l2cap_ret = L2CA_SendFixedChnlData(lcid, tcb.peer_bda, p_toL2CAP);
+    l2cap_ret = stack::l2cap::get_interface().L2CA_SendFixedChnlData(lcid, tcb.peer_bda, p_toL2CAP);
   } else {
     log::debug("Sending ATT message on lcid:{}", lcid);
-    l2cap_ret = (uint16_t)L2CA_DataWrite(lcid, p_toL2CAP);
+    l2cap_ret = stack::l2cap::get_interface().L2CA_DataWrite(lcid, p_toL2CAP);
   }
 
-  if (l2cap_ret == L2CAP_DW_FAILED) {
+  if (l2cap_ret == tL2CAP_DW_RESULT::FAILED) {
     log::error("failed to write data to L2CAP");
     return GATT_INTERNAL_ERROR;
-  } else if (l2cap_ret == L2CAP_DW_CONGESTED) {
+  } else if (l2cap_ret == tL2CAP_DW_RESULT::CONGESTED) {
     log::verbose("ATT congested, message accepted");
     return GATT_CONGESTED;
   }
@@ -400,34 +392,30 @@ BT_HDR* attp_build_sr_msg(tGATT_TCB& tcb, uint8_t op_code, tGATT_SR_MSG* p_msg,
   uint16_t offset = 0;
 
   if (payload_size == 0) {
-    log::error(
-        "Cannot send response (op: 0x{:02x}) due to payload size = 0, {}",
-        op_code, tcb.peer_bda);
+    log::error("Cannot send response (op: 0x{:02x}) due to payload size = 0, {}", op_code,
+               tcb.peer_bda);
     return nullptr;
   }
 
   switch (op_code) {
     case GATT_RSP_READ_BLOB:
     case GATT_RSP_PREPARE_WRITE:
-      log::verbose(
-          "ATT_RSP_READ_BLOB/GATT_RSP_PREPARE_WRITE: len = {} offset = {}",
-          p_msg->attr_value.len, p_msg->attr_value.offset);
+      log::verbose("ATT_RSP_READ_BLOB/GATT_RSP_PREPARE_WRITE: len = {} offset = {}",
+                   p_msg->attr_value.len, p_msg->attr_value.offset);
       offset = p_msg->attr_value.offset;
       FALLTHROUGH_INTENDED; /* FALLTHROUGH */
     case GATT_RSP_READ_BY_TYPE:
     case GATT_RSP_READ:
     case GATT_HANDLE_VALUE_NOTIF:
     case GATT_HANDLE_VALUE_IND:
-      return attp_build_value_cmd(
-          payload_size, op_code, p_msg->attr_value.handle, offset,
-          p_msg->attr_value.len, p_msg->attr_value.value);
+      return attp_build_value_cmd(payload_size, op_code, p_msg->attr_value.handle, offset,
+                                  p_msg->attr_value.len, p_msg->attr_value.value);
 
     case GATT_RSP_WRITE:
       return attp_build_opcode_cmd(op_code);
 
     case GATT_RSP_ERROR:
-      return attp_build_err_cmd(p_msg->error.cmd_code, p_msg->error.handle,
-                                p_msg->error.reason);
+      return attp_build_err_cmd(p_msg->error.cmd_code, p_msg->error.handle, p_msg->error.reason);
 
     case GATT_RSP_EXEC_WRITE:
       return attp_build_exec_write_cmd(op_code, 0);
@@ -477,31 +465,27 @@ tGATT_STATUS attp_send_sr_msg(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_msg) {
  *                  GATT_ERROR if command sending failure
  *
  ******************************************************************************/
-static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
-                                     uint8_t cmd_code, BT_HDR* p_cmd) {
+static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t cmd_code,
+                                     BT_HDR* p_cmd) {
   cmd_code &= ~GATT_AUTH_SIGN_MASK;
 
-  if (gatt_tcb_is_cid_busy(tcb, p_clcb->cid) &&
-      cmd_code != GATT_HANDLE_VALUE_CONF) {
+  if (gatt_tcb_is_cid_busy(tcb, p_clcb->cid) && cmd_code != GATT_HANDLE_VALUE_CONF) {
     if (gatt_cmd_enq(tcb, p_clcb, true, cmd_code, p_cmd)) {
-      log::debug("Enqueued ATT command {} conn_id=0x{:04x}, cid={}",
-                 fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
+      log::debug("Enqueued ATT command {} conn_id=0x{:04x}, cid={}", fmt::ptr(p_clcb),
+                 p_clcb->conn_id, p_clcb->cid);
       return GATT_CMD_STARTED;
     }
 
-    log::error("{}, cid 0x{:02x} already disconnected", tcb.peer_bda,
-               p_clcb->cid);
+    log::error("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, p_clcb->cid);
     return GATT_INTERNAL_ERROR;
   }
 
-  log::debug(
-      "Sending ATT command to l2cap cid:0x{:04x} eatt_channels:{} transport:{}",
-      p_clcb->cid, tcb.eatt, bt_transport_text(tcb.transport));
+  log::debug("Sending ATT command to l2cap cid:0x{:04x} eatt_channels:{} transport:{}", p_clcb->cid,
+             tcb.eatt, bt_transport_text(tcb.transport));
   tGATT_STATUS att_ret = attp_send_msg_to_l2cap(tcb, p_clcb->cid, p_cmd);
   if (att_ret != GATT_CONGESTED && att_ret != GATT_SUCCESS) {
-    log::warn(
-        "Unable to send ATT command to l2cap layer {} conn_id=0x{:04x}, cid={}",
-        fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
+    log::warn("Unable to send ATT command to l2cap layer {} conn_id=0x{:04x}, cid={}",
+              fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
     return GATT_INTERNAL_ERROR;
   }
 
@@ -509,13 +493,12 @@ static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
     return att_ret;
   }
 
-  log::debug("Starting ATT response timer {} conn_id=0x{:04x}, cid={}",
-             fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
+  log::debug("Starting ATT response timer {} conn_id=0x{:04x}, cid={}", fmt::ptr(p_clcb),
+             p_clcb->conn_id, p_clcb->cid);
   gatt_start_rsp_timer(p_clcb);
   if (!gatt_cmd_enq(tcb, p_clcb, false, cmd_code, NULL)) {
-    log::error(
-        "Could not queue sent request. {}, cid 0x{:02x} already disconnected",
-        tcb.peer_bda, p_clcb->cid);
+    log::error("Could not queue sent request. {}, cid 0x{:02x} already disconnected", tcb.peer_bda,
+               p_clcb->cid);
     return GATT_INTERNAL_ERROR;
   }
 
@@ -540,7 +523,9 @@ tGATT_STATUS attp_send_cl_confirmation_msg(tGATT_TCB& tcb, uint16_t cid) {
   BT_HDR* p_cmd = NULL;
   p_cmd = attp_build_opcode_cmd(GATT_HANDLE_VALUE_CONF);
 
-  if (p_cmd == NULL) return GATT_NO_RESOURCES;
+  if (p_cmd == NULL) {
+    return GATT_NO_RESOURCES;
+  }
 
   /* no pending request or value confirmation */
   tGATT_STATUS att_ret = attp_send_msg_to_l2cap(tcb, cid, p_cmd);
@@ -567,8 +552,8 @@ tGATT_STATUS attp_send_cl_confirmation_msg(tGATT_TCB& tcb, uint16_t cid) {
  *
  *
  ******************************************************************************/
-tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
-                              uint8_t op_code, tGATT_CL_MSG* p_msg) {
+tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
+                              tGATT_CL_MSG* p_msg) {
   BT_HDR* p_cmd = NULL;
   uint16_t offset = 0, handle;
 
@@ -579,17 +564,15 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, p_clcb->cid);
   if (payload_size == 0) {
-    log::error("Cannot send request (op: 0x{:02x}) due to payload size = 0, {}",
-               op_code, tcb.peer_bda);
+    log::error("Cannot send request (op: 0x{:02x}) due to payload size = 0, {}", op_code,
+               tcb.peer_bda);
     return GATT_NO_RESOURCES;
   }
 
   switch (op_code) {
     case GATT_REQ_MTU:
       if (p_msg->mtu > GATT_MAX_MTU_SIZE) {
-        log::warn(
-            "GATT message MTU is larger than max GATT MTU size op_code:{}",
-            op_code);
+        log::warn("GATT message MTU is larger than max GATT MTU size op_code:{}", op_code);
         return GATT_ILLEGAL_PARAMETER;
       }
       p_cmd = attp_build_mtu_cmd(GATT_REQ_MTU, p_msg->mtu);
@@ -605,16 +588,15 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
         return GATT_ILLEGAL_PARAMETER;
       }
 
-      p_cmd = attp_build_browse_cmd(op_code, p_msg->browse.s_handle,
-                                    p_msg->browse.e_handle, p_msg->browse.uuid);
+      p_cmd = attp_build_browse_cmd(op_code, p_msg->browse.s_handle, p_msg->browse.e_handle,
+                                    p_msg->browse.uuid);
       break;
 
     case GATT_REQ_READ_BLOB:
       offset = p_msg->read_blob.offset;
       FALLTHROUGH_INTENDED; /* FALLTHROUGH */
     case GATT_REQ_READ:
-      handle =
-          (op_code == GATT_REQ_READ) ? p_msg->handle : p_msg->read_blob.handle;
+      handle = (op_code == GATT_REQ_READ) ? p_msg->handle : p_msg->read_blob.handle;
       /*  handle checking */
       if (!GATT_HANDLE_IS_VALID(handle)) {
         log::warn("GATT message has invalid handle op_code:{}", op_code);
@@ -635,9 +617,8 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
         return GATT_ILLEGAL_PARAMETER;
       }
 
-      p_cmd = attp_build_value_cmd(
-          payload_size, op_code, p_msg->attr_value.handle, offset,
-          p_msg->attr_value.len, p_msg->attr_value.value);
+      p_cmd = attp_build_value_cmd(payload_size, op_code, p_msg->attr_value.handle, offset,
+                                   p_msg->attr_value.len, p_msg->attr_value.value);
       break;
 
     case GATT_REQ_EXEC_WRITE:
@@ -645,14 +626,12 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
       break;
 
     case GATT_REQ_FIND_TYPE_VALUE:
-      p_cmd = attp_build_read_by_type_value_cmd(payload_size,
-                                                &p_msg->find_type_value);
+      p_cmd = attp_build_read_by_type_value_cmd(payload_size, &p_msg->find_type_value);
       break;
 
     case GATT_REQ_READ_MULTI:
     case GATT_REQ_READ_MULTI_VAR:
-      p_cmd = attp_build_read_multi_cmd(op_code, payload_size,
-                                        p_msg->read_multi.num_handles,
+      p_cmd = attp_build_read_multi_cmd(op_code, payload_size, p_msg->read_multi.num_handles,
                                         p_msg->read_multi.handles);
       break;
 
@@ -661,9 +640,7 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
   }
 
   if (p_cmd == NULL) {
-    log::warn(
-        "Unable to build proper GATT message to send to peer device op_code:{}",
-        op_code);
+    log::warn("Unable to build proper GATT message to send to peer device op_code:{}", op_code);
     return GATT_NO_RESOURCES;
   }
 
@@ -673,11 +650,9 @@ tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
 namespace bluetooth {
 namespace legacy {
 namespace testing {
-BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code,
-                             uint16_t handle, uint16_t offset, uint16_t len,
-                             uint8_t* p_data) {
-  return ::attp_build_value_cmd(payload_size, op_code, handle, offset, len,
-                                p_data);
+BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code, uint16_t handle,
+                             uint16_t offset, uint16_t len, uint8_t* p_data) {
+  return ::attp_build_value_cmd(payload_size, op_code, handle, offset, len, p_data);
 }
 }  // namespace testing
 }  // namespace legacy

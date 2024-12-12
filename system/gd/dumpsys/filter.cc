@@ -24,8 +24,9 @@ using namespace bluetooth;
 using namespace dumpsys;
 
 class Filter {
- public:
-  Filter(const dumpsys::ReflectionSchema& reflection_schema) : reflection_schema_(reflection_schema) {}
+public:
+  Filter(const dumpsys::ReflectionSchema& reflection_schema)
+      : reflection_schema_(reflection_schema) {}
 
   virtual ~Filter() = default;
 
@@ -33,7 +34,7 @@ class Filter {
 
   static std::unique_ptr<Filter> Factory(const dumpsys::ReflectionSchema& reflection_schema);
 
- protected:
+protected:
   /**
    * Given both reflection field data and the populated flatbuffer table data, if any,
    * filter the contents of the field based upon the filtering privacy level.
@@ -59,8 +60,8 @@ class Filter {
    * @param table The populated field data, if any
    *
    */
-  virtual void FilterObject(
-      const reflection::Object* /* object */, flatbuffers::Table* /* table */){};
+  virtual void FilterObject(const reflection::Object* /* object */,
+                            flatbuffers::Table* /* table */) {}
 
   /**
    * Given both reflection field data and the populated table data, if any,
@@ -70,25 +71,25 @@ class Filter {
    * @param table The populated field data, if any
    *
    */
-  virtual void FilterTable(
-      const reflection::Schema* /* schema */, flatbuffers::Table* /* table */){};
+  virtual void FilterTable(const reflection::Schema* /* schema */,
+                           flatbuffers::Table* /* table */) {}
 
   const dumpsys::ReflectionSchema& reflection_schema_;
 };
 
 class DeveloperPrivacyFilter : public Filter {
- public:
-  DeveloperPrivacyFilter(const dumpsys::ReflectionSchema& reflection_schema) : Filter(reflection_schema) {}
-  void FilterInPlace(char* /* dumpsys_data */) override { /* Nothing to do in this mode */
-  }
+public:
+  DeveloperPrivacyFilter(const dumpsys::ReflectionSchema& reflection_schema)
+      : Filter(reflection_schema) {}
+  void FilterInPlace(char* /* dumpsys_data */) override { /* Nothing to do in this mode */ }
 };
 
 std::unique_ptr<Filter> Filter::Factory(const dumpsys::ReflectionSchema& reflection_schema) {
   return std::make_unique<DeveloperPrivacyFilter>(reflection_schema);
 }
 
-void bluetooth::dumpsys::FilterSchema(
-    const ReflectionSchema& reflection_schema, std::string* dumpsys_data) {
+void bluetooth::dumpsys::FilterSchema(const ReflectionSchema& reflection_schema,
+                                      std::string* dumpsys_data) {
   auto filter = Filter::Factory(reflection_schema);
   filter->FilterInPlace(dumpsys_data->data());
 }

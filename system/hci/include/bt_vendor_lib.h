@@ -317,8 +317,7 @@ typedef void (*tINT_CMD_CBACK)(void* p_mem);
  *  HCI Command packet. For example, opcode = 0x0c03 for the HCI_RESET command
  *  packet.
  */
-typedef uint8_t (*cmd_xmit_cb)(uint16_t opcode, void* p_buf,
-                               tINT_CMD_CBACK p_cback);
+typedef uint8_t (*cmd_xmit_cb)(uint16_t opcode, void* p_buf, tINT_CMD_CBACK p_cback);
 
 typedef void (*cfg_a2dp_cb)(bt_vendor_op_result_t result, bt_vendor_opcode_t op,
                             uint8_t bta_av_handle);

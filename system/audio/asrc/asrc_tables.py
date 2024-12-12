@@ -79,22 +79,18 @@ d32 = np.clip(np.rint(d * 2**23), -(1 << 23), (1 << 23) - 1).astype(np.int16)
 print("""\
 // clang-format off
 const ResamplerTables resampler_tables = {
-
-  .h = {
-""")
+  .h = {""")
 for q in range(len(h) - 1):
     layout = "  {{" + " {:10d}," * 8 + "\n" + \
               "   " + " {:10d}," * 8 + "\n" + \
               "   " + " {:10d}," * 8 + "\n" + \
               "   " + " {:10d}," * 6 + " {:10d} }},"
     print(layout.format(*h32[q]))
-print("""
-  },
+print("""  },
 """)
 
 print("""\
-  .d = {
-""")
+  .d = {""")
 for q in range(len(h) - 1):
     layout = "  {{" + " {:6d}," * 10 + "\n" + \
               "   " + " {:6d}," * 10 + "\n" + \
@@ -103,11 +99,11 @@ for q in range(len(h) - 1):
 print("""
   }
 };
-// clang-format off""")
+// clang-format on""")
 
 #
 # File footer
 #
 
 print("""
-} // namespace bluetooth::audio::asrc""")
+}  // namespace bluetooth::audio::asrc""")

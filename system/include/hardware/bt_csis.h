@@ -49,29 +49,25 @@ enum class CsisGroupLockStatus {
 static constexpr uint8_t CSIS_RANK_INVALID = 0x00;
 
 class CsisClientCallbacks {
- public:
+public:
   virtual ~CsisClientCallbacks() = default;
 
   /** Callback for profile connection state change */
-  virtual void OnConnectionState(const RawAddress& addr,
-                                 ConnectionState state) = 0;
+  virtual void OnConnectionState(const RawAddress& addr, ConnectionState state) = 0;
 
   /** Callback for the new available device */
-  virtual void OnDeviceAvailable(const RawAddress& addr, int group_id,
-                                 int group_size, int rank,
+  virtual void OnDeviceAvailable(const RawAddress& addr, int group_id, int group_size, int rank,
                                  const bluetooth::Uuid& uuid) = 0;
 
   /* Callback for available set member*/
-  virtual void OnSetMemberAvailable(const RawAddress& address,
-                                    int group_id) = 0;
+  virtual void OnSetMemberAvailable(const RawAddress& address, int group_id) = 0;
 
   /* Callback for lock changed in the group */
-  virtual void OnGroupLockChanged(int group_id, bool locked,
-                                  CsisGroupLockStatus status) = 0;
+  virtual void OnGroupLockChanged(int group_id, bool locked, CsisGroupLockStatus status) = 0;
 };
 
 class CsisClientInterface {
- public:
+public:
   virtual ~CsisClientInterface() = default;
 
   /** Register the Csis Client profile callbacks */

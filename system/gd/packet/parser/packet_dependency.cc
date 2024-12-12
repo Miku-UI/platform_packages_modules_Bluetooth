@@ -32,13 +32,13 @@ std::vector<std::string>& PacketDependency::GetDependencies(const std::string& p
 }
 
 std::vector<std::string>& PacketDependency::GetChildrenDependencies(
-    const std::string& packet_name) {
+        const std::string& packet_name) {
   return children_dependencies[packet_name];
 }
 
 std::set<std::string> PacketDependency::CollectInitialParseAndMatchFields(
-    const ParentDef* parent,
-    std::map<std::string, std::set<std::string>>& initial_parse_and_match_fields) const {
+        const ParentDef* parent,
+        std::map<std::string, std::set<std::string>>& initial_parse_and_match_fields) const {
   // Case Leaf Packet: Return all of its constraints
   if (parent->children_.empty()) {
     auto constraints = parent->GetAllConstraints();
@@ -85,9 +85,9 @@ std::set<std::string> PacketDependency::CollectInitialParseAndMatchFields(
 }
 
 void PacketDependency::FinalizeParseAndMatchFields(
-    const ParentDef* parent,
-    std::map<std::string, std::set<std::string>>& initial_parse_and_match_fields,
-    std::vector<std::string>& available_fields) {
+        const ParentDef* parent,
+        std::map<std::string, std::set<std::string>>& initial_parse_and_match_fields,
+        std::vector<std::string>& available_fields) {
   // Root does not have any constraints on anything
   if (parent->parent_ == nullptr) {
     dependencies[parent->name_] = std::vector<std::string>{};

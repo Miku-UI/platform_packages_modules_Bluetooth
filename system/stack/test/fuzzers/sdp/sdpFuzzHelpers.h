@@ -56,8 +56,7 @@ std::vector<std::shared_ptr<tSDP_DISC_REC>> sdp_disc_rec_vect;
 std::vector<std::shared_ptr<tSDP_DISC_ATTR>> sdp_disc_attr_vect;
 std::vector<std::shared_ptr<tSDP_PROTO_LIST_ELEM>> sdp_protolist_elem_vect;
 
-std::shared_ptr<tSDP_DISC_ATTR> generateArbitrarySdpDiscAttr(
-    FuzzedDataProvider*, bool);
+std::shared_ptr<tSDP_DISC_ATTR> generateArbitrarySdpDiscAttr(FuzzedDataProvider*, bool);
 
 static bool initialized = false;
 void setupSdpFuzz() {
@@ -79,8 +78,7 @@ void cleanupSdpFuzz() {
   sdp_protolist_elem_vect.clear();
 
   // Delete all records
-  [[maybe_unused]] bool rc =
-      get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(0);
+  [[maybe_unused]] bool rc = get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(0);
   sdp_record_handles.clear();
 
   // Delete Databases
@@ -113,11 +111,10 @@ tSDP_DISC_ATVAL generateArbitrarySdpDiscAttrVal(FuzzedDataProvider* fdp) {
   return new_attrval;
 }
 
-std::shared_ptr<tSDP_DISC_ATTR> generateArbitrarySdpDiscAttr(
-    FuzzedDataProvider* fdp, bool allow_null) {
+std::shared_ptr<tSDP_DISC_ATTR> generateArbitrarySdpDiscAttr(FuzzedDataProvider* fdp,
+                                                             bool allow_null) {
   // Give it a chance to return a nullptr
-  if ((allow_null && !fdp->ConsumeBool()) ||
-      sdp_disc_attr_vect.size() > kMaxVectorSize) {
+  if ((allow_null && !fdp->ConsumeBool()) || sdp_disc_attr_vect.size() > kMaxVectorSize) {
     return nullptr;
   }
 
@@ -125,17 +122,16 @@ std::shared_ptr<tSDP_DISC_ATTR> generateArbitrarySdpDiscAttr(
   sdp_disc_attr_vect.push_back(new_attr);
 
   new_attr->p_next_attr = generateArbitrarySdpDiscAttr(fdp, true).get();
-  new_attr->attr_id = fdp->ConsumeBool() ? ATTR_ID_BT_PROFILE_DESC_LIST
-                                         : fdp->ConsumeIntegral<uint16_t>();
-  new_attr->attr_len_type =
-      fdp->ConsumeBool() ? 16 : fdp->ConsumeIntegral<uint16_t>();
+  new_attr->attr_id =
+          fdp->ConsumeBool() ? ATTR_ID_BT_PROFILE_DESC_LIST : fdp->ConsumeIntegral<uint16_t>();
+  new_attr->attr_len_type = fdp->ConsumeBool() ? 16 : fdp->ConsumeIntegral<uint16_t>();
   new_attr->attr_value = generateArbitrarySdpDiscAttrVal(fdp);
 
   return new_attr;
 }
 
-std::shared_ptr<tSDP_DISC_REC> generateArbitrarySdpDiscRecord(
-    FuzzedDataProvider* fdp, bool allow_null) {
+std::shared_ptr<tSDP_DISC_REC> generateArbitrarySdpDiscRecord(FuzzedDataProvider* fdp,
+                                                              bool allow_null) {
   // Give it a chance to return a nullptr
   if (allow_null && !fdp->ConsumeBool()) {
     return nullptr;
@@ -152,16 +148,14 @@ std::shared_ptr<tSDP_DISC_REC> generateArbitrarySdpDiscRecord(
   return new_rec;
 }
 
-tSDP_PROTOCOL_ELEM generateArbitrarySdpProtocolElements(
-    FuzzedDataProvider* fdp) {
+tSDP_PROTOCOL_ELEM generateArbitrarySdpProtocolElements(FuzzedDataProvider* fdp) {
   tSDP_PROTOCOL_ELEM p_elem;
 
   // Set our protocol element values
   p_elem.protocol_uuid = fdp->ConsumeIntegral<uint16_t>();
-  p_elem.num_params =
-      fdp->ConsumeIntegralInRange<uint16_t>(0, SDP_MAX_PROTOCOL_PARAMS);
-  uint16_t num_loops = std::min(
-      p_elem.num_params, static_cast<unsigned short>(SDP_MAX_PROTOCOL_PARAMS));
+  p_elem.num_params = fdp->ConsumeIntegralInRange<uint16_t>(0, SDP_MAX_PROTOCOL_PARAMS);
+  uint16_t num_loops =
+          std::min(p_elem.num_params, static_cast<unsigned short>(SDP_MAX_PROTOCOL_PARAMS));
   // Regardless of number set above, fill out the entire allocated array
   for (uint16_t i = 0; i < num_loops; i++) {
     p_elem.params[i] = fdp->ConsumeIntegral<uint16_t>();
@@ -171,15 +165,14 @@ tSDP_PROTOCOL_ELEM generateArbitrarySdpProtocolElements(
 }
 
 std::shared_ptr<tSDP_PROTO_LIST_ELEM> generateArbitrarySdpProtocolElementList(
-    FuzzedDataProvider* fdp) {
+        FuzzedDataProvider* fdp) {
   std::shared_ptr<tSDP_PROTO_LIST_ELEM> p_elem_list(new tSDP_PROTO_LIST_ELEM);
   sdp_protolist_elem_vect.push_back(p_elem_list);
 
   // Populate our element list
-  p_elem_list->num_elems =
-      fdp->ConsumeIntegralInRange<uint16_t>(0, SDP_MAX_LIST_ELEMS);
-  uint16_t num_loops = std::min(
-      p_elem_list->num_elems, static_cast<unsigned short>(SDP_MAX_LIST_ELEMS));
+  p_elem_list->num_elems = fdp->ConsumeIntegralInRange<uint16_t>(0, SDP_MAX_LIST_ELEMS);
+  uint16_t num_loops =
+          std::min(p_elem_list->num_elems, static_cast<unsigned short>(SDP_MAX_LIST_ELEMS));
   for (uint16_t i = 0; i < num_loops; i++) {
     p_elem_list->list_elem[i] = generateArbitrarySdpProtocolElements(fdp);
   }
@@ -187,14 +180,14 @@ std::shared_ptr<tSDP_PROTO_LIST_ELEM> generateArbitrarySdpProtocolElementList(
   return p_elem_list;
 }
 
-tSDP_PROTO_LIST_ELEM** generateArbitrarySdpProtocolElementListArray(
-    FuzzedDataProvider* fdp, uint16_t* array_size) {
+tSDP_PROTO_LIST_ELEM** generateArbitrarySdpProtocolElementListArray(FuzzedDataProvider* fdp,
+                                                                    uint16_t* array_size) {
   *array_size = fdp->ConsumeIntegralInRange<uint16_t>(0, SDP_MAX_ATTR_LEN);
   if (*array_size == 0) {
     return nullptr;
   }
-  tSDP_PROTO_LIST_ELEM** p_list_array = static_cast<tSDP_PROTO_LIST_ELEM**>(
-      calloc(*array_size, sizeof(tSDP_PROTO_LIST_ELEM*)));
+  tSDP_PROTO_LIST_ELEM** p_list_array =
+          static_cast<tSDP_PROTO_LIST_ELEM**>(calloc(*array_size, sizeof(tSDP_PROTO_LIST_ELEM*)));
   if (p_list_array == nullptr) {
     return nullptr;
   }
@@ -215,18 +208,15 @@ tSDP_DI_RECORD generateArbitrarySdpDiRecord(FuzzedDataProvider* fdp) {
   record.product = fdp->ConsumeIntegral<uint16_t>();
   record.version = fdp->ConsumeIntegral<uint16_t>();
   record.primary_record = fdp->ConsumeBool();
-  size_t num_executable_urls =
-      fdp->ConsumeIntegralInRange<size_t>(0, SDP_MAX_ATTR_LEN);
+  size_t num_executable_urls = fdp->ConsumeIntegralInRange<size_t>(0, SDP_MAX_ATTR_LEN);
   for (size_t i = 0; i < num_executable_urls; i++) {
     record.client_executable_url[i] = fdp->ConsumeIntegral<char>();
   }
-  size_t num_descriptions =
-      fdp->ConsumeIntegralInRange<size_t>(0, SDP_MAX_ATTR_LEN);
+  size_t num_descriptions = fdp->ConsumeIntegralInRange<size_t>(0, SDP_MAX_ATTR_LEN);
   for (size_t i = 0; i < num_descriptions; i++) {
     record.service_description[i] = fdp->ConsumeIntegral<char>();
   }
-  size_t num_documentation_urls =
-      fdp->ConsumeIntegralInRange<size_t>(0, SDP_MAX_ATTR_LEN);
+  size_t num_documentation_urls = fdp->ConsumeIntegralInRange<size_t>(0, SDP_MAX_ATTR_LEN);
   for (size_t i = 0; i < num_documentation_urls; i++) {
     record.documentation_url[i] = fdp->ConsumeIntegral<char>();
   }
@@ -260,7 +250,7 @@ SDP_Sequence_Helper generateArbitrarySdpElemSequence(FuzzedDataProvider* fdp) {
       // Link the size to the size of the buffer we're creating
       (ret.len.get())[i] = buf_size;
       std::shared_ptr<uint8_t> p_val_sp(
-          reinterpret_cast<uint8_t*>(calloc(buf_size, sizeof(uint8_t))), free);
+              reinterpret_cast<uint8_t*>(calloc(buf_size, sizeof(uint8_t))), free);
       ret.p_val_buffers.push_back(p_val_sp);
       (ret.p_val.get())[i] = p_val_sp.get();
       std::vector<uint8_t> bytes = fdp->ConsumeBytes<uint8_t>(buf_size);
@@ -276,7 +266,6 @@ SDP_Sequence_Helper generateArbitrarySdpElemSequence(FuzzedDataProvider* fdp) {
 
 // Define our callback functions we'll be using within our functions
 void sdp_disc_cmpl_cb(const RawAddress& bd_addr, tSDP_STATUS result) {}
-void sdp_disc_cmpl_cb2(std::vector<uint8_t> data, const RawAddress& bd_addr,
-                       tSDP_STATUS result) {}
+void sdp_disc_cmpl_cb2(std::vector<uint8_t> data, const RawAddress& bd_addr, tSDP_STATUS result) {}
 
 #endif  // FUZZER_SDP_HELPERS_H_

@@ -54,8 +54,8 @@ static void connection_state_cb(vc::ConnectionState state, const RawAddress& add
   vc_connection_state_callback(to_rust_btvc_connection_state(state), address);
 }
 
-static void volume_state_cb(
-    const RawAddress& address, uint8_t volume, bool mute, bool is_autonomous) {
+static void volume_state_cb(const RawAddress& address, uint8_t volume, bool mute,
+                            bool is_autonomous) {
   vc_volume_state_callback(address, volume, mute, is_autonomous);
 }
 
@@ -67,99 +67,120 @@ static void device_available_cb(const RawAddress& address, uint8_t num_offset) {
   vc_device_available_callback(address, num_offset);
 }
 
-static void ext_audio_out_volume_offset_cb(
-    const RawAddress& address, uint8_t ext_output_id, int16_t offset) {
+static void ext_audio_out_volume_offset_cb(const RawAddress& address, uint8_t ext_output_id,
+                                           int16_t offset) {
   vc_ext_audio_out_volume_offset_callback(address, ext_output_id, offset);
 }
 
-static void ext_audio_out_location_cb(
-    const RawAddress& address, uint8_t ext_output_id, uint32_t location) {
+static void ext_audio_out_location_cb(const RawAddress& address, uint8_t ext_output_id,
+                                      uint32_t location) {
   vc_ext_audio_out_location_callback(address, ext_output_id, location);
 }
 
-static void ext_audio_out_description_cb(
-    const RawAddress& address, uint8_t ext_output_id, std::string descr) {
+static void ext_audio_out_description_cb(const RawAddress& address, uint8_t ext_output_id,
+                                         std::string descr) {
   vc_ext_audio_out_description_callback(address, ext_output_id, descr);
 }
 
 }  // namespace internal
 
 class DBusVolumeControlCallbacks : public vc::VolumeControlCallbacks {
- public:
+public:
   static vc::VolumeControlCallbacks* GetInstance() {
     static auto instance = new DBusVolumeControlCallbacks();
     return instance;
   }
 
-  DBusVolumeControlCallbacks(){};
+  DBusVolumeControlCallbacks() {}
 
   void OnConnectionState(vc::ConnectionState state, const RawAddress& address) override {
     log::info("state={}, address={}", static_cast<int>(state), ADDRESS_TO_LOGGABLE_CSTR(address));
     topshim::rust::internal::connection_state_cb(state, address);
   }
 
-  void OnVolumeStateChanged(
-      const RawAddress& address, uint8_t volume, bool mute, bool is_autonomous) override {
-    log::info(
-        "address={}, volume={}, mute={}, is_autonomous={}",
-        ADDRESS_TO_LOGGABLE_CSTR(address),
-        volume,
-        mute,
-        is_autonomous);
+  void OnVolumeStateChanged(const RawAddress& address, uint8_t volume, bool mute, uint8_t flags,
+                            bool is_autonomous) override {
+    log::info("address={}, volume={}, mute={}, flags={}, is_autonomous={}",
+              ADDRESS_TO_LOGGABLE_CSTR(address), volume, mute, flags, is_autonomous);
     topshim::rust::internal::volume_state_cb(address, volume, mute, is_autonomous);
   }
 
-  void OnGroupVolumeStateChanged(
-      int group_id, uint8_t volume, bool mute, bool is_autonomous) override {
-    log::info(
-        "group_id={}, volume={}, mute={}, is_autonomous={}", group_id, volume, mute, is_autonomous);
+  void OnGroupVolumeStateChanged(int group_id, uint8_t volume, bool mute,
+                                 bool is_autonomous) override {
+    log::info("group_id={}, volume={}, mute={}, is_autonomous={}", group_id, volume, mute,
+              is_autonomous);
     topshim::rust::internal::group_volume_state_cb(group_id, volume, mute, is_autonomous);
   }
 
-  void OnDeviceAvailable(const RawAddress& address, uint8_t num_offset) override {
-    log::info("address={}, num_offset={}", ADDRESS_TO_LOGGABLE_CSTR(address), num_offset);
+  void OnDeviceAvailable(const RawAddress& address, uint8_t num_offset,
+                         uint8_t num_inputs) override {
+    log::info("address={}, num_offset={} num_inputs={}", address, num_offset, num_inputs);
     topshim::rust::internal::device_available_cb(address, num_offset);
   }
 
-  void OnExtAudioOutVolumeOffsetChanged(
-      const RawAddress& address, uint8_t ext_output_id, int16_t offset) override {
-    log::info(
-        "address={}, ext_output_id={}, offset={}",
-        ADDRESS_TO_LOGGABLE_CSTR(address),
-        ext_output_id,
-        offset);
+  void OnExtAudioOutVolumeOffsetChanged(const RawAddress& address, uint8_t ext_output_id,
+                                        int16_t offset) override {
+    log::info("address={}, ext_output_id={}, offset={}", ADDRESS_TO_LOGGABLE_CSTR(address),
+              ext_output_id, offset);
     topshim::rust::internal::ext_audio_out_volume_offset_cb(address, ext_output_id, offset);
   }
 
-  void OnExtAudioOutLocationChanged(
-      const RawAddress& address, uint8_t ext_output_id, uint32_t location) override {
-    log::info(
-        "address={}, ext_output_id, location={}",
-        ADDRESS_TO_LOGGABLE_CSTR(address),
-        ext_output_id,
-        location);
+  void OnExtAudioOutLocationChanged(const RawAddress& address, uint8_t ext_output_id,
+                                    uint32_t location) override {
+    log::info("address={}, ext_output_id, location={}", ADDRESS_TO_LOGGABLE_CSTR(address),
+              ext_output_id, location);
     topshim::rust::internal::ext_audio_out_location_cb(address, ext_output_id, location);
   }
 
-  void OnExtAudioOutDescriptionChanged(
-      const RawAddress& address, uint8_t ext_output_id, std::string descr) override {
-    log::info(
-        "address={}, ext_output_id={}, descr={}",
-        ADDRESS_TO_LOGGABLE_CSTR(address),
-        ext_output_id,
-        descr.c_str());
+  void OnExtAudioOutDescriptionChanged(const RawAddress& address, uint8_t ext_output_id,
+                                       std::string descr) override {
+    log::info("address={}, ext_output_id={}, descr={}", ADDRESS_TO_LOGGABLE_CSTR(address),
+              ext_output_id, descr.c_str());
     topshim::rust::internal::ext_audio_out_description_cb(address, ext_output_id, descr);
+  }
+
+  void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id, int8_t gain_val,
+                                uint8_t gain_mode_auto, bool mute) {
+    log::info("address={}, ext_input_id={}, gain_val={}, gain_mode_auto={}, mute={}", address,
+              ext_input_id, gain_val, gain_mode_auto, mute);
+    log::info("Not implemented");
+  }
+
+  void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
+                                 bluetooth::vc::VolumeInputStatus status) {
+    log::info("address={}, ext_input_id={}, status={}", address, ext_input_id, status);
+    log::info("Not implemented");
+  }
+  void OnExtAudioInTypeChanged(const RawAddress& address, uint8_t ext_input_id,
+                               bluetooth::vc::VolumeInputType type) {
+    log::info("address={}, ext_input_id={}, type={}", address, ext_input_id, type);
+    log::info("Not implemented");
+  }
+
+  void OnExtAudioInGainPropsChanged(const RawAddress& address, uint8_t ext_input_id, uint8_t unit,
+                                    int8_t min, int8_t max) {
+    log::info("address={}, ext_input_id={}, unit={}, min={}, max={}", address, ext_input_id, unit,
+              min, max);
+    log::info("Not implemented");
+  }
+
+  void OnExtAudioInDescriptionChanged(const RawAddress& address, uint8_t ext_input_id,
+                                      std::string descr) {
+    log::info("address={}, ext_input_id={}, descr={}", address, ext_input_id, descr);
+    log::info("Not implemented");
   }
 };
 
 std::unique_ptr<VolumeControlIntf> GetVolumeControlProfile(const unsigned char* btif) {
-  if (internal::g_vc_if) std::abort();
+  if (internal::g_vc_if) {
+    std::abort();
+  }
 
   const bt_interface_t* btif_ = reinterpret_cast<const bt_interface_t*>(btif);
 
-  auto vc_if = std::make_unique<VolumeControlIntf>(
-      const_cast<vc::VolumeControlInterface*>(reinterpret_cast<const vc::VolumeControlInterface*>(
-          btif_->get_profile_interface("volume_control"))));
+  auto vc_if = std::make_unique<VolumeControlIntf>(const_cast<vc::VolumeControlInterface*>(
+          reinterpret_cast<const vc::VolumeControlInterface*>(
+                  btif_->get_profile_interface("volume_control"))));
 
   internal::g_vc_if = vc_if.get();
 
@@ -170,40 +191,28 @@ void VolumeControlIntf::init(/*VolumeControlCallbacks* callbacks*/) {
   return intf_->Init(DBusVolumeControlCallbacks::GetInstance());
 }
 
-void VolumeControlIntf::cleanup() {
-  return intf_->Cleanup();
-}
+void VolumeControlIntf::cleanup() { return intf_->Cleanup(); }
 
-void VolumeControlIntf::connect(RawAddress addr) {
-  return intf_->Connect(addr);
-}
+void VolumeControlIntf::connect(RawAddress addr) { return intf_->Connect(addr); }
 
-void VolumeControlIntf::disconnect(RawAddress addr) {
-  return intf_->Disconnect(addr);
-}
+void VolumeControlIntf::disconnect(RawAddress addr) { return intf_->Disconnect(addr); }
 
-void VolumeControlIntf::remove_device(RawAddress addr) {
-  return intf_->RemoveDevice(addr);
-}
+void VolumeControlIntf::remove_device(RawAddress addr) { return intf_->RemoveDevice(addr); }
 
 void VolumeControlIntf::set_volume(int group_id, uint8_t volume) {
   return intf_->SetVolume(group_id, volume);
 }
 
-void VolumeControlIntf::mute(RawAddress addr) {
-  return intf_->Mute(addr);
-}
+void VolumeControlIntf::mute(RawAddress addr) { return intf_->Mute(addr); }
 
-void VolumeControlIntf::unmute(RawAddress addr) {
-  return intf_->Unmute(addr);
-}
+void VolumeControlIntf::unmute(RawAddress addr) { return intf_->Unmute(addr); }
 
 void VolumeControlIntf::get_ext_audio_out_volume_offset(RawAddress addr, uint8_t ext_output_id) {
   return intf_->GetExtAudioOutVolumeOffset(addr, ext_output_id);
 }
 
-void VolumeControlIntf::set_ext_audio_out_volume_offset(
-    RawAddress addr, uint8_t ext_output_id, int16_t offset_val) {
+void VolumeControlIntf::set_ext_audio_out_volume_offset(RawAddress addr, uint8_t ext_output_id,
+                                                        int16_t offset_val) {
   return intf_->SetExtAudioOutVolumeOffset(addr, ext_output_id, offset_val);
 }
 
@@ -211,8 +220,8 @@ void VolumeControlIntf::get_ext_audio_out_location(RawAddress addr, uint8_t ext_
   return intf_->GetExtAudioOutLocation(addr, ext_output_id);
 }
 
-void VolumeControlIntf::set_ext_audio_out_location(
-    RawAddress addr, uint8_t ext_output_id, uint32_t location) {
+void VolumeControlIntf::set_ext_audio_out_location(RawAddress addr, uint8_t ext_output_id,
+                                                   uint32_t location) {
   return intf_->SetExtAudioOutLocation(addr, ext_output_id, location);
 }
 
@@ -220,8 +229,8 @@ void VolumeControlIntf::get_ext_audio_out_description(RawAddress addr, uint8_t e
   return intf_->GetExtAudioOutDescription(addr, ext_output_id);
 }
 
-void VolumeControlIntf::set_ext_audio_out_description(
-    RawAddress addr, uint8_t ext_output_id, const char* descr) {
+void VolumeControlIntf::set_ext_audio_out_description(RawAddress addr, uint8_t ext_output_id,
+                                                      const char* descr) {
   return intf_->SetExtAudioOutDescription(addr, ext_output_id, std::string(descr));
 }
 }  // namespace rust

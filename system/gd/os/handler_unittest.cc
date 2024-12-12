@@ -29,7 +29,7 @@ namespace os {
 namespace {
 
 class HandlerTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
     handler_ = new Handler(thread_);
@@ -43,21 +43,18 @@ class HandlerTest : public ::testing::Test {
   Thread* thread_;
 };
 
-TEST_F(HandlerTest, empty) {
-  handler_->Clear();
-}
+TEST_F(HandlerTest, empty) { handler_->Clear(); }
 
 TEST_F(HandlerTest, post_task_invoked) {
   int val = 0;
   std::promise<void> closure_ran;
   auto future = closure_ran.get_future();
   common::OnceClosure closure = common::BindOnce(
-      [](int* val, std::promise<void> closure_ran) {
-        *val = *val + 1;
-        closure_ran.set_value();
-      },
-      common::Unretained(&val),
-      std::move(closure_ran));
+          [](int* val, std::promise<void> closure_ran) {
+            *val = *val + 1;
+            closure_ran.set_value();
+          },
+          common::Unretained(&val), std::move(closure_ran));
   handler_->Post(std::move(closure));
   future.wait();
   ASSERT_EQ(val, 1);
@@ -73,20 +70,16 @@ TEST_F(HandlerTest, post_task_cleared) {
   std::promise<void> closure_finished;
   auto closure_finished_future = closure_finished.get_future();
   handler_->Post(common::BindOnce(
-      [](int* val,
-         std::promise<void> closure_started,
-         std::future<void> can_continue_future,
-         std::promise<void> closure_finished) {
-        closure_started.set_value();
-        *val = *val + 1;
-        can_continue_future.wait();
-        closure_finished.set_value();
-      },
-      common::Unretained(&val),
-      std::move(closure_started),
-      std::move(can_continue_future),
-      std::move(closure_finished)));
-  handler_->Post(common::BindOnce([]() { ASSERT_TRUE(false); }));
+          [](int* val, std::promise<void> closure_started, std::future<void> can_continue_future,
+             std::promise<void> closure_finished) {
+            closure_started.set_value();
+            *val = *val + 1;
+            can_continue_future.wait();
+            closure_finished.set_value();
+          },
+          common::Unretained(&val), std::move(closure_started), std::move(can_continue_future),
+          std::move(closure_finished)));
+  handler_->Post(common::BindOnce([]() { FAIL(); }));
   closure_started_future.wait();
   handler_->Clear();
   closure_can_continue.set_value();
@@ -110,7 +103,8 @@ TEST_F(HandlerTest, once_callback) {
 TEST_F(HandlerTest, callback_with_promise) {
   std::promise<void> promise;
   auto future = promise.get_future();
-  auto once_callback = common::BindOnce(&std::promise<void>::set_value, common::Unretained(&promise));
+  auto once_callback =
+          common::BindOnce(&std::promise<void>::set_value, common::Unretained(&promise));
   std::move(once_callback).Run();
   future.wait();
   handler_->Clear();
@@ -118,7 +112,7 @@ TEST_F(HandlerTest, callback_with_promise) {
 
 // For Death tests, all the threading needs to be done in the ASSERT_DEATH call
 class HandlerDeathTest : public ::testing::Test {
- protected:
+protected:
   void ThreadSetUp() {
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
     handler_ = new Handler(thread_);

@@ -28,7 +28,7 @@ template <class Builder>
 class AttributesResponseBuilderTestUser;
 
 class GetItemAttributesResponseBuilder : public BrowsePacketBuilder {
- public:
+public:
   virtual ~GetItemAttributesResponseBuilder() = default;
   using Builder = std::unique_ptr<GetItemAttributesResponseBuilder>;
   static Builder MakeBuilder(Status status, size_t mtu);
@@ -52,24 +52,20 @@ class GetItemAttributesResponseBuilder : public BrowsePacketBuilder {
   }
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- private:
+private:
   Status status_;
   size_t mtu_;
   std::set<AttributeEntry> entries_;
-  friend class AttributesResponseBuilderTestUser<
-      GetItemAttributesResponseBuilder>;
+  friend class AttributesResponseBuilderTestUser<GetItemAttributesResponseBuilder>;
 
   GetItemAttributesResponseBuilder(Status status, size_t mtu)
-      : BrowsePacketBuilder(BrowsePdu::GET_ITEM_ATTRIBUTES),
-        status_(status),
-        mtu_(mtu) {}
+      : BrowsePacketBuilder(BrowsePdu::GET_ITEM_ATTRIBUTES), status_(status), mtu_(mtu) {}
 };
 
 class GetItemAttributesRequest : public BrowsePacket {
- public:
+public:
   virtual ~GetItemAttributesRequest() = default;
 
   /**
@@ -89,14 +85,13 @@ class GetItemAttributesRequest : public BrowsePacket {
   Scope GetScope() const;
   uint64_t GetUid() const;
   uint16_t GetUidCounter() const;
-  uint8_t GetNumAttributes()
-      const;  // If this value is zero, then all attributes are requested
+  uint8_t GetNumAttributes() const;  // If this value is zero, then all attributes are requested
   std::vector<Attribute> GetAttributesRequested() const;
 
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using BrowsePacket::BrowsePacket;
 };
 

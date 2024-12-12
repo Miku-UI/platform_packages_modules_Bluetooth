@@ -65,6 +65,5 @@ static inline int osi_android_get_control_socket(const char* name) {
 
 int osi_socket_local_server(const char* name, int namespaceId, int type);
 int osi_socket_local_server_bind(int s, const char* name, int namespaceId);
-int osi_socket_local_client_connect(int fd, const char* name, int namespaceId,
-                                    int type);
+int osi_socket_local_client_connect(int fd, const char* name, int namespaceId, int type);
 int osi_socket_local_client(const char* name, int namespaceId, int type);

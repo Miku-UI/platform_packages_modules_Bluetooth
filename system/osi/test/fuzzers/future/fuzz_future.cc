@@ -15,6 +15,7 @@
  */
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include "osi/include/future.h"
 
 #define MAX_BUFFER_SIZE 8
@@ -24,8 +25,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
   FuzzedDataProvider dataProvider(Data, Size);
 
   // The value of this result ptr shouldn't matter, but make a buffer to be safe
-  size_t buf_size =
-      dataProvider.ConsumeIntegralInRange<size_t>(1, MAX_BUFFER_SIZE);
+  size_t buf_size = dataProvider.ConsumeIntegralInRange<size_t>(1, MAX_BUFFER_SIZE);
   void* buf = malloc(buf_size);
   if (buf == nullptr) {
     return 0;

@@ -24,7 +24,7 @@ namespace bluetooth {
 namespace os {
 
 class ParameterProvider {
- public:
+public:
   // Return the path to config file for storage module
   static std::string ConfigFilePath();
 

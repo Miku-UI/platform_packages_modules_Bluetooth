@@ -68,21 +68,26 @@ static const size_t DEFAULT_WORK_QUEUE_CAPACITY = 128;
 
 thread_t* thread_new_sized(const char* name, size_t work_queue_capacity) {
   log::assert_that(name != NULL, "assert failed: name != NULL");
-  log::assert_that(work_queue_capacity != 0,
-                   "assert failed: work_queue_capacity != 0");
+  log::assert_that(work_queue_capacity != 0, "assert failed: work_queue_capacity != 0");
 
   thread_t* ret = static_cast<thread_t*>(osi_calloc(sizeof(thread_t)));
 
   ret->reactor = reactor_new();
-  if (!ret->reactor) goto error;
+  if (!ret->reactor) {
+    goto error;
+  }
 
   ret->work_queue = fixed_queue_new(work_queue_capacity);
-  if (!ret->work_queue) goto error;
+  if (!ret->work_queue) {
+    goto error;
+  }
 
   // Start is on the stack, but we use a semaphore, so it's safe
   struct start_arg start;
   start.start_sem = semaphore_new(0);
-  if (!start.start_sem) goto error;
+  if (!start.start_sem) {
+    goto error;
+  }
 
   strncpy(ret->name, name, THREAD_NAME_MAX);
   start.thread = ret;
@@ -91,7 +96,9 @@ thread_t* thread_new_sized(const char* name, size_t work_queue_capacity) {
   semaphore_wait(start.start_sem);
   semaphore_free(start.start_sem);
 
-  if (start.error) goto error;
+  if (start.error) {
+    goto error;
+  }
 
   return ret;
 
@@ -109,7 +116,9 @@ thread_t* thread_new(const char* name) {
 }
 
 void thread_free(thread_t* thread) {
-  if (!thread) return;
+  if (!thread) {
+    return;
+  }
 
   thread_stop(thread);
   thread_join(thread);
@@ -122,8 +131,9 @@ void thread_free(thread_t* thread) {
 void thread_join(thread_t* thread) {
   log::assert_that(thread != NULL, "assert failed: thread != NULL");
 
-  if (!std::atomic_exchange(&thread->is_joined, true))
+  if (!std::atomic_exchange(&thread->is_joined, true)) {
     pthread_join(thread->pthread, NULL);
+  }
 }
 
 bool thread_post(thread_t* thread, thread_fn func, void* context) {
@@ -149,12 +159,13 @@ void thread_stop(thread_t* thread) {
 }
 
 bool thread_set_priority(thread_t* thread, int priority) {
-  if (!thread) return false;
+  if (!thread) {
+    return false;
+  }
 
   const int rc = setpriority(PRIO_PROCESS, thread->tid, priority);
   if (rc < 0) {
-    log::error("unable to set thread priority {} for tid {}, error {}",
-               priority, thread->tid, rc);
+    log::error("unable to set thread priority {} for tid {}, error {}", priority, thread->tid, rc);
     return false;
   }
 
@@ -162,15 +173,17 @@ bool thread_set_priority(thread_t* thread, int priority) {
 }
 
 bool thread_set_rt_priority(thread_t* thread, int priority) {
-  if (!thread) return false;
+  if (!thread) {
+    return false;
+  }
 
   struct sched_param rt_params;
   rt_params.sched_priority = priority;
 
   const int rc = sched_setscheduler(thread->tid, SCHED_FIFO, &rt_params);
   if (rc != 0) {
-    log::error("unable to set SCHED_FIFO priority {} for tid {}, error {}",
-               priority, thread->tid, strerror(errno));
+    log::error("unable to set SCHED_FIFO priority {} for tid {}, error {}", priority, thread->tid,
+               strerror(errno));
     return false;
   }
 
@@ -216,7 +229,9 @@ static void* run_thread(void* start_arg) {
   void* context = thread->work_queue;
 
   reactor_object_t* work_queue_object =
-      reactor_register(thread->reactor, fd, context, work_queue_read_cb, NULL);
+          reactor_register(thread->reactor, fd, context, work_queue_read_cb, NULL);
+  log::assert_that(work_queue_object != nullptr, "assert failed: work_queue_object != nullptr");
+
   reactor_start(thread->reactor);
   reactor_unregister(work_queue_object);
 
@@ -224,18 +239,17 @@ static void* run_thread(void* start_arg) {
   // This allows a caller to safely tear down by enqueuing a teardown
   // work item and then joining the thread.
   size_t count = 0;
-  work_item_t* item =
-      static_cast<work_item_t*>(fixed_queue_try_dequeue(thread->work_queue));
+  work_item_t* item = static_cast<work_item_t*>(fixed_queue_try_dequeue(thread->work_queue));
   while (item && count <= fixed_queue_capacity(thread->work_queue)) {
     item->func(item->context);
     osi_free(item);
-    item =
-        static_cast<work_item_t*>(fixed_queue_try_dequeue(thread->work_queue));
+    item = static_cast<work_item_t*>(fixed_queue_try_dequeue(thread->work_queue));
     ++count;
   }
 
-  if (count > fixed_queue_capacity(thread->work_queue))
+  if (count > fixed_queue_capacity(thread->work_queue)) {
     log::info("growing event queue on shutdown.");
+  }
 
   log::warn("thread id {}, thread name {} exited", thread->tid, thread->name);
   return NULL;

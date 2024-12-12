@@ -145,16 +145,16 @@ public class AvrcpCoverArtStorage {
 
     @Override
     public String toString() {
-        String s = "CoverArtStorage:\n";
+        StringBuilder sb = new StringBuilder("CoverArtStorage:\n");
         for (BluetoothDevice device : mDeviceImages.keySet()) {
             Map<String, Bitmap> images = mDeviceImages.get(device);
-            s += "  " + device + " (" + images.size() + "):";
+            sb.append("  ").append(device).append(" (").append(images.size()).append("):");
             for (String uuid : images.keySet()) {
-                s += "\n    " + uuid;
+                sb.append("\n    ").append(uuid);
             }
-            s += "\n";
+            sb.append("\n");
         }
-        return s;
+        return sb.toString();
     }
 
     private void debug(String msg) {

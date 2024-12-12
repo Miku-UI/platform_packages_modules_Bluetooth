@@ -41,24 +41,22 @@ namespace btbase {
 #if defined(BASE_VER) && BASE_VER > 780000
 
 class AbstractMessageLoop : public base::SingleThreadTaskExecutor {
- public:
+public:
   static scoped_refptr<base::SingleThreadTaskRunner> current_task_runner() {
     return base::SingleThreadTaskRunner::GetCurrentDefault();
   }
 };
 
 class AbstractTestMessageLoop : public base::test::TaskEnvironment {
- public:
+public:
   static scoped_refptr<base::SingleThreadTaskRunner> current_task_runner() {
     return base::SingleThreadTaskRunner::GetCurrentDefault();
   }
 };
 
 // Initialize the test task environment
-#define DEFINE_TEST_TASK_ENV(var)                                \
-  base::AbstractTestMessageLoop var {                            \
-    base::test::TaskEnvironment::ThreadingMode::MAIN_THREAD_ONLY \
-  }
+#define DEFINE_TEST_TASK_ENV(var) \
+  base::AbstractTestMessageLoop var { base::test::TaskEnvironment::ThreadingMode::MAIN_THREAD_ONLY }
 
 inline void set_message_loop_type_IO(base::Thread::Options& options) {
   options.message_pump_type = base::MessagePumpType::IO;
@@ -66,7 +64,7 @@ inline void set_message_loop_type_IO(base::Thread::Options& options) {
 
 #else
 class AbstractMessageLoop : public base::MessageLoop {
- public:
+public:
   static scoped_refptr<base::SingleThreadTaskRunner> current_task_runner() {
     return base::MessageLoop::current()->task_runner();
   }

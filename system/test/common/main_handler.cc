@@ -39,29 +39,22 @@ void do_post_on_bt_main(BtMainClosure closure) { closure(); }
 
 }  // namespace
 
-bt_status_t do_in_main_thread(const base::Location& from_here,
-                              base::OnceClosure task) {
-  bluetooth::log::assert_that(
-      main_thread.DoInThread(from_here, std::move(task)),
-      "Unable to run on main thread");
+bt_status_t do_in_main_thread(base::OnceClosure task) {
+  bluetooth::log::assert_that(main_thread.DoInThread(FROM_HERE, std::move(task)),
+                              "Unable to run on main thread");
   return BT_STATUS_SUCCESS;
 }
 
-bt_status_t do_in_main_thread_delayed(const base::Location& from_here,
-                                      base::OnceClosure task,
-                                      std::chrono::microseconds delay) {
-  bluetooth::log::assert_that(
-      !main_thread.DoInThreadDelayed(from_here, std::move(task), delay),
-      "Unable to run on main thread delayed");
+bt_status_t do_in_main_thread_delayed(base::OnceClosure task, std::chrono::microseconds delay) {
+  bluetooth::log::assert_that(!main_thread.DoInThreadDelayed(FROM_HERE, std::move(task), delay),
+                              "Unable to run on main thread delayed");
   return BT_STATUS_SUCCESS;
 }
 
 void post_on_bt_main(BtMainClosure closure) {
-  bluetooth::log::assert_that(
-      do_in_main_thread(
-          FROM_HERE, base::BindOnce(do_post_on_bt_main, std::move(closure))) ==
-          BT_STATUS_SUCCESS,
-      "Unable to post on main thread");
+  bluetooth::log::assert_that(do_in_main_thread(base::BindOnce(
+                                      do_post_on_bt_main, std::move(closure))) == BT_STATUS_SUCCESS,
+                              "Unable to post on main thread");
 }
 
 void main_thread_start_up() {
@@ -75,6 +68,4 @@ void main_thread_shut_down() { main_thread.ShutDown(); }
 // osi_alarm
 bluetooth::common::MessageLoopThread* get_main_thread() { return &main_thread; }
 
-bluetooth::common::PostableContext* get_main() {
-  return main_thread.Postable();
-}
+bluetooth::common::PostableContext* get_main() { return main_thread.Postable(); }

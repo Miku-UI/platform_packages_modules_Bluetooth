@@ -48,9 +48,9 @@ using namespace bluetooth;
  ****************************************************************************/
 
 /* mask of all psc values */
-#define AVDT_MSG_PSC_MASK                                                   \
-  (AVDT_PSC_TRANS | AVDT_PSC_REPORT | AVDT_PSC_DELAY_RPT | AVDT_PSC_RECOV | \
-   AVDT_PSC_HDRCMP | AVDT_PSC_MUX)
+#define AVDT_MSG_PSC_MASK                                                                     \
+  (AVDT_PSC_TRANS | AVDT_PSC_REPORT | AVDT_PSC_DELAY_RPT | AVDT_PSC_RECOV | AVDT_PSC_HDRCMP | \
+   AVDT_PSC_MUX)
 #define AVDT_PSC_PROTECT (1 << 4) /* Content Protection */
 #define AVDT_PSC_CODEC (1 << 7)   /* codec */
 
@@ -82,22 +82,15 @@ static void avdt_msg_bld_delay_rpt(uint8_t** p, tAVDT_MSG* p_msg);
 
 static uint8_t avdt_msg_prs_none(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
 static uint8_t avdt_msg_prs_single(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
-static uint8_t avdt_msg_prs_setconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p,
-                                          uint16_t len);
-static uint8_t avdt_msg_prs_reconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len);
+static uint8_t avdt_msg_prs_setconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
+static uint8_t avdt_msg_prs_reconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
 static uint8_t avdt_msg_prs_multi(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
-static uint8_t avdt_msg_prs_security_cmd(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len);
-static uint8_t avdt_msg_prs_discover_rsp(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len);
+static uint8_t avdt_msg_prs_security_cmd(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
+static uint8_t avdt_msg_prs_discover_rsp(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
 static uint8_t avdt_msg_prs_svccap(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
-static uint8_t avdt_msg_prs_all_svccap(tAVDT_MSG* p_msg, uint8_t* p,
-                                       uint16_t len);
-static uint8_t avdt_msg_prs_security_rsp(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len);
-static uint8_t avdt_msg_prs_delay_rpt(tAVDT_MSG* p_msg, uint8_t* p,
-                                      uint16_t len);
+static uint8_t avdt_msg_prs_all_svccap(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
+static uint8_t avdt_msg_prs_security_rsp(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
+static uint8_t avdt_msg_prs_delay_rpt(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len);
 
 /*****************************************************************************
  * constants
@@ -105,165 +98,164 @@ static uint8_t avdt_msg_prs_delay_rpt(tAVDT_MSG* p_msg, uint8_t* p,
 
 /* table of information element minimum lengths used for parsing */
 const uint8_t avdt_msg_ie_len_min[] = {
-    0,                     /* unused */
-    AVDT_LEN_TRANS_MIN,    /* media transport */
-    AVDT_LEN_REPORT_MIN,   /* reporting */
-    AVDT_LEN_RECOV_MIN,    /* recovery */
-    AVDT_LEN_PROTECT_MIN,  /* content protection */
-    AVDT_LEN_HDRCMP_MIN,   /* header compression */
-    AVDT_LEN_MUX_MIN,      /* multiplexing */
-    AVDT_LEN_CODEC_MIN,    /* codec */
-    AVDT_LEN_DELAY_RPT_MIN /* delay report */
+        0,                     /* unused */
+        AVDT_LEN_TRANS_MIN,    /* media transport */
+        AVDT_LEN_REPORT_MIN,   /* reporting */
+        AVDT_LEN_RECOV_MIN,    /* recovery */
+        AVDT_LEN_PROTECT_MIN,  /* content protection */
+        AVDT_LEN_HDRCMP_MIN,   /* header compression */
+        AVDT_LEN_MUX_MIN,      /* multiplexing */
+        AVDT_LEN_CODEC_MIN,    /* codec */
+        AVDT_LEN_DELAY_RPT_MIN /* delay report */
 };
 
 /* table of information element minimum lengths used for parsing */
 const uint8_t avdt_msg_ie_len_max[] = {
-    0,                     /* unused */
-    AVDT_LEN_TRANS_MAX,    /* media transport */
-    AVDT_LEN_REPORT_MAX,   /* reporting */
-    AVDT_LEN_RECOV_MAX,    /* recovery */
-    AVDT_LEN_PROTECT_MAX,  /* content protection */
-    AVDT_LEN_HDRCMP_MAX,   /* header compression */
-    AVDT_LEN_MUX_MAX,      /* multiplexing */
-    AVDT_LEN_CODEC_MAX,    /* codec */
-    AVDT_LEN_DELAY_RPT_MAX /* delay report */
+        0,                     /* unused */
+        AVDT_LEN_TRANS_MAX,    /* media transport */
+        AVDT_LEN_REPORT_MAX,   /* reporting */
+        AVDT_LEN_RECOV_MAX,    /* recovery */
+        AVDT_LEN_PROTECT_MAX,  /* content protection */
+        AVDT_LEN_HDRCMP_MAX,   /* header compression */
+        AVDT_LEN_MUX_MAX,      /* multiplexing */
+        AVDT_LEN_CODEC_MAX,    /* codec */
+        AVDT_LEN_DELAY_RPT_MAX /* delay report */
 };
 
 /* table of error codes used when decoding information elements */
 const uint8_t avdt_msg_ie_err[] = {
-    0,                    /* unused */
-    AVDT_ERR_MEDIA_TRANS, /* media transport */
-    AVDT_ERR_LENGTH,      /* reporting */
-    AVDT_ERR_RECOV_FMT,   /* recovery */
-    AVDT_ERR_CP_FMT,      /* content protection */
-    AVDT_ERR_ROHC_FMT,    /* header compression */
-    AVDT_ERR_MUX_FMT,     /* multiplexing */
-    AVDT_ERR_SERVICE,     /* codec */
-    AVDT_ERR_SERVICE      /* delay report ?? */
+        0,                    /* unused */
+        AVDT_ERR_MEDIA_TRANS, /* media transport */
+        AVDT_ERR_LENGTH,      /* reporting */
+        AVDT_ERR_RECOV_FMT,   /* recovery */
+        AVDT_ERR_CP_FMT,      /* content protection */
+        AVDT_ERR_ROHC_FMT,    /* header compression */
+        AVDT_ERR_MUX_FMT,     /* multiplexing */
+        AVDT_ERR_SERVICE,     /* codec */
+        AVDT_ERR_SERVICE      /* delay report ?? */
 };
 
 /* table of packet type minimum lengths */
-static const uint8_t avdt_msg_pkt_type_len[] = {
-    AVDT_LEN_TYPE_SINGLE, AVDT_LEN_TYPE_START, AVDT_LEN_TYPE_CONT,
-    AVDT_LEN_TYPE_END};
+static const uint8_t avdt_msg_pkt_type_len[] = {AVDT_LEN_TYPE_SINGLE, AVDT_LEN_TYPE_START,
+                                                AVDT_LEN_TYPE_CONT, AVDT_LEN_TYPE_END};
 
 /* function table for building command messages */
 const tAVDT_MSG_BLD avdt_msg_bld_cmd[] = {
-    avdt_msg_bld_none,          /* discover */
-    avdt_msg_bld_single,        /* get capabilities */
-    avdt_msg_bld_setconfig_cmd, /* set configuration */
-    avdt_msg_bld_single,        /* get configuration */
-    avdt_msg_bld_reconfig_cmd,  /* reconfigure */
-    avdt_msg_bld_single,        /* open */
-    avdt_msg_bld_multi,         /* start */
-    avdt_msg_bld_single,        /* close */
-    avdt_msg_bld_multi,         /* suspend */
-    avdt_msg_bld_single,        /* abort */
-    avdt_msg_bld_security_cmd,  /* security control */
-    avdt_msg_bld_single,        /* get all capabilities */
-    avdt_msg_bld_delay_rpt      /* delay report */
+        avdt_msg_bld_none,          /* discover */
+        avdt_msg_bld_single,        /* get capabilities */
+        avdt_msg_bld_setconfig_cmd, /* set configuration */
+        avdt_msg_bld_single,        /* get configuration */
+        avdt_msg_bld_reconfig_cmd,  /* reconfigure */
+        avdt_msg_bld_single,        /* open */
+        avdt_msg_bld_multi,         /* start */
+        avdt_msg_bld_single,        /* close */
+        avdt_msg_bld_multi,         /* suspend */
+        avdt_msg_bld_single,        /* abort */
+        avdt_msg_bld_security_cmd,  /* security control */
+        avdt_msg_bld_single,        /* get all capabilities */
+        avdt_msg_bld_delay_rpt      /* delay report */
 };
 
 /* function table for building response messages */
 const tAVDT_MSG_BLD avdt_msg_bld_rsp[] = {
-    avdt_msg_bld_discover_rsp, /* discover */
-    avdt_msg_bld_svccap,       /* get capabilities */
-    avdt_msg_bld_none,         /* set configuration */
-    avdt_msg_bld_all_svccap,   /* get configuration */
-    avdt_msg_bld_none,         /* reconfigure */
-    avdt_msg_bld_none,         /* open */
-    avdt_msg_bld_none,         /* start */
-    avdt_msg_bld_none,         /* close */
-    avdt_msg_bld_none,         /* suspend */
-    avdt_msg_bld_none,         /* abort */
-    avdt_msg_bld_security_rsp, /* security control */
-    avdt_msg_bld_all_svccap,   /* get all capabilities */
-    avdt_msg_bld_none          /* delay report */
+        avdt_msg_bld_discover_rsp, /* discover */
+        avdt_msg_bld_svccap,       /* get capabilities */
+        avdt_msg_bld_none,         /* set configuration */
+        avdt_msg_bld_all_svccap,   /* get configuration */
+        avdt_msg_bld_none,         /* reconfigure */
+        avdt_msg_bld_none,         /* open */
+        avdt_msg_bld_none,         /* start */
+        avdt_msg_bld_none,         /* close */
+        avdt_msg_bld_none,         /* suspend */
+        avdt_msg_bld_none,         /* abort */
+        avdt_msg_bld_security_rsp, /* security control */
+        avdt_msg_bld_all_svccap,   /* get all capabilities */
+        avdt_msg_bld_none          /* delay report */
 };
 
 /* function table for parsing command messages */
 const tAVDT_MSG_PRS avdt_msg_prs_cmd[] = {
-    avdt_msg_prs_none,          /* discover */
-    avdt_msg_prs_single,        /* get capabilities */
-    avdt_msg_prs_setconfig_cmd, /* set configuration */
-    avdt_msg_prs_single,        /* get configuration */
-    avdt_msg_prs_reconfig_cmd,  /* reconfigure */
-    avdt_msg_prs_single,        /* open */
-    avdt_msg_prs_multi,         /* start */
-    avdt_msg_prs_single,        /* close */
-    avdt_msg_prs_multi,         /* suspend */
-    avdt_msg_prs_single,        /* abort */
-    avdt_msg_prs_security_cmd,  /* security control */
-    avdt_msg_prs_single,        /* get all capabilities */
-    avdt_msg_prs_delay_rpt      /* delay report */
+        avdt_msg_prs_none,          /* discover */
+        avdt_msg_prs_single,        /* get capabilities */
+        avdt_msg_prs_setconfig_cmd, /* set configuration */
+        avdt_msg_prs_single,        /* get configuration */
+        avdt_msg_prs_reconfig_cmd,  /* reconfigure */
+        avdt_msg_prs_single,        /* open */
+        avdt_msg_prs_multi,         /* start */
+        avdt_msg_prs_single,        /* close */
+        avdt_msg_prs_multi,         /* suspend */
+        avdt_msg_prs_single,        /* abort */
+        avdt_msg_prs_security_cmd,  /* security control */
+        avdt_msg_prs_single,        /* get all capabilities */
+        avdt_msg_prs_delay_rpt      /* delay report */
 };
 
 /* function table for parsing response messages */
 const tAVDT_MSG_PRS avdt_msg_prs_rsp[] = {
-    avdt_msg_prs_discover_rsp, /* discover */
-    avdt_msg_prs_svccap,       /* get capabilities */
-    avdt_msg_prs_none,         /* set configuration */
-    avdt_msg_prs_all_svccap,   /* get configuration */
-    avdt_msg_prs_none,         /* reconfigure */
-    avdt_msg_prs_none,         /* open */
-    avdt_msg_prs_none,         /* start */
-    avdt_msg_prs_none,         /* close */
-    avdt_msg_prs_none,         /* suspend */
-    avdt_msg_prs_none,         /* abort */
-    avdt_msg_prs_security_rsp, /* security control */
-    avdt_msg_prs_all_svccap,   /* get all capabilities */
-    avdt_msg_prs_none          /* delay report */
+        avdt_msg_prs_discover_rsp, /* discover */
+        avdt_msg_prs_svccap,       /* get capabilities */
+        avdt_msg_prs_none,         /* set configuration */
+        avdt_msg_prs_all_svccap,   /* get configuration */
+        avdt_msg_prs_none,         /* reconfigure */
+        avdt_msg_prs_none,         /* open */
+        avdt_msg_prs_none,         /* start */
+        avdt_msg_prs_none,         /* close */
+        avdt_msg_prs_none,         /* suspend */
+        avdt_msg_prs_none,         /* abort */
+        avdt_msg_prs_security_rsp, /* security control */
+        avdt_msg_prs_all_svccap,   /* get all capabilities */
+        avdt_msg_prs_none          /* delay report */
 };
 
 /* command message-to-event lookup table */
 const uint8_t avdt_msg_cmd_2_evt[] = {
-    AVDT_CCB_MSG_DISCOVER_CMD_EVT + AVDT_CCB_MKR, /* discover */
-    AVDT_CCB_MSG_GETCAP_CMD_EVT + AVDT_CCB_MKR,   /* get capabilities */
-    AVDT_SCB_MSG_SETCONFIG_CMD_EVT,               /* set configuration */
-    AVDT_SCB_MSG_GETCONFIG_CMD_EVT,               /* get configuration */
-    AVDT_SCB_MSG_RECONFIG_CMD_EVT,                /* reconfigure */
-    AVDT_SCB_MSG_OPEN_CMD_EVT,                    /* open */
-    AVDT_CCB_MSG_START_CMD_EVT + AVDT_CCB_MKR,    /* start */
-    AVDT_SCB_MSG_CLOSE_CMD_EVT,                   /* close */
-    AVDT_CCB_MSG_SUSPEND_CMD_EVT + AVDT_CCB_MKR,  /* suspend */
-    AVDT_SCB_MSG_ABORT_CMD_EVT,                   /* abort */
-    AVDT_SCB_MSG_SECURITY_CMD_EVT,                /* security control */
-    AVDT_CCB_MSG_GETCAP_CMD_EVT + AVDT_CCB_MKR,   /* get all capabilities */
-    AVDT_SCB_MSG_DELAY_RPT_CMD_EVT                /* delay report */
+        AVDT_CCB_MSG_DISCOVER_CMD_EVT + AVDT_CCB_MKR, /* discover */
+        AVDT_CCB_MSG_GETCAP_CMD_EVT + AVDT_CCB_MKR,   /* get capabilities */
+        AVDT_SCB_MSG_SETCONFIG_CMD_EVT,               /* set configuration */
+        AVDT_SCB_MSG_GETCONFIG_CMD_EVT,               /* get configuration */
+        AVDT_SCB_MSG_RECONFIG_CMD_EVT,                /* reconfigure */
+        AVDT_SCB_MSG_OPEN_CMD_EVT,                    /* open */
+        AVDT_CCB_MSG_START_CMD_EVT + AVDT_CCB_MKR,    /* start */
+        AVDT_SCB_MSG_CLOSE_CMD_EVT,                   /* close */
+        AVDT_CCB_MSG_SUSPEND_CMD_EVT + AVDT_CCB_MKR,  /* suspend */
+        AVDT_SCB_MSG_ABORT_CMD_EVT,                   /* abort */
+        AVDT_SCB_MSG_SECURITY_CMD_EVT,                /* security control */
+        AVDT_CCB_MSG_GETCAP_CMD_EVT + AVDT_CCB_MKR,   /* get all capabilities */
+        AVDT_SCB_MSG_DELAY_RPT_CMD_EVT                /* delay report */
 };
 
 /* response message-to-event lookup table */
 const uint8_t avdt_msg_rsp_2_evt[] = {
-    AVDT_CCB_MSG_DISCOVER_RSP_EVT + AVDT_CCB_MKR, /* discover */
-    AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get capabilities */
-    AVDT_SCB_MSG_SETCONFIG_RSP_EVT,               /* set configuration */
-    AVDT_SCB_MSG_GETCONFIG_RSP_EVT,               /* get configuration */
-    AVDT_SCB_MSG_RECONFIG_RSP_EVT,                /* reconfigure */
-    AVDT_SCB_MSG_OPEN_RSP_EVT,                    /* open */
-    AVDT_CCB_MSG_START_RSP_EVT + AVDT_CCB_MKR,    /* start */
-    AVDT_SCB_MSG_CLOSE_RSP_EVT,                   /* close */
-    AVDT_CCB_MSG_SUSPEND_RSP_EVT + AVDT_CCB_MKR,  /* suspend */
-    AVDT_SCB_MSG_ABORT_RSP_EVT,                   /* abort */
-    AVDT_SCB_MSG_SECURITY_RSP_EVT,                /* security control */
-    AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get all capabilities */
-    AVDT_SCB_MSG_DELAY_RPT_RSP_EVT                /* delay report */
+        AVDT_CCB_MSG_DISCOVER_RSP_EVT + AVDT_CCB_MKR, /* discover */
+        AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get capabilities */
+        AVDT_SCB_MSG_SETCONFIG_RSP_EVT,               /* set configuration */
+        AVDT_SCB_MSG_GETCONFIG_RSP_EVT,               /* get configuration */
+        AVDT_SCB_MSG_RECONFIG_RSP_EVT,                /* reconfigure */
+        AVDT_SCB_MSG_OPEN_RSP_EVT,                    /* open */
+        AVDT_CCB_MSG_START_RSP_EVT + AVDT_CCB_MKR,    /* start */
+        AVDT_SCB_MSG_CLOSE_RSP_EVT,                   /* close */
+        AVDT_CCB_MSG_SUSPEND_RSP_EVT + AVDT_CCB_MKR,  /* suspend */
+        AVDT_SCB_MSG_ABORT_RSP_EVT,                   /* abort */
+        AVDT_SCB_MSG_SECURITY_RSP_EVT,                /* security control */
+        AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get all capabilities */
+        AVDT_SCB_MSG_DELAY_RPT_RSP_EVT                /* delay report */
 };
 
 /* reject message-to-event lookup table */
 const uint8_t avdt_msg_rej_2_evt[] = {
-    AVDT_CCB_MSG_DISCOVER_RSP_EVT + AVDT_CCB_MKR, /* discover */
-    AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get capabilities */
-    AVDT_SCB_MSG_SETCONFIG_REJ_EVT,               /* set configuration */
-    AVDT_SCB_MSG_GETCONFIG_RSP_EVT,               /* get configuration */
-    AVDT_SCB_MSG_RECONFIG_RSP_EVT,                /* reconfigure */
-    AVDT_SCB_MSG_OPEN_REJ_EVT,                    /* open */
-    AVDT_CCB_MSG_START_RSP_EVT + AVDT_CCB_MKR,    /* start */
-    AVDT_SCB_MSG_CLOSE_RSP_EVT,                   /* close */
-    AVDT_CCB_MSG_SUSPEND_RSP_EVT + AVDT_CCB_MKR,  /* suspend */
-    AVDT_SCB_MSG_ABORT_RSP_EVT,                   /* abort */
-    AVDT_SCB_MSG_SECURITY_RSP_EVT,                /* security control */
-    AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get all capabilities */
-    0                                             /* delay report */
+        AVDT_CCB_MSG_DISCOVER_RSP_EVT + AVDT_CCB_MKR, /* discover */
+        AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get capabilities */
+        AVDT_SCB_MSG_SETCONFIG_REJ_EVT,               /* set configuration */
+        AVDT_SCB_MSG_GETCONFIG_RSP_EVT,               /* get configuration */
+        AVDT_SCB_MSG_RECONFIG_RSP_EVT,                /* reconfigure */
+        AVDT_SCB_MSG_OPEN_REJ_EVT,                    /* open */
+        AVDT_CCB_MSG_START_RSP_EVT + AVDT_CCB_MKR,    /* start */
+        AVDT_SCB_MSG_CLOSE_RSP_EVT,                   /* close */
+        AVDT_CCB_MSG_SUSPEND_RSP_EVT + AVDT_CCB_MKR,  /* suspend */
+        AVDT_SCB_MSG_ABORT_RSP_EVT,                   /* abort */
+        AVDT_SCB_MSG_SECURITY_RSP_EVT,                /* security control */
+        AVDT_CCB_MSG_GETCAP_RSP_EVT + AVDT_CCB_MKR,   /* get all capabilities */
+        0                                             /* delay report */
 };
 
 /*******************************************************************************
@@ -299,7 +291,9 @@ static void avdt_msg_bld_cfg(uint8_t** p, AvdtpSepConfig* p_cfg) {
   if (p_cfg->num_codec != 0) {
     *(*p)++ = AVDT_CAT_CODEC;
     len = p_cfg->codec_info[0] + 1;
-    if (len > AVDT_CODEC_SIZE) len = AVDT_CODEC_SIZE;
+    if (len > AVDT_CODEC_SIZE) {
+      len = AVDT_CODEC_SIZE;
+    }
 
     memcpy(*p, p_cfg->codec_info, len);
     *p += len;
@@ -309,7 +303,9 @@ static void avdt_msg_bld_cfg(uint8_t** p, AvdtpSepConfig* p_cfg) {
   if (p_cfg->num_protect != 0) {
     *(*p)++ = AVDT_CAT_PROTECT;
     len = p_cfg->protect_info[0] + 1;
-    if (len > AVDT_PROTECT_SIZE) len = AVDT_PROTECT_SIZE;
+    if (len > AVDT_PROTECT_SIZE) {
+      len = AVDT_PROTECT_SIZE;
+    }
 
     memcpy(*p, p_cfg->protect_info, len);
     *p += len;
@@ -332,9 +328,7 @@ static void avdt_msg_bld_cfg(uint8_t** p, AvdtpSepConfig* p_cfg) {
  * Returns          void.
  *
  ******************************************************************************/
-static void avdt_msg_bld_none(uint8_t** /* p */, tAVDT_MSG* /* p_msg */) {
-  return;
-}
+static void avdt_msg_bld_none(uint8_t** /* p */, tAVDT_MSG* /* p_msg */) { return; }
 
 /*******************************************************************************
  *
@@ -453,10 +447,9 @@ static void avdt_msg_bld_discover_rsp(uint8_t** p, tAVDT_MSG* p_msg) {
 
   for (i = 0; i < p_msg->discover_rsp.num_seps; i++) {
     /* build discover rsp info */
-    AVDT_MSG_BLD_DISC(*p, p_msg->discover_rsp.p_sep_info[i].seid,
-                      p_msg->discover_rsp.p_sep_info[i].in_use,
-                      p_msg->discover_rsp.p_sep_info[i].media_type,
-                      p_msg->discover_rsp.p_sep_info[i].tsep);
+    AVDT_MSG_BLD_DISC(
+            *p, p_msg->discover_rsp.p_sep_info[i].seid, p_msg->discover_rsp.p_sep_info[i].in_use,
+            p_msg->discover_rsp.p_sep_info[i].media_type, p_msg->discover_rsp.p_sep_info[i].tsep);
   }
 }
 
@@ -523,8 +516,8 @@ static void avdt_msg_bld_security_rsp(uint8_t** p, tAVDT_MSG* p_msg) {
  *                  in p_elem.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_cfg(AvdtpSepConfig* p_cfg, uint8_t* p, uint16_t len,
-                                uint8_t* p_elem, uint8_t sig_id) {
+static uint8_t avdt_msg_prs_cfg(AvdtpSepConfig* p_cfg, uint8_t* p, uint16_t len, uint8_t* p_elem,
+                                uint8_t sig_id) {
   uint8_t* p_end;
   uint8_t elem = 0;
   uint8_t elem_len;
@@ -570,22 +563,19 @@ static uint8_t avdt_msg_prs_cfg(AvdtpSepConfig* p_cfg, uint8_t* p, uint16_t len,
       {
         /* Skip unknown categories. */
         p += elem_len;
-        log::verbose("skipping unknown service category={} len: {}", elem,
-                     elem_len);
+        log::verbose("skipping unknown service category={} len: {}", elem, elem_len);
         continue;
       }
     }
 
-    if ((elem_len > avdt_msg_ie_len_max[elem]) ||
-        (elem_len < avdt_msg_ie_len_min[elem])) {
+    if ((elem_len > avdt_msg_ie_len_max[elem]) || (elem_len < avdt_msg_ie_len_min[elem])) {
       err = avdt_msg_ie_err[elem];
       break;
     }
 
     /* add element to psc mask, but mask out codec or protect */
     p_cfg->psc_mask |= (1 << elem);
-    log::verbose("elem={} elem_len: {} psc_mask=0x{:x}", elem, elem_len,
-                 p_cfg->psc_mask);
+    log::verbose("elem={} elem_len: {} psc_mask=0x{:x}", elem, elem_len, p_cfg->psc_mask);
 
     /* parse individual information elements with additional parameters */
     switch (elem) {
@@ -655,10 +645,9 @@ static uint8_t avdt_msg_prs_cfg(AvdtpSepConfig* p_cfg, uint8_t* p, uint16_t len,
         p += elem_len;
         break;
     } /* switch */
-  }   /* while ! err, !end*/
+  } /* while ! err, !end*/
   *p_elem = elem;
-  log::verbose("err=0x{:x}, elem:0x{:x} psc_mask=0x{:x}", err, elem,
-               p_cfg->psc_mask);
+  log::verbose("err=0x{:x}, elem:0x{:x} psc_mask=0x{:x}", err, elem, p_cfg->psc_mask);
 
   return err;
 }
@@ -674,8 +663,7 @@ static uint8_t avdt_msg_prs_cfg(AvdtpSepConfig* p_cfg, uint8_t* p, uint16_t len,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_none(tAVDT_MSG* /* p_msg */, uint8_t* /* p */,
-                                 uint16_t /* len */) {
+static uint8_t avdt_msg_prs_none(tAVDT_MSG* /* p_msg */, uint8_t* /* p */, uint16_t /* len */) {
   return 0;
 }
 
@@ -717,8 +705,7 @@ static uint8_t avdt_msg_prs_single(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_setconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p,
-                                          uint16_t len) {
+static uint8_t avdt_msg_prs_setconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   uint8_t err = 0;
 
   p_msg->hdr.err_param = 0;
@@ -743,8 +730,8 @@ static uint8_t avdt_msg_prs_setconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p,
   if (!err) {
     /* parse configuration parameters */
     len -= 2;
-    err = avdt_msg_prs_cfg(p_msg->config_cmd.p_cfg, p, len,
-                           &p_msg->hdr.err_param, AVDT_SIG_SETCONFIG);
+    err = avdt_msg_prs_cfg(p_msg->config_cmd.p_cfg, p, len, &p_msg->hdr.err_param,
+                           AVDT_SIG_SETCONFIG);
 
     if (!err) {
       /* verify protocol service capabilities are supported */
@@ -769,8 +756,7 @@ static uint8_t avdt_msg_prs_setconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_reconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len) {
+static uint8_t avdt_msg_prs_reconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   uint8_t err = 0;
 
   p_msg->hdr.err_param = 0;
@@ -786,8 +772,8 @@ static uint8_t avdt_msg_prs_reconfig_cmd(tAVDT_MSG* p_msg, uint8_t* p,
     } else {
       /* parse config parameters */
       len--;
-      err = avdt_msg_prs_cfg(p_msg->config_cmd.p_cfg, p, len,
-                             &p_msg->hdr.err_param, AVDT_SIG_RECONFIG);
+      err = avdt_msg_prs_cfg(p_msg->config_cmd.p_cfg, p, len, &p_msg->hdr.err_param,
+                             AVDT_SIG_RECONFIG);
 
       /* verify no protocol service capabilities in parameters */
       if (!err) {
@@ -851,8 +837,7 @@ static uint8_t avdt_msg_prs_multi(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_security_cmd(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len) {
+static uint8_t avdt_msg_prs_security_cmd(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   uint8_t err = 0;
 
   /* verify len */
@@ -882,8 +867,7 @@ static uint8_t avdt_msg_prs_security_cmd(tAVDT_MSG* p_msg, uint8_t* p,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_discover_rsp(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len) {
+static uint8_t avdt_msg_prs_discover_rsp(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   int i;
   uint8_t err = 0;
 
@@ -897,10 +881,9 @@ static uint8_t avdt_msg_prs_discover_rsp(tAVDT_MSG* p_msg, uint8_t* p,
   /* parse out sep info */
   for (i = 0; i < p_msg->discover_rsp.num_seps; i++) {
     /* parse discover rsp info */
-    AVDT_MSG_PRS_DISC(p, p_msg->discover_rsp.p_sep_info[i].seid,
-                      p_msg->discover_rsp.p_sep_info[i].in_use,
-                      p_msg->discover_rsp.p_sep_info[i].media_type,
-                      p_msg->discover_rsp.p_sep_info[i].tsep);
+    AVDT_MSG_PRS_DISC(
+            p, p_msg->discover_rsp.p_sep_info[i].seid, p_msg->discover_rsp.p_sep_info[i].in_use,
+            p_msg->discover_rsp.p_sep_info[i].media_type, p_msg->discover_rsp.p_sep_info[i].tsep);
 
     /* verify that seid is valid */
     if ((p_msg->discover_rsp.p_sep_info[i].seid < AVDT_SEID_MIN) ||
@@ -926,13 +909,13 @@ static uint8_t avdt_msg_prs_discover_rsp(tAVDT_MSG* p_msg, uint8_t* p,
  ******************************************************************************/
 static uint8_t avdt_msg_prs_svccap(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   /* parse parameters */
-  uint8_t err = avdt_msg_prs_cfg(p_msg->svccap.p_cfg, p, len,
-                                 &p_msg->hdr.err_param, AVDT_SIG_GETCAP);
+  uint8_t err =
+          avdt_msg_prs_cfg(p_msg->svccap.p_cfg, p, len, &p_msg->hdr.err_param, AVDT_SIG_GETCAP);
   if (p_msg->svccap.p_cfg) {
     p_msg->svccap.p_cfg->psc_mask &= AVDT_LEG_PSC;
   }
 
-  return (err);
+  return err;
 }
 
 /*******************************************************************************
@@ -946,14 +929,13 @@ static uint8_t avdt_msg_prs_svccap(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_all_svccap(tAVDT_MSG* p_msg, uint8_t* p,
-                                       uint16_t len) {
-  uint8_t err = avdt_msg_prs_cfg(p_msg->svccap.p_cfg, p, len,
-                                 &p_msg->hdr.err_param, AVDT_SIG_GET_ALLCAP);
+static uint8_t avdt_msg_prs_all_svccap(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
+  uint8_t err =
+          avdt_msg_prs_cfg(p_msg->svccap.p_cfg, p, len, &p_msg->hdr.err_param, AVDT_SIG_GET_ALLCAP);
   if (p_msg->svccap.p_cfg) {
     p_msg->svccap.p_cfg->psc_mask &= AVDT_MSG_PSC_MASK;
   }
-  return (err);
+  return err;
 }
 
 /*******************************************************************************
@@ -967,8 +949,7 @@ static uint8_t avdt_msg_prs_all_svccap(tAVDT_MSG* p_msg, uint8_t* p,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_security_rsp(tAVDT_MSG* p_msg, uint8_t* p,
-                                         uint16_t len) {
+static uint8_t avdt_msg_prs_security_rsp(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   p_msg->security_rsp.p_data = p;
   p_msg->security_rsp.len = len;
 
@@ -985,8 +966,7 @@ static uint8_t avdt_msg_prs_security_rsp(tAVDT_MSG* p_msg, uint8_t* p,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_rej(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len,
-                                uint8_t sig) {
+static uint8_t avdt_msg_prs_rej(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len, uint8_t sig) {
   uint8_t error = 0;
 
   if (len > 0) {
@@ -1019,14 +999,12 @@ static uint8_t avdt_msg_prs_rej(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len,
  * Returns          Error code or zero if no error.
  *
  ******************************************************************************/
-static uint8_t avdt_msg_prs_delay_rpt(tAVDT_MSG* p_msg, uint8_t* p,
-                                      uint16_t len) {
+static uint8_t avdt_msg_prs_delay_rpt(tAVDT_MSG* p_msg, uint8_t* p, uint16_t len) {
   uint8_t err = 0;
 
   /* verify len */
   if (len != AVDT_LEN_DELAY_RPT) {
-    log::warn("avdt_msg_prs_delay_rpt expected len: {}  got: {}",
-              AVDT_LEN_DELAY_RPT, len);
+    log::warn("avdt_msg_prs_delay_rpt expected len: {}  got: {}", AVDT_LEN_DELAY_RPT, len);
     err = AVDT_ERR_LENGTH;
   } else {
     /* get seid */
@@ -1036,8 +1014,7 @@ static uint8_t avdt_msg_prs_delay_rpt(tAVDT_MSG* p_msg, uint8_t* p,
       err = AVDT_ERR_SEID;
     } else {
       BE_STREAM_TO_UINT16(p_msg->delay_rpt_cmd.delay, p);
-      log::verbose("avdt_msg_prs_delay_rpt delay: {}",
-                   p_msg->delay_rpt_cmd.delay);
+      log::verbose("avdt_msg_prs_delay_rpt delay: {}", p_msg->delay_rpt_cmd.delay);
     }
   }
   return err;
@@ -1091,12 +1068,11 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
     }
     /* if message isn't being fragmented and it doesn't fit in mtu */
     else if ((p_ccb->p_curr_msg->offset == AVDT_MSG_OFFSET) &&
-             (p_ccb->p_curr_msg->len >
-              p_tbl->peer_mtu - AVDT_LEN_TYPE_SINGLE)) {
+             (p_ccb->p_curr_msg->len > p_tbl->peer_mtu - AVDT_LEN_TYPE_SINGLE)) {
       pkt_type = AVDT_PKT_TYPE_START;
       hdr_len = AVDT_LEN_TYPE_START;
       nosp = (p_ccb->p_curr_msg->len + AVDT_LEN_TYPE_START - p_tbl->peer_mtu) /
-                 (p_tbl->peer_mtu - 1) +
+                     (p_tbl->peer_mtu - 1) +
              2;
 
       /* get a new buffer for fragment we are sending */
@@ -1106,13 +1082,11 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
       p_buf->offset = L2CAP_MIN_OFFSET + hdr_len;
       p_buf->len = p_tbl->peer_mtu - hdr_len;
       memcpy((uint8_t*)(p_buf + 1) + p_buf->offset,
-             (uint8_t*)(p_ccb->p_curr_msg + 1) + p_ccb->p_curr_msg->offset,
-             p_buf->len);
+             (uint8_t*)(p_ccb->p_curr_msg + 1) + p_ccb->p_curr_msg->offset, p_buf->len);
     }
     /* if message is being fragmented and remaining bytes don't fit in mtu */
     else if ((p_ccb->p_curr_msg->offset > AVDT_MSG_OFFSET) &&
-             (p_ccb->p_curr_msg->len >
-              (p_tbl->peer_mtu - AVDT_LEN_TYPE_CONT))) {
+             (p_ccb->p_curr_msg->len > (p_tbl->peer_mtu - AVDT_LEN_TYPE_CONT))) {
       pkt_type = AVDT_PKT_TYPE_CONT;
       hdr_len = AVDT_LEN_TYPE_CONT;
 
@@ -1123,8 +1097,7 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
       p_buf->offset = L2CAP_MIN_OFFSET + hdr_len;
       p_buf->len = p_tbl->peer_mtu - hdr_len;
       memcpy((uint8_t*)(p_buf + 1) + p_buf->offset,
-             (uint8_t*)(p_ccb->p_curr_msg + 1) + p_ccb->p_curr_msg->offset,
-             p_buf->len);
+             (uint8_t*)(p_ccb->p_curr_msg + 1) + p_ccb->p_curr_msg->offset, p_buf->len);
     }
     /* if message is being fragmented and remaining bytes do fit in mtu */
     else {
@@ -1148,19 +1121,19 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
       /* start timer here for commands */
       if (msg == AVDT_MSG_TYPE_CMD) {
         /* if retransmit timeout set to zero, sig doesn't use retransmit */
-        if ((sig == AVDT_SIG_DISCOVER) || (sig == AVDT_SIG_GETCAP) ||
-            (sig == AVDT_SIG_SECURITY) || (avdtp_cb.rcb.ret_tout == 0)) {
+        if ((sig == AVDT_SIG_DISCOVER) || (sig == AVDT_SIG_GETCAP) || (sig == AVDT_SIG_SECURITY) ||
+            (avdtp_cb.rcb.ret_tout == 0)) {
           alarm_cancel(p_ccb->idle_ccb_timer);
           alarm_cancel(p_ccb->ret_ccb_timer);
           uint64_t interval_ms = avdtp_cb.rcb.sig_tout * 1000;
-          alarm_set_on_mloop(p_ccb->rsp_ccb_timer, interval_ms,
-                             avdt_ccb_rsp_ccb_timer_timeout, p_ccb);
+          alarm_set_on_mloop(p_ccb->rsp_ccb_timer, interval_ms, avdt_ccb_rsp_ccb_timer_timeout,
+                             p_ccb);
         } else if (sig != AVDT_SIG_DELAY_RPT) {
           alarm_cancel(p_ccb->idle_ccb_timer);
           alarm_cancel(p_ccb->rsp_ccb_timer);
           uint64_t interval_ms = avdtp_cb.rcb.ret_tout * 1000;
-          alarm_set_on_mloop(p_ccb->ret_ccb_timer, interval_ms,
-                             avdt_ccb_ret_ccb_timer_timeout, p_ccb);
+          alarm_set_on_mloop(p_ccb->ret_ccb_timer, interval_ms, avdt_ccb_ret_ccb_timer_timeout,
+                             p_ccb);
         }
       }
     } else {
@@ -1179,15 +1152,14 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
     if (pkt_type == AVDT_PKT_TYPE_START) {
       AVDT_MSG_BLD_NOSP(p, nosp);
     }
-    if ((pkt_type == AVDT_PKT_TYPE_START) ||
-        (pkt_type == AVDT_PKT_TYPE_SINGLE)) {
+    if ((pkt_type == AVDT_PKT_TYPE_START) || (pkt_type == AVDT_PKT_TYPE_SINGLE)) {
       AVDT_MSG_BLD_SIG(p, sig);
     }
 
     /* send msg buffer down */
     avdt_ad_write_req(AVDT_CHAN_SIG, p_ccb, NULL, p_buf);
   }
-  return (p_ccb->cong);
+  return p_ccb->cong;
 }
 
 /*******************************************************************************
@@ -1226,7 +1198,9 @@ BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
   /* single packet */
   else if (pkt_type == AVDT_PKT_TYPE_SINGLE) {
     /* if reassembly in progress drop message and process new single */
-    if (p_ccb->p_rx_msg != NULL) log::warn("Got single during reassembly");
+    if (p_ccb->p_rx_msg != NULL) {
+      log::warn("Got single during reassembly");
+    }
 
     osi_free_and_reset((void**)&p_ccb->p_rx_msg);
 
@@ -1235,7 +1209,9 @@ BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
   /* start packet */
   else if (pkt_type == AVDT_PKT_TYPE_START) {
     /* if reassembly in progress drop message and process new single */
-    if (p_ccb->p_rx_msg != NULL) log::warn("Got start during reassembly");
+    if (p_ccb->p_rx_msg != NULL) {
+      log::warn("Got start during reassembly");
+    }
 
     osi_free_and_reset((void**)&p_ccb->p_rx_msg);
 
@@ -1289,7 +1265,7 @@ BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
       p_buf->len -= AVDT_LEN_TYPE_CONT;
 
       /* verify length */
-      if (((size_t) p_ccb->p_rx_msg->offset + (size_t) p_buf->len) > buf_len) {
+      if (((size_t)p_ccb->p_rx_msg->offset + (size_t)p_buf->len) > buf_len) {
         /* won't fit; free everything */
         log::warn("Fragmented message too big!");
         osi_free_and_reset((void**)&p_ccb->p_rx_msg);
@@ -1332,8 +1308,7 @@ BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avdt_msg_send_cmd(AvdtpCcb* p_ccb, void* p_scb, uint8_t sig_id,
-                       tAVDT_MSG* p_params) {
+void avdt_msg_send_cmd(AvdtpCcb* p_ccb, void* p_scb, uint8_t sig_id, tAVDT_MSG* p_params) {
   uint8_t* p;
   uint8_t* p_start;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(AVDT_CMD_BUF_SIZE);
@@ -1406,8 +1381,7 @@ void avdt_msg_send_rsp(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
 
   /* stash sig, label, and message type in buf */
   p_buf->event = sig_id;
-  AVDT_BLD_LAYERSPEC(p_buf->layer_specific, AVDT_MSG_TYPE_RSP,
-                     p_params->hdr.label);
+  AVDT_BLD_LAYERSPEC(p_buf->layer_specific, AVDT_MSG_TYPE_RSP, p_params->hdr.label);
 
   /* queue message and trigger ccb to send it */
   fixed_queue_enqueue(p_ccb->rsp_q, p_buf);
@@ -1457,8 +1431,7 @@ void avdt_msg_send_rej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
 
   /* stash sig, label, and message type in buf */
   p_buf->event = sig_id;
-  AVDT_BLD_LAYERSPEC(p_buf->layer_specific, AVDT_MSG_TYPE_REJ,
-                     p_params->hdr.label);
+  AVDT_BLD_LAYERSPEC(p_buf->layer_specific, AVDT_MSG_TYPE_REJ, p_params->hdr.label);
 
   /* queue message and trigger ccb to send it */
   fixed_queue_enqueue(p_ccb->rsp_q, p_buf);
@@ -1494,8 +1467,7 @@ void avdt_msg_send_grej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
 
   /* stash sig, label, and message type in buf */
   p_buf->event = sig_id;
-  AVDT_BLD_LAYERSPEC(p_buf->layer_specific, AVDT_MSG_TYPE_GRJ,
-                     p_params->hdr.label);
+  AVDT_BLD_LAYERSPEC(p_buf->layer_specific, AVDT_MSG_TYPE_GRJ, p_params->hdr.label);
   log::verbose("");
 
   /* queue message and trigger ccb to send it */
@@ -1507,7 +1479,7 @@ void avdt_msg_send_grej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
  *
  * Function         avdt_msg_ind
  *
- * Description      This function is called by the adaption layer when an
+ * Description      This function is called by the adaptation layer when an
  *                  incoming message is received on the signaling channel.
  *                  It parses the message and sends an event to the appropriate
  *                  SCB or CCB for the message.
@@ -1554,8 +1526,7 @@ void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
     ok = false;
   }
   /* check for general reject */
-  else if ((msg_type == AVDT_MSG_TYPE_REJ) &&
-           (p_buf->len == AVDT_LEN_GEN_REJ)) {
+  else if ((msg_type == AVDT_MSG_TYPE_REJ) && (p_buf->len == AVDT_LEN_GEN_REJ)) {
     gen_rej = true;
     if (p_ccb->p_curr_cmd != NULL) {
       msg.hdr.sig_id = sig = (uint8_t)p_ccb->p_curr_cmd->event;
@@ -1607,12 +1578,10 @@ void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
 
     /* parse message; while we're at it map message sig to event */
     if (msg_type == AVDT_MSG_TYPE_CMD) {
-      msg.hdr.err_code = err =
-          (*avdt_msg_prs_cmd[sig - 1])(&msg, p, p_buf->len);
+      msg.hdr.err_code = err = (*avdt_msg_prs_cmd[sig - 1])(&msg, p, p_buf->len);
       evt = avdt_msg_cmd_2_evt[sig - 1];
     } else if (msg_type == AVDT_MSG_TYPE_RSP) {
-      msg.hdr.err_code = err =
-          (*avdt_msg_prs_rsp[sig - 1])(&msg, p, p_buf->len);
+      msg.hdr.err_code = err = (*avdt_msg_prs_rsp[sig - 1])(&msg, p, p_buf->len);
       evt = avdt_msg_rsp_2_evt[sig - 1];
     } else /* msg_type == AVDT_MSG_TYPE_REJ */
     {

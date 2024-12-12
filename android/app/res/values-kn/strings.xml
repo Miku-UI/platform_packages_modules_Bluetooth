@@ -18,7 +18,7 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" msgid="2326164424236203271">"ಬ್ಲೂಟೂತ್"</string>
     <string name="permlab_bluetoothShareManager" msgid="5297865456717871041">"ಡೌನ್‌ಲೋಡ್‌ ನಿರ್ವಾಹಕವನ್ನು ಪ್ರವೇಶಿಸಿ."</string>
-    <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"ಬ್ಲೂಟೂತ್‌ ಹಂಚಿಕೆ ನಿರ್ವಾಹಕ ಮತ್ತು ಫೈಲ್‌ಗಳ ವರ್ಗಾವಣೆಯನ್ನು ಬಳಸಲು ಅಪ್ಲಿಕೇಶನ್‌ ಅನುಮತಿಸುತ್ತದೆ."</string>
+    <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"ಬ್ಲೂಟೂತ್‌ ಹಂಚಿಕೆ ನಿರ್ವಾಹಕ ಮತ್ತು ಫೈಲ್‌ಗಳ ವರ್ಗಾವಣೆಯನ್ನು ಬಳಸಲು ಆ್ಯಪ್ ಅನುಮತಿಸುತ್ತದೆ."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"ಸಮ್ಮತಿಪಟ್ಟಿ ಬ್ಲೂಟೂತ್‌ ಸಾಧನವನ್ನು ಪ್ರವೇಶಿಸಿ."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"ಬಳಕೆದಾರರ ದೃಢೀಕರಣ ಇಲ್ಲದೆ ಈ ಸಾಧನಕ್ಕೆ ಫೈಲ್‌ಗಳನ್ನು ಕಳುಹಿಸಲು ಬ್ಲೂಟೂತ್‌ ಸಾಧನವನ್ನು ತಾತ್ಕಾಲಿಕವಾಗಿ ಸಮ್ಮತಿಪಟ್ಟಿ ಮಾಡಲು ಅಪ್ಲಿಕೇಶನ್‌‌ಗೆ ಅನುಮತಿಸುತ್ತದೆ."</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"ಬ್ಲೂಟೂತ್‌"</string>
@@ -74,7 +74,7 @@
     <string name="upload_fail_cancel" msgid="1632528037932779727">"ಮುಚ್ಚಿ"</string>
     <string name="bt_error_btn_ok" msgid="2802751202009957372">"ಸರಿ"</string>
     <string name="unknown_file" msgid="3719981572107052685">"ಅಪರಿಚಿತ ಫೈಲ್"</string>
-    <string name="unknown_file_desc" msgid="9185609398960437760">"ಈ ಪ್ರಕಾರದ ಫೈಲ್ ನಿರ್ವಹಿಸಲು ಯಾವುದೇ ಅಪ್ಲಿಕೇಶನ್ ಇಲ್ಲ. \n"</string>
+    <string name="unknown_file_desc" msgid="9185609398960437760">"ಈ ಪ್ರಕಾರದ ಫೈಲ್ ನಿರ್ವಹಿಸಲು ಯಾವುದೇ ಆ್ಯಪ್ ಇಲ್ಲ. \n"</string>
     <string name="not_exist_file" msgid="5097565588949092486">"ಫೈಲ್ ಇಲ್ಲ"</string>
     <string name="not_exist_file_desc" msgid="250802392160941265">"ಫೈಲ್‌ ಅಸ್ತಿತ್ವದಲ್ಲಿಲ್ಲ. \n"</string>
     <string name="enabling_progress_title" msgid="5262637688863903594">"ದಯವಿಟ್ಟು ನಿರೀಕ್ಷಿಸಿ…"</string>
@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"ಪಟ್ಟಿಯಿಂದ ತೆರವುಗೊಳಿಸಿ"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ತೆರವುಗೊಳಿಸು"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"ಸೇವ್ ಮಾಡಿ"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"ರದ್ದುಮಾಡಿ"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"ಬ್ಲೂಟೂತ್‌ ಮೂಲಕ ಹಂಚಿಕೊಳ್ಳಲು ಬಯಸುವ ಖಾತೆಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಸಂಪರ್ಕಿಸುವಾಗ ಖಾತೆಗಳಿಗೆ ಯಾವುದೇ ಪ್ರವೇಶವನ್ನು ನೀವು ಈಗಲೂ ಸಮ್ಮತಿಸಬೇಕಾಗುತ್ತದೆ."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"ಉಳಿದಿರುವ ಸ್ಲಾಟ್‌ಗಳು:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ಅಪ್ಲಿಕೇಶನ್‌ ಐಕಾನ್‌"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"ಬ್ಲೂಟೂತ್ ಸಂದೇಶ ಹಂಚಿಕೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳು"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"ಖಾತೆಯನ್ನು ಆಯ್ಕೆಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ. 0 ಸ್ಲಾಟ್‌ಗಳು ಉಳಿದಿವೆ"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"ಬ್ಲೂಟೂತ್‌ ಆಡಿಯೋ ಸಂಪರ್ಕಗೊಂಡಿದೆ"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ಬ್ಲೂಟೂತ್‌ ಆಡಿಯೋ ಸಂಪರ್ಕ ಕಡಿತಗೊಂಡಿದೆ"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ಬ್ಲೂಟೂತ್‌ ಆಡಿಯೋ"</string>

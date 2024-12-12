@@ -25,8 +25,7 @@
 #include "device_port_proxy_hidl.h"
 
 constexpr unsigned int kBluetoothDefaultSampleRate = 44100;
-constexpr audio_format_t kBluetoothDefaultAudioFormatBitsPerSample =
-    AUDIO_FORMAT_PCM_16_BIT;
+constexpr audio_format_t kBluetoothDefaultAudioFormatBitsPerSample = AUDIO_FORMAT_PCM_16_BIT;
 
 constexpr unsigned int kBluetoothDefaultInputBufferMs = 20;
 constexpr unsigned int kBluetoothDefaultInputStateTimeoutMs = 20;
@@ -34,10 +33,8 @@ constexpr unsigned int kBluetoothDefaultInputStateTimeoutMs = 20;
 constexpr unsigned int kBluetoothDefaultOutputBufferMs = 10;
 constexpr unsigned int kBluetoothSpatializerOutputBufferMs = 10;
 
-constexpr audio_channel_mask_t kBluetoothDefaultOutputChannelModeMask =
-    AUDIO_CHANNEL_OUT_STEREO;
-constexpr audio_channel_mask_t kBluetoothDefaultInputChannelModeMask =
-    AUDIO_CHANNEL_IN_MONO;
+constexpr audio_channel_mask_t kBluetoothDefaultOutputChannelModeMask = AUDIO_CHANNEL_OUT_STEREO;
+constexpr audio_channel_mask_t kBluetoothDefaultInputChannelModeMask = AUDIO_CHANNEL_IN_MONO;
 
 enum class BluetoothStreamState : uint8_t {
   DISABLED = 0,  // This stream is closing or set param "suspend=true"
@@ -54,8 +51,7 @@ struct BluetoothStreamOut {
   // Must be the first member so it can be cast from audio_stream
   // or audio_stream_out pointer
   audio_stream_out stream_out_{};
-  std::unique_ptr<::android::bluetooth::audio::BluetoothAudioPort>
-      bluetooth_output_;
+  std::unique_ptr<::android::bluetooth::audio::BluetoothAudioPort> bluetooth_output_;
   bool is_aidl;
   int64_t last_write_time_us_;
   // Audio PCM Configs
@@ -79,8 +75,7 @@ struct BluetoothAudioDevice {
   audio_hw_device audio_device_{};
   // protect against device->output and stream_out from being inconsistent
   std::mutex mutex_;
-  std::list<BluetoothStreamOut*> opened_stream_outs_ =
-      std::list<BluetoothStreamOut*>(0);
+  std::list<BluetoothStreamOut*> opened_stream_outs_ = std::list<BluetoothStreamOut*>(0);
   uint32_t next_unique_id = 1;
 };
 
@@ -88,8 +83,7 @@ struct BluetoothStreamIn {
   // Must be the first member so it can be cast from audio_stream
   // or audio_stream_in pointer
   audio_stream_in stream_in_;
-  std::unique_ptr<::android::bluetooth::audio::BluetoothAudioPort>
-      bluetooth_input_;
+  std::unique_ptr<::android::bluetooth::audio::BluetoothAudioPort> bluetooth_input_;
   bool is_aidl;
   int64_t last_read_time_us_;
   // Audio PCM Configs
@@ -105,26 +99,19 @@ struct BluetoothStreamIn {
   mutable std::mutex mutex_;
 };
 
-int adev_open_output_stream(struct audio_hw_device* dev,
-                            audio_io_handle_t handle, audio_devices_t devices,
-                            audio_output_flags_t flags,
-                            struct audio_config* config,
-                            struct audio_stream_out** stream_out,
+int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t handle,
+                            audio_devices_t devices, audio_output_flags_t flags,
+                            struct audio_config* config, struct audio_stream_out** stream_out,
                             const char* address __unused);
 
-void adev_close_output_stream(struct audio_hw_device* dev,
-                              struct audio_stream_out* stream);
+void adev_close_output_stream(struct audio_hw_device* dev, struct audio_stream_out* stream);
 
 size_t adev_get_input_buffer_size(const struct audio_hw_device* dev,
                                   const struct audio_config* config);
 
-int adev_open_input_stream(struct audio_hw_device* dev,
-                           audio_io_handle_t handle, audio_devices_t devices,
-                           struct audio_config* config,
-                           struct audio_stream_in** stream_in,
-                           audio_input_flags_t flags __unused,
-                           const char* address __unused,
-                           audio_source_t source __unused);
+int adev_open_input_stream(struct audio_hw_device* dev, audio_io_handle_t handle,
+                           audio_devices_t devices, struct audio_config* config,
+                           struct audio_stream_in** stream_in, audio_input_flags_t flags __unused,
+                           const char* address __unused, audio_source_t source __unused);
 
-void adev_close_input_stream(struct audio_hw_device* dev,
-                             struct audio_stream_in* in);
+void adev_close_input_stream(struct audio_hw_device* dev, struct audio_stream_in* in);

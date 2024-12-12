@@ -24,7 +24,7 @@ namespace bluetooth {
 namespace testing {
 
 class A2DPVendorRegressionTests : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {}
   void TearDown() override {}
 };

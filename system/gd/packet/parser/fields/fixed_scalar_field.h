@@ -24,7 +24,7 @@
 #include "parse_location.h"
 
 class FixedScalarField : public FixedField {
- public:
+public:
   FixedScalarField(int size, int64_t value, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -39,7 +39,6 @@ class FixedScalarField : public FixedField {
 
   static const std::string field_type;
 
- private:
-
+private:
   const int64_t value_;
 };

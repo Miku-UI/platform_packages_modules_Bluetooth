@@ -28,18 +28,17 @@
 
 using namespace connection_manager;
 
-bool connection_manager::background_connect_add(
-    uint8_t /* app_id */, const RawAddress& /* address */) {
+bool connection_manager::background_connect_add(uint8_t /* app_id */,
+                                                const RawAddress& /* address */) {
   inc_func_call_count(__func__);
   return false;
 }
-bool connection_manager::background_connect_remove(
-    uint8_t /* app_id */, const RawAddress& /* address */) {
+bool connection_manager::background_connect_remove(uint8_t /* app_id */,
+                                                   const RawAddress& /* address */) {
   inc_func_call_count(__func__);
   return false;
 }
-bool connection_manager::direct_connect_add(uint8_t /* app_id */,
-                                            const RawAddress& /* address */) {
+bool connection_manager::direct_connect_add(uint8_t /* app_id */, const RawAddress& /* address */) {
   inc_func_call_count(__func__);
   return false;
 }
@@ -53,8 +52,7 @@ bool connection_manager::remove_unconditional(const RawAddress& /* address */) {
   inc_func_call_count(__func__);
   return false;
 }
-std::set<tAPP_ID> connection_manager::get_apps_connecting_to(
-    const RawAddress& /* address */) {
+std::set<tAPP_ID> connection_manager::get_apps_connecting_to(const RawAddress& /* address */) {
   inc_func_call_count(__func__);
   return std::set<tAPP_ID>();
 }
@@ -62,22 +60,17 @@ void connection_manager::dump(int /* fd */) { inc_func_call_count(__func__); }
 void connection_manager::on_app_deregistered(uint8_t /* app_id */) {
   inc_func_call_count(__func__);
 }
-void connection_manager::on_connection_complete(
-    const RawAddress& /* address */) {
+void connection_manager::on_connection_complete(const RawAddress& /* address */) {
   inc_func_call_count(__func__);
 }
 
-void connection_manager::on_connection_timed_out_from_shim(
-    const RawAddress& /* address */) {
+void connection_manager::on_connection_timed_out_from_shim(const RawAddress& /* address */) {
   inc_func_call_count(__func__);
 }
 
-void connection_manager::reset(bool /* after_reset */) {
-  inc_func_call_count(__func__);
-}
+void connection_manager::reset(bool /* after_reset */) { inc_func_call_count(__func__); }
 
-bool connection_manager::is_background_connection(
-    const RawAddress& /* address */) {
+bool connection_manager::is_background_connection(const RawAddress& /* address */) {
   inc_func_call_count(__func__);
   return false;
 }

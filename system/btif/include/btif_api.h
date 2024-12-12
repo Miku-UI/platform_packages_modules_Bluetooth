@@ -153,6 +153,15 @@ void btif_get_adapter_property(bt_property_type_t type);
 
 /*******************************************************************************
  *
+ * Function         btif_set_scan_mode
+ *
+ * Description      Updates core stack scan mode
+ *
+ ******************************************************************************/
+void btif_set_scan_mode(bt_scan_mode_t mode);
+
+/*******************************************************************************
+ *
  * Function         btif_set_adapter_property
  *
  * Description      Updates core stack with property value and stores it in
@@ -168,8 +177,7 @@ void btif_set_adapter_property(bt_property_t* property);
  * Description      Fetches the remote device property from the NVRAM
  *
  ******************************************************************************/
-void btif_get_remote_device_property(RawAddress remote_addr,
-                                     bt_property_type_t type);
+void btif_get_remote_device_property(RawAddress remote_addr, bt_property_type_t type);
 
 /*******************************************************************************
  *
@@ -189,8 +197,7 @@ void btif_get_remote_device_properties(RawAddress remote_addr);
  *                  remote device property that can be set
  *
  ******************************************************************************/
-void btif_set_remote_device_property(RawAddress* remote_addr,
-                                     bt_property_t* property);
+void btif_set_remote_device_property(RawAddress* remote_addr, bt_property_t* property);
 
 /*******************************************************************************
  *  BTIF DM API
@@ -222,7 +229,7 @@ bool btif_dm_pairing_is_busy();
  * Description      Initiate bonding with the specified device
  *
  ******************************************************************************/
-void btif_dm_create_bond(const RawAddress bd_addr, int transport);
+void btif_dm_create_bond(const RawAddress bd_addr, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -240,10 +247,8 @@ void btif_dm_create_bond_le(const RawAddress bd_addr, uint8_t addr_type);
  * Description      Initiate bonding with the specified device using OOB data.
  *
  ******************************************************************************/
-void btif_dm_create_bond_out_of_band(const RawAddress bd_addr,
-                                     tBT_TRANSPORT transport,
-                                     const bt_oob_data_t p192_data,
-                                     const bt_oob_data_t p256_data);
+void btif_dm_create_bond_out_of_band(const RawAddress bd_addr, tBT_TRANSPORT transport,
+                                     const bt_oob_data_t p192_data, const bt_oob_data_t p256_data);
 
 /*******************************************************************************
  *
@@ -296,8 +301,8 @@ uint16_t btif_dm_get_connection_state_sync(const RawAddress& bd_addr);
  * Description      BT legacy pairing - PIN code reply
  *
  ******************************************************************************/
-void btif_dm_pin_reply(const RawAddress bd_addr, uint8_t accept,
-                       uint8_t pin_len, bt_pin_code_t pin_code);
+void btif_dm_pin_reply(const RawAddress bd_addr, uint8_t accept, uint8_t pin_len,
+                       bt_pin_code_t pin_code);
 
 /*******************************************************************************
  *
@@ -308,8 +313,7 @@ void btif_dm_pin_reply(const RawAddress bd_addr, uint8_t accept,
  * Returns          bt_status_t
  *
  ******************************************************************************/
-bt_status_t btif_dm_passkey_reply(const RawAddress* bd_addr, uint8_t accept,
-                                  uint32_t passkey);
+bt_status_t btif_dm_passkey_reply(const RawAddress* bd_addr, uint8_t accept, uint32_t passkey);
 
 /*******************************************************************************
  *
@@ -319,8 +323,7 @@ bt_status_t btif_dm_passkey_reply(const RawAddress* bd_addr, uint8_t accept,
  *                  Entry
  *
  ******************************************************************************/
-void btif_dm_ssp_reply(const RawAddress bd_addr, bt_ssp_variant_t variant,
-                       uint8_t accept);
+void btif_dm_ssp_reply(const RawAddress bd_addr, bt_ssp_variant_t variant, uint8_t accept);
 
 /*******************************************************************************
  *
@@ -342,7 +345,7 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t* prop);
  * Returns          bt_status_t
  *
  ******************************************************************************/
-void btif_dm_get_remote_services(const RawAddress remote_addr, int transport);
+void btif_dm_get_remote_services(const RawAddress remote_addr, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -365,8 +368,7 @@ bool btif_is_dut_mode();
  ******************************************************************************/
 void btif_dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len);
 
-void btif_ble_transmitter_test(uint8_t tx_freq, uint8_t test_data_len,
-                               uint8_t packet_payload);
+void btif_ble_transmitter_test(uint8_t tx_freq, uint8_t test_data_len, uint8_t packet_payload);
 
 void btif_ble_receiver_test(uint8_t rx_freq);
 void btif_ble_test_end();

@@ -2,10 +2,13 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "clear_collision_state_on_pairing_complete"
+    name: "clear_auth_collision_state_on_pairing_complete"
     namespace: "bluetooth"
     description: "Clear authentication collision state on pairing conclusion"
-    bug: "327208896"
+    bug: "358116527"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -50,6 +53,126 @@ flag {
     namespace: "bluetooth"
     description: "Use HCI Read Local OOB Extended Data command to generate local OOB when Secure Connections is supported by the controller"
     bug: "342250775"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "pairing_name_discovery_addresss_mismatch"
+    namespace: "bluetooth"
+    description: "Do not abort pairing if name discovery for a another device fails"
+    bug: "349144497"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "guest_mode_bond"
+    namespace: "bluetooth"
+    description: "Do not remove guest mode bonded devices on BT restart in guest mode"
+    bug: "349882273"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "remove_dup_pairing_response_in_oob_pairing"
+    namespace: "bluetooth"
+    description: "Avoid sending duplicate pairing response when device is in peripheral role & OOB pairing mode chosen"
+    bug: "351948689"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "wait_for_disconnect_before_unbond"
+    namespace: "bluetooth"
+    description: "Disconnect all links before removing the bond"
+    bug: "345299969"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "name_discovery_for_le_pairing"
+    namespace: "bluetooth"
+    description: "Perform LE name discovery for pairing if device name is not known"
+    bug: "355095011"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "transmit_smp_packets_before_release"
+    namespace: "bluetooth"
+    description: "Ensure that SMP packets are transmitted before SMP channel is released"
+    bug: "357106628"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "use_encrypt_req_for_av"
+    namespace: "bluetooth"
+    description: "Use encrypted link for AVDTP and AVCTP channel"
+    bug: "357662929"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_queue_dup_rnr"
+    namespace: "bluetooth"
+    description: "Avoid queueing second RNR as part of ssp process"
+    bug: "361839492"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "read_le_appearance"
+    namespace: "bluetooth"
+    description: "Read GATT Appearance characteristic on new LE connections"
+    bug: "362367900"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "clear_pairing_state_when_no_devrec"
+    namespace: "bluetooth"
+    description: "Clear pairing state on early bond failure due to connection timeout and devrec is not created"
+    bug: "364321751"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_validate_bond_state_from_profiles"
+    namespace: "bluetooth"
+    description: "do not validate bond state from profiles for incoming connections as stack already ensures secure service access"
+    bug: "353738134"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "save_peer_csrk_after_ltk_gen"
+    namespace: "bluetooth"
+    description: "save peer csrk after ltk generated so that right security level is marked as part of peer csrk"
+    bug: "365567905"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

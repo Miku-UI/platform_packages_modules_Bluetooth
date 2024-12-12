@@ -40,8 +40,7 @@ struct BTA_DmSetVisibility BTA_DmSetVisibility;
 struct BTA_dm_acl_down BTA_dm_acl_down;
 struct BTA_dm_acl_up BTA_dm_acl_up;
 struct BTA_dm_acl_up_failed BTA_dm_acl_up_failed;
-struct BTA_dm_notify_remote_features_complete
-    BTA_dm_notify_remote_features_complete;
+struct BTA_dm_notify_remote_features_complete BTA_dm_notify_remote_features_complete;
 struct BTA_dm_on_hw_off BTA_dm_on_hw_off;
 struct BTA_dm_on_hw_on BTA_dm_on_hw_on;
 struct BTA_dm_report_role_change BTA_dm_report_role_change;
@@ -89,8 +88,7 @@ void BTA_dm_acl_down(const RawAddress bd_addr, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::BTA_dm_acl_down(bd_addr, transport);
 }
-void BTA_dm_acl_up(const RawAddress bd_addr, tBT_TRANSPORT transport,
-                   uint16_t acl_handle) {
+void BTA_dm_acl_up(const RawAddress bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::BTA_dm_acl_up(bd_addr, transport, acl_handle);
 }
@@ -114,8 +112,7 @@ void BTA_dm_on_hw_on() {
 void BTA_dm_report_role_change(const RawAddress bd_addr, tHCI_ROLE new_role,
                                tHCI_STATUS hci_status) {
   inc_func_call_count(__func__);
-  test::mock::bta_dm_act::BTA_dm_report_role_change(bd_addr, new_role,
-                                                    hci_status);
+  test::mock::bta_dm_act::BTA_dm_report_role_change(bd_addr, new_role, hci_status);
 }
 void bta_dm_add_ble_device(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                            tBT_DEVICE_TYPE dev_type) {
@@ -139,13 +136,11 @@ void bta_dm_ble_csis_observe(bool observe, tBTA_DM_SEARCH_CBACK* p_cback) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_ble_csis_observe(observe, p_cback);
 }
-void bta_dm_ble_get_energy_info(
-    tBTA_BLE_ENERGY_INFO_CBACK* p_energy_info_cback) {
+void bta_dm_ble_get_energy_info(tBTA_BLE_ENERGY_INFO_CBACK* p_energy_info_cback) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_ble_get_energy_info(p_energy_info_cback);
 }
-void bta_dm_ble_passkey_reply(const RawAddress& bd_addr, bool accept,
-                              uint32_t passkey) {
+void bta_dm_ble_passkey_reply(const RawAddress& bd_addr, bool accept, uint32_t passkey) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_ble_passkey_reply(bd_addr, accept, passkey);
 }
@@ -153,32 +148,28 @@ void bta_dm_ble_scan(bool start, uint8_t duration_sec) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_ble_scan(start, duration_sec);
 }
-void bta_dm_ble_set_conn_params(const RawAddress& bd_addr,
-                                uint16_t conn_int_min, uint16_t conn_int_max,
-                                uint16_t peripheral_latency,
+void bta_dm_ble_set_conn_params(const RawAddress& bd_addr, uint16_t conn_int_min,
+                                uint16_t conn_int_max, uint16_t peripheral_latency,
                                 uint16_t supervision_tout) {
   inc_func_call_count(__func__);
-  test::mock::bta_dm_act::bta_dm_ble_set_conn_params(
-      bd_addr, conn_int_min, conn_int_max, peripheral_latency,
-      supervision_tout);
+  test::mock::bta_dm_act::bta_dm_ble_set_conn_params(bd_addr, conn_int_min, conn_int_max,
+                                                     peripheral_latency, supervision_tout);
 }
 void bta_dm_ble_set_data_length(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_ble_set_data_length(bd_addr);
 }
-void bta_dm_ble_update_conn_params(const RawAddress& bd_addr, uint16_t min_int,
-                                   uint16_t max_int, uint16_t latency,
-                                   uint16_t timeout, uint16_t min_ce_len,
+void bta_dm_ble_update_conn_params(const RawAddress& bd_addr, uint16_t min_int, uint16_t max_int,
+                                   uint16_t latency, uint16_t timeout, uint16_t min_ce_len,
                                    uint16_t max_ce_len) {
   inc_func_call_count(__func__);
-  test::mock::bta_dm_act::bta_dm_ble_update_conn_params(
-      bd_addr, min_int, max_int, latency, timeout, min_ce_len, max_ce_len);
+  test::mock::bta_dm_act::bta_dm_ble_update_conn_params(bd_addr, min_int, max_int, latency, timeout,
+                                                        min_ce_len, max_ce_len);
 }
-void bta_dm_bond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
-                 tBT_TRANSPORT transport, tBT_DEVICE_TYPE device_type) {
+void bta_dm_bond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TRANSPORT transport,
+                 tBT_DEVICE_TYPE device_type) {
   inc_func_call_count(__func__);
-  test::mock::bta_dm_act::bta_dm_bond(bd_addr, addr_type, transport,
-                                      device_type);
+  test::mock::bta_dm_act::bta_dm_bond(bd_addr, addr_type, transport, device_type);
 }
 void bta_dm_bond_cancel(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
@@ -212,11 +203,10 @@ void bta_dm_enable(tBTA_DM_SEC_CBACK* p_sec_cback) {
   inc_func_call_count(__func__);
   test::mock::bta_dm_act::bta_dm_enable(p_sec_cback);
 }
-void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
-                          void* p_ref_data, tBTM_STATUS result) {
+void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport, void* p_ref_data,
+                          tBTM_STATUS result) {
   inc_func_call_count(__func__);
-  test::mock::bta_dm_act::bta_dm_encrypt_cback(bd_addr, transport, p_ref_data,
-                                               result);
+  test::mock::bta_dm_act::bta_dm_encrypt_cback(bd_addr, transport, p_ref_data, result);
 }
 bool bta_dm_is_search_request_queued() {
   inc_func_call_count(__func__);
@@ -248,11 +238,9 @@ void bta_dm_set_dev_name(const std::vector<uint8_t>& name) {
   test::mock::bta_dm_act::bta_dm_set_dev_name(name);
 }
 void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
-                           tBTA_DM_ENCRYPT_CBACK* p_callback,
-                           tBTM_BLE_SEC_ACT sec_act) {
+                           tBTA_DM_ENCRYPT_CBACK* p_callback, tBTM_BLE_SEC_ACT sec_act) {
   inc_func_call_count(__func__);
-  test::mock::bta_dm_act::bta_dm_set_encryption(bd_addr, transport, p_callback,
-                                                sec_act);
+  test::mock::bta_dm_act::bta_dm_set_encryption(bd_addr, transport, p_callback, sec_act);
 }
 void handle_remote_features_complete(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);

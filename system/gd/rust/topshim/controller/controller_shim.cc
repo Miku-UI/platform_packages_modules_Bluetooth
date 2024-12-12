@@ -33,24 +33,32 @@ static ControllerIntf* g_controller_intf;
 ControllerIntf::~ControllerIntf() {}
 
 std::unique_ptr<ControllerIntf> GetControllerInterface() {
-  if (internal::g_controller_intf) std::abort();
+  if (internal::g_controller_intf) {
+    std::abort();
+  }
   auto controller_intf = std::make_unique<ControllerIntf>();
   internal::g_controller_intf = controller_intf.get();
   return controller_intf;
 }
 
 RawAddress ControllerIntf::read_local_addr() const {
-  if (!controller_) std::abort();
+  if (!controller_) {
+    std::abort();
+  }
   return ToRawAddress(controller_->GetMacAddress());
 }
 
 uint64_t ControllerIntf::get_ble_supported_states() const {
-  if (!controller_) std::abort();
+  if (!controller_) {
+    std::abort();
+  }
   return controller_->GetLeSupportedStates();
 }
 
 uint64_t ControllerIntf::get_ble_local_supported_features() const {
-  if (!controller_) std::abort();
+  if (!controller_) {
+    std::abort();
+  }
   return controller_->GetControllerLeLocalSupportedFeatures();
 }
 

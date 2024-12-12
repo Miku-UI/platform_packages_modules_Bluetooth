@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <limits>
+#include "common/lru_cache.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "common/lru_cache.h"
+#include <limits>
 
 namespace testing {
 

@@ -44,23 +44,20 @@ XBT_INLINE_ int32_t xbtEncupdateCodewordHistory(const int32_t quantisedCodes[4],
   const uint32_t numNewBits = 4;
 
   /* Make a 4-bit vector from particular bits from 3 quantised codes */
-  newBits = (quantisedCodes[LL] & llMask) +
-            ((quantisedCodes[LH] & lhMask) << lhShift) +
+  newBits = (quantisedCodes[LL] & llMask) + ((quantisedCodes[LH] & lhMask) << lhShift) +
             ((quantisedCodes[HL] & hlMask) << hlShift);
 
   /* Add the 4 new bits to the codeword history. Note that this is a 24-bit
    * value LEFT-JUSTIFIED in a 32-bit signed variable. Maintaining the history
    * as signed is useful in the dither generation process below. */
-  updatedCodewordHistory =
-      (m_codewordHistory << numNewBits) + (newBits << leftJustifyShift);
+  updatedCodewordHistory = (m_codewordHistory << numNewBits) + (newBits << leftJustifyShift);
 
   return updatedCodewordHistory;
 }
 
 /* Function to generate a dither value for each subband based
  * on the current contents of the codewordHistory bit-pool. */
-XBT_INLINE_ int32_t xbtEncgenerateDither(int32_t m_codewordHistory,
-                                         int32_t* m_ditherOutputs) {
+XBT_INLINE_ int32_t xbtEncgenerateDither(int32_t m_codewordHistory, int32_t* m_ditherOutputs) {
   int32_t history24b;
   int32_t upperAcc;
   int32_t lowerAcc;
@@ -110,6 +107,6 @@ XBT_INLINE_ int32_t xbtEncgenerateDither(int32_t m_codewordHistory,
   m_ditherOutputs[LL] = ditherSample << (15 + leftJustifyShift);
 
   return m_dithSyncRandBit;
-};
+}
 
 #endif  // DITHERGENERATOR_H

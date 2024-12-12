@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.le_audio;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doReturn;
@@ -34,7 +36,6 @@ import android.bluetooth.IBluetoothLeAudioCallback;
 import android.bluetooth.IBluetoothLeBroadcastCallback;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
-import android.os.RemoteCallbackList;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.InstrumentationRegistry;
@@ -69,9 +70,6 @@ public class LeAudioBinderTest {
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private AudioRoutingManager mAudioRoutingManager;
 
-    @Mock private RemoteCallbackList<IBluetoothLeAudioCallback> mLeAudioCallbacks;
-    @Mock private RemoteCallbackList<IBluetoothLeBroadcastCallback> mBroadcastCallbacks;
-
     private LeAudioService.BluetoothLeAudioBinder mBinder;
     private BluetoothAdapter mAdapter;
 
@@ -96,8 +94,6 @@ public class LeAudioBinderTest {
         mLeAudioService.start();
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mBinder = new LeAudioService.BluetoothLeAudioBinder(mLeAudioService);
-        mLeAudioService.mLeAudioCallbacks = mLeAudioCallbacks;
-        mLeAudioService.mBroadcastCallbacks = mBroadcastCallbacks;
     }
 
     @After
@@ -291,39 +287,43 @@ public class LeAudioBinderTest {
     }
 
     @Test
-    public void registerCallback() {
-        IBluetoothLeAudioCallback callback = Mockito.mock(IBluetoothLeAudioCallback.class);
-        AttributionSource source = new AttributionSource.Builder(0).build();
+    public void registerUnregisterCallback() {
+        synchronized (mLeAudioService.mLeAudioCallbacks) {
+            IBluetoothLeAudioCallback callback = Mockito.mock(IBluetoothLeAudioCallback.class);
+            doReturn(mBinder).when(callback).asBinder();
 
-        mBinder.registerCallback(callback, source);
-        verify(mLeAudioService.mLeAudioCallbacks).register(callback);
+            AttributionSource source = new AttributionSource.Builder(0).build();
+
+            assertThat(mLeAudioService.mLeAudioCallbacks.beginBroadcast()).isEqualTo(0);
+            mLeAudioService.mLeAudioCallbacks.finishBroadcast();
+            mBinder.registerCallback(callback, source);
+            assertThat(mLeAudioService.mLeAudioCallbacks.beginBroadcast()).isEqualTo(1);
+            mLeAudioService.mLeAudioCallbacks.finishBroadcast();
+
+            mBinder.unregisterCallback(callback, source);
+            assertThat(mLeAudioService.mLeAudioCallbacks.beginBroadcast()).isEqualTo(0);
+            mLeAudioService.mLeAudioCallbacks.finishBroadcast();
+        }
     }
 
     @Test
-    public void unregisterCallback() {
-        IBluetoothLeAudioCallback callback = Mockito.mock(IBluetoothLeAudioCallback.class);
-        AttributionSource source = new AttributionSource.Builder(0).build();
+    public void registerUnregisterLeBroadcastCallback() {
+        synchronized (mLeAudioService.mBroadcastCallbacks) {
+            IBluetoothLeBroadcastCallback callback =
+                    Mockito.mock(IBluetoothLeBroadcastCallback.class);
+            doReturn(mBinder).when(callback).asBinder();
+            AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.unregisterCallback(callback, source);
-        verify(mLeAudioService.mLeAudioCallbacks).unregister(callback);
-    }
+            assertThat(mLeAudioService.mBroadcastCallbacks.beginBroadcast()).isEqualTo(0);
+            mLeAudioService.mBroadcastCallbacks.finishBroadcast();
+            mBinder.registerLeBroadcastCallback(callback, source);
 
-    @Test
-    public void registerLeBroadcastCallback() {
-        IBluetoothLeBroadcastCallback callback = Mockito.mock(IBluetoothLeBroadcastCallback.class);
-        AttributionSource source = new AttributionSource.Builder(0).build();
-
-        mBinder.registerLeBroadcastCallback(callback, source);
-        verify(mLeAudioService.mBroadcastCallbacks).register(callback);
-    }
-
-    @Test
-    public void unregisterLeBroadcastCallback() {
-        IBluetoothLeBroadcastCallback callback = Mockito.mock(IBluetoothLeBroadcastCallback.class);
-        AttributionSource source = new AttributionSource.Builder(0).build();
-
-        mBinder.unregisterLeBroadcastCallback(callback, source);
-        verify(mLeAudioService.mBroadcastCallbacks).unregister(callback);
+            assertThat(mLeAudioService.mBroadcastCallbacks.beginBroadcast()).isEqualTo(1);
+            mLeAudioService.mBroadcastCallbacks.finishBroadcast();
+            mBinder.unregisterLeBroadcastCallback(callback, source);
+            assertThat(mLeAudioService.mBroadcastCallbacks.beginBroadcast()).isEqualTo(0);
+            mLeAudioService.mBroadcastCallbacks.finishBroadcast();
+        }
     }
 
     @Test
@@ -373,25 +373,19 @@ public class LeAudioBinderTest {
 
     @Test
     public void getMaximumNumberOfBroadcasts() {
-        AttributionSource source = new AttributionSource.Builder(0).build();
-
-        mBinder.getMaximumNumberOfBroadcasts(source);
+        mBinder.getMaximumNumberOfBroadcasts();
         verify(mLeAudioService).getMaximumNumberOfBroadcasts();
     }
 
     @Test
     public void getMaximumStreamsPerBroadcast() {
-        AttributionSource source = new AttributionSource.Builder(0).build();
-
-        mBinder.getMaximumStreamsPerBroadcast(source);
+        mBinder.getMaximumStreamsPerBroadcast();
         verify(mLeAudioService).getMaximumStreamsPerBroadcast();
     }
 
     @Test
     public void getMaximumSubgroupsPerBroadcast() {
-        AttributionSource source = new AttributionSource.Builder(0).build();
-
-        mBinder.getMaximumSubgroupsPerBroadcast(source);
+        mBinder.getMaximumSubgroupsPerBroadcast();
         verify(mLeAudioService).getMaximumSubgroupsPerBroadcast();
     }
 

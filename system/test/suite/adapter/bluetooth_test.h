@@ -34,7 +34,7 @@
 #include "types/raw_address.h"
 
 class btsemaphore {
- public:
+public:
   void post() {
     std::lock_guard<std::mutex> lock(mMutex);
     ++mCount;
@@ -58,21 +58,21 @@ class btsemaphore {
     return false;
   }
 
- private:
+private:
   std::mutex mMutex;
   std::condition_variable mCondition;
   unsigned long mCount = 0;
 };
-void semaphore_wait(btsemaphore &s);
-void semaphore_post(btsemaphore &s);
-void semaphore_try_wait(btsemaphore &s);
+void semaphore_wait(btsemaphore& s);
+void semaphore_post(btsemaphore& s);
+void semaphore_try_wait(btsemaphore& s);
 
 namespace bttest {
 
 // This class represents the Bluetooth testing framework and provides
 // helpers and callbacks for GUnit to use for testing.
 class BluetoothTest : public ::testing::Test {
- protected:
+protected:
   BluetoothTest() = default;
   BluetoothTest(const BluetoothTest&) = delete;
   BluetoothTest& operator=(const BluetoothTest&) = delete;
@@ -96,8 +96,7 @@ class BluetoothTest : public ::testing::Test {
   bt_property_t* GetProperty(bt_property_type_t type);
 
   // Get the value of a specific remote device property
-  bt_property_t* GetRemoteDeviceProperty(const RawAddress* addr,
-                                         bt_property_type_t type);
+  bt_property_t* GetRemoteDeviceProperty(const RawAddress* addr, bt_property_type_t type);
 
   // Get the current discovery state
   bt_discovery_state_t GetDiscoveryState();
@@ -123,10 +122,8 @@ class BluetoothTest : public ::testing::Test {
                                         bt_property_t* properties);
 
   // A callback that is called when the remote device's property changes
-  friend void RemoteDevicePropertiesCallback(bt_status_t status,
-                                             RawAddress* remote_bd_addr,
-                                             int num_properties,
-                                             bt_property_t* properties);
+  friend void RemoteDevicePropertiesCallback(bt_status_t status, RawAddress* remote_bd_addr,
+                                             int num_properties, bt_property_t* properties);
 
   // A callback that is called when the adapter state changes
   friend void AdapterStateChangedCallback(bt_state_t state);
@@ -141,7 +138,7 @@ class BluetoothTest : public ::testing::Test {
   btsemaphore adapter_state_changed_callback_sem_;
   btsemaphore discovery_state_changed_callback_sem_;
 
- private:
+private:
   bt_state_t state_;
   int properties_changed_count_;
   bt_property_t* last_changed_properties_;
@@ -153,4 +150,4 @@ class BluetoothTest : public ::testing::Test {
   bt_bond_state_t bond_state_;
 };
 
-}  // bttest
+}  // namespace bttest

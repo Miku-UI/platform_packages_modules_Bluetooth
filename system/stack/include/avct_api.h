@@ -64,7 +64,7 @@
 
 /* Message offset.  The number of bytes needed by the protocol stack for the
  * protocol headers of an AVCTP message packet.
-*/
+ */
 #define AVCT_MSG_OFFSET 15
 #define AVCT_BROWSE_OFFSET 17 /* the default offset for browsing channel */
 
@@ -109,8 +109,7 @@ typedef void(tAVCT_CTRL_CBACK)(uint8_t handle, uint8_t event, uint16_t result,
 
 /* Message callback function */
 /* p_pkt->layer_specific is AVCT_DATA_CTRL or AVCT_DATA_BROWSE */
-typedef void(tAVCT_MSG_CBACK)(uint8_t handle, uint8_t label, uint8_t cr,
-                              BT_HDR* p_pkt);
+typedef void(tAVCT_MSG_CBACK)(uint8_t handle, uint8_t label, uint8_t cr, BT_HDR* p_pkt);
 
 /* Structure used by AVCT_CreateConn. */
 typedef struct {
@@ -174,8 +173,7 @@ void AVCT_Deregister(void);
  * Returns          AVCT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc,
-                         const RawAddress& peer_addr);
+uint16_t AVCT_CreateConn(uint8_t* p_handle, tAVCT_CC* p_cc, const RawAddress& peer_addr);
 
 /*******************************************************************************
  *

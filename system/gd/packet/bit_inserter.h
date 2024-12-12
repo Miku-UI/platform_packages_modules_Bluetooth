@@ -27,7 +27,7 @@ namespace bluetooth {
 namespace packet {
 
 class BitInserter : public ByteInserter {
- public:
+public:
   explicit BitInserter(std::vector<uint8_t>& vector);
   ~BitInserter();
 
@@ -35,7 +35,7 @@ class BitInserter : public ByteInserter {
 
   void insert_byte(uint8_t byte) override;
 
- protected:
+protected:
   size_t num_saved_bits_{0};
   uint8_t saved_bits_{0};
 };

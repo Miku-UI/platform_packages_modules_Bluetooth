@@ -31,6 +31,7 @@
 package com.android.bluetooth.hap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHapClient;
@@ -171,14 +172,16 @@ final class HapClientStateMachine extends StateMachine {
                         + profileStateToString(newState));
 
         mService.connectionStateChanged(mDevice, prevState, newState);
-        Intent intent = new Intent(BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED);
-        intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
-        intent.putExtra(BluetoothProfile.EXTRA_STATE, newState);
-        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mDevice);
-        intent.addFlags(
-                Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
-                        | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        mService.sendBroadcast(intent, BLUETOOTH_CONNECT);
+        Intent intent =
+                new Intent(BluetoothHapClient.ACTION_HAP_CONNECTION_STATE_CHANGED)
+                        .putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState)
+                        .putExtra(BluetoothProfile.EXTRA_STATE, newState)
+                        .putExtra(BluetoothDevice.EXTRA_DEVICE, mDevice)
+                        .addFlags(
+                                Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
+                                        | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mService.sendBroadcastWithMultiplePermissions(
+                intent, new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED});
     }
 
     public void dump(StringBuilder sb) {

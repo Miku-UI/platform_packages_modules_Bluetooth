@@ -86,21 +86,18 @@ void btsock_rfc_cleanup(void) {
   inc_func_call_count(__func__);
   test::mock::btif_sock_rfc::btsock_rfc_cleanup();
 }
-bt_status_t btsock_rfc_connect(const RawAddress* bd_addr,
-                               const Uuid* service_uuid, int channel,
+bt_status_t btsock_rfc_connect(const RawAddress* bd_addr, const Uuid* service_uuid, int channel,
                                int* sock_fd, int flags, int app_uid) {
   inc_func_call_count(__func__);
-  return test::mock::btif_sock_rfc::btsock_rfc_connect(
-      bd_addr, service_uuid, channel, sock_fd, flags, app_uid);
+  return test::mock::btif_sock_rfc::btsock_rfc_connect(bd_addr, service_uuid, channel, sock_fd,
+                                                       flags, app_uid);
 }
-bt_status_t btsock_rfc_control_req(uint8_t dlci, const RawAddress& bd_addr,
-                                   uint8_t modem_signal, uint8_t break_signal,
-                                   uint8_t discard_buffers,
+bt_status_t btsock_rfc_control_req(uint8_t dlci, const RawAddress& bd_addr, uint8_t modem_signal,
+                                   uint8_t break_signal, uint8_t discard_buffers,
                                    uint8_t break_signal_seq, bool fc) {
   inc_func_call_count(__func__);
   return test::mock::btif_sock_rfc::btsock_rfc_control_req(
-      dlci, bd_addr, modem_signal, break_signal, discard_buffers,
-      break_signal_seq, fc);
+          dlci, bd_addr, modem_signal, break_signal, discard_buffers, break_signal_seq, fc);
 }
 bt_status_t btsock_rfc_disconnect(const RawAddress* bd_addr) {
   inc_func_call_count(__func__);
@@ -110,12 +107,11 @@ bt_status_t btsock_rfc_init(int poll_thread_handle, uid_set_t* set) {
   inc_func_call_count(__func__);
   return test::mock::btif_sock_rfc::btsock_rfc_init(poll_thread_handle, set);
 }
-bt_status_t btsock_rfc_listen(const char* service_name,
-                              const Uuid* service_uuid, int channel,
+bt_status_t btsock_rfc_listen(const char* service_name, const Uuid* service_uuid, int channel,
                               int* sock_fd, int flags, int app_uid) {
   inc_func_call_count(__func__);
-  return test::mock::btif_sock_rfc::btsock_rfc_listen(
-      service_name, service_uuid, channel, sock_fd, flags, app_uid);
+  return test::mock::btif_sock_rfc::btsock_rfc_listen(service_name, service_uuid, channel, sock_fd,
+                                                      flags, app_uid);
 }
 void btsock_rfc_signaled(int fd, int flags, uint32_t id) {
   inc_func_call_count(__func__);

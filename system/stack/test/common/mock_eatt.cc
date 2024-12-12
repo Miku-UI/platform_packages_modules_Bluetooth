@@ -44,39 +44,32 @@ bool EattExtension::IsEattSupportedByPeer(const RawAddress& bd_addr) {
   return pimpl_->IsEattSupportedByPeer(bd_addr);
 }
 
-void EattExtension::Connect(const RawAddress& bd_addr) {
-  pimpl_->Connect(bd_addr);
-}
+void EattExtension::Connect(const RawAddress& bd_addr) { pimpl_->Connect(bd_addr); }
 
 void EattExtension::Disconnect(const RawAddress& bd_addr, uint16_t cid) {
   pimpl_->Disconnect(bd_addr, cid);
 }
 
-void EattExtension::Reconfigure(const RawAddress& bd_addr, uint16_t cid,
-                                uint16_t mtu) {
+void EattExtension::Reconfigure(const RawAddress& bd_addr, uint16_t cid, uint16_t mtu) {
   pimpl_->Reconfigure(bd_addr, cid, mtu);
 }
 void EattExtension::ReconfigureAll(const RawAddress& bd_addr, uint16_t mtu) {
   pimpl_->ReconfigureAll(bd_addr, mtu);
 }
 
-EattChannel* EattExtension::FindEattChannelByCid(const RawAddress& bd_addr,
-                                                 uint16_t cid) {
+EattChannel* EattExtension::FindEattChannelByCid(const RawAddress& bd_addr, uint16_t cid) {
   return pimpl_->FindEattChannelByCid(bd_addr, cid);
 }
 
-EattChannel* EattExtension::FindEattChannelByTransId(const RawAddress& bd_addr,
-                                                     uint32_t trans_id) {
+EattChannel* EattExtension::FindEattChannelByTransId(const RawAddress& bd_addr, uint32_t trans_id) {
   return pimpl_->FindEattChannelByTransId(bd_addr, trans_id);
 }
 
-bool EattExtension::IsIndicationPending(const RawAddress& bd_addr,
-                                        uint16_t indication_handle) {
+bool EattExtension::IsIndicationPending(const RawAddress& bd_addr, uint16_t indication_handle) {
   return pimpl_->IsIndicationPending(bd_addr, indication_handle);
 }
 
-EattChannel* EattExtension::GetChannelAvailableForIndication(
-    const RawAddress& bd_addr) {
+EattChannel* EattExtension::GetChannelAvailableForIndication(const RawAddress& bd_addr) {
   return pimpl_->GetChannelAvailableForIndication(bd_addr);
 }
 
@@ -88,35 +81,29 @@ bool EattExtension::IsOutstandingMsgInSendQueue(const RawAddress& bd_addr) {
   return pimpl_->IsOutstandingMsgInSendQueue(bd_addr);
 }
 
-EattChannel* EattExtension::GetChannelWithQueuedDataToSend(
-    const RawAddress& bd_addr) {
+EattChannel* EattExtension::GetChannelWithQueuedDataToSend(const RawAddress& bd_addr) {
   return pimpl_->GetChannelWithQueuedDataToSend(bd_addr);
 }
 
-EattChannel* EattExtension::GetChannelAvailableForClientRequest(
-    const RawAddress& bd_addr) {
+EattChannel* EattExtension::GetChannelAvailableForClientRequest(const RawAddress& bd_addr) {
   return pimpl_->GetChannelAvailableForClientRequest(bd_addr);
 }
 
 /* Start stop GATT indication timer per CID */
-void EattExtension::StartIndicationConfirmationTimer(const RawAddress& bd_addr,
-                                                     uint16_t cid) {
+void EattExtension::StartIndicationConfirmationTimer(const RawAddress& bd_addr, uint16_t cid) {
   pimpl_->StartIndicationConfirmationTimer(bd_addr, cid);
 }
 
-void EattExtension::StopIndicationConfirmationTimer(const RawAddress& bd_addr,
-                                                    uint16_t cid) {
+void EattExtension::StopIndicationConfirmationTimer(const RawAddress& bd_addr, uint16_t cid) {
   pimpl_->StopIndicationConfirmationTimer(bd_addr, cid);
 }
 
 /* Start stop application indication timeout */
-void EattExtension::StartAppIndicationTimer(const RawAddress& bd_addr,
-                                            uint16_t cid) {
+void EattExtension::StartAppIndicationTimer(const RawAddress& bd_addr, uint16_t cid) {
   pimpl_->StartAppIndicationTimer(bd_addr, cid);
 }
 
-void EattExtension::StopAppIndicationTimer(const RawAddress& bd_addr,
-                                           uint16_t cid) {
+void EattExtension::StopAppIndicationTimer(const RawAddress& bd_addr, uint16_t cid) {
   pimpl_->StopAppIndicationTimer(bd_addr, cid);
 }
 

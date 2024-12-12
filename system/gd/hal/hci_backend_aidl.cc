@@ -26,7 +26,7 @@
 namespace bluetooth::hal {
 
 class AidlHciCallbacks : public ::aidl::android::hardware::bluetooth::BnBluetoothHciCallbacks {
- public:
+public:
   AidlHciCallbacks(std::shared_ptr<HciBackendCallbacks> callbacks) : callbacks_(callbacks) {}
 
   using AidlStatus = ::aidl::android::hardware::bluetooth::Status;
@@ -56,34 +56,34 @@ class AidlHciCallbacks : public ::aidl::android::hardware::bluetooth::BnBluetoot
     return ::ndk::ScopedAStatus::ok();
   }
 
- private:
+private:
   std::shared_ptr<HciBackendCallbacks> callbacks_;
 };
 
 class AidlHci : public HciBackend {
- public:
+public:
   AidlHci(const char* service_name) {
     ::ndk::SpAIBinder binder(AServiceManager_waitForService(service_name));
     hci_ = aidl::android::hardware::bluetooth::IBluetoothHci::fromBinder(binder);
     log::assert_that(hci_ != nullptr, "Failed to retrieve AIDL interface.");
 
     death_recipient_ =
-        ::ndk::ScopedAIBinder_DeathRecipient(AIBinder_DeathRecipient_new([](void* /* cookie*/) {
-          log::error("The Bluetooth HAL service died. Dumping logs and crashing in 1 second.");
-          common::StopWatch::DumpStopWatchLog();
-          // At shutdown, sometimes the HAL service gets killed before Bluetooth.
-          std::this_thread::sleep_for(std::chrono::seconds(1));
-          log::fatal("The Bluetooth HAL died.");
-        }));
+            ::ndk::ScopedAIBinder_DeathRecipient(AIBinder_DeathRecipient_new([](void* /* cookie*/) {
+              log::error("The Bluetooth HAL service died. Dumping logs and crashing in 1 second.");
+              common::StopWatch::DumpStopWatchLog();
+              // At shutdown, sometimes the HAL service gets killed before Bluetooth.
+              std::this_thread::sleep_for(std::chrono::seconds(1));
+              log::fatal("The Bluetooth HAL died.");
+            }));
 
     auto death_link = AIBinder_linkToDeath(hci_->asBinder().get(), death_recipient_.get(), this);
-    log::assert_that(
-        death_link == STATUS_OK, "Unable to set the death recipient for the Bluetooth HAL");
+    log::assert_that(death_link == STATUS_OK,
+                     "Unable to set the death recipient for the Bluetooth HAL");
   }
 
   ~AidlHci() {
     auto death_unlink =
-        AIBinder_unlinkToDeath(hci_->asBinder().get(), death_recipient_.get(), this);
+            AIBinder_unlinkToDeath(hci_->asBinder().get(), death_recipient_.get(), this);
     if (death_unlink != STATUS_OK) {
       log::error("Error unlinking death recipient from the Bluetooth HAL");
     }
@@ -102,19 +102,13 @@ class AidlHci : public HciBackend {
     hci_->sendHciCommand(command);
   }
 
-  void sendAclData(const std::vector<uint8_t>& packet) override {
-    hci_->sendAclData(packet);
-  }
+  void sendAclData(const std::vector<uint8_t>& packet) override { hci_->sendAclData(packet); }
 
-  void sendScoData(const std::vector<uint8_t>& packet) override {
-    hci_->sendScoData(packet);
-  }
+  void sendScoData(const std::vector<uint8_t>& packet) override { hci_->sendScoData(packet); }
 
-  void sendIsoData(const std::vector<uint8_t>& packet) override {
-    hci_->sendIsoData(packet);
-  }
+  void sendIsoData(const std::vector<uint8_t>& packet) override { hci_->sendIsoData(packet); }
 
- private:
+private:
   ::ndk::ScopedAIBinder_DeathRecipient death_recipient_;
   std::shared_ptr<aidl::android::hardware::bluetooth::IBluetoothHci> hci_;
   std::shared_ptr<AidlHciCallbacks> hci_callbacks_;
@@ -122,10 +116,11 @@ class AidlHci : public HciBackend {
 
 std::shared_ptr<HciBackend> HciBackend::CreateAidl() {
   static constexpr char kBluetoothAidlHalServiceName[] =
-      "android.hardware.bluetooth.IBluetoothHci/default";
+          "android.hardware.bluetooth.IBluetoothHci/default";
 
-  if (AServiceManager_isDeclared(kBluetoothAidlHalServiceName))
+  if (AServiceManager_isDeclared(kBluetoothAidlHalServiceName)) {
     return std::make_shared<AidlHci>(kBluetoothAidlHalServiceName);
+  }
 
   return std::shared_ptr<HciBackend>();
 }

@@ -22,7 +22,7 @@
 #include "stack/include/btm_iso_api.h"
 
 struct MockIsoManager {
- public:
+public:
   static MockIsoManager* GetInstance();
 
   MockIsoManager() = default;
@@ -31,45 +31,33 @@ struct MockIsoManager {
 
   virtual ~MockIsoManager() = default;
 
-  MOCK_METHOD((void), RegisterCigCallbacks,
-              (bluetooth::hci::iso_manager::CigCallbacks * callbacks), (const));
-  MOCK_METHOD((void), RegisterBigCallbacks,
-              (bluetooth::hci::iso_manager::BigCallbacks * callbacks), (const));
-  MOCK_METHOD((void), RegisterOnIsoTrafficActiveCallbacks,
-              (void callbacks(bool)), (const));
-  MOCK_METHOD(
-      (void), CreateCig,
-      (uint8_t cig_id,
-       struct bluetooth::hci::iso_manager::cig_create_params cig_params));
-  MOCK_METHOD(
-      (void), ReconfigureCig,
-      (uint8_t cig_id,
-       struct bluetooth::hci::iso_manager::cig_create_params cig_params));
+  MOCK_METHOD((void), RegisterCigCallbacks, (bluetooth::hci::iso_manager::CigCallbacks * callbacks),
+              (const));
+  MOCK_METHOD((void), RegisterBigCallbacks, (bluetooth::hci::iso_manager::BigCallbacks * callbacks),
+              (const));
+  MOCK_METHOD((void), RegisterOnIsoTrafficActiveCallbacks, (void callbacks(bool)), (const));
+  MOCK_METHOD((void), CreateCig,
+              (uint8_t cig_id, struct bluetooth::hci::iso_manager::cig_create_params cig_params));
+  MOCK_METHOD((void), ReconfigureCig,
+              (uint8_t cig_id, struct bluetooth::hci::iso_manager::cig_create_params cig_params));
   MOCK_METHOD((void), RemoveCig, (uint8_t cig_id, bool force));
-  MOCK_METHOD(
-      (void), EstablishCis,
-      (struct bluetooth::hci::iso_manager::cis_establish_params conn_params));
+  MOCK_METHOD((void), EstablishCis,
+              (struct bluetooth::hci::iso_manager::cis_establish_params conn_params));
   MOCK_METHOD((void), DisconnectCis, (uint16_t cis_handle, uint8_t reason));
-  MOCK_METHOD(
-      (void), SetupIsoDataPath,
-      (uint16_t iso_handle,
-       struct bluetooth::hci::iso_manager::iso_data_path_params path_params));
-  MOCK_METHOD((void), RemoveIsoDataPath,
-              (uint16_t iso_handle, uint8_t data_path_dir));
-  MOCK_METHOD((void), SendIsoData,
-              (uint16_t iso_handle, const uint8_t* data, uint16_t data_len));
+  MOCK_METHOD((int), GetNumberOfActiveIso, ());
+  MOCK_METHOD((void), SetupIsoDataPath,
+              (uint16_t iso_handle,
+               struct bluetooth::hci::iso_manager::iso_data_path_params path_params));
+  MOCK_METHOD((void), RemoveIsoDataPath, (uint16_t iso_handle, uint8_t data_path_dir));
+  MOCK_METHOD((void), SendIsoData, (uint16_t iso_handle, const uint8_t* data, uint16_t data_len));
   MOCK_METHOD((void), ReadIsoLinkQuality, (uint16_t iso_handle));
-  MOCK_METHOD(
-      (void), CreateBig,
-      (uint8_t big_id,
-       struct bluetooth::hci::iso_manager::big_create_params big_params));
+  MOCK_METHOD((void), CreateBig,
+              (uint8_t big_id, struct bluetooth::hci::iso_manager::big_create_params big_params));
   MOCK_METHOD((void), TerminateBig, (uint8_t big_id, uint8_t reason));
   MOCK_METHOD((void), HandleIsoData, (void* p_msg));
   MOCK_METHOD((void), HandleDisconnect, (uint16_t handle, uint8_t reason));
-  MOCK_METHOD((void), HandleNumComplDataPkts,
-              (uint16_t handle, uint16_t credits));
-  MOCK_METHOD((void), HandleHciEvent,
-              (uint8_t sub_code, uint8_t* params, uint16_t length));
+  MOCK_METHOD((void), HandleNumComplDataPkts, (uint16_t handle, uint16_t credits));
+  MOCK_METHOD((void), HandleHciEvent, (uint8_t sub_code, uint8_t* params, uint16_t length));
 
   MOCK_METHOD((void), Start, ());
   MOCK_METHOD((void), Stop, ());

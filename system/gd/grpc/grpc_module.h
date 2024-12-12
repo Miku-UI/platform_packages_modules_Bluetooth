@@ -28,7 +28,7 @@ namespace grpc {
 class GrpcFacadeModule;
 
 class GrpcModule : public ::bluetooth::Module {
- public:
+public:
   static const ModuleFactory Factory;
 
   void StartServer(const std::string& address, int port);
@@ -42,7 +42,7 @@ class GrpcModule : public ::bluetooth::Module {
   // Blocks for incoming gRPC requests
   void RunGrpcLoop();
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
 
   void Start() override;
@@ -51,7 +51,7 @@ class GrpcModule : public ::bluetooth::Module {
 
   std::string ToString() const override;
 
- private:
+private:
   bool started_;
   std::unique_ptr<::grpc::Server> server_ = nullptr;
   std::unique_ptr<::grpc::ServerCompletionQueue> completion_queue_ = nullptr;
@@ -61,7 +61,7 @@ class GrpcModule : public ::bluetooth::Module {
 class GrpcFacadeModule : public ::bluetooth::Module {
   friend GrpcModule;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
 
   void Start() override;

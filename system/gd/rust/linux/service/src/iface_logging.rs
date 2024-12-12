@@ -4,6 +4,7 @@ use btstack::bluetooth_logging::IBluetoothLogging;
 use dbus_macros::{dbus_method, generate_dbus_exporter};
 use dbus_projection::prelude::*;
 
+#[allow(dead_code)]
 struct IBluetoothLoggingDBus {}
 
 #[generate_dbus_exporter(export_bluetooth_logging_dbus_intf, "org.chromium.bluetooth.Logging")]

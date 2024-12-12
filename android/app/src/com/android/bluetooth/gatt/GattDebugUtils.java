@@ -145,7 +145,7 @@ import java.util.UUID;
     private static UUID getUuidExtra(Intent intent) {
         String uuidStr = intent.getStringExtra(EXTRA_UUID);
         if (uuidStr != null && uuidStr.length() == 4) {
-            uuidStr = String.format("0000%s-0000-1000-8000-00805f9b34fb", uuidStr);
+            uuidStr = "0000" + uuidStr + "-0000-1000-8000-00805f9b34fb";
         }
         return (uuidStr != null) ? UUID.fromString(uuidStr) : null;
     }

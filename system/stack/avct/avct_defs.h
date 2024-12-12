@@ -48,8 +48,7 @@
  * message parsing and building macros
  ****************************************************************************/
 
-#define AVCT_BUILD_HDR(p, label, type, cr_ipid) \
-  *(p)++ = ((label) << 4) | ((type) << 2) | (cr_ipid);
+#define AVCT_BUILD_HDR(p, label, type, cr_ipid) *(p)++ = ((label) << 4) | ((type) << 2) | (cr_ipid);
 
 #define AVCT_PARSE_HDR(p, label, type, cr_ipid) \
   do {                                          \

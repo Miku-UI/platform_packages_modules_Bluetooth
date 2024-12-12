@@ -30,36 +30,33 @@
 using base::StringPrintf;
 using namespace bluetooth;
 
-static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
-                                     tGATTS_REQ_TYPE type, tGATTS_DATA* p_data);
-static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */,
-                                   const RawAddress& bda, uint16_t conn_id,
+static void srvc_eng_s_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+                                     tGATTS_DATA* p_data);
+static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tCONN_ID conn_id,
                                    bool connected, tGATT_DISCONN_REASON reason,
                                    tBT_TRANSPORT transport);
-static void srvc_eng_c_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
-                                  tGATT_STATUS status,
+static void srvc_eng_c_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                   tGATT_CL_COMPLETE* p_data);
 
 static tGATT_CBACK srvc_gatt_cback = {
-    .p_conn_cb = srvc_eng_connect_cback,
-    .p_cmpl_cb = srvc_eng_c_cmpl_cback,
-    .p_disc_res_cb = nullptr,
-    .p_disc_cmpl_cb = nullptr,
-    .p_req_cb = srvc_eng_s_request_cback,
-    .p_enc_cmpl_cb = nullptr,
-    .p_congestion_cb = nullptr,
-    .p_phy_update_cb = nullptr,
-    .p_conn_update_cb = nullptr,
-    .p_subrate_chg_cb = nullptr,
+        .p_conn_cb = srvc_eng_connect_cback,
+        .p_cmpl_cb = srvc_eng_c_cmpl_cback,
+        .p_disc_res_cb = nullptr,
+        .p_disc_cmpl_cb = nullptr,
+        .p_req_cb = srvc_eng_s_request_cback,
+        .p_enc_cmpl_cb = nullptr,
+        .p_congestion_cb = nullptr,
+        .p_phy_update_cb = nullptr,
+        .p_conn_update_cb = nullptr,
+        .p_subrate_chg_cb = nullptr,
 };
 
 /* type for action functions */
-typedef void (*tSRVC_ENG_C_CMPL_ACTION)(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op,
-                                        tGATT_STATUS status,
+typedef void (*tSRVC_ENG_C_CMPL_ACTION)(tSRVC_CLCB* p_clcb, tGATTC_OPTYPE op, tGATT_STATUS status,
                                         tGATT_CL_COMPLETE* p_data);
 
 static const tSRVC_ENG_C_CMPL_ACTION srvc_eng_c_cmpl_act[SRVC_ID_MAX] = {
-    dis_c_cmpl_cback,
+        dis_c_cmpl_cback,
 };
 
 tSRVC_ENG_CB srvc_eng_cb;
@@ -77,8 +74,7 @@ static tSRVC_CLCB* srvc_eng_find_clcb_by_bd_addr(const RawAddress& bda) {
   uint8_t i_clcb;
   tSRVC_CLCB* p_clcb = NULL;
 
-  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS;
-       i_clcb++, p_clcb++) {
+  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS; i_clcb++, p_clcb++) {
     if (p_clcb->in_use && p_clcb->connected && p_clcb->bda == bda) {
       return p_clcb;
     }
@@ -95,12 +91,11 @@ static tSRVC_CLCB* srvc_eng_find_clcb_by_bd_addr(const RawAddress& bda) {
  * Returns          Pointer to the found link conenction control block.
  *
  ******************************************************************************/
-tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(uint16_t conn_id) {
+tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(tCONN_ID conn_id) {
   uint8_t i_clcb;
   tSRVC_CLCB* p_clcb = NULL;
 
-  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS;
-       i_clcb++, p_clcb++) {
+  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS; i_clcb++, p_clcb++) {
     if (p_clcb->in_use && p_clcb->connected && p_clcb->conn_id == conn_id) {
       return p_clcb;
     }
@@ -117,12 +112,11 @@ tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(uint16_t conn_id) {
  * Returns          Pointer to the found link conenction control block.
  *
  ******************************************************************************/
-static uint8_t srvc_eng_find_clcb_idx_by_conn_id(uint16_t conn_id) {
+static uint8_t srvc_eng_find_clcb_idx_by_conn_id(tCONN_ID conn_id) {
   uint8_t i_clcb;
   tSRVC_CLCB* p_clcb = NULL;
 
-  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS;
-       i_clcb++, p_clcb++) {
+  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS; i_clcb++, p_clcb++) {
     if (p_clcb->in_use && p_clcb->connected && p_clcb->conn_id == conn_id) {
       return i_clcb;
     }
@@ -140,13 +134,11 @@ static uint8_t srvc_eng_find_clcb_idx_by_conn_id(uint16_t conn_id) {
  *                  block.
  *
  ******************************************************************************/
-static tSRVC_CLCB* srvc_eng_clcb_alloc(uint16_t conn_id,
-                                       const RawAddress& bda) {
+static tSRVC_CLCB* srvc_eng_clcb_alloc(tCONN_ID conn_id, const RawAddress& bda) {
   uint8_t i_clcb = 0;
   tSRVC_CLCB* p_clcb = NULL;
 
-  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS;
-       i_clcb++, p_clcb++) {
+  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS; i_clcb++, p_clcb++) {
     if (!p_clcb->in_use) {
       p_clcb->in_use = true;
       p_clcb->conn_id = conn_id;
@@ -166,16 +158,16 @@ static tSRVC_CLCB* srvc_eng_clcb_alloc(uint16_t conn_id,
  * Returns          True the deallocation is successful
  *
  ******************************************************************************/
-static bool srvc_eng_clcb_dealloc(uint16_t conn_id) {
+static bool srvc_eng_clcb_dealloc(tCONN_ID conn_id) {
   uint8_t i_clcb = 0;
   tSRVC_CLCB* p_clcb = NULL;
 
-  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS;
-       i_clcb++, p_clcb++) {
+  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS; i_clcb++, p_clcb++) {
     if (p_clcb->in_use && p_clcb->connected && (p_clcb->conn_id == conn_id)) {
       unsigned j;
-      for (j = 0; j < ARRAY_SIZE(p_clcb->dis_value.data_string); j++)
+      for (j = 0; j < ARRAY_SIZE(p_clcb->dis_value.data_string); j++) {
         osi_free(p_clcb->dis_value.data_string[j]);
+      }
 
       memset(p_clcb, 0, sizeof(tSRVC_CLCB));
       return true;
@@ -186,37 +178,37 @@ static bool srvc_eng_clcb_dealloc(uint16_t conn_id) {
 /*******************************************************************************
  *   Service Engine Server Attributes Database Read/Read Blob Request process
  ******************************************************************************/
-static uint8_t srvc_eng_process_read_req(uint8_t clcb_idx,
-                                         tGATT_READ_REQ* p_data,
-                                         tGATTS_RSP* p_rsp,
-                                         tGATT_STATUS* p_status) {
+static uint8_t srvc_eng_process_read_req(uint8_t clcb_idx, tGATT_READ_REQ* p_data,
+                                         tGATTS_RSP* p_rsp, tGATT_STATUS* p_status) {
   tGATT_STATUS status = GATT_NOT_FOUND;
   uint8_t act = SRVC_ACT_RSP;
 
-  if (p_data->is_long) p_rsp->attr_value.offset = p_data->offset;
+  if (p_data->is_long) {
+    p_rsp->attr_value.offset = p_data->offset;
+  }
 
   p_rsp->attr_value.handle = p_data->handle;
 
-  if (dis_valid_handle_range(p_data->handle))
-    act = dis_read_attr_value(clcb_idx, p_data->handle, &p_rsp->attr_value,
-                              p_data->is_long, p_status);
-  else
+  if (dis_valid_handle_range(p_data->handle)) {
+    act = dis_read_attr_value(clcb_idx, p_data->handle, &p_rsp->attr_value, p_data->is_long,
+                              p_status);
+  } else {
     *p_status = status;
+  }
   return act;
 }
 /*******************************************************************************
  *   Service Engine Server Attributes Database write Request process
  ******************************************************************************/
-static uint8_t srvc_eng_process_write_req(uint8_t /* clcb_idx */,
-                                          tGATT_WRITE_REQ* p_data,
-                                          tGATTS_RSP* /* p_rsp */,
-                                          tGATT_STATUS* p_status) {
+static uint8_t srvc_eng_process_write_req(uint8_t /* clcb_idx */, tGATT_WRITE_REQ* p_data,
+                                          tGATTS_RSP* /* p_rsp */, tGATT_STATUS* p_status) {
   uint8_t act = SRVC_ACT_RSP;
 
   if (dis_valid_handle_range(p_data->handle)) {
     act = dis_write_attr_value(p_data, p_status);
-  } else
+  } else {
     *p_status = GATT_NOT_FOUND;
+  }
 
   return act;
 }
@@ -230,8 +222,7 @@ static uint8_t srvc_eng_process_write_req(uint8_t /* clcb_idx */,
  * Returns          void.
  *
  ******************************************************************************/
-static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
-                                     tGATTS_REQ_TYPE type,
+static void srvc_eng_s_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
                                      tGATTS_DATA* p_data) {
   tGATT_STATUS status = GATT_INVALID_PDU;
   tGATTS_RSP rsp_msg;
@@ -251,15 +242,15 @@ static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
   switch (type) {
     case GATTS_REQ_TYPE_READ_CHARACTERISTIC:
     case GATTS_REQ_TYPE_READ_DESCRIPTOR:
-      act = srvc_eng_process_read_req(clcb_idx, &p_data->read_req, &rsp_msg,
-                                      &status);
+      act = srvc_eng_process_read_req(clcb_idx, &p_data->read_req, &rsp_msg, &status);
       break;
 
     case GATTS_REQ_TYPE_WRITE_CHARACTERISTIC:
     case GATTS_REQ_TYPE_WRITE_DESCRIPTOR:
-      act = srvc_eng_process_write_req(clcb_idx, &p_data->write_req, &rsp_msg,
-                                       &status);
-      if (!p_data->write_req.need_rsp) act = SRVC_ACT_IGNORE;
+      act = srvc_eng_process_write_req(clcb_idx, &p_data->write_req, &rsp_msg, &status);
+      if (!p_data->write_req.need_rsp) {
+        act = SRVC_ACT_IGNORE;
+      }
       break;
 
     case GATTS_REQ_TYPE_WRITE_EXEC:
@@ -293,21 +284,20 @@ static void srvc_eng_s_request_cback(uint16_t conn_id, uint32_t trans_id,
  * Returns          void
  *
  ******************************************************************************/
-static void srvc_eng_c_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
-                                  tGATT_STATUS status,
+static void srvc_eng_c_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                                   tGATT_CL_COMPLETE* p_data) {
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_conn_id(conn_id);
 
-  log::verbose("srvc_eng_c_cmpl_cback() - op_code: 0x{:02x}  status: 0x{:02x}",
-               op, status);
+  log::verbose("srvc_eng_c_cmpl_cback() - op_code: 0x{:02x}  status: 0x{:02x}", op, status);
 
   if (p_clcb == NULL) {
     log::error("received for unknown connection");
     return;
   }
 
-  if (p_clcb->cur_srvc_id != SRVC_ID_NONE && p_clcb->cur_srvc_id <= SRVC_ID_MAX)
+  if (p_clcb->cur_srvc_id != SRVC_ID_NONE && p_clcb->cur_srvc_id <= SRVC_ID_MAX) {
     srvc_eng_c_cmpl_act[p_clcb->cur_srvc_id - 1](p_clcb, op, status, p_data);
+  }
 }
 
 /*******************************************************************************
@@ -319,10 +309,8 @@ static void srvc_eng_c_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op,
  * Returns          void
  *
  ******************************************************************************/
-static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */,
-                                   const RawAddress& bda, uint16_t conn_id,
-                                   bool connected,
-                                   tGATT_DISCONN_REASON /* reason */,
+static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tCONN_ID conn_id,
+                                   bool connected, tGATT_DISCONN_REASON /* reason */,
                                    tBT_TRANSPORT /* transport */) {
   log::verbose("from {} connected:{} conn_id={}", bda, connected, conn_id);
 
@@ -348,12 +336,15 @@ bool srvc_eng_request_channel(const RawAddress& remote_bda, uint8_t srvc_id) {
   bool set = true;
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_bd_addr(remote_bda);
 
-  if (p_clcb == NULL) p_clcb = srvc_eng_clcb_alloc(0, remote_bda);
+  if (p_clcb == NULL) {
+    p_clcb = srvc_eng_clcb_alloc(0, remote_bda);
+  }
 
-  if (p_clcb && p_clcb->cur_srvc_id == SRVC_ID_NONE)
+  if (p_clcb && p_clcb->cur_srvc_id == SRVC_ID_NONE) {
     p_clcb->cur_srvc_id = srvc_id;
-  else
+  } else {
     set = false;
+  }
 
   return set;
 }
@@ -366,7 +357,7 @@ bool srvc_eng_request_channel(const RawAddress& remote_bda, uint8_t srvc_id) {
  * Returns          void
  *
  ******************************************************************************/
-void srvc_eng_release_channel(uint16_t conn_id) {
+void srvc_eng_release_channel(tCONN_ID conn_id) {
   tSRVC_CLCB* p_clcb = srvc_eng_find_clcb_by_conn_id(conn_id);
 
   if (p_clcb == NULL) {
@@ -385,21 +376,18 @@ void srvc_eng_release_channel(uint16_t conn_id) {
  *
  * Function         srvc_eng_init
  *
- * Description      Initializa the GATT Service engine.
+ * Description      Initialize the GATT Service engine.
  *
  ******************************************************************************/
 tGATT_STATUS srvc_eng_init(void) {
-
   if (srvc_eng_cb.enabled) {
-    log::error("DIS already initalized");
+    log::error("DIS already initialized");
   } else {
     memset(&srvc_eng_cb, 0, sizeof(tSRVC_ENG_CB));
 
     /* Create a GATT profile service */
-    bluetooth::Uuid app_uuid =
-        bluetooth::Uuid::From16Bit(UUID_SERVCLASS_DEVICE_INFO);
-    srvc_eng_cb.gatt_if =
-        GATT_Register(app_uuid, "GattServiceEngine", &srvc_gatt_cback, false);
+    bluetooth::Uuid app_uuid = bluetooth::Uuid::From16Bit(UUID_SERVCLASS_DEVICE_INFO);
+    srvc_eng_cb.gatt_if = GATT_Register(app_uuid, "GattServiceEngine", &srvc_gatt_cback, false);
     GATT_StartIf(srvc_eng_cb.gatt_if);
 
     log::verbose("Srvc_Init:  gatt_if={}", srvc_eng_cb.gatt_if);

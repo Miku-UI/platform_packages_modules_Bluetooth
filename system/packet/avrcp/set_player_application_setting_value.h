@@ -23,27 +23,23 @@
 namespace bluetooth {
 namespace avrcp {
 
-class SetPlayerApplicationSettingValueResponseBuilder
-    : public VendorPacketBuilder {
- public:
+class SetPlayerApplicationSettingValueResponseBuilder : public VendorPacketBuilder {
+public:
   virtual ~SetPlayerApplicationSettingValueResponseBuilder() = default;
 
-  static std::unique_ptr<SetPlayerApplicationSettingValueResponseBuilder>
-  MakeBuilder();
+  static std::unique_ptr<SetPlayerApplicationSettingValueResponseBuilder> MakeBuilder();
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   SetPlayerApplicationSettingValueResponseBuilder()
-      : VendorPacketBuilder(CType::ACCEPTED,
-                            CommandPdu::SET_PLAYER_APPLICATION_SETTING_VALUE,
-                            PacketType::SINGLE){};
+      : VendorPacketBuilder(CType::ACCEPTED, CommandPdu::SET_PLAYER_APPLICATION_SETTING_VALUE,
+                            PacketType::SINGLE) {}
 };
 
 class SetPlayerApplicationSettingValueRequest : public VendorPacket {
- public:
+public:
   virtual ~SetPlayerApplicationSettingValueRequest() = default;
 
   /**
@@ -63,9 +59,7 @@ class SetPlayerApplicationSettingValueRequest : public VendorPacket {
    *     std::vector<PlayerAttribute> attributes;
    *     std::vector<uint8_t> values;
    */
-  static constexpr size_t kMinSize() {
-    return VendorPacket::kMinSize() + sizeof(uint8_t);
-  }
+  static constexpr size_t kMinSize() { return VendorPacket::kMinSize() + sizeof(uint8_t); }
 
   uint8_t GetNumberOfRequestedAttributes() const;
   std::vector<PlayerAttribute> GetRequestedAttributes() const;
@@ -74,7 +68,7 @@ class SetPlayerApplicationSettingValueRequest : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 

@@ -82,13 +82,11 @@ alarm_t* alarm_new_periodic(const char* name) {
   inc_func_call_count(__func__);
   return test::mock::osi_alarm::alarm_new_periodic(name);
 }
-void alarm_set(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb,
-               void* data) {
+void alarm_set(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data) {
   inc_func_call_count(__func__);
   test::mock::osi_alarm::alarm_set(alarm, interval_ms, cb, data);
 }
-void alarm_set_on_mloop(alarm_t* alarm, uint64_t interval_ms,
-                        alarm_callback_t cb, void* data) {
+void alarm_set_on_mloop(alarm_t* alarm, uint64_t interval_ms, alarm_callback_t cb, void* data) {
   inc_func_call_count(__func__);
   test::mock::osi_alarm::alarm_set_on_mloop(alarm, interval_ms, cb, data);
 }

@@ -31,7 +31,7 @@ namespace common {
 namespace {
 
 class BidiQueueTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     up_thread_ = new Thread("up_thread", Thread::Priority::NORMAL);
     up_handler_ = new Handler(up_thread_);
@@ -58,39 +58,31 @@ class B {};
 
 template <typename TA, typename TB>
 class TestBidiQueueEnd {
- public:
-  explicit TestBidiQueueEnd(BidiQueueEnd<TA, TB>* end, Handler* handler) : handler_(handler), end_(end) {}
+public:
+  explicit TestBidiQueueEnd(BidiQueueEnd<TA, TB>* end, Handler* handler)
+      : handler_(handler), end_(end) {}
 
-  ~TestBidiQueueEnd() {
-    handler_->Clear();
-  }
+  ~TestBidiQueueEnd() { handler_->Clear(); }
 
   std::promise<void>* Send(TA* value) {
     std::promise<void>* promise = new std::promise<void>();
-    handler_->Post(BindOnce(
-        &TestBidiQueueEnd<TA, TB>::handle_send,
-        common::Unretained(this),
-        common::Unretained(value),
-        common::Unretained(promise)));
+    handler_->Post(BindOnce(&TestBidiQueueEnd<TA, TB>::handle_send, common::Unretained(this),
+                            common::Unretained(value), common::Unretained(promise)));
     return promise;
   }
 
   std::promise<TB*>* Receive() {
     std::promise<TB*>* promise = new std::promise<TB*>();
-    handler_->Post(
-        BindOnce(&TestBidiQueueEnd<TA, TB>::handle_receive, common::Unretained(this), common::Unretained(promise)));
+    handler_->Post(BindOnce(&TestBidiQueueEnd<TA, TB>::handle_receive, common::Unretained(this),
+                            common::Unretained(promise)));
 
     return promise;
   }
 
   void handle_send(TA* value, std::promise<void>* promise) {
-    end_->RegisterEnqueue(
-        handler_,
-        Bind(
-            &TestBidiQueueEnd<TA, TB>::handle_register_enqueue,
-            common::Unretained(this),
-            common::Unretained(value),
-            common::Unretained(promise)));
+    end_->RegisterEnqueue(handler_, Bind(&TestBidiQueueEnd<TA, TB>::handle_register_enqueue,
+                                         common::Unretained(this), common::Unretained(value),
+                                         common::Unretained(promise)));
   }
 
   std::unique_ptr<TA> handle_register_enqueue(TA* value, std::promise<void>* promise) {
@@ -100,10 +92,8 @@ class TestBidiQueueEnd {
   }
 
   void handle_receive(std::promise<TB*>* promise) {
-    end_->RegisterDequeue(
-        handler_,
-        Bind(
-            &TestBidiQueueEnd<TA, TB>::handle_register_dequeue, common::Unretained(this), common::Unretained(promise)));
+    end_->RegisterDequeue(handler_, Bind(&TestBidiQueueEnd<TA, TB>::handle_register_dequeue,
+                                         common::Unretained(this), common::Unretained(promise)));
   }
 
   void handle_register_dequeue(std::promise<TB*>* promise) {
@@ -111,7 +101,7 @@ class TestBidiQueueEnd {
     promise->set_value(end_->TryDequeue().get());
   }
 
- private:
+private:
   Handler* handler_;
   BidiQueueEnd<TA, TB>* end_;
 };

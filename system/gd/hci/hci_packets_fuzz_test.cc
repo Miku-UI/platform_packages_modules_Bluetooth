@@ -15,10 +15,9 @@
  */
 
 #define PACKET_FUZZ_TESTING
-#include "hci/hci_packets.h"
-
 #include <memory>
 
+#include "hci/hci_packets.h"
 #include "os/log.h"
 #include "packet/bit_inserter.h"
 #include "packet/raw_builder.h"
@@ -70,7 +69,8 @@ DEFINE_AND_REGISTER_ReadLocalExtendedFeaturesCompleteReflectionFuzzTest(hci_pack
 
 DEFINE_AND_REGISTER_WriteSecureConnectionsHostSupportReflectionFuzzTest(hci_packet_fuzz_tests);
 
-DEFINE_AND_REGISTER_WriteSecureConnectionsHostSupportCompleteReflectionFuzzTest(hci_packet_fuzz_tests);
+DEFINE_AND_REGISTER_WriteSecureConnectionsHostSupportCompleteReflectionFuzzTest(
+        hci_packet_fuzz_tests);
 
 DEFINE_AND_REGISTER_LeReadFilterAcceptListSizeReflectionFuzzTest(hci_packet_fuzz_tests);
 
@@ -128,7 +128,9 @@ DEFINE_AND_REGISTER_ExitPeriodicInquiryModeCompleteReflectionFuzzTest(hci_packet
 }  // namespace bluetooth
 
 void RunHciPacketFuzzTest(const uint8_t* data, size_t size) {
-  if (data == nullptr) return;
+  if (data == nullptr) {
+    return;
+  }
   for (auto test_function : bluetooth::hci::hci_packet_fuzz_tests) {
     test_function(data, size);
   }

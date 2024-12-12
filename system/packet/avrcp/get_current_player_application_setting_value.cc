@@ -21,10 +21,10 @@ namespace avrcp {
 
 std::unique_ptr<GetCurrentPlayerApplicationSettingValueResponseBuilder>
 GetCurrentPlayerApplicationSettingValueResponseBuilder::MakeBuilder(
-    std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values) {
-  std::unique_ptr<GetCurrentPlayerApplicationSettingValueResponseBuilder>
-      builder(new GetCurrentPlayerApplicationSettingValueResponseBuilder(
-          std::move(attributes), std::move(values)));
+        std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values) {
+  std::unique_ptr<GetCurrentPlayerApplicationSettingValueResponseBuilder> builder(
+          new GetCurrentPlayerApplicationSettingValueResponseBuilder(std::move(attributes),
+                                                                     std::move(values)));
 
   return builder;
 }
@@ -38,7 +38,7 @@ size_t GetCurrentPlayerApplicationSettingValueResponseBuilder::size() const {
 }
 
 bool GetCurrentPlayerApplicationSettingValueResponseBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+        const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   PacketBuilder::PushHeader(pkt);
@@ -54,9 +54,7 @@ bool GetCurrentPlayerApplicationSettingValueResponseBuilder::Serialize(
   return true;
 }
 
-uint8_t
-GetCurrentPlayerApplicationSettingValueRequest::GetNumberOfRequestedAttributes()
-    const {
+uint8_t GetCurrentPlayerApplicationSettingValueRequest::GetNumberOfRequestedAttributes() const {
   auto it = begin() + VendorPacket::kMinSize();
   return *it;
 }
@@ -73,8 +71,12 @@ GetCurrentPlayerApplicationSettingValueRequest::GetRequestedAttributes() const {
 }
 
 bool GetCurrentPlayerApplicationSettingValueRequest::IsValid() const {
-  if (!VendorPacket::IsValid()) return false;
-  if (size() < kMinSize()) return false;
+  if (!VendorPacket::IsValid()) {
+    return false;
+  }
+  if (size() < kMinSize()) {
+    return false;
+  }
 
   size_t num_attributes = GetNumberOfRequestedAttributes();
   auto attr_start = begin() + VendorPacket::kMinSize() + static_cast<size_t>(1);
@@ -93,8 +95,7 @@ std::string GetCurrentPlayerApplicationSettingValueRequest::ToString() const {
   ss << "  └ Command PDU = " << GetCommandPdu() << std::endl;
   ss << "  └ PacketType = " << GetPacketType() << std::endl;
   ss << "  └ Parameter Length = " << loghex(GetParameterLength()) << std::endl;
-  ss << "  └ Num Attributes = " << loghex(GetNumberOfRequestedAttributes())
-     << std::endl;
+  ss << "  └ Num Attributes = " << loghex(GetNumberOfRequestedAttributes()) << std::endl;
 
   auto attr_list = GetRequestedAttributes();
   ss << "  └ Player Attribute List: Size: " << attr_list.size() << std::endl;

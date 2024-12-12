@@ -210,7 +210,7 @@ public class SmsMmsContacts {
         String selection = CONTACT_SEL_VISIBLE;
         String[] selectionArgs = null;
         if (contactNameFilter != null) {
-            selection += "AND " + ContactsContract.Contacts.DISPLAY_NAME + " like ?";
+            selection = selection + "AND " + ContactsContract.Contacts.DISPLAY_NAME + " like ?";
             selectionArgs = new String[] {"%" + contactNameFilter.replace("*", "%") + "%"};
         }
 

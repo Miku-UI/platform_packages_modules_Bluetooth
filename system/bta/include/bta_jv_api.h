@@ -21,19 +21,19 @@
  *  This is the public interface file the BTA Java I/F
  *
  ******************************************************************************/
-#ifndef BTA_JV_API_H
-#define BTA_JV_API_H
+#pragma once
 
 #include <cstdint>
 #include <memory>
 #include <string>
 
 #include "bta/include/bta_api.h"
-#include "bta_sec_api.h"
+#include "bta/include/bta_sec_api.h"
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2c_api.h"
+#include "stack/include/l2cap_interface.h"
+#include "stack/include/rfcdefs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -78,9 +78,8 @@ typedef uint8_t tBTA_JV_L2CAP_REASON;
 #define BTA_JV_MAX_UUIDS SDP_MAX_UUID_FILTERS
 #define BTA_JV_MAX_ATTRS SDP_MAX_ATTR_FILTERS
 #define BTA_JV_MAX_SDP_REC SDP_MAX_RECORDS
-#define BTA_JV_MAX_L2C_CONN                                                    \
-  GAP_MAX_CONNECTIONS /* GAP handle is used as index, hence do not change this \
-                         value */
+/* GAP handle is used as index, hence do not change this value */
+#define BTA_JV_MAX_L2C_CONN GAP_MAX_CONNECTIONS
 #define BTA_JV_MAX_RFC_CONN MAX_RFC_PORTS
 
 #ifndef BTA_JV_DEF_RFC_MTU
@@ -99,8 +98,7 @@ typedef uint8_t tBTA_JV_L2CAP_REASON;
 
 #define BTA_JV_FIRST_SERVICE_ID BTA_FIRST_JV_SERVICE_ID
 #define BTA_JV_LAST_SERVICE_ID BTA_LAST_JV_SERVICE_ID
-#define BTA_JV_NUM_SERVICE_ID \
-  (BTA_LAST_JV_SERVICE_ID - BTA_FIRST_JV_SERVICE_ID + 1)
+#define BTA_JV_NUM_SERVICE_ID (BTA_LAST_JV_SERVICE_ID - BTA_FIRST_JV_SERVICE_ID + 1)
 
 /* Discoverable modes */
 enum { BTA_JV_DISC_NONE, BTA_JV_DISC_LIMITED, BTA_JV_DISC_GENERAL };
@@ -113,8 +111,7 @@ typedef uint16_t tBTA_JV_DISC;
 #define BTA_JV_PM_ALL 0xFF   /* Generic match all id, see bta_dm_cfg.c */
 typedef uint8_t tBTA_JV_PM_ID;
 
-#define BTA_JV_PM_HANDLE_CLEAR \
-  0xFF /* Special JV ID used to clear PM profile  */
+#define BTA_JV_PM_HANDLE_CLEAR 0xFF /* Special JV ID used to clear PM profile  */
 
 /* define maximum number of registered PM entities. should be in sync with bta
  * pm! */
@@ -203,8 +200,8 @@ enum tBTA_JV_EVT : uint16_t {
   BTA_JV_RFCOMM_START_EVT = 28,     // RFCOMM server started
   BTA_JV_RFCOMM_CL_INIT_EVT = 29,   // RFCOMM client initiated a connection
   BTA_JV_RFCOMM_DATA_IND_EVT = 30,  // RFCOMM connection received data
-  BTA_JV_RFCOMM_CONG_EVT = 31,   // RFCOMM connection congestion status changed
-  BTA_JV_RFCOMM_WRITE_EVT = 33,  // the result for BTA_JvRfcommWrite
+  BTA_JV_RFCOMM_CONG_EVT = 31,      // RFCOMM connection congestion status changed
+  BTA_JV_RFCOMM_WRITE_EVT = 33,     // the result for BTA_JvRfcommWrite
   BTA_JV_RFCOMM_SRV_OPEN_EVT = 34,  // open status of Server RFCOMM connection
   BTA_JV_MAX_EVT = 35,              // max number of JV events
 };
@@ -273,7 +270,6 @@ typedef struct {
   int32_t tx_mtu;        /* The transmit MTU */
   void** p_p_cback;      /* set them for new socket */
   void** p_user_data;    /* set them for new socket */
-
 } tBTA_JV_L2CAP_LE_OPEN;
 
 /* data associated with BTA_JV_L2CAP_CLOSE_EVT */
@@ -312,8 +308,7 @@ typedef struct {
   tBTA_JV_STATUS status; /* Whether the operation succeeded or failed. */
   uint32_t handle;       /* The connection handle */
   uint32_t req_id;       /* The req_id in the associated BTA_JvL2capRead() */
-  uint8_t* p_data;       /* This points the same location as the p_data
-                        * parameter in BTA_JvL2capRead () */
+  uint8_t* p_data;       /* Points to the same location as p_data parameter in BTA_JvL2capRead() */
   uint16_t len;          /* The length of the data read. */
 } tBTA_JV_L2CAP_READ;
 
@@ -405,42 +400,39 @@ typedef struct {
 
 /* union of data associated with JV callback */
 typedef union {
-  tBTA_JV_STATUS status;                     /* BTA_JV_ENABLE_EVT */
-  tBTA_JV_DISCOVERY_COMP disc_comp;          /* BTA_JV_DISCOVERY_COMP_EVT */
-  tBTA_JV_SET_DISCOVER set_discover;         /* BTA_JV_SET_DISCOVER_EVT */
-  uint8_t scn;                               /* BTA_JV_GET_SCN_EVT */
-  uint16_t psm;                              /* BTA_JV_GET_PSM_EVT */
-  tBTA_JV_CREATE_RECORD create_rec;          /* BTA_JV_CREATE_RECORD_EVT */
-  tBTA_JV_L2CAP_OPEN l2c_open;               /* BTA_JV_L2CAP_OPEN_EVT */
-  tBTA_JV_L2CAP_CLOSE l2c_close;             /* BTA_JV_L2CAP_CLOSE_EVT */
-  tBTA_JV_L2CAP_START l2c_start;             /* BTA_JV_L2CAP_START_EVT */
-  tBTA_JV_L2CAP_CL_INIT l2c_cl_init;         /* BTA_JV_L2CAP_CL_INIT_EVT */
-  tBTA_JV_L2CAP_CONG l2c_cong;               /* BTA_JV_L2CAP_CONG_EVT */
-  tBTA_JV_L2CAP_READ l2c_read;               /* BTA_JV_L2CAP_READ_EVT */
-  tBTA_JV_L2CAP_WRITE l2c_write;             /* BTA_JV_L2CAP_WRITE_EVT */
-  tBTA_JV_RFCOMM_OPEN rfc_open;              /* BTA_JV_RFCOMM_OPEN_EVT */
-  tBTA_JV_RFCOMM_SRV_OPEN rfc_srv_open;      /* BTA_JV_RFCOMM_SRV_OPEN_EVT */
-  tBTA_JV_RFCOMM_CLOSE rfc_close;            /* BTA_JV_RFCOMM_CLOSE_EVT */
-  tBTA_JV_RFCOMM_START rfc_start;            /* BTA_JV_RFCOMM_START_EVT */
-  tBTA_JV_RFCOMM_CL_INIT rfc_cl_init;        /* BTA_JV_RFCOMM_CL_INIT_EVT */
-  tBTA_JV_RFCOMM_CONG rfc_cong;              /* BTA_JV_RFCOMM_CONG_EVT */
-  tBTA_JV_RFCOMM_WRITE rfc_write;            /* BTA_JV_RFCOMM_WRITE_EVT */
-  tBTA_JV_DATA_IND data_ind;                 /* BTA_JV_L2CAP_DATA_IND_EVT
-                                                BTA_JV_RFCOMM_DATA_IND_EVT */
-  tBTA_JV_LE_DATA_IND le_data_ind;           /* BTA_JV_L2CAP_LE_DATA_IND_EVT */
-  tBTA_JV_L2CAP_LE_OPEN l2c_le_open;         /* BTA_JV_L2CAP_OPEN_EVT */
+  tBTA_JV_STATUS status;                /* BTA_JV_ENABLE_EVT */
+  tBTA_JV_DISCOVERY_COMP disc_comp;     /* BTA_JV_DISCOVERY_COMP_EVT */
+  tBTA_JV_SET_DISCOVER set_discover;    /* BTA_JV_SET_DISCOVER_EVT */
+  uint8_t scn;                          /* BTA_JV_GET_SCN_EVT */
+  uint16_t psm;                         /* BTA_JV_GET_PSM_EVT */
+  tBTA_JV_CREATE_RECORD create_rec;     /* BTA_JV_CREATE_RECORD_EVT */
+  tBTA_JV_L2CAP_OPEN l2c_open;          /* BTA_JV_L2CAP_OPEN_EVT */
+  tBTA_JV_L2CAP_CLOSE l2c_close;        /* BTA_JV_L2CAP_CLOSE_EVT */
+  tBTA_JV_L2CAP_START l2c_start;        /* BTA_JV_L2CAP_START_EVT */
+  tBTA_JV_L2CAP_CL_INIT l2c_cl_init;    /* BTA_JV_L2CAP_CL_INIT_EVT */
+  tBTA_JV_L2CAP_CONG l2c_cong;          /* BTA_JV_L2CAP_CONG_EVT */
+  tBTA_JV_L2CAP_READ l2c_read;          /* BTA_JV_L2CAP_READ_EVT */
+  tBTA_JV_L2CAP_WRITE l2c_write;        /* BTA_JV_L2CAP_WRITE_EVT */
+  tBTA_JV_RFCOMM_OPEN rfc_open;         /* BTA_JV_RFCOMM_OPEN_EVT */
+  tBTA_JV_RFCOMM_SRV_OPEN rfc_srv_open; /* BTA_JV_RFCOMM_SRV_OPEN_EVT */
+  tBTA_JV_RFCOMM_CLOSE rfc_close;       /* BTA_JV_RFCOMM_CLOSE_EVT */
+  tBTA_JV_RFCOMM_START rfc_start;       /* BTA_JV_RFCOMM_START_EVT */
+  tBTA_JV_RFCOMM_CL_INIT rfc_cl_init;   /* BTA_JV_RFCOMM_CL_INIT_EVT */
+  tBTA_JV_RFCOMM_CONG rfc_cong;         /* BTA_JV_RFCOMM_CONG_EVT */
+  tBTA_JV_RFCOMM_WRITE rfc_write;       /* BTA_JV_RFCOMM_WRITE_EVT */
+  tBTA_JV_DATA_IND data_ind;            /* BTA_JV_L2CAP_DATA_IND_EVT, BTA_JV_RFCOMM_DATA_IND_EVT */
+  tBTA_JV_LE_DATA_IND le_data_ind;      /* BTA_JV_L2CAP_LE_DATA_IND_EVT */
+  tBTA_JV_L2CAP_LE_OPEN l2c_le_open;    /* BTA_JV_L2CAP_OPEN_EVT */
 } tBTA_JV;
 
 /* JAVA DM Interface callback */
 typedef void(tBTA_JV_DM_CBACK)(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t id);
 
 /* JAVA RFCOMM interface callback */
-typedef uint32_t(tBTA_JV_RFCOMM_CBACK)(tBTA_JV_EVT event, tBTA_JV* p_data,
-                                       uint32_t rfcomm_slot_id);
+typedef uint32_t(tBTA_JV_RFCOMM_CBACK)(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t rfcomm_slot_id);
 
 /* JAVA L2CAP interface callback */
-typedef void(tBTA_JV_L2CAP_CBACK)(tBTA_JV_EVT event, tBTA_JV* p_data,
-                                  uint32_t l2cap_socket_id);
+typedef void(tBTA_JV_L2CAP_CBACK)(tBTA_JV_EVT event, tBTA_JV* p_data, uint32_t l2cap_socket_id);
 
 /*******************************************************************************
  *
@@ -489,8 +481,7 @@ void BTA_JvDisable(void);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_JvGetChannelId(tBTA_JV_CONN_TYPE conn_type, uint32_t id,
-                        int32_t channel);
+void BTA_JvGetChannelId(tBTA_JV_CONN_TYPE conn_type, uint32_t id, int32_t channel);
 
 /*******************************************************************************
  *
@@ -518,10 +509,8 @@ tBTA_JV_STATUS BTA_JvFreeChannel(uint16_t channel, tBTA_JV_CONN_TYPE conn_type);
  *                  BTA_JV_FAILURE, otherwise.
  *
  ******************************************************************************/
-tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& bd_addr,
-                                    uint16_t num_uuid,
-                                    const bluetooth::Uuid* p_uuid_list,
-                                    uint32_t rfcomm_slot_id);
+tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& bd_addr, uint16_t num_uuid,
+                                    const bluetooth::Uuid* p_uuid_list, uint32_t rfcomm_slot_id);
 
 /*******************************************************************************
  *
@@ -561,11 +550,10 @@ tBTA_JV_STATUS BTA_JvDeleteRecord(uint32_t handle);
  *
  ******************************************************************************/
 void BTA_JvL2capConnect(tBTA_JV_CONN_TYPE conn_type, tBTA_SEC sec_mask,
-                        std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info,
-                        uint16_t remote_psm, uint16_t rx_mtu,
-                        std::unique_ptr<tL2CAP_CFG_INFO> cfg,
-                        const RawAddress& peer_bd_addr,
-                        tBTA_JV_L2CAP_CBACK* p_cback, uint32_t l2cap_socket_id);
+                        std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info, uint16_t remote_psm,
+                        uint16_t rx_mtu, std::unique_ptr<tL2CAP_CFG_INFO> cfg,
+                        const RawAddress& peer_bd_addr, tBTA_JV_L2CAP_CBACK* p_cback,
+                        uint32_t l2cap_socket_id);
 
 /*******************************************************************************
  *
@@ -594,11 +582,9 @@ tBTA_JV_STATUS BTA_JvL2capClose(uint32_t handle);
  *
  ******************************************************************************/
 void BTA_JvL2capStartServer(tBTA_JV_CONN_TYPE conn_type, tBTA_SEC sec_mask,
-                            std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info,
-                            uint16_t local_psm, uint16_t rx_mtu,
-                            std::unique_ptr<tL2CAP_CFG_INFO> cfg,
-                            tBTA_JV_L2CAP_CBACK* p_cback,
-                            uint32_t l2cap_socket_id);
+                            std::unique_ptr<tL2CAP_ERTM_INFO> ertm_info, uint16_t local_psm,
+                            uint16_t rx_mtu, std::unique_ptr<tL2CAP_CFG_INFO> cfg,
+                            tBTA_JV_L2CAP_CBACK* p_cback, uint32_t l2cap_socket_id);
 
 /*******************************************************************************
  *
@@ -611,8 +597,7 @@ void BTA_JvL2capStartServer(tBTA_JV_CONN_TYPE conn_type, tBTA_SEC sec_mask,
  *                  BTA_JV_FAILURE, otherwise.
  *
  ******************************************************************************/
-tBTA_JV_STATUS BTA_JvL2capStopServer(uint16_t local_psm,
-                                     uint32_t l2cap_socket_id);
+tBTA_JV_STATUS BTA_JvL2capStopServer(uint16_t local_psm, uint32_t l2cap_socket_id);
 
 /*******************************************************************************
  *
@@ -626,8 +611,7 @@ tBTA_JV_STATUS BTA_JvL2capStopServer(uint16_t local_psm,
  *                  BTA_JV_FAILURE, otherwise.
  *
  ******************************************************************************/
-tBTA_JV_STATUS BTA_JvL2capRead(uint32_t handle, uint32_t req_id,
-                               uint8_t* p_data, uint16_t len);
+tBTA_JV_STATUS BTA_JvL2capRead(uint32_t handle, uint32_t req_id, uint8_t* p_data, uint16_t len);
 
 /*******************************************************************************
  *
@@ -655,8 +639,7 @@ tBTA_JV_STATUS BTA_JvL2capReady(uint32_t handle, uint32_t* p_data_size);
  *                  BTA_JV_FAILURE, otherwise.
  *
  ******************************************************************************/
-tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t handle, uint32_t req_id, BT_HDR* msg,
-                                uint32_t user_id);
+tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t handle, uint32_t req_id, BT_HDR* msg, uint32_t user_id);
 
 /*******************************************************************************
  *
@@ -675,8 +658,7 @@ tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t handle, uint32_t req_id, BT_HDR* msg,
  *
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC sec_mask, uint8_t remote_scn,
-                                   const RawAddress& peer_bd_addr,
-                                   tBTA_JV_RFCOMM_CBACK* p_cback,
+                                   const RawAddress& peer_bd_addr, tBTA_JV_RFCOMM_CBACK* p_cback,
                                    uint32_t rfcomm_slot_id);
 
 /*******************************************************************************
@@ -706,10 +688,8 @@ tBTA_JV_STATUS BTA_JvRfcommClose(uint32_t handle, uint32_t rfcomm_slot_id);
  *                  BTA_JV_FAILURE, otherwise.
  *
  ******************************************************************************/
-tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC sec_mask, uint8_t local_scn,
-                                       uint8_t max_session,
-                                       tBTA_JV_RFCOMM_CBACK* p_cback,
-                                       uint32_t rfcomm_slot_id);
+tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
+                                       tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id);
 
 /*******************************************************************************
  *
@@ -776,5 +756,3 @@ tBTA_JV_STATUS BTA_JvSetPmProfile(uint32_t handle, tBTA_JV_PM_ID app_id,
  *
  ******************************************************************************/
 uint16_t BTA_JvRfcommGetPortHdl(uint32_t handle);
-
-#endif /* BTA_JV_API_H */

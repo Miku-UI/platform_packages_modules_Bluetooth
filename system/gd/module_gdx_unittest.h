@@ -30,7 +30,7 @@ using namespace bluetooth;
 void external_function(int /* a */, double /* b */, char /* c */);
 
 class TestGdxModule : public Module, public ModuleMainloop, public ModuleJniloop {
- public:
+public:
   void call_on_handler_protected_method(pid_t tid, int a, int b, int c);
   void call_on_main_external_function(pid_t tid, int a, double b, char c);
   void call_on_main(pid_t tid, int a, int b, int c);
@@ -54,7 +54,7 @@ class TestGdxModule : public Module, public ModuleMainloop, public ModuleJniloop
 
   static const bluetooth::ModuleFactory Factory;
 
- protected:
+protected:
   void protected_method(int a, int b, int c);
   void call_on_main_internal(int a, int b, int c);
   void call_on_jni_internal(int a, int b, int c);
@@ -65,7 +65,7 @@ class TestGdxModule : public Module, public ModuleMainloop, public ModuleJniloop
   void Stop() override;
   std::string ToString() const override;
 
- private:
+private:
   struct PrivateImpl;
   std::shared_ptr<TestGdxModule::PrivateImpl> pimpl_;
 

@@ -40,51 +40,45 @@ using namespace blueberry::facade::hci;
 using blueberry::facade::BluetoothAddress;
 
 class ControllerFacadeService : public ControllerFacade::Service {
- public:
-  ControllerFacadeService(Controller* controller, ::bluetooth::os::Handler*) : controller_(controller) {}
+public:
+  ControllerFacadeService(Controller* controller, ::bluetooth::os::Handler*)
+      : controller_(controller) {}
 
-  ::grpc::Status GetMacAddress(
-      ::grpc::ServerContext* /* context */,
-      const ::google::protobuf::Empty* /* request */,
-      BluetoothAddress* response) override {
+  ::grpc::Status GetMacAddress(::grpc::ServerContext* /* context */,
+                               const ::google::protobuf::Empty* /* request */,
+                               BluetoothAddress* response) override {
     Address local_address = controller_->GetMacAddress();
     response->set_address(local_address.ToString());
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status GetLocalName(
-      ::grpc::ServerContext* /* context */,
-      const ::google::protobuf::Empty* /* request */,
-      NameMsg* response) override {
+  ::grpc::Status GetLocalName(::grpc::ServerContext* /* context */,
+                              const ::google::protobuf::Empty* /* request */,
+                              NameMsg* response) override {
     std::string local_name = controller_->GetLocalName();
     response->set_name(local_name);
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status WriteLocalName(
-      ::grpc::ServerContext* /* context */,
-      const NameMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status WriteLocalName(::grpc::ServerContext* /* context */, const NameMsg* request,
+                                ::google::protobuf::Empty* /* response */) override {
     controller_->WriteLocalName(request->name());
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status IsSupportedCommand(
-      ::grpc::ServerContext* /* context */,
-      const OpCodeMsg* request,
-      SupportedMsg* response) override {
+  ::grpc::Status IsSupportedCommand(::grpc::ServerContext* /* context */, const OpCodeMsg* request,
+                                    SupportedMsg* response) override {
     bool ret = controller_->IsSupported(static_cast<OpCode>(request->op_code()));
     response->set_supported(ret);
     return ::grpc::Status::OK;
   }
 
-#define SUPPORTED_API(name)                           \
-  ::grpc::Status name(                                \
-      ::grpc::ServerContext* /* context */,           \
-      const ::google::protobuf::Empty* /* request */, \
-      SupportedMsg* response) override {              \
-    response->set_supported(controller_->name());     \
-    return ::grpc::Status::OK;                        \
+#define SUPPORTED_API(name)                                                                   \
+  ::grpc::Status name(::grpc::ServerContext* /* context */,                                   \
+                      const ::google::protobuf::Empty* /* request */, SupportedMsg* response) \
+          override {                                                                          \
+    response->set_supported(controller_->name());                                             \
+    return ::grpc::Status::OK;                                                                \
   }
 
   SUPPORTED_API(SupportsSimplePairing)
@@ -155,15 +149,14 @@ class ControllerFacadeService : public ControllerFacade::Service {
   SUPPORTED_API(SupportsBlePeriodicAdvertisingAdi)
 
   ::grpc::Status GetLeNumberOfSupportedAdvertisingSets(
-      ::grpc::ServerContext* /* context */,
-      const ::google::protobuf::Empty* /* request */,
-      SingleValueMsg* response) override {
+          ::grpc::ServerContext* /* context */, const ::google::protobuf::Empty* /* request */,
+          SingleValueMsg* response) override {
     uint8_t ret = controller_->GetLeNumberOfSupportedAdverisingSets();
     response->set_value(ret);
     return ::grpc::Status::OK;
   }
 
- private:
+private:
   Controller* controller_;
 };
 
@@ -182,12 +175,10 @@ void ControllerFacadeModule::Stop() {
   ::bluetooth::grpc::GrpcFacadeModule::Stop();
 }
 
-::grpc::Service* ControllerFacadeModule::GetService() const {
-  return service_;
-}
+::grpc::Service* ControllerFacadeModule::GetService() const { return service_; }
 
 const ModuleFactory ControllerFacadeModule::Factory =
-    ::bluetooth::ModuleFactory([]() { return new ControllerFacadeModule(); });
+        ::bluetooth::ModuleFactory([]() { return new ControllerFacadeModule(); });
 
 }  // namespace facade
 }  // namespace hci

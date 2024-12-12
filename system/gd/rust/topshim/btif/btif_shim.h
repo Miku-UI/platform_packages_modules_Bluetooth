@@ -25,16 +25,14 @@ namespace topshim {
 namespace rust {
 
 class InitFlags {
- public:
+public:
   InitFlags();
   ~InitFlags();
 
   void Convert(::rust::Vec<::rust::String>& flags);
-  const char** GetFlagsPtr() const {
-    return flags_;
-  }
+  const char** GetFlagsPtr() const { return flags_; }
 
- private:
+private:
   const char** flags_;
 };
 

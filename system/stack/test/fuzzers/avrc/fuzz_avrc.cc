@@ -102,24 +102,18 @@ static void free_avrc_response(tAVRC_RESPONSE& result) {
       for (int i = 0; i < result.get_items.item_count; i++) {
         switch (result.get_items.p_item_list[i].item_type) {
           case AVRC_ITEM_PLAYER:
-            osi_free_and_reset(
-                (void**)&result.get_items.p_item_list[i].u.player.name.p_str);
+            osi_free_and_reset((void**)&result.get_items.p_item_list[i].u.player.name.p_str);
             break;
           case AVRC_ITEM_FOLDER:
-            osi_free_and_reset(
-                (void**)&result.get_items.p_item_list[i].u.folder.name.p_str);
+            osi_free_and_reset((void**)&result.get_items.p_item_list[i].u.folder.name.p_str);
             break;
           case AVRC_ITEM_MEDIA:
-            osi_free_and_reset(
-                (void**)&result.get_items.p_item_list[i].u.media.name.p_str);
-            for (int j = 0;
-                 j < result.get_items.p_item_list[i].u.media.attr_count; j++) {
-              osi_free_and_reset((void**)&result.get_items.p_item_list[i]
-                                     .u.media.p_attr_list[j]
-                                     .name.p_str);
+            osi_free_and_reset((void**)&result.get_items.p_item_list[i].u.media.name.p_str);
+            for (int j = 0; j < result.get_items.p_item_list[i].u.media.attr_count; j++) {
+              osi_free_and_reset(
+                      (void**)&result.get_items.p_item_list[i].u.media.p_attr_list[j].name.p_str);
             }
-            osi_free_and_reset(
-                (void**)&result.get_items.p_item_list[i].u.media.p_attr_list);
+            osi_free_and_reset((void**)&result.get_items.p_item_list[i].u.media.p_attr_list);
             break;
         }
       }
@@ -150,7 +144,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   tAVRC_MSG msg{};
   tAVRC_RESPONSE result{};
 
-  if (size < 2) return 0;
+  if (size < 2) {
+    return 0;
+  }
 
   /* 4 command type codes
    * AVRC_CMD_CTRL 0

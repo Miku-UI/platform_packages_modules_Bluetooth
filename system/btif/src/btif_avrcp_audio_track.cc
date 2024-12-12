@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 #define LOG_TAG "bt_btif_avrcp_audio_track"
 
 #include "btif_avrcp_audio_track.h"
@@ -31,7 +31,6 @@
 #include <thread>
 
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 
 using namespace android;
 using namespace bluetooth;
@@ -53,7 +52,7 @@ constexpr float kMinTrackGain = 0.0f;
 struct AudioEngine {
   int trackFreq = 0;
   int channelCount = 0;
-  std::thread *thread = nullptr;
+  std::thread* thread = nullptr;
   void* trackHandle = nullptr;
 } s_AudioEngine;
 
@@ -68,8 +67,7 @@ void BtifAvrcpAudioErrorHandle() {
   AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
   AAudioStreamBuilder_setChannelCount(builder, s_AudioEngine.channelCount);
   AAudioStreamBuilder_setSessionId(builder, AAUDIO_SESSION_ID_ALLOCATE);
-  AAudioStreamBuilder_setPerformanceMode(builder,
-                                         AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+  AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
   AAudioStreamBuilder_setErrorCallback(builder, ErrorCallback, nullptr);
   result = AAudioStreamBuilder_openStream(builder, &stream);
   log::assert_that(result == AAUDIO_OK, "assert failed: result == AAUDIO_OK");
@@ -86,18 +84,17 @@ void BtifAvrcpAudioErrorHandle() {
   s_AudioEngine.thread = nullptr;
 }
 
-void ErrorCallback(AAudioStream* stream,
-                      void* userdata,
-                      aaudio_result_t error) {
-  if (error == AAUDIO_ERROR_DISCONNECTED)
-    if (s_AudioEngine.thread == nullptr)
+void ErrorCallback(AAudioStream* /* stream */, void* /* userdata */, aaudio_result_t error) {
+  if (error == AAUDIO_ERROR_DISCONNECTED) {
+    if (s_AudioEngine.thread == nullptr) {
       s_AudioEngine.thread = new std::thread(BtifAvrcpAudioErrorHandle);
+    }
+  }
 }
 
-void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
-                                int channelCount) {
-  log::info("Track.cpp: btCreateTrack freq {} bps {} channel {}", trackFreq,
-            bitsPerSample, channelCount);
+void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample, int channelCount) {
+  log::info("Track.cpp: btCreateTrack freq {} bps {} channel {}", trackFreq, bitsPerSample,
+            channelCount);
 
   AAudioStreamBuilder* builder;
   AAudioStream* stream;
@@ -106,8 +103,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
   AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
   AAudioStreamBuilder_setChannelCount(builder, channelCount);
   AAudioStreamBuilder_setSessionId(builder, AAUDIO_SESSION_ID_ALLOCATE);
-  AAudioStreamBuilder_setPerformanceMode(builder,
-                                         AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+  AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
   AAudioStreamBuilder_setErrorCallback(builder, ErrorCallback, nullptr);
   result = AAudioStreamBuilder_openStream(builder, &stream);
   log::assert_that(result == AAUDIO_OK, "assert failed: result == AAUDIO_OK");
@@ -119,7 +115,7 @@ void* BtifAvrcpAudioTrackCreate(int trackFreq, int bitsPerSample,
   trackHolder->bitsPerSample = bitsPerSample;
   trackHolder->channelCount = channelCount;
   trackHolder->bufferLength =
-      trackHolder->channelCount * AAudioStream_getBufferSizeInFrames(stream);
+          trackHolder->channelCount * AAudioStream_getBufferSizeInFrames(stream);
   trackHolder->gain = kMaxTrackGain;
   trackHolder->buffer = new float[trackHolder->bufferLength]();
 
@@ -137,8 +133,7 @@ void BtifAvrcpAudioTrackStart(void* handle) {
   }
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   log::assert_that(trackHolder != NULL, "assert failed: trackHolder != NULL");
-  log::assert_that(trackHolder->stream != NULL,
-                   "assert failed: trackHolder->stream != NULL");
+  log::assert_that(trackHolder->stream != NULL, "assert failed: trackHolder->stream != NULL");
   log::verbose("Track.cpp: btStartTrack");
   AAudioStream_requestStart(trackHolder->stream);
 }
@@ -191,8 +186,7 @@ void BtifAvrcpSetAudioTrackGain(void* handle, float gain) {
   if (trackHolder != NULL) {
     const float clampedGain = std::clamp(gain, kMinTrackGain, kMaxTrackGain);
     if (clampedGain != gain) {
-      log::warn("Out of bounds gain set. Clamping the gain from :{:f} to {:f}",
-                gain, clampedGain);
+      log::warn("Out of bounds gain set. Clamping the gain from :{:f} to {:f}", gain, clampedGain);
     }
     trackHolder->gain = clampedGain;
     log::info("Avrcp audio track gain is set to {:f}", trackHolder->gain);
@@ -257,27 +251,22 @@ static size_t transcodeToPcmFloat(uint8_t* buffer, size_t length,
 
 constexpr int64_t kTimeoutNanos = 100 * 1000 * 1000;  // 100 ms
 
-int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer,
-                                 int bufferLength) {
+int BtifAvrcpAudioTrackWriteData(void* handle, void* audioBuffer, int bufferLength) {
   BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(handle);
   log::assert_that(trackHolder != NULL, "assert failed: trackHolder != NULL");
-  log::assert_that(trackHolder->stream != NULL,
-                   "assert failed: trackHolder->stream != NULL");
+  log::assert_that(trackHolder->stream != NULL, "assert failed: trackHolder->stream != NULL");
   aaudio_result_t retval = -1;
 
   size_t sampleSize = sampleSizeFor(trackHolder);
   int transcodedCount = 0;
   do {
-    transcodedCount +=
-        transcodeToPcmFloat(((uint8_t*)audioBuffer) + transcodedCount,
-                            bufferLength - transcodedCount, trackHolder);
+    transcodedCount += transcodeToPcmFloat(((uint8_t*)audioBuffer) + transcodedCount,
+                                           bufferLength - transcodedCount, trackHolder);
 
-    retval = AAudioStream_write(
-        trackHolder->stream, trackHolder->buffer,
-        transcodedCount / (sampleSize * trackHolder->channelCount),
-        kTimeoutNanos);
-    log::verbose("Track.cpp: btWriteData len = {} ret = {}", bufferLength,
-                 retval);
+    retval = AAudioStream_write(trackHolder->stream, trackHolder->buffer,
+                                transcodedCount / (sampleSize * trackHolder->channelCount),
+                                kTimeoutNanos);
+    log::verbose("Track.cpp: btWriteData len = {} ret = {}", bufferLength, retval);
   } while (transcodedCount < bufferLength);
 
   return transcodedCount;

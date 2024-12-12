@@ -146,7 +146,7 @@ typedef struct {
 /* service registration control block */
 typedef struct {
   bluetooth::Uuid service_uuid; /* service UUID */
-  uint16_t service_id;   /* service start handle */
+  uint16_t service_id;          /* service start handle */
   uint8_t rcb_idx;
   uint8_t idx; /* self index of serviec CB */
   bool in_use;
@@ -176,10 +176,8 @@ void bta_gatts_api_enable(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_data);
 void bta_gatts_register(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg);
 void bta_gatts_start_if(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg);
 void bta_gatts_deregister(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg);
-void bta_gatts_delete_service(tBTA_GATTS_SRVC_CB* p_srvc_cb,
-                              tBTA_GATTS_DATA* p_msg);
-void bta_gatts_stop_service(tBTA_GATTS_SRVC_CB* p_srvc_cb,
-                            tBTA_GATTS_DATA* p_msg);
+void bta_gatts_delete_service(tBTA_GATTS_SRVC_CB* p_srvc_cb, tBTA_GATTS_DATA* p_msg);
+void bta_gatts_stop_service(tBTA_GATTS_SRVC_CB* p_srvc_cb, tBTA_GATTS_DATA* p_msg);
 
 void bta_gatts_send_rsp(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg);
 void bta_gatts_indicate_handle(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg);
@@ -189,12 +187,9 @@ void bta_gatts_cancel_open(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg);
 void bta_gatts_close(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg);
 
 tBTA_GATTS_RCB* bta_gatts_find_app_rcb_by_app_if(tGATT_IF server_if);
-uint8_t bta_gatts_find_app_rcb_idx_by_app_if(tBTA_GATTS_CB* p_cb,
-                                             tGATT_IF server_if);
+uint8_t bta_gatts_find_app_rcb_idx_by_app_if(tBTA_GATTS_CB* p_cb, tGATT_IF server_if);
 uint8_t bta_gatts_alloc_srvc_cb(tBTA_GATTS_CB* p_cb, uint8_t rcb_idx);
-tBTA_GATTS_SRVC_CB* bta_gatts_find_srvc_cb_by_srvc_id(tBTA_GATTS_CB* p_cb,
-                                                      uint16_t service_id);
-tBTA_GATTS_SRVC_CB* bta_gatts_find_srvc_cb_by_attr_id(tBTA_GATTS_CB* p_cb,
-                                                      uint16_t attr_id);
+tBTA_GATTS_SRVC_CB* bta_gatts_find_srvc_cb_by_srvc_id(tBTA_GATTS_CB* p_cb, uint16_t service_id);
+tBTA_GATTS_SRVC_CB* bta_gatts_find_srvc_cb_by_attr_id(tBTA_GATTS_CB* p_cb, uint16_t attr_id);
 
 #endif /* BTA_GATTS_INT_H */

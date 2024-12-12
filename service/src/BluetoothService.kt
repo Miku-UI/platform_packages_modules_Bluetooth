@@ -17,6 +17,7 @@ package com.android.server.bluetooth
 
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
+import android.content.res.Resources
 import android.os.HandlerThread
 import android.os.UserManager
 import com.android.server.SystemService
@@ -52,7 +53,14 @@ class BluetoothService(context: Context) : SystemService(context) {
     }
 
     override fun onUserStarting(user: TargetUser) {
-        if (!UserManager.isHeadlessSystemUserMode()) {
+        if (
+            !UserManager.isHeadlessSystemUserMode() ||
+                Resources.getSystem()
+                    .getBoolean(
+                        Resources.getSystem()
+                            .getIdentifier("config_bootToHeadlessSystemUser", "bool", "android")
+                    )
+        ) {
             initialize(user)
         }
     }

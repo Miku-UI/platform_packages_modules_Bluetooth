@@ -35,19 +35,19 @@
 const int A2DP_AAC_HEADER_LEN = 9;
 const int A2DP_AAC_MAX_LEN_REPR = 4;
 const int A2DP_AAC_MAX_PREFIX_SIZE =
-    AVDT_MEDIA_HDR_SIZE + A2DP_AAC_HEADER_LEN + A2DP_AAC_MAX_LEN_REPR;
+        AVDT_MEDIA_HDR_SIZE + A2DP_AAC_HEADER_LEN + A2DP_AAC_MAX_LEN_REPR;
 
 using namespace bluetooth;
 
 class FFmpegInterface {
- public:
+public:
   // Updates the context and configures codec parameters.
   //
   // Returns:
   //   The (fixed) input pcm frame size that the encoder accepts.
   //   Otherwise a negative errno on error.
-  int prepare_context(int sample_rate, int channel_count, int bit_rate,
-                      int bit_depth, int effective_frame_size) {
+  int prepare_context(int sample_rate, int channel_count, int bit_rate, int bit_depth,
+                      int effective_frame_size) {
     clear_context();
     client = new mmc::CodecClient;
 
@@ -97,7 +97,7 @@ class FFmpegInterface {
     return rc;
   }
 
- private:
+private:
   mmc::CodecClient* client = nullptr;
 };
 
@@ -130,13 +130,11 @@ typedef struct {
   a2dp_aac_encoder_stats_t stats;
 } tA2DP_AAC_ENCODER_CB;
 
-static void a2dp_aac_get_num_frame_iteration(uint8_t* num_of_iterations,
-                                             uint8_t* num_of_frames,
+static void a2dp_aac_get_num_frame_iteration(uint8_t* num_of_iterations, uint8_t* num_of_frames,
                                              uint64_t timestamp_us);
 static void a2dp_aac_encode_frames(uint8_t nb_frame);
 static bool a2dp_aac_read_feeding(uint8_t* read_buffer, uint32_t* bytes_read);
-static uint16_t adjust_effective_mtu(
-    const tA2DP_ENCODER_INIT_PEER_PARAMS& peer_params);
+static uint16_t adjust_effective_mtu(const tA2DP_ENCODER_INIT_PEER_PARAMS& peer_params);
 
 namespace {
 tA2DP_AAC_ENCODER_CB a2dp_aac_encoder_cb;
@@ -163,18 +161,15 @@ void a2dp_aac_encoder_init(const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
 
   uint16_t mtu = adjust_effective_mtu(*p_peer_params);
 
-  int max_bit_rate =
-      A2DP_ComputeMaxBitRateAac(codec_info, mtu - A2DP_AAC_MAX_PREFIX_SIZE) /
-      8 * 8;
+  int max_bit_rate = A2DP_ComputeMaxBitRateAac(codec_info, mtu - A2DP_AAC_MAX_PREFIX_SIZE) / 8 * 8;
   int bit_rate = std::min(A2DP_GetBitRateAac(codec_info) / 8 * 8, max_bit_rate);
 
   tA2DP_SAMPLE_RATE sample_rate = A2DP_GetTrackSampleRateAac(codec_info);
   tA2DP_CHANNEL_COUNT channel_count = A2DP_GetTrackChannelCountAac(codec_info);
-  tA2DP_BITS_PER_SAMPLE bits_per_sample =
-      a2dp_codec_config->getAudioBitsPerSample();
+  tA2DP_BITS_PER_SAMPLE bits_per_sample = a2dp_codec_config->getAudioBitsPerSample();
 
-  int pcm_samples_per_frame = codec_intf.prepare_context(
-      sample_rate, channel_count, bit_rate, bits_per_sample, mtu);
+  int pcm_samples_per_frame =
+          codec_intf.prepare_context(sample_rate, channel_count, bit_rate, bits_per_sample, mtu);
 
   if (pcm_samples_per_frame < 0) {
     log::error("Failed to prepare context: {}", pcm_samples_per_frame);
@@ -185,29 +180,29 @@ void a2dp_aac_encoder_init(const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
   uint32_t encoder_interval_ms = pcm_samples_per_frame * 1000 / sample_rate;
 
   a2dp_aac_encoder_cb = tA2DP_AAC_ENCODER_CB{
-      .read_callback = read_callback,
-      .enqueue_callback = enqueue_callback,
-      .TxAaMtuSize = mtu,
-      .peer_params = *p_peer_params,
-      .timestamp = bluetooth::os::GenerateRandom(),  // (RFC 6416)
-      .feeding_params =
-          {
-              .sample_rate = sample_rate,
-              .bits_per_sample = bits_per_sample,
-              .channel_count = channel_count,
-          },
-      .aac_feeding_state =
-          tA2DP_AAC_FEEDING_STATE{
-              .bytes_per_tick = (sample_rate * bits_per_sample / 8 *
-                                 channel_count * encoder_interval_ms) /
-                                1000,
-          },
-      .pcm_samples_per_frame = static_cast<uint32_t>(pcm_samples_per_frame),
-      .encoder_interval_ms = encoder_interval_ms,
-      .stats =
-          a2dp_aac_encoder_stats_t{
-              .session_start_us = bluetooth::common::time_get_os_boottime_us(),
-          },
+          .read_callback = read_callback,
+          .enqueue_callback = enqueue_callback,
+          .TxAaMtuSize = mtu,
+          .peer_params = *p_peer_params,
+          .timestamp = bluetooth::os::GenerateRandom(),  // (RFC 6416)
+          .feeding_params =
+                  {
+                          .sample_rate = sample_rate,
+                          .bits_per_sample = bits_per_sample,
+                          .channel_count = channel_count,
+                  },
+          .aac_feeding_state =
+                  tA2DP_AAC_FEEDING_STATE{
+                          .bytes_per_tick = (sample_rate * bits_per_sample / 8 * channel_count *
+                                             encoder_interval_ms) /
+                                            1000,
+                  },
+          .pcm_samples_per_frame = static_cast<uint32_t>(pcm_samples_per_frame),
+          .encoder_interval_ms = encoder_interval_ms,
+          .stats =
+                  a2dp_aac_encoder_stats_t{
+                          .session_start_us = bluetooth::common::time_get_os_boottime_us(),
+                  },
   };
 }
 
@@ -227,36 +222,31 @@ void a2dp_aac_feeding_reset() {
   a2dp_aac_encoder_cb.encoder_interval_ms = frame_length * 1000 / sample_rate;
 
   a2dp_aac_encoder_cb.aac_feeding_state = tA2DP_AAC_FEEDING_STATE{
-      .bytes_per_tick = (a2dp_aac_encoder_cb.feeding_params.sample_rate *
-                         a2dp_aac_encoder_cb.feeding_params.bits_per_sample /
-                         8 * a2dp_aac_encoder_cb.feeding_params.channel_count *
-                         a2dp_aac_encoder_cb.encoder_interval_ms) /
-                        1000,
+          .bytes_per_tick = (a2dp_aac_encoder_cb.feeding_params.sample_rate *
+                             a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8 *
+                             a2dp_aac_encoder_cb.feeding_params.channel_count *
+                             a2dp_aac_encoder_cb.encoder_interval_ms) /
+                            1000,
   };
 
-  log::warn("PCM bytes {} per tick ({}ms)",
-            a2dp_aac_encoder_cb.aac_feeding_state.bytes_per_tick,
+  log::warn("PCM bytes {} per tick ({}ms)", a2dp_aac_encoder_cb.aac_feeding_state.bytes_per_tick,
             a2dp_aac_encoder_cb.encoder_interval_ms);
 }
 
-void a2dp_aac_feeding_flush() {
-  a2dp_aac_encoder_cb.aac_feeding_state.counter = 0.0f;
-}
+void a2dp_aac_feeding_flush() { a2dp_aac_encoder_cb.aac_feeding_state.counter = 0.0f; }
 
-uint64_t a2dp_aac_get_encoder_interval_ms() {
-  return a2dp_aac_encoder_cb.encoder_interval_ms;
-}
+uint64_t a2dp_aac_get_encoder_interval_ms() { return a2dp_aac_encoder_cb.encoder_interval_ms; }
 
-int a2dp_aac_get_effective_frame_size() {
-  return a2dp_aac_encoder_cb.TxAaMtuSize;
-}
+int a2dp_aac_get_effective_frame_size() { return a2dp_aac_encoder_cb.TxAaMtuSize; }
 
 void a2dp_aac_send_frames(uint64_t timestamp_us) {
   uint8_t nb_frame = 0;
   uint8_t nb_iterations = 0;
 
   a2dp_aac_get_num_frame_iteration(&nb_iterations, &nb_frame, timestamp_us);
-  if (nb_frame == 0) return;
+  if (nb_frame == 0) {
+    return;
+  }
 
   for (uint8_t counter = 0; counter < nb_iterations; counter++) {
     a2dp_aac_encode_frames(nb_frame);
@@ -266,29 +256,27 @@ void a2dp_aac_send_frames(uint64_t timestamp_us) {
 // Obtains the number of frames to send and number of iterations
 // to be used. |num_of_iterations| and |num_of_frames| parameters
 // are used as output param for returning the respective values.
-static void a2dp_aac_get_num_frame_iteration(uint8_t* num_of_iterations,
-                                             uint8_t* num_of_frames,
+static void a2dp_aac_get_num_frame_iteration(uint8_t* num_of_iterations, uint8_t* num_of_frames,
                                              uint64_t timestamp_us) {
   uint32_t result = 0;
   uint8_t nof = 0;
   uint8_t noi = 1;
 
-  uint32_t pcm_bytes_per_frame =
-      a2dp_aac_encoder_cb.pcm_samples_per_frame *
-      a2dp_aac_encoder_cb.feeding_params.channel_count *
-      a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8;
+  uint32_t pcm_bytes_per_frame = a2dp_aac_encoder_cb.pcm_samples_per_frame *
+                                 a2dp_aac_encoder_cb.feeding_params.channel_count *
+                                 a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8;
   log::verbose("pcm_bytes_per_frame {}", pcm_bytes_per_frame);
 
   uint32_t us_this_tick = a2dp_aac_encoder_cb.encoder_interval_ms * 1000;
   uint64_t now_us = timestamp_us;
-  if (a2dp_aac_encoder_cb.aac_feeding_state.last_frame_us != 0)
-    us_this_tick =
-        (now_us - a2dp_aac_encoder_cb.aac_feeding_state.last_frame_us);
+  if (a2dp_aac_encoder_cb.aac_feeding_state.last_frame_us != 0) {
+    us_this_tick = (now_us - a2dp_aac_encoder_cb.aac_feeding_state.last_frame_us);
+  }
   a2dp_aac_encoder_cb.aac_feeding_state.last_frame_us = now_us;
 
   a2dp_aac_encoder_cb.aac_feeding_state.counter +=
-      (float)a2dp_aac_encoder_cb.aac_feeding_state.bytes_per_tick *
-      us_this_tick / (a2dp_aac_encoder_cb.encoder_interval_ms * 1000);
+          (float)a2dp_aac_encoder_cb.aac_feeding_state.bytes_per_tick * us_this_tick /
+          (a2dp_aac_encoder_cb.encoder_interval_ms * 1000);
 
   result = a2dp_aac_encoder_cb.aac_feeding_state.counter / pcm_bytes_per_frame;
   a2dp_aac_encoder_cb.aac_feeding_state.counter -= result * pcm_bytes_per_frame;
@@ -304,8 +292,7 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
   uint8_t read_buffer[BT_DEFAULT_BUFFER_SIZE];
   int pcm_bytes_per_frame = a2dp_aac_encoder_cb.pcm_samples_per_frame *
                             a2dp_aac_encoder_cb.feeding_params.channel_count *
-                            a2dp_aac_encoder_cb.feeding_params.bits_per_sample /
-                            8;
+                            a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8;
   log::assert_that(pcm_bytes_per_frame <= static_cast<int>(sizeof(read_buffer)),
                    "assert failed: pcm_bytes_per_frame <= "
                    "static_cast<int>(sizeof(read_buffer))");
@@ -317,9 +304,9 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
     if (!a2dp_aac_read_feeding(read_buffer, &bytes_read)) {
       log::warn("Underflow {}", nb_frame);
       a2dp_aac_encoder_cb.aac_feeding_state.counter +=
-          nb_frame * a2dp_aac_encoder_cb.pcm_samples_per_frame *
-          a2dp_aac_encoder_cb.feeding_params.channel_count *
-          a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8;
+              nb_frame * a2dp_aac_encoder_cb.pcm_samples_per_frame *
+              a2dp_aac_encoder_cb.feeding_params.channel_count *
+              a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8;
       return;
     }
 
@@ -328,9 +315,9 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
     p_buf->len = 0;
     p_buf->layer_specific = 0;
 
-    int written = codec_intf.encode_pcm(
-        read_buffer, bytes_read, (uint8_t*)(p_buf + 1) + p_buf->offset,
-        BT_DEFAULT_BUFFER_SIZE - 1 - p_buf->offset);
+    int written =
+            codec_intf.encode_pcm(read_buffer, bytes_read, (uint8_t*)(p_buf + 1) + p_buf->offset,
+                                  BT_DEFAULT_BUFFER_SIZE - 1 - p_buf->offset);
 
     if (written < 0) {
       a2dp_aac_encoder_cb.stats.media_read_total_dropped_packets++;
@@ -352,9 +339,11 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
     *((uint32_t*)(p_buf + 1)) = a2dp_aac_encoder_cb.timestamp;
 
     a2dp_aac_encoder_cb.timestamp +=
-        p_buf->layer_specific * a2dp_aac_encoder_cb.pcm_samples_per_frame;
+            p_buf->layer_specific * a2dp_aac_encoder_cb.pcm_samples_per_frame;
 
-    if (!a2dp_aac_encoder_cb.enqueue_callback(p_buf, 1, bytes_read)) return;
+    if (!a2dp_aac_encoder_cb.enqueue_callback(p_buf, 1, bytes_read)) {
+      return;
+    }
   }
 }
 
@@ -367,17 +356,17 @@ static bool a2dp_aac_read_feeding(uint8_t* read_buffer, uint32_t* bytes_read) {
   a2dp_aac_encoder_cb.stats.media_read_total_expected_read_bytes += read_size;
 
   /* Read Data from UIPC channel */
-  uint32_t nb_byte_read =
-      a2dp_aac_encoder_cb.read_callback(read_buffer, read_size);
+  uint32_t nb_byte_read = a2dp_aac_encoder_cb.read_callback(read_buffer, read_size);
   a2dp_aac_encoder_cb.stats.media_read_total_actual_read_bytes += nb_byte_read;
   *bytes_read = nb_byte_read;
 
   if (nb_byte_read < read_size) {
-    if (nb_byte_read == 0) return false;
+    if (nb_byte_read == 0) {
+      return false;
+    }
 
     /* Fill the unfilled part of the read buffer with silence (0) */
-    std::fill_n((uint8_t*)read_buffer + nb_byte_read, read_size - nb_byte_read,
-                0x00);
+    std::fill_n((uint8_t*)read_buffer + nb_byte_read, read_size - nb_byte_read, 0x00);
     nb_byte_read = read_size;
   }
   a2dp_aac_encoder_cb.stats.media_read_total_actual_reads_count++;
@@ -385,10 +374,8 @@ static bool a2dp_aac_read_feeding(uint8_t* read_buffer, uint32_t* bytes_read) {
   return true;
 }
 
-static uint16_t adjust_effective_mtu(
-    const tA2DP_ENCODER_INIT_PEER_PARAMS& peer_params) {
-  uint16_t mtu_size =
-      BT_DEFAULT_BUFFER_SIZE - AVDT_MEDIA_OFFSET - sizeof(BT_HDR);
+static uint16_t adjust_effective_mtu(const tA2DP_ENCODER_INIT_PEER_PARAMS& peer_params) {
+  uint16_t mtu_size = BT_DEFAULT_BUFFER_SIZE - AVDT_MEDIA_OFFSET - sizeof(BT_HDR);
   if (mtu_size > peer_params.peer_mtu) {
     mtu_size = peer_params.peer_mtu;
   }
@@ -399,8 +386,7 @@ static uint16_t adjust_effective_mtu(
     // exceeds the 2DH5 packet size.
     log::verbose("The remote device is EDR but does not support 3 Mbps");
     if (mtu_size > MAX_2MBPS_AVDTP_MTU) {
-      log::warn("Restricting AVDTP MTU size from {} to {}", mtu_size,
-                MAX_2MBPS_AVDTP_MTU);
+      log::warn("Restricting AVDTP MTU size from {} to {}", mtu_size, MAX_2MBPS_AVDTP_MTU);
       mtu_size = MAX_2MBPS_AVDTP_MTU;
     }
   }
@@ -413,31 +399,25 @@ void A2dpCodecConfigAacSource::debug_codec_dump(int fd) {
   A2dpCodecConfig::debug_codec_dump(fd);
 
   auto codec_specific_1 = getCodecConfig().codec_specific_1;
-  dprintf(
-      fd,
-      "  AAC bitrate mode                                        : %s "
-      "(0x%" PRIx64 ")\n",
-      ((codec_specific_1 & ~A2DP_AAC_VARIABLE_BIT_RATE_MASK) == 0 ? "Constant"
-                                                                  : "Variable"),
-      codec_specific_1);
-  dprintf(fd, "  Encoder interval (ms): %" PRIu64 "\n",
-          a2dp_aac_get_encoder_interval_ms());
+  dprintf(fd,
+          "  AAC bitrate mode                                        : %s "
+          "(0x%" PRIx64 ")\n",
+          ((codec_specific_1 & ~A2DP_AAC_VARIABLE_BIT_RATE_MASK) == 0 ? "Constant" : "Variable"),
+          codec_specific_1);
+  dprintf(fd, "  Encoder interval (ms): %" PRIu64 "\n", a2dp_aac_get_encoder_interval_ms());
   dprintf(fd, "  Effective MTU: %d\n", a2dp_aac_get_effective_frame_size());
   dprintf(fd,
           "  Packet counts (expected/dropped)                        : %zu / "
           "%zu\n",
-          stats->media_read_total_expected_packets,
-          stats->media_read_total_dropped_packets);
+          stats->media_read_total_expected_packets, stats->media_read_total_dropped_packets);
 
   dprintf(fd,
           "  PCM read counts (expected/actual)                       : %zu / "
           "%zu\n",
-          stats->media_read_total_expected_reads_count,
-          stats->media_read_total_actual_reads_count);
+          stats->media_read_total_expected_reads_count, stats->media_read_total_actual_reads_count);
 
   dprintf(fd,
           "  PCM read bytes (expected/actual)                        : %zu / "
           "%zu\n",
-          stats->media_read_total_expected_read_bytes,
-          stats->media_read_total_actual_read_bytes);
+          stats->media_read_total_expected_read_bytes, stats->media_read_total_actual_read_bytes);
 }

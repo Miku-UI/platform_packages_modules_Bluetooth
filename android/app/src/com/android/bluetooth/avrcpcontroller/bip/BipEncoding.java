@@ -18,7 +18,10 @@ package com.android.bluetooth.avrcpcontroller;
 
 import android.util.SparseArray;
 
+import com.google.common.base.Ascii;
+
 import java.util.HashMap;
+import java.util.Objects;
 
 /**
  * Represents an encoding method in which a BIP image is available.
@@ -83,12 +86,12 @@ public class BipEncoding {
         if (encoding == null) {
             throw new ParseException("Encoding input invalid");
         }
-        encoding = encoding.trim();
-        mType = determineEncoding(encoding.toUpperCase());
+        encoding = Ascii.toUpperCase(encoding.trim());
+        mType = determineEncoding(encoding);
 
         String proprietaryEncodingId = null;
         if (mType == USR_XXX) {
-            proprietaryEncodingId = encoding.substring(4).toUpperCase();
+            proprietaryEncodingId = encoding.substring(4);
         }
         mProprietaryEncodingId = proprietaryEncodingId;
 
@@ -102,7 +105,7 @@ public class BipEncoding {
      * Create an encoding object based on one of the constants for the available formats
      *
      * @param encoding A constant representing an available encoding
-     * @param proprietaryId A string representing the Id of a propreitary encoding. Only used if the
+     * @param proprietaryId A string representing the Id of a proprietary encoding. Only used if the
      *     encoding type is BipEncoding.USR_XXX
      */
     public BipEncoding(int encoding, String proprietaryId) {
@@ -117,7 +120,7 @@ public class BipEncoding {
                 throw new IllegalArgumentException(
                         "Received invalid user defined encoding id '" + proprietaryId + "'");
             }
-            proprietaryEncodingId = proprietaryId.toUpperCase();
+            proprietaryEncodingId = Ascii.toUpperCase(proprietaryId);
         }
         mProprietaryEncodingId = proprietaryEncodingId;
     }
@@ -170,12 +173,20 @@ public class BipEncoding {
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof BipEncoding)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof BipEncoding e)) {
+            return false;
+        }
 
-        BipEncoding e = (BipEncoding) o;
         return e.getType() == getType()
-                && e.getProprietaryEncodingId() == getProprietaryEncodingId();
+                && Objects.equals(e.getProprietaryEncodingId(), getProprietaryEncodingId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getType(), getProprietaryEncodingId());
     }
 
     @Override

@@ -38,6 +38,7 @@ import com.android.bluetooth.mapapi.BluetoothMapContract;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 1
@@ -63,11 +64,10 @@ public class BluetoothMapAccountLoader {
      * @return LinkedHashMap with the packages as keys(BluetoothMapAccountItem) and values as
      *     ArrayLists of BluetoothMapAccountItems.
      */
-    public LinkedHashMap<BluetoothMapAccountItem, ArrayList<BluetoothMapAccountItem>> parsePackages(
+    public Map<BluetoothMapAccountItem, List<BluetoothMapAccountItem>> parsePackages(
             boolean includeIcon) {
 
-        LinkedHashMap<BluetoothMapAccountItem, ArrayList<BluetoothMapAccountItem>> groups =
-                new LinkedHashMap<BluetoothMapAccountItem, ArrayList<BluetoothMapAccountItem>>();
+        Map<BluetoothMapAccountItem, List<BluetoothMapAccountItem>> groups = new LinkedHashMap<>();
         Intent[] searchIntents = new Intent[2];
         // Array <Intent> searchIntents = new Array <Intent>();
         searchIntents[0] = new Intent(BluetoothMapContract.PROVIDER_INTERFACE_EMAIL);
@@ -103,7 +103,7 @@ public class BluetoothMapAccountLoader {
                             == 0) {
                         BluetoothMapAccountItem app = createAppItem(rInfo, includeIcon, msgType);
                         if (app != null) {
-                            ArrayList<BluetoothMapAccountItem> accounts = parseAccounts(app);
+                            List<BluetoothMapAccountItem> accounts = parseAccounts(app);
                             // we do not want to list apps without accounts
                             if (accounts.size() > 0) {
                                 // we need to make sure that the "select all" checkbox
@@ -166,10 +166,10 @@ public class BluetoothMapAccountLoader {
      * @param app The parent app object
      * @return An ArrayList of BluetoothMapAccountItems containing all the accounts from the app
      */
-    public ArrayList<BluetoothMapAccountItem> parseAccounts(BluetoothMapAccountItem app) {
+    public List<BluetoothMapAccountItem> parseAccounts(BluetoothMapAccountItem app) {
         Cursor c = null;
         Log.d(TAG, "Finding accounts for app " + app.getPackageName());
-        ArrayList<BluetoothMapAccountItem> children = new ArrayList<BluetoothMapAccountItem>();
+        List<BluetoothMapAccountItem> children = new ArrayList<>();
         // Get the list of accounts from the email apps content resolver (if possible)
         mResolver = mContext.getContentResolver();
         try {

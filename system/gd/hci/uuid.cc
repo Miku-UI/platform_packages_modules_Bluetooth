@@ -19,8 +19,8 @@
 #include "hci/uuid.h"
 
 #include <openssl/rand.h>
-
 #include <string.h>
+
 #include <algorithm>
 
 namespace bluetooth {
@@ -31,12 +31,13 @@ using UUID128Bit = Uuid::UUID128Bit;
 const Uuid Uuid::kEmpty = Uuid::From128BitBE(UUID128Bit{{0x00}});
 
 namespace {
-Uuid kBase = Uuid::From128BitBE(
-    UUID128Bit{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}});
+Uuid kBase = Uuid::From128BitBE(UUID128Bit{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80,
+                                            0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}});
 }  // namespace
 
 size_t Uuid::GetShortestRepresentationSize() const {
-  if (memcmp(uu.data() + kNumBytes32, kBase.uu.data() + kNumBytes32, kNumBytes128 - kNumBytes32) != 0) {
+  if (memcmp(uu.data() + kNumBytes32, kBase.uu.data() + kNumBytes32, kNumBytes128 - kNumBytes32) !=
+      0) {
     return kNumBytes128;
   }
 
@@ -47,13 +48,9 @@ size_t Uuid::GetShortestRepresentationSize() const {
   return kNumBytes32;
 }
 
-bool Uuid::Is16Bit() const {
-  return GetShortestRepresentationSize() == kNumBytes16;
-}
+bool Uuid::Is16Bit() const { return GetShortestRepresentationSize() == kNumBytes16; }
 
-uint16_t Uuid::As16Bit() const {
-  return (((uint16_t)uu[2]) << 8) + uu[3];
-}
+uint16_t Uuid::As16Bit() const { return (((uint16_t)uu[2]) << 8) + uu[3]; }
 
 uint32_t Uuid::As32Bit() const {
   return (((uint32_t)uu[0]) << 24) + (((uint32_t)uu[1]) << 16) + (((uint32_t)uu[2]) << 8) + uu[3];
@@ -72,27 +69,11 @@ std::optional<Uuid> Uuid::FromString(const std::string& uuid) {
     }
 
     int c;
-    int rc = sscanf(
-        uuid.c_str(),
-        "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx"
-        "-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%n",
-        &p[0],
-        &p[1],
-        &p[2],
-        &p[3],
-        &p[4],
-        &p[5],
-        &p[6],
-        &p[7],
-        &p[8],
-        &p[9],
-        &p[10],
-        &p[11],
-        &p[12],
-        &p[13],
-        &p[14],
-        &p[15],
-        &c);
+    int rc = sscanf(uuid.c_str(),
+                    "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx"
+                    "-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%n",
+                    &p[0], &p[1], &p[2], &p[3], &p[4], &p[5], &p[6], &p[7], &p[8], &p[9], &p[10],
+                    &p[11], &p[12], &p[13], &p[14], &p[15], &c);
     if (rc != 16) {
       return std::nullopt;
     }
@@ -172,54 +153,28 @@ UUID128Bit Uuid::To128BitLE() const {
   return le;
 }
 
-const UUID128Bit& Uuid::To128BitBE() const {
-  return uu;
-}
+const UUID128Bit& Uuid::To128BitBE() const { return uu; }
 
-bool Uuid::IsEmpty() const {
-  return *this == kEmpty;
-}
+bool Uuid::IsEmpty() const { return *this == kEmpty; }
 
 bool Uuid::operator<(const Uuid& rhs) const {
   return std::lexicographical_compare(uu.begin(), uu.end(), rhs.uu.begin(), rhs.uu.end());
 }
 
-bool Uuid::operator==(const Uuid& rhs) const {
-  return uu == rhs.uu;
-}
+bool Uuid::operator==(const Uuid& rhs) const { return uu == rhs.uu; }
 
-bool Uuid::operator!=(const Uuid& rhs) const {
-  return uu != rhs.uu;
-}
+bool Uuid::operator!=(const Uuid& rhs) const { return uu != rhs.uu; }
 
 std::string Uuid::ToString() const {
   char buf[kString128BitLen + 1] = {};
-  std::snprintf(
-      buf,
-      sizeof(buf),
-      "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-      uu[0],
-      uu[1],
-      uu[2],
-      uu[3],
-      uu[4],
-      uu[5],
-      uu[6],
-      uu[7],
-      uu[8],
-      uu[9],
-      uu[10],
-      uu[11],
-      uu[12],
-      uu[13],
-      uu[14],
-      uu[15]);
+  std::snprintf(buf, sizeof(buf),
+                "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", uu[0],
+                uu[1], uu[2], uu[3], uu[4], uu[5], uu[6], uu[7], uu[8], uu[9], uu[10], uu[11],
+                uu[12], uu[13], uu[14], uu[15]);
   return std::string(buf);
 }
 
-std::string Uuid::ToLegacyConfigString() const {
-  return ToString();
-}
+std::string Uuid::ToLegacyConfigString() const { return ToString(); }
 
 }  // namespace hci
 }  // namespace bluetooth

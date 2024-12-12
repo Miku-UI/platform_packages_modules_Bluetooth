@@ -68,7 +68,7 @@
        or doesn't implement the specified subunit */
 #define AVRC_RSP_ACCEPT                                \
   9 /* The target executed or is executing the command \
-       */
+     */
 #define AVRC_RSP_REJ                                        \
   10 /* The target implements the command specified by the  \
         opcode but cannot respond because the current state \
@@ -118,21 +118,20 @@
 #define AVRC_OP_INVALID 0xFE /* invalid one */
 
 /* Company ID's
-*/
+ */
 #define AVRC_CO_BLUETOOTH_SIG 0x00FFFFFF
 #define AVRC_CO_WIDCOMM 0x00000361
 #define AVRC_CO_BROADCOM 0x00001018
 #define AVRC_CO_GOOGLE 0x00DAA119
-#define AVRC_CO_METADATA \
-  0x00001958 /* Unique COMPANY ID for Metadata messages */
+#define AVRC_CO_METADATA 0x00001958 /* Unique COMPANY ID for Metadata messages */
 
 /* State flag for Passthrough commands
-*/
+ */
 #define AVRC_STATE_PRESS 0
 #define AVRC_STATE_RELEASE 1
 
 /* Operation ID list for Passthrough commands
-*/
+ */
 #define AVRC_ID_SELECT 0x00     /* select */
 #define AVRC_ID_UP 0x01         /* up */
 #define AVRC_ID_DOWN 0x02       /* down */
@@ -197,7 +196,7 @@
  ****************************************************************************/
 
 /* Define the Metadata Packet types
-*/
+ */
 #define AVRC_PKT_SINGLE 0
 #define AVRC_PKT_START 1
 #define AVRC_PKT_CONTINUE 2
@@ -314,14 +313,14 @@ typedef enum : uint8_t {
 typedef uint8_t tAVRC_STS;
 
 /* Define the Capability IDs
-*/
+ */
 #define AVRC_CAP_COMPANY_ID 0x02
 #define AVRC_CAP_EVENTS_SUPPORTED 0x03
 #define AVRC_COMPANY_ID_LEN 3
 #define AVRC_CAPABILITY_OFFSET 2
 
 /* Define the Player Application Settings IDs
-*/
+ */
 #define AVRC_PLAYER_SETTING_EQUALIZER 0x01
 #define AVRC_PLAYER_SETTING_REPEAT 0x02
 #define AVRC_PLAYER_SETTING_SHUFFLE 0x03
@@ -330,7 +329,7 @@ typedef uint8_t tAVRC_STS;
 #define AVRC_PLAYER_SETTING_HIGH_MENU_EXT 0xff
 
 /* Define the possible values of the Player Application Settings
-*/
+ */
 #define AVRC_PLAYER_VAL_OFF 0x01
 #define AVRC_PLAYER_VAL_ON 0x02
 #define AVRC_PLAYER_VAL_SINGLE_REPEAT 0x02
@@ -342,7 +341,7 @@ typedef uint8_t tAVRC_STS;
 #define AVRC_PLAYER_VAL_GROUP_SCAN 0x03
 
 /* Define the possible values of Battery Status PDU
-*/
+ */
 #define AVRC_BATTERY_STATUS_NORMAL 0x00
 #define AVRC_BATTERY_STATUS_WARNING 0x01
 #define AVRC_BATTERY_STATUS_CRITICAL 0x02
@@ -354,7 +353,7 @@ typedef uint8_t tAVRC_BATTERY_STATUS;
 #define AVRC_CHAR_SET_SIZE 2
 
 /* Define the Media Attribute IDs
-*/
+ */
 #define AVRC_MEDIA_ATTR_ID_TITLE 0x00000001
 #define AVRC_MEDIA_ATTR_ID_ARTIST 0x00000002
 #define AVRC_MEDIA_ATTR_ID_ALBUM 0x00000003
@@ -366,7 +365,7 @@ typedef uint8_t tAVRC_BATTERY_STATUS;
 #define AVRC_MAX_NUM_MEDIA_ATTR_ID 8
 
 /* Define the possible values of play state
-*/
+ */
 #define AVRC_PLAYSTATE_RESP_MSG_SIZE 9
 #define AVRC_PLAYSTATE_STOPPED 0x00  /* Stopped */
 #define AVRC_PLAYSTATE_PLAYING 0x01  /* Playing */
@@ -377,7 +376,7 @@ typedef uint8_t tAVRC_BATTERY_STATUS;
 typedef uint8_t tAVRC_PLAYSTATE;
 
 /* Define the events that can be registered for notifications
-*/
+ */
 #define AVRC_EVT_INVALID 0x00
 #define AVRC_EVT_PLAY_STATUS_CHANGE 0x01
 #define AVRC_EVT_TRACK_CHANGE 0x02
@@ -405,7 +404,7 @@ typedef uint8_t tAVRC_PLAYSTATE;
 #define AVRC_MAX_VOLUME 0x7F
 
 /* Define the possible values of system status
-*/
+ */
 #define AVRC_SYSTEMSTATE_PWR_ON 0x00
 #define AVRC_SYSTEMSTATE_PWR_OFF 0x01
 #define AVRC_SYSTEMSTATE_PWR_UNPLUGGED 0x02
@@ -476,8 +475,7 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_SELECT_BIT_NO 0
 #define AVRC_PF_SELECT_MASK 0x01
 #define AVRC_PF_SELECT_OFF 0
-#define AVRC_PF_SELECT_SUPPORTED(x) \
-  ((x)[AVRC_PF_SELECT_OFF] & AVRC_PF_SELECT_MASK)
+#define AVRC_PF_SELECT_SUPPORTED(x) ((x)[AVRC_PF_SELECT_OFF] & AVRC_PF_SELECT_MASK)
 
 #define AVRC_PF_UP_BIT_NO 1
 #define AVRC_PF_UP_MASK 0x02
@@ -502,38 +500,32 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_RIGHTUP_BIT_NO 5
 #define AVRC_PF_RIGHTUP_MASK 0x20
 #define AVRC_PF_RIGHTUP_OFF 0
-#define AVRC_PF_RIGHTUP_SUPPORTED(x) \
-  ((x)[AVRC_PF_RIGHTUP_OFF] & AVRC_PF_RIGHTUP_MASK)
+#define AVRC_PF_RIGHTUP_SUPPORTED(x) ((x)[AVRC_PF_RIGHTUP_OFF] & AVRC_PF_RIGHTUP_MASK)
 
 #define AVRC_PF_RIGHTDOWN_BIT_NO 6
 #define AVRC_PF_RIGHTDOWN_MASK 0x40
 #define AVRC_PF_RIGHTDOWN_OFF 0
-#define AVRC_PF_RIGHTDOWN_SUPPORTED(x) \
-  ((x)[AVRC_PF_RIGHTDOWN_OFF] & AVRC_PF_RIGHTDOWN_MASK)
+#define AVRC_PF_RIGHTDOWN_SUPPORTED(x) ((x)[AVRC_PF_RIGHTDOWN_OFF] & AVRC_PF_RIGHTDOWN_MASK)
 
 #define AVRC_PF_LEFTUP_BIT_NO 7
 #define AVRC_PF_LEFTUP_MASK 0x80
 #define AVRC_PF_LEFTUP_OFF 0
-#define AVRC_PF_LEFTUP_SUPPORTED(x) \
-  ((x)[AVRC_PF_LEFTUP_OFF] & AVRC_PF_LEFTUP_MASK)
+#define AVRC_PF_LEFTUP_SUPPORTED(x) ((x)[AVRC_PF_LEFTUP_OFF] & AVRC_PF_LEFTUP_MASK)
 
 #define AVRC_PF_LEFTDOWN_BIT_NO 8
 #define AVRC_PF_LEFTDOWN_MASK 0x01
 #define AVRC_PF_LEFTDOWN_OFF 1
-#define AVRC_PF_LEFTDOWN_SUPPORTED(x) \
-  ((x)[AVRC_PF_LEFTDOWN_OFF] & AVRC_PF_LEFTDOWN_MASK)
+#define AVRC_PF_LEFTDOWN_SUPPORTED(x) ((x)[AVRC_PF_LEFTDOWN_OFF] & AVRC_PF_LEFTDOWN_MASK)
 
 #define AVRC_PF_ROOT_MENU_BIT_NO 9
 #define AVRC_PF_ROOT_MENU_MASK 0x02
 #define AVRC_PF_ROOT_MENU_OFF 1
-#define AVRC_PF_ROOT_MENU_SUPPORTED(x) \
-  ((x)[AVRC_PF_ROOT_MENU_OFF] & AVRC_PF_ROOT_MENU_MASK)
+#define AVRC_PF_ROOT_MENU_SUPPORTED(x) ((x)[AVRC_PF_ROOT_MENU_OFF] & AVRC_PF_ROOT_MENU_MASK)
 
 #define AVRC_PF_SETUP_MENU_BIT_NO 10
 #define AVRC_PF_SETUP_MENU_MASK 0x04
 #define AVRC_PF_SETUP_MENU_OFF 1
-#define AVRC_PF_SETUP_MENU_SUPPORTED(x) \
-  ((x)[AVRC_PF_SETUP_MENU_OFF] & AVRC_PF_SETUP_MENU_MASK)
+#define AVRC_PF_SETUP_MENU_SUPPORTED(x) ((x)[AVRC_PF_SETUP_MENU_OFF] & AVRC_PF_SETUP_MENU_MASK)
 
 #define AVRC_PF_CONTENTS_MENU_BIT_NO 11
 #define AVRC_PF_CONTENTS_MENU_MASK 0x08
@@ -620,38 +612,32 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_CHNL_UP_BIT_NO 27
 #define AVRC_PF_CHNL_UP_MASK 0x08
 #define AVRC_PF_CHNL_UP_OFF 3
-#define AVRC_PF_CHNL_UP_SUPPORTED(x) \
-  ((x)[AVRC_PF_CHNL_UP_OFF] & AVRC_PF_CHNL_UP_MASK)
+#define AVRC_PF_CHNL_UP_SUPPORTED(x) ((x)[AVRC_PF_CHNL_UP_OFF] & AVRC_PF_CHNL_UP_MASK)
 
 #define AVRC_PF_CHNL_DOWN_BIT_NO 28
 #define AVRC_PF_CHNL_DOWN_MASK 0x10
 #define AVRC_PF_CHNL_DOWN_OFF 3
-#define AVRC_PF_CHNL_DOWN_SUPPORTED(x) \
-  ((x)[AVRC_PF_CHNL_DOWN_OFF] & AVRC_PF_CHNL_DOWN_MASK)
+#define AVRC_PF_CHNL_DOWN_SUPPORTED(x) ((x)[AVRC_PF_CHNL_DOWN_OFF] & AVRC_PF_CHNL_DOWN_MASK)
 
 #define AVRC_PF_PREV_CHNL_BIT_NO 29
 #define AVRC_PF_PREV_CHNL_MASK 0x20
 #define AVRC_PF_PREV_CHNL_OFF 3
-#define AVRC_PF_PREV_CHNL_SUPPORTED(x) \
-  ((x)[AVRC_PF_PREV_CHNL_OFF] & AVRC_PF_PREV_CHNL_MASK)
+#define AVRC_PF_PREV_CHNL_SUPPORTED(x) ((x)[AVRC_PF_PREV_CHNL_OFF] & AVRC_PF_PREV_CHNL_MASK)
 
 #define AVRC_PF_SOUND_SEL_BIT_NO 30
 #define AVRC_PF_SOUND_SEL_MASK 0x40
 #define AVRC_PF_SOUND_SEL_OFF 3
-#define AVRC_PF_SOUND_SEL_SUPPORTED(x) \
-  ((x)[AVRC_PF_SOUND_SEL_OFF] & AVRC_PF_SOUND_SEL_MASK)
+#define AVRC_PF_SOUND_SEL_SUPPORTED(x) ((x)[AVRC_PF_SOUND_SEL_OFF] & AVRC_PF_SOUND_SEL_MASK)
 
 #define AVRC_PF_INPUT_SEL_BIT_NO 31
 #define AVRC_PF_INPUT_SEL_MASK 0x80
 #define AVRC_PF_INPUT_SEL_OFF 3
-#define AVRC_PF_INPUT_SEL_SUPPORTED(x) \
-  ((x)[AVRC_PF_INPUT_SEL_OFF] & AVRC_PF_INPUT_SEL_MASK)
+#define AVRC_PF_INPUT_SEL_SUPPORTED(x) ((x)[AVRC_PF_INPUT_SEL_OFF] & AVRC_PF_INPUT_SEL_MASK)
 
 #define AVRC_PF_DISP_INFO_BIT_NO 32
 #define AVRC_PF_DISP_INFO_MASK 0x01
 #define AVRC_PF_DISP_INFO_OFF 4
-#define AVRC_PF_DISP_INFO_SUPPORTED(x) \
-  ((x)[AVRC_PF_DISP_INFO_OFF] & AVRC_PF_DISP_INFO_MASK)
+#define AVRC_PF_DISP_INFO_SUPPORTED(x) ((x)[AVRC_PF_DISP_INFO_OFF] & AVRC_PF_DISP_INFO_MASK)
 
 #define AVRC_PF_HELP_BIT_NO 33
 #define AVRC_PF_HELP_MASK 0x02
@@ -661,14 +647,12 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_PAGE_UP_BIT_NO 34
 #define AVRC_PF_PAGE_UP_MASK 0x04
 #define AVRC_PF_PAGE_UP_OFF 4
-#define AVRC_PF_PAGE_UP_SUPPORTED(x) \
-  ((x)[AVRC_PF_PAGE_UP_OFF] & AVRC_PF_PAGE_UP_MASK)
+#define AVRC_PF_PAGE_UP_SUPPORTED(x) ((x)[AVRC_PF_PAGE_UP_OFF] & AVRC_PF_PAGE_UP_MASK)
 
 #define AVRC_PF_PAGE_DOWN_BIT_NO 35
 #define AVRC_PF_PAGE_DOWN_MASK 0x08
 #define AVRC_PF_PAGE_DOWN_OFF 4
-#define AVRC_PF_PAGE_DOWN_SUPPORTED(x) \
-  ((x)[AVRC_PF_PAGE_DOWN_OFF] & AVRC_PF_PAGE_DOWN_MASK)
+#define AVRC_PF_PAGE_DOWN_SUPPORTED(x) ((x)[AVRC_PF_PAGE_DOWN_OFF] & AVRC_PF_PAGE_DOWN_MASK)
 
 #define AVRC_PF_POWER_BIT_NO 36
 #define AVRC_PF_POWER_MASK 0x10
@@ -678,14 +662,12 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_VOL_UP_BIT_NO 37
 #define AVRC_PF_VOL_UP_MASK 0x20
 #define AVRC_PF_VOL_UP_OFF 4
-#define AVRC_PF_VOL_UP_SUPPORTED(x) \
-  ((x)[AVRC_PF_VOL_UP_OFF] & AVRC_PF_VOL_UP_MASK)
+#define AVRC_PF_VOL_UP_SUPPORTED(x) ((x)[AVRC_PF_VOL_UP_OFF] & AVRC_PF_VOL_UP_MASK)
 
 #define AVRC_PF_VOL_DOWN_BIT_NO 38
 #define AVRC_PF_VOL_DOWN_MASK 0x40
 #define AVRC_PF_VOL_DOWN_OFF 4
-#define AVRC_PF_VOL_DOWN_SUPPORTED(x) \
-  ((x)[AVRC_PF_VOL_DOWN_OFF] & AVRC_PF_VOL_DOWN_MASK)
+#define AVRC_PF_VOL_DOWN_SUPPORTED(x) ((x)[AVRC_PF_VOL_DOWN_OFF] & AVRC_PF_VOL_DOWN_MASK)
 
 #define AVRC_PF_MUTE_BIT_NO 39
 #define AVRC_PF_MUTE_MASK 0x80
@@ -710,20 +692,17 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_RECORD_BIT_NO 43
 #define AVRC_PF_RECORD_MASK 0x08
 #define AVRC_PF_RECORD_OFF 5
-#define AVRC_PF_RECORD_SUPPORTED(x) \
-  ((x)[AVRC_PF_RECORD_OFF] & AVRC_PF_RECORD_MASK)
+#define AVRC_PF_RECORD_SUPPORTED(x) ((x)[AVRC_PF_RECORD_OFF] & AVRC_PF_RECORD_MASK)
 
 #define AVRC_PF_REWIND_BIT_NO 44
 #define AVRC_PF_REWIND_MASK 0x10
 #define AVRC_PF_REWIND_OFF 5
-#define AVRC_PF_REWIND_SUPPORTED(x) \
-  ((x)[AVRC_PF_REWIND_OFF] & AVRC_PF_REWIND_MASK)
+#define AVRC_PF_REWIND_SUPPORTED(x) ((x)[AVRC_PF_REWIND_OFF] & AVRC_PF_REWIND_MASK)
 
 #define AVRC_PF_FAST_FWD_BIT_NO 45
 #define AVRC_PF_FAST_FWD_MASK 0x20
 #define AVRC_PF_FAST_FWD_OFF 5
-#define AVRC_PF_FAST_FWD_SUPPORTED(x) \
-  ((x)[AVRC_PF_FAST_FWD_OFF] & AVRC_PF_FAST_FWD_MASK)
+#define AVRC_PF_FAST_FWD_SUPPORTED(x) ((x)[AVRC_PF_FAST_FWD_OFF] & AVRC_PF_FAST_FWD_MASK)
 
 #define AVRC_PF_EJECT_BIT_NO 46
 #define AVRC_PF_EJECT_MASK 0x40
@@ -733,14 +712,12 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_FORWARD_BIT_NO 47
 #define AVRC_PF_FORWARD_MASK 0x80
 #define AVRC_PF_FORWARD_OFF 5
-#define AVRC_PF_FORWARD_SUPPORTED(x) \
-  ((x)[AVRC_PF_FORWARD_OFF] & AVRC_PF_FORWARD_MASK)
+#define AVRC_PF_FORWARD_SUPPORTED(x) ((x)[AVRC_PF_FORWARD_OFF] & AVRC_PF_FORWARD_MASK)
 
 #define AVRC_PF_BACKWARD_BIT_NO 48
 #define AVRC_PF_BACKWARD_MASK 0x01
 #define AVRC_PF_BACKWARD_OFF 6
-#define AVRC_PF_BACKWARD_SUPPORTED(x) \
-  ((x)[AVRC_PF_BACKWARD_OFF] & AVRC_PF_BACKWARD_MASK)
+#define AVRC_PF_BACKWARD_SUPPORTED(x) ((x)[AVRC_PF_BACKWARD_OFF] & AVRC_PF_BACKWARD_MASK)
 
 #define AVRC_PF_ANGLE_BIT_NO 49
 #define AVRC_PF_ANGLE_MASK 0x02
@@ -750,8 +727,7 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_SUBPICTURE_BIT_NO 50
 #define AVRC_PF_SUBPICTURE_MASK 0x04
 #define AVRC_PF_SUBPICTURE_OFF 6
-#define AVRC_PF_SUBPICTURE_SUPPORTED(x) \
-  ((x)[AVRC_PF_SUBPICTURE_OFF] & AVRC_PF_SUBPICTURE_MASK)
+#define AVRC_PF_SUBPICTURE_SUPPORTED(x) ((x)[AVRC_PF_SUBPICTURE_OFF] & AVRC_PF_SUBPICTURE_MASK)
 
 #define AVRC_PF_F1_BIT_NO 51
 #define AVRC_PF_F1_MASK 0x08
@@ -782,62 +758,54 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_VENDOR_BIT_NO 56
 #define AVRC_PF_VENDOR_MASK 0x01
 #define AVRC_PF_VENDOR_OFF 7
-#define AVRC_PF_VENDOR_SUPPORTED(x) \
-  ((x)[AVRC_PF_VENDOR_OFF] & AVRC_PF_VENDOR_MASK)
+#define AVRC_PF_VENDOR_SUPPORTED(x) ((x)[AVRC_PF_VENDOR_OFF] & AVRC_PF_VENDOR_MASK)
 
 /* Basic Group Navigation.  This overrules the SDP entry as it is set per
  * player.7 */
 #define AVRC_PF_GROUP_NAVI_BIT_NO 57
 #define AVRC_PF_GROUP_NAVI_MASK 0x02
 #define AVRC_PF_GROUP_NAVI_OFF 7
-#define AVRC_PF_GROUP_NAVI_SUPPORTED(x) \
-  ((x)[AVRC_PF_GROUP_NAVI_OFF] & AVRC_PF_GROUP_NAVI_MASK)
+#define AVRC_PF_GROUP_NAVI_SUPPORTED(x) ((x)[AVRC_PF_GROUP_NAVI_OFF] & AVRC_PF_GROUP_NAVI_MASK)
 
 /* Advanced Control Player.  This bit is set if the player supports at least
  * AVRCP 1.4. */
 #define AVRC_PF_ADV_CTRL_BIT_NO 58
 #define AVRC_PF_ADV_CTRL_MASK 0x04
 #define AVRC_PF_ADV_CTRL_OFF 7
-#define AVRC_PF_ADV_CTRL_SUPPORTED(x) \
-  ((x)[AVRC_PF_ADV_CTRL_OFF] & AVRC_PF_ADV_CTRL_MASK)
+#define AVRC_PF_ADV_CTRL_SUPPORTED(x) ((x)[AVRC_PF_ADV_CTRL_OFF] & AVRC_PF_ADV_CTRL_MASK)
 
 /* Browsing.  This bit is set if the player supports browsing. */
 #define AVRC_PF_BROWSE_BIT_NO 59
 #define AVRC_PF_BROWSE_MASK 0x08
 #define AVRC_PF_BROWSE_OFF 7
-#define AVRC_PF_BROWSE_SUPPORTED(x) \
-  ((x)[AVRC_PF_BROWSE_OFF] & AVRC_PF_BROWSE_MASK)
+#define AVRC_PF_BROWSE_SUPPORTED(x) ((x)[AVRC_PF_BROWSE_OFF] & AVRC_PF_BROWSE_MASK)
 
 /* Searching. This bit is set if the player supports searching. */
 #define AVRC_PF_SEARCH_BIT_NO 60
 #define AVRC_PF_SEARCH_MASK 0x10
 #define AVRC_PF_SEARCH_OFF 7
-#define AVRC_PF_SEARCH_SUPPORTED(x) \
-  ((x)[AVRC_PF_SEARCH_OFF] & AVRC_PF_SEARCH_MASK)
+#define AVRC_PF_SEARCH_SUPPORTED(x) ((x)[AVRC_PF_SEARCH_OFF] & AVRC_PF_SEARCH_MASK)
 
 /* AddToNowPlaying.  This bit is set if the player supports the AddToNowPlaying
  * command. */
 #define AVRC_PF_ADD2NOWPLAY_BIT_NO 61
 #define AVRC_PF_ADD2NOWPLAY_MASK 0x20
 #define AVRC_PF_ADD2NOWPLAY_OFF 7
-#define AVRC_PF_ADD2NOWPLAY_SUPPORTED(x) \
-  ((x)[AVRC_PF_ADD2NOWPLAY_OFF] & AVRC_PF_ADD2NOWPLAY_MASK)
+#define AVRC_PF_ADD2NOWPLAY_SUPPORTED(x) ((x)[AVRC_PF_ADD2NOWPLAY_OFF] & AVRC_PF_ADD2NOWPLAY_MASK)
 
 /* UIDs unique in player browse tree.  This bit is set if the player is able to
  * maintain unique UIDs across the player browse tree. */
 #define AVRC_PF_UID_UNIQUE_BIT_NO 62
 #define AVRC_PF_UID_UNIQUE_MASK 0x40
 #define AVRC_PF_UID_UNIQUE_OFF 7
-#define AVRC_PF_UID_UNIQUE_SUPPORTED(x) \
-  ((x)[AVRC_PF_UID_UNIQUE_OFF] & AVRC_PF_UID_UNIQUE_MASK)
+#define AVRC_PF_UID_UNIQUE_SUPPORTED(x) ((x)[AVRC_PF_UID_UNIQUE_OFF] & AVRC_PF_UID_UNIQUE_MASK)
 
 /* OnlyBrowsableWhenAddressed.  This bit is set if the player is only able to be
  * browsed when it is set as the Addressed Player. */
 #define AVRC_PF_BR_WH_ADDR_BIT_NO 63
 #define AVRC_PF_BR_WH_ADDR_MASK 0x80
 #define AVRC_PF_BR_WH_ADDR_OFF 7
-#define AVRC_PF_BR_WH_ADDR_SUPPORTED(x) \
-  ((x)[AVRC_PF_BR_WH_ADDR_OFF] & AVRC_PF_BR_WH_ADDR_MASK)
+#define AVRC_PF_BR_WH_ADDR_SUPPORTED(x) ((x)[AVRC_PF_BR_WH_ADDR_OFF] & AVRC_PF_BR_WH_ADDR_MASK)
 
 /* OnlySearchableWhenAddressed.  This bit is set if the player is only able to
  * be searched when it is set as the Addressed player. */
@@ -852,16 +820,14 @@ typedef uint8_t tAVRC_UID[AVRC_UID_SIZE];
 #define AVRC_PF_NOW_PLAY_BIT_NO 65
 #define AVRC_PF_NOW_PLAY_MASK 0x02
 #define AVRC_PF_NOW_PLAY_OFF 8
-#define AVRC_PF_NOW_PLAY_SUPPORTED(x) \
-  ((x)[AVRC_PF_NOW_PLAY_OFF] & AVRC_PF_NOW_PLAY_MASK)
+#define AVRC_PF_NOW_PLAY_SUPPORTED(x) ((x)[AVRC_PF_NOW_PLAY_OFF] & AVRC_PF_NOW_PLAY_MASK)
 
 /* UIDPersistency.  This bit is set if the Player is able to persist UID values
  * between AVRCP Browse Reconnect */
 #define AVRC_PF_UID_PERSIST_BIT_NO 66
 #define AVRC_PF_UID_PERSIST_MASK 0x04
 #define AVRC_PF_UID_PERSIST_OFF 8
-#define AVRC_PF_UID_PERSIST_SUPPORTED(x) \
-  ((x)[AVRC_PF_UID_PERSIST_OFF] & AVRC_PF_UID_PERSIST_MASK)
+#define AVRC_PF_UID_PERSIST_SUPPORTED(x) ((x)[AVRC_PF_UID_PERSIST_OFF] & AVRC_PF_UID_PERSIST_MASK)
 
 /* NumberOfItems. This bit is set if player supports the GetTotalNumberOfItems
  * browsing command. */
@@ -881,10 +847,10 @@ This structure contains the header parameters of an AV/C message.
 typedef struct {
   uint8_t ctype;        /* Command type.  */
   uint8_t subunit_type; /* Subunit type. */
-  uint8_t subunit_id; /* Subunit ID.  This value is typically ignored in AVRCP,
-                       * except for VENDOR DEPENDENT messages when the value is
-                       * vendor-dependent.  Value range is 0-7. */
-  uint8_t opcode;     /* Op Code (passthrough, vendor, etc) */
+  uint8_t subunit_id;   /* Subunit ID.  This value is typically ignored in AVRCP,
+                         * except for VENDOR DEPENDENT messages when the value is
+                         * vendor-dependent.  Value range is 0-7. */
+  uint8_t opcode;       /* Op Code (passthrough, vendor, etc) */
 } tAVRC_HDR;
 
 /* This structure contains a UNIT INFO message. */
@@ -939,8 +905,8 @@ typedef struct {
                            * hdr.subunit_id Unused. */
   uint8_t* p_browse_data; /* Pointer to data.  */
   uint16_t browse_len;    /* Length in bytes of data. */
-  BT_HDR* p_browse_pkt; /* The GKI buffer received. Set to NULL, if the callback
-                           function wants to keep the buffer */
+  BT_HDR* p_browse_pkt;   /* The GKI buffer received. Set to NULL, if the callback
+                             function wants to keep the buffer */
 } tAVRC_MSG_BROWSE;
 
 /* This is a union of all message type structures. */
@@ -954,33 +920,23 @@ typedef union {
 } tAVRC_MSG;
 
 /* macros */
-#define AVRC_IS_VALID_CAP_ID(a)                                         \
-  ((((a) == AVRC_CAP_COMPANY_ID) || ((a) == AVRC_CAP_EVENTS_SUPPORTED)) \
-       ? true                                                           \
-       : false)
+#define AVRC_IS_VALID_CAP_ID(a) \
+  ((((a) == AVRC_CAP_COMPANY_ID) || ((a) == AVRC_CAP_EVENTS_SUPPORTED)) ? true : false)
 
-#define AVRC_IS_VALID_EVENT_ID(a)                                            \
-  ((((a) >= AVRC_EVT_PLAY_STATUS_CHANGE) && ((a) <= AVRC_EVT_VOLUME_CHANGE)) \
-       ? true                                                                \
-       : false)
+#define AVRC_IS_VALID_EVENT_ID(a) \
+  ((((a) >= AVRC_EVT_PLAY_STATUS_CHANGE) && ((a) <= AVRC_EVT_VOLUME_CHANGE)) ? true : false)
 
-#define AVRC_IS_VALID_ATTRIBUTE(a)                      \
-  ((((((a) > 0) && (a) <= AVRC_PLAYER_SETTING_SCAN)) || \
-    ((a) >= AVRC_PLAYER_SETTING_LOW_MENU_EXT))          \
-       ? true                                           \
-       : false)
+#define AVRC_IS_VALID_ATTRIBUTE(a)                                                                 \
+  ((((((a) > 0) && (a) <= AVRC_PLAYER_SETTING_SCAN)) || ((a) >= AVRC_PLAYER_SETTING_LOW_MENU_EXT)) \
+           ? true                                                                                  \
+           : false)
 
-#define AVRC_IS_VALID_MEDIA_ATTRIBUTE(a)            \
-  (((a) >= AVRC_MEDIA_ATTR_ID_TITLE) &&             \
-           ((a) <= AVRC_MAX_NUM_MEDIA_ATTR_ID) \
-       ? true                                       \
-       : false)
+#define AVRC_IS_VALID_MEDIA_ATTRIBUTE(a) \
+  (((a) >= AVRC_MEDIA_ATTR_ID_TITLE) && ((a) <= AVRC_MAX_NUM_MEDIA_ATTR_ID) ? true : false)
 
-#define AVRC_IS_VALID_BATTERY_STATUS(a) \
-  (((a) <= AVRC_BATTERY_STATUS_FULL_CHARGE) ? true : false)
+#define AVRC_IS_VALID_BATTERY_STATUS(a) (((a) <= AVRC_BATTERY_STATUS_FULL_CHARGE) ? true : false)
 
-#define AVRC_IS_VALID_SYSTEM_STATUS(a) \
-  (((a) <= AVRC_SYSTEMSTATE_PWR_UNPLUGGED) ? true : false)
+#define AVRC_IS_VALID_SYSTEM_STATUS(a) (((a) <= AVRC_SYSTEMSTATE_PWR_UNPLUGGED) ? true : false)
 
 #define AVRC_IS_VALID_GROUP(a) (((a) <= AVRC_PDU_PREV_GROUP) ? true : false)
 
@@ -1048,16 +1004,16 @@ typedef struct {
 typedef uint8_t tAVRC_FEATURE_MASK[AVRC_FEATURE_MASK_SIZE];
 
 typedef struct {
-  uint16_t player_id;  /* A unique identifier for this media player.*/
-  uint8_t major_type;  /* Use AVRC_MJ_TYPE_AUDIO, AVRC_MJ_TYPE_VIDEO,
-                          AVRC_MJ_TYPE_BC_AUDIO, or AVRC_MJ_TYPE_BC_VIDEO.*/
-  uint32_t sub_type;   /* Use AVRC_SUB_TYPE_NONE, AVRC_SUB_TYPE_AUDIO_BOOK, or
-                          AVRC_SUB_TYPE_PODCAST*/
-  uint8_t play_status; /* Use AVRC_PLAYSTATE_STOPPED, AVRC_PLAYSTATE_PLAYING,
-                          AVRC_PLAYSTATE_PAUSED, AVRC_PLAYSTATE_FWD_SEEK,
-                           AVRC_PLAYSTATE_REV_SEEK, or AVRC_PLAYSTATE_ERROR*/
+  uint16_t player_id;          /* A unique identifier for this media player.*/
+  uint8_t major_type;          /* Use AVRC_MJ_TYPE_AUDIO, AVRC_MJ_TYPE_VIDEO,
+                                  AVRC_MJ_TYPE_BC_AUDIO, or AVRC_MJ_TYPE_BC_VIDEO.*/
+  uint32_t sub_type;           /* Use AVRC_SUB_TYPE_NONE, AVRC_SUB_TYPE_AUDIO_BOOK, or
+                                  AVRC_SUB_TYPE_PODCAST*/
+  uint8_t play_status;         /* Use AVRC_PLAYSTATE_STOPPED, AVRC_PLAYSTATE_PLAYING,
+                                  AVRC_PLAYSTATE_PAUSED, AVRC_PLAYSTATE_FWD_SEEK,
+                                   AVRC_PLAYSTATE_REV_SEEK, or AVRC_PLAYSTATE_ERROR*/
   tAVRC_FEATURE_MASK features; /* Supported feature bit mask*/
-  tAVRC_FULL_NAME name; /* The player name, name length and character set id.*/
+  tAVRC_FULL_NAME name;        /* The player name, name length and character set id.*/
 } tAVRC_ITEM_PLAYER;
 
 typedef struct {
@@ -1071,26 +1027,23 @@ typedef struct {
 } tAVRC_ITEM_FOLDER;
 
 typedef struct {
-  uint32_t
-      attr_id; /* Use AVRC_MEDIA_ATTR_ID_TITLE, AVRC_MEDIA_ATTR_ID_ARTIST,
-                  AVRC_MEDIA_ATTR_ID_ALBUM,
-                  AVRC_MEDIA_ATTR_ID_TRACK_NUM, AVRC_MEDIA_ATTR_ID_NUM_TRACKS,
-                  AVRC_MEDIA_ATTR_ID_GENRE, AVRC_MEDIA_ATTR_ID_PLAYING_TIME */
-  tAVRC_FULL_NAME
-      name; /* The attribute value, value length and character set id. */
+  uint32_t attr_id;     /* Use AVRC_MEDIA_ATTR_ID_TITLE, AVRC_MEDIA_ATTR_ID_ARTIST,
+                           AVRC_MEDIA_ATTR_ID_ALBUM,
+                           AVRC_MEDIA_ATTR_ID_TRACK_NUM, AVRC_MEDIA_ATTR_ID_NUM_TRACKS,
+                           AVRC_MEDIA_ATTR_ID_GENRE, AVRC_MEDIA_ATTR_ID_PLAYING_TIME */
+  tAVRC_FULL_NAME name; /* The attribute value, value length and character set id. */
 } tAVRC_ATTR_ENTRY;
 
 typedef struct {
-  tAVRC_UID uid; /* The uid of this media element item */
-  uint8_t type;  /* Use AVRC_MEDIA_TYPE_AUDIO or AVRC_MEDIA_TYPE_VIDEO. */
-  tAVRC_FULL_NAME name; /* The media name, name length and character set id. */
-  uint8_t attr_count;   /* The number of attributes in p_attr_list */
+  tAVRC_UID uid;                 /* The uid of this media element item */
+  uint8_t type;                  /* Use AVRC_MEDIA_TYPE_AUDIO or AVRC_MEDIA_TYPE_VIDEO. */
+  tAVRC_FULL_NAME name;          /* The media name, name length and character set id. */
+  uint8_t attr_count;            /* The number of attributes in p_attr_list */
   tAVRC_ATTR_ENTRY* p_attr_list; /* Attribute entry list. */
 } tAVRC_ITEM_MEDIA;
 
 typedef struct {
-  uint8_t
-      item_type; /* AVRC_ITEM_PLAYER, AVRC_ITEM_FOLDER, or AVRC_ITEM_MEDIA */
+  uint8_t item_type; /* AVRC_ITEM_PLAYER, AVRC_ITEM_FOLDER, or AVRC_ITEM_MEDIA */
   union {
     tAVRC_ITEM_PLAYER player; /* The properties of a media player item.*/
     tAVRC_ITEM_FOLDER folder; /* The properties of a folder item.*/

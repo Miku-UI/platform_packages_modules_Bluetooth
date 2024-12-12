@@ -25,6 +25,6 @@
 #define BT_PASS 0 /* Used for general successful function returns */
 
 /*** Port entity passes back 8 bit errors; will use upper byte offset ***/
-#define GAP_ERR_GRP 0x0100   /* base offset for GAP profile */
+#define GAP_ERR_GRP 0x0100 /* base offset for GAP profile */
 
 #endif /* PROFILES_API_H */

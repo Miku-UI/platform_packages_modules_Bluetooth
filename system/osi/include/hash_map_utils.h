@@ -30,5 +30,5 @@
 //   "key0=;key1=value1;"        -> map: [key0]="" [key1]="value1"
 //   "=value0;key1=value1;"      -> map: [key1]="value1"
 // A new hash map or NULL is returned and is owned by the caller.
-std::unordered_map<std::string, std::string>
-hash_map_utils_new_from_string_params(const char* params);
+std::unordered_map<std::string, std::string> hash_map_utils_new_from_string_params(
+        const char* params);

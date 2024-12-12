@@ -28,7 +28,7 @@ namespace common {
 
 template <typename T>
 class CircularBuffer {
- public:
+public:
   explicit CircularBuffer(size_t size);
 
   // Push one item to the circular buffer
@@ -38,23 +38,24 @@ class CircularBuffer {
   // Drain everything from the circular buffer and return them as a vector
   std::vector<T> Drain();
 
- private:
+private:
   const size_t size_;
   std::deque<T> queue_;
   mutable std::mutex mutex_;
 };
 
 class Timestamper {
- public:
+public:
   virtual long long GetTimestamp() const = 0;
   virtual ~Timestamper() {}
 };
 
 class TimestamperInMilliseconds : public Timestamper {
- public:
+public:
   long long GetTimestamp() const override {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-        .count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+            .count();
   }
   virtual ~TimestamperInMilliseconds() {}
 };
@@ -67,15 +68,16 @@ struct TimestampedEntry {
 
 template <typename T>
 class TimestampedCircularBuffer : public CircularBuffer<TimestampedEntry<T>> {
- public:
+public:
   explicit TimestampedCircularBuffer(
-      size_t size, std::unique_ptr<Timestamper> timestamper = std::make_unique<TimestamperInMilliseconds>());
+          size_t size,
+          std::unique_ptr<Timestamper> timestamper = std::make_unique<TimestamperInMilliseconds>());
 
   void Push(T item);
   std::vector<TimestampedEntry<T>> Pull() const;
   std::vector<TimestampedEntry<T>> Drain();
 
- private:
+private:
   std::unique_ptr<Timestamper> timestamper_{std::make_unique<TimestamperInMilliseconds>()};
 };
 
@@ -103,14 +105,15 @@ std::vector<T> bluetooth::common::CircularBuffer<T>::Pull() const {
 template <typename T>
 std::vector<T> bluetooth::common::CircularBuffer<T>::Drain() {
   std::unique_lock<std::mutex> lock(mutex_);
-  std::vector<T> items(std::make_move_iterator(queue_.begin()), std::make_move_iterator(queue_.end()));
+  std::vector<T> items(std::make_move_iterator(queue_.begin()),
+                       std::make_move_iterator(queue_.end()));
   queue_.clear();
   return items;
 }
 
 template <typename T>
 bluetooth::common::TimestampedCircularBuffer<T>::TimestampedCircularBuffer(
-    size_t size, std::unique_ptr<Timestamper> timestamper)
+        size_t size, std::unique_ptr<Timestamper> timestamper)
     : CircularBuffer<TimestampedEntry<T>>(size), timestamper_(std::move(timestamper)) {}
 
 template <typename T>
@@ -120,12 +123,13 @@ void bluetooth::common::TimestampedCircularBuffer<T>::Push(const T item) {
 }
 
 template <typename T>
-std::vector<struct bluetooth::common::TimestampedEntry<T>> bluetooth::common::TimestampedCircularBuffer<T>::Pull()
-    const {
+std::vector<struct bluetooth::common::TimestampedEntry<T>>
+bluetooth::common::TimestampedCircularBuffer<T>::Pull() const {
   return bluetooth::common::CircularBuffer<TimestampedEntry<T>>::Pull();
 }
 
 template <typename T>
-std::vector<struct bluetooth::common::TimestampedEntry<T>> bluetooth::common::TimestampedCircularBuffer<T>::Drain() {
+std::vector<struct bluetooth::common::TimestampedEntry<T>>
+bluetooth::common::TimestampedCircularBuffer<T>::Drain() {
   return bluetooth::common::CircularBuffer<TimestampedEntry<T>>::Drain();
 }

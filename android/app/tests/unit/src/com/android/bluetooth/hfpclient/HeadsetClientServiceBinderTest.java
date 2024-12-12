@@ -206,13 +206,6 @@ public class HeadsetClientServiceBinderTest {
     }
 
     @Test
-    public void getCurrentCalls_callsServiceMethod() {
-        mBinder.getCurrentCalls(mRemoteDevice, null);
-
-        verify(mService).getCurrentCalls(mRemoteDevice);
-    }
-
-    @Test
     public void sendDTMF_callsServiceMethod() {
         byte code = 21;
         mBinder.sendDTMF(mRemoteDevice, code, null);

@@ -56,7 +56,7 @@ void BTM_SecAddBleDevice(const RawAddress& bd_addr, tBT_DEVICE_TYPE dev_type,
  * Parameters:      bd_addr          - BD address of the peer
  *                  p_le_key         - LE key values.
  *                  key_type         - LE SMP key type.
-*
+ *
  ******************************************************************************/
 void BTM_SecAddBleKey(const RawAddress& bd_addr, tBTM_LE_KEY_VALUE* p_le_key,
                       tBTM_LE_KEY_TYPE key_type);
@@ -77,14 +77,14 @@ const Octet16& BTM_GetDeviceDHK();
  * Description      This function is called to grant security process.
  *
  * Parameters       bd_addr - peer device bd address.
- *                  res     - result of the operation BTM_SUCCESS if success.
+ *                  res     - result of the operation tBTM_STATUS::BTM_SUCCESS if success.
  *                            Otherwise, BTM_REPEATED_ATTEMPTS is too many
  *                            attempts.
  *
  * Returns          None
  *
  ******************************************************************************/
-void BTM_SecurityGrant(const RawAddress& bd_addr, uint8_t res);
+void BTM_SecurityGrant(const RawAddress& bd_addr, tBTM_STATUS res);
 
 /*******************************************************************************
  *
@@ -101,8 +101,7 @@ void BTM_SecurityGrant(const RawAddress& bd_addr, uint8_t res);
  *                               BTM_MAX_PASSKEY_VAL(999999(0xF423F)).
  *
  ******************************************************************************/
-void BTM_BlePasskeyReply(const RawAddress& bd_addr, uint8_t res,
-                         uint32_t passkey);
+void BTM_BlePasskeyReply(const RawAddress& bd_addr, tBTM_STATUS res, uint32_t passkey);
 
 /*******************************************************************************
  *
@@ -113,10 +112,10 @@ void BTM_BlePasskeyReply(const RawAddress& bd_addr, uint8_t res,
  *
  * Parameters:      bd_addr      - Address of the device with which numeric
  *                                 comparison was requested
- *                  res          - comparison result BTM_SUCCESS if success
+ *                  res          - comparison result tBTM_STATUS::BTM_SUCCESS if success
  *
  ******************************************************************************/
-void BTM_BleConfirmReply(const RawAddress& bd_addr, uint8_t res);
+void BTM_BleConfirmReply(const RawAddress& bd_addr, tBTM_STATUS res);
 
 /*******************************************************************************
  *
@@ -130,8 +129,7 @@ void BTM_BleConfirmReply(const RawAddress& bd_addr, uint8_t res);
  *                  p_data      - simple pairing Randomizer  C.
  *
  ******************************************************************************/
-void BTM_BleOobDataReply(const RawAddress& bd_addr, uint8_t res, uint8_t len,
-                         uint8_t* p_data);
+void BTM_BleOobDataReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t len, uint8_t* p_data);
 
 /*******************************************************************************
  *
@@ -146,8 +144,7 @@ void BTM_BleOobDataReply(const RawAddress& bd_addr, uint8_t res, uint8_t len,
  *                  p_r         - pointer to Randomizer.
  *
  ******************************************************************************/
-void BTM_BleSecureConnectionOobDataReply(const RawAddress& bd_addr,
-                                         uint8_t* p_c, uint8_t* p_r);
+void BTM_BleSecureConnectionOobDataReply(const RawAddress& bd_addr, uint8_t* p_c, uint8_t* p_r);
 
 /*******************************************************************************
  *
@@ -165,8 +162,8 @@ void BTM_BleSecureConnectionOobDataReply(const RawAddress& bd_addr,
  * Returns          true if signing sucessul, otherwise false.
  *
  ******************************************************************************/
-bool BTM_BleDataSignature(const RawAddress& bd_addr, uint8_t* p_text,
-                          uint16_t len, BLE_SIGNATURE signature);
+bool BTM_BleDataSignature(const RawAddress& bd_addr, uint8_t* p_text, uint16_t len,
+                          BLE_SIGNATURE signature);
 
 /*******************************************************************************
  *
@@ -183,10 +180,8 @@ bool BTM_BleDataSignature(const RawAddress& bd_addr, uint8_t* p_text,
  * Returns          true if signature verified correctly; otherwise false.
  *
  ******************************************************************************/
-bool BTM_BleVerifySignature(const RawAddress& bd_addr, uint8_t* p_orig,
-                            uint16_t len, uint32_t counter, uint8_t* p_comp);
-
-
+bool BTM_BleVerifySignature(const RawAddress& bd_addr, uint8_t* p_orig, uint16_t len,
+                            uint32_t counter, uint8_t* p_comp);
 
 /*******************************************************************************
  *
@@ -198,7 +193,7 @@ bool BTM_BleVerifySignature(const RawAddress& bd_addr, uint8_t* p_orig,
  *                            BTM_BLE_KEY_TYPE_ER
  *                            or BTM_BLE_KEY_TYPE_COUNTER.
  *                  p_key: pointer to the key.
-*
+ *
  * Returns          non2.
  *
  ******************************************************************************/

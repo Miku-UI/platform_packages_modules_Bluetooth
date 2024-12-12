@@ -22,7 +22,6 @@ import android.os.Message;
 import android.os.SystemProperties;
 import android.util.Log;
 
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 
@@ -172,10 +171,6 @@ final class AdapterState extends StateMachine {
 
         @Override
         public void enter() {
-            if (!Flags.explicitKillFromSystemServer()) {
-                super.enter();
-                return;
-            }
             int prevState = mPrevState;
             super.enter();
             if (prevState == BluetoothAdapter.STATE_BLE_TURNING_OFF) {

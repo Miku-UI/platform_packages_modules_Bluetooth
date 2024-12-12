@@ -25,7 +25,7 @@ namespace mmc {
 
 // An abstract interface representing either an encoder or a decoder.
 class MmcInterface {
- public:
+public:
   virtual ~MmcInterface() = default;
 
   // Builds and configures the encoder/decoder instance.
@@ -43,8 +43,7 @@ class MmcInterface {
   // Returns:
   //   Transcoded data length, if transcode succeeded.
   //   Negative errno on error, otherwise.
-  virtual int transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf,
-                        int o_len) = 0;
+  virtual int transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf, int o_len) = 0;
 };
 
 }  // namespace mmc

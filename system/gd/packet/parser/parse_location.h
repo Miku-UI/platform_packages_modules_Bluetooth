@@ -17,15 +17,13 @@
 #pragma once
 
 class ParseLocation {
- public:
+public:
   ParseLocation() : line_(-1) {}
 
   ParseLocation(int line) : line_(line) {}
 
-  int GetLine() {
-    return line_;
-  }
+  int GetLine() { return line_; }
 
- private:
+private:
   int line_;
 };

@@ -18,34 +18,7 @@ package {
 
 java_defaults {
     name: "service-bluetooth-buildflags",
-    errorprone: {
-        enabled: true,
-        javacflags: [
-            "-Xep:AlreadyChecked:ERROR",
-            "-Xep:BadImport:ERROR",
-            "-Xep:CatchFail:ERROR",
-            "-Xep:CheckReturnValue:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:EmptyCatch:ERROR",
-            "-Xep:EqualsIncompatibleType:ERROR",
-            "-Xep:FutureReturnValueIgnored:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidInlineTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:NonApiType:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:ReferenceEquality:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:StringCharset:ERROR",
-            "-Xep:UnnecessaryAssignment:ERROR",
-            "-Xep:UnnecessaryAsync:ERROR",
-            "-Xep:UnusedMethod:ERROR",
-            "-Xep:UnusedVariable:ERROR",
-        ],
-    },
+    defaults: ["bluetooth_errorprone_rules"],
 
     lint: {
         error_checks: [
@@ -75,6 +48,7 @@ java_library {
     srcs: [
         ":statslog-bluetooth-java-gen",
         "src/**/*.java",
+        "src/ActiveLog.kt",
         "src/AdapterBinder.kt",
         "src/AdapterState.kt",
         "src/AutoOnFeature.kt",
@@ -89,7 +63,7 @@ java_library {
     libs: [
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
-        "framework-configinfrastructure",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "service-bluetooth-binder-aidl",
         "service-bluetooth.change-ids",
@@ -105,10 +79,6 @@ java_library {
         "modules-utils-build_system",
         "modules-utils-shell-command-handler",
     ],
-
-    lint: {
-        baseline_filename: "lint-baseline.xml",
-    },
 
     optimize: {
         enabled: true,
@@ -137,7 +107,7 @@ java_library {
     },
 
     libs: [
-        "framework-bluetooth",
+        "framework-bluetooth.impl",
     ],
 
     sdk_version: "system_server_current",
@@ -186,6 +156,8 @@ android_robolectric_test {
 
     srcs: [
         ":statslog-bluetooth-java-gen",
+        "src/ActiveLog.kt",
+        "src/ActiveLogTest.kt",
         "src/AdapterState.kt",
         "src/AdapterStateTest.kt",
         "src/AutoOnFeature.kt",
@@ -207,6 +179,9 @@ android_robolectric_test {
     static_libs: [
         "androidx.test.core",
         "androidx.test.ext.truth",
+        "bluetooth-manager-service-proto-java-gen",
+        "bluetooth-nano-protos",
+        "bluetooth-proto-enums-java-gen",
         "bluetooth_flags_java_lib",
         "flag-junit",
         "kotlin-test",
@@ -215,6 +190,7 @@ android_robolectric_test {
         "mockito-robolectric-prebuilt",
         "modules-utils-expresslog",
         "platform-test-annotations",
+        "service-bluetooth-binder-aidl",
         "testng",
         "truth",
     ],
@@ -224,7 +200,7 @@ android_robolectric_test {
         "framework-statsd.stubs.module_lib",
     ],
 
-    sdk_version: "module_current",
+    sdk_version: "test_current",
     upstream: true,
     test_suites: ["general-tests"],
     strict_mode: false,

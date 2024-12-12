@@ -27,25 +27,23 @@ namespace packet {
 // Checks a custom type has all the necessary functions with the correct signatures.
 template <typename T, bool packet_little_endian>
 class CustomTypeChecker {
- public:
+public:
   template <class C, void (C::*)(BitInserter&) const>
   struct SerializeChecker {};
 
   template <class C, size_t (C::*)() const>
   struct SizeChecker {};
 
-  template <class C, bool little_endian, std::optional<Iterator<little_endian>> (*)(C* vec, Iterator<little_endian> it)>
+  template <class C, bool little_endian,
+            std::optional<Iterator<little_endian>> (*)(C* vec, Iterator<little_endian> it)>
   struct ParseChecker {};
 
   template <class C, std::string (C::*)() const>
   struct ToStringChecker {};
 
   template <class C, bool little_endian>
-  static int Test(
-      SerializeChecker<C, &C::Serialize>*,
-      SizeChecker<C, &C::size>*,
-      ParseChecker<C, little_endian, &C::Parse>*,
-      ToStringChecker<C, &C::ToString>*);
+  static int Test(SerializeChecker<C, &C::Serialize>*, SizeChecker<C, &C::size>*,
+                  ParseChecker<C, little_endian, &C::Parse>*, ToStringChecker<C, &C::ToString>*);
 
   template <class C, bool little_endian>
   static char Test(...);

@@ -15,6 +15,7 @@
  */
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include "fuzzers/a2dp/codec/a2dpCodecFuzzFunctions.h"
 #include "fuzzers/common/commonFuzzHelpers.h"
 

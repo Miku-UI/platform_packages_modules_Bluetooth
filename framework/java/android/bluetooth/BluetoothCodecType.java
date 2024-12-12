@@ -16,7 +16,6 @@
 
 package android.bluetooth;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -30,7 +29,6 @@ import com.android.bluetooth.flags.Flags;
  * BluetoothA2dp#getSupportedCodecTypes}. The codec type is uniquely identified by its name and
  * codec identifier.
  */
-@FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
 public final class BluetoothCodecType implements Parcelable {
     private final int mNativeCodecType;
     private final long mCodecId;
@@ -38,7 +36,11 @@ public final class BluetoothCodecType implements Parcelable {
 
     private BluetoothCodecType(Parcel in) {
         mNativeCodecType = in.readInt();
-        mCodecId = in.readLong();
+        if (Flags.a2dpFixCodecTypeInJava()) {
+            mCodecId = in.readLong() & 0xFFFFFFFFL;
+        } else {
+            mCodecId = in.readLong();
+        }
         mCodecName = in.readString();
     }
 
@@ -68,7 +70,11 @@ public final class BluetoothCodecType implements Parcelable {
      */
     private BluetoothCodecType(@BluetoothCodecConfig.SourceCodecType int codecType, long codecId) {
         mNativeCodecType = codecType;
-        mCodecId = codecId;
+        if (Flags.a2dpFixCodecTypeInJava()) {
+            mCodecId = codecId & 0xFFFFFFFFL;
+        } else {
+            mCodecId = codecId;
+        }
         mCodecName = BluetoothCodecConfig.getCodecName(codecType);
     }
 
@@ -83,29 +89,40 @@ public final class BluetoothCodecType implements Parcelable {
     @SystemApi
     public BluetoothCodecType(int codecType, long codecId, @NonNull String codecName) {
         mNativeCodecType = codecType;
-        mCodecId = codecId;
+        if (Flags.a2dpFixCodecTypeInJava()) {
+            mCodecId = codecId & 0xFFFFFFFFL;
+        } else {
+            mCodecId = codecId;
+        }
         mCodecName = codecName;
     }
 
     /** Returns if the codec type is mandatory in the Bluetooth specification. */
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public boolean isMandatoryCodec() {
         return mNativeCodecType == BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC;
     }
 
     /**
-     * Returns the codec unique identifier. The codec identifier is 40 bits, - Bits 0-7: Audio Codec
-     * ID, as defined by [ID 6.5.1] 0x00: SBC 0x02: AAC 0xFF: Vendor - Bits 8-23: Company ID, set to
-     * 0, if octet 0 is not 0xFF. - Bits 24-39: Vendor-defined codec ID, set to 0, if octet 0 is not
-     * 0xFF.
+     * Returns the codec unique identifier.
+     *
+     * <p>The codec identifier is 40 bits:
+     *
+     * <ul>
+     *   <li>Bits 0-7: Audio Codec ID, as defined by [ID 6.5.1]
+     *       <ul>
+     *         <li>0x00: SBC
+     *         <li>0x02: AAC
+     *         <li>0xFF: Vendor
+     *       </ul>
+     *   <li>Bits 8-23: Company ID, set to 0, if octet 0 is not 0xFF.
+     *   <li>Bits 24-39: Vendor-defined codec ID, set to 0, if octet 0 is not 0xFF.
+     * </ul>
      */
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public long getCodecId() {
         return mCodecId;
     }
 
     /** Returns the codec name. */
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public @NonNull String getCodecName() {
         return mCodecName;
     }
@@ -146,11 +163,10 @@ public final class BluetoothCodecType implements Parcelable {
 
     /** @hide */
     @Override
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mNativeCodecType);
         dest.writeLong(mCodecId);
-        dest.writeString(mCodecName);
+        BluetoothUtils.writeStringToParcel(dest, mCodecName);
     }
 
     /**
@@ -161,7 +177,6 @@ public final class BluetoothCodecType implements Parcelable {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public static @Nullable BluetoothCodecType createFromType(
             @BluetoothCodecConfig.SourceCodecType int codecType) {
         long codecId =
@@ -188,12 +203,10 @@ public final class BluetoothCodecType implements Parcelable {
      * @hide
      */
     @Override
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public int describeContents() {
         return 0;
     }
 
-    @FlaggedApi(Flags.FLAG_A2DP_OFFLOAD_CODEC_EXTENSIBILITY)
     public static final @NonNull Creator<BluetoothCodecType> CREATOR =
             new Creator<>() {
                 public BluetoothCodecType createFromParcel(Parcel in) {

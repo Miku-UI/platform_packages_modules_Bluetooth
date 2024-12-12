@@ -26,18 +26,15 @@ namespace hearing_aid {
 
 // Check if new bluetooth_audio is enabled
 bool is_hal_enabled() {
-  if (HalVersionManager::GetHalTransport() ==
-      BluetoothAudioHalTransport::HIDL) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     return hidl::hearing_aid::is_hal_2_0_enabled();
   }
   return aidl::hearing_aid::is_hal_enabled();
 }
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(StreamCallbacks stream_cb,
-          bluetooth::common::MessageLoopThread* message_loop) {
-  if (HalVersionManager::GetHalTransport() ==
-      BluetoothAudioHalTransport::HIDL) {
+bool init(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     return hidl::hearing_aid::init(stream_cb, message_loop);
   }
   return aidl::hearing_aid::init(stream_cb, message_loop);
@@ -45,8 +42,7 @@ bool init(StreamCallbacks stream_cb,
 
 // Clean up BluetoothAudio HAL
 void cleanup() {
-  if (HalVersionManager::GetHalTransport() ==
-      BluetoothAudioHalTransport::HIDL) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::hearing_aid::cleanup();
     return;
   }
@@ -55,8 +51,7 @@ void cleanup() {
 
 // Send command to the BluetoothAudio HAL: StartSession, EndSession
 void start_session() {
-  if (HalVersionManager::GetHalTransport() ==
-      BluetoothAudioHalTransport::HIDL) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::hearing_aid::start_session();
     return;
   }
@@ -64,8 +59,7 @@ void start_session() {
 }
 
 void end_session() {
-  if (HalVersionManager::GetHalTransport() ==
-      BluetoothAudioHalTransport::HIDL) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::hearing_aid::end_session();
     return;
   }
@@ -73,8 +67,7 @@ void end_session() {
 }
 
 void set_remote_delay(uint16_t delay_report_ms) {
-  if (HalVersionManager::GetHalTransport() ==
-      BluetoothAudioHalTransport::HIDL) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::hearing_aid::set_remote_delay(delay_report_ms);
     return;
   }
@@ -83,8 +76,7 @@ void set_remote_delay(uint16_t delay_report_ms) {
 
 // Read from the FMQ of BluetoothAudio HAL
 size_t read(uint8_t* p_buf, uint32_t len) {
-  if (HalVersionManager::GetHalTransport() ==
-      BluetoothAudioHalTransport::HIDL) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     return hidl::hearing_aid::read(p_buf, len);
   }
   return aidl::hearing_aid::read(p_buf, len);

@@ -25,7 +25,7 @@
 namespace bluetooth {
 
 class ModuleJniloop {
- protected:
+protected:
   ModuleJniloop() noexcept = default;
   virtual ~ModuleJniloop() = default;
   ModuleJniloop(const ModuleJniloop& mod) = delete;
@@ -40,14 +40,13 @@ class ModuleJniloop {
   template <typename T, typename Functor, typename... Args>
   void PostMethodOnJni(std::shared_ptr<T> ref, Functor&& functor, Args... args) const {
     do_in_jni_thread(base::BindOnce(
-        [](std::weak_ptr<T> ref, Functor&& functor, Args&&... args) {
-          if (std::shared_ptr<T> spt = ref.lock()) {
-            base::BindOnce(std::forward<Functor>(functor), spt, std::forward<Args>(args)...).Run();
-          }
-        },
-        std::weak_ptr<T>(ref),
-        std::forward<Functor>(functor),
-        std::forward<Args>(args)...));
+            [](std::weak_ptr<T> ref, Functor&& functor, Args&&... args) {
+              if (std::shared_ptr<T> spt = ref.lock()) {
+                base::BindOnce(std::forward<Functor>(functor), spt, std::forward<Args>(args)...)
+                        .Run();
+              }
+            },
+            std::weak_ptr<T>(ref), std::forward<Functor>(functor), std::forward<Args>(args)...));
   }
 };
 

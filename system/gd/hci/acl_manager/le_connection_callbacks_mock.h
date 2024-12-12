@@ -30,14 +30,12 @@ namespace hci {
 namespace acl_manager {
 
 class MockLeConnectionCallbacks : public LeConnectionCallbacks {
- public:
-  MOCK_METHOD(
-      void,
-      OnLeConnectSuccess,
-      (AddressWithType address_with_type, std::unique_ptr<LeAclConnection> connection),
-      (override));
-  MOCK_METHOD(
-      void, OnLeConnectFail, (AddressWithType address_with_type, ErrorCode reason), (override));
+public:
+  MOCK_METHOD(void, OnLeConnectSuccess,
+              (AddressWithType address_with_type, std::unique_ptr<LeAclConnection> connection),
+              (override));
+  MOCK_METHOD(void, OnLeConnectFail, (AddressWithType address_with_type, ErrorCode reason),
+              (override));
 };
 
 }  // namespace acl_manager

@@ -100,11 +100,10 @@ fixed_queue_t* fixed_queue_new(size_t capacity) {
   inc_func_call_count(__func__);
   return test::mock::osi_fixed_queue::fixed_queue_new(capacity);
 }
-void fixed_queue_register_dequeue(fixed_queue_t* queue, reactor_t* reactor,
-                                  fixed_queue_cb ready_cb, void* context) {
+void fixed_queue_register_dequeue(fixed_queue_t* queue, reactor_t* reactor, fixed_queue_cb ready_cb,
+                                  void* context) {
   inc_func_call_count(__func__);
-  test::mock::osi_fixed_queue::fixed_queue_register_dequeue(queue, reactor,
-                                                            ready_cb, context);
+  test::mock::osi_fixed_queue::fixed_queue_register_dequeue(queue, reactor, ready_cb, context);
 }
 void* fixed_queue_try_dequeue(fixed_queue_t* queue) {
   inc_func_call_count(__func__);
@@ -124,8 +123,7 @@ void* fixed_queue_try_peek_last(fixed_queue_t* queue) {
 }
 void* fixed_queue_try_remove_from_queue(fixed_queue_t* queue, void* data) {
   inc_func_call_count(__func__);
-  return test::mock::osi_fixed_queue::fixed_queue_try_remove_from_queue(queue,
-                                                                        data);
+  return test::mock::osi_fixed_queue::fixed_queue_try_remove_from_queue(queue, data);
 }
 void fixed_queue_unregister_dequeue(fixed_queue_t* queue) {
   inc_func_call_count(__func__);

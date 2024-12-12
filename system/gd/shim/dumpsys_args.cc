@@ -15,14 +15,17 @@
  */
 
 #include "shim/dumpsys_args.h"
-#include "shim/dumpsys.h"
 
 #include <cstring>
+
+#include "shim/dumpsys.h"
 
 using namespace bluetooth;
 
 shim::ParsedDumpsysArgs::ParsedDumpsysArgs(const char** args) {
-  if (args == nullptr) return;
+  if (args == nullptr) {
+    return;
+  }
   const char* p = *args;
   while (p != nullptr) {
     num_args_++;
@@ -31,11 +34,11 @@ shim::ParsedDumpsysArgs::ParsedDumpsysArgs(const char** args) {
     } else {
       // silently ignore unexpected option
     }
-    if (++args == nullptr) break;
+    if (++args == nullptr) {
+      break;
+    }
     p = *args;
   }
 }
 
-bool shim::ParsedDumpsysArgs::IsDeveloper() const {
-  return dev_arg_;
-}
+bool shim::ParsedDumpsysArgs::IsDeveloper() const { return dev_arg_; }

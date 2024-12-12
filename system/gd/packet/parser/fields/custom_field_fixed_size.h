@@ -20,7 +20,7 @@
 #include "parse_location.h"
 
 class CustomFieldFixedSize : public ScalarField {
- public:
+public:
   CustomFieldFixedSize(std::string name, std::string type_name, int size, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -29,7 +29,8 @@ class CustomFieldFixedSize : public ScalarField {
 
   virtual std::string GetDataType() const override;
 
-  virtual int GenBounds(std::ostream& s, Size start_offset, Size end_offset, Size size) const override;
+  virtual int GenBounds(std::ostream& s, Size start_offset, Size end_offset,
+                        Size size) const override;
 
   virtual void GenExtractor(std::ostream& s, int num_leading_bits, bool for_struct) const override;
 

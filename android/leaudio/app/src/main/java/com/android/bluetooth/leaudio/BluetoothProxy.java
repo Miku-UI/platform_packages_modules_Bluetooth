@@ -60,6 +60,7 @@ public class BluetoothProxy {
     private BluetoothCsipSetCoordinator bluetoothCsis = null;
     private BluetoothVolumeControl bluetoothVolumeControl = null;
     private BluetoothHapClient bluetoothHapClient = null;
+    private Map<LeAudioDeviceStateWrapper, BluetoothGatt> bluetoothGattMap = new HashMap<>();
     private BluetoothProfile.ServiceListener profileListener = null;
     private BluetoothHapClient.Callback hapCallback = null;
     private OnBassEventListener mBassEventListener;
@@ -87,7 +88,9 @@ public class BluetoothProxy {
                             allLeAudioDevicesMutable.getValue().stream()
                                     .filter(
                                             state ->
-                                                    state.leAudioData.nodeStatusMutable.getValue()
+                                                    state.leAudioData != null
+                                                            && state.leAudioData.nodeStatusMutable
+                                                                            .getValue()
                                                                     != null
                                                             && state.leAudioData
                                                                     .nodeStatusMutable
@@ -661,7 +664,9 @@ public class BluetoothProxy {
                                     allLeAudioDevicesMutable.getValue().stream()
                                             .filter(
                                                     state ->
-                                                            state.leAudioData.nodeStatusMutable
+                                                            state.leAudioData != null
+                                                                    && state.leAudioData
+                                                                                    .nodeStatusMutable
                                                                                     .getValue()
                                                                             != null
                                                                     && state.leAudioData
@@ -733,7 +738,9 @@ public class BluetoothProxy {
                                     allLeAudioDevicesMutable.getValue().stream()
                                             .filter(
                                                     state ->
-                                                            state.leAudioData.nodeStatusMutable
+                                                            state.leAudioData != null
+                                                                    && state.leAudioData
+                                                                                    .nodeStatusMutable
                                                                                     .getValue()
                                                                             != null
                                                                     && state.leAudioData
@@ -1341,6 +1348,58 @@ public class BluetoothProxy {
                 bluetoothHapClient.setConnectionPolicy(
                         device, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
             }
+        }
+    }
+
+    public void connectGattBr(
+            Context context, LeAudioDeviceStateWrapper device_wrapper, boolean connect) {
+
+        BluetoothGatt bluetoothGatt = bluetoothGattMap.get(device_wrapper);
+        if (bluetoothGatt == null) {
+            bluetoothGatt =
+                    device_wrapper.device.connectGatt(
+                            context,
+                            false,
+                            new BluetoothGattCallback() {
+                                public void onConnectionStateChange(
+                                        BluetoothGatt gatt, int status, int newState) {
+                                    LeAudioDeviceStateWrapper device_wrapper = null;
+                                    for (Map.Entry<LeAudioDeviceStateWrapper, BluetoothGatt> entry :
+                                            bluetoothGattMap.entrySet()) {
+                                        if (gatt == entry.getValue()) {
+                                            device_wrapper = entry.getKey();
+                                            break;
+                                        }
+                                    }
+                                    if (device_wrapper == null) {
+                                        return;
+                                    }
+
+                                    switch (newState) {
+                                        case BluetoothProfile.STATE_DISCONNECTED:
+                                            device_wrapper.isGattBrConnectedMutable.postValue(
+                                                    false);
+                                            break;
+                                        case BluetoothProfile.STATE_CONNECTED:
+                                            device_wrapper.isGattBrConnectedMutable.postValue(true);
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                            },
+                            BluetoothDevice.TRANSPORT_BREDR);
+            bluetoothGattMap.put(device_wrapper, bluetoothGatt);
+        }
+
+        if (bluetoothGatt == null) {
+            return;
+        }
+
+        if (connect) {
+            bluetoothGatt.connect();
+        } else {
+            bluetoothGatt.disconnect();
         }
     }
 

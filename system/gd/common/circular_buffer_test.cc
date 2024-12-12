@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
+#include "common/circular_buffer.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <limits>
 #include <string>
 
-#include "common/circular_buffer.h"
 #include "os/log.h"
 
 namespace testing {
 
 long long timestamp_{0};
 struct TestTimestamper : public bluetooth::common::Timestamper {
-  virtual long long GetTimestamp() const override {
-    return timestamp_++;
-  }
+  virtual long long GetTimestamp() const override { return timestamp_++; }
 };
 
 TEST(CircularBufferTest, simple) {
@@ -69,7 +69,8 @@ TEST(CircularBufferTest, simple_drain) {
 
 TEST(CircularBufferTest, test_timestamps) {
   timestamp_ = 0;
-  bluetooth::common::TimestampedCircularBuffer<std::string> buffer(10, std::make_unique<TestTimestamper>());
+  bluetooth::common::TimestampedCircularBuffer<std::string> buffer(
+          10, std::make_unique<TestTimestamper>());
 
   buffer.Push(std::string("One"));
   buffer.Push(std::string("Two"));

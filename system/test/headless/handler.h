@@ -24,14 +24,14 @@ namespace test {
 namespace headless {
 
 class Handler {
- public:
+public:
   Handler();
   ~Handler();
   Handler(const Handler& handler) = default;
 
   void Post(common::OnceClosure closure);
 
- private:
+private:
   os::Thread* thread_{nullptr};
   os::Handler* handler_{nullptr};
 };

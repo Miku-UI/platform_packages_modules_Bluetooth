@@ -75,7 +75,9 @@ extern std::string nap_service_name;  /* Service name for NAP role */
  *
  ******************************************************************************/
 void PAN_Register(tPAN_REGISTER* p_register) {
-  if (!p_register) return;
+  if (!p_register) {
+    return;
+  }
 
   pan_register_with_bnep();
 
@@ -138,8 +140,7 @@ void PAN_Deregister(void) {
  *                  PAN_FAILURE     - if the role is not valid
  *
  ******************************************************************************/
-tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name,
-                        std::string p_nap_name) {
+tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name, std::string p_nap_name) {
   /* Check if it is a shutdown request */
   if (role == PAN_ROLE_INACTIVE) {
     pan_close_all_connections();
@@ -152,8 +153,7 @@ tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name,
   const char* p_desc;
 
   /* If the role is not a valid combination reject it */
-  if ((!(role & (PAN_ROLE_CLIENT | PAN_ROLE_NAP_SERVER))) &&
-      role != PAN_ROLE_INACTIVE) {
+  if ((!(role & (PAN_ROLE_CLIENT | PAN_ROLE_NAP_SERVER))) && role != PAN_ROLE_INACTIVE) {
     log::error("PAN role {} is invalid", role);
     return PAN_FAILURE;
   }
@@ -168,33 +168,28 @@ tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name,
   log::verbose("PAN_SetRole() called with role 0x{:x}", role);
   if (role & PAN_ROLE_NAP_SERVER) {
     /* Check the service name */
-    if (p_nap_name.empty())
+    if (p_nap_name.empty()) {
       p_nap_name = std::string(PAN_NAP_DEFAULT_SERVICE_NAME);
+    }
 
     /* Registering for NAP service with SDP */
     p_desc = PAN_NAP_DEFAULT_DESCRIPTION;
 
     if (pan_cb.pan_nap_sdp_handle != 0) {
-      if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-              pan_cb.pan_nap_sdp_handle)) {
-        log::warn("Unable to delete SDP record handle:{}",
-                  pan_cb.pan_nap_sdp_handle);
+      if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(pan_cb.pan_nap_sdp_handle)) {
+        log::warn("Unable to delete SDP record handle:{}", pan_cb.pan_nap_sdp_handle);
       }
     }
 
     pan_cb.pan_nap_sdp_handle =
-        pan_register_with_sdp(UUID_SERVCLASS_NAP, p_nap_name.c_str(), p_desc);
+            pan_register_with_sdp(UUID_SERVCLASS_NAP, p_nap_name.c_str(), p_desc);
     bta_sys_add_uuid(UUID_SERVCLASS_NAP);
     nap_service_name = p_nap_name;
-  }
-  /* If the NAP role is already active and now being cleared delete the record
-   */
-  else if (pan_cb.role & PAN_ROLE_NAP_SERVER) {
+  } else if (pan_cb.role & PAN_ROLE_NAP_SERVER) {
+    /* If the NAP role is already active and now being cleared delete the record */
     if (pan_cb.pan_nap_sdp_handle != 0) {
-      if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-              pan_cb.pan_nap_sdp_handle)) {
-        log::warn("Unable to delete SDP record handle:{}",
-                  pan_cb.pan_nap_sdp_handle);
+      if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(pan_cb.pan_nap_sdp_handle)) {
+        log::warn("Unable to delete SDP record handle:{}", pan_cb.pan_nap_sdp_handle);
       }
       pan_cb.pan_nap_sdp_handle = 0;
       bta_sys_remove_uuid(UUID_SERVCLASS_NAP);
@@ -204,31 +199,27 @@ tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name,
 
   if (role & PAN_ROLE_CLIENT) {
     /* Check the service name */
-    if (p_user_name.empty()) p_user_name = PAN_PANU_DEFAULT_SERVICE_NAME;
+    if (p_user_name.empty()) {
+      p_user_name = PAN_PANU_DEFAULT_SERVICE_NAME;
+    }
 
     /* Registering for PANU service with SDP */
     p_desc = PAN_PANU_DEFAULT_DESCRIPTION;
     if (pan_cb.pan_user_sdp_handle != 0) {
-      if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-              pan_cb.pan_user_sdp_handle)) {
-        log::warn("Unable to delete SDP record handle:{}",
-                  pan_cb.pan_user_sdp_handle);
+      if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(pan_cb.pan_user_sdp_handle)) {
+        log::warn("Unable to delete SDP record handle:{}", pan_cb.pan_user_sdp_handle);
       }
     }
 
     pan_cb.pan_user_sdp_handle =
-        pan_register_with_sdp(UUID_SERVCLASS_PANU, p_user_name.c_str(), p_desc);
+            pan_register_with_sdp(UUID_SERVCLASS_PANU, p_user_name.c_str(), p_desc);
     bta_sys_add_uuid(UUID_SERVCLASS_PANU);
     user_service_name = p_user_name;
-  }
-  /* If the PANU role is already active and now being cleared delete the record
-   */
-  else if (pan_cb.role & PAN_ROLE_CLIENT) {
+  } else if (pan_cb.role & PAN_ROLE_CLIENT) {
+    /* If the PANU role is already active and now being cleared delete the record */
     if (pan_cb.pan_user_sdp_handle != 0) {
-      if (get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-              pan_cb.pan_user_sdp_handle)) {
-        log::warn("Unable to delete SDP record handle:{}",
-                  pan_cb.pan_user_sdp_handle);
+      if (get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(pan_cb.pan_user_sdp_handle)) {
+        log::warn("Unable to delete SDP record handle:{}", pan_cb.pan_user_sdp_handle);
       }
       pan_cb.pan_user_sdp_handle = 0;
       bta_sys_remove_uuid(UUID_SERVCLASS_PANU);
@@ -260,15 +251,15 @@ tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name,
  *
  * Returns          PAN_SUCCESS      - if the connection is initiated
  *                                     successfully
- *                  PAN_NO_RESOURCES - resources are not sufficent
+ *                  PAN_NO_RESOURCES - resources are not sufficient
  *                  PAN_FAILURE      - if the connection cannot be initiated
  *                                     this can be because of the combination of
  *                                     src and dst roles may not be valid or
  *                                     allowed at that point of time
  *
  ******************************************************************************/
-tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
-                        tPAN_ROLE dst_role, uint16_t* handle) {
+tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role, tPAN_ROLE dst_role,
+                        uint16_t* handle) {
   uint32_t mx_chan_id;
 
   /*
@@ -286,8 +277,7 @@ tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
   /* Validate the parameters before proceeding */
   if ((src_role != PAN_ROLE_CLIENT && src_role != PAN_ROLE_NAP_SERVER) ||
       (dst_role != PAN_ROLE_CLIENT && dst_role != PAN_ROLE_NAP_SERVER)) {
-    log::error("Either source {} or destination role {} is invalid", src_role,
-               dst_role);
+    log::error("Either source {} or destination role {} is invalid", src_role, dst_role);
     return PAN_FAILURE;
   }
 
@@ -303,9 +293,7 @@ tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
       ** because if there is already a connection we cannot accept
       ** another connection in PANU role
       */
-      log::error(
-          "Cannot make PANU connections when there are more than one "
-          "connection");
+      log::error("Cannot make PANU connections when there are more than one connection");
       return PAN_INVALID_SRC_ROLE;
     }
 
@@ -316,9 +304,8 @@ tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
       dst_uuid = UUID_SERVCLASS_NAP;
     }
     mx_chan_id = dst_uuid;
-  }
-  /* If destination is PANU role validate source role */
-  else if (dst_role == PAN_ROLE_CLIENT) {
+  } else if (dst_role == PAN_ROLE_CLIENT) {
+    /* If destination is PANU role validate source role */
     if (pan_cb.num_conns && pan_cb.active_role == PAN_ROLE_CLIENT && !pcb) {
       log::error("Device already have a connection in PANU role");
       return PAN_INVALID_SRC_ROLE;
@@ -327,16 +314,16 @@ tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
     dst_uuid = UUID_SERVCLASS_PANU;
     src_uuid = UUID_SERVCLASS_NAP;
     mx_chan_id = src_uuid;
-  }
-  /* The role combination is not valid */
-  else {
-    log::error("Source {} and Destination roles {} are not valid combination",
-               src_role, dst_role);
+  } else {
+    /* The role combination is not valid */
+    log::error("Source {} and Destination roles {} are not valid combination", src_role, dst_role);
     return PAN_FAILURE;
   }
 
   /* Allocate control block and initiate connection */
-  if (!pcb) pcb = pan_allocate_pcb(rem_bda, BNEP_INVALID_HANDLE);
+  if (!pcb) {
+    pcb = pan_allocate_pcb(rem_bda, BNEP_INVALID_HANDLE);
+  }
   if (!pcb) {
     log::error("PAN Connection failed because of no resources");
     return PAN_NO_RESOURCES;
@@ -347,9 +334,10 @@ tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
     pan_cb.num_conns++;
   } else if (pcb->con_state == PAN_STATE_CONNECTED) {
     pcb->con_flags |= PAN_FLAGS_CONN_COMPLETED;
-  } else
+  } else {
     /* PAN connection is still in progress */
     return PAN_WRONG_STATE;
+  }
 
   pcb->con_state = PAN_STATE_CONN_START;
   pcb->prv_src_uuid = pcb->src_uuid;
@@ -358,9 +346,8 @@ tPAN_RESULT PAN_Connect(const RawAddress& rem_bda, tPAN_ROLE src_role,
   pcb->src_uuid = src_uuid;
   pcb->dst_uuid = dst_uuid;
 
-  tBNEP_RESULT ret =
-      BNEP_Connect(rem_bda, Uuid::From16Bit(src_uuid),
-                   Uuid::From16Bit(dst_uuid), &(pcb->handle), mx_chan_id);
+  tBNEP_RESULT ret = BNEP_Connect(rem_bda, Uuid::From16Bit(src_uuid), Uuid::From16Bit(dst_uuid),
+                                  &(pcb->handle), mx_chan_id);
   if (ret != BNEP_SUCCESS) {
     pan_release_pcb(pcb);
     return (tPAN_RESULT)ret;
@@ -399,10 +386,13 @@ tPAN_RESULT PAN_Disconnect(uint16_t handle) {
   }
 
   result = BNEP_Disconnect(pcb->handle);
-  if (pcb->con_state != PAN_STATE_IDLE) pan_cb.num_conns--;
+  if (pcb->con_state != PAN_STATE_IDLE) {
+    pan_cb.num_conns--;
+  }
 
-  if (pan_cb.pan_bridge_req_cb && pcb->src_uuid == UUID_SERVCLASS_NAP)
+  if (pan_cb.pan_bridge_req_cb && pcb->src_uuid == UUID_SERVCLASS_NAP) {
     (*pan_cb.pan_bridge_req_cb)(pcb->rem_bda, false);
+  }
 
   BTM_LogHistory(kBtmLogTag, pcb->rem_bda, "Disconnect");
 
@@ -440,9 +430,8 @@ tPAN_RESULT PAN_Disconnect(uint16_t handle) {
  *                                           there is an error in sending data
  *
  ******************************************************************************/
-tPAN_RESULT PAN_Write(uint16_t handle, const RawAddress& dst,
-                      const RawAddress& src, uint16_t protocol, uint8_t* p_data,
-                      uint16_t len, bool ext) {
+tPAN_RESULT PAN_Write(uint16_t handle, const RawAddress& dst, const RawAddress& src,
+                      uint16_t protocol, uint8_t* p_data, uint16_t len, bool ext) {
   if (pan_cb.role == PAN_ROLE_INACTIVE || !pan_cb.num_conns) {
     log::error("PAN is not active, data write failed.");
     return PAN_FAILURE;
@@ -455,17 +444,17 @@ tPAN_RESULT PAN_Write(uint16_t handle, const RawAddress& dst,
   if (dst.address[0] & 0x01) {
     int i;
     for (i = 0; i < MAX_PAN_CONNS; ++i) {
-      if (pan_cb.pcb[i].con_state == PAN_STATE_CONNECTED)
+      if (pan_cb.pcb[i].con_state == PAN_STATE_CONNECTED) {
         BNEP_Write(pan_cb.pcb[i].handle, dst, p_data, len, protocol, src, ext);
+      }
     }
     return PAN_SUCCESS;
   }
 
-  BT_HDR* buffer = (BT_HDR*)osi_malloc(PAN_BUF_SIZE);
+  BT_HDR* buffer = reinterpret_cast<BT_HDR*>(osi_malloc(PAN_BUF_SIZE));
   buffer->len = len;
   buffer->offset = PAN_MINIMUM_OFFSET;
-  memcpy((uint8_t*)buffer + sizeof(BT_HDR) + buffer->offset, p_data,
-         buffer->len);
+  memcpy(reinterpret_cast<uint8_t*>(buffer) + sizeof(BT_HDR) + buffer->offset, p_data, buffer->len);
 
   return PAN_WriteBuf(handle, dst, src, protocol, buffer, ext);
 }
@@ -493,9 +482,8 @@ tPAN_RESULT PAN_Write(uint16_t handle, const RawAddress& dst,
  *                                           there is an error in sending data
  *
  ******************************************************************************/
-tPAN_RESULT PAN_WriteBuf(uint16_t handle, const RawAddress& dst,
-                         const RawAddress& src, uint16_t protocol,
-                         BT_HDR* p_buf, bool ext) {
+tPAN_RESULT PAN_WriteBuf(uint16_t handle, const RawAddress& dst, const RawAddress& src,
+                         uint16_t protocol, BT_HDR* p_buf, bool ext) {
   tPAN_CONN* pcb;
   uint16_t i;
   tBNEP_RESULT result;
@@ -508,11 +496,11 @@ tPAN_RESULT PAN_WriteBuf(uint16_t handle, const RawAddress& dst,
 
   /* Check if it is broadcast or multicast packet */
   if (dst.address[0] & 0x01) {
-    uint8_t* data = (uint8_t*)p_buf + sizeof(BT_HDR) + p_buf->offset;
+    uint8_t* data = reinterpret_cast<uint8_t*>(p_buf) + sizeof(BT_HDR) + p_buf->offset;
     for (i = 0; i < MAX_PAN_CONNS; ++i) {
-      if (pan_cb.pcb[i].con_state == PAN_STATE_CONNECTED)
-        BNEP_Write(pan_cb.pcb[i].handle, dst, data, p_buf->len, protocol, src,
-                   ext);
+      if (pan_cb.pcb[i].con_state == PAN_STATE_CONNECTED) {
+        BNEP_Write(pan_cb.pcb[i].handle, dst, data, p_buf->len, protocol, src, ext);
+      }
     }
     osi_free(p_buf);
     return PAN_SUCCESS;
@@ -523,8 +511,9 @@ tPAN_RESULT PAN_WriteBuf(uint16_t handle, const RawAddress& dst,
     /* Data write is on PANU connection */
     for (i = 0; i < MAX_PAN_CONNS; i++) {
       if (pan_cb.pcb[i].con_state == PAN_STATE_CONNECTED &&
-          pan_cb.pcb[i].src_uuid == UUID_SERVCLASS_PANU)
+          pan_cb.pcb[i].src_uuid == UUID_SERVCLASS_PANU) {
         break;
+      }
     }
 
     if (i == MAX_PAN_CONNS) {
@@ -533,8 +522,8 @@ tPAN_RESULT PAN_WriteBuf(uint16_t handle, const RawAddress& dst,
       return PAN_FAILURE;
     }
 
-    result =
-        BNEP_WriteBuf(pan_cb.pcb[i].handle, dst, p_buf, protocol, src, ext);
+    uint16_t len = p_buf->len;
+    result = BNEP_WriteBuf(pan_cb.pcb[i].handle, dst, p_buf, protocol, src, ext);
     if (result == BNEP_IGNORE_CMD) {
       log::verbose("PAN ignored data write for PANU connection");
       return (tPAN_RESULT)result;
@@ -543,7 +532,7 @@ tPAN_RESULT PAN_WriteBuf(uint16_t handle, const RawAddress& dst,
       return (tPAN_RESULT)result;
     }
 
-    pan_cb.pcb[i].write.octets += p_buf->len;
+    pan_cb.pcb[i].write.octets += len;
     pan_cb.pcb[i].write.packets++;
 
     log::verbose("PAN successfully wrote data for the PANU connection");
@@ -601,8 +590,7 @@ tPAN_RESULT PAN_WriteBuf(uint16_t handle, const RawAddress& dst,
  *                  PAN_FAILURE    if connection not found or error in setting
  *
  ******************************************************************************/
-tPAN_RESULT PAN_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
-                                   uint16_t* p_start_array,
+tPAN_RESULT PAN_SetProtocolFilters(uint16_t handle, uint16_t num_filters, uint16_t* p_start_array,
                                    uint16_t* p_end_array) {
   tPAN_CONN* pcb;
 
@@ -613,8 +601,8 @@ tPAN_RESULT PAN_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
     return PAN_FAILURE;
   }
 
-  tBNEP_RESULT result = BNEP_SetProtocolFilters(pcb->handle, num_filters,
-                                                p_start_array, p_end_array);
+  tBNEP_RESULT result =
+          BNEP_SetProtocolFilters(pcb->handle, num_filters, p_start_array, p_end_array);
   if (result != BNEP_SUCCESS) {
     log::error("PAN failed to set protocol filters for handle {}", handle);
     return (tPAN_RESULT)result;
@@ -641,8 +629,7 @@ tPAN_RESULT PAN_SetProtocolFilters(uint16_t handle, uint16_t num_filters,
  *
  ******************************************************************************/
 tPAN_RESULT PAN_SetMulticastFilters(uint16_t handle, uint16_t num_mcast_filters,
-                                    uint8_t* p_start_array,
-                                    uint8_t* p_end_array) {
+                                    uint8_t* p_start_array, uint8_t* p_end_array) {
   tPAN_CONN* pcb;
 
   /* Check if the connection exists */
@@ -652,8 +639,8 @@ tPAN_RESULT PAN_SetMulticastFilters(uint16_t handle, uint16_t num_mcast_filters,
     return PAN_FAILURE;
   }
 
-  tBNEP_RESULT result = BNEP_SetMulticastFilters(pcb->handle, num_mcast_filters,
-                                                 p_start_array, p_end_array);
+  tBNEP_RESULT result =
+          BNEP_SetMulticastFilters(pcb->handle, num_mcast_filters, p_start_array, p_end_array);
   if (result != BNEP_SUCCESS) {
     log::error("PAN failed to set multicast filters for handle {}", handle);
     return (tPAN_RESULT)result;
@@ -674,45 +661,43 @@ tPAN_RESULT PAN_SetMulticastFilters(uint16_t handle, uint16_t num_mcast_filters,
  * Returns          none
  *
  ******************************************************************************/
-void PAN_Init(void) {
-  memset(&pan_cb, 0, sizeof(tPAN_CB));
-}
+void PAN_Init(void) { memset(&pan_cb, 0, sizeof(tPAN_CB)); }
 
 #define DUMPSYS_TAG "shim::legacy::pan"
 void PAN_Dumpsys(int fd) {
   LOG_DUMPSYS_TITLE(fd, DUMPSYS_TAG);
 
-  LOG_DUMPSYS(fd, "Connections:%hhu roles configured:%s current:%s previous:%s",
-              pan_cb.num_conns, pan_role_to_text(pan_cb.role).c_str(),
-              pan_role_to_text(pan_cb.active_role).c_str(),
+  LOG_DUMPSYS(fd, "Connections:%hhu roles configured:%s current:%s previous:%s", pan_cb.num_conns,
+              pan_role_to_text(pan_cb.role).c_str(), pan_role_to_text(pan_cb.active_role).c_str(),
               pan_role_to_text(pan_cb.prv_active_role).c_str());
 
-  if (!user_service_name.empty())
+  if (!user_service_name.empty()) {
     LOG_DUMPSYS(fd, "service_name_user:\"%s\"", user_service_name.c_str());
-  if (!gn_service_name.empty())
+  }
+  if (!gn_service_name.empty()) {
     LOG_DUMPSYS(fd, "service_name_gn:\"%s\"", gn_service_name.c_str());
-  if (!nap_service_name.empty())
+  }
+  if (!nap_service_name.empty()) {
     LOG_DUMPSYS(fd, "service_name_nap:\"%s\"", nap_service_name.c_str());
+  }
 
   const tPAN_CONN* pcb = &pan_cb.pcb[0];
   for (int i = 0; i < MAX_PAN_CONNS; i++, pcb++) {
-    if (pcb->con_state == PAN_STATE_IDLE) continue;
+    if (pcb->con_state == PAN_STATE_IDLE) {
+      continue;
+    }
     LOG_DUMPSYS(fd, "  Id:%d peer:%s", i, ADDRESS_TO_LOGGABLE_CSTR(pcb->rem_bda));
-    LOG_DUMPSYS(
-        fd,
-        "    rx_packets:%-5lu rx_octets:%-8lu rx_errors:%-5lu rx_drops:%-5lu",
-        (unsigned long)pcb->read.packets, (unsigned long)pcb->read.octets,
-        (unsigned long)pcb->read.errors, (unsigned long)pcb->read.drops);
-    LOG_DUMPSYS(
-        fd,
-        "    tx_packets:%-5lu tx_octets:%-8lu tx_errors:%-5lu tx_drops:%-5lu",
-        (unsigned long)pcb->write.packets, (unsigned long)pcb->write.octets,
-        (unsigned long)pcb->write.errors, (unsigned long)pcb->write.drops);
+    LOG_DUMPSYS(fd, "    rx_packets:%-5lu rx_octets:%-8lu rx_errors:%-5lu rx_drops:%-5lu",
+                (unsigned long)pcb->read.packets, (unsigned long)pcb->read.octets,
+                (unsigned long)pcb->read.errors, (unsigned long)pcb->read.drops);
+    LOG_DUMPSYS(fd, "    tx_packets:%-5lu tx_octets:%-8lu tx_errors:%-5lu tx_drops:%-5lu",
+                (unsigned long)pcb->write.packets, (unsigned long)pcb->write.octets,
+                (unsigned long)pcb->write.errors, (unsigned long)pcb->write.drops);
     LOG_DUMPSYS(fd,
                 "    src_uuid:0x%04x[prev:0x%04x] dst_uuid:0x%04x[prev:0x%04x] "
                 "bad_pkts:%hu",
-                pcb->src_uuid, pcb->dst_uuid, pcb->prv_src_uuid,
-                pcb->prv_dst_uuid, pcb->bad_pkts_rcvd);
+                pcb->src_uuid, pcb->dst_uuid, pcb->prv_src_uuid, pcb->prv_dst_uuid,
+                pcb->bad_pkts_rcvd);
   }
 }
 #undef DUMPSYS_TAG

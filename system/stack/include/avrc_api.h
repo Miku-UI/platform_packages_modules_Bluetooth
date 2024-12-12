@@ -28,11 +28,10 @@
 
 #include <cstdint>
 
-#include "internal_include/bt_target.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/sdp_api.h"
+#include "stack/include/sdp_status.h"
 #include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
@@ -92,8 +91,8 @@
 #define AVRC_UNCONG_IND_EVT 3
 
 /* AVRC_BROWSE_OPEN_IND_EVT event is sent when the browse channel is
-* successfully opened.
-* This eventis sent in response to an AVRC_Open() or AVRC_OpenBrowse() . */
+ * successfully opened.
+ * This eventis sent in response to an AVRC_Open() or AVRC_OpenBrowse() . */
 #define AVRC_BROWSE_OPEN_IND_EVT 4
 
 /* AVRC_BROWSE_CLOSE_IND_EVT event is sent when a browse channel is closed.
@@ -146,8 +145,7 @@
 
 /* Configurable dynamic avrcp version enable key*/
 #ifndef AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY
-#define AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY \
-  "persist.bluetooth.dynamic_avrcp.enable"
+#define AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY "persist.bluetooth.dynamic_avrcp.enable"
 #endif
 
 /* Supported categories */
@@ -213,20 +211,19 @@ typedef struct {
  * implementation of this callback function must copy the p_service_name
  * and p_provider_name parameters passed to it as they are not guaranteed
  * to remain after the callback function exits. */
-using tAVRC_FIND_CBACK = base::Callback<void(uint16_t status)>;
+using tAVRC_FIND_CBACK = base::Callback<void(tSDP_STATUS status)>;
 
 /* This is the control callback function.  This function passes events
  * listed in Table 20 to the application. */
-using tAVRC_CTRL_CBACK =
-    base::Callback<void(uint8_t handle, uint8_t event, uint16_t result,
-                        const RawAddress* peer_addr)>;
+using tAVRC_CTRL_CBACK = base::Callback<void(uint8_t handle, uint8_t event, uint16_t result,
+                                             const RawAddress* peer_addr)>;
 
 /* This is the message callback function.  It is executed when AVCTP has
  * a message packet ready for the application.  The implementation of this
  * callback function must copy the tAVRC_MSG structure passed to it as it
  * is not guaranteed to remain after the callback function exits. */
-using tAVRC_MSG_CBACK = base::Callback<void(uint8_t handle, uint8_t label,
-                                            uint8_t opcode, tAVRC_MSG* p_msg)>;
+using tAVRC_MSG_CBACK =
+        base::Callback<void(uint8_t handle, uint8_t label, uint8_t opcode, tAVRC_MSG* p_msg)>;
 
 typedef struct {
   tAVRC_CTRL_CBACK ctrl_cback; /* application control callback */
@@ -319,9 +316,8 @@ uint16_t AVRC_GetProfileVersion();
  *
  *****************************************************************************/
 uint16_t AVRC_AddRecord(uint16_t service_uuid, const char* p_service_name,
-                        const char* p_provider_name, uint16_t categories,
-                        uint32_t sdp_handle, bool browse_supported,
-                        uint16_t profile_version, uint16_t cover_art_psm);
+                        const char* p_provider_name, uint16_t categories, uint32_t sdp_handle,
+                        bool browse_supported, uint16_t profile_version, uint16_t cover_art_psm);
 
 /*******************************************************************************
  *
@@ -378,8 +374,7 @@ uint16_t AVRC_RemoveRecord(uint32_t sdp_handle);
  *
  *****************************************************************************/
 uint16_t AVRC_FindService(uint16_t service_uuid, const RawAddress& bd_addr,
-                          tAVRC_SDP_DB_PARAMS* p_db,
-                          const tAVRC_FIND_CBACK& cback);
+                          tAVRC_SDP_DB_PARAMS* p_db, const tAVRC_FIND_CBACK& cback);
 
 /******************************************************************************
  *
@@ -429,8 +424,7 @@ uint16_t AVRC_FindService(uint16_t service_uuid, const RawAddress& bd_addr,
  *                  the connection.
  *
  *****************************************************************************/
-uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb,
-                   const RawAddress& peer_addr);
+uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb, const RawAddress& peer_addr);
 
 /******************************************************************************
  *
@@ -501,8 +495,8 @@ uint16_t AVRC_CloseBrowse(uint8_t handle);
  *                  AVRC_BAD_HANDLE if handle is invalid.
  *
  *****************************************************************************/
-uint16_t AVRC_MsgReq(uint8_t handle, uint8_t label, uint8_t ctype,
-                     BT_HDR* p_pkt, bool is_new_avrcp);
+uint16_t AVRC_MsgReq(uint8_t handle, uint8_t label, uint8_t ctype, BT_HDR* p_pkt,
+                     bool is_new_avrcp);
 
 /******************************************************************************
  *
@@ -720,8 +714,8 @@ tAVRC_STS AVRC_Ctrl_ParsCommand(tAVRC_MSG* p_msg, tAVRC_COMMAND* p_result);
  *                  Otherwise, the error code defined by AVRCP 1.4
  *
  ******************************************************************************/
-tAVRC_STS AVRC_ParsCommand(tAVRC_MSG* p_msg, tAVRC_COMMAND* p_result,
-                           uint8_t* p_buf, uint16_t buf_len);
+tAVRC_STS AVRC_ParsCommand(tAVRC_MSG* p_msg, tAVRC_COMMAND* p_result, uint8_t* p_buf,
+                           uint16_t buf_len);
 
 /*******************************************************************************
  *
@@ -734,8 +728,8 @@ tAVRC_STS AVRC_ParsCommand(tAVRC_MSG* p_msg, tAVRC_COMMAND* p_result,
  *                  Otherwise, the error code defined by AVRCP 1.4
  *
  ******************************************************************************/
-tAVRC_STS AVRC_ParsResponse(tAVRC_MSG* p_msg, tAVRC_RESPONSE* p_result,
-                            uint8_t* p_buf, uint16_t buf_len);
+tAVRC_STS AVRC_ParsResponse(tAVRC_MSG* p_msg, tAVRC_RESPONSE* p_result, uint8_t* p_buf,
+                            uint16_t buf_len);
 
 /*******************************************************************************
  *
@@ -748,8 +742,8 @@ tAVRC_STS AVRC_ParsResponse(tAVRC_MSG* p_msg, tAVRC_RESPONSE* p_result,
  *                  Otherwise, the error code defined by AVRCP 1.4
  *
  ******************************************************************************/
-tAVRC_STS AVRC_Ctrl_ParsResponse(tAVRC_MSG* p_msg, tAVRC_RESPONSE* p_result,
-                                 uint8_t* p_buf, uint16_t* buf_len);
+tAVRC_STS AVRC_Ctrl_ParsResponse(tAVRC_MSG* p_msg, tAVRC_RESPONSE* p_result, uint8_t* p_buf,
+                                 uint16_t* buf_len);
 
 /*******************************************************************************
  *
@@ -775,8 +769,7 @@ tAVRC_STS AVRC_BldCommand(tAVRC_COMMAND* p_cmd, BT_HDR** pp_pkt);
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp,
-                           BT_HDR** pp_pkt);
+tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp, BT_HDR** pp_pkt);
 
 /**************************************************************************
  *

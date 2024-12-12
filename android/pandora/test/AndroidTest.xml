@@ -33,6 +33,7 @@
         <option name="dep-module" value="grpcio==1.51.1" />
         <option name="dep-module" value="cryptography==35" />
         <option name="dep-module" value="numpy" />
+        <option name="dep-module" value="pytruth" />
     </target_preparer>
     <target_preparer class="com.android.tradefed.targetprep.DeviceSetup">
          <option name="set-property" key="persist.log.tag.bluetooth" value="VERBOSE"/>

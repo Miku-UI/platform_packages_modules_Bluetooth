@@ -17,61 +17,30 @@
 
 package com.android.bluetooth.hap;
 
-import android.bluetooth.BluetoothAdapter;
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothHapPresetInfo;
-import android.util.Log;
 
 import com.android.bluetooth.Utils;
-import com.android.internal.annotations.VisibleForTesting;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.lang.annotation.Native;
 
 /** Hearing Access Profile Client Native Interface to/from JNI. */
 public class HapClientNativeInterface {
     private static final String TAG = HapClientNativeInterface.class.getSimpleName();
 
-    private final BluetoothAdapter mAdapter;
+    @Native private final HapClientNativeCallback mHapClientNativeCallback;
 
-    public HapClientNativeInterface() {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mAdapter == null) {
-            Log.wtf(TAG, "No Bluetooth Adapter Available");
-        }
+    public HapClientNativeInterface(HapClientNativeCallback hapClientNativeCallback) {
+        mHapClientNativeCallback = requireNonNull(hapClientNativeCallback);
     }
 
-    /**
-     * Initiates HapClientService connection to a remote device.
-     *
-     * @param device the remote device
-     * @return true on success, otherwise false.
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean connectHapClient(BluetoothDevice device) {
+    boolean connectHapClient(BluetoothDevice device) {
         return connectHapClientNative(getByteAddress(device));
     }
 
-    /**
-     * Disconnects HapClientService from a remote device.
-     *
-     * @param device the remote device
-     * @return true on success, otherwise false.
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean disconnectHapClient(BluetoothDevice device) {
+    boolean disconnectHapClient(BluetoothDevice device) {
         return disconnectHapClientNative(getByteAddress(device));
-    }
-
-    /**
-     * Gets a HapClientService device
-     *
-     * @param address the remote device address
-     * @return Bluetooth Device.
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public BluetoothDevice getDevice(byte[] address) {
-        return mAdapter.getRemoteDevice(address);
     }
 
     private byte[] getByteAddress(BluetoothDevice device) {
@@ -81,278 +50,48 @@ public class HapClientNativeInterface {
         return Utils.getBytesFromAddress(device.getAddress());
     }
 
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    void sendMessageToService(HapClientStackEvent event) {
-        HapClientService service = HapClientService.getHapClientService();
-        if (service != null) {
-            service.messageFromNative(event);
-        } else {
-            Log.e(TAG, "Event ignored, service not available: " + event);
-        }
-    }
-
-    /** Initializes the native interface. */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void init() {
+    void init() {
         initNative();
     }
 
-    /** Cleanup the native interface. */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void cleanup() {
+    void cleanup() {
         cleanupNative();
     }
 
-    /**
-     * Selects the currently active preset for a HA device
-     *
-     * @param device is the device for which we want to set the active preset
-     * @param presetIndex is an index of one of the available presets
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void selectActivePreset(BluetoothDevice device, int presetIndex) {
+    void selectActivePreset(BluetoothDevice device, int presetIndex) {
         selectActivePresetNative(getByteAddress(device), presetIndex);
     }
 
-    /**
-     * Selects the currently active preset for a HA device group.
-     *
-     * @param groupId is the device group identifier for which want to set the active preset
-     * @param presetIndex is an index of one of the available presets
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void groupSelectActivePreset(int groupId, int presetIndex) {
+    void groupSelectActivePreset(int groupId, int presetIndex) {
         groupSelectActivePresetNative(groupId, presetIndex);
     }
 
-    /**
-     * Sets the next preset as a currently active preset for a HA device
-     *
-     * @param device is the device for which we want to set the active preset
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void nextActivePreset(BluetoothDevice device) {
+    void nextActivePreset(BluetoothDevice device) {
         nextActivePresetNative(getByteAddress(device));
     }
 
-    /**
-     * Sets the next preset as a currently active preset for a HA device group
-     *
-     * @param groupId is the device group identifier for which want to set the active preset
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void groupNextActivePreset(int groupId) {
+    void groupNextActivePreset(int groupId) {
         groupNextActivePresetNative(groupId);
     }
 
-    /**
-     * Sets the previous preset as a currently active preset for a HA device
-     *
-     * @param device is the device for which we want to set the active preset
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void previousActivePreset(BluetoothDevice device) {
+    void previousActivePreset(BluetoothDevice device) {
         previousActivePresetNative(getByteAddress(device));
     }
 
-    /**
-     * Sets the previous preset as a currently active preset for a HA device group
-     *
-     * @param groupId is the device group identifier for which want to set the active preset
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void groupPreviousActivePreset(int groupId) {
+    void groupPreviousActivePreset(int groupId) {
         groupPreviousActivePresetNative(groupId);
     }
 
-    /**
-     * Requests the preset name
-     *
-     * @param device is the device for which we want to get the preset name
-     * @param presetIndex is an index of one of the available presets
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void getPresetInfo(BluetoothDevice device, int presetIndex) {
+    void getPresetInfo(BluetoothDevice device, int presetIndex) {
         getPresetInfoNative(getByteAddress(device), presetIndex);
     }
 
-    /**
-     * Sets the preset name
-     *
-     * @param device is the device for which we want to get the preset name
-     * @param presetIndex is an index of one of the available presets
-     * @param name is a new name for a preset
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void setPresetName(BluetoothDevice device, int presetIndex, String name) {
+    void setPresetName(BluetoothDevice device, int presetIndex, String name) {
         setPresetNameNative(getByteAddress(device), presetIndex, name);
     }
 
-    /**
-     * Sets the preset name
-     *
-     * @param groupId is the device group
-     * @param presetIndex is an index of one of the available presets
-     * @param name is a new name for a preset
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void groupSetPresetName(int groupId, int presetIndex, String name) {
+    void groupSetPresetName(int groupId, int presetIndex, String name) {
         groupSetPresetNameNative(groupId, presetIndex, name);
-    }
-
-    // Callbacks from the native stack back into the Java framework.
-    // All callbacks are routed via the Service which will disambiguate which
-    // state machine the message should be routed to.
-
-    @VisibleForTesting
-    void onConnectionStateChanged(int state, byte[] address) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
-        event.device = getDevice(address);
-        event.valueInt1 = state;
-
-        Log.d(TAG, "onConnectionStateChanged: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onDeviceAvailable(byte[] address, int features) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
-        event.device = getDevice(address);
-        event.valueInt1 = features;
-
-        Log.d(TAG, "onDeviceAvailable: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onFeaturesUpdate(byte[] address, int features) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_DEVICE_FEATURES);
-        event.device = getDevice(address);
-        event.valueInt1 = features;
-
-        Log.d(TAG, "onFeaturesUpdate: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onActivePresetSelected(byte[] address, int presetIndex) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
-        event.device = getDevice(address);
-        event.valueInt1 = presetIndex;
-
-        Log.d(TAG, "onActivePresetSelected: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onActivePresetGroupSelected(int groupId, int presetIndex) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECTED);
-        event.valueInt1 = presetIndex;
-        event.valueInt2 = groupId;
-
-        Log.d(TAG, "onActivePresetGroupSelected: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onActivePresetSelectError(byte[] address, int resultCode) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(
-                        HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
-        event.device = getDevice(address);
-        event.valueInt1 = resultCode;
-
-        Log.d(TAG, "onActivePresetSelectError: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onActivePresetGroupSelectError(int groupId, int resultCode) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(
-                        HapClientStackEvent.EVENT_TYPE_ON_ACTIVE_PRESET_SELECT_ERROR);
-        event.valueInt1 = resultCode;
-        event.valueInt2 = groupId;
-
-        Log.d(TAG, "onActivePresetGroupSelectError: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onPresetInfo(byte[] address, int infoReason, BluetoothHapPresetInfo[] presets) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
-        event.device = getDevice(address);
-        event.valueInt2 = infoReason;
-        event.valueList = new ArrayList<>(Arrays.asList(presets));
-
-        Log.d(TAG, "onPresetInfo: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onGroupPresetInfo(int groupId, int infoReason, BluetoothHapPresetInfo[] presets) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO);
-        event.valueInt2 = infoReason;
-        event.valueInt3 = groupId;
-        event.valueList = new ArrayList<>(Arrays.asList(presets));
-
-        Log.d(TAG, "onGroupPresetInfo: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onPresetNameSetError(byte[] address, int presetIndex, int resultCode) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
-        event.device = getDevice(address);
-        event.valueInt1 = resultCode;
-        event.valueInt2 = presetIndex;
-
-        Log.d(TAG, "onPresetNameSetError: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onGroupPresetNameSetError(int groupId, int presetIndex, int resultCode) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_NAME_SET_ERROR);
-        event.valueInt1 = resultCode;
-        event.valueInt2 = presetIndex;
-        event.valueInt3 = groupId;
-
-        Log.d(TAG, "onGroupPresetNameSetError: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onPresetInfoError(byte[] address, int presetIndex, int resultCode) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
-        event.device = getDevice(address);
-        event.valueInt1 = resultCode;
-        event.valueInt2 = presetIndex;
-
-        Log.d(TAG, "onPresetInfoError: " + event);
-        sendMessageToService(event);
-    }
-
-    @VisibleForTesting
-    void onGroupPresetInfoError(int groupId, int presetIndex, int resultCode) {
-        HapClientStackEvent event =
-                new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_ON_PRESET_INFO_ERROR);
-        event.valueInt1 = resultCode;
-        event.valueInt2 = presetIndex;
-        event.valueInt3 = groupId;
-
-        Log.d(TAG, "onGroupPresetInfoError: " + event);
-        sendMessageToService(event);
     }
 
     // Native methods that call into the JNI interface

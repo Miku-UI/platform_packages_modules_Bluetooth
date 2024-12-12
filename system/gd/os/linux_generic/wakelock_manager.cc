@@ -133,7 +133,7 @@ struct WakelockManager::Stats {
   }
 
   flatbuffers::Offset<WakelockManagerData> GetDumpsysData(
-      flatbuffers::FlatBufferBuilder* fb_builder, bool is_native) const {
+          flatbuffers::FlatBufferBuilder* fb_builder, bool is_native) const {
     const uint64_t just_now_ms = now_ms();
     // Compute the last acquired interval if the wakelock is still acquired
     uint64_t delta_ms = 0;
@@ -189,8 +189,8 @@ void WakelockManager::SetOsCallouts(OsCallouts* callouts, Handler* handler) {
   os_callouts_handler_ = handler;
   is_native_ = (os_callouts_ == nullptr);
   if (is_native_) {
-    log::assert_that(
-        os_callouts_handler_ != nullptr, "handler must not be null when callout is not null");
+    log::assert_that(os_callouts_handler_ != nullptr,
+                     "handler must not be null when callout is not null");
   }
   log::info("set to {}", is_native_ ? "native" : "non-native");
 }
@@ -264,7 +264,8 @@ void WakelockManager::CleanUp() {
   initialized_ = false;
 }
 
-flatbuffers::Offset<WakelockManagerData> WakelockManager::GetDumpsysData(flatbuffers::FlatBufferBuilder* fb_builder) {
+flatbuffers::Offset<WakelockManagerData> WakelockManager::GetDumpsysData(
+        flatbuffers::FlatBufferBuilder* fb_builder) {
   std::lock_guard<std::recursive_mutex> lock_guard(mutex_);
   return pstats_->GetDumpsysData(fb_builder, is_native_);
 }

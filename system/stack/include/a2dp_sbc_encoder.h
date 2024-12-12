@@ -29,13 +29,6 @@
 
 #include "a2dp_codec_api.h"
 
-// Loads the A2DP SBC encoder.
-// Return true on success, otherwise false.
-bool A2DP_LoadEncoderSbc(void);
-
-// Unloads the A2DP SBC encoder.
-void A2DP_UnloadEncoderSbc(void);
-
 // Initialize the A2DP SBC encoder.
 // |p_peer_params| contains the A2DP peer information
 // The current A2DP codec config is in |a2dp_codec_config|.

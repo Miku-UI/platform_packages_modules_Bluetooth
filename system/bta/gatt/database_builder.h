@@ -28,16 +28,15 @@
 namespace gatt {
 
 class DatabaseBuilder {
- public:
-  constexpr static std::pair<uint16_t, uint16_t> EXPLORE_END =
-      std::make_pair(0xFFFF, 0xFFFF);
+public:
+  constexpr static std::pair<uint16_t, uint16_t> EXPLORE_END = std::make_pair(0xFFFF, 0xFFFF);
 
-  void AddService(uint16_t handle, uint16_t end_handle,
-                  const bluetooth::Uuid& uuid, bool is_primary);
-  void AddIncludedService(uint16_t handle, const bluetooth::Uuid& uuid,
-                          uint16_t start_handle, uint16_t end_handle);
-  void AddCharacteristic(uint16_t handle, uint16_t value_handle,
-                         const bluetooth::Uuid& uuid, uint8_t properties);
+  void AddService(uint16_t handle, uint16_t end_handle, const bluetooth::Uuid& uuid,
+                  bool is_primary);
+  void AddIncludedService(uint16_t handle, const bluetooth::Uuid& uuid, uint16_t start_handle,
+                          uint16_t end_handle);
+  void AddCharacteristic(uint16_t handle, uint16_t value_handle, const bluetooth::Uuid& uuid,
+                         uint8_t properties);
   void AddDescriptor(uint16_t handle, const bluetooth::Uuid& uuid);
 
   /* Returns true if next service exploration started, false if there are no
@@ -55,9 +54,7 @@ class DatabaseBuilder {
 
   /* Return vector of "Characteristic Extended Properties" descriptors that must
    * be read as part of service discovery process */
-  std::vector<uint16_t> DescriptorHandlesToRead() {
-    return descriptor_handles_to_read;
-  }
+  std::vector<uint16_t> DescriptorHandlesToRead() { return descriptor_handles_to_read; }
 
   /* Assign value to descriptors from |DescriptorHandlesToRead()|. Values must
    * be in same order. Returns |true| if all goes well, |false| if there is
@@ -81,7 +78,7 @@ class DatabaseBuilder {
   /* Return text representation of internal state for debugging purposes */
   std::string ToString() const;
 
- private:
+private:
   Database database;
   /* Start and end handle of service that is currently being discovered on the
    * remote device */

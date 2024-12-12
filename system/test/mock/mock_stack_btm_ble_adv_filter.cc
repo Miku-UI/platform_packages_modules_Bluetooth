@@ -20,6 +20,7 @@
  */
 
 #include <base/functional/bind.h>
+#include <base/functional/callback.h>
 
 #include <memory>
 
@@ -27,10 +28,10 @@
 #include "stack/include/btm_ble_api.h"
 #include "test/common/mock_functions.h"
 
-void BTM_BleAdvFilterParamSetup(
-    tBTM_BLE_SCAN_COND_OP /* action */, tBTM_BLE_PF_FILT_INDEX /* filt_index */,
-    std::unique_ptr<btgatt_filt_param_setup_t> /* p_filt_params */,
-    tBTM_BLE_PF_PARAM_CB /* cb */) {
+void BTM_BleAdvFilterParamSetup(tBTM_BLE_SCAN_COND_OP /* action */,
+                                tBTM_BLE_PF_FILT_INDEX /* filt_index */,
+                                std::unique_ptr<btgatt_filt_param_setup_t> /* p_filt_params */,
+                                tBTM_BLE_PF_PARAM_CB /* cb */) {
   inc_func_call_count(__func__);
 }
 void btm_ble_adv_filter_init(void) { inc_func_call_count(__func__); }

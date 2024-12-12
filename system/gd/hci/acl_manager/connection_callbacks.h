@@ -28,7 +28,7 @@ namespace hci {
 namespace acl_manager {
 
 class ConnectionCallbacks {
- public:
+public:
   virtual ~ConnectionCallbacks() = default;
   // Invoked when controller sends Connection Complete event with Success error code
   virtual void OnConnectSuccess(std::unique_ptr<ClassicAclConnection>) = 0;

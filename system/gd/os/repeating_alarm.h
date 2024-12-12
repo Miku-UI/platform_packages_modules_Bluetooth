@@ -29,10 +29,10 @@ namespace bluetooth {
 namespace os {
 
 // A repeating alarm for reactor-based thread, implemented by Linux timerfd.
-// When it's constructed, it will register a reactable on the specified thread; when it's destroyed, it will unregister
-// itself from the thread.
+// When it's constructed, it will register a reactable on the specified thread; when it's destroyed,
+// it will unregister itself from the thread.
 class RepeatingAlarm {
- public:
+public:
   // Create and register a repeating alarm on a given handler
   explicit RepeatingAlarm(Handler* handler);
 
@@ -48,7 +48,7 @@ class RepeatingAlarm {
   // Cancel the alarm. No-op if it's not armed.
   void Cancel();
 
- private:
+private:
   common::Closure task_;
   Handler* handler_;
   int fd_ = 0;

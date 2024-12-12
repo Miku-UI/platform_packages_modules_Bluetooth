@@ -41,8 +41,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.validateMockitoUsage;
 import static org.mockito.Mockito.verify;
 
+import android.app.PropertyInvalidatedCache;
 import android.bluetooth.IBluetooth;
 import android.bluetooth.IBluetoothCallback;
+import android.bluetooth.IBluetoothManager;
 import android.bluetooth.IBluetoothManagerCallback;
 import android.bluetooth.IBluetoothStateChangeCallback;
 import android.content.ComponentName;
@@ -95,6 +97,19 @@ public class BluetoothManagerServiceTest {
 
     TestLooper mLooper;
 
+    private static class ServerQuery
+            extends PropertyInvalidatedCache.QueryHandler<IBluetoothManager, Integer> {
+        @Override
+        public Integer apply(IBluetoothManager x) {
+            return -1;
+        }
+
+        @Override
+        public boolean shouldBypassCache(IBluetoothManager x) {
+            return true;
+        }
+    }
+
     static {
         // Required for reading DeviceConfig.
         InstrumentationRegistry.getInstrumentation()
@@ -107,6 +122,15 @@ public class BluetoothManagerServiceTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
 
+        PropertyInvalidatedCache<IBluetoothManager, Integer> testCache =
+                new PropertyInvalidatedCache<>(
+                        8,
+                        IBluetoothManager.IPC_CACHE_MODULE_SYSTEM,
+                        IBluetoothManager.GET_SYSTEM_STATE_API,
+                        IBluetoothManager.GET_SYSTEM_STATE_API,
+                        new ServerQuery());
+        PropertyInvalidatedCache.setTestMode(true);
+        testCache.testPropertyName();
         // Mock these functions so security errors won't throw
         doReturn("name")
                 .when(mBluetoothServerProxy)
@@ -162,6 +186,7 @@ public class BluetoothManagerServiceTest {
 
     @After
     public void tearDown() {
+        PropertyInvalidatedCache.setTestMode(false);
         if (mManagerService != null) {
             mManagerService.unregisterAdapter(mManagerCallback);
             mManagerService = null;
@@ -219,8 +244,10 @@ public class BluetoothManagerServiceTest {
                         any(ServiceConnection.class),
                         anyInt(),
                         any(UserHandle.class));
+        doNothing().when(mContext).unbindService(any());
         mManagerService.enableBle("enable_bindFailure_removesTimeout", mBinder);
         syncHandler(MESSAGE_ENABLE);
+        verify(mContext).unbindService(any());
 
         // TODO(b/280518177): Failed to start should be noted / reported in metrics
         // Maybe show a popup or a crash notification
@@ -273,7 +300,7 @@ public class BluetoothManagerServiceTest {
         verify(mManagerCallback).onBluetoothServiceUp(any());
 
         IBluetoothCallback btCallback = captureBluetoothCallback(mAdapterBinder);
-        verify(mAdapterBinder).enable(anyBoolean(), any());
+        verify(mAdapterBinder).offToBleOn(anyBoolean(), any());
 
         // AdapterService is sending AdapterState.BLE_TURN_ON that will trigger this callback
         // and in parallel it call its `bringUpBle()`
@@ -287,17 +314,12 @@ public class BluetoothManagerServiceTest {
         // trigger the stateChangeCallback from native
         btCallback.onBluetoothStateChange(STATE_BLE_TURNING_ON, STATE_BLE_ON);
         syncHandler(MESSAGE_BLUETOOTH_STATE_CHANGE);
-        assertThat(mManagerService.getState()).isEqualTo(STATE_BLE_ON);
-
-        // Check that we sent 2 intent, one for BLE_TURNING_ON, one for BLE_ON
-        // TODO(b/280518177): assert the intent are the correct one
-        verify(mContext, times(2)).sendBroadcastAsUser(any(), any(), any(), any());
         return btCallback;
     }
 
     private IBluetoothCallback transition_offToOn() throws Exception {
         IBluetoothCallback btCallback = transition_offToBleOn();
-        verify(mAdapterBinder, times(1)).startBrEdr(any());
+        verify(mAdapterBinder, times(1)).bleOnToOn(any());
 
         // AdapterService go to turning_on and start all profile on its own
         btCallback.onBluetoothStateChange(STATE_BLE_ON, STATE_TURNING_ON);
@@ -321,8 +343,12 @@ public class BluetoothManagerServiceTest {
 
         transition_offToBleOn();
 
+        // Check that we sent 2 intent, one for BLE_TURNING_ON, one for BLE_ON
+        // TODO(b/280518177): assert the intent are the correct one
+        verify(mContext, times(2)).sendBroadcastAsUser(any(), any(), any(), any());
+
         // Check that there was no transition to STATE_ON
-        verify(mAdapterBinder, times(0)).startBrEdr(any());
+        verify(mAdapterBinder, times(0)).bleOnToOn(any());
         assertThat(mManagerService.getState()).isEqualTo(STATE_BLE_ON);
     }
 

@@ -36,9 +36,8 @@ struct AddressWithType {
 inline core::AddressWithType ToRustAddress(tBLE_BD_ADDR address) {
   auto array = address.bda.ToArray();
   std::reverse(std::begin(array), std::end(array));
-  return core::AddressWithType{array, address.IsPublic()
-                                          ? core::AddressType::Public
-                                          : core::AddressType::Random};
+  return core::AddressWithType{
+          array, address.IsPublic() ? core::AddressType::Public : core::AddressType::Random};
 }
 
 }  // namespace core

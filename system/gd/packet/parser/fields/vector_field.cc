@@ -22,27 +22,34 @@
 
 const std::string VectorField::kFieldType = "VectorField";
 
-VectorField::VectorField(std::string name, int element_size, std::string size_modifier, ParseLocation loc)
-    : PacketField(name, loc), element_field_(new ScalarField("val", element_size, loc)), element_size_(element_size),
+VectorField::VectorField(std::string name, int element_size, std::string size_modifier,
+                         ParseLocation loc)
+    : PacketField(name, loc),
+      element_field_(new ScalarField("val", element_size, loc)),
+      element_size_(element_size),
       size_modifier_(size_modifier) {
-  if (element_size > 64 || element_size < 0)
+  if (element_size > 64 || element_size < 0) {
     ERROR(this) << __func__ << ": Not implemented for element size = " << element_size;
+  }
   if (element_size % 8 != 0) {
-    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size << ")";
+    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size
+                << ")";
   }
 }
 
-VectorField::VectorField(std::string name, TypeDef* type_def, std::string size_modifier, ParseLocation loc)
-    : PacketField(name, loc), element_field_(type_def->GetNewField("val", loc)),
-      element_size_(element_field_->GetSize()), size_modifier_(size_modifier) {
+VectorField::VectorField(std::string name, TypeDef* type_def, std::string size_modifier,
+                         ParseLocation loc)
+    : PacketField(name, loc),
+      element_field_(type_def->GetNewField("val", loc)),
+      element_size_(element_field_->GetSize()),
+      size_modifier_(size_modifier) {
   if (!element_size_.empty() && element_size_.bits() % 8 != 0) {
-    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size_ << ")";
+    ERROR(this) << "Can only have arrays with elements that are byte aligned (" << element_size_
+                << ")";
   }
 }
 
-const std::string& VectorField::GetFieldType() const {
-  return VectorField::kFieldType;
-}
+const std::string& VectorField::GetFieldType() const { return VectorField::kFieldType; }
 
 Size VectorField::GetSize() const {
   // If there is no size field, then it is of unknown size.
@@ -52,15 +59,18 @@ Size VectorField::GetSize() const {
 
   // size_field_ is of type SIZE
   if (size_field_->GetFieldType() == SizeField::kFieldType) {
-    std::string ret = "(static_cast<size_t>(Get" + util::UnderscoreToCamelCase(size_field_->GetName()) + "()) * 8)";
-    if (!size_modifier_.empty()) ret += "+ (" + size_modifier_.substr(1) + " * 8)";
+    std::string ret = "(static_cast<size_t>(Get" +
+                      util::UnderscoreToCamelCase(size_field_->GetName()) + "()) * 8)";
+    if (!size_modifier_.empty()) {
+      ret += "+ (" + size_modifier_.substr(1) + " * 8)";
+    }
     return ret;
   }
 
   // size_field_ is of type COUNT and elements have a fixed size
   if (!element_size_.empty() && !element_size_.has_dynamic()) {
-    return "(static_cast<size_t>(Get" + util::UnderscoreToCamelCase(size_field_->GetName()) + "()) * " +
-           std::to_string(element_size_.bits()) + ")";
+    return "(static_cast<size_t>(Get" + util::UnderscoreToCamelCase(size_field_->GetName()) +
+           "()) * " + std::to_string(element_size_.bits()) + ")";
   }
 
   return Size();
@@ -68,7 +78,8 @@ Size VectorField::GetSize() const {
 
 Size VectorField::GetBuilderSize() const {
   if (!element_size_.empty() && !element_size_.has_dynamic()) {
-    std::string ret = "(static_cast<size_t>(" + GetName() + "_.size()) * " + std::to_string(element_size_.bits()) + ")";
+    std::string ret = "(static_cast<size_t>(" + GetName() + "_.size()) * " +
+                      std::to_string(element_size_.bits()) + ")";
     return ret;
   } else if (element_field_->BuilderParameterMustBeMoved()) {
     std::string ret = "[this](){ size_t length = 0; for (const auto& elem : " + GetName() +
@@ -89,8 +100,11 @@ Size VectorField::GetStructSize() const {
 
   // size_field_ is of type SIZE
   if (size_field_->GetFieldType() == SizeField::kFieldType) {
-    std::string ret = "(static_cast<size_t>(to_fill->" + size_field_->GetName() + "_extracted_) * 8)";
-    if (!size_modifier_.empty()) ret += "- (" + size_modifier_.substr(1) + " * 8)";
+    std::string ret =
+            "(static_cast<size_t>(to_fill->" + size_field_->GetName() + "_extracted_) * 8)";
+    if (!size_modifier_.empty()) {
+      ret += "- (" + size_modifier_.substr(1) + " * 8)";
+    }
     return ret;
   }
 
@@ -123,7 +137,8 @@ void VectorField::GenExtractor(std::ostream& s, int num_leading_bits, bool for_s
     s << "(" << element_field_->GetName() << "_count-- > 0) && ";
   }
   if (!element_size_.empty()) {
-    s << element_field_->GetName() << "_it.NumBytesRemaining() >= " << element_size_.bytes() << ") {";
+    s << element_field_->GetName() << "_it.NumBytesRemaining() >= " << element_size_.bytes()
+      << ") {";
   } else {
     s << element_field_->GetName() << "_it.NumBytesRemaining() > 0) {";
   }
@@ -131,8 +146,8 @@ void VectorField::GenExtractor(std::ostream& s, int num_leading_bits, bool for_s
     s << element_field_->GetDataType() << " " << element_field_->GetName() << "_ptr;";
   } else {
     s << element_field_->GetDataType() << " " << element_field_->GetName() << "_value;";
-    s << element_field_->GetDataType() << "* " << element_field_->GetName() << "_ptr = &" << element_field_->GetName()
-      << "_value;";
+    s << element_field_->GetDataType() << "* " << element_field_->GetName() << "_ptr = &"
+      << element_field_->GetName() << "_value;";
   }
   element_field_->GenExtractor(s, num_leading_bits, for_struct);
   s << "if (" << element_field_->GetName() << "_ptr != nullptr) { ";
@@ -193,7 +208,8 @@ bool VectorField::HasParameterValidator() const {
 
 void VectorField::GenParameterValidator(std::ostream&) const {
   // No Parameter validator if its dynamically size.
-  // TODO: Maybe add a validator to ensure that the size isn't larger than what the size field can hold.
+  // TODO: Maybe add a validator to ensure that the size isn't larger than what the size field can
+  // hold.
   return;
 }
 
@@ -204,11 +220,11 @@ void VectorField::GenInserter(std::ostream& s) const {
 }
 
 void VectorField::GenValidator(std::ostream&) const {
-  // NOTE: We could check if the element size divides cleanly into the array size, but we decided to forgo that
-  // in favor of just returning as many elements as possible in a best effort style.
+  // NOTE: We could check if the element size divides cleanly into the array size, but we decided to
+  // forgo that in favor of just returning as many elements as possible in a best effort style.
   //
-  // Other than that there is nothing that arrays need to be validated on other than length so nothing needs to
-  // be done here.
+  // Other than that there is nothing that arrays need to be validated on other than length so
+  // nothing needs to be done here.
 }
 
 void VectorField::SetSizeField(const SizeField* size_field) {
@@ -220,17 +236,11 @@ void VectorField::SetSizeField(const SizeField* size_field) {
   size_field_ = size_field;
 }
 
-const std::string& VectorField::GetSizeModifier() const {
-  return size_modifier_;
-}
+const std::string& VectorField::GetSizeModifier() const { return size_modifier_; }
 
-bool VectorField::IsContainerField() const {
-  return true;
-}
+bool VectorField::IsContainerField() const { return true; }
 
-const PacketField* VectorField::GetElementField() const {
-  return element_field_;
-}
+const PacketField* VectorField::GetElementField() const { return element_field_; }
 
 void VectorField::GenStringRepresentation(std::ostream& s, std::string accessor) const {
   s << "\"VECTOR[\";";

@@ -269,28 +269,32 @@ public class AvrcpItem {
             return true;
         }
 
-        if (!(o instanceof AvrcpItem)) {
+        if (!(o instanceof AvrcpItem other)) {
             return false;
         }
 
-        AvrcpItem other = ((AvrcpItem) o);
         return Objects.equals(mUuid, other.getUuid())
                 && Objects.equals(mDevice, other.getDevice())
-                && Objects.equals(mUid, other.getUid())
-                && Objects.equals(mItemType, other.getItemType())
-                && Objects.equals(mType, other.getType())
+                && mUid == other.getUid()
+                && mItemType == other.getItemType()
+                && mType == other.getType()
                 && Objects.equals(mTitle, other.getTitle())
                 && Objects.equals(mDisplayableName, other.getDisplayableName())
                 && Objects.equals(mArtistName, other.getArtistName())
                 && Objects.equals(mAlbumName, other.getAlbumName())
-                && Objects.equals(mTrackNumber, other.getTrackNumber())
-                && Objects.equals(mTotalNumberOfTracks, other.getTotalNumberOfTracks())
+                && mTrackNumber == other.getTrackNumber()
+                && mTotalNumberOfTracks == other.getTotalNumberOfTracks()
                 && Objects.equals(mGenre, other.getGenre())
-                && Objects.equals(mPlayingTime, other.getPlayingTime())
+                && mPlayingTime == other.getPlayingTime()
                 && Objects.equals(mCoverArtHandle, other.getCoverArtHandle())
-                && Objects.equals(mPlayable, other.isPlayable())
-                && Objects.equals(mBrowsable, other.isBrowsable())
+                && mPlayable == other.isPlayable()
+                && mBrowsable == other.isBrowsable()
                 && Objects.equals(mImageUri, other.getCoverArtLocation());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mUuid);
     }
 
     /** Builder for an AvrcpItem */

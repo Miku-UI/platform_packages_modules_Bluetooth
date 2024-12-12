@@ -53,10 +53,10 @@ public final class AvrcpControllerUtils {
                 sb.append("BACKWARD");
                 break;
             default:
-                sb.append("UNKNOWN_CMD_" + id);
+                sb.append("UNKNOWN_CMD_").append(id);
                 break;
         }
-        sb.append(" (" + id + ")");
+        sb.append(" (").append(id).append(")");
         return sb.toString();
     }
 
@@ -125,7 +125,7 @@ public final class AvrcpControllerUtils {
                 sb.append("UNKNOWN_PLAYBACK_STATE");
                 break;
         }
-        sb.append(" (" + playbackState + ")");
+        sb.append(" (").append(playbackState).append(")");
         return sb.toString();
     }
 }

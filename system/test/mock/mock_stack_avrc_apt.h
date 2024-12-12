@@ -43,12 +43,12 @@ namespace stack_avrc_apt {
 struct AVRC_SubCmd {
   static uint16_t return_value;
   std::function<uint16_t(uint8_t handle, uint8_t label, uint8_t page)> body{
-      [](uint8_t /* handle */, uint8_t /* label */, uint8_t /* page */) {
-        return return_value;
-      }};
+          [](uint8_t /* handle */, uint8_t /* label */, uint8_t /* page */) {
+            return return_value;
+          }};
   uint16_t operator()(uint8_t handle, uint8_t label, uint8_t page) {
     return body(handle, label, page);
-  };
+  }
 };
 extern struct AVRC_SubCmd AVRC_SubCmd;
 
@@ -58,10 +58,8 @@ extern struct AVRC_SubCmd AVRC_SubCmd;
 struct AVRC_UnitCmd {
   static uint16_t return_value;
   std::function<uint16_t(uint8_t handle, uint8_t label)> body{
-      [](uint8_t /* handle */, uint8_t /* label */) { return return_value; }};
-  uint16_t operator()(uint8_t handle, uint8_t label) {
-    return body(handle, label);
-  };
+          [](uint8_t /* handle */, uint8_t /* label */) { return return_value; }};
+  uint16_t operator()(uint8_t handle, uint8_t label) { return body(handle, label); }
 };
 extern struct AVRC_UnitCmd AVRC_UnitCmd;
 
@@ -70,13 +68,13 @@ extern struct AVRC_UnitCmd AVRC_UnitCmd;
 // Return: uint16_t
 struct AVRC_VendorCmd {
   static uint16_t return_value;
-  std::function<uint16_t(uint8_t handle, uint8_t label,
-                         tAVRC_MSG_VENDOR* p_msg)>
-      body{[](uint8_t /* handle */, uint8_t /* label */,
-              tAVRC_MSG_VENDOR* /* p_msg */) { return return_value; }};
+  std::function<uint16_t(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg)> body{
+          [](uint8_t /* handle */, uint8_t /* label */, tAVRC_MSG_VENDOR* /* p_msg */) {
+            return return_value;
+          }};
   uint16_t operator()(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg) {
     return body(handle, label, p_msg);
-  };
+  }
 };
 extern struct AVRC_VendorCmd AVRC_VendorCmd;
 
@@ -85,13 +83,13 @@ extern struct AVRC_VendorCmd AVRC_VendorCmd;
 // Return: uint16_t
 struct AVRC_VendorRsp {
   static uint16_t return_value;
-  std::function<uint16_t(uint8_t handle, uint8_t label,
-                         tAVRC_MSG_VENDOR* p_msg)>
-      body{[](uint8_t /* handle */, uint8_t /* label */,
-              tAVRC_MSG_VENDOR* /* p_msg */) { return return_value; }};
+  std::function<uint16_t(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg)> body{
+          [](uint8_t /* handle */, uint8_t /* label */, tAVRC_MSG_VENDOR* /* p_msg */) {
+            return return_value;
+          }};
   uint16_t operator()(uint8_t handle, uint8_t label, tAVRC_MSG_VENDOR* p_msg) {
     return body(handle, label, p_msg);
-  };
+  }
 };
 extern struct AVRC_VendorRsp AVRC_VendorRsp;
 

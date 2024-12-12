@@ -27,10 +27,10 @@ static_assert((isLittleEndian || isBigEndian) && (isLittleEndian != isBigEndian)
 
 constexpr uint32_t BTSNOOP_VERSION_NUMBER = isLittleEndian ? 0x01000000 : 1;
 constexpr uint32_t BTSNOOP_DATALINK_TYPE =
-    isLittleEndian ? 0xea030000 : 0x03ea;  // Datalink Type code for HCI UART (H4) is 1002
+        isLittleEndian ? 0xea030000 : 0x03ea;  // Datalink Type code for HCI UART (H4) is 1002
 
 class SnoopLoggerCommon {
- public:
+public:
   struct FileHeaderType {
     uint8_t identification_pattern[8];
     uint32_t version_number;
@@ -38,9 +38,9 @@ class SnoopLoggerCommon {
   } __attribute__((__packed__));
 
   static constexpr FileHeaderType kBtSnoopFileHeader = {
-      .identification_pattern = {'b', 't', 's', 'n', 'o', 'o', 'p', 0x00},
-      .version_number = BTSNOOP_VERSION_NUMBER,
-      .datalink_type = BTSNOOP_DATALINK_TYPE};
+          .identification_pattern = {'b', 't', 's', 'n', 'o', 'o', 'p', 0x00},
+          .version_number = BTSNOOP_VERSION_NUMBER,
+          .datalink_type = BTSNOOP_DATALINK_TYPE};
 };
 
 }  // namespace hal

@@ -62,6 +62,7 @@ public class BluetoothOppTransferAdapter extends ResourceCursorAdapter {
     }
 
     @Override
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void bindView(View view, Context context, Cursor cursor) {
         Resources r = context.getResources();
 

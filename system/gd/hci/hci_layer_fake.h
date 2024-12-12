@@ -15,31 +15,30 @@
  */
 
 #include <future>
+#include <list>
 #include <map>
+#include <memory>
+#include <queue>
 #include <vector>
 
-#include "common/bind.h"
-#include "hci/address.h"
 #include "hci/hci_layer.h"
-#include "packet/raw_builder.h"
 
 namespace bluetooth {
 namespace hci {
 
 packet::PacketView<packet::kLittleEndian> GetPacketView(
-    std::unique_ptr<packet::BasePacketBuilder> packet);
+        std::unique_ptr<packet::BasePacketBuilder> packet);
 
 std::unique_ptr<BasePacketBuilder> NextPayload(uint16_t handle);
 
 class HciLayerFake : public HciLayer {
- public:
-  void EnqueueCommand(
-      std::unique_ptr<CommandBuilder> command,
-      common::ContextualOnceCallback<void(CommandStatusView)> on_status) override;
+public:
+  void EnqueueCommand(std::unique_ptr<CommandBuilder> command,
+                      common::ContextualOnceCallback<void(CommandStatusView)> on_status) override;
 
   void EnqueueCommand(
-      std::unique_ptr<CommandBuilder> command,
-      common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override;
+          std::unique_ptr<CommandBuilder> command,
+          common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override;
 
   CommandView GetCommand();
 
@@ -47,18 +46,20 @@ class HciLayerFake : public HciLayer {
 
   void AssertNoQueuedCommand();
 
-  void RegisterEventHandler(EventCode event_code, common::ContextualCallback<void(EventView)> event_handler) override;
+  void RegisterEventHandler(EventCode event_code,
+                            common::ContextualCallback<void(EventView)> event_handler) override;
 
   void UnregisterEventHandler(EventCode event_code) override;
 
   void RegisterLeEventHandler(
-      SubeventCode subevent_code, common::ContextualCallback<void(LeMetaEventView)> event_handler) override;
+          SubeventCode subevent_code,
+          common::ContextualCallback<void(LeMetaEventView)> event_handler) override;
 
   void UnregisterLeEventHandler(SubeventCode subevent_code) override;
 
   void RegisterVendorSpecificEventHandler(
-      VseSubeventCode subevent_code,
-      common::ContextualCallback<void(VendorSpecificEventView)> event_handler) override;
+          VseSubeventCode subevent_code,
+          common::ContextualCallback<void(VendorSpecificEventView)> event_handler) override;
 
   void UnregisterVendorSpecificEventHandler(VseSubeventCode subevent_code) override;
 
@@ -82,12 +83,12 @@ class HciLayerFake : public HciLayer {
 
   void Disconnect(uint16_t handle, ErrorCode reason) override;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
   void Start() override;
   void Stop() override;
 
- private:
+private:
   void InitEmptyCommand();
   void do_disconnect(uint16_t handle, ErrorCode reason);
 
@@ -97,7 +98,7 @@ class HciLayerFake : public HciLayer {
   std::map<EventCode, common::ContextualCallback<void(EventView)>> registered_events_;
   std::map<SubeventCode, common::ContextualCallback<void(LeMetaEventView)>> registered_le_events_;
   std::map<VseSubeventCode, common::ContextualCallback<void(VendorSpecificEventView)>>
-      registered_vs_events_;
+          registered_vs_events_;
 
   // thread-safe
   common::BidiQueue<AclView, AclBuilder> acl_queue_{3 /* TODO: Set queue depth */};
@@ -116,10 +117,10 @@ class HciLayerFake : public HciLayer {
   // reset Command=Unset and set Consumed=Set. This way we emulate a blocking queue.
   std::promise<void> command_promise_{};  // Set when at least one command is in the queue
   std::future<void> command_future_ =
-      command_promise_.get_future();  // GetCommand() blocks until this is fulfilled
+          command_promise_.get_future();  // GetCommand() blocks until this is fulfilled
 
   CommandView empty_command_view_ = CommandView::Create(
-      PacketView<packet::kLittleEndian>(std::make_shared<std::vector<uint8_t>>()));
+          PacketView<packet::kLittleEndian>(std::make_shared<std::vector<uint8_t>>()));
 };
 
 }  // namespace hci

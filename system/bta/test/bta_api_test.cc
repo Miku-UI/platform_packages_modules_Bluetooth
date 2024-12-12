@@ -24,33 +24,30 @@
 #include <utility>
 #include <vector>
 
-#include "common/init_flags.h"
 #include "test/common/mock_functions.h"
 
 using namespace std::chrono_literals;
 
 class BtaApiTest : public testing::Test {
- protected:
+protected:
   void SetUp() override { reset_mock_function_count_map(); }
   void TearDown() override {}
 };
 
 TEST_F(BtaApiTest, bta_status_text) {
   std::vector<std::pair<tBTA_STATUS, std::string>> statuses = {
-      std::make_pair(BTA_SUCCESS, "BTA_SUCCESS"),
-      std::make_pair(BTA_FAILURE, "BTA_FAILURE"),
-      std::make_pair(BTA_PENDING, "BTA_PENDING"),
-      std::make_pair(BTA_BUSY, "BTA_BUSY"),
-      std::make_pair(BTA_NO_RESOURCES, "BTA_NO_RESOURCES"),
-      std::make_pair(BTA_WRONG_MODE, "BTA_WRONG_MODE"),
+          std::make_pair(BTA_SUCCESS, "BTA_SUCCESS"),
+          std::make_pair(BTA_FAILURE, "BTA_FAILURE"),
+          std::make_pair(BTA_PENDING, "BTA_PENDING"),
+          std::make_pair(BTA_BUSY, "BTA_BUSY"),
+          std::make_pair(BTA_NO_RESOURCES, "BTA_NO_RESOURCES"),
+          std::make_pair(BTA_WRONG_MODE, "BTA_WRONG_MODE"),
   };
   for (const auto& status : statuses) {
     ASSERT_STREQ(status.second.c_str(), bta_status_text(status.first).c_str());
   }
-  auto unknown =
-      base::StringPrintf("UNKNOWN[%d]", std::numeric_limits<uint8_t>::max());
-  ASSERT_STREQ(unknown.c_str(),
-               bta_status_text(static_cast<tBTA_STATUS>(
-                                   std::numeric_limits<uint8_t>::max()))
-                   .c_str());
+  auto unknown = base::StringPrintf("UNKNOWN[%d]", std::numeric_limits<uint8_t>::max());
+  ASSERT_STREQ(
+          unknown.c_str(),
+          bta_status_text(static_cast<tBTA_STATUS>(std::numeric_limits<uint8_t>::max())).c_str());
 }

@@ -39,8 +39,7 @@ void device_class_from_stream(bt_device_class_t* dc, const uint8_t* data);
 // Serializes the device class |dc| to pointer argument |data| in big endian
 // format.  |len| must contain the buffer size of |data|.  Returns the actual
 // number of bytes copied into |data|.  |dc| and |data| must not be NULL.
-int device_class_to_stream(const bt_device_class_t* dc, uint8_t* data,
-                           size_t len);
+int device_class_to_stream(const bt_device_class_t* dc, uint8_t* data, size_t len);
 
 // Copies the |data| class of device integer into device class |dc|.  |dc|
 // must not be NULL.
@@ -51,8 +50,7 @@ int device_class_to_int(const bt_device_class_t* dc);
 
 // Compares and returns |true| if two device classes |p1| and |p2| are equal.
 // False otherwise.
-bool device_class_equals(const bt_device_class_t* p1,
-                         const bt_device_class_t* p2);
+bool device_class_equals(const bt_device_class_t* p1, const bt_device_class_t* p2);
 
 // Copies and returns |true| if the device class was successfully copied from
 //  |p2| into |p1|.  False otherwise.

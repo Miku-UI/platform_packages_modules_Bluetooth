@@ -22,12 +22,12 @@
 #include "bta_gatt_api.h"
 
 class BtaGattServerQueue {
- public:
-  static void Clean(uint16_t conn_id);
-  static void SendNotification(uint16_t conn_id, uint16_t handle,
-                               std::vector<uint8_t> value, bool need_confirm);
-  static void NotificationCallback(uint16_t conn_id);
-  static void CongestionCallback(uint16_t conn_id, bool congested);
+public:
+  static void Clean(tCONN_ID conn_id);
+  static void SendNotification(tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
+                               bool need_confirm);
+  static void NotificationCallback(tCONN_ID conn_id);
+  static void CongestionCallback(tCONN_ID conn_id, bool congested);
 
   /* Holds pending GATT operations */
   struct gatts_operation {
@@ -37,18 +37,17 @@ class BtaGattServerQueue {
     bool need_confirm;
   };
 
- private:
+private:
   static bool is_congested;
-  static void mark_as_not_executing(uint16_t conn_id);
-  static void gatts_execute_next_op(uint16_t conn_id);
+  static void mark_as_not_executing(tCONN_ID conn_id);
+  static void gatts_execute_next_op(tCONN_ID conn_id);
 
   // maps connection id to operations waiting for execution
-  static std::unordered_map<uint16_t, std::list<gatts_operation>>
-      gatts_op_queue;
+  static std::unordered_map<tCONN_ID, std::list<gatts_operation>> gatts_op_queue;
 
   // maps connection id to congestion status of each device
-  static std::unordered_map<uint16_t, bool> congestion_queue;
+  static std::unordered_map<tCONN_ID, bool> congestion_queue;
 
   // contain connection ids that currently execute operations
-  static std::unordered_set<uint16_t> gatts_op_queue_executing;
+  static std::unordered_set<tCONN_ID> gatts_op_queue_executing;
 };

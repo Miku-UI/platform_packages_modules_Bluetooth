@@ -45,7 +45,7 @@ enum {
   BTA_HD_IDLE_ST,              /* not connected, waiting for connection */
   BTA_HD_CONN_ST,              /* host connected */
   BTA_HD_TRANSIENT_TO_INIT_ST, /* transient state: going back from CONN to INIT
-                                  */
+                                */
 };
 typedef uint8_t tBTA_HD_STATE;
 
@@ -194,8 +194,7 @@ bool bta_hd_hdl_event(const BT_HDR_RIGID* p_msg) {
 
         // unregister (and disconnect)
         bta_hd_cb.disable_w4_close = TRUE;
-        bta_hd_better_state_machine(BTA_HD_API_UNREGISTER_APP_EVT,
-                                    (tBTA_HD_DATA*)p_msg);
+        bta_hd_better_state_machine(BTA_HD_API_UNREGISTER_APP_EVT, (tBTA_HD_DATA*)p_msg);
       } else {
         bta_hd_api_disable();
       }
@@ -204,7 +203,7 @@ bool bta_hd_hdl_event(const BT_HDR_RIGID* p_msg) {
     default:
       bta_hd_better_state_machine(p_msg->event, (tBTA_HD_DATA*)p_msg);
   }
-  return (TRUE);
+  return TRUE;
 }
 
 #endif /* BTA_HD_INCLUDED */

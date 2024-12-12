@@ -158,8 +158,8 @@ final class AvrcpCoverArtStorage {
 
     public void dump(StringBuilder sb) {
         int bytes = 0;
-        sb.append("\n\timages (" + mImageHandles.size());
-        if (mMaxImages > 0) sb.append(" / " + mMaxImages);
+        sb.append("\n\timages (").append(mImageHandles.size());
+        if (mMaxImages > 0) sb.append(" / ").append(mMaxImages);
         sb.append("):");
         sb.append("\n\t\tHandle   : Hash                              : CoverArt");
         synchronized (mImagesLock) {
@@ -178,7 +178,7 @@ final class AvrcpCoverArtStorage {
                 bytes += coverArt.size();
             }
         }
-        sb.append("\n\tImage bytes: " + bytes);
+        sb.append("\n\tImage bytes: ").append(bytes);
     }
 
     /** Print a message to DEBUG if debug output is enabled */

@@ -50,10 +50,8 @@ class CsipSetCoordinatorServiceInterfaceImpl : public CsisClientInterface,
   void Init(CsisClientCallbacks* callbacks) override {
     this->callbacks_ = callbacks;
 
-    do_in_main_thread(
-        FROM_HERE,
-        Bind(&CsisClient::Initialize, this,
-             jni_thread_wrapper(Bind(&btif_storage_load_bonded_csis_devices))));
+    do_in_main_thread(Bind(&CsisClient::Initialize, this,
+                           jni_thread_wrapper(Bind(&btif_storage_load_bonded_csis_devices))));
     /* It might be not yet initialized, but setting this flag here is safe,
      * because other calls will check this and the native instance
      */
@@ -63,40 +61,37 @@ class CsipSetCoordinatorServiceInterfaceImpl : public CsisClientInterface,
   void Connect(const RawAddress& addr) override {
     if (!initialized || !CsisClient::IsCsisClientRunning()) {
       log::verbose(
-          "call ignored, due to already started cleanup procedure or service "
-          "being not read");
+              "call ignored, due to already started cleanup procedure or service "
+              "being not read");
       return;
     }
 
-    do_in_main_thread(FROM_HERE, Bind(&CsisClient::Connect,
-                                      Unretained(CsisClient::Get()), addr));
+    do_in_main_thread(Bind(&CsisClient::Connect, Unretained(CsisClient::Get()), addr));
   }
 
   void Disconnect(const RawAddress& addr) override {
     if (!initialized || !CsisClient::IsCsisClientRunning()) {
       log::verbose(
-          "call ignored, due to already started cleanup procedure or service "
-          "being not read");
+              "call ignored, due to already started cleanup procedure or service "
+              "being not read");
       return;
     }
 
-    do_in_main_thread(FROM_HERE, Bind(&CsisClient::Disconnect,
-                                      Unretained(CsisClient::Get()), addr));
+    do_in_main_thread(Bind(&CsisClient::Disconnect, Unretained(CsisClient::Get()), addr));
   }
 
   void RemoveDevice(const RawAddress& addr) override {
     if (!initialized || !CsisClient::IsCsisClientRunning()) {
       log::verbose(
-          "call ignored, due to already started cleanup procedure or service "
-          "being not ready");
+              "call ignored, due to already started cleanup procedure or service "
+              "being not ready");
 
       /* Clear storage */
       do_in_jni_thread(Bind(&btif_storage_remove_csis_device, addr));
       return;
     }
 
-    do_in_main_thread(FROM_HERE, Bind(&CsisClient::RemoveDevice,
-                                      Unretained(CsisClient::Get()), addr));
+    do_in_main_thread(Bind(&CsisClient::RemoveDevice, Unretained(CsisClient::Get()), addr));
     /* Clear storage */
     do_in_jni_thread(Bind(&btif_storage_remove_csis_device, addr));
   }
@@ -104,62 +99,59 @@ class CsipSetCoordinatorServiceInterfaceImpl : public CsisClientInterface,
   void LockGroup(int group_id, bool lock) override {
     if (!initialized || !CsisClient::IsCsisClientRunning()) {
       log::verbose(
-          "call ignored, due to already started cleanup procedure or service "
-          "being not read");
+              "call ignored, due to already started cleanup procedure or service "
+              "being not read");
       return;
     }
 
-    do_in_main_thread(
-        FROM_HERE, Bind(&CsisClient::LockGroup, Unretained(CsisClient::Get()),
-                        group_id, lock, base::DoNothing()));
+    do_in_main_thread(Bind(&CsisClient::LockGroup, Unretained(CsisClient::Get()), group_id, lock,
+                           base::DoNothing()));
   }
 
   void Cleanup(void) override {
     if (!initialized || !CsisClient::IsCsisClientRunning()) {
       log::verbose(
-          "call ignored, due to already started cleanup procedure or service "
-          "being not read");
+              "call ignored, due to already started cleanup procedure or service "
+              "being not read");
       return;
     }
 
     initialized = false;
-    do_in_main_thread(FROM_HERE, Bind(&CsisClient::CleanUp));
+    do_in_main_thread(Bind(&CsisClient::CleanUp));
   }
 
-  void OnConnectionState(const RawAddress& addr,
-                         ConnectionState state) override {
-    do_in_jni_thread(Bind(&CsisClientCallbacks::OnConnectionState,
-                          Unretained(callbacks_), addr, state));
+  void OnConnectionState(const RawAddress& addr, ConnectionState state) override {
+    do_in_jni_thread(
+            Bind(&CsisClientCallbacks::OnConnectionState, Unretained(callbacks_), addr, state));
   }
 
-  void OnDeviceAvailable(const RawAddress& addr, int group_id, int group_size,
-                         int rank, const bluetooth::Uuid& uuid) override {
-    do_in_jni_thread(Bind(&CsisClientCallbacks::OnDeviceAvailable,
-                          Unretained(callbacks_), addr, group_id, group_size,
-                          rank, uuid));
+  void OnDeviceAvailable(const RawAddress& addr, int group_id, int group_size, int rank,
+                         const bluetooth::Uuid& uuid) override {
+    do_in_jni_thread(Bind(&CsisClientCallbacks::OnDeviceAvailable, Unretained(callbacks_), addr,
+                          group_id, group_size, rank, uuid));
   }
 
   void OnSetMemberAvailable(const RawAddress& addr, int group_id) override {
-    do_in_jni_thread(Bind(&CsisClientCallbacks::OnSetMemberAvailable,
-                          Unretained(callbacks_), addr, group_id));
+    do_in_jni_thread(Bind(&CsisClientCallbacks::OnSetMemberAvailable, Unretained(callbacks_), addr,
+                          group_id));
   }
 
   /* Callback for lock changed in the group */
-  virtual void OnGroupLockChanged(int group_id, bool locked,
-                                  CsisGroupLockStatus status) override {
-    do_in_jni_thread(Bind(&CsisClientCallbacks::OnGroupLockChanged,
-                          Unretained(callbacks_), group_id, locked, status));
+  virtual void OnGroupLockChanged(int group_id, bool locked, CsisGroupLockStatus status) override {
+    do_in_jni_thread(Bind(&CsisClientCallbacks::OnGroupLockChanged, Unretained(callbacks_),
+                          group_id, locked, status));
   }
 
- private:
+private:
   CsisClientCallbacks* callbacks_;
 };
 
 } /* namespace */
 
 CsisClientInterface* btif_csis_client_get_interface(void) {
-  if (!csis_client_instance)
+  if (!csis_client_instance) {
     csis_client_instance.reset(new CsipSetCoordinatorServiceInterfaceImpl());
+  }
 
   return csis_client_instance.get();
 }

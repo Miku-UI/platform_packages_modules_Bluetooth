@@ -28,37 +28,23 @@ namespace hfp {
  * Only available if HFP is managed by AIDL sessions
  */
 class HfpClientInterface {
- private:
+private:
   class IClientInterfaceEndpoint {
-   public:
+  public:
     virtual ~IClientInterfaceEndpoint() = default;
     virtual void Cleanup() = 0;
     virtual void StartSession() = 0;
     virtual void StopSession() = 0;
-    virtual void UpdateAudioConfigToHal(
-        const ::hfp::offload_config& config) = 0;
+    virtual void UpdateAudioConfigToHal(const ::hfp::offload_config& config) = 0;
     virtual void ConfirmStreamingRequest() = 0;
     virtual void CancelStreamingRequest() = 0;
   };
 
- public:
+public:
   class Decode : public IClientInterfaceEndpoint {
-   public:
-    Decode(){};
+  public:
+    Decode() {}
     virtual ~Decode() = default;
-
-    void Cleanup() override;
-    void StartSession() override;
-    void StopSession() override;
-    void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
-    void ConfirmStreamingRequest() override;
-    void CancelStreamingRequest() override;
-    size_t Read(uint8_t* p_buf, uint32_t len);
-  };
-
-  class Encode : public IClientInterfaceEndpoint {
-   public:
-    virtual ~Encode() = default;
 
     void Cleanup() override;
     void StartSession() override;
@@ -69,8 +55,21 @@ class HfpClientInterface {
     size_t Write(const uint8_t* p_buf, uint32_t len);
   };
 
+  class Encode : public IClientInterfaceEndpoint {
+  public:
+    virtual ~Encode() = default;
+
+    void Cleanup() override;
+    void StartSession() override;
+    void StopSession() override;
+    void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
+    void ConfirmStreamingRequest() override;
+    void CancelStreamingRequest() override;
+    size_t Read(uint8_t* p_buf, uint32_t len);
+  };
+
   class Offload : public IClientInterfaceEndpoint {
-   public:
+  public:
     virtual ~Offload() = default;
 
     void Cleanup() override;
@@ -79,7 +78,7 @@ class HfpClientInterface {
     void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
-    std::unordered_map<int, ::hfp::sco_config> GetHfpScoConfig();
+    std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config> GetHfpScoConfig();
   };
 
   // Get HFP software decoding client interface if it's not previously acquired
@@ -102,7 +101,7 @@ class HfpClientInterface {
   // Get interface, if previously not initialized - it'll initialize singleton.
   static HfpClientInterface* Get();
 
- private:
+private:
   static HfpClientInterface* interface;
   Decode* decode_ = nullptr;
   Encode* encode_ = nullptr;

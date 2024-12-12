@@ -31,19 +31,14 @@ constexpr uint8_t kChannelCount[] = {1, 2};
 constexpr uint32_t kSampleRates[] = {16000, 24000, 44100, 48000, 88200, 96000};
 
 extern "C" {
-struct android_namespace_t* android_get_exported_namespace(const char*) {
-  return nullptr;
-}
+struct android_namespace_t* android_get_exported_namespace(const char*) { return nullptr; }
 }
 
 bool onResume(bool) { return true; }
 
 bool onSuspend(void) { return true; }
 
-bool onMetadataUpdate(const source_metadata_v7_t&,
-                      bluetooth::le_audio::DsaMode) {
-  return true;
-}
+bool onMetadataUpdate(const source_metadata_v7_t&, bluetooth::le_audio::DsaMode) { return true; }
 
 bool onSinkMetadataUpdate(const sink_metadata_v7_t&) { return true; }
 
@@ -60,18 +55,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   LeAudioClientInterface* interface = LeAudioClientInterface::Get();
 
-  bluetooth::audio::le_audio::StreamCallbacks streamCb = {
-      onResume, onSuspend, onMetadataUpdate, onSinkMetadataUpdate};
+  bluetooth::audio::le_audio::StreamCallbacks streamCb = {onResume, onSuspend, onMetadataUpdate,
+                                                          onSinkMetadataUpdate};
 
   if (!interface->IsSourceAcquired()) {
-    LeAudioClientInterface::Source* source =
-        interface->GetSource(streamCb, &messageLoopThread);
+    LeAudioClientInterface::Source* source = interface->GetSource(streamCb, &messageLoopThread);
     if (source != nullptr) {
       uint16_t delay = fdp.ConsumeIntegral<uint16_t>();
       source->SetRemoteDelay(delay);
       LeAudioClientInterface::PcmParameters params;
-      params.data_interval_us = fdp.ConsumeIntegralInRange<uint32_t>(
-          1000, std::numeric_limits<uint32_t>::max());
+      params.data_interval_us =
+              fdp.ConsumeIntegralInRange<uint32_t>(1000, std::numeric_limits<uint32_t>::max());
       params.sample_rate = fdp.PickValueInArray(kSampleRates);
       params.bits_per_sample = fdp.PickValueInArray(kBitsPerSample);
       params.channels_count = fdp.PickValueInArray(kChannelCount);
@@ -84,14 +78,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   if (!interface->IsUnicastSinkAcquired()) {
-    LeAudioClientInterface::Sink* sink =
-        interface->GetSink(streamCb, &messageLoopThread, false);
+    LeAudioClientInterface::Sink* sink = interface->GetSink(streamCb, &messageLoopThread, false);
     if (sink != nullptr) {
       uint16_t delay = fdp.ConsumeIntegral<uint16_t>();
       sink->SetRemoteDelay(delay);
       LeAudioClientInterface::PcmParameters params;
-      params.data_interval_us = fdp.ConsumeIntegralInRange<uint32_t>(
-          1000, std::numeric_limits<uint32_t>::max());
+      params.data_interval_us =
+              fdp.ConsumeIntegralInRange<uint32_t>(1000, std::numeric_limits<uint32_t>::max());
       params.sample_rate = fdp.PickValueInArray(kSampleRates);
       params.bits_per_sample = fdp.PickValueInArray(kBitsPerSample);
       params.channels_count = fdp.PickValueInArray(kChannelCount);

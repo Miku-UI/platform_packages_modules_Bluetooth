@@ -49,8 +49,7 @@ int HfpLc3Encoder::init(ConfigParam config) {
 
   hfp_lc3_encoder_mem_ = osi_malloc(enc_size);
 
-  hfp_lc3_encoder_ =
-      lc3_setup_encoder(dt_us, sr_hz, sr_pcm_hz, hfp_lc3_encoder_mem_);
+  hfp_lc3_encoder_ = lc3_setup_encoder(dt_us, sr_hz, sr_pcm_hz, hfp_lc3_encoder_mem_);
 
   if (hfp_lc3_encoder_ == nullptr) {
     log::error("Wrong parameters provided");
@@ -67,16 +66,15 @@ void HfpLc3Encoder::cleanup() {
   }
 }
 
-int HfpLc3Encoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf,
-                             int o_len) {
+int HfpLc3Encoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf, int o_len) {
   if (i_buf == nullptr || o_buf == nullptr) {
     log::error("Buffer is null");
     return -EINVAL;
   }
 
   /* Note this only fails when wrong parameters are supplied. */
-  int rc = lc3_encode(hfp_lc3_encoder_, MapLc3PcmFmt(param_.fmt()), i_buf,
-                      param_.stride(), HFP_LC3_PKT_FRAME_LEN, o_buf);
+  int rc = lc3_encode(hfp_lc3_encoder_, MapLc3PcmFmt(param_.fmt()), i_buf, param_.stride(),
+                      HFP_LC3_PKT_FRAME_LEN, o_buf);
 
   if (rc != 0) {
     log::warn("Wrong encode parameters");

@@ -16,6 +16,8 @@
 
 #include "bta/dm/bta_dm_gatt_client.h"
 
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <base/strings/stringprintf.h>
 
 #include <cstdint>
@@ -39,86 +41,82 @@ std::string EpochMillisToString(long long time_ms) {
   struct tm tm;
   localtime_r(&time_sec, &tm);
   std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
-  return base::StringPrintf(
-      "%s.%03u", s.c_str(),
-      static_cast<unsigned int>(time_ms % MillisPerSecond));
+  return base::StringPrintf("%s.%03u", s.c_str(),
+                            static_cast<unsigned int>(time_ms % MillisPerSecond));
 }
 }  // namespace
 
 gatt_interface_t default_gatt_interface = {
-    .BTA_GATTC_CancelOpen =
-        [](tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct) {
-          gatt_history_.Push(base::StringPrintf(
-              "%-32s bd_addr:%s client_if:%hu is_direct:%c", "GATTC_CancelOpen",
-              ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if,
-              (is_direct) ? 'T' : 'F'));
-          BTA_GATTC_CancelOpen(client_if, remote_bda, is_direct);
-        },
-    .BTA_GATTC_Refresh =
-        [](const RawAddress& remote_bda) {
-          gatt_history_.Push(
-              base::StringPrintf("%-32s bd_addr:%s", "GATTC_Refresh",
-                                 ADDRESS_TO_LOGGABLE_CSTR(remote_bda)));
-          BTA_GATTC_Refresh(remote_bda);
-        },
-    .BTA_GATTC_GetGattDb =
-        [](uint16_t conn_id, uint16_t start_handle, uint16_t end_handle,
-           btgatt_db_element_t** db, int* count) {
-          gatt_history_.Push(base::StringPrintf(
-              "%-32s conn_id:%hu start_handle:%hu end:handle:%hu",
-              "GATTC_GetGattDb", conn_id, start_handle, end_handle));
-          BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
-        },
-    .BTA_GATTC_AppRegister =
-        [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-           bool eatt_support) {
-          gatt_history_.Push(base::StringPrintf("%-32s eatt_support:%c",
-                                                "GATTC_AppRegister",
-                                                (eatt_support) ? 'T' : 'F'));
-          BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
-        },
-    .BTA_GATTC_Close =
-        [](uint16_t conn_id) {
-          gatt_history_.Push(
-              base::StringPrintf("%-32s conn_id:%hu", "GATTC_Close", conn_id));
-          BTA_GATTC_Close(conn_id);
-        },
-    .BTA_GATTC_ServiceSearchRequest =
-        [](uint16_t conn_id, const bluetooth::Uuid* p_srvc_uuid) {
-          gatt_history_.Push(base::StringPrintf(
-              "%-32s conn_id:%hu", "GATTC_ServiceSearchRequest", conn_id));
-          if (p_srvc_uuid) {
-            BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
-          } else {
-            BTA_GATTC_ServiceSearchAllRequest(conn_id);
-          }
-        },
-    .BTA_GATTC_Open =
-        [](tGATT_IF client_if, const RawAddress& remote_bda,
-           tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
-          gatt_history_.Push(base::StringPrintf(
-              "%-32s bd_addr:%s client_if:%hu type:0x%x opportunistic:%c",
-              "GATTC_Open", ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if,
-              connection_type, (opportunistic) ? 'T' : 'F'));
-          BTA_GATTC_Open(client_if, remote_bda, connection_type, opportunistic);
-        },
+        .BTA_GATTC_CancelOpen =
+                [](tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct) {
+                  gatt_history_.Push(base::StringPrintf(
+                          "%-32s bd_addr:%s client_if:%hu is_direct:%c", "GATTC_CancelOpen",
+                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if,
+                          (is_direct) ? 'T' : 'F'));
+                  BTA_GATTC_CancelOpen(client_if, remote_bda, is_direct);
+                },
+        .BTA_GATTC_Refresh =
+                [](const RawAddress& remote_bda) {
+                  gatt_history_.Push(base::StringPrintf("%-32s bd_addr:%s", "GATTC_Refresh",
+                                                        ADDRESS_TO_LOGGABLE_CSTR(remote_bda)));
+                  BTA_GATTC_Refresh(remote_bda);
+                },
+        .BTA_GATTC_GetGattDb =
+                [](tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
+                   btgatt_db_element_t** db, int* count) {
+                  gatt_history_.Push(base::StringPrintf(
+                          "%-32s conn_id:%hu start_handle:%hu end:handle:%hu", "GATTC_GetGattDb",
+                          static_cast<uint16_t>(conn_id), start_handle, end_handle));
+                  BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
+                },
+        .BTA_GATTC_AppRegister =
+                [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
+                  gatt_history_.Push(base::StringPrintf("%-32s eatt_support:%c",
+                                                        "GATTC_AppRegister",
+                                                        (eatt_support) ? 'T' : 'F'));
+                  BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
+                },
+        .BTA_GATTC_Close =
+                [](tCONN_ID conn_id) {
+                  gatt_history_.Push(base::StringPrintf("%-32s conn_id:%hu", "GATTC_Close",
+                                                        static_cast<uint16_t>(conn_id)));
+                  BTA_GATTC_Close(conn_id);
+                },
+        .BTA_GATTC_ServiceSearchRequest =
+                [](tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid) {
+                  gatt_history_.Push(base::StringPrintf("%-32s conn_id:%hu",
+                                                        "GATTC_ServiceSearchRequest",
+                                                        static_cast<uint16_t>(conn_id)));
+                  if (p_srvc_uuid) {
+                    BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
+                  } else {
+                    BTA_GATTC_ServiceSearchAllRequest(conn_id);
+                  }
+                },
+        .BTA_GATTC_Open =
+                [](tGATT_IF client_if, const RawAddress& remote_bda,
+                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic, uint16_t preferred_mtu) {
+                  gatt_history_.Push(base::StringPrintf(
+                          "%-32s bd_addr:%s client_if:%hu type:0x%x opportunistic:%c", "GATTC_Open",
+                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if, connection_type,
+                          (opportunistic) ? 'T' : 'F'));
+                  BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type,
+                                 BT_TRANSPORT_LE, opportunistic, LE_PHY_1M, preferred_mtu);
+                },
 };
 
 gatt_interface_t* gatt_interface = &default_gatt_interface;
 
 gatt_interface_t& get_gatt_interface() { return *gatt_interface; }
 
-void gatt_history_callback(const std::string& entry) {
-  gatt_history_.Push(entry);
-}
+void gatt_history_callback(const std::string& entry) { gatt_history_.Push(entry); }
 
 #define DUMPSYS_TAG "shim::legacy::bta::dm"
 void DumpsysBtaDmGattClient(int fd) {
   auto gatt_history = gatt_history_.Pull();
   LOG_DUMPSYS(fd, " last %zu gatt history entries", gatt_history.size());
   for (const auto& it : gatt_history) {
-    LOG_DUMPSYS(fd, "   %s %s", EpochMillisToString(it.timestamp).c_str(),
-                it.entry.c_str());
+    LOG_DUMPSYS(fd, "   %s %s", EpochMillisToString(it.timestamp).c_str(), it.entry.c_str());
   }
 }
 #undef DUMPSYS_TAG
@@ -131,8 +129,7 @@ namespace bluetooth {
 namespace legacy {
 namespace testing {
 
-std::vector<bluetooth::common::TimestampedEntry<std::string>>
-PullCopyOfGattHistory() {
+std::vector<bluetooth::common::TimestampedEntry<std::string>> PullCopyOfGattHistory() {
   return gatt_history_.Pull();
 }
 

@@ -66,7 +66,7 @@
 #define HFP_1_6_FEAT_MASK 0x000003FF
 
 /* HFP 1.7+ */
-#define BTA_AG_FEAT_HF_IND 0x00000400 /* HF Indicators */
+#define BTA_AG_FEAT_HF_IND 0x00000400  /* HF Indicators */
 #define BTA_AG_FEAT_ESCO_S4 0x00000800 /* eSCO S4 setting supported */
 
 /* Proprietary features: using 31 ~ 16 bits */
@@ -111,18 +111,18 @@ typedef uint8_t tBTA_AG_STATUS;
 
 typedef enum : uint8_t {
   /* AG result codes used with BTA_AgResult */
-  BTA_AG_SPK_RES = 0,         /* Update speaker volume */
-  BTA_AG_MIC_RES = 1,         /* Update microphone volume */
-  BTA_AG_INBAND_RING_RES = 2, /* Update inband ring state */
-  BTA_AG_CIND_RES = 3,        /* Send indicator response for AT+CIND */
-  BTA_AG_BINP_RES = 4,        /* Send phone number for voice tag for AT+BINP */
-  BTA_AG_IND_RES = 5,         /* Update an indicator value */
-  BTA_AG_BVRA_RES = 6,        /* Update voice recognition state */
-  BTA_AG_CNUM_RES = 7,        /* Send subscriber number response for AT+CNUM */
-  BTA_AG_BTRH_RES = 8,        /* Send CCAP incoming call hold */
-  BTA_AG_CLCC_RES = 9,        /* Query list of calls */
-  BTA_AG_COPS_RES = 10,       /* Read network operator */
-  BTA_AG_IN_CALL_RES = 11,    /* Indicate incoming phone call */
+  BTA_AG_SPK_RES = 0,            /* Update speaker volume */
+  BTA_AG_MIC_RES = 1,            /* Update microphone volume */
+  BTA_AG_INBAND_RING_RES = 2,    /* Update inband ring state */
+  BTA_AG_CIND_RES = 3,           /* Send indicator response for AT+CIND */
+  BTA_AG_BINP_RES = 4,           /* Send phone number for voice tag for AT+BINP */
+  BTA_AG_IND_RES = 5,            /* Update an indicator value */
+  BTA_AG_BVRA_RES = 6,           /* Update voice recognition state */
+  BTA_AG_CNUM_RES = 7,           /* Send subscriber number response for AT+CNUM */
+  BTA_AG_BTRH_RES = 8,           /* Send CCAP incoming call hold */
+  BTA_AG_CLCC_RES = 9,           /* Query list of calls */
+  BTA_AG_COPS_RES = 10,          /* Read network operator */
+  BTA_AG_IN_CALL_RES = 11,       /* Indicate incoming phone call */
   BTA_AG_IN_CALL_CONN_RES = 12,  /* Incoming phone call connected */
   BTA_AG_CALL_WAIT_RES = 13,     /* Call waiting notification */
   BTA_AG_OUT_CALL_ORIG_RES = 14, /* Outgoing phone call origination */
@@ -175,15 +175,15 @@ inline std::string bta_ag_result_text(const tBTA_AG_RES& result) {
 }
 
 /* HFP peer features */
-#define BTA_AG_PEER_FEAT_ECNR 0x0001   /* Echo cancellation/noise reduction */
-#define BTA_AG_PEER_FEAT_3WAY 0x0002   /* Call waiting and three-way calling */
-#define BTA_AG_PEER_FEAT_CLI 0x0004    /* Caller ID presentation capability */
-#define BTA_AG_PEER_FEAT_VREC 0x0008   /* Voice recognition activation */
-#define BTA_AG_PEER_FEAT_VOL 0x0010    /* Remote volume control */
-#define BTA_AG_PEER_FEAT_ECS 0x0020    /* Enhanced Call Status */
-#define BTA_AG_PEER_FEAT_ECC 0x0040    /* Enhanced Call Control */
-#define BTA_AG_PEER_FEAT_CODEC 0x0080  /* Codec Negotiation */
-#define BTA_AG_PEER_FEAT_HF_IND 0x0100 /* HF Indicators */
+#define BTA_AG_PEER_FEAT_ECNR 0x0001    /* Echo cancellation/noise reduction */
+#define BTA_AG_PEER_FEAT_3WAY 0x0002    /* Call waiting and three-way calling */
+#define BTA_AG_PEER_FEAT_CLI 0x0004     /* Caller ID presentation capability */
+#define BTA_AG_PEER_FEAT_VREC 0x0008    /* Voice recognition activation */
+#define BTA_AG_PEER_FEAT_VOL 0x0010     /* Remote volume control */
+#define BTA_AG_PEER_FEAT_ECS 0x0020     /* Enhanced Call Status */
+#define BTA_AG_PEER_FEAT_ECC 0x0040     /* Enhanced Call Control */
+#define BTA_AG_PEER_FEAT_CODEC 0x0080   /* Codec Negotiation */
+#define BTA_AG_PEER_FEAT_HF_IND 0x0100  /* HF Indicators */
 #define BTA_AG_PEER_FEAT_ESCO_S4 0x0200 /* eSCO S4 setting supported */
 
 /* Proprietary features: using bits after 12 */
@@ -227,7 +227,7 @@ typedef uint16_t tBTA_AG_PEER_CODEC;
 #define BTA_AG_ERR_NOT_FOR_VOIP 34  /* Not supported on this call type(VoIP) */
 #define BTA_AG_ERR_SIP_RESP_CODE 35 /* SIP 3 digit response code */
 
-#if 0 /* Not Used in Bluetooth HFP 1.5 Specification */
+#if 0                                 /* Not Used in Bluetooth HFP 1.5 Specification */
 #define BTA_AG_ERR_PHADAP_LNK_RES 2   /* Phone-adapter link reserved */
 #define BTA_AG_ERR_PHFSIM_PIN_REQ 6   /* PH-FSIM PIN required */
 #define BTA_AG_ERR_PHFSIM_PUK_REQ 7   /* PH-FSIM PUK required */
@@ -248,11 +248,11 @@ typedef uint16_t tBTA_AG_PEER_CODEC;
 #define BTA_AG_ERR_CORP_PIN_REQ 46
 /* Corporate personalization PUK required */
 #define BTA_AG_ERR_CORP_PUK_REQ 47
-#define BTA_AG_ERR_UNKNOWN 100 /* Unknown error */
+#define BTA_AG_ERR_UNKNOWN 100          /* Unknown error */
 
 /* GPRS-related errors */
-#define BTA_AG_ERR_ILL_MS 103  /* Illegal MS (#3) */
-#define BTA_AG_ERR_ILL_ME 106  /* Illegal ME (#6) */
+#define BTA_AG_ERR_ILL_MS 103           /* Illegal MS (#3) */
+#define BTA_AG_ERR_ILL_ME 106           /* Illegal ME (#6) */
 #define BTA_AG_ERR_GPRS_NOT_ALLOWED 107 /* GPRS services not allowed (#7) */
 #define BTA_AG_ERR_PLMN_NOT_ALLOWED 111 /* PLMN services not allowed (#11) */
 #define BTA_AG_ERR_LOC_NOT_ALLOWED 112  /* Location area not allowed (#12) */
@@ -297,7 +297,7 @@ typedef uint16_t tBTA_AG_PEER_CODEC;
 namespace hfp {
 
 struct offload_config {
-  tBTA_AG_PEER_CODEC sco_codec;
+  tBTA_AG_UUID_CODEC sco_codec;
   int32_t connection_handle;
   bool is_controller_codec;
   bool is_nrec;
@@ -324,8 +324,7 @@ struct tBTA_AG_RES_DATA {
   uint16_t num;
   uint16_t audio_handle;
   uint16_t errcode; /* Valid only if 'ok_flag' is set to BTA_AG_OK_ERROR */
-  uint8_t
-      ok_flag; /* Indicates if response is finished, and if error occurred */
+  uint8_t ok_flag;  /* Indicates if response is finished, and if error occurred */
   bool state;
   static const tBTA_AG_RES_DATA kEmpty;
 };
@@ -536,8 +535,7 @@ void BTA_AgDisable();
  *
  ******************************************************************************/
 void BTA_AgRegister(tBTA_SERVICE_MASK services, tBTA_AG_FEAT features,
-                    const std::vector<std::string>& service_names,
-                    uint8_t app_id);
+                    const std::vector<std::string>& service_names, uint8_t app_id);
 
 /*******************************************************************************
  *
@@ -618,8 +616,7 @@ void BTA_AgAudioClose(uint16_t handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_AgResult(uint16_t handle, tBTA_AG_RES result,
-                  const tBTA_AG_RES_DATA& data);
+void BTA_AgResult(uint16_t handle, tBTA_AG_RES result, const tBTA_AG_RES_DATA& data);
 
 /*******************************************************************************
  *

@@ -328,6 +328,7 @@ public class AvrcpBipObexServer extends ServerRequestHandler {
                     try {
                         outStream.close();
                     } catch (IOException e) {
+                        warn("An exception occurred while closing e=" + e);
                     }
                 }
             }

@@ -26,7 +26,7 @@ namespace facade {
 class LeAdvertisingManagerFacadeService;
 
 class LeAdvertisingManagerFacadeModule : public ::bluetooth::grpc::GrpcFacadeModule {
- public:
+public:
   static const ModuleFactory Factory;
 
   void ListDependencies(ModuleList* list) const override;
@@ -35,7 +35,7 @@ class LeAdvertisingManagerFacadeModule : public ::bluetooth::grpc::GrpcFacadeMod
 
   ::grpc::Service* GetService() const override;
 
- private:
+private:
   LeAdvertisingManagerFacadeService* service_;
 };
 

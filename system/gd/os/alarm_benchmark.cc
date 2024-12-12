@@ -32,7 +32,7 @@ using ::bluetooth::os::RepeatingAlarm;
 using ::bluetooth::os::Thread;
 
 class BM_ReactableAlarm : public ::benchmark::Fixture {
- protected:
+protected:
   void SetUp(State& st) override {
     ::benchmark::Fixture::SetUp(st);
     thread_ = std::make_unique<Thread>("timer_benchmark", Thread::Priority::REAL_TIME);
@@ -58,7 +58,8 @@ class BM_ReactableAlarm : public ::benchmark::Fixture {
 
   void AlarmSleepAndCountDelayedTime() {
     auto end_time = std::chrono::steady_clock::now();
-    auto duration_since_start = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_);
+    auto duration_since_start =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_);
     task_counter_++;
     map_[duration_since_start.count() - task_counter_ * task_interval_]++;
     std::this_thread::sleep_for(std::chrono::milliseconds(task_length_));
@@ -67,9 +68,7 @@ class BM_ReactableAlarm : public ::benchmark::Fixture {
     }
   }
 
-  void TimerFire() {
-    promise_.set_value();
-  }
+  void TimerFire() { promise_.set_value(); }
 
   int64_t scheduled_tasks_;
   int64_t task_length_;
@@ -88,27 +87,28 @@ BENCHMARK_DEFINE_F(BM_ReactableAlarm, timer_performance_ms)(State& state) {
   auto milliseconds = static_cast<int>(state.range(0));
   for (auto _ : state) {
     auto start_time_point = std::chrono::steady_clock::now();
-    alarm_->Schedule(
-        Bind(&BM_ReactableAlarm_timer_performance_ms_Benchmark::TimerFire, bluetooth::common::Unretained(this)),
-        std::chrono::milliseconds(milliseconds));
+    alarm_->Schedule(Bind(&BM_ReactableAlarm_timer_performance_ms_Benchmark::TimerFire,
+                          bluetooth::common::Unretained(this)),
+                     std::chrono::milliseconds(milliseconds));
     promise_.get_future().get();
     auto end_time_point = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time_point - start_time_point);
+    auto duration =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(end_time_point - start_time_point);
     state.SetIterationTime(static_cast<double>(duration.count()) * 1e-6);
     alarm_->Cancel();
   }
-};
+}
 
 BENCHMARK_REGISTER_F(BM_ReactableAlarm, timer_performance_ms)
-    ->Arg(1)
-    ->Arg(5)
-    ->Arg(10)
-    ->Arg(20)
-    ->Arg(100)
-    ->Arg(1000)
-    ->Arg(2000)
-    ->Iterations(1)
-    ->UseRealTime();
+        ->Arg(1)
+        ->Arg(5)
+        ->Arg(10)
+        ->Arg(20)
+        ->Arg(100)
+        ->Arg(1000)
+        ->Arg(2000)
+        ->Iterations(1)
+        ->UseRealTime();
 
 BENCHMARK_DEFINE_F(BM_ReactableAlarm, periodic_accuracy)(State& state) {
   for (auto _ : state) {
@@ -117,26 +117,25 @@ BENCHMARK_DEFINE_F(BM_ReactableAlarm, periodic_accuracy)(State& state) {
     task_interval_ = state.range(2);
     start_time_ = std::chrono::steady_clock::now();
     repeating_alarm_->Schedule(
-        Bind(
-            &BM_ReactableAlarm_periodic_accuracy_Benchmark::AlarmSleepAndCountDelayedTime,
-            bluetooth::common::Unretained(this)),
-        std::chrono::milliseconds(task_interval_));
+            Bind(&BM_ReactableAlarm_periodic_accuracy_Benchmark::AlarmSleepAndCountDelayedTime,
+                 bluetooth::common::Unretained(this)),
+            std::chrono::milliseconds(task_interval_));
     promise_.get_future().get();
     repeating_alarm_->Cancel();
   }
   for (const auto& delay : map_) {
     state.counters[std::to_string(delay.first)] = delay.second;
   }
-};
+}
 
 BENCHMARK_REGISTER_F(BM_ReactableAlarm, periodic_accuracy)
-    ->Args({2000, 1, 5})
-    ->Args({2000, 3, 5})
-    ->Args({2000, 1, 7})
-    ->Args({2000, 3, 7})
-    ->Args({2000, 1, 20})
-    ->Args({2000, 5, 20})
-    ->Args({2000, 10, 20})
-    ->Args({2000, 15, 20})
-    ->Iterations(1)
-    ->UseRealTime();
+        ->Args({2000, 1, 5})
+        ->Args({2000, 3, 5})
+        ->Args({2000, 1, 7})
+        ->Args({2000, 3, 7})
+        ->Args({2000, 1, 20})
+        ->Args({2000, 5, 20})
+        ->Args({2000, 10, 20})
+        ->Args({2000, 15, 20})
+        ->Iterations(1)
+        ->UseRealTime();

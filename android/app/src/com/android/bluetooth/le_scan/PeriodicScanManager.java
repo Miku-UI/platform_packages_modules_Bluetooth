@@ -33,6 +33,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -43,8 +44,9 @@ public class PeriodicScanManager {
 
     private final BluetoothAdapter mAdapter;
     private final PeriodicScanNativeInterface mNativeInterface;
-    Map<IBinder, SyncInfo> mSyncs = new ConcurrentHashMap<>();
-    Map<IBinder, SyncTransferInfo> mSyncTransfers = Collections.synchronizedMap(new HashMap<>());
+    private final Map<IBinder, SyncInfo> mSyncs = new ConcurrentHashMap<>();
+    private final Map<IBinder, SyncTransferInfo> mSyncTransfers =
+            Collections.synchronizedMap(new HashMap<>());
     static int sTempRegistrationId = -1;
 
     /** Constructor of {@link PeriodicScanManager}. */
@@ -190,7 +192,9 @@ public class PeriodicScanManager {
         }
 
         synchronized (mSyncs) {
-            for (Map.Entry<IBinder, SyncInfo> e : mSyncs.entrySet()) {
+            Iterator<Map.Entry<IBinder, SyncInfo>> it = mSyncs.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<IBinder, SyncInfo> e = it.next();
                 if (e.getValue().id != regId) {
                     continue;
                 }
@@ -223,7 +227,7 @@ public class PeriodicScanManager {
                             status);
                     IBinder binder = e.getKey();
                     binder.unlinkToDeath(e.getValue().deathRecipient, 0);
-                    mSyncs.remove(binder);
+                    it.remove();
                 }
             }
         }

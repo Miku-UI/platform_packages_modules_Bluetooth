@@ -28,7 +28,7 @@ using namespace bluetooth;
 void external_function(int /* a */, double /* b */, char /* c */);
 
 class TestModule : public Module, public ModuleMainloop {
- public:
+public:
   void call_on_handler_protected_method(pid_t tid, int a, int b, int c);
   void call_on_main_external_function(pid_t tid, int a, double b, char c);
   void call_on_main(pid_t tid, int a, int b, int c);
@@ -37,7 +37,7 @@ class TestModule : public Module, public ModuleMainloop {
 
   static const bluetooth::ModuleFactory Factory;
 
- protected:
+protected:
   void protected_method(int a, int b, int c);
   void call_on_main_internal(int a, int b, int c);
   bool IsStarted() const;
@@ -47,7 +47,7 @@ class TestModule : public Module, public ModuleMainloop {
   void Stop() override;
   std::string ToString() const override;
 
- private:
+private:
   struct PrivateImpl;
   std::shared_ptr<TestModule::PrivateImpl> pimpl_;
 

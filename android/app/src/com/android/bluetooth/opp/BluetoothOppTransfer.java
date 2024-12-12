@@ -34,6 +34,7 @@ package com.android.bluetooth.opp;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.SuppressLint;
 import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -70,6 +71,7 @@ import java.io.IOException;
 
 /** This class run an actual Opp transfer session (from connect target device to disconnect) */
 // Next tag value for ContentProfileErrorReportUtils.report(): 24
+@SuppressLint("AndroidFrameworkRequiresPermission")
 public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatchListener {
     private static final String TAG = "BtOppTransfer";
 
@@ -167,7 +169,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                             BluetoothStatsLog
                                     .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                             2);
-                    e.printStackTrace();
+                    Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 }
             } else if (action.equals(BluetoothDevice.ACTION_SDP_RECORD)) {
                 ParcelUuid uuid = intent.getParcelableExtra(BluetoothDevice.EXTRA_UUID);
@@ -356,8 +358,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                                 BluetoothStatsLog
                                         .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                                 6);
-                        Log.e(TAG, "Exception while handling MSG_SESSION_ERROR");
-                        e.printStackTrace();
+                        Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                     }
                     break;
 
@@ -444,6 +445,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                         mContext.getContentResolver(), contentUri, updateValues, null, null);
     }
 
+    @SuppressLint("WaitNotInLoop")
     private void markBatchFailed(int failReason) {
         synchronized (this) {
             try {
@@ -635,7 +637,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
              * mSession instance.
              */
             if (mSession == null) {
-                /** set current share as error */
+                /* set current share as error */
                 Log.e(TAG, "Unexpected error happened !");
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.OPP,
@@ -690,6 +692,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
     }
 
     /** Set transfer confirmed status. It should only be called for inbound transfer */
+    @SuppressWarnings("SynchronizeOnNonFinalField")
     public void confirmStatusChanged() {
         /* unblock server session */
         final Thread notifyThread =
@@ -1011,14 +1014,13 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                         BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                         23);
-                Log.e(TAG, "Exception:unregisterReceiver");
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
     }
 
     private String getBrEdrAddress(BluetoothDevice device) {
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getBrEdrAddress(device);
         }
         return device.getIdentityAddress();

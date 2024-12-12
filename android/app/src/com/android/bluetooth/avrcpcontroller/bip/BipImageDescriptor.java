@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
 import android.util.Log;
 import android.util.Xml;
 
@@ -27,11 +28,12 @@ import org.xmlpull.v1.XmlSerializer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
  * Contains the metadata that describes either (1) the desired size of a image to be downloaded or
- * (2) the extact size of an image to be uploaded.
+ * (2) the exact size of an image to be uploaded.
  *
  * <p>When using this to assert the size of an image to download/pull, it's best to derive this
  * specific descriptor from any of the available BipImageFormat options returned from a
@@ -245,27 +247,33 @@ public class BipImageDescriptor {
      */
     public byte[] serialize() {
         String s = toString();
-        try {
-            return s != null ? s.getBytes("UTF-8") : null;
-        } catch (UnsupportedEncodingException e) {
-            return null;
-        }
+        return s != null ? s.getBytes(StandardCharsets.UTF_8) : null;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof BipImageDescriptor)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof BipImageDescriptor d)) {
+            return false;
+        }
 
-        BipImageDescriptor d = (BipImageDescriptor) o;
-        return d.getEncoding() == getEncoding()
-                && d.getPixel() == getPixel()
-                && d.getTransformation() == getTransformation()
+        return Objects.equals(d.getEncoding(), getEncoding())
+                && Objects.equals(d.getPixel(), getPixel())
+                && Objects.equals(d.getTransformation(), getTransformation())
                 && d.getSize() == getSize()
                 && d.getMaxSize() == getMaxSize();
     }
 
     @Override
+    public int hashCode() {
+        return Objects.hash(
+                getEncoding(), getPixel(), getTransformation(), getSize(), getMaxSize());
+    }
+
+    @Override
+    @SuppressLint("ToStringReturnsNull") // Since this is used for encoding to xml
     public String toString() {
         if (mEncoding == null || mPixel == null) {
             error(

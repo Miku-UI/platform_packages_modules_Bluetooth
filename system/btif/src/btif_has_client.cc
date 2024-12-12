@@ -20,7 +20,6 @@
 #include <hardware/bluetooth.h>
 #include <hardware/bt_has.h>
 
-#include <bitset>
 #include <string>
 #include <vector>
 
@@ -53,139 +52,115 @@ class HearingAaccessClientServiceInterfaceImpl : public HasClientInterface,
     this->callbacks_ = callbacks;
 
     do_in_main_thread(
-        FROM_HERE, Bind(&HasClient::Initialize, this,
-                        jni_thread_wrapper(Bind(
-                            &btif_storage_load_bonded_leaudio_has_devices))));
+            Bind(&HasClient::Initialize, this,
+                 jni_thread_wrapper(Bind(&btif_storage_load_bonded_leaudio_has_devices))));
   }
 
   void Connect(const RawAddress& addr) override {
-    do_in_main_thread(FROM_HERE, Bind(&HasClient::Connect,
-                                      Unretained(HasClient::Get()), addr));
+    do_in_main_thread(Bind(&HasClient::Connect, Unretained(HasClient::Get()), addr));
 
-    do_in_jni_thread(
-        Bind(&btif_storage_set_leaudio_has_acceptlist, addr, true));
+    do_in_jni_thread(Bind(&btif_storage_set_leaudio_has_acceptlist, addr, true));
   }
 
   void Disconnect(const RawAddress& addr) override {
-    do_in_main_thread(FROM_HERE, Bind(&HasClient::Disconnect,
-                                      Unretained(HasClient::Get()), addr));
+    do_in_main_thread(Bind(&HasClient::Disconnect, Unretained(HasClient::Get()), addr));
 
-    do_in_jni_thread(
-        Bind(&btif_storage_set_leaudio_has_acceptlist, addr, false));
+    do_in_jni_thread(Bind(&btif_storage_set_leaudio_has_acceptlist, addr, false));
   }
 
   void SelectActivePreset(std::variant<RawAddress, int> addr_or_group_id,
                           uint8_t preset_index) override {
-    do_in_main_thread(
-        FROM_HERE,
-        Bind(&HasClient::SelectActivePreset, Unretained(HasClient::Get()),
-             std::move(addr_or_group_id), preset_index));
+    do_in_main_thread(Bind(&HasClient::SelectActivePreset, Unretained(HasClient::Get()),
+                           std::move(addr_or_group_id), preset_index));
   }
 
-  void NextActivePreset(
-      std::variant<RawAddress, int> addr_or_group_id) override {
-    do_in_main_thread(FROM_HERE, Bind(&HasClient::NextActivePreset,
-                                      Unretained(HasClient::Get()),
-                                      std::move(addr_or_group_id)));
+  void NextActivePreset(std::variant<RawAddress, int> addr_or_group_id) override {
+    do_in_main_thread(Bind(&HasClient::NextActivePreset, Unretained(HasClient::Get()),
+                           std::move(addr_or_group_id)));
   }
 
-  void PreviousActivePreset(
-      std::variant<RawAddress, int> addr_or_group_id) override {
-    do_in_main_thread(FROM_HERE, Bind(&HasClient::PreviousActivePreset,
-                                      Unretained(HasClient::Get()),
-                                      std::move(addr_or_group_id)));
+  void PreviousActivePreset(std::variant<RawAddress, int> addr_or_group_id) override {
+    do_in_main_thread(Bind(&HasClient::PreviousActivePreset, Unretained(HasClient::Get()),
+                           std::move(addr_or_group_id)));
   }
 
   void GetPresetInfo(const RawAddress& addr, uint8_t preset_index) override {
     do_in_main_thread(
-        FROM_HERE, Bind(&HasClient::GetPresetInfo, Unretained(HasClient::Get()),
-                        addr, preset_index));
+            Bind(&HasClient::GetPresetInfo, Unretained(HasClient::Get()), addr, preset_index));
   }
 
-  void SetPresetName(std::variant<RawAddress, int> addr_or_group_id,
-                     uint8_t preset_index, std::string preset_name) override {
-    do_in_main_thread(
-        FROM_HERE, Bind(&HasClient::SetPresetName, Unretained(HasClient::Get()),
-                        std::move(addr_or_group_id), preset_index,
-                        std::move(preset_name)));
+  void SetPresetName(std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,
+                     std::string preset_name) override {
+    do_in_main_thread(Bind(&HasClient::SetPresetName, Unretained(HasClient::Get()),
+                           std::move(addr_or_group_id), preset_index, std::move(preset_name)));
   }
 
   void RemoveDevice(const RawAddress& addr) override {
     /* RemoveDevice can be called on devices that don't have BAS enabled */
     if (HasClient::IsHasClientRunning()) {
-      do_in_main_thread(FROM_HERE, Bind(&HasClient::Disconnect,
-                                        Unretained(HasClient::Get()), addr));
+      do_in_main_thread(Bind(&HasClient::Disconnect, Unretained(HasClient::Get()), addr));
     }
 
     do_in_jni_thread(Bind(&btif_storage_remove_leaudio_has, addr));
   }
 
-  void Cleanup(void) override {
-    do_in_main_thread(FROM_HERE, Bind(&HasClient::CleanUp));
-  }
+  void Cleanup(void) override { do_in_main_thread(Bind(&HasClient::CleanUp)); }
 
-  void OnConnectionState(ConnectionState state,
-                         const RawAddress& addr) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnConnectionState,
-                          Unretained(callbacks_), state, addr));
+  void OnConnectionState(ConnectionState state, const RawAddress& addr) override {
+    do_in_jni_thread(
+            Bind(&HasClientCallbacks::OnConnectionState, Unretained(callbacks_), state, addr));
   }
 
   void OnDeviceAvailable(const RawAddress& addr, uint8_t features) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnDeviceAvailable,
-                          Unretained(callbacks_), addr, features));
+    do_in_jni_thread(
+            Bind(&HasClientCallbacks::OnDeviceAvailable, Unretained(callbacks_), addr, features));
   }
 
   void OnFeaturesUpdate(const RawAddress& addr, uint8_t features) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnFeaturesUpdate,
-                          Unretained(callbacks_), addr, features));
+    do_in_jni_thread(
+            Bind(&HasClientCallbacks::OnFeaturesUpdate, Unretained(callbacks_), addr, features));
   }
 
   void OnActivePresetSelected(std::variant<RawAddress, int> addr_or_group_id,
                               uint8_t preset_index) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnActivePresetSelected,
-                          Unretained(callbacks_), std::move(addr_or_group_id),
-                          preset_index));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnActivePresetSelected, Unretained(callbacks_),
+                          std::move(addr_or_group_id), preset_index));
   }
 
   void OnActivePresetSelectError(std::variant<RawAddress, int> addr_or_group_id,
                                  ErrorCode result_code) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnActivePresetSelectError,
-                          Unretained(callbacks_), std::move(addr_or_group_id),
-                          result_code));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnActivePresetSelectError, Unretained(callbacks_),
+                          std::move(addr_or_group_id), result_code));
   }
 
-  void OnPresetInfo(std::variant<RawAddress, int> addr_or_group_id,
-                    PresetInfoReason change_id,
+  void OnPresetInfo(std::variant<RawAddress, int> addr_or_group_id, PresetInfoReason change_id,
                     std::vector<PresetInfo> detail_records) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnPresetInfo,
-                          Unretained(callbacks_), std::move(addr_or_group_id),
-                          change_id, std::move(detail_records)));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnPresetInfo, Unretained(callbacks_),
+                          std::move(addr_or_group_id), change_id, std::move(detail_records)));
   }
 
-  void OnPresetInfoError(std::variant<RawAddress, int> addr_or_group_id,
-                         uint8_t preset_index, ErrorCode result_code) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnPresetInfoError,
-                          Unretained(callbacks_), std::move(addr_or_group_id),
-                          preset_index, result_code));
+  void OnPresetInfoError(std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,
+                         ErrorCode result_code) override {
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnPresetInfoError, Unretained(callbacks_),
+                          std::move(addr_or_group_id), preset_index, result_code));
   }
 
-  void OnSetPresetNameError(std::variant<RawAddress, int> addr_or_group_id,
-                            uint8_t preset_index,
+  void OnSetPresetNameError(std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,
                             ErrorCode result_code) override {
-    do_in_jni_thread(Bind(&HasClientCallbacks::OnSetPresetNameError,
-                          Unretained(callbacks_), std::move(addr_or_group_id),
-                          preset_index, result_code));
+    do_in_jni_thread(Bind(&HasClientCallbacks::OnSetPresetNameError, Unretained(callbacks_),
+                          std::move(addr_or_group_id), preset_index, result_code));
   }
 
- private:
+private:
   HasClientCallbacks* callbacks_;
 };
 
 } /* namespace */
 
 HasClientInterface* btif_has_client_get_interface(void) {
-  if (!has_client_instance)
+  if (!has_client_instance) {
     has_client_instance.reset(new HearingAaccessClientServiceInterfaceImpl());
+  }
 
   return has_client_instance.get();
 }

@@ -57,7 +57,7 @@ namespace avrcp {
 // responders for Browse and Classic AVRCP Messages move the device around via a
 // weak pointer.
 class Device {
- public:
+public:
   /**
    * Device is friends with Avrcp::ConnectionHandler so that ConnectionHandler
    * can deliver messages to individual devices.
@@ -65,10 +65,9 @@ class Device {
   friend class ConnectionHandler;
 
   Device(const RawAddress& bdaddr, bool avrcp13_compatibility,
-         base::RepeatingCallback<
-             void(uint8_t label, bool browse,
-                  std::unique_ptr<::bluetooth::PacketBuilder> message)>
-             send_msg_cb,
+         base::RepeatingCallback<void(uint8_t label, bool browse,
+                                      std::unique_ptr<::bluetooth::PacketBuilder> message)>
+                 send_msg_cb,
          uint16_t ctrl_mtu, uint16_t browse_mtu);
 
   Device(const Device&) = delete;
@@ -82,7 +81,7 @@ class Device {
    */
   base::WeakPtr<Device> Get();
 
-  const RawAddress& GetAddress() const { return address_; };
+  const RawAddress& GetAddress() const { return address_; }
 
   /**
    * Disconnects the AVRCP connection that this device represents.
@@ -116,8 +115,7 @@ class Device {
    * is created valid and can't be accidentally interacted with when no
    * interfaces are registered.
    */
-  void RegisterInterfaces(MediaInterface* interface,
-                          A2dpInterface* a2dp_interface,
+  void RegisterInterfaces(MediaInterface* interface, A2dpInterface* a2dp_interface,
                           VolumeInterface* volume_interface,
                           PlayerSettingsInterface* player_settings_interface);
 
@@ -139,8 +137,7 @@ class Device {
    * have updated via a boolean. Each boolean represents whether its respective
    * content has updated.
    */
-  virtual void SendFolderUpdate(bool available_player, bool addressed_player,
-                                bool uids);
+  virtual void SendFolderUpdate(bool available_player, bool addressed_player, bool uids);
 
   // TODO (apanicke): Split the message handlers into two files. One
   // for handling Browse Messages and the other for handling all other
@@ -159,51 +156,49 @@ class Device {
    ********************/
   // CURRENT TRACK CHANGED
   virtual void HandleTrackUpdate();
-  virtual void TrackChangedNotificationResponse(
-      uint8_t label, bool interim, std::string curr_song_id,
-      std::vector<SongInfo> song_list);
+  virtual void TrackChangedNotificationResponse(uint8_t label, bool interim,
+                                                std::string curr_song_id,
+                                                std::vector<SongInfo> song_list);
 
   // GET CAPABILITY
-  virtual void HandleGetCapabilities(
-      uint8_t label, const std::shared_ptr<GetCapabilitiesRequest>& pkt);
+  virtual void HandleGetCapabilities(uint8_t label,
+                                     const std::shared_ptr<GetCapabilitiesRequest>& pkt);
 
   // REGISTER NOTIFICATION
-  virtual void HandleNotification(
-      uint8_t label, const std::shared_ptr<RegisterNotificationRequest>& pkt);
+  virtual void HandleNotification(uint8_t label,
+                                  const std::shared_ptr<RegisterNotificationRequest>& pkt);
 
   // PLAY STATUS CHANGED
   virtual void HandlePlayStatusUpdate();
 
   // NOW PLAYING LIST CHANGED
   virtual void HandleNowPlayingUpdate();
-  virtual void HandleNowPlayingNotificationResponse(
-      uint8_t label, bool interim, std::string curr_song_id,
-      std::vector<SongInfo> song_list);
+  virtual void HandleNowPlayingNotificationResponse(uint8_t label, bool interim,
+                                                    std::string curr_song_id,
+                                                    std::vector<SongInfo> song_list);
 
   // PLAY POSITION CHANGED
   virtual void HandlePlayPosUpdate();
-  virtual void PlaybackPosNotificationResponse(uint8_t label, bool interim,
-                                               PlayStatus status);
+  virtual void PlaybackPosNotificationResponse(uint8_t label, bool interim, PlayStatus status);
 
   // GET PLAY STATUS
   virtual void GetPlayStatusResponse(uint8_t label, PlayStatus status);
-  virtual void PlaybackStatusNotificationResponse(uint8_t label, bool interim,
-                                                  PlayStatus status);
+  virtual void PlaybackStatusNotificationResponse(uint8_t label, bool interim, PlayStatus status);
 
   // PLAYER APPLICATION SETTINGS CHANGED
-  virtual void HandlePlayerSettingChanged(
-      std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values);
-  virtual void PlayerSettingChangedNotificationResponse(
-      uint8_t label, bool interim, std::vector<PlayerAttribute> attributes,
-      std::vector<uint8_t> values);
+  virtual void HandlePlayerSettingChanged(std::vector<PlayerAttribute> attributes,
+                                          std::vector<uint8_t> values);
+  virtual void PlayerSettingChangedNotificationResponse(uint8_t label, bool interim,
+                                                        std::vector<PlayerAttribute> attributes,
+                                                        std::vector<uint8_t> values);
 
   // GET ELEMENT ATTRIBUTE
   // TODO (apanicke): Add a Handler function for this so if a specific device
   // needs to implement an interop fix, you only need to overload the one
   // function.
-  virtual void GetElementAttributesResponse(
-      uint8_t label, std::shared_ptr<GetElementAttributesRequest> pkt,
-      SongInfo info);
+  virtual void GetElementAttributesResponse(uint8_t label,
+                                            std::shared_ptr<GetElementAttributesRequest> pkt,
+                                            SongInfo info);
 
   // AVAILABLE PLAYER CHANGED
   virtual void HandleAvailablePlayerUpdate();
@@ -211,82 +206,73 @@ class Device {
   // ADDRESSED PLAYER CHANGED
   virtual void HandleAddressedPlayerUpdate();
   virtual void RejectNotification();
-  virtual void AddressedPlayerNotificationResponse(
-      uint8_t label, bool interim, uint16_t curr_player,
-      std::vector<MediaPlayerInfo> /* unused */);
+  virtual void AddressedPlayerNotificationResponse(uint8_t label, bool interim,
+                                                   uint16_t curr_player);
 
   // GET FOLDER ITEMS
-  virtual void HandleGetFolderItems(
-      uint8_t label, std::shared_ptr<GetFolderItemsRequest> request);
-  virtual void GetMediaPlayerListResponse(
-      uint8_t label, std::shared_ptr<GetFolderItemsRequest> pkt,
-      uint16_t curr_player, std::vector<MediaPlayerInfo> players);
-  virtual void GetVFSListResponse(uint8_t label,
-                                  std::shared_ptr<GetFolderItemsRequest> pkt,
+  virtual void HandleGetFolderItems(uint8_t label, std::shared_ptr<GetFolderItemsRequest> request);
+  virtual void GetMediaPlayerListResponse(uint8_t label, std::shared_ptr<GetFolderItemsRequest> pkt,
+                                          uint16_t curr_player,
+                                          std::vector<MediaPlayerInfo> players);
+  virtual void GetVFSListResponse(uint8_t label, std::shared_ptr<GetFolderItemsRequest> pkt,
                                   std::vector<ListItem> items);
-  virtual void GetNowPlayingListResponse(
-      uint8_t label, std::shared_ptr<GetFolderItemsRequest> pkt,
-      std::string curr_song_id, std::vector<SongInfo> song_list);
+  virtual void GetNowPlayingListResponse(uint8_t label, std::shared_ptr<GetFolderItemsRequest> pkt,
+                                         std::string curr_song_id, std::vector<SongInfo> song_list);
 
   // GET TOTAL NUMBER OF ITEMS
-  virtual void HandleGetTotalNumberOfItems(
-      uint8_t label, std::shared_ptr<GetTotalNumberOfItemsRequest> pkt);
-  virtual void GetTotalNumberOfItemsMediaPlayersResponse(
-      uint8_t label, uint16_t curr_player, std::vector<MediaPlayerInfo> list);
-  virtual void GetTotalNumberOfItemsVFSResponse(uint8_t label,
-                                                std::vector<ListItem> items);
-  virtual void GetTotalNumberOfItemsNowPlayingResponse(
-      uint8_t label, std::string curr_song_id, std::vector<SongInfo> song_list);
+  virtual void HandleGetTotalNumberOfItems(uint8_t label,
+                                           std::shared_ptr<GetTotalNumberOfItemsRequest> pkt);
+  virtual void GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t curr_player,
+                                                         std::vector<MediaPlayerInfo> list);
+  virtual void GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListItem> items);
+  virtual void GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string curr_song_id,
+                                                       std::vector<SongInfo> song_list);
 
   // GET ITEM ATTRIBUTES
-  virtual void HandleGetItemAttributes(
-      uint8_t label, std::shared_ptr<GetItemAttributesRequest> request);
-  virtual void GetItemAttributesNowPlayingResponse(
-      uint8_t label, std::shared_ptr<GetItemAttributesRequest> pkt,
-      std::string curr_media_id, std::vector<SongInfo> song_list);
-  virtual void GetItemAttributesVFSResponse(
-      uint8_t label, std::shared_ptr<GetItemAttributesRequest> pkt,
-      std::vector<ListItem> item_list);
+  virtual void HandleGetItemAttributes(uint8_t label,
+                                       std::shared_ptr<GetItemAttributesRequest> request);
+  virtual void GetItemAttributesNowPlayingResponse(uint8_t label,
+                                                   std::shared_ptr<GetItemAttributesRequest> pkt,
+                                                   std::string curr_media_id,
+                                                   std::vector<SongInfo> song_list);
+  virtual void GetItemAttributesVFSResponse(uint8_t label,
+                                            std::shared_ptr<GetItemAttributesRequest> pkt,
+                                            std::vector<ListItem> item_list);
 
   // SET BROWSED PLAYER
-  virtual void HandleSetBrowsedPlayer(
-      uint8_t label, std::shared_ptr<SetBrowsedPlayerRequest> request);
-  virtual void SetBrowsedPlayerResponse(
-      uint8_t label, std::shared_ptr<SetBrowsedPlayerRequest> pkt, bool success,
-      std::string root_id, uint32_t num_items);
+  virtual void HandleSetBrowsedPlayer(uint8_t label,
+                                      std::shared_ptr<SetBrowsedPlayerRequest> request);
+  virtual void SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedPlayerRequest> pkt,
+                                        bool success, std::string root_id, uint32_t num_items);
 
   // CHANGE PATH
-  virtual void HandleChangePath(uint8_t label,
-                                std::shared_ptr<ChangePathRequest> request);
-  virtual void ChangePathResponse(uint8_t label,
-                                  std::shared_ptr<ChangePathRequest> request,
+  virtual void HandleChangePath(uint8_t label, std::shared_ptr<ChangePathRequest> request);
+  virtual void ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> request,
                                   std::vector<ListItem> list);
 
   // PLAY ITEM
-  virtual void HandlePlayItem(uint8_t label,
-                              std::shared_ptr<PlayItemRequest> request);
+  virtual void HandlePlayItem(uint8_t label, std::shared_ptr<PlayItemRequest> request);
 
   // SET ADDRESSED PLAYER
-  virtual void HandleSetAddressedPlayer(
-      uint8_t label, std::shared_ptr<SetAddressedPlayerRequest> request,
-      uint16_t curr_player, std::vector<MediaPlayerInfo> players);
+  virtual void HandleSetAddressedPlayer(uint8_t label,
+                                        std::shared_ptr<SetAddressedPlayerRequest> request,
+                                        uint16_t curr_player);
 
   // LIST PLAYER APPLICATION SETTING ATTRIBUTES
   virtual void ListPlayerApplicationSettingAttributesResponse(
-      uint8_t label, std::vector<PlayerAttribute> attributes);
+          uint8_t label, std::vector<PlayerAttribute> attributes);
 
   // LIST PLAYER APPLICATION SETTING VALUES
-  virtual void ListPlayerApplicationSettingValuesResponse(
-      uint8_t label, PlayerAttribute setting, std::vector<uint8_t> values);
+  virtual void ListPlayerApplicationSettingValuesResponse(uint8_t label, PlayerAttribute setting,
+                                                          std::vector<uint8_t> values);
 
   // GET CURRENT PLAYER APPLICATION SETTING VALUE
-  virtual void GetPlayerApplicationSettingValueResponse(
-      uint8_t label, std::vector<PlayerAttribute> attributes,
-      std::vector<uint8_t> values);
+  virtual void GetPlayerApplicationSettingValueResponse(uint8_t label,
+                                                        std::vector<PlayerAttribute> attributes,
+                                                        std::vector<uint8_t> values);
 
   // SET PLAYER APPLICATION SETTING VALUE
-  virtual void SetPlayerApplicationSettingValueResponse(uint8_t label,
-                                                        CommandPdu pdu,
+  virtual void SetPlayerApplicationSettingValueResponse(uint8_t label, CommandPdu pdu,
                                                         bool success);
 
   /********************
@@ -294,8 +280,8 @@ class Device {
    ********************/
   // VOLUME CHANGED NOTIFICATION
   virtual void RegisterVolumeChanged();
-  virtual void HandleVolumeChanged(
-      uint8_t label, const std::shared_ptr<RegisterNotificationResponse>& pkt);
+  virtual void HandleVolumeChanged(uint8_t label,
+                                   const std::shared_ptr<RegisterNotificationResponse>& pkt);
 
   // SET VOLUME
   virtual void SetVolume(int8_t volume);
@@ -314,11 +300,13 @@ class Device {
 
   friend std::ostream& operator<<(std::ostream& out, const Device& c);
 
- private:
+private:
   // This should always contain one item which represents the root id on the
   // current player.
   std::string CurrentFolder() const {
-    if (current_path_.empty()) return "";
+    if (current_path_.empty()) {
+      return "";
+    }
     return current_path_.top();
   }
 
@@ -334,8 +322,7 @@ class Device {
   }
 
   bool find_sink_service(tA2DP_FIND_CBACK p_cback) const {
-    return a2dp_interface_->find_audio_sink_service(address_, p_cback) ==
-           A2DP_SUCCESS;
+    return a2dp_interface_->find_audio_sink_service(address_, p_cback) == A2DP_SUCCESS;
   }
 
   base::WeakPtrFactory<Device> weak_ptr_factory_;
@@ -346,10 +333,9 @@ class Device {
   // Enables AVRCP 1.3 Compatibility mode. This disables any AVRCP 1.4+ features
   // such as browsing and playlists but has the highest chance of working.
   bool avrcp13_compatibility_ = false;
-  base::RepeatingCallback<void(
-      uint8_t label, bool browse,
-      std::unique_ptr<::bluetooth::PacketBuilder> message)>
-      send_message_cb_;
+  base::RepeatingCallback<void(uint8_t label, bool browse,
+                               std::unique_ptr<::bluetooth::PacketBuilder> message)>
+          send_message_cb_;
   uint16_t ctrl_mtu_;
   uint16_t browse_mtu_;
   bool has_bip_client_;

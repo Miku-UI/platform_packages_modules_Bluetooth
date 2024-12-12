@@ -23,35 +23,30 @@
 namespace bluetooth {
 namespace avrcp {
 
-class GetCurrentPlayerApplicationSettingValueResponseBuilder
-    : public VendorPacketBuilder {
- public:
+class GetCurrentPlayerApplicationSettingValueResponseBuilder : public VendorPacketBuilder {
+public:
   virtual ~GetCurrentPlayerApplicationSettingValueResponseBuilder() = default;
 
-  static std::unique_ptr<GetCurrentPlayerApplicationSettingValueResponseBuilder>
-  MakeBuilder(std::vector<PlayerAttribute> attributes,
-              std::vector<uint8_t> values);
+  static std::unique_ptr<GetCurrentPlayerApplicationSettingValueResponseBuilder> MakeBuilder(
+          std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   std::vector<PlayerAttribute> attributes_;
   std::vector<uint8_t> values_;
 
-  GetCurrentPlayerApplicationSettingValueResponseBuilder(
-      std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values)
-      : VendorPacketBuilder(
-            CType::STABLE,
-            CommandPdu::GET_CURRENT_PLAYER_APPLICATION_SETTING_VALUE,
-            PacketType::SINGLE),
+  GetCurrentPlayerApplicationSettingValueResponseBuilder(std::vector<PlayerAttribute> attributes,
+                                                         std::vector<uint8_t> values)
+      : VendorPacketBuilder(CType::STABLE, CommandPdu::GET_CURRENT_PLAYER_APPLICATION_SETTING_VALUE,
+                            PacketType::SINGLE),
         attributes_(std::move(attributes)),
-        values_(std::move(values)){};
+        values_(std::move(values)) {}
 };
 
 class GetCurrentPlayerApplicationSettingValueRequest : public VendorPacket {
- public:
+public:
   virtual ~GetCurrentPlayerApplicationSettingValueRequest() = default;
 
   /**
@@ -70,9 +65,7 @@ class GetCurrentPlayerApplicationSettingValueRequest : public VendorPacket {
    *     uint8_t number_of_attributes;
    *     std::vector<PlayerAttribute> attributes;
    */
-  static constexpr size_t kMinSize() {
-    return VendorPacket::kMinSize() + sizeof(uint8_t);
-  }
+  static constexpr size_t kMinSize() { return VendorPacket::kMinSize() + sizeof(uint8_t); }
 
   uint8_t GetNumberOfRequestedAttributes() const;
   std::vector<PlayerAttribute> GetRequestedAttributes() const;
@@ -80,7 +73,7 @@ class GetCurrentPlayerApplicationSettingValueRequest : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 

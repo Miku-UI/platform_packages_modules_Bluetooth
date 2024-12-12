@@ -37,8 +37,7 @@ namespace connection_manager {
 using tAPP_ID = uint8_t;
 
 /* for background connection */
-bool background_connect_targeted_announcement_add(tAPP_ID app_id,
-                                                  const RawAddress& address);
+bool background_connect_targeted_announcement_add(tAPP_ID app_id, const RawAddress& address);
 bool background_connect_add(tAPP_ID app_id, const RawAddress& address);
 bool background_connect_remove(tAPP_ID app_id, const RawAddress& address);
 bool remove_unconditional(const RawAddress& address);

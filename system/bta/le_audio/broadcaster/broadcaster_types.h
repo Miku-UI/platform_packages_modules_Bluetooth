@@ -39,53 +39,42 @@ static const uint16_t kPublicBroadcastAnnouncementServiceUuid = 0x1856;
 
 static const uint8_t kBisIndexInvalid = 0;
 
-bool ToRawPacket(bluetooth::le_audio::BasicAudioAnnouncementData const&,
-                 std::vector<uint8_t>&);
+bool ToRawPacket(bluetooth::le_audio::BasicAudioAnnouncementData const&, std::vector<uint8_t>&);
 
 void PrepareAdvertisingData(
-    bool is_public, const std::string& broadcast_name,
-    bluetooth::le_audio::BroadcastId& broadcast_id,
-    const bluetooth::le_audio::PublicBroadcastAnnouncementData&
-        public_announcement,
-    std::vector<uint8_t>& adv_data);
-void PreparePeriodicData(
-    const bluetooth::le_audio::BasicAudioAnnouncementData& announcement,
-    std::vector<uint8_t>& periodic_data);
+        bool is_public, const std::string& broadcast_name,
+        bluetooth::le_audio::BroadcastId& broadcast_id,
+        const bluetooth::le_audio::PublicBroadcastAnnouncementData& public_announcement,
+        std::vector<uint8_t>& adv_data);
+void PreparePeriodicData(const bluetooth::le_audio::BasicAudioAnnouncementData& announcement,
+                         std::vector<uint8_t>& periodic_data);
 
 struct BroadcastSubgroupBisCodecConfig {
   BroadcastSubgroupBisCodecConfig(
-      uint8_t num_bis, uint8_t bis_channel_cnt,
-      types::LeAudioLtvMap codec_specific,
-      std::optional<std::vector<uint8_t>> vendor_codec_specific = std::nullopt)
+          uint8_t num_bis, uint8_t bis_channel_cnt, types::LeAudioLtvMap codec_specific,
+          std::optional<std::vector<uint8_t>> vendor_codec_specific = std::nullopt)
       : num_bis_(num_bis),
         bis_channel_cnt_(bis_channel_cnt),
         codec_specific_(codec_specific),
         vendor_codec_specific_(vendor_codec_specific) {}
 
   bool operator==(const BroadcastSubgroupBisCodecConfig& other) const {
-    return (num_bis_ == other.num_bis_) &&
-           (bis_channel_cnt_ == other.bis_channel_cnt_) &&
+    return (num_bis_ == other.num_bis_) && (bis_channel_cnt_ == other.bis_channel_cnt_) &&
            (codec_specific_ == other.codec_specific_) &&
            (vendor_codec_specific_ == other.vendor_codec_specific_);
   }
 
-  bool operator!=(const BroadcastSubgroupBisCodecConfig& other) const {
-    return !(*this == other);
-  }
+  bool operator!=(const BroadcastSubgroupBisCodecConfig& other) const { return !(*this == other); }
 
   uint8_t GetNumBis() const { return num_bis_; }
 
-  const types::LeAudioLtvMap& GetCodecSpecData() const {
-    return codec_specific_;
-  };
+  const types::LeAudioLtvMap& GetCodecSpecData() const { return codec_specific_; }
 
   const std::optional<std::vector<uint8_t>>& GetVendorCodecSpecific() const {
     return vendor_codec_specific_;
   }
 
-  bool HasVendorCodecSpecific() const {
-    return vendor_codec_specific_.has_value();
-  }
+  bool HasVendorCodecSpecific() const { return vendor_codec_specific_.has_value(); }
 
   uint8_t GetNumChannels() const { return num_bis_ * GetNumChannelsPerBis(); }
 
@@ -95,7 +84,7 @@ struct BroadcastSubgroupBisCodecConfig {
 
   uint8_t GetNumChannelsPerBis() const { return bis_channel_cnt_; }
 
- private:
+private:
   uint8_t num_bis_;
   uint8_t bis_channel_cnt_;
   /* Codec Specific Configuration */
@@ -103,17 +92,14 @@ struct BroadcastSubgroupBisCodecConfig {
   std::optional<std::vector<uint8_t>> vendor_codec_specific_;
 };
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const le_audio::broadcaster::BroadcastSubgroupBisCodecConfig& config);
+std::ostream& operator<<(std::ostream& os,
+                         const le_audio::broadcaster::BroadcastSubgroupBisCodecConfig& config);
 
 struct BroadcastSubgroupCodecConfig {
   BroadcastSubgroupCodecConfig(
-      types::LeAudioCodecId codec_id,
-      std::vector<BroadcastSubgroupBisCodecConfig> bis_codec_configs,
-      uint8_t bits_per_sample,
-      std::optional<std::vector<uint8_t>> subgroup_vendor_codec_config =
-          std::nullopt)
+          types::LeAudioCodecId codec_id,
+          std::vector<BroadcastSubgroupBisCodecConfig> bis_codec_configs, uint8_t bits_per_sample,
+          std::optional<std::vector<uint8_t>> subgroup_vendor_codec_config = std::nullopt)
       : codec_id_(codec_id),
         bis_codec_configs_(bis_codec_configs),
         subgroup_vendor_codec_config_(subgroup_vendor_codec_config),
@@ -121,12 +107,12 @@ struct BroadcastSubgroupCodecConfig {
 
   bool operator==(const BroadcastSubgroupCodecConfig& other) const {
     if (subgroup_vendor_codec_config_.has_value() !=
-        other.subgroup_vendor_codec_config_.has_value())
+        other.subgroup_vendor_codec_config_.has_value()) {
       return false;
+    }
 
     if (subgroup_vendor_codec_config_.has_value()) {
-      if (subgroup_vendor_codec_config_->size() !=
-          other.subgroup_vendor_codec_config_->size()) {
+      if (subgroup_vendor_codec_config_->size() != other.subgroup_vendor_codec_config_->size()) {
         return false;
       }
 
@@ -137,20 +123,18 @@ struct BroadcastSubgroupCodecConfig {
       }
     }
 
-    return (codec_id_ == other.codec_id_) &&
-           (bis_codec_configs_ == other.bis_codec_configs_) &&
+    return (codec_id_ == other.codec_id_) && (bis_codec_configs_ == other.bis_codec_configs_) &&
            (bits_per_sample_ == other.bits_per_sample_);
   }
 
-  bool operator!=(const BroadcastSubgroupCodecConfig& other) const {
-    return !(*this == other);
-  }
+  bool operator!=(const BroadcastSubgroupCodecConfig& other) const { return !(*this == other); }
 
   types::LeAudioLtvMap GetCommonBisCodecSpecData() const {
-    if (bis_codec_configs_.empty()) return types::LeAudioLtvMap();
+    if (bis_codec_configs_.empty()) {
+      return types::LeAudioLtvMap();
+    }
     auto common_ltv = bis_codec_configs_[0].GetCodecSpecData();
-    for (auto it = bis_codec_configs_.begin() + 1;
-         it != bis_codec_configs_.end(); ++it) {
+    for (auto it = bis_codec_configs_.begin() + 1; it != bis_codec_configs_.end(); ++it) {
       common_ltv = it->GetCodecSpecData().GetIntersection(common_ltv);
     }
     return common_ltv;
@@ -160,9 +144,10 @@ struct BroadcastSubgroupCodecConfig {
     return subgroup_vendor_codec_config_;
   }
 
-  std::optional<std::vector<uint8_t>> GetBisVendorCodecSpecData(
-      uint8_t bis_idx) const {
-    if (bis_codec_configs_.empty()) return std::nullopt;
+  std::optional<std::vector<uint8_t>> GetBisVendorCodecSpecData(uint8_t bis_idx) const {
+    if (bis_codec_configs_.empty()) {
+      return std::nullopt;
+    }
     auto config = bis_codec_configs_.at(0);
     if ((bis_idx != 0) && (bis_idx < bis_codec_configs_.size())) {
       config = bis_codec_configs_.at(bis_idx);
@@ -177,35 +162,34 @@ struct BroadcastSubgroupCodecConfig {
 
   uint16_t GetBisOctetsPerCodecFrame(uint8_t bis_idx) const {
     // Check the subgroup level parameters first, then the specific BIS
-    auto num_octets = GetCommonBisCodecSpecData()
-                          .GetAsCoreCodecConfig()
-                          .octets_per_codec_frame.value_or(0);
-    if (num_octets) return num_octets;
+    auto num_octets =
+            GetCommonBisCodecSpecData().GetAsCoreCodecConfig().octets_per_codec_frame.value_or(0);
+    if (num_octets) {
+      return num_octets;
+    }
 
     // Currently not a single software vendor codec was integrated and only the
     // LTVs parameters are understood by the BT stack.
     auto opt_ltvs = GetBisCodecSpecData(bis_idx, 0);
     if (opt_ltvs) {
-      return opt_ltvs->GetAsCoreCodecConfig().octets_per_codec_frame.value_or(
-                 0) *
-             opt_ltvs->GetAsCoreCodecConfig()
-                 .codec_frames_blocks_per_sdu.value_or(0);
+      return opt_ltvs->GetAsCoreCodecConfig().octets_per_codec_frame.value_or(0) *
+             opt_ltvs->GetAsCoreCodecConfig().codec_frames_blocks_per_sdu.value_or(0);
     }
 
     return 0;
   }
 
   /* Note: this should be used for tests only */
-  const std::vector<BroadcastSubgroupBisCodecConfig>& GetBisCodecConfigs()
-      const {
+  const std::vector<BroadcastSubgroupBisCodecConfig>& GetBisCodecConfigs() const {
     return bis_codec_configs_;
   }
 
-  std::optional<types::LeAudioLtvMap> GetBisCodecSpecData(
-      uint8_t bis_idx, uint8_t bis_config_idx) const {
-    if (bis_codec_configs_.empty()) return std::nullopt;
-    log::assert_that(bis_config_idx < bis_codec_configs_.size(),
-                     "Invalid bis config index");
+  std::optional<types::LeAudioLtvMap> GetBisCodecSpecData(uint8_t bis_idx,
+                                                          uint8_t bis_config_idx) const {
+    if (bis_codec_configs_.empty()) {
+      return std::nullopt;
+    }
+    log::assert_that(bis_config_idx < bis_codec_configs_.size(), "Invalid bis config index");
     auto config = bis_codec_configs_.at(bis_config_idx);
     if ((bis_idx != 0) && (bis_idx < bis_codec_configs_.size())) {
       config = bis_codec_configs_.at(bis_idx);
@@ -276,10 +260,9 @@ struct BroadcastSubgroupCodecConfig {
   size_t GetAllBisConfigCount() const { return bis_codec_configs_.size(); }
 
   friend std::ostream& operator<<(
-      std::ostream& os,
-      const le_audio::broadcaster::BroadcastSubgroupCodecConfig& config);
+          std::ostream& os, const le_audio::broadcaster::BroadcastSubgroupCodecConfig& config);
 
- private:
+private:
   types::LeAudioCodecId codec_id_;
   /* A list of distinct BIS configurations - each config can be allied to
    * num_bis number of BISes
@@ -294,13 +277,11 @@ struct BroadcastSubgroupCodecConfig {
 };
 
 std::ostream& operator<<(
-    std::ostream& os,
-    const bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig&
-        config);
+        std::ostream& os,
+        const bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig& config);
 
 struct BroadcastQosConfig {
-  BroadcastQosConfig(uint8_t retransmission_number,
-                     uint16_t max_transport_latency)
+  BroadcastQosConfig(uint8_t retransmission_number, uint16_t max_transport_latency)
       : retransmission_number_(retransmission_number),
         max_transport_latency_(max_transport_latency) {}
 
@@ -309,33 +290,35 @@ struct BroadcastQosConfig {
            (max_transport_latency_ == other.max_transport_latency_);
   }
 
-  bool operator!=(const BroadcastQosConfig& other) const {
-    return !(*this == other);
-  }
+  bool operator!=(const BroadcastQosConfig& other) const { return !(*this == other); }
 
   uint8_t getRetransmissionNumber() const { return retransmission_number_; }
   uint16_t getMaxTransportLatency() const { return max_transport_latency_; }
 
- private:
+private:
   uint8_t retransmission_number_;
   uint16_t max_transport_latency_;
 };
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const bluetooth::le_audio::broadcaster::BroadcastQosConfig& config);
+std::ostream& operator<<(std::ostream& os,
+                         const bluetooth::le_audio::broadcaster::BroadcastQosConfig& config);
 
 struct BroadcastConfiguration {
   bool operator==(const BroadcastConfiguration& other) const {
-    if ((sduIntervalUs != other.sduIntervalUs) ||
-        (maxSduOctets != other.maxSduOctets) || (phy != other.phy) ||
-        (packing != other.packing) || (framing != other.framing)) {
+    if ((sduIntervalUs != other.sduIntervalUs) || (maxSduOctets != other.maxSduOctets) ||
+        (phy != other.phy) || (packing != other.packing) || (framing != other.framing)) {
       return false;
     }
 
-    if (qos != other.qos) return false;
-    if (data_path != other.data_path) return false;
-    if (subgroups.size() != other.subgroups.size()) return false;
+    if (qos != other.qos) {
+      return false;
+    }
+    if (data_path != other.data_path) {
+      return false;
+    }
+    if (subgroups.size() != other.subgroups.size()) {
+      return false;
+    }
 
     for (auto const& subgroup : subgroups) {
       if (std::find(other.subgroups.begin(), other.subgroups.end(), subgroup) ==
@@ -347,9 +330,7 @@ struct BroadcastConfiguration {
     return true;
   }
 
-  bool operator!=(const BroadcastConfiguration& other) const {
-    return !(*this == other);
-  }
+  bool operator!=(const BroadcastConfiguration& other) const { return !(*this == other); }
 
   uint8_t GetNumBisTotal() const {
     auto count = 0;
@@ -363,7 +344,9 @@ struct BroadcastConfiguration {
   uint8_t GetNumChannelsMax() const {
     uint8_t value = 0;
     for (auto const& cfg : subgroups) {
-      if (cfg.GetNumChannelsTotal() > value) value = cfg.GetNumChannelsTotal();
+      if (cfg.GetNumChannelsTotal() > value) {
+        value = cfg.GetNumChannelsTotal();
+      }
     }
     return value;
   }
@@ -371,8 +354,9 @@ struct BroadcastConfiguration {
   uint32_t GetSamplingFrequencyHzMax() const {
     uint32_t value = 0;
     for (auto const& cfg : subgroups) {
-      if (cfg.GetSamplingFrequencyHzMax() > value)
+      if (cfg.GetSamplingFrequencyHzMax() > value) {
         value = cfg.GetSamplingFrequencyHzMax();
+      }
     }
     return value;
   }
@@ -395,17 +379,15 @@ struct BroadcastConfiguration {
   uint8_t framing;
 };
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const le_audio::broadcaster::BroadcastConfiguration& config);
+std::ostream& operator<<(std::ostream& os,
+                         const le_audio::broadcaster::BroadcastConfiguration& config);
 
 }  // namespace broadcaster
 }  // namespace bluetooth::le_audio
 
 /* BroadcastAnnouncements compare helper */
 namespace bluetooth::le_audio {
-bool operator==(const BasicAudioAnnouncementData& lhs,
-                const BasicAudioAnnouncementData& rhs);
+bool operator==(const BasicAudioAnnouncementData& lhs, const BasicAudioAnnouncementData& rhs);
 bool operator==(const PublicBroadcastAnnouncementData& lhs,
                 const PublicBroadcastAnnouncementData& rhs);
 }  // namespace bluetooth::le_audio

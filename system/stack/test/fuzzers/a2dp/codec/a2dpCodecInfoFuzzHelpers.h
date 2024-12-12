@@ -33,20 +33,16 @@ std::vector<uint8_t*> a2dp_codec_info_vect;
 
 // Calls a function from the ops_vector
 void callArbitraryCodecInfoFunction(
-    FuzzedDataProvider* fdp,
-    std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>>
-        ops_vector) {
+        FuzzedDataProvider* fdp,
+        std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>> ops_vector) {
   // Choose which function we'll be calling
-  uint8_t function_id =
-      fdp->ConsumeIntegralInRange<uint8_t>(0, ops_vector.size() - 1);
+  uint8_t function_id = fdp->ConsumeIntegralInRange<uint8_t>(0, ops_vector.size() - 1);
 
   // Get a info object
-  uint8_t* codec_info =
-      getArbitraryVectorElement(fdp, a2dp_codec_info_vect, false);
+  uint8_t* codec_info = getArbitraryVectorElement(fdp, a2dp_codec_info_vect, false);
 
   // Most functions require a valid codec_info
-  if (codec_info || function_id == 0 || function_id == 25 ||
-      function_id == 26) {
+  if (codec_info || function_id == 0 || function_id == 25 || function_id == 26) {
     // Call the function we've chosen
     ops_vector[function_id](fdp, codec_info);
   }

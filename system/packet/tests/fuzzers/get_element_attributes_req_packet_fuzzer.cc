@@ -35,9 +35,10 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
       get_element_attributes_request_full.push_back(data[x]);
     }
 
-    auto test_packet =
-        TestGetElemAttrReqPacket::Make(get_element_attributes_request_full);
-    if (!test_packet->IsValid()) return 0;
+    auto test_packet = TestGetElemAttrReqPacket::Make(get_element_attributes_request_full);
+    if (!test_packet->IsValid()) {
+      return 0;
+    }
     test_packet->GetIdentifier();
     auto tpString = test_packet->ToString();
   }

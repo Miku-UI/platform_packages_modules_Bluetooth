@@ -23,35 +23,35 @@
 namespace bluetooth::common {
 
 class PostableContext : public IPostableContext {
- public:
+public:
   virtual ~PostableContext() = default;
 
   template <typename Functor, typename... Args>
   auto BindOnce(Functor&& functor, Args&&... args) {
     return common::ContextualOnceCallback(
-        common::BindOnce(std::forward<Functor>(functor), std::forward<Args>(args)...), this);
+            common::BindOnce(std::forward<Functor>(functor), std::forward<Args>(args)...), this);
   }
 
   template <typename Functor, typename T, typename... Args>
   auto BindOnceOn(T* obj, Functor&& functor, Args&&... args) {
     return common::ContextualOnceCallback(
-        common::BindOnce(
-            std::forward<Functor>(functor), common::Unretained(obj), std::forward<Args>(args)...),
-        this);
+            common::BindOnce(std::forward<Functor>(functor), common::Unretained(obj),
+                             std::forward<Args>(args)...),
+            this);
   }
 
   template <typename Functor, typename... Args>
   auto Bind(Functor&& functor, Args&&... args) {
     return common::ContextualCallback(
-        common::Bind(std::forward<Functor>(functor), std::forward<Args>(args)...), this);
+            common::Bind(std::forward<Functor>(functor), std::forward<Args>(args)...), this);
   }
 
   template <typename Functor, typename T, typename... Args>
   auto BindOn(T* obj, Functor&& functor, Args&&... args) {
     return common::ContextualCallback(
-        common::Bind(
-            std::forward<Functor>(functor), common::Unretained(obj), std::forward<Args>(args)...),
-        this);
+            common::Bind(std::forward<Functor>(functor), common::Unretained(obj),
+                         std::forward<Args>(args)...),
+            this);
   }
 };
 

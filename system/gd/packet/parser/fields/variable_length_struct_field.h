@@ -20,7 +20,7 @@
 #include "parse_location.h"
 
 class VariableLengthStructField : public PacketField {
- public:
+public:
   VariableLengthStructField(std::string name, std::string type_name, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -51,6 +51,6 @@ class VariableLengthStructField : public PacketField {
 
   virtual void GenValidator(std::ostream&) const override;
 
- private:
+private:
   std::string type_name_;
 };

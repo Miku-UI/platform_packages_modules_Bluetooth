@@ -23,41 +23,33 @@
 
 #include "types/raw_address.h"
 
-void log_classic_pairing_event(const RawAddress& address, uint16_t handle,
-                               uint32_t hci_cmd, uint16_t hci_event,
-                               uint16_t cmd_status, uint16_t reason_code,
+void log_classic_pairing_event(const RawAddress& address, uint16_t handle, uint32_t hci_cmd,
+                               uint16_t hci_event, uint16_t cmd_status, uint16_t reason_code,
                                int64_t event_value);
 
-void log_link_layer_connection_event(
-    const RawAddress* address, uint32_t connection_handle,
-    android::bluetooth::DirectionEnum direction, uint16_t link_type,
-    uint32_t hci_cmd, uint16_t hci_event, uint16_t hci_ble_event,
-    uint16_t cmd_status, uint16_t reason_code);
+void log_link_layer_connection_event(const RawAddress* address, uint32_t connection_handle,
+                                     android::bluetooth::DirectionEnum direction,
+                                     uint16_t link_type, uint32_t hci_cmd, uint16_t hci_event,
+                                     uint16_t hci_ble_event, uint16_t cmd_status,
+                                     uint16_t reason_code);
 
 void log_smp_pairing_event(const RawAddress& address, uint16_t smp_cmd,
-                           android::bluetooth::DirectionEnum direction,
-                           uint16_t smp_fail_reason);
+                           android::bluetooth::DirectionEnum direction, uint16_t smp_fail_reason);
 
-void log_sdp_attribute(const RawAddress& address, uint16_t protocol_uuid,
-                       uint16_t attribute_id, size_t attribute_size,
-                       const char* attribute_value);
+void log_sdp_attribute(const RawAddress& address, uint16_t protocol_uuid, uint16_t attribute_id,
+                       size_t attribute_size, const char* attribute_value);
 
 void log_manufacturer_info(const RawAddress& address,
                            android::bluetooth::AddressTypeEnum address_type,
                            android::bluetooth::DeviceInfoSrcEnum source_type,
-                           const std::string& source_name,
-                           const std::string& manufacturer,
-                           const std::string& model,
-                           const std::string& hardware_version,
+                           const std::string& source_name, const std::string& manufacturer,
+                           const std::string& model, const std::string& hardware_version,
                            const std::string& software_version);
 
-void log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum key,
-                         int64_t value);
+void log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum key, int64_t value);
 
-void log_hfp_audio_packet_loss_stats(const RawAddress& address,
-                                     int num_decoded_frames,
-                                     double packet_loss_ratio,
-                                     uint16_t codec_type);
+void log_hfp_audio_packet_loss_stats(const RawAddress& address, int num_decoded_frames,
+                                     double packet_loss_ratio, uint16_t codec_type);
 
-void log_mmc_transcode_rtt_stats(int maximum_rtt, double mean_rtt,
-                                 int num_requests, int codec_type);
+void log_mmc_transcode_rtt_stats(int maximum_rtt, double mean_rtt, int num_requests,
+                                 int codec_type);

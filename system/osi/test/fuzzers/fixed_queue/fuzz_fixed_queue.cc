@@ -16,6 +16,7 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 #include <sys/select.h>
+
 #include "osi/include/fixed_queue.h"
 #include "osi/include/future.h"
 #include "osi/include/thread.h"
@@ -70,8 +71,7 @@ void createNewFuture() {
   received_message_future = future_new();
 }
 
-void callArbitraryFunction(fixed_queue_t* fixed_queue,
-                           std::vector<void*>* live_buffer_vector,
+void callArbitraryFunction(fixed_queue_t* fixed_queue, std::vector<void*>* live_buffer_vector,
                            std::vector<thread_t*>* live_thread_vector,
                            FuzzedDataProvider* dataProvider) {
   void* buf_ptr = nullptr;
@@ -148,8 +148,7 @@ void callArbitraryFunction(fixed_queue_t* fixed_queue,
         return;
       }
       // Grab an existing buffer
-      index = dataProvider->ConsumeIntegralInRange<size_t>(
-          0, live_buffer_vector->size() - 1);
+      index = dataProvider->ConsumeIntegralInRange<size_t>(0, live_buffer_vector->size() - 1);
       buf_ptr = live_buffer_vector->at(index);
       if (buf_ptr != nullptr) {
         fixed_queue_try_remove_from_queue(fixed_queue, buf_ptr);
@@ -157,8 +156,7 @@ void callArbitraryFunction(fixed_queue_t* fixed_queue,
       return;
     // Try to remove nonexistant element
     case 12:
-      buf_ptr =
-          reinterpret_cast<void*>(dataProvider->ConsumeIntegral<uint64_t>());
+      buf_ptr = reinterpret_cast<void*>(dataProvider->ConsumeIntegral<uint64_t>());
       if (buf_ptr != nullptr) {
         fixed_queue_try_remove_from_queue(fixed_queue, buf_ptr);
       }
@@ -213,16 +211,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
   std::vector<void*> live_buffer_vector;
   std::vector<thread_t*> live_thread_vector;
 
-  size_t start_capacity =
-      dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_START_SIZE);
+  size_t start_capacity = dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_START_SIZE);
   fixed_queue_t* fixed_queue = fixed_queue_new(start_capacity);
 
   // How many functions are we going to call?
-  size_t num_functions =
-      dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
+  size_t num_functions = dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
   for (size_t i = 0; i < num_functions; i++) {
-    callArbitraryFunction(fixed_queue, &live_buffer_vector, &live_thread_vector,
-                          &dataProvider);
+    callArbitraryFunction(fixed_queue, &live_buffer_vector, &live_thread_vector, &dataProvider);
   }
 
   // Free our queue (with either a null or placeholder callback)

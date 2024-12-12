@@ -28,7 +28,7 @@ using std::vector;
 
 namespace {
 vector<uint8_t> information_request = {
-    0xfe, 0x2e, 0x0a, 0x00, 0x06, 0x00, 0x01, 0x00, 0x0a, 0x02, 0x02, 0x00, 0x02, 0x00,
+        0xfe, 0x2e, 0x0a, 0x00, 0x06, 0x00, 0x01, 0x00, 0x0a, 0x02, 0x02, 0x00, 0x02, 0x00,
 };
 // 0x00, 0x01, 0x02, 0x03, ...
 vector<uint8_t> counting_bytes;
@@ -42,7 +42,7 @@ namespace bluetooth {
 namespace hci {
 
 class AclBuilderTest : public ::testing::Test {
- public:
+public:
   AclBuilderTest() {
     counting_bytes.reserve(count_size);
     counting_down_bytes.reserve(count_size);
@@ -63,12 +63,13 @@ TEST(AclBuilderTest, buildAclCount) {
   count_payload->AddOctets(counting_bytes);
   ASSERT_EQ(counting_bytes.size(), count_payload->size());
 
-  std::unique_ptr<AclBuilder> count_packet =
-      AclBuilder::Create(handle, packet_boundary_flag, broadcast_flag, std::move(count_payload));
+  std::unique_ptr<AclBuilder> count_packet = AclBuilder::Create(
+          handle, packet_boundary_flag, broadcast_flag, std::move(count_payload));
 
   ASSERT_EQ(counting_bytes.size() + 4, count_packet->size());
 
-  std::shared_ptr<std::vector<uint8_t>> count_packet_bytes = std::make_shared<std::vector<uint8_t>>();
+  std::shared_ptr<std::vector<uint8_t>> count_packet_bytes =
+          std::make_shared<std::vector<uint8_t>>();
   BitInserter it(*count_packet_bytes);
   count_packet->Serialize(it);
 
@@ -96,12 +97,13 @@ TEST(AclBuilderTest, buildAclCountInverted) {
   counting_down_bytes_payload->AddOctets(counting_down_bytes);
   ASSERT_EQ(counting_down_bytes.size(), counting_down_bytes_payload->size());
 
-  std::unique_ptr<AclBuilder> counting_down_bytes_packet =
-      AclBuilder::Create(handle, packet_boundary_flag, broadcast_flag, std::move(counting_down_bytes_payload));
+  std::unique_ptr<AclBuilder> counting_down_bytes_packet = AclBuilder::Create(
+          handle, packet_boundary_flag, broadcast_flag, std::move(counting_down_bytes_payload));
 
   ASSERT_EQ(counting_down_bytes.size() + 4, counting_down_bytes_packet->size());
 
-  std::shared_ptr<std::vector<uint8_t>> counting_down_bytes_packet_bytes = std::make_shared<std::vector<uint8_t>>();
+  std::shared_ptr<std::vector<uint8_t>> counting_down_bytes_packet_bytes =
+          std::make_shared<std::vector<uint8_t>>();
   BitInserter it(*counting_down_bytes_packet_bytes);
   counting_down_bytes_packet->Serialize(it);
   PacketView<true> counting_down_bytes_packet_bytes_view(counting_down_bytes_packet_bytes);
@@ -130,7 +132,7 @@ TEST(AclBuilderTest, buildInformationRequest) {
   ASSERT_EQ(payload_bytes.size(), payload->size());
 
   std::unique_ptr<AclBuilder> packet =
-      AclBuilder::Create(handle, packet_boundary_flag, broadcast_flag, std::move(payload));
+          AclBuilder::Create(handle, packet_boundary_flag, broadcast_flag, std::move(payload));
 
   ASSERT_EQ(information_request.size(), packet->size());
 

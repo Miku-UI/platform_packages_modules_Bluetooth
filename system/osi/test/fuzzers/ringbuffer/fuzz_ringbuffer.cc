@@ -15,6 +15,7 @@
  */
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include "osi/include/ringbuffer.h"
 
 #define MAX_NUM_FUNCTIONS 512
@@ -26,8 +27,7 @@ ringbuffer_t* getArbitraryRingBuf(std::vector<ringbuffer_t*>* ringbuf_vector,
     return nullptr;
   }
 
-  size_t index = dataProvider->ConsumeIntegralInRange<size_t>(
-      0, ringbuf_vector->size() - 1);
+  size_t index = dataProvider->ConsumeIntegralInRange<size_t>(0, ringbuf_vector->size() - 1);
   return ringbuf_vector->at(index);
 }
 
@@ -43,8 +43,7 @@ void callArbitraryFunction(std::vector<ringbuffer_t*>* ringbuf_vector,
     case 0:
       return;
     case 1: {
-      size_t size =
-          dataProvider->ConsumeIntegralInRange<size_t>(0, MAX_BUF_SIZE);
+      size_t size = dataProvider->ConsumeIntegralInRange<size_t>(0, MAX_BUF_SIZE);
       buf = ringbuffer_init(size);
       if (buf) {
         ringbuf_vector->push_back(buf);
@@ -55,8 +54,7 @@ void callArbitraryFunction(std::vector<ringbuffer_t*>* ringbuf_vector,
       if (ringbuf_vector->empty()) {
         return;
       }
-      size_t index = dataProvider->ConsumeIntegralInRange<size_t>(
-          0, ringbuf_vector->size() - 1);
+      size_t index = dataProvider->ConsumeIntegralInRange<size_t>(0, ringbuf_vector->size() - 1);
       buf = ringbuf_vector->at(index);
       if (buf) {
         ringbuffer_free(buf);
@@ -78,8 +76,7 @@ void callArbitraryFunction(std::vector<ringbuffer_t*>* ringbuf_vector,
       return;
     case 5: {
       buf = getArbitraryRingBuf(ringbuf_vector, dataProvider);
-      size_t size =
-          dataProvider->ConsumeIntegralInRange<size_t>(1, MAX_BUF_SIZE);
+      size_t size = dataProvider->ConsumeIntegralInRange<size_t>(1, MAX_BUF_SIZE);
       if (buf == nullptr || size == 0) {
         return;
       }
@@ -117,10 +114,8 @@ void callArbitraryFunction(std::vector<ringbuffer_t*>* ringbuf_vector,
       }
       if (func_id == 6) {
         off_t offset = dataProvider->ConsumeIntegral<off_t>();
-        if (offset >= 0 &&
-            static_cast<size_t>(offset) <= ringbuffer_size(buf)) {
-          ringbuffer_peek(buf, offset, reinterpret_cast<uint8_t*>(dst_buf),
-                          size);
+        if (offset >= 0 && static_cast<size_t>(offset) <= ringbuffer_size(buf)) {
+          ringbuffer_peek(buf, offset, reinterpret_cast<uint8_t*>(dst_buf), size);
         }
       } else {
         ringbuffer_pop(buf, reinterpret_cast<uint8_t*>(dst_buf), size);
@@ -130,8 +125,7 @@ void callArbitraryFunction(std::vector<ringbuffer_t*>* ringbuf_vector,
       return;
     case 8: {
       buf = getArbitraryRingBuf(ringbuf_vector, dataProvider);
-      size_t size =
-          dataProvider->ConsumeIntegralInRange<size_t>(0, MAX_BUF_SIZE);
+      size_t size = dataProvider->ConsumeIntegralInRange<size_t>(0, MAX_BUF_SIZE);
       if (buf) {
         ringbuffer_delete(buf, size);
       }
@@ -150,8 +144,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
   std::vector<ringbuffer_t*> ringbuf_vector;
 
   // Call some functions, create some buffers
-  size_t num_functions =
-      dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
+  size_t num_functions = dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
   for (size_t i = 0; i < num_functions; i++) {
     callArbitraryFunction(&ringbuf_vector, &dataProvider);
   }

@@ -16,13 +16,12 @@
  *
  ******************************************************************************/
 
-#include <gtest/gtest.h>
-
 #include "audio_hearing_aid_hw/include/audio_hearing_aid_hw.h"
 
+#include <gtest/gtest.h>
+
 namespace {
-static uint32_t codec_sample_rate2value(
-    btav_a2dp_codec_sample_rate_t codec_sample_rate) {
+static uint32_t codec_sample_rate2value(btav_a2dp_codec_sample_rate_t codec_sample_rate) {
   switch (codec_sample_rate) {
     case BTAV_A2DP_CODEC_SAMPLE_RATE_44100:
       return 44100;
@@ -47,7 +46,7 @@ static uint32_t codec_sample_rate2value(
 }
 
 static uint32_t codec_bits_per_sample2value(
-    btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample) {
+        btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample) {
   switch (codec_bits_per_sample) {
     case BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16:
       return 16;
@@ -61,8 +60,7 @@ static uint32_t codec_bits_per_sample2value(
   return 0;
 }
 
-static uint32_t codec_channel_mode2value(
-    btav_a2dp_codec_channel_mode_t codec_channel_mode) {
+static uint32_t codec_channel_mode2value(btav_a2dp_codec_channel_mode_t codec_channel_mode) {
   switch (codec_channel_mode) {
     case BTAV_A2DP_CODEC_CHANNEL_MODE_MONO:
       return 1;
@@ -77,63 +75,59 @@ static uint32_t codec_channel_mode2value(
 }  // namespace
 
 class AudioA2dpHwTest : public ::testing::Test {
- protected:
+protected:
   AudioA2dpHwTest() {}
 
- private:
+private:
 };
 
 TEST_F(AudioA2dpHwTest, test_compute_buffer_size) {
   const btav_a2dp_codec_sample_rate_t codec_sample_rate_array[] = {
-      BTAV_A2DP_CODEC_SAMPLE_RATE_NONE,  BTAV_A2DP_CODEC_SAMPLE_RATE_44100,
-      BTAV_A2DP_CODEC_SAMPLE_RATE_48000, BTAV_A2DP_CODEC_SAMPLE_RATE_88200,
-      BTAV_A2DP_CODEC_SAMPLE_RATE_96000, BTAV_A2DP_CODEC_SAMPLE_RATE_176400,
-      BTAV_A2DP_CODEC_SAMPLE_RATE_192000};
+          BTAV_A2DP_CODEC_SAMPLE_RATE_NONE,  BTAV_A2DP_CODEC_SAMPLE_RATE_44100,
+          BTAV_A2DP_CODEC_SAMPLE_RATE_48000, BTAV_A2DP_CODEC_SAMPLE_RATE_88200,
+          BTAV_A2DP_CODEC_SAMPLE_RATE_96000, BTAV_A2DP_CODEC_SAMPLE_RATE_176400,
+          BTAV_A2DP_CODEC_SAMPLE_RATE_192000};
 
   const btav_a2dp_codec_bits_per_sample_t codec_bits_per_sample_array[] = {
-      BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16,
-      BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32};
+          BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16,
+          BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32};
 
   const btav_a2dp_codec_channel_mode_t codec_channel_mode_array[] = {
-      BTAV_A2DP_CODEC_CHANNEL_MODE_NONE, BTAV_A2DP_CODEC_CHANNEL_MODE_MONO,
-      BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO};
+          BTAV_A2DP_CODEC_CHANNEL_MODE_NONE, BTAV_A2DP_CODEC_CHANNEL_MODE_MONO,
+          BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO};
 
   for (const auto codec_sample_rate : codec_sample_rate_array) {
     for (const auto codec_bits_per_sample : codec_bits_per_sample_array) {
       for (const auto codec_channel_mode : codec_channel_mode_array) {
         size_t buffer_size = audio_ha_hw_stream_compute_buffer_size(
-            codec_sample_rate, codec_bits_per_sample, codec_channel_mode);
+                codec_sample_rate, codec_bits_per_sample, codec_channel_mode);
 
         // Check for invalid input
         if ((codec_sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_NONE) ||
             (codec_bits_per_sample == BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE) ||
             (codec_channel_mode == BTAV_A2DP_CODEC_CHANNEL_MODE_NONE)) {
-          EXPECT_EQ(buffer_size,
-                    static_cast<size_t>(AUDIO_STREAM_OUTPUT_BUFFER_SZ));
+          EXPECT_EQ(buffer_size, static_cast<size_t>(AUDIO_STREAM_OUTPUT_BUFFER_SZ));
           continue;
         }
 
         uint32_t sample_rate = codec_sample_rate2value(codec_sample_rate);
         EXPECT_TRUE(sample_rate != 0);
 
-        uint32_t bits_per_sample =
-            codec_bits_per_sample2value(codec_bits_per_sample);
+        uint32_t bits_per_sample = codec_bits_per_sample2value(codec_bits_per_sample);
         EXPECT_TRUE(bits_per_sample != 0);
 
-        uint32_t number_of_channels =
-            codec_channel_mode2value(codec_channel_mode);
+        uint32_t number_of_channels = codec_channel_mode2value(codec_channel_mode);
         EXPECT_TRUE(number_of_channels != 0);
 
         const uint64_t time_period_ms = 20;  // TODO: Must be a parameter
-        size_t expected_buffer_size =
-            (time_period_ms * AUDIO_STREAM_OUTPUT_BUFFER_PERIODS * sample_rate *
-             number_of_channels * (bits_per_sample / 8)) /
-            1000;
+        size_t expected_buffer_size = (time_period_ms * AUDIO_STREAM_OUTPUT_BUFFER_PERIODS *
+                                       sample_rate * number_of_channels * (bits_per_sample / 8)) /
+                                      1000;
 
         // Compute the divisor and adjust the buffer size
-        const size_t divisor = (AUDIO_STREAM_OUTPUT_BUFFER_PERIODS * 16 *
-                                number_of_channels * bits_per_sample) /
-                               8;
+        const size_t divisor =
+                (AUDIO_STREAM_OUTPUT_BUFFER_PERIODS * 16 * number_of_channels * bits_per_sample) /
+                8;
         const size_t remainder = expected_buffer_size % divisor;
         if (remainder != 0) {
           expected_buffer_size += divisor - remainder;

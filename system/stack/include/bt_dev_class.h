@@ -99,8 +99,8 @@ inline constexpr DEV_CLASS kDevClassEmpty = {};
 #define BTM_COD_SERVICE_CLASS_LO_B 0x00E0
 #define BTM_COD_SERVICE_CLASS_MASK 0xFFE0
 
-inline constexpr DEV_CLASS kDevClassUnclassified = {
-    0x00, BTM_COD_MAJOR_UNCLASSIFIED, BTM_COD_MINOR_UNCLASSIFIED};
+inline constexpr DEV_CLASS kDevClassUnclassified = {0x00, BTM_COD_MAJOR_UNCLASSIFIED,
+                                                    BTM_COD_MINOR_UNCLASSIFIED};
 
 /* class of device field macros */
 #define BTM_COD_MINOR_CLASS(u8, pd) \
@@ -115,11 +115,11 @@ inline constexpr DEV_CLASS kDevClassUnclassified = {
   }
 
 /* to set the fields (assumes that format type is always 0) */
-#define FIELDS_TO_COD(pd, mn, mj, sv)                   \
-  {                                                     \
-    (pd)[2] = mn;                                       \
-    (pd)[1] = (mj) + ((sv)&BTM_COD_SERVICE_CLASS_LO_B); \
-    (pd)[0] = (sv) >> 8;                                \
+#define FIELDS_TO_COD(pd, mn, mj, sv)                     \
+  {                                                       \
+    (pd)[2] = mn;                                         \
+    (pd)[1] = (mj) + ((sv) & BTM_COD_SERVICE_CLASS_LO_B); \
+    (pd)[0] = (sv) >> 8;                                  \
   }
 
 inline std::string dev_class_text(const DEV_CLASS& dev_class) {
@@ -140,9 +140,10 @@ inline std::string dev_class_text(const DEV_CLASS& dev_class) {
       *(p)++ = (a)[kDevClassLength - 1 - ijk];  \
   }
 
-#define STREAM_TO_DEVCLASS(a, p)                                 \
-  {                                                              \
-    size_t ijk;                                                  \
-    uint8_t* _pa = a.data() + kDevClassLength - 1;               \
-    for (ijk = 0; ijk < kDevClassLength; ijk++) *_pa-- = *(p)++; \
+#define STREAM_TO_DEVCLASS(a, p)                   \
+  {                                                \
+    size_t ijk;                                    \
+    uint8_t* _pa = a.data() + kDevClassLength - 1; \
+    for (ijk = 0; ijk < kDevClassLength; ijk++)    \
+      *_pa-- = *(p)++;                             \
   }

@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <memory>
 
 #include "os/logging/log_adapter.h"
 #include "stack/gatt/gatt_int.h"
@@ -26,7 +27,7 @@
 
 #define EATT_MIN_MTU_MPS (64)
 #define EATT_DEFAULT_MTU (256)
-#define EATT_MAX_TX_MTU  (1024)
+#define EATT_MAX_TX_MTU (1024)
 #define EATT_ALL_CIDS (0xFFFF)
 
 namespace bluetooth {
@@ -40,7 +41,7 @@ enum class EattChannelState : uint8_t {
 };
 
 class EattChannel {
- public:
+public:
   /* Pointer to EattDevice */
   RawAddress bda_;
   uint16_t cid_;
@@ -50,7 +51,7 @@ class EattChannel {
 
   /* Used to keep server commands */
   tGATT_SR_CMD server_outstanding_cmd_;
-  /* Used to veryfy indication confirmation*/
+  /* Used to verify indication confirmation*/
   uint16_t indicate_handle_;
   /* local app confirm to indication timer */
   alarm_t* ind_ack_timer_;
@@ -84,14 +85,12 @@ class EattChannel {
   void EattChannelSetState(EattChannelState state) {
     if (state_ == EattChannelState::EATT_CHANNEL_PENDING) {
       if (state == EattChannelState::EATT_CHANNEL_OPENED) {
-        memset(&server_outstanding_cmd_, 0, sizeof(tGATT_SR_CMD));
+        server_outstanding_cmd_ = tGATT_SR_CMD{};
         char name[64];
-        sprintf(name, "eatt_ind_ack_timer_%s_cid_0x%04x",
-                ADDRESS_TO_LOGGABLE_CSTR(bda_), cid_);
+        sprintf(name, "eatt_ind_ack_timer_%s_cid_0x%04x", ADDRESS_TO_LOGGABLE_CSTR(bda_), cid_);
         ind_ack_timer_ = alarm_new(name);
 
-        sprintf(name, "eatt_ind_conf_timer_%s_cid_0x%04x",
-                ADDRESS_TO_LOGGABLE_CSTR(bda_), cid_);
+        sprintf(name, "eatt_ind_conf_timer_%s_cid_0x%04x", ADDRESS_TO_LOGGABLE_CSTR(bda_), cid_);
         ind_confirmation_timer_ = alarm_new(name);
       }
     }
@@ -100,12 +99,13 @@ class EattChannel {
 
   void EattChannelSetTxMTU(uint16_t tx_mtu) {
     this->tx_mtu_ = std::min<uint16_t>(tx_mtu, EATT_MAX_TX_MTU);
+    this->tx_mtu_ = std::max<uint16_t>(tx_mtu, EATT_MIN_MTU_MPS);
   }
 };
 
 /* Interface class */
 class EattExtension {
- public:
+public:
   EattExtension();
   EattExtension(const EattExtension&) = delete;
   EattExtension& operator=(const EattExtension&) = delete;
@@ -139,8 +139,7 @@ class EattExtension {
    * @param bd_addr peer device address
    * @param cid remote channel id (EATT_ALL_CIDS for all)
    */
-  virtual void Disconnect(const RawAddress& bd_addr,
-                          uint16_t cid = EATT_ALL_CIDS);
+  virtual void Disconnect(const RawAddress& bd_addr, uint16_t cid = EATT_ALL_CIDS);
 
   /**
    * Reconfigure EATT channel for give CID
@@ -149,8 +148,7 @@ class EattExtension {
    * @param cid channel id
    * @param mtu new maximum transmit unit available of local device
    */
-  virtual void Reconfigure(const RawAddress& bd_addr, uint16_t cid,
-                           uint16_t mtu);
+  virtual void Reconfigure(const RawAddress& bd_addr, uint16_t cid, uint16_t mtu);
 
   /**
    * Reconfigure all EATT channels to peer device.
@@ -170,8 +168,7 @@ class EattExtension {
    *
    * @return Eatt Channel instance.
    */
-  virtual EattChannel* FindEattChannelByCid(const RawAddress& bd_addr,
-                                            uint16_t cid);
+  virtual EattChannel* FindEattChannelByCid(const RawAddress& bd_addr, uint16_t cid);
 
   /**
    * Find EATT channel by transaction id.
@@ -181,8 +178,7 @@ class EattExtension {
    *
    * @return pointer to EATT channel.
    */
-  virtual EattChannel* FindEattChannelByTransId(const RawAddress& bd_addr,
-                                                uint32_t trans_id);
+  virtual EattChannel* FindEattChannelByTransId(const RawAddress& bd_addr, uint32_t trans_id);
 
   /**
    * Check if EATT channel on given handle is waiting for a indication
@@ -193,8 +189,7 @@ class EattExtension {
    *
    * @return true if confirmation is pending false otherwise
    */
-  virtual bool IsIndicationPending(const RawAddress& bd_addr,
-                                   uint16_t indication_handle);
+  virtual bool IsIndicationPending(const RawAddress& bd_addr, uint16_t indication_handle);
 
   /**
    * Get EATT channel available for indication.
@@ -203,8 +198,7 @@ class EattExtension {
    *
    * @return pointer to EATT channel.
    */
-  virtual EattChannel* GetChannelAvailableForIndication(
-      const RawAddress& bd_addr);
+  virtual EattChannel* GetChannelAvailableForIndication(const RawAddress& bd_addr);
 
   /**
    * Free Resources.
@@ -231,8 +225,7 @@ class EattExtension {
    *
    * @return pointer to EATT channel.
    */
-  virtual EattChannel* GetChannelWithQueuedDataToSend(
-      const RawAddress& bd_addr);
+  virtual EattChannel* GetChannelWithQueuedDataToSend(const RawAddress& bd_addr);
 
   /**
    * Get EATT channel available to send GATT request.
@@ -241,8 +234,7 @@ class EattExtension {
    *
    * @return pointer to EATT channel.
    */
-  virtual EattChannel* GetChannelAvailableForClientRequest(
-      const RawAddress& bd_addr);
+  virtual EattChannel* GetChannelAvailableForClientRequest(const RawAddress& bd_addr);
 
   /**
    * Start GATT indication timer per CID.
@@ -250,8 +242,7 @@ class EattExtension {
    * @param bd_addr peer device address
    * @param cid channel id
    */
-  virtual void StartIndicationConfirmationTimer(const RawAddress& bd_addr,
-                                                uint16_t cid);
+  virtual void StartIndicationConfirmationTimer(const RawAddress& bd_addr, uint16_t cid);
 
   /**
    * Stop GATT indication timer per CID.
@@ -259,8 +250,7 @@ class EattExtension {
    * @param bd_addr peer device address
    * @param cid channel id
    */
-  virtual void StopIndicationConfirmationTimer(const RawAddress& bd_addr,
-                                               uint16_t cid);
+  virtual void StopIndicationConfirmationTimer(const RawAddress& bd_addr, uint16_t cid);
 
   /**
    *  Start application time for incoming indication on given CID
@@ -288,7 +278,7 @@ class EattExtension {
    */
   void Stop();
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
 };

@@ -31,7 +31,7 @@
 #include "stack/hid/hid_conn.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hidh_api.h"
-#include "stack/include/l2c_api.h"  // tL2CAP_CFG_INFO
+#include "stack/include/l2cap_types.h"
 #include "types/raw_address.h"
 
 enum { HID_DEV_NO_CONN, HID_DEV_CONNECTED };
@@ -63,9 +63,8 @@ typedef struct host_ctb {
   bool reg_flag;
 } tHID_HOST_CTB;
 
-tHID_STATUS hidh_conn_snd_data(uint8_t dhandle, uint8_t trans_type,
-                               uint8_t param, uint16_t data, uint8_t rpt_id,
-                               BT_HDR* buf);
+tHID_STATUS hidh_conn_snd_data(uint8_t dhandle, uint8_t trans_type, uint8_t param, uint16_t data,
+                               uint8_t rpt_id, BT_HDR* buf);
 tHID_STATUS hidh_conn_reg(void);
 void hidh_conn_dereg(void);
 tHID_STATUS hidh_conn_disconnect(uint8_t dhandle);

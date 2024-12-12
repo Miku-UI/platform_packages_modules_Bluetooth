@@ -24,11 +24,8 @@
 #define BTA_AV_CO_NUM_ELEMENTS(__a) (sizeof(__a) / sizeof((__a)[0]))
 
 class BtaAvCoSep {
- public:
-  BtaAvCoSep()
-      : sep_info_idx(0), seid(0), codec_caps{}, num_protect(0), protect_info{} {
-    Reset();
-  }
+public:
+  BtaAvCoSep() : sep_info_idx(0), seid(0), codec_caps{}, num_protect(0), protect_info{} { Reset(); }
 
   /**
    * Reset the state.
@@ -49,7 +46,7 @@ class BtaAvCoSep {
 };
 
 class BtaAvCoPeer {
- public:
+public:
   /**
    * Default constructor to initialize the state of the member variables.
    */
@@ -84,30 +81,40 @@ class BtaAvCoPeer {
   A2dpCodecs* GetCodecs() const { return codecs_; }
 
   bool ContentProtectActive() const { return content_protect_active_; }
-  void SetContentProtectActive(bool cp_active) {
-    content_protect_active_ = cp_active;
-  }
+  void SetContentProtectActive(bool cp_active) { content_protect_active_ = cp_active; }
+
+  /**
+   * Gets the codec config for the state.
+   * @return the active codec config.
+   */
+  uint8_t* getCodecConfig();
+
+  /**
+   * Updates the codec config
+   * @param new_codec_config codec config that needs to be updated.
+   */
+  void setCodecConfig(const uint8_t* new_codec_config);
 
   RawAddress addr;                                // Peer address
   BtaAvCoSep sinks[BTAV_A2DP_CODEC_INDEX_MAX];    // Supported sinks
   BtaAvCoSep sources[BTAV_A2DP_CODEC_INDEX_MAX];  // Supported sources
-  uint8_t num_sinks;                      // Total number of sinks at peer
-  uint8_t num_sources;                    // Total number of sources at peer
-  uint8_t num_seps;                       // Total number of SEPs at peer
-  uint8_t num_rx_sinks;                   // Number of received sinks
-  uint8_t num_rx_sources;                 // Number of received sources
-  uint8_t num_sup_sinks;                  // Number of supported sinks
-  uint8_t num_sup_sources;                // Number of supported sources
-  const BtaAvCoSep* p_sink;               // Currently selected sink
-  const BtaAvCoSep* p_source;             // Currently selected source
-  uint8_t codec_config[AVDT_CODEC_SIZE];  // Current codec configuration
-  bool acceptor;                          // True if acceptor
-  bool reconfig_needed;                   // True if reconfiguration is needed
-  bool opened;                            // True if opened
-  uint16_t mtu;                           // Maximum Transmit Unit size
-  uint16_t uuid_to_connect;               // UUID of peer device
+  uint8_t num_sinks;                              // Total number of sinks at peer
+  uint8_t num_sources;                            // Total number of sources at peer
+  uint8_t num_seps;                               // Total number of SEPs at peer
+  uint8_t num_rx_sinks;                           // Number of received sinks
+  uint8_t num_rx_sources;                         // Number of received sources
+  uint8_t num_sup_sinks;                          // Number of supported sinks
+  uint8_t num_sup_sources;                        // Number of supported sources
+  const BtaAvCoSep* p_sink;                       // Currently selected sink
+  const BtaAvCoSep* p_source;                     // Currently selected source
+  uint8_t codec_config[AVDT_CODEC_SIZE];          // Current codec configuration
+  bool acceptor;                                  // True if acceptor
+  bool reconfig_needed;                           // True if reconfiguration is needed
+  bool opened;                                    // True if opened
+  uint16_t mtu;                                   // Maximum Transmit Unit size
+  uint16_t uuid_to_connect;                       // UUID of peer device
 
- private:
+private:
   tBTA_AV_HNDL bta_av_handle_;   // BTA AV handle to use
   A2dpCodecs* codecs_;           // Locally supported codecs
   bool content_protect_active_;  // True if Content Protect is active
@@ -118,11 +125,11 @@ class BtaAvCoPeer {
  * It provides different APIs to retrieve the peer and update the peer data.
  */
 class BtaAvCoPeerCache {
- public:
+public:
   BtaAvCoPeerCache() = default;
-  std::recursive_mutex codec_lock_;  // Protect access to the codec state
+  std::recursive_mutex codec_lock_;                         // Protect access to the codec state
   std::vector<btav_a2dp_codec_config_t> codec_priorities_;  // Configured
-  BtaAvCoPeer peers_[BTA_AV_NUM_STRS];  // Connected peer information
+  BtaAvCoPeer peers_[BTA_AV_NUM_STRS];                      // Connected peer information
 
   /**
    * Inits the cache with the appropriate data.
@@ -152,8 +159,7 @@ class BtaAvCoPeerCache {
    * @param codec_config the codec index to use
    * @return the peer Source SEP for the codec index if found, otherwise nullptr
    */
-  BtaAvCoSep* FindPeerSource(BtaAvCoPeer* p_peer,
-                             btav_a2dp_codec_index_t codec_index,
+  BtaAvCoSep* FindPeerSource(BtaAvCoPeer* p_peer, btav_a2dp_codec_index_t codec_index,
                              const uint8_t content_protect_flag);
 
   /**
@@ -163,8 +169,7 @@ class BtaAvCoPeerCache {
    * @param codec_index the codec index to use
    * @return the peer Sink SEP for the codec index if found, otherwise nullptr
    */
-  BtaAvCoSep* FindPeerSink(BtaAvCoPeer* p_peer,
-                           btav_a2dp_codec_index_t codec_index,
+  BtaAvCoSep* FindPeerSink(BtaAvCoPeer* p_peer, btav_a2dp_codec_index_t codec_index,
                            const uint8_t content_protect_flag);
 
   /**
@@ -183,8 +188,7 @@ class BtaAvCoPeerCache {
    * @param peer_address the peer address
    * @return the peer entry if found, otherwise nullptr
    */
-  BtaAvCoPeer* FindPeerAndUpdate(tBTA_AV_HNDL bta_av_handle,
-                                 const RawAddress& peer_address);
+  BtaAvCoPeer* FindPeerAndUpdate(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address);
 
   /**
    * Find the peer UUID for a given BTA AV handle.
@@ -222,5 +226,4 @@ bool AudioProtectHasScmst(uint8_t num_protect, const uint8_t* p_protect_info);
  * @return true if the peer SEP has content protection enabled,
  * otherwise false
  */
-bool AudioSepHasContentProtection(const BtaAvCoSep* p_sep,
-                                  const uint8_t content_protect_flag);
+bool AudioSepHasContentProtection(const BtaAvCoSep* p_sep, const uint8_t content_protect_flag);

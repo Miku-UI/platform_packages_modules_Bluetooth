@@ -46,9 +46,7 @@ inline std::string PduIdText(const PduId& id) {
   }
 }
 
-inline std::ostream& operator<<(std::ostream& os, const PduId& id) {
-  return os << PduIdText(id);
-}
+inline std::ostream& operator<<(std::ostream& os, const PduId& id) { return os << PduIdText(id); }
 
 inline std::string AttributeIdText(const AttributeId& id) {
   switch (id) {

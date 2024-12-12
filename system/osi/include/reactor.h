@@ -77,8 +77,7 @@ reactor_object_t* reactor_register(reactor_t* reactor, int fd, void* context,
 // |write_ready| callback routines, they can call this routine. Returns true if
 // the subscription was changed, false otherwise.
 // |object| may not be NULL, |read_ready| and |write_ready| may be NULL.
-bool reactor_change_registration(reactor_object_t* object,
-                                 void (*read_ready)(void* context),
+bool reactor_change_registration(reactor_object_t* object, void (*read_ready)(void* context),
                                  void (*write_ready)(void* context));
 
 // Unregisters a previously registered file descriptor with its reactor. |obj|

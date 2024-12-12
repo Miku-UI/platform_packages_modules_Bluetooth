@@ -145,28 +145,42 @@ public class BipAttachmentFormat {
 
     @Override
     public boolean equals(Object o) {
-        if (o == this) return true;
-        if (!(o instanceof BipAttachmentFormat)) return false;
+        if (o == this) {
+            return true;
+        }
+        if (!(o instanceof BipAttachmentFormat a)) {
+            return false;
+        }
 
-        BipAttachmentFormat a = (BipAttachmentFormat) o;
-        return a.getContentType() == getContentType()
-                && a.getName() == getName()
-                && a.getCharset() == getCharset()
+        return a.getContentType().equals(getContentType())
+                && a.getName().equals(getName())
+                && Objects.equals(a.getCharset(), getCharset())
                 && a.getSize() == getSize()
-                && a.getCreatedDate() == getCreatedDate()
-                && a.getModifiedDate() == getModifiedDate();
+                && Objects.equals(a.getCreatedDate(), getCreatedDate())
+                && Objects.equals(a.getModifiedDate(), getModifiedDate());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                getContentType(),
+                getName(),
+                getCharset(),
+                getSize(),
+                getCreatedDate(),
+                getModifiedDate());
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("<attachment");
-        sb.append(" content-type=\"" + mContentType + "\"");
-        if (mCharset != null) sb.append(" charset=\"" + mCharset + "\"");
-        sb.append(" name=\"" + mName + "\"");
-        if (mSize > -1) sb.append(" size=\"" + mSize + "\"");
-        if (mCreated != null) sb.append(" created=\"" + mCreated.toString() + "\"");
-        if (mModified != null) sb.append(" modified=\"" + mModified.toString() + "\"");
+        sb.append(" content-type=\"").append(mContentType).append("\"");
+        if (mCharset != null) sb.append(" charset=\"").append(mCharset).append("\"");
+        sb.append(" name=\"").append(mName).append("\"");
+        if (mSize > -1) sb.append(" size=\"").append(mSize).append("\"");
+        if (mCreated != null) sb.append(" created=\"").append(mCreated.toString()).append("\"");
+        if (mModified != null) sb.append(" modified=\"").append(mModified.toString()).append("\"");
         sb.append(" />");
         return sb.toString();
     }

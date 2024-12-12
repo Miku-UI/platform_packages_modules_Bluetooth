@@ -1,6 +1,6 @@
 use log::warn;
 
-use crate::packets::{AttOpcode, AttView, AttWriteCommandView, Packet};
+use crate::packets::att;
 
 use super::att_database::AttDatabase;
 
@@ -14,21 +14,18 @@ impl<Db: AttDatabase> AttCommandHandler<Db> {
         Self { db }
     }
 
-    pub fn process_packet(&self, packet: AttView<'_>) {
+    pub fn process_packet(&self, packet: att::Att) {
         let snapshotted_db = self.db.snapshot();
-        match packet.get_opcode() {
-            AttOpcode::WRITE_COMMAND => {
-                let Ok(packet) = AttWriteCommandView::try_parse(packet) else {
+        match packet.opcode {
+            att::AttOpcode::WriteCommand => {
+                let Ok(packet) = att::AttWriteCommand::try_from(packet) else {
                     warn!("failed to parse WRITE_COMMAND packet");
                     return;
                 };
-                snapshotted_db.write_no_response_attribute(
-                    packet.get_handle().into(),
-                    &packet.get_value().get_raw_payload().collect::<Vec<_>>(),
-                );
+                snapshotted_db.write_no_response_attribute(packet.handle.into(), &packet.value);
             }
             _ => {
-                warn!("Dropping unsupported opcode {:?}", packet.get_opcode());
+                warn!("Dropping unsupported opcode {:?}", packet.opcode);
             }
         }
     }
@@ -47,11 +44,8 @@ mod test {
                 test::test_att_db::TestAttDatabase,
             },
         },
-        packets::{
-            AttAttributeDataBuilder, AttAttributeDataChild, AttErrorCode, AttErrorResponseBuilder,
-            AttOpcode, AttWriteCommandBuilder,
-        },
-        utils::{packet::build_att_view_or_crash, task::block_on_locally},
+        packets::att,
+        utils::task::block_on_locally,
     };
 
     #[test]
@@ -69,13 +63,10 @@ mod test {
         let data = [1, 2];
 
         // act: send write command
-        let att_view = build_att_view_or_crash(AttWriteCommandBuilder {
-            handle: AttHandle(3).into(),
-            value: AttAttributeDataBuilder {
-                _child_: AttAttributeDataChild::RawData(data.to_vec().into_boxed_slice()),
-            },
-        });
-        handler.process_packet(att_view.view());
+        let att_view = att::AttWriteCommand { handle: AttHandle(3).into(), value: data.to_vec() }
+            .try_into()
+            .unwrap();
+        handler.process_packet(att_view);
 
         // assert: the db has been updated
         assert_eq!(block_on_locally(db.read_attribute(AttHandle(3))).unwrap(), data);
@@ -88,12 +79,14 @@ mod test {
         let handler = AttCommandHandler { db };
 
         // act: send a packet that should not be handled here
-        let att_view = build_att_view_or_crash(AttErrorResponseBuilder {
-            opcode_in_error: AttOpcode::EXCHANGE_MTU_REQUEST,
+        let att_view = att::AttErrorResponse {
+            opcode_in_error: att::AttOpcode::ExchangeMtuRequest,
             handle_in_error: AttHandle(1).into(),
-            error_code: AttErrorCode::UNLIKELY_ERROR,
-        });
-        handler.process_packet(att_view.view());
+            error_code: att::AttErrorCode::UnlikelyError,
+        }
+        .try_into()
+        .unwrap();
+        handler.process_packet(att_view);
 
         // assert: nothing happens (we crash if anything is unhandled within a mock)
     }

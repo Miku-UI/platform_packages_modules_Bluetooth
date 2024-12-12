@@ -5,7 +5,7 @@ use bt_topshim::profiles::gatt::LePhy;
 #[derive(Debug, Copy, Clone)]
 pub enum AuthReq {
     // reference to system/stack/include/gatt_api.h
-    NONE = 0,
+    NoEnc = 0,
     EncNoMitm = 1,
     EncMitm = 2,
     SignedNoMitm = 3,
@@ -38,7 +38,7 @@ impl GattClientContext {
     pub(crate) fn new() -> Self {
         GattClientContext {
             client_id: None,
-            auth_req: AuthReq::NONE,
+            auth_req: AuthReq::NoEnc,
             is_connect_direct: false,
             connect_transport: BtTransport::Le,
             connect_opportunistic: false,

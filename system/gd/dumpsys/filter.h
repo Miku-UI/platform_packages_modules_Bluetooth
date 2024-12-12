@@ -15,6 +15,7 @@
  */
 
 #include <string>
+
 #include "dumpsys/reflection_schema.h"
 
 namespace bluetooth {

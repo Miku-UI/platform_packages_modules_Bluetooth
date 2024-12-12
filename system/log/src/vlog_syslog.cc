@@ -48,8 +48,8 @@ Level GetDefaultLogLevel() { return gDefaultLogLevel; }
 // Default value for $MaxMessageSize for rsyslog.
 static constexpr size_t kBufferSize = 8192;
 
-void vlog(Level level, char const* tag, source_location location,
-          fmt::string_view fmt, fmt::format_args vargs) {
+void vlog(Level level, char const* tag, source_location location, fmt::string_view fmt,
+          fmt::format_args vargs) {
   // Filter out logs that don't meet level requirement.
   Level current_level = GetLogLevelForTag(tag);
   if (level < current_level) {
@@ -82,8 +82,8 @@ void vlog(Level level, char const* tag, source_location location,
   truncating_buffer<kBufferSize> buffer;
 
   // Format file, line.
-  fmt::format_to(std::back_insert_iterator(buffer), "{} {}:{} {}: ", tag,
-                 location.file_name, location.line, location.function_name);
+  fmt::format_to(std::back_insert_iterator(buffer), "{} {}:{} {}: ", tag, location.file_name,
+                 location.line, location.function_name);
 
   // Format message.
   fmt::vformat_to(std::back_insert_iterator(buffer), fmt, vargs);
@@ -108,8 +108,8 @@ void SetLogLevelForTag(char const* tag, uint8_t level) {
     level = bluetooth::log_internal::GetDefaultLogLevel();
   }
 
-  bluetooth::log_internal::GetTagMap().emplace(
-      tag, static_cast<bluetooth::log_internal::Level>(level));
+  bluetooth::log_internal::GetTagMap().emplace(tag,
+                                               static_cast<bluetooth::log_internal::Level>(level));
 }
 
 void SetDefaultLogLevel(uint8_t level) {
@@ -118,7 +118,6 @@ void SetDefaultLogLevel(uint8_t level) {
     return;
   }
 
-  bluetooth::log_internal::gDefaultLogLevel =
-      static_cast<bluetooth::log_internal::Level>(level);
+  bluetooth::log_internal::gDefaultLogLevel = static_cast<bluetooth::log_internal::Level>(level);
 }
 }

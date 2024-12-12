@@ -21,7 +21,7 @@
 #include "parse_location.h"
 
 class CountField : public ScalarField {
- public:
+public:
   CountField(std::string name, int size, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -44,7 +44,7 @@ class CountField : public ScalarField {
 
   virtual std::string GetSizedFieldName() const;
 
- private:
+private:
   int size_;
   std::string sized_field_name_;
 };

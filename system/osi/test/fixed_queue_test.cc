@@ -263,28 +263,24 @@ TEST_F(FixedQueueTest, test_fixed_queue_try_remove_from_queue) {
   ASSERT_TRUE(queue != NULL);
 
   // Test removing from a NULL queue
-  EXPECT_EQ(NULL,
-            fixed_queue_try_remove_from_queue(NULL, (void*)DUMMY_DATA_STRING));
+  EXPECT_EQ(NULL, fixed_queue_try_remove_from_queue(NULL, (void*)DUMMY_DATA_STRING));
 
   // Test removing from an empty queue
-  EXPECT_EQ(NULL,
-            fixed_queue_try_remove_from_queue(queue, (void*)DUMMY_DATA_STRING));
+  EXPECT_EQ(NULL, fixed_queue_try_remove_from_queue(queue, (void*)DUMMY_DATA_STRING));
 
   // Test removing a queued string from a queue
   fixed_queue_enqueue(queue, (void*)DUMMY_DATA_STRING1);
   fixed_queue_enqueue(queue, (void*)DUMMY_DATA_STRING2);
   fixed_queue_enqueue(queue, (void*)DUMMY_DATA_STRING3);
   EXPECT_EQ((size_t)3, fixed_queue_length(queue));
-  EXPECT_EQ(DUMMY_DATA_STRING2, fixed_queue_try_remove_from_queue(
-                                    queue, (void*)DUMMY_DATA_STRING2));
+  EXPECT_EQ(DUMMY_DATA_STRING2,
+            fixed_queue_try_remove_from_queue(queue, (void*)DUMMY_DATA_STRING2));
   EXPECT_EQ((size_t)2, fixed_queue_length(queue));
   // Removing again should fail
-  EXPECT_EQ(NULL, fixed_queue_try_remove_from_queue(queue,
-                                                    (void*)DUMMY_DATA_STRING2));
+  EXPECT_EQ(NULL, fixed_queue_try_remove_from_queue(queue, (void*)DUMMY_DATA_STRING2));
 
   // Test removing a non-queued string from a queue
-  EXPECT_EQ(NULL,
-            fixed_queue_try_remove_from_queue(queue, (void*)DUMMY_DATA_STRING));
+  EXPECT_EQ(NULL, fixed_queue_try_remove_from_queue(queue, (void*)DUMMY_DATA_STRING));
 
   fixed_queue_free(queue, NULL);
 }
@@ -334,8 +330,7 @@ TEST_F(FixedQueueTest, test_fixed_queue_register_dequeue) {
   thread_t* worker_thread = thread_new("test_fixed_queue_worker_thread");
   ASSERT_TRUE(worker_thread != NULL);
 
-  fixed_queue_register_dequeue(queue, thread_get_reactor(worker_thread),
-                               fixed_queue_ready, NULL);
+  fixed_queue_register_dequeue(queue, thread_get_reactor(worker_thread), fixed_queue_ready, NULL);
 
   // Add a message to the queue, and expect to receive it
   fixed_queue_enqueue(queue, (void*)DUMMY_DATA_STRING);

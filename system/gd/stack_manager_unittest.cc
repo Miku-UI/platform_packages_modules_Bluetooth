@@ -31,19 +31,18 @@ TEST(StackManagerTest, DISABLED_start_and_shutdown_no_module) {
 }
 
 class TestModuleNoDependency : public Module {
- public:
+public:
   static const ModuleFactory Factory;
 
- protected:
+protected:
   void ListDependencies(ModuleList* /* list */) const {}
   void Start() override {}
   void Stop() override {}
-  std::string ToString() const override {
-    return std::string("TestModuleDep");
-  }
+  std::string ToString() const override { return std::string("TestModuleDep"); }
 };
 
-const ModuleFactory TestModuleNoDependency::Factory = ModuleFactory([]() { return new TestModuleNoDependency(); });
+const ModuleFactory TestModuleNoDependency::Factory =
+        ModuleFactory([]() { return new TestModuleNoDependency(); });
 
 TEST(StackManagerTest, DISABLED_get_module_instance) {
   StackManager stack_manager;

@@ -22,64 +22,62 @@
 #include <cstdint>
 
 #include "main/shim/btm_api.h"
-#include "stack/include/bt_octets.h"
-#include "stack/include/btm_ble_api_types.h"
+#include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
-#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 tBTM_STATUS bluetooth::shim::BTM_ClearEventFilter() {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_ClearEventMask() {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_ClearFilterAcceptList() {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_DisconnectAllAcls() {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_SetEventFilterConnectionSetupAllDevices() {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_AllowWakeByHid(
-    std::vector<RawAddress> /* classic_hid_devices */,
-    std::vector<std::pair<RawAddress, uint8_t>> /* le_hid_devices */) {
+        std::vector<RawAddress> /* classic_hid_devices */,
+        std::vector<std::pair<RawAddress, uint8_t>> /* le_hid_devices */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_RestoreFilterAcceptList(
-    std::vector<std::pair<RawAddress, uint8_t>> /* le_devices */) {
+        std::vector<std::pair<RawAddress, uint8_t>> /* le_devices */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
-tBTM_STATUS bluetooth::shim::BTM_SetDefaultEventMaskExcept(
-    uint64_t /* mask */, uint64_t /* le_mask */) {
+tBTM_STATUS bluetooth::shim::BTM_SetDefaultEventMaskExcept(uint64_t /* mask */,
+                                                           uint64_t /* le_mask */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_SetEventFilterInquiryResultAllDevices() {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 
 tBTM_STATUS bluetooth::shim::BTM_BleResetId() {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 size_t bluetooth::shim::BTM_BleGetNumberOfAdvertisingInstancesInUse() {
   inc_func_call_count(__func__);

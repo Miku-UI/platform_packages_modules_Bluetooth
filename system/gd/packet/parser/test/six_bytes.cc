@@ -23,9 +23,7 @@ namespace packet {
 namespace parser {
 namespace test {
 
-SixBytes::SixBytes(const uint8_t (&six)[6]) {
-  std::copy(six, six + kLength, six_bytes);
-};
+SixBytes::SixBytes(const uint8_t (&six)[6]) { std::copy(six, six + kLength, six_bytes); }
 
 }  // namespace test
 }  // namespace parser

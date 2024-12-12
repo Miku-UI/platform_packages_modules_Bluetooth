@@ -36,9 +36,8 @@ namespace stack_btm_ble_bgconn {
 // Params: tBTM_BLE_SFP scan_policy
 // Returns: void
 struct btm_update_scanner_filter_policy {
-  std::function<void(tBTM_BLE_SFP scan_policy)> body{
-      [](tBTM_BLE_SFP /* scan_policy */) {}};
-  void operator()(tBTM_BLE_SFP scan_policy) { body(scan_policy); };
+  std::function<void(tBTM_BLE_SFP scan_policy)> body{[](tBTM_BLE_SFP /* scan_policy */) {}};
+  void operator()(tBTM_BLE_SFP scan_policy) { body(scan_policy); }
 };
 extern struct btm_update_scanner_filter_policy btm_update_scanner_filter_policy;
 // Name: BTM_SetLeConnectionModeToFast
@@ -46,7 +45,7 @@ extern struct btm_update_scanner_filter_policy btm_update_scanner_filter_policy;
 // Returns: bool
 struct BTM_SetLeConnectionModeToFast {
   std::function<bool()> body{[]() { return false; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct BTM_SetLeConnectionModeToFast BTM_SetLeConnectionModeToFast;
 // Name: BTM_SetLeConnectionModeToSlow
@@ -54,7 +53,7 @@ extern struct BTM_SetLeConnectionModeToFast BTM_SetLeConnectionModeToFast;
 // Returns: void
 struct BTM_SetLeConnectionModeToSlow {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct BTM_SetLeConnectionModeToSlow BTM_SetLeConnectionModeToSlow;
 // Name: BTM_AcceptlistAdd
@@ -62,8 +61,8 @@ extern struct BTM_SetLeConnectionModeToSlow BTM_SetLeConnectionModeToSlow;
 // Returns: bool
 struct BTM_AcceptlistAdd {
   std::function<bool(const RawAddress& address)> body{
-      [](const RawAddress& /* address */) { return false; }};
-  bool operator()(const RawAddress& address) { return body(address); };
+          [](const RawAddress& /* address */) { return false; }};
+  bool operator()(const RawAddress& address) { return body(address); }
 };
 extern struct BTM_AcceptlistAdd BTM_AcceptlistAdd;
 // Name: BTM_AcceptlistAddDirect
@@ -71,21 +70,16 @@ extern struct BTM_AcceptlistAdd BTM_AcceptlistAdd;
 // Returns: bool
 struct BTM_AcceptlistAddDirect {
   std::function<bool(const RawAddress& address, bool is_direct)> body{
-      [](const RawAddress& /* address */, bool /* is_direct */) {
-        return false;
-      }};
-  bool operator()(const RawAddress& address, bool is_direct) {
-    return body(address, is_direct);
-  };
+          [](const RawAddress& /* address */, bool /* is_direct */) { return false; }};
+  bool operator()(const RawAddress& address, bool is_direct) { return body(address, is_direct); }
 };
 extern struct BTM_AcceptlistAddDirect BTM_AcceptlistAddDirect;
 // Name: BTM_AcceptlistRemove
 // Params: const RawAddress& address
 // Returns: void
 struct BTM_AcceptlistRemove {
-  std::function<void(const RawAddress& address)> body{
-      [](const RawAddress& /* address */) {}};
-  void operator()(const RawAddress& address) { body(address); };
+  std::function<void(const RawAddress& address)> body{[](const RawAddress& /* address */) {}};
+  void operator()(const RawAddress& address) { body(address); }
 };
 extern struct BTM_AcceptlistRemove BTM_AcceptlistRemove;
 // Name: BTM_AcceptlistClear
@@ -93,7 +87,7 @@ extern struct BTM_AcceptlistRemove BTM_AcceptlistRemove;
 // Returns: void
 struct BTM_AcceptlistClear {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct BTM_AcceptlistClear BTM_AcceptlistClear;
 

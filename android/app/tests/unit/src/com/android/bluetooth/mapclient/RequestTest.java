@@ -63,7 +63,10 @@ public class RequestTest {
     private static final ArrayList<String> TEST_FOLDER_LIST =
             new ArrayList<String>(Arrays.asList("folder1"));
     private static final ArrayList<Message> TEST_MESSAGE_LIST = new ArrayList<Message>();
+
+    @SuppressWarnings("JavaUtilDate")
     private static final Date TEST_TIME = new Date();
+
     private static final byte TEST_STATUS_INDICATOR = Request.STATUS_INDICATOR_READ;
     private static final byte TEST_STATUS_VALUE = Request.STATUS_YES;
 
@@ -78,6 +81,7 @@ public class RequestTest {
     }
 
     @Test
+    @SuppressWarnings("JavaUtilDate")
     public void testRequestGetMessagesListing() throws IOException {
         RequestGetMessagesListing newRequest =
                 new RequestGetMessagesListing(
@@ -177,6 +181,7 @@ public class RequestTest {
         }
 
         @Override
+        @SuppressWarnings("JavaUtilDate")
         public int onGetValidator(final Operation op) {
             OutputStream outputStream;
             HeaderSet replyHeaders = new HeaderSet();

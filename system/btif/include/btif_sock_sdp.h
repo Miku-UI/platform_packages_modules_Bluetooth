@@ -24,8 +24,7 @@
 #include <stdint.h>
 #include <string.h>
 
-static const bluetooth::Uuid UUID_OBEX_OBJECT_PUSH =
-    bluetooth::Uuid::From16Bit(0x1105);
+static const bluetooth::Uuid UUID_OBEX_OBJECT_PUSH = bluetooth::Uuid::From16Bit(0x1105);
 static const bluetooth::Uuid UUID_PBAP_PCE = bluetooth::Uuid::From16Bit(0x112E);
 static const bluetooth::Uuid UUID_PBAP_PSE = bluetooth::Uuid::From16Bit(0x112F);
 static const bluetooth::Uuid UUID_MAP_MAS = bluetooth::Uuid::From16Bit(0x1132);

@@ -24,9 +24,8 @@ namespace test {
 namespace headless {
 
 class Mode : public HeadlessTest<int> {
- public:
-  Mode(const bluetooth::test::headless::GetOpt& options)
-      : HeadlessTest<int>(options) {}
+public:
+  Mode(const bluetooth::test::headless::GetOpt& options) : HeadlessTest<int>(options) {}
   int Run() override;
 };
 

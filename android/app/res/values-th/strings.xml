@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"ล้างจากรายการ"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ล้าง"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"กำลังเล่น"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"บันทึก"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"ยกเลิก"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"เลือกบัญชีที่คุณต้องการแชร์ผ่านบลูทูธ คุณยังคงต้องยอมรับการเข้าถึงบัญชีทั้งหมดเมื่อเชื่อมต่อ"</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"ช่องที่เหลือ:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ไอคอนแอปพลิเคชัน"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"การตั้งค่าการแชร์ข้อความผ่านบลูทูธ"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"ไม่สามารถเลือกบัญชีได้ ช่องเหลือ 0 ช่อง"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"เชื่อมต่อ Bluetooth Audio แล้ว"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ยกเลิกการเชื่อมต่อ Bluetooth Audio แล้ว"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth Audio"</string>

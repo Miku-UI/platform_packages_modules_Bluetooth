@@ -34,7 +34,7 @@ namespace hci {
 namespace fuzz {
 
 class HciLayerFuzzClient : public Module {
- public:
+public:
   HciLayerFuzzClient() : Module() {}
 
   void Start() override;
@@ -42,17 +42,13 @@ class HciLayerFuzzClient : public Module {
 
   void injectArbitrary(FuzzedDataProvider& fdp);
 
-  void ListDependencies(ModuleList* list) const override {
-    list->add<hci::HciLayer>();
-  }
+  void ListDependencies(ModuleList* list) const override { list->add<hci::HciLayer>(); }
 
   static const ModuleFactory Factory;
 
-  std::string ToString() const override {
-    return "DevNullHci";
-  }
+  std::string ToString() const override { return "DevNullHci"; }
 
- private:
+private:
   void injectAclData(std::vector<uint8_t> data);
   void injectHciCommand(std::vector<uint8_t> data);
   void injectSecurityCommand(std::vector<uint8_t> data);
@@ -70,13 +66,11 @@ class HciLayerFuzzClient : public Module {
     }
 
     if (uses_command_status(commandPacket.GetOpCode())) {
-      interface->EnqueueCommand(
-          TBUILDER::FromView(commandPacket),
-          GetHandler()->BindOnce([](CommandStatusView /* status */) {}));
+      interface->EnqueueCommand(TBUILDER::FromView(commandPacket),
+                                GetHandler()->BindOnce([](CommandStatusView /* status */) {}));
     } else {
-      interface->EnqueueCommand(
-          TBUILDER::FromView(commandPacket),
-          GetHandler()->BindOnce([](CommandCompleteView /* status */) {}));
+      interface->EnqueueCommand(TBUILDER::FromView(commandPacket),
+                                GetHandler()->BindOnce([](CommandCompleteView /* status */) {}));
     }
   }
 

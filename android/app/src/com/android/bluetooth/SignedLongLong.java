@@ -17,7 +17,6 @@ package com.android.bluetooth;
 
 import com.android.bluetooth.map.BluetoothMapUtils;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Objects;
 
 /**
@@ -40,11 +39,10 @@ public class SignedLongLong implements Comparable<SignedLongLong> {
      *
      * @param value the hex-string
      * @return the created object
-     * @throws UnsupportedEncodingException if "US-ASCII" charset is not supported,
      * @throws NullPointerException if the string {@code value} is null,
      * @throws NumberFormatException if the string {@code value} contains invalid characters.
      */
-    public static SignedLongLong fromString(String value) throws UnsupportedEncodingException {
+    public static SignedLongLong fromString(String value) {
         String lsbStr, msbStr;
         long msb = 0;
 

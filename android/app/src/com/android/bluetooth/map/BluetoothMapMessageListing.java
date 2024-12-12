@@ -28,7 +28,7 @@ import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -89,11 +89,9 @@ public class BluetoothMapMessageListing {
      * @param version the version as a string. Set the listing version to e.g. "1.0" or "1.1". To
      *     make this future proof, no check is added to validate the value, hence be careful.
      * @return a reference to the encoded byte array.
-     * @throws UnsupportedEncodingException if UTF-8 encoding is unsupported on the platform.
      */
     // TODO: Remove includeThreadId when MAP-IM is adopted
-    public byte[] encode(boolean includeThreadId, String version)
-            throws UnsupportedEncodingException {
+    public byte[] encode(boolean includeThreadId, String version) {
         StringWriter sw = new StringWriter();
         boolean isBenzCarkit;
 
@@ -102,7 +100,9 @@ public class BluetoothMapMessageListing {
         } else {
             isBenzCarkit =
                     DeviceWorkArounds.addressStartsWith(
-                            BluetoothMapService.getRemoteDevice().getAddress(),
+                            BluetoothMapService.getBluetoothMapService()
+                                    .getRemoteDevice()
+                                    .getAddress(),
                             DeviceWorkArounds.MERCEDES_BENZ_CARKIT);
         }
         try {
@@ -149,15 +149,15 @@ public class BluetoothMapMessageListing {
         /* Fix IOT issue to replace '&amp;' by '&', &lt; by < and '&gt; by '>' in MessageListing */
         if (!Utils.isInstrumentationTestMode()
                 && DeviceWorkArounds.addressStartsWith(
-                        BluetoothMapService.getRemoteDevice().getAddress(),
+                        BluetoothMapService.getBluetoothMapService().getRemoteDevice().getAddress(),
                         DeviceWorkArounds.BREZZA_ZDI_CARKIT)) {
             return sw.toString()
                     .replaceAll("&amp;", "&")
                     .replaceAll("&lt;", "<")
                     .replaceAll("&gt;", ">")
-                    .getBytes("UTF-8");
+                    .getBytes(StandardCharsets.UTF_8);
         }
-        return sw.toString().getBytes("UTF-8");
+        return sw.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     public void sort() {

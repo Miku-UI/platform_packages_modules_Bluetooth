@@ -23,6 +23,7 @@ import android.os.ParcelUuid;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 
 class AdvertiseHelper {
 
@@ -56,27 +57,23 @@ class AdvertiseHelper {
         ByteArrayOutputStream ret = new ByteArrayOutputStream();
 
         if (data.getIncludeDeviceName()) {
-            try {
-                byte[] nameBytes = name.getBytes("UTF-8");
+            byte[] nameBytes = name.getBytes(StandardCharsets.UTF_8);
 
-                int nameLength = nameBytes.length;
-                byte type;
+            int nameLength = nameBytes.length;
+            byte type;
 
-                // TODO(jpawlowski) put a better limit on device name!
-                if (nameLength > DEVICE_NAME_MAX) {
-                    nameLength = DEVICE_NAME_MAX;
-                    type = SHORTENED_LOCAL_NAME;
-                } else {
-                    type = COMPLETE_LOCAL_NAME;
-                }
-
-                check_length(type, nameLength + 1);
-                ret.write(nameLength + 1);
-                ret.write(type);
-                ret.write(nameBytes, 0, nameLength);
-            } catch (java.io.UnsupportedEncodingException e) {
-                Log.e(TAG, "Can't include name - encoding error!", e);
+            // TODO(jpawlowski) put a better limit on device name!
+            if (nameLength > DEVICE_NAME_MAX) {
+                nameLength = DEVICE_NAME_MAX;
+                type = SHORTENED_LOCAL_NAME;
+            } else {
+                type = COMPLETE_LOCAL_NAME;
             }
+
+            check_length(type, nameLength + 1);
+            ret.write(nameLength + 1);
+            ret.write(type);
+            ret.write(nameBytes, 0, nameLength);
         }
 
         for (int i = 0; i < data.getManufacturerSpecificData().size(); i++) {

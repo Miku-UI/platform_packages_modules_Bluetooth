@@ -36,21 +36,19 @@ constexpr size_t kLeAudioLogHistoryBufferSize = 200;
 
 class TimestampedStringCircularBuffer
     : public bluetooth::common::TimestampedCircularBuffer<std::string> {
- public:
+public:
   explicit TimestampedStringCircularBuffer(size_t size)
       : bluetooth::common::TimestampedCircularBuffer<std::string>(size) {}
 
   void Push(const std::string& s) {
-    bluetooth::common::TimestampedCircularBuffer<std::string>::Push(
-        s.substr(0, kMaxLogSize));
+    bluetooth::common::TimestampedCircularBuffer<std::string>::Push(s.substr(0, kMaxLogSize));
   }
 
   template <typename... Args>
   void Push(Args... args) {
     char buf[kMaxLogSize];
     std::snprintf(buf, sizeof(buf), args...);
-    bluetooth::common::TimestampedCircularBuffer<std::string>::Push(
-        std::string(buf));
+    bluetooth::common::TimestampedCircularBuffer<std::string>::Push(std::string(buf));
   }
 };
 
@@ -64,12 +62,11 @@ const std::string kTimeFormat("%Y-%m-%d %H:%M:%S");
 using Record = bluetooth::common::TimestampedEntry<std::string>;
 
 class LeAudioLogHistoryImpl : public LeAudioLogHistory {
- public:
+public:
   ~LeAudioLogHistoryImpl(void) { history_.reset(); }
 
   LeAudioLogHistoryImpl(void) {
-    history_ = std::make_shared<TimestampedStringCircularBuffer>(
-        kLeAudioLogHistoryBufferSize);
+    history_ = std::make_shared<TimestampedStringCircularBuffer>(kLeAudioLogHistoryBufferSize);
     log::assert_that(history_ != nullptr, "assert failed: history_ != nullptr");
     history_->Push(std::string("Initialized le_audio history"));
   }
@@ -87,38 +84,33 @@ class LeAudioLogHistoryImpl : public LeAudioLogHistory {
       struct tm tm;
       localtime_r(&then, &tm);
       auto s2 = bluetooth::common::StringFormatTime(kTimeFormat, tm);
-      LOG_DUMPSYS(fd, " %s.%03u %s", s2.c_str(),
-                  static_cast<unsigned int>(record.timestamp % 1000),
+      LOG_DUMPSYS(fd, " %s.%03u %s", s2.c_str(), static_cast<unsigned int>(record.timestamp % 1000),
                   record.entry.c_str());
     }
 #undef DUMPSYS_TAG
   }
 
-  void AddLogHistory(const std::string& tag, int group_id,
-                     const RawAddress& addr, const std::string& msg,
-                     const std::string& extra) {
+  void AddLogHistory(const std::string& tag, int group_id, const RawAddress& addr,
+                     const std::string& msg, const std::string& extra) {
     add_logs_history_common(tag, group_id, addr, msg, extra);
   }
 
-  void AddLogHistory(const std::string& tag, int group_id,
-                     const RawAddress& addr, const std::string& msg) {
+  void AddLogHistory(const std::string& tag, int group_id, const RawAddress& addr,
+                     const std::string& msg) {
     AddLogHistory(tag, group_id, addr, msg, std::string());
   }
 
- private:
-  void add_logs_history_common(const std::string& tag, int group_id,
-                               const RawAddress& addr, const std::string& msg,
-                               const std::string& extra) {
+private:
+  void add_logs_history_common(const std::string& tag, int group_id, const RawAddress& addr,
+                               const std::string& msg, const std::string& extra) {
     if (history_ == nullptr) {
-      log::error(
-          "LeAudioLogHistory has not been constructed or already destroyed !");
+      log::error("LeAudioLogHistory has not been constructed or already destroyed !");
       return;
     }
 
     history_->Push("%-*s GID %-3d  %-*s: %-22s %s", kMaxLogHistoryTagLength,
                    tag.substr(0, kMaxLogHistoryTagLength).c_str(), group_id,
-                   kMaxLogHistoryMsgLength,
-                   msg.substr(0, kMaxLogHistoryMsgLength).c_str(),
+                   kMaxLogHistoryMsgLength, msg.substr(0, kMaxLogHistoryMsgLength).c_str(),
                    ADDRESS_TO_LOGGABLE_CSTR(addr), extra.c_str());
   }
 

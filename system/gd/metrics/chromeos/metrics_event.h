@@ -26,9 +26,9 @@ namespace metrics {
 enum class AdapterState : int64_t { OFF = 0, ON = 1 };
 
 // ENUM definition for device/connection type that in sync with ChromeOS structured metrics
-// BluetoothPairingStateChanged/DeviceType and BlueZ metrics_conn_type. Note this is a non-optimal ENUM design that
-// mixed the connection transport type with the device type. The connection can only be LE or Classic, but the device
-// type can also be Dual.
+// BluetoothPairingStateChanged/DeviceType and BlueZ metrics_conn_type. Note this is a non-optimal
+// ENUM design that mixed the connection transport type with the device type. The connection can
+// only be LE or Classic, but the device type can also be Dual.
 enum class ConnectionType : int64_t {
   CONN_TYPE_UNKNOWN = 0,
   CONN_TYPE_BREDR = 1,
@@ -167,8 +167,12 @@ enum class MetricAclDisconnectionStatus : int64_t {
   ACL_DISCONN_STATE_UNKNOWN = 6,
 };
 
-// A binary ENUM defines the metrics event is logged for: either for an attempt to connect or to disconnect.
-enum class StateChangeType : int64_t { STATE_CHANGE_TYPE_DISCONNECT = 0, STATE_CHANGE_TYPE_CONNECT = 1 };
+// A binary ENUM defines the metrics event is logged for: either for an attempt to connect or to
+// disconnect.
+enum class StateChangeType : int64_t {
+  STATE_CHANGE_TYPE_DISCONNECT = 0,
+  STATE_CHANGE_TYPE_CONNECT = 1
+};
 
 // ENUM definition for ACL disconnection status that in sync with ChromeOS structured metrics
 // MetricAclConnectionDirection and BlueZ's metrics_acl_connection_direction.
@@ -215,11 +219,13 @@ SuspendIdState ToSuspendIdState(uint32_t state);
 // Convert topshim::btif::BtDeviceType to ConnectionType
 ConnectionType ToPairingDeviceType(std::string addr, uint32_t device_type);
 
-// Convert topshim::btif::bond_state info (status, addr, bond_state, and fail_reason) to PairingState
+// Convert topshim::btif::bond_state info (status, addr, bond_state, and fail_reason) to
+// PairingState
 PairingState ToPairingState(uint32_t status, uint32_t bond_state, int32_t fail_reason);
 
 // Convert Floss profile connection info to ProfileConnectionEvent
-ProfileConnectionEvent ToProfileConnectionEvent(std::string addr, uint32_t profile, uint32_t status, uint32_t state);
+ProfileConnectionEvent ToProfileConnectionEvent(std::string addr, uint32_t profile, uint32_t status,
+                                                uint32_t state);
 
 // A struct holds the parsed ACL connection event.
 struct AclConnectionEvent {
@@ -235,8 +241,9 @@ struct AclConnectionEvent {
 void PendingAclConnectAttemptEvent(std::string addr, int64_t time, uint32_t acl_state);
 
 // Convert Floss ACL connection info to AclConnectionEvent.
-AclConnectionEvent ToAclConnectionEvent(
-    std::string addr, int64_t time, uint32_t acl_status, uint32_t acl_state, uint32_t direction, uint32_t hci_reason);
+AclConnectionEvent ToAclConnectionEvent(std::string addr, int64_t time, uint32_t acl_status,
+                                        uint32_t acl_state, uint32_t direction,
+                                        uint32_t hci_reason);
 
 // A struct to hold the chipset info.
 struct MetricsChipsetInfo {

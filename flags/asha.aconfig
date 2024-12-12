@@ -2,15 +2,11 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "higher_l2cap_flush_threshold"
+    name: "asha_encrypted_l2c_coc"
     namespace: "bluetooth"
-    description: "Use a higher threshold for flushing L2CAP packets"
-    bug: "315500864"
-}
-
-flag {
-    name: "asha_asrc"
-    namespace: "bluetooth"
-    description: "Sync audio stream with the bluetooth link clock"
-    bug: "321057945"
+    description: "Request encryption in LE CoC channel creation"
+    bug: "348505552"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

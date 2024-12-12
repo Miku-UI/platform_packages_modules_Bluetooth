@@ -39,9 +39,8 @@ class MessageLoopThread;
  * being executed
  */
 class RepeatingTimer final {
- public:
-  RepeatingTimer(uint64_t (*clock_tick_us)(void) =
-                     bluetooth::common::time_get_os_boottime_us)
+public:
+  RepeatingTimer(uint64_t (*clock_tick_us)(void) = bluetooth::common::time_get_os_boottime_us)
       : expected_time_next_task_us_(0), clock_tick_us_(clock_tick_us) {}
   RepeatingTimer(const RepeatingTimer&) = delete;
   RepeatingTimer& operator=(const RepeatingTimer&) = delete;
@@ -61,8 +60,7 @@ class RepeatingTimer final {
    * @return true iff task is scheduled successfully
    */
   bool SchedulePeriodic(const base::WeakPtr<MessageLoopThread>& thread,
-                        const base::Location& from_here,
-                        base::RepeatingClosure task,
+                        const base::Location& from_here, base::RepeatingClosure task,
                         std::chrono::microseconds period);
 
   /**
@@ -82,7 +80,7 @@ class RepeatingTimer final {
    */
   bool IsScheduled() const;
 
- private:
+private:
   base::WeakPtr<MessageLoopThread> message_loop_thread_;
   base::CancelableClosure task_wrapper_;
   base::RepeatingClosure task_;

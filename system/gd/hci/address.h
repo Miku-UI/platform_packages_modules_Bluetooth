@@ -36,7 +36,7 @@ namespace hci {
 class Address final : public packet::CustomFieldFixedSizeInterface<Address>,
                       public storage::Serializable<Address>,
                       public bluetooth::common::IRedactableLoggable {
- public:
+public:
   static constexpr size_t kLength = 6;
 
   // Bluetooth MAC address bytes saved in little endian format.
@@ -50,12 +50,8 @@ class Address final : public packet::CustomFieldFixedSizeInterface<Address>,
   Address(std::initializer_list<uint8_t> l);
 
   // CustomFieldFixedSizeInterface methods
-  inline uint8_t* data() override {
-    return address.data();
-  }
-  inline const uint8_t* data() const override {
-    return address.data();
-  }
+  inline uint8_t* data() override { return address.data(); }
+  inline const uint8_t* data() const override { return address.data(); }
 
   // storage::Serializable methods
   std::string ToString() const override;
@@ -67,28 +63,14 @@ class Address final : public packet::CustomFieldFixedSizeInterface<Address>,
   std::string ToLegacyConfigString() const override;
   static std::optional<Address> FromLegacyConfigString(const std::string& str);
 
-  bool operator<(const Address& rhs) const {
-    return address < rhs.address;
-  }
-  bool operator==(const Address& rhs) const {
-    return address == rhs.address;
-  }
-  bool operator>(const Address& rhs) const {
-    return (rhs < *this);
-  }
-  bool operator<=(const Address& rhs) const {
-    return !(*this > rhs);
-  }
-  bool operator>=(const Address& rhs) const {
-    return !(*this < rhs);
-  }
-  bool operator!=(const Address& rhs) const {
-    return !(*this == rhs);
-  }
+  bool operator<(const Address& rhs) const { return address < rhs.address; }
+  bool operator==(const Address& rhs) const { return address == rhs.address; }
+  bool operator>(const Address& rhs) const { return rhs < *this; }
+  bool operator<=(const Address& rhs) const { return !(*this > rhs); }
+  bool operator>=(const Address& rhs) const { return !(*this < rhs); }
+  bool operator!=(const Address& rhs) const { return !(*this == rhs); }
 
-  bool IsEmpty() const {
-    return *this == kEmpty;
-  }
+  bool IsEmpty() const { return *this == kEmpty; }
 
   // Converts |string| to Address and places it in |to|. If |from| does
   // not represent a Bluetooth address, |to| is not modified and this function
@@ -103,7 +85,7 @@ class Address final : public packet::CustomFieldFixedSizeInterface<Address>,
 
   static const Address kEmpty;  // 00:00:00:00:00:00
   static const Address kAny;    // FF:FF:FF:FF:FF:FF
- private:
+private:
   std::string _ToMaskedColonSepHexString(int bytes_to_mask) const;
 };
 
@@ -137,9 +119,7 @@ template <>
 struct formatter<bluetooth::hci::Address> : formatter<std::string> {
   template <class Context>
   typename Context::iterator format(const bluetooth::hci::Address& address, Context& ctx) const {
-    std::string repr = bluetooth::os::should_log_be_redacted()
-                           ? address.ToRedactedStringForLogging()
-                           : address.ToStringForLogging();
+    std::string repr = address.ToRedactedStringForLogging();
     return fmt::formatter<std::string>::format(repr, ctx);
   }
 };

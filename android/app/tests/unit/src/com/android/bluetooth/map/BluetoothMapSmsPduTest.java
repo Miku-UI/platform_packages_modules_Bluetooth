@@ -42,7 +42,7 @@ import org.mockito.junit.MockitoRule;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.util.List;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -107,7 +107,7 @@ public class BluetoothMapSmsPduTest {
         Assume.assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_GSM);
 
-        ArrayList<SmsPdu> pdus =
+        List<SmsPdu> pdus =
                 BluetoothMapSmsPdu.getSubmitPdus(
                         mTargetContext, TEST_TEXT_WITH_TWO_SMS_PARTS, null);
 
@@ -136,7 +136,7 @@ public class BluetoothMapSmsPduTest {
         Assume.assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_CDMA);
 
-        ArrayList<SmsPdu> pdus = BluetoothMapSmsPdu.getSubmitPdus(mTargetContext, TEST_TEXT, null);
+        List<SmsPdu> pdus = BluetoothMapSmsPdu.getSubmitPdus(mTargetContext, TEST_TEXT, null);
 
         assertThat(pdus.size()).isEqualTo(1);
         assertThat(pdus.get(0).getType()).isEqualTo(BluetoothMapSmsPdu.SMS_TYPE_CDMA);
@@ -161,7 +161,7 @@ public class BluetoothMapSmsPduTest {
         Assume.assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_GSM);
 
-        ArrayList<SmsPdu> pdus =
+        List<SmsPdu> pdus =
                 BluetoothMapSmsPdu.getDeliverPdus(
                         mTargetContext, TEST_TEXT, TEST_DESTINATION_ADDRESS, TEST_DATE);
 
@@ -190,7 +190,7 @@ public class BluetoothMapSmsPduTest {
         Assume.assumeTrue(mSmsManager.isImsSmsSupported());
         when(mTelephonyManager.getCurrentPhoneType()).thenReturn(TelephonyManager.PHONE_TYPE_CDMA);
 
-        ArrayList<SmsPdu> pdus =
+        List<SmsPdu> pdus =
                 BluetoothMapSmsPdu.getDeliverPdus(
                         mTargetContext, TEST_TEXT, TEST_DESTINATION_ADDRESS, TEST_DATE);
 

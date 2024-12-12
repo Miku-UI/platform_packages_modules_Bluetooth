@@ -105,13 +105,8 @@ impl Default for UInputDevInfo {
 }
 
 impl UInputDevInfo {
-    pub fn serialize(&mut self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(
-                (self as *const UInputDevInfo) as *const u8,
-                mem::size_of::<UInputDevInfo>(),
-            )
-        }
+    pub fn serialize(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts((self as *const Self) as *const u8, mem::size_of::<Self>()) }
     }
 }
 
@@ -124,13 +119,8 @@ struct UInputEvent {
 }
 
 impl UInputEvent {
-    pub fn serialize(&mut self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(
-                (self as *const UInputEvent) as *const u8,
-                mem::size_of::<UInputEvent>(),
-            )
-        }
+    pub fn serialize(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts((self as *const Self) as *const u8, mem::size_of::<Self>()) }
     }
 }
 
@@ -184,10 +174,11 @@ impl UInputDev {
                 ));
             }
 
+            let device_serialized = self.device.serialize();
             if libc::write(
                 fd,
-                self.device.serialize().as_ptr() as *const libc::c_void,
-                mem::size_of::<UInputDevInfo>(),
+                device_serialized.as_ptr() as *const libc::c_void,
+                device_serialized.len(),
             ) < 0
             {
                 libc::close(fd);
@@ -236,18 +227,15 @@ impl UInputDev {
         code: libc::c_ushort,
         value: libc::c_int,
     ) -> i32 {
-        let mut event = UInputEvent {
-            time: libc::timeval { tv_sec: 0, tv_usec: 0 },
-            event_type: event_type,
-            code: code,
-            value: value,
-        };
+        let event =
+            UInputEvent { time: libc::timeval { tv_sec: 0, tv_usec: 0 }, event_type, code, value };
 
         unsafe {
+            let event_serialized = event.serialize();
             libc::write(
                 self.fd,
-                event.serialize().as_ptr() as *const libc::c_void,
-                mem::size_of::<UInputDevInfo>(),
+                event_serialized.as_ptr() as *const libc::c_void,
+                event_serialized.len(),
             )
             .try_into()
             .unwrap()
@@ -295,6 +283,12 @@ impl Drop for UInput {
     }
 }
 
+impl Default for UInput {
+    fn default() -> Self {
+        Self { devices: Vec::<UInputDev>::new(), active_device: String::from("00:00:00:00:00:00") }
+    }
+}
+
 impl UInput {
     fn get_device(&mut self, addr: String) -> Option<&mut UInputDev> {
         for device in self.devices.iter_mut() {
@@ -307,10 +301,7 @@ impl UInput {
 
     /// Create a new UInput struct that holds a vector of uinput objects.
     pub fn new() -> Self {
-        UInput {
-            devices: Vec::<UInputDev>::new(),
-            active_device: String::from("00:00:00:00:00:00"),
-        }
+        Default::default()
     }
 
     /// Initialize a uinput device with kernel.
@@ -350,7 +341,7 @@ impl UInput {
     /// Send key event to the active uinput.
     pub fn send_key(&mut self, key: u8, value: u8) -> Result<(), String> {
         match self.active_device.as_str() {
-            "00:00:00:00:00:00" => Err(format!("Active device is not specified")),
+            "00:00:00:00:00:00" => Err("Active device is not specified".to_string()),
             _ => match self.get_device(self.active_device.clone()) {
                 Some(device) => device.send_key(key, value),
                 None => Err(format!("uinput: {} is not initialized", self.active_device)),

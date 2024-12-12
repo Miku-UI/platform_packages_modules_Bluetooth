@@ -42,57 +42,49 @@ void section_t::Set(std::string key, std::string value) {
     }
   }
   // add a new key to the section
-  entries.emplace_back(
-      entry_t{.key = std::move(key), .value = std::move(value)});
+  entries.emplace_back(entry_t{.key = std::move(key), .value = std::move(value)});
 }
 
 std::list<entry_t>::iterator section_t::Find(const std::string& key) {
-  return std::find_if(
-      entries.begin(), entries.end(),
-      [&key](const entry_t& entry) { return entry.key == key; });
+  return std::find_if(entries.begin(), entries.end(),
+                      [&key](const entry_t& entry) { return entry.key == key; });
 }
 
-bool section_t::Has(const std::string& key) {
-  return Find(key) != entries.end();
-}
+bool section_t::Has(const std::string& key) { return Find(key) != entries.end(); }
 
 std::list<section_t>::iterator config_t::Find(const std::string& section) {
-  return std::find_if(
-      sections.begin(), sections.end(),
-      [&section](const section_t& sec) { return sec.name == section; });
+  return std::find_if(sections.begin(), sections.end(),
+                      [&section](const section_t& sec) { return sec.name == section; });
 }
 
-bool config_t::Has(const std::string& key) {
-  return Find(key) != sections.end();
-}
+bool config_t::Has(const std::string& key) { return Find(key) != sections.end(); }
 
 static bool config_parse(FILE* fp, config_t* config);
 
-template <typename T,
-          class = typename std::enable_if<std::is_same<
-              config_t, typename std::remove_const<T>::type>::value>>
+template <typename T, class = typename std::enable_if<
+                              std::is_same<config_t, typename std::remove_const<T>::type>::value>>
 static auto section_find(T& config, const std::string& section) {
-  return std::find_if(
-      config.sections.begin(), config.sections.end(),
-      [&section](const section_t& sec) { return sec.name == section; });
+  return std::find_if(config.sections.begin(), config.sections.end(),
+                      [&section](const section_t& sec) { return sec.name == section; });
 }
 
-static const entry_t* entry_find(const config_t& config,
-                                 const std::string& section,
+static const entry_t* entry_find(const config_t& config, const std::string& section,
                                  const std::string& key) {
   auto sec = section_find(config, section);
-  if (sec == config.sections.end()) return nullptr;
+  if (sec == config.sections.end()) {
+    return nullptr;
+  }
 
   for (const entry_t& entry : sec->entries) {
-    if (entry.key == key) return &entry;
+    if (entry.key == key) {
+      return &entry;
+    }
   }
 
   return nullptr;
 }
 
-std::unique_ptr<config_t> config_new_empty(void) {
-  return std::make_unique<config_t>();
-}
+std::unique_ptr<config_t> config_new_empty(void) { return std::make_unique<config_t>(); }
 
 std::unique_ptr<config_t> config_new(const char* filename) {
   log::assert_that(filename != nullptr, "assert failed: filename != nullptr");
@@ -139,18 +131,19 @@ std::unique_ptr<config_t> config_new_clone(const config_t& src) {
 }
 
 bool config_has_section(const config_t& config, const std::string& section) {
-  return (section_find(config, section) != config.sections.end());
+  return section_find(config, section) != config.sections.end();
 }
 
-bool config_has_key(const config_t& config, const std::string& section,
-                    const std::string& key) {
-  return (entry_find(config, section, key) != nullptr);
+bool config_has_key(const config_t& config, const std::string& section, const std::string& key) {
+  return entry_find(config, section, key) != nullptr;
 }
 
-int config_get_int(const config_t& config, const std::string& section,
-                   const std::string& key, int def_value) {
+int config_get_int(const config_t& config, const std::string& section, const std::string& key,
+                   int def_value) {
   const entry_t* entry = entry_find(config, section, key);
-  if (!entry) return def_value;
+  if (!entry) {
+    return def_value;
+  }
 
   char* endptr;
   int ret = strtol(entry->value.c_str(), &endptr, 0);
@@ -160,51 +153,59 @@ int config_get_int(const config_t& config, const std::string& section,
 uint64_t config_get_uint64(const config_t& config, const std::string& section,
                            const std::string& key, uint64_t def_value) {
   const entry_t* entry = entry_find(config, section, key);
-  if (!entry) return def_value;
+  if (!entry) {
+    return def_value;
+  }
 
   char* endptr;
   uint64_t ret = strtoull(entry->value.c_str(), &endptr, 0);
   return (*endptr == '\0') ? ret : def_value;
 }
 
-bool config_get_bool(const config_t& config, const std::string& section,
-                     const std::string& key, bool def_value) {
+bool config_get_bool(const config_t& config, const std::string& section, const std::string& key,
+                     bool def_value) {
   const entry_t* entry = entry_find(config, section, key);
-  if (!entry) return def_value;
+  if (!entry) {
+    return def_value;
+  }
 
-  if (entry->value == "true") return true;
-  if (entry->value == "false") return false;
+  if (entry->value == "true") {
+    return true;
+  }
+  if (entry->value == "false") {
+    return false;
+  }
 
   return def_value;
 }
 
-const std::string* config_get_string(const config_t& config,
-                                     const std::string& section,
-                                     const std::string& key,
-                                     const std::string* def_value) {
+const std::string* config_get_string(const config_t& config, const std::string& section,
+                                     const std::string& key, const std::string* def_value) {
   const entry_t* entry = entry_find(config, section, key);
-  if (!entry) return def_value;
+  if (!entry) {
+    return def_value;
+  }
 
   return &entry->value;
 }
 
-void config_set_int(config_t* config, const std::string& section,
-                    const std::string& key, int value) {
+void config_set_int(config_t* config, const std::string& section, const std::string& key,
+                    int value) {
   config_set_string(config, section, key, std::to_string(value));
 }
 
-void config_set_uint64(config_t* config, const std::string& section,
-                       const std::string& key, uint64_t value) {
+void config_set_uint64(config_t* config, const std::string& section, const std::string& key,
+                       uint64_t value) {
   config_set_string(config, section, key, std::to_string(value));
 }
 
-void config_set_bool(config_t* config, const std::string& section,
-                     const std::string& key, bool value) {
+void config_set_bool(config_t* config, const std::string& section, const std::string& key,
+                     bool value) {
   config_set_string(config, section, key, value ? "true" : "false");
 }
 
-void config_set_string(config_t* config, const std::string& section,
-                       const std::string& key, const std::string& value) {
+void config_set_string(config_t* config, const std::string& section, const std::string& key,
+                       const std::string& value) {
   log::assert_that(config != nullptr, "assert failed: config != nullptr");
 
   auto sec = section_find(*config, section);
@@ -235,20 +236,22 @@ bool config_remove_section(config_t* config, const std::string& section) {
   log::assert_that(config != nullptr, "assert failed: config != nullptr");
 
   auto sec = section_find(*config, section);
-  if (sec == config->sections.end()) return false;
+  if (sec == config->sections.end()) {
+    return false;
+  }
 
   config->sections.erase(sec);
   return true;
 }
 
-bool config_remove_key(config_t* config, const std::string& section,
-                       const std::string& key) {
+bool config_remove_key(config_t* config, const std::string& section, const std::string& key) {
   log::assert_that(config != nullptr, "assert failed: config != nullptr");
   auto sec = section_find(*config, section);
-  if (sec == config->sections.end()) return false;
+  if (sec == config->sections.end()) {
+    return false;
+  }
 
-  for (auto entry = sec->entries.begin(); entry != sec->entries.end();
-       ++entry) {
+  for (auto entry = sec->entries.begin(); entry != sec->entries.end(); ++entry) {
     if (entry->key == key) {
       sec->entries.erase(entry);
       return true;
@@ -280,8 +283,7 @@ bool config_save(const config_t& config, const std::string& filename) {
   // Extract directory from file path (e.g. /data/misc/bluedroid).
   const std::string directoryname = base::FilePath(filename).DirName().value();
   if (directoryname.empty()) {
-    log::error("error extracting directory from '{}': {}", filename,
-               strerror(errno));
+    log::error("error extracting directory from '{}': {}", filename, strerror(errno));
     goto error;
   }
 
@@ -293,30 +295,28 @@ bool config_save(const config_t& config, const std::string& filename) {
 
   fp = fopen(temp_filename.c_str(), "wt");
   if (!fp) {
-    log::error("unable to write to file '{}': {}", temp_filename,
-               strerror(errno));
+    log::error("unable to write to file '{}': {}", temp_filename, strerror(errno));
     goto error;
   }
 
   for (const section_t& section : config.sections) {
     serialized << "[" << section.name << "]" << std::endl;
 
-    for (const entry_t& entry : section.entries)
+    for (const entry_t& entry : section.entries) {
       serialized << entry.key << " = " << entry.value << std::endl;
+    }
 
     serialized << std::endl;
   }
 
   if (fprintf(fp, "%s", serialized.str().c_str()) < 0) {
-    log::error("unable to write to file '{}': {}", temp_filename,
-               strerror(errno));
+    log::error("unable to write to file '{}': {}", temp_filename, strerror(errno));
     goto error;
   }
 
   // Flush the stream buffer to the temp file.
   if (fflush(fp) < 0) {
-    log::error("unable to write flush buffer to file '{}': {}", temp_filename,
-               strerror(errno));
+    log::error("unable to write flush buffer to file '{}': {}", temp_filename, strerror(errno));
     goto error;
   }
 
@@ -333,10 +333,8 @@ bool config_save(const config_t& config, const std::string& filename) {
   fp = nullptr;
 
   // Change the file's permissions to Read/Write by User and Group
-  if (chmod(temp_filename.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) ==
-      -1) {
-    log::error("unable to change file permissions '{}': {}", filename,
-               strerror(errno));
+  if (chmod(temp_filename.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) == -1) {
+    log::error("unable to change file permissions '{}': {}", filename, strerror(errno));
     goto error;
   }
 
@@ -362,8 +360,12 @@ error:
   // This indicates there is a write issue.  Unlink as partial data is not
   // acceptable.
   unlink(temp_filename.c_str());
-  if (fp) fclose(fp);
-  if (dir_fd != -1) close(dir_fd);
+  if (fp) {
+    fclose(fp);
+  }
+  if (dir_fd != -1) {
+    close(dir_fd);
+  }
   return false;
 }
 
@@ -391,8 +393,7 @@ bool checksum_save(const std::string& checksum, const std::string& filename) {
   // Extract directory from file path (e.g. /data/misc/bluedroid).
   const std::string directoryname = base::FilePath(filename).DirName().value();
   if (directoryname.empty()) {
-    log::error("error extracting directory from '{}': {}", filename,
-               strerror(errno));
+    log::error("error extracting directory from '{}': {}", filename, strerror(errno));
     goto error2;
   }
 
@@ -402,16 +403,14 @@ bool checksum_save(const std::string& checksum, const std::string& filename) {
     goto error2;
   }
 
-  if (base::WriteFile(path, checksum.data(), checksum.size()) !=
-      (int)checksum.size()) {
+  if (base::WriteFile(path, checksum.data(), checksum.size()) != (int)checksum.size()) {
     log::error("unable to write file '{}", filename);
     goto error2;
   }
 
   fp = fopen(temp_filename.c_str(), "rb");
   if (!fp) {
-    log::error("unable to write to file '{}': {}", temp_filename,
-               strerror(errno));
+    log::error("unable to write to file '{}': {}", temp_filename, strerror(errno));
     goto error2;
   }
 
@@ -428,10 +427,8 @@ bool checksum_save(const std::string& checksum, const std::string& filename) {
   fp = nullptr;
 
   // Change the file's permissions to Read/Write by User and Group
-  if (chmod(temp_filename.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) ==
-      -1) {
-    log::error("unable to change file permissions '{}': {}", filename,
-               strerror(errno));
+  if (chmod(temp_filename.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP) == -1) {
+    log::error("unable to change file permissions '{}': {}", filename, strerror(errno));
     goto error2;
   }
 
@@ -457,18 +454,28 @@ error2:
   // This indicates there is a write issue.  Unlink as partial data is not
   // acceptable.
   unlink(temp_filename.c_str());
-  if (fp) fclose(fp);
-  if (dir_fd != -1) close(dir_fd);
+  if (fp) {
+    fclose(fp);
+  }
+  if (dir_fd != -1) {
+    close(dir_fd);
+  }
   return false;
 }
 
 static char* trim(char* str) {
-  while (isspace(*str)) ++str;
+  while (isspace(*str)) {
+    ++str;
+  }
 
-  if (!*str) return str;
+  if (!*str) {
+    return str;
+  }
 
   char* end_str = str + strlen(str) - 1;
-  while (end_str > str && isspace(*end_str)) --end_str;
+  while (end_str > str && isspace(*end_str)) {
+    --end_str;
+  }
 
   end_str[1] = '\0';
   return str;
@@ -488,7 +495,9 @@ static bool config_parse(FILE* fp, config_t* config) {
     ++line_num;
 
     // Skip blank and comment lines.
-    if (*line_ptr == '\0' || *line_ptr == '#') continue;
+    if (*line_ptr == '\0' || *line_ptr == '#') {
+      continue;
+    }
 
     if (*line_ptr == '[') {
       size_t len = strlen(line_ptr);

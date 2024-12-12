@@ -22,15 +22,13 @@
 
 namespace bluetooth {
 
-void PacketBuilder::ReserveSpace(const std::shared_ptr<Packet>& pkt,
-                                 size_t size) {
+void PacketBuilder::ReserveSpace(const std::shared_ptr<Packet>& pkt, size_t size) {
   pkt->data_->reserve(size);
 }
 
-bool PacketBuilder::AddPayloadOctets(const std::shared_ptr<Packet>& pkt,
-                                     size_t octets, uint64_t value) {
-  log::assert_that(octets <= sizeof(uint64_t),
-                   "assert failed: octets <= sizeof(uint64_t)");
+bool PacketBuilder::AddPayloadOctets(const std::shared_ptr<Packet>& pkt, size_t octets,
+                                     uint64_t value) {
+  log::assert_that(octets <= sizeof(uint64_t), "assert failed: octets <= sizeof(uint64_t)");
 
   for (size_t i = 0; i < octets; i++) {
     pkt->data_->push_back(value & 0xff);

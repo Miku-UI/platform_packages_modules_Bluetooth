@@ -24,16 +24,14 @@ namespace hci {
 namespace acl_manager {
 
 class AclConnection {
- public:
-  AclConnection() : queue_up_end_(nullptr), handle_(0){};
+public:
+  AclConnection() : queue_up_end_(nullptr), handle_(0) {}
   AclConnection(const AclConnection&) = delete;
   AclConnection& operator=(const AclConnection&) = delete;
 
   virtual ~AclConnection() = default;
 
-  uint16_t GetHandle() const {
-    return handle_;
-  }
+  uint16_t GetHandle() const { return handle_; }
 
   virtual bool ReadRemoteVersionInformation() = 0;
 
@@ -44,8 +42,9 @@ class AclConnection {
 
   bool locally_initiated_{false};
 
- protected:
-  AclConnection(QueueUpEnd* queue_up_end, uint16_t handle) : queue_up_end_(queue_up_end), handle_(handle) {}
+protected:
+  AclConnection(QueueUpEnd* queue_up_end, uint16_t handle)
+      : queue_up_end_(queue_up_end), handle_(handle) {}
   QueueUpEnd* queue_up_end_;
   uint16_t handle_;
 };

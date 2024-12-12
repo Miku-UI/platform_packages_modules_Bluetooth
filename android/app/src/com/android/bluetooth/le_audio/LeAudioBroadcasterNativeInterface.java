@@ -131,6 +131,16 @@ public class LeAudioBroadcasterNativeInterface {
         sendMessageToService(event);
     }
 
+    @VisibleForTesting
+    public void onBroadcastAudioSessionCreated(boolean success) {
+        Log.d(TAG, "onBroadcastAudioSessionCreated: success=" + success);
+        LeAudioStackEvent event =
+                new LeAudioStackEvent(LeAudioStackEvent.EVENT_TYPE_BROADCAST_AUDIO_SESSION_CREATED);
+
+        event.valueBool1 = success;
+        sendMessageToService(event);
+    }
+
     /**
      * Initializes the native interface.
      *

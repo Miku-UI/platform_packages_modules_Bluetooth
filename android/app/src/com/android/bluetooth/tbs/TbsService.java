@@ -17,8 +17,10 @@
 
 package com.android.bluetooth.tbs;
 
-import static com.android.bluetooth.Utils.enforceBluetoothPrivilegedPermission;
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
+import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeCall;
 import android.bluetooth.BluetoothProfile;
@@ -221,24 +223,6 @@ public class TbsService extends ProfileService {
             implements IProfileServiceBinder {
         private TbsService mService;
 
-        private TbsService getService(AttributionSource source) {
-            if (!Utils.checkServiceAvailable(mService, TAG)
-                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(mService, TAG)
-                    || !Utils.checkConnectPermissionForDataDelivery(mService, source, TAG)) {
-                Log.w(TAG, "TbsService call not allowed for non-active user");
-                return null;
-            }
-
-            if (mService != null) {
-                Log.d(TAG, "Service available");
-
-                enforceBluetoothPrivilegedPermission(mService);
-                return mService;
-            }
-
-            return null;
-        }
-
         TbsServerBinder(TbsService service) {
             mService = service;
         }
@@ -246,6 +230,21 @@ public class TbsService extends ProfileService {
         @Override
         public void cleanup() {
             mService = null;
+        }
+
+        @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+        private TbsService getService(AttributionSource source) {
+            // Cache mService because it can change while getService is called
+            TbsService service = mService;
+
+            if (!Utils.checkServiceAvailable(service, TAG)
+                    || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                    || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+                return null;
+            }
+
+            service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            return service;
         }
 
         @Override
@@ -262,8 +261,6 @@ public class TbsService extends ProfileService {
             if (service != null) {
                 service.registerBearer(
                         token, callback, uci, uriSchemes, capabilities, providerName, technology);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -272,8 +269,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.unregisterBearer(token);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -282,8 +277,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.requestResult(ccid, requestId, result);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -292,8 +285,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.callAdded(ccid, call);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -302,8 +293,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.callRemoved(ccid, callId.getUuid(), reason);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -313,8 +302,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.callStateChanged(ccid, callId.getUuid(), state);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -324,8 +311,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.currentCallsList(ccid, calls);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
 
@@ -335,8 +320,6 @@ public class TbsService extends ProfileService {
             TbsService service = getService(source);
             if (service != null) {
                 service.networkStateChanged(ccid, providerName, technology);
-            } else {
-                Log.w(TAG, "Service not active");
             }
         }
     }
@@ -365,7 +348,7 @@ public class TbsService extends ProfileService {
                                 },
                                 0);
             } catch (RemoteException e) {
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
 
@@ -444,7 +427,10 @@ public class TbsService extends ProfileService {
             } else {
                 accessString = "ACCESS_UNKNOWN";
             }
-            sb.append("\n\tDevice: " + entry.getKey() + ", access: " + accessString);
+            sb.append("\n\tDevice: ")
+                    .append(entry.getKey())
+                    .append(", access: ")
+                    .append(accessString);
         }
     }
 }

@@ -37,16 +37,14 @@ int yylex_destroy(void*);
 void yyset_debug(int, void*);
 void yyset_in(FILE*, void*);
 
-bool generate_cpp_headers_one_file(
-    const Declarations& decls,
-    bool generate_fuzzing,
-    bool generate_tests,
-    const std::filesystem::path& input_file,
-    const std::filesystem::path& include_dir,
-    const std::filesystem::path& out_dir,
-    const std::string& root_namespace);
+bool generate_cpp_headers_one_file(const Declarations& decls, bool generate_fuzzing,
+                                   bool generate_tests, const std::filesystem::path& input_file,
+                                   const std::filesystem::path& include_dir,
+                                   const std::filesystem::path& out_dir,
+                                   const std::string& root_namespace);
 
-bool parse_declarations_one_file(const std::filesystem::path& input_file, Declarations* declarations) {
+bool parse_declarations_one_file(const std::filesystem::path& input_file,
+                                 Declarations* declarations) {
   void* scanner;
   yylex_init(&scanner);
 
@@ -87,9 +85,7 @@ bool parse_declarations_one_file(const std::filesystem::path& input_file, Declar
 }
 
 // TODO(b/141583809): stop leaks
-extern "C" const char* __asan_default_options() {
-  return "detect_leaks=0";
-}
+extern "C" const char* __asan_default_options() { return "detect_leaks=0"; }
 
 void usage(const char* prog) {
   auto& ofs = std::cerr;
@@ -168,14 +164,8 @@ int main(int argc, const char** argv) {
       return 2;
     }
     std::cout << "generating c++" << std::endl;
-    if (!generate_cpp_headers_one_file(
-            declarations,
-            generate_fuzzing,
-            generate_tests,
-            input_files.front(),
-            include_dir,
-            out_dir,
-            root_namespace)) {
+    if (!generate_cpp_headers_one_file(declarations, generate_fuzzing, generate_tests,
+                                       input_files.front(), include_dir, out_dir, root_namespace)) {
       std::cerr << "Didn't generate cpp headers for " << input_files.front() << std::endl;
       return 3;
     }

@@ -31,11 +31,11 @@ mod tests {
         let combo_joystick_cod = 0x05c4;
         let mouse_cod = 0x0580;
 
-        assert_eq!(is_cod_hid_keyboard(keyboard_gamepad_cod), true);
-        assert_eq!(is_cod_hid_combo(keyboard_gamepad_cod), false);
-        assert_eq!(is_cod_hid_keyboard(combo_joystick_cod), false);
-        assert_eq!(is_cod_hid_combo(combo_joystick_cod), true);
-        assert_eq!(is_cod_hid_keyboard(mouse_cod), false);
-        assert_eq!(is_cod_hid_combo(mouse_cod), false);
+        assert!(is_cod_hid_keyboard(keyboard_gamepad_cod));
+        assert!(!is_cod_hid_combo(keyboard_gamepad_cod));
+        assert!(!is_cod_hid_keyboard(combo_joystick_cod));
+        assert!(is_cod_hid_combo(combo_joystick_cod));
+        assert!(!is_cod_hid_keyboard(mouse_cod));
+        assert!(!is_cod_hid_combo(mouse_cod));
     }
 }

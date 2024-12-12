@@ -89,6 +89,10 @@ public class AdapterNativeInterface {
         return disableNative();
     }
 
+    boolean setScanMode(int mode) {
+        return setScanModeNative(mode);
+    }
+
     boolean setAdapterProperty(int type, byte[] val) {
         return setAdapterPropertyNative(type, val);
     }
@@ -243,10 +247,6 @@ public class AdapterNativeInterface {
         return pbapPseDynamicVersionUpgradeIsEnabledNative();
     }
 
-    boolean isLogRedactionEnabled() {
-        return isLogRedactionEnabledNative();
-    }
-
     int getSocketL2capLocalChannelId(ParcelUuid connectionUuid) {
         return getSocketL2capLocalChannelIdNative(
                 connectionUuid.getUuid().getLeastSignificantBits(),
@@ -282,6 +282,8 @@ public class AdapterNativeInterface {
     private native boolean enableNative();
 
     private native boolean disableNative();
+
+    private native boolean setScanModeNative(int mode);
 
     private native boolean setAdapterPropertyNative(int type, byte[] val);
 
@@ -363,8 +365,6 @@ public class AdapterNativeInterface {
     private native int getRemotePbapPceVersionNative(String address);
 
     private native boolean pbapPseDynamicVersionUpgradeIsEnabledNative();
-
-    private native boolean isLogRedactionEnabledNative();
 
     private native int getSocketL2capLocalChannelIdNative(
             long connectionUuidLsb, long connectionUuidMsb);

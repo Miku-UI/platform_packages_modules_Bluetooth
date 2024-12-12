@@ -161,13 +161,6 @@
             </intent-filter>
         </service>
 
-        <activity android:name="com.android.bluetooth.map.BluetoothMapSettings"
-              android:process="@string/process"
-              android:label="@string/bluetooth_map_settings_title"
-              android:excludeFromRecents="true"
-              android:configChanges="orientation|keyboardHidden"
-              android:enabled="false">
-        </activity>
         <provider android:name="com.android.bluetooth.map.MmsFileProvider"
              android:authorities="com.android.bluetooth.map.MmsFileProvider"
              android:enabled="false"

@@ -27,22 +27,22 @@ namespace bluetooth {
 namespace manager {
 
 class BtmSecurityInternalInterface {
- public:
+public:
   virtual void AbortAccessRequest(const RawAddress& bd_addr) = 0;
-  virtual tBTM_STATUS MultiplexingProtocolAccessRequest(
-      const RawAddress& bd_addr, uint16_t psm, bool is_originator,
-      uint32_t mx_proto_id, uint32_t mx_chan_id, tBTM_SEC_CALLBACK* p_callback,
-      void* p_ref_data) = 0;
+  virtual tBTM_STATUS MultiplexingProtocolAccessRequest(const RawAddress& bd_addr, uint16_t psm,
+                                                        bool is_originator, uint32_t mx_proto_id,
+                                                        uint32_t mx_chan_id,
+                                                        tBTM_SEC_CALLBACK* p_callback,
+                                                        void* p_ref_data) = 0;
   virtual ~BtmSecurityInternalInterface() = default;
 };
 
 class MockBtmSecurityInternalInterface : public BtmSecurityInternalInterface {
- public:
+public:
   MOCK_METHOD1(AbortAccessRequest, void(const RawAddress& bd_addr));
   MOCK_METHOD7(MultiplexingProtocolAccessRequest,
-               tBTM_STATUS(const RawAddress& bd_addr, uint16_t psm,
-                           bool is_originator, uint32_t mx_proto_id,
-                           uint32_t mx_chan_id, tBTM_SEC_CALLBACK* p_callback,
+               tBTM_STATUS(const RawAddress& bd_addr, uint16_t psm, bool is_originator,
+                           uint32_t mx_proto_id, uint32_t mx_chan_id, tBTM_SEC_CALLBACK* p_callback,
                            void* p_ref_data));
 };
 
@@ -53,7 +53,7 @@ class MockBtmSecurityInternalInterface : public BtmSecurityInternalInterface {
  * internal interface, could be null
  */
 void SetMockSecurityInternalInterface(
-    MockBtmSecurityInternalInterface* mock_btm_security_internal_interface);
+        MockBtmSecurityInternalInterface* mock_btm_security_internal_interface);
 
 }  // namespace manager
 }  // namespace bluetooth

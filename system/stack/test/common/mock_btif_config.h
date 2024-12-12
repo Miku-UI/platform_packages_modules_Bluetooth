@@ -25,20 +25,18 @@ namespace bluetooth {
 namespace manager {
 
 class BtifConfigInterface {
- public:
-  virtual bool GetBin(const std::string& section, const std::string& key,
-                      uint8_t* value, size_t* length) = 0;
-  virtual size_t GetBinLength(const std::string& section,
-                              const std::string& key) = 0;
+public:
+  virtual bool GetBin(const std::string& section, const std::string& key, uint8_t* value,
+                      size_t* length) = 0;
+  virtual size_t GetBinLength(const std::string& section, const std::string& key) = 0;
   virtual ~BtifConfigInterface() = default;
 };
 
 class MockBtifConfigInterface : public BtifConfigInterface {
- public:
-  MOCK_METHOD4(GetBin, bool(const std::string& section, const std::string& key,
-                            uint8_t* value, size_t* length));
-  MOCK_METHOD2(GetBinLength,
-               size_t(const std::string& section, const std::string& key));
+public:
+  MOCK_METHOD4(GetBin, bool(const std::string& section, const std::string& key, uint8_t* value,
+                            size_t* length));
+  MOCK_METHOD2(GetBinLength, size_t(const std::string& section, const std::string& key));
 };
 
 /**
@@ -47,8 +45,7 @@ class MockBtifConfigInterface : public BtifConfigInterface {
  * @param mock_btif_config_interface pointer to mock btif config interface,
  * could be null
  */
-void SetMockBtifConfigInterface(
-    MockBtifConfigInterface* mock_btif_config_interface);
+void SetMockBtifConfigInterface(MockBtifConfigInterface* mock_btif_config_interface);
 
 }  // namespace manager
 }  // namespace bluetooth

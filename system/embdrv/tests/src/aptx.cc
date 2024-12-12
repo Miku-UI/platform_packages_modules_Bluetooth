@@ -28,10 +28,10 @@
 #define BYTES_PER_CODEWORD 16
 
 class LibAptxEncTest : public ::testing::Test {
- private:
+private:
   void* aptxbtenc = nullptr;
 
- protected:
+protected:
   void SetUp() override {
     aptxbtenc = malloc(SizeofAptxbtenc());
     ASSERT_NE(aptxbtenc, nullptr);
@@ -56,14 +56,12 @@ class LibAptxEncTest : public ::testing::Test {
 
 TEST_F(LibAptxEncTest, encode_fake_data) {
   const char input[] =
-      "012345678901234567890123456789012345678901234567890123456789012345678901"
-      "23456789";
-  const uint32_t aptx_codeword[] = {1270827967, 134154239, 670640127,
-                                    1280265295, 2485752873};
+          "012345678901234567890123456789012345678901234567890123456789012345678901"
+          "23456789";
+  const uint32_t aptx_codeword[] = {1270827967, 134154239, 670640127, 1280265295, 2485752873};
 
   ASSERT_EQ((sizeof(input) - 1) % BYTES_PER_CODEWORD, 0);
-  ASSERT_EQ((sizeof(input) - 1) / BYTES_PER_CODEWORD,
-            sizeof(aptx_codeword) / sizeof(uint32_t));
+  ASSERT_EQ((sizeof(input) - 1) / BYTES_PER_CODEWORD, sizeof(aptx_codeword) / sizeof(uint32_t));
 
   size_t idx = 0;
 

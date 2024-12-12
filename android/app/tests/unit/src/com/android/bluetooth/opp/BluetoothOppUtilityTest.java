@@ -58,7 +58,6 @@ import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -150,8 +149,7 @@ public class BluetoothOppUtilityTest {
         doAnswer(invocation -> cnt.incrementAndGet() > 5).when(mCursor).isAfterLast();
         doReturn(CORRECT_FORMAT_BUT_INVALID_FILE_URI.toString()).when(mCursor).getString(0);
 
-        ArrayList<String> answer =
-                BluetoothOppUtility.queryTransfersInBatch(mContext, timestampValue);
+        List<String> answer = BluetoothOppUtility.queryTransfersInBatch(mContext, timestampValue);
         for (String url : answer) {
             assertThat(url).isEqualTo(CORRECT_FORMAT_BUT_INVALID_FILE_URI.toString());
         }

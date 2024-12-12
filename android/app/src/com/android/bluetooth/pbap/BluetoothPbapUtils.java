@@ -47,6 +47,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -83,9 +84,9 @@ class BluetoothPbapUtils {
 
     private static class ContactData {
         private String mName;
-        private ArrayList<String> mEmail;
-        private ArrayList<String> mPhone;
-        private ArrayList<String> mAddress;
+        private List<String> mEmail;
+        private List<String> mPhone;
+        private List<String> mAddress;
 
         ContactData() {
             mPhone = new ArrayList<>();
@@ -93,11 +94,7 @@ class BluetoothPbapUtils {
             mAddress = new ArrayList<>();
         }
 
-        ContactData(
-                String name,
-                ArrayList<String> phone,
-                ArrayList<String> email,
-                ArrayList<String> address) {
+        ContactData(String name, List<String> phone, List<String> email, List<String> address) {
             this.mName = name;
             this.mPhone = phone;
             this.mEmail = email;
@@ -387,9 +384,9 @@ class BluetoothPbapUtils {
         } else {
             for (String contact : updatedList) {
                 sPrimaryVersionCounter++;
-                ArrayList<String> phoneTmp = new ArrayList<>();
-                ArrayList<String> emailTmp = new ArrayList<>();
-                ArrayList<String> addressTmp = new ArrayList<>();
+                List<String> phoneTmp = new ArrayList<>();
+                List<String> emailTmp = new ArrayList<>();
+                List<String> addressTmp = new ArrayList<>();
                 String nameTmp = null;
                 boolean updated = false;
 
@@ -480,7 +477,7 @@ class BluetoothPbapUtils {
      * Field update can be a field updated/added/deleted in an existing contact.
      * Returns true if any contact field is updated else return false. */
     @VisibleForTesting
-    static boolean checkFieldUpdates(ArrayList<String> oldFields, ArrayList<String> newFields) {
+    static boolean checkFieldUpdates(List<String> oldFields, List<String> newFields) {
         if (newFields != null && oldFields != null) {
             if (newFields.size() != oldFields.size()) {
                 sTotalSvcFields += Math.abs(newFields.size() - oldFields.size());

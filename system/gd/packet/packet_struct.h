@@ -34,7 +34,7 @@ namespace packet {
 // The template parameter little_endian controls the generation of insert().
 template <bool little_endian>
 class PacketStruct : public BaseStruct, protected EndianInserter<little_endian> {
- public:
+public:
   PacketStruct() = default;
   virtual ~PacketStruct() = default;
 };

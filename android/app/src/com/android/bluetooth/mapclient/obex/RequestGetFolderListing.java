@@ -22,7 +22,7 @@ import com.android.obex.HeaderSet;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
+import java.util.List;
 
 /* Get a listing of subdirectories. */
 final class RequestGetFolderListing extends Request {
@@ -61,7 +61,7 @@ final class RequestGetFolderListing extends Request {
         mResponse = new FolderListing(stream);
     }
 
-    public ArrayList<String> getList() {
+    public List<String> getList() {
         if (mResponse == null) {
             return null;
         }

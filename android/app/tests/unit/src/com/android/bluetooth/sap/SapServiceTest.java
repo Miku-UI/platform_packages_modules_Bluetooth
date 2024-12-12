@@ -25,6 +25,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Looper;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -60,6 +61,11 @@ public class SapServiceTest {
     public void setUp() throws Exception {
         mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         TestUtils.setAdapterService(mAdapterService);
+
+        if (Looper.myLooper() == null) {
+            Looper.prepare();
+        }
+
         mService = new SapService(mTargetContext);
         mService.start();
         mService.setAvailable(true);

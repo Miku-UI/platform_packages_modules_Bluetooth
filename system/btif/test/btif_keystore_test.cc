@@ -16,24 +16,24 @@
  *
  ******************************************************************************/
 
+#include "btif/include/btif_keystore.h"
+
 #include <binder/ProcessState.h>
 #include <gtest/gtest.h>
-#include <fstream>
 
-#include "btif/include/btif_keystore.h"
+#include <fstream>
 
 using namespace bluetooth;
 
 class BtifKeystoreTest : public ::testing::Test {
- protected:
+protected:
   std::unique_ptr<BtifKeystore> btif_keystore_;
   void SetUp() override {
     android::ProcessState::self()->startThreadPool();
-    btif_keystore_ =
-        std::make_unique<BtifKeystore>(static_cast<keystore::KeystoreClient*>(
-            new keystore::KeystoreClientImpl));
-  };
-  void TearDown() override { btif_keystore_ = nullptr; };
+    btif_keystore_ = std::make_unique<BtifKeystore>(
+            static_cast<keystore::KeystoreClient*>(new keystore::KeystoreClientImpl));
+  }
+  void TearDown() override { btif_keystore_ = nullptr; }
 };
 
 TEST_F(BtifKeystoreTest, test_encrypt_decrypt) {

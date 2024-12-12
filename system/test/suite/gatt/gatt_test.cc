@@ -26,33 +26,28 @@ namespace bttest {
 
 static GattTest* instance = nullptr;
 
-void RegisterClientCallback(int status, int clientIf,
-                            const bluetooth::Uuid& app_uuid) {
+void RegisterClientCallback(int status, int clientIf, const bluetooth::Uuid& app_uuid) {
   instance->status_ = status;
   instance->client_interface_id_ = clientIf;
   semaphore_post(instance->register_client_callback_sem_);
 }
 
-void ScanResultCallback(uint16_t ble_evt_type, uint8_t addr_type,
-                        RawAddress* bda, uint8_t ble_primary_phy,
-                        uint8_t ble_secondary_phy, uint8_t ble_advertising_sid,
-                        int8_t ble_tx_power, int8_t rssi,
-                        uint16_t ble_periodic_adv_int,
-                        std::vector<uint8_t> adv_data,
+void ScanResultCallback(uint16_t ble_evt_type, uint8_t addr_type, RawAddress* bda,
+                        uint8_t ble_primary_phy, uint8_t ble_secondary_phy,
+                        uint8_t ble_advertising_sid, int8_t ble_tx_power, int8_t rssi,
+                        uint16_t ble_periodic_adv_int, std::vector<uint8_t> adv_data,
                         RawAddress* original_bda) {
   semaphore_post(instance->scan_result_callback_sem_);
 }
 
 // GATT server callbacks
-void RegisterServerCallback(int status, int server_if,
-                            const bluetooth::Uuid& uuid) {
+void RegisterServerCallback(int status, int server_if, const bluetooth::Uuid& uuid) {
   instance->status_ = status;
   instance->server_interface_id_ = server_if;
   semaphore_post(instance->register_server_callback_sem_);
 }
 
-void ServiceAddedCallback(int status, int server_if,
-                          const btgatt_db_element_t* service,
+void ServiceAddedCallback(int status, int server_if, const btgatt_db_element_t* service,
                           size_t service_count) {
   instance->status_ = status;
   instance->server_interface_id_ = server_if;
@@ -75,25 +70,25 @@ void ServiceDeletedCallback(int status, int server_if, int srvc_handle) {
 }
 
 static const btgatt_scanner_callbacks_t scanner_callbacks = {
-    .scan_result_cb = ScanResultCallback,
+        .scan_result_cb = ScanResultCallback,
 };
 
 static const btgatt_client_callbacks_t client_callbacks = {
-    .register_client_cb = RegisterClientCallback,
+        .register_client_cb = RegisterClientCallback,
 };
 
 static const btgatt_server_callbacks_t server_callbacks = {
-    .register_server_cb = RegisterServerCallback,
-    .service_added_cb = ServiceAddedCallback,
-    .service_stopped_cb = ServiceStoppedCallback,
-    .service_deleted_cb = ServiceDeletedCallback,
+        .register_server_cb = RegisterServerCallback,
+        .service_added_cb = ServiceAddedCallback,
+        .service_stopped_cb = ServiceStoppedCallback,
+        .service_deleted_cb = ServiceDeletedCallback,
 };
 
 static const btgatt_callbacks_t callbacks = {
-    sizeof(btgatt_callbacks_t),
-    &client_callbacks,
-    &server_callbacks,
-    &scanner_callbacks,
+        sizeof(btgatt_callbacks_t),
+        &client_callbacks,
+        &server_callbacks,
+        &scanner_callbacks,
 };
 
 void GattTest::SetUp() {
@@ -112,7 +107,7 @@ void GattTest::SetUp() {
   EXPECT_TRUE(GetState() == BT_STATE_ON);
 
   gatt_interface_ = reinterpret_cast<const btgatt_interface_t*>(
-      bt_interface()->get_profile_interface(BT_PROFILE_GATT_ID));
+          bt_interface()->get_profile_interface(BT_PROFILE_GATT_ID));
   ASSERT_NE(nullptr, gatt_interface_);
   instance = this;
   auto status = gatt_interface_->init(&callbacks);
@@ -128,9 +123,7 @@ void GattTest::TearDown() {
   BluetoothTest::TearDown();
 }
 
-const BleScannerInterface* GattTest::gatt_scanner_interface() {
-  return gatt_interface_->scanner;
-}
+const BleScannerInterface* GattTest::gatt_scanner_interface() { return gatt_interface_->scanner; }
 
 const btgatt_client_interface_t* GattTest::gatt_client_interface() {
   return gatt_interface_->client;
@@ -140,4 +133,4 @@ const btgatt_server_interface_t* GattTest::gatt_server_interface() {
   return gatt_interface_->server;
 }
 
-}  // bttest
+}  // namespace bttest

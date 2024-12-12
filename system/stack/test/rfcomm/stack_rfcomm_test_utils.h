@@ -17,28 +17,27 @@
  ******************************************************************************/
 #pragma once
 
-#include <vector>
-
 #include <gmock/gmock.h>
+
+#include <vector>
 
 namespace bluetooth {
 namespace rfcomm {
 
 class RfcommCallback {
- public:
+public:
   virtual void PortManagementCallback(uint32_t code, uint16_t port_handle,
                                       uint16_t callback_index) = 0;
-  virtual void PortEventCallback(uint32_t code, uint16_t port_handle,
-                                 uint16_t callback_index) = 0;
+  virtual void PortEventCallback(uint32_t code, uint16_t port_handle, uint16_t callback_index) = 0;
   virtual ~RfcommCallback() = default;
 };
 
 class MockRfcommCallback : public RfcommCallback {
- public:
-  MOCK_METHOD3(PortManagementCallback, void(uint32_t code, uint16_t port_handle,
-                                            uint16_t callback_index));
-  MOCK_METHOD3(PortEventCallback, void(uint32_t code, uint16_t port_handle,
-                                       uint16_t callback_index));
+public:
+  MOCK_METHOD3(PortManagementCallback,
+               void(uint32_t code, uint16_t port_handle, uint16_t callback_index));
+  MOCK_METHOD3(PortEventCallback,
+               void(uint32_t code, uint16_t port_handle, uint16_t callback_index));
 };
 
 /**
@@ -83,9 +82,8 @@ uint8_t GetControlField(bool pf, uint8_t frame_type);
  * @param err_recovery_window_k error recovery window k
  * @return vector of bytes of this frame
  */
-std::vector<uint8_t> CreateMccPnFrame(uint8_t dlci, uint8_t i_bits,
-                                      uint8_t cl_bits, uint8_t priority,
-                                      uint8_t timer_value, uint16_t rfcomm_mtu,
+std::vector<uint8_t> CreateMccPnFrame(uint8_t dlci, uint8_t i_bits, uint8_t cl_bits,
+                                      uint8_t priority, uint8_t timer_value, uint16_t rfcomm_mtu,
                                       uint8_t max_num_retransmission,
                                       uint8_t err_recovery_window_k);
 /**
@@ -99,8 +97,7 @@ std::vector<uint8_t> CreateMccPnFrame(uint8_t dlci, uint8_t i_bits,
  * @param dv is data valid
  * @return vector of bytes
  */
-std::vector<uint8_t> CreateMccMscFrame(uint8_t dlci, bool fc, bool rtc,
-                                       bool rtr, bool ic, bool dv);
+std::vector<uint8_t> CreateMccMscFrame(uint8_t dlci, bool fc, bool rtc, bool rtr, bool ic, bool dv);
 
 /**
  * Create Multiplexer Control Frame
@@ -111,8 +108,8 @@ std::vector<uint8_t> CreateMccMscFrame(uint8_t dlci, bool fc, bool rtc,
  * @param data frame data
  * @return vector of bytes
  */
-std::vector<uint8_t> CreateMultiplexerControlFrame(
-    uint8_t command_type, bool cr, const std::vector<uint8_t>& data);
+std::vector<uint8_t> CreateMultiplexerControlFrame(uint8_t command_type, bool cr,
+                                                   const std::vector<uint8_t>& data);
 
 /**
  * Create a general RFCOMM packet
@@ -123,8 +120,7 @@ std::vector<uint8_t> CreateMultiplexerControlFrame(
  * @param data frame data
  * @return vector of bytes
  */
-std::vector<uint8_t> CreateRfcommPacket(uint8_t address, uint8_t control,
-                                        int credits,
+std::vector<uint8_t> CreateRfcommPacket(uint8_t address, uint8_t control, int credits,
                                         const std::vector<uint8_t>& data);
 /*
  * Various shortcut for getting frequently used packets
@@ -139,8 +135,7 @@ std::vector<uint8_t> CreateRfcommPacket(uint8_t address, uint8_t control,
  * @param acl_handle ACL handle
  * @return vector of bytes of unwrapped ACL packet
  */
-std::vector<uint8_t> CreateQuickSabmPacket(uint8_t dlci, uint16_t l2cap_lcid,
-                                           uint16_t acl_handle);
+std::vector<uint8_t> CreateQuickSabmPacket(uint8_t dlci, uint16_t l2cap_lcid, uint16_t acl_handle);
 
 /**
  * Create UA packet that is used to acknowledge service channel connection
@@ -150,28 +145,25 @@ std::vector<uint8_t> CreateQuickSabmPacket(uint8_t dlci, uint16_t l2cap_lcid,
  * @param acl_handle ACL handle
  * @return vector of bytes of unwrapped ACL packet
  */
-std::vector<uint8_t> CreateQuickUaPacket(uint8_t dlci, uint16_t l2cap_lcid,
-                                         uint16_t acl_handle);
+std::vector<uint8_t> CreateQuickUaPacket(uint8_t dlci, uint16_t l2cap_lcid, uint16_t acl_handle);
 
 /**
  * Create parameter negotiation packet used to setup parameters for a DLCI
  *
  * @param rfc_cr RFCOMM command/response bit, true of initiator
  * @param target_dlci DLCI to be configured
- * @param mx_cr multiplexer command or reponse, regardless of initiator
+ * @param mx_cr multiplexer command or response, regardless of initiator
  * @param rfc_mtu RFCOMM mtu to be used for DLCI
  * @param cl CL bit
- * @param priority prirority
+ * @param priority priority
  * @param k error recovery window k
  * @param l2cap_lcid L2CAP channel ID
  * @param acl_handle ACL handle
  * @return vector of bytes of unwrapped ACL packet
  */
-std::vector<uint8_t> CreateQuickPnPacket(bool rfc_cr, uint8_t target_dlci,
-                                         bool mx_cr, uint16_t rfc_mtu,
-                                         uint8_t cl, uint8_t priority,
-                                         uint8_t k, uint16_t l2cap_lcid,
-                                         uint16_t acl_handle);
+std::vector<uint8_t> CreateQuickPnPacket(bool rfc_cr, uint8_t target_dlci, bool mx_cr,
+                                         uint16_t rfc_mtu, uint8_t cl, uint8_t priority, uint8_t k,
+                                         uint16_t l2cap_lcid, uint16_t acl_handle);
 
 /**
  * Create modem signal control packet
@@ -180,7 +172,7 @@ std::vector<uint8_t> CreateQuickPnPacket(bool rfc_cr, uint8_t target_dlci,
  * @param dlci DLCI to be configured
  * @param l2cap_lcid L2CAP channel ID
  * @param acl_handle ACL handle
- * @param mx_cr multiplexer command or reponse, regardless of initiator
+ * @param mx_cr multiplexer command or response, regardless of initiator
  * @param fc flow control
  * @param rtc ready to communicate
  * @param rtr ready to receive
@@ -188,11 +180,9 @@ std::vector<uint8_t> CreateQuickPnPacket(bool rfc_cr, uint8_t target_dlci,
  * @param dv data valid
  * @return vector of bytes of unwrapped ACL packet
  */
-std::vector<uint8_t> CreateQuickMscPacket(bool rfc_cr, uint8_t dlci,
-                                          uint16_t l2cap_lcid,
-                                          uint16_t acl_handle, bool mx_cr,
-                                          bool fc, bool rtc, bool rtr, bool ic,
-                                          bool dv);
+std::vector<uint8_t> CreateQuickMscPacket(bool rfc_cr, uint8_t dlci, uint16_t l2cap_lcid,
+                                          uint16_t acl_handle, bool mx_cr, bool fc, bool rtc,
+                                          bool rtr, bool ic, bool dv);
 
 /**
  * Create a quick RFCOMM data packet
@@ -205,8 +195,7 @@ std::vector<uint8_t> CreateQuickMscPacket(bool rfc_cr, uint8_t dlci,
  * @param data data bytes
  * @return vector of bytes of unwrapped ACL packet
  */
-std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr,
-                                           uint16_t l2cap_lcid,
+std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr, uint16_t l2cap_lcid,
                                            uint16_t acl_handle, int credits,
                                            const std::vector<uint8_t>& data);
 
@@ -221,8 +210,7 @@ std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr,
  * @param str message in string format
  * @return vector of bytes of unwrapped ACL packet
  */
-std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr,
-                                           uint16_t l2cap_lcid,
+std::vector<uint8_t> CreateQuickDataPacket(uint8_t dlci, bool cr, uint16_t l2cap_lcid,
                                            uint16_t acl_handle, int credits,
                                            const std::string& str);
 

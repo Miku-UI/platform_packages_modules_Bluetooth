@@ -63,9 +63,8 @@ static void bta_gattc_hash_remove_least_recently_used_if_possible();
 
 static void bta_gattc_generate_cache_file_name(char* buffer, size_t buffer_len,
                                                const RawAddress& bda) {
-  snprintf(buffer, buffer_len, "%s%02x%02x%02x%02x%02x%02x", GATT_CACHE_PREFIX,
-           bda.address[0], bda.address[1], bda.address[2], bda.address[3],
-           bda.address[4], bda.address[5]);
+  snprintf(buffer, buffer_len, "%s%02x%02x%02x%02x%02x%02x", GATT_CACHE_PREFIX, bda.address[0],
+           bda.address[1], bda.address[2], bda.address[3], bda.address[4], bda.address[5]);
 }
 
 static void bta_gattc_generate_hash_file_name(char* buffer, size_t buffer_len,
@@ -91,8 +90,7 @@ static gatt::Database EMPTY_DB;
 static gatt::Database bta_gattc_load_db(const char* fname) {
   FILE* fd = fopen(fname, "rb");
   if (!fd) {
-    log::error("can't open GATT cache file {} for reading, error: {}", fname,
-               strerror(errno));
+    log::error("can't open GATT cache file {} for reading, error: {}", fname, strerror(errno));
     return EMPTY_DB;
   }
 
@@ -218,8 +216,7 @@ void StoredAttribute::SerializeStoredAttribute(const StoredAttribute& attr,
     }
   }
   // padding
-  for (size_t i = bytes.size() - original_size;
-       i < StoredAttribute::kSizeOnDisk; i++) {
+  for (size_t i = bytes.size() - original_size; i < StoredAttribute::kSizeOnDisk; i++) {
     bytes.push_back(0);
   }
 }
@@ -236,8 +233,7 @@ void StoredAttribute::SerializeStoredAttribute(const StoredAttribute& attr,
  * Returns          true on success, false otherwise
  *
  ******************************************************************************/
-static bool bta_gattc_store_db(const char* fname,
-                               const std::vector<StoredAttribute>& attr) {
+static bool bta_gattc_store_db(const char* fname, const std::vector<StoredAttribute>& attr) {
   FILE* fd = fopen(fname, "wb");
   if (!fd) {
     log::error("can't open GATT cache file for writing: {}", fname);
@@ -264,8 +260,7 @@ static bool bta_gattc_store_db(const char* fname,
     StoredAttribute::SerializeStoredAttribute(attribute, db_bytes);
   }
 
-  if (fwrite(db_bytes.data(), sizeof(uint8_t), db_bytes.size(), fd) !=
-      db_bytes.size()) {
+  if (fwrite(db_bytes.data(), sizeof(uint8_t), db_bytes.size(), fd) != db_bytes.size()) {
     log::error("can't write GATT cache attributes: {}", fname);
     fclose(fd);
     return false;
@@ -289,8 +284,7 @@ static bool bta_gattc_store_db(const char* fname,
  * Returns
  *
  ******************************************************************************/
-void bta_gattc_cache_write(const RawAddress& server_bda,
-                           const gatt::Database& database) {
+void bta_gattc_cache_write(const RawAddress& server_bda, const gatt::Database& database) {
   char addr_file[255] = {0};
   char hash_file[255] = {0};
   Octet16 hash = database.Hash();
@@ -380,8 +374,7 @@ void bta_gattc_cache_reset(const RawAddress& server_bda) {
  *
  ******************************************************************************/
 static void bta_gattc_hash_remove_least_recently_used_if_possible() {
-  std::unique_ptr<DIR, decltype(&closedir)> dirp(opendir(GATT_HASH_PATH),
-                                                 &closedir);
+  std::unique_ptr<DIR, decltype(&closedir)> dirp(opendir(GATT_HASH_PATH), &closedir);
   if (dirp == nullptr) {
     log::error("open dir error, dir={}", GATT_HASH_PATH);
     return;

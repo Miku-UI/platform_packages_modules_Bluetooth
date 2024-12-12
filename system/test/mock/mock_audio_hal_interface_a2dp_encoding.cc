@@ -57,8 +57,7 @@ struct sink_codec_index sink_codec_index;
 struct source_codec_index source_codec_index;
 struct start_session start_session;
 struct supports_codec supports_codec;
-struct update_codec_offloading_capabilities
-    update_codec_offloading_capabilities;
+struct update_codec_offloading_capabilities update_codec_offloading_capabilities;
 
 }  // namespace audio_hal_interface_a2dp_encoding
 }  // namespace mock
@@ -71,8 +70,7 @@ namespace audio_hal_interface_a2dp_encoding {
 
 std::optional<const char*> codec_index_str::return_value = std::nullopt;
 bool codec_info::return_value = false;
-std::optional<a2dp_configuration> get_a2dp_configuration::return_value =
-    std::nullopt;
+std::optional<a2dp_configuration> get_a2dp_configuration::return_value = std::nullopt;
 bool init::return_value = false;
 bool is_hal_enabled::return_value = false;
 bool is_hal_offloading::return_value = false;
@@ -80,10 +78,8 @@ bool is_opus_supported::return_value = false;
 tA2DP_STATUS parse_a2dp_configuration::return_value = A2DP_SUCCESS;
 size_t read::return_value = 0;
 bool setup_codec::return_value = false;
-std::optional<btav_a2dp_codec_index_t> sink_codec_index::return_value =
-    std::nullopt;
-std::optional<btav_a2dp_codec_index_t> source_codec_index::return_value =
-    std::nullopt;
+std::optional<btav_a2dp_codec_index_t> sink_codec_index::return_value = std::nullopt;
+std::optional<btav_a2dp_codec_index_t> source_codec_index::return_value = std::nullopt;
 bool supports_codec::return_value = false;
 bool update_codec_offloading_capabilities::return_value = false;
 
@@ -92,11 +88,11 @@ bool update_codec_offloading_capabilities::return_value = false;
 }  // namespace test
 
 // Mocked functions, if any
-void ack_stream_started(const tA2DP_CTRL_ACK& status) {
+void ack_stream_started(BluetoothAudioStatus status) {
   inc_func_call_count(__func__);
   test::mock::audio_hal_interface_a2dp_encoding::ack_stream_started(status);
 }
-void ack_stream_suspended(const tA2DP_CTRL_ACK& status) {
+void ack_stream_suspended(BluetoothAudioStatus status) {
   inc_func_call_count(__func__);
   test::mock::audio_hal_interface_a2dp_encoding::ack_stream_suspended(status);
 }
@@ -105,30 +101,27 @@ void cleanup() {
   test::mock::audio_hal_interface_a2dp_encoding::cleanup();
 }
 std::optional<const char*> bluetooth::audio::a2dp::provider::codec_index_str(
-    btav_a2dp_codec_index_t codec_index) {
+        btav_a2dp_codec_index_t codec_index) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::codec_index_str(
-      codec_index);
+  return test::mock::audio_hal_interface_a2dp_encoding::codec_index_str(codec_index);
 }
-bool bluetooth::audio::a2dp::provider::codec_info(
-    btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
-    uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config) {
+bool bluetooth::audio::a2dp::provider::codec_info(btav_a2dp_codec_index_t codec_index,
+                                                  uint64_t* codec_id, uint8_t* codec_info,
+                                                  btav_a2dp_codec_config_t* codec_config) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::codec_info(
-      codec_index, codec_id, codec_info, codec_config);
+  return test::mock::audio_hal_interface_a2dp_encoding::codec_info(codec_index, codec_id,
+                                                                   codec_info, codec_config);
 }
 void end_session() {
   inc_func_call_count(__func__);
   test::mock::audio_hal_interface_a2dp_encoding::end_session();
 }
-std::optional<a2dp_configuration>
-bluetooth::audio::a2dp::provider::get_a2dp_configuration(
-    RawAddress peer_address,
-    std::vector<a2dp_remote_capabilities> const& remote_seps,
-    btav_a2dp_codec_config_t const& user_preferences) {
+std::optional<a2dp_configuration> bluetooth::audio::a2dp::provider::get_a2dp_configuration(
+        RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
+        btav_a2dp_codec_config_t const& user_preferences) {
   inc_func_call_count(__func__);
   return test::mock::audio_hal_interface_a2dp_encoding::get_a2dp_configuration(
-      peer_address, remote_seps, user_preferences);
+          peer_address, remote_seps, user_preferences);
 }
 bool init(bluetooth::common::MessageLoopThread* message_loop) {
   inc_func_call_count(__func__);
@@ -147,13 +140,12 @@ bool is_opus_supported() {
   return test::mock::audio_hal_interface_a2dp_encoding::is_opus_supported();
 }
 tA2DP_STATUS bluetooth::audio::a2dp::provider::parse_a2dp_configuration(
-    btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
-    btav_a2dp_codec_config_t* codec_parameters,
-    std::vector<uint8_t>* vendor_specific_parameters) {
+        btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
+        btav_a2dp_codec_config_t* codec_parameters,
+        std::vector<uint8_t>* vendor_specific_parameters) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::
-      parse_a2dp_configuration(codec_index, codec_info, codec_parameters,
-                               vendor_specific_parameters);
+  return test::mock::audio_hal_interface_a2dp_encoding::parse_a2dp_configuration(
+          codec_index, codec_info, codec_parameters, vendor_specific_parameters);
 }
 size_t read(uint8_t* p_buf, uint32_t len) {
   inc_func_call_count(__func__);
@@ -161,48 +153,40 @@ size_t read(uint8_t* p_buf, uint32_t len) {
 }
 void set_audio_low_latency_mode_allowed(bool allowed) {
   inc_func_call_count(__func__);
-  test::mock::audio_hal_interface_a2dp_encoding::
-      set_audio_low_latency_mode_allowed(allowed);
+  test::mock::audio_hal_interface_a2dp_encoding::set_audio_low_latency_mode_allowed(allowed);
 }
 void set_remote_delay(uint16_t delay_report) {
   inc_func_call_count(__func__);
   test::mock::audio_hal_interface_a2dp_encoding::set_remote_delay(delay_report);
 }
-bool setup_codec() {
+bool setup_codec(A2dpCodecConfig* a2dp_config) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::setup_codec();
+  return test::mock::audio_hal_interface_a2dp_encoding::setup_codec(a2dp_config);
 }
-std::optional<btav_a2dp_codec_index_t>
-bluetooth::audio::a2dp::provider::sink_codec_index(
-    const uint8_t* p_codec_info) {
+std::optional<btav_a2dp_codec_index_t> bluetooth::audio::a2dp::provider::sink_codec_index(
+        const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::sink_codec_index(
-      p_codec_info);
+  return test::mock::audio_hal_interface_a2dp_encoding::sink_codec_index(p_codec_info);
 }
-std::optional<btav_a2dp_codec_index_t>
-bluetooth::audio::a2dp::provider::source_codec_index(
-    const uint8_t* p_codec_info) {
+std::optional<btav_a2dp_codec_index_t> bluetooth::audio::a2dp::provider::source_codec_index(
+        const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::source_codec_index(
-      p_codec_info);
+  return test::mock::audio_hal_interface_a2dp_encoding::source_codec_index(p_codec_info);
 }
 void start_session() {
   inc_func_call_count(__func__);
   test::mock::audio_hal_interface_a2dp_encoding::start_session();
 }
-bool bluetooth::audio::a2dp::provider::supports_codec(
-    btav_a2dp_codec_index_t codec_index) {
+bool bluetooth::audio::a2dp::provider::supports_codec(btav_a2dp_codec_index_t codec_index) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::supports_codec(
-      codec_index);
+  return test::mock::audio_hal_interface_a2dp_encoding::supports_codec(codec_index);
 }
 bool update_codec_offloading_capabilities(
-    const std::vector<btav_a2dp_codec_config_t>& framework_preference,
-    bool supports_a2dp_hw_offload_v2) {
+        const std::vector<btav_a2dp_codec_config_t>& framework_preference,
+        bool supports_a2dp_hw_offload_v2) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::
-      update_codec_offloading_capabilities(framework_preference,
-                                           supports_a2dp_hw_offload_v2);
+  return test::mock::audio_hal_interface_a2dp_encoding::update_codec_offloading_capabilities(
+          framework_preference, supports_a2dp_hw_offload_v2);
 }
 // Mocked functions complete
 // END mockcify generation

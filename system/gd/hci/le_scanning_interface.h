@@ -23,15 +23,15 @@ namespace bluetooth {
 namespace hci {
 
 constexpr hci::SubeventCode LeScanningEvents[] = {
-    hci::SubeventCode::SCAN_TIMEOUT,
-    hci::SubeventCode::ADVERTISING_REPORT,
-    hci::SubeventCode::DIRECTED_ADVERTISING_REPORT,
-    hci::SubeventCode::EXTENDED_ADVERTISING_REPORT,
-    hci::SubeventCode::PERIODIC_ADVERTISING_REPORT,
-    hci::SubeventCode::PERIODIC_ADVERTISING_SYNC_ESTABLISHED,
-    hci::SubeventCode::PERIODIC_ADVERTISING_SYNC_LOST,
-    hci::SubeventCode::PERIODIC_ADVERTISING_SYNC_TRANSFER_RECEIVED,
-    hci::SubeventCode::BIG_INFO_ADVERTISING_REPORT,
+        hci::SubeventCode::SCAN_TIMEOUT,
+        hci::SubeventCode::ADVERTISING_REPORT,
+        hci::SubeventCode::DIRECTED_ADVERTISING_REPORT,
+        hci::SubeventCode::EXTENDED_ADVERTISING_REPORT,
+        hci::SubeventCode::PERIODIC_ADVERTISING_REPORT,
+        hci::SubeventCode::PERIODIC_ADVERTISING_SYNC_ESTABLISHED,
+        hci::SubeventCode::PERIODIC_ADVERTISING_SYNC_LOST,
+        hci::SubeventCode::PERIODIC_ADVERTISING_SYNC_TRANSFER_RECEIVED,
+        hci::SubeventCode::BIG_INFO_ADVERTISING_REPORT,
 };
 
 typedef CommandInterface<LeScanningCommandBuilder> LeScanningInterface;

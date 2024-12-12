@@ -46,12 +46,10 @@ namespace btif_util {
 struct ascii_2_hex {
   static int return_value;
   std::function<int(const char* p_ascii, int len, uint8_t* p_hex)> body{
-      [](const char* /* p_ascii */, int /* len */, uint8_t* /* p_hex */) {
-        return return_value;
-      }};
-  int operator()(const char* p_ascii, int len, uint8_t* p_hex) {
-    return body(p_ascii, len, p_hex);
-  };
+          [](const char* /* p_ascii */, int /* len */, uint8_t* /* p_hex */) {
+            return return_value;
+          }};
+  int operator()(const char* p_ascii, int len, uint8_t* p_hex) { return body(p_ascii, len, p_hex); }
 };
 extern struct ascii_2_hex ascii_2_hex;
 
@@ -61,8 +59,8 @@ extern struct ascii_2_hex ascii_2_hex;
 struct devclass2uint {
   static uint32_t return_value;
   std::function<uint32_t(DEV_CLASS dev_class)> body{
-      [](DEV_CLASS /* dev_class */) { return return_value; }};
-  uint32_t operator()(DEV_CLASS dev_class) { return body(dev_class); };
+          [](DEV_CLASS /* dev_class */) { return return_value; }};
+  uint32_t operator()(DEV_CLASS dev_class) { return body(dev_class); }
 };
 extern struct devclass2uint devclass2uint;
 
@@ -72,8 +70,8 @@ extern struct devclass2uint devclass2uint;
 struct dump_adapter_scan_mode {
   static const char* return_value;
   std::function<const char*(bt_scan_mode_t mode)> body{
-      [](bt_scan_mode_t /* mode */) { return return_value; }};
-  const char* operator()(bt_scan_mode_t mode) { return body(mode); };
+          [](bt_scan_mode_t /* mode */) { return return_value; }};
+  const char* operator()(bt_scan_mode_t mode) { return body(mode); }
 };
 extern struct dump_adapter_scan_mode dump_adapter_scan_mode;
 
@@ -83,8 +81,8 @@ extern struct dump_adapter_scan_mode dump_adapter_scan_mode;
 struct dump_av_audio_state {
   static const char* return_value;
   std::function<const char*(uint16_t event)> body{
-      [](uint16_t /* event */) { return return_value; }};
-  const char* operator()(uint16_t event) { return body(event); };
+          [](uint16_t /* event */) { return return_value; }};
+  const char* operator()(uint16_t event) { return body(event); }
 };
 extern struct dump_av_audio_state dump_av_audio_state;
 
@@ -94,8 +92,8 @@ extern struct dump_av_audio_state dump_av_audio_state;
 struct dump_av_conn_state {
   static const char* return_value;
   std::function<const char*(uint16_t event)> body{
-      [](uint16_t /* event */) { return return_value; }};
-  const char* operator()(uint16_t event) { return body(event); };
+          [](uint16_t /* event */) { return return_value; }};
+  const char* operator()(uint16_t event) { return body(event); }
 };
 extern struct dump_av_conn_state dump_av_conn_state;
 
@@ -105,8 +103,8 @@ extern struct dump_av_conn_state dump_av_conn_state;
 struct dump_bt_status {
   static const char* return_value;
   std::function<const char*(bt_status_t status)> body{
-      [](bt_status_t /* status */) { return return_value; }};
-  const char* operator()(bt_status_t status) { return body(status); };
+          [](bt_status_t /* status */) { return return_value; }};
+  const char* operator()(bt_status_t status) { return body(status); }
 };
 extern struct dump_bt_status dump_bt_status;
 
@@ -116,8 +114,8 @@ extern struct dump_bt_status dump_bt_status;
 struct dump_dm_event {
   static const char* return_value;
   std::function<const char*(uint16_t event)> body{
-      [](uint16_t /* event */) { return return_value; }};
-  const char* operator()(uint16_t event) { return body(event); };
+          [](uint16_t /* event */) { return return_value; }};
+  const char* operator()(uint16_t event) { return body(event); }
 };
 extern struct dump_dm_event dump_dm_event;
 
@@ -127,8 +125,8 @@ extern struct dump_dm_event dump_dm_event;
 struct dump_dm_search_event {
   static const char* return_value;
   std::function<const char*(uint16_t event)> body{
-      [](uint16_t /* event */) { return return_value; }};
-  const char* operator()(uint16_t event) { return body(event); };
+          [](uint16_t /* event */) { return return_value; }};
+  const char* operator()(uint16_t event) { return body(event); }
 };
 extern struct dump_dm_search_event dump_dm_search_event;
 
@@ -138,8 +136,8 @@ extern struct dump_dm_search_event dump_dm_search_event;
 struct dump_hd_event {
   static const char* return_value;
   std::function<const char*(uint16_t event)> body{
-      [](uint16_t /* event */) { return return_value; }};
-  const char* operator()(uint16_t event) { return body(event); };
+          [](uint16_t /* event */) { return return_value; }};
+  const char* operator()(uint16_t event) { return body(event); }
 };
 extern struct dump_hd_event dump_hd_event;
 
@@ -149,8 +147,8 @@ extern struct dump_hd_event dump_hd_event;
 struct dump_hf_client_event {
   static const char* return_value;
   std::function<const char*(uint16_t event)> body{
-      [](uint16_t /* event */) { return return_value; }};
-  const char* operator()(uint16_t event) { return body(event); };
+          [](uint16_t /* event */) { return return_value; }};
+  const char* operator()(uint16_t event) { return body(event); }
 };
 extern struct dump_hf_client_event dump_hf_client_event;
 
@@ -160,8 +158,8 @@ extern struct dump_hf_client_event dump_hf_client_event;
 struct dump_hf_event {
   static const char* return_value;
   std::function<const char*(uint16_t event)> body{
-      [](uint16_t /* event */) { return return_value; }};
-  const char* operator()(uint16_t event) { return body(event); };
+          [](uint16_t /* event */) { return return_value; }};
+  const char* operator()(uint16_t event) { return body(event); }
 };
 
 // Name: dump_property_type
@@ -170,8 +168,8 @@ struct dump_hf_event {
 struct dump_property_type {
   static const char* return_value;
   std::function<const char*(bt_property_type_t type)> body{
-      [](bt_property_type_t /* type */) { return return_value; }};
-  const char* operator()(bt_property_type_t type) { return body(type); };
+          [](bt_property_type_t /* type */) { return return_value; }};
+  const char* operator()(bt_property_type_t type) { return body(type); }
 };
 extern struct dump_property_type dump_property_type;
 
@@ -180,9 +178,8 @@ extern struct dump_property_type dump_property_type;
 // Return: const char*
 struct dump_rc_event {
   static const char* return_value;
-  std::function<const char*(uint8_t event)> body{
-      [](uint8_t /* event */) { return return_value; }};
-  const char* operator()(uint8_t event) { return body(event); };
+  std::function<const char*(uint8_t event)> body{[](uint8_t /* event */) { return return_value; }};
+  const char* operator()(uint8_t event) { return body(event); }
 };
 extern struct dump_rc_event dump_rc_event;
 
@@ -192,8 +189,8 @@ extern struct dump_rc_event dump_rc_event;
 struct dump_rc_notification_event_id {
   static const char* return_value;
   std::function<const char*(uint8_t event_id)> body{
-      [](uint8_t /* event_id */) { return return_value; }};
-  const char* operator()(uint8_t event_id) { return body(event_id); };
+          [](uint8_t /* event_id */) { return return_value; }};
+  const char* operator()(uint8_t event_id) { return body(event_id); }
 };
 extern struct dump_rc_notification_event_id dump_rc_notification_event_id;
 
@@ -202,9 +199,8 @@ extern struct dump_rc_notification_event_id dump_rc_notification_event_id;
 // Return: const char*
 struct dump_rc_pdu {
   static const char* return_value;
-  std::function<const char*(uint8_t pdu)> body{
-      [](uint8_t /* pdu */) { return return_value; }};
-  const char* operator()(uint8_t pdu) { return body(pdu); };
+  std::function<const char*(uint8_t pdu)> body{[](uint8_t /* pdu */) { return return_value; }};
+  const char* operator()(uint8_t pdu) { return body(pdu); }
 };
 extern struct dump_rc_pdu dump_rc_pdu;
 
@@ -214,8 +210,8 @@ extern struct dump_rc_pdu dump_rc_pdu;
 struct dump_thread_evt {
   static const char* return_value;
   std::function<const char*(bt_cb_thread_evt evt)> body{
-      [](bt_cb_thread_evt /* evt */) { return return_value; }};
-  const char* operator()(bt_cb_thread_evt evt) { return body(evt); };
+          [](bt_cb_thread_evt /* evt */) { return return_value; }};
+  const char* operator()(bt_cb_thread_evt evt) { return body(evt); }
 };
 extern struct dump_thread_evt dump_thread_evt;
 
@@ -224,9 +220,8 @@ extern struct dump_thread_evt dump_thread_evt;
 // Return: void
 struct uint2devclass {
   static constexpr DEV_CLASS return_value{};
-  std::function<DEV_CLASS(uint32_t cod)> body{
-      [](uint32_t /* cod */) { return return_value; }};
-  DEV_CLASS operator()(uint32_t cod) { return body(cod); };
+  std::function<DEV_CLASS(uint32_t cod)> body{[](uint32_t /* cod */) { return return_value; }};
+  DEV_CLASS operator()(uint32_t cod) { return body(cod); }
 };
 extern struct uint2devclass uint2devclass;
 

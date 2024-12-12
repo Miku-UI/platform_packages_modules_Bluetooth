@@ -6,7 +6,7 @@
 namespace testing {
 
 class BazTestDataClass : public DumpsysTestDataClass {
- public:
+public:
   TableAddFunction GetTable(flatbuffers::FlatBufferBuilder& fb_builder) override {
     auto sub_name_private = fb_builder.CreateString("Baz Subtable Private");
     auto sub_name_opaque = fb_builder.CreateString("Baz Subtable Opaque");
@@ -25,7 +25,9 @@ class BazTestDataClass : public DumpsysTestDataClass {
     builder.add_sub_table_any(any_subtable);
     auto baz_table = builder.Finish();
 
-    return [baz_table](DumpsysTestDataRootBuilder* builder) { builder->add_baz_module_data(baz_table); };
+    return [baz_table](DumpsysTestDataRootBuilder* builder) {
+      builder->add_baz_module_data(baz_table);
+    };
   }
 };
 

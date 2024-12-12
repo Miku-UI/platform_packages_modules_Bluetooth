@@ -28,9 +28,9 @@ void BroadcastStateMachine::Initialize(IBroadcastStateMachineCallbacks* cb,
 }
 
 std::unique_ptr<BroadcastStateMachine> BroadcastStateMachine::CreateInstance(
-    BroadcastStateMachineConfig msg) {
-  auto instance = std::make_unique<MockBroadcastStateMachine>(
-      std::move(msg), callbacks, adv_callbacks);
+        BroadcastStateMachineConfig msg) {
+  auto instance =
+          std::make_unique<MockBroadcastStateMachine>(std::move(msg), callbacks, adv_callbacks);
   MockBroadcastStateMachine::last_instance_ = instance.get();
   return std::move(instance);
 }
@@ -38,35 +38,25 @@ std::unique_ptr<BroadcastStateMachine> BroadcastStateMachine::CreateInstance(
 namespace bluetooth::le_audio {
 namespace broadcaster {
 
-std::ostream& operator<<(std::ostream& os,
-                         const BroadcastStateMachine::Message& state) {
-  static const char* char_value_[BroadcastStateMachine::MESSAGE_COUNT] = {
-      "START", "SUSPEND", "STOP"};
+std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine::Message& state) {
+  static const char* char_value_[BroadcastStateMachine::MESSAGE_COUNT] = {"START", "SUSPEND",
+                                                                          "STOP"};
   os << char_value_[static_cast<uint8_t>(state)];
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const BroadcastStateMachine::State& state) {
+std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine::State& state) {
   static const char* char_value_[BroadcastStateMachine::STATE_COUNT] = {
-      "STOPPED", "CONFIGURING", "CONFIGURED", "STOPPING", "STREAMING"};
+          "STOPPED", "CONFIGURING", "CONFIGURED", "ENABLING", "DISABLING", "STOPPING", "STREAMING"};
   os << char_value_[static_cast<uint8_t>(state)];
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const BigConfig& config) {
-  return os;
-}
+std::ostream& operator<<(std::ostream& os, const BigConfig& config) { return os; }
 
-std::ostream& operator<<(std::ostream& os,
-                         const BroadcastStateMachineConfig& config) {
-  return os;
-}
+std::ostream& operator<<(std::ostream& os, const BroadcastStateMachineConfig& config) { return os; }
 
-std::ostream& operator<<(std::ostream& os,
-                         const BroadcastStateMachine& machine) {
-  return os;
-}
+std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine& machine) { return os; }
 
 }  // namespace broadcaster
 }  // namespace bluetooth::le_audio

@@ -22,11 +22,11 @@
 #include <bluetooth/log.h>
 
 #include "btm_ble_api.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/btu_hcif.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -56,14 +56,12 @@ using bluetooth::Uuid;
 tBTM_BLE_ADV_FILTER_CB btm_ble_adv_filt_cb;
 tBTM_BLE_VSC_CB cmn_ble_vsc_cb;
 
-static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action,
-                                            uint8_t cond_type,
-                                            tBLE_BD_ADDR* p_bd_addr,
-                                            uint8_t num_available);
+static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action, uint8_t cond_type,
+                                            tBLE_BD_ADDR* p_bd_addr, uint8_t num_available);
 
 #define BTM_BLE_SET_SCAN_PF_OPCODE(x, y) (((x) << 4) | (y))
 #define BTM_BLE_GET_SCAN_PF_SUBCODE(x) ((x) >> 4)
-#define BTM_BLE_GET_SCAN_PF_ACTION(x) ((x)&0x0f)
+#define BTM_BLE_GET_SCAN_PF_ACTION(x) ((x) & 0x0f)
 #define BTM_BLE_INVALID_COUNTER 0xff
 
 /* length of each multi adv sub command */
@@ -124,8 +122,8 @@ static uint8_t btm_ble_ocf_to_condtype(uint8_t ocf) {
   return cond_type;
 }
 
-static void btm_flt_update_cb(uint8_t expected_ocf, tBTM_BLE_PF_CFG_CBACK cb,
-                              uint8_t* p, uint16_t evt_len) {
+static void btm_flt_update_cb(uint8_t expected_ocf, tBTM_BLE_PF_CFG_CBACK cb, uint8_t* p,
+                              uint16_t evt_len) {
   if (evt_len != 4) {
     log::error("bad length: {}", evt_len);
     return;
@@ -138,12 +136,12 @@ static void btm_flt_update_cb(uint8_t expected_ocf, tBTM_BLE_PF_CFG_CBACK cb,
   STREAM_TO_UINT8(num_avail, p);
 
   if (expected_ocf != op_subcode) {
-    log::error("Incorrect opcode: 0x{:02x}, expected: 0x{:02x}", expected_ocf,
-               op_subcode);
+    log::error("Incorrect opcode: 0x{:02x}, expected: 0x{:02x}", expected_ocf, op_subcode);
     return;
   }
 
-  tBTM_STATUS btm_status = (status == 0) ? BTM_SUCCESS : BTM_ERR_PROCESSING;
+  tBTM_STATUS btm_status =
+          (status == 0) ? tBTM_STATUS::BTM_SUCCESS : tBTM_STATUS::BTM_ERR_PROCESSING;
 
   if (op_subcode == BTM_BLE_META_PF_FEAT_SEL) {
     cb.Run(num_avail, static_cast<tBTM_BLE_SCAN_COND_OP>(action), btm_status);
@@ -151,16 +149,15 @@ static void btm_flt_update_cb(uint8_t expected_ocf, tBTM_BLE_PF_CFG_CBACK cb,
   }
 
   uint8_t cond_type = btm_ble_ocf_to_condtype(expected_ocf);
-  log::verbose("Recd: {}, {}, {}, {}, {}", op_subcode, expected_ocf, action,
-               status, num_avail);
+  log::verbose("Recd: {}, {}, {}, {}, {}", op_subcode, expected_ocf, action, status, num_avail);
   if (HCI_SUCCESS == status) {
-    if (btm_ble_adv_filt_cb.cur_filter_target.bda.IsEmpty())
-      btm_ble_cs_update_pf_counter(static_cast<tBTM_BLE_SCAN_COND_OP>(action),
-                                   cond_type, NULL, num_avail);
-    else
-      btm_ble_cs_update_pf_counter(
-          static_cast<tBTM_BLE_SCAN_COND_OP>(action), cond_type,
-          &btm_ble_adv_filt_cb.cur_filter_target, num_avail);
+    if (btm_ble_adv_filt_cb.cur_filter_target.bda.IsEmpty()) {
+      btm_ble_cs_update_pf_counter(static_cast<tBTM_BLE_SCAN_COND_OP>(action), cond_type, NULL,
+                                   num_avail);
+    } else {
+      btm_ble_cs_update_pf_counter(static_cast<tBTM_BLE_SCAN_COND_OP>(action), cond_type,
+                                   &btm_ble_adv_filt_cb.cur_filter_target, num_avail);
+    }
   }
 
   /* send ADV PF operation complete */
@@ -179,13 +176,13 @@ static void btm_flt_update_cb(uint8_t expected_ocf, tBTM_BLE_PF_CFG_CBACK cb,
  * Returns          pointer to the counter if found; NULL otherwise.
  *
  ******************************************************************************/
-static tBTM_BLE_PF_COUNT* btm_ble_find_addr_filter_counter(
-    tBLE_BD_ADDR* p_le_bda) {
+static tBTM_BLE_PF_COUNT* btm_ble_find_addr_filter_counter(tBLE_BD_ADDR* p_le_bda) {
   uint8_t i;
-  tBTM_BLE_PF_COUNT* p_addr_filter =
-      &btm_ble_adv_filt_cb.p_addr_filter_count[1];
+  tBTM_BLE_PF_COUNT* p_addr_filter = &btm_ble_adv_filt_cb.p_addr_filter_count[1];
 
-  if (p_le_bda == NULL) return &btm_ble_adv_filt_cb.p_addr_filter_count[0];
+  if (p_le_bda == NULL) {
+    return &btm_ble_adv_filt_cb.p_addr_filter_count[0];
+  }
 
   for (i = 0; i < cmn_ble_vsc_cb.max_filter; i++, p_addr_filter++) {
     if (p_addr_filter->in_use && p_le_bda->bda == p_addr_filter->bd_addr) {
@@ -205,11 +202,9 @@ static tBTM_BLE_PF_COUNT* btm_ble_find_addr_filter_counter(
  *                  otherwise.
  *
  ******************************************************************************/
-static tBTM_BLE_PF_COUNT* btm_ble_alloc_addr_filter_counter(
-    const RawAddress& bd_addr) {
+static tBTM_BLE_PF_COUNT* btm_ble_alloc_addr_filter_counter(const RawAddress& bd_addr) {
   uint8_t i;
-  tBTM_BLE_PF_COUNT* p_addr_filter =
-      &btm_ble_adv_filt_cb.p_addr_filter_count[1];
+  tBTM_BLE_PF_COUNT* p_addr_filter = &btm_ble_adv_filt_cb.p_addr_filter_count[1];
 
   for (i = 0; i < cmn_ble_vsc_cb.max_filter; i++, p_addr_filter++) {
     if (p_addr_filter->bd_addr.IsEmpty()) {
@@ -229,24 +224,23 @@ static tBTM_BLE_PF_COUNT* btm_ble_alloc_addr_filter_counter(
  * Returns          true if deallocation succeed; false otherwise.
  *
  ******************************************************************************/
-static bool btm_ble_dealloc_addr_filter_counter(tBLE_BD_ADDR* p_bd_addr,
-                                                uint8_t filter_type) {
+static bool btm_ble_dealloc_addr_filter_counter(tBLE_BD_ADDR* p_bd_addr, uint8_t filter_type) {
   uint8_t i;
-  tBTM_BLE_PF_COUNT* p_addr_filter =
-      &btm_ble_adv_filt_cb.p_addr_filter_count[1];
+  tBTM_BLE_PF_COUNT* p_addr_filter = &btm_ble_adv_filt_cb.p_addr_filter_count[1];
   bool found = false;
 
-  if (BTM_BLE_PF_TYPE_ALL == filter_type && NULL == p_bd_addr)
-    memset(&btm_ble_adv_filt_cb.p_addr_filter_count[0], 0,
-           sizeof(tBTM_BLE_PF_COUNT));
+  if (BTM_BLE_PF_TYPE_ALL == filter_type && NULL == p_bd_addr) {
+    memset(&btm_ble_adv_filt_cb.p_addr_filter_count[0], 0, sizeof(tBTM_BLE_PF_COUNT));
+  }
 
   for (i = 0; i < cmn_ble_vsc_cb.max_filter; i++, p_addr_filter++) {
-    if (p_addr_filter->in_use &&
-        (!p_bd_addr || p_bd_addr->bda == p_addr_filter->bd_addr)) {
+    if (p_addr_filter->in_use && (!p_bd_addr || p_bd_addr->bda == p_addr_filter->bd_addr)) {
       found = true;
       memset(p_addr_filter, 0, sizeof(tBTM_BLE_PF_COUNT));
 
-      if (p_bd_addr) break;
+      if (p_bd_addr) {
+        break;
+      }
     }
   }
   return found;
@@ -263,10 +257,8 @@ static bool btm_ble_dealloc_addr_filter_counter(tBLE_BD_ADDR* p_bd_addr,
  *                  counter update failed.
  *
  ******************************************************************************/
-static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action,
-                                            uint8_t cond_type,
-                                            tBLE_BD_ADDR* p_bd_addr,
-                                            uint8_t num_available) {
+static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action, uint8_t cond_type,
+                                            tBLE_BD_ADDR* p_bd_addr, uint8_t num_available) {
   tBTM_BLE_PF_COUNT* p_addr_filter = NULL;
   uint8_t* p_counter = NULL;
 
@@ -276,10 +268,10 @@ static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action,
   }
 
   /* for these three types of filter, always generic */
-  if (BTM_BLE_PF_ADDR_FILTER == cond_type ||
-      BTM_BLE_PF_MANU_DATA == cond_type || BTM_BLE_PF_LOCAL_NAME == cond_type ||
-      BTM_BLE_PF_SRVC_DATA_PATTERN == cond_type)
+  if (BTM_BLE_PF_ADDR_FILTER == cond_type || BTM_BLE_PF_MANU_DATA == cond_type ||
+      BTM_BLE_PF_LOCAL_NAME == cond_type || BTM_BLE_PF_SRVC_DATA_PATTERN == cond_type) {
     p_bd_addr = NULL;
+  }
 
   if ((p_addr_filter = btm_ble_find_addr_filter_counter(p_bd_addr)) == NULL &&
       BTM_BLE_SCAN_COND_ADD == action) {
@@ -288,23 +280,22 @@ static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action,
 
   if (NULL != p_addr_filter) {
     /* all filter just cleared */
-    if ((BTM_BLE_PF_TYPE_ALL == cond_type &&
-         BTM_BLE_SCAN_COND_CLEAR == action) ||
+    if ((BTM_BLE_PF_TYPE_ALL == cond_type && BTM_BLE_SCAN_COND_CLEAR == action) ||
         /* or bd address filter been deleted */
         (BTM_BLE_PF_ADDR_FILTER == cond_type &&
-         (BTM_BLE_SCAN_COND_DELETE == action ||
-          BTM_BLE_SCAN_COND_CLEAR == action))) {
+         (BTM_BLE_SCAN_COND_DELETE == action || BTM_BLE_SCAN_COND_CLEAR == action))) {
       btm_ble_dealloc_addr_filter_counter(p_bd_addr, cond_type);
     }
     /* if not feature selection, update new addition/reduction of the filter
        counter */
     else if (cond_type != BTM_BLE_PF_TYPE_ALL) {
       p_counter = p_addr_filter->pf_counter;
-      if (num_available > 0) p_counter[cond_type] += 1;
+      if (num_available > 0) {
+        p_counter[cond_type] += 1;
+      }
 
-      log::verbose("counter = {}, maxfilt = {}, num_avbl={}",
-                   p_counter[cond_type], cmn_ble_vsc_cb.max_filter,
-                   num_available);
+      log::verbose("counter = {}, maxfilt = {}, num_avbl={}", p_counter[cond_type],
+                   cmn_ble_vsc_cb.max_filter, num_available);
       return p_counter[cond_type];
     }
   } else {
@@ -327,17 +318,16 @@ static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action,
  *                       cb - Callback
  *
  ******************************************************************************/
-void BTM_BleAdvFilterParamSetup(
-    tBTM_BLE_SCAN_COND_OP action, tBTM_BLE_PF_FILT_INDEX filt_index,
-    std::unique_ptr<btgatt_filt_param_setup_t> p_filt_params,
-    tBTM_BLE_PF_PARAM_CB cb) {
+void BTM_BleAdvFilterParamSetup(tBTM_BLE_SCAN_COND_OP action, tBTM_BLE_PF_FILT_INDEX filt_index,
+                                std::unique_ptr<btgatt_filt_param_setup_t> p_filt_params,
+                                tBTM_BLE_PF_PARAM_CB cb) {
   tBTM_BLE_PF_COUNT* p_bda_filter = NULL;
-  uint8_t len = BTM_BLE_ADV_FILT_META_HDR_LENGTH +
-                BTM_BLE_ADV_FILT_FEAT_SELN_LEN + BTM_BLE_ADV_FILT_TRACK_NUM;
+  uint8_t len = BTM_BLE_ADV_FILT_META_HDR_LENGTH + BTM_BLE_ADV_FILT_FEAT_SELN_LEN +
+                BTM_BLE_ADV_FILT_TRACK_NUM;
   uint8_t param[len], *p;
 
   if (!is_filtering_supported()) {
-    cb.Run(0, BTM_BLE_PF_ENABLE, btm_status_value(BTM_MODE_UNSUPPORTED));
+    cb.Run(0, BTM_BLE_PF_ENABLE, tBTM_STATUS::BTM_MODE_UNSUPPORTED);
     return;
   }
 
@@ -349,7 +339,7 @@ void BTM_BleAdvFilterParamSetup(
     p_bda_filter = btm_ble_find_addr_filter_counter(nullptr);
     if (NULL == p_bda_filter) {
       log::error("BD Address not found!");
-      cb.Run(0, BTM_BLE_PF_ENABLE, btm_status_value(BTM_UNKNOWN_ADDR));
+      cb.Run(0, BTM_BLE_PF_ENABLE, tBTM_STATUS::BTM_UNKNOWN_ADDR);
       return;
     }
 
@@ -382,19 +372,20 @@ void BTM_BleAdvFilterParamSetup(
       /* set onlost timeout */
       UINT16_TO_STREAM(p, p_filt_params->lost_timeout);
       /* set num_of_track_entries for firmware greater than L-release version */
-      if (cmn_ble_vsc_cb.version_supported > BTM_VSC_CHIP_CAPABILITY_L_VERSION)
+      if (cmn_ble_vsc_cb.version_supported > BTM_VSC_CHIP_CAPABILITY_L_VERSION) {
         UINT16_TO_STREAM(p, p_filt_params->num_of_tracking_entries);
+      }
     }
 
-    if (cmn_ble_vsc_cb.version_supported == BTM_VSC_CHIP_CAPABILITY_L_VERSION)
+    if (cmn_ble_vsc_cb.version_supported == BTM_VSC_CHIP_CAPABILITY_L_VERSION) {
       len = BTM_BLE_ADV_FILT_META_HDR_LENGTH + BTM_BLE_ADV_FILT_FEAT_SELN_LEN;
-    else
+    } else {
       len = BTM_BLE_ADV_FILT_META_HDR_LENGTH + BTM_BLE_ADV_FILT_FEAT_SELN_LEN +
             BTM_BLE_ADV_FILT_TRACK_NUM;
+    }
 
-    btu_hcif_send_cmd_with_cb(
-        FROM_HERE, HCI_BLE_ADV_FILTER, param, len,
-        base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_FEAT_SEL, cb));
+    btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_BLE_ADV_FILTER, param, len,
+                              base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_FEAT_SEL, cb));
   } else if (BTM_BLE_SCAN_COND_DELETE == action) {
     /* select feature based on control block settings */
     UINT8_TO_STREAM(p, BTM_BLE_META_PF_FEAT_SEL);
@@ -402,10 +393,9 @@ void BTM_BleAdvFilterParamSetup(
     /* Filter index */
     UINT8_TO_STREAM(p, filt_index);
 
-    btu_hcif_send_cmd_with_cb(
-        FROM_HERE, HCI_BLE_ADV_FILTER, param,
-        (uint8_t)(BTM_BLE_ADV_FILT_META_HDR_LENGTH),
-        base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_FEAT_SEL, cb));
+    btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_BLE_ADV_FILTER, param,
+                              (uint8_t)(BTM_BLE_ADV_FILT_META_HDR_LENGTH),
+                              base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_FEAT_SEL, cb));
 
   } else if (BTM_BLE_SCAN_COND_CLEAR == action) {
     /* Deallocate all filters here */
@@ -415,10 +405,9 @@ void BTM_BleAdvFilterParamSetup(
     UINT8_TO_STREAM(p, BTM_BLE_META_PF_FEAT_SEL);
     UINT8_TO_STREAM(p, BTM_BLE_SCAN_COND_CLEAR);
 
-    btu_hcif_send_cmd_with_cb(
-        FROM_HERE, HCI_BLE_ADV_FILTER, param,
-        (uint8_t)(BTM_BLE_ADV_FILT_META_HDR_LENGTH - 1),
-        base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_FEAT_SEL, cb));
+    btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_BLE_ADV_FILTER, param,
+                              (uint8_t)(BTM_BLE_ADV_FILT_META_HDR_LENGTH - 1),
+                              base::Bind(&btm_flt_update_cb, BTM_BLE_META_PF_FEAT_SEL, cb));
   }
 }
 
@@ -438,10 +427,12 @@ void btm_ble_adv_filter_init(void) {
 
   BTM_BleGetVendorCapabilities(&cmn_ble_vsc_cb);
 
-  if (!is_filtering_supported()) return;
+  if (!is_filtering_supported()) {
+    return;
+  }
 
   if (cmn_ble_vsc_cb.max_filter > 0) {
-    btm_ble_adv_filt_cb.p_addr_filter_count = (tBTM_BLE_PF_COUNT*)osi_malloc(
-        sizeof(tBTM_BLE_PF_COUNT) * cmn_ble_vsc_cb.max_filter);
+    btm_ble_adv_filt_cb.p_addr_filter_count =
+            (tBTM_BLE_PF_COUNT*)osi_malloc(sizeof(tBTM_BLE_PF_COUNT) * cmn_ble_vsc_cb.max_filter);
   }
 }

@@ -34,7 +34,8 @@ namespace rust {
 namespace internal {
 static HfpIntf* g_hfpif;
 
-static void connection_state_cb(bluetooth::headset::bthf_connection_state_t state, RawAddress* addr) {
+static void connection_state_cb(bluetooth::headset::bthf_connection_state_t state,
+                                RawAddress* addr) {
   rusty::hfp_connection_state_callback(state, *addr);
 }
 
@@ -58,21 +59,15 @@ static void battery_level_update_cb(uint8_t battery_level, RawAddress* addr) {
   rusty::hfp_battery_level_update_callback(battery_level, *addr);
 }
 
-static void indicator_query_cb(RawAddress* addr) {
-  rusty::hfp_indicator_query_callback(*addr);
-}
+static void indicator_query_cb(RawAddress* addr) { rusty::hfp_indicator_query_callback(*addr); }
 
 static void current_calls_query_cb(RawAddress* addr) {
   rusty::hfp_current_calls_query_callback(*addr);
 }
 
-static void answer_call_cb(RawAddress* addr) {
-  rusty::hfp_answer_call_callback(*addr);
-}
+static void answer_call_cb(RawAddress* addr) { rusty::hfp_answer_call_callback(*addr); }
 
-static void hangup_call_cb(RawAddress* addr) {
-  rusty::hfp_hangup_call_callback(*addr);
-}
+static void hangup_call_cb(RawAddress* addr) { rusty::hfp_hangup_call_callback(*addr); }
 
 static void dial_call_cb(char* number, RawAddress* addr) {
   rusty::hfp_dial_call_callback(::rust::String{number}, *addr);
@@ -118,38 +113,27 @@ static headset::bthf_call_state_t from_rust_call_state(rusty::CallState state) {
   }
 }
 
-static void debug_dump_cb(
-    bool active,
-    uint16_t codec_id,
-    int total_num_decoded_frames,
-    double packet_loss_ratio,
-    uint64_t begin_ts,
-    uint64_t end_ts,
-    const char* pkt_status_in_hex,
-    const char* pkt_status_in_binary) {
-  rusty::hfp_debug_dump_callback(
-      active,
-      codec_id,
-      total_num_decoded_frames,
-      packet_loss_ratio,
-      begin_ts,
-      end_ts,
-      ::rust::String{pkt_status_in_hex},
-      ::rust::String{pkt_status_in_binary});
+static void debug_dump_cb(bool active, uint16_t codec_id, int total_num_decoded_frames,
+                          double packet_loss_ratio, uint64_t begin_ts, uint64_t end_ts,
+                          const char* pkt_status_in_hex, const char* pkt_status_in_binary) {
+  rusty::hfp_debug_dump_callback(active, codec_id, total_num_decoded_frames, packet_loss_ratio,
+                                 begin_ts, end_ts, ::rust::String{pkt_status_in_hex},
+                                 ::rust::String{pkt_status_in_binary});
 }
 }  // namespace internal
 
 class DBusHeadsetCallbacks : public headset::Callbacks {
- public:
+public:
   static Callbacks* GetInstance(headset::Interface* headset) {
     static Callbacks* instance = new DBusHeadsetCallbacks(headset);
     return instance;
   }
 
-  DBusHeadsetCallbacks(headset::Interface* headset) : headset_(headset){};
+  DBusHeadsetCallbacks(headset::Interface* headset) : headset_(headset) {}
 
   // headset::Callbacks
-  void ConnectionStateCallback(headset::bthf_connection_state_t state, RawAddress* bd_addr) override {
+  void ConnectionStateCallback(headset::bthf_connection_state_t state,
+                               RawAddress* bd_addr) override {
     log::info("ConnectionStateCallback from {}", *bd_addr);
     topshim::rust::internal::connection_state_cb(state, bd_addr);
   }
@@ -159,8 +143,8 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
     topshim::rust::internal::audio_state_cb(state, bd_addr);
   }
 
-  void VoiceRecognitionCallback(
-      [[maybe_unused]] headset::bthf_vr_state_t state, [[maybe_unused]] RawAddress* bd_addr) override {}
+  void VoiceRecognitionCallback([[maybe_unused]] headset::bthf_vr_state_t state,
+                                [[maybe_unused]] RawAddress* bd_addr) override {}
 
   void AnswerCallCallback(RawAddress* bd_addr) override {
     topshim::rust::internal::answer_call_cb(bd_addr);
@@ -170,9 +154,14 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
     topshim::rust::internal::hangup_call_cb(bd_addr);
   }
 
-  void VolumeControlCallback(headset::bthf_volume_type_t type, int volume, RawAddress* bd_addr) override {
-    if (volume < 0) return;
-    if (volume > 15) volume = 15;
+  void VolumeControlCallback(headset::bthf_volume_type_t type, int volume,
+                             RawAddress* bd_addr) override {
+    if (volume < 0) {
+      return;
+    }
+    if (volume > 15) {
+      volume = 15;
+    }
     if (type == headset::bthf_volume_type_t::BTHF_VOLUME_TYPE_SPK) {
       log::info("VolumeControlCallback (Spk) {} from {}", volume, *bd_addr);
       topshim::rust::internal::volume_update_cb(volume, bd_addr);
@@ -188,19 +177,19 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
 
   void DtmfCmdCallback([[maybe_unused]] char tone, [[maybe_unused]] RawAddress* bd_addr) override {}
 
-  void NoiseReductionCallback(
-      [[maybe_unused]] headset::bthf_nrec_t nrec, [[maybe_unused]] RawAddress* bd_addr) override {}
+  void NoiseReductionCallback([[maybe_unused]] headset::bthf_nrec_t nrec,
+                              [[maybe_unused]] RawAddress* bd_addr) override {}
 
   void WbsCallback(headset::bthf_wbs_config_t wbs, RawAddress* addr) override {
     log::info("WbsCallback {} from {}", wbs, *addr);
     rusty::hfp_wbs_caps_update_callback(wbs == headset::BTHF_WBS_YES, *addr);
   }
 
-  void SwbCallback(
-      headset::bthf_swb_codec_t codec, headset::bthf_swb_config_t swb, RawAddress* addr) override {
+  void SwbCallback(headset::bthf_swb_codec_t codec, headset::bthf_swb_config_t swb,
+                   RawAddress* addr) override {
     log::info("SwbCallback codec:{}, swb:{} from {}", codec, swb, *addr);
     rusty::hfp_swb_caps_update_callback(
-        (codec == headset::BTHF_SWB_CODEC_LC3 && swb == headset::BTHF_SWB_YES), *addr);
+            (codec == headset::BTHF_SWB_CODEC_LC3 && swb == headset::BTHF_SWB_YES), *addr);
   }
 
   void AtChldCallback(headset::bthf_chld_type_t chld, RawAddress* bd_addr) override {
@@ -253,11 +242,12 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
   void KeyPressedCallback([[maybe_unused]] RawAddress* bd_addr) override {}
 
   void AtBindCallback(char* at_string, RawAddress* bd_addr) override {
-    log::warn(
-        "AT+BIND {} from addr {}: Bluetooth HF Indicators is not supported.", at_string, *bd_addr);
+    log::warn("AT+BIND {} from addr {}: Bluetooth HF Indicators is not supported.", at_string,
+              *bd_addr);
   }
 
-  void AtBievCallback(headset::bthf_hf_ind_type_t ind_id, int ind_value, RawAddress* bd_addr) override {
+  void AtBievCallback(headset::bthf_hf_ind_type_t ind_id, int ind_value,
+                      RawAddress* bd_addr) override {
     switch (ind_id) {
       case headset::bthf_hf_ind_type_t::BTHF_HF_IND_ENHANCED_DRIVER_SAFETY:
         // We don't do anything with this but we do know what it is, send OK.
@@ -273,60 +263,36 @@ class DBusHeadsetCallbacks : public headset::Callbacks {
     }
   }
 
-  void AtBiaCallback(bool service, bool roam, bool signal, bool battery, RawAddress* bd_addr) override {
+  void AtBiaCallback(bool service, bool roam, bool signal, bool battery,
+                     RawAddress* bd_addr) override {
     log::warn("AT+BIA=,,{},{},{},{},from addr {}", service, signal, roam, battery, *bd_addr);
   }
 
-  void DebugDumpCallback(
-      bool active,
-      uint16_t codec_id,
-      int total_num_decoded_frames,
-      double packet_loss_ratio,
-      uint64_t begin_ts,
-      uint64_t end_ts,
-      const char* pkt_status_in_hex,
-      const char* pkt_status_in_binary) override {
-    log::warn(
-        "DebugDumpCallback {} {} {} {:f} {} {} {} {}",
-        active,
-        codec_id,
-        total_num_decoded_frames,
-        packet_loss_ratio,
-        (unsigned long long)begin_ts,
-        (unsigned long long)end_ts,
-        pkt_status_in_hex,
-        pkt_status_in_binary);
-    topshim::rust::internal::debug_dump_cb(
-        active,
-        codec_id,
-        total_num_decoded_frames,
-        packet_loss_ratio,
-        begin_ts,
-        end_ts,
-        pkt_status_in_hex,
-        pkt_status_in_binary);
+  void DebugDumpCallback(bool active, uint16_t codec_id, int total_num_decoded_frames,
+                         double packet_loss_ratio, uint64_t begin_ts, uint64_t end_ts,
+                         const char* pkt_status_in_hex, const char* pkt_status_in_binary) override {
+    log::warn("DebugDumpCallback {} {} {} {:f} {} {} {} {}", active, codec_id,
+              total_num_decoded_frames, packet_loss_ratio, (unsigned long long)begin_ts,
+              (unsigned long long)end_ts, pkt_status_in_hex, pkt_status_in_binary);
+    topshim::rust::internal::debug_dump_cb(active, codec_id, total_num_decoded_frames,
+                                           packet_loss_ratio, begin_ts, end_ts, pkt_status_in_hex,
+                                           pkt_status_in_binary);
   }
 
- private:
+private:
   headset::Interface* headset_;
 };
 
-int HfpIntf::init() {
-  return intf_->Init(DBusHeadsetCallbacks::GetInstance(intf_), 1, false);
-}
+int HfpIntf::init() { return intf_->Init(DBusHeadsetCallbacks::GetInstance(intf_), 1, false); }
 
-uint32_t HfpIntf::connect(RawAddress addr) {
-  return intf_->Connect(&addr);
-}
+uint32_t HfpIntf::connect(RawAddress addr) { return intf_->Connect(&addr); }
 
 int HfpIntf::connect_audio(RawAddress addr, bool sco_offload, int disabled_codecs) {
   intf_->SetScoOffloadEnabled(sco_offload);
   return intf_->ConnectAudio(&addr, disabled_codecs);
 }
 
-int HfpIntf::set_active_device(RawAddress addr) {
-  return intf_->SetActiveDevice(&addr);
-}
+int HfpIntf::set_active_device(RawAddress addr) { return intf_->SetActiveDevice(&addr); }
 
 int HfpIntf::set_volume(int8_t volume, RawAddress addr) {
   return intf_->VolumeControl(headset::bthf_volume_type_t::BTHF_VOLUME_TYPE_SPK, volume, &addr);
@@ -336,96 +302,79 @@ uint32_t HfpIntf::set_mic_volume(int8_t volume, RawAddress addr) {
   return intf_->VolumeControl(headset::bthf_volume_type_t::BTHF_VOLUME_TYPE_MIC, volume, &addr);
 }
 
-uint32_t HfpIntf::disconnect(RawAddress addr) {
-  return intf_->Disconnect(&addr);
-}
+uint32_t HfpIntf::disconnect(RawAddress addr) { return intf_->Disconnect(&addr); }
 
-int HfpIntf::disconnect_audio(RawAddress addr) {
-  return intf_->DisconnectAudio(&addr);
-}
+int HfpIntf::disconnect_audio(RawAddress addr) { return intf_->DisconnectAudio(&addr); }
 
 uint32_t HfpIntf::device_status_notification(TelephonyDeviceStatus status, RawAddress addr) {
   return intf_->DeviceStatusNotification(
-      status.network_available ? headset::BTHF_NETWORK_STATE_AVAILABLE
-                               : headset::BTHF_NETWORK_STATE_NOT_AVAILABLE,
-      status.roaming ? headset::BTHF_SERVICE_TYPE_ROAMING : headset::BTHF_SERVICE_TYPE_HOME,
-      status.signal_strength,
-      status.battery_level,
-      &addr);
+          status.network_available ? headset::BTHF_NETWORK_STATE_AVAILABLE
+                                   : headset::BTHF_NETWORK_STATE_NOT_AVAILABLE,
+          status.roaming ? headset::BTHF_SERVICE_TYPE_ROAMING : headset::BTHF_SERVICE_TYPE_HOME,
+          status.signal_strength, status.battery_level, &addr);
 }
 
-uint32_t HfpIntf::indicator_query_response(
-    TelephonyDeviceStatus device_status, PhoneState phone_state, RawAddress addr) {
-  return intf_->CindResponse(
-      device_status.network_available ? 1 : 0,
-      phone_state.num_active,
-      phone_state.num_held,
-      topshim::rust::internal::from_rust_call_state(phone_state.state),
-      device_status.signal_strength,
-      device_status.roaming ? 1 : 0,
-      device_status.battery_level,
-      &addr);
+uint32_t HfpIntf::indicator_query_response(TelephonyDeviceStatus device_status,
+                                           PhoneState phone_state, RawAddress addr) {
+  return intf_->CindResponse(device_status.network_available ? 1 : 0, phone_state.num_active,
+                             phone_state.num_held,
+                             topshim::rust::internal::from_rust_call_state(phone_state.state),
+                             device_status.signal_strength, device_status.roaming ? 1 : 0,
+                             device_status.battery_level, &addr);
 }
 
-uint32_t HfpIntf::current_calls_query_response(
-    const ::rust::Vec<CallInfo>& call_list, RawAddress addr) {
+uint32_t HfpIntf::current_calls_query_response(const ::rust::Vec<CallInfo>& call_list,
+                                               RawAddress addr) {
   for (const auto& c : call_list) {
     std::string number{c.number};
-    intf_->ClccResponse(
-        c.index,
-        c.dir_incoming ? headset::BTHF_CALL_DIRECTION_INCOMING
-                       : headset::BTHF_CALL_DIRECTION_OUTGOING,
-        topshim::rust::internal::from_rust_call_state(c.state),
-        /*mode=*/headset::BTHF_CALL_TYPE_VOICE,
-        /*multi_party=*/headset::BTHF_CALL_MPTY_TYPE_SINGLE,
-        number.c_str(),
-        /*type=*/headset::BTHF_CALL_ADDRTYPE_UNKNOWN,
-        &addr);
+    intf_->ClccResponse(c.index,
+                        c.dir_incoming ? headset::BTHF_CALL_DIRECTION_INCOMING
+                                       : headset::BTHF_CALL_DIRECTION_OUTGOING,
+                        topshim::rust::internal::from_rust_call_state(c.state),
+                        /*mode=*/headset::BTHF_CALL_TYPE_VOICE,
+                        /*multi_party=*/headset::BTHF_CALL_MPTY_TYPE_SINGLE, number.c_str(),
+                        /*type=*/headset::BTHF_CALL_ADDRTYPE_UNKNOWN, &addr);
   }
 
   // NULL termination (Completes response)
   return intf_->ClccResponse(
-      /*index=*/0,
-      /*dir=*/(headset::bthf_call_direction_t)0,
-      /*state=*/(headset::bthf_call_state_t)0,
-      /*mode=*/(headset::bthf_call_mode_t)0,
-      /*multi_party=*/(headset::bthf_call_mpty_type_t)0,
-      /*number=*/"",
-      /*type=*/(headset::bthf_call_addrtype_t)0,
-      &addr);
+          /*index=*/0,
+          /*dir=*/(headset::bthf_call_direction_t)0,
+          /*state=*/(headset::bthf_call_state_t)0,
+          /*mode=*/(headset::bthf_call_mode_t)0,
+          /*multi_party=*/(headset::bthf_call_mpty_type_t)0,
+          /*number=*/"",
+          /*type=*/(headset::bthf_call_addrtype_t)0, &addr);
 }
 
-uint32_t HfpIntf::phone_state_change(
-    PhoneState phone_state, const ::rust::String& number_rs, RawAddress addr) {
+uint32_t HfpIntf::phone_state_change(PhoneState phone_state, const ::rust::String& number_rs,
+                                     RawAddress addr) {
   std::string number{number_rs};
-  return intf_->PhoneStateChange(
-      phone_state.num_active,
-      phone_state.num_held,
-      topshim::rust::internal::from_rust_call_state(phone_state.state),
-      number.c_str(),
-      /*type=*/(headset::bthf_call_addrtype_t)0,
-      /*name=*/"",
-      &addr);
+  return intf_->PhoneStateChange(phone_state.num_active, phone_state.num_held,
+                                 topshim::rust::internal::from_rust_call_state(phone_state.state),
+                                 number.c_str(),
+                                 /*type=*/(headset::bthf_call_addrtype_t)0,
+                                 /*name=*/"", &addr);
 }
 
 uint32_t HfpIntf::simple_at_response(bool ok, RawAddress addr) {
-  return intf_->AtResponse(
-      (ok ? headset::BTHF_AT_RESPONSE_OK : headset::BTHF_AT_RESPONSE_ERROR), 0, &addr);
+  return intf_->AtResponse((ok ? headset::BTHF_AT_RESPONSE_OK : headset::BTHF_AT_RESPONSE_ERROR), 0,
+                           &addr);
 }
 
-void HfpIntf::debug_dump() {
-  intf_->DebugDump();
-}
+void HfpIntf::debug_dump() { intf_->DebugDump(); }
 
 void HfpIntf::cleanup() {}
 
 std::unique_ptr<HfpIntf> GetHfpProfile(const unsigned char* btif) {
-  if (internal::g_hfpif) std::abort();
+  if (internal::g_hfpif) {
+    std::abort();
+  }
 
   const bt_interface_t* btif_ = reinterpret_cast<const bt_interface_t*>(btif);
 
   auto hfpif = std::make_unique<HfpIntf>(const_cast<headset::Interface*>(
-      reinterpret_cast<const headset::Interface*>(btif_->get_profile_interface("handsfree"))));
+          reinterpret_cast<const headset::Interface*>(btif_->get_profile_interface("handsfree"))));
   internal::g_hfpif = hfpif.get();
 
   return hfpif;

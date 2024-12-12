@@ -34,41 +34,33 @@ static constexpr uint8_t LEAUDIO_ASE_STORAGE_CURRENT_LAYOUT_MAGIC = 0x00;
 static constexpr uint8_t LEAUDIO_HANDLES_STORAGE_CURRENT_LAYOUT_MAGIC = 0x00;
 static constexpr uint8_t LEAUDIO_CODEC_ID_SZ = 5;
 
-static constexpr size_t LEAUDIO_STORAGE_MAGIC_SZ =
-    sizeof(uint8_t) /* magic is always uint8_t */;
+static constexpr size_t LEAUDIO_STORAGE_MAGIC_SZ = sizeof(uint8_t) /* magic is always uint8_t */;
 
 static constexpr size_t LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ =
-    LEAUDIO_STORAGE_MAGIC_SZ + sizeof(uint8_t); /* num_of_entries */
+        LEAUDIO_STORAGE_MAGIC_SZ + sizeof(uint8_t); /* num_of_entries */
 
 static constexpr size_t LEAUDIO_PACS_ENTRY_HDR_SZ =
-    sizeof(uint16_t) /*handle*/ + sizeof(uint16_t) /*ccc handle*/ +
-    sizeof(uint8_t) /* number of pack records in single characteristic */;
+        sizeof(uint16_t) /*handle*/ + sizeof(uint16_t) /*ccc handle*/ +
+        sizeof(uint8_t) /* number of pack records in single characteristic */;
 
 static constexpr size_t LEAUDIO_PACS_ENTRY_SZ =
-    sizeof(uint8_t) /* size of single pac record */ +
-    LEAUDIO_CODEC_ID_SZ /*codec id*/ +
-    sizeof(uint8_t) /*codec capabilities len*/ +
-    sizeof(uint8_t) /*metadata len*/;
+        sizeof(uint8_t) /* size of single pac record */ + LEAUDIO_CODEC_ID_SZ /*codec id*/ +
+        sizeof(uint8_t) /*codec capabilities len*/ + sizeof(uint8_t) /*metadata len*/;
 
 static constexpr size_t LEAUDIO_ASES_ENTRY_SZ =
-    sizeof(uint16_t) /*handle*/ + sizeof(uint16_t) /*ccc handle*/ +
-    sizeof(uint8_t) /*direction*/ + sizeof(uint8_t) /*ase id*/;
+        sizeof(uint16_t) /*handle*/ + sizeof(uint16_t) /*ccc handle*/ +
+        sizeof(uint8_t) /*direction*/ + sizeof(uint8_t) /*ase id*/;
 
 static constexpr size_t LEAUDIO_STORAGE_HANDLES_ENTRIES_SZ =
-    LEAUDIO_STORAGE_MAGIC_SZ + sizeof(uint16_t) /*control point handle*/ +
-    sizeof(uint16_t) /*ccc handle*/ +
-    sizeof(uint16_t) /*sink audio location handle*/ +
-    sizeof(uint16_t) /*ccc handle*/ +
-    sizeof(uint16_t) /*source audio location handle*/ +
-    sizeof(uint16_t) /*ccc handle*/ +
-    sizeof(uint16_t) /*supported context type handle*/ +
-    sizeof(uint16_t) /*ccc handle*/ +
-    sizeof(uint16_t) /*available context type handle*/ +
-    sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /* tmas handle */;
+        LEAUDIO_STORAGE_MAGIC_SZ + sizeof(uint16_t) /*control point handle*/ +
+        sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /*sink audio location handle*/ +
+        sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /*source audio location handle*/ +
+        sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /*supported context type handle*/ +
+        sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /*available context type handle*/ +
+        sizeof(uint16_t) /*ccc handle*/ + sizeof(uint16_t) /* tmas handle */;
 
-bool serializePacs(
-    const bluetooth::le_audio::types::PublishedAudioCapabilities& pacs,
-    std::vector<uint8_t>& out) {
+bool serializePacs(const bluetooth::le_audio::types::PublishedAudioCapabilities& pacs,
+                   std::vector<uint8_t>& out) {
   auto num_of_pacs = pacs.size();
   if (num_of_pacs == 0 || (num_of_pacs > std::numeric_limits<uint8_t>::max())) {
     log::warn("No pacs available");
@@ -104,13 +96,12 @@ bool serializePacs(
     UINT16_TO_STREAM(ptr, ccc_handle);
     UINT8_TO_STREAM(ptr, pac_recs.size());
 
-    log::verbose("Handle: 0x{:04x}, ccc handle: 0x{:04x}, pac count: {}",
-                 handle, ccc_handle, static_cast<int>(pac_recs.size()));
+    log::verbose("Handle: 0x{:04x}, ccc handle: 0x{:04x}, pac count: {}", handle, ccc_handle,
+                 static_cast<int>(pac_recs.size()));
 
     for (const auto& pac : pac_recs) {
       /* Pac len */
-      auto pac_len = LEAUDIO_PACS_ENTRY_SZ + pac.codec_spec_caps_raw.size() +
-                     pac.metadata.size();
+      auto pac_len = LEAUDIO_PACS_ENTRY_SZ + pac.codec_spec_caps_raw.size() + pac.metadata.size();
       log::verbose("Pac size {}", static_cast<int>(pac_len));
       UINT8_TO_STREAM(ptr, pac_len - 1 /* Minus size */);
 
@@ -120,8 +111,7 @@ bool serializePacs(
       UINT16_TO_STREAM(ptr, pac.codec_id.vendor_codec_id);
 
       /* Codec caps */
-      log::verbose("Codec capability size {}",
-                   static_cast<int>(pac.codec_spec_caps_raw.size()));
+      log::verbose("Codec capability size {}", static_cast<int>(pac.codec_spec_caps_raw.size()));
       UINT8_TO_STREAM(ptr, pac.codec_spec_caps_raw.size());
       if (pac.codec_spec_caps_raw.size() > 0) {
         ARRAY_TO_STREAM(ptr, pac.codec_spec_caps_raw.data(),
@@ -145,30 +135,25 @@ bool SerializeSinkPacs(const bluetooth::le_audio::LeAudioDevice* leAudioDevice,
     log::warn("Skipping unknown device");
     return false;
   }
-  log::verbose("Device {}, num of PAC characteristics: {}",
-               leAudioDevice->address_,
+  log::verbose("Device {}, num of PAC characteristics: {}", leAudioDevice->address_,
                static_cast<int>(leAudioDevice->snk_pacs_.size()));
   return serializePacs(leAudioDevice->snk_pacs_, out);
 }
 
-bool SerializeSourcePacs(
-    const bluetooth::le_audio::LeAudioDevice* leAudioDevice,
-    std::vector<uint8_t>& out) {
+bool SerializeSourcePacs(const bluetooth::le_audio::LeAudioDevice* leAudioDevice,
+                         std::vector<uint8_t>& out) {
   if (leAudioDevice == nullptr) {
     log::warn("Skipping unknown device");
     return false;
   }
-  log::verbose("Device {}, num of PAC characteristics: {}",
-               leAudioDevice->address_,
+  log::verbose("Device {}, num of PAC characteristics: {}", leAudioDevice->address_,
                static_cast<int>(leAudioDevice->src_pacs_.size()));
   return serializePacs(leAudioDevice->src_pacs_, out);
 }
 
-bool deserializePacs(LeAudioDevice* leAudioDevice,
-                     types::PublishedAudioCapabilities& pacs_db,
+bool deserializePacs(LeAudioDevice* leAudioDevice, types::PublishedAudioCapabilities& pacs_db,
                      const std::vector<uint8_t>& in) {
-  if (in.size() <
-      LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + LEAUDIO_PACS_ENTRY_SZ) {
+  if (in.size() < LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + LEAUDIO_PACS_ENTRY_SZ) {
     log::warn("There is not single PACS stored");
     return false;
   }
@@ -180,18 +165,16 @@ bool deserializePacs(LeAudioDevice* leAudioDevice,
 
   if (magic != LEAUDIO_PACS_STORAGE_CURRENT_LAYOUT_MAGIC) {
     log::error("Invalid magic ({}!={}) for device {}", magic,
-               LEAUDIO_PACS_STORAGE_CURRENT_LAYOUT_MAGIC,
-               leAudioDevice->address_);
+               LEAUDIO_PACS_STORAGE_CURRENT_LAYOUT_MAGIC, leAudioDevice->address_);
     return false;
   }
 
   uint8_t num_of_pacs_chars;
   STREAM_TO_UINT8(num_of_pacs_chars, ptr);
 
-  if (in.size() < LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ +
-                      (num_of_pacs_chars * LEAUDIO_PACS_ENTRY_SZ)) {
-    log::error("Invalid persistent storage data for device {}",
-               leAudioDevice->address_);
+  if (in.size() <
+      LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + (num_of_pacs_chars * LEAUDIO_PACS_ENTRY_SZ)) {
+    log::error("Invalid persistent storage data for device {}", leAudioDevice->address_);
     return false;
   }
 
@@ -204,17 +187,16 @@ bool deserializePacs(LeAudioDevice* leAudioDevice,
     STREAM_TO_UINT16(hdl_pair.ccc_hdl, ptr);
     STREAM_TO_UINT8(pac_count, ptr);
 
-    log::verbose("Handle: 0x{:04x}, ccc handle: 0x{:04x}, pac_count: {}",
-                 hdl_pair.val_hdl, hdl_pair.ccc_hdl, pac_count);
+    log::verbose("Handle: 0x{:04x}, ccc handle: 0x{:04x}, pac_count: {}", hdl_pair.val_hdl,
+                 hdl_pair.ccc_hdl, pac_count);
 
     pacs_db.push_back(std::make_tuple(
-        hdl_pair,
-        std::vector<struct bluetooth::le_audio::types::acs_ac_record>()));
+            hdl_pair, std::vector<struct bluetooth::le_audio::types::acs_ac_record>()));
 
     auto hdl = hdl_pair.val_hdl;
-    auto pac_tuple_iter = std::find_if(
-        pacs_db.begin(), pacs_db.end(),
-        [&hdl](auto& pac_ent) { return std::get<0>(pac_ent).val_hdl == hdl; });
+    auto pac_tuple_iter = std::find_if(pacs_db.begin(), pacs_db.end(), [&hdl](auto& pac_ent) {
+      return std::get<0>(pac_ent).val_hdl == hdl;
+    });
 
     std::vector<struct bluetooth::le_audio::types::acs_ac_record> pac_recs;
     while (pac_count--) {
@@ -271,8 +253,7 @@ bool SerializeAses(const bluetooth::le_audio::LeAudioDevice* leAudioDevice,
   }
 
   /* Calculate the total size */
-  auto ases_bin_size = LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ +
-                       num_of_ases * LEAUDIO_ASES_ENTRY_SZ;
+  auto ases_bin_size = LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + num_of_ases * LEAUDIO_ASES_ENTRY_SZ;
   out.resize(ases_bin_size);
   auto* ptr = out.data();
 
@@ -283,13 +264,9 @@ bool SerializeAses(const bluetooth::le_audio::LeAudioDevice* leAudioDevice,
   /* pacs entries */
   for (const auto& ase : leAudioDevice->ases_) {
     log::verbose(
-        "Storing ASE ID: {}, direction {}, handle 0x{:04x}, ccc_handle "
-        "0x{:04x}",
-        ase.id,
-        ase.direction == bluetooth::le_audio::types::kLeAudioDirectionSink
-            ? "sink "
-            : "source",
-        ase.hdls.val_hdl, ase.hdls.ccc_hdl);
+            "Storing ASE ID: {}, direction {}, handle 0x{:04x}, ccc_handle 0x{:04x}", ase.id,
+            ase.direction == bluetooth::le_audio::types::kLeAudioDirectionSink ? "sink " : "source",
+            ase.hdls.val_hdl, ase.hdls.ccc_hdl);
 
     UINT16_TO_STREAM(ptr, ase.hdls.val_hdl);
     UINT16_TO_STREAM(ptr, ase.hdls.ccc_hdl);
@@ -307,10 +284,8 @@ bool DeserializeAses(bluetooth::le_audio::LeAudioDevice* leAudioDevice,
     return false;
   }
 
-  if (in.size() <
-      LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + LEAUDIO_ASES_ENTRY_SZ) {
-    log::warn("There is not single ASE stored for device {}",
-              leAudioDevice->address_);
+  if (in.size() < LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + LEAUDIO_ASES_ENTRY_SZ) {
+    log::warn("There is not single ASE stored for device {}", leAudioDevice->address_);
     return false;
   }
 
@@ -320,23 +295,19 @@ bool DeserializeAses(bluetooth::le_audio::LeAudioDevice* leAudioDevice,
   STREAM_TO_UINT8(magic, ptr);
 
   if (magic != LEAUDIO_ASE_STORAGE_CURRENT_LAYOUT_MAGIC) {
-    log::error("Invalid magic ({}!={}", magic,
-               LEAUDIO_PACS_STORAGE_CURRENT_LAYOUT_MAGIC);
+    log::error("Invalid magic ({}!={}", magic, LEAUDIO_PACS_STORAGE_CURRENT_LAYOUT_MAGIC);
     return false;
   }
 
   uint8_t num_of_ases;
   STREAM_TO_UINT8(num_of_ases, ptr);
 
-  if (in.size() < LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ +
-                      (num_of_ases * LEAUDIO_ASES_ENTRY_SZ)) {
-    log::error("Invalid persistent storage data for device {}",
-               leAudioDevice->address_);
+  if (in.size() < LEAUDIO_STORAGE_HEADER_WITH_ENTRIES_SZ + (num_of_ases * LEAUDIO_ASES_ENTRY_SZ)) {
+    log::error("Invalid persistent storage data for device {}", leAudioDevice->address_);
     return false;
   }
 
-  log::debug("Loading {} Ases for device {}", num_of_ases,
-             leAudioDevice->address_);
+  log::debug("Loading {} Ases for device {}", num_of_ases, leAudioDevice->address_);
   /* sets entries */
   while (num_of_ases--) {
     uint16_t handle;
@@ -351,20 +322,15 @@ bool DeserializeAses(bluetooth::le_audio::LeAudioDevice* leAudioDevice,
 
     leAudioDevice->ases_.emplace_back(handle, ccc_handle, direction, ase_id);
     log::verbose(
-        "Loading ASE ID: {}, direction {}, handle 0x{:04x}, ccc_handle "
-        "0x{:04x}",
-        ase_id,
-        direction == bluetooth::le_audio::types::kLeAudioDirectionSink
-            ? "sink "
-            : "source",
-        handle, ccc_handle);
+            "Loading ASE ID: {}, direction {}, handle 0x{:04x}, ccc_handle 0x{:04x}", ase_id,
+            direction == bluetooth::le_audio::types::kLeAudioDirectionSink ? "sink " : "source",
+            handle, ccc_handle);
   }
 
   return true;
 }
 
-bool SerializeHandles(const LeAudioDevice* leAudioDevice,
-                      std::vector<uint8_t>& out) {
+bool SerializeHandles(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out) {
   if (leAudioDevice == nullptr) {
     log::warn("Skipping unknown device");
     return false;
@@ -377,10 +343,8 @@ bool SerializeHandles(const LeAudioDevice* leAudioDevice,
   /* header */
   UINT8_TO_STREAM(ptr, LEAUDIO_HANDLES_STORAGE_CURRENT_LAYOUT_MAGIC);
 
-  if (leAudioDevice->ctp_hdls_.val_hdl == 0 ||
-      leAudioDevice->ctp_hdls_.ccc_hdl == 0) {
-    log::warn("Invalid control point handles for device {}",
-              leAudioDevice->address_);
+  if (leAudioDevice->ctp_hdls_.val_hdl == 0 || leAudioDevice->ctp_hdls_.ccc_hdl == 0) {
+    log::warn("Invalid control point handles for device {}", leAudioDevice->address_);
     return false;
   }
 
@@ -404,16 +368,14 @@ bool SerializeHandles(const LeAudioDevice* leAudioDevice,
   return true;
 }
 
-bool DeserializeHandles(LeAudioDevice* leAudioDevice,
-                        const std::vector<uint8_t>& in) {
+bool DeserializeHandles(LeAudioDevice* leAudioDevice, const std::vector<uint8_t>& in) {
   if (leAudioDevice == nullptr) {
     log::warn("Skipping unknown device");
     return false;
   }
 
   if (in.size() != LEAUDIO_STORAGE_HANDLES_ENTRIES_SZ) {
-    log::warn("There is not single ASE stored for device {}",
-              leAudioDevice->address_);
+    log::warn("There is not single ASE stored for device {}", leAudioDevice->address_);
     return false;
   }
 
@@ -424,47 +386,41 @@ bool DeserializeHandles(LeAudioDevice* leAudioDevice,
 
   if (magic != LEAUDIO_HANDLES_STORAGE_CURRENT_LAYOUT_MAGIC) {
     log::error("Invalid magic ({}!={}) for device {}", magic,
-               LEAUDIO_PACS_STORAGE_CURRENT_LAYOUT_MAGIC,
-               leAudioDevice->address_);
+               LEAUDIO_PACS_STORAGE_CURRENT_LAYOUT_MAGIC, leAudioDevice->address_);
     return false;
   }
 
   STREAM_TO_UINT16(leAudioDevice->ctp_hdls_.val_hdl, ptr);
   STREAM_TO_UINT16(leAudioDevice->ctp_hdls_.ccc_hdl, ptr);
-  log::verbose("ctp.val_hdl: 0x{:04x}, ctp.ccc_hdl: 0x{:04x}",
-               leAudioDevice->ctp_hdls_.val_hdl,
+  log::verbose("ctp.val_hdl: 0x{:04x}, ctp.ccc_hdl: 0x{:04x}", leAudioDevice->ctp_hdls_.val_hdl,
                leAudioDevice->ctp_hdls_.ccc_hdl);
 
   STREAM_TO_UINT16(leAudioDevice->snk_audio_locations_hdls_.val_hdl, ptr);
   STREAM_TO_UINT16(leAudioDevice->snk_audio_locations_hdls_.ccc_hdl, ptr);
   log::verbose(
-      "snk_audio_locations_hdls_.val_hdl: "
-      "0x{:04x},snk_audio_locations_hdls_.ccc_hdl: 0x{:04x}",
-      leAudioDevice->snk_audio_locations_hdls_.val_hdl,
-      leAudioDevice->snk_audio_locations_hdls_.ccc_hdl);
+          "snk_audio_locations_hdls_.val_hdl: "
+          "0x{:04x},snk_audio_locations_hdls_.ccc_hdl: 0x{:04x}",
+          leAudioDevice->snk_audio_locations_hdls_.val_hdl,
+          leAudioDevice->snk_audio_locations_hdls_.ccc_hdl);
 
   STREAM_TO_UINT16(leAudioDevice->src_audio_locations_hdls_.val_hdl, ptr);
   STREAM_TO_UINT16(leAudioDevice->src_audio_locations_hdls_.ccc_hdl, ptr);
   log::verbose(
-      "src_audio_locations_hdls_.val_hdl: "
-      "0x{:04x},src_audio_locations_hdls_.ccc_hdl: 0x{:04x}",
-      leAudioDevice->src_audio_locations_hdls_.val_hdl,
-      leAudioDevice->src_audio_locations_hdls_.ccc_hdl);
+          "src_audio_locations_hdls_.val_hdl: "
+          "0x{:04x},src_audio_locations_hdls_.ccc_hdl: 0x{:04x}",
+          leAudioDevice->src_audio_locations_hdls_.val_hdl,
+          leAudioDevice->src_audio_locations_hdls_.ccc_hdl);
 
   STREAM_TO_UINT16(leAudioDevice->audio_supp_cont_hdls_.val_hdl, ptr);
   STREAM_TO_UINT16(leAudioDevice->audio_supp_cont_hdls_.ccc_hdl, ptr);
-  log::verbose(
-      "audio_supp_cont_hdls_.val_hdl: 0x{:04x},audio_supp_cont_hdls_.ccc_hdl: "
-      "0x{:04x}",
-      leAudioDevice->audio_supp_cont_hdls_.val_hdl,
-      leAudioDevice->audio_supp_cont_hdls_.ccc_hdl);
+  log::verbose("audio_supp_cont_hdls_.val_hdl: 0x{:04x},audio_supp_cont_hdls_.ccc_hdl: 0x{:04x}",
+               leAudioDevice->audio_supp_cont_hdls_.val_hdl,
+               leAudioDevice->audio_supp_cont_hdls_.ccc_hdl);
 
   STREAM_TO_UINT16(leAudioDevice->audio_avail_hdls_.val_hdl, ptr);
   STREAM_TO_UINT16(leAudioDevice->audio_avail_hdls_.ccc_hdl, ptr);
-  log::verbose(
-      "audio_avail_hdls_.val_hdl: 0x{:04x},audio_avail_hdls_.ccc_hdl: 0x{:04x}",
-      leAudioDevice->audio_avail_hdls_.val_hdl,
-      leAudioDevice->audio_avail_hdls_.ccc_hdl);
+  log::verbose("audio_avail_hdls_.val_hdl: 0x{:04x},audio_avail_hdls_.ccc_hdl: 0x{:04x}",
+               leAudioDevice->audio_avail_hdls_.val_hdl, leAudioDevice->audio_avail_hdls_.ccc_hdl);
 
   STREAM_TO_UINT16(leAudioDevice->tmap_role_hdl_, ptr);
   log::verbose("tmap_role_hdl_: 0x{:04x}", leAudioDevice->tmap_role_hdl_);

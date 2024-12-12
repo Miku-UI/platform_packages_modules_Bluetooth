@@ -32,8 +32,8 @@ struct CallInfo;
 struct PhoneState;
 
 class HfpIntf {
- public:
-  HfpIntf(headset::Interface* intf) : intf_(intf){};
+public:
+  HfpIntf(headset::Interface* intf) : intf_(intf) {}
 
   int init();
   uint32_t connect(RawAddress addr);
@@ -44,16 +44,16 @@ class HfpIntf {
   uint32_t disconnect(RawAddress addr);
   int disconnect_audio(RawAddress addr);
   uint32_t device_status_notification(TelephonyDeviceStatus status, RawAddress addr);
-  uint32_t indicator_query_response(
-      TelephonyDeviceStatus device_status, PhoneState phone_state, RawAddress addr);
+  uint32_t indicator_query_response(TelephonyDeviceStatus device_status, PhoneState phone_state,
+                                    RawAddress addr);
   uint32_t current_calls_query_response(const ::rust::Vec<CallInfo>& call_list, RawAddress addr);
-  uint32_t phone_state_change(
-      PhoneState phone_state, const ::rust::String& number, RawAddress addr);
+  uint32_t phone_state_change(PhoneState phone_state, const ::rust::String& number,
+                              RawAddress addr);
   uint32_t simple_at_response(bool ok, RawAddress addr);
   void debug_dump();
   void cleanup();
 
- private:
+private:
   headset::Interface* intf_;
 };
 

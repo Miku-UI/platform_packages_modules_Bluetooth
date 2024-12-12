@@ -19,7 +19,7 @@
 #include <sys/types.h>
 
 class BtStackInfo {
- public:
+public:
   BtStackInfo();
 
   void DumpsysLite();
@@ -27,7 +27,7 @@ class BtStackInfo {
   pid_t MainPid() const { return main_pid_; }
   pid_t JniPid() const { return jni_pid_; }
 
- private:
+private:
   pid_t main_pid_;
   pid_t jni_pid_;
 };

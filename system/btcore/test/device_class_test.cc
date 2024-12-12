@@ -21,9 +21,10 @@
 #include <arpa/inet.h>
 #include <gtest/gtest.h>
 
-::testing::AssertionResult check_bitfield(const char* m_expr,
-                                          const char* n_expr, int m, int n) {
-  if (m == n) return ::testing::AssertionSuccess();
+::testing::AssertionResult check_bitfield(const char* m_expr, const char* n_expr, int m, int n) {
+  if (m == n) {
+    return ::testing::AssertionSuccess();
+  }
 
   std::stringstream ss;
 
@@ -35,9 +36,8 @@
   ss << std::showbase << std::hex << std::setw(8) << std::setfill('0') << n;
   std::string actual_str = ss.str();
 
-  return ::testing::AssertionFailure() << m_expr << " and " << n_expr << " ( "
-                                       << expected_str << " vs " << actual_str
-                                       << " )";
+  return ::testing::AssertionFailure()
+         << m_expr << " and " << n_expr << " ( " << expected_str << " vs " << actual_str << " )";
 }
 
 class DeviceClassTest : public ::testing::Test {};
@@ -51,8 +51,8 @@ TEST_F(DeviceClassTest, cod_sizeof) {
 
 TEST_F(DeviceClassTest, simple) {
   uint8_t dc_stream[][sizeof(bt_device_class_t)] = {
-      {0x00, 0x00, 0x00}, {0xff, 0xff, 0xff}, {0xaa, 0x55, 0xaa},
-      {0x01, 0x23, 0x45}, {0x20, 0x07, 0x14},
+          {0x00, 0x00, 0x00}, {0xff, 0xff, 0xff}, {0xaa, 0x55, 0xaa},
+          {0x01, 0x23, 0x45}, {0x20, 0x07, 0x14},
   };
 
   for (size_t i = 0; i < sizeof(dc_stream) / sizeof(bt_device_class_t); i++) {
@@ -60,12 +60,9 @@ TEST_F(DeviceClassTest, simple) {
     device_class_from_stream(&dc, (uint8_t*)&dc_stream[i]);
 
     uint8_t* to_stream = (uint8_t*)&dc;
-    EXPECT_PRED_FORMAT2(check_bitfield, (unsigned)dc_stream[i][0],
-                        to_stream[0]);
-    EXPECT_PRED_FORMAT2(check_bitfield, (unsigned)dc_stream[i][1],
-                        to_stream[1]);
-    EXPECT_PRED_FORMAT2(check_bitfield, (unsigned)dc_stream[i][2],
-                        to_stream[2]);
+    EXPECT_PRED_FORMAT2(check_bitfield, (unsigned)dc_stream[i][0], to_stream[0]);
+    EXPECT_PRED_FORMAT2(check_bitfield, (unsigned)dc_stream[i][1], to_stream[1]);
+    EXPECT_PRED_FORMAT2(check_bitfield, (unsigned)dc_stream[i][2], to_stream[2]);
   }
 }
 

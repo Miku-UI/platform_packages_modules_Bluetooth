@@ -58,9 +58,8 @@ struct tSdpApi {
       Returns          true if successful, false if one or more parameters are
                        bad
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_InitDiscoveryDb)(tSDP_DISCOVERY_DB*, uint32_t,
-                                              uint16_t, const bluetooth::Uuid*,
-                                              uint16_t, const uint16_t*);
+    [[nodiscard]] bool (*SDP_InitDiscoveryDb)(tSDP_DISCOVERY_DB*, uint32_t, uint16_t,
+                                              const bluetooth::Uuid*, uint16_t, const uint16_t*);
 
     /*******************************************************************************
 
@@ -90,8 +89,7 @@ struct tSdpApi {
       Returns          true if discovery started, false if failed.
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_ServiceSearchRequest)(const RawAddress&,
-                                                   tSDP_DISCOVERY_DB*,
+    [[nodiscard]] bool (*SDP_ServiceSearchRequest)(const RawAddress&, tSDP_DISCOVERY_DB*,
                                                    tSDP_DISC_CMPL_CB*);
 
     /*******************************************************************************
@@ -112,8 +110,7 @@ struct tSdpApi {
       Returns          true if discovery started, false if failed.
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_ServiceSearchAttributeRequest)(const RawAddress&,
-                                                            tSDP_DISCOVERY_DB*,
+    [[nodiscard]] bool (*SDP_ServiceSearchAttributeRequest)(const RawAddress&, tSDP_DISCOVERY_DB*,
                                                             tSDP_DISC_CMPL_CB*);
 
     /*******************************************************************************
@@ -137,8 +134,8 @@ struct tSdpApi {
 
      ******************************************************************************/
     [[nodiscard]] bool (*SDP_ServiceSearchAttributeRequest2)(
-        const RawAddress&, tSDP_DISCOVERY_DB*,
-        base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback);
+            const RawAddress&, tSDP_DISCOVERY_DB*,
+            base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback);
   } service;
 
   struct {
@@ -159,8 +156,8 @@ struct tSdpApi {
       Returns          Pointer to record containing service class, or NULL
 
      ******************************************************************************/
-    [[nodiscard]] tSDP_DISC_REC* (*SDP_FindServiceInDb)(
-        const tSDP_DISCOVERY_DB*, uint16_t, tSDP_DISC_REC*);
+    [[nodiscard]] tSDP_DISC_REC* (*SDP_FindServiceInDb)(const tSDP_DISCOVERY_DB*, uint16_t,
+                                                        tSDP_DISC_REC*);
 
     /*******************************************************************************
 
@@ -183,8 +180,8 @@ struct tSdpApi {
       Returns          Pointer to record containing service class, or NULL
 
      ******************************************************************************/
-    [[nodiscard]] tSDP_DISC_REC* (*SDP_FindServiceUUIDInDb)(
-        const tSDP_DISCOVERY_DB*, const bluetooth::Uuid&, tSDP_DISC_REC*);
+    [[nodiscard]] tSDP_DISC_REC* (*SDP_FindServiceUUIDInDb)(const tSDP_DISCOVERY_DB*,
+                                                            const bluetooth::Uuid&, tSDP_DISC_REC*);
 
     /*******************************************************************************
 
@@ -202,8 +199,8 @@ struct tSdpApi {
       Returns          Pointer to record containing service class, or NULL
 
      ******************************************************************************/
-    [[nodiscard]] tSDP_DISC_REC* (*SDP_FindServiceInDb_128bit)(
-        const tSDP_DISCOVERY_DB*, tSDP_DISC_REC*);
+    [[nodiscard]] tSDP_DISC_REC* (*SDP_FindServiceInDb_128bit)(const tSDP_DISCOVERY_DB*,
+                                                               tSDP_DISC_REC*);
   } db;
 
   struct {
@@ -222,8 +219,7 @@ struct tSdpApi {
       Returns          Pointer to matching attribute entry, or NULL
 
      ******************************************************************************/
-    [[nodiscard]] tSDP_DISC_ATTR* (*SDP_FindAttributeInRec)(
-        const tSDP_DISC_REC*, uint16_t);
+    [[nodiscard]] tSDP_DISC_ATTR* (*SDP_FindAttributeInRec)(const tSDP_DISC_REC*, uint16_t);
 
     /*******************************************************************************
 
@@ -238,8 +234,7 @@ struct tSdpApi {
       Returns          true if found, otherwise false.
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_FindServiceUUIDInRec_128bit)(const tSDP_DISC_REC*,
-                                                          bluetooth::Uuid*);
+    [[nodiscard]] bool (*SDP_FindServiceUUIDInRec_128bit)(const tSDP_DISC_REC*, bluetooth::Uuid*);
 
     /*******************************************************************************
 
@@ -256,8 +251,7 @@ struct tSdpApi {
                        If found, the passed protocol list element is filled in.
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_FindProtocolListElemInRec)(const tSDP_DISC_REC*,
-                                                        uint16_t,
+    [[nodiscard]] bool (*SDP_FindProtocolListElemInRec)(const tSDP_DISC_REC*, uint16_t,
                                                         tSDP_PROTOCOL_ELEM*);
 
     /*******************************************************************************
@@ -276,8 +270,7 @@ struct tSdpApi {
       Returns          true if found, false if not
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_FindProfileVersionInRec)(const tSDP_DISC_REC*,
-                                                      uint16_t, uint16_t*);
+    [[nodiscard]] bool (*SDP_FindProfileVersionInRec)(const tSDP_DISC_REC*, uint16_t, uint16_t*);
 
     /*******************************************************************************
 
@@ -305,7 +298,7 @@ struct tSdpApi {
 
       Description      This function is called to create a record in the
                        database. This would be through the SDP database
-                       maintenance API. The record is created empty, teh
+                       maintenance API. The record is created empty, the
                        application should then call "add_attribute" *to add
                        the record's attributes.
 
@@ -350,9 +343,8 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddAttribute)(uint32_t handle, uint16_t attr_id,
-                                           uint8_t attr_type, uint32_t attr_len,
-                                           uint8_t* p_val);
+    [[nodiscard]] bool (*SDP_AddAttribute)(uint32_t handle, uint16_t attr_id, uint8_t attr_type,
+                                           uint32_t attr_len, uint8_t* p_val);
 
     /*******************************************************************************
 
@@ -375,9 +367,8 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddSequence)(uint32_t handle, uint16_t attr_id,
-                                          uint16_t num_elem, uint8_t type[],
-                                          uint8_t len[], uint8_t* p_val[]);
+    [[nodiscard]] bool (*SDP_AddSequence)(uint32_t handle, uint16_t attr_id, uint16_t num_elem,
+                                          uint8_t type[], uint8_t len[], uint8_t* p_val[]);
 
     /*******************************************************************************
 
@@ -396,8 +387,7 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddUuidSequence)(uint32_t handle, uint16_t attr_id,
-                                              uint16_t num_uuids,
+    [[nodiscard]] bool (*SDP_AddUuidSequence)(uint32_t handle, uint16_t attr_id, uint16_t num_uuids,
                                               uint16_t* p_uuids);
 
     /*******************************************************************************
@@ -416,8 +406,7 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddProtocolList)(uint32_t handle,
-                                              uint16_t num_elem,
+    [[nodiscard]] bool (*SDP_AddProtocolList)(uint32_t handle, uint16_t num_elem,
                                               tSDP_PROTOCOL_ELEM* p_elem_list);
 
     /*******************************************************************************
@@ -436,8 +425,8 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddAdditionProtoLists)(
-        uint32_t handle, uint16_t num_elem, tSDP_PROTO_LIST_ELEM* p_proto_list);
+    [[nodiscard]] bool (*SDP_AddAdditionProtoLists)(uint32_t handle, uint16_t num_elem,
+                                                    tSDP_PROTO_LIST_ELEM* p_proto_list);
 
     /*******************************************************************************
 
@@ -455,8 +444,7 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddProfileDescriptorList)(uint32_t handle,
-                                                       uint16_t profile_uuid,
+    [[nodiscard]] bool (*SDP_AddProfileDescriptorList)(uint32_t handle, uint16_t profile_uuid,
                                                        uint16_t version);
 
     /*******************************************************************************
@@ -476,10 +464,8 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddLanguageBaseAttrIDList)(uint32_t handle,
-                                                        uint16_t lang,
-                                                        uint16_t char_enc,
-                                                        uint16_t base_id);
+    [[nodiscard]] bool (*SDP_AddLanguageBaseAttrIDList)(uint32_t handle, uint16_t lang,
+                                                        uint16_t char_enc, uint16_t base_id);
 
     /*******************************************************************************
 
@@ -497,8 +483,7 @@ struct tSdpApi {
       Returns          true if added OK, else false
 
      ******************************************************************************/
-    [[nodiscard]] bool (*SDP_AddServiceClassIdList)(uint32_t handle,
-                                                    uint16_t num_services,
+    [[nodiscard]] bool (*SDP_AddServiceClassIdList)(uint32_t handle, uint16_t num_services,
                                                     uint16_t* p_service_uuids);
   } handle;
 
@@ -515,12 +500,12 @@ struct tSdpApi {
       Parameters:      info         - (input) device identification record
                        p_handle     - (output) handle of record if successful
 
-      Returns          Returns SDP_SUCCESS if record added successfully, else
+      Returns          Returns tSDP_STATUS::SDP_SUCCESS if record added successfully, else
                        error
 
      ******************************************************************************/
-    [[nodiscard]] uint16_t (*SDP_SetLocalDiRecord)(
-        const tSDP_DI_RECORD* device_info, uint32_t* p_handle);
+    [[nodiscard]] tSDP_STATUS (*SDP_SetLocalDiRecord)(const tSDP_DI_RECORD* device_info,
+                                                      uint32_t* p_handle);
 
     /*******************************************************************************
 
@@ -536,12 +521,11 @@ struct tSdpApi {
                        len          - (input ) data base length
                        p_cb         - (input) callback when complete
 
-      Returns          SDP_SUCCESS if query started successfully, else error
+      Returns          tSDP_STATUS::SDP_SUCCESS if query started successfully, else error
 
      ******************************************************************************/
     [[nodiscard]] tSDP_STATUS (*SDP_DiDiscover)(const RawAddress& remote_device,
-                                                tSDP_DISCOVERY_DB* p_db,
-                                                uint32_t len,
+                                                tSDP_DISCOVERY_DB* p_db, uint32_t len,
                                                 tSDP_DISC_CMPL_CB* p_cb);
 
     /*******************************************************************************
@@ -572,12 +556,12 @@ struct tSdpApi {
                        device_info  - (input) dicovery database
                        p_cb         - (input) callback when complete
 
-      Returns          SDP_SUCCESS if record retrieved, else error
+      Returns          tSDP_STATUS::SDP_SUCCESS if record retrieved, else error
 
      ******************************************************************************/
-    [[nodiscard]] uint16_t (*SDP_GetDiRecord)(uint8_t getRecordIndex,
-                                              tSDP_DI_GET_RECORD* device_info,
-                                              const tSDP_DISCOVERY_DB* p_db);
+    [[nodiscard]] tSDP_STATUS (*SDP_GetDiRecord)(uint8_t getRecordIndex,
+                                                 tSDP_DI_GET_RECORD* device_info,
+                                                 const tSDP_DISCOVERY_DB* p_db);
 
   } device_id;
 };
@@ -586,11 +570,23 @@ const struct tSdpApi* get_legacy_stack_sdp_api();
 
 struct tLegacyStackSdbCallback {
   void(tSDP_DISC_CMPL_CB)(const RawAddress& bd_addr, tSDP_RESULT result);
-  void(tSDP_DISC_CMPL_CB2)(const RawAddress& bd_addr, tSDP_RESULT result,
-                           const void* user_data);
+  void(tSDP_DISC_CMPL_CB2)(const RawAddress& bd_addr, tSDP_RESULT result, const void* user_data);
 };
 
 }  // namespace sdp
 }  // namespace stack
 }  // namespace legacy
 }  // namespace bluetooth
+
+/*******************************************************************************
+ *
+ * Function         SDP_Dumpsys
+ *
+ * Description      Dumps readable content of the module to the filedescriptor
+ *
+ * Parameters:      fd        - Valid file descriptor
+ *
+ * Returns          None
+ *
+ ******************************************************************************/
+void SDP_Dumpsys(int fd);

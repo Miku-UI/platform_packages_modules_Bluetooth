@@ -3,7 +3,7 @@ use crate::{
         ids::AttHandle,
         server::att_database::{AttAttribute, AttDatabase, StableAttDatabase},
     },
-    packets::AttErrorCode,
+    packets::att::AttErrorCode,
 };
 
 use async_trait::async_trait;
@@ -44,10 +44,10 @@ impl AttDatabase for TestAttDatabase {
             Some(TestAttributeWithData { attribute: AttAttribute { permissions, .. }, .. })
                 if !permissions.readable() =>
             {
-                Err(AttErrorCode::READ_NOT_PERMITTED)
+                Err(AttErrorCode::ReadNotPermitted)
             }
             Some(TestAttributeWithData { data, .. }) => Ok(data.borrow().clone()),
-            None => Err(AttErrorCode::INVALID_HANDLE),
+            None => Err(AttErrorCode::InvalidHandle),
         }
     }
     async fn write_attribute(&self, handle: AttHandle, data: &[u8]) -> Result<(), AttErrorCode> {
@@ -55,13 +55,13 @@ impl AttDatabase for TestAttDatabase {
             Some(TestAttributeWithData { attribute: AttAttribute { permissions, .. }, .. })
                 if !permissions.writable_with_response() =>
             {
-                Err(AttErrorCode::WRITE_NOT_PERMITTED)
+                Err(AttErrorCode::WriteNotPermitted)
             }
             Some(TestAttributeWithData { data: data_cell, .. }) => {
                 data_cell.replace(data.to_vec());
                 Ok(())
             }
-            None => Err(AttErrorCode::INVALID_HANDLE),
+            None => Err(AttErrorCode::InvalidHandle),
         }
     }
     fn write_no_response_attribute(&self, handle: AttHandle, data: &[u8]) {

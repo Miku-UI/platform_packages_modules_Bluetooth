@@ -24,28 +24,24 @@ namespace bluetooth {
 namespace metrics {
 
 class CounterMetrics : public bluetooth::Module {
- public:
+public:
   bool CacheCount(int32_t key, int64_t value);
   virtual bool Count(int32_t key, int64_t count);
   void Stop() override;
   static const ModuleFactory Factory;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
   void Start() override;
-  std::string ToString() const override {
-    return std::string("BluetoothCounterMetrics");
-  }
+  std::string ToString() const override { return std::string("BluetoothCounterMetrics"); }
   void DrainBufferedCounters();
-  virtual bool IsInitialized() {
-    return initialized_;
-  }
+  virtual bool IsInitialized() { return initialized_; }
 
- private:
+private:
   std::unordered_map<int32_t, int64_t> counters_;
   mutable std::mutex mutex_;
   std::unique_ptr<os::RepeatingAlarm> alarm_;
-  bool initialized_ {false};
+  bool initialized_{false};
 };
 
 }  // namespace metrics

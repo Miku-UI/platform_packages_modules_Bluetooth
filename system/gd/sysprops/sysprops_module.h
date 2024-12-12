@@ -25,7 +25,7 @@ namespace bluetooth {
 namespace sysprops {
 
 class SyspropsModule : public bluetooth::Module {
- public:
+public:
   SyspropsModule();
   SyspropsModule(const SyspropsModule&) = delete;
   SyspropsModule& operator=(const SyspropsModule&) = delete;
@@ -34,7 +34,7 @@ class SyspropsModule : public bluetooth::Module {
 
   static const ModuleFactory Factory;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
 
   void Start() override;
@@ -43,7 +43,7 @@ class SyspropsModule : public bluetooth::Module {
 
   std::string ToString() const override;
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
   void parse_config(std::string file_path);

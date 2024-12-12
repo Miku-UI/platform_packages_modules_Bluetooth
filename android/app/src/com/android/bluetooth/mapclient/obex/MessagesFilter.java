@@ -10,11 +10,12 @@ import java.util.Date;
  */
 public final class MessagesFilter {
 
-    public static final byte MESSAGE_TYPE_ALL = 0x00;
+    public static final byte MESSAGE_TYPE_NONE = 0x00;
     public static final byte MESSAGE_TYPE_SMS_GSM = 0x01;
     public static final byte MESSAGE_TYPE_SMS_CDMA = 0x02;
     public static final byte MESSAGE_TYPE_EMAIL = 0x04;
     public static final byte MESSAGE_TYPE_MMS = 0x08;
+    public static final byte MESSAGE_TYPE_IM = 0x10;
 
     public static final byte READ_STATUS_ANY = 0x00;
     public static final byte READ_STATUS_UNREAD = 0x01;
@@ -24,7 +25,7 @@ public final class MessagesFilter {
     public static final byte PRIORITY_HIGH = 0x01;
     public static final byte PRIORITY_NON_HIGH = 0x02;
 
-    public byte messageType = MESSAGE_TYPE_ALL;
+    public byte excludedMessageTypes = MESSAGE_TYPE_NONE;
 
     public String periodBegin = null;
 
@@ -41,7 +42,7 @@ public final class MessagesFilter {
     public MessagesFilter() {}
 
     public MessagesFilter(MessagesFilter filter) {
-        this.messageType = filter.messageType;
+        this.excludedMessageTypes = filter.excludedMessageTypes;
         this.periodBegin = filter.periodBegin;
         this.periodEnd = filter.periodEnd;
         this.readStatus = filter.readStatus;
@@ -50,8 +51,8 @@ public final class MessagesFilter {
         this.priority = filter.priority;
     }
 
-    public void setMessageType(byte filter) {
-        messageType = filter;
+    public void setExcludedMessageTypes(byte filter) {
+        excludedMessageTypes = filter;
     }
 
     public void setPeriod(Date filterBegin, Date filterEnd) {
@@ -95,11 +96,11 @@ public final class MessagesFilter {
         /**
          * Sets the `Message Type` field of the filter.
          *
-         * @param messageType to filter on.
+         * @param excludedMessageTypes to filter on.
          * @return This {@link Builder} object.
          */
-        public Builder setMessageType(byte messageType) {
-            mMessagesFilter.setMessageType(messageType);
+        public Builder setExcludedMessageTypes(byte excludedMessageTypes) {
+            mMessagesFilter.setExcludedMessageTypes(excludedMessageTypes);
             return this;
         }
 

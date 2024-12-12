@@ -32,7 +32,7 @@ namespace storage {
 
 LegacyConfigFile::LegacyConfigFile(std::string path) : path_(std::move(path)) {
   log::assert_that(!path_.empty(), "assert failed: !path_.empty()");
-};
+}
 
 std::optional<ConfigCache> LegacyConfigFile::Read(size_t temp_devices_capacity) {
   log::assert_that(!path_.empty(), "assert failed: !path_.empty()");

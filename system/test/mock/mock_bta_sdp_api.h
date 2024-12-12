@@ -44,8 +44,8 @@ namespace bta_sdp_api {
 struct BTA_SdpCreateRecordByUser {
   static tBTA_SDP_STATUS return_value;
   std::function<tBTA_SDP_STATUS(void* user_data)> body{
-      [](void* /* user_data */) { return return_value; }};
-  tBTA_SDP_STATUS operator()(void* user_data) { return body(user_data); };
+          [](void* /* user_data */) { return return_value; }};
+  tBTA_SDP_STATUS operator()(void* user_data) { return body(user_data); }
 };
 extern struct BTA_SdpCreateRecordByUser BTA_SdpCreateRecordByUser;
 
@@ -54,7 +54,7 @@ extern struct BTA_SdpCreateRecordByUser BTA_SdpCreateRecordByUser;
 // Return: void
 struct BTA_SdpDumpsys {
   std::function<void(int fd)> body{[](int /* fd */) {}};
-  void operator()(int fd) { body(fd); };
+  void operator()(int fd) { body(fd); }
 };
 extern struct BTA_SdpDumpsys BTA_SdpDumpsys;
 
@@ -64,10 +64,8 @@ extern struct BTA_SdpDumpsys BTA_SdpDumpsys;
 struct BTA_SdpEnable {
   static tBTA_SDP_STATUS return_value;
   std::function<tBTA_SDP_STATUS(tBTA_SDP_DM_CBACK* p_cback)> body{
-      [](tBTA_SDP_DM_CBACK* /* p_cback */) { return return_value; }};
-  tBTA_SDP_STATUS operator()(tBTA_SDP_DM_CBACK* p_cback) {
-    return body(p_cback);
-  };
+          [](tBTA_SDP_DM_CBACK* /* p_cback */) { return return_value; }};
+  tBTA_SDP_STATUS operator()(tBTA_SDP_DM_CBACK* p_cback) { return body(p_cback); }
 };
 extern struct BTA_SdpEnable BTA_SdpEnable;
 
@@ -77,8 +75,8 @@ extern struct BTA_SdpEnable BTA_SdpEnable;
 struct BTA_SdpRemoveRecordByUser {
   static tBTA_SDP_STATUS return_value;
   std::function<tBTA_SDP_STATUS(void* user_data)> body{
-      [](void* /* user_data */) { return return_value; }};
-  tBTA_SDP_STATUS operator()(void* user_data) { return body(user_data); };
+          [](void* /* user_data */) { return return_value; }};
+  tBTA_SDP_STATUS operator()(void* user_data) { return body(user_data); }
 };
 extern struct BTA_SdpRemoveRecordByUser BTA_SdpRemoveRecordByUser;
 
@@ -87,14 +85,13 @@ extern struct BTA_SdpRemoveRecordByUser BTA_SdpRemoveRecordByUser;
 // Return: tBTA_SDP_STATUS
 struct BTA_SdpSearch {
   static tBTA_SDP_STATUS return_value;
-  std::function<tBTA_SDP_STATUS(const RawAddress& bd_addr,
-                                const bluetooth::Uuid& uuid)>
-      body{[](const RawAddress& /* bd_addr */,
-              const bluetooth::Uuid& /* uuid */) { return return_value; }};
-  tBTA_SDP_STATUS operator()(const RawAddress& bd_addr,
-                             const bluetooth::Uuid& uuid) {
+  std::function<tBTA_SDP_STATUS(const RawAddress& bd_addr, const bluetooth::Uuid& uuid)> body{
+          [](const RawAddress& /* bd_addr */, const bluetooth::Uuid& /* uuid */) {
+            return return_value;
+          }};
+  tBTA_SDP_STATUS operator()(const RawAddress& bd_addr, const bluetooth::Uuid& uuid) {
     return body(bd_addr, uuid);
-  };
+  }
 };
 extern struct BTA_SdpSearch BTA_SdpSearch;
 

@@ -15,6 +15,7 @@
 
 package com.android.bluetooth;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothSocket;
 
 import com.android.bluetooth.flags.Flags;
@@ -106,12 +107,13 @@ public class BluetoothObexTransport implements ObexTransport {
         return mSocket.getMaxReceivePacketSize();
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public String getRemoteAddress() {
         if (mSocket == null) {
             return null;
         }
         String identityAddress =
-                Flags.identityAddressNullIfUnknown()
+                Flags.identityAddressNullIfNotKnown()
                         ? Utils.getBrEdrAddress(mSocket.getRemoteDevice())
                         : mSocket.getRemoteDevice().getIdentityAddress();
         return mSocket.getConnectionType() == BluetoothSocket.TYPE_RFCOMM

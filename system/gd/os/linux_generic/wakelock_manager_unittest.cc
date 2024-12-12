@@ -15,18 +15,18 @@
  *  limitations under the License.
  *
  ******************************************************************************/
-#include <optional>
-#include <unordered_map>
+#include "os/wakelock_manager.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "flatbuffers/flatbuffers.h"
+#include <optional>
+#include <unordered_map>
 
 #include "common/bind.h"
+#include "flatbuffers/flatbuffers.h"
 #include "os/handler.h"
 #include "os/thread.h"
-#include "os/wakelock_manager.h"
 #include "wakelock_manager_generated.h"
 
 namespace testing {
@@ -40,7 +40,7 @@ using bluetooth::os::WakelockManagerData;
 using bluetooth::os::WakelockManagerDataBuilder;
 
 class TestOsCallouts : public WakelockManager::OsCallouts {
- public:
+public:
   void AcquireCallout(const std::string& lock_name) override {
     auto iter = acquired_lock_counts.find(lock_name);
     if (iter == acquired_lock_counts.end()) {
@@ -70,7 +70,7 @@ class TestOsCallouts : public WakelockManager::OsCallouts {
 };
 
 class WakelockManagerTest : public Test {
- protected:
+protected:
   void SetUp() override {
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
     handler_ = new Handler(thread_);
@@ -84,8 +84,8 @@ class WakelockManagerTest : public Test {
   void SyncHandler() {
     std::promise<void> promise;
     auto future = promise.get_future();
-    handler_->Post(
-        bluetooth::common::BindOnce(&std::promise<void>::set_value, bluetooth::common::Unretained(&promise)));
+    handler_->Post(bluetooth::common::BindOnce(&std::promise<void>::set_value,
+                                               bluetooth::common::Unretained(&promise)));
     auto future_status = future.wait_for(std::chrono::seconds(1));
     ASSERT_EQ(future_status, std::future_status::ready);
   }

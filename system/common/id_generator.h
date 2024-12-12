@@ -21,7 +21,7 @@
 /* Helper class generating N unique ids, from 0 to N-1 */
 template <std::size_t N>
 class IdGenerator {
- public:
+public:
   static int ALL_USED;
 
   IdGenerator() : in_use_{} {}
@@ -40,7 +40,7 @@ class IdGenerator {
   /* Release given ID */
   void Release(int id) { in_use_[id] = false; }
 
- private:
+private:
   std::array<bool, N> in_use_;
 };
 

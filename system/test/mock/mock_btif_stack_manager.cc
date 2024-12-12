@@ -32,6 +32,4 @@ auto interfaceToProfiles = MockCoreInterface{};
 
 }  // namespace
 
-bluetooth::core::CoreInterface* GetInterfaceToProfiles() {
-  return &interfaceToProfiles;
-}
+bluetooth::core::CoreInterface* GetInterfaceToProfiles() { return &interfaceToProfiles; }

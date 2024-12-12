@@ -72,8 +72,6 @@ public class CompanionManagerTest {
                 .when(mAdapterService)
                 .getSharedPreferences(
                         eq(CompanionManager.COMPANION_INFO), eq(Context.MODE_PRIVATE));
-        // Tell the AdapterService that it is a mock (see isMock documentation)
-        doReturn(true).when(mAdapterService).isMock();
         // Use the resources in the instrumentation instead of the mocked AdapterService
         when(mAdapterService.getResources()).thenReturn(mTargetContext.getResources());
 

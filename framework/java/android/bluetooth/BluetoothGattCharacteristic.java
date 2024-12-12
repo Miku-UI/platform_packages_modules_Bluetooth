@@ -232,7 +232,7 @@ public class BluetoothGattCharacteristic implements Parcelable {
         mPermissions = permissions;
         mService = service;
         mValue = null;
-        mDescriptors = new ArrayList<BluetoothGattDescriptor>();
+        mDescriptors = new ArrayList<>();
 
         if ((mProperties & PROPERTY_WRITE_NO_RESPONSE) != 0) {
             mWriteType = WRITE_TYPE_NO_RESPONSE;
@@ -248,7 +248,7 @@ public class BluetoothGattCharacteristic implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeParcelable(new ParcelUuid(mUuid), 0);
+        (new ParcelUuid(mUuid)).writeToParcel(out, flags);
         out.writeInt(mInstance);
         out.writeInt(mProperties);
         out.writeInt(mPermissions);
@@ -269,22 +269,16 @@ public class BluetoothGattCharacteristic implements Parcelable {
             };
 
     private BluetoothGattCharacteristic(Parcel in) {
-        mUuid = ((ParcelUuid) in.readParcelable(null)).getUuid();
+        mUuid = ParcelUuid.CREATOR.createFromParcel(in).getUuid();
         mInstance = in.readInt();
         mProperties = in.readInt();
         mPermissions = in.readInt();
         mKeySize = in.readInt();
         mWriteType = in.readInt();
 
-        mDescriptors = new ArrayList<BluetoothGattDescriptor>();
-
-        ArrayList<BluetoothGattDescriptor> descs =
-                in.createTypedArrayList(BluetoothGattDescriptor.CREATOR);
-        if (descs != null) {
-            for (BluetoothGattDescriptor desc : descs) {
-                desc.setCharacteristic(this);
-                mDescriptors.add(desc);
-            }
+        mDescriptors = in.createTypedArrayList(BluetoothGattDescriptor.CREATOR);
+        for (BluetoothGattDescriptor desc : mDescriptors) {
+            desc.setCharacteristic(this);
         }
     }
 

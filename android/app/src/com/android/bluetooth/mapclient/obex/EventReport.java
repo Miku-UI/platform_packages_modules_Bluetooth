@@ -31,6 +31,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Object representation of event report received by MNS
@@ -47,7 +48,7 @@ public class EventReport {
     private final Bmessage.Type mMsgType;
 
     @VisibleForTesting
-    EventReport(HashMap<String, String> attrs) throws IllegalArgumentException {
+    EventReport(Map<String, String> attrs) throws IllegalArgumentException {
         mType = parseType(attrs.get("type"));
 
         if (mType != Type.MEMORY_FULL && mType != Type.MEMORY_AVAILABLE) {

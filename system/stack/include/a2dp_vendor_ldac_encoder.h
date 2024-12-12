@@ -38,11 +38,10 @@ void A2DP_VendorUnloadEncoderLdac(void);
 // The current A2DP codec config is in |a2dp_codec_config|.
 // |read_callback| is the callback for reading the input audio data.
 // |enqueue_callback| is the callback for enqueueing the encoded audio data.
-void a2dp_vendor_ldac_encoder_init(
-    const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-    A2dpCodecConfig* a2dp_codec_config,
-    a2dp_source_read_callback_t read_callback,
-    a2dp_source_enqueue_callback_t enqueue_callback);
+void a2dp_vendor_ldac_encoder_init(const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+                                   A2dpCodecConfig* a2dp_codec_config,
+                                   a2dp_source_read_callback_t read_callback,
+                                   a2dp_source_enqueue_callback_t enqueue_callback);
 
 // Cleanup the A2DP LDAC encoder.
 void a2dp_vendor_ldac_encoder_cleanup(void);

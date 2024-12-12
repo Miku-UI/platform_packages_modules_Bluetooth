@@ -28,6 +28,8 @@
 
 #include <cstdint>
 #include <deque>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "bta/gatt/database.h"
 #include "bta/gatt/database_builder.h"
@@ -108,6 +110,7 @@ typedef struct {
   uint8_t initiating_phys;
   bool opportunistic;
   tBT_DEVICE_TYPE remote_addr_type;
+  uint16_t preferred_mtu;
 } tBTA_GATTC_API_OPEN;
 
 typedef struct {
@@ -247,15 +250,15 @@ typedef struct {
    * Properties */
   bool read_multiple_not_supported;
 
-  uint8_t srvc_hdl_chg; /* service handle change indication pending */
+  uint8_t srvc_hdl_chg;    /* service handle change indication pending */
   bool srvc_hdl_db_hash;   /* read db hash pending */
   uint8_t srvc_disc_count; /* current discovery retry count */
-  uint16_t attr_index;  /* cahce NV saving/loading attribute index */
+  uint16_t attr_index;     /* cache NV saving/loading attribute index */
 
   uint16_t mtu;
 
   bool disc_blocked_waiting_on_version;
-  uint16_t blocked_conn_id;
+  tCONN_ID blocked_conn_id;
 } tBTA_GATTC_SERV;
 
 #ifndef BTA_GATTC_NOTIF_REG_MAX
@@ -273,7 +276,7 @@ typedef struct {
   tBTA_GATTC_CBACK* p_cback;
   bool in_use;
   tGATT_IF client_if; /* client interface with BTE stack for this application */
-  uint8_t num_clcb; /* number of associated CLCB */
+  uint8_t num_clcb;   /* number of associated CLCB */
   bool dereg_pending;
   bluetooth::Uuid app_uuid;
   tBTA_GATTC_NOTIF_REG notif_reg[BTA_GATTC_NOTIF_REG_MAX];
@@ -282,11 +285,11 @@ typedef struct {
 /* client channel is a mapping between a BTA client(cl_id) and a remote BD
  * address */
 typedef struct {
-  uint16_t bta_conn_id; /* client channel ID, unique for clcb */
+  tCONN_ID bta_conn_id; /* client channel ID, unique for clcb */
   RawAddress bda;
-  tBT_TRANSPORT transport;  /* channel transport */
-  tBTA_GATTC_RCB* p_rcb;    /* pointer to the registration CB */
-  tBTA_GATTC_SERV* p_srcb;  /* server cache CB */
+  tBT_TRANSPORT transport;        /* channel transport */
+  tBTA_GATTC_RCB* p_rcb;          /* pointer to the registration CB */
+  tBTA_GATTC_SERV* p_srcb;        /* server cache CB */
   const tBTA_GATTC_DATA* p_q_cmd; /* command in queue waiting for execution */
   std::deque<const tBTA_GATTC_DATA*> p_q_cmd_queue;
 
@@ -322,7 +325,7 @@ typedef struct {
   bool in_use;
   RawAddress remote_bda;
   tBTA_GATTC_CIF_MASK cif_mask;
-
+  std::unordered_set<tGATT_IF> cif_set;
 } tBTA_GATTC_BG_TCK;
 
 typedef struct {
@@ -343,8 +346,10 @@ typedef struct {
   tBTA_GATTC_CONN conn_track[GATT_MAX_PHY_CHANNEL];
   tBTA_GATTC_BG_TCK bg_track[BTA_GATTC_KNOWN_SR_MAX];
   tBTA_GATTC_RCB cl_rcb[BTA_GATTC_CL_MAX];
+  std::unordered_map<tGATT_IF, std::unique_ptr<tBTA_GATTC_RCB>> cl_rcb_map;
 
   tBTA_GATTC_CLCB clcb[BTA_GATTC_CLCB_MAX];
+  std::unordered_set<std::unique_ptr<tBTA_GATTC_CLCB>> clcb_set;
   tBTA_GATTC_SERV known_server[BTA_GATTC_KNOWN_SR_MAX];
 } tBTA_GATTC_CB;
 
@@ -359,45 +364,34 @@ extern tBTA_GATTC_CB bta_gattc_cb;
  *  Function prototypes
  ****************************************************************************/
 bool bta_gattc_hdl_event(const BT_HDR_RIGID* p_msg);
-bool bta_gattc_sm_execute(tBTA_GATTC_CLCB* p_clcb, uint16_t event,
-                          const tBTA_GATTC_DATA* p_data);
+bool bta_gattc_sm_execute(tBTA_GATTC_CLCB* p_clcb, uint16_t event, const tBTA_GATTC_DATA* p_data);
 
 /* function processed outside SM */
 void bta_gattc_disable();
-void bta_gattc_register(const bluetooth::Uuid& app_uuid,
-                        tBTA_GATTC_CBACK* p_data, BtaAppRegisterCallback cb,
-                        bool eatt_support);
+void bta_gattc_register(const bluetooth::Uuid& app_uuid, tBTA_GATTC_CBACK* p_data,
+                        BtaAppRegisterCallback cb, bool eatt_support);
 void bta_gattc_process_api_open(const tBTA_GATTC_DATA* p_msg);
 void bta_gattc_process_api_open_cancel(const tBTA_GATTC_DATA* p_msg);
 void bta_gattc_deregister(tBTA_GATTC_RCB* p_clreg);
 
 /* function within state machine */
 void bta_gattc_open(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
-void bta_gattc_open_fail(tBTA_GATTC_CLCB* p_clcb,
-                         const tBTA_GATTC_DATA* p_data);
-void bta_gattc_open_error(tBTA_GATTC_CLCB* p_clcb,
-                          const tBTA_GATTC_DATA* p_data);
+void bta_gattc_open_fail(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
+void bta_gattc_open_error(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 
-void bta_gattc_cancel_open(tBTA_GATTC_CLCB* p_clcb,
-                           const tBTA_GATTC_DATA* p_data);
-void bta_gattc_cancel_open_ok(tBTA_GATTC_CLCB* p_clcb,
-                              const tBTA_GATTC_DATA* p_data);
-void bta_gattc_cancel_open_error(tBTA_GATTC_CLCB* p_clcb,
-                                 const tBTA_GATTC_DATA* p_data);
+void bta_gattc_cancel_open(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
+void bta_gattc_cancel_open_ok(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
+void bta_gattc_cancel_open_error(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 
 void bta_gattc_conn(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 
 void bta_gattc_close(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
-void bta_gattc_close_fail(tBTA_GATTC_CLCB* p_clcb,
-                          const tBTA_GATTC_DATA* p_data);
-void bta_gattc_disc_close(tBTA_GATTC_CLCB* p_clcb,
-                          const tBTA_GATTC_DATA* p_data);
+void bta_gattc_close_fail(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
+void bta_gattc_disc_close(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 
-void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb,
-                              const tBTA_GATTC_DATA* p_data);
+void bta_gattc_start_discover(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_start_discover_internal(tBTA_GATTC_CLCB* p_clcb);
-void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb,
-                         const tBTA_GATTC_DATA* p_data);
+void bta_gattc_disc_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_read(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_write(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_op_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
@@ -406,17 +400,14 @@ void bta_gattc_search(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_fail(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_confirm(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_execute(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
-void bta_gattc_read_multi(tBTA_GATTC_CLCB* p_clcb,
-                          const tBTA_GATTC_DATA* p_data);
+void bta_gattc_read_multi(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_ci_open(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_ci_close(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
-void bta_gattc_op_cmpl_during_discovery(tBTA_GATTC_CLCB* p_clcb,
-                                        const tBTA_GATTC_DATA* p_data);
-void bta_gattc_restart_discover(tBTA_GATTC_CLCB* p_clcb,
-                                const tBTA_GATTC_DATA* p_msg);
+void bta_gattc_op_cmpl_during_discovery(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
+void bta_gattc_restart_discover(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_msg);
 void bta_gattc_cancel_bk_conn(const tBTA_GATTC_API_CANCEL_OPEN* p_data);
 void bta_gattc_send_open_cback(tBTA_GATTC_RCB* p_clreg, tGATT_STATUS status,
-                               const RawAddress& remote_bda, uint16_t conn_id,
+                               const RawAddress& remote_bda, tCONN_ID conn_id,
                                tBT_TRANSPORT transport, uint16_t mtu);
 void bta_gattc_process_api_refresh(const RawAddress& remote_bda);
 void bta_gattc_cfg_mtu(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
@@ -424,22 +415,19 @@ void bta_gattc_listen(tBTA_GATTC_DATA* p_msg);
 void bta_gattc_broadcast(tBTA_GATTC_DATA* p_msg);
 
 /* utility functions */
-tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if,
-                                            const RawAddress& remote_bda,
+tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if, const RawAddress& remote_bda,
                                             tBT_TRANSPORT transport);
-tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(uint16_t conn_id);
-tBTA_GATTC_CLCB* bta_gattc_clcb_alloc(tGATT_IF client_if,
-                                      const RawAddress& remote_bda,
+tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(tCONN_ID conn_id);
+tBTA_GATTC_CLCB* bta_gattc_clcb_alloc(tGATT_IF client_if, const RawAddress& remote_bda,
                                       tBT_TRANSPORT transport);
 void bta_gattc_clcb_dealloc(tBTA_GATTC_CLCB* p_clcb);
 void bta_gattc_server_disconnected(tBTA_GATTC_SERV* p_srcb);
-tBTA_GATTC_CLCB* bta_gattc_find_alloc_clcb(tGATT_IF client_if,
-                                           const RawAddress& remote_bda,
+tBTA_GATTC_CLCB* bta_gattc_find_alloc_clcb(tGATT_IF client_if, const RawAddress& remote_bda,
                                            tBT_TRANSPORT transport);
 tBTA_GATTC_RCB* bta_gattc_cl_get_regcb(uint8_t client_if);
 tBTA_GATTC_SERV* bta_gattc_find_srcb(const RawAddress& bda);
 tBTA_GATTC_SERV* bta_gattc_srcb_alloc(const RawAddress& bda);
-tBTA_GATTC_SERV* bta_gattc_find_scb_by_cid(uint16_t conn_id);
+tBTA_GATTC_SERV* bta_gattc_find_scb_by_cid(tCONN_ID conn_id);
 tBTA_GATTC_CLCB* bta_gattc_find_int_conn_clcb(tBTA_GATTC_DATA* p_msg);
 tBTA_GATTC_CLCB* bta_gattc_find_int_disconn_clcb(tBTA_GATTC_DATA* p_msg);
 
@@ -448,63 +436,43 @@ enum BtaEnqueuedResult_t {
   ENQUEUED_FOR_LATER,
 };
 
-BtaEnqueuedResult_t bta_gattc_enqueue(tBTA_GATTC_CLCB* p_clcb,
-                                      const tBTA_GATTC_DATA* p_data);
-bool bta_gattc_is_data_queued(tBTA_GATTC_CLCB* p_clcb,
-                              const tBTA_GATTC_DATA* p_data);
+BtaEnqueuedResult_t bta_gattc_enqueue(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
+bool bta_gattc_is_data_queued(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data);
 void bta_gattc_continue(tBTA_GATTC_CLCB* p_clcb);
-void bta_gattc_send_mtu_response(tBTA_GATTC_CLCB* p_clcb,
-                                 const tBTA_GATTC_DATA* p_data,
+void bta_gattc_send_mtu_response(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data,
                                  uint16_t current_mtu);
-void bta_gattc_cmpl_sendmsg(uint16_t conn_id, tGATTC_OPTYPE op,
-                            tGATT_STATUS status, tGATT_CL_COMPLETE* p_data);
+void bta_gattc_cmpl_sendmsg(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+                            tGATT_CL_COMPLETE* p_data);
 
-bool bta_gattc_check_notif_registry(tBTA_GATTC_RCB* p_clreg,
-                                    tBTA_GATTC_SERV* p_srcb,
+bool bta_gattc_check_notif_registry(tBTA_GATTC_RCB* p_clreg, tBTA_GATTC_SERV* p_srcb,
                                     tBTA_GATTC_NOTIFY* p_notify);
-bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda,
-                            bool add);
-bool bta_gattc_check_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda,
-                             uint8_t role);
+bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda, bool add);
+bool bta_gattc_check_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda, uint8_t role);
 uint8_t bta_gattc_num_reg_app(void);
-void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* p_srcb,
-                                        uint16_t conn_id, uint16_t start_handle,
-                                        uint16_t end_handle);
+void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* p_srcb, tCONN_ID conn_id,
+                                        uint16_t start_handle, uint16_t end_handle);
 tBTA_GATTC_SERV* bta_gattc_find_srvr_cache(const RawAddress& bda);
 
 /* discovery functions */
-void bta_gattc_disc_res_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
-                              tGATT_DISC_RES* p_data);
-void bta_gattc_disc_cmpl_cback(uint16_t conn_id, tGATT_DISC_TYPE disc_type,
-                               tGATT_STATUS status);
-tGATT_STATUS bta_gattc_discover_pri_service(uint16_t conn_id,
-                                            tBTA_GATTC_SERV* p_server_cb,
+void bta_gattc_disc_res_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, tGATT_DISC_RES* p_data);
+void bta_gattc_disc_cmpl_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, tGATT_STATUS status);
+tGATT_STATUS bta_gattc_discover_pri_service(tCONN_ID conn_id, tBTA_GATTC_SERV* p_server_cb,
                                             tGATT_DISC_TYPE disc_type);
 void bta_gattc_search_service(tBTA_GATTC_CLCB* p_clcb, bluetooth::Uuid* p_uuid);
-const std::list<gatt::Service>* bta_gattc_get_services(uint16_t conn_id);
-const gatt::Service* bta_gattc_get_service_for_handle(uint16_t conn_id,
-                                                      uint16_t handle);
-const gatt::Characteristic* bta_gattc_get_characteristic_srcb(
-    tBTA_GATTC_SERV* p_srcb, uint16_t handle);
-const gatt::Service* bta_gattc_get_service_for_handle_srcb(
-    tBTA_GATTC_SERV* p_srcb, uint16_t handle);
-const gatt::Characteristic* bta_gattc_get_characteristic(uint16_t conn_id,
-                                                         uint16_t handle);
-const gatt::Descriptor* bta_gattc_get_descriptor(uint16_t conn_id,
-                                                 uint16_t handle);
-const gatt::Characteristic* bta_gattc_get_owning_characteristic(
-    uint16_t conn_id, uint16_t handle);
-void bta_gattc_get_gatt_db(uint16_t conn_id, uint16_t start_handle,
-                           uint16_t end_handle, btgatt_db_element_t** db,
-                           int* count);
+const std::list<gatt::Service>* bta_gattc_get_services(tCONN_ID conn_id);
+const gatt::Service* bta_gattc_get_service_for_handle(tCONN_ID conn_id, uint16_t handle);
+const gatt::Characteristic* bta_gattc_get_characteristic_srcb(tBTA_GATTC_SERV* p_srcb,
+                                                              uint16_t handle);
+const gatt::Service* bta_gattc_get_service_for_handle_srcb(tBTA_GATTC_SERV* p_srcb,
+                                                           uint16_t handle);
+const gatt::Characteristic* bta_gattc_get_characteristic(tCONN_ID conn_id, uint16_t handle);
+const gatt::Descriptor* bta_gattc_get_descriptor(tCONN_ID conn_id, uint16_t handle);
+const gatt::Characteristic* bta_gattc_get_owning_characteristic(tCONN_ID conn_id, uint16_t handle);
+void bta_gattc_get_gatt_db(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
+                           btgatt_db_element_t** db, int* count);
 void bta_gattc_init_cache(tBTA_GATTC_SERV* p_srvc_cb);
 
-enum class RobustCachingSupport {
-  UNSUPPORTED,
-  SUPPORTED,
-  UNKNOWN,
-  W4_REMOTE_VERSION
-};
+enum class RobustCachingSupport { UNSUPPORTED, SUPPORTED, UNKNOWN, W4_REMOTE_VERSION };
 RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
                                              const gatt::Database& db);
 
@@ -522,8 +490,7 @@ bool bta_gattc_read_db_hash(tBTA_GATTC_CLCB* p_clcb, bool is_svc_chg);
 gatt::Database bta_gattc_hash_load(const Octet16& hash);
 bool bta_gattc_hash_write(const Octet16& hash, const gatt::Database& database);
 gatt::Database bta_gattc_cache_load(const RawAddress& server_bda);
-void bta_gattc_cache_write(const RawAddress& server_bda,
-                           const gatt::Database& database);
+void bta_gattc_cache_write(const RawAddress& server_bda, const gatt::Database& database);
 void bta_gattc_cache_link(const RawAddress& server_bda, const Octet16& hash);
 void bta_gattc_cache_reset(const RawAddress& server_bda);
 
@@ -565,13 +532,11 @@ namespace fmt {
 template <>
 struct formatter<tBTA_GATTC_CB_STATE> : enum_formatter<tBTA_GATTC_CB_STATE> {};
 template <>
-struct formatter<tBTA_GATTC_SERV_STATE>
-    : enum_formatter<tBTA_GATTC_SERV_STATE> {};
+struct formatter<tBTA_GATTC_SERV_STATE> : enum_formatter<tBTA_GATTC_SERV_STATE> {};
 template <>
 struct formatter<tBTA_GATTC_STATE> : enum_formatter<tBTA_GATTC_STATE> {};
 template <>
-struct formatter<RobustCachingSupport> : enum_formatter<RobustCachingSupport> {
-};
+struct formatter<RobustCachingSupport> : enum_formatter<RobustCachingSupport> {};
 }  // namespace fmt
 
 #endif /* BTA_GATTC_INT_H */

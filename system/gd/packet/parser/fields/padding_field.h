@@ -20,7 +20,7 @@
 #include "parse_location.h"
 
 class PaddingField : public PacketField {
- public:
+public:
   PaddingField(int size, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -51,6 +51,6 @@ class PaddingField : public PacketField {
 
   virtual void GenValidator(std::ostream&) const override;
 
- private:
+private:
   Size size_;
 };

@@ -32,6 +32,9 @@
 
 package com.android.bluetooth.opp;
 
+import android.annotation.RequiresPermission;
+import android.annotation.SdkConstant;
+import android.annotation.SdkConstant.SdkConstantType;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
 import android.content.ContentValues;
@@ -95,15 +98,24 @@ public class Constants {
     static final String ACTION_HANDOVER_SEND_MULTIPLE =
             "android.nfc.handover.intent.action.HANDOVER_SEND_MULTIPLE";
 
+    /** permission needed to be able to receive handover status requests */
+    static final String HANDOVER_STATUS_PERMISSION = "android.permission.NFC_HANDOVER_STATUS";
+
     /** the intent that is used for indicating an incoming transfer */
+    @RequiresPermission(HANDOVER_STATUS_PERMISSION)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     static final String ACTION_HANDOVER_STARTED =
             "android.nfc.handover.intent.action.HANDOVER_STARTED";
 
     /** intent action used to indicate the progress of a handover transfer */
+    @RequiresPermission(HANDOVER_STATUS_PERMISSION)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     static final String ACTION_BT_OPP_TRANSFER_PROGRESS =
             "android.nfc.handover.intent.action.TRANSFER_PROGRESS";
 
     /** intent action used to indicate the completion of a handover transfer */
+    @RequiresPermission(HANDOVER_STATUS_PERMISSION)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
     static final String ACTION_BT_OPP_TRANSFER_DONE =
             "android.nfc.handover.intent.action.TRANSFER_DONE";
 
@@ -144,9 +156,6 @@ public class Constants {
     /** intent extra used to provide the mime-type of the data in the handover transfer */
     static final String EXTRA_BT_OPP_TRANSFER_MIMETYPE =
             "android.nfc.handover.intent.extra.TRANSFER_MIME_TYPE";
-
-    /** permission needed to be able to receive handover status requests */
-    static final String HANDOVER_STATUS_PERMISSION = "android.permission.NFC_HANDOVER_STATUS";
 
     /** the intent that gets sent when deleting the incoming file confirmation notification */
     static final String ACTION_HIDE = "android.btopp.intent.action.HIDE";

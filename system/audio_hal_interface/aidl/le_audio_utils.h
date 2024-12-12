@@ -29,78 +29,70 @@ namespace bluetooth {
 namespace audio {
 namespace aidl {
 
-::aidl::android::hardware::bluetooth::audio::CodecId
-GetAidlCodecIdFromStackFormat(
-    const ::bluetooth::le_audio::types::LeAudioCodecId& codec_id);
+::aidl::android::hardware::bluetooth::audio::CodecId GetAidlCodecIdFromStackFormat(
+        const ::bluetooth::le_audio::types::LeAudioCodecId& codec_id);
 
 ::bluetooth::le_audio::types::LeAudioCodecId GetStackCodecIdFromAidlFormat(
-    const ::aidl::android::hardware::bluetooth::audio::CodecId& codec_id);
+        const ::aidl::android::hardware::bluetooth::audio::CodecId& codec_id);
 
-std::optional<std::vector<
-    std::optional<::aidl::android::hardware::bluetooth::audio::MetadataLtv>>>
+std::optional<std::vector<std::optional<::aidl::android::hardware::bluetooth::audio::MetadataLtv>>>
 GetAidlMetadataFromStackFormat(const std::vector<uint8_t>& vec);
 
 bluetooth::le_audio::types::LeAudioLtvMap GetStackMetadataFromAidlFormat(
-    const std::vector<std::optional<
-        ::aidl::android::hardware::bluetooth::audio::MetadataLtv>>& source);
+        const std::vector<std::optional<::aidl::android::hardware::bluetooth::audio::MetadataLtv>>&
+                source);
 
-std::optional<std::vector<
-    std::optional<::aidl::android::hardware::bluetooth::audio::
-                      IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>
+std::optional<
+        std::vector<std::optional<::aidl::android::hardware::bluetooth::audio::
+                                          IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>
 GetAidlLeAudioDeviceCapabilitiesFromStackFormat(
-    const std::optional<
-        std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs);
+        const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs);
 
 ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-    LeAudioBroadcastConfigurationRequirement
-    GetAidlLeAudioBroadcastConfigurationRequirementFromStackFormat(
-        const std::vector<std::pair<
-            ::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
-            subgroup_quality);
+        LeAudioBroadcastConfigurationRequirement
+        GetAidlLeAudioBroadcastConfigurationRequirementFromStackFormat(
+                const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType,
+                                            uint8_t>>& subgroup_quality);
 
 ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-    LeAudioConfigurationRequirement
-    GetAidlLeAudioUnicastConfigurationRequirementsFromStackFormat(
-        ::bluetooth::le_audio::types::LeAudioContextType context_type,
-        const std::optional<std::vector<
-            ::bluetooth::le_audio::CodecManager::
-                UnicastConfigurationRequirements::DeviceDirectionRequirements>>&
-            sink_reqs,
-        const std::optional<std::vector<
-            ::bluetooth::le_audio::CodecManager::
-                UnicastConfigurationRequirements::DeviceDirectionRequirements>>&
-            source_reqs);
+        LeAudioConfigurationRequirement
+        GetAidlLeAudioUnicastConfigurationRequirementsFromStackFormat(
+                ::bluetooth::le_audio::types::LeAudioContextType context_type,
+                const std::optional<std::vector<
+                        ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements::
+                                DeviceDirectionRequirements>>& sink_reqs,
+                const std::optional<std::vector<
+                        ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements::
+                                DeviceDirectionRequirements>>& source_reqs);
 ::bluetooth::le_audio::types::LeAudioLtvMap GetStackLeAudioLtvMapFromAidlFormat(
-    const std::vector<::aidl::android::hardware::bluetooth::audio::
-                          CodecSpecificConfigurationLtv>& aidl_config_ltvs);
+        const std::vector<
+                ::aidl::android::hardware::bluetooth::audio::CodecSpecificConfigurationLtv>&
+                aidl_config_ltvs);
 
-::bluetooth::le_audio::broadcaster::BroadcastSubgroupBisCodecConfig
-GetStackBisConfigFromAidlFormat(
-    const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-        LeAudioSubgroupBisConfiguration& aidl_cfg,
-    ::bluetooth::le_audio::types::LeAudioCodecId& out_codec_id);
+::bluetooth::le_audio::broadcaster::BroadcastSubgroupBisCodecConfig GetStackBisConfigFromAidlFormat(
+        const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                LeAudioSubgroupBisConfiguration& aidl_cfg,
+        ::bluetooth::le_audio::types::LeAudioCodecId& out_codec_id);
 
 std::vector<::bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig>
 GetStackSubgroupsFromAidlFormat(
-    const std::vector<
-        ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-            LeAudioBroadcastSubgroupConfiguration>& aidl_subgroups);
+        const std::vector<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                                  LeAudioBroadcastSubgroupConfiguration>& aidl_subgroups);
 
-struct ::bluetooth::le_audio::types::DataPathConfiguration
-GetStackDataPathFromAidlFormat(
-    const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-        LeAudioDataPathConfiguration& dp);
+struct ::bluetooth::le_audio::types::DataPathConfiguration GetStackDataPathFromAidlFormat(
+        const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                LeAudioDataPathConfiguration& dp);
 
 std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
 GetStackBroadcastConfigurationFromAidlFormat(
-    const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-        LeAudioBroadcastConfigurationSetting& setting);
+        const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                LeAudioBroadcastConfigurationSetting& setting);
 
 std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
 GetStackUnicastConfigurationFromAidlFormat(
-    ::bluetooth::le_audio::types::LeAudioContextType ctx_type,
-    const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-        LeAudioAseConfigurationSetting& config);
+        ::bluetooth::le_audio::types::LeAudioContextType ctx_type,
+        const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                LeAudioAseConfigurationSetting& config);
 
 }  // namespace aidl
 }  // namespace audio

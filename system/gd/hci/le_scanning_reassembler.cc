@@ -34,12 +34,9 @@
 namespace bluetooth::hci {
 
 std::optional<LeScanningReassembler::CompleteAdvertisingData>
-LeScanningReassembler::ProcessAdvertisingReport(
-    uint16_t event_type,
-    uint8_t address_type,
-    Address address,
-    uint8_t advertising_sid,
-    const std::vector<uint8_t>& advertising_data) {
+LeScanningReassembler::ProcessAdvertisingReport(uint16_t event_type, uint8_t address_type,
+                                                Address address, uint8_t advertising_sid,
+                                                const std::vector<uint8_t>& advertising_data) {
   bool is_scannable = event_type & (1 << kScannableBit);
   bool is_scan_response = event_type & (1 << kScanResponseBit);
   bool is_legacy = event_type & (1 << kLegacyBit);
@@ -69,7 +66,7 @@ LeScanningReassembler::ProcessAdvertisingReport(
 
   // Concatenate the data with existing fragments.
   std::list<AdvertisingFragment>::iterator advertising_fragment =
-      AppendFragment(key, event_type, advertising_data);
+          AppendFragment(key, event_type, advertising_data);
 
   // Trim the advertising data when the complete payload is received.
   if (data_status != DataStatus::CONTINUING) {
@@ -86,23 +83,27 @@ LeScanningReassembler::ProcessAdvertisingReport(
   // - For extended advertising, when the current data is marked
   //   incomplete OR when a scan response is expected.
   if (data_status == DataStatus::CONTINUING || expect_scan_response) {
+    log::verbose(
+            "Ignoring advertising report when scan response is expected or current data is marked "
+            "incomplete");
     return {};
   }
 
   // Otherwise the full advertising report has been reassembled,
   // removed the cache entry and return the complete advertising data.
-  CompleteAdvertisingData result{
-      .extended_event_type = advertising_fragment->extended_event_type,
-      .data = std::move(advertising_fragment->data)};
+  CompleteAdvertisingData result{.extended_event_type = advertising_fragment->extended_event_type,
+                                 .data = std::move(advertising_fragment->data)};
   cache_.erase(advertising_fragment);
+  log::verbose("Full advertising report has been reassembled");
   return result;
 }
 
 std::optional<std::vector<uint8_t>> LeScanningReassembler::ProcessPeriodicAdvertisingReport(
-    uint16_t sync_handle, DataStatus data_status, const std::vector<uint8_t>& advertising_data) {
+        uint16_t sync_handle, DataStatus data_status,
+        const std::vector<uint8_t>& advertising_data) {
   // Concatenate the data with existing fragments.
   std::list<PeriodicAdvertisingFragment>::iterator advertising_fragment =
-      AppendPeriodicFragment(sync_handle, advertising_data);
+          AppendPeriodicFragment(sync_handle, advertising_data);
 
   // Return and wait for additional fragments if the data is marked as
   // incomplete.
@@ -120,7 +121,7 @@ std::optional<std::vector<uint8_t>> LeScanningReassembler::ProcessPeriodicAdvert
 /// Trim the advertising data by removing empty or overflowing
 /// GAP Data entries.
 std::vector<uint8_t> LeScanningReassembler::TrimAdvertisingData(
-    const std::vector<uint8_t>& advertising_data) {
+        const std::vector<uint8_t>& advertising_data) {
   // Remove empty and overflowing entries from the advertising data.
   std::vector<uint8_t> significant_advertising_data;
   for (size_t offset = 0; offset < advertising_data.size();) {
@@ -129,10 +130,9 @@ std::vector<uint8_t> LeScanningReassembler::TrimAdvertisingData(
 
     if (entry_size != 0 && entry_size < remaining_size) {
       significant_advertising_data.push_back(entry_size);
-      significant_advertising_data.insert(
-          significant_advertising_data.end(),
-          advertising_data.begin() + offset + 1,
-          advertising_data.begin() + offset + 1 + entry_size);
+      significant_advertising_data.insert(significant_advertising_data.end(),
+                                          advertising_data.begin() + offset + 1,
+                                          advertising_data.begin() + offset + 1 + entry_size);
     }
 
     offset += entry_size + 1;
@@ -141,8 +141,9 @@ std::vector<uint8_t> LeScanningReassembler::TrimAdvertisingData(
   return significant_advertising_data;
 }
 
-LeScanningReassembler::AdvertisingKey::AdvertisingKey(
-    Address address, DirectAdvertisingAddressType address_type, uint8_t sid)
+LeScanningReassembler::AdvertisingKey::AdvertisingKey(Address address,
+                                                      DirectAdvertisingAddressType address_type,
+                                                      uint8_t sid)
     : address(), sid() {
   // The address type is NO_ADDRESS_PROVIDED for anonymous advertising.
   if (address_type != DirectAdvertisingAddressType::NO_ADDRESS_PROVIDED) {
@@ -163,8 +164,8 @@ bool LeScanningReassembler::AdvertisingKey::operator==(const AdvertisingKey& oth
 /// If the advertiser is unknown a new entry is added, optionally by
 /// dropping the oldest advertiser.
 std::list<LeScanningReassembler::AdvertisingFragment>::iterator
-LeScanningReassembler::AppendFragment(
-    const AdvertisingKey& key, uint16_t extended_event_type, const std::vector<uint8_t>& data) {
+LeScanningReassembler::AppendFragment(const AdvertisingKey& key, uint16_t extended_event_type,
+                                      const std::vector<uint8_t>& data) {
   auto it = FindFragment(key);
   if (it != cache_.end()) {
     // Legacy scan responses don't contain a 'connectable' bit, so this adds the
@@ -172,7 +173,7 @@ LeScanningReassembler::AppendFragment(
     if ((extended_event_type & (1 << kLegacyBit)) &&
         (extended_event_type & (1 << kScanResponseBit))) {
       it->extended_event_type =
-          extended_event_type | (it->extended_event_type & (1 << kConnectableBit));
+              extended_event_type | (it->extended_event_type & (1 << kConnectableBit));
     } else {
       it->extended_event_type = extended_event_type;
     }
@@ -200,7 +201,7 @@ bool LeScanningReassembler::ContainsFragment(const AdvertisingKey& key) {
 }
 
 std::list<LeScanningReassembler::AdvertisingFragment>::iterator LeScanningReassembler::FindFragment(
-    const AdvertisingKey& key) {
+        const AdvertisingKey& key) {
   for (auto it = cache_.begin(); it != cache_.end(); it++) {
     if (it->key == key) {
       return it;
@@ -213,8 +214,8 @@ std::list<LeScanningReassembler::AdvertisingFragment>::iterator LeScanningReasse
 /// If the advertiser is unknown a new entry is added, optionally by
 /// dropping the oldest advertiser.
 std::list<LeScanningReassembler::PeriodicAdvertisingFragment>::iterator
-LeScanningReassembler::AppendPeriodicFragment(
-    uint16_t sync_handle, const std::vector<uint8_t>& data) {
+LeScanningReassembler::AppendPeriodicFragment(uint16_t sync_handle,
+                                              const std::vector<uint8_t>& data) {
   auto it = FindPeriodicFragment(sync_handle);
   if (it != periodic_cache_.end()) {
     it->data.insert(it->data.end(), data.cbegin(), data.cend());

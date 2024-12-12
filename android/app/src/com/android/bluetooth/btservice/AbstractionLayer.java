@@ -18,6 +18,7 @@ package com.android.bluetooth.btservice;
 
 public final class AbstractionLayer {
     // Do not modify without updating the HAL files.
+    // Do not modify without migrating data in the config
 
     // TODO: Some of the constants are repeated from BluetoothAdapter.java.
     // Get rid of them and maintain just one.
@@ -34,7 +35,6 @@ public final class AbstractionLayer {
     static final int BT_PROPERTY_CLASS_OF_DEVICE = 0x04;
     static final int BT_PROPERTY_TYPE_OF_DEVICE = 0x05;
     static final int BT_PROPERTY_SERVICE_RECORD = 0x06;
-    static final int BT_PROPERTY_ADAPTER_SCAN_MODE = 0x07;
     static final int BT_PROPERTY_ADAPTER_BONDED_DEVICES = 0x08;
     static final int BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT = 0x09;
 

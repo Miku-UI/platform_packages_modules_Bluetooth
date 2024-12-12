@@ -31,13 +31,14 @@ android_logger = "*"
 jni = "*"
 paste = "*"
 async-trait = "*"
-pdl-runtime = "0.3.0"
+pdl-runtime = "0.3.1"
 tokio-test = "0.4.2"
 tokio = { version = "1.23.0", features = ["macros"] }
 scopeguard = "1.1.0"
+bytes = "1.5.0"
 
 [build-dependencies]
-pdl-compiler = "0.3.0"
+pdl-compiler = "0.3.1"
 
 [lib]
 crate-type = ["rlib"]

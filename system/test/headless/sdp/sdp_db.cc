@@ -42,6 +42,5 @@ void SdpDb::Print(FILE* filep) const {
   for (int i = 0; i < db_->num_uuid_filters; i++) {
     fprintf(filep, "  uuid:%s\n", db_->uuid_filters[i].ToString().c_str());
   }
-  fprintf(filep, "raw data size:0x%x used:0x%x\n", db_->raw_size,
-          db_->raw_used);
+  fprintf(filep, "raw data size:0x%x used:0x%x\n", db_->raw_size, db_->raw_used);
 }

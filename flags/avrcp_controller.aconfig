@@ -20,3 +20,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "signal_connecting_on_focus_gain"
+    namespace: "bluetooth"
+    description: " Briefly signal a connecting playback state when we get focus so browser clients see us having an active playback state and switch to us as the source"
+    bug: "350510879"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

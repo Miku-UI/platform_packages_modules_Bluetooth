@@ -22,7 +22,7 @@
 #include "type_def.h"
 
 class VectorField : public PacketField {
- public:
+public:
   VectorField(std::string name, int element_size, std::string size_modifier, ParseLocation loc);
 
   VectorField(std::string name, TypeDef* type_def, std::string size_modifier, ParseLocation loc);

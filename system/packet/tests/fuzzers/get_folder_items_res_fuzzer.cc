@@ -28,8 +28,8 @@ namespace avrcp {
 using TestGetFolderItemsReqPacket = TestPacketType<GetFolderItemsRequest>;
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t* data, size_t size) {
-  auto builder = GetFolderItemsResponseBuilder::MakeNowPlayingBuilder(
-      Status::NO_ERROR, 0x0000, 0xFFFF);
+  auto builder =
+          GetFolderItemsResponseBuilder::MakeNowPlayingBuilder(Status::NO_ERROR, 0x0000, 0xFFFF);
   std::set<AttributeEntry> attributes;
   FuzzedDataProvider data_provider(data, size);
   std::string s = data_provider.ConsumeRemainingBytesAsString();
@@ -42,8 +42,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t* data, size_t size) {
   test_packet->GetData();
 
   // Second test with the same data.
-  auto builder2 = GetFolderItemsResponseBuilder::MakeVFSBuilder(
-      Status::NO_ERROR, 0x0000, 0xFFFF);
+  auto builder2 = GetFolderItemsResponseBuilder::MakeVFSBuilder(Status::NO_ERROR, 0x0000, 0xFFFF);
   auto folder = FolderItem(0x0000000000000001, 0x00, true, s);
   builder2->AddFolder(folder);
 
@@ -59,8 +58,8 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t* data, size_t size) {
   auto packet_size = BrowsePacket::kMinSize() + 5;
   packet_size += player1.size();
 
-  auto builder3 = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
-      Status::NO_ERROR, 0x0000, packet_size);
+  auto builder3 = GetFolderItemsResponseBuilder::MakePlayerListBuilder(Status::NO_ERROR, 0x0000,
+                                                                       packet_size);
 
   builder3->AddMediaPlayer(player1);
 

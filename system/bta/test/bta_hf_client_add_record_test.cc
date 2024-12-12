@@ -25,7 +25,7 @@
 #include "test/fake/fake_osi.h"
 
 class BtaHfClientAddRecordTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override { fake_osi_ = std::make_unique<test::fake::FakeOsi>(); }
 
   void TearDown() override {}
@@ -40,4 +40,3 @@ TEST_F(BtaHfClientAddRecordTest, test_hf_client_add_record) {
   bta_hf_client_add_record("Handsfree", scn, features, sdp_handle);
   ASSERT_EQ(HFP_VERSION_1_7, get_default_hfp_version());
 }
-

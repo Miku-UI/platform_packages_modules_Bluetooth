@@ -1,35 +1,25 @@
-use crate::{
-    gatt::server::att_database::AttDatabase,
-    packets::{
-        AttAttributeDataBuilder, AttAttributeDataChild, AttChild, AttErrorResponseBuilder,
-        AttOpcode, AttReadRequestView, AttReadResponseBuilder,
-    },
-};
+use crate::{gatt::server::att_database::AttDatabase, packets::att};
+use pdl_runtime::EncodeError;
 
 pub async fn handle_read_request<T: AttDatabase>(
-    request: AttReadRequestView<'_>,
+    request: att::AttReadRequest,
     mtu: usize,
     db: &T,
-) -> AttChild {
-    let handle = request.get_attribute_handle().into();
+) -> Result<att::Att, EncodeError> {
+    let handle = request.attribute_handle.into();
 
     match db.read_attribute(handle).await {
         Ok(mut data) => {
             // as per 5.3 3F 3.4.4.4 ATT_READ_RSP, we truncate to MTU - 1
             data.truncate(mtu - 1);
-            AttReadResponseBuilder {
-                value: AttAttributeDataBuilder {
-                    _child_: AttAttributeDataChild::RawData(data.into_boxed_slice()),
-                },
-            }
-            .into()
+            att::AttReadResponse { value: data }.try_into()
         }
-        Err(error_code) => AttErrorResponseBuilder {
-            opcode_in_error: AttOpcode::READ_REQUEST,
+        Err(error_code) => att::AttErrorResponse {
+            opcode_in_error: att::AttOpcode::ReadRequest,
             handle_in_error: handle.into(),
             error_code,
         }
-        .into(),
+        .try_into(),
     }
 }
 
@@ -46,8 +36,7 @@ mod test {
                 test::test_att_db::TestAttDatabase,
             },
         },
-        packets::{AttAttributeDataChild, AttErrorCode, AttReadRequestBuilder, Serializable},
-        utils::packet::{build_att_data, build_view_or_crash},
+        packets::att,
     };
 
     fn make_db_with_handle_and_value(handle: u16, value: Vec<u8>) -> TestAttDatabase {
@@ -65,11 +54,9 @@ mod test {
         handle: u16,
         mtu: usize,
         db: &TestAttDatabase,
-    ) -> AttChild {
-        let att_view = build_view_or_crash(AttReadRequestBuilder {
-            attribute_handle: AttHandle(handle).into(),
-        });
-        tokio_test::block_on(handle_read_request(att_view.view(), mtu, db))
+    ) -> Result<att::Att, EncodeError> {
+        let att_view = att::AttReadRequest { attribute_handle: AttHandle(handle).into() };
+        tokio_test::block_on(handle_read_request(att_view, mtu, db))
     }
 
     #[test]
@@ -78,13 +65,7 @@ mod test {
 
         let response = do_read_request_with_handle_and_mtu(3, 31, &db);
 
-        response.to_vec().unwrap(); // check it serializes
-        assert_eq!(
-            response,
-            AttChild::AttReadResponse(AttReadResponseBuilder {
-                value: build_att_data(AttAttributeDataChild::RawData([4, 5].into()))
-            })
-        )
+        assert_eq!(response, att::AttReadResponse { value: vec![4, 5] }.try_into());
     }
 
     #[test]
@@ -95,7 +76,7 @@ mod test {
         let response = do_read_request_with_handle_and_mtu(3, 2, &db);
 
         // assert
-        assert_eq!(response.to_vec().unwrap(), vec![4]);
+        assert_eq!(response, att::AttReadResponse { value: vec![4] }.try_into());
     }
 
     #[test]
@@ -108,11 +89,12 @@ mod test {
         // assert
         assert_eq!(
             response,
-            AttChild::AttErrorResponse(AttErrorResponseBuilder {
-                opcode_in_error: AttOpcode::READ_REQUEST,
+            att::AttErrorResponse {
+                opcode_in_error: att::AttOpcode::ReadRequest,
                 handle_in_error: AttHandle(4).into(),
-                error_code: AttErrorCode::INVALID_HANDLE,
-            })
+                error_code: att::AttErrorCode::InvalidHandle,
+            }
+            .try_into()
         );
     }
 
@@ -137,11 +119,12 @@ mod test {
         // assert
         assert_eq!(
             response,
-            AttChild::AttErrorResponse(AttErrorResponseBuilder {
-                opcode_in_error: AttOpcode::READ_REQUEST,
+            att::AttErrorResponse {
+                opcode_in_error: att::AttOpcode::ReadRequest,
                 handle_in_error: AttHandle(3).into(),
-                error_code: AttErrorCode::READ_NOT_PERMITTED,
-            })
+                error_code: att::AttErrorCode::ReadNotPermitted,
+            }
+            .try_into()
         );
     }
 }

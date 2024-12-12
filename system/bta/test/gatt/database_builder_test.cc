@@ -31,8 +31,7 @@ namespace gatt {
 
 namespace {
 /* make_pair doesn't work well with ASSERT_EQ, have own helper instead */
-inline std::pair<uint16_t, uint16_t> make_pair_u16(uint16_t first,
-                                                   uint16_t second) {
+inline std::pair<uint16_t, uint16_t> make_pair_u16(uint16_t first, uint16_t second) {
   return std::make_pair(first, second);
 }
 
@@ -41,10 +40,8 @@ Uuid SERVICE_2_UUID = Uuid::FromString("00001801-0000-1000-8000-00805f9b34fb");
 Uuid SERVICE_3_UUID = Uuid::FromString("0000180f-0000-1000-8000-00805f9b34fb");
 Uuid SERVICE_4_UUID = Uuid::FromString("0000fef5-0000-1000-8000-00805f9b34fb");
 Uuid SERVICE_5_UUID = Uuid::FromString("0000180a-0000-1000-8000-00805f9b34fb");
-Uuid SERVICE_1_CHAR_1_UUID =
-    Uuid::FromString("00002a00-0000-1000-8000-00805f9b34fb");
-Uuid SERVICE_1_CHAR_1_DESC_1_UUID =
-    Uuid::FromString("00002902-0000-1000-8000-00805f9b34fb");
+Uuid SERVICE_1_CHAR_1_UUID = Uuid::FromString("00002a00-0000-1000-8000-00805f9b34fb");
+Uuid SERVICE_1_CHAR_1_DESC_1_UUID = Uuid::FromString("00002902-0000-1000-8000-00805f9b34fb");
 
 }  // namespace
 
@@ -93,8 +90,7 @@ TEST(DatabaseBuilderTest, DescriptorAddTest) {
   ASSERT_EQ(service->characteristics[0].value_handle, 0x0003);
   ASSERT_EQ(service->characteristics[0].properties, 0x02);
 
-  ASSERT_EQ(service->characteristics[0].descriptors[0].uuid,
-            SERVICE_1_CHAR_1_DESC_1_UUID);
+  ASSERT_EQ(service->characteristics[0].descriptors[0].uuid, SERVICE_1_CHAR_1_DESC_1_UUID);
   ASSERT_EQ(service->characteristics[0].descriptors[0].handle, 0x0004);
 }
 

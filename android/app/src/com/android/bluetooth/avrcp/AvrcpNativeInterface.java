@@ -59,9 +59,9 @@ public class AvrcpNativeInterface {
             if (sInstance == null) {
                 sInstance = new AvrcpNativeInterface();
             }
-        }
 
-        return sInstance;
+            return sInstance;
+        }
     }
 
     /** Set singleton instance. */
@@ -96,7 +96,7 @@ public class AvrcpNativeInterface {
 
     void setBipClientStatus(BluetoothDevice device, boolean connected) {
         String identityAddress =
-                Flags.identityAddressNullIfUnknown()
+                Flags.identityAddressNullIfNotKnown()
                         ? Utils.getBrEdrAddress(device)
                         : mAdapterService.getIdentityAddress(device.getAddress());
         setBipClientStatusNative(identityAddress, connected);
@@ -192,6 +192,11 @@ public class AvrcpNativeInterface {
         setBrowsedPlayerResponseNative(playerId, success, rootId, numItems);
     }
 
+    int setAddressedPlayer(int playerId) {
+        d("setAddressedPlayer: playerId=" + playerId);
+        return mAvrcpService.setAddressedPlayer(playerId);
+    }
+
     void getFolderItemsRequest(int playerId, String mediaId) {
         d("getFolderItemsRequest: playerId=" + playerId + " mediaId=" + mediaId);
         mAvrcpService.getFolderItems(playerId, mediaId, (a, b) -> getFolderItemsResponse(a, b));
@@ -236,7 +241,7 @@ public class AvrcpNativeInterface {
 
     boolean disconnectDevice(BluetoothDevice device) {
         String identityAddress =
-                Flags.identityAddressNullIfUnknown()
+                Flags.identityAddressNullIfNotKnown()
                         ? Utils.getBrEdrAddress(device)
                         : mAdapterService.getIdentityAddress(device.getAddress());
         d("disconnectDevice: identityAddress=" + identityAddress);
@@ -277,7 +282,7 @@ public class AvrcpNativeInterface {
     void sendVolumeChanged(BluetoothDevice device, int volume) {
         d("sendVolumeChanged: volume=" + volume);
         String identityAddress =
-                Flags.identityAddressNullIfUnknown()
+                Flags.identityAddressNullIfNotKnown()
                         ? Utils.getBrEdrAddress(device)
                         : mAdapterService.getIdentityAddress(device.getAddress());
         sendVolumeChangedNative(identityAddress, volume);

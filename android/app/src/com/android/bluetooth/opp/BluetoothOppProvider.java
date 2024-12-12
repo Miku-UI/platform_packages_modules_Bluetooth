@@ -462,32 +462,30 @@ public final class BluetoothOppProvider extends ContentProvider {
 
         int match = sURIMatcher.match(uri);
         switch (match) {
-            case SHARES:
-            case SHARES_ID:
-                {
-                    String myWhere;
-                    if (selection != null) {
-                        if (match == SHARES) {
-                            myWhere = "( " + selection + " )";
-                        } else {
-                            myWhere = "( " + selection + " ) AND ";
-                        }
+            case SHARES, SHARES_ID -> {
+                String myWhere;
+                if (selection != null) {
+                    if (match == SHARES) {
+                        myWhere = "( " + selection + " )";
                     } else {
-                        myWhere = "";
+                        myWhere = "( " + selection + " ) AND ";
                     }
-                    if (match == SHARES_ID) {
-                        String segment = uri.getPathSegments().get(1);
-                        rowId = Long.parseLong(segment);
-                        myWhere += " ( " + BluetoothShare._ID + " = " + rowId + " ) ";
-                    }
-
-                    if (values.size() > 0) {
-                        count = db.update(DB_TABLE, values, myWhere, selectionArgs);
-                    }
-                    break;
+                } else {
+                    myWhere = "";
                 }
-            default:
+                if (match == SHARES_ID) {
+                    String segment = uri.getPathSegments().get(1);
+                    rowId = Long.parseLong(segment);
+                    myWhere = myWhere + " ( " + BluetoothShare._ID + " = " + rowId + " ) ";
+                }
+
+                if (values.size() > 0) {
+                    count = db.update(DB_TABLE, values, myWhere, selectionArgs);
+                }
+            }
+            default -> {
                 throw new UnsupportedOperationException("Cannot update unknown URI: " + uri);
+            }
         }
         getContext().getContentResolver().notifyChange(uri, null);
 
@@ -500,30 +498,28 @@ public final class BluetoothOppProvider extends ContentProvider {
         int count;
         int match = sURIMatcher.match(uri);
         switch (match) {
-            case SHARES:
-            case SHARES_ID:
-                {
-                    String myWhere;
-                    if (selection != null) {
-                        if (match == SHARES) {
-                            myWhere = "( " + selection + " )";
-                        } else {
-                            myWhere = "( " + selection + " ) AND ";
-                        }
+            case SHARES, SHARES_ID -> {
+                String myWhere;
+                if (selection != null) {
+                    if (match == SHARES) {
+                        myWhere = "( " + selection + " )";
                     } else {
-                        myWhere = "";
+                        myWhere = "( " + selection + " ) AND ";
                     }
-                    if (match == SHARES_ID) {
-                        String segment = uri.getPathSegments().get(1);
-                        long rowId = Long.parseLong(segment);
-                        myWhere += " ( " + BluetoothShare._ID + " = " + rowId + " ) ";
-                    }
-
-                    count = db.delete(DB_TABLE, myWhere, selectionArgs);
-                    break;
+                } else {
+                    myWhere = "";
                 }
-            default:
+                if (match == SHARES_ID) {
+                    String segment = uri.getPathSegments().get(1);
+                    long rowId = Long.parseLong(segment);
+                    myWhere = myWhere + " ( " + BluetoothShare._ID + " = " + rowId + " ) ";
+                }
+
+                count = db.delete(DB_TABLE, myWhere, selectionArgs);
+            }
+            default -> {
                 throw new UnsupportedOperationException("Cannot delete unknown URI: " + uri);
+            }
         }
         getContext().getContentResolver().notifyChange(uri, null);
         return count;

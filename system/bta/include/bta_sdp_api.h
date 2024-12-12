@@ -82,8 +82,7 @@ typedef union {
 } tBTA_SDP;
 
 /* SDP DM Interface callback */
-typedef void(tBTA_SDP_DM_CBACK)(tBTA_SDP_EVT event, tBTA_SDP* p_data,
-                                void* user_data);
+typedef void(tBTA_SDP_DM_CBACK)(tBTA_SDP_EVT event, tBTA_SDP* p_data, void* user_data);
 
 /* MCE configuration structure */
 typedef struct {
@@ -119,8 +118,7 @@ tBTA_SDP_STATUS BTA_SdpEnable(tBTA_SDP_DM_CBACK* p_cback);
  *                  BTA_SDP_FAIL if internal failure.
  *
  ******************************************************************************/
-tBTA_SDP_STATUS BTA_SdpSearch(const RawAddress& bd_addr,
-                              const bluetooth::Uuid& uuid);
+tBTA_SDP_STATUS BTA_SdpSearch(const RawAddress& bd_addr, const bluetooth::Uuid& uuid);
 
 /*******************************************************************************
  *

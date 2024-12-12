@@ -23,75 +23,66 @@
 
 #include "stack/include/bt_hdr.h"
 
-static const std::vector<const btav_a2dp_codec_index_t> CODEC_INDEX_ENUM_VALS =
-    {BTAV_A2DP_CODEC_INDEX_SOURCE_MIN,
-     BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,
-     BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
-     BTAV_A2DP_CODEC_INDEX_SOURCE_APTX,
-     BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
-     BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC,
-     BTAV_A2DP_CODEC_INDEX_SOURCE_MAX,
-     BTAV_A2DP_CODEC_INDEX_SINK_MIN,
-     BTAV_A2DP_CODEC_INDEX_SINK_SBC,
-     BTAV_A2DP_CODEC_INDEX_SINK_AAC,
-     BTAV_A2DP_CODEC_INDEX_SINK_LDAC,
-     BTAV_A2DP_CODEC_INDEX_SINK_MAX,
-     BTAV_A2DP_CODEC_INDEX_MIN,
-     BTAV_A2DP_CODEC_INDEX_MAX};
+static const std::vector<btav_a2dp_codec_index_t> CODEC_INDEX_ENUM_VALS = {
+        BTAV_A2DP_CODEC_INDEX_SOURCE_MIN,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_APTX,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC,
+        BTAV_A2DP_CODEC_INDEX_SOURCE_MAX,
+        BTAV_A2DP_CODEC_INDEX_SINK_MIN,
+        BTAV_A2DP_CODEC_INDEX_SINK_SBC,
+        BTAV_A2DP_CODEC_INDEX_SINK_AAC,
+        BTAV_A2DP_CODEC_INDEX_SINK_LDAC,
+        BTAV_A2DP_CODEC_INDEX_SINK_MAX,
+        BTAV_A2DP_CODEC_INDEX_MIN,
+        BTAV_A2DP_CODEC_INDEX_MAX};
 
-static const std::vector<const btav_a2dp_codec_priority_t>
-    CODEC_PRIORITY_ENUM_VALS = {BTAV_A2DP_CODEC_PRIORITY_DISABLED,
-                                BTAV_A2DP_CODEC_PRIORITY_DEFAULT,
-                                BTAV_A2DP_CODEC_PRIORITY_HIGHEST};
+static const std::vector<btav_a2dp_codec_priority_t> CODEC_PRIORITY_ENUM_VALS = {
+        BTAV_A2DP_CODEC_PRIORITY_DISABLED, BTAV_A2DP_CODEC_PRIORITY_DEFAULT,
+        BTAV_A2DP_CODEC_PRIORITY_HIGHEST};
 
-static const std::vector<const btav_a2dp_codec_sample_rate_t>
-    CODEC_SAMPLERATE_ENUM_VALS = {
+static const std::vector<btav_a2dp_codec_sample_rate_t> CODEC_SAMPLERATE_ENUM_VALS = {
         BTAV_A2DP_CODEC_SAMPLE_RATE_NONE,   BTAV_A2DP_CODEC_SAMPLE_RATE_44100,
         BTAV_A2DP_CODEC_SAMPLE_RATE_48000,  BTAV_A2DP_CODEC_SAMPLE_RATE_88200,
         BTAV_A2DP_CODEC_SAMPLE_RATE_96000,  BTAV_A2DP_CODEC_SAMPLE_RATE_176400,
         BTAV_A2DP_CODEC_SAMPLE_RATE_192000, BTAV_A2DP_CODEC_SAMPLE_RATE_16000,
         BTAV_A2DP_CODEC_SAMPLE_RATE_24000};
 
-static const std::vector<const btav_a2dp_codec_bits_per_sample_t>
-    CODEC_BPS_ENUM_VALS = {BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE,
-                           BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16,
-                           BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24,
-                           BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32};
+static const std::vector<btav_a2dp_codec_bits_per_sample_t> CODEC_BPS_ENUM_VALS = {
+        BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_16,
+        BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24, BTAV_A2DP_CODEC_BITS_PER_SAMPLE_32};
 
-static const std::vector<const btav_a2dp_codec_channel_mode_t>
-    CODEC_CHANNELMODE_ENUM_VALS = {BTAV_A2DP_CODEC_CHANNEL_MODE_NONE,
-                                   BTAV_A2DP_CODEC_CHANNEL_MODE_MONO,
-                                   BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO};
+static const std::vector<btav_a2dp_codec_channel_mode_t> CODEC_CHANNELMODE_ENUM_VALS = {
+        BTAV_A2DP_CODEC_CHANNEL_MODE_NONE, BTAV_A2DP_CODEC_CHANNEL_MODE_MONO,
+        BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO};
 
 // Construct a btav_a2dp_codec_index_t object
 btav_a2dp_codec_index_t getArbitraryBtavCodecIndex(FuzzedDataProvider* fdp) {
   return CODEC_INDEX_ENUM_VALS.at(
-      fdp->ConsumeIntegralInRange<size_t>(0, CODEC_INDEX_ENUM_VALS.size() - 1));
+          fdp->ConsumeIntegralInRange<size_t>(0, CODEC_INDEX_ENUM_VALS.size() - 1));
 }
 
 // Construct a btav_a2dp_codec_priority_t object
-btav_a2dp_codec_priority_t getArbitraryBtavCodecPriority(
-    FuzzedDataProvider* fdp) {
-  return CODEC_PRIORITY_ENUM_VALS.at(fdp->ConsumeIntegralInRange<size_t>(
-      0, CODEC_PRIORITY_ENUM_VALS.size() - 1));
+btav_a2dp_codec_priority_t getArbitraryBtavCodecPriority(FuzzedDataProvider* fdp) {
+  return CODEC_PRIORITY_ENUM_VALS.at(
+          fdp->ConsumeIntegralInRange<size_t>(0, CODEC_PRIORITY_ENUM_VALS.size() - 1));
 }
 // Construct a btav_a2dp_codec_sample_rate_t object
-btav_a2dp_codec_sample_rate_t getArbitraryBtavCodecSampleRate(
-    FuzzedDataProvider* fdp) {
-  return CODEC_SAMPLERATE_ENUM_VALS.at(fdp->ConsumeIntegralInRange<size_t>(
-      0, CODEC_SAMPLERATE_ENUM_VALS.size() - 1));
+btav_a2dp_codec_sample_rate_t getArbitraryBtavCodecSampleRate(FuzzedDataProvider* fdp) {
+  return CODEC_SAMPLERATE_ENUM_VALS.at(
+          fdp->ConsumeIntegralInRange<size_t>(0, CODEC_SAMPLERATE_ENUM_VALS.size() - 1));
 }
 // Construct a btav_a2dp_codec_bits_per_sample_t object
-btav_a2dp_codec_bits_per_sample_t getArbitraryBtavCodecBitsPerSample(
-    FuzzedDataProvider* fdp) {
+btav_a2dp_codec_bits_per_sample_t getArbitraryBtavCodecBitsPerSample(FuzzedDataProvider* fdp) {
   return CODEC_BPS_ENUM_VALS.at(
-      fdp->ConsumeIntegralInRange<size_t>(0, CODEC_BPS_ENUM_VALS.size() - 1));
+          fdp->ConsumeIntegralInRange<size_t>(0, CODEC_BPS_ENUM_VALS.size() - 1));
 }
 // Construct a btav_a2dp_codec_channel_mode_t object
-btav_a2dp_codec_channel_mode_t getArbitraryBtavCodecChannelMode(
-    FuzzedDataProvider* fdp) {
-  return CODEC_CHANNELMODE_ENUM_VALS.at(fdp->ConsumeIntegralInRange<size_t>(
-      0, CODEC_CHANNELMODE_ENUM_VALS.size() - 1));
+btav_a2dp_codec_channel_mode_t getArbitraryBtavCodecChannelMode(FuzzedDataProvider* fdp) {
+  return CODEC_CHANNELMODE_ENUM_VALS.at(
+          fdp->ConsumeIntegralInRange<size_t>(0, CODEC_CHANNELMODE_ENUM_VALS.size() - 1));
 }
 // Construct a btav_a2dp_codec_config_t object
 btav_a2dp_codec_config_t getArbitraryBtavCodecConfig(FuzzedDataProvider* fdp) {
@@ -110,8 +101,7 @@ btav_a2dp_codec_config_t getArbitraryBtavCodecConfig(FuzzedDataProvider* fdp) {
   return config;
 }
 
-tA2DP_ENCODER_INIT_PEER_PARAMS getArbitraryA2dpEncoderInitPeerParams(
-    FuzzedDataProvider* fdp) {
+tA2DP_ENCODER_INIT_PEER_PARAMS getArbitraryA2dpEncoderInitPeerParams(FuzzedDataProvider* fdp) {
   tA2DP_ENCODER_INIT_PEER_PARAMS params;
 
   params.is_peer_edr = fdp->ConsumeBool();
@@ -132,13 +122,11 @@ std::shared_ptr<BT_HDR> getArbitraryBtHdr(FuzzedDataProvider* fdp) {
   }
 
   uint16_t hdr_size = bytes.size() + sizeof(BT_HDR);
-  std::shared_ptr<BT_HDR> bt_hdr(reinterpret_cast<BT_HDR*>(calloc(1, hdr_size)),
-                                 free);
+  std::shared_ptr<BT_HDR> bt_hdr(reinterpret_cast<BT_HDR*>(calloc(1, hdr_size)), free);
 
   bt_hdr->event = fdp->ConsumeIntegral<uint16_t>();
   bt_hdr->len = bytes.size();
-  bt_hdr->offset =
-      fdp->ConsumeIntegralInRange<uint16_t>(0, hdr_size - sizeof(BT_HDR));
+  bt_hdr->offset = fdp->ConsumeIntegralInRange<uint16_t>(0, hdr_size - sizeof(BT_HDR));
   bt_hdr->layer_specific = fdp->ConsumeIntegral<uint16_t>();
   std::copy(bytes.begin(), bytes.end(), bt_hdr->data);
 
@@ -162,8 +150,7 @@ tBT_A2DP_OFFLOAD generateArbitrarytA2dpOffload(FuzzedDataProvider* fdp) {
   retval.mtu = fdp->ConsumeIntegral<uint16_t>();
 
   std::vector<uint8_t> codec_info_bytes = fdp->ConsumeBytes<uint8_t>(32);
-  memcpy(&retval.codec_info[0], codec_info_bytes.data(),
-         codec_info_bytes.size());
+  memcpy(&retval.codec_info[0], codec_info_bytes.data(), codec_info_bytes.size());
 
   return retval;
 }

@@ -15,6 +15,7 @@
  */
 
 #include <unistd.h>
+
 #include <cerrno>
 #include <cstdio>
 #include <filesystem>
@@ -28,10 +29,9 @@
 #include "declarations.h"
 #include "struct_parser_generator.h"
 
-void parse_namespace(
-    const std::string& root_namespace,
-    const std::filesystem::path& input_file_relative_path,
-    std::vector<std::string>* token) {
+void parse_namespace(const std::string& root_namespace,
+                     const std::filesystem::path& input_file_relative_path,
+                     std::vector<std::string>* token) {
   std::filesystem::path gen_namespace = root_namespace / input_file_relative_path;
   for (auto it = gen_namespace.begin(); it != gen_namespace.end(); ++it) {
     token->push_back(it->string());
@@ -50,17 +50,15 @@ void generate_namespace_close(const std::vector<std::string>& token, std::ostrea
   }
 }
 
-bool generate_cpp_headers_one_file(
-    const Declarations& decls,
-    bool generate_fuzzing,
-    bool generate_tests,
-    const std::filesystem::path& input_file,
-    const std::filesystem::path& include_dir,
-    const std::filesystem::path& out_dir,
-    const std::string& root_namespace) {
+bool generate_cpp_headers_one_file(const Declarations& decls, bool generate_fuzzing,
+                                   bool generate_tests, const std::filesystem::path& input_file,
+                                   const std::filesystem::path& include_dir,
+                                   const std::filesystem::path& out_dir,
+                                   const std::string& root_namespace) {
   auto gen_relative_path = input_file.lexically_relative(include_dir).parent_path();
 
-  auto input_filename = input_file.filename().string().substr(0, input_file.filename().string().find(".pdl"));
+  auto input_filename =
+          input_file.filename().string().substr(0, input_file.filename().string().find(".pdl"));
   auto gen_path = out_dir / gen_relative_path;
 
   std::filesystem::create_directories(gen_path);
@@ -77,7 +75,7 @@ bool generate_cpp_headers_one_file(
   }
 
   out_file <<
-      R"(
+          R"(
 #pragma once
 
 #include <cstdint>
@@ -117,7 +115,7 @@ bool generate_cpp_headers_one_file(
 
   if (generate_fuzzing || generate_tests) {
     out_file <<
-        R"(
+            R"(
 
 #if defined(PACKET_FUZZ_TESTING) || defined(PACKET_TESTING) || defined(FUZZ_TARGET)
 #include "packet/raw_builder.h"
@@ -146,7 +144,7 @@ bool generate_cpp_headers_one_file(
   }
 
   out_file <<
-      R"(
+          R"(
 
 using ::bluetooth::packet::BasePacketBuilder;
 using ::bluetooth::packet::BitInserter;
@@ -162,7 +160,7 @@ using ::bluetooth::packet::parser::ChecksumTypeChecker;
 
   if (generate_fuzzing || generate_tests) {
     out_file <<
-        R"(
+            R"(
 #if defined(PACKET_FUZZ_TESTING) || defined(PACKET_TESTING) || defined(FUZZ_TARGET)
 using ::bluetooth::packet::RawBuilder;
 #endif
@@ -292,7 +290,8 @@ using ::bluetooth::packet::RawBuilder;
 }
 
 // Get the out_file shard at a symbol_count
-std::ofstream& get_out_file(size_t symbol_count, size_t symbol_total, std::vector<std::ofstream>* out_files) {
+std::ofstream& get_out_file(size_t symbol_count, size_t symbol_total,
+                            std::vector<std::ofstream>* out_files) {
   auto symbols_per_shard = symbol_total / out_files->size();
   auto file_index = std::min(symbol_count / symbols_per_shard, out_files->size() - 1);
   return out_files->at(file_index);

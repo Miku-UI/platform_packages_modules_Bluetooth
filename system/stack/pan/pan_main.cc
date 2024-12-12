@@ -92,9 +92,8 @@ void pan_register_with_bnep(void) {
  * Returns          none
  *
  ******************************************************************************/
-void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
-                     const Uuid& remote_uuid, const Uuid& local_uuid,
-                     bool is_role_change) {
+void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda, const Uuid& remote_uuid,
+                     const Uuid& local_uuid, bool is_role_change) {
   /* If we are in GN or NAP role and have one or more active connections and the
    * received connection is for user role reject it. If we are in user role with
    * one connection active reject the connection. Allocate PCB and store the
@@ -116,15 +115,11 @@ void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
   uint16_t remote_uuid16 = remote_uuid.As16Bit();
   uint16_t local_uuid16 = local_uuid.As16Bit();
 
-  log::verbose(
-      "handle {}, current role {}, dst uuid 0x{:x}, src uuid 0x{:x}, role "
-      "change {}",
-      handle, pan_cb.role, local_uuid16, remote_uuid16,
-      is_role_change ? "YES" : "NO");
+  log::verbose("handle {}, current role {}, dst uuid 0x{:x}, src uuid 0x{:x}, role change {}",
+               handle, pan_cb.role, local_uuid16, remote_uuid16, is_role_change ? "YES" : "NO");
 
   /* Check if the source UUID is a valid one */
-  if (remote_uuid16 != UUID_SERVCLASS_PANU &&
-      remote_uuid16 != UUID_SERVCLASS_NAP &&
+  if (remote_uuid16 != UUID_SERVCLASS_PANU && remote_uuid16 != UUID_SERVCLASS_NAP &&
       remote_uuid16 != UUID_SERVCLASS_GN) {
     log::error("Src UUID 0x{:x} is not valid", remote_uuid16);
     BNEP_ConnectResp(handle, BNEP_CONN_FAILED_SRC_UUID);
@@ -132,23 +127,19 @@ void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
   }
 
   /* Check if the destination UUID is a valid one */
-  if (local_uuid16 != UUID_SERVCLASS_PANU &&
-      local_uuid16 != UUID_SERVCLASS_NAP && local_uuid16 != UUID_SERVCLASS_GN) {
+  if (local_uuid16 != UUID_SERVCLASS_PANU && local_uuid16 != UUID_SERVCLASS_NAP &&
+      local_uuid16 != UUID_SERVCLASS_GN) {
     log::error("Dst UUID 0x{:x} is not valid", local_uuid16);
     BNEP_ConnectResp(handle, BNEP_CONN_FAILED_DST_UUID);
     return;
   }
 
   /* Check if currently we support the destination role requested */
-  if (((!(pan_cb.role & UUID_SERVCLASS_PANU)) &&
-       local_uuid16 == UUID_SERVCLASS_PANU) ||
-      ((!(pan_cb.role & UUID_SERVCLASS_GN)) &&
-       local_uuid16 == UUID_SERVCLASS_GN) ||
-      ((!(pan_cb.role & UUID_SERVCLASS_NAP)) &&
-       local_uuid16 == UUID_SERVCLASS_NAP)) {
-    log::error(
-        "PAN Connection failed because of unsupported destination UUID 0x{:x}",
-        local_uuid16);
+  if (((!(pan_cb.role & UUID_SERVCLASS_PANU)) && local_uuid16 == UUID_SERVCLASS_PANU) ||
+      ((!(pan_cb.role & UUID_SERVCLASS_GN)) && local_uuid16 == UUID_SERVCLASS_GN) ||
+      ((!(pan_cb.role & UUID_SERVCLASS_NAP)) && local_uuid16 == UUID_SERVCLASS_NAP)) {
+    log::error("PAN Connection failed because of unsupported destination UUID 0x{:x}",
+               local_uuid16);
     BNEP_ConnectResp(handle, BNEP_CONN_FAILED_DST_UUID);
     return;
   }
@@ -162,7 +153,9 @@ void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
   switch (remote_uuid16) {
     case UUID_SERVCLASS_NAP:
     case UUID_SERVCLASS_GN:
-      if (local_uuid16 == UUID_SERVCLASS_PANU) is_valid_interaction = true;
+      if (local_uuid16 == UUID_SERVCLASS_PANU) {
+        is_valid_interaction = true;
+      }
       break;
     case UUID_SERVCLASS_PANU:
       is_valid_interaction = true;
@@ -172,25 +165,25 @@ void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
    * Explicitly disable connections to the local PANU if the remote is
    * not PANU.
    */
-  if ((local_uuid16 == UUID_SERVCLASS_PANU) &&
-      (remote_uuid16 != UUID_SERVCLASS_PANU)) {
+  if ((local_uuid16 == UUID_SERVCLASS_PANU) && (remote_uuid16 != UUID_SERVCLASS_PANU)) {
     is_valid_interaction = false;
   }
   if (!is_valid_interaction) {
     log::error(
-        "PAN Connection failed because of invalid PAN profile roles "
-        "interaction: Remote UUID 0x{:x} Local UUID 0x{:x}",
-        remote_uuid16, local_uuid16);
+            "PAN Connection failed because of invalid PAN profile roles "
+            "interaction: Remote UUID 0x{:x} Local UUID 0x{:x}",
+            remote_uuid16, local_uuid16);
     BNEP_ConnectResp(handle, BNEP_CONN_FAILED_SRC_UUID);
     return;
   }
 
   uint8_t req_role;
   /* Requested destination role is */
-  if (local_uuid16 == UUID_SERVCLASS_PANU)
+  if (local_uuid16 == UUID_SERVCLASS_PANU) {
     req_role = PAN_ROLE_CLIENT;
-  else
+  } else {
     req_role = PAN_ROLE_NAP_SERVER;
+  }
 
   /* If the connection indication is for the existing connection
   ** Check if the new destination role is acceptable
@@ -199,28 +192,25 @@ void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
   if (pcb) {
     if (pan_cb.num_conns > 1 && local_uuid16 == UUID_SERVCLASS_PANU) {
       /* There are connections other than this one
-      ** so we cann't accept PANU role. Reject
+      ** so we can't accept PANU role. Reject
       */
-      log::error(
-          "Dst UUID should be either GN or NAP only because there are other "
-          "connections");
+      log::error("Dst UUID should be either GN or NAP only because there are other connections");
       BNEP_ConnectResp(handle, BNEP_CONN_FAILED_DST_UUID);
       return;
     }
 
     /* If it is already in connected state check for bridging status */
     if (pcb->con_state == PAN_STATE_CONNECTED) {
-      log::verbose("PAN Role changing New Src 0x{:x} Dst 0x{:x}", remote_uuid16,
-                   local_uuid16);
+      log::verbose("PAN Role changing New Src 0x{:x} Dst 0x{:x}", remote_uuid16, local_uuid16);
 
       pcb->prv_src_uuid = pcb->src_uuid;
       pcb->prv_dst_uuid = pcb->dst_uuid;
 
-      if (pcb->src_uuid == UUID_SERVCLASS_NAP &&
-          local_uuid16 != UUID_SERVCLASS_NAP) {
+      if (pcb->src_uuid == UUID_SERVCLASS_NAP && local_uuid16 != UUID_SERVCLASS_NAP) {
         /* Remove bridging */
-        if (pan_cb.pan_bridge_req_cb)
+        if (pan_cb.pan_bridge_req_cb) {
           (*pan_cb.pan_bridge_req_cb)(pcb->rem_bda, false);
+        }
       }
     }
     /* Set the latest active PAN role */
@@ -234,8 +224,8 @@ void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
     ** we already have a connection then reject the request.
     ** If we have a connection in PANU role then reject it
     */
-    if (pan_cb.num_conns && (local_uuid16 == UUID_SERVCLASS_PANU ||
-                             pan_cb.active_role == PAN_ROLE_CLIENT)) {
+    if (pan_cb.num_conns &&
+        (local_uuid16 == UUID_SERVCLASS_PANU || pan_cb.active_role == PAN_ROLE_CLIENT)) {
       log::error("PAN already have a connection and can't be user");
       BNEP_ConnectResp(handle, BNEP_CONN_FAILED_DST_UUID);
       return;
@@ -282,13 +272,12 @@ void pan_conn_ind_cb(uint16_t handle, const RawAddress& p_bda,
  * Returns          none
  *
  ******************************************************************************/
-void pan_connect_state_cb(uint16_t handle, const RawAddress& /* rem_bda */,
-                          tBNEP_RESULT result, bool is_role_change) {
+void pan_connect_state_cb(uint16_t handle, const RawAddress& /* rem_bda */, tBNEP_RESULT result,
+                          bool is_role_change) {
   tPAN_CONN* pcb;
   uint8_t peer_role;
 
-  log::verbose("pan_connect_state_cb - for handle {}, result {}", handle,
-               result);
+  log::verbose("pan_connect_state_cb - for handle {}, result {}", handle, result);
   pcb = pan_get_pcb_by_handle(handle);
   if (!pcb) {
     log::error("PAN State change indication for wrong handle {}", handle);
@@ -298,14 +287,13 @@ void pan_connect_state_cb(uint16_t handle, const RawAddress& /* rem_bda */,
   /* If the connection is getting terminated remove bridging */
   if (result != BNEP_SUCCESS) {
     /* Inform the application that connection is down */
-    if (pan_cb.pan_conn_state_cb)
-      (*pan_cb.pan_conn_state_cb)(pcb->handle, pcb->rem_bda,
-                                  (tPAN_RESULT)result, is_role_change,
+    if (pan_cb.pan_conn_state_cb) {
+      (*pan_cb.pan_conn_state_cb)(pcb->handle, pcb->rem_bda, (tPAN_RESULT)result, is_role_change,
                                   PAN_ROLE_INACTIVE, PAN_ROLE_INACTIVE);
+    }
 
     /* Check if this failure is for role change only */
-    if (pcb->con_state != PAN_STATE_CONNECTED &&
-        (pcb->con_flags & PAN_FLAGS_CONN_COMPLETED)) {
+    if (pcb->con_state != PAN_STATE_CONNECTED && (pcb->con_flags & PAN_FLAGS_CONN_COMPLETED)) {
       /* restore the original values */
       log::verbose("restoring the connection state to active");
       pcb->con_state = PAN_STATE_CONNECTED;
@@ -315,16 +303,18 @@ void pan_connect_state_cb(uint16_t handle, const RawAddress& /* rem_bda */,
       pcb->dst_uuid = pcb->prv_dst_uuid;
       pan_cb.active_role = pan_cb.prv_active_role;
 
-      if ((pcb->src_uuid == UUID_SERVCLASS_NAP) && pan_cb.pan_bridge_req_cb)
+      if ((pcb->src_uuid == UUID_SERVCLASS_NAP) && pan_cb.pan_bridge_req_cb) {
         (*pan_cb.pan_bridge_req_cb)(pcb->rem_bda, true);
+      }
 
       return;
     }
 
     if (pcb->con_state == PAN_STATE_CONNECTED) {
       /* If the connections destination role is NAP remove bridging */
-      if ((pcb->src_uuid == UUID_SERVCLASS_NAP) && pan_cb.pan_bridge_req_cb)
+      if ((pcb->src_uuid == UUID_SERVCLASS_NAP) && pan_cb.pan_bridge_req_cb) {
         (*pan_cb.pan_bridge_req_cb)(pcb->rem_bda, false);
+      }
     }
 
     pan_cb.num_conns--;
@@ -333,22 +323,25 @@ void pan_connect_state_cb(uint16_t handle, const RawAddress& /* rem_bda */,
   }
 
   /* Requested destination role is */
-  if (pcb->src_uuid == UUID_SERVCLASS_PANU)
+  if (pcb->src_uuid == UUID_SERVCLASS_PANU) {
     pan_cb.active_role = PAN_ROLE_CLIENT;
-  else
+  } else {
     pan_cb.active_role = PAN_ROLE_NAP_SERVER;
+  }
 
-  if (pcb->dst_uuid == UUID_SERVCLASS_PANU)
+  if (pcb->dst_uuid == UUID_SERVCLASS_PANU) {
     peer_role = PAN_ROLE_CLIENT;
-  else
+  } else {
     peer_role = PAN_ROLE_NAP_SERVER;
+  }
 
   pcb->con_state = PAN_STATE_CONNECTED;
 
   /* Inform the application that connection is down */
-  if (pan_cb.pan_conn_state_cb)
-    (*pan_cb.pan_conn_state_cb)(pcb->handle, pcb->rem_bda, PAN_SUCCESS,
-                                is_role_change, pan_cb.active_role, peer_role);
+  if (pan_cb.pan_conn_state_cb) {
+    (*pan_cb.pan_conn_state_cb)(pcb->handle, pcb->rem_bda, PAN_SUCCESS, is_role_change,
+                                pan_cb.active_role, peer_role);
+  }
 
   /* Create bridge if the destination role is NAP */
   if (pan_cb.pan_bridge_req_cb && pcb->src_uuid == UUID_SERVCLASS_NAP) {
@@ -377,9 +370,8 @@ void pan_connect_state_cb(uint16_t handle, const RawAddress& /* rem_bda */,
  * Returns          none
  *
  ******************************************************************************/
-void pan_data_buf_ind_cb(uint16_t handle, const RawAddress& src,
-                         const RawAddress& dst, uint16_t protocol,
-                         BT_HDR* p_buf, bool ext) {
+void pan_data_buf_ind_cb(uint16_t handle, const RawAddress& src, const RawAddress& dst,
+                         uint16_t protocol, BT_HDR* p_buf, bool ext) {
   tPAN_CONN *pcb, *dst_pcb;
   tBNEP_RESULT result;
   uint16_t i, len;
@@ -395,8 +387,7 @@ void pan_data_buf_ind_cb(uint16_t handle, const RawAddress& src,
   }
 
   if (pcb->con_state != PAN_STATE_CONNECTED) {
-    log::error("PAN Data indication in wrong state {} for handle {}",
-               pcb->con_state, handle);
+    log::error("PAN Data indication in wrong state {} for handle {}", pcb->con_state, handle);
     pcb->read.drops++;
     osi_free(p_buf);
     return;
@@ -408,36 +399,32 @@ void pan_data_buf_ind_cb(uint16_t handle, const RawAddress& src,
   pcb->read.octets += len;
   pcb->read.packets++;
 
-  log::verbose(
-      "pan_data_buf_ind_cb - for handle {}, protocol 0x{:x}, length {}, ext {}",
-      handle, protocol, len, ext);
+  log::verbose("pan_data_buf_ind_cb - for handle {}, protocol 0x{:x}, length {}, ext {}", handle,
+               protocol, len, ext);
 
-  if (pcb->src_uuid == UUID_SERVCLASS_NAP)
+  if (pcb->src_uuid == UUID_SERVCLASS_NAP) {
     forward = true;
-  else
+  } else {
     forward = false;
+  }
 
   /* Check if it is broadcast or multicast packet */
   if (pcb->src_uuid != UUID_SERVCLASS_PANU) {
     if (dst.address[0] & 0x01) {
-      log::verbose(
-          "PAN received broadcast packet on handle {}, src uuid 0x{:x}", handle,
-          pcb->src_uuid);
+      log::verbose("PAN received broadcast packet on handle {}, src uuid 0x{:x}", handle,
+                   pcb->src_uuid);
       for (i = 0; i < MAX_PAN_CONNS; i++) {
-        if (pan_cb.pcb[i].con_state == PAN_STATE_CONNECTED &&
-            pan_cb.pcb[i].handle != handle &&
+        if (pan_cb.pcb[i].con_state == PAN_STATE_CONNECTED && pan_cb.pcb[i].handle != handle &&
             pcb->src_uuid == pan_cb.pcb[i].src_uuid) {
-          BNEP_Write(pan_cb.pcb[i].handle, dst, p_data, len, protocol, src,
-                     ext);
+          BNEP_Write(pan_cb.pcb[i].handle, dst, p_data, len, protocol, src, ext);
         }
       }
 
-      if (pan_cb.pan_data_buf_ind_cb)
-        (*pan_cb.pan_data_buf_ind_cb)(pcb->handle, src, dst, protocol, p_buf,
-                                      ext, forward);
-      else if (pan_cb.pan_data_ind_cb)
-        (*pan_cb.pan_data_ind_cb)(pcb->handle, src, dst, protocol, p_data, len,
-                                  ext, forward);
+      if (pan_cb.pan_data_buf_ind_cb) {
+        (*pan_cb.pan_data_buf_ind_cb)(pcb->handle, src, dst, protocol, p_buf, ext, forward);
+      } else if (pan_cb.pan_data_ind_cb) {
+        (*pan_cb.pan_data_ind_cb)(pcb->handle, src, dst, protocol, p_data, len, ext, forward);
+      }
 
       osi_free(p_buf);
       return;
@@ -446,15 +433,13 @@ void pan_data_buf_ind_cb(uint16_t handle, const RawAddress& src,
     /* Check if it is for any other PAN connection */
     dst_pcb = pan_get_pcb_by_addr(dst);
     if (dst_pcb) {
-      log::verbose(
-          "destination PANU found on handle {} and sending data, len: {}",
-          dst_pcb->handle, len);
+      log::verbose("destination PANU found on handle {} and sending data, len: {}", dst_pcb->handle,
+                   len);
 
-      result =
-          BNEP_Write(dst_pcb->handle, dst, p_data, len, protocol, src, ext);
-      if (result != BNEP_SUCCESS && result != BNEP_IGNORE_CMD)
-        log::error("Failed to write data for PAN connection handle {}",
-                   dst_pcb->handle);
+      result = BNEP_Write(dst_pcb->handle, dst, p_data, len, protocol, src, ext);
+      if (result != BNEP_SUCCESS && result != BNEP_IGNORE_CMD) {
+        log::error("Failed to write data for PAN connection handle {}", dst_pcb->handle);
+      }
       pcb->read.errors++;
       osi_free(p_buf);
       return;
@@ -462,12 +447,11 @@ void pan_data_buf_ind_cb(uint16_t handle, const RawAddress& src,
   }
 
   /* Send it over the LAN or give it to host software */
-  if (pan_cb.pan_data_buf_ind_cb)
-    (*pan_cb.pan_data_buf_ind_cb)(pcb->handle, src, dst, protocol, p_buf, ext,
-                                  forward);
-  else if (pan_cb.pan_data_ind_cb)
-    (*pan_cb.pan_data_ind_cb)(pcb->handle, src, dst, protocol, p_data, len, ext,
-                              forward);
+  if (pan_cb.pan_data_buf_ind_cb) {
+    (*pan_cb.pan_data_buf_ind_cb)(pcb->handle, src, dst, protocol, p_buf, ext, forward);
+  } else if (pan_cb.pan_data_ind_cb) {
+    (*pan_cb.pan_data_ind_cb)(pcb->handle, src, dst, protocol, p_data, len, ext, forward);
+  }
   osi_free(p_buf);
   return;
 }
@@ -486,8 +470,9 @@ void pan_data_buf_ind_cb(uint16_t handle, const RawAddress& src,
  *
  ******************************************************************************/
 void pan_tx_data_flow_cb(uint16_t handle, tBNEP_RESULT result) {
-  if (pan_cb.pan_tx_data_flow_cb)
+  if (pan_cb.pan_tx_data_flow_cb) {
     (*pan_cb.pan_tx_data_flow_cb)(handle, (tPAN_RESULT)result);
+  }
 
   return;
 }
@@ -513,17 +498,14 @@ void pan_tx_data_flow_cb(uint16_t handle, tBNEP_RESULT result) {
  * Returns          none
  *
  ******************************************************************************/
-void pan_proto_filt_ind_cb(uint16_t handle, bool indication,
-                           tBNEP_RESULT result, uint16_t num_filters,
-                           uint8_t* p_filters) {
-  log::verbose(
-      "pan_proto_filt_ind_cb - called for handle {} with ind {}, result {}, "
-      "num {}",
-      handle, indication, result, num_filters);
+void pan_proto_filt_ind_cb(uint16_t handle, bool indication, tBNEP_RESULT result,
+                           uint16_t num_filters, uint8_t* p_filters) {
+  log::verbose("pan_proto_filt_ind_cb - called for handle {} with ind {}, result {}, num {}",
+               handle, indication, result, num_filters);
 
-  if (pan_cb.pan_pfilt_ind_cb)
-    (*pan_cb.pan_pfilt_ind_cb)(handle, indication, (tPAN_RESULT)result,
-                               num_filters, p_filters);
+  if (pan_cb.pan_pfilt_ind_cb) {
+    (*pan_cb.pan_pfilt_ind_cb)(handle, indication, (tPAN_RESULT)result, num_filters, p_filters);
+  }
 }
 
 /*******************************************************************************
@@ -547,15 +529,12 @@ void pan_proto_filt_ind_cb(uint16_t handle, bool indication,
  * Returns          none
  *
  ******************************************************************************/
-void pan_mcast_filt_ind_cb(uint16_t handle, bool indication,
-                           tBNEP_RESULT result, uint16_t num_filters,
-                           uint8_t* p_filters) {
-  log::verbose(
-      "pan_mcast_filt_ind_cb - called for handle {} with ind {}, result {}, "
-      "num {}",
-      handle, indication, result, num_filters);
+void pan_mcast_filt_ind_cb(uint16_t handle, bool indication, tBNEP_RESULT result,
+                           uint16_t num_filters, uint8_t* p_filters) {
+  log::verbose("pan_mcast_filt_ind_cb - called for handle {} with ind {}, result {}, num {}",
+               handle, indication, result, num_filters);
 
-  if (pan_cb.pan_mfilt_ind_cb)
-    (*pan_cb.pan_mfilt_ind_cb)(handle, indication, (tPAN_RESULT)result,
-                               num_filters, p_filters);
+  if (pan_cb.pan_mfilt_ind_cb) {
+    (*pan_cb.pan_mfilt_ind_cb)(handle, indication, (tPAN_RESULT)result, num_filters, p_filters);
+  }
 }

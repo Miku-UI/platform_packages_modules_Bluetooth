@@ -113,29 +113,6 @@ public class MapClientServiceBinderTest {
     }
 
     @Test
-    public void getUnreadMessages_callsServiceMethod() {
-        mBinder.getUnreadMessages(mRemoteDevice, null);
-
-        verify(mService).getUnreadMessages(mRemoteDevice);
-    }
-
-    @Test
-    public void getSupportedFeatures_callsServiceMethod() {
-        mBinder.getSupportedFeatures(mRemoteDevice, null);
-
-        verify(mService).getSupportedFeatures(mRemoteDevice);
-    }
-
-    @Test
-    public void setMessageStatus_callsServiceMethod() {
-        String handle = "FFAB";
-        int status = 1234;
-        mBinder.setMessageStatus(mRemoteDevice, handle, status, null);
-
-        verify(mService).setMessageStatus(mRemoteDevice, handle, status);
-    }
-
-    @Test
     public void cleanUp_doesNotCrash() {
         mBinder.cleanup();
     }

@@ -33,8 +33,9 @@ int main(int /* argc */, char** /* argv */) {
   sp<IBluetoothHci> bluetooth = new BluetoothHci;
   configureRpcThreadpool(1, true);
   android::status_t status = bluetooth->registerAsService();
-  if (status == android::OK)
+  if (status == android::OK) {
     joinRpcThreadpool();
-  else
+  } else {
     ALOGE("Could not register as a service!");
+  }
 }

@@ -49,7 +49,7 @@ using acl_manager::ConnectionManagementCallbacks;
 using namespace blueberry::facade::hci;
 
 class AclManagerFacadeService : public AclManagerFacade::Service, public ConnectionCallbacks {
- public:
+public:
   AclManagerFacadeService(AclManager* acl_manager, ::bluetooth::os::Handler* facade_handler)
       : acl_manager_(acl_manager), facade_handler_(facade_handler) {
     acl_manager_->RegisterCallbacks(this, facade_handler_);
@@ -62,28 +62,26 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
     }
   }
 
-  ::grpc::Status CreateConnection(
-      ::grpc::ServerContext* context,
-      const ConnectionMsg* request,
-      ::grpc::ServerWriter<ConnectionEvent>* writer) override {
+  ::grpc::Status CreateConnection(::grpc::ServerContext* context, const ConnectionMsg* request,
+                                  ::grpc::ServerWriter<ConnectionEvent>* writer) override {
     log::info("peer={}", request->address());
     Address peer;
-    log::assert_that(
-        Address::FromString(request->address(), peer),
-        "assert failed: Address::FromString(request->address(), peer)");
+    log::assert_that(Address::FromString(request->address(), peer),
+                     "assert failed: Address::FromString(request->address(), peer)");
     acl_manager_->CreateConnection(peer);
     if (per_connection_events_.size() > current_connection_request_) {
-      return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED, "Only one outstanding request is supported");
+      return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "Only one outstanding request is supported");
     }
-    per_connection_events_.emplace_back(std::make_unique<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>>(
-        std::string("connection attempt ") + std::to_string(current_connection_request_)));
+    per_connection_events_.emplace_back(
+            std::make_unique<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>>(
+                    std::string("connection attempt ") +
+                    std::to_string(current_connection_request_)));
     return per_connection_events_[current_connection_request_]->RunLoop(context, writer);
   }
 
-  ::grpc::Status Disconnect(
-      ::grpc::ServerContext* /* context */,
-      const HandleMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status Disconnect(::grpc::ServerContext* /* context */, const HandleMsg* request,
+                            ::google::protobuf::Empty* /* response */) override {
     log::info("handle={}", request->handle());
     std::unique_lock<std::mutex> lock(acl_connections_mutex_);
     auto connection = acl_connections_.find(request->handle());
@@ -91,15 +89,15 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
       log::error("Invalid handle");
       return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid handle");
     } else {
-      connection->second.connection_->Disconnect(DisconnectReason::REMOTE_USER_TERMINATED_CONNECTION);
+      connection->second.connection_->Disconnect(
+              DisconnectReason::REMOTE_USER_TERMINATED_CONNECTION);
       return ::grpc::Status::OK;
     }
   }
 
-  ::grpc::Status AuthenticationRequested(
-      ::grpc::ServerContext* /* context */,
-      const HandleMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status AuthenticationRequested(::grpc::ServerContext* /* context */,
+                                         const HandleMsg* request,
+                                         ::google::protobuf::Empty* /* response */) override {
     log::info("handle={}", request->handle());
     std::unique_lock<std::mutex> lock(acl_connections_mutex_);
     auto connection = acl_connections_.find(request->handle());
@@ -110,7 +108,7 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
       connection->second.connection_->AuthenticationRequested();
       return ::grpc::Status::OK;
     }
-  };
+  }
 
 #define GET_CONNECTION(view)                                                         \
   std::map<uint16_t, Connection>::iterator connection;                               \
@@ -125,14 +123,13 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
     }                                                                                \
   } while (0)
 
-  ::grpc::Status ConnectionCommand(
-      ::grpc::ServerContext* /* context */,
-      const ConnectionCommandMsg* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status ConnectionCommand(::grpc::ServerContext* /* context */,
+                                   const ConnectionCommandMsg* request,
+                                   ::google::protobuf::Empty* /* response */) override {
     log::info("size={}", request->packet().size());
-    auto command_view =
-        ConnectionManagementCommandView::Create(AclCommandView::Create(CommandView::Create(PacketView<kLittleEndian>(
-            std::make_shared<std::vector<uint8_t>>(request->packet().begin(), request->packet().end())))));
+    auto command_view = ConnectionManagementCommandView::Create(AclCommandView::Create(
+            CommandView::Create(PacketView<kLittleEndian>(std::make_shared<std::vector<uint8_t>>(
+                    request->packet().begin(), request->packet().end())))));
     if (!command_view.IsValid()) {
       return ::grpc::Status(::grpc::StatusCode::INVALID_ARGUMENT, "Invalid command packet");
     }
@@ -174,14 +171,16 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
       case OpCode::HOLD_MODE: {
         auto view = HoldModeView::Create(command_view);
         GET_CONNECTION(view);
-        connection->second.connection_->HoldMode(view.GetHoldModeMaxInterval(), view.GetHoldModeMinInterval());
+        connection->second.connection_->HoldMode(view.GetHoldModeMaxInterval(),
+                                                 view.GetHoldModeMinInterval());
         return ::grpc::Status::OK;
       }
       case OpCode::SNIFF_MODE: {
         auto view = SniffModeView::Create(command_view);
         GET_CONNECTION(view);
-        connection->second.connection_->SniffMode(
-            view.GetSniffMaxInterval(), view.GetSniffMinInterval(), view.GetSniffAttempt(), view.GetSniffTimeout());
+        connection->second.connection_->SniffMode(view.GetSniffMaxInterval(),
+                                                  view.GetSniffMinInterval(),
+                                                  view.GetSniffAttempt(), view.GetSniffTimeout());
         return ::grpc::Status::OK;
       }
       case OpCode::EXIT_SNIFF_MODE: {
@@ -219,7 +218,8 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
       case OpCode::WRITE_LINK_SUPERVISION_TIMEOUT: {
         auto view = WriteLinkSupervisionTimeoutView::Create(command_view);
         GET_CONNECTION(view);
-        connection->second.connection_->WriteLinkSupervisionTimeout(view.GetLinkSupervisionTimeout());
+        connection->second.connection_->WriteLinkSupervisionTimeout(
+                view.GetLinkSupervisionTimeout());
         return ::grpc::Status::OK;
       }
       case OpCode::READ_FAILED_CONTACT_COUNTER: {
@@ -275,23 +275,23 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
   }
 #undef GET_CONNECTION
 
-  ::grpc::Status FetchIncomingConnection(
-      ::grpc::ServerContext* context,
-      const google::protobuf::Empty* /* request */,
-      ::grpc::ServerWriter<ConnectionEvent>* writer) override {
+  ::grpc::Status FetchIncomingConnection(::grpc::ServerContext* context,
+                                         const google::protobuf::Empty* /* request */,
+                                         ::grpc::ServerWriter<ConnectionEvent>* writer) override {
     log::info("wait for one incoming connection");
     if (per_connection_events_.size() > current_connection_request_) {
-      return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED, "Only one outstanding connection is supported");
+      return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "Only one outstanding connection is supported");
     }
-    per_connection_events_.emplace_back(std::make_unique<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>>(
-        std::string("incoming connection ") + std::to_string(current_connection_request_)));
+    per_connection_events_.emplace_back(
+            std::make_unique<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>>(
+                    std::string("incoming connection ") +
+                    std::to_string(current_connection_request_)));
     return per_connection_events_[current_connection_request_]->RunLoop(context, writer);
   }
 
-  ::grpc::Status SendAclData(
-      ::grpc::ServerContext* /* context */,
-      const AclData* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status SendAclData(::grpc::ServerContext* /* context */, const AclData* request,
+                             ::google::protobuf::Empty* /* response */) override {
     log::info("handle={}, size={}", request->handle(), request->payload().size());
     std::promise<void> promise;
     auto future = promise.get_future();
@@ -303,12 +303,9 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
       }
       // TODO: This is unsafe because connection may have gone
       connection->second.connection_->GetAclQueueEnd()->RegisterEnqueue(
-          facade_handler_,
-          common::Bind(
-              &AclManagerFacadeService::enqueue_packet,
-              common::Unretained(this),
-              common::Unretained(request),
-              common::Passed(std::move(promise))));
+              facade_handler_,
+              common::Bind(&AclManagerFacadeService::enqueue_packet, common::Unretained(this),
+                           common::Unretained(request), common::Passed(std::move(promise))));
       auto status = future.wait_for(std::chrono::milliseconds(1000));
       if (status != std::future_status::ready) {
         return ::grpc::Status(::grpc::StatusCode::RESOURCE_EXHAUSTED, "Can't send packet");
@@ -317,18 +314,19 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
     return ::grpc::Status::OK;
   }
 
-  std::unique_ptr<BasePacketBuilder> enqueue_packet(const AclData* request, std::promise<void> promise) {
+  std::unique_ptr<BasePacketBuilder> enqueue_packet(const AclData* request,
+                                                    std::promise<void> promise) {
     auto connection = acl_connections_.find(request->handle());
     log::assert_that(connection != acl_connections_.end(), "handle {}", request->handle());
     connection->second.connection_->GetAclQueueEnd()->UnregisterEnqueue();
-    std::unique_ptr<RawBuilder> packet =
-        std::make_unique<RawBuilder>(std::vector<uint8_t>(request->payload().begin(), request->payload().end()));
+    std::unique_ptr<RawBuilder> packet = std::make_unique<RawBuilder>(
+            std::vector<uint8_t>(request->payload().begin(), request->payload().end()));
     promise.set_value();
     return packet;
   }
 
-  ::grpc::Status FetchAclData(
-      ::grpc::ServerContext* context, const HandleMsg* request, ::grpc::ServerWriter<AclData>* writer) override {
+  ::grpc::Status FetchAclData(::grpc::ServerContext* context, const HandleMsg* request,
+                              ::grpc::ServerWriter<AclData>* writer) override {
     log::info("handle={}", request->handle());
     auto connection = acl_connections_.find(request->handle());
     if (connection == acl_connections_.end()) {
@@ -367,17 +365,17 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
     uint16_t handle = to_handle(current_connection_request_);
     acl_connections_.erase(handle);
     acl_connections_.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(handle),
-        std::forward_as_tuple(handle, shared_connection, per_connection_events_[current_connection_request_]));
+            std::piecewise_construct, std::forward_as_tuple(handle),
+            std::forward_as_tuple(handle, shared_connection,
+                                  per_connection_events_[current_connection_request_]));
     shared_connection->GetAclQueueEnd()->RegisterDequeue(
-        facade_handler_,
-        common::Bind(&AclManagerFacadeService::on_incoming_acl, common::Unretained(this), shared_connection, handle));
+            facade_handler_, common::Bind(&AclManagerFacadeService::on_incoming_acl,
+                                          common::Unretained(this), shared_connection, handle));
     auto callbacks = acl_connections_.find(handle)->second.GetCallbacks();
     shared_connection->RegisterCallbacks(callbacks, facade_handler_);
     auto addr = shared_connection->GetAddress();
-    std::unique_ptr<BasePacketBuilder> builder =
-        ConnectionCompleteBuilder::Create(ErrorCode::SUCCESS, handle, addr, LinkType::ACL, Enable::DISABLED);
+    std::unique_ptr<BasePacketBuilder> builder = ConnectionCompleteBuilder::Create(
+            ErrorCode::SUCCESS, handle, addr, LinkType::ACL, Enable::DISABLED);
     ConnectionEvent success;
     success.set_payload(builder_to_string(std::move(builder)));
     per_connection_events_[current_connection_request_]->OnIncomingEvent(success);
@@ -391,7 +389,7 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
   void OnConnectFail(Address address, ErrorCode reason, bool /* locally_initiated */) override {
     log::info("addr={}, reason={}", address, ErrorCodeText(reason));
     std::unique_ptr<BasePacketBuilder> builder =
-        ConnectionCompleteBuilder::Create(reason, 0, address, LinkType::ACL, Enable::DISABLED);
+            ConnectionCompleteBuilder::Create(reason, 0, address, LinkType::ACL, Enable::DISABLED);
     ConnectionEvent fail;
     fail.set_payload(builder_to_string(std::move(builder)));
     per_connection_events_[current_connection_request_]->OnIncomingEvent(fail);
@@ -399,16 +397,14 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
   }
 
   class Connection : public ConnectionManagementCallbacks {
-   public:
-    Connection(
-        uint16_t handle,
-        std::shared_ptr<ClassicAclConnection> connection,
-        std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>> event_stream)
-        : handle_(handle), connection_(std::move(connection)), event_stream_(std::move(event_stream)) {}
+  public:
+    Connection(uint16_t handle, std::shared_ptr<ClassicAclConnection> connection,
+               std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>> event_stream)
+        : handle_(handle),
+          connection_(std::move(connection)),
+          event_stream_(std::move(event_stream)) {}
 
-    ConnectionManagementCallbacks* GetCallbacks() {
-      return this;
-    }
+    ConnectionManagementCallbacks* GetCallbacks() { return this; }
 
     void OnCentralLinkKeyComplete(KeyFlag key_flag) override {
       log::info("key_flag:{}", KeyFlagText(key_flag));
@@ -436,68 +432,45 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
 
     void OnChangeConnectionLinkKeyComplete() override {
       log::info("OnChangeConnectionLinkKeyComplete");
-    };
+    }
 
     void OnReadClockOffsetComplete(uint16_t clock_offset) override {
       log::info("OnReadClockOffsetComplete clock_offset:{}", clock_offset);
-    };
+    }
 
     void OnModeChange(ErrorCode /* status */, Mode current_mode, uint16_t interval) override {
       log::info("OnModeChange Mode:{}, interval:{}", (uint8_t)current_mode, interval);
-    };
+    }
 
-    void OnSniffSubrating(
-        hci::ErrorCode /* hci_status */,
-        uint16_t maximum_transmit_latency,
-        uint16_t maximum_receive_latency,
-        uint16_t minimum_remote_timeout,
-        uint16_t minimum_local_timeout) override {
+    void OnSniffSubrating(hci::ErrorCode /* hci_status */, uint16_t maximum_transmit_latency,
+                          uint16_t maximum_receive_latency, uint16_t minimum_remote_timeout,
+                          uint16_t minimum_local_timeout) override {
       log::info(
-          "OnSniffSubrating maximum_transmit_latency:{}, maximum_receive_latency:{} "
-          "minimum_remote_timeout:{} minimum_local_timeout:{}",
-          maximum_transmit_latency,
-          maximum_receive_latency,
-          minimum_remote_timeout,
-          minimum_local_timeout);
+              "OnSniffSubrating maximum_transmit_latency:{}, maximum_receive_latency:{} "
+              "minimum_remote_timeout:{} minimum_local_timeout:{}",
+              maximum_transmit_latency, maximum_receive_latency, minimum_remote_timeout,
+              minimum_local_timeout);
     }
 
-    void OnQosSetupComplete(
-        ServiceType service_type,
-        uint32_t token_rate,
-        uint32_t peak_bandwidth,
-        uint32_t latency,
-        uint32_t delay_variation) override {
+    void OnQosSetupComplete(ServiceType service_type, uint32_t token_rate, uint32_t peak_bandwidth,
+                            uint32_t latency, uint32_t delay_variation) override {
       log::info(
-          "OnQosSetupComplete service_type:{}, token_rate:{}, peak_bandwidth:{}, latency:{}, "
-          "delay_variation:{}",
-          (uint8_t)service_type,
-          token_rate,
-          peak_bandwidth,
-          latency,
-          delay_variation);
+              "OnQosSetupComplete service_type:{}, token_rate:{}, peak_bandwidth:{}, latency:{}, "
+              "delay_variation:{}",
+              (uint8_t)service_type, token_rate, peak_bandwidth, latency, delay_variation);
     }
 
-    void OnFlowSpecificationComplete(
-        FlowDirection flow_direction,
-        ServiceType service_type,
-        uint32_t token_rate,
-        uint32_t token_bucket_size,
-        uint32_t peak_bandwidth,
-        uint32_t access_latency) override {
+    void OnFlowSpecificationComplete(FlowDirection flow_direction, ServiceType service_type,
+                                     uint32_t token_rate, uint32_t token_bucket_size,
+                                     uint32_t peak_bandwidth, uint32_t access_latency) override {
       log::info(
-          "OnFlowSpecificationComplete flow_direction:{}. service_type:{}, token_rate:{}, "
-          "token_bucket_size:{}, peak_bandwidth:{}, access_latency:{}",
-          (uint8_t)flow_direction,
-          (uint8_t)service_type,
-          token_rate,
-          token_bucket_size,
-          peak_bandwidth,
-          access_latency);
+              "OnFlowSpecificationComplete flow_direction:{}. service_type:{}, token_rate:{}, "
+              "token_bucket_size:{}, peak_bandwidth:{}, access_latency:{}",
+              (uint8_t)flow_direction, (uint8_t)service_type, token_rate, token_bucket_size,
+              peak_bandwidth, access_latency);
     }
 
-    void OnFlushOccurred() override {
-      log::info("OnFlushOccurred");
-    }
+    void OnFlushOccurred() override { log::info("OnFlushOccurred"); }
 
     void OnRoleDiscoveryComplete(Role current_role) override {
       log::info("OnRoleDiscoveryComplete current_role:{}", (uint8_t)current_role);
@@ -512,22 +485,21 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
     }
 
     void OnReadLinkSupervisionTimeoutComplete(uint16_t link_supervision_timeout) override {
-      log::info(
-          "OnReadLinkSupervisionTimeoutComplete link_supervision_timeout:{}",
-          link_supervision_timeout);
+      log::info("OnReadLinkSupervisionTimeoutComplete link_supervision_timeout:{}",
+                link_supervision_timeout);
     }
 
     void OnReadFailedContactCounterComplete(uint16_t failed_contact_counter) override {
-      log::info(
-          "OnReadFailedContactCounterComplete failed_contact_counter:{}", failed_contact_counter);
+      log::info("OnReadFailedContactCounterComplete failed_contact_counter:{}",
+                failed_contact_counter);
     }
 
     void OnReadLinkQualityComplete(uint8_t link_quality) override {
       log::info("OnReadLinkQualityComplete link_quality:{}", link_quality);
     }
 
-    void OnReadAfhChannelMapComplete(
-        AfhMode afh_mode, std::array<uint8_t, 10> /* afh_channel_map */) override {
+    void OnReadAfhChannelMapComplete(AfhMode afh_mode,
+                                     std::array<uint8_t, 10> /* afh_channel_map */) override {
       log::info("OnReadAfhChannelMapComplete afh_mode:{}", (uint8_t)afh_mode);
     }
 
@@ -542,35 +514,29 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
     void OnDisconnection(ErrorCode reason) override {
       log::info("reason: {}", ErrorCodeText(reason));
       std::unique_ptr<BasePacketBuilder> builder =
-          DisconnectionCompleteBuilder::Create(ErrorCode::SUCCESS, handle_, reason);
+              DisconnectionCompleteBuilder::Create(ErrorCode::SUCCESS, handle_, reason);
       ConnectionEvent disconnection;
       disconnection.set_payload(builder_to_string(std::move(builder)));
       event_stream_->OnIncomingEvent(disconnection);
     }
-    void OnReadRemoteVersionInformationComplete(
-        hci::ErrorCode /* error_status */,
-        uint8_t lmp_version,
-        uint16_t manufacturer_name,
-        uint16_t sub_version) override {
+    void OnReadRemoteVersionInformationComplete(hci::ErrorCode /* error_status */,
+                                                uint8_t lmp_version, uint16_t manufacturer_name,
+                                                uint16_t sub_version) override {
       log::info(
-          "OnReadRemoteVersionInformationComplete lmp_version:{} manufacturer_name:{} "
-          "sub_version:{}",
-          lmp_version,
-          manufacturer_name,
-          sub_version);
+              "OnReadRemoteVersionInformationComplete lmp_version:{} manufacturer_name:{} "
+              "sub_version:{}",
+              lmp_version, manufacturer_name, sub_version);
     }
     void OnReadRemoteSupportedFeaturesComplete(uint64_t features) override {
-      log::info(
-          "OnReadRemoteSupportedFeaturesComplete features:0x{:x}",
-          static_cast<unsigned long>(features));
+      log::info("OnReadRemoteSupportedFeaturesComplete features:0x{:x}",
+                static_cast<unsigned long>(features));
     }
-    void OnReadRemoteExtendedFeaturesComplete(
-        uint8_t page_number, uint8_t max_page_number, uint64_t features) override {
+    void OnReadRemoteExtendedFeaturesComplete(uint8_t page_number, uint8_t max_page_number,
+                                              uint64_t features) override {
       log::info(
-          "OnReadRemoteExtendedFeaturesComplete page_number:{} max_page_number:{} features:0x{:x}",
-          page_number,
-          max_page_number,
-          static_cast<unsigned long>(features));
+              "OnReadRemoteExtendedFeaturesComplete page_number:{} max_page_number:{} "
+              "features:0x{:x}",
+              page_number, max_page_number, static_cast<unsigned long>(features));
     }
 
     uint16_t handle_;
@@ -580,12 +546,13 @@ class AclManagerFacadeService : public AclManagerFacade::Service, public Connect
                                                                  std::to_string(handle_)};
   };
 
- private:
+private:
   AclManager* acl_manager_;
   ::bluetooth::os::Handler* facade_handler_;
   mutable std::mutex acl_connections_mutex_;
   std::map<uint16_t, Connection> acl_connections_;
-  std::vector<std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>>> per_connection_events_;
+  std::vector<std::shared_ptr<::bluetooth::grpc::GrpcEventQueue<ConnectionEvent>>>
+          per_connection_events_;
   uint32_t current_connection_request_{0};
 };
 
@@ -604,12 +571,10 @@ void AclManagerFacadeModule::Stop() {
   ::bluetooth::grpc::GrpcFacadeModule::Stop();
 }
 
-::grpc::Service* AclManagerFacadeModule::GetService() const {
-  return service_;
-}
+::grpc::Service* AclManagerFacadeModule::GetService() const { return service_; }
 
 const ModuleFactory AclManagerFacadeModule::Factory =
-    ::bluetooth::ModuleFactory([]() { return new AclManagerFacadeModule(); });
+        ::bluetooth::ModuleFactory([]() { return new AclManagerFacadeModule(); });
 
 }  // namespace facade
 }  // namespace hci

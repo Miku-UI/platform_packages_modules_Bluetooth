@@ -214,7 +214,7 @@ public class CsipSetCoordinatorStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mService, timeout(CsipSetCoordinatorStateMachine.sConnectTimeoutMs * 2).times(2))
+        verify(mService, timeout(CsipSetCoordinatorStateMachine.sConnectTimeoutMs * 2L).times(2))
                 .sendBroadcast(intentArgument2.capture(), anyString());
         Assert.assertEquals(
                 STATE_DISCONNECTED,
@@ -257,7 +257,7 @@ public class CsipSetCoordinatorStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mService, timeout(CsipSetCoordinatorStateMachine.sConnectTimeoutMs * 2).times(2))
+        verify(mService, timeout(CsipSetCoordinatorStateMachine.sConnectTimeoutMs * 2L).times(2))
                 .sendBroadcast(intentArgument2.capture(), anyString());
         Assert.assertEquals(
                 STATE_DISCONNECTED,

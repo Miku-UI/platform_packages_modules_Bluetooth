@@ -33,21 +33,20 @@ namespace hci {
 using CompletionCallback = common::ContextualOnceCallback<void(ErrorCode)>;
 using RemoteHostSupportedFeaturesCallback = common::ContextualOnceCallback<void(uint64_t)>;
 using RemoteNameCallback =
-    common::ContextualOnceCallback<void(ErrorCode, std::array<uint8_t, 248>)>;
+        common::ContextualOnceCallback<void(ErrorCode, std::array<uint8_t, 248>)>;
 
 // Historical note: This class is intended to provide a shim at the *HCI* layer, so legacy Remote
 // Name Requests can interoperate with the GD ACL scheduler. Thus, we intentionally do not merge
 // identical requests, cache responses, or handle request timeouts - we leave this to our callers.
 // When GD clients start to use this module, richer functionality should be added.
 class RemoteNameRequestModule : public bluetooth::Module {
- public:
+public:
   // Dispatch a Remote Name Request
   void StartRemoteNameRequest(
-      Address address,
-      std::unique_ptr<RemoteNameRequestBuilder> request,
-      CompletionCallback on_completion,
-      RemoteHostSupportedFeaturesCallback on_remote_host_supported_features_notification,
-      RemoteNameCallback on_remote_name_complete);
+          Address address, std::unique_ptr<RemoteNameRequestBuilder> request,
+          CompletionCallback on_completion,
+          RemoteHostSupportedFeaturesCallback on_remote_host_supported_features_notification,
+          RemoteNameCallback on_remote_name_complete);
 
   // Cancel a Remote Name Request
   void CancelRemoteNameRequest(Address address);
@@ -57,19 +56,17 @@ class RemoteNameRequestModule : public bluetooth::Module {
   // happens, since we don't get the appropriate HCI event.
   void ReportRemoteNameRequestCancellation(Address address);
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
   void Start() override;
   void Stop() override;
-  std::string ToString() const override {
-    return std::string("RemoteNameRequestModule");
-  }
+  std::string ToString() const override { return std::string("RemoteNameRequestModule"); }
 
- public:
+public:
   static const ModuleFactory Factory;
   RemoteNameRequestModule();
   ~RemoteNameRequestModule();

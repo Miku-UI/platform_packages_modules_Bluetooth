@@ -55,6 +55,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 class MapClientContent {
@@ -470,12 +471,14 @@ class MapClientContent {
         Log.d(TAG, "[AllDevices] clearMessages(subscriptionId=" + subscriptionId);
 
         ContentResolver resolver = context.getContentResolver();
-        String threads = new String();
+        StringBuilder threadsBuilder = new StringBuilder();
 
         Uri uri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
         try (Cursor threadCursor = resolver.query(uri, null, null, null, null)) {
             while (threadCursor.moveToNext()) {
-                threads += threadCursor.getInt(threadCursor.getColumnIndex(Threads._ID)) + ", ";
+                threadsBuilder
+                        .append(threadCursor.getInt(threadCursor.getColumnIndex(Threads._ID)))
+                        .append(", ");
             }
         }
 
@@ -487,8 +490,8 @@ class MapClientContent {
                 Mms.CONTENT_URI,
                 Mms.SUBSCRIPTION_ID + " =? ",
                 new String[] {Integer.toString(subscriptionId)});
-        if (threads.length() > 2) {
-            threads = threads.substring(0, threads.length() - 2);
+        if (threadsBuilder.length() > 2) {
+            String threads = threadsBuilder.substring(0, threadsBuilder.length() - 2);
             resolver.delete(Threads.CONTENT_URI, Threads._ID + " IN (" + threads + ")", null);
         }
     }
@@ -807,35 +810,33 @@ class MapClientContent {
 
     public void dump(StringBuilder sb) {
         sb.append("    Device Message DB:");
-        sb.append("\n      Subscription ID: " + mSubscriptionId);
+        sb.append("\n      Subscription ID: ").append(mSubscriptionId);
         if (mSubscriptionId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-            sb.append(
-                    "\n      SMS Messages (Inbox/Sent/Total): "
-                            + getStoredMessagesCount(Sms.Inbox.CONTENT_URI)
-                            + " / "
-                            + getStoredMessagesCount(Sms.Sent.CONTENT_URI)
-                            + " / "
-                            + getStoredMessagesCount(Sms.CONTENT_URI));
+            sb.append("\n      SMS Messages (Inbox/Sent/Total): ")
+                    .append(getStoredMessagesCount(Sms.Inbox.CONTENT_URI))
+                    .append(" / ")
+                    .append(getStoredMessagesCount(Sms.Sent.CONTENT_URI))
+                    .append(" / ")
+                    .append(getStoredMessagesCount(Sms.CONTENT_URI));
 
-            sb.append(
-                    "\n      MMS Messages (Inbox/Sent/Total): "
-                            + getStoredMessagesCount(Mms.Inbox.CONTENT_URI)
-                            + " / "
-                            + getStoredMessagesCount(Mms.Sent.CONTENT_URI)
-                            + " / "
-                            + getStoredMessagesCount(Mms.CONTENT_URI));
+            sb.append("\n      MMS Messages (Inbox/Sent/Total): ")
+                    .append(getStoredMessagesCount(Mms.Inbox.CONTENT_URI))
+                    .append(" / ")
+                    .append(getStoredMessagesCount(Mms.Sent.CONTENT_URI))
+                    .append(" / ")
+                    .append(getStoredMessagesCount(Mms.CONTENT_URI));
 
-            sb.append("\n      Threads: " + getStoredMessagesCount(Threads.CONTENT_URI));
+            sb.append("\n      Threads: ").append(getStoredMessagesCount(Threads.CONTENT_URI));
 
             sb.append("\n      Most recent 'Sent' messages:");
-            sb.append("\n        " + MessageDumpElement.getFormattedColumnNames());
+            sb.append("\n        ").append(MessageDumpElement.getFormattedColumnNames());
             for (MessageDumpElement e : getRecentMessagesFromFolder(Folder.SENT)) {
-                sb.append("\n        " + e);
+                sb.append("\n        ").append(e);
             }
             sb.append("\n      Most recent 'Inbox' messages:");
-            sb.append("\n        " + MessageDumpElement.getFormattedColumnNames());
+            sb.append("\n        ").append(MessageDumpElement.getFormattedColumnNames());
             for (MessageDumpElement e : getRecentMessagesFromFolder(Folder.INBOX)) {
-                sb.append("\n        " + e);
+                sb.append("\n        ").append(e);
             }
         }
         sb.append("\n");
@@ -858,9 +859,21 @@ class MapClientContent {
         }
 
         @Override
-        public boolean equals(Object other) {
-            return ((other instanceof MessageStatus)
-                    && ((MessageStatus) other).mHandle.equals(mHandle));
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+
+            if (!(obj instanceof MessageStatus other)) {
+                return false;
+            }
+
+            return other.mHandle.equals(mHandle);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mHandle);
         }
     }
 

@@ -22,7 +22,7 @@ namespace bluetooth {
 namespace avrcp {
 
 class RegisterNotificationResponse : public VendorPacket {
- public:
+public:
   virtual ~RegisterNotificationResponse() = default;
 
   /**
@@ -51,46 +51,41 @@ class RegisterNotificationResponse : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 
 class RegisterNotificationResponseBuilder : public VendorPacketBuilder {
- public:
+public:
   virtual ~RegisterNotificationResponseBuilder() = default;
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakePlaybackStatusBuilder(bool interim, uint8_t play_status);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakePlaybackStatusBuilder(
+          bool interim, uint8_t play_status);
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakeTrackChangedBuilder(bool interim, uint64_t track_uid);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakeTrackChangedBuilder(
+          bool interim, uint64_t track_uid);
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakePlaybackPositionBuilder(bool interim, uint32_t playback_pos);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakePlaybackPositionBuilder(
+          bool interim, uint32_t playback_pos);
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakePlayerSettingChangedBuilder(bool interim,
-                                  std::vector<PlayerAttribute> attributes,
-                                  std::vector<uint8_t> values);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakePlayerSettingChangedBuilder(
+          bool interim, std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values);
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakeNowPlayingBuilder(bool interim);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakeNowPlayingBuilder(bool interim);
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakeAvailablePlayersBuilder(bool interim);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakeAvailablePlayersBuilder(
+          bool interim);
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakeAddressedPlayerBuilder(bool interim, uint16_t player_id,
-                             uint16_t uid_counter);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakeAddressedPlayerBuilder(
+          bool interim, uint16_t player_id, uint16_t uid_counter);
 
-  static std::unique_ptr<RegisterNotificationResponseBuilder>
-  MakeUidsChangedBuilder(bool interim, uint16_t uid_counter);
+  static std::unique_ptr<RegisterNotificationResponseBuilder> MakeUidsChangedBuilder(
+          bool interim, uint16_t uid_counter);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   Event event_;
   union {
     uint8_t play_status;
@@ -110,13 +105,12 @@ class RegisterNotificationResponseBuilder : public VendorPacketBuilder {
 
   RegisterNotificationResponseBuilder(bool interim, Event event)
       : VendorPacketBuilder(interim ? CType::INTERIM : CType::CHANGED,
-                            CommandPdu::REGISTER_NOTIFICATION,
-                            PacketType::SINGLE),
-        event_(event){};
+                            CommandPdu::REGISTER_NOTIFICATION, PacketType::SINGLE),
+        event_(event) {}
 };
 
 class RegisterNotificationRequest : public VendorPacket {
- public:
+public:
   virtual ~RegisterNotificationRequest() = default;
 
   /**
@@ -145,30 +139,28 @@ class RegisterNotificationRequest : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 
 class RegisterNotificationRequestBuilder : public VendorPacketBuilder {
- public:
+public:
   virtual ~RegisterNotificationRequestBuilder() = default;
 
-  static std::unique_ptr<RegisterNotificationRequestBuilder> MakeBuilder(
-      Event event, uint32_t interval);
+  static std::unique_ptr<RegisterNotificationRequestBuilder> MakeBuilder(Event event,
+                                                                         uint32_t interval);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   Event event_;
   uint32_t interval_;
 
   RegisterNotificationRequestBuilder(Event event, uint32_t interval)
-      : VendorPacketBuilder(CType::NOTIFY, CommandPdu::REGISTER_NOTIFICATION,
-                            PacketType::SINGLE),
+      : VendorPacketBuilder(CType::NOTIFY, CommandPdu::REGISTER_NOTIFICATION, PacketType::SINGLE),
         event_(event),
-        interval_(interval){};
+        interval_(interval) {}
 };
 
 }  // namespace avrcp

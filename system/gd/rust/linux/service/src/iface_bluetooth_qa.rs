@@ -10,7 +10,9 @@ use bt_topshim::profiles::hid_host::BthhReportType;
 use btstack::RPCProxy;
 use dbus::Path;
 
+#[allow(dead_code)]
 struct IBluetoothQACallbackDBus {}
+#[allow(dead_code)]
 struct IBluetoothQADBus {}
 
 #[generate_dbus_exporter(export_bluetooth_qa_dbus_intf, "org.chromium.bluetooth.BluetoothQA")]

@@ -34,8 +34,7 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
       get_folder_items_request_vfs.push_back(data[x]);
     }
 
-    auto test_packet =
-        TestGetFolderItemsReqPacket::Make(get_folder_items_request_vfs);
+    auto test_packet = TestGetFolderItemsReqPacket::Make(get_folder_items_request_vfs);
 
     test_packet->GetScope();
     test_packet->GetStartItem();

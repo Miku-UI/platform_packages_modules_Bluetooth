@@ -6,7 +6,7 @@
 namespace testing {
 
 class QuxTestDataClass : public DumpsysTestDataClass {
- public:
+public:
   TableAddFunction GetTable(flatbuffers::FlatBufferBuilder& fb_builder) override {
     auto name = fb_builder.CreateString("Qux Module String");
 
@@ -19,7 +19,9 @@ class QuxTestDataClass : public DumpsysTestDataClass {
 
     auto qux_table = builder.Finish();
 
-    return [qux_table](DumpsysTestDataRootBuilder* builder) { builder->add_qux_module_data(qux_table); };
+    return [qux_table](DumpsysTestDataRootBuilder* builder) {
+      builder->add_qux_module_data(qux_table);
+    };
   }
 };
 

@@ -46,9 +46,8 @@ static void log_address_and_status(const Address& bda, EventCode event_code,
   uint16_t reason = android::bluetooth::hci::STATUS_UNKNOWN;
   uint16_t handle = bluetooth::common::kUnknownConnectionHandle;
   int64_t value = 0;
-  log_classic_pairing_event(ToRawAddress(bda), handle, cmd,
-                            static_cast<uint16_t>(event_code), status, reason,
-                            value);
+  log_classic_pairing_event(ToRawAddress(bda), handle, cmd, static_cast<uint16_t>(event_code),
+                            status, reason, value);
 }
 static void log_address(const Address& bda, EventCode event_code) {
   uint32_t cmd = android::bluetooth::hci::CMD_UNKNOWN;
@@ -56,14 +55,12 @@ static void log_address(const Address& bda, EventCode event_code) {
   uint16_t reason = android::bluetooth::hci::STATUS_UNKNOWN;
   uint16_t handle = bluetooth::common::kUnknownConnectionHandle;
   int64_t value = 0;
-  log_classic_pairing_event(ToRawAddress(bda), handle, cmd,
-                            static_cast<uint16_t>(event_code), status, reason,
-                            value);
+  log_classic_pairing_event(ToRawAddress(bda), handle, cmd, static_cast<uint16_t>(event_code),
+                            status, reason, value);
 }
 static void parse_encryption_change(const EventView event) {
   auto change_opt = EncryptionChangeView::CreateOptional(event);
-  log::assert_that(change_opt.has_value(),
-                   "assert failed: change_opt.has_value()");
+  log::assert_that(change_opt.has_value(), "assert failed: change_opt.has_value()");
   auto change = change_opt.value();
 
   ErrorCode status = change.GetStatus();
@@ -71,54 +68,62 @@ static void parse_encryption_change(const EventView event) {
   EncryptionEnabled encr_enable = change.GetEncryptionEnabled();
 
   btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status),
-                                static_cast<uint8_t>(encr_enable));
-  log_classic_pairing_event(ToRawAddress(Address::kEmpty), handle,
-                            android::bluetooth::hci::CMD_UNKNOWN,
-                            static_cast<uint32_t>(change.GetEventCode()),
-                            static_cast<uint16_t>(status),
-                            android::bluetooth::hci::STATUS_UNKNOWN, 0);
+                                static_cast<uint8_t>(encr_enable), 0);
+  log_classic_pairing_event(
+          ToRawAddress(Address::kEmpty), handle, android::bluetooth::hci::CMD_UNKNOWN,
+          static_cast<uint32_t>(change.GetEventCode()), static_cast<uint16_t>(status),
+          android::bluetooth::hci::STATUS_UNKNOWN, 0);
+}
+static void parse_encryption_change_v2(const EventView event) {
+  auto change_opt = EncryptionChangeV2View::CreateOptional(event);
+  log::assert_that(change_opt.has_value(), "assert failed: change_opt.has_value()");
+  auto change = change_opt.value();
+
+  ErrorCode status = change.GetStatus();
+  uint16_t handle = change.GetConnectionHandle();
+  EncryptionEnabled encr_enable = change.GetEncryptionEnabled();
+  uint8_t key_size = change.GetKeySize();
+
+  btm_sec_encryption_change_evt(handle, static_cast<tHCI_STATUS>(status),
+                                static_cast<uint8_t>(encr_enable), key_size);
+  log_classic_pairing_event(
+          ToRawAddress(Address::kEmpty), handle, android::bluetooth::hci::CMD_UNKNOWN,
+          static_cast<uint32_t>(change.GetEventCode()), static_cast<uint16_t>(status),
+          android::bluetooth::hci::STATUS_UNKNOWN, 0);
 }
 static void parse_change_connection_link_key_complete(const EventView event) {
-  auto complete_opt =
-      ChangeConnectionLinkKeyCompleteView::CreateOptional(event);
-  log::assert_that(complete_opt.has_value(),
-                   "assert failed: complete_opt.has_value()");
+  auto complete_opt = ChangeConnectionLinkKeyCompleteView::CreateOptional(event);
+  log::assert_that(complete_opt.has_value(), "assert failed: complete_opt.has_value()");
   auto complete = complete_opt.value();
 
-  log_classic_pairing_event(ToRawAddress(Address::kEmpty),
-                            complete.GetConnectionHandle(),
-                            android::bluetooth::hci::CMD_UNKNOWN,
-                            static_cast<uint32_t>(complete.GetEventCode()),
-                            static_cast<uint16_t>(complete.GetStatus()),
-                            android::bluetooth::hci::STATUS_UNKNOWN, 0);
+  log_classic_pairing_event(
+          ToRawAddress(Address::kEmpty), complete.GetConnectionHandle(),
+          android::bluetooth::hci::CMD_UNKNOWN, static_cast<uint32_t>(complete.GetEventCode()),
+          static_cast<uint16_t>(complete.GetStatus()), android::bluetooth::hci::STATUS_UNKNOWN, 0);
 }
 static void parse_central_link_key_complete(const EventView event) {
   auto event_opt = CentralLinkKeyCompleteView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto complete = event_opt.value();
 
   log::info("Unhandled event: {}", EventCodeText(event.GetEventCode()));
 }
 static void parse_return_link_keys(const EventView event) {
   auto event_opt = ReturnLinkKeysView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto view = event_opt.value();
 
   log::info("Unhandled event: {}", EventCodeText(event.GetEventCode()));
 }
 static void parse_pin_code_request(const EventView event) {
   auto event_opt = PinCodeRequestView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto request = event_opt.value();
   btm_sec_pin_code_request(ToRawAddress(request.GetBdAddr()));
 }
 static void parse_link_key_request(const EventView event) {
   auto event_opt = LinkKeyRequestView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto request = event_opt.value();
 
   btm_sec_link_key_request(ToRawAddress(request.GetBdAddr()));
@@ -126,29 +131,24 @@ static void parse_link_key_request(const EventView event) {
 }
 static void parse_link_key_notification(const EventView event) {
   auto event_opt = LinkKeyNotificationView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto notification = event_opt.value();
 
-  btm_sec_link_key_notification(
-      ToRawAddress(notification.GetBdAddr()), notification.GetLinkKey(),
-      static_cast<uint8_t>(notification.GetKeyType()));
+  btm_sec_link_key_notification(ToRawAddress(notification.GetBdAddr()), notification.GetLinkKey(),
+                                static_cast<uint8_t>(notification.GetKeyType()));
   log_address(notification.GetBdAddr(), event.GetEventCode());
 }
 static void parse_encryption_key_refresh_complete(const EventView event) {
   auto event_opt = EncryptionKeyRefreshCompleteView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto refresh = event_opt.value();
 
-  btm_sec_encryption_key_refresh_complete(
-      refresh.GetConnectionHandle(),
-      static_cast<tHCI_STATUS>(refresh.GetStatus()));
+  btm_sec_encryption_key_refresh_complete(refresh.GetConnectionHandle(),
+                                          static_cast<tHCI_STATUS>(refresh.GetStatus()));
 }
 static void parse_io_capabilities_req(const EventView event) {
   auto event_opt = IoCapabilityRequestView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto request = event_opt.value();
 
   RawAddress peer = ToRawAddress(request.GetBdAddr());
@@ -158,16 +158,14 @@ static void parse_io_capabilities_req(const EventView event) {
 }
 static void parse_io_capabilities_rsp(const EventView event) {
   auto response_opt = IoCapabilityResponseView::CreateOptional(event);
-  log::assert_that(response_opt.has_value(),
-                   "assert failed: response_opt.has_value()");
+  log::assert_that(response_opt.has_value(), "assert failed: response_opt.has_value()");
   auto response = response_opt.value();
 
   tBTM_SP_IO_RSP evt_data{
-      .bd_addr = ToRawAddress(response.GetBdAddr()),
-      .io_cap = static_cast<tBTM_IO_CAP>(response.GetIoCapability()),
-      .oob_data = static_cast<tBTM_OOB_DATA>(response.GetOobDataPresent()),
-      .auth_req =
-          static_cast<tBTM_AUTH_REQ>(response.GetAuthenticationRequirements()),
+          .bd_addr = ToRawAddress(response.GetBdAddr()),
+          .io_cap = static_cast<tBTM_IO_CAP>(response.GetIoCapability()),
+          .oob_data = static_cast<tBTM_OOB_DATA>(response.GetOobDataPresent()),
+          .auth_req = static_cast<tBTM_AUTH_REQ>(response.GetAuthenticationRequirements()),
   };
 
   btm_io_capabilities_rsp(evt_data);
@@ -175,8 +173,7 @@ static void parse_io_capabilities_rsp(const EventView event) {
 }
 static void parse_remote_oob_data_request(const EventView event) {
   auto event_opt = RemoteOobDataRequestView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto request = event_opt.value();
 
   btm_rem_oob_req(ToRawAddress(request.GetBdAddr()));
@@ -184,30 +181,25 @@ static void parse_remote_oob_data_request(const EventView event) {
 }
 static void parse_simple_pairing_complete(const EventView event) {
   auto event_opt = SimplePairingCompleteView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto complete = event_opt.value();
 
   btm_simple_pair_complete(ToRawAddress(complete.GetBdAddr()),
                            static_cast<uint8_t>(complete.GetStatus()));
-  log_address_and_status(complete.GetBdAddr(), event.GetEventCode(),
-                         complete.GetStatus());
+  log_address_and_status(complete.GetBdAddr(), event.GetEventCode(), complete.GetStatus());
 }
 static void parse_user_passkey_notification(const EventView event) {
   auto event_opt = UserPasskeyNotificationView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto notification = event_opt.value();
 
-  btm_proc_sp_req_evt(BTM_SP_KEY_NOTIF_EVT,
-                      ToRawAddress(notification.GetBdAddr()),
+  btm_proc_sp_req_evt(BTM_SP_KEY_NOTIF_EVT, ToRawAddress(notification.GetBdAddr()),
                       notification.GetPasskey());
   log_address(notification.GetBdAddr(), event.GetEventCode());
 }
 static void parse_keypress_notification(const EventView event) {
   auto event_opt = KeypressNotificationView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto notification = event_opt.value();
 
   log::info("Unhandled event: {}", EventCodeText(event.GetEventCode()));
@@ -215,8 +207,7 @@ static void parse_keypress_notification(const EventView event) {
 }
 static void parse_user_confirmation_request(const EventView event) {
   auto event_opt = UserConfirmationRequestView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto request = event_opt.value();
 
   btm_proc_sp_req_evt(BTM_SP_CFM_REQ_EVT, ToRawAddress(request.GetBdAddr()),
@@ -225,8 +216,7 @@ static void parse_user_confirmation_request(const EventView event) {
 }
 static void parse_user_passkey_request(const EventView event) {
   auto event_opt = UserPasskeyRequestView::CreateOptional(event);
-  log::assert_that(event_opt.has_value(),
-                   "assert failed: event_opt.has_value()");
+  log::assert_that(event_opt.has_value(), "assert failed: event_opt.has_value()");
   auto request = event_opt.value();
 
   btm_proc_sp_req_evt(BTM_SP_KEY_REQ_EVT, ToRawAddress(request.GetBdAddr()),
@@ -287,6 +277,9 @@ void SecurityEventParser::OnSecurityEvent(bluetooth::hci::EventView event) {
       break;
     case EventCode::USER_PASSKEY_REQUEST:
       parse_user_passkey_request(event);
+      break;
+    case EventCode::ENCRYPTION_CHANGE_V2:
+      parse_encryption_change_v2(event);
       break;
     default:
       log::error("Unhandled event {}", EventCodeText(event.GetEventCode()));

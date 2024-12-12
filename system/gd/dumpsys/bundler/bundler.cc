@@ -75,11 +75,10 @@ bool VerifyBinarySchema(const std::vector<uint8_t>& raw_schema) {
  *
  * @return: True if operation successful, false otherwise.
  */
-bool CreateBinarySchemaBundle(
-    flatbuffers::FlatBufferBuilder* builder,
-    const std::vector<std::string>& filenames,
-    std::vector<flatbuffers::Offset<BundledSchemaMap>>* vector_map,
-    std::list<std::string>* bundled_names) {
+bool CreateBinarySchemaBundle(flatbuffers::FlatBufferBuilder* builder,
+                              const std::vector<std::string>& filenames,
+                              std::vector<flatbuffers::Offset<BundledSchemaMap>>* vector_map,
+                              std::list<std::string>* bundled_names) {
   assert(builder != nullptr);
   assert(vector_map != nullptr);
   assert(bundled_names != nullptr);
@@ -98,7 +97,8 @@ bool CreateBinarySchemaBundle(
 
     const reflection::Schema* schema = reflection::GetSchema(raw_schema.data());
     if (schema->root_table() == nullptr) {
-      fprintf(stderr, "Unable to find root table for binary flatbuffer schema:%s\n", filename.c_str());
+      fprintf(stderr, "Unable to find root table for binary flatbuffer schema:%s\n",
+              filename.c_str());
       return false;
     }
 
@@ -141,14 +141,15 @@ void WriteHeaderFile(FILE* fp, const uint8_t* data, size_t data_len) {
   }
 
   std::string namespace_prefix;
-  for (const auto& name : namespaces) namespace_prefix += (name + '_');
+  for (const auto& name : namespaces) {
+    namespace_prefix += (name + '_');
+  }
 
-  fprintf(
-      fp,
-      "// Generated file by bluetooth_flatbuffer bundler\n"
-      "#include <string>\n");
-  for_each(
-      namespaces.begin(), namespaces.end(), [fp](const std::string& s) { fprintf(fp, "namespace %s {\n", s.c_str()); });
+  fprintf(fp,
+          "// Generated file by bluetooth_flatbuffer bundler\n"
+          "#include <string>\n");
+  for_each(namespaces.begin(), namespaces.end(),
+           [fp](const std::string& s) { fprintf(fp, "namespace %s {\n", s.c_str()); });
   fprintf(fp, "extern const std::string& GetBundledSchemaData();\n");
   fprintf(fp, "const unsigned char %sdata_[%zu] = {\n", namespace_prefix.c_str(), data_len);
 
@@ -162,18 +163,14 @@ void WriteHeaderFile(FILE* fp, const uint8_t* data, size_t data_len) {
     }
   }
   fprintf(fp, " };\n");
-  fprintf(
-      fp,
-      "const std::string %sstring_data_(%sdata_, %sdata_ + sizeof(%sdata_));\n",
-      namespace_prefix.c_str(),
-      namespace_prefix.c_str(),
-      namespace_prefix.c_str(),
-      namespace_prefix.c_str());
-  fprintf(fp, "const std::string& GetBundledSchemaData() { return %sstring_data_; }\n", namespace_prefix.c_str());
+  fprintf(fp, "const std::string %sstring_data_(%sdata_, %sdata_ + sizeof(%sdata_));\n",
+          namespace_prefix.c_str(), namespace_prefix.c_str(), namespace_prefix.c_str(),
+          namespace_prefix.c_str());
+  fprintf(fp, "const std::string& GetBundledSchemaData() { return %sstring_data_; }\n",
+          namespace_prefix.c_str());
 
-  for_each(namespaces.crbegin(), namespaces.crend(), [fp](const std::string& s) {
-    fprintf(fp, "}  // namespace %s\n", s.c_str());
-  });
+  for_each(namespaces.crbegin(), namespaces.crend(),
+           [fp](const std::string& s) { fprintf(fp, "}  // namespace %s\n", s.c_str()); });
 }
 
 int ReadBundledSchema() {
@@ -226,7 +223,8 @@ int WriteBundledSchema() {
     return EXIT_FAILURE;
   }
 
-  if (std::find(bundled_names.begin(), bundled_names.end(), main_root_name) == bundled_names.end()) {
+  if (std::find(bundled_names.begin(), bundled_names.end(), main_root_name) ==
+      bundled_names.end()) {
     fprintf(stderr, "The main root name must match one of the bundled schema names\n");
     fprintf(stderr, "  main root name:%s\n", main_root_name);
     for (auto name : bundled_names) {
@@ -242,8 +240,8 @@ int WriteBundledSchema() {
   std::string final_filename(opts.gen);
   final_filename.append("/");
   final_filename.append(filename);
-  if (!flatbuffers::SaveFile(
-          final_filename.c_str(), (const char*)builder.GetBufferPointer(), builder.GetSize(), helper::AsBinaryFile)) {
+  if (!flatbuffers::SaveFile(final_filename.c_str(), (const char*)builder.GetBufferPointer(),
+                             builder.GetSize(), helper::AsBinaryFile)) {
     fprintf(stderr, "Unable to save file:%s\n", final_filename.c_str());
     return EXIT_FAILURE;
   }
@@ -261,13 +259,14 @@ int WriteBundledSchema() {
 }
 
 int Usage(int argc, char** argv) {
-  fprintf(
-      stderr,
-      "Usage: %s [-r | -w] [-f <filename>] [-g <gen_out_path>] [-n <namespace> ] [-v] -m <main_root_name> <file.bfbs "
-      "...>\n",
-      argv[0]);
+  fprintf(stderr,
+          "Usage: %s [-r | -w] [-f <filename>] [-g <gen_out_path>] [-n <namespace> ] [-v] -m "
+          "<main_root_name> <file.bfbs "
+          "...>\n",
+          argv[0]);
   fprintf(stderr, " -r|-w : Read or write a dumpsys file\n");
-  fprintf(stderr, " -f : Filename bundled schema to read or write (default:%s)\n", kDefaultBundleDataFile);
+  fprintf(stderr, " -f : Filename bundled schema to read or write (default:%s)\n",
+          kDefaultBundleDataFile);
   fprintf(stderr, " -g : Generated file output path\n");
   fprintf(stderr, " -n : Namespace to embed binary output bundle data source\n");
   fprintf(stderr, " -m : Name of the main root of this bundle\n");

@@ -26,7 +26,7 @@
 
 // Holds the definition of an enum.
 class EnumDef : public TypeDef {
- public:
+public:
   EnumDef(std::string name, int size);
 
   virtual PacketField* GetNewField(const std::string& name, ParseLocation loc) const;

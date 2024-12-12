@@ -38,8 +38,7 @@ namespace device_interop {
 // Function state capture and return values, if needed
 struct interop_database_add interop_database_add;
 struct interop_database_add_addr interop_database_add_addr;
-struct interop_database_add_addr_lmp_version
-    interop_database_add_addr_lmp_version;
+struct interop_database_add_addr_lmp_version interop_database_add_addr_lmp_version;
 struct interop_database_add_addr_max_lat interop_database_add_addr_max_lat;
 struct interop_database_add_manufacturer interop_database_add_manufacturer;
 struct interop_database_add_name interop_database_add_name;
@@ -47,22 +46,17 @@ struct interop_database_add_version interop_database_add_version;
 struct interop_database_add_vndr_prdt interop_database_add_vndr_prdt;
 struct interop_database_clear interop_database_clear;
 struct interop_database_match_addr interop_database_match_addr;
-struct interop_database_match_addr_get_lmp_ver
-    interop_database_match_addr_get_lmp_ver;
-struct interop_database_match_addr_get_max_lat
-    interop_database_match_addr_get_max_lat;
+struct interop_database_match_addr_get_lmp_ver interop_database_match_addr_get_lmp_ver;
+struct interop_database_match_addr_get_max_lat interop_database_match_addr_get_max_lat;
 struct interop_database_match_manufacturer interop_database_match_manufacturer;
 struct interop_database_match_name interop_database_match_name;
 struct interop_database_match_version interop_database_match_version;
 struct interop_database_match_vndr_prdt interop_database_match_vndr_prdt;
 struct interop_database_remove_addr interop_database_remove_addr;
-struct interop_database_remove_addr_lmp_version
-    interop_database_remove_addr_lmp_version;
-struct interop_database_remove_addr_max_lat
-    interop_database_remove_addr_max_lat;
+struct interop_database_remove_addr_lmp_version interop_database_remove_addr_lmp_version;
+struct interop_database_remove_addr_max_lat interop_database_remove_addr_max_lat;
 struct interop_database_remove_feature interop_database_remove_feature;
-struct interop_database_remove_manufacturer
-    interop_database_remove_manufacturer;
+struct interop_database_remove_manufacturer interop_database_remove_manufacturer;
 struct interop_database_remove_name interop_database_remove_name;
 struct interop_database_remove_version interop_database_remove_version;
 struct interop_database_remove_vndr_prdt interop_database_remove_vndr_prdt;
@@ -113,188 +107,152 @@ bool token_to_ul::return_value = false;
 }  // namespace test
 
 // Mocked functions, if any
-void interop_database_add(const uint16_t feature, const RawAddress* addr,
-                          size_t length) {
+void interop_database_add(const uint16_t feature, const RawAddress* addr, size_t length) {
   inc_func_call_count(__func__);
   test::mock::device_interop::interop_database_add(feature, addr, length);
 }
-void interop_database_add_addr(const uint16_t feature, const RawAddress* addr,
-                               size_t length) {
+void interop_database_add_addr(const uint16_t feature, const RawAddress* addr, size_t length) {
   inc_func_call_count(__func__);
   test::mock::device_interop::interop_database_add_addr(feature, addr, length);
 }
-void interop_database_add_addr_lmp_version(const interop_feature_t feature,
-                                           const RawAddress* addr,
-                                           uint8_t lmp_ver,
-                                           uint16_t lmp_sub_ver) {
+void interop_database_add_addr_lmp_version(const interop_feature_t feature, const RawAddress* addr,
+                                           uint8_t lmp_ver, uint16_t lmp_sub_ver) {
   inc_func_call_count(__func__);
-  test::mock::device_interop::interop_database_add_addr_lmp_version(
-      feature, addr, lmp_ver, lmp_sub_ver);
+  test::mock::device_interop::interop_database_add_addr_lmp_version(feature, addr, lmp_ver,
+                                                                    lmp_sub_ver);
 }
-void interop_database_add_addr_max_lat(const interop_feature_t feature,
-                                       const RawAddress* addr,
+void interop_database_add_addr_max_lat(const interop_feature_t feature, const RawAddress* addr,
                                        uint16_t max_lat) {
   inc_func_call_count(__func__);
-  test::mock::device_interop::interop_database_add_addr_max_lat(feature, addr,
-                                                                max_lat);
+  test::mock::device_interop::interop_database_add_addr_max_lat(feature, addr, max_lat);
 }
-void interop_database_add_manufacturer(const interop_feature_t feature,
-                                       uint16_t manufacturer) {
+void interop_database_add_manufacturer(const interop_feature_t feature, uint16_t manufacturer) {
   inc_func_call_count(__func__);
-  test::mock::device_interop::interop_database_add_manufacturer(feature,
-                                                                manufacturer);
+  test::mock::device_interop::interop_database_add_manufacturer(feature, manufacturer);
 }
 void interop_database_add_name(const uint16_t feature, const char* name) {
   inc_func_call_count(__func__);
   test::mock::device_interop::interop_database_add_name(feature, name);
 }
-void interop_database_add_version(const interop_feature_t feature,
-                                  uint16_t version) {
+void interop_database_add_version(const interop_feature_t feature, uint16_t version) {
   inc_func_call_count(__func__);
   test::mock::device_interop::interop_database_add_version(feature, version);
 }
-void interop_database_add_vndr_prdt(const interop_feature_t feature,
-                                    uint16_t vendor_id, uint16_t product_id) {
+void interop_database_add_vndr_prdt(const interop_feature_t feature, uint16_t vendor_id,
+                                    uint16_t product_id) {
   inc_func_call_count(__func__);
-  test::mock::device_interop::interop_database_add_vndr_prdt(feature, vendor_id,
-                                                             product_id);
+  test::mock::device_interop::interop_database_add_vndr_prdt(feature, vendor_id, product_id);
 }
 void interop_database_clear() {
   inc_func_call_count(__func__);
   test::mock::device_interop::interop_database_clear();
 }
-bool interop_database_match_addr(const interop_feature_t feature,
-                                 const RawAddress* addr) {
+bool interop_database_match_addr(const interop_feature_t feature, const RawAddress* addr) {
   inc_func_call_count(__func__);
   return test::mock::device_interop::interop_database_match_addr(feature, addr);
 }
 bool interop_database_match_addr_get_lmp_ver(const interop_feature_t feature,
-                                             const RawAddress* addr,
-                                             uint8_t* lmp_ver,
+                                             const RawAddress* addr, uint8_t* lmp_ver,
                                              uint16_t* lmp_sub_ver) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_match_addr_get_lmp_ver(
-      feature, addr, lmp_ver, lmp_sub_ver);
+  return test::mock::device_interop::interop_database_match_addr_get_lmp_ver(feature, addr, lmp_ver,
+                                                                             lmp_sub_ver);
 }
 bool interop_database_match_addr_get_max_lat(const interop_feature_t feature,
-                                             const RawAddress* addr,
-                                             uint16_t* max_lat) {
+                                             const RawAddress* addr, uint16_t* max_lat) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_match_addr_get_max_lat(
-      feature, addr, max_lat);
+  return test::mock::device_interop::interop_database_match_addr_get_max_lat(feature, addr,
+                                                                             max_lat);
 }
-bool interop_database_match_manufacturer(const interop_feature_t feature,
-                                         uint16_t manufacturer) {
+bool interop_database_match_manufacturer(const interop_feature_t feature, uint16_t manufacturer) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_match_manufacturer(
-      feature, manufacturer);
+  return test::mock::device_interop::interop_database_match_manufacturer(feature, manufacturer);
 }
-bool interop_database_match_name(const interop_feature_t feature,
-                                 const char* name) {
+bool interop_database_match_name(const interop_feature_t feature, const char* name) {
   inc_func_call_count(__func__);
   return test::mock::device_interop::interop_database_match_name(feature, name);
 }
-bool interop_database_match_version(const interop_feature_t feature,
-                                    uint16_t version) {
+bool interop_database_match_version(const interop_feature_t feature, uint16_t version) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_match_version(feature,
-                                                                    version);
+  return test::mock::device_interop::interop_database_match_version(feature, version);
 }
-bool interop_database_match_vndr_prdt(const interop_feature_t feature,
-                                      uint16_t vendor_id, uint16_t product_id) {
+bool interop_database_match_vndr_prdt(const interop_feature_t feature, uint16_t vendor_id,
+                                      uint16_t product_id) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_match_vndr_prdt(
-      feature, vendor_id, product_id);
+  return test::mock::device_interop::interop_database_match_vndr_prdt(feature, vendor_id,
+                                                                      product_id);
 }
-bool interop_database_remove_addr(const interop_feature_t feature,
-                                  const RawAddress* addr) {
+bool interop_database_remove_addr(const interop_feature_t feature, const RawAddress* addr) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_remove_addr(feature,
-                                                                  addr);
+  return test::mock::device_interop::interop_database_remove_addr(feature, addr);
 }
 bool interop_database_remove_addr_lmp_version(const interop_feature_t feature,
-                                              const RawAddress* addr,
-                                              uint8_t lmp_ver,
+                                              const RawAddress* addr, uint8_t lmp_ver,
                                               uint16_t lmp_sub_ver) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_remove_addr_lmp_version(
-      feature, addr, lmp_ver, lmp_sub_ver);
+  return test::mock::device_interop::interop_database_remove_addr_lmp_version(feature, addr,
+                                                                              lmp_ver, lmp_sub_ver);
 }
-bool interop_database_remove_addr_max_lat(const interop_feature_t feature,
-                                          const RawAddress* addr,
+bool interop_database_remove_addr_max_lat(const interop_feature_t feature, const RawAddress* addr,
                                           uint16_t max_lat) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_remove_addr_max_lat(
-      feature, addr, max_lat);
+  return test::mock::device_interop::interop_database_remove_addr_max_lat(feature, addr, max_lat);
 }
 bool interop_database_remove_feature(const interop_feature_t feature) {
   inc_func_call_count(__func__);
   return test::mock::device_interop::interop_database_remove_feature(feature);
 }
-bool interop_database_remove_manufacturer(const interop_feature_t feature,
-                                          uint16_t manufacturer) {
+bool interop_database_remove_manufacturer(const interop_feature_t feature, uint16_t manufacturer) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_remove_manufacturer(
-      feature, manufacturer);
+  return test::mock::device_interop::interop_database_remove_manufacturer(feature, manufacturer);
 }
-bool interop_database_remove_name(const interop_feature_t feature,
-                                  const char* name) {
+bool interop_database_remove_name(const interop_feature_t feature, const char* name) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_remove_name(feature,
-                                                                  name);
+  return test::mock::device_interop::interop_database_remove_name(feature, name);
 }
-bool interop_database_remove_version(const interop_feature_t feature,
-                                     uint16_t version) {
+bool interop_database_remove_version(const interop_feature_t feature, uint16_t version) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_remove_version(feature,
-                                                                     version);
+  return test::mock::device_interop::interop_database_remove_version(feature, version);
 }
-bool interop_database_remove_vndr_prdt(const interop_feature_t feature,
-                                       uint16_t vendor_id,
+bool interop_database_remove_vndr_prdt(const interop_feature_t feature, uint16_t vendor_id,
                                        uint16_t product_id) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_database_remove_vndr_prdt(
-      feature, vendor_id, product_id);
+  return test::mock::device_interop::interop_database_remove_vndr_prdt(feature, vendor_id,
+                                                                       product_id);
 }
 int interop_feature_name_to_feature_id(const char* feature_name) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_feature_name_to_feature_id(
-      feature_name);
+  return test::mock::device_interop::interop_feature_name_to_feature_id(feature_name);
 }
-bool interop_match_addr(const interop_feature_t feature,
-                        const RawAddress* addr) {
+bool interop_match_addr(const interop_feature_t feature, const RawAddress* addr) {
   inc_func_call_count(__func__);
   return test::mock::device_interop::interop_match_addr(feature, addr);
 }
-bool interop_match_addr_get_max_lat(const interop_feature_t feature,
-                                    const RawAddress* addr, uint16_t* max_lat) {
+bool interop_match_addr_get_max_lat(const interop_feature_t feature, const RawAddress* addr,
+                                    uint16_t* max_lat) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_match_addr_get_max_lat(
-      feature, addr, max_lat);
+  return test::mock::device_interop::interop_match_addr_get_max_lat(feature, addr, max_lat);
 }
-bool interop_match_addr_or_name(const interop_feature_t feature,
-                                const RawAddress* addr,
-                                bt_status_t (*get_remote_device_property)(
-                                    const RawAddress*, bt_property_t*)) {
+bool interop_match_addr_or_name(const interop_feature_t feature, const RawAddress* addr,
+                                bt_status_t (*get_remote_device_property)(const RawAddress*,
+                                                                          bt_property_t*)) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_match_addr_or_name(
-      feature, addr, get_remote_device_property);
+  return test::mock::device_interop::interop_match_addr_or_name(feature, addr,
+                                                                get_remote_device_property);
 }
-bool interop_match_manufacturer(const interop_feature_t feature,
-                                uint16_t manufacturer) {
+bool interop_match_manufacturer(const interop_feature_t feature, uint16_t manufacturer) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_match_manufacturer(feature,
-                                                                manufacturer);
+  return test::mock::device_interop::interop_match_manufacturer(feature, manufacturer);
 }
 bool interop_match_name(const interop_feature_t feature, const char* name) {
   inc_func_call_count(__func__);
   return test::mock::device_interop::interop_match_name(feature, name);
 }
-bool interop_match_vendor_product_ids(const interop_feature_t feature,
-                                      uint16_t vendor_id, uint16_t product_id) {
+bool interop_match_vendor_product_ids(const interop_feature_t feature, uint16_t vendor_id,
+                                      uint16_t product_id) {
   inc_func_call_count(__func__);
-  return test::mock::device_interop::interop_match_vendor_product_ids(
-      feature, vendor_id, product_id);
+  return test::mock::device_interop::interop_match_vendor_product_ids(feature, vendor_id,
+                                                                      product_id);
 }
 bool token_to_ul(char* token, uint16_t* ul) {
   inc_func_call_count(__func__);

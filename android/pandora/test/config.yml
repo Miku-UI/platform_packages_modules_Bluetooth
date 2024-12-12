@@ -13,3 +13,9 @@ TestBeds:
     - transport: 'tcp-client:127.0.0.1:7300'
     - transport: 'tcp-client:127.0.0.1:7300'
     - transport: 'tcp-client:127.0.0.1:7300'
+- Name: phy
+  Controllers:
+      AndroidDevice: '*'
+      BumbleDevice:
+          - transport: 'pyusb:8087:0036'
+          - transport: 'pyusb:8087:0036'

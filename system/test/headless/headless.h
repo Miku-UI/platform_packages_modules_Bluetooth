@@ -36,37 +36,32 @@ template <typename T>
 using ExecutionUnit = std::function<T()>;
 
 constexpr char kHeadlessInitialSentinel[] =
-    " INITIAL HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
+        " INITIAL HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
 constexpr char kHeadlessStartSentinel[] =
-    " START HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
+        " START HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
 constexpr char kHeadlessStopSentinel[] =
-    " STOP HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
+        " STOP HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
 constexpr char kHeadlessFinalSentinel[] =
-    " FINAL HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
+        " FINAL HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS HEADLESS";
 
 class HeadlessStack {
- protected:
-  HeadlessStack(const char** stack_init_flags)
-      : stack_init_flags_(stack_init_flags) {}
+protected:
+  HeadlessStack() {}
   virtual ~HeadlessStack() = default;
 
   void SetUp();
   void TearDown();
 
-  const char** StackInitFlags() const { return stack_init_flags_; }
-
- private:
-  const char** stack_init_flags_;
+private:
   std::unique_ptr<BtStackInfo> bt_stack_info_;
 };
 
 class HeadlessRun : public HeadlessStack {
- protected:
+protected:
   const bluetooth::test::headless::GetOpt& options_;
   unsigned long loop_{0};
 
-  HeadlessRun(const bluetooth::test::headless::GetOpt& options)
-      : HeadlessStack(options.StackInitFlags()), options_(options) {}
+  HeadlessRun(const bluetooth::test::headless::GetOpt& options) : options_(options) {}
 
   template <typename T>
   T RunOnHeadlessStack(ExecutionUnit<T> func) {
@@ -102,7 +97,7 @@ class HeadlessRun : public HeadlessStack {
 
 template <typename T>
 class HeadlessTest : public HeadlessRun {
- public:
+public:
   virtual T Run() {
     if (options_.non_options_.size() == 0) {
       fprintf(stdout, "Must supply at least one subtest name\n");
@@ -119,9 +114,8 @@ class HeadlessTest : public HeadlessRun {
 
   virtual ~HeadlessTest() = default;
 
- protected:
-  HeadlessTest(const bluetooth::test::headless::GetOpt& options)
-      : HeadlessRun(options) {}
+protected:
+  HeadlessTest(const bluetooth::test::headless::GetOpt& options) : HeadlessRun(options) {}
 
   std::unordered_map<std::string, std::unique_ptr<HeadlessTest<T>>> test_nodes_;
 };

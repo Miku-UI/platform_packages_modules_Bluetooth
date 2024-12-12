@@ -21,14 +21,15 @@
 #include <memory>
 #include <string>
 
-#include "address.h"
-#include "class_of_device.h"
 #include "common/bidi_queue.h"
 #include "common/contextual_callback.h"
 #include "hci/acl_connection_interface.h"
+#include "hci/address.h"
+#include "hci/class_of_device.h"
 #include "hci/distance_measurement_interface.h"
 #include "hci/hci_interface.h"
 #include "hci/hci_packets.h"
+#include "hci/inquiry_interface.h"
 #include "hci/le_acl_connection_interface.h"
 #include "hci/le_advertising_interface.h"
 #include "hci/le_iso_interface.h"
@@ -43,7 +44,7 @@ namespace hci {
 
 class HciLayer : public Module, public HciInterface {
   // LINT.IfChange
- public:
+public:
   HciLayer();
   HciLayer(const HciLayer&) = delete;
   HciLayer& operator=(const HciLayer&) = delete;
@@ -51,12 +52,11 @@ class HciLayer : public Module, public HciInterface {
   virtual ~HciLayer();
 
   void EnqueueCommand(
-      std::unique_ptr<CommandBuilder> command,
-      common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override;
+          std::unique_ptr<CommandBuilder> command,
+          common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override;
 
-  void EnqueueCommand(
-      std::unique_ptr<CommandBuilder> command,
-      common::ContextualOnceCallback<void(CommandStatusView)> on_status) override;
+  void EnqueueCommand(std::unique_ptr<CommandBuilder> command,
+                      common::ContextualOnceCallback<void(CommandStatusView)> on_status) override;
 
   virtual common::BidiQueueEnd<AclBuilder, AclView>* GetAclQueueEnd();
 
@@ -64,66 +64,73 @@ class HciLayer : public Module, public HciInterface {
 
   virtual common::BidiQueueEnd<IsoBuilder, IsoView>* GetIsoQueueEnd();
 
-  virtual void RegisterEventHandler(EventCode event_code, common::ContextualCallback<void(EventView)> event_handler);
+  virtual void RegisterEventHandler(EventCode event_code,
+                                    common::ContextualCallback<void(EventView)> event_handler);
 
   virtual void UnregisterEventHandler(EventCode event_code);
 
-  virtual void RegisterLeEventHandler(SubeventCode subevent_code,
-                                      common::ContextualCallback<void(LeMetaEventView)> event_handler);
+  virtual void RegisterLeEventHandler(
+          SubeventCode subevent_code,
+          common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
   virtual void UnregisterLeEventHandler(SubeventCode subevent_code);
 
   virtual void RegisterVendorSpecificEventHandler(
-      VseSubeventCode event, common::ContextualCallback<void(VendorSpecificEventView)> handler);
+          VseSubeventCode event, common::ContextualCallback<void(VendorSpecificEventView)> handler);
 
   virtual void UnregisterVendorSpecificEventHandler(VseSubeventCode event);
 
   virtual void RegisterForDisconnects(
-      common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect);
+          common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect);
 
-  virtual SecurityInterface* GetSecurityInterface(common::ContextualCallback<void(EventView)> event_handler);
+  virtual SecurityInterface* GetSecurityInterface(
+          common::ContextualCallback<void(EventView)> event_handler);
 
-  virtual LeSecurityInterface* GetLeSecurityInterface(common::ContextualCallback<void(LeMetaEventView)> event_handler);
+  virtual LeSecurityInterface* GetLeSecurityInterface(
+          common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
   virtual AclConnectionInterface* GetAclConnectionInterface(
-      common::ContextualCallback<void(EventView)> event_handler,
-      common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
-      common::ContextualCallback<void(Address, ClassOfDevice)> on_connection_request,
-      common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
-          on_read_remote_version_complete);
+          common::ContextualCallback<void(EventView)> event_handler,
+          common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
+          common::ContextualCallback<void(Address, ClassOfDevice)> on_connection_request,
+          common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
+                  on_read_remote_version_complete);
   virtual void PutAclConnectionInterface();
 
   virtual LeAclConnectionInterface* GetLeAclConnectionInterface(
-      common::ContextualCallback<void(LeMetaEventView)> event_handler,
-      common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
-      common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
-          on_read_remote_version_complete);
+          common::ContextualCallback<void(LeMetaEventView)> event_handler,
+          common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
+          common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
+                  on_read_remote_version_complete);
   virtual void PutLeAclConnectionInterface();
 
   virtual LeAdvertisingInterface* GetLeAdvertisingInterface(
-      common::ContextualCallback<void(LeMetaEventView)> event_handler);
+          common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
-  virtual LeScanningInterface* GetLeScanningInterface(common::ContextualCallback<void(LeMetaEventView)> event_handler);
+  virtual LeScanningInterface* GetLeScanningInterface(
+          common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
   virtual void RegisterForScoConnectionRequests(
-      common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
-          on_sco_connection_request);
+          common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
+                  on_sco_connection_request);
 
-  virtual LeIsoInterface* GetLeIsoInterface(common::ContextualCallback<void(LeMetaEventView)> event_handler);
+  virtual LeIsoInterface* GetLeIsoInterface(
+          common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
   virtual DistanceMeasurementInterface* GetDistanceMeasurementInterface(
-      common::ContextualCallback<void(LeMetaEventView)> event_handler);
+          common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
-  std::string ToString() const override {
-    return "Hci Layer";
-  }
+  std::unique_ptr<InquiryInterface> GetInquiryInterface(
+          common::ContextualCallback<void(EventView)> event_handler) override;
+
+  std::string ToString() const override { return "Hci Layer"; }
 
   static constexpr std::chrono::milliseconds kHciTimeoutMs = std::chrono::milliseconds(2000);
   static constexpr std::chrono::milliseconds kHciTimeoutRestartMs = std::chrono::milliseconds(5000);
 
   static const ModuleFactory Factory;
 
- protected:
+protected:
   // LINT.ThenChange(fuzz/fuzz_hci_layer.h)
   void ListDependencies(ModuleList* list) const override;
 
@@ -134,18 +141,14 @@ class HciLayer : public Module, public HciInterface {
   void Stop() override;
 
   virtual void Disconnect(uint16_t handle, ErrorCode reason);
-  virtual void ReadRemoteVersion(
-      hci::ErrorCode hci_status,
-      uint16_t handle,
-      uint8_t version,
-      uint16_t manufacturer_name,
-      uint16_t sub_version);
+  virtual void ReadRemoteVersion(hci::ErrorCode hci_status, uint16_t handle, uint8_t version,
+                                 uint16_t manufacturer_name, uint16_t sub_version);
 
   std::list<common::ContextualCallback<void(uint16_t, ErrorCode)>> disconnect_handlers_;
   std::list<common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>>
-      read_remote_version_handlers_;
+          read_remote_version_handlers_;
 
- private:
+private:
   struct impl;
   struct hal_callbacks;
   impl* impl_;
@@ -157,19 +160,19 @@ class HciLayer : public Module, public HciInterface {
   void on_read_remote_version_complete(EventView event_view);
 
   common::ContextualCallback<void(Address bd_addr, ClassOfDevice cod)> on_acl_connection_request_{};
-  common::ContextualCallback<void(
-      Address bd_addr, ClassOfDevice cod, ConnectionRequestLinkType link_type)>
-      on_sco_connection_request_{};
+  common::ContextualCallback<void(Address bd_addr, ClassOfDevice cod,
+                                  ConnectionRequestLinkType link_type)>
+          on_sco_connection_request_{};
 
   // Interfaces
-  CommandInterfaceImpl<AclCommandBuilder> acl_connection_manager_interface_{*this};
-  CommandInterfaceImpl<AclCommandBuilder> le_acl_connection_manager_interface_{*this};
-  CommandInterfaceImpl<SecurityCommandBuilder> security_interface{*this};
-  CommandInterfaceImpl<LeSecurityCommandBuilder> le_security_interface{*this};
-  CommandInterfaceImpl<LeAdvertisingCommandBuilder> le_advertising_interface{*this};
-  CommandInterfaceImpl<LeScanningCommandBuilder> le_scanning_interface{*this};
-  CommandInterfaceImpl<LeIsoCommandBuilder> le_iso_interface{*this};
-  CommandInterfaceImpl<DistanceMeasurementCommandBuilder> distance_measurement_interface{*this};
+  CommandInterfaceImpl<AclCommandBuilder> acl_connection_manager_interface_{this};
+  CommandInterfaceImpl<AclCommandBuilder> le_acl_connection_manager_interface_{this};
+  CommandInterfaceImpl<SecurityCommandBuilder> security_interface{this};
+  CommandInterfaceImpl<LeSecurityCommandBuilder> le_security_interface{this};
+  CommandInterfaceImpl<LeAdvertisingCommandBuilder> le_advertising_interface{this};
+  CommandInterfaceImpl<LeScanningCommandBuilder> le_scanning_interface{this};
+  CommandInterfaceImpl<LeIsoCommandBuilder> le_iso_interface{this};
+  CommandInterfaceImpl<DistanceMeasurementCommandBuilder> distance_measurement_interface{this};
 };
 }  // namespace hci
 }  // namespace bluetooth

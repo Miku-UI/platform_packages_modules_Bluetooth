@@ -5,11 +5,6 @@
 #![allow(clippy::all)]
 // this is now stable
 #![feature(mixed_integer_ops)]
-
-include!(concat!(env!("OUT_DIR"), "/_packets.rs"));
-
-impl std::cmp::PartialEq for SerializeError {
-    fn eq(&self, rhs: &Self) -> bool {
-        std::mem::discriminant(self) == std::mem::discriminant(rhs)
-    }
+pub mod att {
+    include!(concat!(env!("OUT_DIR"), "/_packets.rs"));
 }

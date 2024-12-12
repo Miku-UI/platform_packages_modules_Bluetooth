@@ -17,6 +17,7 @@ package com.android.bluetooth.pbapclient;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.BluetoothUuid;
@@ -39,8 +40,9 @@ import com.android.obex.ResponseCodes;
 import com.android.vcard.VCardEntry;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /* Bluetooth/pbapclient/PbapClientConnectionHandler is responsible
  * for connecting, disconnecting and downloading contacts from the
@@ -255,7 +257,7 @@ class PbapClientConnectionHandler extends Handler {
                     downloadContacts(SIM_PB_PATH);
                 }
 
-                HashMap<String, Integer> callCounter = new HashMap<>();
+                Map<String, Integer> callCounter = new HashMap<>();
                 downloadCallLog(MCH_PATH, callCounter);
                 downloadCallLog(ICH_PATH, callCounter);
                 downloadCallLog(OCH_PATH, callCounter);
@@ -279,6 +281,7 @@ class PbapClientConnectionHandler extends Handler {
     /* Utilize SDP, if available, to create a socket connection over L2CAP, RFCOMM specified
      * channel, or RFCOMM default channel. */
     @VisibleForTesting
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     synchronized boolean connectSocket() {
         try {
             /* Use BluetoothSocket to connect */
@@ -406,8 +409,8 @@ class PbapClientConnectionHandler extends Handler {
                                 numberOfContactsToDownload,
                                 startOffset);
                 request.execute(mObexSession);
-                ArrayList<VCardEntry> vcards = request.getList();
-                if (path == FAV_PATH) {
+                List<VCardEntry> vcards = request.getList();
+                if (FAV_PATH.equals(path)) {
                     // mark each vcard as a favorite
                     for (VCardEntry v : vcards) {
                         v.setStarred(true);
@@ -430,7 +433,7 @@ class PbapClientConnectionHandler extends Handler {
     }
 
     @VisibleForTesting
-    void downloadCallLog(String path, HashMap<String, Integer> callCounter) {
+    void downloadCallLog(String path, Map<String, Integer> callCounter) {
         try {
             BluetoothPbapRequestPullPhoneBook request =
                     new BluetoothPbapRequestPullPhoneBook(path, mAccount, 0, VCARD_TYPE_30, 0, 0);

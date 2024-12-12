@@ -270,6 +270,9 @@ public class BluetoothOppTransferHistory extends Activity
 
     /** Returns true if the device has finished transfers, including error and success. */
     private boolean isTransferComplete() {
+        if (mTransferCursor == null) {
+            return false;
+        }
         try {
             if (mTransferCursor.moveToFirst()) {
                 while (!mTransferCursor.isAfterLast()) {

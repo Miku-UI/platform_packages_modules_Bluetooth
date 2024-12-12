@@ -32,6 +32,7 @@
 
 package com.android.bluetooth.opp;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
@@ -86,7 +87,7 @@ public class BluetoothOppManager {
 
     @VisibleForTesting String mMimeTypeOfSendingFiles;
 
-    @VisibleForTesting ArrayList<Uri> mUrisOfSendingFiles;
+    @VisibleForTesting List<Uri> mUrisOfSendingFiles;
 
     private boolean mIsHandoverInitiated;
 
@@ -104,7 +105,7 @@ public class BluetoothOppManager {
 
     private static final String MULTIPLE_FLAG = "MULTIPLE_FLAG";
 
-    private static final String ARRAYLIST_ITEM_SEPERATOR = ";";
+    private static final String ARRAYLIST_ITEM_SEPARATOR = ";";
 
     @VisibleForTesting static final int ALLOWED_INSERT_SHARE_THREAD_NUMBER = 3;
 
@@ -221,7 +222,7 @@ public class BluetoothOppManager {
         String strUris = settings.getString(FILE_URIS, null);
         mUrisOfSendingFiles = new ArrayList<Uri>();
         if (strUris != null) {
-            String[] splitUri = strUris.split(ARRAYLIST_ITEM_SEPERATOR);
+            String[] splitUri = strUris.split(ARRAYLIST_ITEM_SEPARATOR);
             for (int i = 0; i < splitUri.length; i++) {
                 mUrisOfSendingFiles.add(Uri.parse(splitUri[i]));
                 Log.v(TAG, "Uri in batch:  " + Uri.parse(splitUri[i]));
@@ -243,7 +244,7 @@ public class BluetoothOppManager {
             for (int i = 0, count = mUrisOfSendingFiles.size(); i < count; i++) {
                 Uri uriContent = mUrisOfSendingFiles.get(i);
                 sb.append(uriContent);
-                sb.append(ARRAYLIST_ITEM_SEPERATOR);
+                sb.append(ARRAYLIST_ITEM_SEPARATOR);
             }
             String strUris = sb.toString();
             editor.putString(FILE_URIS, strUris);
@@ -280,7 +281,7 @@ public class BluetoothOppManager {
     }
 
     public void saveSendingFileInfo(
-            String mimeType, ArrayList<Uri> uris, boolean isHandover, boolean fromExternal)
+            String mimeType, List<Uri> uris, boolean isHandover, boolean fromExternal)
             throws IllegalArgumentException {
         synchronized (BluetoothOppManager.this) {
             mMultipleFlag = true;
@@ -314,6 +315,7 @@ public class BluetoothOppManager {
     }
 
     /** Enable Bluetooth hardware. */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // re-entrant call
     public void enableBluetooth() {
         if (mAdapter != null) {
             mAdapter.enable();
@@ -321,6 +323,7 @@ public class BluetoothOppManager {
     }
 
     /** Disable Bluetooth hardware. */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // re-entrant call
     public void disableBluetooth() {
         if (mAdapter != null) {
             mAdapter.disable();
@@ -328,6 +331,7 @@ public class BluetoothOppManager {
     }
 
     /** Get device name per bluetooth address. */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // re-entrant call
     public String getDeviceName(BluetoothDevice device) {
         String deviceName = null;
 
@@ -406,7 +410,7 @@ public class BluetoothOppManager {
 
         private final String mTypeOfMultipleFiles;
 
-        private final ArrayList<Uri> mUris;
+        private final List<Uri> mUris;
 
         private final boolean mIsMultiple;
 
@@ -418,7 +422,7 @@ public class BluetoothOppManager {
                 String typeOfSingleFile,
                 String uri,
                 String typeOfMultipleFiles,
-                ArrayList<Uri> uris,
+                List<Uri> uris,
                 boolean handoverInitiated) {
             super("Insert ShareInfo Thread");
             this.mRemoteDevice = device;
@@ -459,6 +463,7 @@ public class BluetoothOppManager {
         }
 
         /** Insert multiple sending sessions to db, only used by Opp application. */
+        @SuppressLint("AndroidFrameworkRequiresPermission") // re-entrant call
         private void insertMultipleShare() {
             int count = mUris.size();
             Long ts = System.currentTimeMillis();
@@ -477,7 +482,7 @@ public class BluetoothOppManager {
                 values.put(BluetoothShare.MIMETYPE, contentType);
                 values.put(
                         BluetoothShare.DESTINATION,
-                        Flags.identityAddressNullIfUnknown()
+                        Flags.identityAddressNullIfNotKnown()
                                 ? Utils.getBrEdrAddress(mRemoteDevice)
                                 : mRemoteDevice.getIdentityAddress());
                 values.put(BluetoothShare.TIMESTAMP, ts);
@@ -502,13 +507,14 @@ public class BluetoothOppManager {
         }
 
         /** Insert single sending session to db, only used by Opp application. */
+        @SuppressLint("AndroidFrameworkRequiresPermission") // re-entrant call
         private void insertSingleShare() {
             ContentValues values = new ContentValues();
             values.put(BluetoothShare.URI, mUri);
             values.put(BluetoothShare.MIMETYPE, mTypeOfSingleFile);
             values.put(
                     BluetoothShare.DESTINATION,
-                    Flags.identityAddressNullIfUnknown()
+                    Flags.identityAddressNullIfNotKnown()
                             ? Utils.getBrEdrAddress(mRemoteDevice)
                             : mRemoteDevice.getIdentityAddress());
             if (mIsHandoverInitiated) {

@@ -126,18 +126,12 @@ namespace hci {
 namespace {
 
 class TestController : public Controller {
- public:
-  bool IsSupported(OpCode op_code) const override {
-    return supported_opcodes_.count(op_code) == 1;
-  }
+public:
+  bool IsSupported(OpCode op_code) const override { return supported_opcodes_.count(op_code) == 1; }
 
-  void AddSupported(OpCode op_code) {
-    supported_opcodes_.insert(op_code);
-  }
+  void AddSupported(OpCode op_code) { supported_opcodes_.insert(op_code); }
 
-  bool SupportsBleExtendedAdvertising() const override {
-    return support_ble_extended_advertising_;
-  }
+  bool SupportsBleExtendedAdvertising() const override { return support_ble_extended_advertising_; }
 
   void SetBleExtendedAdvertisingSupport(bool support) {
     support_ble_extended_advertising_ = support;
@@ -151,26 +145,24 @@ class TestController : public Controller {
     support_ble_periodic_advertising_sync_transfer_ = support;
   }
 
- protected:
+protected:
   void Start() override {}
   void Stop() override {}
   void ListDependencies(ModuleList* /* list */) const {}
 
- private:
+private:
   std::set<OpCode> supported_opcodes_{};
   bool support_ble_extended_advertising_ = false;
   bool support_ble_periodic_advertising_sync_transfer_ = false;
 };
 
 class TestLeAddressManager : public LeAddressManager {
- public:
-  TestLeAddressManager(
-      common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
-      os::Handler* handler,
-      Address public_address,
-      uint8_t accept_list_size,
-      uint8_t resolving_list_size)
-      : LeAddressManager(enqueue_command, handler, public_address, accept_list_size, resolving_list_size) {}
+public:
+  TestLeAddressManager(common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
+                       os::Handler* handler, Address public_address, uint8_t accept_list_size,
+                       uint8_t resolving_list_size)
+      : LeAddressManager(enqueue_command, handler, public_address, accept_list_size,
+                         resolving_list_size) {}
 
   AddressPolicy Register(LeAddressManagerCallback* callback) override {
     client_ = callback;
@@ -185,9 +177,7 @@ class TestLeAddressManager : public LeAddressManager {
     test_client_state_ = UNREGISTERED;
   }
 
-  void AckPause(LeAddressManagerCallback* /* callback */) override {
-    test_client_state_ = PAUSED;
-  }
+  void AckPause(LeAddressManagerCallback* /* callback */) override { test_client_state_ = PAUSED; }
 
   void AckResume(LeAddressManagerCallback* /* callback */) override {
     test_client_state_ = RESUMED;
@@ -204,18 +194,17 @@ class TestLeAddressManager : public LeAddressManager {
 };
 
 class TestAclManager : public AclManager {
- public:
-  LeAddressManager* GetLeAddressManager() override {
-    return test_le_address_manager_;
-  }
+public:
+  LeAddressManager* GetLeAddressManager() override { return test_le_address_manager_; }
 
- protected:
+protected:
   void Start() override {
     thread_ = new os::Thread("thread", os::Thread::Priority::NORMAL);
     handler_ = new os::Handler(thread_);
     Address address({0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
     test_le_address_manager_ = new TestLeAddressManager(
-        common::Bind(&TestAclManager::enqueue_command, common::Unretained(this)), handler_, address, 0x3F, 0x3F);
+            common::Bind(&TestAclManager::enqueue_command, common::Unretained(this)), handler_,
+            address, 0x3F, 0x3F);
   }
 
   void Stop() override {
@@ -231,62 +220,51 @@ class TestAclManager : public AclManager {
 
   void enqueue_command(std::unique_ptr<CommandBuilder> /* command_packet */){};
 
- private:
+private:
   os::Thread* thread_;
   os::Handler* handler_;
   TestLeAddressManager* test_le_address_manager_;
 };
 
 class MockCallbacks : public bluetooth::hci::ScanningCallback {
- public:
-  MOCK_METHOD(
-      void,
-      OnScannerRegistered,
-      (const bluetooth::hci::Uuid app_uuid, ScannerId scanner_id, ScanningStatus status),
-      (override));
-  MOCK_METHOD(void, OnSetScannerParameterComplete, (ScannerId scanner_id, ScanningStatus status), (override));
-  MOCK_METHOD(
-      void,
-      OnScanResult,
-      (uint16_t event_type,
-       uint8_t address_type,
-       Address address,
-       uint8_t primary_phy,
-       uint8_t secondary_phy,
-       uint8_t advertising_sid,
-       int8_t tx_power,
-       int8_t rssi,
-       uint16_t periodic_advertising_interval,
-       std::vector<uint8_t> advertising_data),
-      (override));
-  MOCK_METHOD(
-      void,
-      OnTrackAdvFoundLost,
-      (bluetooth::hci::AdvertisingFilterOnFoundOnLostInfo on_found_on_lost_info),
-      (override));
-  MOCK_METHOD(
-      void,
-      OnBatchScanReports,
-      (int client_if, int status, int report_format, int num_records, std::vector<uint8_t> data),
-      (override));
+public:
+  MOCK_METHOD(void, OnScannerRegistered,
+              (const bluetooth::hci::Uuid app_uuid, ScannerId scanner_id, ScanningStatus status),
+              (override));
+  MOCK_METHOD(void, OnSetScannerParameterComplete, (ScannerId scanner_id, ScanningStatus status),
+              (override));
+  MOCK_METHOD(void, OnScanResult,
+              (uint16_t event_type, uint8_t address_type, Address address, uint8_t primary_phy,
+               uint8_t secondary_phy, uint8_t advertising_sid, int8_t tx_power, int8_t rssi,
+               uint16_t periodic_advertising_interval, std::vector<uint8_t> advertising_data),
+              (override));
+  MOCK_METHOD(void, OnTrackAdvFoundLost,
+              (bluetooth::hci::AdvertisingFilterOnFoundOnLostInfo on_found_on_lost_info),
+              (override));
+  MOCK_METHOD(void, OnBatchScanReports,
+              (int client_if, int status, int report_format, int num_records,
+               std::vector<uint8_t> data),
+              (override));
   MOCK_METHOD(void, OnBatchScanThresholdCrossed, (int client_if), (override));
   MOCK_METHOD(void, OnTimeout, (), (override));
   MOCK_METHOD(void, OnFilterEnable, (Enable enable, uint8_t status), (override));
-  MOCK_METHOD(void, OnFilterParamSetup, (uint8_t available_spaces, ApcfAction action, uint8_t status), (override));
-  MOCK_METHOD(
-      void,
-      OnFilterConfigCallback,
-      (ApcfFilterType filter_type, uint8_t available_spaces, ApcfAction action, uint8_t status),
-      (override));
-  MOCK_METHOD(void, OnPeriodicSyncStarted, (int, uint8_t, uint16_t, uint8_t, AddressWithType, uint8_t, uint16_t));
-  MOCK_METHOD(void, OnPeriodicSyncReport, (uint16_t, int8_t, int8_t, uint8_t, std::vector<uint8_t>));
+  MOCK_METHOD(void, OnFilterParamSetup,
+              (uint8_t available_spaces, ApcfAction action, uint8_t status), (override));
+  MOCK_METHOD(void, OnFilterConfigCallback,
+              (ApcfFilterType filter_type, uint8_t available_spaces, ApcfAction action,
+               uint8_t status),
+              (override));
+  MOCK_METHOD(void, OnPeriodicSyncStarted,
+              (int, uint8_t, uint16_t, uint8_t, AddressWithType, uint8_t, uint16_t));
+  MOCK_METHOD(void, OnPeriodicSyncReport,
+              (uint16_t, int8_t, int8_t, uint8_t, std::vector<uint8_t>));
   MOCK_METHOD(void, OnPeriodicSyncLost, (uint16_t));
   MOCK_METHOD(void, OnPeriodicSyncTransferred, (int, uint8_t, Address));
   MOCK_METHOD(void, OnBigInfoReport, (uint16_t, bool));
 } mock_callbacks_;
 
 class LeScanningManagerTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     test_hci_layer_ = new HciLayerFake;  // Ownership is transferred to registry
     test_controller_ = new TestController;
@@ -301,23 +279,23 @@ class LeScanningManagerTest : public ::testing::Test {
   void TearDown() override {
     sync_client_handler();
     if (fake_registry_.IsStarted<LeScanningManager>()) {
-      fake_registry_.SynchronizeModuleHandler(&LeScanningManager::Factory, std::chrono::milliseconds(20));
+      fake_registry_.SynchronizeModuleHandler(&LeScanningManager::Factory,
+                                              std::chrono::milliseconds(20));
     }
     fake_registry_.StopAll();
   }
 
   void start_le_scanning_manager() {
     fake_registry_.Start<LeScanningManager>(&thread_);
-    le_scanning_manager =
-        static_cast<LeScanningManager*>(fake_registry_.GetModuleUnderTest(&LeScanningManager::Factory));
+    le_scanning_manager = static_cast<LeScanningManager*>(
+            fake_registry_.GetModuleUnderTest(&LeScanningManager::Factory));
     le_scanning_manager->RegisterScanningCallback(&mock_callbacks_);
     sync_client_handler();
   }
 
   void sync_client_handler() {
-    log::assert_that(
-        thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2)),
-        "assert failed: thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2))");
+    log::assert_that(thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2)),
+                     "assert failed: thread_.GetReactor()->WaitForIdle(std::chrono::seconds(2))");
   }
 
   TestModuleRegistry fake_registry_;
@@ -332,7 +310,7 @@ class LeScanningManagerTest : public ::testing::Test {
 };
 
 class LeScanningManagerAndroidHciTest : public LeScanningManagerTest {
- protected:
+protected:
   void SetUp() override {
     LeScanningManagerTest::SetUp();
     test_controller_->AddSupported(OpCode::LE_EXTENDED_SCAN_PARAMS);
@@ -342,19 +320,16 @@ class LeScanningManagerAndroidHciTest : public LeScanningManagerTest {
     start_le_scanning_manager();
     ASSERT_TRUE(fake_registry_.IsStarted(&HciLayer::Factory));
 
-
     ASSERT_EQ(OpCode::LE_ADV_FILTER, test_hci_layer_->GetCommand().GetOpCode());
-    test_hci_layer_->IncomingEvent(
-        LeAdvFilterReadExtendedFeaturesCompleteBuilder::Create(1, ErrorCode::SUCCESS, 0x01, 0x01));
+    test_hci_layer_->IncomingEvent(LeAdvFilterReadExtendedFeaturesCompleteBuilder::Create(
+            1, ErrorCode::SUCCESS, 0x01, 0x01));
   }
 
-  void TearDown() override {
-    LeScanningManagerTest::TearDown();
-  }
+  void TearDown() override { LeScanningManagerTest::TearDown(); }
 };
 
 class LeScanningManagerExtendedTest : public LeScanningManagerTest {
- protected:
+protected:
   void SetUp() override {
     LeScanningManagerTest::SetUp();
     test_controller_->AddSupported(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS);
@@ -373,10 +348,10 @@ TEST_F(LeScanningManagerTest, start_scan_test) {
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   LeAdvertisingResponse report = make_advertising_report();
   EXPECT_CALL(mock_callbacks_, OnScanResult);
@@ -390,10 +365,10 @@ TEST_F(LeScanningManagerTest, legacy_adv_scan_ind_report_with_scan_response) {
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   LeAdvertisingResponse report = make_advertising_report();
   // Scannable & not connectable!
@@ -420,10 +395,10 @@ TEST_F(LeScanningManagerTest, legacy_adv_ind_report_with_scan_response) {
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   LeAdvertisingResponse report = make_advertising_report();
   // Scannable & connectable!
@@ -463,7 +438,7 @@ TEST_F(LeScanningManagerExtendedTest, is_nonstandard_phy_supported_test) {
   le_scanning_manager->Scan(true);
 
   auto command_view = LeSetExtendedScanParametersView::Create(
-      LeScanningCommandView::Create(test_hci_layer_->GetCommand()));
+          LeScanningCommandView::Create(test_hci_layer_->GetCommand()));
   ASSERT_TRUE(command_view.IsValid());
   if (com::android::bluetooth::flags::phy_to_native()) {
     ASSERT_EQ(command_view.GetScanningPhys(), scan_phy);
@@ -479,7 +454,7 @@ TEST_F(LeScanningManagerExtendedTest, is_multiple_phy_supported_test) {
   le_scanning_manager->Scan(true);
 
   auto command_view = LeSetExtendedScanParametersView::Create(
-      LeScanningCommandView::Create(test_hci_layer_->GetCommand()));
+          LeScanningCommandView::Create(test_hci_layer_->GetCommand()));
   ASSERT_TRUE(command_view.IsValid());
   if (com::android::bluetooth::flags::phy_to_native()) {
     ASSERT_EQ(command_view.GetScanningPhys(), scan_phy);
@@ -504,8 +479,10 @@ TEST_F(LeScanningManagerAndroidHciTest, start_scan_test) {
 TEST_F(LeScanningManagerAndroidHciTest, is_ad_type_filter_supported_true_test) {
   sync_client_handler();
   client_handler_->Post(common::BindOnce(
-      [](LeScanningManager* le_scanning_manager) { ASSERT_TRUE(le_scanning_manager->IsAdTypeFilterSupported()); },
-      le_scanning_manager));
+          [](LeScanningManager* le_scanning_manager) {
+            ASSERT_TRUE(le_scanning_manager->IsAdTypeFilterSupported());
+          },
+          le_scanning_manager));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_enable_test) {
@@ -513,112 +490,107 @@ TEST_F(LeScanningManagerAndroidHciTest, scan_filter_enable_test) {
   sync_client_handler();
 
   EXPECT_CALL(mock_callbacks_, OnFilterEnable);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, Enable::ENABLED));
+  test_hci_layer_->IncomingEvent(LeAdvFilterEnableCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, Enable::ENABLED));
   sync_client_handler();
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_parameter_test) {
-
   AdvertisingFilterParameter advertising_filter_parameter{};
   advertising_filter_parameter.delivery_mode = DeliveryMode::IMMEDIATE;
-  le_scanning_manager->ScanFilterParameterSetup(ApcfAction::ADD, 0x01, advertising_filter_parameter);
+  le_scanning_manager->ScanFilterParameterSetup(ApcfAction::ADD, 0x01,
+                                                advertising_filter_parameter);
   auto commandView = test_hci_layer_->GetCommand();
   ASSERT_EQ(OpCode::LE_ADV_FILTER, commandView.GetOpCode());
   auto filter_command_view = LeAdvFilterSetFilteringParametersView::Create(
-      LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
+          LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
   ASSERT_TRUE(filter_command_view.IsValid());
   ASSERT_EQ(filter_command_view.GetApcfOpcode(), ApcfOpcode::SET_FILTERING_PARAMETERS);
 
   EXPECT_CALL(mock_callbacks_, OnFilterParamSetup);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterSetFilteringParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+  test_hci_layer_->IncomingEvent(LeAdvFilterSetFilteringParametersCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
   sync_client_handler();
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_broadcaster_address_test) {
-
   std::vector<AdvertisingPacketContentFilterCommand> filters = {};
   filters.push_back(make_filter(ApcfFilterType::BROADCASTER_ADDRESS));
   le_scanning_manager->ScanFilterAdd(0x01, filters);
   auto commandView = test_hci_layer_->GetCommand();
   ASSERT_EQ(OpCode::LE_ADV_FILTER, commandView.GetOpCode());
-  auto filter_command_view =
-      LeAdvFilterBroadcasterAddressView::Create(LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
+  auto filter_command_view = LeAdvFilterBroadcasterAddressView::Create(
+          LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
   ASSERT_TRUE(filter_command_view.IsValid());
   ASSERT_EQ(filter_command_view.GetApcfOpcode(), ApcfOpcode::BROADCASTER_ADDRESS);
 
   EXPECT_CALL(mock_callbacks_, OnFilterConfigCallback);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterBroadcasterAddressCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+  test_hci_layer_->IncomingEvent(LeAdvFilterBroadcasterAddressCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_service_uuid_test) {
-
   std::vector<AdvertisingPacketContentFilterCommand> filters = {};
   filters.push_back(make_filter(ApcfFilterType::SERVICE_UUID));
   le_scanning_manager->ScanFilterAdd(0x01, filters);
   auto commandView = test_hci_layer_->GetCommand();
   ASSERT_EQ(OpCode::LE_ADV_FILTER, commandView.GetOpCode());
-  auto filter_command_view =
-      LeAdvFilterServiceUuidView::Create(LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
+  auto filter_command_view = LeAdvFilterServiceUuidView::Create(
+          LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
   ASSERT_TRUE(filter_command_view.IsValid());
   ASSERT_EQ(filter_command_view.GetApcfOpcode(), ApcfOpcode::SERVICE_UUID);
 
   EXPECT_CALL(mock_callbacks_, OnFilterConfigCallback);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterServiceUuidCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+  test_hci_layer_->IncomingEvent(LeAdvFilterServiceUuidCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_local_name_test) {
-
   std::vector<AdvertisingPacketContentFilterCommand> filters = {};
   filters.push_back(make_filter(ApcfFilterType::LOCAL_NAME));
   le_scanning_manager->ScanFilterAdd(0x01, filters);
   auto commandView = test_hci_layer_->GetCommand();
   ASSERT_EQ(OpCode::LE_ADV_FILTER, commandView.GetOpCode());
-  auto filter_command_view =
-      LeAdvFilterLocalNameView::Create(LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
+  auto filter_command_view = LeAdvFilterLocalNameView::Create(
+          LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
   ASSERT_TRUE(filter_command_view.IsValid());
   ASSERT_EQ(filter_command_view.GetApcfOpcode(), ApcfOpcode::LOCAL_NAME);
 
   EXPECT_CALL(mock_callbacks_, OnFilterConfigCallback);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterLocalNameCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+  test_hci_layer_->IncomingEvent(LeAdvFilterLocalNameCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_manufacturer_data_test) {
-
   std::vector<AdvertisingPacketContentFilterCommand> filters = {};
   filters.push_back(make_filter(ApcfFilterType::MANUFACTURER_DATA));
   le_scanning_manager->ScanFilterAdd(0x01, filters);
   auto commandView = test_hci_layer_->GetCommand();
   ASSERT_EQ(OpCode::LE_ADV_FILTER, commandView.GetOpCode());
-  auto filter_command_view =
-      LeAdvFilterManufacturerDataView::Create(LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
+  auto filter_command_view = LeAdvFilterManufacturerDataView::Create(
+          LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
   ASSERT_TRUE(filter_command_view.IsValid());
   ASSERT_EQ(filter_command_view.GetApcfOpcode(), ApcfOpcode::MANUFACTURER_DATA);
 
   EXPECT_CALL(mock_callbacks_, OnFilterConfigCallback);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterManufacturerDataCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+  test_hci_layer_->IncomingEvent(LeAdvFilterManufacturerDataCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_service_data_test) {
-
   std::vector<AdvertisingPacketContentFilterCommand> filters = {};
   filters.push_back(make_filter(hci::ApcfFilterType::SERVICE_DATA));
   le_scanning_manager->ScanFilterAdd(0x01, filters);
   auto commandView = test_hci_layer_->GetCommand();
   ASSERT_EQ(OpCode::LE_ADV_FILTER, commandView.GetOpCode());
-  auto filter_command_view =
-      LeAdvFilterServiceDataView::Create(LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
+  auto filter_command_view = LeAdvFilterServiceDataView::Create(
+          LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
   ASSERT_TRUE(filter_command_view.IsValid());
   ASSERT_EQ(filter_command_view.GetApcfOpcode(), ApcfOpcode::SERVICE_DATA);
 
   EXPECT_CALL(mock_callbacks_, OnFilterConfigCallback);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterServiceDataCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+  test_hci_layer_->IncomingEvent(LeAdvFilterServiceDataCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_transport_discovery_data_test) {
@@ -628,21 +600,23 @@ TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_transport_discovery_data
   auto commandView = test_hci_layer_->GetCommand();
   ASSERT_EQ(OpCode::LE_ADV_FILTER, commandView.GetOpCode());
   auto filter_command_view = LeAdvFilterTransportDiscoveryDataView::Create(
-      LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
+          LeAdvFilterView::Create(LeScanningCommandView::Create(commandView)));
 
   ASSERT_TRUE(filter_command_view.IsValid());
   ASSERT_EQ(filter_command_view.GetApcfOpcode(), ApcfOpcode::TRANSPORT_DISCOVERY_DATA);
 
   EXPECT_CALL(mock_callbacks_, OnFilterConfigCallback);
   test_hci_layer_->IncomingEvent(LeAdvFilterTransportDiscoveryDataCompleteBuilder::Create(
-      uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_ad_type_test) {
   sync_client_handler();
   client_handler_->Post(common::BindOnce(
-      [](LeScanningManager* le_scanning_manager) { ASSERT_TRUE(le_scanning_manager->IsAdTypeFilterSupported()); },
-      le_scanning_manager));
+          [](LeScanningManager* le_scanning_manager) {
+            ASSERT_TRUE(le_scanning_manager->IsAdTypeFilterSupported());
+          },
+          le_scanning_manager));
 
   std::vector<AdvertisingPacketContentFilterCommand> filters = {};
   hci::AdvertisingPacketContentFilterCommand filter = make_filter(hci::ApcfFilterType::AD_TYPE);
@@ -651,24 +625,27 @@ TEST_F(LeScanningManagerAndroidHciTest, scan_filter_add_ad_type_test) {
   sync_client_handler();
 
   EXPECT_CALL(mock_callbacks_, OnFilterConfigCallback);
-  test_hci_layer_->IncomingEvent(
-      LeAdvFilterADTypeCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
+  test_hci_layer_->IncomingEvent(LeAdvFilterADTypeCompleteBuilder::Create(
+          uint8_t{1}, ErrorCode::SUCCESS, ApcfAction::ADD, 0x0a));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, read_batch_scan_result) {
   le_scanning_manager->BatchScanConifgStorage(100, 0, 95, 0x00);
   sync_client_handler();
   ASSERT_EQ(OpCode::LE_BATCH_SCAN, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeBatchScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeBatchScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_BATCH_SCAN, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeBatchScanSetStorageParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeBatchScanSetStorageParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   // Enable batch scan
 
-  le_scanning_manager->BatchScanEnable(BatchScanMode::FULL, 2400, 2400, BatchScanDiscardRule::OLDEST);
+  le_scanning_manager->BatchScanEnable(BatchScanMode::FULL, 2400, 2400,
+                                       BatchScanDiscardRule::OLDEST);
   ASSERT_EQ(OpCode::LE_BATCH_SCAN, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeBatchScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeBatchScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   // Read batch scan data
 
@@ -676,17 +653,18 @@ TEST_F(LeScanningManagerAndroidHciTest, read_batch_scan_result) {
   ASSERT_EQ(OpCode::LE_BATCH_SCAN, test_hci_layer_->GetCommand().GetOpCode());
 
   // We will send read command while num_of_record != 0
-  std::vector<uint8_t> raw_data = {0x5c, 0x1f, 0xa2, 0xc3, 0x63, 0x5d, 0x01, 0xf5, 0xb3, 0x5e, 0x00, 0x0c, 0x02,
-                                   0x01, 0x02, 0x05, 0x09, 0x6d, 0x76, 0x38, 0x76, 0x02, 0x0a, 0xf5, 0x00};
+  std::vector<uint8_t> raw_data = {0x5c, 0x1f, 0xa2, 0xc3, 0x63, 0x5d, 0x01, 0xf5, 0xb3,
+                                   0x5e, 0x00, 0x0c, 0x02, 0x01, 0x02, 0x05, 0x09, 0x6d,
+                                   0x76, 0x38, 0x76, 0x02, 0x0a, 0xf5, 0x00};
 
   test_hci_layer_->IncomingEvent(LeBatchScanReadResultParametersCompleteRawBuilder::Create(
-      uint8_t{1}, ErrorCode::SUCCESS, BatchScanDataRead::FULL_MODE_DATA, 1, raw_data));
+          uint8_t{1}, ErrorCode::SUCCESS, BatchScanDataRead::FULL_MODE_DATA, 1, raw_data));
   ASSERT_EQ(OpCode::LE_BATCH_SCAN, test_hci_layer_->GetCommand().GetOpCode());
 
   // OnBatchScanReports will be trigger when num_of_record == 0
   EXPECT_CALL(mock_callbacks_, OnBatchScanReports);
   test_hci_layer_->IncomingEvent(LeBatchScanReadResultParametersCompleteRawBuilder::Create(
-      uint8_t{1}, ErrorCode::SUCCESS, BatchScanDataRead::FULL_MODE_DATA, 0, {}));
+          uint8_t{1}, ErrorCode::SUCCESS, BatchScanDataRead::FULL_MODE_DATA, 0, {}));
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, start_sync_test) {
@@ -701,8 +679,8 @@ TEST_F(LeScanningManagerAndroidHciTest, start_sync_test) {
   le_scanning_manager->TransferSync(address, handle, service_data, sync_handle, pa_source);
   sync_client_handler();
 
-  ASSERT_EQ(
-      OpCode::LE_PERIODIC_ADVERTISING_SYNC_TRANSFER, test_hci_layer_->GetCommand().GetOpCode());
+  ASSERT_EQ(OpCode::LE_PERIODIC_ADVERTISING_SYNC_TRANSFER,
+            test_hci_layer_->GetCommand().GetOpCode());
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, start_sync_invalid_handle_test) {
@@ -714,10 +692,9 @@ TEST_F(LeScanningManagerAndroidHciTest, start_sync_invalid_handle_test) {
 
   Address::FromString("12:34:56:78:9a:bc", address);
 
-  EXPECT_CALL(
-      mock_callbacks_,
-      OnPeriodicSyncTransferred(
-          pa_source, static_cast<int>(ErrorCode::UNKNOWN_CONNECTION), address));
+  EXPECT_CALL(mock_callbacks_,
+              OnPeriodicSyncTransferred(pa_source, static_cast<int>(ErrorCode::UNKNOWN_CONNECTION),
+                                        address));
   le_scanning_manager->TransferSync(address, handle, service_data, sync_handle, pa_source);
   sync_client_handler();
 }
@@ -734,8 +711,8 @@ TEST_F(LeScanningManagerAndroidHciTest, set_info_test) {
   le_scanning_manager->TransferSetInfo(address, handle, service_data, sync_handle, pa_source);
   sync_client_handler();
 
-  ASSERT_EQ(
-      OpCode::LE_PERIODIC_ADVERTISING_SET_INFO_TRANSFER, test_hci_layer_->GetCommand().GetOpCode());
+  ASSERT_EQ(OpCode::LE_PERIODIC_ADVERTISING_SET_INFO_TRANSFER,
+            test_hci_layer_->GetCommand().GetOpCode());
 }
 
 TEST_F(LeScanningManagerAndroidHciTest, set_info_invalid_handle_test) {
@@ -747,10 +724,9 @@ TEST_F(LeScanningManagerAndroidHciTest, set_info_invalid_handle_test) {
 
   Address::FromString("12:34:56:78:9a:bc", address);
 
-  EXPECT_CALL(
-      mock_callbacks_,
-      OnPeriodicSyncTransferred(
-          pa_source, static_cast<int>(ErrorCode::UNKNOWN_CONNECTION), address));
+  EXPECT_CALL(mock_callbacks_,
+              OnPeriodicSyncTransferred(pa_source, static_cast<int>(ErrorCode::UNKNOWN_CONNECTION),
+                                        address));
   le_scanning_manager->TransferSetInfo(address, handle, service_data, sync_handle, pa_source);
   sync_client_handler();
 }
@@ -761,9 +737,11 @@ TEST_F(LeScanningManagerExtendedTest, start_scan_test) {
   // Enable scan
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   LeExtendedAdvertisingResponse report{};
   report.connectable_ = 1;
   report.scannable_ = 0;
@@ -789,23 +767,23 @@ TEST_F(LeScanningManagerExtendedTest, start_scan_test) {
 
 TEST_F(LeScanningManagerExtendedTest, start_scan_on_resume_conflict_test) {
   TestLeAddressManager* test_le_address_manager =
-      (TestLeAddressManager*)test_acl_manager_->GetLeAddressManager();
+          (TestLeAddressManager*)test_acl_manager_->GetLeAddressManager();
 
   // Enable scan
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   sync_client_handler();
 
   // Pause scan
   test_le_address_manager->client_->OnPause();
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   // Disable scan
   le_scanning_manager->Scan(false);
@@ -815,10 +793,10 @@ TEST_F(LeScanningManagerExtendedTest, start_scan_on_resume_conflict_test) {
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   // Ensure there is no double enable commands on resume
   test_le_address_manager->client_->OnResume();
@@ -828,65 +806,74 @@ TEST_F(LeScanningManagerExtendedTest, start_scan_on_resume_conflict_test) {
 
 TEST_F(LeScanningManagerExtendedTest, on_pause_on_resume_test) {
   TestLeAddressManager* test_le_address_manager =
-      (TestLeAddressManager*)test_acl_manager_->GetLeAddressManager();
+          (TestLeAddressManager*)test_acl_manager_->GetLeAddressManager();
 
   // Enable scan
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   sync_client_handler();
 
   // Pause scan
   test_le_address_manager->client_->OnPause();
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   // Ensure scan is resumed (enabled)
   test_le_address_manager->client_->OnResume();
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
   test_hci_layer_->IncomingEvent(
-      LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 }
 
 TEST_F(LeScanningManagerExtendedTest, ignore_on_pause_on_resume_after_unregistered) {
-  TestLeAddressManager* test_le_address_manager = (TestLeAddressManager*)test_acl_manager_->GetLeAddressManager();
+  TestLeAddressManager* test_le_address_manager =
+          (TestLeAddressManager*)test_acl_manager_->GetLeAddressManager();
   test_le_address_manager->ignore_unregister_for_testing = true;
 
   // Register LeAddressManager
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   sync_client_handler();
 
   // Unregister LeAddressManager
   le_scanning_manager->Scan(false);
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   sync_client_handler();
 
   // Unregistered client should ignore OnPause/OnResume
   ASSERT_NE(test_le_address_manager->client_, nullptr);
-  ASSERT_EQ(test_le_address_manager->test_client_state_, TestLeAddressManager::TestClientState::UNREGISTERED);
+  ASSERT_EQ(test_le_address_manager->test_client_state_,
+            TestLeAddressManager::TestClientState::UNREGISTERED);
   test_le_address_manager->client_->OnPause();
-  ASSERT_EQ(test_le_address_manager->test_client_state_, TestLeAddressManager::TestClientState::UNREGISTERED);
+  ASSERT_EQ(test_le_address_manager->test_client_state_,
+            TestLeAddressManager::TestClientState::UNREGISTERED);
   test_le_address_manager->client_->OnResume();
-  ASSERT_EQ(test_le_address_manager->test_client_state_, TestLeAddressManager::TestClientState::UNREGISTERED);
+  ASSERT_EQ(test_le_address_manager->test_client_state_,
+            TestLeAddressManager::TestClientState::UNREGISTERED);
 }
 
 TEST_F(LeScanningManagerExtendedTest, drop_insignificant_bytes_test) {
   // Enable scan
   le_scanning_manager->Scan(true);
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeSetExtendedScanParametersCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
   ASSERT_EQ(OpCode::LE_SET_EXTENDED_SCAN_ENABLE, test_hci_layer_->GetCommand().GetOpCode());
-  test_hci_layer_->IncomingEvent(LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
+  test_hci_layer_->IncomingEvent(
+          LeSetExtendedScanEnableCompleteBuilder::Create(uint8_t{1}, ErrorCode::SUCCESS));
 
   // Prepare advertisement report
   LeExtendedAdvertisingResponse advertisement_report{};
@@ -933,8 +920,10 @@ TEST_F(LeScanningManagerExtendedTest, drop_insignificant_bytes_test) {
   EXPECT_CALL(mock_callbacks_, OnScanResult(_, _, _, _, _, _, _, _, _, result));
 
   // Send both reports
-  test_hci_layer_->IncomingLeMetaEvent(LeExtendedAdvertisingReportBuilder::Create({advertisement_report}));
-  test_hci_layer_->IncomingLeMetaEvent(LeExtendedAdvertisingReportBuilder::Create({scan_response_report}));
+  test_hci_layer_->IncomingLeMetaEvent(
+          LeExtendedAdvertisingReportBuilder::Create({advertisement_report}));
+  test_hci_layer_->IncomingLeMetaEvent(
+          LeExtendedAdvertisingReportBuilder::Create({scan_response_report}));
 }
 
 }  // namespace

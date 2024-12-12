@@ -27,27 +27,21 @@ namespace bluetooth {
 namespace shim {
 
 class LinkConnectionInterface {
- public:
+public:
   virtual ~LinkConnectionInterface() {}
 
-  virtual void CreateClassicConnection(
-      const bluetooth::hci::Address& address) = 0;
-  virtual void CancelClassicConnection(
-      const bluetooth::hci::Address& address) = 0;
-  virtual void AcceptLeConnectionFrom(
-      const bluetooth::hci::AddressWithType& address_with_type, bool is_direct,
-      std::promise<bool>) = 0;
-  virtual void IgnoreLeConnectionFrom(
-      const bluetooth::hci::AddressWithType& address_with_type) = 0;
+  virtual void CreateClassicConnection(const bluetooth::hci::Address& address) = 0;
+  virtual void CancelClassicConnection(const bluetooth::hci::Address& address) = 0;
+  virtual void AcceptLeConnectionFrom(const bluetooth::hci::AddressWithType& address_with_type,
+                                      bool is_direct, std::promise<bool>) = 0;
+  virtual void IgnoreLeConnectionFrom(const bluetooth::hci::AddressWithType& address_with_type) = 0;
 
-  virtual void DisconnectClassic(uint16_t handle, tHCI_REASON reason,
-                                 std::string comment) = 0;
-  virtual void DisconnectLe(uint16_t handle, tHCI_REASON reason,
-                            std::string comment) = 0;
-  virtual void UpdateConnectionParameters(
-      uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
-      uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
-      uint16_t max_ce_len) = 0;
+  virtual void DisconnectClassic(uint16_t handle, tHCI_REASON reason, std::string comment) = 0;
+  virtual void DisconnectLe(uint16_t handle, tHCI_REASON reason, std::string comment) = 0;
+  virtual void UpdateConnectionParameters(uint16_t handle, uint16_t conn_int_min,
+                                          uint16_t conn_int_max, uint16_t conn_latency,
+                                          uint16_t conn_timeout, uint16_t min_ce_len,
+                                          uint16_t max_ce_len) = 0;
 };
 
 }  // namespace shim

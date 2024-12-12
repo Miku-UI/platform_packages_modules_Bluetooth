@@ -19,6 +19,7 @@
 #pragma once
 
 #include <stdbool.h>
+
 #include <cstdint>
 
 #include "stack/include/bt_hdr.h"
@@ -33,8 +34,7 @@ typedef struct btsnoop_t {
 
   // Set a L2CAP channel as allowlisted, allowing packets with that L2CAP CID
   // to show up in the snoop logs.
-  void (*allowlist_l2c_channel)(uint16_t conn_handle, uint16_t local_cid,
-                                uint16_t remote_cid);
+  void (*allowlist_l2c_channel)(uint16_t conn_handle, uint16_t local_cid, uint16_t remote_cid);
 
   // Set a RFCOMM dlci as allowlisted, allowing packets with that RFCOMM CID
   // to show up in the snoop logs. The local_cid is used to associate it with
@@ -46,12 +46,10 @@ typedef struct btsnoop_t {
   // Indicate that the provided L2CAP channel is being used for RFCOMM.
   // If packets with the provided L2CAP CID are encountered, they will be
   // filtered on RFCOMM based on channels provided to |filter_rfc_channel|.
-  void (*add_rfc_l2c_channel)(uint16_t conn_handle, uint16_t local_cid,
-                              uint16_t remote_cid);
+  void (*add_rfc_l2c_channel)(uint16_t conn_handle, uint16_t local_cid, uint16_t remote_cid);
 
   // Clear an L2CAP channel from being filtered.
-  void (*clear_l2cap_allowlist)(uint16_t conn_handle, uint16_t local_cid,
-                                uint16_t remote_cid);
+  void (*clear_l2cap_allowlist)(uint16_t conn_handle, uint16_t local_cid, uint16_t remote_cid);
 } btsnoop_t;
 
 const btsnoop_t* btsnoop_get_interface(void);

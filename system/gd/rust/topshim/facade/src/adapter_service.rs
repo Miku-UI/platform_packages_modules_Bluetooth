@@ -7,9 +7,8 @@ use crate::utils::converters::{bluetooth_property_to_event_data, event_data_from
 use bt_topshim_facade_protobuf::empty::Empty;
 use bt_topshim_facade_protobuf::facade::{
     EventType, FetchEventsRequest, FetchEventsResponse, SetDefaultEventMaskExceptRequest,
-    SetDiscoveryModeRequest, SetDiscoveryModeResponse, SetLocalIoCapsRequest,
-    SetLocalIoCapsResponse, ToggleDiscoveryRequest, ToggleDiscoveryResponse, ToggleStackRequest,
-    ToggleStackResponse,
+    SetDiscoveryModeRequest, SetLocalIoCapsRequest, SetLocalIoCapsResponse, ToggleDiscoveryRequest,
+    ToggleDiscoveryResponse, ToggleStackRequest, ToggleStackResponse,
 };
 use bt_topshim_facade_protobuf::facade_grpc::{create_adapter_service, AdapterService};
 use futures::sink::SinkExt;
@@ -95,6 +94,7 @@ impl AdapterServiceImpl {
         btif_intf.lock().unwrap().initialize(
             get_bt_dispatcher(btif_intf.clone(), event_tx.clone()),
             vec!["INIT_gd_hci=true".to_string()],
+            0,
         );
         create_adapter_service(Self {
             rt,
@@ -239,7 +239,7 @@ impl AdapterService for AdapterServiceImpl {
         &mut self,
         ctx: RpcContext<'_>,
         req: SetDiscoveryModeRequest,
-        sink: UnarySink<SetDiscoveryModeResponse>,
+        sink: UnarySink<Empty>,
     ) {
         let scan_mode = if req.enable_inquiry_scan {
             btif::BtScanMode::ConnectableDiscoverable
@@ -248,16 +248,9 @@ impl AdapterService for AdapterServiceImpl {
         } else {
             btif::BtScanMode::None_
         };
-        let status = self
-            .btif_intf
-            .lock()
-            .unwrap()
-            .set_adapter_property(btif::BluetoothProperty::AdapterScanMode(scan_mode));
-
-        let mut resp = SetDiscoveryModeResponse::new();
-        resp.status = status;
+        self.btif_intf.lock().unwrap().set_scan_mode(scan_mode);
         ctx.spawn(async move {
-            sink.success(resp).await.unwrap();
+            sink.success(Empty::default()).await.unwrap();
         })
     }
 

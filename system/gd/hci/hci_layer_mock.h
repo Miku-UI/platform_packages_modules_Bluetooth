@@ -23,6 +23,7 @@
 #include "hci/address.h"
 #include "hci/hci_interface.h"
 #include "hci/hci_packets.h"
+#include "hci/inquiry_interface.h"
 
 // Unit test interfaces
 namespace bluetooth {
@@ -30,105 +31,74 @@ namespace hci {
 namespace testing {
 
 class MockHciLayer : public HciInterface {
- public:
-  MOCK_METHOD(
-      void,
-      EnqueueCommand,
-      (std::unique_ptr<CommandBuilder>, common::ContextualOnceCallback<void(CommandCompleteView)>),
-      (override));
-  MOCK_METHOD(
-      void,
-      EnqueueCommand,
-      (std::unique_ptr<CommandBuilder>, common::ContextualOnceCallback<void(CommandStatusView)>),
-      (override));
+public:
+  MOCK_METHOD(void, EnqueueCommand,
+              (std::unique_ptr<CommandBuilder>,
+               common::ContextualOnceCallback<void(CommandCompleteView)>),
+              (override));
+  MOCK_METHOD(void, EnqueueCommand,
+              (std::unique_ptr<CommandBuilder>,
+               common::ContextualOnceCallback<void(CommandStatusView)>),
+              (override));
   MOCK_METHOD((common::BidiQueueEnd<AclBuilder, AclView>*), GetAclQueueEnd, (), (override));
   MOCK_METHOD((common::BidiQueueEnd<ScoBuilder, ScoView>*), GetScoQueueEnd, (), (override));
   MOCK_METHOD((common::BidiQueueEnd<IsoBuilder, IsoView>*), GetIsoQueueEnd, (), (override));
-  MOCK_METHOD(
-      (void),
-      RegisterEventHandler,
-      (EventCode, common::ContextualCallback<void(EventView)>),
-      (override));
+  MOCK_METHOD((void), RegisterEventHandler,
+              (EventCode, common::ContextualCallback<void(EventView)>), (override));
   MOCK_METHOD((void), UnregisterEventHandler, (EventCode), (override));
-  MOCK_METHOD(
-      (void),
-      RegisterLeEventHandler,
-      (SubeventCode, common::ContextualCallback<void(LeMetaEventView)>),
-      (override));
+  MOCK_METHOD((void), RegisterLeEventHandler,
+              (SubeventCode, common::ContextualCallback<void(LeMetaEventView)>), (override));
   MOCK_METHOD((void), UnregisterLeEventHandler, (SubeventCode), (override));
-  MOCK_METHOD(
-      (void),
-      RegisterVendorSpecificEventHandler,
-      (VseSubeventCode, common::ContextualCallback<void(VendorSpecificEventView)>),
-      (override));
+  MOCK_METHOD((void), RegisterVendorSpecificEventHandler,
+              (VseSubeventCode, common::ContextualCallback<void(VendorSpecificEventView)>),
+              (override));
   MOCK_METHOD((void), UnregisterVendorSpecificEventHandler, (VseSubeventCode), (override));
-  MOCK_METHOD(
-      (SecurityInterface*),
-      GetSecurityInterface,
-      (common::ContextualCallback<void(EventView)> event_handler),
-      (override));
+  MOCK_METHOD((SecurityInterface*), GetSecurityInterface,
+              (common::ContextualCallback<void(EventView)> event_handler), (override));
+
+  MOCK_METHOD((void), RegisterForDisconnects,
+              (common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect));
+
+  MOCK_METHOD((LeSecurityInterface*), GetLeSecurityInterface,
+              (common::ContextualCallback<void(LeMetaEventView)> event_handler), (override));
 
   MOCK_METHOD(
-      (void),
-      RegisterForDisconnects,
-      (common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect));
-
-  MOCK_METHOD(
-      (LeSecurityInterface*),
-      GetLeSecurityInterface,
-      (common::ContextualCallback<void(LeMetaEventView)> event_handler),
-      (override));
-
-  MOCK_METHOD(
-      (AclConnectionInterface*),
-      GetAclConnectionInterface,
-      (common::ContextualCallback<void(EventView)> event_handler,
-       common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
-       common::ContextualCallback<void(Address, ClassOfDevice)> on_connection_request,
-       common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
-           on_read_remote_version_complete),
-      (override));
+          (AclConnectionInterface*), GetAclConnectionInterface,
+          (common::ContextualCallback<void(EventView)> event_handler,
+           common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
+           common::ContextualCallback<void(Address, ClassOfDevice)> on_connection_request,
+           common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
+                   on_read_remote_version_complete),
+          (override));
   MOCK_METHOD((void), PutAclConnectionInterface, (), (override));
 
   MOCK_METHOD(
-      (LeAclConnectionInterface*),
-      GetLeAclConnectionInterface,
-      (common::ContextualCallback<void(LeMetaEventView)> event_handler,
-       common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
-       common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
-           on_read_remote_version_complete),
-      (override));
+          (LeAclConnectionInterface*), GetLeAclConnectionInterface,
+          (common::ContextualCallback<void(LeMetaEventView)> event_handler,
+           common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect,
+           common::ContextualCallback<void(hci::ErrorCode, uint16_t, uint8_t, uint16_t, uint16_t)>
+                   on_read_remote_version_complete),
+          (override));
   MOCK_METHOD((void), PutLeAclConnectionInterface, (), (override));
 
-  MOCK_METHOD(
-      (LeAdvertisingInterface*),
-      GetLeAdvertisingInterface,
-      (common::ContextualCallback<void(LeMetaEventView)> event_handler),
-      (override));
+  MOCK_METHOD((LeAdvertisingInterface*), GetLeAdvertisingInterface,
+              (common::ContextualCallback<void(LeMetaEventView)> event_handler), (override));
 
-  MOCK_METHOD(
-      (LeScanningInterface*),
-      GetLeScanningInterface,
-      (common::ContextualCallback<void(LeMetaEventView)> event_handler),
-      (override));
+  MOCK_METHOD((LeScanningInterface*), GetLeScanningInterface,
+              (common::ContextualCallback<void(LeMetaEventView)> event_handler), (override));
 
-  MOCK_METHOD(
-      (LeIsoInterface*),
-      GetLeIsoInterface,
-      (common::ContextualCallback<void(LeMetaEventView)> event_handler),
-      (override));
+  MOCK_METHOD((LeIsoInterface*), GetLeIsoInterface,
+              (common::ContextualCallback<void(LeMetaEventView)> event_handler), (override));
 
-  MOCK_METHOD(
-      (DistanceMeasurementInterface*),
-      GetDistanceMeasurementInterface,
-      (common::ContextualCallback<void(LeMetaEventView)> event_handler),
-      (override));
+  MOCK_METHOD((DistanceMeasurementInterface*), GetDistanceMeasurementInterface,
+              (common::ContextualCallback<void(LeMetaEventView)> event_handler), (override));
 
-  MOCK_METHOD(
-      void,
-      RegisterForScoConnectionRequests,
-      (common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
-           on_sco_connection_request));
+  MOCK_METHOD((std::unique_ptr<InquiryInterface>), GetInquiryInterface,
+              (common::ContextualCallback<void(EventView)> event_handler), (override));
+
+  MOCK_METHOD(void, RegisterForScoConnectionRequests,
+              (common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
+                       on_sco_connection_request));
 };
 
 }  // namespace testing

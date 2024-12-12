@@ -85,8 +85,7 @@ list_node_t* list_end(const list_t* list) {
   inc_func_call_count(__func__);
   return test::mock::osi_list::list_end(list);
 }
-list_node_t* list_foreach(const list_t* list, list_iter_cb callback,
-                          void* context) {
+list_node_t* list_foreach(const list_t* list, list_iter_cb callback, void* context) {
   inc_func_call_count(__func__);
   return test::mock::osi_list::list_foreach(list, callback, context);
 }
@@ -114,8 +113,7 @@ list_t* list_new(list_free_cb callback) {
   inc_func_call_count(__func__);
   return test::mock::osi_list::list_new(callback);
 }
-list_t* list_new_internal(list_free_cb callback,
-                          const allocator_t* zeroed_allocator) {
+list_t* list_new_internal(list_free_cb callback, const allocator_t* zeroed_allocator) {
   inc_func_call_count(__func__);
   return test::mock::osi_list::list_new_internal(callback, zeroed_allocator);
 }

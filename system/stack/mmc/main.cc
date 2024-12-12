@@ -42,10 +42,10 @@ const int kSyslogCritical = LOG_CRIT;
 #undef LOG_CRIT
 }  // namespace
 
-static bool MessageHandler(int severity, const char* file, int line,
-                           size_t message_start, const std::string& message) {
-  const auto str = base::StringPrintf("%s:%d - %s", file, line,
-                                      message.substr(message_start).c_str());
+static bool MessageHandler(int severity, const char* file, int line, size_t message_start,
+                           const std::string& message) {
+  const auto str =
+          base::StringPrintf("%s:%d - %s", file, line, message.substr(message_start).c_str());
 
   switch (severity) {
     case logging::LOGGING_INFO:
@@ -71,7 +71,9 @@ static bool MessageHandler(int severity, const char* file, int line,
 
   syslog(severity, "%s", str.c_str());
 
-  if (severity == kSyslogCritical) abort();
+  if (severity == kSyslogCritical) {
+    abort();
+  }
 
   return true;
 }
@@ -79,8 +81,7 @@ static bool MessageHandler(int severity, const char* file, int line,
 int main(int argc, char* argv[]) {
   // Set up syslog to stderr.
   logging::LoggingSettings settings;
-  settings.logging_dest =
-      logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
+  settings.logging_dest = logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
   logging::SetLogItems(false, false, false, false);
   logging::InitLogging(settings);
   logging::SetLogMessageHandler(MessageHandler);
@@ -97,8 +98,7 @@ int main(int argc, char* argv[]) {
   base::RunLoop run_loop;
 
   auto service = std::make_unique<mmc::Service>(run_loop.QuitClosure());
-  bluetooth::log::assert_that(service->Init(),
-                              "assert failed: service->Init()");
+  bluetooth::log::assert_that(service->Init(), "assert failed: service->Init()");
 
   run_loop.Run();
 

@@ -337,8 +337,8 @@ public class HfpClientDeviceBlock {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("<HfpClientDeviceBlock");
-        sb.append(" device=" + mDevice);
-        sb.append(" account=" + mPhoneAccount);
+        sb.append(" device=").append(mDevice);
+        sb.append(" account=").append(mPhoneAccount);
         sb.append(" connections=[");
         boolean first = true;
         for (HfpClientConnection connection : mConnections.values()) {
@@ -349,7 +349,7 @@ public class HfpClientDeviceBlock {
             first = false;
         }
         sb.append("]");
-        sb.append(" conference=" + mConference);
+        sb.append(" conference=").append(mConference);
         sb.append(">");
         return sb.toString();
     }

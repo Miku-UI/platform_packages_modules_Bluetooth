@@ -80,7 +80,9 @@ int osi_socket_local_server(const char* name, int namespaceId, int type) {
   int s;
 
   s = socket(AF_LOCAL, type, 0);
-  if (s < 0) return -1;
+  if (s < 0) {
+    return -1;
+  }
 
   err = osi_socket_local_server_bind(s, name, namespaceId);
 

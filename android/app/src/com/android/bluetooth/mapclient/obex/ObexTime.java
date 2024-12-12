@@ -16,13 +16,16 @@
 
 package com.android.bluetooth.mapclient;
 
+import android.annotation.SuppressLint;
+
+import com.android.bluetooth.Utils;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.Locale;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -81,7 +84,7 @@ public final class ObexTime {
                 int ohh = Integer.parseInt(m.group(9));
                 int omm = Integer.parseInt(m.group(10));
 
-                /* time zone offset is specified in miliseconds */
+                /* time zone offset is specified in milliseconds */
                 int offset = (ohh * 60 + omm) * 60 * 1000;
 
                 if (m.group(8).equals("-")) {
@@ -122,6 +125,7 @@ public final class ObexTime {
     }
 
     @Override
+    @SuppressLint("ToStringReturnsNull")
     public String toString() {
         if (mInstant == null) {
             return null;
@@ -131,8 +135,7 @@ public final class ObexTime {
                 GregorianCalendar.from(ZonedDateTime.ofInstant(mInstant, ZoneId.systemDefault()));
 
         /* note that months are numbered stating from 0 */
-        return String.format(
-                Locale.US,
+        return Utils.formatSimple(
                 "%04d%02d%02dT%02d%02d%02d",
                 cal.get(Calendar.YEAR),
                 cal.get(Calendar.MONTH) + 1,

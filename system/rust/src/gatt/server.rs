@@ -39,7 +39,6 @@ use super::{
     ids::{AdvertiserId, AttHandle, TransportIndex},
 };
 use anyhow::{anyhow, bail, Result};
-use bt_common::init_flags::always_use_private_gatt_for_debugging_is_enabled;
 use log::info;
 
 pub use indication_handler::IndicationError;
@@ -157,7 +156,8 @@ impl GattModule {
             bail!("GATT server {server_id:?} did not exist")
         };
 
-        if !always_use_private_gatt_for_debugging_is_enabled() {
+        if true {
+            // Disable to always use private gatt for debugging
             self.isolation_manager.lock().unwrap().clear_server(server_id);
         }
 

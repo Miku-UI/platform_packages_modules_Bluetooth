@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//#include <dlfcn.h>
+// #include <dlfcn.h>
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
@@ -29,32 +29,30 @@
 #include "types/raw_address.h"
 
 class StackAvdtpTest : public ::testing::Test {
- protected:
+protected:
   StackAvdtpTest() = default;
 
   virtual ~StackAvdtpTest() = default;
- protected:
+
+protected:
   static AvdtpRcb reg_ctrl_block_;
   static uint8_t callback_event_;
   static uint8_t scb_handle_;
 
- protected:
-  static void AvdtConnCallback(uint8_t handle, const RawAddress& bd_addr,
-                               uint8_t event, tAVDT_CTRL* p_data,
-                               uint8_t scb_index) {
+protected:
+  static void AvdtConnCallback(uint8_t handle, const RawAddress& bd_addr, uint8_t event,
+                               tAVDT_CTRL* p_data, uint8_t scb_index) {
     inc_func_call_count(__func__);
     callback_event_ = event;
   }
 
-  static void StreamCtrlCallback(uint8_t handle, const RawAddress& bd_addr,
-                                 uint8_t event, tAVDT_CTRL* p_data,
-                                 uint8_t scb_index) {
+  static void StreamCtrlCallback(uint8_t handle, const RawAddress& bd_addr, uint8_t event,
+                                 tAVDT_CTRL* p_data, uint8_t scb_index) {
     inc_func_call_count(__func__);
     callback_event_ = event;
   }
 
-  static void AvdtReportCallback(uint8_t handle, AVDT_REPORT_TYPE type,
-                                 tAVDT_REPORT_DATA* p_data) {
+  static void AvdtReportCallback(uint8_t handle, AVDT_REPORT_TYPE type, tAVDT_REPORT_DATA* p_data) {
     inc_func_call_count(__func__);
   }
 
@@ -185,14 +183,14 @@ TEST_F(StackAvdtpTest, test_delay_report_as_init) {
 
 TEST_F(StackAvdtpTest, test_SR_reporting_handler) {
   constexpr uint8_t sender_report_packet[] = {
-      // Header
-      0x80, 0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      // Sender Info
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      // Report Block #1
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+          // Header
+          0x80, 0xc8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+          // Sender Info
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+          0x00, 0x00, 0x00, 0x00, 0x00,
+          // Report Block #1
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   uint16_t packet_length = sizeof(sender_report_packet);
   tAVDT_SCB_EVT data;
   auto pscb = avdt_scb_by_hdl(scb_handle_);
@@ -226,12 +224,12 @@ TEST_F(StackAvdtpTest, test_SR_reporting_handler) {
 }
 
 TEST_F(StackAvdtpTest, test_RR_reporting_handler) {
-  constexpr uint8_t receiver_report_packet[] = {
-      // Header
-      0x80, 0xc9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      // Report Block #1
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  constexpr uint8_t receiver_report_packet[] = {// Header
+                                                0x80, 0xc9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                // Report Block #1
+                                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   uint16_t packet_length = sizeof(receiver_report_packet);
   tAVDT_SCB_EVT data;
   auto pscb = avdt_scb_by_hdl(scb_handle_);
@@ -270,8 +268,7 @@ TEST_F(StackAvdtpTest, test_SDES_reporting_handler) {
                                                    // Chunk #1
                                                    0x00, 0x00, 0x00, 0x00,
                                                    // SDES Item (CNAME=1)
-                                                   0x01, 0x05, 0x00, 0x00, 0x00,
-                                                   0x00, 0x00, 0x00};
+                                                   0x01, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   uint16_t packet_length = sizeof(source_description_packet);
   tAVDT_SCB_EVT data;
   auto pscb = avdt_scb_by_hdl(scb_handle_);
@@ -325,7 +322,7 @@ TEST_F(StackAvdtpTest, avdt_scb_hdl_pkt_no_frag_regression_test0) {
   BT_HDR* p_pkt = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + extra_size);
   ASSERT_NE(p_pkt, nullptr);
   tAVDT_SCB_EVT evt_data = {
-      .p_pkt = p_pkt,
+          .p_pkt = p_pkt,
   };
   p_pkt->len = 0;
 
@@ -347,7 +344,7 @@ TEST_F(StackAvdtpTest, avdt_scb_hdl_pkt_no_frag_regression_test1) {
   BT_HDR* p_pkt = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + extra_size);
   ASSERT_NE(p_pkt, nullptr);
   tAVDT_SCB_EVT evt_data = {
-      .p_pkt = p_pkt,
+          .p_pkt = p_pkt,
   };
 
   // setup p_pkt
@@ -381,7 +378,7 @@ TEST_F(StackAvdtpTest, avdt_scb_hdl_pkt_no_frag_regression_test2) {
   BT_HDR* p_pkt = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + extra_size);
   ASSERT_NE(p_pkt, nullptr);
   tAVDT_SCB_EVT evt_data = {
-      .p_pkt = p_pkt,
+          .p_pkt = p_pkt,
   };
 
   // setup p_pkt
@@ -418,7 +415,7 @@ TEST_F(StackAvdtpTest, avdt_scb_hdl_pkt_no_frag_regression_test3) {
   BT_HDR* p_pkt = (BT_HDR*)osi_malloc(sizeof(BT_HDR) + extra_size);
   ASSERT_NE(p_pkt, nullptr);
   tAVDT_SCB_EVT evt_data = {
-      .p_pkt = p_pkt,
+          .p_pkt = p_pkt,
   };
 
   // setup p_pkt

@@ -16,38 +16,40 @@
 package com.android.server.bluetooth
 
 import android.util.Log
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private const val SYSTEM_SERVER_TAG = "BluetoothSystemServer"
 
-public class Log private constructor() {
-    companion object {
+object Log {
 
-        // Kotlin could shorten below method by having a Throwable? that is default to null but the
-        // current implementation of util.Log is behaving differently depending if it is called with
-        // 2 or 3 parameters. We do not want to change the behavior in this class, just add a common
-        // TAG to all the Bluetooth System Server logs.
+    // Kotlin could shorten below method by having a Throwable? that is default to null but the
+    // current implementation of util.Log is behaving differently depending if it is called with
+    // 2 or 3 parameters. We do not want to change the behavior in this class, just add a common
+    // TAG to all the Bluetooth System Server logs.
 
-        @JvmStatic
-        fun v(subtag: String, msg: String) = Log.v(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
+    @JvmStatic fun v(subtag: String, msg: String) = Log.v(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
 
-        @JvmStatic
-        fun d(subtag: String, msg: String) = Log.d(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
+    @JvmStatic fun d(subtag: String, msg: String) = Log.d(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
 
-        @JvmStatic
-        fun i(subtag: String, msg: String) = Log.i(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
+    @JvmStatic fun i(subtag: String, msg: String) = Log.i(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
 
-        @JvmStatic
-        fun w(subtag: String, msg: String) = Log.w(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
+    @JvmStatic fun w(subtag: String, msg: String) = Log.w(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
 
-        @JvmStatic
-        fun w(subtag: String, msg: String, tr: Throwable) =
-            Log.w(SYSTEM_SERVER_TAG, "${subtag}: ${msg}", tr)
+    @JvmStatic
+    fun w(subtag: String, msg: String, tr: Throwable) =
+        Log.w(SYSTEM_SERVER_TAG, "${subtag}: ${msg}", tr)
 
-        @JvmStatic
-        fun e(subtag: String, msg: String) = Log.e(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
+    @JvmStatic fun e(subtag: String, msg: String) = Log.e(SYSTEM_SERVER_TAG, "${subtag}: ${msg}")
 
-        @JvmStatic
-        fun e(subtag: String, msg: String, tr: Throwable) =
-            Log.e(SYSTEM_SERVER_TAG, "${subtag}: ${msg}", tr)
-    }
+    @JvmStatic
+    fun e(subtag: String, msg: String, tr: Throwable) =
+        Log.e(SYSTEM_SERVER_TAG, "${subtag}: ${msg}", tr)
+
+    @JvmStatic
+    fun timeToStringWithZone(timestamp: Long) =
+        DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS")
+            .withZone(ZoneId.systemDefault())
+            .format(Instant.ofEpochMilli(timestamp))
 }

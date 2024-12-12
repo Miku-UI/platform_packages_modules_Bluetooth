@@ -32,7 +32,6 @@ void hfp_msbc_decoder_cleanup(void);
 
 // Decodes |i_buf| into |o_buf| with size |out_len| in bytes. |i_buf| should
 // point to a complete mSBC packet with 60 bytes of data including the header.
-bool hfp_msbc_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
-                                    size_t out_len);
+bool hfp_msbc_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf, size_t out_len);
 
 #endif  // HFP_MSBC_DECODER_H

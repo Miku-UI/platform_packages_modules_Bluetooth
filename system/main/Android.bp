@@ -11,7 +11,6 @@ package {
 filegroup {
     name: "LibBluetoothSources",
     srcs: [
-        "bte_conf.cc",
         "stack_config.cc",
     ],
 }
@@ -52,6 +51,7 @@ cc_library_static {
     host_supported: true,
     min_sdk_version: "Tiramisu",
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
@@ -146,6 +146,7 @@ cc_library_static {
     ],
     header_libs: ["libbluetooth_headers"],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth_log",
         "libbt-platform-protos-lite",
         "libbt_shim_bridge",
@@ -184,7 +185,7 @@ cc_test {
         ":TestMockStack",
         "shim/acl.cc",
         "shim/acl_api.cc",
-        "shim/acl_legacy_interface.cc",
+        "shim/acl_interface.cc",
         "shim/btm_api.cc",
         "shim/config.cc",
         "shim/distance_measurement_manager.cc",
@@ -203,6 +204,7 @@ cc_test {
         "test/main_shim_test.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",
@@ -284,9 +286,11 @@ cc_test {
         ":TestMockLegacyHciCommands",
         ":TestMockLegacyHciInterface",
         ":TestMockStack",
+        ":TestMockStackRnr",
         "test/main_shim_stack_dumpsys_test.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "libbase",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",

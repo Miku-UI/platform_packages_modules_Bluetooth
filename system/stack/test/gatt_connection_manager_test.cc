@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "common/init_flags.h"
 #include "osi/include/alarm.h"
 #include "osi/test/alarm_mock.h"
 #include "stack/btm/neighbor_inquiry.h"
@@ -25,7 +24,7 @@ namespace {
 // convenience mock, for verifying acceptlist operations on lower layer are
 // actually scheduled
 class AcceptlistMock {
- public:
+public:
   MOCK_METHOD1(AcceptlistAdd, bool(const RawAddress&));
   MOCK_METHOD2(AcceptlistAdd, bool(const RawAddress&, bool is_direct));
   MOCK_METHOD1(AcceptlistRemove, void(const RawAddress&));
@@ -63,13 +62,11 @@ void BTM_AcceptlistRemove(const RawAddress& address) {
 
 void BTM_AcceptlistClear() { return localAcceptlistMock->AcceptlistClear(); }
 
-void BTM_BleTargetAnnouncementObserve(bool enable,
-                                      tBTM_INQ_RESULTS_CB* p_results_cb) {
+void BTM_BleTargetAnnouncementObserve(bool enable, tBTM_INQ_RESULTS_CB* p_results_cb) {
   localAcceptlistMock->EnableTargetedAnnouncements(enable, p_results_cb);
 }
 
-void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr,
-                    const std::string& msg){};
+void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std::string& msg) {}
 
 namespace bluetooth {
 namespace shim {
@@ -77,17 +74,25 @@ void set_target_announcements_filter(bool enable) {}
 }  // namespace shim
 }  // namespace bluetooth
 
-bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& bd_addr) {
-  return false;
-}
-uint16_t BTM_GetHCIConnHandle(RawAddress const&, unsigned char) {
-  return 0xFFFF;
-};
+bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& bd_addr) { return false; }
+uint16_t BTM_GetHCIConnHandle(RawAddress const&, unsigned char) { return 0xFFFF; }
 
 namespace connection_manager {
 class BleConnectionManager : public testing::Test {
   void SetUp() override {
     localAcceptlistMock = std::make_unique<AcceptlistMock>();
+    auto alarm_mock = AlarmMock::Get();
+    ON_CALL(*alarm_mock, AlarmNew(_)).WillByDefault(testing::Invoke([](const char* name) {
+      // We must return something from alarm_new in tests, if we just return
+      // null, unique_ptr will misbehave.
+      return (alarm_t*)new uint8_t[30];
+    }));
+    ON_CALL(*alarm_mock, AlarmFree(_)).WillByDefault(testing::Invoke([](alarm_t* alarm) {
+      if (alarm) {
+        uint8_t* ptr = (uint8_t*)alarm;
+        delete[] ptr;
+      }
+    }));
   }
 
   void TearDown() override {
@@ -104,8 +109,7 @@ void on_connection_timed_out(uint8_t app_id, const RawAddress& address) {
 /** Verify that app can add a device to acceptlist, it is returned as interested
  * app, and then can remove the device later. */
 TEST_F(BleConnectionManager, test_background_connection_add_remove) {
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).WillOnce(Return(true));
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(0);
 
   EXPECT_TRUE(background_connect_add(CLIENT1, address1));
@@ -130,8 +134,7 @@ TEST_F(BleConnectionManager, test_background_connection_add_remove) {
  * device being added to whtie list only once, also, that device is removed only
  * after last client removes it. */
 TEST_F(BleConnectionManager, test_background_connection_multiple_clients) {
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).WillOnce(Return(true));
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(0);
   EXPECT_TRUE(background_connect_add(CLIENT1, address1));
   EXPECT_TRUE(background_connect_add(CLIENT1, address1));
@@ -164,8 +167,7 @@ TEST_F(BleConnectionManager, test_background_connection_multiple_clients) {
 TEST_F(BleConnectionManager, test_direct_connection_client) {
   // Direct connect attempt: use faster scan parameters, add to acceptlist,
   // start 30 timeout
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true)).WillOnce(Return(true));
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(0);
   EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _)).Times(1);
@@ -193,15 +195,14 @@ TEST_F(BleConnectionManager, test_direct_connection_client) {
 /** Verify direct connection timeout does remove device from acceptlist, and
  * lower the connection scan parameters */
 TEST_F(BleConnectionManager, test_direct_connect_timeout) {
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true)).WillOnce(Return(true));
   EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
   alarm_callback_t alarm_callback = nullptr;
   void* alarm_data = nullptr;
 
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _))
-      .Times(1)
-      .WillOnce(DoAll(SaveArg<2>(&alarm_callback), SaveArg<3>(&alarm_data)));
+          .Times(1)
+          .WillOnce(DoAll(SaveArg<2>(&alarm_callback), SaveArg<3>(&alarm_data)));
 
   // Start direct connect attempt...
   EXPECT_TRUE(direct_connect_add(CLIENT1, address1));
@@ -209,8 +210,7 @@ TEST_F(BleConnectionManager, test_direct_connect_timeout) {
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(1);
-  EXPECT_CALL(*localAcceptlistMock, OnConnectionTimedOut(CLIENT1, address1))
-      .Times(1);
+  EXPECT_CALL(*localAcceptlistMock, OnConnectionTimedOut(CLIENT1, address1)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmFree(_)).Times(1);
 
   // simulate timeout seconds passed, alarm executing
@@ -221,8 +221,7 @@ TEST_F(BleConnectionManager, test_direct_connect_timeout) {
 
 /** Verify that we properly handle successfull direct connection */
 TEST_F(BleConnectionManager, test_direct_connection_success) {
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true)).WillOnce(Return(true));
   EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _)).Times(1);
 
@@ -247,10 +246,8 @@ TEST_F(BleConnectionManager, test_app_unregister) {
    * - unregistration of Client2 should trigger address2 removal
    */
 
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true))
-      .WillOnce(Return(true));
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true)).WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address2)).WillOnce(Return(true));
   EXPECT_TRUE(direct_connect_add(CLIENT1, address1));
   EXPECT_TRUE(background_connect_add(CLIENT1, address2));
   EXPECT_TRUE(direct_connect_add(CLIENT2, address2));
@@ -266,8 +263,7 @@ TEST_F(BleConnectionManager, test_app_unregister) {
 
 /** Verify adding device to both direct connection and background connection. */
 TEST_F(BleConnectionManager, test_direct_and_background_connect) {
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1, true)).WillOnce(Return(true));
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(0);
   EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _)).Times(1);
@@ -295,11 +291,9 @@ TEST_F(BleConnectionManager, test_target_announement_connect) {
   EXPECT_TRUE(background_connect_targeted_announcement_add(CLIENT1, address1));
 }
 
-TEST_F(BleConnectionManager,
-       test_add_targeted_announement_when_allow_list_used) {
+TEST_F(BleConnectionManager, test_add_targeted_announement_when_allow_list_used) {
   /* Accept adding to allow list */
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).WillOnce(Return(true));
 
   /* This shall be called when registering announcements */
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(1);
@@ -309,8 +303,7 @@ TEST_F(BleConnectionManager,
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 }
 
-TEST_F(BleConnectionManager,
-       test_add_background_connect_when_targeted_announcement_are_enabled) {
+TEST_F(BleConnectionManager, test_add_background_connect_when_targeted_announcement_are_enabled) {
   /* Accept adding to allow list */
   EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).Times(0);
 
@@ -337,8 +330,7 @@ TEST_F(BleConnectionManager, test_re_add_background_connect_to_allow_list) {
    */
 
   /* Accept adding to allow list */
-  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).WillOnce(Return(true));
 
   EXPECT_TRUE(background_connect_remove(CLIENT2, address1));
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
@@ -348,15 +340,13 @@ TEST_F(BleConnectionManager, test_re_add_background_connect_to_allow_list) {
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 }
 
-TEST_F(BleConnectionManager,
-       test_re_add_to_allow_list_after_timeout_with_multiple_clients) {
+TEST_F(BleConnectionManager, test_re_add_to_allow_list_after_timeout_with_multiple_clients) {
   EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
   alarm_callback_t alarm_callback = nullptr;
   void* alarm_data = nullptr;
 
   /* Accept adding to allow list */
-  ON_CALL(*localAcceptlistMock, AcceptlistAdd(address1))
-      .WillByDefault(Return(true));
+  ON_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).WillByDefault(Return(true));
 
   EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).Times(1);
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(0);
@@ -366,16 +356,15 @@ TEST_F(BleConnectionManager,
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _))
-      .Times(1)
-      .WillOnce(DoAll(SaveArg<2>(&alarm_callback), SaveArg<3>(&alarm_data)));
+          .Times(1)
+          .WillOnce(DoAll(SaveArg<2>(&alarm_callback), SaveArg<3>(&alarm_data)));
   // Start direct connect attempt...
   EXPECT_TRUE(direct_connect_add(CLIENT2, address1));
 
   Mock::VerifyAndClearExpectations(localAcceptlistMock.get());
 
   // simulate timeout seconds passed, alarm executing
-  EXPECT_CALL(*localAcceptlistMock, OnConnectionTimedOut(CLIENT2, address1))
-      .Times(1);
+  EXPECT_CALL(*localAcceptlistMock, OnConnectionTimedOut(CLIENT2, address1)).Times(1);
   EXPECT_CALL(*localAcceptlistMock, AcceptlistRemove(_)).Times(0);
   EXPECT_CALL(*localAcceptlistMock, AcceptlistAdd(address1)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmFree(_)).Times(1);

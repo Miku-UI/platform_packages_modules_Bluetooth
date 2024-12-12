@@ -30,7 +30,9 @@ MmcRttLogger::MmcRttLogger(int codec_type)
 MmcRttLogger::~MmcRttLogger() {}
 
 void MmcRttLogger::RecordRtt(int64_t elapsed_time) {
-  if (elapsed_time <= 0) return;
+  if (elapsed_time <= 0) {
+    return;
+  }
   num_requests_ += 1;
   rtt_sum_ += elapsed_time;
   maximum_rtt_ = std::max(maximum_rtt_, elapsed_time);
@@ -38,9 +40,10 @@ void MmcRttLogger::RecordRtt(int64_t elapsed_time) {
 }
 
 void MmcRttLogger::UploadTranscodeRttStatics() {
-  if (num_requests_ == 0) return;
-  log_mmc_transcode_rtt_stats(maximum_rtt_, rtt_sum_ / num_requests_,
-                              num_requests_, codec_type_);
+  if (num_requests_ == 0) {
+    return;
+  }
+  log_mmc_transcode_rtt_stats(maximum_rtt_, rtt_sum_ / num_requests_, num_requests_, codec_type_);
   num_requests_ = 0;
   rtt_sum_ = 0;
   maximum_rtt_ = 0;

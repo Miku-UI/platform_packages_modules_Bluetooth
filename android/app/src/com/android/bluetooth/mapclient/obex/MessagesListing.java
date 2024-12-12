@@ -26,21 +26,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 class MessagesListing {
-
     private static final String TAG = "MessagesListing";
 
-    private final ArrayList<Message> mMessages;
+    private final List<Message> mMessages = new ArrayList<>();
 
     MessagesListing(InputStream in) {
-        mMessages = new ArrayList<Message>();
-
         parse(in);
     }
 
     public void parse(InputStream in) {
-
         try {
             XmlPullParser xpp = XmlPullParserFactory.newInstance().newPullParser();
             xpp.setInput(in, "utf-8");
@@ -51,7 +49,7 @@ class MessagesListing {
                     case XmlPullParser.START_TAG:
                         if (xpp.getName().equals("msg")) {
 
-                            HashMap<String, String> attrs = new HashMap<String, String>();
+                            Map<String, String> attrs = new HashMap<>();
 
                             for (int i = 0; i < xpp.getAttributeCount(); i++) {
                                 attrs.put(xpp.getAttributeName(i), xpp.getAttributeValue(i));
@@ -78,7 +76,7 @@ class MessagesListing {
         }
     }
 
-    public ArrayList<Message> getList() {
+    public List<Message> getList() {
         return mMessages;
     }
 }

@@ -52,8 +52,7 @@ size_t ringbuffer_insert(ringbuffer_t* rb, const uint8_t* p, size_t length);
 // into the buffer |p|. Return the actual number of bytes peeked. Can be less
 // than |length| if there is less than |length| data available. |offset| must
 // be non-negative.
-size_t ringbuffer_peek(const ringbuffer_t* rb, off_t offset, uint8_t* p,
-                       size_t length);
+size_t ringbuffer_peek(const ringbuffer_t* rb, off_t offset, uint8_t* p, size_t length);
 
 // Does the same as |ringbuffer_peek|, but also advances the ring buffer head
 size_t ringbuffer_pop(ringbuffer_t* rb, uint8_t* p, size_t length);

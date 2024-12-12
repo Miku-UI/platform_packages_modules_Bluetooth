@@ -22,8 +22,7 @@
 #include "stack/include/bt_hdr.h"
 
 typedef void (*packet_reassembled_cb)(BT_HDR* packet);
-typedef void (*packet_fragmented_cb)(BT_HDR* packet,
-                                     bool send_transmit_finished);
+typedef void (*packet_fragmented_cb)(BT_HDR* packet, bool send_transmit_finished);
 
 typedef struct {
   // Called for every packet fragment.

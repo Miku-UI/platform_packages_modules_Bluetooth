@@ -65,16 +65,14 @@ static std::string kLogAfReconfigComplete("RECONFIG_COMPLETE_EVT: ");
 static std::string kLogAfSuspendForReconfig("SUSPEND_FOR_RECONFIG_EVT: ");
 
 class LeAudioLogHistory {
- public:
+public:
   virtual ~LeAudioLogHistory(void) = default;
   static LeAudioLogHistory* Get(void);
   static void Cleanup(void);
   static void DebugDump(int fd);
 
-  virtual void AddLogHistory(const std::string& tag, int group_id,
-                             const RawAddress& addr,
+  virtual void AddLogHistory(const std::string& tag, int group_id, const RawAddress& addr,
                              const std::string& msg) = 0;
-  virtual void AddLogHistory(const std::string& tag, int group_id,
-                             const RawAddress& addr, const std::string& msg,
-                             const std::string& extra) = 0;
+  virtual void AddLogHistory(const std::string& tag, int group_id, const RawAddress& addr,
+                             const std::string& msg, const std::string& extra) = 0;
 };

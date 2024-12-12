@@ -22,19 +22,18 @@ namespace bluetooth {
 namespace bluetooth_keystore {
 
 class BluetoothKeystoreCallbacks {
- public:
+public:
   virtual ~BluetoothKeystoreCallbacks() = default;
 
   /** Callback for key encrypt or remove key */
-  virtual void set_encrypt_key_or_remove_key(std::string prefix,
-                                             std::string encryptedString) = 0;
+  virtual void set_encrypt_key_or_remove_key(std::string prefix, std::string encryptedString) = 0;
 
   /** Callback for get key. */
   virtual std::string get_key(std::string prefix) = 0;
 };
 
 class BluetoothKeystoreInterface {
- public:
+public:
   virtual ~BluetoothKeystoreInterface() = default;
 
   /** Register the bluetooth keystore callbacks */
@@ -44,8 +43,7 @@ class BluetoothKeystoreInterface {
   virtual void ConvertEncryptOrDecryptKeyIfNeeded() = 0;
 
   /** Interface for key encrypt or remove key */
-  virtual bool set_encrypt_key_or_remove_key(std::string prefix,
-                                             std::string encryptedString) = 0;
+  virtual bool set_encrypt_key_or_remove_key(std::string prefix, std::string encryptedString) = 0;
 
   /** Interface for get key. */
   virtual std::string get_key(std::string prefix) = 0;

@@ -28,10 +28,8 @@ namespace a2dp {
 // Audio config from audio server; PCM format for now
 struct AudioConfig {
   btav_a2dp_codec_sample_rate_t sample_rate = BTAV_A2DP_CODEC_SAMPLE_RATE_48000;
-  btav_a2dp_codec_bits_per_sample_t bits_per_sample =
-      BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
-  btav_a2dp_codec_channel_mode_t channel_mode =
-      BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
+  btav_a2dp_codec_bits_per_sample_t bits_per_sample = BTAV_A2DP_CODEC_BITS_PER_SAMPLE_24;
+  btav_a2dp_codec_channel_mode_t channel_mode = BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
 };
 
 // Invoked by audio server to set audio config (PCM for now)

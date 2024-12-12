@@ -31,12 +31,12 @@ namespace has {
  * GATT characteristics and descriptor informations.
  */
 class HasPreset {
- private:
+private:
   mutable std::string name_;
   mutable uint8_t properties_;
   uint8_t index_;
 
- public:
+public:
   static constexpr size_t kCharValueMinSize = 1 /*index*/ + 1 /*properties*/;
 
   static constexpr uint8_t kPropertyWritable = 0x01;
@@ -44,15 +44,11 @@ class HasPreset {
 
   static constexpr uint8_t kPresetNameLengthLimit = 40;
 
-  HasPreset(uint8_t index, uint8_t props = 0,
-            std::optional<std::string> name = std::nullopt)
+  HasPreset(uint8_t index, uint8_t props = 0, std::optional<std::string> name = std::nullopt)
       : properties_(props), index_(index) {
     name_ = name.value_or("");
   }
-  HasPreset()
-      : name_(""),
-        properties_(0),
-        index_(bluetooth::has::kHasPresetIndexInvalid) {}
+  HasPreset() : name_(""), properties_(0), index_(bluetooth::has::kHasPresetIndexInvalid) {}
 
   auto& GetName() const { return name_; }
   decltype(index_) GetIndex() const { return index_; }
@@ -61,8 +57,7 @@ class HasPreset {
   bool IsAvailable() const { return properties_ & kPropertyAvailable; }
 
   HasPreset& operator=(const HasPreset& other) {
-    log::assert_that(index_ == other.GetIndex(),
-                     "Assigning immutable preset index!");
+    log::assert_that(index_ == other.GetIndex(), "Assigning immutable preset index!");
 
     if ((this != &other) && (*this != other)) {
       index_ = other.GetIndex();
@@ -72,43 +67,33 @@ class HasPreset {
   }
 
   bool operator==(const HasPreset& b) const {
-    return (index_ == b.index_) && (properties_ == b.properties_) &&
-           (name_ == b.name_);
+    return (index_ == b.index_) && (properties_ == b.properties_) && (name_ == b.name_);
   }
   bool operator!=(const HasPreset& b) const {
-    return (index_ != b.index_) || (properties_ != b.properties_) ||
-           (name_ != b.name_);
+    return (index_ != b.index_) || (properties_ != b.properties_) || (name_ != b.name_);
   }
   bool operator<(const HasPreset& b) const { return index_ < b.index_; }
   friend std::ostream& operator<<(std::ostream& os, const HasPreset& b);
 
   struct ComparatorDesc {
     using is_transparent = void;
-    bool operator()(HasPreset const& a, int index) const {
-      return a.index_ < index;
-    }
-    bool operator()(int index, HasPreset const& a) const {
-      return index < a.index_;
-    }
-    bool operator()(HasPreset const& a, HasPreset const& b) const {
-      return a.index_ < b.index_;
-    }
+    bool operator()(HasPreset const& a, int index) const { return a.index_ < index; }
+    bool operator()(int index, HasPreset const& a) const { return index < a.index_; }
+    bool operator()(HasPreset const& a, HasPreset const& b) const { return a.index_ < b.index_; }
   };
 
-  static std::optional<HasPreset> FromCharacteristicValue(uint16_t& len,
-                                                          const uint8_t* value);
+  static std::optional<HasPreset> FromCharacteristicValue(uint16_t& len, const uint8_t* value);
   void ToCharacteristicValue(std::vector<uint8_t>& value) const;
 
   /* Calculates buffer space that the preset will use when serialized */
   uint8_t SerializedSize() const {
-    return (sizeof(index_) + sizeof(properties_) + 1 /* name length */
-            + name_.length());
+    return sizeof(index_) + sizeof(properties_) + 1 /* name length */
+           + name_.length();
   }
   /* Serializes into binary blob for the persistent storage */
   uint8_t* Serialize(uint8_t* p_out, size_t buffer_size) const;
   /* Deserializes binary blob read from the persistent storage */
-  static const uint8_t* Deserialize(const uint8_t* p_in, size_t len,
-                                    HasPreset& preset);
+  static const uint8_t* Deserialize(const uint8_t* p_in, size_t len, HasPreset& preset);
 };
 
 }  // namespace has

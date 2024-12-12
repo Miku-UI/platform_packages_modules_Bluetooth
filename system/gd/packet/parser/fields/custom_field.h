@@ -20,7 +20,7 @@
 #include "parse_location.h"
 
 class CustomField : public PacketField {
- public:
+public:
   CustomField(std::string name, std::string type_name, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -53,6 +53,6 @@ class CustomField : public PacketField {
 
   virtual void GenBuilderParameterFromView(std::ostream& s) const override;
 
- private:
+private:
   std::string type_name_;
 };

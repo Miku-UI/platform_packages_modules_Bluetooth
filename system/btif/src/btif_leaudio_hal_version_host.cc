@@ -21,7 +21,7 @@ namespace audio {
 
 class HalVersionManager {
   static inline std::unique_ptr<HalVersionManager> instance_ptr =
-      std::make_unique<HalVersionManager>();
+          std::make_unique<HalVersionManager>();
 };
 
 }  // namespace audio

@@ -44,7 +44,7 @@ struct IteratorTraits : public std::iterator<std::random_access_iterator_tag, ui
 // Templated Iterator for endianness
 template <bool little_endian>
 class Iterator : public IteratorTraits {
- public:
+public:
   Iterator(const std::forward_list<View>& data, size_t offset);
   Iterator(std::shared_ptr<std::vector<uint8_t>> data);
   Iterator(const Iterator& itr) = default;
@@ -92,7 +92,9 @@ class Iterator : public IteratorTraits {
     return extracted_value;
   }
 
-  template <typename T, typename std::enable_if<std::is_base_of_v<CustomFieldFixedSizeInterface<T>, T>, int>::type = 0>
+  template <typename T,
+            typename std::enable_if<std::is_base_of_v<CustomFieldFixedSizeInterface<T>, T>,
+                                    int>::type = 0>
   T extract() {
     T extracted_value{};
     for (size_t i = 0; i < CustomFieldFixedSizeInterface<T>::length(); i++) {
@@ -103,7 +105,7 @@ class Iterator : public IteratorTraits {
     return extracted_value;
   }
 
- private:
+private:
   std::forward_list<View> data_;
   size_t index_;
   size_t begin_;

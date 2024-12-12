@@ -79,22 +79,20 @@ tHID_STATUS HID_DevRegister(tHID_DEV_HOST_CALLBACK* host_cback) {
   log::verbose("");
 
   if (hd_cb.reg_flag) {
-    log_counter_metrics(
-        android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_ALREADY_REGISTERED,
-        1);
+    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_ALREADY_REGISTERED, 1);
     return HID_ERR_ALREADY_REGISTERED;
   }
 
   if (host_cback == NULL) {
-    log_counter_metrics(
-        android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_HOST_CALLBACK_NULL,
-        1);
+    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_HOST_CALLBACK_NULL, 1);
     return HID_ERR_INVALID_PARAM;
   }
 
   /* Register with L2CAP */
   st = hidd_conn_reg();
-  if (st != HID_SUCCESS) return st;
+  if (st != HID_SUCCESS) {
+    return st;
+  }
 
   hd_cb.callback = host_cback;
   hd_cb.reg_flag = TRUE;
@@ -104,7 +102,7 @@ tHID_STATUS HID_DevRegister(tHID_DEV_HOST_CALLBACK* host_cback) {
     hd_cb.pending_data = NULL;
   }
 
-  return (HID_SUCCESS);
+  return HID_SUCCESS;
 }
 
 /*******************************************************************************
@@ -120,17 +118,16 @@ tHID_STATUS HID_DevDeregister(void) {
   log::verbose("");
 
   if (!hd_cb.reg_flag) {
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_NOT_REGISTERED_AT_DEREGISTER,
-                        1);
-    return (HID_ERR_NOT_REGISTERED);
+    log_counter_metrics(
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_NOT_REGISTERED_AT_DEREGISTER, 1);
+    return HID_ERR_NOT_REGISTERED;
   }
 
   hidd_conn_dereg();
 
   hd_cb.reg_flag = FALSE;
 
-  return (HID_SUCCESS);
+  return HID_SUCCESS;
 }
 
 /*******************************************************************************
@@ -142,9 +139,8 @@ tHID_STATUS HID_DevDeregister(void) {
  * Returns          tHID_STATUS
  *
  ******************************************************************************/
-tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
-                             char* p_provider, uint16_t subclass,
-                             uint16_t desc_len, uint8_t* p_desc_data) {
+tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description, char* p_provider,
+                             uint16_t subclass, uint16_t desc_len, uint8_t* p_desc_data) {
   bool result = TRUE;
 
   log::verbose("");
@@ -152,8 +148,7 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
   // Service Class ID List
   if (result) {
     uint16_t uuid = UUID_SERVCLASS_HUMAN_INTERFACE;
-    result &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-        handle, 1, &uuid);
+    result &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(handle, 1, &uuid);
   }
 
   // Protocol Descriptor List
@@ -167,15 +162,13 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
     proto_list[1].protocol_uuid = UUID_PROTOCOL_HIDP;
     proto_list[1].num_params = 0;
 
-    result &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-        handle, 2, proto_list);
+    result &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(handle, 2, proto_list);
   }
 
   // Language Base Attribute ID List
   if (result) {
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddLanguageBaseAttrIDList(
-        handle, LANG_ID_CODE_ENGLISH, LANG_ID_CHAR_ENCODE_UTF8,
-        LANGUAGE_BASE_ID);
+            handle, LANG_ID_CODE_ENGLISH, LANG_ID_CHAR_ENCODE_UTF8, LANGUAGE_BASE_ID);
   }
 
   // Additional Protocol Descriptor List
@@ -189,8 +182,8 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
     add_proto_list.list_elem[1].protocol_uuid = UUID_PROTOCOL_HIDP;
     add_proto_list.list_elem[1].num_params = 0;
 
-    result &= get_legacy_stack_sdp_api()->handle.SDP_AddAdditionProtoLists(
-        handle, 1, &add_proto_list);
+    result &= get_legacy_stack_sdp_api()->handle.SDP_AddAdditionProtoLists(handle, 1,
+                                                                           &add_proto_list);
   }
 
   // Service Name (O)
@@ -202,16 +195,16 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
     const char* provider_name = p_provider;
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE, strlen(srv_name) + 1,
-        (uint8_t*)srv_name);
+            handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE, strlen(srv_name) + 1,
+            (uint8_t*)srv_name);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_SERVICE_DESCRIPTION, TEXT_STR_DESC_TYPE,
-        strlen(srv_desc) + 1, (uint8_t*)srv_desc);
+            handle, ATTR_ID_SERVICE_DESCRIPTION, TEXT_STR_DESC_TYPE, strlen(srv_desc) + 1,
+            (uint8_t*)srv_desc);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_PROVIDER_NAME, TEXT_STR_DESC_TYPE,
-        strlen(provider_name) + 1, (uint8_t*)provider_name);
+            handle, ATTR_ID_PROVIDER_NAME, TEXT_STR_DESC_TYPE, strlen(provider_name) + 1,
+            (uint8_t*)provider_name);
   }
 
   // Bluetooth Profile Descriptor List
@@ -219,8 +212,8 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
     const uint16_t profile_uuid = UUID_SERVCLASS_HUMAN_INTERFACE;
     const uint16_t version = 0x0100;
 
-    result &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-        handle, profile_uuid, version);
+    result &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(handle, profile_uuid,
+                                                                              version);
   }
 
   // HID Parser Version
@@ -238,71 +231,72 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
     p = (uint8_t*)&temp;
     UINT16_TO_BE_STREAM(p, rel_num);
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_DEVICE_RELNUM, UINT_DESC_TYPE, 2, (uint8_t*)&temp);
+            handle, ATTR_ID_HID_DEVICE_RELNUM, UINT_DESC_TYPE, 2, (uint8_t*)&temp);
 
     p = (uint8_t*)&temp;
     UINT16_TO_BE_STREAM(p, parser_version);
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_PARSER_VERSION, UINT_DESC_TYPE, 2, (uint8_t*)&temp);
+            handle, ATTR_ID_HID_PARSER_VERSION, UINT_DESC_TYPE, 2, (uint8_t*)&temp);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_DEVICE_SUBCLASS, UINT_DESC_TYPE, 1,
-        (uint8_t*)&dev_subclass);
+            handle, ATTR_ID_HID_DEVICE_SUBCLASS, UINT_DESC_TYPE, 1, (uint8_t*)&dev_subclass);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_COUNTRY_CODE, UINT_DESC_TYPE, 1,
-        (uint8_t*)&country_code);
+            handle, ATTR_ID_HID_COUNTRY_CODE, UINT_DESC_TYPE, 1, (uint8_t*)&country_code);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_VIRTUAL_CABLE, BOOLEAN_DESC_TYPE, 1,
-        (uint8_t*)&bool_true);
+            handle, ATTR_ID_HID_VIRTUAL_CABLE, BOOLEAN_DESC_TYPE, 1, (uint8_t*)&bool_true);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_RECONNECT_INITIATE, BOOLEAN_DESC_TYPE, 1,
-        (uint8_t*)&bool_true);
+            handle, ATTR_ID_HID_RECONNECT_INITIATE, BOOLEAN_DESC_TYPE, 1, (uint8_t*)&bool_true);
 
     {
       static uint8_t cdt = 0x22;
       uint8_t* p_buf;
-      uint8_t seq_len = 4 + desc_len;
+
+      uint16_t seq_len = ((desc_len > 255) ? 5 : 4) + desc_len;
+      uint16_t buf_len = seq_len + 3;
 
       if (desc_len > HIDD_APP_DESCRIPTOR_LEN) {
-        log::error("descriptor length = {}, larger than max {}", desc_len,
-                   HIDD_APP_DESCRIPTOR_LEN);
-        log_counter_metrics(
-            android::bluetooth::CodePathCounterKeyEnum::
-                HIDD_ERR_NOT_REGISTERED_DUE_TO_DESCRIPTOR_LENGTH,
-            1);
+        log::error("descriptor length = {}, larger than max {}", desc_len, HIDD_APP_DESCRIPTOR_LEN);
+        log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
+                                    HIDD_ERR_NOT_REGISTERED_DUE_TO_DESCRIPTOR_LENGTH,
+                            1);
         return HID_ERR_NOT_REGISTERED;
       };
 
-      p_buf = (uint8_t*)osi_malloc(HIDD_APP_DESCRIPTOR_LEN + 6);
+      p_buf = (uint8_t*)osi_malloc(buf_len);
 
       if (p_buf == NULL) {
-        log::error("Buffer allocation failure for size = 2048");
-        log_counter_metrics(
-            android::bluetooth::CodePathCounterKeyEnum::
-                HIDD_ERR_NOT_REGISTERED_DUE_TO_BUFFER_ALLOCATION,
-            1);
+        log::error("Buffer allocation failure for size = {}", buf_len);
+        log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
+                                    HIDD_ERR_NOT_REGISTERED_DUE_TO_BUFFER_ALLOCATION,
+                            1);
         return HID_ERR_NOT_REGISTERED;
       }
 
       p = p_buf;
 
-      UINT8_TO_BE_STREAM(p, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
+      UINT8_TO_BE_STREAM(p, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_WORD);
 
-      UINT8_TO_BE_STREAM(p, seq_len);
+      UINT16_TO_BE_STREAM(p, seq_len);
 
       UINT8_TO_BE_STREAM(p, (UINT_DESC_TYPE << 3) | SIZE_ONE_BYTE);
       UINT8_TO_BE_STREAM(p, cdt);
 
-      UINT8_TO_BE_STREAM(p, (TEXT_STR_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
-      UINT8_TO_BE_STREAM(p, desc_len);
+      // small descriptors should be written with SIZE_IN_NEXT_BYTE to preserve compatibility
+      if (desc_len > 255) {
+        UINT8_TO_BE_STREAM(p, (TEXT_STR_DESC_TYPE << 3) | SIZE_IN_NEXT_WORD);
+        UINT16_TO_BE_STREAM(p, desc_len);
+      } else {
+        UINT8_TO_BE_STREAM(p, (TEXT_STR_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
+        UINT8_TO_BE_STREAM(p, desc_len);
+      }
+
       ARRAY_TO_BE_STREAM(p, p_desc_data, (int)desc_len);
 
       result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          handle, ATTR_ID_HID_DESCRIPTOR_LIST, DATA_ELE_SEQ_DESC_TYPE,
-          p - p_buf, p_buf);
+              handle, ATTR_ID_HID_DESCRIPTOR_LIST, DATA_ELE_SEQ_DESC_TYPE, p - p_buf, p_buf);
 
       osi_free(p_buf);
     }
@@ -319,43 +313,36 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
       UINT8_TO_BE_STREAM(p, (UINT_DESC_TYPE << 3) | SIZE_TWO_BYTES);
       UINT16_TO_BE_STREAM(p, LANGUAGE_BASE_ID);
       result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          handle, ATTR_ID_HID_LANGUAGE_ID_BASE, DATA_ELE_SEQ_DESC_TYPE,
-          p - lang_buf, lang_buf);
+              handle, ATTR_ID_HID_LANGUAGE_ID_BASE, DATA_ELE_SEQ_DESC_TYPE, p - lang_buf, lang_buf);
     }
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_BATTERY_POWER, BOOLEAN_DESC_TYPE, 1,
-        (uint8_t*)&bool_true);
+            handle, ATTR_ID_HID_BATTERY_POWER, BOOLEAN_DESC_TYPE, 1, (uint8_t*)&bool_true);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_REMOTE_WAKE, BOOLEAN_DESC_TYPE, 1,
-        (uint8_t*)&bool_false);
+            handle, ATTR_ID_HID_REMOTE_WAKE, BOOLEAN_DESC_TYPE, 1, (uint8_t*)&bool_false);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_NORMALLY_CONNECTABLE, BOOLEAN_DESC_TYPE, 1,
-        (uint8_t*)&bool_true);
+            handle, ATTR_ID_HID_NORMALLY_CONNECTABLE, BOOLEAN_DESC_TYPE, 1, (uint8_t*)&bool_true);
 
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_BOOT_DEVICE, BOOLEAN_DESC_TYPE, 1,
-        (uint8_t*)&bool_true);
+            handle, ATTR_ID_HID_BOOT_DEVICE, BOOLEAN_DESC_TYPE, 1, (uint8_t*)&bool_true);
 
     p = (uint8_t*)&temp;
     UINT16_TO_BE_STREAM(p, prof_ver);
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        handle, ATTR_ID_HID_PROFILE_VERSION, UINT_DESC_TYPE, 2,
-        (uint8_t*)&temp);
+            handle, ATTR_ID_HID_PROFILE_VERSION, UINT_DESC_TYPE, 2, (uint8_t*)&temp);
   }
 
   if (result) {
     uint16_t browse_group = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
     result &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-        handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse_group);
+            handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse_group);
   }
 
   if (!result) {
     log::error("failed to complete SDP record");
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_NOT_REGISTERED_AT_SDP,
+    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_NOT_REGISTERED_AT_SDP,
                         1);
     return HID_ERR_NOT_REGISTERED;
   }
@@ -372,23 +359,21 @@ tHID_STATUS HID_DevAddRecord(uint32_t handle, char* p_name, char* p_description,
  * Returns          tHID_STATUS
  *
  ******************************************************************************/
-tHID_STATUS HID_DevSendReport(uint8_t channel, uint8_t type, uint8_t id,
-                              uint16_t len, uint8_t* p_data) {
+tHID_STATUS HID_DevSendReport(uint8_t channel, uint8_t type, uint8_t id, uint16_t len,
+                              uint8_t* p_data) {
   log::verbose("channel={} type={} id={} len={}", channel, type, id, len);
 
   if (channel == HID_CHANNEL_CTRL) {
-    return hidd_conn_send_data(HID_CHANNEL_CTRL, HID_TRANS_DATA, type, id, len,
-                               p_data);
+    return hidd_conn_send_data(HID_CHANNEL_CTRL, HID_TRANS_DATA, type, id, len, p_data);
   }
 
   if (channel == HID_CHANNEL_INTR && type == HID_PAR_REP_TYPE_INPUT) {
     // on INTR we can only send INPUT
-    return hidd_conn_send_data(HID_CHANNEL_INTR, HID_TRANS_DATA,
-                               HID_PAR_REP_TYPE_INPUT, id, len, p_data);
+    return hidd_conn_send_data(HID_CHANNEL_INTR, HID_TRANS_DATA, HID_PAR_REP_TYPE_INPUT, id, len,
+                               p_data);
   }
-  log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                          HIDD_ERR_INVALID_PARAM_SEND_REPORT,
-                      1);
+  log_counter_metrics(
+          android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_INVALID_PARAM_SEND_REPORT, 1);
   return HID_ERR_INVALID_PARAM;
 }
 
@@ -455,22 +440,19 @@ tHID_STATUS HID_DevUnplugDevice(const RawAddress& addr) {
  ******************************************************************************/
 tHID_STATUS HID_DevConnect(void) {
   if (!hd_cb.reg_flag) {
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_NOT_REGISTERED_AT_CONNECT,
-                        1);
+    log_counter_metrics(
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_NOT_REGISTERED_AT_CONNECT, 1);
     return HID_ERR_NOT_REGISTERED;
   }
 
   if (!hd_cb.device.in_use) {
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_DEVICE_NOT_IN_USE_AT_CONNECT,
-                        1);
+    log_counter_metrics(
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_DEVICE_NOT_IN_USE_AT_CONNECT, 1);
     return HID_ERR_INVALID_PARAM;
   }
 
   if (hd_cb.device.state != HIDD_DEV_NO_CONN) {
-    log_counter_metrics(
-        android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_ALREADY_CONN, 1);
+    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_ALREADY_CONN, 1);
     return HID_ERR_ALREADY_CONN;
   }
 
@@ -488,16 +470,15 @@ tHID_STATUS HID_DevConnect(void) {
  ******************************************************************************/
 tHID_STATUS HID_DevDisconnect(void) {
   if (!hd_cb.reg_flag) {
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_NOT_REGISTERED_AT_DISCONNECT,
-                        1);
+    log_counter_metrics(
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_NOT_REGISTERED_AT_DISCONNECT, 1);
     return HID_ERR_NOT_REGISTERED;
   }
 
   if (!hd_cb.device.in_use) {
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_DEVICE_NOT_IN_USE_AT_DISCONNECT,
-                        1);
+    log_counter_metrics(
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_DEVICE_NOT_IN_USE_AT_DISCONNECT,
+            1);
     return HID_ERR_INVALID_PARAM;
   }
 
@@ -506,16 +487,12 @@ tHID_STATUS HID_DevDisconnect(void) {
     if (hd_cb.device.conn.conn_state != HID_CONN_STATE_UNUSED) {
       tHID_STATUS ret = hidd_conn_disconnect();
       hd_cb.device.conn.conn_state = HID_CONN_STATE_UNUSED;
-      hd_cb.callback(hd_cb.device.addr, HID_DHOST_EVT_CLOSE,
-                     HID_ERR_DISCONNECTING, NULL);
-      log_counter_metrics(
-          android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_DISCONNECTING,
-          1);
+      hd_cb.callback(hd_cb.device.addr, HID_DHOST_EVT_CLOSE, HID_ERR_DISCONNECTING, NULL);
+      log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_DISCONNECTING, 1);
       return ret;
     }
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_NO_CONNECTION_AT_DISCONNECT,
-                        1);
+    log_counter_metrics(
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_NO_CONNECTION_AT_DISCONNECT, 1);
     return HID_ERR_NO_CONNECTION;
   }
 
@@ -566,8 +543,7 @@ tHID_STATUS HID_DevReportError(uint8_t error) {
       break;
   }
 
-  return hidd_conn_send_data(0, HID_TRANS_HANDSHAKE, handshake_param, 0, 0,
-                             NULL);
+  return hidd_conn_send_data(0, HID_TRANS_HANDSHAKE, handshake_param, 0, 0, NULL);
 }
 
 /*******************************************************************************
@@ -585,9 +561,8 @@ tHID_STATUS HID_DevGetDevice(RawAddress* addr) {
   if (hd_cb.device.in_use) {
     *addr = hd_cb.device.addr;
   } else {
-    log_counter_metrics(android::bluetooth::CodePathCounterKeyEnum::
-                            HIDD_ERR_NOT_REGISTERED_AT_GET_DEVICE,
-                        1);
+    log_counter_metrics(
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_ERR_NOT_REGISTERED_AT_GET_DEVICE, 1);
     return HID_ERR_NOT_REGISTERED;
   }
 
@@ -604,9 +579,8 @@ tHID_STATUS HID_DevGetDevice(RawAddress* addr) {
  *
  ******************************************************************************/
 tHID_STATUS HID_DevSetIncomingQos(uint8_t service_type, uint32_t token_rate,
-                                  uint32_t token_bucket_size,
-                                  uint32_t peak_bandwidth, uint32_t latency,
-                                  uint32_t delay_variation) {
+                                  uint32_t token_bucket_size, uint32_t peak_bandwidth,
+                                  uint32_t latency, uint32_t delay_variation) {
   log::verbose("");
 
   hd_cb.use_in_qos = TRUE;
@@ -631,9 +605,8 @@ tHID_STATUS HID_DevSetIncomingQos(uint8_t service_type, uint32_t token_rate,
  *
  ******************************************************************************/
 tHID_STATUS HID_DevSetOutgoingQos(uint8_t service_type, uint32_t token_rate,
-                                  uint32_t token_bucket_size,
-                                  uint32_t peak_bandwidth, uint32_t latency,
-                                  uint32_t delay_variation) {
+                                  uint32_t token_bucket_size, uint32_t peak_bandwidth,
+                                  uint32_t latency, uint32_t delay_variation) {
   log::verbose("");
 
   hd_cb.l2cap_intr_cfg.qos_present = TRUE;

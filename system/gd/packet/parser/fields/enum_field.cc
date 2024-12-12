@@ -23,21 +23,13 @@ const std::string EnumField::kFieldType = "EnumField";
 EnumField::EnumField(std::string name, EnumDef enum_def, std::string value, ParseLocation loc)
     : ScalarField(name, enum_def.size_, loc), enum_def_(enum_def), value_(value) {}
 
-const std::string& EnumField::GetFieldType() const {
-  return EnumField::kFieldType;
-}
+const std::string& EnumField::GetFieldType() const { return EnumField::kFieldType; }
 
-EnumDef EnumField::GetEnumDef() {
-  return enum_def_;
-}
+EnumDef EnumField::GetEnumDef() { return enum_def_; }
 
-std::string EnumField::GetDataType() const {
-  return enum_def_.name_;
-}
+std::string EnumField::GetDataType() const { return enum_def_.name_; }
 
-bool EnumField::HasParameterValidator() const {
-  return false;
-}
+bool EnumField::HasParameterValidator() const { return false; }
 
 void EnumField::GenParameterValidator(std::ostream&) const {
   // Validated at compile time.

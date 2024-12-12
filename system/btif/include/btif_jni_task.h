@@ -40,9 +40,8 @@ void jni_thread_shutdown();
  *
  ******************************************************************************/
 
-bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event,
-                                  char* p_params, int param_len,
-                                  tBTIF_COPY_CBACK* p_copy_cback);
+bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event, char* p_params,
+                                  int param_len, tBTIF_COPY_CBACK* p_copy_cback);
 
 /**
  * This function posts a task into the btif message loop, that executes it in

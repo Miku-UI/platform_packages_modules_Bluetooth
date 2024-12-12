@@ -22,14 +22,13 @@ BodyField::BodyField(ParseLocation loc) : PacketField("body", loc) {}
 
 void BodyField::SetSizeField(const SizeField* size_field) {
   if (size_field_ != nullptr) {
-    ERROR(this, size_field_, size_field) << "The size field for the body has already been assigned.";
+    ERROR(this, size_field_, size_field)
+            << "The size field for the body has already been assigned.";
   }
   size_field_ = size_field;
 }
 
-const std::string& BodyField::GetFieldType() const {
-  return BodyField::kFieldType;
-}
+const std::string& BodyField::GetFieldType() const { return BodyField::kFieldType; }
 
 Size BodyField::GetSize() const {
   if (size_field_ == nullptr) {
@@ -46,19 +45,13 @@ std::string BodyField::GetDataType() const {
 
 void BodyField::GenExtractor(std::ostream&, int, bool) const {}
 
-std::string BodyField::GetGetterFunctionName() const {
-  return "";
-}
+std::string BodyField::GetGetterFunctionName() const { return ""; }
 
 void BodyField::GenGetter(std::ostream&, Size, Size) const {}
 
-std::string BodyField::GetBuilderParameterType() const {
-  return "";
-}
+std::string BodyField::GetBuilderParameterType() const { return ""; }
 
-bool BodyField::HasParameterValidator() const {
-  return false;
-}
+bool BodyField::HasParameterValidator() const { return false; }
 
 void BodyField::GenParameterValidator(std::ostream&) const {
   // There is no validation needed for a payload

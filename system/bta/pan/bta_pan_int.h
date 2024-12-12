@@ -27,8 +27,8 @@
 #include <cstdint>
 
 #include "bta/include/bta_api.h"
-#include "bta/include/bta_sec_api.h"
 #include "bta/include/bta_pan_api.h"
+#include "bta/include/bta_sec_api.h"
 #include "bta/sys/bta_sys.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
@@ -94,7 +94,7 @@ typedef struct {
 /* data type for BTA_PAN_CI_TX_FLOW_EVT */
 typedef struct {
   BT_HDR_RIGID hdr; /* Event header */
-  bool enable; /* Flow control setting */
+  bool enable;      /* Flow control setting */
 } tBTA_PAN_CI_TX_FLOW;
 
 /* data type for BTA_PAN_CONN_OPEN_EVT */
@@ -128,18 +128,17 @@ typedef union {
 
 /* state machine control block */
 typedef struct {
-  RawAddress bd_addr; /* peer bdaddr */
-  fixed_queue_t*
-      data_queue;    /* Queue of buffers waiting to be passed to application */
-  uint16_t handle;   /* BTA PAN/BNEP handle */
-  bool in_use;       /* scb in use */
-  tBTA_SEC sec_mask; /* Security mask */
-  bool pan_flow_enable;     /* BNEP flow control state */
-  bool app_flow_enable;     /* Application flow control state */
-  uint8_t state;            /* State machine state */
-  tBTA_PAN_ROLE local_role; /* local role */
-  tBTA_PAN_ROLE peer_role;  /* peer role */
-  uint8_t app_id;           /* application id for the connection */
+  RawAddress bd_addr;        /* peer bdaddr */
+  fixed_queue_t* data_queue; /* Queue of buffers waiting to be passed to application */
+  uint16_t handle;           /* BTA PAN/BNEP handle */
+  bool in_use;               /* scb in use */
+  tBTA_SEC sec_mask;         /* Security mask */
+  bool pan_flow_enable;      /* BNEP flow control state */
+  bool app_flow_enable;      /* Application flow control state */
+  uint8_t state;             /* State machine state */
+  tBTA_PAN_ROLE local_role;  /* local role */
+  tBTA_PAN_ROLE peer_role;   /* peer role */
+  uint8_t app_id;            /* application id for the connection */
 
 } tBTA_PAN_SCB;
 
@@ -149,7 +148,7 @@ typedef struct {
   tBTA_PAN_CBACK* p_cback;            /* PAN callback function */
   uint8_t app_id[3];                  /* application id for PAN roles */
   uint8_t flow_mask;                  /* Data flow mask */
-  uint8_t q_level; /* queue level set by application for TX data */
+  uint8_t q_level;                    /* queue level set by application for TX data */
 
 } tBTA_PAN_CB;
 

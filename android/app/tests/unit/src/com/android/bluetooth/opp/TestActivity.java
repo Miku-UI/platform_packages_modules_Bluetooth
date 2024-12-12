@@ -358,10 +358,8 @@ public class TestActivity extends Activity {
                             new Thread() {
                                 @Override
                                 public void run() {
-                                    synchronized (mServer) {
-                                        mServer.a = true;
-                                        mServer.notify();
-                                    }
+                                    mServer.a = true;
+                                    mServer.notify();
                                 }
                             };
                     notifyThread.start();
@@ -430,7 +428,7 @@ class TestTcpListener {
                                     Socket clientSocket = mServerSocket.accept();
                                     if (clientSocket == null) {
                                         if (V) {
-                                            Log.v(TAG, "incomming connection time out");
+                                            Log.v(TAG, "incoming connection time out");
                                         }
                                     } else {
                                         if (D) {
@@ -520,7 +518,7 @@ class TestTcpServer extends ServerRequestHandler implements Runnable {
     }
 
     TestTcpServer() {
-        updateStatus("enter construtor of TcpServer");
+        updateStatus("enter constructor of TcpServer");
     }
 
     @Override
@@ -539,7 +537,7 @@ class TestTcpServer extends ServerRequestHandler implements Runnable {
                 }
             }
         }
-        updateStatus("[server:] we accpet the seesion");
+        updateStatus("[server:] we accept the session");
         return ResponseCodes.OBEX_HTTP_OK;
     }
 
@@ -572,10 +570,10 @@ class TestTcpServer extends ServerRequestHandler implements Runnable {
                 try {
                     fos.close();
                 } catch (IOException e1) {
-                    e1.printStackTrace();
+                    Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 }
             }
-            e.printStackTrace();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         }
         return ResponseCodes.OBEX_HTTP_OK;
     }

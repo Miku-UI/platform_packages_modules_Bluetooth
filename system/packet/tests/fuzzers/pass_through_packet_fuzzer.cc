@@ -36,13 +36,11 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
       pass_through_command_play_pushed.push_back(data[x]);
     }
 
-    auto test_packet =
-        TestPassThroughPacket::Make(pass_through_command_play_pushed);
+    auto test_packet = TestPassThroughPacket::Make(pass_through_command_play_pushed);
     test_packet->GetKeyState();
     test_packet->GetOperationId();
 
-    test_packet =
-        TestPassThroughPacket::Make(pass_through_command_play_released);
+    test_packet = TestPassThroughPacket::Make(pass_through_command_play_released);
     test_packet->GetKeyState();
     test_packet->GetOperationId();
     test_packet->GetData();

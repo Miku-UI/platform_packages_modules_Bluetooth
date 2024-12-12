@@ -21,17 +21,17 @@
 
 using bluetooth::Uuid;
 
-static const Uuid ONES = Uuid::From128BitBE(
-    Uuid::UUID128Bit{{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-                      0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}});
+static const Uuid ONES =
+        Uuid::From128BitBE(Uuid::UUID128Bit{{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+                                             0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}});
 
-static const Uuid SEQUENTIAL = Uuid::From128BitBE(
-    Uuid::UUID128Bit{{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xab,
-                      0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89}});
+static const Uuid SEQUENTIAL =
+        Uuid::From128BitBE(Uuid::UUID128Bit{{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xab,
+                                             0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89}});
 
-constexpr Uuid kBase = Uuid::From128BitBE(
-    Uuid::UUID128Bit{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80,
-                      0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}});
+constexpr Uuid kBase =
+        Uuid::From128BitBE(Uuid::UUID128Bit{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80,
+                                             0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb}});
 
 TEST(UuidTest, IsEmpty) {
   EXPECT_TRUE(Uuid::kEmpty.IsEmpty());
@@ -40,10 +40,8 @@ TEST(UuidTest, IsEmpty) {
 
 TEST(UuidTest, GetShortestRepresentationSize) {
   EXPECT_TRUE(Uuid::kNumBytes16 == kBase.GetShortestRepresentationSize());
-  EXPECT_TRUE(Uuid::kNumBytes32 ==
-              Uuid::From32Bit(0x01234567).GetShortestRepresentationSize());
-  EXPECT_TRUE(Uuid::kNumBytes128 ==
-              Uuid::kEmpty.GetShortestRepresentationSize());
+  EXPECT_TRUE(Uuid::kNumBytes32 == Uuid::From32Bit(0x01234567).GetShortestRepresentationSize());
+  EXPECT_TRUE(Uuid::kNumBytes128 == Uuid::kEmpty.GetShortestRepresentationSize());
 }
 
 TEST(UuidTest, As16Bit) {
@@ -125,8 +123,7 @@ TEST(BtifStorageTest, test_string_to_uuid) {
   const uint8_t u1[] = {0xe3, 0x9c, 0x62, 0x85, 0x86, 0x7f, 0x4b, 0x1d,
                         0x9d, 0xb0, 0x35, 0xfb, 0xd9, 0xae, 0xbf, 0x22};
   bool is_valid = false;
-  Uuid uuid =
-      Uuid::FromString("e39c6285-867f-4b1d-9db0-35fbd9aebf22", &is_valid);
+  Uuid uuid = Uuid::FromString("e39c6285-867f-4b1d-9db0-35fbd9aebf22", &is_valid);
   EXPECT_TRUE(is_valid);
   EXPECT_TRUE(memcmp(&uuid, u1, sizeof(u1)) == 0);
 

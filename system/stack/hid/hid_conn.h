@@ -42,7 +42,7 @@ typedef enum : uint8_t {
 } tHID_CONN_STATE;
 
 /* Define the HID Connection Block
-*/
+ */
 typedef struct hid_conn {
   tHID_CONN_STATE conn_state;
 

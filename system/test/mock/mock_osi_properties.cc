@@ -47,8 +47,7 @@ struct osi_property_set osi_property_set;
 // Mocked functions, if any
 int osi_property_get(const char* key, char* value, const char* default_value) {
   inc_func_call_count(__func__);
-  return test::mock::osi_properties::osi_property_get(key, value,
-                                                      default_value);
+  return test::mock::osi_properties::osi_property_get(key, value, default_value);
 }
 bool osi_property_get_bool(const char* key, bool default_value) {
   inc_func_call_count(__func__);
@@ -58,8 +57,8 @@ int32_t osi_property_get_int32(const char* key, int32_t default_value) {
   inc_func_call_count(__func__);
   return test::mock::osi_properties::osi_property_get_int32(key, default_value);
 }
-std::vector<uint32_t> osi_property_get_uintlist(
-    const char* /* key */, std::vector<uint32_t> default_value) {
+std::vector<uint32_t> osi_property_get_uintlist(const char* /* key */,
+                                                std::vector<uint32_t> default_value) {
   inc_func_call_count(__func__);
   return default_value;
 }

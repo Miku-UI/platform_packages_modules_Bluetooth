@@ -33,8 +33,8 @@ using TestChangePathReqPacket = TestPacketType<ChangePathRequest>;
 // Getter
 extern "C" int LLVMFuzzerTestOneInput(uint8_t* data, size_t size) {
   FuzzedDataProvider data_provider(data, size);
-  auto builder = ChangePathResponseBuilder::MakeBuilder(
-      Status::NO_ERROR, data_provider.ConsumeIntegral<uint32_t>());
+  auto builder = ChangePathResponseBuilder::MakeBuilder(Status::NO_ERROR,
+                                                        data_provider.ConsumeIntegral<uint32_t>());
 
   auto test_packet = TestChangePathReqPacket::Make();
   builder->Serialize(test_packet);

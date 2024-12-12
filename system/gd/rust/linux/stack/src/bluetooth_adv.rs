@@ -210,44 +210,44 @@ const INVALID_ADV_ID: i32 = 0xff;
 // Invalid advertising set id.
 pub const INVALID_REG_ID: i32 = -1;
 
-impl Into<bt_topshim::profiles::gatt::AdvertiseParameters> for AdvertisingSetParameters {
-    fn into(self) -> bt_topshim::profiles::gatt::AdvertiseParameters {
+impl From<AdvertisingSetParameters> for bt_topshim::profiles::gatt::AdvertiseParameters {
+    fn from(val: AdvertisingSetParameters) -> Self {
         let mut props: u16 = 0;
-        if self.connectable {
+        if val.connectable {
             props |= 0x01;
         }
-        if self.scannable {
+        if val.scannable {
             props |= 0x02;
         }
-        if self.is_legacy {
+        if val.is_legacy {
             props |= 0x10;
         }
-        if self.is_anonymous {
+        if val.is_anonymous {
             props |= 0x20;
         }
-        if self.include_tx_power {
+        if val.include_tx_power {
             props |= 0x40;
         }
 
-        match self.discoverable {
+        match val.discoverable {
             LeDiscMode::GeneralDiscoverable => {
                 props |= 0x04;
             }
             _ => {}
         }
 
-        let interval = clamp(self.interval, INTERVAL_MIN, INTERVAL_MAX - INTERVAL_DELTA);
+        let interval = clamp(val.interval, INTERVAL_MIN, INTERVAL_MAX - INTERVAL_DELTA);
 
         bt_topshim::profiles::gatt::AdvertiseParameters {
             advertising_event_properties: props,
             min_interval: interval as u32,
             max_interval: (interval + INTERVAL_DELTA) as u32,
-            channel_map: 0x07 as u8, // all channels
-            tx_power: self.tx_power_level as i8,
-            primary_advertising_phy: self.primary_phy.into(),
-            secondary_advertising_phy: self.secondary_phy.into(),
-            scan_request_notification_enable: 0 as u8, // false
-            own_address_type: self.own_address_type as i8,
+            channel_map: 0x07_u8, // all channels
+            tx_power: val.tx_power_level as i8,
+            primary_advertising_phy: val.primary_phy.into(),
+            secondary_advertising_phy: val.secondary_phy.into(),
+            scan_request_notification_enable: 0_u8, // false
+            own_address_type: val.own_address_type as i8,
         }
     }
 }
@@ -281,9 +281,9 @@ impl AdvertiseData {
             }
         }
 
-        let bytes_list = vec![uuid16_bytes, uuid32_bytes, uuid128_bytes];
+        let bytes_list = [uuid16_bytes, uuid32_bytes, uuid128_bytes];
         for (ad_type, bytes) in
-            ad_types.iter().zip(bytes_list.iter()).filter(|(_, bytes)| bytes.len() > 0)
+            ad_types.iter().zip(bytes_list.iter()).filter(|(_, bytes)| !bytes.is_empty())
         {
             AdvertiseData::append_adv_data(dest, *ad_type, bytes);
         }
@@ -313,7 +313,7 @@ impl AdvertiseData {
     }
 
     fn append_device_name(dest: &mut Vec<u8>, device_name: &String) {
-        if device_name.len() == 0 {
+        if device_name.is_empty() {
             return;
         }
 
@@ -336,8 +336,8 @@ impl AdvertiseData {
         dest: &mut Vec<u8>,
         transport_discovery_data: &Vec<Vec<u8>>,
     ) {
-        for tdd in transport_discovery_data.iter().filter(|tdd| tdd.len() > 0) {
-            AdvertiseData::append_adv_data(dest, TRANSPORT_DISCOVERY_DATA, &tdd);
+        for tdd in transport_discovery_data.iter().filter(|tdd| !tdd.is_empty()) {
+            AdvertiseData::append_adv_data(dest, TRANSPORT_DISCOVERY_DATA, tdd);
         }
     }
 
@@ -376,14 +376,14 @@ impl AdvertiseData {
     }
 }
 
-impl Into<bt_topshim::profiles::gatt::PeriodicAdvertisingParameters>
-    for PeriodicAdvertisingParameters
+impl From<PeriodicAdvertisingParameters>
+    for bt_topshim::profiles::gatt::PeriodicAdvertisingParameters
 {
-    fn into(self) -> bt_topshim::profiles::gatt::PeriodicAdvertisingParameters {
+    fn from(val: PeriodicAdvertisingParameters) -> Self {
         let mut p = bt_topshim::profiles::gatt::PeriodicAdvertisingParameters::default();
 
         let interval = clamp(
-            self.interval,
+            val.interval,
             PERIODIC_INTERVAL_MIN,
             PERIODIC_INTERVAL_MAX - PERIODIC_INTERVAL_DELTA,
         );
@@ -392,7 +392,7 @@ impl Into<bt_topshim::profiles::gatt::PeriodicAdvertisingParameters>
         p.include_adi = false;
         p.min_interval = interval as u16;
         p.max_interval = p.min_interval + (PERIODIC_INTERVAL_DELTA as u16);
-        if self.include_tx_power {
+        if val.include_tx_power {
             p.periodic_advertising_properties |= 0x40;
         }
 
@@ -547,8 +547,9 @@ impl AdvertiseManager {
         &mut self,
         gatt: Arc<Mutex<Gatt>>,
         adapter: Arc<Mutex<Box<Bluetooth>>>,
-        is_le_ext_adv_supported: bool,
     ) {
+        let is_le_ext_adv_supported =
+            adapter.lock().unwrap().is_le_extended_advertising_supported();
         self.adv_manager_impl = if is_le_ext_adv_supported {
             info!("AdvertiseManager: Selected extended advertising stack");
             Some(Box::new(AdvertiseManagerImpl::new(self.tx.clone(), gatt, adapter)))
@@ -625,7 +626,7 @@ impl AdvertiseManagerImpl {
                 return Some(s.reg_id());
             }
         }
-        return None;
+        None
     }
 
     /// Returns a mutable reference to the advertising set with the reg_id specified.
@@ -955,7 +956,7 @@ impl IBluetoothAdvertiseManager for AdvertiseManagerImpl {
 
     fn stop_advertising_set(&mut self, advertiser_id: i32) {
         let s = if let Some(s) = self.get_by_advertiser_id(advertiser_id) {
-            s.clone()
+            *s
         } else {
             return;
         };
@@ -1258,15 +1259,13 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
             return;
         }
 
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
         if let Some(cb) = self.get_callback(&s) {
             cb.on_advertising_enabled(advertiser_id, enabled, status);
         }
 
-        if self.suspend_mode() == SuspendMode::Suspending {
-            if self.enabled_sets().count() == 0 {
-                self.set_suspend_mode(SuspendMode::Suspended);
-            }
+        if self.suspend_mode() == SuspendMode::Suspending && self.enabled_sets().count() == 0 {
+            self.set_suspend_mode(SuspendMode::Suspended);
         }
     }
 
@@ -1274,10 +1273,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         debug!("on_advertising_data_set(): adv_id = {}, status = {:?}", adv_id, status);
 
         let advertiser_id: i32 = adv_id.into();
-        if None == self.get_by_advertiser_id(advertiser_id) {
+        if self.get_by_advertiser_id(advertiser_id).is_none() {
             return;
         }
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
 
         if let Some(cb) = self.get_callback(&s) {
             cb.on_advertising_data_set(advertiser_id, status);
@@ -1288,10 +1287,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         debug!("on_scan_response_data_set(): adv_id = {}, status = {:?}", adv_id, status);
 
         let advertiser_id: i32 = adv_id.into();
-        if None == self.get_by_advertiser_id(advertiser_id) {
+        if self.get_by_advertiser_id(advertiser_id).is_none() {
             return;
         }
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
 
         if let Some(cb) = self.get_callback(&s) {
             cb.on_scan_response_data_set(advertiser_id, status);
@@ -1310,10 +1309,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         );
 
         let advertiser_id: i32 = adv_id.into();
-        if None == self.get_by_advertiser_id(advertiser_id) {
+        if self.get_by_advertiser_id(advertiser_id).is_none() {
             return;
         }
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
 
         if let Some(cb) = self.get_callback(&s) {
             cb.on_advertising_parameters_updated(advertiser_id, tx_power.into(), status);
@@ -1331,10 +1330,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         );
 
         let advertiser_id: i32 = adv_id.into();
-        if None == self.get_by_advertiser_id(advertiser_id) {
+        if self.get_by_advertiser_id(advertiser_id).is_none() {
             return;
         }
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
 
         if let Some(cb) = self.get_callback(&s) {
             cb.on_periodic_advertising_parameters_updated(advertiser_id, status);
@@ -1345,10 +1344,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         debug!("on_periodic_advertising_data_set(): adv_id = {}, status = {:?}", adv_id, status);
 
         let advertiser_id: i32 = adv_id.into();
-        if None == self.get_by_advertiser_id(advertiser_id) {
+        if self.get_by_advertiser_id(advertiser_id).is_none() {
             return;
         }
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
 
         if let Some(cb) = self.get_callback(&s) {
             cb.on_periodic_advertising_data_set(advertiser_id, status);
@@ -1367,10 +1366,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         );
 
         let advertiser_id: i32 = adv_id.into();
-        if None == self.get_by_advertiser_id(advertiser_id) {
+        if self.get_by_advertiser_id(advertiser_id).is_none() {
             return;
         }
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
 
         if let Some(cb) = self.get_callback(&s) {
             cb.on_periodic_advertising_enabled(advertiser_id, enabled, status);
@@ -1386,10 +1385,10 @@ impl BtifGattAdvCallbacks for AdvertiseManagerImpl {
         );
 
         let advertiser_id: i32 = adv_id.into();
-        if None == self.get_by_advertiser_id(advertiser_id) {
+        if self.get_by_advertiser_id(advertiser_id).is_none() {
             return;
         }
-        let s = self.get_by_advertiser_id(advertiser_id).unwrap().clone();
+        let s = *self.get_by_advertiser_id(advertiser_id).unwrap();
 
         if let Some(cb) = self.get_callback(&s) {
             cb.on_own_address_read(advertiser_id, addr_type.into(), address);
@@ -1524,9 +1523,9 @@ impl SoftwareRotationAdvertiseManagerImpl {
             if info.expire_time.map_or(false, |t| t < now) {
                 // This advertiser has expired.
                 info.enabled = false;
-                callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+                if let Some(cb) = callbacks.get_by_id_mut(info.callback_id) {
                     cb.on_advertising_enabled(info.id, false, AdvertisingStatus::Success);
-                });
+                }
             }
             info.enabled
         });
@@ -1757,9 +1756,9 @@ impl IBluetoothAdvertiseManager for SoftwareRotationAdvertiseManagerImpl {
             warn!("stop_advertising_set: Unknown adv_id {}", adv_id);
             return;
         };
-        self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+        if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
             cb.on_advertising_set_stopped(info.id);
-        });
+        }
         if current_id == Some(info.id) {
             self.run_rotate();
         }
@@ -1799,9 +1798,9 @@ impl IBluetoothAdvertiseManager for SoftwareRotationAdvertiseManagerImpl {
 
         if enable && !self.adv_queue.contains(&info.id) && current_id != Some(info.id) {
             // The adv was not enabled and not in the queue. Invoke callback and queue it.
-            self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+            if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
                 cb.on_advertising_enabled(info.id, false, AdvertisingStatus::Success);
-            });
+            }
             self.adv_queue.push_back(info.id);
             if self.is_stopped() {
                 self.start_next_advertising();
@@ -1828,9 +1827,9 @@ impl IBluetoothAdvertiseManager for SoftwareRotationAdvertiseManagerImpl {
             return;
         }
         info.advertising_data = data;
-        self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+        if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
             cb.on_advertising_data_set(info.id, AdvertisingStatus::Success);
-        });
+        }
 
         if current_id == Some(info.id) {
             self.run_rotate();
@@ -1852,9 +1851,9 @@ impl IBluetoothAdvertiseManager for SoftwareRotationAdvertiseManagerImpl {
             return;
         }
         info.advertising_data = data;
-        self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+        if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
             cb.on_advertising_data_set(info.id, AdvertisingStatus::Success);
-        });
+        }
 
         if current_id == Some(info.id) {
             self.run_rotate();
@@ -1878,9 +1877,9 @@ impl IBluetoothAdvertiseManager for SoftwareRotationAdvertiseManagerImpl {
             return;
         }
         info.scan_response_data = data;
-        self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+        if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
             cb.on_scan_response_data_set(info.id, AdvertisingStatus::Success);
-        });
+        }
 
         if current_id == Some(info.id) {
             self.run_rotate();
@@ -1902,9 +1901,9 @@ impl IBluetoothAdvertiseManager for SoftwareRotationAdvertiseManagerImpl {
             error!("set_advertising_parameters: tx_power is None! Is this called before adv has started?");
             return;
         };
-        self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+        if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
             cb.on_advertising_parameters_updated(info.id, tx_power, AdvertisingStatus::Success);
-        });
+        }
 
         if current_id == Some(info.id) {
             self.run_rotate();
@@ -1982,16 +1981,16 @@ impl BtifGattAdvCallbacks for SoftwareRotationAdvertiseManagerImpl {
             if info.tx_power.is_none() {
                 // tx_power is none means it's the first time this advertiser started.
                 if status != AdvertisingStatus::Success {
-                    self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+                    if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
                         cb.on_advertising_set_started(info.id, INVALID_ADV_ID, 0, status);
-                    });
+                    }
                     self.adv_info.remove(&reg_id);
                 } else {
                     info.tx_power = Some(tx_power.into());
                     info.expire_time = gen_expire_time_from_now(info.duration);
-                    self.callbacks.get_by_id_mut(info.callback_id).map(|cb| {
+                    if let Some(cb) = self.callbacks.get_by_id_mut(info.callback_id) {
                         cb.on_advertising_set_started(info.id, info.id, tx_power.into(), status);
-                    });
+                    }
                 }
             } else {
                 // Not the first time. This means we are not able to report the failure through
@@ -2000,10 +1999,8 @@ impl BtifGattAdvCallbacks for SoftwareRotationAdvertiseManagerImpl {
                     info.enabled = false;
                     // Push to the queue and let refresh_queue handle the disabled callback.
                     self.adv_queue.push_back(reg_id);
-                } else {
-                    if !info.enabled {
-                        self.stop_current_advertising();
-                    }
+                } else if !info.enabled {
+                    self.stop_current_advertising();
                 }
             }
         } else {
@@ -2104,31 +2101,31 @@ mod tests {
     fn test_append_ad_data_multiple() {
         let mut bytes = Vec::<u8>::new();
 
-        let payload = vec![0 as u8, 1, 2, 3, 4];
+        let payload = vec![0_u8, 1, 2, 3, 4];
         AdvertiseData::append_adv_data(&mut bytes, 100, &payload);
         AdvertiseData::append_adv_data(&mut bytes, 101, &[0]);
-        assert_eq!(bytes, vec![6 as u8, 100, 0, 1, 2, 3, 4, 2, 101, 0]);
+        assert_eq!(bytes, vec![6_u8, 100, 0, 1, 2, 3, 4, 2, 101, 0]);
     }
 
     #[test]
     fn test_append_service_uuids() {
         let mut bytes = Vec::<u8>::new();
         let uuid_16 = Uuid::from_string("0000fef3-0000-1000-8000-00805f9b34fb").unwrap();
-        let uuids = vec![uuid_16.clone()];
+        let uuids = vec![uuid_16];
         let exp_16: Vec<u8> = vec![3, 0x3, 0xf3, 0xfe];
         AdvertiseData::append_service_uuids(&mut bytes, &uuids);
         assert_eq!(bytes, exp_16);
 
         let mut bytes = Vec::<u8>::new();
         let uuid_32 = Uuid::from_string("00112233-0000-1000-8000-00805f9b34fb").unwrap();
-        let uuids = vec![uuid_32.clone()];
+        let uuids = vec![uuid_32];
         let exp_32: Vec<u8> = vec![5, 0x5, 0x33, 0x22, 0x11, 0x0];
         AdvertiseData::append_service_uuids(&mut bytes, &uuids);
         assert_eq!(bytes, exp_32);
 
         let mut bytes = Vec::<u8>::new();
         let uuid_128 = Uuid::from_string("00010203-0405-0607-0809-0a0b0c0d0e0f").unwrap();
-        let uuids = vec![uuid_128.clone()];
+        let uuids = vec![uuid_128];
         let exp_128: Vec<u8> = vec![
             17, 0x7, 0xf, 0xe, 0xd, 0xc, 0xb, 0xa, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0,
         ];
@@ -2224,7 +2221,7 @@ mod tests {
     #[test]
     fn test_append_manufacturer_data() {
         let mut bytes = Vec::<u8>::new();
-        let manufacturer_data = HashMap::from([(0x0123 as u16, vec![0, 1, 2])]);
+        let manufacturer_data = HashMap::from([(0x0123_u16, vec![0, 1, 2])]);
         let exp_bytes: Vec<u8> = vec![6, 0xff, 0x23, 0x01, 0x0, 0x1, 0x2];
         AdvertiseData::append_manufacturer_data(&mut bytes, &manufacturer_data);
         assert_eq!(bytes, exp_bytes);

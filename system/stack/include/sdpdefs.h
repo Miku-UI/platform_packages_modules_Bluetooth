@@ -32,7 +32,7 @@
 #include "macros.h"
 
 /* Define the service attribute IDs.
-*/
+ */
 #define ATTR_ID_SERVICE_RECORD_HDL 0x0000
 #define ATTR_ID_SERVICE_CLASS_ID_LIST 0x0001
 #define ATTR_ID_SERVICE_RECORD_STATE 0x0002
@@ -51,7 +51,7 @@
 #define ATTR_ID_PROVIDER_NAME (LANGUAGE_BASE_ID + 0x0002)
 
 /* Device Identification (DI)
-*/
+ */
 #define ATTR_ID_SPECIFICATION_ID 0x0200
 #define ATTR_ID_VENDOR_ID 0x0201
 #define ATTR_ID_PRODUCT_ID 0x0202
@@ -69,7 +69,7 @@
 #define ATTR_ID_FAX_CLASS_1_SUPPORT 0x0302
 #define ATTR_ID_REMOTE_AUDIO_VOLUME_CONTROL 0x0302
 #define ATTR_ID_SUPPORTED_FORMATS_LIST 0x0303
-#define ATTR_ID_SUPPORTED_FEATURES 0x0311         /* HFP, BIP */
+#define ATTR_ID_SUPPORTED_FEATURES 0x0311      /* HFP, BIP */
 #define ATTR_ID_SUPPORTED_REPOSITORIES 0x0314  /* Phone book access Profile */
 #define ATTR_ID_MAS_INSTANCE_ID 0x0315         /* MAP profile */
 #define ATTR_ID_SUPPORTED_MSG_TYPE 0x0316      /* MAP profile */
@@ -126,12 +126,8 @@ inline std::string sdp_attr_id_text(const unsigned& id) {
   }
 }
 
-#define UUID_CODEC_CVSD 0x0001 /* CVSD */
-#define UUID_CODEC_MSBC 0x0002 /* mSBC */
-#define UUID_CODEC_LC3 0x0003  /* LC3 */
-
 /* Define all the 'Descriptor Type' values.
-*/
+ */
 enum : unsigned {
   NIL_DESC_TYPE = 0,
   UINT_DESC_TYPE = 1,
@@ -161,7 +157,7 @@ inline std::string sdp_attr_type_text(const unsigned& type) {
 }
 
 /* Define all the "Descriptor Size" values.
-*/
+ */
 enum : unsigned {
   SIZE_ONE_BYTE = 0,
   SIZE_TWO_BYTES = 1,

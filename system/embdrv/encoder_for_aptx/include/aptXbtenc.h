@@ -61,8 +61,7 @@ APTXBTENCEXPORT int aptxbtenc_setsync_mode(void* _state, int32_t sync_mode);
 
 /* StereoEncode will take 8 audio samples (16-bit per sample)
  * and generate one 32-bit codeword with autosync inserted. */
-APTXBTENCEXPORT int aptxbtenc_encodestereo(void* _state, void* _pcmL,
-                                           void* _pcmR, void* _buffer);
+APTXBTENCEXPORT int aptxbtenc_encodestereo(void* _state, void* _pcmL, void* _pcmR, void* _buffer);
 
 #ifdef __cplusplus
 }  //  /extern "C"

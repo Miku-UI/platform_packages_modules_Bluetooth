@@ -21,7 +21,7 @@
 #include "parse_location.h"
 
 class BodyField : public PacketField {
- public:
+public:
   BodyField(ParseLocation loc);
 
   static const std::string kFieldType;

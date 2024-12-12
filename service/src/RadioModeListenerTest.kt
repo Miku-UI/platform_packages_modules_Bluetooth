@@ -57,9 +57,9 @@ internal fun enableMode(resolver: ContentResolver, looper: Looper, modeKey: Stri
 
 @RunWith(RobolectricTestRunner::class)
 class RadioModeListenerTest {
+    @get:Rule val testName = TestName()
     private val resolver: ContentResolver =
         ApplicationProvider.getApplicationContext<Context>().getContentResolver()
-    @JvmField @Rule val testName = TestName()
 
     private val looper: Looper = Looper.getMainLooper()
 

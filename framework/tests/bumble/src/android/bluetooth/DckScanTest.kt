@@ -19,6 +19,7 @@ package android.bluetooth
 import android.bluetooth.DckTestRule.LeScanResult
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanSettings
+import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import android.os.ParcelUuid
 import androidx.test.core.app.ApplicationProvider
@@ -65,6 +66,8 @@ class DckScanTest(
             isRemoteAdvertisingWithUuid = isRemoteAdvertisingWithUuid,
             isGattConnected = isGattConnected
         )
+
+    @Rule(order = 3) @JvmField val enableBluetoothRule = EnableBluetoothRule(false, true)
 
     @Test
     fun scanForIrkAndIdentityAddress_remoteFound() {

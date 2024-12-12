@@ -22,7 +22,7 @@
 using namespace bluetooth::hal;
 
 class Config {
-  Config(){};
+  Config() {}
 
   void Help() const {
     // setprop persist.bluetooth.btsnoopdefaultmode full

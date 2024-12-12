@@ -28,27 +28,24 @@ namespace bluetooth {
 namespace avrcp {
 
 class SetAbsoluteVolumeRequestBuilder : public VendorPacketBuilder {
- public:
+public:
   virtual ~SetAbsoluteVolumeRequestBuilder() = default;
 
-  static std::unique_ptr<SetAbsoluteVolumeRequestBuilder> MakeBuilder(
-      uint8_t volume);
+  static std::unique_ptr<SetAbsoluteVolumeRequestBuilder> MakeBuilder(uint8_t volume);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   uint8_t volume_;
 
   SetAbsoluteVolumeRequestBuilder(uint8_t volume)
-      : VendorPacketBuilder(CType::CONTROL, CommandPdu::SET_ABSOLUTE_VOLUME,
-                            PacketType::SINGLE),
-        volume_(volume){};
+      : VendorPacketBuilder(CType::CONTROL, CommandPdu::SET_ABSOLUTE_VOLUME, PacketType::SINGLE),
+        volume_(volume) {}
 };
 
 class SetAbsoluteVolumeResponse : public VendorPacket {
- public:
+public:
   virtual ~SetAbsoluteVolumeResponse() = default;
 
   /**
@@ -73,7 +70,7 @@ class SetAbsoluteVolumeResponse : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 

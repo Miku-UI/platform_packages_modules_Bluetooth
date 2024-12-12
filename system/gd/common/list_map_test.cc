@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include <memory>
+#include "common/list_map.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "common/list_map.h"
+#include <memory>
 
 namespace testing {
 

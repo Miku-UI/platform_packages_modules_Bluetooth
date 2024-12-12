@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
@@ -237,6 +238,7 @@ public class AvrcpBipClient {
     }
 
     /** Connects to the remote device's BIP Image Pull server */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // socket are handled in framework space
     private synchronized void connect() {
         debug("Connect using psm: " + mPsm);
         if (isConnected()) {
@@ -440,12 +442,9 @@ public class AvrcpBipClient {
     @Override
     public String toString() {
         return "<AvrcpBipClient"
-                + " device="
-                + mDevice
-                + " psm="
-                + mPsm
-                + " state="
-                + getStateName()
+                + (" device=" + mDevice)
+                + (" psm=" + mPsm)
+                + (" state=" + getStateName())
                 + ">";
     }
 

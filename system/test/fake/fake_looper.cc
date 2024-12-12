@@ -45,8 +45,7 @@ pid_t get_thread_id() {
 
 // message loop
 void* run_message_loop(void* arg) {
-  bluetooth::log::assert_that(arg != nullptr,
-                              "Must pass in a thread start argument");
+  bluetooth::log::assert_that(arg != nullptr, "Must pass in a thread start argument");
   thread_t* thread = nullptr;
   {
     // Decouple thread portion from |start_arg| wrapper
@@ -58,8 +57,8 @@ void* run_message_loop(void* arg) {
 
   // thread->tid_ = syscall(__NR_gettid);
   thread->tid_ = get_thread_id();
-  bluetooth::log::debug("Thread message loop is operational name:{} tid:{}",
-                        thread->name_, thread->tid_);
+  bluetooth::log::debug("Thread message loop is operational name:{} tid:{}", thread->name_,
+                        thread->tid_);
 
   while (thread->is_running()) {
     thread->work_queue_semaphore.wait();

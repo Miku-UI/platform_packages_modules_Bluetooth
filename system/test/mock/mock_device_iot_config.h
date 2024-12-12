@@ -27,15 +27,13 @@ namespace device_iot_config {
 // Return: bool
 struct device_iot_config_get_int {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     int& value)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */,
-                  int& /* value */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key,
-                  int& value) {
+  std::function<bool(const std::string& section, const std::string& key, int& value)> body{
+          [this](const std::string& /* section */, const std::string& /* key */, int& /* value */) {
+            return return_value;
+          }};
+  bool operator()(const std::string& section, const std::string& key, int& value) {
     return body(section, key, value);
-  };
+  }
 };
 extern struct device_iot_config_get_int device_iot_config_get_int;
 
@@ -44,15 +42,13 @@ extern struct device_iot_config_get_int device_iot_config_get_int;
 // Return: bool
 struct device_iot_config_set_int {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     int value)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */,
-                  int /* value */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key,
-                  int value) {
+  std::function<bool(const std::string& section, const std::string& key, int value)> body{
+          [this](const std::string& /* section */, const std::string& /* key */, int /* value */) {
+            return return_value;
+          }};
+  bool operator()(const std::string& section, const std::string& key, int value) {
     return body(section, key, value);
-  };
+  }
 };
 extern struct device_iot_config_set_int device_iot_config_set_int;
 
@@ -62,12 +58,10 @@ extern struct device_iot_config_set_int device_iot_config_set_int;
 struct device_iot_config_int_add_one {
   bool return_value{false};
   std::function<bool(const std::string& section, const std::string& key)> body{
-      [this](const std::string& /* section */, const std::string& /* key */) {
-        return return_value;
-      }};
-  bool operator()(const std::string& section, const std::string& key) {
-    return body(section, key);
-  };
+          [this](const std::string& /* section */, const std::string& /* key */) {
+            return return_value;
+          }};
+  bool operator()(const std::string& section, const std::string& key) { return body(section, key); }
 };
 extern struct device_iot_config_int_add_one device_iot_config_int_add_one;
 
@@ -76,15 +70,13 @@ extern struct device_iot_config_int_add_one device_iot_config_int_add_one;
 // Return: bool
 struct device_iot_config_get_hex {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     int& value)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */,
-                  int& /* value */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key,
-                  int& value) {
+  std::function<bool(const std::string& section, const std::string& key, int& value)> body{
+          [this](const std::string& /* section */, const std::string& /* key */, int& /* value */) {
+            return return_value;
+          }};
+  bool operator()(const std::string& section, const std::string& key, int& value) {
     return body(section, key, value);
-  };
+  }
 };
 extern struct device_iot_config_get_hex device_iot_config_get_hex;
 
@@ -94,15 +86,12 @@ extern struct device_iot_config_get_hex device_iot_config_get_hex;
 // Return: bool
 struct device_iot_config_set_hex {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     int value, int byte_num)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */, int /* value */,
-                  int /* byte_num */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key, int value,
-                  int byte_num) {
+  std::function<bool(const std::string& section, const std::string& key, int value, int byte_num)>
+          body{[this](const std::string& /* section */, const std::string& /* key */,
+                      int /* value */, int /* byte_num */) { return return_value; }};
+  bool operator()(const std::string& section, const std::string& key, int value, int byte_num) {
     return body(section, key, value, byte_num);
-  };
+  }
 };
 extern struct device_iot_config_set_hex device_iot_config_set_hex;
 
@@ -112,18 +101,14 @@ extern struct device_iot_config_set_hex device_iot_config_set_hex;
 // Return: bool
 struct device_iot_config_set_hex_if_greater {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     int value, int byte_num)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */, int /* value */,
-                  int /* byte_num */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key, int value,
-                  int byte_num) {
+  std::function<bool(const std::string& section, const std::string& key, int value, int byte_num)>
+          body{[this](const std::string& /* section */, const std::string& /* key */,
+                      int /* value */, int /* byte_num */) { return return_value; }};
+  bool operator()(const std::string& section, const std::string& key, int value, int byte_num) {
     return body(section, key, value, byte_num);
-  };
+  }
 };
-extern struct device_iot_config_set_hex_if_greater
-    device_iot_config_set_hex_if_greater;
+extern struct device_iot_config_set_hex_if_greater device_iot_config_set_hex_if_greater;
 
 // Name: device_iot_config_get_str
 // Params: const std::string& section, const std::string& key, char* value, int*
@@ -131,15 +116,14 @@ extern struct device_iot_config_set_hex_if_greater
 // Return: bool
 struct device_iot_config_get_str {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     char* value, int* size_bytes)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */, char* /* value */,
-                  int* /* size_bytes */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key,
-                  char* value, int* size_bytes) {
+  std::function<bool(const std::string& section, const std::string& key, char* value,
+                     int* size_bytes)>
+          body{[this](const std::string& /* section */, const std::string& /* key */,
+                      char* /* value */, int* /* size_bytes */) { return return_value; }};
+  bool operator()(const std::string& section, const std::string& key, char* value,
+                  int* size_bytes) {
     return body(section, key, value, size_bytes);
-  };
+  }
 };
 extern struct device_iot_config_get_str device_iot_config_get_str;
 
@@ -149,15 +133,12 @@ extern struct device_iot_config_get_str device_iot_config_get_str;
 // Return: bool
 struct device_iot_config_set_str {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     const std::string& value)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */,
-                  const std::string& /* value */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key,
-                  const std::string& value) {
+  std::function<bool(const std::string& section, const std::string& key, const std::string& value)>
+          body{[this](const std::string& /* section */, const std::string& /* key */,
+                      const std::string& /* value */) { return return_value; }};
+  bool operator()(const std::string& section, const std::string& key, const std::string& value) {
     return body(section, key, value);
-  };
+  }
 };
 extern struct device_iot_config_set_str device_iot_config_set_str;
 
@@ -167,15 +148,14 @@ extern struct device_iot_config_set_str device_iot_config_set_str;
 // Return: bool
 struct device_iot_config_get_bin {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     uint8_t* value, size_t* length)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */, uint8_t* /* value */,
-                  size_t* /* length */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key,
-                  uint8_t* value, size_t* length) {
+  std::function<bool(const std::string& section, const std::string& key, uint8_t* value,
+                     size_t* length)>
+          body{[this](const std::string& /* section */, const std::string& /* key */,
+                      uint8_t* /* value */, size_t* /* length */) { return return_value; }};
+  bool operator()(const std::string& section, const std::string& key, uint8_t* value,
+                  size_t* length) {
     return body(section, key, value, length);
-  };
+  }
 };
 extern struct device_iot_config_get_bin device_iot_config_get_bin;
 
@@ -185,15 +165,14 @@ extern struct device_iot_config_get_bin device_iot_config_get_bin;
 // Return: bool
 struct device_iot_config_set_bin {
   bool return_value{false};
-  std::function<bool(const std::string& section, const std::string& key,
-                     const uint8_t* value, size_t length)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */, const uint8_t* /* value */,
-                  size_t /* length */) { return return_value; }};
-  bool operator()(const std::string& section, const std::string& key,
-                  const uint8_t* value, size_t length) {
+  std::function<bool(const std::string& section, const std::string& key, const uint8_t* value,
+                     size_t length)>
+          body{[this](const std::string& /* section */, const std::string& /* key */,
+                      const uint8_t* /* value */, size_t /* length */) { return return_value; }};
+  bool operator()(const std::string& section, const std::string& key, const uint8_t* value,
+                  size_t length) {
     return body(section, key, value, length);
-  };
+  }
 };
 extern struct device_iot_config_set_bin device_iot_config_set_bin;
 
@@ -202,12 +181,13 @@ extern struct device_iot_config_set_bin device_iot_config_set_bin;
 // Return: size_t
 struct device_iot_config_get_bin_length {
   size_t return_value{0};
-  std::function<size_t(const std::string& section, const std::string& key)>
-      body{[this](const std::string& /* section */,
-                  const std::string& /* key */) { return return_value; }};
+  std::function<size_t(const std::string& section, const std::string& key)> body{
+          [this](const std::string& /* section */, const std::string& /* key */) {
+            return return_value;
+          }};
   size_t operator()(const std::string& section, const std::string& key) {
     return body(section, key);
-  };
+  }
 };
 extern struct device_iot_config_get_bin_length device_iot_config_get_bin_length;
 
@@ -217,8 +197,8 @@ extern struct device_iot_config_get_bin_length device_iot_config_get_bin_length;
 struct device_iot_config_has_section {
   bool return_value{false};
   std::function<bool(const std::string& section)> body{
-      [this](const std::string& /* section */) { return return_value; }};
-  bool operator()(const std::string& section) { return body(section); };
+          [this](const std::string& /* section */) { return return_value; }};
+  bool operator()(const std::string& section) { return body(section); }
 };
 extern struct device_iot_config_has_section device_iot_config_has_section;
 
@@ -228,12 +208,10 @@ extern struct device_iot_config_has_section device_iot_config_has_section;
 struct device_iot_config_exist {
   bool return_value{false};
   std::function<bool(const std::string& section, const std::string& key)> body{
-      [this](const std::string& /* section */, const std::string& /* key */) {
-        return return_value;
-      }};
-  bool operator()(const std::string& section, const std::string& key) {
-    return body(section, key);
-  };
+          [this](const std::string& /* section */, const std::string& /* key */) {
+            return return_value;
+          }};
+  bool operator()(const std::string& section, const std::string& key) { return body(section, key); }
 };
 extern struct device_iot_config_exist device_iot_config_exist;
 
@@ -243,12 +221,10 @@ extern struct device_iot_config_exist device_iot_config_exist;
 struct device_iot_config_remove {
   bool return_value{false};
   std::function<bool(const std::string& section, const std::string& key)> body{
-      [this](const std::string& /* section */, const std::string& /* key */) {
-        return return_value;
-      }};
-  bool operator()(const std::string& section, const std::string& key) {
-    return body(section, key);
-  };
+          [this](const std::string& /* section */, const std::string& /* key */) {
+            return return_value;
+          }};
+  bool operator()(const std::string& section, const std::string& key) { return body(section, key); }
 };
 extern struct device_iot_config_remove device_iot_config_remove;
 
@@ -258,7 +234,7 @@ extern struct device_iot_config_remove device_iot_config_remove;
 struct device_iot_config_clear {
   bool return_value{false};
   std::function<bool(void)> body{[this]() { return return_value; }};
-  bool operator()(void) { return body(); };
+  bool operator()(void) { return body(); }
 };
 extern struct device_iot_config_clear device_iot_config_clear;
 
@@ -267,7 +243,7 @@ extern struct device_iot_config_clear device_iot_config_clear;
 // Return: void
 struct device_iot_config_flush {
   std::function<void(void)> body{[]() {}};
-  void operator()(void){ body(); };
+  void operator()(void) { body(); }
 };
 extern struct device_iot_config_flush device_iot_config_flush;
 
@@ -276,7 +252,7 @@ extern struct device_iot_config_flush device_iot_config_flush;
 // Return: void
 struct device_debug_iot_config_dump {
   std::function<void(int fd)> body{[](int /* fd */) {}};
-  void operator()(int fd) { body(fd); };
+  void operator()(int fd) { body(fd); }
 };
 extern struct device_debug_iot_config_dump device_debug_iot_config_dump;
 

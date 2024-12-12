@@ -45,7 +45,8 @@ using os::Handler;
 static const std::string kFactoryResetProperty = "persist.bluetooth.factoryreset";
 
 static const size_t kDefaultTempDeviceCapacity = 10000;
-// Save config whenever there is a change, but delay it by this value so that burst config change won't overwhelm disk
+// Save config whenever there is a change, but delay it by this value so that burst config change
+// won't overwhelm disk
 static const std::chrono::milliseconds kDefaultConfigSaveDelay = std::chrono::milliseconds(3000);
 // Writing a config to disk takes a minimum 10 ms on a decent x86_64 machine
 // The config saving delay must be bigger than this value to avoid overwhelming the disk
@@ -61,24 +62,21 @@ const std::string StorageModule::kTimeCreatedFormat = "%Y-%m-%d %H:%M:%S";
 
 const std::string StorageModule::kAdapterSection = BTIF_STORAGE_SECTION_ADAPTER;
 
-StorageModule::StorageModule(
-    std::string config_file_path,
-    std::chrono::milliseconds config_save_delay,
-    size_t temp_devices_capacity,
-    bool is_restricted_mode,
-    bool is_single_user_mode)
+StorageModule::StorageModule(std::string config_file_path,
+                             std::chrono::milliseconds config_save_delay,
+                             size_t temp_devices_capacity, bool is_restricted_mode,
+                             bool is_single_user_mode)
     : config_file_path_(std::move(config_file_path)),
       config_save_delay_(config_save_delay),
       temp_devices_capacity_(temp_devices_capacity),
       is_restricted_mode_(is_restricted_mode),
       is_single_user_mode_(is_single_user_mode) {
-  log::assert_that(
-      config_save_delay > kMinConfigSaveDelay,
-      "Config save delay of {} ms is not enough, must be at least {} ms to avoid overwhelming the "
-      "disk",
-      config_save_delay_.count(),
-      kMinConfigSaveDelay.count());
-};
+  log::assert_that(config_save_delay > kMinConfigSaveDelay,
+                   "Config save delay of {} ms is not enough, must be at least {} ms to avoid "
+                   "overwhelming the "
+                   "disk",
+                   config_save_delay_.count(), kMinConfigSaveDelay.count());
+}
 
 StorageModule::~StorageModule() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -86,13 +84,15 @@ StorageModule::~StorageModule() {
 }
 
 const ModuleFactory StorageModule::Factory = ModuleFactory([]() {
-  return new StorageModule(
-      os::ParameterProvider::ConfigFilePath(), kDefaultConfigSaveDelay, kDefaultTempDeviceCapacity, false, false);
+  return new StorageModule(os::ParameterProvider::ConfigFilePath(), kDefaultConfigSaveDelay,
+                           kDefaultTempDeviceCapacity, false, false);
 });
 
 struct StorageModule::impl {
   explicit impl(Handler* handler, ConfigCache cache, size_t in_memory_cache_size_limit)
-      : config_save_alarm_(handler), cache_(std::move(cache)), memory_only_cache_(in_memory_cache_size_limit, {}) {}
+      : config_save_alarm_(handler),
+        cache_(std::move(cache)),
+        memory_only_cache_(in_memory_cache_size_limit, {}) {}
   Alarm config_save_alarm_;
   ConfigCache cache_;
   ConfigCache memory_only_cache_;
@@ -110,7 +110,8 @@ void StorageModule::SaveDelayed() {
     return;
   }
   pimpl_->config_save_alarm_.Schedule(
-      common::BindOnce(&StorageModule::SaveImmediately, common::Unretained(this)), config_save_delay_);
+          common::BindOnce(&StorageModule::SaveImmediately, common::Unretained(this)),
+          config_save_delay_);
   pimpl_->has_pending_config_save_ = true;
 }
 
@@ -122,8 +123,8 @@ void StorageModule::SaveImmediately() {
   }
 #ifndef TARGET_FLOSS
   log::assert_that(
-      LegacyConfigFile::FromPath(config_file_path_).Write(pimpl_->cache_),
-      "assert failed: LegacyConfigFile::FromPath(config_file_path_).Write(pimpl_->cache_)");
+          LegacyConfigFile::FromPath(config_file_path_).Write(pimpl_->cache_),
+          "assert failed: LegacyConfigFile::FromPath(config_file_path_).Write(pimpl_->cache_)");
 #else
   if (!LegacyConfigFile::FromPath(config_file_path_).Write(pimpl_->cache_)) {
     log::error("Unable to write config file to disk");
@@ -133,7 +134,7 @@ void StorageModule::SaveImmediately() {
   if (bluetooth::os::ParameterProvider::GetBtKeystoreInterface() != nullptr &&
       bluetooth::os::ParameterProvider::IsCommonCriteriaMode()) {
     bluetooth::os::ParameterProvider::GetBtKeystoreInterface()->set_encrypt_key_or_remove_key(
-        kConfigFilePrefix, kConfigFileHash);
+            kConfigFilePrefix, kConfigFileHash);
   }
 }
 
@@ -143,7 +144,7 @@ void StorageModule::Clear() {
 }
 
 void StorageModule::ListDependencies(ModuleList* list) const {
-    list->add<metrics::CounterMetrics>();
+  list->add<metrics::CounterMetrics>();
 }
 
 void StorageModule::Start() {
@@ -172,7 +173,7 @@ void StorageModule::Start() {
   }
   pimpl_ = std::make_unique<impl>(GetHandler(), std::move(config.value()), temp_devices_capacity_);
   pimpl_->cache_.SetPersistentConfigChangedCallback(
-      [this] { this->CallOn(this, &StorageModule::SaveDelayed); });
+          [this] { this->CallOn(this, &StorageModule::SaveDelayed); });
 
   // Cleanup temporary pairings if we have left guest mode
   if (!is_restricted_mode_) {
@@ -181,7 +182,8 @@ void StorageModule::Start() {
 
   config->FixDeviceTypeInconsistencies();
   if (bluetooth::os::ParameterProvider::GetBtKeystoreInterface() != nullptr) {
-    bluetooth::os::ParameterProvider::GetBtKeystoreInterface()->ConvertEncryptOrDecryptKeyIfNeeded();
+    bluetooth::os::ParameterProvider::GetBtKeystoreInterface()
+            ->ConvertEncryptOrDecryptKeyIfNeeded();
   }
 
   if (save_needed) {
@@ -201,35 +203,24 @@ void StorageModule::Stop() {
   pimpl_.reset();
 }
 
-std::string StorageModule::ToString() const {
-  return "Storage Module";
-}
+std::string StorageModule::ToString() const { return "Storage Module"; }
 
 Device StorageModule::GetDeviceByLegacyKey(hci::Address legacy_key_address) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return Device(
-      &pimpl_->cache_,
-      &pimpl_->memory_only_cache_,
-      std::move(legacy_key_address),
-      Device::ConfigKeyAddressType::LEGACY_KEY_ADDRESS);
+  return Device(&pimpl_->cache_, &pimpl_->memory_only_cache_, std::move(legacy_key_address),
+                Device::ConfigKeyAddressType::LEGACY_KEY_ADDRESS);
 }
 
 Device StorageModule::GetDeviceByClassicMacAddress(hci::Address classic_address) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return Device(
-      &pimpl_->cache_,
-      &pimpl_->memory_only_cache_,
-      std::move(classic_address),
-      Device::ConfigKeyAddressType::CLASSIC_ADDRESS);
+  return Device(&pimpl_->cache_, &pimpl_->memory_only_cache_, std::move(classic_address),
+                Device::ConfigKeyAddressType::CLASSIC_ADDRESS);
 }
 
 Device StorageModule::GetDeviceByLeIdentityAddress(hci::Address le_identity_address) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return Device(
-      &pimpl_->cache_,
-      &pimpl_->memory_only_cache_,
-      std::move(le_identity_address),
-      Device::ConfigKeyAddressType::LE_IDENTITY_ADDRESS);
+  return Device(&pimpl_->cache_, &pimpl_->memory_only_cache_, std::move(le_identity_address),
+                Device::ConfigKeyAddressType::LE_IDENTITY_ADDRESS);
 }
 
 std::vector<Device> StorageModule::GetBondedDevices() {
@@ -244,7 +235,7 @@ std::vector<Device> StorageModule::GetBondedDevices() {
 }
 
 bool StorageModule::is_config_checksum_pass(int check_bit) {
-  return ((os::ParameterProvider::GetCommonCriteriaConfigCompareResult() & check_bit) == check_bit);
+  return (os::ParameterProvider::GetCommonCriteriaConfigCompareResult() & check_bit) == check_bit;
 }
 
 bool StorageModule::HasSection(const std::string& section) const {
@@ -257,8 +248,8 @@ bool StorageModule::HasProperty(const std::string& section, const std::string& p
   return pimpl_->cache_.HasProperty(section, property);
 }
 
-std::optional<std::string> StorageModule::GetProperty(
-    const std::string& section, const std::string& property) const {
+std::optional<std::string> StorageModule::GetProperty(const std::string& section,
+                                                      const std::string& property) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return pimpl_->cache_.GetProperty(section, property);
 }
@@ -298,42 +289,42 @@ void StorageModule::SetBool(const std::string& section, const std::string& prope
   ConfigCacheHelper::FromConfigCache(pimpl_->cache_).SetBool(section, property, value);
 }
 
-std::optional<bool> StorageModule::GetBool(
-    const std::string& section, const std::string& property) const {
+std::optional<bool> StorageModule::GetBool(const std::string& section,
+                                           const std::string& property) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return ConfigCacheHelper::FromConfigCache(pimpl_->cache_).GetBool(section, property);
 }
 
-void StorageModule::SetUint64(
-    const std::string& section, const std::string& property, uint64_t value) {
+void StorageModule::SetUint64(const std::string& section, const std::string& property,
+                              uint64_t value) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   ConfigCacheHelper::FromConfigCache(pimpl_->cache_).SetUint64(section, property, value);
 }
 
-std::optional<uint64_t> StorageModule::GetUint64(
-    const std::string& section, const std::string& property) const {
+std::optional<uint64_t> StorageModule::GetUint64(const std::string& section,
+                                                 const std::string& property) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return ConfigCacheHelper::FromConfigCache(pimpl_->cache_).GetUint64(section, property);
 }
 
-void StorageModule::SetUint32(
-    const std::string& section, const std::string& property, uint32_t value) {
+void StorageModule::SetUint32(const std::string& section, const std::string& property,
+                              uint32_t value) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   ConfigCacheHelper::FromConfigCache(pimpl_->cache_).SetUint32(section, property, value);
 }
 
-std::optional<uint32_t> StorageModule::GetUint32(
-    const std::string& section, const std::string& property) const {
+std::optional<uint32_t> StorageModule::GetUint32(const std::string& section,
+                                                 const std::string& property) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return ConfigCacheHelper::FromConfigCache(pimpl_->cache_).GetUint32(section, property);
 }
-void StorageModule::SetInt64(
-    const std::string& section, const std::string& property, int64_t value) {
+void StorageModule::SetInt64(const std::string& section, const std::string& property,
+                             int64_t value) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   ConfigCacheHelper::FromConfigCache(pimpl_->cache_).SetInt64(section, property, value);
 }
-std::optional<int64_t> StorageModule::GetInt64(
-    const std::string& section, const std::string& property) const {
+std::optional<int64_t> StorageModule::GetInt64(const std::string& section,
+                                               const std::string& property) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return ConfigCacheHelper::FromConfigCache(pimpl_->cache_).GetInt64(section, property);
 }
@@ -343,20 +334,20 @@ void StorageModule::SetInt(const std::string& section, const std::string& proper
   ConfigCacheHelper::FromConfigCache(pimpl_->cache_).SetInt(section, property, value);
 }
 
-std::optional<int> StorageModule::GetInt(
-    const std::string& section, const std::string& property) const {
+std::optional<int> StorageModule::GetInt(const std::string& section,
+                                         const std::string& property) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return ConfigCacheHelper::FromConfigCache(pimpl_->cache_).GetInt(section, property);
 }
 
-void StorageModule::SetBin(
-    const std::string& section, const std::string& property, const std::vector<uint8_t>& value) {
+void StorageModule::SetBin(const std::string& section, const std::string& property,
+                           const std::vector<uint8_t>& value) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   ConfigCacheHelper::FromConfigCache(pimpl_->cache_).SetBin(section, property, value);
 }
 
-std::optional<std::vector<uint8_t>> StorageModule::GetBin(
-    const std::string& section, const std::string& property) const {
+std::optional<std::vector<uint8_t>> StorageModule::GetBin(const std::string& section,
+                                                          const std::string& property) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   return ConfigCacheHelper::FromConfigCache(pimpl_->cache_).GetBin(section, property);
 }

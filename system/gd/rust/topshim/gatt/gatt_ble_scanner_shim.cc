@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "include/hardware/bt_common_types.h"
@@ -48,23 +49,23 @@ ApcfCommand ConvertApcfFromRust(const RustApcfCommand& command) {
   std::copy(command.meta_data.begin(), command.meta_data.end(), std::back_inserter(meta_data));
 
   ApcfCommand converted = {
-      .type = command.type_,
-      .address = command.address,
-      .addr_type = command.addr_type,
-      .uuid = command.uuid,
-      .uuid_mask = command.uuid_mask,
-      .name = name,
-      .company = command.company,
-      .company_mask = command.company_mask,
-      .org_id = command.org_id,
-      .tds_flags = command.tds_flags,
-      .tds_flags_mask = command.tds_flags_mask,
-      .meta_data_type = command.meta_data_type,
-      .meta_data = meta_data,
-      .ad_type = command.ad_type,
-      .data = data,
-      .data_mask = data_mask,
-      .irk = irk,
+          .type = command.type_,
+          .address = command.address,
+          .addr_type = command.addr_type,
+          .uuid = command.uuid,
+          .uuid_mask = command.uuid_mask,
+          .name = name,
+          .company = command.company,
+          .company_mask = command.company_mask,
+          .org_id = command.org_id,
+          .tds_flags = command.tds_flags,
+          .tds_flags_mask = command.tds_flags_mask,
+          .meta_data_type = command.meta_data_type,
+          .meta_data = meta_data,
+          .ad_type = command.ad_type,
+          .data = data,
+          .data_mask = data_mask,
+          .irk = irk,
   };
 
   return converted;
@@ -90,15 +91,16 @@ std::vector<uint8_t> ConvertRustByteArray(const ::rust::Vec<uint8_t>& bytes) {
 
 MsftAdvMonitorPattern ConvertAdvMonitorPattern(const RustMsftAdvMonitorPattern& pattern) {
   MsftAdvMonitorPattern converted = {
-      .ad_type = pattern.ad_type,
-      .start_byte = pattern.start_byte,
-      .pattern = ConvertRustByteArray(pattern.pattern),
+          .ad_type = pattern.ad_type,
+          .start_byte = pattern.start_byte,
+          .pattern = ConvertRustByteArray(pattern.pattern),
   };
 
   return converted;
 }
 
-std::vector<MsftAdvMonitorPattern> ConvertAdvMonitorPatterns(const ::rust::Vec<RustMsftAdvMonitorPattern>& patterns) {
+std::vector<MsftAdvMonitorPattern> ConvertAdvMonitorPatterns(
+        const ::rust::Vec<RustMsftAdvMonitorPattern>& patterns) {
   std::vector<MsftAdvMonitorPattern> converted;
 
   for (const auto& pattern : patterns) {
@@ -117,13 +119,13 @@ MsftAdvMonitorAddress ConvertAdvMonitorAddress(RustMsftAdvMonitorAddress rust_ad
 
 MsftAdvMonitor ConvertAdvMonitor(const RustMsftAdvMonitor& monitor) {
   MsftAdvMonitor converted = {
-      .rssi_threshold_high = monitor.rssi_high_threshold,
-      .rssi_threshold_low = monitor.rssi_low_threshold,
-      .rssi_threshold_low_time_interval = monitor.rssi_low_timeout,
-      .rssi_sampling_period = monitor.rssi_sampling_period,
-      .condition_type = monitor.condition_type,
-      .patterns = ConvertAdvMonitorPatterns(monitor.patterns),
-      .addr_info = ConvertAdvMonitorAddress(monitor.addr_info),
+          .rssi_threshold_high = monitor.rssi_high_threshold,
+          .rssi_threshold_low = monitor.rssi_low_threshold,
+          .rssi_threshold_low_time_interval = monitor.rssi_low_timeout,
+          .rssi_sampling_period = monitor.rssi_sampling_period,
+          .condition_type = monitor.condition_type,
+          .patterns = ConvertAdvMonitorPatterns(monitor.patterns),
+          .addr_info = ConvertAdvMonitorAddress(monitor.addr_info),
   };
   return converted;
 }
@@ -131,66 +133,55 @@ MsftAdvMonitor ConvertAdvMonitor(const RustMsftAdvMonitor& monitor) {
 
 // ScanningCallbacks implementations
 
-void BleScannerIntf::OnScannerRegistered(const bluetooth::Uuid app_uuid, uint8_t scannerId, uint8_t status) {
-  rusty::gdscan_on_scanner_registered(reinterpret_cast<const signed char*>(&app_uuid), scannerId, status);
+void BleScannerIntf::OnScannerRegistered(const bluetooth::Uuid app_uuid, uint8_t scannerId,
+                                         uint8_t status) {
+  rusty::gdscan_on_scanner_registered(reinterpret_cast<const signed char*>(&app_uuid), scannerId,
+                                      status);
 }
 
 void BleScannerIntf::OnSetScannerParameterComplete(uint8_t scannerId, uint8_t status) {
   rusty::gdscan_on_set_scanner_parameter_complete(scannerId, status);
 }
 
-void BleScannerIntf::OnScanResult(
-    uint16_t event_type,
-    uint8_t addr_type,
-    RawAddress addr,
-    uint8_t primary_phy,
-    uint8_t secondary_phy,
-    uint8_t advertising_sid,
-    int8_t tx_power,
-    int8_t rssi,
-    uint16_t periodic_adv_int,
-    std::vector<uint8_t> adv_data) {
-  rusty::gdscan_on_scan_result(
-      event_type,
-      addr_type,
-      &addr,
-      primary_phy,
-      secondary_phy,
-      advertising_sid,
-      tx_power,
-      rssi,
-      periodic_adv_int,
-      adv_data.data(),
-      adv_data.size());
+void BleScannerIntf::OnScanResult(uint16_t event_type, uint8_t addr_type, RawAddress addr,
+                                  uint8_t primary_phy, uint8_t secondary_phy,
+                                  uint8_t advertising_sid, int8_t tx_power, int8_t rssi,
+                                  uint16_t periodic_adv_int, std::vector<uint8_t> adv_data) {
+  rusty::gdscan_on_scan_result(event_type, addr_type, &addr, primary_phy, secondary_phy,
+                               advertising_sid, tx_power, rssi, periodic_adv_int, adv_data.data(),
+                               adv_data.size());
 }
 
 void BleScannerIntf::OnTrackAdvFoundLost(AdvertisingTrackInfo ati) {
   rusty::RustAdvertisingTrackInfo rust_info = {
-      .monitor_handle = ati.monitor_handle,
-      .scanner_id = ati.scanner_id,
-      .filter_index = ati.filter_index,
-      .advertiser_state = ati.advertiser_state,
-      .advertiser_info_present = ati.advertiser_info_present,
-      .advertiser_address = ati.advertiser_address,
-      .advertiser_address_type = ati.advertiser_address_type,
-      .tx_power = ati.tx_power,
-      .rssi = ati.rssi,
-      .timestamp = ati.time_stamp,
-      .adv_packet_len = ati.adv_packet_len,
-      // .adv_packet is copied below
-      .scan_response_len = ati.scan_response_len,
-      // .scan_response is copied below
+          .monitor_handle = ati.monitor_handle,
+          .scanner_id = ati.scanner_id,
+          .filter_index = ati.filter_index,
+          .advertiser_state = ati.advertiser_state,
+          .advertiser_info_present = ati.advertiser_info_present,
+          .advertiser_address = ati.advertiser_address,
+          .advertiser_address_type = ati.advertiser_address_type,
+          .tx_power = ati.tx_power,
+          .rssi = ati.rssi,
+          .timestamp = ati.time_stamp,
+          .adv_packet_len = ati.adv_packet_len,
+          // .adv_packet is copied below
+          .scan_response_len = ati.scan_response_len,
+          // .scan_response is copied below
   };
 
-  std::copy(rust_info.adv_packet.begin(), rust_info.adv_packet.end(), std::back_inserter(ati.adv_packet));
-  std::copy(rust_info.scan_response.begin(), rust_info.scan_response.end(), std::back_inserter(ati.scan_response));
+  std::copy(rust_info.adv_packet.begin(), rust_info.adv_packet.end(),
+            std::back_inserter(ati.adv_packet));
+  std::copy(rust_info.scan_response.begin(), rust_info.scan_response.end(),
+            std::back_inserter(ati.scan_response));
 
   rusty::gdscan_on_track_adv_found_lost(rust_info);
 }
 
-void BleScannerIntf::OnBatchScanReports(
-    int client_if, int status, int report_format, int num_records, std::vector<uint8_t> data) {
-  rusty::gdscan_on_batch_scan_reports(client_if, status, report_format, num_records, data.data(), data.size());
+void BleScannerIntf::OnBatchScanReports(int client_if, int status, int report_format,
+                                        int num_records, std::vector<uint8_t> data) {
+  rusty::gdscan_on_batch_scan_reports(client_if, status, report_format, num_records, data.data(),
+                                      data.size());
 }
 
 void BleScannerIntf::OnBatchScanThresholdCrossed(int client_if) {
@@ -201,123 +192,97 @@ void BleScannerIntf::OnBatchScanThresholdCrossed(int client_if) {
 
 void BleScannerIntf::RegisterScanner(Uuid uuid) {
   scanner_intf_->RegisterScanner(
-      uuid, base::Bind(&BleScannerIntf::OnRegisterCallback, base::Unretained(this), uuid));
+          uuid, base::Bind(&BleScannerIntf::OnRegisterCallback, base::Unretained(this), uuid));
 }
 
-void BleScannerIntf::Unregister(uint8_t scanner_id) {
-  scanner_intf_->Unregister(scanner_id);
-}
+void BleScannerIntf::Unregister(uint8_t scanner_id) { scanner_intf_->Unregister(scanner_id); }
 
-void BleScannerIntf::Scan(bool start) {
-  scanner_intf_->Scan(start);
-}
+void BleScannerIntf::Scan(bool start) { scanner_intf_->Scan(start); }
 
-void BleScannerIntf::ScanFilterParamSetup(
-    uint8_t scanner_id,
-    uint8_t action,
-    uint8_t filter_index,
-    btgatt_filt_param_setup_t filter_param) {
+void BleScannerIntf::ScanFilterParamSetup(uint8_t scanner_id, uint8_t action, uint8_t filter_index,
+                                          btgatt_filt_param_setup_t filter_param) {
   auto converted = std::make_unique<::btgatt_filt_param_setup_t>(std::move(filter_param));
 
-  scanner_intf_->ScanFilterParamSetup(
-      scanner_id,
-      action,
-      filter_index,
-      std::move(converted),
-      base::Bind(&BleScannerIntf::OnFilterParamSetupCallback, base::Unretained(this), scanner_id));
+  scanner_intf_->ScanFilterParamSetup(scanner_id, action, filter_index, std::move(converted),
+                                      base::Bind(&BleScannerIntf::OnFilterParamSetupCallback,
+                                                 base::Unretained(this), scanner_id));
 }
 
 void BleScannerIntf::ScanFilterAdd(uint8_t filter_index, ::rust::Vec<RustApcfCommand> filters) {
   auto converted = internal::ConvertApcfVec(filters);
-  scanner_intf_->ScanFilterAdd(
-      filter_index,
-      converted,
-      base::Bind(&BleScannerIntf::OnFilterConfigCallback, base::Unretained(this), filter_index));
+  scanner_intf_->ScanFilterAdd(filter_index, converted,
+                               base::Bind(&BleScannerIntf::OnFilterConfigCallback,
+                                          base::Unretained(this), filter_index));
 }
 
 void BleScannerIntf::ScanFilterClear(uint8_t filter_index) {
-  scanner_intf_->ScanFilterClear(
-      filter_index, base::Bind(&BleScannerIntf::OnFilterConfigCallback, base::Unretained(this), filter_index));
+  scanner_intf_->ScanFilterClear(filter_index, base::Bind(&BleScannerIntf::OnFilterConfigCallback,
+                                                          base::Unretained(this), filter_index));
 }
 
 void BleScannerIntf::ScanFilterEnable(bool enable) {
-  scanner_intf_->ScanFilterEnable(enable, base::Bind(&BleScannerIntf::OnEnableCallback, base::Unretained(this)));
+  scanner_intf_->ScanFilterEnable(
+          enable, base::Bind(&BleScannerIntf::OnEnableCallback, base::Unretained(this)));
 }
 
 #if TARGET_FLOSS
 
-bool BleScannerIntf::IsMsftSupported() {
-  return scanner_intf_->IsMsftSupported();
-}
+bool BleScannerIntf::IsMsftSupported() { return scanner_intf_->IsMsftSupported(); }
 
-void BleScannerIntf::MsftAdvMonitorAdd(uint32_t call_id, const RustMsftAdvMonitor& monitor) {
+void BleScannerIntf::MsftAdvMonitorAdd(const RustMsftAdvMonitor& monitor) {
   scanner_intf_->MsftAdvMonitorAdd(
-      internal::ConvertAdvMonitor(monitor),
-      base::Bind(&BleScannerIntf::OnMsftAdvMonitorAddCallback, base::Unretained(this), call_id));
+          internal::ConvertAdvMonitor(monitor),
+          base::Bind(&BleScannerIntf::OnMsftAdvMonitorAddCallback, base::Unretained(this)));
 }
 
-void BleScannerIntf::MsftAdvMonitorRemove(uint32_t call_id, uint8_t monitor_handle) {
+void BleScannerIntf::MsftAdvMonitorRemove(uint8_t monitor_handle) {
   scanner_intf_->MsftAdvMonitorRemove(
-      monitor_handle, base::Bind(&BleScannerIntf::OnMsftAdvMonitorRemoveCallback, base::Unretained(this), call_id));
+          monitor_handle,
+          base::Bind(&BleScannerIntf::OnMsftAdvMonitorRemoveCallback, base::Unretained(this)));
 }
 
-void BleScannerIntf::MsftAdvMonitorEnable(uint32_t call_id, bool enable) {
+void BleScannerIntf::MsftAdvMonitorEnable(bool enable) {
   scanner_intf_->MsftAdvMonitorEnable(
-      enable, base::Bind(&BleScannerIntf::OnMsftAdvMonitorEnableCallback, base::Unretained(this), call_id));
+          enable,
+          base::Bind(&BleScannerIntf::OnMsftAdvMonitorEnableCallback, base::Unretained(this)));
 }
 
 #else
 
-bool BleScannerIntf::IsMsftSupported() {
-  return false;
-}
-void BleScannerIntf::MsftAdvMonitorAdd(uint32_t, const RustMsftAdvMonitor&) {}
-void BleScannerIntf::MsftAdvMonitorRemove(uint32_t, uint8_t) {}
-void BleScannerIntf::MsftAdvMonitorEnable(uint32_t, bool) {}
+bool BleScannerIntf::IsMsftSupported() { return false; }
+void BleScannerIntf::MsftAdvMonitorAdd(const RustMsftAdvMonitor&) {}
+void BleScannerIntf::MsftAdvMonitorRemove(uint8_t) {}
+void BleScannerIntf::MsftAdvMonitorEnable(bool) {}
 
 #endif
 
-void BleScannerIntf::SetScanParameters(
-    uint8_t scanner_id,
-    uint8_t scan_type,
-    uint16_t scan_interval,
-    uint16_t scan_window,
-    uint8_t scan_phy) {
+void BleScannerIntf::SetScanParameters(uint8_t scanner_id, uint8_t scan_type,
+                                       uint16_t scan_interval, uint16_t scan_window,
+                                       uint8_t scan_phy) {
   scanner_intf_->SetScanParameters(
-      scanner_id,
-      scan_type,
-      scan_interval,
-      scan_window,
-      scan_phy,
-      base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), scanner_id));
+          scanner_id, scan_type, scan_interval, scan_window, scan_phy,
+          base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), scanner_id));
 }
 
-void BleScannerIntf::BatchscanConfigStorage(
-    uint8_t scanner_id,
-    int32_t batch_scan_full_max,
-    int32_t batch_scan_trunc_max,
-    int32_t batch_scan_notify_threshold) {
+void BleScannerIntf::BatchscanConfigStorage(uint8_t scanner_id, int32_t batch_scan_full_max,
+                                            int32_t batch_scan_trunc_max,
+                                            int32_t batch_scan_notify_threshold) {
   scanner_intf_->BatchscanConfigStorage(
-      scanner_id,
-      batch_scan_full_max,
-      batch_scan_trunc_max,
-      batch_scan_notify_threshold,
-      base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), scanner_id));
+          scanner_id, batch_scan_full_max, batch_scan_trunc_max, batch_scan_notify_threshold,
+          base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), scanner_id));
 }
 
-void BleScannerIntf::BatchscanEnable(
-    int32_t scan_mode, uint16_t scan_interval, uint16_t scan_window, int32_t addr_type, int32_t discard_rule) {
+void BleScannerIntf::BatchscanEnable(int32_t scan_mode, uint16_t scan_interval,
+                                     uint16_t scan_window, int32_t addr_type,
+                                     int32_t discard_rule) {
   scanner_intf_->BatchscanEnable(
-      scan_mode,
-      scan_interval,
-      scan_window,
-      addr_type,
-      discard_rule,
-      base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), 0));
+          scan_mode, scan_interval, scan_window, addr_type, discard_rule,
+          base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), 0));
 }
 
 void BleScannerIntf::BatchscanDisable() {
-  scanner_intf_->BatchscanDisable(base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), 0));
+  scanner_intf_->BatchscanDisable(
+          base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), 0));
 }
 
 void BleScannerIntf::BatchscanReadReports(uint8_t scanner_id, int32_t scan_mode) {
@@ -328,9 +293,7 @@ void BleScannerIntf::StartSync(uint8_t sid, RawAddress addr, uint16_t skip, uint
   scanner_intf_->StartSync(sid, addr, skip, timeout, 0 /* place holder */);
 }
 
-void BleScannerIntf::StopSync(uint16_t handle) {
-  scanner_intf_->StopSync(handle);
-}
+void BleScannerIntf::StopSync(uint16_t handle) { scanner_intf_->StopSync(handle); }
 
 void BleScannerIntf::CancelCreateSync(uint8_t sid, RawAddress addr) {
   scanner_intf_->CancelCreateSync(sid, addr);
@@ -344,7 +307,8 @@ void BleScannerIntf::TransferSetInfo(RawAddress addr, uint16_t service_data, uin
   scanner_intf_->TransferSetInfo(addr, service_data, adv_handle, 0 /* place holder */);
 }
 
-void BleScannerIntf::SyncTxParameters(RawAddress addr, uint8_t mode, uint16_t skip, uint16_t timeout) {
+void BleScannerIntf::SyncTxParameters(RawAddress addr, uint8_t mode, uint16_t skip,
+                                      uint16_t timeout) {
   scanner_intf_->SyncTxParameters(addr, mode, skip, timeout, 0 /* place holder */);
 }
 
@@ -360,44 +324,40 @@ void BleScannerIntf::OnEnableCallback(uint8_t action, uint8_t btm_status) {
   rusty::gdscan_enable_callback(action, btm_status);
 }
 
-void BleScannerIntf::OnFilterParamSetupCallback(
-    uint8_t scanner_id, uint8_t avbl_space, uint8_t action_type, uint8_t btm_status) {
+void BleScannerIntf::OnFilterParamSetupCallback(uint8_t scanner_id, uint8_t avbl_space,
+                                                uint8_t action_type, uint8_t btm_status) {
   rusty::gdscan_filter_param_setup_callback(scanner_id, avbl_space, action_type, btm_status);
 }
 
-void BleScannerIntf::OnFilterConfigCallback(
-    uint8_t filter_index, uint8_t filt_type, uint8_t avbl_space, uint8_t action, uint8_t btm_status) {
+void BleScannerIntf::OnFilterConfigCallback(uint8_t filter_index, uint8_t filt_type,
+                                            uint8_t avbl_space, uint8_t action,
+                                            uint8_t btm_status) {
   rusty::gdscan_filter_config_callback(filter_index, filt_type, avbl_space, action, btm_status);
 }
 
 #if TARGET_FLOSS
-void BleScannerIntf::OnMsftAdvMonitorAddCallback(uint32_t call_id, uint8_t monitor_handle, uint8_t status) {
-  rusty::gdscan_msft_adv_monitor_add_callback(call_id, monitor_handle, status);
+void BleScannerIntf::OnMsftAdvMonitorAddCallback(uint8_t monitor_handle, uint8_t status) {
+  rusty::gdscan_msft_adv_monitor_add_callback(monitor_handle, status);
 }
 
-void BleScannerIntf::OnMsftAdvMonitorRemoveCallback(uint32_t call_id, uint8_t status) {
-  rusty::gdscan_msft_adv_monitor_remove_callback(call_id, status);
+void BleScannerIntf::OnMsftAdvMonitorRemoveCallback(uint8_t status) {
+  rusty::gdscan_msft_adv_monitor_remove_callback(status);
 }
 
-void BleScannerIntf::OnMsftAdvMonitorEnableCallback(uint32_t call_id, uint8_t status) {
-  rusty::gdscan_msft_adv_monitor_enable_callback(call_id, status);
+void BleScannerIntf::OnMsftAdvMonitorEnableCallback(uint8_t status) {
+  rusty::gdscan_msft_adv_monitor_enable_callback(status);
 }
 #endif
 
-void BleScannerIntf::OnPeriodicSyncStarted(
-    int,
-    uint8_t status,
-    uint16_t sync_handle,
-    uint8_t advertising_sid,
-    uint8_t address_type,
-    RawAddress addr,
-    uint8_t phy,
-    uint16_t interval) {
-  rusty::gdscan_start_sync_callback(status, sync_handle, advertising_sid, address_type, &addr, phy, interval);
+void BleScannerIntf::OnPeriodicSyncStarted(int, uint8_t status, uint16_t sync_handle,
+                                           uint8_t advertising_sid, uint8_t address_type,
+                                           RawAddress addr, uint8_t phy, uint16_t interval) {
+  rusty::gdscan_start_sync_callback(status, sync_handle, advertising_sid, address_type, &addr, phy,
+                                    interval);
 }
 
-void BleScannerIntf::OnPeriodicSyncReport(
-    uint16_t sync_handle, int8_t tx_power, int8_t rssi, uint8_t status, std::vector<uint8_t> data) {
+void BleScannerIntf::OnPeriodicSyncReport(uint16_t sync_handle, int8_t tx_power, int8_t rssi,
+                                          uint8_t status, std::vector<uint8_t> data) {
   rusty::gdscan_sync_report_callback(sync_handle, tx_power, rssi, status, data.data(), data.size());
 }
 
@@ -420,7 +380,8 @@ void BleScannerIntf::RegisterCallbacks() {
 
 // ScanningCallbacks overrides
 std::unique_ptr<BleScannerIntf> GetBleScannerIntf(const unsigned char* gatt_intf) {
-  return std::make_unique<BleScannerIntf>(reinterpret_cast<const btgatt_interface_t*>(gatt_intf)->scanner);
+  return std::make_unique<BleScannerIntf>(
+          reinterpret_cast<const btgatt_interface_t*>(gatt_intf)->scanner);
 }
 
 }  // namespace rust

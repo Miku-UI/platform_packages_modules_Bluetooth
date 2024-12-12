@@ -21,7 +21,9 @@
 //       It is included by the corresponding "...Functions.h" file.
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include <vector>
+
 #include "a2dp_codec_api.h"
 #include "fuzzers/a2dp/codec/a2dpCodecInfoFuzzHelpers.h"
 

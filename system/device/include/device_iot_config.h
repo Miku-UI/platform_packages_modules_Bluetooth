@@ -29,33 +29,23 @@
 
 static const char DEVICE_IOT_CONFIG_MODULE[] = "device_iot_config_module";
 
-bool device_iot_config_get_int(const std::string& section,
-                               const std::string& key, int& value);
-bool device_iot_config_set_int(const std::string& section,
-                               const std::string& key, int value);
-bool device_iot_config_int_add_one(const std::string& section,
-                                   const std::string& key);
-bool device_iot_config_get_hex(const std::string& section,
-                               const std::string& key, int& value);
-bool device_iot_config_set_hex(const std::string& section,
-                               const std::string& key, int value, int byte_num);
-bool device_iot_config_set_hex_if_greater(const std::string& section,
-                                          const std::string& key, int value,
-                                          int byte_num);
-bool device_iot_config_get_str(const std::string& section,
-                               const std::string& key, char* value,
+bool device_iot_config_get_int(const std::string& section, const std::string& key, int& value);
+bool device_iot_config_set_int(const std::string& section, const std::string& key, int value);
+bool device_iot_config_int_add_one(const std::string& section, const std::string& key);
+bool device_iot_config_get_hex(const std::string& section, const std::string& key, int& value);
+bool device_iot_config_set_hex(const std::string& section, const std::string& key, int value,
+                               int byte_num);
+bool device_iot_config_set_hex_if_greater(const std::string& section, const std::string& key,
+                                          int value, int byte_num);
+bool device_iot_config_get_str(const std::string& section, const std::string& key, char* value,
                                int* size_bytes);
-bool device_iot_config_set_str(const std::string& section,
-                               const std::string& key,
+bool device_iot_config_set_str(const std::string& section, const std::string& key,
                                const std::string& value);
-bool device_iot_config_get_bin(const std::string& section,
-                               const std::string& key, uint8_t* value,
+bool device_iot_config_get_bin(const std::string& section, const std::string& key, uint8_t* value,
                                size_t* length);
-bool device_iot_config_set_bin(const std::string& section,
-                               const std::string& key, const uint8_t* value,
-                               size_t length);
-size_t device_iot_config_get_bin_length(const std::string& section,
-                                        const std::string& key);
+bool device_iot_config_set_bin(const std::string& section, const std::string& key,
+                               const uint8_t* value, size_t length);
+size_t device_iot_config_get_bin_length(const std::string& section, const std::string& key);
 
 #define DEVICE_IOT_CONFIG_ADDR(method, addr, ...) \
   device_iot_config_##method((addr).ToString(), ##__VA_ARGS__)
@@ -94,10 +84,8 @@ size_t device_iot_config_get_bin_length(const std::string& section,
   DEVICE_IOT_CONFIG_ADDR(get_bin, addr, ##__VA_ARGS__)
 
 bool device_iot_config_has_section(const std::string& section);
-bool device_iot_config_exist(const std::string& section,
-                             const std::string& key);
-bool device_iot_config_remove(const std::string& section,
-                              const std::string& key);
+bool device_iot_config_exist(const std::string& section, const std::string& key);
+bool device_iot_config_remove(const std::string& section, const std::string& key);
 
 void device_iot_config_flush(void);
 bool device_iot_config_clear(void);

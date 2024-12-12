@@ -24,6 +24,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import android.content.ComponentName;
+import android.content.Context;
+import android.content.ContextWrapper;
 import android.net.Uri;
 import android.os.Process;
 import android.telecom.Call;
@@ -31,15 +33,17 @@ import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -57,15 +61,21 @@ public class CallInfoTest {
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock private TelecomManager mMockTelecomManager;
+    private TelecomManager mMockTelecomManager;
 
     private BluetoothInCallService mBluetoothInCallService;
     private BluetoothInCallService.CallInfo mMockCallInfo;
 
     @Before
     public void setUp() throws Exception {
+        Context spiedContext = spy(new ContextWrapper(ApplicationProvider.getApplicationContext()));
+        mMockTelecomManager =
+                TestUtils.mockGetSystemService(
+                        spiedContext, Context.TELECOM_SERVICE, TelecomManager.class);
 
-        mBluetoothInCallService = new BluetoothInCallService();
+        mBluetoothInCallService = new BluetoothInCallService(spiedContext, null, null, null);
+        mBluetoothInCallService.onCreate();
+
         mMockCallInfo = spy(mBluetoothInCallService.new CallInfo());
     }
 
@@ -273,7 +283,6 @@ public class CallInfoTest {
 
         PhoneAccount fakePhoneAccount = makeQuickAccount(testId, TEST_ACCOUNT_INDEX);
         when(mMockTelecomManager.getPhoneAccount(testHandle)).thenReturn(fakePhoneAccount);
-        mBluetoothInCallService.mTelecomManager = mMockTelecomManager;
 
         assertThat(mMockCallInfo.getBestPhoneAccount()).isEqualTo(fakePhoneAccount);
     }

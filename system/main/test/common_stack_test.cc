@@ -25,11 +25,7 @@ using namespace testing;
 
 // Ensure default to_test operatives provide expect output for a sample subset.
 TEST(CommonStackTest, any_to_text_unknown_default) {
-  ASSERT_STREQ(
-      "UNKNOWN[255]",
-      gatt_client_event_text(static_cast<tBTA_GATTC_EVT>(255)).c_str());
-  ASSERT_STREQ("UNKNOWN[255]",
-               preferred_role_text(static_cast<tBTA_PREF_ROLES>(255)).c_str());
-  ASSERT_TRUE(bta_hh_status_text(static_cast<tBTA_HH_STATUS>(255))
-                  .starts_with("Unknown"));
+  ASSERT_STREQ("UNKNOWN[255]", gatt_client_event_text(static_cast<tBTA_GATTC_EVT>(255)).c_str());
+  ASSERT_STREQ("UNKNOWN[255]", preferred_role_text(static_cast<tBTA_PREF_ROLES>(255)).c_str());
+  ASSERT_TRUE(bta_hh_status_text(static_cast<tBTA_HH_STATUS>(255)).starts_with("Unknown"));
 }

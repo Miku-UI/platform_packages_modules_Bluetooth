@@ -35,47 +35,42 @@ using testing::StrictMock;
 using testing::Test;
 
 class PeerPacketTest : public Test {
- public:
- protected:
+public:
+protected:
   void SetUp() override {}
   void TearDown() override {}
 };
 
 TEST_F(PeerPacketTest, all_ones) {
-  const BD_FEATURES bd_features = {0xff, 0xff, 0xff, 0xff,
-                                   0xff, 0xff, 0xff, 0xff};
+  const BD_FEATURES bd_features = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   PeerPacketTypes peer_packet_types(bd_features);
   ASSERT_EQ(peer_packet_types.acl.supported, 0xcc18);
   ASSERT_EQ(peer_packet_types.acl.unsupported, 0x0);
 }
 
 TEST_F(PeerPacketTest, 3SLOT_DH3_DM3) {
-  const BD_FEATURES bd_features = {0x01, 0x00, 0x00, 0x00,
-                                   0x00, 0x00, 0x00, 0x00};
+  const BD_FEATURES bd_features = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   PeerPacketTypes peer_packet_types(bd_features);
   ASSERT_EQ(peer_packet_types.acl.supported, 0x0c18);
   ASSERT_EQ(peer_packet_types.acl.unsupported, 0x3306);
 }
 
 TEST_F(PeerPacketTest, 5SLOT_DH5_DM5) {
-  const BD_FEATURES bd_features = {0x02, 0x00, 0x00, 0x00,
-                                   0x00, 0x00, 0x00, 0x00};
+  const BD_FEATURES bd_features = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
   PeerPacketTypes peer_packet_types(bd_features);
   ASSERT_EQ(peer_packet_types.acl.supported, 0xc018);
   ASSERT_EQ(peer_packet_types.acl.unsupported, 0x3306);
 }
 
 TEST_F(PeerPacketTest, 2Mb_support) {
-  const BD_FEATURES bd_features = {0x00, 0x00, 0x00, 0x02,
-                                   0x00, 0x00, 0x00, 0x00};
+  const BD_FEATURES bd_features = {0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00};
   PeerPacketTypes peer_packet_types(bd_features);
   ASSERT_EQ(peer_packet_types.acl.supported, 0x0018);
   ASSERT_EQ(peer_packet_types.acl.unsupported, 0x3304);
 }
 
 TEST_F(PeerPacketTest, 3Mb_support) {
-  const BD_FEATURES bd_features = {0x00, 0x00, 0x00, 0x04,
-                                   0x00, 0x00, 0x00, 0x00};
+  const BD_FEATURES bd_features = {0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00};
   PeerPacketTypes peer_packet_types(bd_features);
   ASSERT_EQ(peer_packet_types.acl.supported, 0x0018);
   ASSERT_EQ(peer_packet_types.acl.unsupported, 0x3302);

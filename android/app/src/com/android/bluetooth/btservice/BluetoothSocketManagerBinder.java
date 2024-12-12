@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.btservice;
 
+import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.IBluetoothSocketManager;
@@ -56,7 +58,7 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
         }
 
         String brEdrAddress =
-                Flags.identityAddressNullIfUnknown()
+                Flags.identityAddressNullIfNotKnown()
                         ? Utils.getBrEdrAddress(device)
                         : mService.getIdentityAddress(device.getAddress());
 
@@ -143,7 +145,7 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
                         service, source, "BluetoothSocketManagerBinder getL2capLocalChannelId")) {
             return INVALID_CID;
         }
-        Utils.enforceBluetoothPrivilegedPermission(service);
+        service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         return service.getNative().getSocketL2capLocalChannelId(connectionUuid);
     }
 
@@ -157,7 +159,7 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
                         service, source, "BluetoothSocketManagerBinder getL2capRemoteChannelId")) {
             return INVALID_CID;
         }
-        Utils.enforceBluetoothPrivilegedPermission(service);
+        service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         return service.getNative().getSocketL2capRemoteChannelId(connectionUuid);
     }
 

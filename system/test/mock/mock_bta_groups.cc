@@ -27,8 +27,7 @@ void DeviceGroups::AddFromStorage(const RawAddress& /* addr */,
   inc_func_call_count(__func__);
 }
 
-bool DeviceGroups::GetForStorage(const RawAddress& /* addr */,
-                                 std::vector<uint8_t>& /* out */) {
+bool DeviceGroups::GetForStorage(const RawAddress& /* addr */, std::vector<uint8_t>& /* out */) {
   inc_func_call_count(__func__);
   return false;
 }

@@ -21,9 +21,8 @@
 #include "bta_sec_api.h"
 #include "btif_storage.h"
 #include "device/include/device_iot_config.h"
-#include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_client_interface.h"
 
 using namespace bluetooth;
 
@@ -41,22 +40,21 @@ using namespace bluetooth;
  * Returns          void
  *
  *******************************************************************************/
-static void btif_iot_save_pair_type(const RawAddress& bdaddr, bool is_ble,
-                                    bool is_ssp) {
+static void btif_iot_save_pair_type(const RawAddress& bdaddr, bool is_ble, bool is_ssp) {
   if (is_ssp) {
-    if (!is_ble)
-      DEVICE_IOT_CONFIG_ADDR_SET_INT(bdaddr, IOT_CONF_KEY_PAIRTYPE,
-                                     IOT_CONF_VAL_PAIR_TYPE_SSP);
-    else
+    if (!is_ble) {
+      DEVICE_IOT_CONFIG_ADDR_SET_INT(bdaddr, IOT_CONF_KEY_PAIRTYPE, IOT_CONF_VAL_PAIR_TYPE_SSP);
+    } else {
       DEVICE_IOT_CONFIG_ADDR_SET_INT(bdaddr, IOT_CONF_KEY_LE_PAIRTYPE,
                                      IOT_CONF_VAL_LE_PAIRTYPE_SECURE);
+    }
   } else {
-    if (!is_ble)
-      DEVICE_IOT_CONFIG_ADDR_SET_INT(bdaddr, IOT_CONF_KEY_PAIRTYPE,
-                                     IOT_CONF_VAL_PAIR_TYPE_LEGACY);
-    else
+    if (!is_ble) {
+      DEVICE_IOT_CONFIG_ADDR_SET_INT(bdaddr, IOT_CONF_KEY_PAIRTYPE, IOT_CONF_VAL_PAIR_TYPE_LEGACY);
+    } else {
       DEVICE_IOT_CONFIG_ADDR_SET_INT(bdaddr, IOT_CONF_KEY_LE_PAIRTYPE,
                                      IOT_CONF_VAL_LE_PAIRTYPE_LEGACY);
+    }
   }
 }
 
@@ -69,8 +67,7 @@ static void btif_iot_save_pair_type(const RawAddress& bdaddr, bool is_ble,
  * Returns          void
  *
  *******************************************************************************/
-void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl, bool is_ble,
-                                 bool is_ssp) {
+void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl, bool is_ble, bool is_ssp) {
   int name_length = 0;
   char value[1024];
   BD_NAME bd_name;
@@ -80,71 +77,61 @@ void btif_iot_update_remote_info(tBTA_DM_AUTH_CMPL* p_auth_cmpl, bool is_ble,
   uint8_t lmp_ver = 0;
   uint16_t lmp_subver = 0;
   uint16_t mfct_set = 0;
-  tBTM_STATUS btm_status;
-
   // save remote name to iot conf file
   if (strlen((const char*)p_auth_cmpl->bd_name)) {
     name_length = strlen((char*)p_auth_cmpl->bd_name) > BD_NAME_LEN
-                      ? BD_NAME_LEN
-                      : strlen((char*)p_auth_cmpl->bd_name) + 1;
+                          ? BD_NAME_LEN
+                          : strlen((char*)p_auth_cmpl->bd_name) + 1;
     strncpy(value, (char*)p_auth_cmpl->bd_name, name_length);
-    DEVICE_IOT_CONFIG_ADDR_SET_STR(p_auth_cmpl->bd_addr,
-                                   IOT_CONF_KEY_REMOTE_NAME, value);
+    DEVICE_IOT_CONFIG_ADDR_SET_STR(p_auth_cmpl->bd_addr, IOT_CONF_KEY_REMOTE_NAME, value);
   } else {
     if (BTM_GetRemoteDeviceName(p_auth_cmpl->bd_addr, bd_name)) {
-      DEVICE_IOT_CONFIG_ADDR_SET_STR(p_auth_cmpl->bd_addr,
-                                     IOT_CONF_KEY_REMOTE_NAME, (char*)bd_name);
+      DEVICE_IOT_CONFIG_ADDR_SET_STR(p_auth_cmpl->bd_addr, IOT_CONF_KEY_REMOTE_NAME,
+                                     (char*)bd_name);
     }
   }
 
   // save remote dev class to iot conf file
   // Try to retrieve cod from storage
-  BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
-                             BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
-  if (btif_storage_get_remote_device_property(&p_auth_cmpl->bd_addr,
-                                              &properties[num_properties]) ==
-      BT_STATUS_SUCCESS)
+  BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties], BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod),
+                             &cod);
+  if (btif_storage_get_remote_device_property(&p_auth_cmpl->bd_addr, &properties[num_properties]) ==
+      BT_STATUS_SUCCESS) {
     log::verbose("cod retrieved from storage is 0x{:06x}", cod);
+  }
   if (cod == 0) {
     log::verbose("cod is 0, set as unclassified");
     cod = COD_UNCLASSIFIED;
   }
-  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_DEVCLASS,
-                                 (int)cod);
+  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_DEVCLASS, (int)cod);
   num_properties++;
 
   // save remote dev type to iot conf file
   bt_device_type_t dev_type;
   uint32_t remote_dev_type;
-  BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties],
-                             BT_PROPERTY_TYPE_OF_DEVICE, sizeof(uint32_t),
-                             &remote_dev_type);
-  if (btif_storage_get_remote_device_property(&p_auth_cmpl->bd_addr,
-                                              &properties[num_properties]) ==
+  BTIF_STORAGE_FILL_PROPERTY(&properties[num_properties], BT_PROPERTY_TYPE_OF_DEVICE,
+                             sizeof(uint32_t), &remote_dev_type);
+  if (btif_storage_get_remote_device_property(&p_auth_cmpl->bd_addr, &properties[num_properties]) ==
       BT_STATUS_SUCCESS) {
     log::verbose("retrieve dev type from storage");
     dev_type = (bt_device_type_t)(remote_dev_type | p_auth_cmpl->dev_type);
   } else {
     dev_type = (bt_device_type_t)(p_auth_cmpl->dev_type);
   }
-  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_DEVTYPE,
-                                 (int)dev_type);
+  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_DEVTYPE, (int)dev_type);
 
   // save remote addr type to iot conf file
   DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_ADDRTYPE,
                                  (int)p_auth_cmpl->addr_type);
 
   // save remote versions to iot conf file
-  btm_status = BTM_ReadRemoteVersion(p_auth_cmpl->bd_addr, &lmp_ver, &mfct_set,
-                                     &lmp_subver);
+  const bool status = get_btm_client_interface().peer.BTM_ReadRemoteVersion(
+          p_auth_cmpl->bd_addr, &lmp_ver, &mfct_set, &lmp_subver);
 
-  if (btm_status == BTM_SUCCESS) {
-    DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr,
-                                   IOT_CONF_KEY_MANUFACTURER, mfct_set);
-    DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_LMPVER,
-                                   lmp_ver);
-    DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_LMPSUBVER,
-                                   lmp_subver);
+  if (status) {
+    DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_MANUFACTURER, mfct_set);
+    DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_LMPVER, lmp_ver);
+    DEVICE_IOT_CONFIG_ADDR_SET_INT(p_auth_cmpl->bd_addr, IOT_CONF_KEY_LMPSUBVER, lmp_subver);
   }
 
   // save remote pair type to iot conf file

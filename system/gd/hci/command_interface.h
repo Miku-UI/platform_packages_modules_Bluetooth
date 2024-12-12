@@ -26,18 +26,20 @@ namespace hci {
 
 template <typename T>
 class CommandInterface {
- public:
+public:
   CommandInterface() = default;
   CommandInterface(const CommandInterface&) = delete;
   CommandInterface& operator=(const CommandInterface&) = delete;
 
   virtual ~CommandInterface() = default;
 
-  virtual void EnqueueCommand(std::unique_ptr<T> command,
-                              common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) = 0;
+  virtual void EnqueueCommand(
+          std::unique_ptr<T> command,
+          common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) = 0;
 
-  virtual void EnqueueCommand(std::unique_ptr<T> command,
-                              common::ContextualOnceCallback<void(CommandStatusView)> on_status) = 0;
+  virtual void EnqueueCommand(
+          std::unique_ptr<T> command,
+          common::ContextualOnceCallback<void(CommandStatusView)> on_status) = 0;
 };
 }  // namespace hci
 }  // namespace bluetooth

@@ -213,6 +213,7 @@ public class BluetoothPbapSimVcardManager {
     }
 
     @Override
+    @SuppressWarnings("Finalize") // TODO: b/366307571 remove override
     public void finalize() {
         if (!mTerminateIsCalled) {
             terminate();
@@ -296,8 +297,8 @@ public class BluetoothPbapSimVcardManager {
         return size;
     }
 
-    public final ArrayList<String> getSIMPhonebookNameList(final int orderByWhat) {
-        ArrayList<String> nameList = new ArrayList<String>();
+    public final List<String> getSIMPhonebookNameList(final int orderByWhat) {
+        List<String> nameList = new ArrayList<String>();
         nameList.add(BluetoothPbapService.getLocalPhoneName());
         // Since owner card should always be 0.vcf, maintain a separate list to avoid sorting
         ArrayList<String> allnames = new ArrayList<String>();
@@ -341,9 +342,9 @@ public class BluetoothPbapSimVcardManager {
         return nameList;
     }
 
-    public final ArrayList<String> getSIMContactNamesByNumber(final String phoneNumber) {
-        ArrayList<String> nameList = new ArrayList<String>();
-        ArrayList<String> startNameList = new ArrayList<String>();
+    public final List<String> getSIMContactNamesByNumber(final String phoneNumber) {
+        List<String> nameList = new ArrayList<String>();
+        List<String> startNameList = new ArrayList<String>();
         Cursor contactCursor = null;
 
         try {

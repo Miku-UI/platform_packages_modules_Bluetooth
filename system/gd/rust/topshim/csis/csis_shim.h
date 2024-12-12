@@ -27,8 +27,8 @@ namespace topshim {
 namespace rust {
 
 class CsisClientIntf {
- public:
-  CsisClientIntf(csis::CsisClientInterface* intf) : intf_(intf){};
+public:
+  CsisClientIntf(csis::CsisClientInterface* intf) : intf_(intf) {}
 
   void init(/*CsisClientCallbacks* callbacks*/);
   void connect(RawAddress addr);
@@ -37,7 +37,7 @@ class CsisClientIntf {
   void remove_device(RawAddress addr);
   void cleanup();
 
- private:
+private:
   csis::CsisClientInterface* intf_;
 };
 

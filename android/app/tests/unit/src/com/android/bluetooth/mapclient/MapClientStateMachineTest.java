@@ -39,6 +39,8 @@ import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Telephony.Sms;
 import android.telephony.SmsManager;
@@ -51,8 +53,8 @@ import android.util.Log;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
-import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.ObexAppParameters;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
@@ -76,6 +78,9 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -85,12 +90,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 @MediumTest
-@RunWith(AndroidJUnit4.class)
+@RunWith(ParameterizedAndroidJunit4.class)
 public class MapClientStateMachineTest {
 
     private static final String TAG = "MapStateMachineTest";
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final SetFlagsRule mSetFlagsRule;
 
     private static final int ASYNC_CALL_TIMEOUT_MILLIS = 100;
     private static final int DISCONNECT_TIMEOUT = 3000;
@@ -184,6 +189,17 @@ public class MapClientStateMachineTest {
             }
             return result;
         }
+    }
+
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        return FlagsParameterization.progressionOf(
+                Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS,
+                Flags.FLAG_USE_ENTIRE_MESSAGE_HANDLE);
+    }
+
+    public MapClientStateMachineTest(FlagsParameterization flags) {
+        mSetFlagsRule = new SetFlagsRule(flags);
     }
 
     @Before
@@ -901,6 +917,50 @@ public class MapClientStateMachineTest {
                 dateTime);
     }
 
+    /**
+     * Test MSG_GET_MESSAGE_LISTING does not grab unsupported message types of MESSAGE_TYPE_EMAIL
+     * and MESSAGE_TYPE_IM
+     */
+    @Test
+    public void testMsgGetMessageListing_unsupportedMessageTypesNotRequested() {
+        setupSdpRecordReceipt();
+        clearInvocations(mMockMasClient);
+        byte expectedFilter = MessagesFilter.MESSAGE_TYPE_EMAIL | MessagesFilter.MESSAGE_TYPE_IM;
+        Message msg = Message.obtain(mHandler, MceStateMachine.MSG_MAS_CONNECTED);
+        mMceStateMachine.sendMessage(msg);
+
+        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
+        assertThat(mMceStateMachine.getState()).isEqualTo(BluetoothProfile.STATE_CONNECTED);
+
+        msg =
+                Message.obtain(
+                        mHandler,
+                        MceStateMachine.MSG_GET_MESSAGE_LISTING,
+                        MceStateMachine.FOLDER_INBOX);
+        mMceStateMachine.sendMessage(msg);
+
+        // using Request class as captor grabs all Request sub-classes even if
+        // RequestGetMessagesListing is specifically requested
+        ArgumentCaptor<Request> requestCaptor = ArgumentCaptor.forClass(Request.class);
+        TestUtils.waitForLooperToBeIdle(mMceStateMachine.getHandler().getLooper());
+        verify(mMockMasClient, atLeastOnce()).makeRequest(requestCaptor.capture());
+        List<Request> requests = requestCaptor.getAllValues();
+
+        // iterating through captured values to grab RequestGetMessagesListing object
+        RequestGetMessagesListing messagesListingRequest = null;
+        for (int i = 0; i < requests.size(); i++) {
+            if (requests.get(i) instanceof RequestGetMessagesListing) {
+                messagesListingRequest = (RequestGetMessagesListing) requests.get(i);
+                break;
+            }
+        }
+
+        ObexAppParameters appParams =
+                ObexAppParameters.fromHeaderSet(messagesListingRequest.mHeaderSet);
+        byte filter = appParams.getByte(Request.OAP_TAGID_FILTER_MESSAGE_TYPE);
+        assertThat(filter).isEqualTo(expectedFilter);
+    }
+
     @Test
     public void testReceivedNewMmsNoSMSDefaultPackage_broadcastToSMSReplyPackage() {
         setupSdpRecordReceipt();
@@ -1060,7 +1120,6 @@ public class MapClientStateMachineTest {
      */
     @Test
     public void testSendMapMessageSentPendingIntent_notifyStatusSuccess() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS);
         testSendMapMessagePendingIntents_base(
                 ACTION_MESSAGE_SENT, EventReport.Type.SENDING_SUCCESS);
 
@@ -1078,7 +1137,6 @@ public class MapClientStateMachineTest {
      */
     @Test
     public void testSendMapMessageDeliveryPendingIntent_notifyStatusSuccess() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS);
         testSendMapMessagePendingIntents_base(
                 ACTION_MESSAGE_DELIVERED, EventReport.Type.DELIVERY_SUCCESS);
 
@@ -1097,7 +1155,6 @@ public class MapClientStateMachineTest {
      */
     @Test
     public void testSendMapMessageNullPendingIntent_noNotifyStatus() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS);
         testSendMapMessagePendingIntents_base(null, EventReport.Type.SENDING_SUCCESS);
 
         assertThat(mSentDeliveryReceiver.isActionReceived(PENDING_INTENT_TIMEOUT_MS)).isFalse();
@@ -1112,8 +1169,8 @@ public class MapClientStateMachineTest {
      * <p>Outcome: - SENT_STATUS Intent was broadcast with 'Failure' result code.
      */
     @Test
+    @EnableFlags(Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS)
     public void testSendMapMessageSentPendingIntent_notifyStatusFailure() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS);
         testSendMapMessagePendingIntents_base(
                 ACTION_MESSAGE_SENT, EventReport.Type.SENDING_FAILURE);
 
@@ -1131,8 +1188,8 @@ public class MapClientStateMachineTest {
      * <p>Outcome: - DELIVERY_STATUS Intent was broadcast with 'Failure' result code.
      */
     @Test
+    @EnableFlags(Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS)
     public void testSendMapMessageDeliveryPendingIntent_notifyStatusFailure() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HANDLE_DELIVERY_SENDING_FAILURE_EVENTS);
         testSendMapMessagePendingIntents_base(
                 ACTION_MESSAGE_DELIVERED, EventReport.Type.DELIVERY_FAILURE);
 

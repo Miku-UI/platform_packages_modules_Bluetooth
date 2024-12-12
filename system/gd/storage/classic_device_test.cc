@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
+#include "storage/classic_device.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "common/byte_array.h"
 #include "hci/link_key.h"
-#include "storage/classic_device.h"
 #include "storage/mutation.h"
 
 using bluetooth::common::ByteArray;
@@ -90,74 +91,98 @@ TEST(ClassicDeviceTest, operator_less_than) {
   bluetooth::hci::Address larger_address = {{0x01, 0x02, 0x03, 0x04, 0x05, 0x07}};
 
   {
-    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(larger_config_ptr, larger_memory_only_config_ptr, larger_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(larger_config_ptr, larger_memory_only_config_ptr,
+                          larger_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(larger_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr, larger_address.ToString());
+    ClassicDevice device1(larger_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr,
+                          larger_address.ToString());
     ASSERT_FALSE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(smaller_config_ptr, larger_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(larger_config_ptr, smaller_memory_only_config_ptr, larger_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, larger_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(larger_config_ptr, smaller_memory_only_config_ptr,
+                          larger_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr, larger_address.ToString());
-    ClassicDevice device2(larger_config_ptr, larger_memory_only_config_ptr, smaller_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          larger_address.ToString());
+    ClassicDevice device2(larger_config_ptr, larger_memory_only_config_ptr,
+                          smaller_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(larger_config_ptr, larger_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(smaller_config_ptr, smaller_memory_only_config_ptr, larger_address.ToString());
+    ClassicDevice device1(larger_config_ptr, larger_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          larger_address.ToString());
     ASSERT_FALSE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(larger_config_ptr, larger_memory_only_config_ptr, larger_address.ToString());
-    ClassicDevice device2(smaller_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
+    ClassicDevice device1(larger_config_ptr, larger_memory_only_config_ptr,
+                          larger_address.ToString());
+    ClassicDevice device2(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
     ASSERT_FALSE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(smaller_config_ptr, larger_memory_only_config_ptr, larger_address.ToString());
-    ClassicDevice device2(larger_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, larger_memory_only_config_ptr,
+                          larger_address.ToString());
+    ClassicDevice device2(larger_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(larger_config_ptr, smaller_memory_only_config_ptr, larger_address.ToString());
-    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr, smaller_address.ToString());
+    ClassicDevice device1(larger_config_ptr, smaller_memory_only_config_ptr,
+                          larger_address.ToString());
+    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr,
+                          smaller_address.ToString());
     ASSERT_FALSE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr, smaller_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr,
+                          smaller_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(smaller_config_ptr, smaller_memory_only_config_ptr, larger_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          larger_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(larger_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(larger_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 
   {
-    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr, smaller_address.ToString());
-    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr, larger_address.ToString());
+    ClassicDevice device1(smaller_config_ptr, smaller_memory_only_config_ptr,
+                          smaller_address.ToString());
+    ClassicDevice device2(smaller_config_ptr, larger_memory_only_config_ptr,
+                          larger_address.ToString());
     ASSERT_TRUE(device1 < device2);
   }
 }

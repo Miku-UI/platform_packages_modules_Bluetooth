@@ -28,11 +28,9 @@
  */
 void btu_hcif_process_event(uint8_t controller_id, const BT_HDR* p_buf);
 void btu_hcif_send_cmd(uint8_t controller_id, const BT_HDR* p_msg);
-void btu_hcif_send_cmd_with_cb(const base::Location& posted_from,
-                               uint16_t opcode, uint8_t* params,
-                               uint8_t params_len,
-                               base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btu_hcif_send_cmd_with_cb(const base::Location& posted_from, uint16_t opcode, uint8_t* params,
+                               uint8_t params_len, base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 namespace bluetooth::legacy::testing {
-void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
-                                 const uint8_t* p_cmd);
+void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const uint8_t* p_cmd);
+void btu_hcif_process_event(uint8_t /* controller_id */, const BT_HDR* p_msg);
 }  // namespace bluetooth::legacy::testing

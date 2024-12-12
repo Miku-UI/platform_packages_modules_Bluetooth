@@ -19,6 +19,7 @@
 #pragma once
 
 #include <stdint.h>
+
 #include <optional>
 #include <sstream>
 #include <string>
@@ -32,7 +33,7 @@ namespace parser {
 namespace test {
 
 class Variable final {
- public:
+public:
   std::string data;
 
   Variable() = default;
@@ -44,7 +45,8 @@ class Variable final {
   size_t size() const;
 
   template <bool little_endian>
-  static std::optional<Iterator<little_endian>> Parse(Variable* instance, Iterator<little_endian> it) {
+  static std::optional<Iterator<little_endian>> Parse(Variable* instance,
+                                                      Iterator<little_endian> it) {
     if (it.NumBytesRemaining() < 1) {
       return {};
     }
@@ -63,9 +65,7 @@ class Variable final {
     return it;
   }
 
-  std::string ToString() const {
-    return data;
-  }
+  std::string ToString() const { return data; }
 };
 
 }  // namespace test

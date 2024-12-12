@@ -35,6 +35,7 @@
 #include "packet/avrcp/avrcp_packet.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/sdp_status.h"
 #include "types/raw_address.h"
 
 extern bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
@@ -73,9 +74,8 @@ bool IsAbsoluteVolumeEnabled(const RawAddress* bdaddr) {
   return true;
 }
 
-bool ConnectionHandler::Initialize(const ConnectionCallback& callback,
-                                   AvrcpInterface* avrcp, SdpInterface* sdp,
-                                   VolumeInterface* vol) {
+bool ConnectionHandler::Initialize(const ConnectionCallback& callback, AvrcpInterface* avrcp,
+                                   SdpInterface* sdp, VolumeInterface* vol) {
   log::assert_that(instance_ == nullptr, "assert failed: instance_ == nullptr");
   log::assert_that(avrcp != nullptr, "assert failed: avrcp != nullptr");
   log::assert_that(sdp != nullptr, "assert failed: sdp != nullptr");
@@ -102,8 +102,7 @@ bool ConnectionHandler::CleanUp() {
 
   // TODO (apanicke): Cleanup the SDP Entries here
   std::lock_guard<std::recursive_mutex> lock(device_map_lock);
-  for (auto entry = instance_->device_map_.begin();
-       entry != instance_->device_map_.end();) {
+  for (auto entry = instance_->device_map_.begin(); entry != instance_->device_map_.end();) {
     auto curr = entry;
     entry++;
     curr->second->DeviceDisconnected();
@@ -135,19 +134,34 @@ bool ConnectionHandler::ConnectDevice(const RawAddress& bdaddr) {
     }
   }
 
-  auto connection_lambda = [](ConnectionHandler* instance_,
-                              const RawAddress& bdaddr, uint16_t status,
-                              uint16_t version, uint16_t features) {
+  auto connection_lambda = [](ConnectionHandler* instance_, const RawAddress& bdaddr,
+                              tSDP_STATUS status, uint16_t version, uint16_t features) {
     log::info("SDP Completed features=0x{:x}", features);
-    if (status != AVRC_SUCCESS || !(features & BTA_AV_FEAT_RCCT)) {
+    if (status != tSDP_STATUS::SDP_SUCCESS || !(features & BTA_AV_FEAT_RCCT)) {
       log::error(
-          "Failed to do SDP: status=0x{:x} features=0x{:x} supports "
-          "controller: {}",
-          status, features, features & BTA_AV_FEAT_RCCT);
+              "Failed to do SDP: status=0x{:x} features=0x{:x} supports "
+              "controller: {}",
+              status, features, features & BTA_AV_FEAT_RCCT);
       instance_->connection_cb_.Run(std::shared_ptr<Device>());
     }
 
     instance_->feature_map_[bdaddr] = features;
+
+    if (com::android::bluetooth::flags::abs_volume_sdp_conflict()) {
+      // Peer may connect avrcp during SDP. Check the connection state when
+      // SDP completed to resolve the conflict.
+      for (const auto& pair : instance_->device_map_) {
+        if (bdaddr == pair.second->GetAddress()) {
+          log::warn("Connected by peer device with address {}", bdaddr);
+          if (features & BTA_AV_FEAT_ADV_CTRL) {
+            pair.second->RegisterVolumeChanged();
+          } else if (instance_->vol_ != nullptr) {
+            instance_->vol_->DeviceConnected(pair.second->GetAddress());
+          }
+          return;
+        }
+      }
+    }
     instance_->AvrcpConnect(true, bdaddr);
     return;
   };
@@ -166,8 +180,7 @@ bool ConnectionHandler::DisconnectDevice(const RawAddress& bdaddr) {
   return false;
 }
 
-void ConnectionHandler::SetBipClientStatus(const RawAddress& bdaddr,
-                                           bool connected) {
+void ConnectionHandler::SetBipClientStatus(const RawAddress& bdaddr, bool connected) {
   for (auto it = device_map_.begin(); it != device_map_.end(); it++) {
     if (bdaddr == it->second->GetAddress()) {
       it->second->SetBipClientStatus(connected);
@@ -176,8 +189,7 @@ void ConnectionHandler::SetBipClientStatus(const RawAddress& bdaddr,
   }
 }
 
-std::vector<std::shared_ptr<Device>> ConnectionHandler::GetListOfDevices()
-    const {
+std::vector<std::shared_ptr<Device>> ConnectionHandler::GetListOfDevices() const {
   std::vector<std::shared_ptr<Device>> list;
   std::lock_guard<std::recursive_mutex> lock(device_map_lock);
   for (const auto& device : device_map_) {
@@ -186,29 +198,23 @@ std::vector<std::shared_ptr<Device>> ConnectionHandler::GetListOfDevices()
   return list;
 }
 
-bool ConnectionHandler::SdpLookup(const RawAddress& bdaddr, SdpCallback cb,
-                                  bool retry) {
+bool ConnectionHandler::SdpLookup(const RawAddress& bdaddr, SdpCallback cb, bool retry) {
   log::info("");
 
   tAVRC_SDP_DB_PARAMS db_params;
   // TODO (apanicke): This needs to be replaced with smarter memory management.
-  tSDP_DISCOVERY_DB* disc_db =
-      (tSDP_DISCOVERY_DB*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
-  uint16_t attr_list[] = {ATTR_ID_SERVICE_CLASS_ID_LIST,
-                          ATTR_ID_BT_PROFILE_DESC_LIST,
+  tSDP_DISCOVERY_DB* disc_db = (tSDP_DISCOVERY_DB*)osi_malloc(BT_DEFAULT_BUFFER_SIZE);
+  uint16_t attr_list[] = {ATTR_ID_SERVICE_CLASS_ID_LIST, ATTR_ID_BT_PROFILE_DESC_LIST,
                           ATTR_ID_SUPPORTED_FEATURES};
 
-  db_params.db_len =
-      BT_DEFAULT_BUFFER_SIZE;  // Some magic number found in the AVRCP code
+  db_params.db_len = BT_DEFAULT_BUFFER_SIZE;  // Some magic number found in the AVRCP code
   db_params.num_attr = sizeof(attr_list) / sizeof(attr_list[0]);
   db_params.p_db = disc_db;
   db_params.p_attrs = attr_list;
 
-  return avrc_->FindService(UUID_SERVCLASS_AV_REMOTE_CONTROL, bdaddr,
-                            &db_params,
-                            base::Bind(&ConnectionHandler::SdpCb,
-                                       weak_ptr_factory_.GetWeakPtr(), bdaddr,
-                                       cb, disc_db, retry)) == AVRC_SUCCESS;
+  return avrc_->FindService(UUID_SERVCLASS_AV_REMOTE_CONTROL, bdaddr, &db_params,
+                            base::Bind(&ConnectionHandler::SdpCb, weak_ptr_factory_.GetWeakPtr(),
+                                       bdaddr, cb, disc_db, retry)) == AVRC_SUCCESS;
 }
 
 bool ConnectionHandler::AvrcpConnect(bool initiator, const RawAddress& bdaddr) {
@@ -216,21 +222,18 @@ bool ConnectionHandler::AvrcpConnect(bool initiator, const RawAddress& bdaddr) {
 
   tAVRC_CONN_CB open_cb;
   if (initiator) {
-    open_cb.ctrl_cback = base::Bind(&ConnectionHandler::InitiatorControlCb,
-                                    weak_ptr_factory_.GetWeakPtr());
+    open_cb.ctrl_cback =
+            base::Bind(&ConnectionHandler::InitiatorControlCb, weak_ptr_factory_.GetWeakPtr());
   } else {
-    open_cb.ctrl_cback = base::Bind(&ConnectionHandler::AcceptorControlCb,
-                                    weak_ptr_factory_.GetWeakPtr());
+    open_cb.ctrl_cback =
+            base::Bind(&ConnectionHandler::AcceptorControlCb, weak_ptr_factory_.GetWeakPtr());
   }
-  open_cb.msg_cback =
-      base::Bind(&ConnectionHandler::MessageCb, weak_ptr_factory_.GetWeakPtr());
+  open_cb.msg_cback = base::Bind(&ConnectionHandler::MessageCb, weak_ptr_factory_.GetWeakPtr());
   open_cb.company_id = AVRC_CO_GOOGLE;
-  open_cb.conn = initiator ? AVRC_CONN_INT
-                           : AVRC_CONN_ACP;  // 0 if initiator, 1 if acceptor
+  open_cb.conn = initiator ? AVRC_CONN_INT : AVRC_CONN_ACP;  // 0 if initiator, 1 if acceptor
   // TODO (apanicke): We shouldn't need RCCT to do absolute volume. The current
   // AVRC_API requires it though.
-  open_cb.control = BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT | BTA_AV_FEAT_METADATA |
-                    AVRC_CT_PASSIVE;
+  open_cb.control = BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT | BTA_AV_FEAT_METADATA | AVRC_CT_PASSIVE;
 
   uint8_t handle = 0;
   uint16_t status = avrc_->Open(&handle, &open_cb, bdaddr);
@@ -238,8 +241,7 @@ bool ConnectionHandler::AvrcpConnect(bool initiator, const RawAddress& bdaddr) {
   return status == AVRC_SUCCESS;
 }
 
-void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
-                                           uint16_t result,
+void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16_t result,
                                            const RawAddress* peer_addr) {
   DCHECK(!connection_cb_.is_null());
 
@@ -253,8 +255,8 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
       const auto& feature_iter = feature_map_.find(*peer_addr);
       if (feature_iter == feature_map_.end()) {
         log::error(
-            "Features do not exist even though SDP should have been "
-            "done first");
+                "Features do not exist even though SDP should have been "
+                "done first");
         return;
       }
 
@@ -268,12 +270,12 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
       // devices SDP is completed after the device connects AVRCP so that
       // information isn't very useful when trying to control our
       // capabilities. For now always use AVRCP 1.6.
-      auto&& callback = base::BindRepeating(&ConnectionHandler::SendMessage,
-                                            base::Unretained(this), handle);
+      auto&& callback =
+              base::BindRepeating(&ConnectionHandler::SendMessage, base::Unretained(this), handle);
       auto&& ctrl_mtu = avrc_->GetPeerMtu(handle) - AVCT_HDR_LEN;
       auto&& browse_mtu = avrc_->GetBrowseMtu(handle) - AVCT_HDR_LEN;
-      std::shared_ptr<Device> newDevice = std::make_shared<Device>(
-          *peer_addr, !supports_browsing, callback, ctrl_mtu, browse_mtu);
+      std::shared_ptr<Device> newDevice = std::make_shared<Device>(*peer_addr, !supports_browsing,
+                                                                   callback, ctrl_mtu, browse_mtu);
 
       device_map_[handle] = newDevice;
       // TODO (apanicke): Create the device with all of the interfaces it
@@ -330,8 +332,7 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event,
   }
 }
 
-void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
-                                          uint16_t result,
+void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_t result,
                                           const RawAddress* peer_addr) {
   DCHECK(!connection_cb_.is_null());
 
@@ -344,8 +345,7 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
       if (peer_addr == NULL) {
         return;
       }
-      if (btif_av_src_sink_coexist_enabled() &&
-          btif_av_peer_is_connected_source(*peer_addr)) {
+      if (btif_av_src_sink_coexist_enabled() && btif_av_peer_is_connected_source(*peer_addr)) {
         log::warn("peer is src, close new avrcp cback");
         if (device_map_.find(handle) != device_map_.end()) {
           std::lock_guard<std::recursive_mutex> lock(device_map_lock);
@@ -357,23 +357,20 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
         AvrcpConnect(false, RawAddress::kAny);
         return;
       }
-      auto&& callback =
-          base::BindRepeating(&ConnectionHandler::SendMessage,
-                              weak_ptr_factory_.GetWeakPtr(), handle);
+      auto&& callback = base::BindRepeating(&ConnectionHandler::SendMessage,
+                                            weak_ptr_factory_.GetWeakPtr(), handle);
       auto&& ctrl_mtu = avrc_->GetPeerMtu(handle) - AVCT_HDR_LEN;
       auto&& browse_mtu = avrc_->GetBrowseMtu(handle) - AVCT_HDR_LEN;
-      std::shared_ptr<Device> newDevice = std::make_shared<Device>(
-          *peer_addr, false, callback, ctrl_mtu, browse_mtu);
+      std::shared_ptr<Device> newDevice =
+              std::make_shared<Device>(*peer_addr, false, callback, ctrl_mtu, browse_mtu);
 
       device_map_[handle] = newDevice;
       connection_cb_.Run(newDevice);
 
       log::info("Performing SDP on connected device. address={}", *peer_addr);
-      auto sdp_lambda = [](ConnectionHandler* instance_, uint8_t handle,
-                           uint16_t status, uint16_t version,
-                           uint16_t features) {
-        if (instance_->device_map_.find(handle) ==
-            instance_->device_map_.end()) {
+      auto sdp_lambda = [](ConnectionHandler* instance_, uint8_t handle, tSDP_STATUS status,
+                           uint16_t version, uint16_t features) {
+        if (instance_->device_map_.find(handle) == instance_->device_map_.end()) {
           log::warn("No device found for handle: 0x{:x}", handle);
           return;
         }
@@ -400,15 +397,14 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
         // SDP search failed, this could be due to a collision between outgoing
         // and incoming connection. In any case, we need to reject the current
         // connection.
-        log::error("SDP search failed for handle: 0x{:x}, closing connection",
-                   handle);
+        log::error("SDP search failed for handle: 0x{:x}, closing connection", handle);
         DisconnectDevice(*peer_addr);
       }
       // Open for the next incoming connection. The handle will not be the same
       // as this one which will be closed when the device is disconnected.
       AvrcpConnect(false, RawAddress::kAny);
 
-      if (com::android::bluetooth::flags::avrcp_connect_a2dp_delayed()) {
+      if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
         // Check peer audio role: src or sink and connect A2DP after 3 seconds
         SdpLookupAudioRole(handle);
       }
@@ -453,11 +449,9 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event,
   }
 }
 
-void ConnectionHandler::MessageCb(uint8_t handle, uint8_t label, uint8_t opcode,
-                                  tAVRC_MSG* p_msg) {
+void ConnectionHandler::MessageCb(uint8_t handle, uint8_t label, uint8_t opcode, tAVRC_MSG* p_msg) {
   if (device_map_.find(handle) == device_map_.end()) {
-    log::error("Message received for unconnected device: handle=0x{:x}",
-               handle);
+    log::error("Message received for unconnected device: handle=0x{:x}", handle);
     return;
   }
 
@@ -479,16 +473,15 @@ void ConnectionHandler::MessageCb(uint8_t handle, uint8_t label, uint8_t opcode,
   device_map_[handle]->MessageReceived(label, Packet::Parse(pkt));
 }
 
-void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb,
-                              tSDP_DISCOVERY_DB* disc_db, bool retry,
-                              uint16_t status) {
+void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb, tSDP_DISCOVERY_DB* disc_db,
+                              bool retry, tSDP_STATUS status) {
   log::verbose("SDP lookup callback received");
 
-  if (status == SDP_CONN_FAILED && !retry) {
+  if (status == tSDP_STATUS::SDP_CONN_FAILED && !retry) {
     log::warn("SDP Failure retry again");
     SdpLookup(bdaddr, cb, true);
     return;
-  } else if (status != AVRC_SUCCESS) {
+  } else if (status != tSDP_STATUS::SDP_SUCCESS) {
     log::error("SDP Failure: status = {}", (unsigned int)status);
     cb.Run(status, 0, 0);
     osi_free(disc_db);
@@ -501,19 +494,16 @@ void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb,
   uint16_t peer_avrcp_version = 0;
 
   // TODO (apanicke): Replace this in favor of our own supported features.
-  sdp_record =
-      sdp_->FindServiceInDb(disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, nullptr);
+  sdp_record = sdp_->FindServiceInDb(disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, nullptr);
   if (sdp_record != nullptr) {
     log::info("Device {} supports remote control", bdaddr);
     peer_features |= BTA_AV_FEAT_RCCT;
 
-    if ((sdp_->FindAttributeInRec(sdp_record, ATTR_ID_BT_PROFILE_DESC_LIST)) !=
-        NULL) {
+    if ((sdp_->FindAttributeInRec(sdp_record, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
       /* get profile version (if failure, version parameter is not updated) */
-      sdp_->FindProfileVersionInRec(
-          sdp_record, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_avrcp_version);
-      log::verbose("Device {} peer avrcp version=0x{:x}", bdaddr,
-                   peer_avrcp_version);
+      sdp_->FindProfileVersionInRec(sdp_record, UUID_SERVCLASS_AV_REMOTE_CONTROL,
+                                    &peer_avrcp_version);
+      log::verbose("Device {} peer avrcp version=0x{:x}", bdaddr, peer_avrcp_version);
 
       if (peer_avrcp_version >= AVRC_REV_1_3) {
         // These are the standard features, another way to check this is to
@@ -525,7 +515,7 @@ void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb,
         /* get supported categories */
         log::verbose("Get Supported categories");
         tSDP_DISC_ATTR* sdp_attribute =
-            sdp_->FindAttributeInRec(sdp_record, ATTR_ID_SUPPORTED_FEATURES);
+                sdp_->FindAttributeInRec(sdp_record, ATTR_ID_SUPPORTED_FEATURES);
         if (sdp_attribute != NULL &&
             SDP_DISC_ATTR_TYPE(sdp_attribute->attr_len_type) == UINT_DESC_TYPE &&
             SDP_DISC_ATTR_LEN(sdp_attribute->attr_len_type) >= 2) {
@@ -550,24 +540,21 @@ void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb,
     }
   }
 
-  sdp_record = sdp_->FindServiceInDb(disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET,
-                                     nullptr);
+  sdp_record = sdp_->FindServiceInDb(disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, nullptr);
   if (sdp_record != nullptr) {
     log::verbose("Device {} supports remote control target", bdaddr);
 
     uint16_t peer_avrcp_target_version = 0;
     sdp_->FindProfileVersionInRec(sdp_record, UUID_SERVCLASS_AV_REMOTE_CONTROL,
                                   &peer_avrcp_target_version);
-    log::verbose("Device {} peer avrcp target version=0x{:x}", bdaddr,
-                 peer_avrcp_target_version);
+    log::verbose("Device {} peer avrcp target version=0x{:x}", bdaddr, peer_avrcp_target_version);
 
-    if ((sdp_->FindAttributeInRec(sdp_record, ATTR_ID_BT_PROFILE_DESC_LIST)) !=
-        NULL) {
+    if ((sdp_->FindAttributeInRec(sdp_record, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
       if (peer_avrcp_target_version >= AVRC_REV_1_4) {
         /* get supported categories */
         log::verbose("Get Supported categories");
         tSDP_DISC_ATTR* sdp_attribute =
-            sdp_->FindAttributeInRec(sdp_record, ATTR_ID_SUPPORTED_FEATURES);
+                sdp_->FindAttributeInRec(sdp_record, ATTR_ID_SUPPORTED_FEATURES);
         if (sdp_attribute != NULL &&
             SDP_DISC_ATTR_TYPE(sdp_attribute->attr_len_type) == UINT_DESC_TYPE &&
             SDP_DISC_ATTR_LEN(sdp_attribute->attr_len_type) >= 2) {
@@ -589,16 +576,14 @@ void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb,
   cb.Run(status, peer_avrcp_version, peer_features);
 }
 
-void ConnectionHandler::SendMessage(
-    uint8_t handle, uint8_t label, bool browse,
-    std::unique_ptr<::bluetooth::PacketBuilder> message) {
+void ConnectionHandler::SendMessage(uint8_t handle, uint8_t label, bool browse,
+                                    std::unique_ptr<::bluetooth::PacketBuilder> message) {
   std::shared_ptr<::bluetooth::Packet> packet = VectorPacket::Make();
   message->Serialize(packet);
 
   uint8_t ctype = AVRC_RSP_ACCEPT;
   if (!browse) {
-    ctype =
-        (uint8_t)(::bluetooth::Packet::Specialize<Packet>(packet)->GetCType());
+    ctype = (uint8_t)(::bluetooth::Packet::Specialize<Packet>(packet)->GetCType());
   }
 
   log::info("SendMessage to handle=0x{:x}", handle);
@@ -612,8 +597,7 @@ void ConnectionHandler::SendMessage(
   // the packet so none of these layer specific fields will be used.
   pkt->event = 0xFFFF;
   /* Handle for AVRCP fragment */
-  uint16_t op_code =
-      (uint16_t)(::bluetooth::Packet::Specialize<Packet>(packet)->GetOpcode());
+  uint16_t op_code = (uint16_t)(::bluetooth::Packet::Specialize<Packet>(packet)->GetOpcode());
   if (!browse && (op_code == (uint16_t)(Opcode::VENDOR))) {
     pkt->event = op_code;
   }
@@ -657,17 +641,15 @@ bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
   auto device = device_map_[handle];
 
   log::info(
-      "Performing SDP for AUDIO_SINK on connected device: address={}, "
-      "handle={}",
-      ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle);
+          "Performing SDP for AUDIO_SINK on connected device: address={}, "
+          "handle={}",
+          ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle);
 
-  return device->find_sink_service(
-      base::Bind(&ConnectionHandler::SdpLookupAudioRoleCb,
-                 weak_ptr_factory_.GetWeakPtr(), handle));
+  return device->find_sink_service(base::Bind(&ConnectionHandler::SdpLookupAudioRoleCb,
+                                              weak_ptr_factory_.GetWeakPtr(), handle));
 }
 
-void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
-                                             tA2DP_Service* p_service,
+void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found, tA2DP_Service* p_service,
                                              const RawAddress& peer_address) {
   if (device_map_.find(handle) == device_map_.end()) {
     log::warn("No device found for handle: {}", loghex(handle));
@@ -676,8 +658,7 @@ void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
   auto device = device_map_[handle];
 
   log::debug("SDP callback for address={}, handle={}, AUDIO_SINK {}",
-             ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle,
-             found ? "found" : "not found");
+             ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle, found ? "found" : "not found");
 
   if (found) {
     device->connect_a2dp_sink_delayed(handle);

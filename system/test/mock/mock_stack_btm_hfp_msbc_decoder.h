@@ -43,7 +43,7 @@ namespace stack_btm_hfp_msbc_decoder {
 // Return: void
 struct hfp_msbc_decoder_cleanup {
   std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
+  void operator()(void) { body(); }
 };
 extern struct hfp_msbc_decoder_cleanup hfp_msbc_decoder_cleanup;
 
@@ -52,12 +52,13 @@ extern struct hfp_msbc_decoder_cleanup hfp_msbc_decoder_cleanup;
 // Return: bool
 struct hfp_msbc_decoder_decode_packet {
   static bool return_value;
-  std::function<bool(const uint8_t* i_buf, int16_t* o_buf, size_t out_len)>
-      body{[](const uint8_t* /* i_buf */, int16_t* /* o_buf */,
-              size_t /* out_len */) { return return_value; }};
+  std::function<bool(const uint8_t* i_buf, int16_t* o_buf, size_t out_len)> body{
+          [](const uint8_t* /* i_buf */, int16_t* /* o_buf */, size_t /* out_len */) {
+            return return_value;
+          }};
   bool operator()(const uint8_t* i_buf, int16_t* o_buf, size_t out_len) {
     return body(i_buf, o_buf, out_len);
-  };
+  }
 };
 extern struct hfp_msbc_decoder_decode_packet hfp_msbc_decoder_decode_packet;
 
@@ -67,7 +68,7 @@ extern struct hfp_msbc_decoder_decode_packet hfp_msbc_decoder_decode_packet;
 struct hfp_msbc_decoder_init {
   static bool return_value;
   std::function<bool()> body{[]() { return return_value; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct hfp_msbc_decoder_init hfp_msbc_decoder_init;
 

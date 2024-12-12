@@ -36,6 +36,8 @@ public class LeAudioDeviceStateWrapper {
     public BassData bassData = null;
     public HapData hapData = null;
 
+    public MutableLiveData<Boolean> isGattBrConnectedMutable = new MutableLiveData<>();
+
     public LeAudioDeviceStateWrapper(BluetoothDevice device) {
         this.device = device;
     }

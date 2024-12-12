@@ -30,7 +30,7 @@ namespace hci {
 
 class ClassOfDevice final : public packet::CustomFieldFixedSizeInterface<ClassOfDevice>,
                             public storage::Serializable<ClassOfDevice> {
- public:
+public:
   static constexpr size_t kLength = 3;
 
   std::array<uint8_t, kLength> cod = {};
@@ -39,12 +39,8 @@ class ClassOfDevice final : public packet::CustomFieldFixedSizeInterface<ClassOf
   ClassOfDevice(const uint8_t (&class_of_device)[kLength]);
 
   // packet::CustomFieldFixedSizeInterface methods
-  inline uint8_t* data() override {
-    return cod.data();
-  }
-  inline const uint8_t* data() const override {
-    return cod.data();
-  }
+  inline uint8_t* data() override { return cod.data(); }
+  inline const uint8_t* data() const override { return cod.data(); }
 
   // storage::Serializable methods
   std::string ToString() const;
@@ -52,24 +48,12 @@ class ClassOfDevice final : public packet::CustomFieldFixedSizeInterface<ClassOf
   std::string ToLegacyConfigString() const override;
   static std::optional<ClassOfDevice> FromLegacyConfigString(const std::string& str);
 
-  bool operator<(const ClassOfDevice& rhs) const {
-    return cod < rhs.cod;
-  }
-  bool operator==(const ClassOfDevice& rhs) const {
-    return cod == rhs.cod;
-  }
-  bool operator>(const ClassOfDevice& rhs) const {
-    return (rhs < *this);
-  }
-  bool operator<=(const ClassOfDevice& rhs) const {
-    return !(*this > rhs);
-  }
-  bool operator>=(const ClassOfDevice& rhs) const {
-    return !(*this < rhs);
-  }
-  bool operator!=(const ClassOfDevice& rhs) const {
-    return !(*this == rhs);
-  }
+  bool operator<(const ClassOfDevice& rhs) const { return cod < rhs.cod; }
+  bool operator==(const ClassOfDevice& rhs) const { return cod == rhs.cod; }
+  bool operator>(const ClassOfDevice& rhs) const { return rhs < *this; }
+  bool operator<=(const ClassOfDevice& rhs) const { return !(*this > rhs); }
+  bool operator>=(const ClassOfDevice& rhs) const { return !(*this < rhs); }
+  bool operator!=(const ClassOfDevice& rhs) const { return !(*this == rhs); }
 
   // Converts |string| to ClassOfDevice and places it in |to|. If |from| does
   // not represent a Class of Device, |to| is not modified and this function

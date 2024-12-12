@@ -24,9 +24,8 @@ namespace test {
 namespace headless {
 
 class Dumpsys : public HeadlessTest<int> {
- public:
-  Dumpsys(const bluetooth::test::headless::GetOpt& options)
-      : HeadlessTest<int>(options) {}
+public:
+  Dumpsys(const bluetooth::test::headless::GetOpt& options) : HeadlessTest<int>(options) {}
   int Run() override;
 };
 

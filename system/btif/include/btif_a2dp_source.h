@@ -92,16 +92,15 @@ void btif_a2dp_source_stop_audio_req(void);
 // The peer address is |peer_addr|.
 // |codec_user_config| contains the preferred codec user configuration.
 void btif_a2dp_source_encoder_user_config_update_req(
-    const RawAddress& peer_addr,
-    const std::vector<btav_a2dp_codec_config_t>& codec_user_preferences,
-    std::promise<void> peer_ready_promise);
+        const RawAddress& peer_addr,
+        const std::vector<btav_a2dp_codec_config_t>& codec_user_preferences,
+        std::promise<void> peer_ready_promise);
 
 // Process a request to update the A2DP audio encoding with new audio
 // configuration feeding parameters stored in |codec_audio_config|.
 // The fields that are used are: |codec_audio_config.sample_rate|,
 // |codec_audio_config.bits_per_sample| and |codec_audio_config.channel_mode|.
-void btif_a2dp_source_feeding_update_req(
-    const btav_a2dp_codec_config_t& codec_audio_config);
+void btif_a2dp_source_feeding_update_req(const btav_a2dp_codec_config_t& codec_audio_config);
 
 // Process 'idle' request from the BTIF state machine during initialization.
 void btif_a2dp_source_on_idle(void);
@@ -131,7 +130,6 @@ BT_HDR* btif_a2dp_source_audio_readbuf(void);
 void btif_a2dp_source_debug_dump(int fd);
 
 // Set the dynamic audio buffer size
-void btif_a2dp_source_set_dynamic_audio_buffer_size(
-    uint8_t dynamic_audio_buffer_size);
+void btif_a2dp_source_set_dynamic_audio_buffer_size(uint8_t dynamic_audio_buffer_size);
 
 #endif /* BTIF_A2DP_SOURCE_H */

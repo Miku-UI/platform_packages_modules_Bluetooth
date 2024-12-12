@@ -27,7 +27,6 @@ import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import com.android.bluetooth.BluetoothStatsLog
-import com.android.bluetooth.flags.Flags
 import com.android.server.bluetooth.BluetoothAdapterState
 import com.android.server.bluetooth.Log
 import com.android.server.bluetooth.initializeRadioModeListener
@@ -120,9 +119,7 @@ public fun initialize(
                 if (previousMode == isOnOverrode) {
                     Log.d(TAG, "Ignore mode change to same state. $description")
                     return
-                } else if (
-                    Flags.airplaneModeXBleOn() && isOnOverrode == false && state.oneOf(STATE_ON)
-                ) {
+                } else if (isOnOverrode == false && state.oneOf(STATE_ON)) {
                     Log.d(TAG, "Ignore mode change as Bluetooth is ON. $description")
                     return
                 }

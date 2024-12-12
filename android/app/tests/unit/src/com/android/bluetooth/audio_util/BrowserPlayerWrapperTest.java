@@ -396,14 +396,16 @@ public class BrowserPlayerWrapperTest {
                 Assert.assertNotNull(folder);
                 Assert.assertFalse(folder.isPlayable);
                 Assert.assertEquals(expected.getDescription().getMediaId(), folder.mediaId);
-                Assert.assertEquals(expected.getDescription().getTitle(), folder.title);
+                Assert.assertEquals(expected.getDescription().getTitle().toString(), folder.title);
             } else {
                 Metadata song = item.song;
                 Assert.assertNotNull(song);
                 Assert.assertEquals(expected.getDescription().getMediaId(), song.mediaId);
-                Assert.assertEquals(expected.getDescription().getTitle(), song.title);
-                Assert.assertEquals(expected.getDescription().getSubtitle(), song.artist);
-                Assert.assertEquals(expected.getDescription().getDescription(), song.album);
+                Assert.assertEquals(expected.getDescription().getTitle().toString(), song.title);
+                Assert.assertEquals(
+                        expected.getDescription().getSubtitle().toString(), song.artist);
+                Assert.assertEquals(
+                        expected.getDescription().getDescription().toString(), song.album);
                 if (expected.getDescription().getIconBitmap() != null) {
                     Assert.assertNotNull(song.image);
                     Bitmap expectedBitmap = expected.getDescription().getIconBitmap();

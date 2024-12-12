@@ -48,16 +48,15 @@ using namespace bluetooth;
  *****************************************************************************/
 bt_status_t sdp_server_init();
 void sdp_server_cleanup();
-bt_status_t create_sdp_record(bluetooth_sdp_record* records,
-                              int* record_handles);
+bt_status_t create_sdp_record(bluetooth_sdp_record* records, int* record_handles);
 bt_status_t remove_sdp_record(int record_handle);
 void on_create_record_event(int handle);
 void on_remove_record_event(int handle);
 
 // Utility functions:
 int get_sdp_records_size(bluetooth_sdp_record* in_record, int count);
-void copy_sdp_records(bluetooth_sdp_record* in_records,
-                      bluetooth_sdp_record* out_records, int count);
+void copy_sdp_records(bluetooth_sdp_record* in_records, bluetooth_sdp_record* out_records,
+                      int count);
 
 /*****************************************************************************
  *  Static variables
@@ -69,30 +68,32 @@ static void btif_sdp_search_comp_evt(uint16_t event, char* p_param) {
   tBTA_SDP_SEARCH_COMP* evt_data = (tBTA_SDP_SEARCH_COMP*)p_param;
   log::verbose("event = {}", event);
 
-  if (event != BTA_SDP_SEARCH_COMP_EVT) return;
+  if (event != BTA_SDP_SEARCH_COMP_EVT) {
+    return;
+  }
 
-  HAL_CBACK(bt_sdp_callbacks, sdp_search_cb, (bt_status_t)evt_data->status,
-            evt_data->remote_addr, evt_data->uuid, evt_data->record_count,
-            evt_data->records);
+  HAL_CBACK(bt_sdp_callbacks, sdp_search_cb, (bt_status_t)evt_data->status, evt_data->remote_addr,
+            evt_data->uuid, evt_data->record_count, evt_data->records);
 }
 
-static void sdp_search_comp_copy_cb(uint16_t event, char* p_dest,
-                                    const char* p_src) {
+static void sdp_search_comp_copy_cb(uint16_t event, char* p_dest, const char* p_src) {
   tBTA_SDP_SEARCH_COMP* p_dest_data = (tBTA_SDP_SEARCH_COMP*)p_dest;
   tBTA_SDP_SEARCH_COMP* p_src_data = (tBTA_SDP_SEARCH_COMP*)p_src;
 
-  if (!p_src) return;
+  if (!p_src) {
+    return;
+  }
 
-  if (event != BTA_SDP_SEARCH_COMP_EVT) return;
+  if (event != BTA_SDP_SEARCH_COMP_EVT) {
+    return;
+  }
 
   maybe_non_aligned_memcpy(p_dest_data, p_src_data, sizeof(*p_src_data));
 
-  copy_sdp_records(p_src_data->records, p_dest_data->records,
-                   p_src_data->record_count);
+  copy_sdp_records(p_src_data->records, p_dest_data->records, p_src_data->record_count);
 }
 
-static void sdp_dm_cback(tBTA_SDP_EVT event, tBTA_SDP* p_data,
-                         void* user_data) {
+static void sdp_dm_cback(tBTA_SDP_EVT event, tBTA_SDP* p_data, void* user_data) {
   switch (event) {
     case BTA_SDP_SEARCH_COMP_EVT: {
       int size = sizeof(tBTA_SDP);
@@ -100,8 +101,8 @@ static void sdp_dm_cback(tBTA_SDP_EVT event, tBTA_SDP* p_data,
                                    p_data->sdp_search_comp.record_count);
 
       /* need to deep copy the record content */
-      btif_transfer_context(btif_sdp_search_comp_evt, event, (char*)p_data,
-                            size, sdp_search_comp_copy_cb);
+      btif_transfer_context(btif_sdp_search_comp_evt, event, (char*)p_data, size,
+                            sdp_search_comp_copy_cb);
       break;
     }
     case BTA_SDP_CREATE_RECORD_USER_EVT: {
@@ -144,8 +145,7 @@ static bt_status_t search(RawAddress* bd_addr, const Uuid& uuid) {
 }
 
 static const btsdp_interface_t sdp_if = {
-    sizeof(btsdp_interface_t), init, deinit, search, create_sdp_record,
-    remove_sdp_record};
+        sizeof(btsdp_interface_t), init, deinit, search, create_sdp_record, remove_sdp_record};
 
 const btsdp_interface_t* btif_sdp_get_interface(void) {
   log::verbose("");

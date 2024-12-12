@@ -24,7 +24,7 @@
 #include "parse_location.h"
 
 class FixedEnumField : public FixedField {
- public:
+public:
   FixedEnumField(EnumDef* enum_def, std::string value, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -35,7 +35,7 @@ class FixedEnumField : public FixedField {
 
   static const std::string field_type;
 
- private:
+private:
   void GenValue(std::ostream& s) const;
 
   EnumDef* enum_;

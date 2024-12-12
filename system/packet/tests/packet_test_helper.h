@@ -27,30 +27,25 @@ namespace bluetooth {
 // testing easier
 template <class PacketType>
 class TestPacketType : public PacketType {
- public:
+public:
   using PacketType::PacketType;
 
   static std::shared_ptr<TestPacketType<PacketType>> Make() {
-    return std::shared_ptr<TestPacketType<PacketType>>(
-        new TestPacketType<PacketType>());
+    return std::shared_ptr<TestPacketType<PacketType>>(new TestPacketType<PacketType>());
   }
 
-  static std::shared_ptr<TestPacketType<PacketType>> Make(
-      std::shared_ptr<Packet> packet) {
-    return std::shared_ptr<TestPacketType<PacketType>>(
-        new TestPacketType<PacketType>(packet));
+  static std::shared_ptr<TestPacketType<PacketType>> Make(std::shared_ptr<Packet> packet) {
+    return std::shared_ptr<TestPacketType<PacketType>>(new TestPacketType<PacketType>(packet));
   }
 
-  static std::shared_ptr<TestPacketType<PacketType>> Make(
-      std::vector<uint8_t> payload) {
+  static std::shared_ptr<TestPacketType<PacketType>> Make(std::vector<uint8_t> payload) {
     size_t end = payload.size();
     return Make(std::move(payload), 0, end);
   }
 
-  static std::shared_ptr<TestPacketType<PacketType>> Make(
-      std::vector<uint8_t> payload, size_t start, size_t end) {
-    auto pkt = std::shared_ptr<TestPacketType<PacketType>>(
-        new TestPacketType<PacketType>());
+  static std::shared_ptr<TestPacketType<PacketType>> Make(std::vector<uint8_t> payload,
+                                                          size_t start, size_t end) {
+    auto pkt = std::shared_ptr<TestPacketType<PacketType>>(new TestPacketType<PacketType>());
     pkt->packet_start_index_ = start;
     pkt->packet_end_index_ = end;
     pkt->data_ = std::make_shared<std::vector<uint8_t>>(std::move(payload));
@@ -59,9 +54,7 @@ class TestPacketType : public PacketType {
 
   const std::vector<uint8_t>& GetData() { return *PacketType::data_; }
 
-  std::shared_ptr<std::vector<uint8_t>> GetDataPointer() {
-    return PacketType::data_;
-  }
+  std::shared_ptr<std::vector<uint8_t>> GetDataPointer() { return PacketType::data_; }
 };
 
 namespace avrcp {
@@ -108,17 +101,15 @@ inline bool operator==(const AttributeEntry& a, const AttributeEntry& b) {
   return (a.attribute() == b.attribute()) && (a.value() == b.value());
 }
 
-inline bool operator!=(const AttributeEntry& a, const AttributeEntry& b) {
-  return !(a == b);
-}
+inline bool operator!=(const AttributeEntry& a, const AttributeEntry& b) { return !(a == b); }
 
 template <class AttributesResponseBuilder>
 class AttributesResponseBuilderTestUser {
- public:
+public:
   using Builder = AttributesResponseBuilder;
   using Maker = std::function<typename Builder::Builder(size_t)>;
 
- private:
+private:
   Maker maker;
   typename Builder::Builder _builder;
   size_t _mtu;
@@ -142,7 +133,7 @@ class AttributesResponseBuilderTestUser {
 
   size_t expected_size() { return Builder::kHeaderSize() + _current_size; }
 
- public:
+public:
   std::string getReport() const { return _report.str(); }
 
   AttributesResponseBuilderTestUser(size_t m_size, Maker maker)
@@ -170,11 +161,10 @@ class AttributesResponseBuilderTestUser {
   void finishTest() {
     reset();
     if (_order_control.size() != _sended_order.size()) {
-      _report << __func__ << ": testOrder FAIL: "
-              << "the count of entries which should send ("
+      _report << __func__ << ": testOrder FAIL: " << "the count of entries which should send ("
               << _order_control.size() << ") is not equal to sended entries("
-              << _sended_order.size() << ")) \n input:\n "
-              << to_string(_order_control) << "\n sended:\n"
+              << _sended_order.size() << ")) \n input:\n " << to_string(_order_control)
+              << "\n sended:\n"
               << to_string(_sended_order) << "\n";
       _order_test_result = false;
       return;
@@ -204,13 +194,12 @@ class AttributesResponseBuilderTestUser {
     }
   }
 
- private:
+private:
   void wholeEntry(size_t f, AttributeEntry&& entry) {
     _control_set.insert(entry);
     _order_control.push_back(entry);
     if (_builder->size() != expected_size()) {
-      _report << __func__ << "FAIL for \"" << to_string(entry)
-              << "\": not allowed to add.\n";
+      _report << __func__ << "FAIL for \"" << to_string(entry) << "\": not allowed to add.\n";
       _test_result = false;
     }
   }
@@ -218,35 +207,29 @@ class AttributesResponseBuilderTestUser {
   void fractionEntry(size_t f, AttributeEntry&& entry) {
     auto l_value = entry.value().size() - (entry.size() - f);
     if (f != 0) {
-      auto pushed_entry = AttributeEntry(
-          entry.attribute(), std::string(entry.value(), 0, l_value));
+      auto pushed_entry = AttributeEntry(entry.attribute(), std::string(entry.value(), 0, l_value));
       _control_set.insert(pushed_entry);
       _order_control.push_back(pushed_entry);
     }
 
     if (expected_size() != _builder->size()) {
       _test_result = false;
-      _report << __func__ << "FAIL for \"" << to_string(entry)
-              << "\": not allowed to add.\n";
+      _report << __func__ << "FAIL for \"" << to_string(entry) << "\": not allowed to add.\n";
     }
 
-    if (_builder->size() != expected_size() ||
-        _builder->entries_.size() != _entry_counter) {
-      _report << __func__ << "FAIL for \"" << to_string(entry)
-              << "\": unexpected size of packet\n";
+    if (_builder->size() != expected_size() || _builder->entries_.size() != _entry_counter) {
+      _report << __func__ << "FAIL for \"" << to_string(entry) << "\": unexpected size of packet\n";
       _test_result = false;
     }
-    for (auto dat = _builder->entries_.begin(), ex = _control_set.begin();
-         ex != _control_set.end(); ++dat, ++ex) {
+    for (auto dat = _builder->entries_.begin(), ex = _control_set.begin(); ex != _control_set.end();
+         ++dat, ++ex) {
       if (*dat != *ex) {
-        _report << __func__ << "FAIL for \"" << to_string(entry)
-                << "\": unexpected entry order\n";
+        _report << __func__ << "FAIL for \"" << to_string(entry) << "\": unexpected entry order\n";
         _test_result = false;
       }
     }
     auto tail = (f == 0) ? entry
-                         : AttributeEntry(entry.attribute(),
-                                          std::string(entry.value(), l_value));
+                         : AttributeEntry(entry.attribute(), std::string(entry.value(), l_value));
     if (_builder->entries_.size() != 0) {
       reset();
       AddAttributeEntry(tail);
@@ -262,7 +245,7 @@ class AttributesResponseBuilderTestUser {
 
 template <class AttributesBuilder>
 class FragmentationBuilderHelper {
- public:
+public:
   using Builder = AttributesBuilder;
   using Helper = AttributesResponseBuilderTestUser<Builder>;
   using Maker = typename Helper::Maker;
@@ -270,8 +253,8 @@ class FragmentationBuilderHelper {
   FragmentationBuilderHelper(size_t mtu, Maker m) : _helper(mtu, m) {}
 
   template <class TestCollection>
-  void runTest(const TestCollection& test_data, size_t mtu,
-               bool expect_fragmentation = true, bool expect_ordering = true) {
+  void runTest(const TestCollection& test_data, size_t mtu, bool expect_fragmentation = true,
+               bool expect_ordering = true) {
     _helper.startTest(mtu);
 
     for (auto& i : test_data) {
@@ -279,13 +262,11 @@ class FragmentationBuilderHelper {
     }
     _helper.finishTest();
 
-    EXPECT_EQ(expect_fragmentation, _helper.testResult())
-        << "Report: " << _helper.getReport();
-    EXPECT_EQ(expect_ordering, _helper.testOrder())
-        << "Report: " << _helper.getReport();
+    EXPECT_EQ(expect_fragmentation, _helper.testResult()) << "Report: " << _helper.getReport();
+    EXPECT_EQ(expect_ordering, _helper.testOrder()) << "Report: " << _helper.getReport();
   }
 
- private:
+private:
   Helper _helper;
 };
 }  // namespace avrcp

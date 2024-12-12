@@ -104,7 +104,10 @@ impl ServiceWatcher {
         on_unavailable: Box<dyn Fn() + Send>,
     ) {
         let mr = MatchRule::new_signal(DBUS_INTERFACE, DBUS_NAME_OWNER_CHANGED);
-        self.conn.add_match_no_cb(&mr.match_str()).await.unwrap();
+        self.conn
+            .add_match_no_cb(&mr.match_str())
+            .await
+            .expect("Unable to add match to D-Bus for monitoring service owner change");
         let service_name = self.service_name.clone();
         let context = self.context.clone();
         self.conn.start_receive(
@@ -123,10 +126,10 @@ impl ServiceWatcher {
                         return true;
                     }
 
-                    if old_owner == "" && new_owner != "" {
+                    if old_owner.is_empty() && !new_owner.is_empty() {
                         context.lock().unwrap().set_owner(new_owner.clone());
                         on_available();
-                    } else if old_owner != "" && new_owner == "" {
+                    } else if !old_owner.is_empty() && new_owner.is_empty() {
                         context.lock().unwrap().unset_owner();
                         on_unavailable();
                     } else {
@@ -195,7 +198,10 @@ impl ServiceWatcher {
 
         // Monitor interface appearing.
         let mr = MatchRule::new_signal(DBUS_OBJMGR_INTERFACE, DBUS_INTERFACES_ADDED);
-        self.conn.add_match_no_cb(&mr.match_str()).await.unwrap();
+        self.conn
+            .add_match_no_cb(&mr.match_str())
+            .await
+            .expect("Unable to add match to D-Bus for monitoring interface changes");
         let context = self.context.clone();
         self.conn.start_receive(
             mr,

@@ -87,7 +87,7 @@ public class BluetoothOppHandoverReceiver extends BroadcastReceiver {
                 return;
             }
             String brEdrAddress =
-                    Flags.identityAddressNullIfUnknown()
+                    Flags.identityAddressNullIfNotKnown()
                             ? Utils.getBrEdrAddress(device)
                             : device.getIdentityAddress();
             Log.d(TAG, "Adding " + brEdrAddress + " to acceptlist");

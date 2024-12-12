@@ -38,15 +38,14 @@ enum OptionType {
   kOptionClear = 6,
 };
 
-constexpr struct option long_options[] = {
-    {"device", required_argument, 0, 0},  // kOptionDevice
-    {"loop", required_argument, 0, 0},    // kOptionLoop/
-    {"uuid", required_argument, 0, 0},    // kOptionUuid
-    {"msleep", required_argument, 0, 0},  // kOptionMsleep
-    {"stderr", no_argument, 0, 0},        // kOptionStdErr
-    {"flags", required_argument, 0, 0},   // kOptionFlags
-    {"clear", no_argument, 0, 0},         // kOptionDevice
-    {0, 0, 0, 0}};
+constexpr struct option long_options[] = {{"device", required_argument, 0, 0},  // kOptionDevice
+                                          {"loop", required_argument, 0, 0},    // kOptionLoop/
+                                          {"uuid", required_argument, 0, 0},    // kOptionUuid
+                                          {"msleep", required_argument, 0, 0},  // kOptionMsleep
+                                          {"stderr", no_argument, 0, 0},        // kOptionStdErr
+                                          {"flags", required_argument, 0, 0},   // kOptionFlags
+                                          {"clear", no_argument, 0, 0},         // kOptionDevice
+                                          {0, 0, 0, 0}};
 
 const char* kShortArgs = "cd:l:u:";
 
@@ -55,22 +54,16 @@ const char* kShortArgs = "cd:l:u:";
 void bluetooth::test::headless::GetOpt::Usage() const {
   fprintf(stdout, "%s: Usage:\n", name_);
   fprintf(stdout, "%s  -c  Clear logcat logs\n", name_);
-  fprintf(stdout,
-          "%s  --device=<device,>  Comma separated list of remote devices\n",
-          name_);
-  fprintf(stdout,
-          "%s  --flags=<flags,>  Comma separated list of gd init flags\n",
-          name_);
-  fprintf(stdout, "%s  --uuid=<uuid,>      Comma separated list of uuids\n",
-          name_);
+  fprintf(stdout, "%s  --device=<device,>  Comma separated list of remote devices\n", name_);
+  fprintf(stdout, "%s  --uuid=<uuid,>      Comma separated list of uuids\n", name_);
   fprintf(stdout, "%s  --loop=<loop>       Number of loops\n", name_);
   fprintf(stdout, "%s  --msleep=<msecs>    Sleep msec between loops\n", name_);
   fprintf(stdout, "%s  --stderr            Dump stderr to stdout\n", name_);
   fflush(nullptr);
 }
 
-void bluetooth::test::headless::GetOpt::ParseValue(
-    char* optarg, std::list<std::string>& string_list) {
+void bluetooth::test::headless::GetOpt::ParseValue(char* optarg,
+                                                   std::list<std::string>& string_list) {
   log::assert_that(optarg != nullptr, "assert failed: optarg != nullptr");
   char* p = optarg;
   char* pp = optarg;
@@ -82,11 +75,12 @@ void bluetooth::test::headless::GetOpt::ParseValue(
     }
     p++;
   }
-  if (pp != p) string_list.push_back(std::string(pp));
+  if (pp != p) {
+    string_list.push_back(std::string(pp));
+  }
 }
 
-std::vector<std::string> bluetooth::test::headless::GetOpt::Split(
-    std::string s) {
+std::vector<std::string> bluetooth::test::headless::GetOpt::Split(std::string s) {
   std::stringstream ss(s);
   std::vector<std::string> values;
   std::string item;
@@ -96,14 +90,15 @@ std::vector<std::string> bluetooth::test::headless::GetOpt::Split(
   return values;
 }
 
-void bluetooth::test::headless::GetOpt::ProcessOption(int option_index,
-                                                      char* optarg) {
+void bluetooth::test::headless::GetOpt::ProcessOption(int option_index, char* optarg) {
   std::list<std::string> string_list;
   OptionType option_type = static_cast<OptionType>(option_index);
 
   switch (option_type) {
     case kOptionDevice:
-      if (!optarg) return;
+      if (!optarg) {
+        return;
+      }
       ParseValue(optarg, string_list);
       for (auto& entry : string_list) {
         if (RawAddress::IsValidAddress(entry)) {
@@ -117,26 +112,22 @@ void bluetooth::test::headless::GetOpt::ProcessOption(int option_index,
       loop_ = std::stoul(optarg, nullptr, 0);
       break;
     case kOptionUuid:
-      if (!optarg) return;
+      if (!optarg) {
+        return;
+      }
       ParseValue(optarg, string_list);
       for (auto& entry : string_list) {
-        uuid_.push_back(
-            bluetooth::Uuid::From16Bit(std::stoul(entry.c_str(), nullptr, 0)));
+        uuid_.push_back(bluetooth::Uuid::From16Bit(std::stoul(entry.c_str(), nullptr, 0)));
       }
       break;
     case kOptionMsleep:
-      if (!optarg) return;
+      if (!optarg) {
+        return;
+      }
       msec_ = std::stoul(optarg, nullptr, 0);
       break;
     case kOptionStdErr:
       close_stderr_ = false;
-      break;
-    case kOptionFlags:
-      if (!optarg) return;
-      ParseValue(optarg, string_list);
-      for (auto& flag : string_list) {
-        init_flags_.push_back(flag);
-      }
       break;
     case kOptionClear:
       clear_logcat_ = true;
@@ -149,30 +140,13 @@ void bluetooth::test::headless::GetOpt::ProcessOption(int option_index,
   }
 }
 
-void bluetooth::test::headless::GetOpt::ParseStackInitFlags() {
-  if (init_flags_.size() == 0) return;
-
-  log::assert_that(stack_init_flags_ == nullptr,
-                   "assert failed: stack_init_flags_ == nullptr");
-
-  unsigned idx = 0;
-  stack_init_flags_ = (const char**)calloc(sizeof(char*), init_flags_.size());
-  for (const std::string& flag : init_flags_)
-    stack_init_flags_[idx++] = flag.c_str();
-  stack_init_flags_[idx] = nullptr;
-}
-
-const char** bluetooth::test::headless::GetOpt::StackInitFlags() const {
-  return stack_init_flags_;
-}
-
-bluetooth::test::headless::GetOpt::GetOpt(int argc, char** argv)
-    : name_(argv[0]) {
+bluetooth::test::headless::GetOpt::GetOpt(int argc, char** argv) : name_(argv[0]) {
   while (1) {
     int option_index = 0;
-    int c =
-        getopt_long_only(argc, argv, kShortArgs, long_options, &option_index);
-    if (c == -1) break;
+    int c = getopt_long_only(argc, argv, kShortArgs, long_options, &option_index);
+    if (c == -1) {
+      break;
+    }
 
     switch (c) {
       case 0:
@@ -191,9 +165,7 @@ bluetooth::test::headless::GetOpt::GetOpt(int argc, char** argv)
     non_options_.push_back(argv[optind++]);
   }
 
-  ParseStackInitFlags();
-
   fflush(nullptr);
 }
 
-bluetooth::test::headless::GetOpt::~GetOpt() { free(stack_init_flags_); }
+bluetooth::test::headless::GetOpt::~GetOpt() {}

@@ -68,8 +68,7 @@ size_t ringbuffer_insert(ringbuffer_t* rb, const uint8_t* p, size_t length) {
   inc_func_call_count(__func__);
   return test::mock::osi_ringbuffer::ringbuffer_insert(rb, p, length);
 }
-size_t ringbuffer_peek(const ringbuffer_t* rb, off_t offset, uint8_t* p,
-                       size_t length) {
+size_t ringbuffer_peek(const ringbuffer_t* rb, off_t offset, uint8_t* p, size_t length) {
   inc_func_call_count(__func__);
   return test::mock::osi_ringbuffer::ringbuffer_peek(rb, offset, p, length);
 }

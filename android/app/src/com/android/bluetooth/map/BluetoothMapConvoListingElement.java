@@ -29,12 +29,12 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class BluetoothMapConvoListingElement
@@ -144,6 +144,7 @@ public class BluetoothMapConvoListingElement
         return mLastActivity;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getLastActivityString() {
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
         Date date = new Date(mLastActivity);
@@ -155,6 +156,7 @@ public class BluetoothMapConvoListingElement
         this.mLastActivity = last;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void setLastActivity(String lastActivity) throws ParseException {
         // TODO: Encode with time-zone if MCE requests it
         SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
@@ -219,17 +221,7 @@ public class BluetoothMapConvoListingElement
     /* Get a valid UTF-8 string of maximum 256 bytes */
     private String getSummary() {
         if (mSummary != null) {
-            try {
-                return BluetoothMapUtils.truncateUtf8StringToString(mSummary, 256);
-            } catch (UnsupportedEncodingException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONVO_LISTING_ELEMENT,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        1);
-                // This cannot happen on an Android platform - UTF-8 is mandatory
-                Log.e(TAG, "Missing UTF-8 support on platform", e);
-            }
+            return BluetoothMapUtils.truncateUtf8StringToString(mSummary, 256);
         }
         return null;
     }
@@ -255,11 +247,11 @@ public class BluetoothMapConvoListingElement
 
     /* Encode the MapMessageListingElement into the StringBuilder reference.
      * Here we have taken the choice not to report empty attributes, to reduce the
-     * amount of data to be transfered over BT. */
+     * amount of data to be transferred over BT. */
     public void encode(XmlSerializer xmlConvoElement)
             throws IllegalArgumentException, IllegalStateException, IOException {
 
-        // contruct the XML tag for a single conversation in the convolisting
+        // construct the XML tag for a single conversation in the convolisting
         xmlConvoElement.startTag(null, XML_TAG_CONVERSATION);
         xmlConvoElement.attribute(null, XML_ATT_ID, mId.toHexString());
         if (mName != null) {
@@ -346,37 +338,20 @@ public class BluetoothMapConvoListingElement
         if (this == obj) {
             return true;
         }
-        if (obj == null) {
+        if (!(obj instanceof BluetoothMapConvoListingElement other)) {
             return false;
         }
-        if (getClass() != obj.getClass()) {
+
+        if (!Objects.equals(mContacts, other.mContacts)) {
             return false;
         }
-        BluetoothMapConvoListingElement other = (BluetoothMapConvoListingElement) obj;
-        if (mContacts == null) {
-            if (other.mContacts != null) {
-                return false;
-            }
-        } else if (!mContacts.equals(other.mContacts)) {
-            return false;
-        }
-        /* As we use equals only for test, we don't compare auto assigned values
-         * if (mId == null) {
-            if (other.mId != null) {
-                return false;
-            }
-        } else if (!mId.equals(other.mId)) {
-            return false;
-        } */
+
+        // Skip comparing auto assigned value `mId`. Equals is only used for test
 
         if (mLastActivity != other.mLastActivity) {
             return false;
         }
-        if (mName == null) {
-            if (other.mName != null) {
-                return false;
-            }
-        } else if (!mName.equals(other.mName)) {
+        if (!Objects.equals(mName, other.mName)) {
             return false;
         }
         if (mRead != other.mRead) {
@@ -385,11 +360,8 @@ public class BluetoothMapConvoListingElement
         return true;
     }
 
-    /*    @Override
-    public boolean equals(Object o) {
-
-        return true;
-    };
-    */
-
+    @Override
+    public int hashCode() {
+        return Objects.hash(mContacts, mLastActivity, mName, mRead);
+    }
 }

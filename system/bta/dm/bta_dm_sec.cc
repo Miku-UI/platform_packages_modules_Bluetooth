@@ -21,18 +21,18 @@
 #include <cstdint>
 
 #include "bta/dm/bta_dm_act.h"
-#include "bta/dm/bta_dm_disc.h"
 #include "bta/dm/bta_dm_int.h"
 #include "bta/dm/bta_dm_sec_int.h"
 #include "bta/include/bta_dm_ci.h"  // bta_dm_ci_rmt_oob
 #include "btif/include/btif_dm.h"
-#include "btif/include/btif_storage.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/btm_ble_sec_api_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_sec_api.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/gatt_api.h"
+#include "stack/include/rnr_interface.h"
 #include "stack/include/security_client_callbacks.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
@@ -40,35 +40,31 @@
 using namespace bluetooth;
 
 static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
-static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
-                                    tBTM_LE_EVT_DATA* p_data);
-static uint8_t bta_dm_new_link_key_cback(const RawAddress& bd_addr,
-                                         DEV_CLASS dev_class, BD_NAME bd_name,
-                                         const LinkKey& key, uint8_t key_type,
-                                         bool is_ctkd);
-static uint8_t bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
-                                const BD_NAME bd_name, bool min_16_digit);
-static uint8_t bta_dm_sirk_verifiction_cback(const RawAddress& bd_addr);
-static void bta_dm_authentication_complete_cback(const RawAddress& bd_addr,
-                                                 DEV_CLASS dev_class,
-                                                 BD_NAME bd_name,
-                                                 tHCI_REASON result);
-static void bta_dm_ble_id_key_cback(uint8_t key_type,
-                                    tBTM_BLE_LOCAL_KEYS* p_key);
+static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
+                                        tBTM_LE_EVT_DATA* p_data);
+static tBTM_STATUS bta_dm_new_link_key_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
+                                             BD_NAME bd_name, const LinkKey& key, uint8_t key_type,
+                                             bool is_ctkd);
+static tBTM_STATUS bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
+                                    const BD_NAME bd_name, bool min_16_digit);
+static tBTM_STATUS bta_dm_sirk_verifiction_cback(const RawAddress& bd_addr);
+static void bta_dm_authentication_complete_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
+                                                 BD_NAME bd_name, tHCI_REASON result);
+static void bta_dm_ble_id_key_cback(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key);
 static void bta_dm_bond_cancel_complete_cback(tBTM_STATUS result);
 static void bta_dm_remove_sec_dev_entry(const RawAddress& remote_bd_addr);
 static void bta_dm_reset_sec_dev_pending(const RawAddress& remote_bd_addr);
 
 /* bta security callback */
 const tBTM_APPL_INFO bta_security = {
-    .p_pin_callback = &bta_dm_pin_cback,
-    .p_link_key_callback = &bta_dm_new_link_key_cback,
-    .p_auth_complete_callback = &bta_dm_authentication_complete_cback,
-    .p_bond_cancel_cmpl_callback = &bta_dm_bond_cancel_complete_cback,
-    .p_sp_callback = &bta_dm_sp_cback,
-    .p_le_callback = &bta_dm_ble_smp_cback,
-    .p_le_key_callback = &bta_dm_ble_id_key_cback,
-    .p_sirk_verification_callback = &bta_dm_sirk_verifiction_cback};
+        .p_pin_callback = &bta_dm_pin_cback,
+        .p_link_key_callback = &bta_dm_new_link_key_cback,
+        .p_auth_complete_callback = &bta_dm_authentication_complete_cback,
+        .p_bond_cancel_cmpl_callback = &bta_dm_bond_cancel_complete_cback,
+        .p_sp_callback = &bta_dm_sp_cback,
+        .p_le_callback = &bta_dm_ble_smp_cback,
+        .p_le_key_callback = &bta_dm_ble_id_key_cback,
+        .p_sirk_verification_callback = &bta_dm_sirk_verifiction_cback};
 
 void btm_sec_on_hw_on() {
   tBTA_DM_SEC_CBACK* temp_sec_cback = bta_dm_sec_cb.p_sec_cback;
@@ -82,33 +78,33 @@ void bta_dm_ble_sirk_sec_cb_register(tBTA_DM_SEC_CBACK* p_cback) {
   bta_dm_sec_cb.p_sec_sirk_cback = p_cback;
 }
 
-void bta_dm_ble_sirk_confirm_device_reply(const RawAddress& bd_addr,
-                                          bool accept) {
+void bta_dm_ble_sirk_confirm_device_reply(const RawAddress& bd_addr, bool accept) {
   log::debug("addr:{}", bd_addr);
   get_btm_client_interface().security.BTM_BleSirkConfirmDeviceReply(
-      bd_addr, accept ? BTM_SUCCESS : BTM_NOT_AUTHORIZED);
+          bd_addr, accept ? tBTM_STATUS::BTM_SUCCESS : tBTM_STATUS::BTM_NOT_AUTHORIZED);
 }
 
-void bta_dm_consolidate(const RawAddress& identity_addr,
-                        const RawAddress& rpa) {
+void bta_dm_consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {
   for (auto i = 0; i < bta_dm_cb.device_list.count; i++) {
-    if (bta_dm_cb.device_list.peer_device[i].peer_bdaddr != rpa) continue;
+    if (bta_dm_cb.device_list.peer_device[i].peer_bdaddr != rpa) {
+      continue;
+    }
 
     log::info("consolidating bda_dm_cb record {} -> {}", rpa, identity_addr);
     bta_dm_cb.device_list.peer_device[i].peer_bdaddr = identity_addr;
   }
 }
 
-void btm_dm_sec_init() {
-  get_btm_client_interface().security.BTM_SecRegister(&bta_security);
-}
+void btm_dm_sec_init() { get_btm_client_interface().security.BTM_SecRegister(&bta_security); }
 
 /** Initialises the BT device security manager */
 void bta_dm_sec_enable(tBTA_DM_SEC_CBACK* p_sec_cback) {
   /* make sure security callback is saved - if no callback, do not erase the
   previous one,
   it could be an error recovery mechanism */
-  if (p_sec_cback != NULL) bta_dm_sec_cb.p_sec_cback = p_sec_cback;
+  if (p_sec_cback != NULL) {
+    bta_dm_sec_cb.p_sec_cback = p_sec_cback;
+  }
 }
 
 void bta_dm_remote_key_missing(const RawAddress bd_addr) {
@@ -120,30 +116,28 @@ void bta_dm_remote_key_missing(const RawAddress bd_addr) {
 }
 
 /** Bonds with peer device */
-void bta_dm_bond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
-                 tBT_TRANSPORT transport, tBT_DEVICE_TYPE device_type) {
-  log::debug("Bonding with peer device:{} type:{} transport:{} type:{}",
-             bd_addr, AddressTypeText(addr_type), bt_transport_text(transport),
-             DeviceTypeText(device_type));
+void bta_dm_bond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TRANSPORT transport,
+                 tBT_DEVICE_TYPE device_type) {
+  log::debug("Bonding with peer device:{} type:{} transport:{} type:{}", bd_addr,
+             AddressTypeText(addr_type), bt_transport_text(transport), DeviceTypeText(device_type));
 
   tBTA_DM_SEC sec_event;
 
-  tBTM_STATUS status = get_btm_client_interface().security.BTM_SecBond(
-      bd_addr, addr_type, transport, device_type);
+  tBTM_STATUS status = get_btm_client_interface().security.BTM_SecBond(bd_addr, addr_type,
+                                                                       transport, device_type);
 
-  if (bta_dm_sec_cb.p_sec_cback && (status != BTM_CMD_STARTED)) {
+  if (bta_dm_sec_cb.p_sec_cback && (status != tBTM_STATUS::BTM_CMD_STARTED)) {
     memset(&sec_event, 0, sizeof(tBTA_DM_SEC));
     sec_event.auth_cmpl.bd_addr = bd_addr;
-    bd_name_from_char_pointer(
-        sec_event.auth_cmpl.bd_name,
-        get_btm_client_interface().security.BTM_SecReadDevName(bd_addr));
+    bd_name_from_char_pointer(sec_event.auth_cmpl.bd_name,
+                              get_btm_client_interface().security.BTM_SecReadDevName(bd_addr));
 
     /*      taken care of by memset [above]
             sec_event.auth_cmpl.key_present = false;
             sec_event.auth_cmpl.success = false;
     */
     sec_event.auth_cmpl.fail_reason = HCI_ERR_ILLEGAL_COMMAND;
-    if (status == BTM_SUCCESS) {
+    if (status == tBTM_STATUS::BTM_SUCCESS) {
       sec_event.auth_cmpl.success = true;
     } else {
       /* delete this device entry from Sec Dev DB */
@@ -163,7 +157,7 @@ void bta_dm_bond_cancel(const RawAddress& bd_addr) {
   status = get_btm_client_interface().security.BTM_SecBondCancel(bd_addr);
 
   if (bta_dm_sec_cb.p_sec_cback &&
-      (status != BTM_CMD_STARTED && status != BTM_SUCCESS)) {
+      (status != tBTM_STATUS::BTM_CMD_STARTED && status != tBTM_STATUS::BTM_SUCCESS)) {
     sec_event.bond_cancel_cmpl.result = BTA_FAILURE;
 
     bta_dm_sec_cb.p_sec_cback(BTA_DM_BOND_CANCEL_CMPL_EVT, &sec_event);
@@ -173,25 +167,26 @@ void bta_dm_bond_cancel(const RawAddress& bd_addr) {
 /** Send the pin_reply to a request from BTM */
 void bta_dm_pin_reply(std::unique_ptr<tBTA_DM_API_PIN_REPLY> msg) {
   if (msg->accept) {
-    get_btm_client_interface().security.BTM_PINCodeReply(
-        msg->bd_addr, BTM_SUCCESS, msg->pin_len, msg->p_pin);
+    get_btm_client_interface().security.BTM_PINCodeReply(msg->bd_addr, tBTM_STATUS::BTM_SUCCESS,
+                                                         msg->pin_len, msg->p_pin);
   } else {
-    get_btm_client_interface().security.BTM_PINCodeReply(
-        msg->bd_addr, BTM_NOT_AUTHORIZED, 0, NULL);
+    get_btm_client_interface().security.BTM_PINCodeReply(msg->bd_addr,
+                                                         tBTM_STATUS::BTM_NOT_AUTHORIZED, 0, NULL);
   }
 }
 
 /** Send the user confirm request reply in response to a request from BTM */
 void bta_dm_confirm(const RawAddress& bd_addr, bool accept) {
   get_btm_client_interface().security.BTM_SecConfirmReqReply(
-      accept ? BTM_SUCCESS : BTM_NOT_AUTHORIZED, BT_TRANSPORT_BR_EDR, bd_addr);
+          accept ? tBTM_STATUS::BTM_SUCCESS : tBTM_STATUS::BTM_NOT_AUTHORIZED, BT_TRANSPORT_BR_EDR,
+          bd_addr);
 }
 
 /** respond to the OOB data request for the remote device from BTM */
 void bta_dm_ci_rmt_oob_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB> msg) {
   get_btm_client_interface().security.BTM_RemoteOobDataReply(
-      msg->accept ? BTM_SUCCESS : BTM_NOT_AUTHORIZED, msg->bd_addr, msg->c,
-      msg->r);
+          msg->accept ? tBTM_STATUS::BTM_SUCCESS : tBTM_STATUS::BTM_NOT_AUTHORIZED, msg->bd_addr,
+          msg->c, msg->r);
 }
 
 /*******************************************************************************
@@ -212,14 +207,15 @@ static void bta_dm_pinname_cback(const tBTM_REMOTE_DEV_NAME* p_data) {
     /* Retrieved saved device class and bd_addr */
     sec_event.cfm_req.bd_addr = bta_dm_sec_cb.pin_bd_addr;
     sec_event.cfm_req.dev_class = bta_dm_sec_cb.pin_dev_class;
+    log::info("CoD: sec_event.cfm_req.dev_class = {}", dev_class_text(sec_event.cfm_req.dev_class));
 
-    if (p_result && p_result->status == BTM_SUCCESS) {
+    if (p_result && p_result->btm_status == tBTM_STATUS::BTM_SUCCESS) {
       bd_name_copy(sec_event.cfm_req.bd_name, p_result->remote_bd_name);
-    } else /* No name found */
+    } else { /* No name found */
       sec_event.cfm_req.bd_name[0] = 0;
+    }
 
-    sec_event.key_notif.passkey =
-        bta_dm_sec_cb.num_val; /* get PIN code numeric number */
+    sec_event.key_notif.passkey = bta_dm_sec_cb.num_val; /* get PIN code numeric number */
 
     /* 1 additional event data fields for this event */
     sec_event.cfm_req.just_works = bta_dm_sec_cb.just_works;
@@ -234,17 +230,19 @@ static void bta_dm_pinname_cback(const tBTM_REMOTE_DEV_NAME* p_data) {
     sec_event.pin_req.bd_addr = bta_dm_sec_cb.pin_bd_addr;
     sec_event.pin_req.dev_class = bta_dm_sec_cb.pin_dev_class;
 
-    if (p_result && p_result->status == BTM_SUCCESS) {
+    if (p_result && p_result->btm_status == tBTM_STATUS::BTM_SUCCESS) {
       bd_name_copy(sec_event.pin_req.bd_name, p_result->remote_bd_name);
-    } else /* No name found */
+    } else { /* No name found */
       sec_event.pin_req.bd_name[0] = 0;
+    }
 
     event = bta_dm_sec_cb.pin_evt;
-    sec_event.key_notif.passkey =
-        bta_dm_sec_cb.num_val; /* get PIN code numeric number */
+    sec_event.key_notif.passkey = bta_dm_sec_cb.num_val; /* get PIN code numeric number */
   }
 
-  if (bta_dm_sec_cb.p_sec_cback) bta_dm_sec_cb.p_sec_cback(event, &sec_event);
+  if (bta_dm_sec_cb.p_sec_cback) {
+    bta_dm_sec_cb.p_sec_cback(event, &sec_event);
+  }
 }
 
 /*******************************************************************************
@@ -256,9 +254,11 @@ static void bta_dm_pinname_cback(const tBTM_REMOTE_DEV_NAME* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-static uint8_t bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
-                                const BD_NAME bd_name, bool min_16_digit) {
-  if (!bta_dm_sec_cb.p_sec_cback) return BTM_NOT_AUTHORIZED;
+static tBTM_STATUS bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
+                                    const BD_NAME bd_name, bool min_16_digit) {
+  if (!bta_dm_sec_cb.p_sec_cback) {
+    return tBTM_STATUS::BTM_NOT_AUTHORIZED;
+  }
 
   /* If the device name is not known, save bdaddr and devclass and initiate a
    * name request */
@@ -266,24 +266,25 @@ static uint8_t bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
     bta_dm_sec_cb.pin_evt = BTA_DM_PIN_REQ_EVT;
     bta_dm_sec_cb.pin_bd_addr = bd_addr;
     bta_dm_sec_cb.pin_dev_class = dev_class;
-    if ((get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
-            bd_addr, bta_dm_pinname_cback, BT_TRANSPORT_BR_EDR)) ==
-        BTM_CMD_STARTED)
-      return BTM_CMD_STARTED;
+    if ((get_stack_rnr_interface().BTM_ReadRemoteDeviceName(bd_addr, bta_dm_pinname_cback,
+                                                            BT_TRANSPORT_BR_EDR)) ==
+        tBTM_STATUS::BTM_CMD_STARTED) {
+      return tBTM_STATUS::BTM_CMD_STARTED;
+    }
 
     log::warn("Failed to start Remote Name Request, addr:{}", bd_addr);
   }
 
   tBTA_DM_SEC sec_event = {.pin_req = {
-                               .bd_addr = bd_addr,
-                               .dev_class = dev_class,
-                               .bd_name = "",
-                               .min_16_digit = min_16_digit,
+                                   .bd_addr = bd_addr,
+                                   .dev_class = dev_class,
+                                   .bd_name = "",
+                                   .min_16_digit = min_16_digit,
                            }};
   bd_name_copy(sec_event.pin_req.bd_name, bd_name);
 
   bta_dm_sec_cb.p_sec_cback(BTA_DM_PIN_REQ_EVT, &sec_event);
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
@@ -295,10 +296,9 @@ static uint8_t bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
  * Returns          void
  *
  ******************************************************************************/
-static uint8_t bta_dm_new_link_key_cback(const RawAddress& bd_addr,
-                                         DEV_CLASS /* dev_class */,
-                                         BD_NAME bd_name, const LinkKey& key,
-                                         uint8_t key_type, bool is_ctkd) {
+static tBTM_STATUS bta_dm_new_link_key_cback(const RawAddress& bd_addr, DEV_CLASS /* dev_class */,
+                                             BD_NAME bd_name, const LinkKey& key, uint8_t key_type,
+                                             bool is_ctkd) {
   tBTA_DM_SEC sec_event;
   tBTA_DM_AUTH_CMPL* p_auth_cmpl;
   tBTA_DM_SEC_EVT event = BTA_DM_AUTH_CMPL_EVT;
@@ -319,18 +319,21 @@ static uint8_t bta_dm_new_link_key_cback(const RawAddress& bd_addr,
   sec_event.auth_cmpl.fail_reason = HCI_SUCCESS;
 
   // Report the BR link key based on the BR/EDR address and type
-  get_btm_client_interface().peer.BTM_ReadDevInfo(
-      bd_addr, &sec_event.auth_cmpl.dev_type, &sec_event.auth_cmpl.addr_type);
-  if (bta_dm_sec_cb.p_sec_cback) bta_dm_sec_cb.p_sec_cback(event, &sec_event);
+  get_btm_client_interface().peer.BTM_ReadDevInfo(bd_addr, &sec_event.auth_cmpl.dev_type,
+                                                  &sec_event.auth_cmpl.addr_type);
+  if (bta_dm_sec_cb.p_sec_cback) {
+    bta_dm_sec_cb.p_sec_cback(event, &sec_event);
+  }
 
   // Setting remove_dev_pending flag to false, where it will avoid deleting
   // the
   // security device record when the ACL connection link goes down in case of
   // reconnection.
-  if (bta_dm_cb.device_list.count)
+  if (bta_dm_cb.device_list.count) {
     bta_dm_reset_sec_dev_pending(p_auth_cmpl->bd_addr);
+  }
 
-  return BTM_CMD_STARTED;
+  return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
 /*******************************************************************************
@@ -343,24 +346,22 @@ static uint8_t bta_dm_new_link_key_cback(const RawAddress& bd_addr,
  *
  ******************************************************************************/
 static void bta_dm_authentication_complete_cback(const RawAddress& bd_addr,
-                                                 DEV_CLASS /* dev_class */,
-                                                 BD_NAME bd_name,
+                                                 DEV_CLASS /* dev_class */, BD_NAME bd_name,
                                                  tHCI_REASON reason) {
   if (reason != HCI_SUCCESS) {
     if (bta_dm_sec_cb.p_sec_cback) {
       // Build out the security event data structure
       tBTA_DM_SEC sec_event = {
-          .auth_cmpl =
-              {
-                  .bd_addr = bd_addr,
-              },
+              .auth_cmpl =
+                      {
+                              .bd_addr = bd_addr,
+                      },
       };
       bd_name_copy(sec_event.auth_cmpl.bd_name, bd_name);
 
       // Report the BR link key based on the BR/EDR address and type
-      get_btm_client_interface().peer.BTM_ReadDevInfo(
-          bd_addr, &sec_event.auth_cmpl.dev_type,
-          &sec_event.auth_cmpl.addr_type);
+      get_btm_client_interface().peer.BTM_ReadDevInfo(bd_addr, &sec_event.auth_cmpl.dev_type,
+                                                      &sec_event.auth_cmpl.addr_type);
       sec_event.auth_cmpl.fail_reason = reason;
 
       bta_dm_sec_cb.p_sec_cback(BTA_DM_AUTH_CMPL_EVT, &sec_event);
@@ -390,14 +391,15 @@ static void bta_dm_authentication_complete_cback(const RawAddress& bd_addr,
  * Returns          void
  *
  ******************************************************************************/
-static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
-                                   tBTM_SP_EVT_DATA* p_data) {
-  tBTM_STATUS status = BTM_CMD_STARTED;
+static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) {
+  tBTM_STATUS status = tBTM_STATUS::BTM_CMD_STARTED;
   tBTA_DM_SEC sec_event = {};
   tBTA_DM_SEC_EVT pin_evt = BTA_DM_SP_KEY_NOTIF_EVT;
 
   log::verbose("event:{}", sp_evt_to_text(event));
-  if (!bta_dm_sec_cb.p_sec_cback) return BTM_NOT_AUTHORIZED;
+  if (!bta_dm_sec_cb.p_sec_cback) {
+    return tBTM_STATUS::BTM_NOT_AUTHORIZED;
+  }
 
   bool sp_rmt_result = false;
   /* TODO_SP */
@@ -406,18 +408,16 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
       /* translate auth_req */
       btif_dm_set_oob_for_io_req(&p_data->io_req.oob_data);
       btif_dm_proc_io_req(&p_data->io_req.auth_req, p_data->io_req.is_orig);
-      log::verbose("io mitm: {} oob_data:{}", p_data->io_req.auth_req,
-                   p_data->io_req.oob_data);
+      log::verbose("io mitm: {} oob_data:{}", p_data->io_req.auth_req, p_data->io_req.oob_data);
       break;
     case BTM_SP_IO_RSP_EVT:
-      btif_dm_proc_io_rsp(p_data->io_rsp.bd_addr, p_data->io_rsp.io_cap,
-                          p_data->io_rsp.oob_data, p_data->io_rsp.auth_req);
+      btif_dm_proc_io_rsp(p_data->io_rsp.bd_addr, p_data->io_rsp.io_cap, p_data->io_rsp.oob_data,
+                          p_data->io_rsp.auth_req);
       break;
 
     case BTM_SP_CFM_REQ_EVT:
       pin_evt = BTA_DM_SP_CFM_REQ_EVT;
-      bta_dm_sec_cb.just_works = sec_event.cfm_req.just_works =
-          p_data->cfm_req.just_works;
+      bta_dm_sec_cb.just_works = sec_event.cfm_req.just_works = p_data->cfm_req.just_works;
       sec_event.cfm_req.loc_auth_req = p_data->cfm_req.loc_auth_req;
       sec_event.cfm_req.rmt_auth_req = p_data->cfm_req.rmt_auth_req;
       sec_event.cfm_req.loc_io_caps = p_data->cfm_req.loc_io_caps;
@@ -430,8 +430,7 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
     case BTM_SP_KEY_NOTIF_EVT:
       // TODO PleaseFix: This assignment only works with event
       // BTM_SP_KEY_NOTIF_EVT
-      bta_dm_sec_cb.num_val = sec_event.key_notif.passkey =
-          p_data->key_notif.passkey;
+      bta_dm_sec_cb.num_val = sec_event.key_notif.passkey = p_data->key_notif.passkey;
 
       if (BTM_SP_CFM_REQ_EVT == event) {
         /* Due to the switch case falling through below to
@@ -439,6 +438,8 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
            copy these values into key_notif from cfm_req */
         sec_event.key_notif.bd_addr = p_data->cfm_req.bd_addr;
         sec_event.key_notif.dev_class = p_data->cfm_req.dev_class;
+        log::info("CoD: sec_event.key_notif.dev_class = {}",
+                  dev_class_text(sec_event.key_notif.dev_class));
         bd_name_copy(sec_event.key_notif.bd_name, p_data->cfm_req.bd_name);
         /* Due to the switch case falling through below to BTM_SP_KEY_NOTIF_EVT,
            call remote name request using values from cfm_req */
@@ -451,13 +452,13 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
           bta_dm_sec_cb.loc_auth_req = sec_event.cfm_req.loc_auth_req;
 
           bta_dm_sec_cb.pin_dev_class = p_data->cfm_req.dev_class;
+          log::info("CoD: bta_dm_sec_cb.pin_dev_class = {}",
+                    dev_class_text(bta_dm_sec_cb.pin_dev_class));
           {
-            const tBTM_STATUS btm_status =
-                get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
-                    p_data->cfm_req.bd_addr, bta_dm_pinname_cback,
-                    BT_TRANSPORT_BR_EDR);
+            const tBTM_STATUS btm_status = get_stack_rnr_interface().BTM_ReadRemoteDeviceName(
+                    p_data->cfm_req.bd_addr, bta_dm_pinname_cback, BT_TRANSPORT_BR_EDR);
             switch (btm_status) {
-              case BTM_CMD_STARTED:
+              case tBTM_STATUS::BTM_CMD_STARTED:
                 return btm_status;
               default:
                 // NOTE: This will issue callback on this failure path
@@ -475,12 +476,12 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
           bta_dm_sec_cb.pin_evt = pin_evt;
           bta_dm_sec_cb.pin_bd_addr = p_data->key_notif.bd_addr;
           bta_dm_sec_cb.pin_dev_class = p_data->key_notif.dev_class;
-          if ((get_btm_client_interface().peer.BTM_ReadRemoteDeviceName(
-                  p_data->key_notif.bd_addr, bta_dm_pinname_cback,
-                  BT_TRANSPORT_BR_EDR)) == BTM_CMD_STARTED)
-            return BTM_CMD_STARTED;
-          log::warn("Failed to start Remote Name Request, addr:{}",
-                    p_data->key_notif.bd_addr);
+          if ((get_stack_rnr_interface().BTM_ReadRemoteDeviceName(
+                      p_data->key_notif.bd_addr, bta_dm_pinname_cback, BT_TRANSPORT_BR_EDR)) ==
+              tBTM_STATUS::BTM_CMD_STARTED) {
+            return tBTM_STATUS::BTM_CMD_STARTED;
+          }
+          log::warn("Failed to start Remote Name Request, addr:{}", p_data->key_notif.bd_addr);
         } else {
           sec_event.key_notif.bd_addr = p_data->key_notif.bd_addr;
           sec_event.key_notif.dev_class = p_data->key_notif.dev_class;
@@ -496,7 +497,7 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
     case BTM_SP_LOC_OOB_EVT:
       // BR/EDR OOB pairing is not supported with Secure Connections
       btif_dm_proc_loc_oob(BT_TRANSPORT_BR_EDR,
-                           (bool)(p_data->loc_oob.status == BTM_SUCCESS),
+                           (bool)(p_data->loc_oob.status == tBTM_STATUS::BTM_SUCCESS),
                            p_data->loc_oob.c_192, p_data->loc_oob.r_192);
       break;
 
@@ -511,7 +512,7 @@ static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event,
     }
 
     default:
-      status = BTM_NOT_AUTHORIZED;
+      status = tBTM_STATUS::BTM_NOT_AUTHORIZED;
       break;
   }
   log::verbose("dm status:{}", status);
@@ -556,14 +557,10 @@ static void bta_dm_reset_sec_dev_pending(const RawAddress& remote_bd_addr) {
  *
  ******************************************************************************/
 static void bta_dm_remove_sec_dev_entry(const RawAddress& remote_bd_addr) {
-  if (get_btm_client_interface().peer.BTM_IsAclConnectionUp(remote_bd_addr,
-                                                            BT_TRANSPORT_LE) ||
-      get_btm_client_interface().peer.BTM_IsAclConnectionUp(
-          remote_bd_addr, BT_TRANSPORT_BR_EDR)) {
-    log::debug("ACL is not down. Schedule for Dev Removal when ACL closes:{}",
-               remote_bd_addr);
-    get_btm_client_interface().security.BTM_SecClearSecurityFlags(
-        remote_bd_addr);
+  if (get_btm_client_interface().peer.BTM_IsAclConnectionUp(remote_bd_addr, BT_TRANSPORT_LE) ||
+      get_btm_client_interface().peer.BTM_IsAclConnectionUp(remote_bd_addr, BT_TRANSPORT_BR_EDR)) {
+    log::debug("ACL is not down. Schedule for Dev Removal when ACL closes:{}", remote_bd_addr);
+    get_btm_client_interface().security.BTM_SecClearSecurityFlags(remote_bd_addr);
     for (int i = 0; i < bta_dm_cb.device_list.count; i++) {
       auto& dev = bta_dm_cb.device_list.peer_device[i];
       if (dev.peer_bdaddr == remote_bd_addr) {
@@ -592,30 +589,33 @@ static void bta_dm_remove_sec_dev_entry(const RawAddress& remote_bd_addr) {
 static void bta_dm_bond_cancel_complete_cback(tBTM_STATUS result) {
   tBTA_DM_SEC sec_event;
 
-  if (result == BTM_SUCCESS)
+  if (result == tBTM_STATUS::BTM_SUCCESS) {
     sec_event.bond_cancel_cmpl.result = BTA_SUCCESS;
-  else
+  } else {
     sec_event.bond_cancel_cmpl.result = BTA_FAILURE;
+  }
 
   if (bta_dm_sec_cb.p_sec_cback) {
     bta_dm_sec_cb.p_sec_cback(BTA_DM_BOND_CANCEL_CMPL_EVT, &sec_event);
   }
 }
 
-static void ble_io_req(const RawAddress& bd_addr, tBTM_IO_CAP* p_io_cap,
-                       tBTM_OOB_DATA* p_oob_data, tBTM_LE_AUTH_REQ* p_auth_req,
-                       uint8_t* p_max_key_size, tBTM_LE_KEY_TYPE* p_init_key,
-                       tBTM_LE_KEY_TYPE* p_resp_key) {
+static void ble_io_req(const RawAddress& bd_addr, tBTM_IO_CAP* p_io_cap, tBTM_OOB_DATA* p_oob_data,
+                       tBTM_LE_AUTH_REQ* p_auth_req, uint8_t* p_max_key_size,
+                       tBTM_LE_KEY_TYPE* p_init_key, tBTM_LE_KEY_TYPE* p_resp_key) {
   /* Retrieve the properties from file system if possible */
   tBTE_APPL_CFG nv_config;
-  if (btif_dm_get_smp_config(&nv_config)) bte_appl_cfg = nv_config;
+  if (btif_dm_get_smp_config(&nv_config)) {
+    bte_appl_cfg = nv_config;
+  }
 
   /* *p_auth_req by default is false for devices with NoInputNoOutput; true for
    * other devices. */
 
-  if (bte_appl_cfg.ble_auth_req)
-    *p_auth_req = bte_appl_cfg.ble_auth_req |
-                  (bte_appl_cfg.ble_auth_req & 0x04) | ((*p_auth_req) & 0x04);
+  if (bte_appl_cfg.ble_auth_req) {
+    *p_auth_req =
+            bte_appl_cfg.ble_auth_req | (bte_appl_cfg.ble_auth_req & 0x04) | ((*p_auth_req) & 0x04);
+  }
 
   /* if OOB is not supported, this call-out function does not need to do
    * anything
@@ -628,17 +628,21 @@ static void ble_io_req(const RawAddress& bd_addr, tBTM_IO_CAP* p_io_cap,
 
   btif_dm_set_oob_for_le_io_req(bd_addr, p_oob_data, p_auth_req);
 
-  if (bte_appl_cfg.ble_io_cap <= 4)
+  if (bte_appl_cfg.ble_io_cap <= 4) {
     *p_io_cap = static_cast<tBTM_IO_CAP>(bte_appl_cfg.ble_io_cap);
+  }
 
-  if (bte_appl_cfg.ble_init_key <= BTM_BLE_INITIATOR_KEY_SIZE)
+  if (bte_appl_cfg.ble_init_key <= BTM_BLE_INITIATOR_KEY_SIZE) {
     *p_init_key = bte_appl_cfg.ble_init_key;
+  }
 
-  if (bte_appl_cfg.ble_resp_key <= BTM_BLE_RESPONDER_KEY_SIZE)
+  if (bte_appl_cfg.ble_resp_key <= BTM_BLE_RESPONDER_KEY_SIZE) {
     *p_resp_key = bte_appl_cfg.ble_resp_key;
+  }
 
-  if (bte_appl_cfg.ble_max_key_size > 7 && bte_appl_cfg.ble_max_key_size <= 16)
+  if (bte_appl_cfg.ble_max_key_size > 7 && bte_appl_cfg.ble_max_key_size <= 16) {
     *p_max_key_size = bte_appl_cfg.ble_max_key_size;
+  }
 }
 
 /*******************************************************************************
@@ -651,69 +655,82 @@ static void ble_io_req(const RawAddress& bd_addr, tBTM_IO_CAP* p_io_cap,
  * Returns          void
  *
  ******************************************************************************/
-static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
-                                    tBTM_LE_EVT_DATA* p_data) {
-  tBTM_STATUS status = BTM_SUCCESS;
-  tBTA_DM_SEC sec_event;
+static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
+                                        tBTM_LE_EVT_DATA* p_data) {
+  tBTM_STATUS status = tBTM_STATUS::BTM_SUCCESS;
+  tBTA_DM_SEC sec_event = {};
 
   log::debug("addr:{},event:{}", bda, ble_evt_to_text(event));
 
-  if (!bta_dm_sec_cb.p_sec_cback) return BTM_NOT_AUTHORIZED;
+  if (!bta_dm_sec_cb.p_sec_cback) {
+    return tBTM_STATUS::BTM_NOT_AUTHORIZED;
+  }
 
-  memset(&sec_event, 0, sizeof(tBTA_DM_SEC));
+  DEV_CLASS dev_class = get_btm_client_interface().security.BTM_SecReadDevClass(bda);
+  if (!com::android::bluetooth::flags::read_le_appearance()) {
+    dev_class = kDevClassEmpty;
+  }
+
   switch (event) {
     case BTM_LE_IO_REQ_EVT:
-      ble_io_req(bda, &p_data->io_req.io_cap, &p_data->io_req.oob_data,
-                 &p_data->io_req.auth_req, &p_data->io_req.max_key_size,
-                 &p_data->io_req.init_keys, &p_data->io_req.resp_keys);
-      log::info("io mitm:{} oob_data:{}", p_data->io_req.auth_req,
-                p_data->io_req.oob_data);
+      ble_io_req(bda, &p_data->io_req.io_cap, &p_data->io_req.oob_data, &p_data->io_req.auth_req,
+                 &p_data->io_req.max_key_size, &p_data->io_req.init_keys,
+                 &p_data->io_req.resp_keys);
+      log::info("io mitm:{} oob_data:{}", p_data->io_req.auth_req, p_data->io_req.oob_data);
       break;
 
     case BTM_LE_CONSENT_REQ_EVT:
       sec_event.ble_req.bd_addr = bda;
-      bd_name_from_char_pointer(
-          sec_event.ble_req.bd_name,
-          get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      bd_name_from_char_pointer(sec_event.ble_req.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.ble_req.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_CONSENT_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_SEC_REQUEST_EVT:
       sec_event.ble_req.bd_addr = bda;
-      bd_name_from_char_pointer(
-          sec_event.ble_req.bd_name,
-          get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      bd_name_from_char_pointer(sec_event.ble_req.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.ble_req.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_SEC_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_KEY_NOTIF_EVT:
       sec_event.key_notif.bd_addr = bda;
-      bd_name_from_char_pointer(
-          sec_event.key_notif.bd_name,
-          get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      bd_name_from_char_pointer(sec_event.key_notif.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.key_notif.dev_class = dev_class;
       sec_event.key_notif.passkey = p_data->key_notif;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_PASSKEY_NOTIF_EVT, &sec_event);
       break;
 
     case BTM_LE_KEY_REQ_EVT:
-      sec_event.ble_req.bd_addr = bda;
+      sec_event.pin_req.bd_addr = bda;
+      bd_name_from_char_pointer(sec_event.pin_req.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.pin_req.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_PASSKEY_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_OOB_REQ_EVT:
-      sec_event.ble_req.bd_addr = bda;
+      sec_event.rmt_oob.bd_addr = bda;
+      bd_name_from_char_pointer(sec_event.rmt_oob.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.rmt_oob.dev_class = dev_class;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_OOB_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_NC_REQ_EVT:
       sec_event.key_notif.bd_addr = bda;
-      bd_name_clear(sec_event.key_notif.bd_name);
+      bd_name_from_char_pointer(sec_event.key_notif.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      sec_event.key_notif.dev_class = dev_class;
       sec_event.key_notif.passkey = p_data->key_notif;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_NC_REQ_EVT, &sec_event);
       break;
 
     case BTM_LE_SC_OOB_REQ_EVT:
-      sec_event.ble_req.bd_addr = bda;
+      sec_event.rmt_oob.bd_addr = bda;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_BLE_SC_OOB_REQ_EVT, &sec_event);
       break;
 
@@ -734,27 +751,22 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
 
     case BTM_LE_COMPLT_EVT:
       sec_event.auth_cmpl.bd_addr = bda;
-      get_btm_client_interface().peer.BTM_ReadDevInfo(
-          bda, &sec_event.auth_cmpl.dev_type, &sec_event.auth_cmpl.addr_type);
-      bd_name_from_char_pointer(
-          sec_event.auth_cmpl.bd_name,
-          get_btm_client_interface().security.BTM_SecReadDevName(bda));
+      get_btm_client_interface().peer.BTM_ReadDevInfo(bda, &sec_event.auth_cmpl.dev_type,
+                                                      &sec_event.auth_cmpl.addr_type);
+      bd_name_from_char_pointer(sec_event.auth_cmpl.bd_name,
+                                get_btm_client_interface().security.BTM_SecReadDevName(bda));
 
       if (p_data->complt.reason != SMP_SUCCESS) {
         // TODO This is not a proper use of this type
-        sec_event.auth_cmpl.fail_reason =
-            static_cast<tHCI_STATUS>(BTA_DM_AUTH_CONVERT_SMP_CODE(
-                (static_cast<uint8_t>(p_data->complt.reason))));
+        sec_event.auth_cmpl.fail_reason = static_cast<tHCI_STATUS>(
+                BTA_DM_AUTH_CONVERT_SMP_CODE(static_cast<uint8_t>(p_data->complt.reason)));
 
-        if (btm_sec_is_a_bonded_dev(bda) &&
-            p_data->complt.reason == SMP_CONN_TOUT &&
+        if (btm_sec_is_a_bonded_dev(bda) && p_data->complt.reason == SMP_CONN_TOUT &&
             !p_data->complt.smp_over_br) {
           // Bonded device failed to encrypt - to test this remove battery from
           // HID device right after connection, but before encryption is
           // established
-          log::warn(
-              "bonded device disconnected when encrypting - no reason to "
-              "unbond");
+          log::warn("bonded device disconnected when encrypting - no reason to unbond");
         } else {
           /* delete this device entry from Sec Dev DB */
           bta_dm_remove_sec_dev_entry(bda);
@@ -762,8 +774,9 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
 
       } else {
         sec_event.auth_cmpl.success = true;
-        if (!p_data->complt.smp_over_br)
+        if (!p_data->complt.smp_over_br) {
           GATT_ConfigServiceChangeCCC(bda, true, BT_TRANSPORT_LE);
+        }
       }
 
       if (bta_dm_sec_cb.p_sec_cback) {
@@ -779,7 +792,7 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
       break;
 
     default:
-      status = BTM_NOT_AUTHORIZED;
+      status = tBTM_STATUS::BTM_NOT_AUTHORIZED;
       break;
   }
   return status;
@@ -794,8 +807,8 @@ static uint8_t bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda,
  * Returns         None
  *
  ******************************************************************************/
-void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
-                          void* /* p_ref_data */, tBTM_STATUS result) {
+void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport, void* /* p_ref_data */,
+                          tBTM_STATUS result) {
   tBTA_DM_ENCRYPT_CBACK* p_callback = nullptr;
   tBTA_DM_PEER_DEVICE* device = find_connected_device(bd_addr, transport);
   if (device != nullptr) {
@@ -804,21 +817,20 @@ void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
   }
 
   log::debug("Encrypted:{:c}, peer:{} transport:{} status:{} callback:{:c}",
-             result == BTM_SUCCESS ? 'T' : 'F', bd_addr,
-             bt_transport_text(transport), btm_status_text(result),
-             (p_callback) ? 'T' : 'F');
+             result == tBTM_STATUS::BTM_SUCCESS ? 'T' : 'F', bd_addr, bt_transport_text(transport),
+             btm_status_text(result), (p_callback) ? 'T' : 'F');
 
   tBTA_STATUS bta_status = BTA_SUCCESS;
   switch (result) {
-    case BTM_SUCCESS:
+    case tBTM_STATUS::BTM_SUCCESS:
       break;
-    case BTM_WRONG_MODE:
+    case tBTM_STATUS::BTM_WRONG_MODE:
       bta_status = BTA_WRONG_MODE;
       break;
-    case BTM_NO_RESOURCES:
+    case tBTM_STATUS::BTM_NO_RESOURCES:
       bta_status = BTA_NO_RESOURCES;
       break;
-    case BTM_BUSY:
+    case tBTM_STATUS::BTM_BUSY:
       bta_status = BTA_BUSY;
       break;
     default:
@@ -833,8 +845,7 @@ void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport,
 
 /**This function to encrypt the link */
 void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
-                           tBTA_DM_ENCRYPT_CBACK* p_callback,
-                           tBTM_BLE_SEC_ACT sec_act) {
+                           tBTA_DM_ENCRYPT_CBACK* p_callback, tBTM_BLE_SEC_ACT sec_act) {
   if (p_callback == nullptr) {
     log::error("callback is not provided,addr:{}", bd_addr);
     return;
@@ -842,29 +853,26 @@ void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
 
   tBTA_DM_PEER_DEVICE* device = find_connected_device(bd_addr, transport);
   if (device == nullptr) {
-    log::error("Unable to find active ACL connection device:{} transport:{}",
-               bd_addr, bt_transport_text(transport));
+    log::error("Unable to find active ACL connection device:{} transport:{}", bd_addr,
+               bt_transport_text(transport));
     return;
   }
 
   if (device->p_encrypt_cback) {
-    log::error(
-        "Unable to start encryption as already in progress peer:{} "
-        "transport:{}",
-        bd_addr, bt_transport_text(transport));
+    log::error("Unable to start encryption as already in progress peer:{} transport:{}", bd_addr,
+               bt_transport_text(transport));
     (*p_callback)(bd_addr, transport, BTA_BUSY);
     return;
   }
 
-  if (get_btm_client_interface().security.BTM_SetEncryption(
-          bd_addr, transport, bta_dm_encrypt_cback, NULL, sec_act) ==
-      BTM_CMD_STARTED) {
+  if (get_btm_client_interface().security.BTM_SetEncryption(bd_addr, transport,
+                                                            bta_dm_encrypt_cback, NULL, sec_act) ==
+      tBTM_STATUS::BTM_CMD_STARTED) {
     device->p_encrypt_cback = p_callback;
-    log::debug("Started encryption peer:{} transport:{}", bd_addr,
-               bt_transport_text(transport));
+    log::debug("Started encryption peer:{} transport:{}", bd_addr, bt_transport_text(transport));
   } else {
-    log::error("Unable to start encryption process peer:{} transport:{}",
-               bd_addr, bt_transport_text(transport));
+    log::error("Unable to start encryption process peer:{} transport:{}", bd_addr,
+               bt_transport_text(transport));
   }
 }
 
@@ -878,20 +886,18 @@ void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
  * Returns          void
  *
  ******************************************************************************/
-static void bta_dm_ble_id_key_cback(uint8_t key_type,
-                                    tBTM_BLE_LOCAL_KEYS* p_key) {
+static void bta_dm_ble_id_key_cback(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key) {
   switch (key_type) {
     case BTM_BLE_KEY_TYPE_ID:
     case BTM_BLE_KEY_TYPE_ER:
       if (bta_dm_sec_cb.p_sec_cback) {
         tBTA_DM_SEC dm_key = {
-            .ble_id_keys = {},
+                .ble_id_keys = {},
         };
         memcpy(&dm_key.ble_id_keys, p_key, sizeof(tBTM_BLE_LOCAL_KEYS));
 
-        tBTA_DM_SEC_EVT evt = (key_type == BTM_BLE_KEY_TYPE_ID)
-                                  ? BTA_DM_BLE_LOCAL_IR_EVT
-                                  : BTA_DM_BLE_LOCAL_ER_EVT;
+        tBTA_DM_SEC_EVT evt = (key_type == BTM_BLE_KEY_TYPE_ID) ? BTA_DM_BLE_LOCAL_IR_EVT
+                                                                : BTA_DM_BLE_LOCAL_ER_EVT;
         bta_dm_sec_cb.p_sec_cback(evt, &dm_key);
       }
       break;
@@ -912,20 +918,20 @@ static void bta_dm_ble_id_key_cback(uint8_t key_type,
  * Returns          void
  *
  ******************************************************************************/
-static uint8_t bta_dm_sirk_verifiction_cback(const RawAddress& bd_addr) {
+static tBTM_STATUS bta_dm_sirk_verifiction_cback(const RawAddress& bd_addr) {
   tBTA_DM_SEC sec_event = {.ble_req = {
-                               .bd_addr = bd_addr,
+                                   .bd_addr = bd_addr,
                            }};
 
   if (bta_dm_sec_cb.p_sec_sirk_cback) {
     log::debug("callback called");
     bta_dm_sec_cb.p_sec_sirk_cback(BTA_DM_SIRK_VERIFICATION_REQ_EVT, &sec_event);
-    return BTM_CMD_STARTED;
+    return tBTM_STATUS::BTM_CMD_STARTED;
   }
 
   log::debug("no callback registered");
 
-  return BTM_SUCCESS_NO_SECURITY;
+  return tBTM_STATUS::BTM_SUCCESS_NO_SECURITY;
 }
 
 /*******************************************************************************
@@ -943,8 +949,8 @@ static uint8_t bta_dm_sirk_verifiction_cback(const RawAddress& bd_addr) {
  ******************************************************************************/
 void bta_dm_add_blekey(const RawAddress& bd_addr, tBTA_LE_KEY_VALUE blekey,
                        tBTM_LE_KEY_TYPE key_type) {
-  get_btm_client_interface().security.BTM_SecAddBleKey(
-      bd_addr, (tBTM_LE_KEY_VALUE*)&blekey, key_type);
+  get_btm_client_interface().security.BTM_SecAddBleKey(bd_addr, (tBTM_LE_KEY_VALUE*)&blekey,
+                                                       key_type);
 }
 
 /*******************************************************************************
@@ -961,8 +967,7 @@ void bta_dm_add_blekey(const RawAddress& bd_addr, tBTA_LE_KEY_VALUE blekey,
  ******************************************************************************/
 void bta_dm_add_ble_device(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                            tBT_DEVICE_TYPE dev_type) {
-  get_btm_client_interface().security.BTM_SecAddBleDevice(bd_addr, dev_type,
-                                                          addr_type);
+  get_btm_client_interface().security.BTM_SecAddBleDevice(bd_addr, dev_type, addr_type);
 }
 
 /*******************************************************************************
@@ -977,23 +982,21 @@ void bta_dm_add_ble_device(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
  * Parameters:
  *
  ******************************************************************************/
-void bta_dm_ble_passkey_reply(const RawAddress& bd_addr, bool accept,
-                              uint32_t passkey) {
+void bta_dm_ble_passkey_reply(const RawAddress& bd_addr, bool accept, uint32_t passkey) {
   get_btm_client_interface().security.BTM_BlePasskeyReply(
-      bd_addr, accept ? BTM_SUCCESS : BTM_NOT_AUTHORIZED, passkey);
+          bd_addr, accept ? tBTM_STATUS::BTM_SUCCESS : tBTM_STATUS::BTM_NOT_AUTHORIZED, passkey);
 }
 
 /** This is response to SM numeric comparison request submitted to application.
  */
 void bta_dm_ble_confirm_reply(const RawAddress& bd_addr, bool accept) {
   get_btm_client_interface().security.BTM_SecConfirmReqReply(
-      accept ? BTM_SUCCESS : BTM_NOT_AUTHORIZED, BT_TRANSPORT_LE, bd_addr);
+          accept ? tBTM_STATUS::BTM_SUCCESS : tBTM_STATUS::BTM_NOT_AUTHORIZED, BT_TRANSPORT_LE,
+          bd_addr);
 }
 
 /** This function set the local device LE privacy settings. */
-void bta_dm_ble_config_local_privacy(bool privacy_enable) {
-  BTM_BleConfigPrivacy(privacy_enable);
-}
+void bta_dm_ble_config_local_privacy(bool privacy_enable) { BTM_BleConfigPrivacy(privacy_enable); }
 
 namespace bluetooth {
 namespace legacy {

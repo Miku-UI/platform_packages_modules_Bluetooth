@@ -42,6 +42,7 @@
     <option name="test-tag" value="BumbleBluetoothTests" />
     <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
         <option name="package" value="android.bluetooth" />
+        <option name="hidden-api-checks" value="false" />
     </test>
 
     <!-- Only run if the Bluetooth Mainline module is installed. -->

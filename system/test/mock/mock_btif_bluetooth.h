@@ -39,7 +39,7 @@ namespace btif_bluetooth {
 // Returns: bool
 struct is_atv_device {
   std::function<bool()> body{[]() { return false; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct is_atv_device is_atv_device;
 // Name: is_common_criteria_mode
@@ -47,7 +47,7 @@ extern struct is_atv_device is_atv_device;
 // Returns: bool
 struct is_common_criteria_mode {
   std::function<bool()> body{[]() { return false; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct is_common_criteria_mode is_common_criteria_mode;
 // Name: is_restricted_mode
@@ -55,30 +55,24 @@ extern struct is_common_criteria_mode is_common_criteria_mode;
 // Returns: bool
 struct is_restricted_mode {
   std::function<bool()> body{[]() { return false; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct is_restricted_mode is_restricted_mode;
 // Name: dut_mode_configure
 // Params: uint8_t enable
 // Returns: int
 struct dut_mode_configure {
-  std::function<int(uint8_t enable)> body{
-      [](uint8_t /* enable */) { return 0; }};
-  int operator()(uint8_t enable) { return body(enable); };
+  std::function<int(uint8_t enable)> body{[](uint8_t /* enable */) { return 0; }};
+  int operator()(uint8_t enable) { return body(enable); }
 };
 extern struct dut_mode_configure dut_mode_configure;
 // Name: dut_mode_send
 // Params: uint16_t opcode, uint8_t* buf, uint8_t len
 // Returns: int
 struct dut_mode_send {
-  std::function<int(uint16_t /* opcode */, uint8_t* /* buf */,
-                    uint8_t /* len */)>
-      body{[](uint16_t /* opcode */, uint8_t* /* buf */, uint8_t /* len */) {
-        return 0;
-      }};
-  int operator()(uint16_t opcode, uint8_t* buf, uint8_t len) {
-    return body(opcode, buf, len);
-  };
+  std::function<int(uint16_t /* opcode */, uint8_t* /* buf */, uint8_t /* len */)> body{
+          [](uint16_t /* opcode */, uint8_t* /* buf */, uint8_t /* len */) { return 0; }};
+  int operator()(uint16_t opcode, uint8_t* buf, uint8_t len) { return body(opcode, buf, len); }
 };
 extern struct dut_mode_send dut_mode_send;
 // Name: get_common_criteria_config_compare_result
@@ -86,17 +80,15 @@ extern struct dut_mode_send dut_mode_send;
 // Returns: int
 struct get_common_criteria_config_compare_result {
   std::function<int()> body{[]() { return 0; }};
-  int operator()() { return body(); };
+  int operator()() { return body(); }
 };
-extern struct get_common_criteria_config_compare_result
-    get_common_criteria_config_compare_result;
+extern struct get_common_criteria_config_compare_result get_common_criteria_config_compare_result;
 // Name: get_remote_device_properties
 // Params: RawAddress* remote_addr
 // Returns: int
 struct get_remote_device_properties {
-  std::function<int(RawAddress* remote_addr)> body{
-      [](RawAddress* /* remote_addr */) { return 0; }};
-  int operator()(RawAddress* remote_addr) { return body(remote_addr); };
+  std::function<int(RawAddress* remote_addr)> body{[](RawAddress* /* remote_addr */) { return 0; }};
+  int operator()(RawAddress* remote_addr) { return body(remote_addr); }
 };
 extern struct get_remote_device_properties get_remote_device_properties;
 // Name: get_remote_device_property
@@ -104,21 +96,18 @@ extern struct get_remote_device_properties get_remote_device_properties;
 // Returns: int
 struct get_remote_device_property {
   std::function<int(RawAddress* remote_addr, bt_property_type_t type)> body{
-      [](RawAddress* /* remote_addr */, bt_property_type_t /* type */) {
-        return 0;
-      }};
+          [](RawAddress* /* remote_addr */, bt_property_type_t /* type */) { return 0; }};
   int operator()(RawAddress* remote_addr, bt_property_type_t type) {
     return body(remote_addr, type);
-  };
+  }
 };
 extern struct get_remote_device_property get_remote_device_property;
 // Name: get_remote_services
 // Params: RawAddress* remote_addr
 // Returns: int
 struct get_remote_services {
-  std::function<int(RawAddress* remote_addr)> body{
-      [](RawAddress* /* remote_addr */) { return 0; }};
-  int operator()(RawAddress* remote_addr) { return body(remote_addr); };
+  std::function<int(RawAddress* remote_addr)> body{[](RawAddress* /* remote_addr */) { return 0; }};
+  int operator()(RawAddress* remote_addr) { return body(remote_addr); }
 };
 extern struct get_remote_services get_remote_services;
 // Name: le_test_mode
@@ -126,24 +115,19 @@ extern struct get_remote_services get_remote_services;
 // Returns: int
 struct le_test_mode {
   std::function<int(uint16_t opcode, uint8_t* buf, uint8_t len)> body{
-      [](uint16_t /* opcode */, uint8_t* /* buf */, uint8_t /* len */) {
-        return 0;
-      }};
-  int operator()(uint16_t opcode, uint8_t* buf, uint8_t len) {
-    return body(opcode, buf, len);
-  };
+          [](uint16_t /* opcode */, uint8_t* /* buf */, uint8_t /* len */) { return 0; }};
+  int operator()(uint16_t opcode, uint8_t* buf, uint8_t len) { return body(opcode, buf, len); }
 };
 extern struct le_test_mode le_test_mode;
 // Name: set_remote_device_property
 // Params: RawAddress* remote_addr, const bt_property_t* property
 // Returns: int
 struct set_remote_device_property {
-  std::function<int(RawAddress* remote_addr, const bt_property_t* property)>
-      body{[](RawAddress* /* remote_addr */,
-              const bt_property_t* /* property */) { return 0; }};
+  std::function<int(RawAddress* remote_addr, const bt_property_t* property)> body{
+          [](RawAddress* /* remote_addr */, const bt_property_t* /* property */) { return 0; }};
   int operator()(RawAddress* remote_addr, const bt_property_t* property) {
     return body(remote_addr, property);
-  };
+  }
 };
 extern struct set_remote_device_property set_remote_device_property;
 // Name: invoke_switch_buffer_size_cb
@@ -151,9 +135,7 @@ extern struct set_remote_device_property set_remote_device_property;
 // Returns: void
 struct invoke_switch_buffer_size_cb {
   std::function<void(bool invoke_switch_buffer_size_cb)> body{[](bool) {}};
-  void operator()(bool invoke_switch_buffer_size_cb) {
-    body(invoke_switch_buffer_size_cb);
-  };
+  void operator()(bool invoke_switch_buffer_size_cb) { body(invoke_switch_buffer_size_cb); }
 };
 extern struct invoke_switch_buffer_size_cb invoke_switch_buffer_size_cb;
 

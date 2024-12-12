@@ -59,17 +59,16 @@ namespace bluetooth {
 namespace common {
 
 void LogLeAudioConnectionSessionReported(
-    int32_t group_size, int32_t group_metric_id,
-    int64_t connection_duration_nanos,
-    std::vector<int64_t>& device_connecting_offset_nanos,
-    std::vector<int64_t>& device_connected_offset_nanos,
-    std::vector<int64_t>& device_connection_duration_nanos,
-    std::vector<int32_t>& device_connection_status,
-    std::vector<int32_t>& device_disconnection_status,
-    std::vector<RawAddress>& device_address,
-    std::vector<int64_t>& streaming_offset_nanos,
-    std::vector<int64_t>& streaming_duration_nanos,
-    std::vector<int32_t>& streaming_context_type) {
+        int32_t group_size, int32_t group_metric_id, int64_t connection_duration_nanos,
+        const std::vector<int64_t>& device_connecting_offset_nanos,
+        const std::vector<int64_t>& device_connected_offset_nanos,
+        const std::vector<int64_t>& device_connection_duration_nanos,
+        const std::vector<int32_t>& device_connection_status,
+        const std::vector<int32_t>& device_disconnection_status,
+        const std::vector<RawAddress>& device_address,
+        const std::vector<int64_t>& streaming_offset_nanos,
+        const std::vector<int64_t>& streaming_duration_nanos,
+        const std::vector<int32_t>& streaming_context_type) {
   log_count++;
   last_group_size = group_size;
   last_group_metric_id = group_metric_id;
@@ -102,12 +101,12 @@ const RawAddress device2 = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x67});
 const RawAddress device3 = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x68});
 
 class MockMetricsCollector : public MetricsCollector {
- public:
+public:
   MockMetricsCollector() {}
 };
 
 class MetricsCollectorTest : public Test {
- protected:
+protected:
   std::unique_ptr<MetricsCollector> collector;
 
   void SetUp() override {
@@ -135,12 +134,12 @@ class MetricsCollectorTest : public Test {
 TEST_F(MetricsCollectorTest, Initialize) { ASSERT_EQ(log_count, 0); }
 
 TEST_F(MetricsCollectorTest, ConnectionFailed) {
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::FAILED);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::FAILED);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id1);
@@ -150,15 +149,15 @@ TEST_F(MetricsCollectorTest, ConnectionFailed) {
 }
 
 TEST_F(MetricsCollectorTest, ConnectingConnectedDisconnected) {
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id1);
@@ -173,15 +172,15 @@ TEST_F(MetricsCollectorTest, ConnectingConnectedDisconnected) {
 }
 
 TEST_F(MetricsCollectorTest, SingleDeviceTwoConnections) {
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id1);
@@ -194,15 +193,15 @@ TEST_F(MetricsCollectorTest, SingleDeviceTwoConnections) {
   ASSERT_EQ(last_device_connection_status.back(), ConnectionStatus::SUCCESS);
   ASSERT_EQ(last_device_disconnection_status.back(), ConnectionStatus::SUCCESS);
 
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 2);
   ASSERT_EQ(last_group_metric_id, group_id1);
@@ -217,21 +216,21 @@ TEST_F(MetricsCollectorTest, SingleDeviceTwoConnections) {
 }
 
 TEST_F(MetricsCollectorTest, StereoGroupBasicTest) {
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id2);
@@ -244,27 +243,27 @@ TEST_F(MetricsCollectorTest, StereoGroupBasicTest) {
 }
 
 TEST_F(MetricsCollectorTest, StereoGroupMultiReconnections) {
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id2);
@@ -277,27 +276,27 @@ TEST_F(MetricsCollectorTest, StereoGroupMultiReconnections) {
 }
 
 TEST_F(MetricsCollectorTest, MixGroups) {
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device3, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id2, device2, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device3,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id2, device2,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id2);
@@ -308,9 +307,9 @@ TEST_F(MetricsCollectorTest, MixGroups) {
   ASSERT_EQ(last_device_connected_offset_nanos.size(), 2UL);
   ASSERT_EQ(last_device_connection_duration_nanos.size(), 2UL);
 
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 2);
   ASSERT_EQ(last_group_metric_id, group_id1);
@@ -325,15 +324,15 @@ TEST_F(MetricsCollectorTest, MixGroups) {
 TEST_F(MetricsCollectorTest, GroupSizeUpdated) {
   collector->OnGroupSizeUpdate(group_id2, 1);
   collector->OnGroupSizeUpdate(group_id1, 2);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id1);
@@ -341,22 +340,20 @@ TEST_F(MetricsCollectorTest, GroupSizeUpdated) {
 }
 
 TEST_F(MetricsCollectorTest, StreamingSessions) {
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTING,
-      ConnectionStatus::UNKNOWN);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::CONNECTED,
-      ConnectionStatus::SUCCESS);
-  collector->OnStreamStarted(
-      group_id1, bluetooth::le_audio::types::LeAudioContextType::MEDIA);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTING,
+                                      ConnectionStatus::UNKNOWN);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::CONNECTED,
+                                      ConnectionStatus::SUCCESS);
+  collector->OnStreamStarted(group_id1, bluetooth::le_audio::types::LeAudioContextType::MEDIA);
   collector->OnStreamEnded(group_id1);
-  collector->OnStreamStarted(
-      group_id1,
-      bluetooth::le_audio::types::LeAudioContextType::CONVERSATIONAL);
+  collector->OnStreamStarted(group_id1,
+                             bluetooth::le_audio::types::LeAudioContextType::CONVERSATIONAL);
   collector->OnStreamEnded(group_id1);
-  collector->OnConnectionStateChanged(
-      group_id1, device1, bluetooth::le_audio::ConnectionState::DISCONNECTED,
-      ConnectionStatus::SUCCESS);
+  collector->OnConnectionStateChanged(group_id1, device1,
+                                      bluetooth::le_audio::ConnectionState::DISCONNECTED,
+                                      ConnectionStatus::SUCCESS);
 
   ASSERT_EQ(log_count, 1);
   ASSERT_EQ(last_group_metric_id, group_id1);
@@ -368,8 +365,7 @@ TEST_F(MetricsCollectorTest, StreamingSessions) {
   ASSERT_GT(last_streaming_offset_nanos[1], 0L);
   ASSERT_GT(last_streaming_duration_nanos[0], 0L);
   ASSERT_GT(last_streaming_duration_nanos[1], 0L);
-  ASSERT_EQ(last_streaming_context_type[0],
-            static_cast<int32_t>(LeAudioMetricsContextType::MEDIA));
+  ASSERT_EQ(last_streaming_context_type[0], static_cast<int32_t>(LeAudioMetricsContextType::MEDIA));
   ASSERT_EQ(last_streaming_context_type[1],
             static_cast<int32_t>(LeAudioMetricsContextType::COMMUNICATION));
 }

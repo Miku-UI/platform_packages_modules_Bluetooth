@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Futa kutoka orodha"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Futa"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Inayocheza Sasa"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Hifadhi"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Ghairi"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Chagua akaunti unazotaka kushiriki kupitia Bluetooth. Bado unatakiwa kutoa idhini ya ufikiaji wowote kwenye akaunti yako wakati unaunganisha."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Nafasi zilizosalia:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Aikoni ya programu"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Mipangilio ya Kushiriki Ujumbe wa Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Haiwezi kuchagua akaunti. Nafasi 0 zimesalia"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Imeunganisha sauti ya Bluetooth"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Imeondoa sauti ya Bluetooth"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Sauti ya Bluetooth"</string>

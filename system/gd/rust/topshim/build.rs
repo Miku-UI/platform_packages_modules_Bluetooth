@@ -16,7 +16,7 @@ fn main() {
         .collect::<Vec<String>>();
 
     let search_root = env::var("CXX_ROOT_PATH").unwrap();
-    let paths = vec![
+    let paths = [
         "/system/",
         "/system/btcore",
         "/system/include",
@@ -38,11 +38,11 @@ fn main() {
         Ok(should_rebuild) => should_rebuild != "no",
     };
     if topshim_should_rebuild {
-        println!("cargo:rerun-if-changed={}{}", search_root, "/system/");
+        println!("cargo:rerun-if-changed={}/system/", search_root);
     }
 
     // "-x" and "c++" must be separate due to a bug
-    let clang_args: Vec<&str> = vec!["-x", "c++", "-std=c++20"];
+    let clang_args: Vec<&str> = vec!["-x", "c++", "-std=c++20", "-DTARGET_FLOSS"];
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -63,7 +63,7 @@ fn main() {
         .opaque_type("std::.*")
         // Whitelist std::string though because we use it a lot
         .allowlist_type("std::string")
-        .rustfmt_bindings(true)
+        .formatter(bindgen::Formatter::Rustfmt)
         .derive_debug(true)
         .derive_partialeq(true)
         .derive_eq(true)

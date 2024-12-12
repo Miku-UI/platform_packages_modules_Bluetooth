@@ -40,72 +40,50 @@ namespace shim {
 os::Handler* GetGdShimHandler() { return Stack::GetInstance()->GetHandler(); }
 
 hci::LeAdvertisingManager* GetAdvertising() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::LeAdvertisingManager>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::LeAdvertisingManager>();
 }
 
 hci::ControllerInterface* GetController() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::Controller>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::Controller>();
 }
 
-Dumpsys* GetDumpsys() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<Dumpsys>();
-}
+Dumpsys* GetDumpsys() { return Stack::GetInstance()->GetStackManager()->GetInstance<Dumpsys>(); }
 
 hci::HciInterface* GetHciLayer() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hci::HciLayer>();
 }
 
 hci::RemoteNameRequestModule* GetRemoteNameRequest() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::RemoteNameRequestModule>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::RemoteNameRequestModule>();
 }
 
 hci::LeScanningManager* GetScanning() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::LeScanningManager>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::LeScanningManager>();
 }
 
 hci::DistanceMeasurementManager* GetDistanceMeasurementManager() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::DistanceMeasurementManager>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::DistanceMeasurementManager>();
 }
 
 hal::SnoopLogger* GetSnoopLogger() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hal::SnoopLogger>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hal::SnoopLogger>();
 }
 
 storage::StorageModule* GetStorage() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<storage::StorageModule>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<storage::StorageModule>();
 }
 
 hci::AclManager* GetAclManager() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::AclManager>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::AclManager>();
 }
 
 metrics::CounterMetrics* GetCounterMetrics() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<metrics::CounterMetrics>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<metrics::CounterMetrics>();
 }
 
 #if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager() {
-  return Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<hci::MsftExtensionManager>();
+  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::MsftExtensionManager>();
 }
 #endif
 

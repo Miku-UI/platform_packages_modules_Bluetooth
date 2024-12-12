@@ -34,9 +34,7 @@
 #include <cerrno>
 #include <mutex>
 
-#include "common/init_flags.h"
 #include "hal/snoop_logger_common.h"
-#include "os/log.h"
 #include "os/utils.h"
 
 namespace bluetooth {
@@ -48,20 +46,19 @@ static constexpr int INVALID_FD = -1;
 
 constexpr int INCOMING_SOCKET_CONNECTIONS_QUEUE_SIZE_ = 10;
 
-SnoopLoggerSocket::SnoopLoggerSocket(SyscallWrapperInterface* syscall_if, int socket_address, int socket_port)
-    : syscall_if_(syscall_if),
-      socket_address_(socket_address),
-      socket_port_(socket_port),
-      notification_listen_fd_(-1),
-      notification_write_fd_(-1),
-      listen_socket_(-1),
-      fd_max_(-1),
-      client_socket_(-1) {
+SnoopLoggerSocket::SnoopLoggerSocket(SyscallWrapperInterface* syscall_if, int socket_address,
+                                     int socket_port)
+    : syscall_if_(syscall_if), socket_address_(socket_address), socket_port_(socket_port) {
   log::info("address {} port {}", socket_address, socket_port);
+  ResetPollFds();
 }
 
-SnoopLoggerSocket::~SnoopLoggerSocket() {
-  Cleanup();
+SnoopLoggerSocket::~SnoopLoggerSocket() { Cleanup(); }
+
+void SnoopLoggerSocket::ResetPollFds() {
+  for (int i = 0; i < kNumPollFd; i++) {
+    poll_fds_[i].fd = -1;
+  }
 }
 
 void SnoopLoggerSocket::Write(int& client_socket, const void* data, size_t length) {
@@ -88,10 +85,6 @@ int SnoopLoggerSocket::InitializeCommunications() {
   int self_pipe_fds[2];
   int ret;
 
-  fd_max_ = -1;
-
-  syscall_if_->FDZero(&save_sock_fds_);
-
   // Set up the communication channel
   ret = syscall_if_->Pipe2(self_pipe_fds, O_NONBLOCK | O_CLOEXEC);
   if (ret < 0) {
@@ -102,12 +95,14 @@ int SnoopLoggerSocket::InitializeCommunications() {
   notification_listen_fd_ = self_pipe_fds[0];
   notification_write_fd_ = self_pipe_fds[1];
 
-  syscall_if_->FDSet(notification_listen_fd_, &save_sock_fds_);
-  fd_max_ = notification_listen_fd_;
+  ResetPollFds();
+  poll_fds_[kNotificationFd].fd = notification_listen_fd_;
+  poll_fds_[kNotificationFd].events = POLLIN;
 
   listen_socket_ = CreateSocket();
   if (listen_socket_ == INVALID_FD) {
     log::error("Unable to create a listen socket.");
+    poll_fds_[kNotificationFd].fd = -1;
     SafeCloseSocket(notification_listen_fd_);
     SafeCloseSocket(notification_write_fd_);
     return -1;
@@ -117,18 +112,19 @@ int SnoopLoggerSocket::InitializeCommunications() {
 }
 
 bool SnoopLoggerSocket::ProcessIncomingRequest() {
-  int ret;
-  fd_set sock_fds = save_sock_fds_;
+  if (syscall_if_->Poll(poll_fds_, kNumPollFd, -1) == -1) {
+    log::error("Poll failed {}", strerror(syscall_if_->GetErrno()));
+    return syscall_if_->GetErrno() == EINTR;
+  }
 
-  if ((syscall_if_->Select(fd_max_ + 1, &sock_fds, NULL, NULL, NULL)) == -1) {
-    log::error("select failed {}", strerror(syscall_if_->GetErrno()));
-    if (syscall_if_->GetErrno() == EINTR) return true;
+  if (poll_fds_[kNotificationFd].revents) {
+    log::warn("exiting from listen_fn_ thread");
     return false;
   }
 
-  if ((listen_socket_ != -1) && syscall_if_->FDIsSet(listen_socket_, &sock_fds)) {
+  if (poll_fds_[kSocketFd].revents) {
     int client_socket = -1;
-    ret = AcceptIncomingConnection(listen_socket_, client_socket);
+    int ret = AcceptIncomingConnection(listen_socket_, client_socket);
     if (ret != 0) {
       // Unrecoverable error, stop the thread.
       return false;
@@ -139,11 +135,7 @@ bool SnoopLoggerSocket::ProcessIncomingRequest() {
     }
 
     InitializeClientSocket(client_socket);
-
     ClientSocketConnected(client_socket);
-  } else if ((notification_listen_fd_ != -1) && syscall_if_->FDIsSet(notification_listen_fd_, &sock_fds)) {
-    log::warn("exting from listen_fn_ thread");
-    return false;
   }
 
   return true;
@@ -154,13 +146,15 @@ void SnoopLoggerSocket::Cleanup() {
   SafeCloseSocket(notification_write_fd_);
   SafeCloseSocket(client_socket_);
   SafeCloseSocket(listen_socket_);
+  ResetPollFds();
 }
 
 int SnoopLoggerSocket::AcceptIncomingConnection(int listen_socket, int& client_socket) {
   socklen_t clen;
   struct sockaddr_in client_addr;
 
-  RUN_NO_INTR(client_socket = syscall_if_->Accept(listen_socket, (struct sockaddr*)&client_addr, &clen, SOCK_CLOEXEC));
+  RUN_NO_INTR(client_socket = syscall_if_->Accept(listen_socket, (struct sockaddr*)&client_addr,
+                                                  &clen, SOCK_CLOEXEC));
   if (client_socket == -1) {
     int errno_ = syscall_if_->GetErrno();
     log::warn("error accepting socket: {}", strerror(errno_));
@@ -170,11 +164,8 @@ int SnoopLoggerSocket::AcceptIncomingConnection(int listen_socket, int& client_s
     return 0;
   }
 
-  log::info(
-      "Client socket fd: {}, IP address: {}, port: {}",
-      client_socket,
-      inet_ntoa(client_addr.sin_addr),
-      (int)ntohs(client_addr.sin_port));
+  log::info("Client socket fd: {}, IP address: {}, port: {}", client_socket,
+            inet_ntoa(client_addr.sin_addr), (int)ntohs(client_addr.sin_port));
 
   return 0;
 }
@@ -182,10 +173,8 @@ int SnoopLoggerSocket::AcceptIncomingConnection(int listen_socket, int& client_s
 void SnoopLoggerSocket::InitializeClientSocket(int client_socket) {
   /* When a new client connects, we have to send the btsnoop file header. This
    * allows a decoder to treat the session as a new, valid btsnoop file. */
-  Write(
-      client_socket,
-      reinterpret_cast<const char*>(&SnoopLoggerCommon::kBtSnoopFileHeader),
-      sizeof(SnoopLoggerCommon::FileHeaderType));
+  Write(client_socket, reinterpret_cast<const char*>(&SnoopLoggerCommon::kBtSnoopFileHeader),
+        sizeof(SnoopLoggerCommon::FileHeaderType));
 }
 
 void SnoopLoggerSocket::ClientSocketConnected(int client_socket) {
@@ -201,9 +190,7 @@ bool SnoopLoggerSocket::WaitForClientSocketConnected() {
   return IsClientSocketConnected();
 }
 
-bool SnoopLoggerSocket::IsClientSocketConnected() const {
-  return client_socket_ != INVALID_FD;
-}
+bool SnoopLoggerSocket::IsClientSocketConnected() const { return client_socket_ != INVALID_FD; }
 
 int SnoopLoggerSocket::CreateSocket() {
   log::debug("");
@@ -214,11 +201,6 @@ int SnoopLoggerSocket::CreateSocket() {
   if (socket_fd < 0) {
     log::error("can't create socket: {}", strerror(syscall_if_->GetErrno()));
     return INVALID_FD;
-  }
-
-  syscall_if_->FDSet(socket_fd, &save_sock_fds_);
-  if (socket_fd > fd_max_) {
-    fd_max_ = socket_fd;
   }
 
   // Enable REUSEADDR
@@ -251,6 +233,8 @@ int SnoopLoggerSocket::CreateSocket() {
     return INVALID_FD;
   }
 
+  poll_fds_[kSocketFd].fd = socket_fd;
+  poll_fds_[kSocketFd].events = POLLIN;
   return socket_fd;
 }
 
@@ -276,7 +260,6 @@ void SnoopLoggerSocket::SafeCloseSocket(int& fd) {
   log::debug("{}", fd);
   if (fd != -1) {
     syscall_if_->Close(fd);
-    syscall_if_->FDClr(fd, &save_sock_fds_);
     fd = -1;
   }
 }

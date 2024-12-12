@@ -34,7 +34,6 @@ import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.map.BluetoothMapContentObserver.Msg;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
 import com.android.bluetooth.sdp.SdpManagerNativeInterface;
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.ServerSession;
 
 import java.io.IOException;
@@ -47,7 +46,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class BluetoothMapMasInstance implements IObexConnectionHandler {
     private static final String TAG = "BluetoothMapMasInstance";
 
-    @VisibleForTesting static volatile int sInstanceCounter = 0;
+    private static int sInstanceCounter = 0;
 
     private final int mObjectInstanceId;
 
@@ -102,11 +101,9 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
 
     private Map<String, BluetoothMapConvoContactElement> mContactList;
 
-    private HashMap<Long, BluetoothMapConvoListingElement> mSmsMmsConvoList =
-            new HashMap<Long, BluetoothMapConvoListingElement>();
+    private Map<Long, BluetoothMapConvoListingElement> mSmsMmsConvoList = new HashMap<>();
 
-    private HashMap<Long, BluetoothMapConvoListingElement> mImEmailConvoList =
-            new HashMap<Long, BluetoothMapConvoListingElement>();
+    private Map<Long, BluetoothMapConvoListingElement> mImEmailConvoList = new HashMap<>();
 
     private int mRemoteFeatureMask = BluetoothMapUtils.MAP_FEATURE_DEFAULT_BITMASK;
     private static int sFeatureMask = SDP_MAP_MAS_FEATURES_1_4;
@@ -169,6 +166,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
      * is changed. - If a MAS instance folderVersionCounter roles over - will not happen before a
      * long is too small to hold a unix time-stamp, hence is not handled.
      */
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     private void updateDbIdentifier() {
         mDbIndetifier.set(Calendar.getInstance().getTime().getTime());
     }
@@ -225,19 +223,19 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         mContactList = contactList;
     }
 
-    HashMap<Long, BluetoothMapConvoListingElement> getSmsMmsConvoList() {
+    Map<Long, BluetoothMapConvoListingElement> getSmsMmsConvoList() {
         return mSmsMmsConvoList;
     }
 
-    void setSmsMmsConvoList(HashMap<Long, BluetoothMapConvoListingElement> smsMmsConvoList) {
+    void setSmsMmsConvoList(Map<Long, BluetoothMapConvoListingElement> smsMmsConvoList) {
         mSmsMmsConvoList = smsMmsConvoList;
     }
 
-    HashMap<Long, BluetoothMapConvoListingElement> getImEmailConvoList() {
+    Map<Long, BluetoothMapConvoListingElement> getImEmailConvoList() {
         return mImEmailConvoList;
     }
 
-    void setImEmailConvoList(HashMap<Long, BluetoothMapConvoListingElement> imEmailConvoList) {
+    void setImEmailConvoList(Map<Long, BluetoothMapConvoListingElement> imEmailConvoList) {
         mImEmailConvoList = imEmailConvoList;
     }
 
@@ -331,9 +329,9 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         if (mBaseUri != null) {
             if (mEnableSmsMms) {
                 if (mAccount.getType() == TYPE.EMAIL) {
-                    masName += "/" + TYPE_EMAIL_STR;
+                    masName = masName + "/" + TYPE_EMAIL_STR;
                 } else if (mAccount.getType() == TYPE.IM) {
-                    masName += "/" + TYPE_IM_STR;
+                    masName = masName + "/" + TYPE_IM_STR;
                 }
             } else {
                 masName = mAccount.getName();

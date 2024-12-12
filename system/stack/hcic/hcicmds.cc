@@ -341,12 +341,6 @@
 #define HCI_DELETE_KEY_ALL_FLAG_OFF 6
 /* Delete Stored Key */
 
-/* Change Local Name */
-#define HCIC_PARAM_SIZE_CHANGE_NAME BD_NAME_LEN
-
-#define HCI_CHANGE_NAME_NAME_OFF 0
-/* Change Local Name */
-
 #define HCIC_PARAM_SIZE_READ_CMD 0
 
 #define HCIC_PARAM_SIZE_WRITE_PARAM1 1
@@ -450,8 +444,7 @@
 
 #define HCIC_BLE_RAND_DI_SIZE 8
 #define HCIC_BLE_ENCRYPT_KEY_SIZE 16
-#define HCIC_PARAM_SIZE_BLE_START_ENC \
-  (4 + HCIC_BLE_RAND_DI_SIZE + HCIC_BLE_ENCRYPT_KEY_SIZE)
+#define HCIC_PARAM_SIZE_BLE_START_ENC (4 + HCIC_BLE_RAND_DI_SIZE + HCIC_BLE_ENCRYPT_KEY_SIZE)
 #define HCIC_PARAM_SIZE_LTK_REQ_REPLY (2 + HCIC_BLE_ENCRYPT_KEY_SIZE)
 #define HCIC_PARAM_SIZE_LTK_REQ_NEG_REPLY 2
 #define HCIC_BLE_CHNL_MAP_SIZE 5
@@ -465,7 +458,7 @@
 #define HCIC_PARAM_SIZE_BLE_READ_RESOLVABLE_ADDR_PEER 7
 #define HCIC_PARAM_SIZE_BLE_READ_RESOLVABLE_ADDR_LOCAL 7
 #define HCIC_PARAM_SIZE_BLE_SET_ADDR_RESOLUTION_ENABLE 1
-#define HCIC_PARAM_SIZE_BLE_SET_RAND_PRIV_ADDR_TIMOUT 2
+#define HCIC_PARAM_SIZE_BLE_SET_RAND_PRIV_ADDR_TIMEOUT 2
 
 #define HCIC_PARAM_SIZE_BLE_READ_PHY 2
 #define HCIC_PARAM_SIZE_BLE_SET_DEFAULT_PHY 3
@@ -541,8 +534,7 @@ void btsnd_hcic_reject_conn(const RawAddress& dest, uint8_t reason) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_link_key_req_reply(const RawAddress& bd_addr,
-                                   const LinkKey& link_key) {
+void btsnd_hcic_link_key_req_reply(const RawAddress& bd_addr, const LinkKey& link_key) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -573,8 +565,8 @@ void btsnd_hcic_link_key_neg_reply(const RawAddress& bd_addr) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_pin_code_req_reply(const RawAddress& bd_addr,
-                                   uint8_t pin_code_len, PIN_CODE pin_code) {
+void btsnd_hcic_pin_code_req_reply(const RawAddress& bd_addr, uint8_t pin_code_len,
+                                   PIN_CODE pin_code) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
   int i;
@@ -588,9 +580,13 @@ void btsnd_hcic_pin_code_req_reply(const RawAddress& bd_addr,
   BDADDR_TO_STREAM(pp, bd_addr);
   UINT8_TO_STREAM(pp, pin_code_len);
 
-  for (i = 0; i < pin_code_len; i++) *pp++ = *pin_code++;
+  for (i = 0; i < pin_code_len; i++) {
+    *pp++ = *pin_code++;
+  }
 
-  for (; i < PIN_CODE_LEN; i++) *pp++ = 0;
+  for (; i < PIN_CODE_LEN; i++) {
+    *pp++ = 0;
+  }
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
@@ -704,8 +700,7 @@ void btsnd_hcic_read_rmt_clk_offset(uint16_t handle) {
 }
 
 void btsnd_hcic_setup_esco_conn(uint16_t handle, uint32_t transmit_bandwidth,
-                                uint32_t receive_bandwidth,
-                                uint16_t max_latency, uint16_t voice,
+                                uint32_t receive_bandwidth, uint16_t max_latency, uint16_t voice,
                                 uint8_t retrans_effort, uint16_t packet_types) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -727,11 +722,9 @@ void btsnd_hcic_setup_esco_conn(uint16_t handle, uint32_t transmit_bandwidth,
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_accept_esco_conn(const RawAddress& bd_addr,
-                                 uint32_t transmit_bandwidth,
-                                 uint32_t receive_bandwidth,
-                                 uint16_t max_latency, uint16_t content_fmt,
-                                 uint8_t retrans_effort,
+void btsnd_hcic_accept_esco_conn(const RawAddress& bd_addr, uint32_t transmit_bandwidth,
+                                 uint32_t receive_bandwidth, uint16_t max_latency,
+                                 uint16_t content_fmt, uint8_t retrans_effort,
                                  uint16_t packet_types) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -769,8 +762,7 @@ void btsnd_hcic_reject_esco_conn(const RawAddress& bd_addr, uint8_t reason) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_hold_mode(uint16_t handle, uint16_t max_hold_period,
-                          uint16_t min_hold_period) {
+void btsnd_hcic_hold_mode(uint16_t handle, uint16_t max_hold_period, uint16_t min_hold_period) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -787,9 +779,8 @@ void btsnd_hcic_hold_mode(uint16_t handle, uint16_t max_hold_period,
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_sniff_mode(uint16_t handle, uint16_t max_sniff_period,
-                           uint16_t min_sniff_period, uint16_t sniff_attempt,
-                           uint16_t sniff_timeout) {
+void btsnd_hcic_sniff_mode(uint16_t handle, uint16_t max_sniff_period, uint16_t min_sniff_period,
+                           uint16_t sniff_attempt, uint16_t sniff_timeout) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -901,8 +892,8 @@ void btsnd_hcic_write_def_policy_set(uint16_t settings) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_set_event_filter(uint8_t filt_type, uint8_t filt_cond_type,
-                                 uint8_t* filt_cond, uint8_t filt_cond_len) {
+void btsnd_hcic_set_event_filter(uint8_t filt_type, uint8_t filt_cond_type, uint8_t* filt_cond,
+                                 uint8_t filt_cond_len) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -931,7 +922,9 @@ void btsnd_hcic_set_event_filter(uint8_t filt_type, uint8_t filt_cond_type,
       filt_cond_len -= BD_ADDR_LEN;
     }
 
-    if (filt_cond_len) ARRAY_TO_STREAM(pp, filt_cond, filt_cond_len);
+    if (filt_cond_len) {
+      ARRAY_TO_STREAM(pp, filt_cond, filt_cond_len);
+    }
   } else {
     p->len = (uint16_t)(HCIC_PREAMBLE_SIZE + 1);
     UINT8_TO_STREAM(pp, 1);
@@ -957,8 +950,7 @@ void btsnd_hcic_write_pin_type(uint8_t type) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_delete_stored_key(const RawAddress& bd_addr,
-                                  bool delete_all_flag) {
+void btsnd_hcic_delete_stored_key(const RawAddress& bd_addr, bool delete_all_flag) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -970,26 +962,6 @@ void btsnd_hcic_delete_stored_key(const RawAddress& bd_addr,
 
   BDADDR_TO_STREAM(pp, bd_addr);
   UINT8_TO_STREAM(pp, delete_all_flag);
-
-  btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-void btsnd_hcic_change_name(BD_NAME name) {
-  BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
-  uint8_t* pp = (uint8_t*)(p + 1);
-  uint16_t len = strlen((char*)name) + 1;
-
-  memset(pp, 0, HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_CHANGE_NAME);
-
-  p->len = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_CHANGE_NAME;
-  p->offset = 0;
-
-  UINT16_TO_STREAM(pp, HCI_CHANGE_LOCAL_NAME);
-  UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_CHANGE_NAME);
-
-  if (len > HCIC_PARAM_SIZE_CHANGE_NAME) len = HCIC_PARAM_SIZE_CHANGE_NAME;
-
-  ARRAY_TO_STREAM(pp, name, len);
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
@@ -1174,7 +1146,9 @@ void btsnd_hcic_write_cur_iac_lap(uint8_t num_cur_iac, LAP* const iac_lap) {
 
   UINT8_TO_STREAM(pp, num_cur_iac);
 
-  for (int i = 0; i < num_cur_iac; i++) LAP_TO_STREAM(pp, iac_lap[i]);
+  for (int i = 0; i < num_cur_iac; i++) {
+    LAP_TO_STREAM(pp, iac_lap[i]);
+  }
 
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
@@ -1182,8 +1156,7 @@ void btsnd_hcic_write_cur_iac_lap(uint8_t num_cur_iac, LAP* const iac_lap) {
 /******************************************
  *    Lisbon Features
  ******************************************/
-void btsnd_hcic_sniff_sub_rate(uint16_t handle, uint16_t max_lat,
-                               uint16_t min_remote_lat,
+void btsnd_hcic_sniff_sub_rate(uint16_t handle, uint16_t max_lat, uint16_t min_remote_lat,
                                uint16_t min_local_lat) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -1218,8 +1191,8 @@ void btsnd_hcic_write_ext_inquiry_response(void* buffer, uint8_t fec_req) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_io_cap_req_reply(const RawAddress& bd_addr, uint8_t capability,
-                                 uint8_t oob_present, uint8_t auth_req) {
+void btsnd_hcic_io_cap_req_reply(const RawAddress& bd_addr, uint8_t capability, uint8_t oob_present,
+                                 uint8_t auth_req) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -1237,8 +1210,8 @@ void btsnd_hcic_io_cap_req_reply(const RawAddress& bd_addr, uint8_t capability,
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_enhanced_set_up_synchronous_connection(
-    uint16_t conn_handle, enh_esco_params_t* p_params) {
+void btsnd_hcic_enhanced_set_up_synchronous_connection(uint16_t conn_handle,
+                                                       enh_esco_params_t* p_params) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -1253,12 +1226,10 @@ void btsnd_hcic_enhanced_set_up_synchronous_connection(
   UINT32_TO_STREAM(pp, p_params->receive_bandwidth);
   UINT8_TO_STREAM(pp, p_params->transmit_coding_format.coding_format);
   UINT16_TO_STREAM(pp, p_params->transmit_coding_format.company_id);
-  UINT16_TO_STREAM(pp,
-                   p_params->transmit_coding_format.vendor_specific_codec_id);
+  UINT16_TO_STREAM(pp, p_params->transmit_coding_format.vendor_specific_codec_id);
   UINT8_TO_STREAM(pp, p_params->receive_coding_format.coding_format);
   UINT16_TO_STREAM(pp, p_params->receive_coding_format.company_id);
-  UINT16_TO_STREAM(pp,
-                   p_params->receive_coding_format.vendor_specific_codec_id);
+  UINT16_TO_STREAM(pp, p_params->receive_coding_format.vendor_specific_codec_id);
   UINT16_TO_STREAM(pp, p_params->transmit_codec_frame_size);
   UINT16_TO_STREAM(pp, p_params->receive_codec_frame_size);
   UINT32_TO_STREAM(pp, p_params->input_bandwidth);
@@ -1286,8 +1257,8 @@ void btsnd_hcic_enhanced_set_up_synchronous_connection(
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_enhanced_accept_synchronous_connection(
-    const RawAddress& bd_addr, enh_esco_params_t* p_params) {
+void btsnd_hcic_enhanced_accept_synchronous_connection(const RawAddress& bd_addr,
+                                                       enh_esco_params_t* p_params) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -1302,12 +1273,10 @@ void btsnd_hcic_enhanced_accept_synchronous_connection(
   UINT32_TO_STREAM(pp, p_params->receive_bandwidth);
   UINT8_TO_STREAM(pp, p_params->transmit_coding_format.coding_format);
   UINT16_TO_STREAM(pp, p_params->transmit_coding_format.company_id);
-  UINT16_TO_STREAM(pp,
-                   p_params->transmit_coding_format.vendor_specific_codec_id);
+  UINT16_TO_STREAM(pp, p_params->transmit_coding_format.vendor_specific_codec_id);
   UINT8_TO_STREAM(pp, p_params->receive_coding_format.coding_format);
   UINT16_TO_STREAM(pp, p_params->receive_coding_format.company_id);
-  UINT16_TO_STREAM(pp,
-                   p_params->receive_coding_format.vendor_specific_codec_id);
+  UINT16_TO_STREAM(pp, p_params->receive_coding_format.vendor_specific_codec_id);
   UINT16_TO_STREAM(pp, p_params->transmit_codec_frame_size);
   UINT16_TO_STREAM(pp, p_params->receive_codec_frame_size);
   UINT32_TO_STREAM(pp, p_params->input_bandwidth);
@@ -1335,8 +1304,7 @@ void btsnd_hcic_enhanced_accept_synchronous_connection(
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_io_cap_req_neg_reply(const RawAddress& bd_addr,
-                                     uint8_t err_code) {
+void btsnd_hcic_io_cap_req_neg_reply(const RawAddress& bd_addr, uint8_t err_code) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -1431,8 +1399,7 @@ void btsnd_hcic_user_passkey_neg_reply(const RawAddress& bd_addr) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-void btsnd_hcic_rem_oob_reply(const RawAddress& bd_addr, const Octet16& c,
-                              const Octet16& r) {
+void btsnd_hcic_rem_oob_reply(const RawAddress& bd_addr, const Octet16& c, const Octet16& r) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
 
@@ -1485,9 +1452,8 @@ void btsnd_hcic_read_rssi(uint16_t handle) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-static void read_encryption_key_size_complete(
-    ReadEncKeySizeCb cb, uint8_t* return_parameters,
-    uint16_t /* return_parameters_length */) {
+static void read_encryption_key_size_complete(ReadEncKeySizeCb cb, uint8_t* return_parameters,
+                                              uint16_t /* return_parameters_length */) {
   uint8_t status;
   uint16_t handle;
   uint8_t key_size;
@@ -1583,9 +1549,8 @@ void btsnd_hcic_write_pagescan_type(uint8_t type) {
   btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 
-static void btsnd_hcic_vendor_spec_complete(tBTM_VSC_CMPL_CB* p_vsc_cplt_cback,
-                                            uint16_t opcode, uint8_t* data,
-                                            uint16_t len) {
+static void btsnd_hcic_vendor_spec_complete(tBTM_VSC_CMPL_CB* p_vsc_cplt_cback, uint16_t opcode,
+                                            uint8_t* data, uint16_t len) {
   /* If there was a callback address for vcs complete, call it */
   if (p_vsc_cplt_cback) {
     tBTM_VSC_CMPL vcs_cplt_params;
@@ -1601,14 +1566,12 @@ void btsnd_hcic_vendor_spec_cmd(uint16_t opcode, uint8_t len, uint8_t* p_data,
                                 tBTM_VSC_CMPL_CB* p_cmd_cplt_cback) {
   uint16_t v_opcode = HCI_GRP_VENDOR_SPECIFIC | opcode;
 
-  btu_hcif_send_cmd_with_cb(
-      FROM_HERE, v_opcode, p_data, len,
-      base::BindOnce(&btsnd_hcic_vendor_spec_complete,
-                     base::Unretained(p_cmd_cplt_cback), v_opcode));
+  btu_hcif_send_cmd_with_cb(FROM_HERE, v_opcode, p_data, len,
+                            base::BindOnce(&btsnd_hcic_vendor_spec_complete,
+                                           base::Unretained(p_cmd_cplt_cback), v_opcode));
 }
 
-void btsnd_hcic_configure_data_path(hci_data_direction_t data_path_direction,
-                                    uint8_t data_path_id,
+void btsnd_hcic_configure_data_path(hci_data_direction_t data_path_direction, uint8_t data_path_id,
                                     std::vector<uint8_t> vendor_config) {
   BT_HDR* p = (BT_HDR*)osi_malloc(HCI_CMD_BUF_SIZE);
   uint8_t* pp = (uint8_t*)(p + 1);
@@ -1633,18 +1596,15 @@ class InterfaceImpl : public Interface {
   void Disconnect(uint16_t handle, uint8_t reason) const override {
     btsnd_hcic_disconnect(handle, reason);
   }
-  void ChangeConnectionPacketType(uint16_t handle,
-                                  uint16_t packet_types) const override {
+  void ChangeConnectionPacketType(uint16_t handle, uint16_t packet_types) const override {
     btsnd_hcic_change_conn_type(handle, packet_types);
   }
   void StartRoleSwitch(const RawAddress& bd_addr, uint8_t role) const override {
     btsnd_hcic_switch_role(bd_addr, role);
   }
-  void ConfigureDataPath(hci_data_direction_t data_path_direction,
-                         uint8_t data_path_id,
+  void ConfigureDataPath(hci_data_direction_t data_path_direction, uint8_t data_path_id,
                          std::vector<uint8_t> vendor_config) const override {
-    btsnd_hcic_configure_data_path(data_path_direction, data_path_id,
-                                   vendor_config);
+    btsnd_hcic_configure_data_path(data_path_direction, data_path_id, vendor_config);
   }
 };
 

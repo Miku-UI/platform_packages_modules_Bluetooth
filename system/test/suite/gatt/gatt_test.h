@@ -25,7 +25,7 @@ namespace bttest {
 // This class represents the Bluetooth GATT testing framework and provides
 // helpers and callbacks for GUnit to use for testing gatt.
 class GattTest : public BluetoothTest {
- protected:
+protected:
   GattTest() = default;
   GattTest(const GattTest&) = delete;
   GattTest& operator=(const GattTest&) = delete;
@@ -57,26 +57,18 @@ class GattTest : public BluetoothTest {
   // callback semaphores at the end of every test
   virtual void TearDown();
 
-  friend void RegisterClientCallback(int status, int clientIf,
-                                     const bluetooth::Uuid& app_uuid);
-  friend void ScanResultCallback(uint16_t ble_evt_type, uint8_t addr_type,
-                                 RawAddress* bda, uint8_t ble_primary_phy,
-                                 uint8_t ble_secondary_phy,
-                                 uint8_t ble_advertising_sid,
-                                 int8_t ble_tx_power, int8_t rssi,
-                                 uint16_t ble_periodic_adv_int,
-                                 std::vector<uint8_t> adv_data,
+  friend void RegisterClientCallback(int status, int clientIf, const bluetooth::Uuid& app_uuid);
+  friend void ScanResultCallback(uint16_t ble_evt_type, uint8_t addr_type, RawAddress* bda,
+                                 uint8_t ble_primary_phy, uint8_t ble_secondary_phy,
+                                 uint8_t ble_advertising_sid, int8_t ble_tx_power, int8_t rssi,
+                                 uint16_t ble_periodic_adv_int, std::vector<uint8_t> adv_data,
                                  RawAddress* original_bda);
 
-  friend void RegisterServerCallback(int status, int server_if,
-                                     const bluetooth::Uuid& uuid);
-  friend void ServiceAddedCallback(int status, int server_if,
-                                   const btgatt_db_element_t* service,
+  friend void RegisterServerCallback(int status, int server_if, const bluetooth::Uuid& uuid);
+  friend void ServiceAddedCallback(int status, int server_if, const btgatt_db_element_t* service,
                                    size_t service_count);
-  friend void ServiceStoppedCallback(int status, int server_if,
-                                     int srvc_handle);
-  friend void ServiceDeletedCallback(int status, int server_if,
-                                     int srvc_handle);
+  friend void ServiceStoppedCallback(int status, int server_if, int srvc_handle);
+  friend void ServiceDeletedCallback(int status, int server_if, int srvc_handle);
 
   // Semaphores used to wait for specific callback execution. Each callback
   // has its own semaphore associated with it
@@ -92,7 +84,7 @@ class GattTest : public BluetoothTest {
   btsemaphore service_stopped_callback_sem_;
   btsemaphore service_deleted_callback_sem_;
 
- private:
+private:
   const btgatt_interface_t* gatt_interface_;
 
   // No mutex needed for these as the semaphores should ensure
@@ -117,4 +109,4 @@ class GattTest : public BluetoothTest {
   int status_;
 };
 
-}  // bttest
+}  // namespace bttest

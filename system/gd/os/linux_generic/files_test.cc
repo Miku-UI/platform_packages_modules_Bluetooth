@@ -82,8 +82,6 @@ TEST(FilesTest, write_read_empty_string_test) {
   EXPECT_TRUE(std::filesystem::remove(temp_file));
 }
 
-TEST(FilesTest, read_non_existing_file_test) {
-  EXPECT_FALSE(ReadSmallFile("/woof"));
-}
+TEST(FilesTest, read_non_existing_file_test) { EXPECT_FALSE(ReadSmallFile("/woof")); }
 
 }  // namespace testing

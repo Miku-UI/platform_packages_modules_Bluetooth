@@ -35,22 +35,19 @@ static void status_callback(uint8_t status) {
   log::verbose("Received status_cb with status:{}", status);
 }
 
-class BleScanningManagerImpl
-    : public BleScanningManager,
-      public BleScannerHciInterface::ScanEventObserver {
- public:
+class BleScanningManagerImpl : public BleScanningManager,
+                               public BleScannerHciInterface::ScanEventObserver {
+public:
   BleScanningManagerImpl(BleScannerHciInterface* interface)
       : hci_interface(interface), weak_factory_(this) {}
 
   ~BleScanningManagerImpl() {}
 
   void PeriodicScanStart(uint8_t options, uint8_t set_id, uint8_t adv_addr_type,
-                         const RawAddress& adv_addr, uint16_t skip_num,
-                         uint16_t sync_timeout,
+                         const RawAddress& adv_addr, uint16_t skip_num, uint16_t sync_timeout,
                          uint8_t sync_cte_type) override {
-    GetHciInterface()->PeriodicScanStart(options, set_id, adv_addr_type,
-                                         adv_addr, skip_num, sync_timeout,
-                                         sync_cte_type);
+    GetHciInterface()->PeriodicScanStart(options, set_id, adv_addr_type, adv_addr, skip_num,
+                                         sync_timeout, sync_cte_type);
   }
 
   void PeriodicScanCancelStart() override {
@@ -58,60 +55,50 @@ class BleScanningManagerImpl
   }
 
   void PeriodicScanTerminate(uint16_t sync_handle) override {
-    GetHciInterface()->PeriodicScanTerminate(sync_handle,
-                                             base::Bind(&status_callback));
+    GetHciInterface()->PeriodicScanTerminate(sync_handle, base::Bind(&status_callback));
   }
 
-  void PeriodicAdvSyncTransfer(
-      const RawAddress& bd_addr, uint16_t service_data, uint16_t sync_handle,
-      BleScannerHciInterface::handle_cb command_complete) override {
-    GetHciInterface()->PeriodicAdvSyncTransfer(bd_addr, service_data,
-                                               sync_handle, command_complete);
+  void PeriodicAdvSyncTransfer(const RawAddress& bd_addr, uint16_t service_data,
+                               uint16_t sync_handle,
+                               BleScannerHciInterface::handle_cb command_complete) override {
+    GetHciInterface()->PeriodicAdvSyncTransfer(bd_addr, service_data, sync_handle,
+                                               command_complete);
   }
 
-  void PeriodicAdvSetInfoTransfer(const RawAddress& bd_addr,
-                                  uint16_t service_data, uint8_t adv_handle,
-                                  handle_cb command_complete) override {
-    GetHciInterface()->PeriodicAdvSetInfoTransfer(bd_addr, service_data,
-                                                  adv_handle, command_complete);
+  void PeriodicAdvSetInfoTransfer(const RawAddress& bd_addr, uint16_t service_data,
+                                  uint8_t adv_handle, handle_cb command_complete) override {
+    GetHciInterface()->PeriodicAdvSetInfoTransfer(bd_addr, service_data, adv_handle,
+                                                  command_complete);
   }
 
-  void SetPeriodicAdvSyncTransferParams(const RawAddress& bd_addr, uint8_t mode,
-                                        uint16_t skip, uint16_t sync_timeout,
-                                        uint8_t cte_type, bool set_defaults,
+  void SetPeriodicAdvSyncTransferParams(const RawAddress& bd_addr, uint8_t mode, uint16_t skip,
+                                        uint16_t sync_timeout, uint8_t cte_type, bool set_defaults,
                                         status_cb command_complete) override {
-    GetHciInterface()->SetPeriodicAdvSyncTransferParams(
-        bd_addr, mode, skip, sync_timeout, cte_type, set_defaults,
-        command_complete);
+    GetHciInterface()->SetPeriodicAdvSyncTransferParams(bd_addr, mode, skip, sync_timeout, cte_type,
+                                                        set_defaults, command_complete);
   }
 
-  void OnPeriodicScanResult(uint16_t sync_handle, uint8_t tx_power, int8_t rssi,
-                            uint8_t cte_type, uint8_t pkt_data_status,
-                            uint8_t pkt_data_len,
+  void OnPeriodicScanResult(uint16_t sync_handle, uint8_t tx_power, int8_t rssi, uint8_t cte_type,
+                            uint8_t pkt_data_status, uint8_t pkt_data_len,
                             const uint8_t* pkt_data) override {
-    btm_ble_periodic_adv_report(sync_handle, tx_power, rssi, cte_type,
-                                pkt_data_status, pkt_data_len, pkt_data);
+    btm_ble_periodic_adv_report(sync_handle, tx_power, rssi, cte_type, pkt_data_status,
+                                pkt_data_len, pkt_data);
   }
 
-  void OnPeriodicScanEstablished(uint8_t status, uint16_t sync_handle,
-                                 uint8_t set_id, uint8_t adv_addr_type,
-                                 const RawAddress& adv_addr, uint8_t adv_phy,
-                                 uint16_t adv_interval,
-                                 uint8_t adv_clock_accuracy) override {
-    btm_ble_periodic_adv_sync_established(status, sync_handle, set_id,
-                                          adv_addr_type, adv_addr, adv_phy,
-                                          adv_interval, adv_clock_accuracy);
+  void OnPeriodicScanEstablished(uint8_t status, uint16_t sync_handle, uint8_t set_id,
+                                 uint8_t adv_addr_type, const RawAddress& adv_addr, uint8_t adv_phy,
+                                 uint16_t adv_interval, uint8_t adv_clock_accuracy) override {
+    btm_ble_periodic_adv_sync_established(status, sync_handle, set_id, adv_addr_type, adv_addr,
+                                          adv_phy, adv_interval, adv_clock_accuracy);
   }
 
   void OnPeriodicScanLost(uint16_t sync_handle) override {
     btm_ble_periodic_adv_sync_lost(sync_handle);
   }
 
-  base::WeakPtr<BleScanningManagerImpl> GetWeakPtr() {
-    return weak_factory_.GetWeakPtr();
-  }
+  base::WeakPtr<BleScanningManagerImpl> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
 
- private:
+private:
   BleScannerHciInterface* GetHciInterface() { return hci_interface; }
   BleScannerHciInterface* hci_interface = nullptr;
 
@@ -130,14 +117,12 @@ void BleScanningManager::Initialize(BleScannerHciInterface* interface) {
 
 bool BleScanningManager::IsInitialized() { return instance; }
 
-base::WeakPtr<BleScanningManager> BleScanningManager::Get() {
-  return instance_weakptr;
-};
+base::WeakPtr<BleScanningManager> BleScanningManager::Get() { return instance_weakptr; }
 
 void BleScanningManager::CleanUp() {
   delete instance;
   instance = nullptr;
-};
+}
 
 /**
  * This function initializes the scanning manager.
@@ -151,7 +136,7 @@ void btm_ble_scanner_init() {
   }
   if ((BleScannerHciInterface::Get()) && (BleScanningManager::Get())) {
     BleScannerHciInterface::Get()->SetScanEventObserver(
-        (BleScanningManagerImpl*)BleScanningManager::Get().get());
+            (BleScanningManagerImpl*)BleScanningManager::Get().get());
   } else {
     log::verbose("BleScannerHciInterface or BleScanningManager is null");
   }

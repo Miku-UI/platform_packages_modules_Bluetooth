@@ -7,8 +7,7 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use btstack::{
     battery_manager::BatteryManager, battery_provider_manager::BatteryProviderManager,
-    battery_service::BatteryService, bluetooth::Bluetooth, bluetooth::IBluetooth,
-    bluetooth_admin::BluetoothAdmin, bluetooth_gatt::BluetoothGatt,
+    bluetooth::Bluetooth, bluetooth_admin::BluetoothAdmin, bluetooth_gatt::BluetoothGatt,
     bluetooth_logging::BluetoothLogging, bluetooth_media::BluetoothMedia,
     bluetooth_qa::BluetoothQA, socket_manager::BluetoothSocketManager, suspend::Suspend,
     APIMessage, BluetoothAPI, Message,
@@ -48,7 +47,7 @@ impl InterfaceManager {
     /// * `disconnect_watcher` - DisconnectWatcher to monitor client disconnects
     /// * `bluetooth` - Implementation of the Bluetooth API
     /// other implementations follow.
-    ///
+    #[allow(clippy::too_many_arguments)]
     pub async fn dispatch(
         mut rx: Receiver<APIMessage>,
         tx: Sender<Message>,
@@ -59,7 +58,6 @@ impl InterfaceManager {
         bluetooth: Arc<Mutex<Box<Bluetooth>>>,
         bluetooth_admin: Arc<Mutex<Box<BluetoothAdmin>>>,
         bluetooth_gatt: Arc<Mutex<Box<BluetoothGatt>>>,
-        battery_service: Arc<Mutex<Box<BatteryService>>>,
         battery_manager: Arc<Mutex<Box<BatteryManager>>>,
         battery_provider_manager: Arc<Mutex<Box<BatteryProviderManager>>>,
         bluetooth_media: Arc<Mutex<Box<BluetoothMedia>>>,
@@ -81,7 +79,7 @@ impl InterfaceManager {
         // of the adapter APIs.
         cr.lock().unwrap().set_object_manager_support(Some(conn.clone()));
         let object_manager = cr.lock().unwrap().object_manager();
-        cr.lock().unwrap().insert("/", &[object_manager], {});
+        cr.lock().unwrap().insert("/", &[object_manager], ());
 
         // Set up handling of D-Bus methods. This must be done before exporting interfaces so that
         // clients that rely on InterfacesAdded signal can rely on us being ready to handle methods
@@ -191,12 +189,6 @@ impl InterfaceManager {
                         );
 
                         cr.lock().unwrap().insert(
-                            Self::make_object_name(virt_index, "admin"),
-                            &[admin_iface],
-                            bluetooth_admin.clone(),
-                        );
-
-                        cr.lock().unwrap().insert(
                             Self::make_object_name(virt_index, "logging"),
                             &[logging_iface],
                             logging.clone(),
@@ -207,19 +199,13 @@ impl InterfaceManager {
                             &[qa_iface],
                             bluetooth_qa.clone(),
                         );
-
-                        // AdvertiseManager selects the stack per is_le_ext_adv_supported.
-                        // Initialize it after Adapter is ready.
-                        let bt_clone = bluetooth.clone();
-                        let gatt_clone = bluetooth_gatt.clone();
-                        tokio::spawn(async move {
-                            let is_le_ext_adv_supported =
-                                bt_clone.lock().unwrap().is_le_extended_advertising_supported();
-                            gatt_clone
-                                .lock()
-                                .unwrap()
-                                .init_adv_manager(bt_clone, is_le_ext_adv_supported);
-                        });
+                    }
+                    BluetoothAPI::Admin => {
+                        cr.lock().unwrap().insert(
+                            Self::make_object_name(virt_index, "admin"),
+                            &[admin_iface],
+                            bluetooth_admin.clone(),
+                        );
                     }
                     BluetoothAPI::Gatt => {
                         cr.lock().unwrap().insert(
@@ -227,13 +213,6 @@ impl InterfaceManager {
                             &[gatt_iface],
                             bluetooth_gatt.clone(),
                         );
-
-                        // Battery service is on top of Gatt. Only initialize it after
-                        // GATT is ready.
-                        let bs = battery_service.clone();
-                        tokio::spawn(async move {
-                            bs.lock().unwrap().init();
-                        });
                     }
                     BluetoothAPI::Media => {
                         cr.lock().unwrap().insert(

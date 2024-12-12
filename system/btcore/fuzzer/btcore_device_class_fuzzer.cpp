@@ -16,13 +16,14 @@
  */
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include "btcore/include/device_class.h"
 
 class BTCoreDeviceClassFuzzer {
- public:
+public:
   void process(const uint8_t* data, size_t size);
 
- private:
+private:
   std::unique_ptr<FuzzedDataProvider> mFdp = nullptr;
 };
 

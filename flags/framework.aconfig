@@ -2,11 +2,13 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "mfi_has_uuid"
-    is_exported: true
+    name: "override_context_to_specify_device_id"
     namespace: "bluetooth"
-    description: "Use MFi HAS uuid to judge if a device is hearing aid"
-    bug: "310543599"
+    description: "In Bluetooth Manager, override the context with createDeviceContext to pin a specific DeviceId"
+    bug: "349657939"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -34,25 +36,13 @@ flag {
 }
 
 flag {
-    name: "keep_stopped_media_browser_service"
-    namespace: "bluetooth"
-    description: "Do not start stopped media browser services"
-    bug: "314855224"
-}
-
-flag {
-    name: "identity_address_null_if_unknown"
+    name: "identity_address_null_if_not_known"
     namespace: "bluetooth"
     description: "Return null for identity address if identity address is not known"
     bug: "317120534"
-}
-
-flag {
-    name: "get_address_type_api"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Change visibility of BluetoothDevice#getAddressType API to public"
-    bug: "321120941"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -63,4 +53,11 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "support_bluetooth_quality_report_v6"
+    namespace: "bluetooth"
+    description: "Enhanced Bluetooth Framework Support for Accessing Bluetooth Quality Report v6 Information"
+    bug: "364517559"
 }

@@ -4,7 +4,7 @@
 use crate::{
     core::uuid::Uuid,
     gatt::server::att_database::{AttAttribute, StableAttDatabase},
-    packets::{AttAttributeDataChild, AttErrorCode},
+    packets::att::AttErrorCode,
 };
 
 /// An attribute and the value
@@ -12,7 +12,7 @@ use crate::{
 pub struct AttributeWithValue {
     /// The attribute
     pub attr: AttAttribute,
-    pub value: AttAttributeDataChild,
+    pub value: Vec<u8>,
 }
 
 /// Takes a StableAttDatabase, a range of handles, a target type, and a
@@ -49,10 +49,7 @@ pub async fn filter_read_attributes_by_size_type(
                     curr_elem_size = Some(value_size)
                 }
 
-                out.push(AttributeWithValue {
-                    attr,
-                    value: AttAttributeDataChild::RawData(value.into_boxed_slice()),
-                });
+                out.push(AttributeWithValue { attr, value });
             }
             Err(err) => {
                 if out.is_empty() {
@@ -80,7 +77,6 @@ mod test {
                 test::test_att_db::TestAttDatabase,
             },
         },
-        packets::AttAttributeDataChild,
     };
 
     const UUID: Uuid = Uuid::new(1234);
@@ -112,7 +108,7 @@ mod test {
             response.collect::<Vec<_>>(),
             vec![AttributeWithValue {
                 attr: db.find_attribute(AttHandle(3)).unwrap(),
-                value: AttAttributeDataChild::RawData([4, 5].into())
+                value: vec![4, 5],
             }]
         )
     }
@@ -162,11 +158,11 @@ mod test {
             vec![
                 AttributeWithValue {
                     attr: db.find_attribute(AttHandle(3)).unwrap(),
-                    value: AttAttributeDataChild::RawData([4, 5].into())
+                    value: vec![4, 5],
                 },
                 AttributeWithValue {
                     attr: db.find_attribute(AttHandle(6)).unwrap(),
-                    value: AttAttributeDataChild::RawData([6, 7].into())
+                    value: vec![6, 7],
                 }
             ]
         );
@@ -216,7 +212,7 @@ mod test {
             response.collect::<Vec<_>>(),
             vec![AttributeWithValue {
                 attr: db.find_attribute(AttHandle(3)).unwrap(),
-                value: AttAttributeDataChild::RawData([4, 5].into())
+                value: vec![4, 5],
             },]
         );
     }
@@ -247,7 +243,7 @@ mod test {
             response.collect::<Vec<_>>(),
             vec![AttributeWithValue {
                 attr: db.find_attribute(AttHandle(3)).unwrap(),
-                value: AttAttributeDataChild::RawData([4, 5].into())
+                value: vec![4, 5],
             },]
         );
     }
@@ -291,7 +287,7 @@ mod test {
         ));
 
         // assert: got READ_NOT_PERMITTED
-        assert!(matches!(response, Err(AttErrorCode::READ_NOT_PERMITTED)));
+        assert!(matches!(response, Err(AttErrorCode::ReadNotPermitted)));
     }
 
     #[test]
@@ -340,7 +336,7 @@ mod test {
             response.collect::<Vec<_>>(),
             vec![AttributeWithValue {
                 attr: db.find_attribute(AttHandle(3)).unwrap(),
-                value: AttAttributeDataChild::RawData([4, 5, 6].into())
+                value: vec![4, 5, 6],
             },]
         );
     }
@@ -391,11 +387,11 @@ mod test {
             vec![
                 AttributeWithValue {
                     attr: db.find_attribute(AttHandle(3)).unwrap(),
-                    value: AttAttributeDataChild::RawData([4, 5, 6].into())
+                    value: vec![4, 5, 6],
                 },
                 AttributeWithValue {
                     attr: db.find_attribute(AttHandle(5)).unwrap(),
-                    value: AttAttributeDataChild::RawData([6, 7, 8].into())
+                    value: vec![6, 7, 8],
                 }
             ]
         );

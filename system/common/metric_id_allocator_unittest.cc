@@ -52,9 +52,7 @@ std::unordered_map<RawAddress, int> generateAddresses(const uint32_t num) {
 TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorInitCloseTest) {
   auto& allocator = MetricIdAllocator::GetInstance();
   std::unordered_map<RawAddress, int> paired_device_map;
-  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) {
-    return true;
-  };
+  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) { return true; };
   EXPECT_TRUE(allocator.Init(paired_device_map, callback, callback));
   EXPECT_FALSE(allocator.Init(paired_device_map, callback, callback));
   EXPECT_TRUE(allocator.Close());
@@ -63,9 +61,7 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorInitCloseTest) {
 TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorNotCloseTest) {
   auto& allocator = MetricIdAllocator::GetInstance();
   std::unordered_map<RawAddress, int> paired_device_map;
-  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) {
-    return true;
-  };
+  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) { return true; };
   EXPECT_TRUE(allocator.Init(paired_device_map, callback, callback));
 
   // should fail because it isn't closed
@@ -76,9 +72,7 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorNotCloseTest) {
 TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorScanDeviceFromEmptyTest) {
   auto& allocator = MetricIdAllocator::GetInstance();
   std::unordered_map<RawAddress, int> paired_device_map;
-  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) {
-    return true;
-  };
+  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) { return true; };
   // test empty map, next id should be kMinId
   EXPECT_TRUE(allocator.Init(paired_device_map, callback, callback));
   EXPECT_EQ(allocator.AllocateId(kthAddress(0)), MetricIdAllocator::kMinId);
@@ -88,18 +82,14 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorScanDeviceFromEmptyTest) {
   EXPECT_TRUE(allocator.Close());
 }
 
-TEST(BluetoothMetricIdAllocatorTest,
-     MetricIdAllocatorScanDeviceFromFilledTest) {
+TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorScanDeviceFromFilledTest) {
   auto& allocator = MetricIdAllocator::GetInstance();
   std::unordered_map<RawAddress, int> paired_device_map;
-  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) {
-    return true;
-  };
+  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) { return true; };
   int id = static_cast<int>(MetricIdAllocator::kMaxNumPairedDevicesInMemory) +
            MetricIdAllocator::kMinId;
   // next id should be MetricIdAllocator::kMaxNumPairedDevicesInMemory
-  paired_device_map =
-      generateAddresses(MetricIdAllocator::kMaxNumPairedDevicesInMemory);
+  paired_device_map = generateAddresses(MetricIdAllocator::kMaxNumPairedDevicesInMemory);
   EXPECT_TRUE(allocator.Init(paired_device_map, callback, callback));
   // try new values not in the map, should get new id.
   EXPECT_EQ(allocator.AllocateId(kthAddress(INT_MAX)), id);
@@ -112,11 +102,9 @@ TEST(BluetoothMetricIdAllocatorTest,
 TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorAllocateExistingTest) {
   auto& allocator = MetricIdAllocator::GetInstance();
   std::unordered_map<RawAddress, int> paired_device_map =
-      generateAddresses(MetricIdAllocator::kMaxNumPairedDevicesInMemory);
+          generateAddresses(MetricIdAllocator::kMaxNumPairedDevicesInMemory);
 
-  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) {
-    return true;
-  };
+  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) { return true; };
   int id = MetricIdAllocator::kMinId;
   // next id should be MetricIdAllocator::kMaxNumPairedDevicesInMemory
   EXPECT_TRUE(allocator.Init(paired_device_map, callback, callback));
@@ -134,21 +122,17 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorMainTest1) {
   std::unordered_map<RawAddress, int> paired_device_map;
   int dummy = 22;
   int* pointer = &dummy;
-  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&,
-                                                        const int) {
+  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer * 2;
     return true;
   };
-  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&,
-                                                          const int) {
+  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer / 2;
     return true;
   };
 
-  EXPECT_TRUE(
-      allocator.Init(paired_device_map, save_callback, forget_callback));
-  EXPECT_EQ(allocator.AllocateId(RawAddress({0, 0, 0, 0, 0, 0})),
-            MetricIdAllocator::kMinId);
+  EXPECT_TRUE(allocator.Init(paired_device_map, save_callback, forget_callback));
+  EXPECT_EQ(allocator.AllocateId(RawAddress({0, 0, 0, 0, 0, 0})), MetricIdAllocator::kMinId);
   // save it and make sure the callback is called
   EXPECT_TRUE(allocator.SaveDevice(RawAddress({0, 0, 0, 0, 0, 0})));
   EXPECT_EQ(dummy, 44);
@@ -158,10 +142,8 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorMainTest1) {
   EXPECT_EQ(dummy, 44);
 
   // save it and make sure the callback is called
-  EXPECT_EQ(allocator.AllocateId(RawAddress({0, 0, 0, 0, 0, 2})),
-            MetricIdAllocator::kMinId + 1);
-  EXPECT_EQ(allocator.AllocateId(RawAddress({0, 0, 0, 0, 0, 3})),
-            MetricIdAllocator::kMinId + 2);
+  EXPECT_EQ(allocator.AllocateId(RawAddress({0, 0, 0, 0, 0, 2})), MetricIdAllocator::kMinId + 1);
+  EXPECT_EQ(allocator.AllocateId(RawAddress({0, 0, 0, 0, 0, 3})), MetricIdAllocator::kMinId + 2);
   EXPECT_TRUE(allocator.SaveDevice(RawAddress({0, 0, 0, 0, 0, 2})));
   EXPECT_EQ(dummy, 88);
   EXPECT_TRUE(allocator.SaveDevice(RawAddress({0, 0, 0, 0, 0, 3})));
@@ -184,31 +166,25 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorFullPairedMap) {
   auto& allocator = MetricIdAllocator::GetInstance();
   // preset a full map
   std::unordered_map<RawAddress, int> paired_device_map =
-      generateAddresses(MetricIdAllocator::kMaxNumPairedDevicesInMemory);
+          generateAddresses(MetricIdAllocator::kMaxNumPairedDevicesInMemory);
   int dummy = 243;
   int* pointer = &dummy;
-  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&,
-                                                        const int) {
+  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer * 2;
     return true;
   };
-  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&,
-                                                          const int) {
+  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer / 3;
     return true;
   };
 
-  EXPECT_TRUE(
-      allocator.Init(paired_device_map, save_callback, forget_callback));
+  EXPECT_TRUE(allocator.Init(paired_device_map, save_callback, forget_callback));
 
   // check if all preset ids are there.
   // comments based on kMaxNumPairedDevicesInMemory = 200. It can change.
   int key = 0;
-  for (key = 0;
-       key < static_cast<int>(MetricIdAllocator::kMaxNumPairedDevicesInMemory);
-       key++) {
-    EXPECT_EQ(allocator.AllocateId(kthAddress(key)),
-              key + MetricIdAllocator::kMinId);
+  for (key = 0; key < static_cast<int>(MetricIdAllocator::kMaxNumPairedDevicesInMemory); key++) {
+    EXPECT_EQ(allocator.AllocateId(kthAddress(key)), key + MetricIdAllocator::kMinId);
   }
   // paired: 0, 1, 2 ... 199,
   // scanned:
@@ -312,8 +288,8 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorFullPairedMap) {
   dummy = 4;
   EXPECT_TRUE(allocator.SaveDevice(kthAddress(0)));
   EXPECT_TRUE(allocator.SaveDevice(kthAddress(1)));
-  EXPECT_TRUE(allocator.SaveDevice(
-      kthAddress(MetricIdAllocator::kMaxNumPairedDevicesInMemory + 5)));
+  EXPECT_TRUE(
+          allocator.SaveDevice(kthAddress(MetricIdAllocator::kMaxNumPairedDevicesInMemory + 5)));
   EXPECT_EQ(dummy, 32);
 
   EXPECT_TRUE(allocator.Close());
@@ -324,36 +300,28 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorFullScannedMap) {
   std::unordered_map<RawAddress, int> paired_device_map;
   int dummy = 22;
   int* pointer = &dummy;
-  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&,
-                                                        const int) {
+  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer * 2;
     return true;
   };
-  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&,
-                                                          const int) {
+  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer / 2;
     return true;
   };
 
-  EXPECT_TRUE(
-      allocator.Init(paired_device_map, save_callback, forget_callback));
+  EXPECT_TRUE(allocator.Init(paired_device_map, save_callback, forget_callback));
 
   // allocate kMaxNumUnpairedDevicesInMemory ids
   // comments based on kMaxNumUnpairedDevicesInMemory = 200
-  for (int key = 0;
-       key <
-       static_cast<int>(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
+  for (int key = 0; key < static_cast<int>(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
        key++) {
-    EXPECT_EQ(allocator.AllocateId(kthAddress(key)),
-              key + MetricIdAllocator::kMinId);
+    EXPECT_EQ(allocator.AllocateId(kthAddress(key)), key + MetricIdAllocator::kMinId);
   }
   // scanned: 0, 1, 2 ... 199,
   // paired:
 
-  int id = MetricIdAllocator::kMaxNumUnpairedDevicesInMemory +
-           MetricIdAllocator::kMinId;
-  RawAddress addr =
-      kthAddress(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
+  int id = MetricIdAllocator::kMaxNumUnpairedDevicesInMemory + MetricIdAllocator::kMinId;
+  RawAddress addr = kthAddress(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
   EXPECT_EQ(allocator.AllocateId(addr), id);
   // scanned: 1, 2 ... 199, 200
 
@@ -373,9 +341,7 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorFullScannedMap) {
   // try to allocate for device 0, 1, 2, 3, 4....199
   // we should have a new id every time,
   // since the scanned map is full at this point
-  for (int key = 0;
-       key <
-       static_cast<int>(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
+  for (int key = 0; key < static_cast<int>(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
        key++) {
     EXPECT_EQ(allocator.AllocateId(kthAddress(key)), id++);
   }
@@ -387,24 +353,19 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorMultiThreadPressureTest) {
   auto& allocator = MetricIdAllocator::GetInstance();
   int dummy = 22;
   int* pointer = &dummy;
-  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&,
-                                                        const int) {
+  MetricIdAllocator::Callback save_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer + 1;
     return true;
   };
-  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&,
-                                                          const int) {
+  MetricIdAllocator::Callback forget_callback = [pointer](const RawAddress&, const int) {
     *pointer = *pointer - 1;
     return true;
   };
-  EXPECT_TRUE(
-      allocator.Init(paired_device_map, save_callback, forget_callback));
+  EXPECT_TRUE(allocator.Init(paired_device_map, save_callback, forget_callback));
 
   // make sure no deadlock
   std::vector<std::thread> workers;
-  for (int key = 0;
-       key <
-       static_cast<int>(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
+  for (int key = 0; key < static_cast<int>(MetricIdAllocator::kMaxNumUnpairedDevicesInMemory);
        key++) {
     workers.push_back(std::thread([key]() {
       auto& allocator = MetricIdAllocator::GetInstance();
@@ -424,9 +385,7 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorMultiThreadPressureTest) {
 TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorWrapAroundTest1) {
   std::unordered_map<RawAddress, int> paired_device_map;
   auto& allocator = MetricIdAllocator::GetInstance();
-  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) {
-    return true;
-  };
+  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) { return true; };
 
   // make a sparse paired_device_map
   int min_id = MetricIdAllocator::kMinId;
@@ -454,9 +413,7 @@ TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorWrapAroundTest1) {
 TEST(BluetoothMetricIdAllocatorTest, MetricIdAllocatorWrapAroundTest2) {
   std::unordered_map<RawAddress, int> paired_device_map;
   auto& allocator = MetricIdAllocator::GetInstance();
-  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) {
-    return true;
-  };
+  MetricIdAllocator::Callback callback = [](const RawAddress&, const int) { return true; };
 
   // make a sparse paired_device_map
   int min_id = MetricIdAllocator::kMinId;

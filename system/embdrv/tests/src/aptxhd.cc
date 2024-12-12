@@ -28,8 +28,8 @@
 #define BYTES_PER_CODEWORD 24
 
 class LibAptxHdEncTest : public ::testing::Test {
- private:
- protected:
+private:
+protected:
   void* aptxhdbtenc = nullptr;
   void SetUp() override {
     aptxhdbtenc = malloc(SizeofAptxhdbtenc());
@@ -39,8 +39,7 @@ class LibAptxHdEncTest : public ::testing::Test {
 
   void TearDown() override { free(aptxhdbtenc); }
 
-  void codeword_cmp(const uint8_t p[BYTES_PER_CODEWORD],
-                    const uint32_t codeword[2]) {
+  void codeword_cmp(const uint8_t p[BYTES_PER_CODEWORD], const uint32_t codeword[2]) {
     uint32_t pcmL[4];
     uint32_t pcmR[4];
     for (size_t i = 0; i < 4; i++) {
@@ -59,11 +58,10 @@ class LibAptxHdEncTest : public ::testing::Test {
 
 TEST_F(LibAptxHdEncTest, encode_fake_data) {
   const char input[] =
-      "012345678901234567890123456789012345678901234567890123456789012345678901"
-      "234567890123456789012345678901234567890123456789";
-  const uint32_t aptxhd_codeword[] = {7585535, 7585535, 32767,   32767,
-                                      557055,  557027,  7586105, 7586109,
-                                      9748656, 10764446};
+          "012345678901234567890123456789012345678901234567890123456789012345678901"
+          "234567890123456789012345678901234567890123456789";
+  const uint32_t aptxhd_codeword[] = {7585535, 7585535, 32767,   32767,   557055,
+                                      557027,  7586105, 7586109, 9748656, 10764446};
 
   ASSERT_EQ((sizeof(input) - 1) % BYTES_PER_CODEWORD, 0);
   ASSERT_EQ((sizeof(input) - 1) / BYTES_PER_CODEWORD,

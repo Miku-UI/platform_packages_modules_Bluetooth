@@ -30,13 +30,9 @@ static class : public ReadClockHandler {
 
 static std::atomic<ReadClockHandler*> g_read_clock_handler = &g_empty_handler;
 
-void LinkClocker::Register(ReadClockHandler* handler) {
-  g_read_clock_handler = handler;
-}
+void LinkClocker::Register(ReadClockHandler* handler) { g_read_clock_handler = handler; }
 
-void LinkClocker::Unregister() {
-  g_read_clock_handler = &g_empty_handler;
-}
+void LinkClocker::Unregister() { g_read_clock_handler = &g_empty_handler; }
 
 void LinkClocker::OnHciEvent(const HciPacket& packet) {
   const int HCI_CMD_READ_CLOCK = 0x1407;
@@ -47,26 +43,34 @@ void LinkClocker::OnHciEvent(const HciPacket& packet) {
   // |  [1]  Parameter Total Length
   // | [2+]  Parameters
 
-  if (packet.size() < 2) return;
+  if (packet.size() < 2) {
+    return;
+  }
 
   const uint8_t* payload = packet.data() + 2;
   size_t payload_length = std::min(size_t(packet[1]), packet.size() - 2);
   int event_code = packet[0];
 
-  if (event_code != HCI_EVT_COMMAND_COMPLETE) return;
+  if (event_code != HCI_EVT_COMMAND_COMPLETE) {
+    return;
+  }
 
   // HCI Command Complete Event [Core 4.E.7.7.14]
   // |    [0]  Num_HCI_Command_Packets, Ignored
   // | [1..2]  Command_Opcode, catch `HCI_LE_Set_CIG_Parameters`
   // |   [3+]  Return Parameters
 
-  if (payload_length < 3) return;
+  if (payload_length < 3) {
+    return;
+  }
 
   uint16_t op_code = payload[1] | (payload[2] << 8);
   const uint8_t* parameters = payload + 3;
   size_t parameters_length = payload_length - 3;
 
-  if (op_code != HCI_CMD_READ_CLOCK) return;
+  if (op_code != HCI_CMD_READ_CLOCK) {
+    return;
+  }
 
   // HCI Read Clock return parameters [Core 4.E.7.5.6]
   // |    [0]  Status, 0 when OK
@@ -74,11 +78,15 @@ void LinkClocker::OnHciEvent(const HciPacket& packet) {
   // | [3..6]  Clock (28-bits meaningful)
   // | [7..8]  Accuracy
 
-  if (parameters_length < 9) return;
+  if (parameters_length < 9) {
+    return;
+  }
 
   uint8_t status = parameters[0];
 
-  if (status != 0) return;
+  if (status != 0) {
+    return;
+  }
 
   uint32_t bt_clock = ((uint32_t)parameters[3] << 0) | ((uint32_t)parameters[4] << 8) |
                       ((uint32_t)parameters[5] << 16) | ((uint32_t)parameters[6] << 24);

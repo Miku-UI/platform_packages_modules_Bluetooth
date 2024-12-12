@@ -43,6 +43,14 @@ If you use the `docker` binary, add the flag: `--use-docker` when running
 This uses the default tag of `floss:latest` so you don't have to provide it
 specifically when invoking `build-in-container.py`.
 
+Run the following command to check if the image has been installed
+```
+$ podman images
+REPOSITORY                TAG         IMAGE ID      CREATED         SIZE
+localhost/floss           latest      6e66bc573bd7  8 minutes ago   3.27 GB
+localhost/floss           buildtemp   8cd97b8cb7bb  10 minutes ago  3.25 GB
+```
+
 ## Using the container image to build
 
 Once the container image is built (and assuming it's tagged as `floss:latest`), you
@@ -65,3 +73,11 @@ If you want to run the build more quickly (or pass other commands), run
 `build-in-container.py --only-start`. This will only start the container for you
 (doing the correct mounts) and will print the commands it would have run via
 `<container_binary> exec` normally.
+For example, you might want to run all unit tests after making a change:
+```
+./build-in-container.py --only-start
+podman exec -it floss-container-runner /root/src/build.py --target test
+```
+
+Important: after syncing the repository, perform a clean build using
+`build-in-container.py` to prevent unexpected build failures

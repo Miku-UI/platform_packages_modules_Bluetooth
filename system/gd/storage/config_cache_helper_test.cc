@@ -52,7 +52,8 @@ TEST(ConfigCacheHelperTest, set_get_uint64_test) {
   uint64_t num = std::numeric_limits<int>::max();
   num = num * 10;
   ConfigCacheHelper(config).SetUint64("A", "B", num);
-  ASSERT_THAT(config.GetProperty("A", "B"), Optional(StrEq(std::to_string(std::numeric_limits<int>::max()) + "0")));
+  ASSERT_THAT(config.GetProperty("A", "B"),
+              Optional(StrEq(std::to_string(std::numeric_limits<int>::max()) + "0")));
   ASSERT_THAT(ConfigCacheHelper(config).GetUint64("A", "B"), Optional(Eq(num)));
   // zero
   ConfigCacheHelper(config).SetUint64("A", "B", 0);
@@ -70,8 +71,8 @@ TEST(ConfigCacheHelperTest, set_get_uint32_test) {
   uint64_t num = std::numeric_limits<uint32_t>::max();
   num *= 10;
   ConfigCacheHelper(config).SetUint64("A", "B", num);
-  ASSERT_THAT(
-      config.GetProperty("A", "B"), Optional(StrEq(std::to_string(std::numeric_limits<uint32_t>::max()) + "0")));
+  ASSERT_THAT(config.GetProperty("A", "B"),
+              Optional(StrEq(std::to_string(std::numeric_limits<uint32_t>::max()) + "0")));
   ASSERT_FALSE(ConfigCacheHelper(config).GetUint32("A", "B"));
   // zero
   ConfigCacheHelper(config).SetUint32("A", "B", 0);
@@ -85,12 +86,13 @@ TEST(ConfigCacheHelperTest, set_get_int64_test) {
   int64_t num = std::numeric_limits<int32_t>::max();
   num *= 10;
   ConfigCacheHelper(config).SetInt64("A", "B", num);
-  ASSERT_THAT(config.GetProperty("A", "B"), Optional(StrEq(std::to_string(std::numeric_limits<int32_t>::max()) + "0")));
+  ASSERT_THAT(config.GetProperty("A", "B"),
+              Optional(StrEq(std::to_string(std::numeric_limits<int32_t>::max()) + "0")));
   ASSERT_THAT(ConfigCacheHelper(config).GetInt64("A", "B"), Optional(Eq(int64_t(num))));
   // negative
   ConfigCacheHelper(config).SetInt64("A", "B", -1 * num);
-  ASSERT_THAT(
-      config.GetProperty("A", "B"), Optional(StrEq("-" + std::to_string(std::numeric_limits<int32_t>::max()) + "0")));
+  ASSERT_THAT(config.GetProperty("A", "B"),
+              Optional(StrEq("-" + std::to_string(std::numeric_limits<int32_t>::max()) + "0")));
   ASSERT_THAT(ConfigCacheHelper(config).GetInt64("A", "B"), Optional(Eq(-1 * num)));
   // zero
   ConfigCacheHelper(config).SetInt("A", "B", 0);

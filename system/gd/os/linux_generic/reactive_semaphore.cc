@@ -29,7 +29,8 @@
 namespace bluetooth {
 namespace os {
 
-ReactiveSemaphore::ReactiveSemaphore(unsigned int value) : fd_(eventfd(value, EFD_SEMAPHORE | EFD_NONBLOCK)) {
+ReactiveSemaphore::ReactiveSemaphore(unsigned int value)
+    : fd_(eventfd(value, EFD_SEMAPHORE | EFD_NONBLOCK)) {
   log::assert_that(fd_ != -1, "assert failed: fd_ != -1");
 }
 
@@ -51,9 +52,7 @@ void ReactiveSemaphore::Increase() {
   log::assert_that(write_result != -1, "increase failed: {}", strerror(errno));
 }
 
-int ReactiveSemaphore::GetFd() {
-  return fd_;
-}
+int ReactiveSemaphore::GetFd() { return fd_; }
 
 }  // namespace os
 }  // namespace bluetooth

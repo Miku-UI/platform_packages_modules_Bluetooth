@@ -31,8 +31,9 @@ using RemoteName = std::array<uint8_t, 248>;
 using ReadRemoteNameDbCallback = common::OnceCallback<void(hci::Address address, bool success)>;
 
 class NameDbModule : public bluetooth::Module {
- public:
-  virtual void ReadRemoteNameRequest(hci::Address address, ReadRemoteNameDbCallback callback, os::Handler* handler);
+public:
+  virtual void ReadRemoteNameRequest(hci::Address address, ReadRemoteNameDbCallback callback,
+                                     os::Handler* handler);
 
   bool IsNameCached(hci::Address address) const;
   RemoteName ReadCachedRemoteName(hci::Address address) const;
@@ -45,15 +46,13 @@ class NameDbModule : public bluetooth::Module {
 
   ~NameDbModule();
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
   void Start() override;
   void Stop() override;
-  std::string ToString() const override {
-    return std::string("NameDb");
-  }
+  std::string ToString() const override { return std::string("NameDb"); }
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
 };

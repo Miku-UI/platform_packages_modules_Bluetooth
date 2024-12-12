@@ -465,9 +465,10 @@ public class BluetoothKeystoreService {
                 byte[] messageDigestBytes = messageDigest.digest();
                 StringBuilder hashString = new StringBuilder();
                 for (int index = 0; index < messageDigestBytes.length; index++) {
-                    hashString.append(
+                    String hash =
                             Integer.toString((messageDigestBytes[index] & 0xff) + 0x100, 16)
-                                    .substring(1));
+                                    .substring(1);
+                    hashString.append(hash);
                 }
 
                 mNameDecryptKey.put(prefixString, hashString.toString());

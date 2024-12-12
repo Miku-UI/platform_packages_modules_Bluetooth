@@ -22,9 +22,8 @@
 #include "test/common/mock_functions.h"
 
 void LeAudioBroadcaster::DebugDump(int) { inc_func_call_count(__func__); }
-void LeAudioBroadcaster::Initialize(
-    bluetooth::le_audio::LeAudioBroadcasterCallbacks*,
-    base::RepeatingCallback<bool()>) {
+void LeAudioBroadcaster::Initialize(bluetooth::le_audio::LeAudioBroadcasterCallbacks*,
+                                    base::RepeatingCallback<bool()>) {
   inc_func_call_count(__func__);
 }
 void LeAudioBroadcaster::Stop() { inc_func_call_count(__func__); }

@@ -24,46 +24,40 @@
 
 #include <cstdint>
 
-#include "bta_api_data_types.h"
-#include "internal_include/bt_target.h"
+#include "bta/include/bta_api_data_types.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_ble_sec_api_types.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/hci_error_code.h"
-#include "types/ble_address_with_type.h"
-#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 /* Security Setting Mask */
 #define BTA_SEC_AUTHENTICATE \
-  (BTM_SEC_IN_AUTHENTICATE | \
-   BTM_SEC_OUT_AUTHENTICATE) /* Authentication required. */
-#define BTA_SEC_ENCRYPT \
-  (BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT) /* Encryption required. */
+  (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_OUT_AUTHENTICATE)             /* Authentication required. */
+#define BTA_SEC_ENCRYPT (BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT) /* Encryption required. */
 
 typedef uint16_t tBTA_SEC;
 
 typedef enum : uint8_t {
   /* Security Callback Events */
-  BTA_DM_PIN_REQ_EVT = 2,          /* PIN request. */
-  BTA_DM_AUTH_CMPL_EVT = 3,        /* Authentication complete indication. */
-  BTA_DM_AUTHORIZE_EVT = 4,        /* Authorization request. */
-  BTA_DM_BOND_CANCEL_CMPL_EVT = 9, /* Bond cancel complete indication */
-  BTA_DM_SP_CFM_REQ_EVT = 10,   /* Simple Pairing User Confirmation request */
-  BTA_DM_SP_KEY_NOTIF_EVT = 11, /* Simple Pairing Passkey Notification */
-  BTA_DM_BLE_KEY_EVT = 15,      /* BLE SMP key event for peer device keys */
-  BTA_DM_BLE_SEC_REQ_EVT = 16,  /* BLE SMP security request */
+  BTA_DM_PIN_REQ_EVT = 2,            /* PIN request. */
+  BTA_DM_AUTH_CMPL_EVT = 3,          /* Authentication complete indication. */
+  BTA_DM_AUTHORIZE_EVT = 4,          /* Authorization request. */
+  BTA_DM_BOND_CANCEL_CMPL_EVT = 9,   /* Bond cancel complete indication */
+  BTA_DM_SP_CFM_REQ_EVT = 10,        /* Simple Pairing User Confirmation request */
+  BTA_DM_SP_KEY_NOTIF_EVT = 11,      /* Simple Pairing Passkey Notification */
+  BTA_DM_BLE_KEY_EVT = 15,           /* BLE SMP key event for peer device keys */
+  BTA_DM_BLE_SEC_REQ_EVT = 16,       /* BLE SMP security request */
   BTA_DM_BLE_PASSKEY_NOTIF_EVT = 17, /* SMP passkey notification event */
   BTA_DM_BLE_PASSKEY_REQ_EVT = 18,   /* SMP passkey request event */
   BTA_DM_BLE_OOB_REQ_EVT = 19,       /* SMP OOB request event */
   BTA_DM_BLE_LOCAL_IR_EVT = 20,      /* BLE local IR event */
   BTA_DM_BLE_LOCAL_ER_EVT = 21,      /* BLE local ER event */
   BTA_DM_BLE_NC_REQ_EVT = 22,        /* SMP Numeric Comparison request event */
-  BTA_DM_SP_RMT_OOB_EXT_EVT =
-      23, /* Simple Pairing Remote OOB Extended Data request. */
-  BTA_DM_BLE_AUTH_CMPL_EVT = 24, /* BLE Auth complete */
+  BTA_DM_SP_RMT_OOB_EXT_EVT = 23,    /* Simple Pairing Remote OOB Extended Data request. */
+  BTA_DM_BLE_AUTH_CMPL_EVT = 24,     /* BLE Auth complete */
   BTA_DM_DEV_UNPAIRED_EVT = 25,
   BTA_DM_ENER_INFO_READ = 28,        /* Energy info read */
   BTA_DM_BLE_SC_OOB_REQ_EVT = 29,    /* SMP SC OOB request event */
@@ -82,6 +76,7 @@ typedef struct {
   RawAddress bd_addr;  /* BD address peer device. */
   DEV_CLASS dev_class; /* Class of Device */
   BD_NAME bd_name;     /* Name of peer device. */
+
   bool min_16_digit;   /* true if the pin returned must be at least 16 digits */
 } tBTA_DM_PIN_REQ;
 
@@ -93,26 +88,21 @@ typedef struct {
  */
 #define BTA_DM_AUTH_CONVERT_SMP_CODE(x) (BTA_DM_AUTH_FAIL_BASE + (x))
 
-#define BTA_DM_AUTH_SMP_PAIR_AUTH_FAIL \
-  (BTA_DM_AUTH_FAIL_BASE + SMP_PAIR_AUTH_FAIL)
-#define BTA_DM_AUTH_SMP_CONFIRM_VALUE_FAIL \
-  (BTA_DM_AUTH_FAIL_BASE + SMP_CONFIRM_VALUE_ERR)
-#define BTA_DM_AUTH_SMP_PAIR_NOT_SUPPORT \
-  (BTA_DM_AUTH_FAIL_BASE + SMP_PAIR_NOT_SUPPORT)
-#define BTA_DM_AUTH_SMP_UNKNOWN_ERR \
-  (BTA_DM_AUTH_FAIL_BASE + SMP_PAIR_FAIL_UNKNOWN)
+#define BTA_DM_AUTH_SMP_PAIR_AUTH_FAIL (BTA_DM_AUTH_FAIL_BASE + SMP_PAIR_AUTH_FAIL)
+#define BTA_DM_AUTH_SMP_CONFIRM_VALUE_FAIL (BTA_DM_AUTH_FAIL_BASE + SMP_CONFIRM_VALUE_ERR)
+#define BTA_DM_AUTH_SMP_PAIR_NOT_SUPPORT (BTA_DM_AUTH_FAIL_BASE + SMP_PAIR_NOT_SUPPORT)
+#define BTA_DM_AUTH_SMP_UNKNOWN_ERR (BTA_DM_AUTH_FAIL_BASE + SMP_PAIR_FAIL_UNKNOWN)
 #define BTA_DM_AUTH_SMP_CONN_TOUT (BTA_DM_AUTH_FAIL_BASE + SMP_CONN_TOUT)
 
 typedef uint8_t tBTA_LE_KEY_TYPE; /* can be used as a bit mask */
 
 typedef union {
-  tBTM_LE_PENC_KEYS penc_key;  /* received peer encryption key */
-  tBTM_LE_PCSRK_KEYS psrk_key; /* received peer device SRK */
-  tBTM_LE_PID_KEYS pid_key;    /* peer device ID key */
-  tBTM_LE_LENC_KEYS
-      lenc_key; /* local encryption reproduction keys LTK = = d1(ER,DIV,0)*/
+  tBTM_LE_PENC_KEYS penc_key;   /* received peer encryption key */
+  tBTM_LE_PCSRK_KEYS psrk_key;  /* received peer device SRK */
+  tBTM_LE_PID_KEYS pid_key;     /* peer device ID key */
+  tBTM_LE_LENC_KEYS lenc_key;   /* local encryption reproduction keys LTK = = d1(ER,DIV,0)*/
   tBTM_LE_LCSRK_KEYS lcsrk_key; /* local device CSRK = d1(ER,DIV,1)*/
-  tBTM_LE_PID_KEYS lid_key; /* local device ID key for the particular remote */
+  tBTM_LE_PID_KEYS lid_key;     /* local device ID key for the particular remote */
 } tBTA_LE_KEY_VALUE;
 
 #define BTA_BLE_LOCAL_KEY_TYPE_ID 1
@@ -125,14 +115,18 @@ typedef struct {
   Octet16 dhk;
 } tBTA_BLE_LOCAL_ID_KEYS;
 
-#define BTA_DM_SEC_GRANTED BTA_SUCCESS
-#define BTA_DM_SEC_PAIR_NOT_SPT BTA_DM_AUTH_SMP_PAIR_NOT_SUPPORT
-typedef uint8_t tBTA_DM_BLE_SEC_GRANT;
+enum class tBTA_DM_BLE_SEC_GRANT {
+  BTA_DM_SEC_GRANTED = BTA_SUCCESS,
+  BTA_DM_SEC_PAIR_NOT_SPT = BTA_DM_AUTH_SMP_PAIR_NOT_SUPPORT
+};
 
 /* Structure associated with BTA_DM_BLE_SEC_REQ_EVT */
 typedef struct {
+  /* Note: First 3 data members must be, bd_addr, dev_class, and bd_name in
+   * order */
   RawAddress bd_addr; /* peer address */
-  BD_NAME bd_name; /* peer device name */
+  DEV_CLASS dev_class;
+  BD_NAME bd_name;    /* peer device name */
 } tBTA_DM_BLE_SEC_REQ;
 
 typedef struct {
@@ -143,14 +137,13 @@ typedef struct {
 
 /* Structure associated with BTA_DM_AUTH_CMPL_EVT */
 typedef struct {
-  RawAddress bd_addr;  /* BD address peer device. */
-  BD_NAME bd_name;     /* Name of peer device. */
-  bool key_present;    /* Valid link key value in key element */
-  LinkKey key;         /* Link key associated with peer device. */
-  uint8_t key_type;    /* The type of Link Key */
-  bool success;        /* true of authentication succeeded, false if failed. */
-  tHCI_REASON
-      fail_reason; /* The HCI reason/error code for when success=false */
+  RawAddress bd_addr;       /* BD address peer device. */
+  BD_NAME bd_name;          /* Name of peer device. */
+  bool key_present;         /* Valid link key value in key element */
+  LinkKey key;              /* Link key associated with peer device. */
+  uint8_t key_type;         /* The type of Link Key */
+  bool success;             /* true of authentication succeeded, false if failed. */
+  tHCI_REASON fail_reason;  /* The HCI reason/error code for when success=false */
   tBLE_ADDR_TYPE addr_type; /* Peer device address type */
   tBT_DEVICE_TYPE dev_type;
   bool is_ctkd; /* True if key is derived using CTKD procedure */
@@ -167,12 +160,9 @@ typedef struct {
                     Use IO Capabilities to determine authentication procedure \
                     */
 
-#define BTA_AUTH_DD_BOND \
-  BTM_AUTH_DD_BOND /* 2 this bit is set for dedicated bonding */
-#define BTA_AUTH_GEN_BOND \
-  BTM_AUTH_SPGB_NO /* 4 this bit is set for general bonding */
-#define BTA_AUTH_BONDS \
-  BTM_AUTH_BONDS /* 6 the general/dedicated bonding bits  */
+#define BTA_AUTH_DD_BOND BTM_AUTH_DD_BOND  /* 2 this bit is set for dedicated bonding */
+#define BTA_AUTH_GEN_BOND BTM_AUTH_SPGB_NO /* 4 this bit is set for general bonding */
+#define BTA_AUTH_BONDS BTM_AUTH_BONDS      /* 6 the general/dedicated bonding bits  */
 
 #define BTA_LE_AUTH_REQ_SC_MITM_BOND BTM_LE_AUTH_REQ_SC_MITM_BOND /* 1101 */
 
@@ -180,12 +170,13 @@ typedef struct {
 typedef struct {
   /* Note: First 3 data members must be, bd_addr, dev_class, and bd_name in
    * order */
-  RawAddress bd_addr;  /* peer address */
-  DEV_CLASS dev_class; /* peer CoD */
-  BD_NAME bd_name;     /* peer device name */
-  uint32_t num_val; /* the numeric value for comparison. If just_works, do not
-                       show this number to UI */
-  bool just_works;  /* true, if "Just Works" association model */
+  RawAddress bd_addr;         /* peer address */
+  DEV_CLASS dev_class;        /* peer CoD */
+  BD_NAME bd_name;            /* peer device name */
+
+  uint32_t num_val;           /* the numeric value for comparison. If just_works, do not
+                                 show this number to UI */
+  bool just_works;            /* true, if "Just Works" association model */
   tBTM_AUTH_REQ loc_auth_req; /* Authentication required for local device */
   tBTM_AUTH_REQ rmt_auth_req; /* Authentication required for peer device */
   tBTM_IO_CAP loc_io_caps;    /* IO Capabilities of local device */
@@ -199,8 +190,9 @@ typedef struct {
   RawAddress bd_addr;  /* peer address */
   DEV_CLASS dev_class; /* peer CoD */
   BD_NAME bd_name;     /* peer device name */
-  uint32_t passkey; /* the numeric value for comparison. If just_works, do not
-                       show this number to UI */
+
+  uint32_t passkey;    /* the numeric value for comparison. If just_works, do not
+                          show this number to UI */
 } tBTA_DM_SP_KEY_NOTIF;
 
 /* Structure associated with BTA_DM_SP_RMT_OOB_EVT */
@@ -229,19 +221,18 @@ typedef struct {
 
 /* Union of all security callback structures */
 typedef union {
-  tBTA_DM_PIN_REQ pin_req;        /* PIN request. */
-  tBTA_DM_AUTH_CMPL auth_cmpl;    /* Authentication complete indication. */
-  tBTA_DM_UNPAIR dev_unpair;      /* Remove bonding complete indication */
-  tBTA_DM_SP_CFM_REQ cfm_req;     /* user confirm request */
-  tBTA_DM_SP_KEY_NOTIF key_notif; /* passkey notification */
-  tBTA_DM_SP_RMT_OOB rmt_oob;     /* remote oob */
-  tBTA_DM_BOND_CANCEL_CMPL
-      bond_cancel_cmpl;               /* Bond Cancel Complete indication */
-  tBTA_DM_BLE_SEC_REQ ble_req;        /* BLE SMP related request */
-  tBTA_DM_BLE_KEY ble_key;            /* BLE SMP keys used when pairing */
-  tBTA_BLE_LOCAL_ID_KEYS ble_id_keys; /* IR event */
-  Octet16 ble_er;                     /* ER event data */
-  tBTA_DM_LOC_OOB_DATA local_oob_data; /* Local OOB data generated by us */
+  tBTA_DM_PIN_REQ pin_req;                   /* PIN request. */
+  tBTA_DM_AUTH_CMPL auth_cmpl;               /* Authentication complete indication. */
+  tBTA_DM_UNPAIR dev_unpair;                 /* Remove bonding complete indication */
+  tBTA_DM_SP_CFM_REQ cfm_req;                /* user confirm request */
+  tBTA_DM_SP_KEY_NOTIF key_notif;            /* passkey notification */
+  tBTA_DM_SP_RMT_OOB rmt_oob;                /* remote oob */
+  tBTA_DM_BOND_CANCEL_CMPL bond_cancel_cmpl; /* Bond Cancel Complete indication */
+  tBTA_DM_BLE_SEC_REQ ble_req;               /* BLE SMP related request */
+  tBTA_DM_BLE_KEY ble_key;                   /* BLE SMP keys used when pairing */
+  tBTA_BLE_LOCAL_ID_KEYS ble_id_keys;        /* IR event */
+  Octet16 ble_er;                            /* ER event data */
+  tBTA_DM_LOC_OOB_DATA local_oob_data;       /* Local OOB data generated by us */
   tBTA_DM_RC_UNPAIR delete_key_RC_to_unpair;
   tBTA_DM_PROC_ID_ADDR proc_id_addr; /* Identity address event */
   tBTA_DM_KEY_MISSING key_missing;
@@ -251,8 +242,7 @@ typedef union {
 typedef void(tBTA_DM_SEC_CBACK)(tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data);
 
 /* Encryption callback*/
-typedef void(tBTA_DM_ENCRYPT_CBACK)(const RawAddress& bd_addr,
-                                    tBT_TRANSPORT transport,
+typedef void(tBTA_DM_ENCRYPT_CBACK)(const RawAddress& bd_addr, tBT_TRANSPORT transport,
                                     tBTA_STATUS result);
 
 /*******************************************************************************
@@ -268,8 +258,8 @@ typedef void(tBTA_DM_ENCRYPT_CBACK)(const RawAddress& bd_addr,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
-                tBT_TRANSPORT transport, tBT_DEVICE_TYPE device_type);
+void BTA_DmBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TRANSPORT transport,
+                tBT_DEVICE_TYPE device_type);
 
 /*******************************************************************************
  *
@@ -297,8 +287,7 @@ void BTA_DmBondCancel(const RawAddress& bd_addr);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmPinReply(const RawAddress& bd_addr, bool accept, uint8_t pin_len,
-                    uint8_t* p_pin);
+void BTA_DmPinReply(const RawAddress& bd_addr, bool accept, uint8_t pin_len, uint8_t* p_pin);
 
 /*******************************************************************************
  *
@@ -337,8 +326,8 @@ void BTA_DmConfirm(const RawAddress& bd_addr, bool accept);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmAddDevice(RawAddress bd_addr, DEV_CLASS dev_class, LinkKey link_key,
-                     uint8_t key_type, uint8_t pin_length);
+void BTA_DmAddDevice(RawAddress bd_addr, DEV_CLASS dev_class, LinkKey link_key, uint8_t key_type,
+                     uint8_t pin_length);
 
 /*******************************************************************************
  *
@@ -355,7 +344,6 @@ void BTA_DmAddDevice(RawAddress bd_addr, DEV_CLASS dev_class, LinkKey link_key,
  ******************************************************************************/
 tBTA_STATUS BTA_DmRemoveDevice(const RawAddress& bd_addr);
 
-
 /* BLE related API functions */
 /*******************************************************************************
  *
@@ -369,8 +357,7 @@ tBTA_STATUS BTA_DmRemoveDevice(const RawAddress& bd_addr);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleSecurityGrant(const RawAddress& bd_addr,
-                            tBTA_DM_BLE_SEC_GRANT res);
+void BTA_DmBleSecurityGrant(const RawAddress& bd_addr, tBTA_DM_BLE_SEC_GRANT res);
 
 /*******************************************************************************
  *
@@ -386,8 +373,7 @@ void BTA_DmBleSecurityGrant(const RawAddress& bd_addr,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBlePasskeyReply(const RawAddress& bd_addr, bool accept,
-                           uint32_t passkey);
+void BTA_DmBlePasskeyReply(const RawAddress& bd_addr, bool accept, uint32_t passkey);
 
 /*******************************************************************************
  *
@@ -464,8 +450,7 @@ void BTA_DmAddBleKey(const RawAddress& bd_addr, tBTA_LE_KEY_VALUE* p_le_key,
  *
  ******************************************************************************/
 void BTA_DmSetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
-                         tBTA_DM_ENCRYPT_CBACK* p_callback,
-                         tBTM_BLE_SEC_ACT sec_act);
+                         tBTA_DM_ENCRYPT_CBACK* p_callback, tBTM_BLE_SEC_ACT sec_act);
 
 /*******************************************************************************
  *

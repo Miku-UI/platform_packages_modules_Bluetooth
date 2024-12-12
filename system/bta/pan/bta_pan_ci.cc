@@ -28,8 +28,7 @@
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
-void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event,
-                        tBTA_PAN_DATA* p_data);
+void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event, tBTA_PAN_DATA* p_data);
 
 /*******************************************************************************
  *
@@ -92,8 +91,7 @@ void bta_pan_ci_rx_ready(uint16_t handle) {
  *
  ******************************************************************************/
 void bta_pan_ci_tx_flow(uint16_t handle, bool enable) {
-  tBTA_PAN_CI_TX_FLOW* p_buf =
-      (tBTA_PAN_CI_TX_FLOW*)osi_malloc(sizeof(tBTA_PAN_CI_TX_FLOW));
+  tBTA_PAN_CI_TX_FLOW* p_buf = (tBTA_PAN_CI_TX_FLOW*)osi_malloc(sizeof(tBTA_PAN_CI_TX_FLOW));
 
   p_buf->hdr.layer_specific = handle;
   p_buf->hdr.event = BTA_PAN_CI_TX_FLOW_EVT;
@@ -114,9 +112,8 @@ void bta_pan_ci_tx_flow(uint16_t handle, bool enable) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_ci_rx_write(uint16_t handle, const RawAddress& dst,
-                         const RawAddress& src, uint16_t protocol,
-                         uint8_t* p_data, uint16_t len, bool ext) {
+void bta_pan_ci_rx_write(uint16_t handle, const RawAddress& dst, const RawAddress& src,
+                         uint16_t protocol, uint8_t* p_data, uint16_t len, bool ext) {
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(PAN_BUF_SIZE);
 
   p_buf->offset = PAN_MINIMUM_OFFSET;
@@ -151,9 +148,8 @@ void bta_pan_ci_rx_write(uint16_t handle, const RawAddress& dst,
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_ci_rx_writebuf(uint16_t handle, const RawAddress& dst,
-                            const RawAddress& src, uint16_t protocol,
-                            BT_HDR* p_buf, bool ext) {
+void bta_pan_ci_rx_writebuf(uint16_t handle, const RawAddress& dst, const RawAddress& src,
+                            uint16_t protocol, BT_HDR* p_buf, bool ext) {
   /* copy all other params before the data */
   ((tBTA_PAN_DATA_PARAMS*)p_buf)->src = src;
   ((tBTA_PAN_DATA_PARAMS*)p_buf)->dst = dst;
@@ -175,12 +171,14 @@ void bta_pan_ci_rx_writebuf(uint16_t handle, const RawAddress& dst,
  * Returns          void
  *
  ******************************************************************************/
-BT_HDR* bta_pan_ci_readbuf(uint16_t handle, RawAddress& src, RawAddress& dst,
-                           uint16_t* p_protocol, bool* p_ext, bool* p_forward) {
+BT_HDR* bta_pan_ci_readbuf(uint16_t handle, RawAddress& src, RawAddress& dst, uint16_t* p_protocol,
+                           bool* p_ext, bool* p_forward) {
   tBTA_PAN_SCB* p_scb = bta_pan_scb_by_handle(handle);
   BT_HDR* p_buf;
 
-  if (p_scb == NULL) return NULL;
+  if (p_scb == NULL) {
+    return NULL;
+  }
 
   p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_scb->data_queue);
   if (p_buf != NULL) {

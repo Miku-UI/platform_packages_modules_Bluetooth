@@ -99,22 +99,23 @@ bool wakelock_acquire(void) {
 
   bt_status_t status = BT_STATUS_FAIL;
 
-  if (is_native)
+  if (is_native) {
     status = wakelock_acquire_native();
-  else
+  } else {
     status = wakelock_acquire_callout();
+  }
 
   update_wakelock_acquired_stats(status);
 
-  if (status != BT_STATUS_SUCCESS)
+  if (status != BT_STATUS_SUCCESS) {
     log::error("unable to acquire wake lock: {}", status);
+  }
 
-  return (status == BT_STATUS_SUCCESS);
+  return status == BT_STATUS_SUCCESS;
 }
 
 static bt_status_t wakelock_acquire_callout(void) {
-  return static_cast<bt_status_t>(
-      wakelock_os_callouts->acquire_wake_lock(WAKE_LOCK_ID));
+  return static_cast<bt_status_t>(wakelock_os_callouts->acquire_wake_lock(WAKE_LOCK_ID));
 }
 
 static bt_status_t wakelock_acquire_native(void) {
@@ -145,19 +146,19 @@ bool wakelock_release(void) {
 
   bt_status_t status = BT_STATUS_FAIL;
 
-  if (is_native)
+  if (is_native) {
     status = wakelock_release_native();
-  else
+  } else {
     status = wakelock_release_callout();
+  }
 
   update_wakelock_released_stats(status);
 
-  return (status == BT_STATUS_SUCCESS);
+  return status == BT_STATUS_SUCCESS;
 }
 
 static bt_status_t wakelock_release_callout(void) {
-  return static_cast<bt_status_t>(
-      wakelock_os_callouts->release_wake_lock(WAKE_LOCK_ID));
+  return static_cast<bt_status_t>(wakelock_os_callouts->release_wake_lock(WAKE_LOCK_ID));
 }
 
 static bt_status_t wakelock_release_native(void) {
@@ -178,25 +179,30 @@ static bt_status_t wakelock_release_native(void) {
 static void wakelock_initialize(void) {
   reset_wakelock_stats();
 
-  if (is_native) wakelock_initialize_native();
+  if (is_native) {
+    wakelock_initialize_native();
+  }
 }
 
 static void wakelock_initialize_native(void) {
   log::info("opening wake locks");
 
-  if (wake_lock_path.empty()) wake_lock_path = DEFAULT_WAKE_LOCK_PATH;
+  if (wake_lock_path.empty()) {
+    wake_lock_path = DEFAULT_WAKE_LOCK_PATH;
+  }
 
   wake_lock_fd = open(wake_lock_path.c_str(), O_RDWR | O_CLOEXEC);
   if (wake_lock_fd == INVALID_FD) {
     log::error("can't open wake lock {}: {}", wake_lock_path, strerror(errno));
   }
 
-  if (wake_unlock_path.empty()) wake_unlock_path = DEFAULT_WAKE_UNLOCK_PATH;
+  if (wake_unlock_path.empty()) {
+    wake_unlock_path = DEFAULT_WAKE_UNLOCK_PATH;
+  }
 
   wake_unlock_fd = open(wake_unlock_path.c_str(), O_RDWR | O_CLOEXEC);
   if (wake_unlock_fd == INVALID_FD) {
-    log::error("can't open wake unlock {}: {}", wake_unlock_path,
-               strerror(errno));
+    log::error("can't open wake unlock {}: {}", wake_unlock_path, strerror(errno));
   }
 }
 
@@ -211,9 +217,13 @@ void wakelock_cleanup(void) {
 }
 
 void wakelock_set_paths(const char* lock_path, const char* unlock_path) {
-  if (lock_path) wake_lock_path = lock_path;
+  if (lock_path) {
+    wake_lock_path = lock_path;
+  }
 
-  if (unlock_path) wake_unlock_path = unlock_path;
+  if (unlock_path) {
+    wake_unlock_path = unlock_path;
+  }
 }
 
 static uint64_t now_ms(void) {
@@ -271,8 +281,8 @@ static void update_wakelock_acquired_stats(bt_status_t acquired_status) {
   wakelock_stats.acquired_count++;
   wakelock_stats.last_acquired_timestamp_ms = just_now_ms;
 
-  BluetoothMetricsLogger::GetInstance()->LogWakeEvent(
-      bluetooth::common::WAKE_EVENT_ACQUIRED, "", "", just_now_ms);
+  BluetoothMetricsLogger::GetInstance()->LogWakeEvent(bluetooth::common::WAKE_EVENT_ACQUIRED, "",
+                                                      "", just_now_ms);
 }
 
 //
@@ -303,8 +313,7 @@ static void update_wakelock_released_stats(bt_status_t released_status) {
 
   // Compute the acquired interval and update the statistics
   uint64_t delta_ms = just_now_ms - wakelock_stats.last_acquired_timestamp_ms;
-  if (delta_ms < wakelock_stats.min_acquired_interval_ms ||
-      wakelock_stats.released_count == 1) {
+  if (delta_ms < wakelock_stats.min_acquired_interval_ms || wakelock_stats.released_count == 1) {
     wakelock_stats.min_acquired_interval_ms = delta_ms;
   }
   if (delta_ms > wakelock_stats.max_acquired_interval_ms) {
@@ -313,8 +322,8 @@ static void update_wakelock_released_stats(bt_status_t released_status) {
   wakelock_stats.last_acquired_interval_ms = delta_ms;
   wakelock_stats.total_acquired_interval_ms += delta_ms;
 
-  BluetoothMetricsLogger::GetInstance()->LogWakeEvent(
-      bluetooth::common::WAKE_EVENT_RELEASED, "", "", just_now_ms);
+  BluetoothMetricsLogger::GetInstance()->LogWakeEvent(bluetooth::common::WAKE_EVENT_RELEASED, "",
+                                                      "", just_now_ms);
 }
 
 void wakelock_debug_dump(int fd) {
@@ -331,35 +340,34 @@ void wakelock_debug_dump(int fd) {
 
   if (wakelock_stats.is_acquired) {
     delta_ms = just_now_ms - wakelock_stats.last_acquired_timestamp_ms;
-    if (delta_ms > max_interval_ms) max_interval_ms = delta_ms;
-    if (delta_ms < min_interval_ms) min_interval_ms = delta_ms;
+    if (delta_ms > max_interval_ms) {
+      max_interval_ms = delta_ms;
+    }
+    if (delta_ms < min_interval_ms) {
+      min_interval_ms = delta_ms;
+    }
     last_interval_ms = delta_ms;
   }
-  uint64_t total_interval_ms =
-      wakelock_stats.total_acquired_interval_ms + delta_ms;
+  uint64_t total_interval_ms = wakelock_stats.total_acquired_interval_ms + delta_ms;
 
-  if (wakelock_stats.acquired_count > 0)
+  if (wakelock_stats.acquired_count > 0) {
     avg_interval_ms = total_interval_ms / wakelock_stats.acquired_count;
+  }
 
   dprintf(fd, "\nBluetooth Wakelock Statistics:\n");
   dprintf(fd, "  Is acquired                    : %s\n",
           wakelock_stats.is_acquired ? "true" : "false");
-  dprintf(fd, "  Acquired/released count        : %zu / %zu\n",
-          wakelock_stats.acquired_count, wakelock_stats.released_count);
-  dprintf(fd, "  Acquired/released error count  : %zu / %zu\n",
-          wakelock_stats.acquired_errors, wakelock_stats.released_errors);
-  dprintf(fd, "  Last acquire/release error code: %d / %d\n",
-          wakelock_stats.last_acquired_error,
+  dprintf(fd, "  Acquired/released count        : %zu / %zu\n", wakelock_stats.acquired_count,
+          wakelock_stats.released_count);
+  dprintf(fd, "  Acquired/released error count  : %zu / %zu\n", wakelock_stats.acquired_errors,
+          wakelock_stats.released_errors);
+  dprintf(fd, "  Last acquire/release error code: %d / %d\n", wakelock_stats.last_acquired_error,
           wakelock_stats.last_released_error);
-  dprintf(fd, "  Last acquired time (ms)        : %llu\n",
-          (unsigned long long)last_interval_ms);
+  dprintf(fd, "  Last acquired time (ms)        : %llu\n", (unsigned long long)last_interval_ms);
   dprintf(fd, "  Acquired time min/max/avg (ms) : %llu / %llu / %llu\n",
-          (unsigned long long)min_interval_ms,
-          (unsigned long long)max_interval_ms,
+          (unsigned long long)min_interval_ms, (unsigned long long)max_interval_ms,
           (unsigned long long)avg_interval_ms);
-  dprintf(fd, "  Total acquired time (ms)       : %llu\n",
-          (unsigned long long)total_interval_ms);
+  dprintf(fd, "  Total acquired time (ms)       : %llu\n", (unsigned long long)total_interval_ms);
   dprintf(fd, "  Total run time (ms)            : %llu\n",
-          (unsigned long long)(just_now_ms -
-                               wakelock_stats.last_reset_timestamp_ms));
+          (unsigned long long)(just_now_ms - wakelock_stats.last_reset_timestamp_ms));
 }

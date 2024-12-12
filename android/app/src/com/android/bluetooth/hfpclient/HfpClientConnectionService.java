@@ -400,7 +400,7 @@ public class HfpClientConnectionService extends ConnectionService {
         } else {
             sb.append("    Devices:\n");
             for (HfpClientDeviceBlock block : instance.getDeviceBlocks().values()) {
-                sb.append("      " + block.toString() + "\n");
+                sb.append("      ").append(block.toString()).append("\n");
             }
         }
     }

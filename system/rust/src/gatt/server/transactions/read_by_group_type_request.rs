@@ -1,18 +1,12 @@
 use crate::{
     core::uuid::Uuid,
-    gatt::{
-        ids::AttHandle,
-        server::{
-            att_database::StableAttDatabase,
-            gatt_database::{PRIMARY_SERVICE_DECLARATION_UUID, SECONDARY_SERVICE_DECLARATION_UUID},
-        },
+    gatt::server::{
+        att_database::StableAttDatabase,
+        gatt_database::{PRIMARY_SERVICE_DECLARATION_UUID, SECONDARY_SERVICE_DECLARATION_UUID},
     },
-    packets::{
-        AttAttributeDataBuilder, AttChild, AttErrorCode, AttErrorResponseBuilder, AttOpcode,
-        AttReadByGroupTypeDataElementBuilder, AttReadByGroupTypeRequestView,
-        AttReadByGroupTypeResponseBuilder, ParseError,
-    },
+    packets::att::{self, AttErrorCode},
 };
+use pdl_runtime::EncodeError;
 
 use super::helpers::{
     att_filter_by_size_type::{filter_read_attributes_by_size_type, AttributeWithValue},
@@ -22,12 +16,10 @@ use super::helpers::{
 };
 
 pub async fn handle_read_by_group_type_request(
-    request: AttReadByGroupTypeRequestView<'_>,
+    request: att::AttReadByGroupTypeRequest,
     mtu: usize,
     db: &impl StableAttDatabase,
-) -> Result<AttChild, ParseError> {
-    let group_type: Uuid = request.get_attribute_group_type().try_into()?;
-
+) -> Result<att::Att, EncodeError> {
     // As per spec (5.3 Vol 3F 3.4.4.9)
     // > If an attribute in the set of requested attributes would cause an
     // > ATT_ERROR_RSP PDU then this attribute cannot be included in an
@@ -36,20 +28,25 @@ pub async fn handle_read_by_group_type_request(
     //
     // Thus, we populate this response on failure, but only return it if no prior
     // matches were accumulated.
-    let mut failure_response = AttErrorResponseBuilder {
-        opcode_in_error: AttOpcode::READ_BY_GROUP_TYPE_REQUEST,
-        handle_in_error: AttHandle::from(request.get_starting_handle()).into(),
+    let mut failure_response = att::AttErrorResponse {
+        opcode_in_error: request.opcode(),
+        handle_in_error: request.starting_handle.clone(),
         // the default error code if we just fail to find anything
-        error_code: AttErrorCode::ATTRIBUTE_NOT_FOUND,
+        error_code: AttErrorCode::AttributeNotFound,
+    };
+
+    let Ok(group_type): Result<Uuid, _> = request.attribute_group_type.try_into() else {
+        failure_response.error_code = AttErrorCode::InvalidPdu;
+        return failure_response.try_into();
     };
 
     let Some(attrs) = filter_to_range(
-        request.get_starting_handle().into(),
-        request.get_ending_handle().into(),
+        request.starting_handle.into(),
+        request.ending_handle.into(),
         db.list_attributes().into_iter(),
     ) else {
-        failure_response.error_code = AttErrorCode::INVALID_HANDLE;
-        return Ok(failure_response.into());
+        failure_response.error_code = AttErrorCode::InvalidHandle;
+        return failure_response.try_into();
     };
 
     // As per Core Spec 5.3 Vol 3G 2.5.3 Attribute Grouping, only these UUIDs are
@@ -57,8 +54,8 @@ pub async fn handle_read_by_group_type_request(
     // UUIDs do exist)
     if !matches!(group_type, PRIMARY_SERVICE_DECLARATION_UUID | SECONDARY_SERVICE_DECLARATION_UUID)
     {
-        failure_response.error_code = AttErrorCode::UNSUPPORTED_GROUP_TYPE;
-        return Ok(failure_response.into());
+        failure_response.error_code = AttErrorCode::UnsupportedGroupType;
+        return failure_response.try_into();
     }
 
     // MTU-2 limit comes from Core Spec 5.3 Vol 3F 3.4.4.9
@@ -68,13 +65,13 @@ pub async fn handle_read_by_group_type_request(
     match filter_read_attributes_by_size_type(db, attrs, group_type, mtu - 6).await {
         Ok(attrs) => {
             for AttributeWithValue { attr, value } in attrs {
-                if !matches.push(AttReadByGroupTypeDataElementBuilder {
+                if !matches.push(att::AttReadByGroupTypeDataElement {
                     handle: attr.handle.into(),
                     end_group_handle: find_group_end(db, attr)
                         .expect("should never be None, since grouping UUID was validated earlier")
                         .handle
                         .into(),
-                    value: AttAttributeDataBuilder { _child_: value },
+                    value,
                 }) {
                     break;
                 }
@@ -82,15 +79,15 @@ pub async fn handle_read_by_group_type_request(
         }
         Err(err) => {
             failure_response.error_code = err;
-            return Ok(failure_response.into());
+            return failure_response.try_into();
         }
     }
 
-    Ok(if matches.is_empty() {
-        failure_response.into()
+    if matches.is_empty() {
+        failure_response.try_into()
     } else {
-        AttReadByGroupTypeResponseBuilder { data: matches.into_boxed_slice() }.into()
-    })
+        att::AttReadByGroupTypeResponse { data: matches.into_vec() }.try_into()
+    }
 }
 
 #[cfg(test)]
@@ -104,8 +101,7 @@ mod test {
                 test::test_att_db::TestAttDatabase,
             },
         },
-        packets::{AttAttributeDataChild, AttReadByGroupTypeRequestBuilder},
-        utils::packet::{build_att_data, build_view_or_crash},
+        packets::att,
     };
 
     use super::*;
@@ -141,36 +137,31 @@ mod test {
         ]);
 
         // act
-        let att_view = build_view_or_crash(AttReadByGroupTypeRequestBuilder {
+        let att_view = att::AttReadByGroupTypeRequest {
             starting_handle: AttHandle(2).into(),
             ending_handle: AttHandle(6).into(),
             attribute_group_type: PRIMARY_SERVICE_DECLARATION_UUID.into(),
-        });
-        let response =
-            tokio_test::block_on(handle_read_by_group_type_request(att_view.view(), 31, &db))
-                .unwrap();
+        };
+        let response = tokio_test::block_on(handle_read_by_group_type_request(att_view, 31, &db));
 
         // assert: we identified both service groups
-        let AttChild::AttReadByGroupTypeResponse(response) = response else {
-            unreachable!("{:?}", response)
-        };
         assert_eq!(
             response,
-            AttReadByGroupTypeResponseBuilder {
-                data: [
-                    AttReadByGroupTypeDataElementBuilder {
+            att::AttReadByGroupTypeResponse {
+                data: vec![
+                    att::AttReadByGroupTypeDataElement {
                         handle: AttHandle(3).into(),
                         end_group_handle: AttHandle(4).into(),
-                        value: build_att_data(AttAttributeDataChild::RawData([4, 5].into())),
+                        value: vec![4, 5],
                     },
-                    AttReadByGroupTypeDataElementBuilder {
+                    att::AttReadByGroupTypeDataElement {
                         handle: AttHandle(5).into(),
                         end_group_handle: AttHandle(5).into(),
-                        value: build_att_data(AttAttributeDataChild::RawData([6, 7].into())),
+                        value: vec![6, 7],
                     },
                 ]
-                .into()
             }
+            .try_into()
         );
     }
 
@@ -180,24 +171,22 @@ mod test {
         let db = TestAttDatabase::new(vec![]);
 
         // act: try using an unsupported group type
-        let att_view = build_view_or_crash(AttReadByGroupTypeRequestBuilder {
+        let att_view = att::AttReadByGroupTypeRequest {
             starting_handle: AttHandle(2).into(),
             ending_handle: AttHandle(6).into(),
             attribute_group_type: CHARACTERISTIC_UUID.into(),
-        });
-        let response =
-            tokio_test::block_on(handle_read_by_group_type_request(att_view.view(), 31, &db))
-                .unwrap();
+        };
+        let response = tokio_test::block_on(handle_read_by_group_type_request(att_view, 31, &db));
 
         // assert: got UNSUPPORTED_GROUP_TYPE
-        let AttChild::AttErrorResponse(response) = response else { unreachable!("{:?}", response) };
         assert_eq!(
             response,
-            AttErrorResponseBuilder {
+            att::AttErrorResponse {
                 handle_in_error: AttHandle(2).into(),
-                opcode_in_error: AttOpcode::READ_BY_GROUP_TYPE_REQUEST,
-                error_code: AttErrorCode::UNSUPPORTED_GROUP_TYPE,
+                opcode_in_error: att::AttOpcode::ReadByGroupTypeRequest,
+                error_code: AttErrorCode::UnsupportedGroupType,
             }
+            .try_into()
         );
     }
 
@@ -207,24 +196,22 @@ mod test {
         let db = TestAttDatabase::new(vec![]);
 
         // act: query with an invalid attribute range
-        let att_view = build_view_or_crash(AttReadByGroupTypeRequestBuilder {
+        let att_view = att::AttReadByGroupTypeRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(2).into(),
             attribute_group_type: PRIMARY_SERVICE_DECLARATION_UUID.into(),
-        });
-        let response =
-            tokio_test::block_on(handle_read_by_group_type_request(att_view.view(), 31, &db))
-                .unwrap();
+        };
+        let response = tokio_test::block_on(handle_read_by_group_type_request(att_view, 31, &db));
 
         // assert: we return an INVALID_HANDLE error
-        let AttChild::AttErrorResponse(response) = response else { unreachable!("{:?}", response) };
         assert_eq!(
             response,
-            AttErrorResponseBuilder {
+            att::AttErrorResponse {
                 handle_in_error: AttHandle(3).into(),
-                opcode_in_error: AttOpcode::READ_BY_GROUP_TYPE_REQUEST,
-                error_code: AttErrorCode::INVALID_HANDLE,
+                opcode_in_error: att::AttOpcode::ReadByGroupTypeRequest,
+                error_code: AttErrorCode::InvalidHandle,
             }
+            .try_into()
         )
     }
 
@@ -242,29 +229,24 @@ mod test {
 
         // act: read the service value with MTU = 7, so the value is truncated to MTU-6
         // = 1
-        let att_view = build_view_or_crash(AttReadByGroupTypeRequestBuilder {
+        let att_view = att::AttReadByGroupTypeRequest {
             starting_handle: AttHandle(2).into(),
             ending_handle: AttHandle(6).into(),
             attribute_group_type: PRIMARY_SERVICE_DECLARATION_UUID.into(),
-        });
-        let response =
-            tokio_test::block_on(handle_read_by_group_type_request(att_view.view(), 7, &db))
-                .unwrap();
+        };
+        let response = tokio_test::block_on(handle_read_by_group_type_request(att_view, 7, &db));
 
         // assert: we identified both service groups
-        let AttChild::AttReadByGroupTypeResponse(response) = response else {
-            unreachable!("{:?}", response)
-        };
         assert_eq!(
             response,
-            AttReadByGroupTypeResponseBuilder {
-                data: [AttReadByGroupTypeDataElementBuilder {
+            att::AttReadByGroupTypeResponse {
+                data: vec![att::AttReadByGroupTypeDataElement {
                     handle: AttHandle(3).into(),
                     end_group_handle: AttHandle(3).into(),
-                    value: build_att_data(AttAttributeDataChild::RawData([1].into())),
+                    value: vec![1],
                 },]
-                .into()
             }
+            .try_into()
         );
     }
 
@@ -291,29 +273,24 @@ mod test {
         ]);
 
         // act: read with MTU = 9, so we can only fit the first attribute (untruncated)
-        let att_view = build_view_or_crash(AttReadByGroupTypeRequestBuilder {
+        let att_view = att::AttReadByGroupTypeRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(6).into(),
             attribute_group_type: PRIMARY_SERVICE_DECLARATION_UUID.into(),
-        });
-        let response =
-            tokio_test::block_on(handle_read_by_group_type_request(att_view.view(), 9, &db))
-                .unwrap();
+        };
+        let response = tokio_test::block_on(handle_read_by_group_type_request(att_view, 9, &db));
 
         // assert: we return only the first attribute
-        let AttChild::AttReadByGroupTypeResponse(response) = response else {
-            unreachable!("{:?}", response)
-        };
         assert_eq!(
             response,
-            AttReadByGroupTypeResponseBuilder {
-                data: [AttReadByGroupTypeDataElementBuilder {
+            att::AttReadByGroupTypeResponse {
+                data: vec![att::AttReadByGroupTypeDataElement {
                     handle: AttHandle(3).into(),
                     end_group_handle: AttHandle(3).into(),
-                    value: build_att_data(AttAttributeDataChild::RawData([4, 5, 6].into()))
+                    value: vec![4, 5, 6],
                 },]
-                .into()
             }
+            .try_into()
         )
     }
 
@@ -340,30 +317,25 @@ mod test {
         ]);
 
         // act: search in an interval that includes the service but not its child
-        let att_view = build_view_or_crash(AttReadByGroupTypeRequestBuilder {
+        let att_view = att::AttReadByGroupTypeRequest {
             starting_handle: AttHandle(3).into(),
             ending_handle: AttHandle(3).into(),
             attribute_group_type: PRIMARY_SERVICE_DECLARATION_UUID.into(),
-        });
-        let response =
-            tokio_test::block_on(handle_read_by_group_type_request(att_view.view(), 31, &db))
-                .unwrap();
+        };
+        let response = tokio_test::block_on(handle_read_by_group_type_request(att_view, 31, &db));
 
         // assert: the end_group_handle is correct, even though it exceeds the query
         // interval
-        let AttChild::AttReadByGroupTypeResponse(response) = response else {
-            unreachable!("{:?}", response)
-        };
         assert_eq!(
             response,
-            AttReadByGroupTypeResponseBuilder {
-                data: [AttReadByGroupTypeDataElementBuilder {
+            att::AttReadByGroupTypeResponse {
+                data: vec![att::AttReadByGroupTypeDataElement {
                     handle: AttHandle(3).into(),
                     end_group_handle: AttHandle(4).into(),
-                    value: build_att_data(AttAttributeDataChild::RawData([4, 5].into())),
+                    value: vec![4, 5],
                 },]
-                .into()
             }
+            .try_into()
         );
     }
 
@@ -390,24 +362,22 @@ mod test {
         ]);
 
         // act
-        let att_view = build_view_or_crash(AttReadByGroupTypeRequestBuilder {
+        let att_view = att::AttReadByGroupTypeRequest {
             starting_handle: AttHandle(5).into(),
             ending_handle: AttHandle(6).into(),
             attribute_group_type: PRIMARY_SERVICE_DECLARATION_UUID.into(),
-        });
-        let response =
-            tokio_test::block_on(handle_read_by_group_type_request(att_view.view(), 31, &db))
-                .unwrap();
+        };
+        let response = tokio_test::block_on(handle_read_by_group_type_request(att_view, 31, &db));
 
         // assert: we return ATTRIBUTE_NOT_FOUND
-        let AttChild::AttErrorResponse(response) = response else { unreachable!("{:?}", response) };
         assert_eq!(
             response,
-            AttErrorResponseBuilder {
+            att::AttErrorResponse {
                 handle_in_error: AttHandle(5).into(),
-                opcode_in_error: AttOpcode::READ_BY_GROUP_TYPE_REQUEST,
-                error_code: AttErrorCode::ATTRIBUTE_NOT_FOUND,
+                opcode_in_error: att::AttOpcode::ReadByGroupTypeRequest,
+                error_code: AttErrorCode::AttributeNotFound,
             }
+            .try_into()
         )
     }
 }

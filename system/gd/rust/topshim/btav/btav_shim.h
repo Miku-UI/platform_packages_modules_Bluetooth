@@ -33,8 +33,8 @@ struct RustPresentationPosition;
 struct RustPlayStatus;
 
 class A2dpIntf {
- public:
-  A2dpIntf(const btav_source_interface_t* intf) : intf_(intf){};
+public:
+  A2dpIntf() {}
   ~A2dpIntf();
 
   // interface for Settings
@@ -52,15 +52,12 @@ class A2dpIntf {
   bool stop_audio_request() const;
   bool suspend_audio_request() const;
   RustPresentationPosition get_presentation_position() const;
-
- private:
-  const btav_source_interface_t* intf_;
 };
 
 std::unique_ptr<A2dpIntf> GetA2dpProfile(const unsigned char* btif);
 
 class AvrcpIntf {
- public:
+public:
   AvrcpIntf(bluetooth::avrcp::ServiceInterface* intf) : intf_(intf) {}
   ~AvrcpIntf();
 
@@ -74,12 +71,12 @@ class AvrcpIntf {
 
   void set_playback_status(const ::rust::String& status);
   void set_position(int64_t position_us);
-  void set_metadata(
-      const ::rust::String& title, const ::rust::String& artist, const ::rust::String& album, int64_t length_us);
+  void set_metadata(const ::rust::String& title, const ::rust::String& artist,
+                    const ::rust::String& album, int64_t length_us);
   // Used by qualification
   uint16_t add_player(const ::rust::String& name, bool browsing_supported);
 
- private:
+private:
   bluetooth::avrcp::ServiceInterface* intf_;
 };
 

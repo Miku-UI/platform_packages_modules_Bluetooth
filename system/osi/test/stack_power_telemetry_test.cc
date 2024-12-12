@@ -3,10 +3,11 @@
 #include <gtest/gtest.h>
 
 #include "osi/include/stack_power_telemetry.h"
+#include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
 class PowerTelemetryTest : public ::testing::Test {
- protected:
+protected:
   uint16_t handle = 123;
   RawAddress bdaddr;
   bool isConnected = true;
@@ -15,8 +16,7 @@ class PowerTelemetryTest : public ::testing::Test {
     power_telemetry::GetInstance().pimpl_->LogDataTransfer();
     power_telemetry::GetInstance().pimpl_->idx_containers = 0;
     for (int i = 0; i < kLogEntriesSize; i++) {
-      power_telemetry::GetInstance().pimpl_->log_data_containers_[i] =
-          LogDataContainer();
+      power_telemetry::GetInstance().pimpl_->log_data_containers_[i] = LogDataContainer();
     }
   }
 
@@ -69,8 +69,7 @@ TEST_F(PowerTelemetryTest, test_LogBleScan) {
 TEST_F(PowerTelemetryTest, test_LogBleAdvDetails) {
   reset();
 
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
 
   // Failed Case. Shouldn't crash if run false first
   power_telemetry::GetInstance().LogBleAdvStopped();
@@ -94,81 +93,69 @@ TEST_F(PowerTelemetryTest, test_LogBleAdvDetails) {
 TEST_F(PowerTelemetryTest, test_LogTxPower) {
   reset();
 
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
   tBTM_TX_POWER_RESULT dummy_res;
   dummy_res.rem_bda = bdaddr;
 
   // Failed Case. Shouldn't crash if no init data
-  dummy_res.status = BTM_SUCCESS;
+  dummy_res.status = tBTM_STATUS::BTM_SUCCESS;
   void* p = &dummy_res;
   power_telemetry::GetInstance().LogTxPower(p);
 
   // init data
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                true);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
 
   // Successful case
   dummy_res.tx_power = 100;
   power_telemetry::GetInstance().LogTxPower(p);
-  ASSERT_EQ(dummy_res.tx_power,
-            ldc.acl.link_details_map[handle].tx_power_level);
+  ASSERT_EQ(dummy_res.tx_power, ldc.acl.link_details_map[handle].tx_power_level);
 
   // Failed case
   dummy_res.tx_power = 99;
-  dummy_res.status = BTM_UNDEFINED;
+  dummy_res.status = tBTM_STATUS::BTM_UNDEFINED;
   power_telemetry::GetInstance().LogTxPower(p);
-  ASSERT_NE(dummy_res.tx_power,
-            ldc.acl.link_details_map[handle].tx_power_level);
+  ASSERT_NE(dummy_res.tx_power, ldc.acl.link_details_map[handle].tx_power_level);
 }
 
 TEST_F(PowerTelemetryTest, test_LogAclLinkDetails) {
   reset();
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
 
   // Failed Case. Shouldn't crash if first invoke function with false
   isConnected = false;
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                true);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
   ASSERT_EQ(0, (int)ldc.acl.link_details_list.size());
 
   // Successful case
   isConnected = true;
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                true);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
   ASSERT_EQ(1, (int)ldc.acl.link_details_map.count(handle));
   ASSERT_EQ(0, (int)ldc.acl.link_details_list.size());
   ASSERT_EQ(1, (int)ldc.sniff_activity_map.count(handle));
 
   isConnected = false;
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                true);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
   ASSERT_EQ(0, (int)ldc.acl.link_details_map.count(handle));
   ASSERT_EQ(1, (int)ldc.acl.link_details_list.size());
 }
 
 TEST_F(PowerTelemetryTest, test_LogScoLinkDetails) {
   reset();
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
 
   // Failed Case. Shouldn't crash if first invoke function with false
   isConnected = false;
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                false);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, false);
   ASSERT_EQ(0, (int)ldc.sco.link_details_list.size());
 
   // Successful case
   isConnected = true;
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                false);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, false);
   ASSERT_EQ(1, (int)ldc.sco.link_details_map.count(handle));
   ASSERT_EQ(0, (int)ldc.sco.link_details_list.size());
 
   isConnected = false;
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                false);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, false);
   ASSERT_EQ(0, (int)ldc.sco.link_details_map.count(handle));
   ASSERT_EQ(1, (int)ldc.sco.link_details_list.size());
 }
@@ -189,8 +176,7 @@ TEST_F(PowerTelemetryTest, test_LogHciCmdEvtDetails) {
 
 TEST_F(PowerTelemetryTest, test_LogSniffActivity) {
   reset();
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
 
   power_telemetry::GetInstance().LogSniffStarted(handle, bdaddr);
   ASSERT_EQ(1, (int)ldc.sniff_activity_map[handle].sniff_count);
@@ -231,24 +217,20 @@ TEST_F(PowerTelemetryTest, test_LogAclPktDetails) {
 
 TEST_F(PowerTelemetryTest, test_LogChannelConnected) {
   reset();
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
 
-  power_telemetry::GetInstance().LogChannelConnected(BT_PSM_RFCOMM, 0, 0,
-                                                     bdaddr);
+  power_telemetry::GetInstance().LogChannelConnected(BT_PSM_RFCOMM, 0, 0, bdaddr);
   ASSERT_EQ(1, (int)ldc.channel_map[bdaddr].size());
   ASSERT_EQ(State::kConnected, ldc.channel_map[bdaddr].back().state);
 
-  power_telemetry::GetInstance().LogChannelConnected(BT_PSM_RFCOMM, 0, 0,
-                                                     bdaddr);
+  power_telemetry::GetInstance().LogChannelConnected(BT_PSM_RFCOMM, 0, 0, bdaddr);
   ASSERT_EQ(2, (int)ldc.channel_map[bdaddr].size());
   ASSERT_EQ(State::kConnected, ldc.channel_map[bdaddr].back().state);
 }
 
 TEST_F(PowerTelemetryTest, test_LogChannelDisconnected) {
   reset();
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
 
   power_telemetry::GetInstance().LogChannelConnected(0, 0, 0, bdaddr);
   power_telemetry::GetInstance().LogChannelDisconnected(0, 0, 0, bdaddr);
@@ -285,14 +267,12 @@ TEST_F(PowerTelemetryTest, test_feature_flag) {
 
   // init data
   isConnected = true;
-  LogDataContainer& ldc =
-      power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
+  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
   tBTM_TX_POWER_RESULT dummy_res;
   dummy_res.rem_bda = bdaddr;
-  dummy_res.status = BTM_SUCCESS;
+  dummy_res.status = tBTM_STATUS::BTM_SUCCESS;
   void* p = &dummy_res;
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                true);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
 
   // Set feature flag to false
   // All function shouldn't work if flag is false
@@ -334,13 +314,11 @@ TEST_F(PowerTelemetryTest, test_feature_flag) {
   power_telemetry::GetInstance().LogHciEvtDetail();
   ASSERT_EQ(0, (int)power_telemetry::GetInstance().pimpl_->event.count_);
 
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                false);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, false);
   ASSERT_EQ(0, (int)ldc.sco.link_details_map.count(handle));
 
   // Set to 1 because of fake data
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected,
-                                                true);
+  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
   ASSERT_EQ(1, (int)ldc.acl.link_details_map.count(handle));
 
   dummy_res.tx_power = 100;

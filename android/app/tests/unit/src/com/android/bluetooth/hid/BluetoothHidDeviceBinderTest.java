@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.hid;
 
-import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -60,7 +59,6 @@ public class BluetoothHidDeviceBinderTest {
     @Test
     public void cleanup() {
         mBinder.cleanup();
-        assertThat(mBinder.getServiceForTesting()).isNull();
     }
 
     @Test

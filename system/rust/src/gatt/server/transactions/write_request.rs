@@ -1,24 +1,20 @@
-use crate::{
-    gatt::server::att_database::AttDatabase,
-    packets::{
-        AttChild, AttErrorResponseBuilder, AttOpcode, AttWriteRequestView, AttWriteResponseBuilder,
-    },
-};
+use crate::{gatt::server::att_database::AttDatabase, packets::att};
+use pdl_runtime::EncodeError;
 
 pub async fn handle_write_request<T: AttDatabase>(
-    request: AttWriteRequestView<'_>,
+    request: att::AttWriteRequest,
     db: &T,
-) -> AttChild {
-    let handle = request.get_handle().into();
-    let value = request.get_value().get_raw_payload().collect::<Vec<_>>();
+) -> Result<att::Att, EncodeError> {
+    let handle = request.handle.into();
+    let value = request.value;
     match db.write_attribute(handle, &value).await {
-        Ok(()) => AttWriteResponseBuilder {}.into(),
-        Err(error_code) => AttErrorResponseBuilder {
-            opcode_in_error: AttOpcode::WRITE_REQUEST,
+        Ok(()) => att::AttWriteResponse {}.try_into(),
+        Err(error_code) => att::AttErrorResponse {
+            opcode_in_error: att::AttOpcode::WriteRequest,
             handle_in_error: handle.into(),
             error_code,
         }
-        .into(),
+        .try_into(),
     }
 }
 
@@ -38,11 +34,7 @@ mod test {
                 test::test_att_db::TestAttDatabase,
             },
         },
-        packets::{
-            AttAttributeDataBuilder, AttAttributeDataChild, AttChild, AttErrorCode,
-            AttErrorResponseBuilder, AttWriteRequestBuilder, AttWriteResponseBuilder,
-        },
-        utils::packet::{build_att_data, build_view_or_crash},
+        packets::att,
     };
 
     #[test]
@@ -59,16 +51,11 @@ mod test {
         let data = vec![1, 2];
 
         // act: write to the attribute
-        let att_view = build_view_or_crash(AttWriteRequestBuilder {
-            handle: AttHandle(1).into(),
-            value: AttAttributeDataBuilder {
-                _child_: AttAttributeDataChild::RawData(data.clone().into_boxed_slice()),
-            },
-        });
-        let resp = block_on(handle_write_request(att_view.view(), &db));
+        let att_view = att::AttWriteRequest { handle: AttHandle(1).into(), value: data.clone() };
+        let resp = block_on(handle_write_request(att_view, &db));
 
         // assert: that the write succeeded
-        assert_eq!(resp, AttChild::from(AttWriteResponseBuilder {}));
+        assert_eq!(resp, att::AttWriteResponse {}.try_into());
         assert_eq!(block_on(db.read_attribute(AttHandle(1))).unwrap(), data);
     }
 
@@ -84,20 +71,18 @@ mod test {
             vec![],
         )]);
         // act: write to the attribute
-        let att_view = build_view_or_crash(AttWriteRequestBuilder {
-            handle: AttHandle(1).into(),
-            value: build_att_data(AttAttributeDataChild::RawData([1, 2].into())),
-        });
-        let resp = block_on(handle_write_request(att_view.view(), &db));
+        let att_view = att::AttWriteRequest { handle: AttHandle(1).into(), value: vec![1, 2] };
+        let resp = block_on(handle_write_request(att_view, &db));
 
         // assert: that the write failed
         assert_eq!(
             resp,
-            AttChild::from(AttErrorResponseBuilder {
-                opcode_in_error: AttOpcode::WRITE_REQUEST,
+            att::AttErrorResponse {
+                opcode_in_error: att::AttOpcode::WriteRequest,
                 handle_in_error: AttHandle(1).into(),
-                error_code: AttErrorCode::WRITE_NOT_PERMITTED
-            })
+                error_code: att::AttErrorCode::WriteNotPermitted
+            }
+            .try_into()
         );
     }
 }

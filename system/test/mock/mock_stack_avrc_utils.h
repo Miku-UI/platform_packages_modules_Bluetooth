@@ -43,12 +43,8 @@ namespace stack_avrc_utils {
 struct AVRC_IsValidAvcType {
   static bool return_value;
   std::function<bool(uint8_t pdu_id, uint8_t avc_type)> body{
-      [](uint8_t /* pdu_id */, uint8_t /* avc_type */) {
-        return return_value;
-      }};
-  bool operator()(uint8_t pdu_id, uint8_t avc_type) {
-    return body(pdu_id, avc_type);
-  };
+          [](uint8_t /* pdu_id */, uint8_t /* avc_type */) { return return_value; }};
+  bool operator()(uint8_t pdu_id, uint8_t avc_type) { return body(pdu_id, avc_type); }
 };
 extern struct AVRC_IsValidAvcType AVRC_IsValidAvcType;
 
@@ -57,9 +53,8 @@ extern struct AVRC_IsValidAvcType AVRC_IsValidAvcType;
 // Return: bool
 struct AVRC_IsValidPlayerAttr {
   static bool return_value;
-  std::function<bool(uint8_t attr)> body{
-      [](uint8_t /* attr */) { return return_value; }};
-  bool operator()(uint8_t attr) { return body(attr); };
+  std::function<bool(uint8_t attr)> body{[](uint8_t /* attr */) { return return_value; }};
+  bool operator()(uint8_t attr) { return body(attr); }
 };
 extern struct AVRC_IsValidPlayerAttr AVRC_IsValidPlayerAttr;
 
@@ -68,9 +63,8 @@ extern struct AVRC_IsValidPlayerAttr AVRC_IsValidPlayerAttr;
 // Return: bool
 struct avrc_is_valid_opcode {
   static bool return_value;
-  std::function<bool(uint8_t opcode)> body{
-      [](uint8_t /* opcode */) { return return_value; }};
-  bool operator()(uint8_t opcode) { return body(opcode); };
+  std::function<bool(uint8_t opcode)> body{[](uint8_t /* opcode */) { return return_value; }};
+  bool operator()(uint8_t opcode) { return body(opcode); }
 };
 extern struct avrc_is_valid_opcode avrc_is_valid_opcode;
 
@@ -80,22 +74,18 @@ extern struct avrc_is_valid_opcode avrc_is_valid_opcode;
 struct avrc_is_valid_player_attrib_value {
   static bool return_value;
   std::function<bool(uint8_t attrib, uint8_t value)> body{
-      [](uint8_t /* attrib */, uint8_t /* value */) { return return_value; }};
-  bool operator()(uint8_t attrib, uint8_t value) {
-    return body(attrib, value);
-  };
+          [](uint8_t /* attrib */, uint8_t /* value */) { return return_value; }};
+  bool operator()(uint8_t attrib, uint8_t value) { return body(attrib, value); }
 };
-extern struct avrc_is_valid_player_attrib_value
-    avrc_is_valid_player_attrib_value;
+extern struct avrc_is_valid_player_attrib_value avrc_is_valid_player_attrib_value;
 
 // Name: avrc_opcode_from_pdu
 // Params: uint8_t pdu
 // Return: uint8_t
 struct avrc_opcode_from_pdu {
   static uint8_t return_value;
-  std::function<uint8_t(uint8_t pdu)> body{
-      [](uint8_t /* pdu */) { return return_value; }};
-  uint8_t operator()(uint8_t pdu) { return body(pdu); };
+  std::function<uint8_t(uint8_t pdu)> body{[](uint8_t /* pdu */) { return return_value; }};
+  uint8_t operator()(uint8_t pdu) { return body(pdu); }
 };
 extern struct avrc_opcode_from_pdu avrc_opcode_from_pdu;
 
@@ -104,13 +94,13 @@ extern struct avrc_opcode_from_pdu avrc_opcode_from_pdu;
 // Return: tAVRC_STS
 struct avrc_pars_pass_thru {
   static tAVRC_STS return_value;
-  std::function<tAVRC_STS(tAVRC_MSG_PASS* p_msg, uint16_t* p_vendor_unique_id)>
-      body{[](tAVRC_MSG_PASS* /* p_msg */, uint16_t* /* p_vendor_unique_id */) {
-        return return_value;
-      }};
+  std::function<tAVRC_STS(tAVRC_MSG_PASS* p_msg, uint16_t* p_vendor_unique_id)> body{
+          [](tAVRC_MSG_PASS* /* p_msg */, uint16_t* /* p_vendor_unique_id */) {
+            return return_value;
+          }};
   tAVRC_STS operator()(tAVRC_MSG_PASS* p_msg, uint16_t* p_vendor_unique_id) {
     return body(p_msg, p_vendor_unique_id);
-  };
+  }
 };
 extern struct avrc_pars_pass_thru avrc_pars_pass_thru;
 

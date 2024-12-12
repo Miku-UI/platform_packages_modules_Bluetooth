@@ -36,6 +36,7 @@
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api_types.h"
+#include "stack/include/sdp_status.h"
 #include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
@@ -63,9 +64,8 @@
 #define BTA_AG_ACP 0 /* accepted connection */
 #define BTA_AG_INT 1 /* initiating connection */
 
-#define BTA_AG_SDP_FEAT_SPEC                                \
-  (BTA_AG_FEAT_3WAY | BTA_AG_FEAT_ECNR | BTA_AG_FEAT_VREC | \
-   BTA_AG_FEAT_INBAND | BTA_AG_FEAT_VTAG)
+#define BTA_AG_SDP_FEAT_SPEC \
+  (BTA_AG_FEAT_3WAY | BTA_AG_FEAT_ECNR | BTA_AG_FEAT_VREC | BTA_AG_FEAT_INBAND | BTA_AG_FEAT_VTAG)
 
 /* Timeout for alarm in 2018 toyota camry carkit workaround */
 #define BTA_AG_BIND_TIMEOUT_MS 500
@@ -109,12 +109,12 @@ enum {
 
 /* Actions to perform after a SCO event */
 enum {
-  BTA_AG_POST_SCO_NONE,      /* no action */
-  BTA_AG_POST_SCO_CLOSE_RFC, /* close RFCOMM channel after SCO closes */
-  BTA_AG_POST_SCO_RING,      /* send RING result code after SCO opens */
-  BTA_AG_POST_SCO_CALL_CONN, /* send call indicators after SCO opens/closes */
-  BTA_AG_POST_SCO_CALL_ORIG, /* send call indicators after SCO closes */
-  BTA_AG_POST_SCO_CALL_END,  /* send call indicators after SCO closes */
+  BTA_AG_POST_SCO_NONE,           /* no action */
+  BTA_AG_POST_SCO_CLOSE_RFC,      /* close RFCOMM channel after SCO closes */
+  BTA_AG_POST_SCO_RING,           /* send RING result code after SCO opens */
+  BTA_AG_POST_SCO_CALL_CONN,      /* send call indicators after SCO opens/closes */
+  BTA_AG_POST_SCO_CALL_ORIG,      /* send call indicators after SCO closes */
+  BTA_AG_POST_SCO_CALL_END,       /* send call indicators after SCO closes */
   BTA_AG_POST_SCO_CALL_END_INCALL /* send call indicators for end call &
                                      incoming call after SCO closes */
 };
@@ -172,7 +172,7 @@ typedef struct {
 
 /* data type for BTA_AG_DISC_RESULT_EVT */
 typedef struct {
-  uint16_t status;
+  tSDP_STATUS status;
 } tBTA_AG_DISC_RESULT;
 
 /* data type for RFCOMM events */
@@ -198,7 +198,7 @@ union tBTA_AG_DATA {
    * @return true if both unions are equal in memory
    */
   bool operator==(const tBTA_AG_DATA& rhs) const {
-    return (std::memcmp(this, &rhs, sizeof(tBTA_AG_DATA)) == 0);
+    return std::memcmp(this, &rhs, sizeof(tBTA_AG_DATA)) == 0;
   }
 
   /**
@@ -240,12 +240,7 @@ typedef enum {
 } tBTA_AG_SCO_APTX_SWB_SETTINGS;
 
 /* state machine states */
-typedef enum {
-  BTA_AG_INIT_ST,
-  BTA_AG_OPENING_ST,
-  BTA_AG_OPEN_ST,
-  BTA_AG_CLOSING_ST
-} tBTA_AG_STATE;
+typedef enum { BTA_AG_INIT_ST, BTA_AG_OPENING_ST, BTA_AG_OPEN_ST, BTA_AG_CLOSING_ST } tBTA_AG_STATE;
 
 /* type for each service control block */
 struct tBTA_AG_SCB {
@@ -266,81 +261,75 @@ struct tBTA_AG_SCB {
   uint16_t sco_idx;                     /* SCO handle */
   bool in_use;                          /* scb in use */
   bool dealloc;                         /* true if service shutting down */
-  bool clip_enabled;        /* set to true if HF enables CLIP reporting */
-  bool ccwa_enabled;        /* set to true if HF enables CCWA reporting */
-  bool cmer_enabled;        /* set to true if HF enables CMER reporting */
-  bool cmee_enabled;        /* set to true if HF enables CME ERROR reporting */
-  bool inband_enabled;      /* set to true if inband ring enabled */
-  bool nrec_enabled;        /* noise reduction & echo canceling */
-  bool svc_conn;            /* set to true when service level connection up */
-  tBTA_AG_STATE state;      /* state machine state */
-  uint8_t conn_service;     /* connected service */
-  uint8_t peer_scn;         /* peer scn */
-  uint8_t app_id;           /* application id */
-  uint8_t role;             /* initiator/acceptor role */
-  uint8_t post_sco;         /* action to perform after sco event */
-  uint8_t call_ind;         /* CIEV call indicator value */
-  uint8_t callsetup_ind;    /* CIEV callsetup indicator value */
-  uint8_t service_ind;      /* CIEV service indicator value */
-  uint8_t signal_ind;       /* CIEV signal indicator value */
-  uint8_t roam_ind;         /* CIEV roam indicator value */
-  uint8_t battchg_ind;      /* CIEV battery charge indicator value */
-  uint8_t callheld_ind;     /* CIEV call held indicator value */
-  uint32_t bia_masked_out;  /* indicators HF does not want us to send */
-  alarm_t* bind_timer;      /* Timer for toyota camry 2018 carkit workaround */
+  bool clip_enabled;                    /* set to true if HF enables CLIP reporting */
+  bool ccwa_enabled;                    /* set to true if HF enables CCWA reporting */
+  bool cmer_enabled;                    /* set to true if HF enables CMER reporting */
+  bool cmee_enabled;                    /* set to true if HF enables CME ERROR reporting */
+  bool inband_enabled;                  /* set to true if inband ring enabled */
+  bool nrec_enabled;                    /* noise reduction & echo canceling */
+  bool svc_conn;                        /* set to true when service level connection up */
+  tBTA_AG_STATE state;                  /* state machine state */
+  uint8_t conn_service;                 /* connected service */
+  uint8_t peer_scn;                     /* peer scn */
+  uint8_t app_id;                       /* application id */
+  uint8_t role;                         /* initiator/acceptor role */
+  uint8_t post_sco;                     /* action to perform after sco event */
+  uint8_t call_ind;                     /* CIEV call indicator value */
+  uint8_t callsetup_ind;                /* CIEV callsetup indicator value */
+  uint8_t service_ind;                  /* CIEV service indicator value */
+  uint8_t signal_ind;                   /* CIEV signal indicator value */
+  uint8_t roam_ind;                     /* CIEV roam indicator value */
+  uint8_t battchg_ind;                  /* CIEV battery charge indicator value */
+  uint8_t callheld_ind;                 /* CIEV call held indicator value */
+  uint32_t bia_masked_out;              /* indicators HF does not want us to send */
+  alarm_t* bind_timer;                  /* Timer for toyota camry 2018 carkit workaround */
   alarm_t* collision_timer;
   alarm_t* ring_timer;
   alarm_t* codec_negotiation_timer;
-  bool received_at_bac; /* indicate AT+BAC is received at least once */
-  tBTA_AG_PEER_CODEC
-      disabled_codecs; /* set by app to block certain codecs from being used */
-  tBTA_AG_PEER_CODEC peer_codecs; /* codecs for eSCO supported by the peer */
-  tBTA_AG_PEER_CODEC sco_codec;   /* codec to be used for eSCO connection */
-  tBTA_AG_PEER_CODEC
-      inuse_codec;     /* codec being used for the current SCO connection */
-  bool codec_updated;  /* set to true whenever the app updates codec type */
-  bool codec_fallback; /* If sco nego fails for mSBC, fallback to CVSD */
-  bool trying_cvsd_safe_settings; /* set to true whenever we are trying CVSD
-                                     safe settings */
-  uint8_t retransmission_effort_retries;         /* Retry eSCO
-                                                  with retransmission_effort value*/
-  tBTA_AG_SCO_MSBC_SETTINGS codec_msbc_settings; /* settings to be used for the
-                                                    impending eSCO on WB */
-  tBTA_AG_SCO_LC3_SETTINGS codec_lc3_settings;   /* settings to be used for the
-                                                    impending eSCO on SWB */
-  tBTA_AG_SCO_CVSD_SETTINGS codec_cvsd_settings; /* settings to be used for the
-                                                    impending eSCO on CVSD */
-  tBTA_AG_SCO_APTX_SWB_SETTINGS
-      codec_aptx_settings; /* settings to be used for the
-                              aptX Voice SWB eSCO */
-  bool is_aptx_swb_codec;  /* Flag to determine aptX Voice SWB codec  */
+  bool received_at_bac;                  /* indicate AT+BAC is received at least once */
+  tBTA_AG_PEER_CODEC disabled_codecs;    /* set by app to block certain codecs from being used */
+  tBTA_AG_PEER_CODEC peer_codecs;        /* codecs for eSCO supported by the peer */
+  tBTA_AG_PEER_CODEC sco_codec;          /* codecs to be used for eSCO connection */
+  tBTA_AG_UUID_CODEC inuse_codec;        /* codec being used for the current SCO connection */
+  bool codec_updated;                    /* set to true whenever the app updates codec type */
+  bool codec_fallback;                   /* If sco nego fails for mSBC, fallback to CVSD */
+  bool trying_cvsd_safe_settings;        /* set to true whenever we are trying CVSD
+                                            safe settings */
+  uint8_t retransmission_effort_retries; /* Retry eSCO
+                                          with retransmission_effort value*/
+  tBTA_AG_SCO_MSBC_SETTINGS codec_msbc_settings;     /* settings to be used for the
+                                                        impending eSCO on WB */
+  tBTA_AG_SCO_LC3_SETTINGS codec_lc3_settings;       /* settings to be used for the
+                                                        impending eSCO on SWB */
+  tBTA_AG_SCO_CVSD_SETTINGS codec_cvsd_settings;     /* settings to be used for the
+                                                        impending eSCO on CVSD */
+  tBTA_AG_SCO_APTX_SWB_SETTINGS codec_aptx_settings; /* settings to be used for the
+                                                        aptX Voice SWB eSCO */
+  bool is_aptx_swb_codec;                            /* Flag to determine aptX Voice SWB codec  */
 
-  tBTA_AG_HF_IND
-      peer_hf_indicators[BTA_AG_MAX_NUM_PEER_HF_IND]; /* Peer supported
-                                                  HF indicators */
-  tBTA_AG_HF_IND
-      local_hf_indicators[BTA_AG_MAX_NUM_LOCAL_HF_IND]; /* Local supported
-                                                    HF indicators */
+  tBTA_AG_HF_IND peer_hf_indicators[BTA_AG_MAX_NUM_PEER_HF_IND];   /* Peer supported
+                                                               HF indicators */
+  tBTA_AG_HF_IND local_hf_indicators[BTA_AG_MAX_NUM_LOCAL_HF_IND]; /* Local supported
+                                                               HF indicators */
 
   std::string ToString() const {
     return base::StringPrintf(
-        "codec_updated=%d, codec_fallback=%d, nrec=%d"
-        "sco_codec=%d, peer_codec=%d, msbc_settings=%d, lc3_settings=%d, "
-        "device=%s",
-        codec_updated, codec_fallback, nrec_enabled, sco_codec, peer_codecs,
-        codec_msbc_settings, codec_lc3_settings,
-        ADDRESS_TO_LOGGABLE_CSTR(peer_addr));
+            "codec_updated=%d, codec_fallback=%d, nrec=%d"
+            "sco_codec=%d, peer_codec=%d, msbc_settings=%d, lc3_settings=%d, "
+            "device=%s",
+            codec_updated, codec_fallback, nrec_enabled, sco_codec, peer_codecs,
+            codec_msbc_settings, codec_lc3_settings, ADDRESS_TO_LOGGABLE_CSTR(peer_addr));
   }
 };
 
 /* type for sco data */
 typedef struct {
   tBTM_ESCO_CONN_REQ_EVT_DATA conn_data; /* SCO data for pending conn request */
-  tBTA_AG_SCB* p_curr_scb;  /* SCB associated with SCO connection */
-  tBTA_AG_SCB* p_xfer_scb;  /* SCB associated with SCO transfer */
-  uint16_t cur_idx;         /* SCO handle */
-  tBTA_AG_SCO state;        /* SCO state variable */
-  bool is_local;            /* SCO connection initiated locally or remotely */
+  tBTA_AG_SCB* p_curr_scb;               /* SCB associated with SCO connection */
+  tBTA_AG_SCB* p_xfer_scb;               /* SCB associated with SCO transfer */
+  uint16_t cur_idx;                      /* SCO handle */
+  tBTA_AG_SCO state;                     /* SCO state variable */
+  bool is_local;                         /* SCO connection initiated locally or remotely */
 } tBTA_AG_SCO_CB;
 
 /* type for AG control block */
@@ -377,10 +366,8 @@ void bta_ag_api_enable(tBTA_AG_CBACK* p_cback);
 void bta_ag_api_disable();
 void bta_ag_api_set_active_device(const RawAddress& new_active_device);
 void bta_ag_api_register(tBTA_SERVICE_MASK services, tBTA_AG_FEAT features,
-                         const std::vector<std::string>& service_names,
-                         uint8_t app_id);
-void bta_ag_api_result(uint16_t handle, tBTA_AG_RES result,
-                       const tBTA_AG_RES_DATA& result_data);
+                         const std::vector<std::string>& service_names, uint8_t app_id);
+void bta_ag_api_result(uint16_t handle, tBTA_AG_RES result, const tBTA_AG_RES_DATA& result_data);
 
 /* main functions */
 void bta_ag_scb_dealloc(tBTA_AG_SCB* p_scb);
@@ -390,18 +377,16 @@ uint8_t bta_ag_service_to_idx(tBTA_SERVICE_MASK services);
 uint16_t bta_ag_idx_by_bdaddr(const RawAddress* peer_addr);
 bool bta_ag_other_scb_open(tBTA_AG_SCB* p_curr_scb);
 bool bta_ag_scb_open(tBTA_AG_SCB* p_curr_scb);
-void bta_ag_sm_execute(tBTA_AG_SCB* p_scb, uint16_t event,
-                       const tBTA_AG_DATA& data);
-void bta_ag_sm_execute_by_handle(uint16_t handle, uint16_t event,
-                                 const tBTA_AG_DATA& data);
-void bta_ag_collision_cback(tBTA_SYS_CONN_STATUS status, tBTA_SYS_ID id,
-                            uint8_t app_id, const RawAddress& peer_addr);
+void bta_ag_sm_execute(tBTA_AG_SCB* p_scb, uint16_t event, const tBTA_AG_DATA& data);
+void bta_ag_sm_execute_by_handle(uint16_t handle, uint16_t event, const tBTA_AG_DATA& data);
+void bta_ag_collision_cback(tBTA_SYS_CONN_STATUS status, tBTA_SYS_ID id, uint8_t app_id,
+                            const RawAddress& peer_addr);
 void bta_ag_resume_open(tBTA_AG_SCB* p_scb);
 const std::string bta_ag_state_str(tBTA_AG_STATE state);
 
 /* SDP functions */
-bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name,
-                       uint8_t scn, tBTA_AG_FEAT features, uint32_t sdp_handle);
+bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name, uint8_t scn,
+                       tBTA_AG_FEAT features, uint32_t sdp_handle);
 void bta_ag_create_records(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
 void bta_ag_del_records(tBTA_AG_SCB* p_scb);
 bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service);
@@ -424,10 +409,10 @@ void bta_ag_sco_conn_rsp(tBTA_AG_SCB* p_scb, tBTM_ESCO_CONN_REQ_EVT_DATA* data);
 void bta_ag_create_sco(tBTA_AG_SCB* p_scb, bool is_orig);
 
 /* AT command functions */
-void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
-                         char* p_arg, char* p_end, int16_t int_arg);
-void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type,
-                         char* p_arg, char* p_end, int16_t int_arg);
+void bta_ag_at_hsp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, char* p_arg,
+                         char* p_end, int16_t int_arg);
+void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, char* p_arg,
+                         char* p_end, int16_t int_arg);
 void bta_ag_at_err_cback(tBTA_AG_SCB* p_scb, bool unknown, const char* p_arg);
 bool bta_ag_inband_enabled(tBTA_AG_SCB* p_scb);
 void bta_ag_send_call_inds(tBTA_AG_SCB* p_scb, tBTA_AG_RES result);
@@ -483,11 +468,14 @@ void bta_ag_send_qcs(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
  * @return true if SCO managed by Audio is enabled, false otherwise
  */
 bool bta_ag_is_sco_managed_by_audio();
+/**
+ * Respond to Audio HAL's SuspendStream request when SCO is disconnected
+ */
+void bta_ag_stream_suspended();
 
 namespace fmt {
 template <>
-struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS>
-    : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
+struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
 template <>
 struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
 }  // namespace fmt

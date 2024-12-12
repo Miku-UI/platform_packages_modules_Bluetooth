@@ -19,6 +19,7 @@
 
 #include <bluetooth/log.h>
 
+#include <algorithm>
 #include <list>
 #include <optional>
 #include <vector>
@@ -63,22 +64,21 @@ enum class PresetCtpOpcode : uint8_t {
 std::ostream& operator<<(std::ostream& out, const PresetCtpOpcode value);
 
 static constexpr uint16_t PresetCtpOpcode2Bitmask(PresetCtpOpcode op) {
-  return ((uint16_t)0b1 << static_cast<std::underlying_type_t<PresetCtpOpcode>>(
-              op));
+  return (uint16_t)0b1 << static_cast<std::underlying_type_t<PresetCtpOpcode>>(op);
 }
 
 /* Mandatory opcodes if control point characteristic exists */
 static constexpr uint16_t kControlPointMandatoryOpcodesBitmask =
-    PresetCtpOpcode2Bitmask(PresetCtpOpcode::READ_PRESETS) |
-    PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_ACTIVE_PRESET) |
-    PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_NEXT_PRESET) |
-    PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_PREV_PRESET);
+        PresetCtpOpcode2Bitmask(PresetCtpOpcode::READ_PRESETS) |
+        PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_ACTIVE_PRESET) |
+        PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_NEXT_PRESET) |
+        PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_PREV_PRESET);
 
 /* Optional coordinated operation opcodes */
 static constexpr uint16_t kControlPointSynchronizedOpcodesBitmask =
-    PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_ACTIVE_PRESET_SYNC) |
-    PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_NEXT_PRESET_SYNC) |
-    PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_PREV_PRESET_SYNC);
+        PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_ACTIVE_PRESET_SYNC) |
+        PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_NEXT_PRESET_SYNC) |
+        PresetCtpOpcode2Bitmask(PresetCtpOpcode::SET_PREV_PRESET_SYNC);
 
 /* Represents HAS Control Point value notification */
 struct HasCtpNtf {
@@ -91,8 +91,7 @@ struct HasCtpNtf {
   };
   std::optional<HasPreset> preset;
 
-  static std::optional<HasCtpNtf> FromCharacteristicValue(uint16_t len,
-                                                          const uint8_t* value);
+  static std::optional<HasCtpNtf> FromCharacteristicValue(uint16_t len, const uint8_t* value);
 };
 std::ostream& operator<<(std::ostream& out, const HasCtpNtf& value);
 
@@ -106,8 +105,7 @@ struct HasCtpOp {
   uint16_t op_id;
 
   HasCtpOp(std::variant<RawAddress, int> addr_or_group_id, PresetCtpOpcode op,
-           uint8_t index = bluetooth::has::kHasPresetIndexInvalid,
-           uint8_t num_of_indices = 1,
+           uint8_t index = bluetooth::has::kHasPresetIndexInvalid, uint8_t num_of_indices = 1,
            std::optional<std::string> name = std::nullopt)
       : addr_or_group(addr_or_group_id),
         opcode(op),
@@ -116,26 +114,23 @@ struct HasCtpOp {
         name(name) {
     /* Skip 0 on roll-over */
     last_op_id_ += 1;
-    if (last_op_id_ == 0) last_op_id_ = 1;
+    if (last_op_id_ == 0) {
+      last_op_id_ = 1;
+    }
     op_id = last_op_id_;
   }
 
   std::vector<uint8_t> ToCharacteristicValue(void) const;
 
-  bool IsGroupRequest() const {
-    return std::holds_alternative<int>(addr_or_group);
-  }
+  bool IsGroupRequest() const { return std::holds_alternative<int>(addr_or_group); }
 
   int GetGroupId() const {
-    return std::holds_alternative<int>(addr_or_group)
-               ? std::get<int>(addr_or_group)
-               : -1;
+    return std::holds_alternative<int>(addr_or_group) ? std::get<int>(addr_or_group) : -1;
   }
 
   RawAddress GetDeviceAddr() const {
-    return std::holds_alternative<RawAddress>(addr_or_group)
-               ? std::get<RawAddress>(addr_or_group)
-               : RawAddress::kEmpty;
+    return std::holds_alternative<RawAddress>(addr_or_group) ? std::get<RawAddress>(addr_or_group)
+                                                             : RawAddress::kEmpty;
   }
 
   bool IsSyncedOperation() const {
@@ -144,7 +139,7 @@ struct HasCtpOp {
            (opcode == PresetCtpOpcode::SET_PREV_PRESET_SYNC);
   }
 
- private:
+private:
   /* It's fine for this to roll-over eventually */
   static uint16_t last_op_id_;
 };
@@ -206,15 +201,12 @@ struct HasCtpGroupOpCoordinator {
     ref_cnt += other.devices.size();
   }
 
-  HasCtpGroupOpCoordinator(const std::vector<RawAddress>& targets,
-                           HasCtpOp operation)
+  HasCtpGroupOpCoordinator(const std::vector<RawAddress>& targets, HasCtpOp operation)
       : operation(operation) {
     log::assert_that(targets.size() != 0, "Empty device list error.");
     if (targets.size() != 1) {
-      log::assert_that(operation.IsGroupRequest(),
-                       "Must be a group operation!");
-      log::assert_that(operation.GetGroupId() != -1,
-                       "Must set valid group_id!");
+      log::assert_that(operation.IsGroupRequest(), "Must be a group operation!");
+      log::assert_that(operation.GetGroupId() != -1, "Must set valid group_id!");
     }
 
     devices = std::list<RawAddress>(targets.cbegin(), targets.cend());
@@ -224,12 +216,12 @@ struct HasCtpGroupOpCoordinator {
       operation_timeout_timer = alarm_new("GroupOpTimer");
     }
 
-    if (alarm_is_scheduled(operation_timeout_timer))
+    if (alarm_is_scheduled(operation_timeout_timer)) {
       alarm_cancel(operation_timeout_timer);
+    }
 
     log::assert_that(cb != nullptr, "Timeout timer callback not set!");
-    alarm_set_on_mloop(operation_timeout_timer, kOperationTimeoutMs, cb,
-                       nullptr);
+    alarm_set_on_mloop(operation_timeout_timer, kOperationTimeoutMs, cb, nullptr);
   }
 
   ~HasCtpGroupOpCoordinator() {

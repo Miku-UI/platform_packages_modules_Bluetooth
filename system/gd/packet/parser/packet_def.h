@@ -25,7 +25,7 @@
 #include "parent_def.h"
 
 class PacketDef : public ParentDef {
- public:
+public:
   PacketDef(std::string name, FieldList fields);
   PacketDef(std::string name, FieldList fields, PacketDef* parent);
 

@@ -37,9 +37,9 @@
  * Returns          true if successful, false if one or more parameters are bad
  *
  ******************************************************************************/
-bool SDP_InitDiscoveryDb(tSDP_DISCOVERY_DB* p_db, uint32_t len,
-                         uint16_t num_uuid, const bluetooth::Uuid* p_uuid_list,
-                         uint16_t num_attr, const uint16_t* p_attr_list);
+bool SDP_InitDiscoveryDb(tSDP_DISCOVERY_DB* p_db, uint32_t len, uint16_t num_uuid,
+                         const bluetooth::Uuid* p_uuid_list, uint16_t num_attr,
+                         const uint16_t* p_attr_list);
 
 /*******************************************************************************
  *
@@ -62,8 +62,8 @@ bool SDP_CancelServiceSearch(const tSDP_DISCOVERY_DB* p_db);
  * Returns          true if discovery started, false if failed.
  *
  ******************************************************************************/
-bool SDP_ServiceSearchRequest(const RawAddress& p_bd_addr,
-                              tSDP_DISCOVERY_DB* p_db, tSDP_DISC_CMPL_CB* p_cb);
+bool SDP_ServiceSearchRequest(const RawAddress& p_bd_addr, tSDP_DISCOVERY_DB* p_db,
+                              tSDP_DISC_CMPL_CB* p_cb);
 
 /*******************************************************************************
  *
@@ -78,8 +78,7 @@ bool SDP_ServiceSearchRequest(const RawAddress& p_bd_addr,
  * Returns          true if discovery started, false if failed.
  *
  ******************************************************************************/
-bool SDP_ServiceSearchAttributeRequest(const RawAddress& p_bd_addr,
-                                       tSDP_DISCOVERY_DB* p_db,
+bool SDP_ServiceSearchAttributeRequest(const RawAddress& p_bd_addr, tSDP_DISCOVERY_DB* p_db,
                                        tSDP_DISC_CMPL_CB* p_cb);
 
 /*******************************************************************************
@@ -97,8 +96,8 @@ bool SDP_ServiceSearchAttributeRequest(const RawAddress& p_bd_addr,
  *
  ******************************************************************************/
 bool SDP_ServiceSearchAttributeRequest2(
-    const RawAddress& p_bd_addr, tSDP_DISCOVERY_DB* p_db,
-    base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback);
+        const RawAddress& p_bd_addr, tSDP_DISCOVERY_DB* p_db,
+        base::RepeatingCallback<tSDP_DISC_CMPL_CB> complete_callback);
 
 /* API of utilities to find data in the local discovery database */
 
@@ -112,8 +111,7 @@ bool SDP_ServiceSearchAttributeRequest2(
  * Returns          Pointer to matching attribute entry, or NULL
  *
  ******************************************************************************/
-tSDP_DISC_ATTR* SDP_FindAttributeInRec(const tSDP_DISC_REC* p_rec,
-                                       uint16_t attr_id);
+tSDP_DISC_ATTR* SDP_FindAttributeInRec(const tSDP_DISC_REC* p_rec, uint16_t attr_id);
 
 /*******************************************************************************
  *
@@ -127,8 +125,7 @@ tSDP_DISC_ATTR* SDP_FindAttributeInRec(const tSDP_DISC_REC* p_rec,
  * Returns          Pointer to record containing service class, or NULL
  *
  ******************************************************************************/
-tSDP_DISC_REC* SDP_FindServiceInDb(const tSDP_DISCOVERY_DB* p_db,
-                                   uint16_t service_uuid,
+tSDP_DISC_REC* SDP_FindServiceInDb(const tSDP_DISCOVERY_DB* p_db, uint16_t service_uuid,
                                    tSDP_DISC_REC* p_start_rec);
 
 /*******************************************************************************
@@ -147,8 +144,7 @@ tSDP_DISC_REC* SDP_FindServiceInDb(const tSDP_DISCOVERY_DB* p_db,
  * Returns          Pointer to record containing service class, or NULL
  *
  ******************************************************************************/
-tSDP_DISC_REC* SDP_FindServiceUUIDInDb(const tSDP_DISCOVERY_DB* p_db,
-                                       const bluetooth::Uuid& uuid,
+tSDP_DISC_REC* SDP_FindServiceUUIDInDb(const tSDP_DISCOVERY_DB* p_db, const bluetooth::Uuid& uuid,
                                        tSDP_DISC_REC* p_start_rec);
 
 /*******************************************************************************
@@ -164,8 +160,7 @@ tSDP_DISC_REC* SDP_FindServiceUUIDInDb(const tSDP_DISCOVERY_DB* p_db,
  * Returns          true if found, otherwise false.
  *
  ******************************************************************************/
-bool SDP_FindServiceUUIDInRec_128bit(const tSDP_DISC_REC* p_rec,
-                                     bluetooth::Uuid* p_uuid);
+bool SDP_FindServiceUUIDInRec_128bit(const tSDP_DISC_REC* p_rec, bluetooth::Uuid* p_uuid);
 
 /*******************************************************************************
  *
@@ -180,8 +175,7 @@ bool SDP_FindServiceUUIDInRec_128bit(const tSDP_DISC_REC* p_rec,
  * Returns          true if found, otherwise false.
  *
  ******************************************************************************/
-bool SDP_FindServiceUUIDInRec(const tSDP_DISC_REC* p_rec,
-                              bluetooth::Uuid* p_uuid);
+bool SDP_FindServiceUUIDInRec(const tSDP_DISC_REC* p_rec, bluetooth::Uuid* p_uuid);
 
 /*******************************************************************************
  *
@@ -209,8 +203,7 @@ tSDP_DISC_REC* SDP_FindServiceInDb_128bit(const tSDP_DISCOVERY_DB* p_db,
  *                  If found, the passed protocol list element is filled in.
  *
  ******************************************************************************/
-bool SDP_FindProtocolListElemInRec(const tSDP_DISC_REC* p_rec,
-                                   uint16_t layer_uuid,
+bool SDP_FindProtocolListElemInRec(const tSDP_DISC_REC* p_rec, uint16_t layer_uuid,
                                    tSDP_PROTOCOL_ELEM* p_elem);
 
 /*******************************************************************************
@@ -227,8 +220,8 @@ bool SDP_FindProtocolListElemInRec(const tSDP_DISC_REC* p_rec,
  *                  passed in are filled in.
  *
  ******************************************************************************/
-bool SDP_FindProfileVersionInRec(const tSDP_DISC_REC* p_rec,
-                                 uint16_t profile_uuid, uint16_t* p_version);
+bool SDP_FindProfileVersionInRec(const tSDP_DISC_REC* p_rec, uint16_t profile_uuid,
+                                 uint16_t* p_version);
 
 /* API into SDP for local service database updates */
 
@@ -275,8 +268,8 @@ bool SDP_DeleteRecord(uint32_t handle);
  * Returns          true if added OK, else false
  *
  ******************************************************************************/
-bool SDP_AddAttribute(uint32_t handle, uint16_t attr_id, uint8_t attr_type,
-                      uint32_t attr_len, uint8_t* p_val);
+bool SDP_AddAttribute(uint32_t handle, uint16_t attr_id, uint8_t attr_type, uint32_t attr_len,
+                      uint8_t* p_val);
 
 /*******************************************************************************
  *
@@ -292,8 +285,8 @@ bool SDP_AddAttribute(uint32_t handle, uint16_t attr_id, uint8_t attr_type,
  * Returns          true if added OK, else false
  *
  ******************************************************************************/
-bool SDP_AddSequence(uint32_t handle, uint16_t attr_id, uint16_t num_elem,
-                     uint8_t type[], uint8_t len[], uint8_t* p_val[]);
+bool SDP_AddSequence(uint32_t handle, uint16_t attr_id, uint16_t num_elem, uint8_t type[],
+                     uint8_t len[], uint8_t* p_val[]);
 
 /*******************************************************************************
  *
@@ -307,8 +300,7 @@ bool SDP_AddSequence(uint32_t handle, uint16_t attr_id, uint16_t num_elem,
  * Returns          true if added OK, else false
  *
  ******************************************************************************/
-bool SDP_AddUuidSequence(uint32_t handle, uint16_t attr_id, uint16_t num_uuids,
-                         uint16_t* p_uuids);
+bool SDP_AddUuidSequence(uint32_t handle, uint16_t attr_id, uint16_t num_uuids, uint16_t* p_uuids);
 
 /*******************************************************************************
  *
@@ -322,8 +314,7 @@ bool SDP_AddUuidSequence(uint32_t handle, uint16_t attr_id, uint16_t num_uuids,
  * Returns          true if added OK, else false
  *
  ******************************************************************************/
-bool SDP_AddProtocolList(uint32_t handle, uint16_t num_elem,
-                         tSDP_PROTOCOL_ELEM* p_elem_list);
+bool SDP_AddProtocolList(uint32_t handle, uint16_t num_elem, tSDP_PROTOCOL_ELEM* p_elem_list);
 
 /*******************************************************************************
  *
@@ -352,8 +343,7 @@ bool SDP_AddAdditionProtoLists(uint32_t handle, uint16_t num_elem,
  * Returns          true if added OK, else false
  *
  ******************************************************************************/
-bool SDP_AddProfileDescriptorList(uint32_t handle, uint16_t profile_uuid,
-                                  uint16_t version);
+bool SDP_AddProfileDescriptorList(uint32_t handle, uint16_t profile_uuid, uint16_t version);
 
 /*******************************************************************************
  *
@@ -367,8 +357,8 @@ bool SDP_AddProfileDescriptorList(uint32_t handle, uint16_t profile_uuid,
  * Returns          true if added OK, else false
  *
  ******************************************************************************/
-bool SDP_AddLanguageBaseAttrIDList(uint32_t handle, uint16_t lang,
-                                   uint16_t char_enc, uint16_t base_id);
+bool SDP_AddLanguageBaseAttrIDList(uint32_t handle, uint16_t lang, uint16_t char_enc,
+                                   uint16_t base_id);
 
 /*******************************************************************************
  *
@@ -382,8 +372,7 @@ bool SDP_AddLanguageBaseAttrIDList(uint32_t handle, uint16_t lang,
  * Returns          true if added OK, else false
  *
  ******************************************************************************/
-bool SDP_AddServiceClassIdList(uint32_t handle, uint16_t num_services,
-                               uint16_t* p_service_uuids);
+bool SDP_AddServiceClassIdList(uint32_t handle, uint16_t num_services, uint16_t* p_service_uuids);
 
 /* Device Identification APIs */
 
@@ -393,11 +382,10 @@ bool SDP_AddServiceClassIdList(uint32_t handle, uint16_t num_services,
  *
  * Description      This function adds a DI record to the local SDP database.
  *
- * Returns          Returns SDP_SUCCESS if record added successfully, else error
+ * Returns          Returns tSDP_STATUS::SDP_SUCCESS if record added successfully, else error
  *
  ******************************************************************************/
-uint16_t SDP_SetLocalDiRecord(const tSDP_DI_RECORD* device_info,
-                              uint32_t* p_handle);
+tSDP_STATUS SDP_SetLocalDiRecord(const tSDP_DI_RECORD* device_info, uint32_t* p_handle);
 
 /*******************************************************************************
  *
@@ -405,11 +393,10 @@ uint16_t SDP_SetLocalDiRecord(const tSDP_DI_RECORD* device_info,
  *
  * Description      This function queries a remote device for DI information.
  *
- * Returns          SDP_SUCCESS if query started successfully, else error
+ * Returns          tSDP_STATUS::SDP_SUCCESS if query started successfully, else error
  *
  ******************************************************************************/
-tSDP_STATUS SDP_DiDiscover(const RawAddress& remote_device,
-                           tSDP_DISCOVERY_DB* p_db, uint32_t len,
+tSDP_STATUS SDP_DiDiscover(const RawAddress& remote_device, tSDP_DISCOVERY_DB* p_db, uint32_t len,
                            tSDP_DISC_CMPL_CB* p_cb);
 
 /*******************************************************************************
@@ -433,6 +420,5 @@ uint8_t SDP_GetNumDiRecords(const tSDP_DISCOVERY_DB* p_db);
  * Returns          SDP_SUCCESS if record retrieved, else error
  *
  ******************************************************************************/
-uint16_t SDP_GetDiRecord(uint8_t getRecordIndex,
-                         tSDP_DI_GET_RECORD* device_info,
-                         const tSDP_DISCOVERY_DB* p_db);
+tSDP_STATUS SDP_GetDiRecord(uint8_t getRecordIndex, tSDP_DI_GET_RECORD* device_info,
+                            const tSDP_DISCOVERY_DB* p_db);

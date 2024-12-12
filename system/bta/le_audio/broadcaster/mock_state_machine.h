@@ -21,13 +21,11 @@
 
 #include "state_machine.h"
 
-class MockBroadcastStateMachine
-    : public bluetooth::le_audio::broadcaster::BroadcastStateMachine {
- public:
-  MockBroadcastStateMachine(
-      bluetooth::le_audio::broadcaster::BroadcastStateMachineConfig cfg,
-      bluetooth::le_audio::broadcaster::IBroadcastStateMachineCallbacks* cb,
-      AdvertisingCallbacks* adv_cb)
+class MockBroadcastStateMachine : public bluetooth::le_audio::broadcaster::BroadcastStateMachine {
+public:
+  MockBroadcastStateMachine(bluetooth::le_audio::broadcaster::BroadcastStateMachineConfig cfg,
+                            bluetooth::le_audio::broadcaster::IBroadcastStateMachineCallbacks* cb,
+                            AdvertisingCallbacks* adv_cb)
       : cfg(cfg), cb(cb), adv_cb(adv_cb) {
     advertising_sid_ = ++instance_counter_;
 
@@ -37,27 +35,34 @@ class MockBroadcastStateMachine
     });
 
     ON_CALL(*this, ProcessMessage)
-        .WillByDefault(
-            [this](
-                bluetooth::le_audio::broadcaster::BroadcastStateMachine::Message
-                    event,
-                const void* data) {
-              const void* sent_data = nullptr;
-              switch (event) {
-                case Message::START:
-                  if (result_) SetState(State::STREAMING);
-                  sent_data = &this->cfg.config.subgroups;
-                  break;
-                case Message::STOP:
-                  if (result_) SetState(State::STOPPED);
-                  break;
-                case Message::SUSPEND:
-                  if (result_) SetState(State::CONFIGURED);
-                  break;
-              };
-              this->cb->OnStateMachineEvent(this->cfg.broadcast_id, GetState(),
-                                            sent_data);
-            });
+            .WillByDefault(
+                    [this](bluetooth::le_audio::broadcaster::BroadcastStateMachine::Message event,
+                           const void* data) {
+                      const void* sent_data = nullptr;
+                      switch (event) {
+                        case Message::START:
+                          if (GetState() != State::STREAMING && result_) {
+                            SetState(State::STREAMING);
+                            this->cb->OnStateMachineEvent(this->cfg.broadcast_id, GetState(),
+                                                          &this->cfg.config.subgroups);
+                          }
+                          break;
+                        case Message::STOP:
+                          if (GetState() != State::STOPPED && result_) {
+                            SetState(State::STOPPED);
+                            this->cb->OnStateMachineEvent(this->cfg.broadcast_id, GetState(),
+                                                          nullptr);
+                          }
+                          break;
+                        case Message::SUSPEND:
+                          if (GetState() != State::CONFIGURED && result_) {
+                            SetState(State::CONFIGURED);
+                            this->cb->OnStateMachineEvent(this->cfg.broadcast_id, GetState(),
+                                                          nullptr);
+                          }
+                          break;
+                      };
+                    });
 
     ON_CALL(*this, GetBigConfig).WillByDefault(testing::ReturnRef(big_config_));
 
@@ -66,25 +71,22 @@ class MockBroadcastStateMachine
     });
 
     ON_CALL(*this, GetCodecConfig())
-        .WillByDefault(
-            [this]() -> const std::vector<bluetooth::le_audio::broadcaster::
-                                              BroadcastSubgroupCodecConfig>& {
+            .WillByDefault([this]() -> const std::vector<bluetooth::le_audio::broadcaster::
+                                                                 BroadcastSubgroupCodecConfig>& {
               return this->cfg.config.subgroups;
             });
 
     ON_CALL(*this, GetBroadcastConfig())
-        .WillByDefault(
-            [this]() -> const bluetooth::le_audio::broadcaster::
-                         BroadcastConfiguration& { return this->cfg.config; });
+            .WillByDefault(
+                    [this]() -> const bluetooth::le_audio::broadcaster::BroadcastConfiguration& {
+                      return this->cfg.config;
+                    });
 
-    ON_CALL(*this, GetBroadcastId())
-        .WillByDefault([this]() -> bluetooth::le_audio::BroadcastId {
-          return this->cfg.broadcast_id;
-        });
-
-    ON_CALL(*this, GetOwnAddress()).WillByDefault([this]() -> RawAddress {
-      return this->addr_;
+    ON_CALL(*this, GetBroadcastId()).WillByDefault([this]() -> bluetooth::le_audio::BroadcastId {
+      return this->cfg.broadcast_id;
     });
+
+    ON_CALL(*this, GetOwnAddress()).WillByDefault([this]() -> RawAddress { return this->addr_; });
 
     ON_CALL(*this, GetOwnAddressType()).WillByDefault([this]() -> uint8_t {
       return this->addr_type_;
@@ -103,83 +105,65 @@ class MockBroadcastStateMachine
     });
 
     ON_CALL(*this, GetPublicBroadcastAnnouncement())
-        .WillByDefault(
-            [this]() -> bluetooth::le_audio::PublicBroadcastAnnouncementData& {
+            .WillByDefault([this]() -> bluetooth::le_audio::PublicBroadcastAnnouncementData& {
               return this->cfg.public_announcement;
             });
-  };
-
-  ~MockBroadcastStateMachine() {
-    cb->OnStateMachineDestroyed(this->cfg.broadcast_id);
   }
 
+  ~MockBroadcastStateMachine() { cb->OnStateMachineDestroyed(this->cfg.broadcast_id); }
+
   MOCK_METHOD((bool), Initialize, (), (override));
-  MOCK_METHOD(
-      (const std::vector<
-          bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig>&),
-      GetCodecConfig, (), (const override));
-  MOCK_METHOD(
-      (std::optional<bluetooth::le_audio::broadcaster::BigConfig> const&),
-      GetBigConfig, (), (const override));
-  MOCK_METHOD(
-      (bluetooth::le_audio::broadcaster::BroadcastStateMachineConfig const&),
-      GetStateMachineConfig, (), (const override));
-  MOCK_METHOD(
-      (void), RequestOwnAddress,
-      (base::Callback<void(uint8_t /* address_type*/, RawAddress /*address*/)>
-           cb),
-      (override));
-  MOCK_METHOD((const bluetooth::le_audio::broadcaster::BroadcastConfiguration&),
-              GetBroadcastConfig, (), (const override));
+  MOCK_METHOD((const std::vector<bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig>&),
+              GetCodecConfig, (), (const override));
+  MOCK_METHOD((std::optional<bluetooth::le_audio::broadcaster::BigConfig> const&), GetBigConfig, (),
+              (const override));
+  MOCK_METHOD((bluetooth::le_audio::broadcaster::BroadcastStateMachineConfig const&),
+              GetStateMachineConfig, (), (const override));
+  MOCK_METHOD((void), RequestOwnAddress,
+              (base::Callback<void(uint8_t /* address_type*/, RawAddress /*address*/)> cb),
+              (override));
+  MOCK_METHOD((const bluetooth::le_audio::broadcaster::BroadcastConfiguration&), GetBroadcastConfig,
+              (), (const override));
   MOCK_METHOD((void), RequestOwnAddress, (), (override));
   MOCK_METHOD((RawAddress), GetOwnAddress, (), (override));
   MOCK_METHOD((uint8_t), GetOwnAddressType, (), (override));
-  MOCK_METHOD((std::optional<bluetooth::le_audio::BroadcastCode>),
-              GetBroadcastCode, (), (const override));
-  MOCK_METHOD((bluetooth::le_audio::BroadcastId), GetBroadcastId, (),
+  MOCK_METHOD((std::optional<bluetooth::le_audio::BroadcastCode>), GetBroadcastCode, (),
               (const override));
+  MOCK_METHOD((bluetooth::le_audio::BroadcastId), GetBroadcastId, (), (const override));
   MOCK_METHOD((bool), IsPublicBroadcast, (), (override));
   MOCK_METHOD((std::string), GetBroadcastName, (), (override));
-  MOCK_METHOD((bluetooth::le_audio::BasicAudioAnnouncementData&),
-              GetBroadcastAnnouncement, (), (const override));
+  MOCK_METHOD((bluetooth::le_audio::BasicAudioAnnouncementData&), GetBroadcastAnnouncement, (),
+              (const override));
   MOCK_METHOD((bluetooth::le_audio::PublicBroadcastAnnouncementData&),
               GetPublicBroadcastAnnouncement, (), (const override));
   MOCK_METHOD((void), UpdateBroadcastAnnouncement,
-              (bluetooth::le_audio::BasicAudioAnnouncementData announcement),
-              (override));
+              (bluetooth::le_audio::BasicAudioAnnouncementData announcement), (override));
   MOCK_METHOD((void), UpdatePublicBroadcastAnnouncement,
               (uint32_t broadcast_id, const std::string& broadcast_name,
-               const bluetooth::le_audio::PublicBroadcastAnnouncementData&
-                   announcement),
+               const bluetooth::le_audio::PublicBroadcastAnnouncementData& announcement),
               (override));
   MOCK_METHOD((uint8_t), GetPaInterval, (), (const override));
   MOCK_METHOD((void), HandleHciEvent, (uint16_t event, void* data), (override));
-  MOCK_METHOD((void), OnSetupIsoDataPath,
-              (uint8_t status, uint16_t conn_handle), (override));
-  MOCK_METHOD((void), OnRemoveIsoDataPath,
-              (uint8_t status, uint16_t conn_handle), (override));
-  MOCK_METHOD(
-      (void), ProcessMessage,
-      (bluetooth::le_audio::broadcaster::BroadcastStateMachine::Message event,
-       const void* data),
-      (override));
+  MOCK_METHOD((void), OnSetupIsoDataPath, (uint8_t status, uint16_t conn_handle), (override));
+  MOCK_METHOD((void), OnRemoveIsoDataPath, (uint8_t status, uint16_t conn_handle), (override));
+  MOCK_METHOD((void), ProcessMessage,
+              (bluetooth::le_audio::broadcaster::BroadcastStateMachine::Message event,
+               const void* data),
+              (override));
   MOCK_METHOD((uint8_t), GetAdvertisingSid, (), (const override));
   MOCK_METHOD((void), OnCreateAnnouncement,
-              (uint8_t advertising_sid, int8_t tx_power, uint8_t status),
-              (override));
-  MOCK_METHOD((void), OnEnableAnnouncement, (bool enable, uint8_t status),
-              (override));
+              (uint8_t advertising_sid, int8_t tx_power, uint8_t status), (override));
+  MOCK_METHOD((void), OnEnableAnnouncement, (bool enable, uint8_t status), (override));
+  MOCK_METHOD((void), OnUpdateAnnouncement, (uint8_t status), (override));
 
   bool result_ = true;
-  std::optional<bluetooth::le_audio::broadcaster::BigConfig> big_config_ =
-      std::nullopt;
+  std::optional<bluetooth::le_audio::broadcaster::BigConfig> big_config_ = std::nullopt;
   bluetooth::le_audio::broadcaster::BroadcastStateMachineConfig cfg;
   bluetooth::le_audio::broadcaster::IBroadcastStateMachineCallbacks* cb;
   AdvertisingCallbacks* adv_cb;
   void SetExpectedState(BroadcastStateMachine::State state) { SetState(state); }
   void SetExpectedResult(bool result) { result_ = result; }
-  void SetExpectedBigConfig(
-      std::optional<bluetooth::le_audio::broadcaster::BigConfig> big_cfg) {
+  void SetExpectedBigConfig(std::optional<bluetooth::le_audio::broadcaster::BigConfig> big_cfg) {
     big_config_ = big_cfg;
   }
 

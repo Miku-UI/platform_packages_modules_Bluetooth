@@ -2,27 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "synchronous_bta_sec"
-    namespace: "bluetooth"
-    description: "Make BTA_DmXXX security APIs synchronous"
-    bug: "311196228"
-}
-
-flag {
-    name: "connect_hid_after_service_discovery"
-    namespace: "bluetooth"
-    description: "Don't initiate HID connection before pairing and service discovery"
-    bug: "314707251"
-}
-
-flag {
-    name: "bta_dm_disc_stuck_in_cancelling_fix"
-    namespace: "bluetooth"
-    description: "Fix being stuck in BTA_DM_SEARCH_CANCELLING"
-    bug: "319890673"
-}
-
-flag {
     name: "bta_dm_defer_device_discovery_state_change_until_rnr_complete"
     namespace: "bluetooth"
     description: "Fix double-sending device discovery state change when canceling RNR"
@@ -37,22 +16,28 @@ flag {
 }
 
 flag {
-    name: "continue_service_discovery_when_cancel_device_discovery"
-    namespace: "bluetooth"
-    description: "Continue service discovery when API cancel device discovery called"
-    bug: "329642681"
-}
-
-flag {
-    name: "separate_service_and_device_discovery"
-    namespace: "bluetooth"
-    description: "Separate service and device discovery state machines such that one does not block on another"
-    bug: "335732980"
-}
-
-flag {
     name: "bta_dm_discover_both"
     namespace: "bluetooth"
     description: "perform both LE and Classic service discovery simulteanously on capable devices"
     bug: "339217881"
+}
+
+flag {
+    name: "cancel_open_discovery_client"
+    namespace: "bluetooth"
+    description: "Cancel connection from discovery client correctly"
+    bug: "356168480"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_le_evt_cancelling_sdp_discovery"
+    namespace: "bluetooth"
+    description: "Fix LE service discovery cancelling SDP discovery"
+    bug: "360936118"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

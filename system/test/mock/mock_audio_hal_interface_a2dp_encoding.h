@@ -34,6 +34,7 @@
 #include "audio_hal_interface/a2dp_encoding.h"
 
 // Original usings
+using bluetooth::audio::a2dp::BluetoothAudioStatus;
 using bluetooth::audio::a2dp::provider::a2dp_configuration;
 using bluetooth::audio::a2dp::provider::a2dp_remote_capabilities;
 
@@ -45,22 +46,20 @@ namespace audio_hal_interface_a2dp_encoding {
 
 // Shared state between mocked functions and tests
 // Name: ack_stream_started
-// Params: const tA2DP_CTRL_ACK& status
+// Params: BluetoothAudioStatus
 // Return: void
 struct ack_stream_started {
-  std::function<void(const tA2DP_CTRL_ACK& status)> body{
-      [](const tA2DP_CTRL_ACK& /* status */) {}};
-  void operator()(const tA2DP_CTRL_ACK& status) { body(status); };
+  std::function<void(BluetoothAudioStatus status)> body{[](BluetoothAudioStatus /* status */) {}};
+  void operator()(BluetoothAudioStatus status) { body(status); }
 };
 extern struct ack_stream_started ack_stream_started;
 
 // Name: ack_stream_suspended
-// Params: const tA2DP_CTRL_ACK& status
+// Params: BluetoothAudioStatus
 // Return: void
 struct ack_stream_suspended {
-  std::function<void(const tA2DP_CTRL_ACK& status)> body{
-      [](const tA2DP_CTRL_ACK& /* status */) {}};
-  void operator()(const tA2DP_CTRL_ACK& status) { body(status); };
+  std::function<void(BluetoothAudioStatus status)> body{[](BluetoothAudioStatus /* status */) {}};
+  void operator()(BluetoothAudioStatus status) { body(status); }
 };
 extern struct ack_stream_suspended ack_stream_suspended;
 
@@ -69,7 +68,7 @@ extern struct ack_stream_suspended ack_stream_suspended;
 // Return: void
 struct cleanup {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct cleanup cleanup;
 
@@ -78,13 +77,11 @@ extern struct cleanup cleanup;
 // Return: std::optional<const char*>
 struct codec_index_str {
   static std::optional<const char*> return_value;
-  std::function<std::optional<const char*>(btav_a2dp_codec_index_t codec_index)>
-      body{[](btav_a2dp_codec_index_t /* codec_index */) {
-        return return_value;
-      }};
+  std::function<std::optional<const char*>(btav_a2dp_codec_index_t codec_index)> body{
+          [](btav_a2dp_codec_index_t /* codec_index */) { return return_value; }};
   std::optional<const char*> operator()(btav_a2dp_codec_index_t codec_index) {
     return body(codec_index);
-  };
+  }
 };
 extern struct codec_index_str codec_index_str;
 
@@ -93,18 +90,15 @@ extern struct codec_index_str codec_index_str;
 // codec_info, btav_a2dp_codec_config_t* codec_config Return: bool
 struct codec_info {
   static bool return_value;
-  std::function<bool(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
-                     uint8_t* codec_info,
+  std::function<bool(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
                      btav_a2dp_codec_config_t* codec_config)>
-      body{[](btav_a2dp_codec_index_t /* codec_index */,
-              uint64_t* /* codec_id */, uint8_t* /* codec_info */,
-              btav_a2dp_codec_config_t* /* codec_config */) {
-        return return_value;
-      }};
-  bool operator()(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id,
-                  uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config) {
+          body{[](btav_a2dp_codec_index_t /* codec_index */, uint64_t* /* codec_id */,
+                  uint8_t* /* codec_info */,
+                  btav_a2dp_codec_config_t* /* codec_config */) { return return_value; }};
+  bool operator()(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
+                  btav_a2dp_codec_config_t* codec_config) {
     return body(codec_index, codec_id, codec_info, codec_config);
-  };
+  }
 };
 extern struct codec_info codec_info;
 
@@ -113,7 +107,7 @@ extern struct codec_info codec_info;
 // Return: void
 struct end_session {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct end_session end_session;
 
@@ -124,20 +118,16 @@ extern struct end_session end_session;
 struct get_a2dp_configuration {
   static std::optional<a2dp_configuration> return_value;
   std::function<std::optional<a2dp_configuration>(
-      RawAddress peer_address,
-      std::vector<a2dp_remote_capabilities> const& remote_seps,
-      btav_a2dp_codec_config_t const& user_preferences)>
-      body{[](RawAddress /* peer_address */,
-              std::vector<a2dp_remote_capabilities> const& /* remote_seps */,
-              btav_a2dp_codec_config_t const& /* user_preferences */) {
-        return return_value;
-      }};
+          RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
+          btav_a2dp_codec_config_t const& user_preferences)>
+          body{[](RawAddress /* peer_address */,
+                  std::vector<a2dp_remote_capabilities> const& /* remote_seps */,
+                  btav_a2dp_codec_config_t const& /* user_preferences */) { return return_value; }};
   std::optional<a2dp_configuration> operator()(
-      RawAddress peer_address,
-      std::vector<a2dp_remote_capabilities> const& remote_seps,
-      btav_a2dp_codec_config_t const& user_preferences) {
+          RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
+          btav_a2dp_codec_config_t const& user_preferences) {
     return body(peer_address, remote_seps, user_preferences);
-  };
+  }
 };
 extern struct get_a2dp_configuration get_a2dp_configuration;
 
@@ -147,12 +137,8 @@ extern struct get_a2dp_configuration get_a2dp_configuration;
 struct init {
   static bool return_value;
   std::function<bool(bluetooth::common::MessageLoopThread* message_loop)> body{
-      [](bluetooth::common::MessageLoopThread* /* message_loop */) {
-        return return_value;
-      }};
-  bool operator()(bluetooth::common::MessageLoopThread* message_loop) {
-    return body(message_loop);
-  };
+          [](bluetooth::common::MessageLoopThread* /* message_loop */) { return return_value; }};
+  bool operator()(bluetooth::common::MessageLoopThread* message_loop) { return body(message_loop); }
 };
 extern struct init init;
 
@@ -162,7 +148,7 @@ extern struct init init;
 struct is_hal_enabled {
   static bool return_value;
   std::function<bool()> body{[]() { return return_value; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct is_hal_enabled is_hal_enabled;
 
@@ -172,7 +158,7 @@ extern struct is_hal_enabled is_hal_enabled;
 struct is_hal_offloading {
   static bool return_value;
   std::function<bool()> body{[]() { return return_value; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct is_hal_offloading is_hal_offloading;
 
@@ -182,7 +168,7 @@ extern struct is_hal_offloading is_hal_offloading;
 struct is_opus_supported {
   static bool return_value;
   std::function<bool()> body{[]() { return return_value; }};
-  bool operator()() { return body(); };
+  bool operator()() { return body(); }
 };
 extern struct is_opus_supported is_opus_supported;
 
@@ -192,23 +178,17 @@ extern struct is_opus_supported is_opus_supported;
 // vendor_specific_parameters Return: tA2DP_STATUS
 struct parse_a2dp_configuration {
   static tA2DP_STATUS return_value;
-  std::function<tA2DP_STATUS(btav_a2dp_codec_index_t codec_index,
-                             const uint8_t* codec_info,
+  std::function<tA2DP_STATUS(btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
                              btav_a2dp_codec_config_t* codec_parameters,
                              std::vector<uint8_t>* vendor_specific_parameters)>
-      body{[](btav_a2dp_codec_index_t /* codec_index */,
-              const uint8_t* /* codec_info */,
-              btav_a2dp_codec_config_t* /* codec_parameters */,
-              std::vector<uint8_t>* /* vendor_specific_parameters */) {
-        return return_value;
-      }};
-  tA2DP_STATUS operator()(btav_a2dp_codec_index_t codec_index,
-                          const uint8_t* codec_info,
+          body{[](btav_a2dp_codec_index_t /* codec_index */, const uint8_t* /* codec_info */,
+                  btav_a2dp_codec_config_t* /* codec_parameters */,
+                  std::vector<uint8_t>* /* vendor_specific_parameters */) { return return_value; }};
+  tA2DP_STATUS operator()(btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
                           btav_a2dp_codec_config_t* codec_parameters,
                           std::vector<uint8_t>* vendor_specific_parameters) {
-    return body(codec_index, codec_info, codec_parameters,
-                vendor_specific_parameters);
-  };
+    return body(codec_index, codec_info, codec_parameters, vendor_specific_parameters);
+  }
 };
 extern struct parse_a2dp_configuration parse_a2dp_configuration;
 
@@ -218,8 +198,8 @@ extern struct parse_a2dp_configuration parse_a2dp_configuration;
 struct read {
   static size_t return_value;
   std::function<size_t(uint8_t* p_buf, uint32_t len)> body{
-      [](uint8_t* /* p_buf */, uint32_t /* len */) { return return_value; }};
-  size_t operator()(uint8_t* p_buf, uint32_t len) { return body(p_buf, len); };
+          [](uint8_t* /* p_buf */, uint32_t /* len */) { return return_value; }};
+  size_t operator()(uint8_t* p_buf, uint32_t len) { return body(p_buf, len); }
 };
 extern struct read read;
 
@@ -228,18 +208,16 @@ extern struct read read;
 // Return: void
 struct set_audio_low_latency_mode_allowed {
   std::function<void(bool allowed)> body{[](bool /* allowed */) {}};
-  void operator()(bool allowed) { body(allowed); };
+  void operator()(bool allowed) { body(allowed); }
 };
-extern struct set_audio_low_latency_mode_allowed
-    set_audio_low_latency_mode_allowed;
+extern struct set_audio_low_latency_mode_allowed set_audio_low_latency_mode_allowed;
 
 // Name: set_remote_delay
 // Params: uint16_t delay_report
 // Return: void
 struct set_remote_delay {
-  std::function<void(uint16_t delay_report)> body{
-      [](uint16_t /* delay_report */) {}};
-  void operator()(uint16_t delay_report) { body(delay_report); };
+  std::function<void(uint16_t delay_report)> body{[](uint16_t /* delay_report */) {}};
+  void operator()(uint16_t delay_report) { body(delay_report); }
 };
 extern struct set_remote_delay set_remote_delay;
 
@@ -248,8 +226,9 @@ extern struct set_remote_delay set_remote_delay;
 // Return: bool
 struct setup_codec {
   static bool return_value;
-  std::function<bool()> body{[]() { return return_value; }};
-  bool operator()() { return body(); };
+  std::function<bool(A2dpCodecConfig* a2dp_config)> body{
+          [](A2dpCodecConfig* /* a2dp_config */) { return return_value; }};
+  bool operator()(A2dpCodecConfig* a2dp_config) { return body(a2dp_config); }
 };
 extern struct setup_codec setup_codec;
 
@@ -258,13 +237,11 @@ extern struct setup_codec setup_codec;
 // Return: std::optional<btav_a2dp_codec_index_t>
 struct sink_codec_index {
   static std::optional<btav_a2dp_codec_index_t> return_value;
-  std::function<std::optional<btav_a2dp_codec_index_t>(
-      const uint8_t* p_codec_info)>
-      body{[](const uint8_t* /* p_codec_info */) { return return_value; }};
-  std::optional<btav_a2dp_codec_index_t> operator()(
-      const uint8_t* p_codec_info) {
+  std::function<std::optional<btav_a2dp_codec_index_t>(const uint8_t* p_codec_info)> body{
+          [](const uint8_t* /* p_codec_info */) { return return_value; }};
+  std::optional<btav_a2dp_codec_index_t> operator()(const uint8_t* p_codec_info) {
     return body(p_codec_info);
-  };
+  }
 };
 extern struct sink_codec_index sink_codec_index;
 
@@ -273,13 +250,11 @@ extern struct sink_codec_index sink_codec_index;
 // Return: std::optional<btav_a2dp_codec_index_t>
 struct source_codec_index {
   static std::optional<btav_a2dp_codec_index_t> return_value;
-  std::function<std::optional<btav_a2dp_codec_index_t>(
-      const uint8_t* p_codec_info)>
-      body{[](const uint8_t* /* p_codec_info */) { return return_value; }};
-  std::optional<btav_a2dp_codec_index_t> operator()(
-      const uint8_t* p_codec_info) {
+  std::function<std::optional<btav_a2dp_codec_index_t>(const uint8_t* p_codec_info)> body{
+          [](const uint8_t* /* p_codec_info */) { return return_value; }};
+  std::optional<btav_a2dp_codec_index_t> operator()(const uint8_t* p_codec_info) {
     return body(p_codec_info);
-  };
+  }
 };
 extern struct source_codec_index source_codec_index;
 
@@ -288,7 +263,7 @@ extern struct source_codec_index source_codec_index;
 // Return: void
 struct start_session {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct start_session start_session;
 
@@ -298,10 +273,8 @@ extern struct start_session start_session;
 struct supports_codec {
   static bool return_value;
   std::function<bool(btav_a2dp_codec_index_t codec_index)> body{
-      [](btav_a2dp_codec_index_t /* codec_index */) { return return_value; }};
-  bool operator()(btav_a2dp_codec_index_t codec_index) {
-    return body(codec_index);
-  };
+          [](btav_a2dp_codec_index_t /* codec_index */) { return return_value; }};
+  bool operator()(btav_a2dp_codec_index_t codec_index) { return body(codec_index); }
 };
 extern struct supports_codec supports_codec;
 
@@ -310,20 +283,16 @@ extern struct supports_codec supports_codec;
 // Return: bool
 struct update_codec_offloading_capabilities {
   static bool return_value;
-  std::function<bool(
-      const std::vector<btav_a2dp_codec_config_t>& framework_preference,
-      bool supports_a2dp_hw_offload_v2)>
-      body{[](const std::vector<
-                  btav_a2dp_codec_config_t>& /* framework_preference */,
-              bool /*supports_a2dp_hw_offload_v2*/) { return return_value; }};
-  bool operator()(
-      const std::vector<btav_a2dp_codec_config_t>& framework_preference,
-      bool supports_a2dp_hw_offload_v2) {
+  std::function<bool(const std::vector<btav_a2dp_codec_config_t>& framework_preference,
+                     bool supports_a2dp_hw_offload_v2)>
+          body{[](const std::vector<btav_a2dp_codec_config_t>& /* framework_preference */,
+                  bool /*supports_a2dp_hw_offload_v2*/) { return return_value; }};
+  bool operator()(const std::vector<btav_a2dp_codec_config_t>& framework_preference,
+                  bool supports_a2dp_hw_offload_v2) {
     return body(framework_preference, supports_a2dp_hw_offload_v2);
-  };
+  }
 };
-extern struct update_codec_offloading_capabilities
-    update_codec_offloading_capabilities;
+extern struct update_codec_offloading_capabilities update_codec_offloading_capabilities;
 
 }  // namespace audio_hal_interface_a2dp_encoding
 }  // namespace mock

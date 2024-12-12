@@ -21,7 +21,6 @@ import android.os.RemoteException;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** GATT Profile Native Interface to/from JNI. */
@@ -133,7 +132,7 @@ public class GattNativeInterface {
         return getGattService().getSampleGattDbElement();
     }
 
-    void onGetGattDb(int connId, ArrayList<GattDbElement> db) throws RemoteException {
+    void onGetGattDb(int connId, List<GattDbElement> db) throws RemoteException {
         getGattService().onGetGattDb(connId, db);
     }
 
@@ -294,7 +293,8 @@ public class GattNativeInterface {
             boolean isDirect,
             int transport,
             boolean opportunistic,
-            int initiatingPhys);
+            int initiatingPhys,
+            int preferredMtu);
 
     private native void gattClientDisconnectNative(int clientIf, String address, int connId);
 
@@ -439,7 +439,7 @@ public class GattNativeInterface {
     /**
      * Connect to the remote Gatt server
      *
-     * @see {@link BluetoothDevice#connectGatt} for parameters.
+     * @see BluetoothDevice#connectGatt for parameters.
      */
     public void gattClientConnect(
             int clientIf,
@@ -448,9 +448,17 @@ public class GattNativeInterface {
             boolean isDirect,
             int transport,
             boolean opportunistic,
-            int initiatingPhys) {
+            int initiatingPhys,
+            int preferredMtu) {
         gattClientConnectNative(
-                clientIf, address, addressType, isDirect, transport, opportunistic, initiatingPhys);
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                initiatingPhys,
+                preferredMtu);
     }
 
     /** Disconnect from the remote Gatt server */

@@ -22,29 +22,28 @@ namespace bluetooth {
 namespace avrcp {
 
 class PassThroughPacketBuilder : public PacketBuilder {
- public:
+public:
   virtual ~PassThroughPacketBuilder() = default;
 
-  static std::unique_ptr<PassThroughPacketBuilder> MakeBuilder(
-      bool response, bool pushed, uint8_t operation_id);
+  static std::unique_ptr<PassThroughPacketBuilder> MakeBuilder(bool response, bool pushed,
+                                                               uint8_t operation_id);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- private:
+private:
   bool pushed_;
-  uint8_t opperation_id_;
+  uint8_t operation_id_;
 
-  PassThroughPacketBuilder(bool response, bool pushed, uint8_t opperation_id)
+  PassThroughPacketBuilder(bool response, bool pushed, uint8_t operation_id)
       : PacketBuilder(response ? CType::ACCEPTED : CType::CONTROL, 0x09, 0x00,
                       Opcode::PASS_THROUGH),
         pushed_(pushed),
-        opperation_id_(opperation_id){};
+        operation_id_(operation_id) {}
 };
 
 class PassThroughPacket : public Packet {
- public:
+public:
   virtual ~PassThroughPacket() = default;
 
   /**
@@ -56,7 +55,7 @@ class PassThroughPacket : public Packet {
    *     Opcode opcode_;
    *   PassThroughPacket:
    *     uint8_t state : 1;
-   *     uint8_t opperation_id : 7;
+   *     uint8_t operation_id : 7;
    *     uint8_t data_length;
    */
   static constexpr size_t kMinSize() { return Packet::kMinSize() + 2; }
@@ -69,7 +68,7 @@ class PassThroughPacket : public Packet {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using Packet::Packet;
 };
 

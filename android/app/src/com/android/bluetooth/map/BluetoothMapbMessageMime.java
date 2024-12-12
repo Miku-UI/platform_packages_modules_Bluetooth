@@ -24,13 +24,17 @@ import android.util.Log;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
+import com.google.common.base.Ascii;
+
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -52,14 +56,13 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                                             * jpeg data or the text.getBytes("utf-8") */
 
         public String getDataAsString() {
-            String result = null;
             String charset = mCharsetName;
             // Figure out if we support the charset, else fall back to UTF-8, as this is what
             // the MAP specification suggest to use, and is compatible with US-ASCII.
             if (charset == null) {
                 charset = "UTF-8";
             } else {
-                charset = charset.toUpperCase();
+                charset = Ascii.toUpperCase(charset);
                 try {
                     if (!Charset.isSupported(charset)) {
                         charset = "UTF-8";
@@ -76,7 +79,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                 }
             }
             try {
-                result = new String(mData, charset);
+                return new String(mData, charset);
             } catch (UnsupportedEncodingException e) {
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.MAP,
@@ -84,23 +87,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                         1);
                 /* This cannot happen unless Charset.isSupported() is out of sync with String */
-                try {
-                    result = new String(mData, "UTF-8");
-                } catch (UnsupportedEncodingException e2) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_BMESSAGE_MIME,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            2);
-                    Log.e(TAG, "getDataAsString: " + e);
-                }
+                return new String(mData, StandardCharsets.UTF_8);
             }
-            return result;
         }
 
-        public void encode(StringBuilder sb, String boundaryTag, boolean last)
-                throws UnsupportedEncodingException {
+        public void encode(StringBuilder sb, String boundaryTag, boolean last) {
             sb.append("--").append(boundaryTag).append("\r\n");
             if (mContentType != null) {
                 sb.append("Content-Type: ").append(mContentType);
@@ -124,10 +115,10 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                 the below use of UTF-8 is not allowed, Base64 should be used for text. */
 
                 if (mContentType != null
-                        && (mContentType.toUpperCase().contains("TEXT")
-                                || mContentType.toUpperCase().contains("SMIL"))) {
-                    String text = new String(mData, "UTF-8");
-                    if (text.getBytes().length == text.getBytes("UTF-8").length) {
+                        && (Ascii.toUpperCase(mContentType).contains("TEXT")
+                                || Ascii.toUpperCase(mContentType).contains("SMIL"))) {
+                    String text = new String(mData, StandardCharsets.UTF_8);
+                    if (text.getBytes().length == text.getBytes(StandardCharsets.UTF_8).length) {
                         /* Add the header split empty line */
                         sb.append("Content-Transfer-Encoding: 8BIT\r\n\r\n");
                     } else {
@@ -147,14 +138,14 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
             }
         }
 
-        public void encodePlainText(StringBuilder sb) throws UnsupportedEncodingException {
-            if (mContentType != null && mContentType.toUpperCase().contains("TEXT")) {
-                String text = new String(mData, "UTF-8");
-                if (text.getBytes().length != text.getBytes("UTF-8").length) {
+        public void encodePlainText(StringBuilder sb) {
+            if (mContentType != null && Ascii.toUpperCase(mContentType).contains("TEXT")) {
+                String text = new String(mData, StandardCharsets.UTF_8);
+                if (text.getBytes().length != text.getBytes(StandardCharsets.UTF_8).length) {
                     text = BluetoothMapUtils.encodeQuotedPrintable(mData);
                 }
                 sb.append(text).append("\r\n");
-            } else if (mContentType != null && mContentType.toUpperCase().contains("/SMIL")) {
+            } else if (mContentType != null && Ascii.toUpperCase(mContentType).contains("/SMIL")) {
                 /* Skip the smil.xml, as no-one knows what it is. */
             } else {
                 /* Not a text part, just print the filename or part name if they exist. */
@@ -169,12 +160,12 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
 
     private long mDate = INVALID_VALUE;
     private String mSubject = null;
-    private ArrayList<Rfc822Token> mFrom = null; // Shall not be empty
-    private ArrayList<Rfc822Token> mSender = null; // Shall not be empty
-    private ArrayList<Rfc822Token> mTo = null; // Shall not be empty
-    private ArrayList<Rfc822Token> mCc = null; // Can be empty
-    private ArrayList<Rfc822Token> mBcc = null; // Can be empty
-    private ArrayList<Rfc822Token> mReplyTo = null; // Can be empty
+    private List<Rfc822Token> mFrom = null; // Shall not be empty
+    private List<Rfc822Token> mSender = null; // Shall not be empty
+    private List<Rfc822Token> mTo = null; // Shall not be empty
+    private List<Rfc822Token> mCc = null; // Can be empty
+    private List<Rfc822Token> mBcc = null; // Can be empty
+    private List<Rfc822Token> mReplyTo = null; // Can be empty
     private String mMessageId = null;
     private ArrayList<MimePart> mParts = null;
     private String mContentType = null;
@@ -194,7 +185,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
     /**
      * @return the parts
      */
-    public ArrayList<MimePart> getMimeParts() {
+    public List<MimePart> getMimeParts() {
         return mParts;
     }
 
@@ -205,7 +196,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         }
         if (mParts != null) {
             for (MimePart part : mParts) {
-                if (part.mContentType.toUpperCase().contains("TEXT")) {
+                if (Ascii.toUpperCase(part.mContentType).contains("TEXT")) {
                     sb.append(new String(part.mData));
                 }
             }
@@ -222,6 +213,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         return newPart;
     }
 
+    @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getDateString() {
         SimpleDateFormat format = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
         Date dateObj = new Date(mDate);
@@ -244,11 +236,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         this.mSubject = subject;
     }
 
-    public ArrayList<Rfc822Token> getFrom() {
+    public List<Rfc822Token> getFrom() {
         return mFrom;
     }
 
-    public void setFrom(ArrayList<Rfc822Token> from) {
+    public void setFrom(List<Rfc822Token> from) {
         this.mFrom = from;
     }
 
@@ -259,11 +251,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         this.mFrom.add(new Rfc822Token(name, address, null));
     }
 
-    public ArrayList<Rfc822Token> getSender() {
+    public List<Rfc822Token> getSender() {
         return mSender;
     }
 
-    public void setSender(ArrayList<Rfc822Token> sender) {
+    public void setSender(List<Rfc822Token> sender) {
         this.mSender = sender;
     }
 
@@ -274,11 +266,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         this.mSender.add(new Rfc822Token(name, address, null));
     }
 
-    public ArrayList<Rfc822Token> getTo() {
+    public List<Rfc822Token> getTo() {
         return mTo;
     }
 
-    public void setTo(ArrayList<Rfc822Token> to) {
+    public void setTo(List<Rfc822Token> to) {
         this.mTo = to;
     }
 
@@ -289,11 +281,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         this.mTo.add(new Rfc822Token(name, address, null));
     }
 
-    public ArrayList<Rfc822Token> getCc() {
+    public List<Rfc822Token> getCc() {
         return mCc;
     }
 
-    public void setCc(ArrayList<Rfc822Token> cc) {
+    public void setCc(List<Rfc822Token> cc) {
         this.mCc = cc;
     }
 
@@ -304,11 +296,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         this.mCc.add(new Rfc822Token(name, address, null));
     }
 
-    public ArrayList<Rfc822Token> getBcc() {
+    public List<Rfc822Token> getBcc() {
         return mBcc;
     }
 
-    public void setBcc(ArrayList<Rfc822Token> bcc) {
+    public void setBcc(List<Rfc822Token> bcc) {
         this.mBcc = bcc;
     }
 
@@ -319,11 +311,11 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         this.mBcc.add(new Rfc822Token(name, address, null));
     }
 
-    public ArrayList<Rfc822Token> getReplyTo() {
+    public List<Rfc822Token> getReplyTo() {
         return mReplyTo;
     }
 
-    public void setReplyTo(ArrayList<Rfc822Token> replyTo) {
+    public void setReplyTo(List<Rfc822Token> replyTo) {
         this.mReplyTo = replyTo;
     }
 
@@ -370,7 +362,8 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         if (mParts != null) {
             mCharset = null;
             for (MimePart part : mParts) {
-                if (part.mContentType != null && part.mContentType.toUpperCase().contains("TEXT")) {
+                if (part.mContentType != null
+                        && Ascii.toUpperCase(part.mContentType).contains("TEXT")) {
                     mCharset = "UTF-8";
                     Log.v(TAG, "Charset set to UTF-8");
                     break;
@@ -397,7 +390,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
      * @param addresses the reformatted address substrings to encode.
      */
     public void encodeHeaderAddresses(
-            StringBuilder sb, String headerName, ArrayList<Rfc822Token> addresses) {
+            StringBuilder sb, String headerName, List<Rfc822Token> addresses) {
         /* TODO: Do we need to encode the addresses if they contain illegal characters?
          * This depends of the outcome of errata 4176. The current spec. states to use UTF-8
          * where possible, but the RFCs states to use US-ASCII for the headers - hence encoding
@@ -419,7 +412,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         sb.append("\r\n");
     }
 
-    public void encodeHeaders(StringBuilder sb) throws UnsupportedEncodingException {
+    public void encodeHeaders(StringBuilder sb) {
         /* TODO: From RFC-4356 - about the RFC-(2)822 headers:
          *    "Current Internet Message format requires that only 7-bit US-ASCII
          *     characters be present in headers.  Non-7-bit characters in an address
@@ -521,7 +514,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
      * */
 
     /** Encode the bMessage as a Mime message(MMS/IM) */
-    public byte[] encodeMime() throws UnsupportedEncodingException {
+    public byte[] encodeMime() {
         ArrayList<byte[]> bodyFragments = new ArrayList<byte[]>();
         StringBuilder sb = new StringBuilder();
         int count = 0;
@@ -550,7 +543,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         if (mimeBody != null) {
             // Replace any occurrences of END:MSG with \END:MSG
             String tmpBody = mimeBody.replaceAll("END:MSG", "/END\\:MSG");
-            bodyFragments.add(tmpBody.getBytes("UTF-8"));
+            bodyFragments.add(tmpBody.getBytes(StandardCharsets.UTF_8));
         } else {
             bodyFragments.add(new byte[0]);
         }
@@ -592,7 +585,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                 return remaining.toString();
             }
 
-            String headerType = headerParts[0].toUpperCase();
+            String headerType = Ascii.toUpperCase(headerParts[0]);
             String headerValue = headerParts[1].trim();
 
             // Address headers
@@ -691,14 +684,14 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                     continue;
                 }
                 Log.d(TAG, "parseMimePart: header=" + header);
-                String headerType = headerParts[0].toUpperCase();
+                String headerType = Ascii.toUpperCase(headerParts[0]);
                 String headerValue = headerParts[1].trim();
                 if (headerType.contains("CONTENT-TYPE")) {
                     String[] contentTypeParts = headerValue.split(";");
                     newPart.mContentType = contentTypeParts[0];
                     // Extract the boundary if it exists
                     for (int j = 1, n = contentTypeParts.length; j < n; j++) {
-                        String value = contentTypeParts[j].toLowerCase();
+                        String value = Ascii.toLowerCase(contentTypeParts[j]);
                         if (value.contains("charset")) {
                             newPart.mCharsetName = value.split("charset[\\s]*=", 2)[1].trim();
                         }
@@ -744,25 +737,14 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
     }
 
     private byte[] decodeBody(String body, String encoding, String charset) {
-        if (encoding != null && encoding.toUpperCase().contains("BASE64")) {
+        if (encoding != null && Ascii.toUpperCase(encoding).contains("BASE64")) {
             return Base64.decode(body, Base64.DEFAULT);
-        } else if (encoding != null && encoding.toUpperCase().contains("QUOTED-PRINTABLE")) {
+        } else if (encoding != null && Ascii.toUpperCase(encoding).contains("QUOTED-PRINTABLE")) {
             return BluetoothMapUtils.quotedPrintableToUtf8(body, charset);
         } else {
             // TODO: handle other encoding types? - here we simply store the string data as bytes
-            try {
-
-                return body.getBytes("UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_BMESSAGE_MIME,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        6);
-                // This will never happen, as UTF-8 is mandatory on Android platforms
-            }
+            return body.getBytes(StandardCharsets.UTF_8);
         }
-        return null;
     }
 
     private void parseMime(String message) {
@@ -841,7 +823,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
     }
 
     @Override
-    public byte[] encode() throws UnsupportedEncodingException {
+    public byte[] encode() {
         return encodeMime();
     }
 }

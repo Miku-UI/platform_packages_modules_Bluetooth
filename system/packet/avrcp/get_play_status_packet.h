@@ -25,7 +25,7 @@ namespace avrcp {
 // zero extra information other than it is a strong type and provides a
 // validator
 class GetPlayStatusRequest : public VendorPacket {
- public:
+public:
   virtual ~GetPlayStatusRequest() = default;
 
   /**
@@ -47,33 +47,31 @@ class GetPlayStatusRequest : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 
 class GetPlayStatusResponseBuilder : public VendorPacketBuilder {
- public:
+public:
   virtual ~GetPlayStatusResponseBuilder() = default;
 
-  static std::unique_ptr<GetPlayStatusResponseBuilder> MakeBuilder(
-      uint32_t song_length, uint32_t song_position, uint8_t play_status);
+  static std::unique_ptr<GetPlayStatusResponseBuilder> MakeBuilder(uint32_t song_length,
+                                                                   uint32_t song_position,
+                                                                   uint8_t play_status);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   uint32_t song_length_;
   uint32_t song_position_;
   uint8_t play_status_;
 
-  GetPlayStatusResponseBuilder(uint32_t song_length, uint32_t song_position,
-                               uint8_t play_status)
-      : VendorPacketBuilder(CType::STABLE, CommandPdu::GET_PLAY_STATUS,
-                            PacketType::SINGLE),
+  GetPlayStatusResponseBuilder(uint32_t song_length, uint32_t song_position, uint8_t play_status)
+      : VendorPacketBuilder(CType::STABLE, CommandPdu::GET_PLAY_STATUS, PacketType::SINGLE),
         song_length_(song_length),
         song_position_(song_position),
-        play_status_(play_status){};
+        play_status_(play_status) {}
 };
 
 }  // namespace avrcp

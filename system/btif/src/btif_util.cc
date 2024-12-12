@@ -38,14 +38,12 @@
 #include <string>
 
 #include "avrc_defs.h"
+#include "bta/include/bta_sec_api.h"
 #include "bta_ag_api.h"
 #include "bta_api.h"
 #include "bta_av_api.h"
 #include "bta_hd_api.h"
 #include "bta_hf_client_api.h"
-#include "bta_hh_api.h"
-#include "btif_common.h"
-#include "btif_dm.h"
 #include "include/macros.h"
 
 /*******************************************************************************
@@ -87,24 +85,26 @@ int ascii_2_hex(const char* p_ascii, int len, uint8_t* p_hex) {
   uint8_t c;
 
   for (x = 0; (x < len) && (*p_ascii); x++) {
-    if (ISDIGIT(*p_ascii))
+    if (ISDIGIT(*p_ascii)) {
       c = (*p_ascii - '0') << 4;
-    else
+    } else {
       c = (toupper(*p_ascii) - 'A' + 10) << 4;
+    }
 
     p_ascii++;
     if (*p_ascii) {
-      if (ISDIGIT(*p_ascii))
+      if (ISDIGIT(*p_ascii)) {
         c |= (*p_ascii - '0');
-      else
+      } else {
         c |= (toupper(*p_ascii) - 'A' + 10);
+      }
 
       p_ascii++;
     }
     *p_hex++ = c;
   }
 
-  return (x);
+  return x;
 }
 
 std::string dump_dm_search_event(uint16_t event) {
@@ -128,7 +128,6 @@ std::string dump_property_type(bt_property_type_t type) {
     CASE_RETURN_STRING(BT_PROPERTY_REMOTE_RSSI);
     CASE_RETURN_STRING(BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT);
     CASE_RETURN_STRING(BT_PROPERTY_ADAPTER_BONDED_DEVICES);
-    CASE_RETURN_STRING(BT_PROPERTY_ADAPTER_SCAN_MODE);
     CASE_RETURN_STRING(BT_PROPERTY_REMOTE_FRIENDLY_NAME);
     default:
       RETURN_UNKNOWN_TYPE_STRING(bt_property_type_t, type);

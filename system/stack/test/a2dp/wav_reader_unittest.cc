@@ -32,19 +32,21 @@ namespace bluetooth {
 namespace testing {
 
 class WavReaderTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {}
 
   void TearDown() override {}
 };
 
 TEST_F(WavReaderTest, read_wav_header) {
-  std::unique_ptr<WavReader> wav_file = std::make_unique<WavReader>(GetWavFilePath(kWavFile).c_str());
+  std::unique_ptr<WavReader> wav_file =
+          std::make_unique<WavReader>(GetWavFilePath(kWavFile).c_str());
   ASSERT_EQ(wav_file->GetHeader().sample_rate, kSampleRate);
 }
 
 TEST_F(WavReaderTest, check_wav_sample_count) {
-  std::unique_ptr<WavReader> wav_file = std::make_unique<WavReader>(GetWavFilePath(kWavFile).c_str());
+  std::unique_ptr<WavReader> wav_file =
+          std::make_unique<WavReader>(GetWavFilePath(kWavFile).c_str());
   ASSERT_EQ(wav_file->GetHeader().subchunk2_size, wav_file->GetSampleCount());
 }
 }  // namespace testing

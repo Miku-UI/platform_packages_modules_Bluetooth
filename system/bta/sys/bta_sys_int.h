@@ -50,18 +50,14 @@ typedef struct {
   bool is_reg[BTA_ID_MAX];       /* registration structures */
   uint16_t sys_features;         /* Bitmask of sys features */
 
-  tBTA_SYS_CONN_CBACK* prm_cb; /* role management callback registered by DM */
-  tBTA_SYS_CONN_CBACK*
-      ppm_cb; /* low power management callback registered by DM */
-  tBTA_SYS_SNIFF_CBACK*
-      sniff_cb; /* low power management sniff callback registered by DM */
-  tBTA_SYS_CONN_SCO_CBACK*
-      p_sco_cb; /* SCO connection change callback registered by AV */
-  tBTA_SYS_ROLE_SWITCH_CBACK*
-      p_role_cb;                  /* role change callback registered by AV */
-  tBTA_SYS_COLLISION colli_reg;   /* collision handling module */
-  tBTA_SYS_EIR_CBACK* eir_cb; /* add/remove UUID into EIR */
-  tBTA_SYS_CUST_EIR_CBACK* cust_eir_cb; /* add/remove customer UUID into EIR */
+  tBTA_SYS_CONN_CBACK* prm_cb;           /* role management callback registered by DM */
+  tBTA_SYS_CONN_CBACK* ppm_cb;           /* low power management callback registered by DM */
+  tBTA_SYS_SNIFF_CBACK* sniff_cb;        /* low power management sniff callback registered by DM */
+  tBTA_SYS_CONN_SCO_CBACK* p_sco_cb;     /* SCO connection change callback registered by AV */
+  tBTA_SYS_ROLE_SWITCH_CBACK* p_role_cb; /* role change callback registered by AV */
+  tBTA_SYS_COLLISION colli_reg;          /* collision handling module */
+  tBTA_SYS_EIR_CBACK* eir_cb;            /* add/remove UUID into EIR */
+  tBTA_SYS_CUST_EIR_CBACK* cust_eir_cb;  /* add/remove customer UUID into EIR */
   tBTA_SYS_SSR_CFG_CBACK* p_ssr_cb;
   /* VS event handler */
   tBTA_SYS_VS_EVT_HDLR* p_vs_evt_hdlr;

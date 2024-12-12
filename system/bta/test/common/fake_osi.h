@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include "osi/include/alarm.h"
 
 struct fake_osi_alarm_set_on_mloop {

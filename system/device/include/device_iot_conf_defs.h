@@ -39,8 +39,7 @@
 #define IOT_CONF_KEY_GAP_CONN_FAIL_COUNT "ProfileGap_ConnectFailCount"
 #define IOT_CONF_KEY_GAP_DISC_COUNT "ProfileGap_DiscCount"
 #define IOT_CONF_KEY_GAP_DISC_AUTHFAIL_COUNT "ProfileGap_DiscAuthFailCount"
-#define IOT_CONF_KEY_GAP_DISC_CONNTIMEOUT_COUNT \
-  "ProfileGap_DiscConnTimeoutCount"
+#define IOT_CONF_KEY_GAP_DISC_CONNTIMEOUT_COUNT "ProfileGap_DiscConnTimeoutCount"
 #define IOT_CONF_KEY_A2DP_ROLE "ProfileA2dp_Role"
 #define IOT_CONF_KEY_A2DP_VERSION "ProfileA2dp_Version"
 #define IOT_CONF_KEY_A2DP_CODECTYPE "ProfileA2dp_CodecType"

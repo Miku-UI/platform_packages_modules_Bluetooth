@@ -118,12 +118,6 @@ public class BluetoothHeadsetBinderTest {
     }
 
     @Test
-    public void isAudioOn() {
-        mBinder.isAudioOn(mAttributionSource);
-        verify(mService).isAudioOn();
-    }
-
-    @Test
     public void isAudioConnected() {
         mBinder.isAudioConnected(mTestDevice, mAttributionSource);
         verify(mService).isAudioConnected(mTestDevice);

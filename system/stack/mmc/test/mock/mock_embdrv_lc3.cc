@@ -73,11 +73,10 @@ struct lc3_encoder* lc3_setup_encoder::return_value = nullptr;
 }  // namespace test
 
 // Mocked functions, if any
-int lc3_decode(struct lc3_decoder* decoder, const void* in, int nbytes,
-               enum lc3_pcm_format fmt, void* pcm, int stride) {
+int lc3_decode(struct lc3_decoder* decoder, const void* in, int nbytes, enum lc3_pcm_format fmt,
+               void* pcm, int stride) {
   inc_func_call_count(__func__);
-  return test::mock::embdrv_lc3::lc3_decode(decoder, in, nbytes, fmt, pcm,
-                                            stride);
+  return test::mock::embdrv_lc3::lc3_decode(decoder, in, nbytes, fmt, pcm, stride);
 }
 unsigned lc3_decoder_size(int dt_us, int sr_hz) {
   inc_func_call_count(__func__);
@@ -87,11 +86,10 @@ int lc3_delay_samples(int dt_us, int sr_hz) {
   inc_func_call_count(__func__);
   return test::mock::embdrv_lc3::lc3_delay_samples(dt_us, sr_hz);
 }
-int lc3_encode(struct lc3_encoder* encoder, enum lc3_pcm_format fmt,
-               const void* pcm, int stride, int nbytes, void* out) {
+int lc3_encode(struct lc3_encoder* encoder, enum lc3_pcm_format fmt, const void* pcm, int stride,
+               int nbytes, void* out) {
   inc_func_call_count(__func__);
-  return test::mock::embdrv_lc3::lc3_encode(encoder, fmt, pcm, stride, nbytes,
-                                            out);
+  return test::mock::embdrv_lc3::lc3_encode(encoder, fmt, pcm, stride, nbytes, out);
 }
 unsigned lc3_encoder_size(int dt_us, int sr_hz) {
   inc_func_call_count(__func__);
@@ -109,17 +107,13 @@ int lc3_resolve_bitrate(int dt_us, int nbytes) {
   inc_func_call_count(__func__);
   return test::mock::embdrv_lc3::lc3_resolve_bitrate(dt_us, nbytes);
 }
-struct lc3_decoder* lc3_setup_decoder(int dt_us, int sr_hz, int sr_pcm_hz,
-                                      void* mem) {
+struct lc3_decoder* lc3_setup_decoder(int dt_us, int sr_hz, int sr_pcm_hz, void* mem) {
   inc_func_call_count(__func__);
-  return test::mock::embdrv_lc3::lc3_setup_decoder(dt_us, sr_hz, sr_pcm_hz,
-                                                   mem);
+  return test::mock::embdrv_lc3::lc3_setup_decoder(dt_us, sr_hz, sr_pcm_hz, mem);
 }
-struct lc3_encoder* lc3_setup_encoder(int dt_us, int sr_hz, int sr_pcm_hz,
-                                      void* mem) {
+struct lc3_encoder* lc3_setup_encoder(int dt_us, int sr_hz, int sr_pcm_hz, void* mem) {
   inc_func_call_count(__func__);
-  return test::mock::embdrv_lc3::lc3_setup_encoder(dt_us, sr_hz, sr_pcm_hz,
-                                                   mem);
+  return test::mock::embdrv_lc3::lc3_setup_encoder(dt_us, sr_hz, sr_pcm_hz, mem);
 }
 // Mocked functions complete
 // END mockcify generation

@@ -29,7 +29,7 @@ using bluetooth::le_audio::LeAudioHealthBasedAction;
 
 namespace bluetooth::le_audio {
 using LeAudioRecommendationActionCb = base::RepeatingCallback<void(
-    const RawAddress& address, int group_id, LeAudioHealthBasedAction action)>;
+        const RawAddress& address, int group_id, LeAudioHealthBasedAction action)>;
 
 /* This should be set by the client of this module to provide information about
  * basic LeAudio support of the device which is exposing ASCS UUIDs. Should be
@@ -67,7 +67,7 @@ enum class LeAudioHealthGroupStatType {
 };
 
 class LeAudioHealthStatus {
- public:
+public:
   virtual ~LeAudioHealthStatus(void) = default;
   static LeAudioHealthStatus* Get(void);
   static void Cleanup(void);
@@ -88,7 +88,7 @@ class LeAudioHealthStatus {
           stream_failures_cnt_(0),
           stream_cis_failures_cnt_(0),
           stream_signaling_failures_cnt_(0),
-          stream_context_not_avail_cnt_(0){};
+          stream_context_not_avail_cnt_(0) {}
 
     int group_id_;
     LeAudioHealthBasedAction latest_recommendation_;
@@ -105,7 +105,7 @@ class LeAudioHealthStatus {
         : address_(address),
           latest_recommendation_(LeAudioHealthBasedAction::NONE),
           is_valid_service_(true),
-          is_valid_group_member_(true){};
+          is_valid_group_member_(true) {}
     RawAddress address_;
     LeAudioHealthBasedAction latest_recommendation_;
 
@@ -114,23 +114,19 @@ class LeAudioHealthStatus {
   };
 };
 
-inline std::ostream& operator<<(
-    std::ostream& os,
-    const bluetooth::le_audio::LeAudioHealthGroupStatType& stat) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const bluetooth::le_audio::LeAudioHealthGroupStatType& stat) {
   switch (stat) {
     case bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SUCCESS:
       os << "STREAM_CREATE_SUCCESS";
       break;
-    case bluetooth::le_audio::LeAudioHealthGroupStatType::
-        STREAM_CREATE_CIS_FAILED:
+    case bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_CIS_FAILED:
       os << "STREAM_CREATE_CIS_FAILED";
       break;
-    case bluetooth::le_audio::LeAudioHealthGroupStatType::
-        STREAM_CREATE_SIGNALING_FAILED:
+    case bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CREATE_SIGNALING_FAILED:
       os << "STREAM_CREATE_SIGNALING_FAILED";
       break;
-    case bluetooth::le_audio::LeAudioHealthGroupStatType::
-        STREAM_CONTEXT_NOT_AVAILABLE:
+    case bluetooth::le_audio::LeAudioHealthGroupStatType::STREAM_CONTEXT_NOT_AVAILABLE:
       os << "STREAM_CONTEXT_NOT_AVAILABLE";
       break;
     default:
@@ -140,9 +136,8 @@ inline std::ostream& operator<<(
   return os;
 }
 
-inline std::ostream& operator<<(
-    std::ostream& os,
-    const bluetooth::le_audio::LeAudioHealthDeviceStatType& stat) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const bluetooth::le_audio::LeAudioHealthDeviceStatType& stat) {
   switch (stat) {
     case bluetooth::le_audio::LeAudioHealthDeviceStatType::INVALID_DB:
       os << "INVALID_DB";

@@ -17,7 +17,7 @@
 package com.android.bluetooth;
 
 import android.annotation.NonNull;
-import android.annotation.RequiresPermission;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.le.PeriodicAdvertisingCallback;
@@ -44,9 +44,6 @@ import android.provider.Telephony;
 import android.util.Log;
 
 import com.android.bluetooth.bass_client.BassClientPeriodicAdvertisingManager;
-import com.android.bluetooth.gatt.AppAdvertiseStats;
-import com.android.bluetooth.gatt.ContextMap;
-import com.android.bluetooth.gatt.GattService;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.HeaderSet;
 
@@ -58,6 +55,8 @@ import java.util.List;
 import java.util.Set;
 
 /** Proxy class for method calls to help with unit testing */
+// TODO: Remove this entire class, as it is abused and provide helper to call framework code which
+// should be avoided
 public class BluetoothMethodProxy {
     private static final String TAG = BluetoothMethodProxy.class.getSimpleName();
     private static final Object INSTANCE_LOCK = new Object();
@@ -186,7 +185,8 @@ public class BluetoothMethodProxy {
     }
 
     /** Proxies {@link Context#sendBroadcast(Intent)}. */
-    public void contextSendBroadcast(Context context, @RequiresPermission Intent intent) {
+    @SuppressLint("AndroidFrameworkRequiresPermission") // only intent is ACTION_OPEN
+    public void contextSendBroadcast(Context context, Intent intent) {
         context.sendBroadcast(intent);
     }
 
@@ -229,6 +229,7 @@ public class BluetoothMethodProxy {
      * Proxies {@link PeriodicAdvertisingManager#registerSync(ScanResult, int, int,
      * PeriodicAdvertisingCallback, Handler)}.
      */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public void periodicAdvertisingManagerRegisterSync(
             PeriodicAdvertisingManager manager,
             ScanResult scanResult,
@@ -240,12 +241,14 @@ public class BluetoothMethodProxy {
     }
 
     /** Proxies {@link PeriodicAdvertisingManager#unregisterSync(PeriodicAdvertisingCallback)}. */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public void periodicAdvertisingManagerUnregisterSync(
             PeriodicAdvertisingManager manager, PeriodicAdvertisingCallback callback) {
         manager.unregisterSync(callback);
     }
 
     /** Proxies {@link PeriodicAdvertisingManager#transferSync}. */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public void periodicAdvertisingManagerTransferSync(
             PeriodicAdvertisingManager manager,
             BluetoothDevice bda,
@@ -255,6 +258,7 @@ public class BluetoothMethodProxy {
     }
 
     /** Proxies {@link PeriodicAdvertisingManager#transferSetInfo}. */
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public void periodicAdvertisingManagerTransferSetInfo(
             PeriodicAdvertisingManager manager,
             BluetoothDevice bda,
@@ -262,12 +266,6 @@ public class BluetoothMethodProxy {
             int advHandle,
             PeriodicAdvertisingCallback callback) {
         manager.transferSetInfo(bda, serviceData, advHandle, callback);
-    }
-
-    /** Proxies {@link AppAdvertiseStats}. */
-    public AppAdvertiseStats createAppAdvertiseStats(
-            int id, String name, ContextMap map, GattService service) {
-        return new AppAdvertiseStats(id, name, map, service);
     }
 
     /** Proxies {@link Thread#start()}. */

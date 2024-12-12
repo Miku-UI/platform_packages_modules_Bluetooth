@@ -9,7 +9,7 @@ pub use callback_transaction_manager::{CallbackResponseError, CallbackTransactio
 use async_trait::async_trait;
 use log::warn;
 
-use crate::packets::AttErrorCode;
+use crate::packets::att::AttErrorCode;
 
 use super::{
     ffi::AttributeBackingType,
@@ -166,7 +166,7 @@ impl<T: GattDatastore + ?Sized> RawGattDatastore for T {
     ) -> Result<Vec<u8>, AttErrorCode> {
         if offset != 0 {
             warn!("got read blob request for non-long attribute {handle:?}");
-            return Err(AttErrorCode::ATTRIBUTE_NOT_LONG);
+            return Err(AttErrorCode::AttributeNotLong);
         }
         self.read(tcb_idx, handle, attr_type).await
     }
@@ -183,7 +183,7 @@ impl<T: GattDatastore + ?Sized> RawGattDatastore for T {
         match write_type {
             GattWriteRequestType::Prepare { .. } => {
                 warn!("got prepare write attempt on {tcb_idx:?} to characteristic {handle:?} not supporting write_without_response");
-                Err(AttErrorCode::WRITE_REQUEST_REJECTED)
+                Err(AttErrorCode::WriteRequestRejected)
             }
             GattWriteRequestType::Request => self.write(tcb_idx, handle, attr_type, data).await,
         }
@@ -270,10 +270,10 @@ mod test {
             let MockDatastoreEvents::Read(_, _, _, resp) = resp else {
                 unreachable!();
             };
-            resp.send(Err(AttErrorCode::APPLICATION_ERROR)).unwrap();
+            resp.send(Err(AttErrorCode::ApplicationError)).unwrap();
 
             // assert: got the supplied response
-            assert_eq!(pending.await.unwrap(), Err(AttErrorCode::APPLICATION_ERROR));
+            assert_eq!(pending.await.unwrap(), Err(AttErrorCode::ApplicationError));
         });
     }
 
@@ -292,7 +292,7 @@ mod test {
         ));
 
         // assert: got the correct error code
-        assert_eq!(resp, Err(AttErrorCode::ATTRIBUTE_NOT_LONG));
+        assert_eq!(resp, Err(AttErrorCode::AttributeNotLong));
         // assert: no pending events
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
     }
@@ -353,10 +353,10 @@ mod test {
             let MockDatastoreEvents::Write(_, _, _, _, resp) = resp else {
                 unreachable!();
             };
-            resp.send(Err(AttErrorCode::APPLICATION_ERROR)).unwrap();
+            resp.send(Err(AttErrorCode::ApplicationError)).unwrap();
 
             // assert: got the supplied response
-            assert_eq!(pending.await.unwrap(), Err(AttErrorCode::APPLICATION_ERROR));
+            assert_eq!(pending.await.unwrap(), Err(AttErrorCode::ApplicationError));
         });
     }
 
@@ -376,7 +376,7 @@ mod test {
         ));
 
         // assert: got the correct error code
-        assert_eq!(resp, Err(AttErrorCode::WRITE_REQUEST_REJECTED));
+        assert_eq!(resp, Err(AttErrorCode::WriteRequestRejected));
         // assert: no event sent up
         assert_eq!(rx.try_recv().unwrap_err(), TryRecvError::Empty);
     }

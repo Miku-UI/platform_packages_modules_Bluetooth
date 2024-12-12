@@ -2,6 +2,7 @@
 //! by converting a registry of services into a list of attributes, and proxying
 //! ATT read/write requests into characteristic reads/writes
 
+use pdl_runtime::Packet;
 use std::{cell::RefCell, collections::BTreeMap, ops::RangeInclusive, rc::Rc};
 
 use anyhow::{bail, Result};
@@ -18,11 +19,7 @@ use crate::{
         ffi::AttributeBackingType,
         ids::{AttHandle, TransportIndex},
     },
-    packets::{
-        AttErrorCode, GattCharacteristicDeclarationValueBuilder,
-        GattCharacteristicPropertiesBuilder, GattServiceDeclarationValueBuilder, Serializable,
-        UuidBuilder,
-    },
+    packets::att::{self, AttErrorCode},
 };
 
 use super::{
@@ -186,8 +183,8 @@ impl GattDatabase {
                 permissions: AttPermissions::READABLE,
             },
             AttAttributeBackingValue::Static(
-                GattServiceDeclarationValueBuilder { uuid: UuidBuilder::from(service.type_) }
-                    .to_vec()
+                att::GattServiceDeclarationValue { uuid: service.type_.into() }
+                    .encode_to_vec()
                     .map_err(|e| {
                         anyhow::anyhow!("failed to encode primary service declaration: {e:?}")
                     })?,
@@ -210,8 +207,8 @@ impl GattDatabase {
                     permissions: AttPermissions::READABLE,
                 },
                 AttAttributeBackingValue::Static(
-                    GattCharacteristicDeclarationValueBuilder {
-                        properties: GattCharacteristicPropertiesBuilder {
+                    att::GattCharacteristicDeclarationValue {
+                        properties: att::GattCharacteristicProperties {
                             broadcast: 0,
                             read: characteristic.permissions.readable().into(),
                             write_without_response: characteristic
@@ -227,7 +224,7 @@ impl GattDatabase {
                         handle: characteristic.handle.into(),
                         uuid: characteristic.type_.into(),
                     }
-                    .to_vec()
+                    .encode_to_vec()
                     .map_err(|e| {
                         anyhow::anyhow!("failed to encode characteristic declaration: {e:?}")
                     })?,
@@ -351,14 +348,14 @@ impl AttDatabase for AttDatabaseImpl {
         let value = self.gatt_db.with(|gatt_db| {
             let Some(gatt_db) = gatt_db else {
                 // db must have been closed
-                return Err(AttErrorCode::INVALID_HANDLE);
+                return Err(AttErrorCode::InvalidHandle);
             };
             let services = gatt_db.schema.borrow();
             let Some(attr) = services.attributes.get(&handle) else {
-                return Err(AttErrorCode::INVALID_HANDLE);
+                return Err(AttErrorCode::InvalidHandle);
             };
             if !attr.attribute.permissions.readable() {
-                return Err(AttErrorCode::READ_NOT_PERMITTED);
+                return Err(AttErrorCode::ReadNotPermitted);
             }
             Ok(attr.value.clone())
         })?;
@@ -392,14 +389,14 @@ impl AttDatabase for AttDatabaseImpl {
         let value = self.gatt_db.with(|gatt_db| {
             let Some(gatt_db) = gatt_db else {
                 // db must have been closed
-                return Err(AttErrorCode::INVALID_HANDLE);
+                return Err(AttErrorCode::InvalidHandle);
             };
             let services = gatt_db.schema.borrow();
             let Some(attr) = services.attributes.get(&handle) else {
-                return Err(AttErrorCode::INVALID_HANDLE);
+                return Err(AttErrorCode::InvalidHandle);
             };
             if !attr.attribute.permissions.writable_with_response() {
-                return Err(AttErrorCode::WRITE_NOT_PERMITTED);
+                return Err(AttErrorCode::WriteNotPermitted);
             }
             Ok(attr.value.clone())
         })?;
@@ -407,7 +404,7 @@ impl AttDatabase for AttDatabaseImpl {
         match value {
             AttAttributeBackingValue::Static(val) => {
                 error!("A static attribute {val:?} is marked as writable - ignoring it and rejecting the write...");
-                return Err(AttErrorCode::WRITE_NOT_PERMITTED);
+                return Err(AttErrorCode::WriteNotPermitted);
             }
             AttAttributeBackingValue::DynamicCharacteristic(datastore) => {
                 datastore
@@ -521,7 +518,7 @@ mod test {
             mock_datastore::{MockDatastore, MockDatastoreEvents},
             mock_raw_datastore::{MockRawDatastore, MockRawDatastoreEvents},
         },
-        packets::AttAttributeDataChild,
+        packets::att,
         utils::task::block_on_locally,
     };
 
@@ -546,7 +543,7 @@ mod test {
 
         let resp = tokio_test::block_on(att_db.read_attribute(AttHandle(1)));
 
-        assert_eq!(resp, Err(AttErrorCode::INVALID_HANDLE))
+        assert_eq!(resp, Err(AttErrorCode::InvalidHandle))
     }
 
     #[test]
@@ -578,11 +575,9 @@ mod test {
         );
         assert_eq!(
             service_value,
-            AttAttributeDataChild::GattServiceDeclarationValue(
-                GattServiceDeclarationValueBuilder { uuid: SERVICE_TYPE.into() }
-            )
-            .to_vec()
-            .map_err(|_| AttErrorCode::UNLIKELY_ERROR)
+            att::GattServiceDeclarationValue { uuid: SERVICE_TYPE.into() }
+                .encode_to_vec()
+                .map_err(|_| AttErrorCode::UnlikelyError)
         );
     }
 
@@ -717,24 +712,22 @@ mod test {
 
         assert_eq!(
             characteristic_decl,
-            AttAttributeDataChild::GattCharacteristicDeclarationValue(
-                GattCharacteristicDeclarationValueBuilder {
-                    properties: GattCharacteristicPropertiesBuilder {
-                        read: 1,
-                        broadcast: 0,
-                        write_without_response: 0,
-                        write: 1,
-                        notify: 0,
-                        indicate: 1,
-                        authenticated_signed_writes: 0,
-                        extended_properties: 0,
-                    },
-                    handle: CHARACTERISTIC_VALUE_HANDLE.into(),
-                    uuid: CHARACTERISTIC_TYPE.into()
-                }
-            )
-            .to_vec()
-            .map_err(|_| AttErrorCode::UNLIKELY_ERROR)
+            att::GattCharacteristicDeclarationValue {
+                properties: att::GattCharacteristicProperties {
+                    read: 1,
+                    broadcast: 0,
+                    write_without_response: 0,
+                    write: 1,
+                    notify: 0,
+                    indicate: 1,
+                    authenticated_signed_writes: 0,
+                    extended_properties: 0,
+                },
+                handle: CHARACTERISTIC_VALUE_HANDLE.into(),
+                uuid: CHARACTERISTIC_TYPE.into()
+            }
+            .encode_to_vec()
+            .map_err(|_| AttErrorCode::UnlikelyError)
         );
     }
 
@@ -767,24 +760,22 @@ mod test {
             tokio_test::block_on(att_db.read_attribute(CHARACTERISTIC_DECLARATION_HANDLE));
         assert_eq!(
             characteristic_decl,
-            AttAttributeDataChild::GattCharacteristicDeclarationValue(
-                GattCharacteristicDeclarationValueBuilder {
-                    properties: GattCharacteristicPropertiesBuilder {
-                        read: 1,
-                        broadcast: 0,
-                        write_without_response: 1,
-                        write: 1,
-                        notify: 0,
-                        indicate: 1,
-                        authenticated_signed_writes: 0,
-                        extended_properties: 0,
-                    },
-                    handle: CHARACTERISTIC_VALUE_HANDLE.into(),
-                    uuid: CHARACTERISTIC_TYPE.into()
-                }
-            )
-            .to_vec()
-            .map_err(|_| AttErrorCode::UNLIKELY_ERROR)
+            att::GattCharacteristicDeclarationValue {
+                properties: att::GattCharacteristicProperties {
+                    read: 1,
+                    broadcast: 0,
+                    write_without_response: 1,
+                    write: 1,
+                    notify: 0,
+                    indicate: 1,
+                    authenticated_signed_writes: 0,
+                    extended_properties: 0,
+                },
+                handle: CHARACTERISTIC_VALUE_HANDLE.into(),
+                uuid: CHARACTERISTIC_TYPE.into()
+            }
+            .encode_to_vec()
+            .map_err(|_| AttErrorCode::UnlikelyError)
         );
     }
 
@@ -859,7 +850,7 @@ mod test {
             gatt_db.get_att_database(TCB_IDX).read_attribute(CHARACTERISTIC_VALUE_HANDLE),
         );
 
-        assert_eq!(characteristic_value, Err(AttErrorCode::READ_NOT_PERMITTED));
+        assert_eq!(characteristic_value, Err(AttErrorCode::ReadNotPermitted));
     }
 
     #[test]
@@ -992,7 +983,7 @@ mod test {
                     else {
                         unreachable!();
                     };
-                    reply.send(Err(AttErrorCode::UNLIKELY_ERROR)).unwrap();
+                    reply.send(Err(AttErrorCode::UnlikelyError)).unwrap();
                 },
                 att_db.write_attribute(CHARACTERISTIC_VALUE_HANDLE, &data)
             )
@@ -1000,7 +991,7 @@ mod test {
         });
 
         // assert: the supplied value matches what the att datastore returned
-        assert_eq!(res, Err(AttErrorCode::UNLIKELY_ERROR));
+        assert_eq!(res, Err(AttErrorCode::UnlikelyError));
     }
 
     #[test]
@@ -1028,7 +1019,7 @@ mod test {
             gatt_db.get_att_database(TCB_IDX).write_attribute(CHARACTERISTIC_VALUE_HANDLE, &data),
         );
 
-        assert_eq!(characteristic_value, Err(AttErrorCode::WRITE_NOT_PERMITTED));
+        assert_eq!(characteristic_value, Err(AttErrorCode::WriteNotPermitted));
     }
 
     #[test]

@@ -46,6 +46,7 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -125,9 +126,16 @@ final class A2dpStateMachine extends StateMachine {
 
     public void doQuit() {
         log("doQuit for device " + mDevice);
+        if (Flags.a2dpBroadcastConnectionStateWhenTurnedOff()
+                && mConnectionState != BluetoothProfile.STATE_DISCONNECTED
+                && mLastConnectionState != -1) {
+            // Broadcast CONNECTION_STATE_CHANGED when A2dpService is turned off while
+            // the device is connected
+            broadcastConnectionState(BluetoothProfile.STATE_DISCONNECTED, mConnectionState);
+        }
         if (mIsPlaying) {
-            // Stop if auido is still playing
-            log("doQuit: stopped playing " + mDevice);
+            // Broadcast AUDIO_STATE_CHANGED when A2dpService is turned off while
+            // the device is playing
             mIsPlaying = false;
             broadcastAudioState(BluetoothA2dp.STATE_NOT_PLAYING, BluetoothA2dp.STATE_PLAYING);
         }

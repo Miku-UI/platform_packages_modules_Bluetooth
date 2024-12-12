@@ -92,6 +92,18 @@ typedef uint8_t tBTM_SCO_TYPE;
 #define BTA_AG_SCO_APTX_SWB_SETTINGS_Q1_MASK 0x0016
 #define BTA_AG_SCO_APTX_SWB_SETTINGS_Q2_MASK 0x0032
 #define BTA_AG_SCO_APTX_SWB_SETTINGS_Q3_MASK 0x0064
+
+/**
+ * enum value is defined based on HFP spec, Codec ID section
+ */
+enum class tBTA_AG_UUID_CODEC : uint16_t {
+  BTA_AG_SCO_APTX_SWB_SETTINGS_Q0 = 0,
+  UUID_CODEC_NONE = 0,
+  UUID_CODEC_CVSD = 0x0001 /* CVSD */,
+  UUID_CODEC_MSBC = 0x0002 /* mSBC */,
+  UUID_CODEC_LC3 = 0x0003 /* LC3 */,
+};
+
 typedef uint16_t tBTM_SCO_CODEC_TYPE;
 
 /***************************
@@ -165,13 +177,28 @@ inline std::string sco_codec_type_text(tBTM_SCO_CODEC_TYPE codec_type) {
 inline uint16_t sco_codec_type_to_id(tBTM_SCO_CODEC_TYPE codec_type) {
   switch (codec_type) {
     case BTM_SCO_CODEC_CVSD:
-      return UUID_CODEC_CVSD;
+      return static_cast<std::underlying_type_t<tBTA_AG_UUID_CODEC>>(
+              tBTA_AG_UUID_CODEC::UUID_CODEC_CVSD);
     case BTM_SCO_CODEC_MSBC:
-      return UUID_CODEC_MSBC;
+      return static_cast<std::underlying_type_t<tBTA_AG_UUID_CODEC>>(
+              tBTA_AG_UUID_CODEC::UUID_CODEC_MSBC);
     case BTM_SCO_CODEC_LC3:
-      return UUID_CODEC_LC3;
+      return static_cast<std::underlying_type_t<tBTA_AG_UUID_CODEC>>(
+              tBTA_AG_UUID_CODEC::UUID_CODEC_LC3);
     default:
       return 0;
+  }
+}
+
+inline std::string bta_ag_uuid_codec_text(const tBTA_AG_UUID_CODEC result) {
+  switch (result) {
+    CASE_RETURN_TEXT(tBTA_AG_UUID_CODEC::UUID_CODEC_NONE);
+    CASE_RETURN_TEXT(tBTA_AG_UUID_CODEC::UUID_CODEC_CVSD);
+    CASE_RETURN_TEXT(tBTA_AG_UUID_CODEC::UUID_CODEC_MSBC);
+    CASE_RETURN_TEXT(tBTA_AG_UUID_CODEC::UUID_CODEC_LC3);
+    default:
+      return fmt::format("UNKNOWN Codec with id {}",
+                         static_cast<std::underlying_type_t<tBTA_AG_UUID_CODEC>>(result));
   }
 }
 #endif  // BTM_API_TYPES_H

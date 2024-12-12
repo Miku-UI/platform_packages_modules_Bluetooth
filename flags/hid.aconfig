@@ -62,3 +62,53 @@ flag {
     description: "Queue incoming HID reports if UHID is not ready"
     bug: "345498287"
 }
+
+flag {
+    name: "remove_input_device_on_vup"
+    namespace: "bluetooth"
+    description: "Remove the input device entry on device removal"
+    bug: "354758065"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "initiate_multiple_hid_connections"
+    namespace: "bluetooth"
+    description: "Allow HID host to initiate multiple HID connections at a time"
+    bug: "356141637"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "close_hid_only_if_connected"
+    namespace: "bluetooth"
+    description: "Do not close BTA HID host if it is already closed"
+    bug: "358241286"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "close_hid_if_uhid_ready_too_slow"
+    namespace: "bluetooth"
+    description: "Close HID if UHID takes too long to be ready"
+    bug: "362665394"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "serialize_hogp_and_dis"
+    namespace: "bluetooth"
+    description: "start HOGP service discovery only after DIS discovery is finished"
+    bug: "367910199"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

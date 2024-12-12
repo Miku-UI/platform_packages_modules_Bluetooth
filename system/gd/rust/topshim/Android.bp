@@ -22,7 +22,6 @@ rust_library_host_rlib {
         "libcxx",
         "libfutures",
         "libgrpcio",
-        "liblazy_static",
         "liblog_rust",
         "libnix",
         "libnum_traits",
@@ -149,6 +148,9 @@ rust_bindgen {
     ],
     shared_libs: [
         "libc++",
+    ],
+    cflags: [
+        "-DTARGET_FLOSS",
     ],
     static_libs: [
         "libbluetooth_log",

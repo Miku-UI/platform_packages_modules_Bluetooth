@@ -153,8 +153,7 @@ struct MsftAdvMonitor {
 
 namespace fmt {
 template <>
-struct formatter<bt_gatt_db_attribute_type_t>
-    : enum_formatter<bt_gatt_db_attribute_type_t> {};
+struct formatter<bt_gatt_db_attribute_type_t> : enum_formatter<bt_gatt_db_attribute_type_t> {};
 }  // namespace fmt
 #endif  // __has_include(<bluetooth/log.h>)
 

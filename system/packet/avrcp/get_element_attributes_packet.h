@@ -25,7 +25,7 @@ namespace bluetooth {
 namespace avrcp {
 
 class GetElementAttributesRequest : public VendorPacket {
- public:
+public:
   virtual ~GetElementAttributesRequest() = default;
 
   /**
@@ -56,7 +56,7 @@ class GetElementAttributesRequest : public VendorPacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 
@@ -64,7 +64,7 @@ template <class Builder>
 class AttributesResponseBuilderTestUser;
 
 class GetElementAttributesResponseBuilder : public VendorPacketBuilder {
- public:
+public:
   virtual ~GetElementAttributesResponseBuilder() = default;
   using Builder = std::unique_ptr<GetElementAttributesResponseBuilder>;
   static Builder MakeBuilder(size_t mtu);
@@ -77,19 +77,16 @@ class GetElementAttributesResponseBuilder : public VendorPacketBuilder {
   static constexpr size_t kHeaderSize() { return VendorPacket::kMinSize() + 1; }
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- private:
+private:
   std::set<AttributeEntry> entries_;
   size_t mtu_;
-  friend class AttributesResponseBuilderTestUser<
-      GetElementAttributesResponseBuilder>;
+  friend class AttributesResponseBuilderTestUser<GetElementAttributesResponseBuilder>;
 
   GetElementAttributesResponseBuilder(size_t mtu)
-      : VendorPacketBuilder(CType::STABLE, CommandPdu::GET_ELEMENT_ATTRIBUTES,
-                            PacketType::SINGLE),
-        mtu_(mtu){};
+      : VendorPacketBuilder(CType::STABLE, CommandPdu::GET_ELEMENT_ATTRIBUTES, PacketType::SINGLE),
+        mtu_(mtu) {}
 };
 
 }  // namespace avrcp

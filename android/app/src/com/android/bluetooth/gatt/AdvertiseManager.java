@@ -16,8 +16,6 @@
 
 package com.android.bluetooth.gatt;
 
-import static android.bluetooth.BluetoothProtoEnums.LE_ADV_ERROR_ON_START_COUNT;
-
 import android.bluetooth.le.AdvertiseCallback;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
@@ -33,7 +31,6 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.gatt.GattService.AdvertiserMap;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Collections;
@@ -54,7 +51,11 @@ public class AdvertiseManager {
     Map<IBinder, AdvertiserInfo> mAdvertisers = Collections.synchronizedMap(new HashMap<>());
     static int sTempRegistrationId = -1;
 
-    /** Constructor of {@link AdvertiseManager}. */
+    AdvertiseManager(GattService service) {
+        this(service, AdvertiseManagerNativeInterface.getInstance(), new AdvertiserMap());
+    }
+
+    @VisibleForTesting
     AdvertiseManager(
             GattService service,
             AdvertiseManagerNativeInterface nativeInterface,
@@ -69,6 +70,12 @@ public class AdvertiseManager {
         HandlerThread thread = new HandlerThread("BluetoothAdvertiseManager");
         thread.start();
         mHandler = new Handler(thread.getLooper());
+    }
+
+    // TODO(b/327849650): We shouldn't need this, it should be safe to do in the cleanup method. But
+    //                    it would be a logic change.
+    void clear() {
+        mAdvertiserMap.clear();
     }
 
     void cleanup() {
@@ -86,6 +93,10 @@ public class AdvertiseManager {
             }
             mHandler = null;
         }
+    }
+
+    void dump(StringBuilder sb) {
+        mAdvertiserMap.dump(sb);
     }
 
     static class AdvertiserInfo {
@@ -169,10 +180,10 @@ public class AdvertiseManager {
 
             AppAdvertiseStats stats = mAdvertiserMap.getAppAdvertiseStatsById(regId);
             if (stats != null) {
-                stats.recordAdvertiseStop();
+                stats.recordAdvertiseStop(mAdvertisers.size());
+                stats.recordAdvertiseErrorCount(status);
             }
             mAdvertiserMap.removeAppAdvertiseStats(regId);
-            AppAdvertiseStats.recordAdvertiseErrorCount(LE_ADV_ERROR_ON_START_COUNT);
         }
 
         IBinder gattBinder = mService.getBinder();
@@ -204,7 +215,7 @@ public class AdvertiseManager {
         if (!enable && status != 0) {
             AppAdvertiseStats stats = mAdvertiserMap.getAppAdvertiseStatsById(advertiserId);
             if (stats != null) {
-                stats.recordAdvertiseStop();
+                stats.recordAdvertiseStop(mAdvertisers.size());
             }
         }
     }
@@ -264,7 +275,7 @@ public class AdvertiseManager {
 
             Log.d(TAG, "startAdvertisingSet() - reg_id=" + cbId + ", callback: " + binder);
 
-            mAdvertiserMap.add(cbId, callback, mService);
+            mAdvertiserMap.addAppAdvertiseStats(cbId, mService);
             mAdvertiserMap.recordAdvertiseStart(
                     cbId,
                     parameters,

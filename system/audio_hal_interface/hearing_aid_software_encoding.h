@@ -33,8 +33,7 @@ struct StreamCallbacks {
 bool is_hal_enabled();
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(StreamCallbacks stream_cb,
-          bluetooth::common::MessageLoopThread* message_loop);
+bool init(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop);
 
 // Clean up BluetoothAudio HAL
 void cleanup();

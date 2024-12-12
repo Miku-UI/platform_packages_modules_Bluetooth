@@ -17,6 +17,7 @@
 // Adapted from avrcp_packet_test.cc
 #include <stddef.h>
 #include <stdint.h>
+
 #include "avrcp_packet.h"
 #include "avrcp_test_packets.h"
 #include "packet_test_helper.h"
@@ -25,9 +26,8 @@ namespace bluetooth {
 
 // A helper class that has public accessors to protected methods
 class TestPacketBuilder : public PacketBuilder {
- public:
-  static std::unique_ptr<TestPacketBuilder> MakeBuilder(
-      std::vector<uint8_t> data) {
+public:
+  static std::unique_ptr<TestPacketBuilder> MakeBuilder(std::vector<uint8_t> data) {
     std::unique_ptr<TestPacketBuilder> builder(new TestPacketBuilder(data));
     return builder;
   }
@@ -41,7 +41,7 @@ class TestPacketBuilder : public PacketBuilder {
   using PacketBuilder::AddPayloadOctets8;
   using PacketBuilder::ReserveSpace;
 
-  size_t size() const override { return data_.size(); };
+  size_t size() const override { return data_.size(); }
 
   bool Serialize(const std::shared_ptr<Packet>& pkt) override {
     ReserveSpace(pkt, size());
@@ -71,11 +71,10 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
       get_capabilities_request_payload.push_back(data[x]);
     }
 
-    auto cap_req_builder =
-        TestPacketBuilder::MakeBuilder(get_capabilities_request_payload);
+    auto cap_req_builder = TestPacketBuilder::MakeBuilder(get_capabilities_request_payload);
 
-    auto builder = PacketBuilder::MakeBuilder(
-        CType::STATUS, 0x09, 0x00, Opcode::VENDOR, std::move(cap_req_builder));
+    auto builder = PacketBuilder::MakeBuilder(CType::STATUS, 0x09, 0x00, Opcode::VENDOR,
+                                              std::move(cap_req_builder));
 
     auto test_packet = TestAvrcpPacket::Make();
   }

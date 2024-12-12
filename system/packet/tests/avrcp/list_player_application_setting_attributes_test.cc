@@ -24,23 +24,17 @@
 namespace bluetooth {
 namespace avrcp {
 
-using TestListPlayerApplicationSettingAttributesRspPacket =
-    TestPacketType<Packet>;
+using TestListPlayerApplicationSettingAttributesRspPacket = TestPacketType<Packet>;
 
 TEST(ListPlayerApplicationSettingAttributesResponseBuilderTest, builderTest) {
-  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT,
-                                        PlayerAttribute::SHUFFLE};
-  auto builder =
-      ListPlayerApplicationSettingAttributesResponseBuilder::MakeBuilder(attrs);
+  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT, PlayerAttribute::SHUFFLE};
+  auto builder = ListPlayerApplicationSettingAttributesResponseBuilder::MakeBuilder(attrs);
 
-  ASSERT_EQ(builder->size(),
-            list_player_application_setting_attributes_response.size());
+  ASSERT_EQ(builder->size(), list_player_application_setting_attributes_response.size());
 
-  auto test_packet =
-      TestListPlayerApplicationSettingAttributesRspPacket::Make();
+  auto test_packet = TestListPlayerApplicationSettingAttributesRspPacket::Make();
   builder->Serialize(test_packet);
-  ASSERT_EQ(test_packet->GetData(),
-            list_player_application_setting_attributes_response);
+  ASSERT_EQ(test_packet->GetData(), list_player_application_setting_attributes_response);
 }
 
 }  // namespace avrcp

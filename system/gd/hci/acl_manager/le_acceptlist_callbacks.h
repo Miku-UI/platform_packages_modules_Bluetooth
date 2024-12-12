@@ -26,7 +26,7 @@ namespace acl_manager {
 /// @brief These are callbacks needed to track the state of the acceptlist, used by the
 /// Rust connection manager.
 class LeAcceptlistCallbacks {
- public:
+public:
   virtual ~LeAcceptlistCallbacks() = default;
   // Invoked when controller sends Connection Complete event with Success error code
   // AddressWithType is the address returned by the controller.

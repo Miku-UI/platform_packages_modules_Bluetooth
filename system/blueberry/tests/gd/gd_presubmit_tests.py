@@ -21,13 +21,7 @@ from mobly import suite_runner
 # TODO(b/194723246): Investigate failures to re-activate the test class.
 from blueberry.tests.gd.hci.le_scanning_manager_test import LeScanningManagerTest
 
-# TODO(b/194723246): Investigate failures to re-activate the test class.
-from blueberry.tests.gd.security.le_security_test import LeSecurityTest
-
-# TODO(b/194723246): Investigate failures to re-activate the test class.
-from blueberry.tests.gd.security.security_test import SecurityTest
-
-DISABLED_TESTS = {LeScanningManagerTest, LeSecurityTest, SecurityTest}
+DISABLED_TESTS = {LeScanningManagerTest}
 
 PRESUBMIT_TESTS = list(ALL_TESTS - DISABLED_TESTS)
 

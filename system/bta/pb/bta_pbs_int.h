@@ -40,19 +40,17 @@
 #define BTA_PBS_REPOSIT_LOCAL 0x01 /* Local PhoneBook */
 #define BTA_PBS_REPOSIT_SIM 0x02   /* SIM card PhoneBook */
 
-#define BTA_PBS_TARGET_UUID \
-  "\x79\x61\x35\xf0\xf0\xc5\x11\xd8\x09\x66\x08\x00\x20\x0c\x9a\x66"
+#define BTA_PBS_TARGET_UUID "\x79\x61\x35\xf0\xf0\xc5\x11\xd8\x09\x66\x08\x00\x20\x0c\x9a\x66"
 #define BTA_PBS_UUID_LENGTH 16
-#define BTA_PBS_MAX_AUTH_KEY_SIZE \
-  16 /* Must not be greater than OBX_MAX_AUTH_KEY_SIZE */
+#define BTA_PBS_MAX_AUTH_KEY_SIZE 16 /* Must not be greater than OBX_MAX_AUTH_KEY_SIZE */
 
 #define BTA_PBS_DEFAULT_VERSION 0x0101 /* for PBAP PSE version 1.1 */
 
 /* Configuration structure */
 typedef struct {
-  uint8_t realm_charset; /* Server only */
-  bool userid_req; /* true if user id is required during obex authentication
-                      (Server only) */
+  uint8_t realm_charset;          /* Server only */
+  bool userid_req;                /* true if user id is required during obex authentication
+                                     (Server only) */
   uint8_t supported_features;     /* Server supported features */
   uint8_t supported_repositories; /* Server supported repositories */
 

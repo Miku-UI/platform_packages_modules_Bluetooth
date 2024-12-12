@@ -18,15 +18,7 @@
 
 #include "test/headless/dumpsys/dumpsys.h"
 
-#include <future>
-
-#include "os/log.h"        // android log only
-#include "stack/include/btm_api.h"
-#include "stack/include/btm_api_types.h"
-#include "stack/include/hci_error_code.h"
-#include "test/headless/get_options.h"
 #include "test/headless/headless.h"
-#include "types/raw_address.h"
 
 int bluetooth::test::headless::Dumpsys::Run() {
   return RunOnHeadlessStack<int>([this]() {

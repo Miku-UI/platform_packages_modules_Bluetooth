@@ -21,7 +21,7 @@
 #include "type_def.h"
 
 class ArrayField : public PacketField {
- public:
+public:
   ArrayField(std::string name, int element_size, int fixed_size, ParseLocation loc);
 
   ArrayField(std::string name, TypeDef* type_def, int fixed_size, ParseLocation loc);

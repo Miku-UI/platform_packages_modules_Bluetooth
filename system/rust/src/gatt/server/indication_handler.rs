@@ -6,11 +6,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{
-    gatt::ids::AttHandle,
-    packets::{AttAttributeDataChild, AttChild, AttHandleValueIndicationBuilder, Serializable},
-    utils::packet::build_att_data,
-};
+use crate::{gatt::ids::AttHandle, packets::att};
 
 use super::{
     att_database::{AttDatabase, StableAttDatabase},
@@ -52,17 +48,14 @@ impl<T: AttDatabase> IndicationHandler<T> {
     pub async fn send(
         &mut self,
         handle: AttHandle,
-        data: AttAttributeDataChild,
+        data: &[u8],
         mtu: usize,
-        send_packet: impl FnOnce(AttChild) -> Result<(), SendError>,
+        send_packet: impl FnOnce(att::Att) -> Result<(), SendError>,
     ) -> Result<(), IndicationError> {
-        let data_size = data
-            .size_in_bits()
-            .map_err(SendError::SerializeError)
-            .map_err(IndicationError::SendError)?;
+        let data_size = data.len();
         // As per Core Spec 5.3 Vol 3F 3.4.7.2, the indicated value must be at most
         // ATT_MTU-3
-        if data_size > (mtu - 3) * 8 {
+        if data_size > (mtu - 3) {
             return Err(IndicationError::DataExceedsMtu { mtu: mtu - 3 });
         }
 
@@ -82,8 +75,9 @@ impl<T: AttDatabase> IndicationHandler<T> {
         let _ = self.pending_confirmation.try_recv();
 
         send_packet(
-            AttHandleValueIndicationBuilder { handle: handle.into(), value: build_att_data(data) }
-                .into(),
+            att::AttHandleValueIndication { handle: handle.into(), value: data.to_vec() }
+                .try_into()
+                .unwrap(),
         )
         .map_err(IndicationError::SendError)?;
 
@@ -121,6 +115,7 @@ impl ConfirmationWatcher {
 
 #[cfg(test)]
 mod test {
+    use crate::packets::att;
     use tokio::{sync::oneshot, task::spawn_local, time::Instant};
 
     use crate::{
@@ -138,10 +133,7 @@ mod test {
     const NONEXISTENT_HANDLE: AttHandle = AttHandle(2);
     const NON_INDICATE_HANDLE: AttHandle = AttHandle(3);
     const MTU: usize = 32;
-
-    fn get_data() -> AttAttributeDataChild {
-        AttAttributeDataChild::RawData([1, 2, 3].into())
-    }
+    const DATA: [u8; 3] = [1, 2, 3];
 
     fn get_att_database() -> TestAttDatabase {
         TestAttDatabase::new(vec![
@@ -175,7 +167,7 @@ mod test {
             // act: send an indication
             spawn_local(async move {
                 indication_handler
-                    .send(HANDLE, get_data(), MTU, move |packet| {
+                    .send(HANDLE, &DATA, MTU, move |packet| {
                         tx.send(packet).unwrap();
                         Ok(())
                     })
@@ -183,15 +175,11 @@ mod test {
             });
 
             // assert: that an AttHandleValueIndication was sent on the channel
-            let AttChild::AttHandleValueIndication(indication) = rx.await.unwrap() else {
-                unreachable!()
-            };
+            let indication = rx.await.unwrap();
             assert_eq!(
-                indication,
-                AttHandleValueIndicationBuilder {
-                    handle: HANDLE.into(),
-                    value: build_att_data(get_data()),
-                }
+                Ok(indication),
+                att::AttHandleValueIndication { handle: HANDLE.into(), value: DATA.to_vec() }
+                    .try_into()
             );
         });
     }
@@ -205,7 +193,7 @@ mod test {
 
             // act: send an indication on a nonexistent handle
             let ret = indication_handler
-                .send(NONEXISTENT_HANDLE, get_data(), MTU, move |_| unreachable!())
+                .send(NONEXISTENT_HANDLE, &DATA, MTU, move |_| unreachable!())
                 .await;
 
             // assert: that we failed with IndicationError::AttributeNotFound
@@ -222,7 +210,7 @@ mod test {
 
             // act: send an indication on an attribute that does not support indications
             let ret = indication_handler
-                .send(NON_INDICATE_HANDLE, get_data(), MTU, move |_| unreachable!())
+                .send(NON_INDICATE_HANDLE, &DATA, MTU, move |_| unreachable!())
                 .await;
 
             // assert: that we failed with IndicationError::IndicationsNotSupported
@@ -241,7 +229,7 @@ mod test {
             // act: send an indication
             let pending_result = spawn_local(async move {
                 indication_handler
-                    .send(HANDLE, get_data(), MTU, move |packet| {
+                    .send(HANDLE, &DATA, MTU, move |packet| {
                         tx.send(packet).unwrap();
                         Ok(())
                     })
@@ -267,7 +255,7 @@ mod test {
             // act: send an indication
             let pending_result = spawn_local(async move {
                 indication_handler
-                    .send(HANDLE, get_data(), MTU, move |packet| {
+                    .send(HANDLE, &DATA, MTU, move |packet| {
                         tx.send(packet).unwrap();
                         Ok(())
                     })
@@ -299,7 +287,7 @@ mod test {
             // act: send an indication
             let pending_result = spawn_local(async move {
                 indication_handler
-                    .send(HANDLE, get_data(), MTU, move |packet| {
+                    .send(HANDLE, &DATA, MTU, move |packet| {
                         tx.send(packet).unwrap();
                         Ok(())
                     })
@@ -334,7 +322,7 @@ mod test {
             let time_sent = Instant::now();
             let pending_result = spawn_local(async move {
                 indication_handler
-                    .send(HANDLE, get_data(), MTU, move |packet| {
+                    .send(HANDLE, &DATA, MTU, move |packet| {
                         tx.send(packet).unwrap();
                         Ok(())
                     })
@@ -365,14 +353,7 @@ mod test {
                 IndicationHandler::new(get_att_database());
 
             // act: send an indication with an ATT_MTU of 4 and data length of 3
-            let res = indication_handler
-                .send(
-                    HANDLE,
-                    AttAttributeDataChild::RawData([1, 2, 3].into()),
-                    4,
-                    move |_| unreachable!(),
-                )
-                .await;
+            let res = indication_handler.send(HANDLE, &DATA, 4, move |_| unreachable!()).await;
 
             // assert: that we got the expected error, indicating the max data size (not the
             // ATT_MTU, but ATT_MTU-3)

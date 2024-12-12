@@ -37,24 +37,21 @@ enum class AttributeBackingType {
 };
 
 class GattServerCallbacks {
- public:
-  GattServerCallbacks(const btgatt_server_callbacks_t& callbacks)
-      : callbacks(callbacks){};
+public:
+  GattServerCallbacks(const btgatt_server_callbacks_t& callbacks) : callbacks(callbacks) {}
 
   void OnServerRead(uint16_t conn_id, uint32_t trans_id, uint16_t attr_handle,
-                    AttributeBackingType attr_type, uint32_t offset,
-                    bool is_long) const;
+                    AttributeBackingType attr_type, uint32_t offset, bool is_long) const;
 
   void OnServerWrite(uint16_t conn_id, uint32_t trans_id, uint16_t attr_handle,
-                     AttributeBackingType attr_type, uint32_t offset,
-                     bool need_response, bool is_prepare,
-                     ::rust::Slice<const uint8_t> value) const;
+                     AttributeBackingType attr_type, uint32_t offset, bool need_response,
+                     bool is_prepare, ::rust::Slice<const uint8_t> value) const;
 
   void OnIndicationSentConfirmation(uint16_t conn_id, int status) const;
 
   void OnExecute(uint16_t conn_id, uint32_t trans_id, bool execute) const;
 
- private:
+private:
   const btgatt_server_callbacks_t& callbacks;
 };
 

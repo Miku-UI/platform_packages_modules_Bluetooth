@@ -16,6 +16,7 @@
 
 #include "register_notification_packet.h"
 
+#include <base/sys_byteorder.h>
 #include <bluetooth/log.h>
 
 #include "internal_include/bt_trace.h"
@@ -23,9 +24,7 @@
 namespace bluetooth {
 namespace avrcp {
 
-bool RegisterNotificationResponse::IsInterim() const {
-  return GetCType() == CType::INTERIM;
-}
+bool RegisterNotificationResponse::IsInterim() const { return GetCType() == CType::INTERIM; }
 
 Event RegisterNotificationResponse::GetEvent() const {
   auto value = *(begin() + VendorPacket::kMinSize());
@@ -40,9 +39,17 @@ uint8_t RegisterNotificationResponse::GetVolume() const {
 }
 
 bool RegisterNotificationResponse::IsValid() const {
-  if (!VendorPacket::IsValid()) return false;
-  if (size() < kMinSize()) return false;
-  if (GetCType() != CType::INTERIM && GetCType() != CType::CHANGED && GetCType() != CType::REJECTED) {
+  if (!VendorPacket::IsValid()) {
+    return false;
+  }
+  if (size() < kMinSize()) {
+    return false;
+  }
+  // Rejected type packets is not followed by event, but by error code instead.
+  if (GetCType() == CType::REJECTED) {
+    return true;
+  }
+  if (GetCType() != CType::INTERIM && GetCType() != CType::CHANGED) {
     return false;
   }
 
@@ -74,45 +81,39 @@ std::string RegisterNotificationResponse::ToString() const {
 }
 
 std::unique_ptr<RegisterNotificationResponseBuilder>
-RegisterNotificationResponseBuilder::MakePlaybackStatusBuilder(
-    bool interim, uint8_t play_status) {
+RegisterNotificationResponseBuilder::MakePlaybackStatusBuilder(bool interim, uint8_t play_status) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(interim,
-                                              Event::PLAYBACK_STATUS_CHANGED));
+          new RegisterNotificationResponseBuilder(interim, Event::PLAYBACK_STATUS_CHANGED));
   builder->data_union_.play_status = play_status;
   return builder;
 }
 
 std::unique_ptr<RegisterNotificationResponseBuilder>
-RegisterNotificationResponseBuilder::MakeTrackChangedBuilder(
-    bool interim, uint64_t track_uid) {
+RegisterNotificationResponseBuilder::MakeTrackChangedBuilder(bool interim, uint64_t track_uid) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(interim, Event::TRACK_CHANGED));
+          new RegisterNotificationResponseBuilder(interim, Event::TRACK_CHANGED));
   builder->data_union_.track_uid = track_uid;
   return builder;
 }
 
 std::unique_ptr<RegisterNotificationResponseBuilder>
-RegisterNotificationResponseBuilder::MakePlaybackPositionBuilder(
-    bool interim, uint32_t playback_pos) {
+RegisterNotificationResponseBuilder::MakePlaybackPositionBuilder(bool interim,
+                                                                 uint32_t playback_pos) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(interim,
-                                              Event::PLAYBACK_POS_CHANGED));
+          new RegisterNotificationResponseBuilder(interim, Event::PLAYBACK_POS_CHANGED));
   builder->data_union_.playback_pos = playback_pos;
   return builder;
 }
 
 std::unique_ptr<RegisterNotificationResponseBuilder>
 RegisterNotificationResponseBuilder::MakePlayerSettingChangedBuilder(
-    bool interim, std::vector<PlayerAttribute> attributes,
-    std::vector<uint8_t> values) {
+        bool interim, std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(
-          interim, Event::PLAYER_APPLICATION_SETTING_CHANGED));
+          new RegisterNotificationResponseBuilder(interim,
+                                                  Event::PLAYER_APPLICATION_SETTING_CHANGED));
   builder->data_union_.player_settings.number_of_attributes =
-      static_cast<uint8_t>(attributes.size());
-  for (int i = 0; i < builder->data_union_.player_settings.number_of_attributes;
-       i++) {
+          static_cast<uint8_t>(attributes.size());
+  for (int i = 0; i < builder->data_union_.player_settings.number_of_attributes; i++) {
     builder->data_union_.player_settings.attributes[i] = attributes.at(i);
     builder->data_union_.player_settings.values[i] = values.at(i);
   }
@@ -122,35 +123,31 @@ RegisterNotificationResponseBuilder::MakePlayerSettingChangedBuilder(
 std::unique_ptr<RegisterNotificationResponseBuilder>
 RegisterNotificationResponseBuilder::MakeNowPlayingBuilder(bool interim) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(
-          interim, Event::NOW_PLAYING_CONTENT_CHANGED));
+          new RegisterNotificationResponseBuilder(interim, Event::NOW_PLAYING_CONTENT_CHANGED));
   return builder;
 }
 
 std::unique_ptr<RegisterNotificationResponseBuilder>
 RegisterNotificationResponseBuilder::MakeAvailablePlayersBuilder(bool interim) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(
-          interim, Event::AVAILABLE_PLAYERS_CHANGED));
+          new RegisterNotificationResponseBuilder(interim, Event::AVAILABLE_PLAYERS_CHANGED));
   return builder;
 }
 
 std::unique_ptr<RegisterNotificationResponseBuilder>
-RegisterNotificationResponseBuilder::MakeAddressedPlayerBuilder(
-    bool interim, uint16_t player_id, uint16_t uid_counter) {
+RegisterNotificationResponseBuilder::MakeAddressedPlayerBuilder(bool interim, uint16_t player_id,
+                                                                uint16_t uid_counter) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(interim,
-                                              Event::ADDRESSED_PLAYER_CHANGED));
+          new RegisterNotificationResponseBuilder(interim, Event::ADDRESSED_PLAYER_CHANGED));
   builder->data_union_.addressed_player.player_id = player_id;
   builder->data_union_.addressed_player.uid_counter = uid_counter;
   return builder;
 }
 
 std::unique_ptr<RegisterNotificationResponseBuilder>
-RegisterNotificationResponseBuilder::MakeUidsChangedBuilder(
-    bool interim, uint16_t uid_counter) {
+RegisterNotificationResponseBuilder::MakeUidsChangedBuilder(bool interim, uint16_t uid_counter) {
   std::unique_ptr<RegisterNotificationResponseBuilder> builder(
-      new RegisterNotificationResponseBuilder(interim, Event::UIDS_CHANGED));
+          new RegisterNotificationResponseBuilder(interim, Event::UIDS_CHANGED));
   builder->data_union_.uid_counter = uid_counter;
   return builder;
 }
@@ -172,8 +169,7 @@ size_t RegisterNotificationResponseBuilder::size() const {
       break;
     case Event::PLAYER_APPLICATION_SETTING_CHANGED:
       data_size = sizeof(uint8_t) +
-                  2 * data_union_.player_settings.number_of_attributes *
-                      sizeof(uint8_t);
+                  2 * data_union_.player_settings.number_of_attributes * sizeof(uint8_t);
       break;
     case Event::NOW_PLAYING_CONTENT_CHANGED:
       data_size = 0;
@@ -196,7 +192,7 @@ size_t RegisterNotificationResponseBuilder::size() const {
 }
 
 bool RegisterNotificationResponseBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+        const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   PacketBuilder::PushHeader(pkt);
@@ -219,10 +215,8 @@ bool RegisterNotificationResponseBuilder::Serialize(
     }
     case Event::PLAYER_APPLICATION_SETTING_CHANGED: {
       AddPayloadOctets1(pkt, data_union_.player_settings.number_of_attributes);
-      for (int i = 0; i < data_union_.player_settings.number_of_attributes;
-           i++) {
-        AddPayloadOctets1(pkt, static_cast<uint8_t>(
-                                   data_union_.player_settings.attributes[i]));
+      for (int i = 0; i < data_union_.player_settings.number_of_attributes; i++) {
+        AddPayloadOctets1(pkt, static_cast<uint8_t>(data_union_.player_settings.attributes[i]));
         AddPayloadOctets1(pkt, data_union_.player_settings.values[i]);
       }
       break;  // No additional data
@@ -232,10 +226,8 @@ bool RegisterNotificationResponseBuilder::Serialize(
     case Event::AVAILABLE_PLAYERS_CHANGED:
       break;  // No additional data
     case Event::ADDRESSED_PLAYER_CHANGED: {
-      AddPayloadOctets2(pkt,
-                        base::ByteSwap(data_union_.addressed_player.player_id));
-      AddPayloadOctets2(
-          pkt, base::ByteSwap(data_union_.addressed_player.uid_counter));
+      AddPayloadOctets2(pkt, base::ByteSwap(data_union_.addressed_player.player_id));
+      AddPayloadOctets2(pkt, base::ByteSwap(data_union_.addressed_player.uid_counter));
       break;
     }
     case Event::UIDS_CHANGED: {
@@ -261,9 +253,7 @@ uint32_t RegisterNotificationRequest::GetInterval() const {
   return it.extractBE<uint32_t>();
 }
 
-bool RegisterNotificationRequest::IsValid() const {
-  return (size() == kMinSize());
-}
+bool RegisterNotificationRequest::IsValid() const { return size() == kMinSize(); }
 
 std::string RegisterNotificationRequest::ToString() const {
   std::stringstream ss;
@@ -283,11 +273,10 @@ std::string RegisterNotificationRequest::ToString() const {
   return ss.str();
 }
 
-std::unique_ptr<RegisterNotificationRequestBuilder>
-RegisterNotificationRequestBuilder::MakeBuilder(Event event,
-                                                uint32_t interval) {
+std::unique_ptr<RegisterNotificationRequestBuilder> RegisterNotificationRequestBuilder::MakeBuilder(
+        Event event, uint32_t interval) {
   std::unique_ptr<RegisterNotificationRequestBuilder> builder(
-      new RegisterNotificationRequestBuilder(event, interval));
+          new RegisterNotificationRequestBuilder(event, interval));
 
   return builder;
 }
@@ -297,7 +286,7 @@ size_t RegisterNotificationRequestBuilder::size() const {
 }
 
 bool RegisterNotificationRequestBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+        const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   PacketBuilder::PushHeader(pkt);

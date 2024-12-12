@@ -32,28 +32,23 @@
 static const char BTIF_CONFIG_MODULE[] = "btif_config_module";
 
 bool btif_config_exist(const std::string& section, const std::string& key);
-bool btif_config_get_int(const std::string& section, const std::string& key,
-                         int* value);
-bool btif_config_set_int(const std::string& section, const std::string& key,
-                         int value);
-bool btif_config_get_uint64(const std::string& section, const std::string& key,
-                            uint64_t* value);
-bool btif_config_set_uint64(const std::string& section, const std::string& key,
-                            uint64_t value);
-bool btif_config_get_str(const std::string& section, const std::string& key,
-                         char* value, int* size_bytes);
+bool btif_config_get_int(const std::string& section, const std::string& key, int* value);
+bool btif_config_set_int(const std::string& section, const std::string& key, int value);
+bool btif_config_get_uint64(const std::string& section, const std::string& key, uint64_t* value);
+bool btif_config_set_uint64(const std::string& section, const std::string& key, uint64_t value);
+bool btif_config_get_str(const std::string& section, const std::string& key, char* value,
+                         int* size_bytes);
 bool btif_config_set_str(const std::string& section, const std::string& key,
                          const std::string& value);
-bool btif_config_get_bin(const std::string& section, const std::string& key,
-                         uint8_t* value, size_t* length);
-bool btif_config_set_bin(const std::string& section, const std::string& key,
-                         const uint8_t* value, size_t length);
+bool btif_config_get_bin(const std::string& section, const std::string& key, uint8_t* value,
+                         size_t* length);
+bool btif_config_set_bin(const std::string& section, const std::string& key, const uint8_t* value,
+                         size_t length);
 bool btif_config_remove(const std::string& section, const std::string& key);
 
 void btif_config_remove_device(const std::string& section);
 
-size_t btif_config_get_bin_length(const std::string& section,
-                                  const std::string& key);
+size_t btif_config_get_bin_length(const std::string& section, const std::string& key);
 
 std::vector<RawAddress> btif_config_get_paired_devices();
 

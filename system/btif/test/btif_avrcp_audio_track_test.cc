@@ -47,8 +47,7 @@ class BtifAvrcpAudioTrackTest : public ::testing::Test {};
 TEST_F(BtifAvrcpAudioTrackTest, setAudioTrackGain_maxGainSet) {
   void* track_handle = BtifAvrcpAudioTrackCreate(10, 16, 3);
   BtifAvrcpSetAudioTrackGain(track_handle, 1.0f);
-  BtifAvrcpAudioTrack* trackHolder =
-      static_cast<BtifAvrcpAudioTrack*>(track_handle);
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(track_handle);
   EXPECT_EQ(trackHolder->gain, 1.0f);
   BtifAvrcpAudioTrackDelete(track_handle);
 }
@@ -56,42 +55,35 @@ TEST_F(BtifAvrcpAudioTrackTest, setAudioTrackGain_maxGainSet) {
 TEST_F(BtifAvrcpAudioTrackTest, setAudioTrackGain_minimumGainSet) {
   void* track_handle = BtifAvrcpAudioTrackCreate(10, 16, 3);
   BtifAvrcpSetAudioTrackGain(track_handle, 0.0f);
-  BtifAvrcpAudioTrack* trackHolder =
-      static_cast<BtifAvrcpAudioTrack*>(track_handle);
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(track_handle);
   EXPECT_EQ(trackHolder->gain, 0.0f);
   BtifAvrcpAudioTrackDelete(track_handle);
 }
 
-TEST_F(BtifAvrcpAudioTrackTest,
-       setAudioTrackGain_maxGainOutOfBounds_setsCappedGain) {
+TEST_F(BtifAvrcpAudioTrackTest, setAudioTrackGain_maxGainOutOfBounds_setsCappedGain) {
   void* track_handle = BtifAvrcpAudioTrackCreate(10, 16, 3);
-  BtifAvrcpAudioTrack* trackHolder =
-      static_cast<BtifAvrcpAudioTrack*>(track_handle);
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(track_handle);
   BtifAvrcpSetAudioTrackGain(track_handle, 2.0f);
   EXPECT_EQ(trackHolder->gain, 1.0f);
   BtifAvrcpAudioTrackDelete(track_handle);
 }
 
-TEST_F(BtifAvrcpAudioTrackTest,
-       setAudioTrackGain_minGainOutOfBounds_setsCappedGain) {
+TEST_F(BtifAvrcpAudioTrackTest, setAudioTrackGain_minGainOutOfBounds_setsCappedGain) {
   void* track_handle = BtifAvrcpAudioTrackCreate(10, 16, 3);
-  BtifAvrcpAudioTrack* trackHolder =
-      static_cast<BtifAvrcpAudioTrack*>(track_handle);
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(track_handle);
   BtifAvrcpSetAudioTrackGain(track_handle, -2.0f);
   EXPECT_EQ(trackHolder->gain, 0.0f);
   BtifAvrcpAudioTrackDelete(track_handle);
 }
 
-TEST_F(BtifAvrcpAudioTrackTest,
-       setMaxAudioTrackGain_minGain_bufferStreamDucked) {
+TEST_F(BtifAvrcpAudioTrackTest, setMaxAudioTrackGain_minGain_bufferStreamDucked) {
   constexpr float scaleQ15ToFloat = 1.0f / 32768.0f;
   constexpr size_t bufferLength = 100;
   constexpr int bitsPerSample = 16;
   constexpr size_t sampleSize = bitsPerSample / 8;
   constexpr auto gainValue = 0.5f;
   void* track_handle = BtifAvrcpAudioTrackCreate(10, bitsPerSample, 3);
-  BtifAvrcpAudioTrack* trackHolder =
-      static_cast<BtifAvrcpAudioTrack*>(track_handle);
+  BtifAvrcpAudioTrack* trackHolder = static_cast<BtifAvrcpAudioTrack*>(track_handle);
   std::unique_ptr<AAudioStream> stream(new AAudioStream);
   // Set the values to track holder as mock audio lib APIs are a no-op.
   trackHolder->stream = stream.get();

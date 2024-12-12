@@ -49,50 +49,38 @@ XBT_INLINE_ void aptxEncode(const int32_t pcm[4], Qmf_storage* Qmf_St,
 
   /* Update codeword history, then generate new dither values. */
   EncoderDataPt->m_codewordHistory =
-      xbtEncupdateCodewordHistory(qCodes, EncoderDataPt->m_codewordHistory);
-  EncoderDataPt->m_dithSyncRandBit = xbtEncgenerateDither(
-      EncoderDataPt->m_codewordHistory, EncoderDataPt->m_ditherOutputs);
+          xbtEncupdateCodewordHistory(qCodes, EncoderDataPt->m_codewordHistory);
+  EncoderDataPt->m_dithSyncRandBit =
+          xbtEncgenerateDither(EncoderDataPt->m_codewordHistory, EncoderDataPt->m_ditherOutputs);
 
   /* Run the analysis QMF */
   QmfAnalysisFilter(pcm, Qmf_St, predVals, aqmfOutputs);
 
   /* Run the quantiser for each subband */
   quantiseDifferenceLL(aqmfOutputs[0], EncoderDataPt->m_ditherOutputs[0],
-                       EncoderDataPt->m_SubbandData[0].m_iqdata.delta,
-                       &EncoderDataPt->m_qdata[0]);
+                       EncoderDataPt->m_SubbandData[0].m_iqdata.delta, &EncoderDataPt->m_qdata[0]);
   quantiseDifferenceLH(aqmfOutputs[1], EncoderDataPt->m_ditherOutputs[1],
-                       EncoderDataPt->m_SubbandData[1].m_iqdata.delta,
-                       &EncoderDataPt->m_qdata[1]);
+                       EncoderDataPt->m_SubbandData[1].m_iqdata.delta, &EncoderDataPt->m_qdata[1]);
   quantiseDifferenceHL(aqmfOutputs[2], EncoderDataPt->m_ditherOutputs[2],
-                       EncoderDataPt->m_SubbandData[2].m_iqdata.delta,
-                       &EncoderDataPt->m_qdata[2]);
+                       EncoderDataPt->m_SubbandData[2].m_iqdata.delta, &EncoderDataPt->m_qdata[2]);
   quantiseDifferenceHH(aqmfOutputs[3], EncoderDataPt->m_ditherOutputs[3],
-                       EncoderDataPt->m_SubbandData[3].m_iqdata.delta,
-                       &EncoderDataPt->m_qdata[3]);
+                       EncoderDataPt->m_SubbandData[3].m_iqdata.delta, &EncoderDataPt->m_qdata[3]);
 }
 
 XBT_INLINE_ void aptxPostEncode(Encoder_data* EncoderDataPt) {
   /* Run the remaining subband processing for each subband */
   /* Manual inlining on the 4 subband */
-  processSubbandLL(EncoderDataPt->m_qdata[0].qCode,
-                   EncoderDataPt->m_ditherOutputs[0],
-                   &EncoderDataPt->m_SubbandData[0],
-                   &EncoderDataPt->m_SubbandData[0].m_iqdata);
+  processSubbandLL(EncoderDataPt->m_qdata[0].qCode, EncoderDataPt->m_ditherOutputs[0],
+                   &EncoderDataPt->m_SubbandData[0], &EncoderDataPt->m_SubbandData[0].m_iqdata);
 
-  processSubband(EncoderDataPt->m_qdata[1].qCode,
-                 EncoderDataPt->m_ditherOutputs[1],
-                 &EncoderDataPt->m_SubbandData[1],
-                 &EncoderDataPt->m_SubbandData[1].m_iqdata);
+  processSubband(EncoderDataPt->m_qdata[1].qCode, EncoderDataPt->m_ditherOutputs[1],
+                 &EncoderDataPt->m_SubbandData[1], &EncoderDataPt->m_SubbandData[1].m_iqdata);
 
-  processSubbandHL(EncoderDataPt->m_qdata[2].qCode,
-                   EncoderDataPt->m_ditherOutputs[2],
-                   &EncoderDataPt->m_SubbandData[2],
-                   &EncoderDataPt->m_SubbandData[2].m_iqdata);
+  processSubbandHL(EncoderDataPt->m_qdata[2].qCode, EncoderDataPt->m_ditherOutputs[2],
+                   &EncoderDataPt->m_SubbandData[2], &EncoderDataPt->m_SubbandData[2].m_iqdata);
 
-  processSubband(EncoderDataPt->m_qdata[3].qCode,
-                 EncoderDataPt->m_ditherOutputs[3],
-                 &EncoderDataPt->m_SubbandData[3],
-                 &EncoderDataPt->m_SubbandData[3].m_iqdata);
+  processSubband(EncoderDataPt->m_qdata[3].qCode, EncoderDataPt->m_ditherOutputs[3],
+                 &EncoderDataPt->m_SubbandData[3], &EncoderDataPt->m_SubbandData[3].m_iqdata);
 }
 
 #ifdef _GCC

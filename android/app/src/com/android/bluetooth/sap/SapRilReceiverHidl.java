@@ -29,8 +29,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** SapRiilReceiverHidl is the HIDL implementation of ISapRilReceiver */
+@SuppressWarnings("NonApiType") // We cannot change hidl anymore
 public class SapRilReceiverHidl implements ISapRilReceiver {
-    private static final String TAG = "SapRilReceiver";
+    private static final String TAG = "SapRilReceiverHidl";
 
     // todo: add support for slot2 and slot3
     private static final String SERVICE_NAME_RIL_BT = "slot1";

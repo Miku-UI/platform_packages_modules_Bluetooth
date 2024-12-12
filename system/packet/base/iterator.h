@@ -35,13 +35,12 @@ struct IteratorTraits {
   using reference = uint8_t&;
 };
 #else
-struct IteratorTraits
-    : public std::iterator<std::random_access_iterator_tag, uint8_t> {};
+struct IteratorTraits : public std::iterator<std::random_access_iterator_tag, uint8_t> {};
 #endif
 
 // Iterator is a custom iterator class for Packets.
 class Iterator : public IteratorTraits {
- public:
+public:
   Iterator(std::shared_ptr<const Packet> packet, size_t i);
   Iterator(const Iterator& itr);
 
@@ -106,7 +105,7 @@ class Iterator : public IteratorTraits {
   uint32_t extract32() { return extract<uint32_t>(); }
   uint64_t extract64() { return extract<uint64_t>(); }
 
- private:
+private:
   std::shared_ptr<const Packet> packet_;
   size_t index_;
 };  // Iterator

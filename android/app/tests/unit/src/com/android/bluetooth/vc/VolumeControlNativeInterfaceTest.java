@@ -71,10 +71,11 @@ public class VolumeControlNativeInterfaceTest {
     public void onVolumeStateChanged() {
         int volume = 3;
         boolean mute = false;
+        int flags = 1;
         byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
         boolean isAutonomous = false;
 
-        mNativeInterface.onVolumeStateChanged(volume, mute, address, isAutonomous);
+        mNativeInterface.onVolumeStateChanged(volume, mute, flags, address, isAutonomous);
 
         ArgumentCaptor<VolumeControlStackEvent> event =
                 ArgumentCaptor.forClass(VolumeControlStackEvent.class);
@@ -103,9 +104,10 @@ public class VolumeControlNativeInterfaceTest {
     @Test
     public void onDeviceAvailable() {
         int numOfExternalOutputs = 3;
+        int numOfExternalInputs = 0;
         byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
 
-        mNativeInterface.onDeviceAvailable(numOfExternalOutputs, address);
+        mNativeInterface.onDeviceAvailable(numOfExternalOutputs, numOfExternalInputs, address);
 
         ArgumentCaptor<VolumeControlStackEvent> event =
                 ArgumentCaptor.forClass(VolumeControlStackEvent.class);
@@ -157,5 +159,85 @@ public class VolumeControlNativeInterfaceTest {
         verify(mService).messageFromNative(event.capture());
         assertThat(event.getValue().type)
                 .isEqualTo(VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED);
+    }
+
+    @Test
+    public void onExtAudioInStateChanged() {
+        int externalInputId = 2;
+        int gainValue = 1;
+        int gainMode = 0;
+        boolean mute = false;
+        byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
+
+        mNativeInterface.onExtAudioInStateChanged(
+                externalInputId, gainValue, gainMode, mute, address);
+
+        ArgumentCaptor<VolumeControlStackEvent> event =
+                ArgumentCaptor.forClass(VolumeControlStackEvent.class);
+        verify(mService).messageFromNative(event.capture());
+        assertThat(event.getValue().type)
+                .isEqualTo(VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED);
+    }
+
+    @Test
+    public void onExtAudioInStatusChanged() {
+        int externalInputId = 2;
+        int status = 1;
+        byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
+
+        mNativeInterface.onExtAudioInStatusChanged(externalInputId, status, address);
+
+        ArgumentCaptor<VolumeControlStackEvent> event =
+                ArgumentCaptor.forClass(VolumeControlStackEvent.class);
+        verify(mService).messageFromNative(event.capture());
+        assertThat(event.getValue().type)
+                .isEqualTo(VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED);
+    }
+
+    @Test
+    public void onExtAudioInTypeChanged() {
+        int externalInputId = 2;
+        int type = 1;
+        byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
+
+        mNativeInterface.onExtAudioInTypeChanged(externalInputId, type, address);
+
+        ArgumentCaptor<VolumeControlStackEvent> event =
+                ArgumentCaptor.forClass(VolumeControlStackEvent.class);
+        verify(mService).messageFromNative(event.capture());
+        assertThat(event.getValue().type)
+                .isEqualTo(VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED);
+    }
+
+    @Test
+    public void onExtAudioInDescriptionChanged() {
+        int externalInputId = 2;
+        String descr = "microphone";
+        byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
+
+        mNativeInterface.onExtAudioInDescriptionChanged(externalInputId, descr, address);
+
+        ArgumentCaptor<VolumeControlStackEvent> event =
+                ArgumentCaptor.forClass(VolumeControlStackEvent.class);
+        verify(mService).messageFromNative(event.capture());
+        assertThat(event.getValue().type)
+                .isEqualTo(VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED);
+    }
+
+    @Test
+    public void onExtAudioInGainPropsChanged() {
+        int externalInputId = 2;
+        int unit = 1;
+        int min = 0;
+        int max = 100;
+        byte[] address = new byte[] {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
+
+        mNativeInterface.onExtAudioInGainPropsChanged(externalInputId, unit, min, max, address);
+
+        ArgumentCaptor<VolumeControlStackEvent> event =
+                ArgumentCaptor.forClass(VolumeControlStackEvent.class);
+        verify(mService).messageFromNative(event.capture());
+        assertThat(event.getValue().type)
+                .isEqualTo(VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED);
     }
 }

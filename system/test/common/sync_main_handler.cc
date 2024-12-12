@@ -26,4 +26,4 @@ void sync_main_handler() {
   std::future future = promise.get_future();
   post_on_bt_main([&promise]() { promise.set_value(); });
   future.wait_for(std::chrono::milliseconds(sync_timeout_in_ms));
-};
+}

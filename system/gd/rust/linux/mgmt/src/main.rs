@@ -10,6 +10,7 @@ use dbus_crossroads::Crossroads;
 use dbus_projection::DisconnectWatcher;
 use dbus_tokio::connection;
 use log::LevelFilter;
+use log_panics;
 use manager_service::bluetooth_manager::BluetoothManager;
 use manager_service::powerd_suspend_manager::PowerdSuspendManager;
 use manager_service::{bluetooth_experimental_dbus, iface_bluetooth_manager};
@@ -50,6 +51,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
             pid: 0,
         };
 
+        log_panics::init();
+
         let logger = syslog::unix(formatter).expect("could not connect to syslog");
         let _ = log::set_boxed_logger(Box::new(BasicLogger::new(logger)))
             .map(|()| log::set_max_level(config_util::get_log_level().unwrap_or(level_filter)));
@@ -83,10 +86,6 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         panic!("Lost connection to D-Bus: {}", err);
     });
 
-    // Let's request a name on the bus, so that clients can find us.
-    conn.request_name("org.chromium.bluetooth.Manager", false, true, false).await?;
-    log::debug!("D-Bus name: {}", conn.unique_name());
-
     // Create a new crossroads instance.
     // The instance is configured so that introspection and properties interfaces
     // are added by default on object path additions.
@@ -105,13 +104,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // InterfaceAdded and InterfaceRemoved signals.
     cr.lock().unwrap().set_object_manager_support(Some(conn.clone()));
     let om = cr.lock().unwrap().object_manager();
-    cr.lock().unwrap().insert("/", &[om], {});
+    cr.lock().unwrap().insert("/", &[om], ());
 
     let bluetooth_manager = Arc::new(Mutex::new(Box::new(BluetoothManager::new(proxy))));
 
     // Set up the disconnect watcher to monitor client disconnects.
-    let disconnect_watcher = Arc::new(Mutex::new(DisconnectWatcher::new()));
-    disconnect_watcher.lock().unwrap().setup_watch(conn.clone()).await;
+    let mut disconnect_watcher = DisconnectWatcher::new();
+    disconnect_watcher.setup_watch(conn.clone()).await;
+    let disconnect_watcher = Arc::new(Mutex::new(disconnect_watcher));
 
     // We add the Crossroads instance to the connection so that incoming method calls will be
     // handled.
@@ -149,6 +149,9 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     cr.lock().unwrap().insert("/org/chromium/bluetooth/Manager", &[iface, iface_exp], mixin);
+    // Let's request a name on the bus, so that clients can find us.
+    conn.request_name("org.chromium.bluetooth.Manager", false, true, false).await?;
+    log::debug!("D-Bus name: {}", conn.unique_name());
 
     let mut powerd_suspend_manager = PowerdSuspendManager::new(conn.clone(), cr);
 

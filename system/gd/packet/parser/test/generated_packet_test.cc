@@ -15,6 +15,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <forward_list>
 #include <memory>
 
@@ -34,27 +35,31 @@ using std::vector;
 
 namespace {
 vector<uint8_t> child_two_two_three = {
-    0x20 /* Reserved : 4, FourBits::TWO */,
-    0x03 /* FourBits::THREE, Reserved : 4 */,
+        0x20 /* Reserved : 4, FourBits::TWO */,
+        0x03 /* FourBits::THREE, Reserved : 4 */,
 };
 vector<uint8_t> child = {
-    0x12 /* fixed */, 0x02 /* Size of the payload */, 0xa1 /* First byte of the payload */, 0xa2, 0xb1 /* footer */,
+        0x12 /* fixed */,
+        0x02 /* Size of the payload */,
+        0xa1 /* First byte of the payload */,
+        0xa2,
+        0xb1 /* footer */,
 };
 vector<uint8_t> child_with_six_bytes = {
-    0x34 /* TwoBytes */,
-    0x12,
-    0xa1 /* First byte of the six_bytes */,
-    0xa2,
-    0xa3,
-    0xa4,
-    0xa5,
-    0xa6,
-    0xb1 /* Second six_bytes*/,
-    0xb2,
-    0xb3,
-    0xb4,
-    0xb5,
-    0xb6,
+        0x34 /* TwoBytes */,
+        0x12,
+        0xa1 /* First byte of the six_bytes */,
+        0xa2,
+        0xa3,
+        0xa4,
+        0xa5,
+        0xa6,
+        0xb1 /* Second six_bytes*/,
+        0xb2,
+        0xb3,
+        0xb4,
+        0xb5,
+        0xb6,
 };
 
 }  // namespace
@@ -128,33 +133,38 @@ TEST(GeneratedPacketTest, testChild) {
 
 TEST(GeneratedPacketTest, testValidateWayTooSmall) {
   std::vector<uint8_t> too_small_bytes = {0x34};
-  auto too_small = std::make_shared<std::vector<uint8_t>>(too_small_bytes.begin(), too_small_bytes.end());
+  auto too_small =
+          std::make_shared<std::vector<uint8_t>>(too_small_bytes.begin(), too_small_bytes.end());
 
-  ParentWithSixBytesView invalid_parent = ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small));
+  ParentWithSixBytesView invalid_parent =
+          ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small));
   ASSERT_FALSE(invalid_parent.IsValid());
-  ChildWithSixBytesView invalid =
-      ChildWithSixBytesView::Create(ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small)));
+  ChildWithSixBytesView invalid = ChildWithSixBytesView::Create(
+          ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small)));
   ASSERT_FALSE(invalid.IsValid());
 }
 
 TEST(GeneratedPacketTest, testValidateTooSmall) {
   std::vector<uint8_t> too_small_bytes = {0x34, 0x12, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x11};
-  auto too_small = std::make_shared<std::vector<uint8_t>>(too_small_bytes.begin(), too_small_bytes.end());
+  auto too_small =
+          std::make_shared<std::vector<uint8_t>>(too_small_bytes.begin(), too_small_bytes.end());
 
-  ParentWithSixBytesView valid_parent = ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small));
+  ParentWithSixBytesView valid_parent =
+          ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small));
   ASSERT_TRUE(valid_parent.IsValid());
-  ChildWithSixBytesView invalid =
-      ChildWithSixBytesView::Create(ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small)));
+  ChildWithSixBytesView invalid = ChildWithSixBytesView::Create(
+          ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_small)));
   ASSERT_FALSE(invalid.IsValid());
 }
 
 TEST(GeneratedPacketTest, testValidateJustRight) {
   std::vector<uint8_t> just_right_bytes = {0x34, 0x12, 0x01, 0x02, 0x03, 0x04, 0x05,
                                            0x06, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16};
-  auto just_right = std::make_shared<std::vector<uint8_t>>(just_right_bytes.begin(), just_right_bytes.end());
+  auto just_right =
+          std::make_shared<std::vector<uint8_t>>(just_right_bytes.begin(), just_right_bytes.end());
 
-  ChildWithSixBytesView valid =
-      ChildWithSixBytesView::Create(ParentWithSixBytesView::Create(PacketView<kLittleEndian>(just_right)));
+  ChildWithSixBytesView valid = ChildWithSixBytesView::Create(
+          ParentWithSixBytesView::Create(PacketView<kLittleEndian>(just_right)));
   ASSERT_TRUE(valid.IsValid());
 }
 
@@ -163,8 +173,8 @@ TEST(GeneratedPacketTest, testValidateTooBig) {
                                         0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x20};
   auto too_big = std::make_shared<std::vector<uint8_t>>(too_big_bytes.begin(), too_big_bytes.end());
 
-  ChildWithSixBytesView lenient =
-      ChildWithSixBytesView::Create(ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_big)));
+  ChildWithSixBytesView lenient = ChildWithSixBytesView::Create(
+          ParentWithSixBytesView::Create(PacketView<kLittleEndian>(too_big)));
   ASSERT_TRUE(lenient.IsValid());
 }
 
@@ -218,8 +228,8 @@ TEST(GeneratedPacketTest, testValidatedParentDeath) {
 }
 
 vector<uint8_t> middle_four_bits = {
-    0x95,  // low_two = ONE, next_four = FIVE, straddle = TEN
-    0x8a,  // straddle = TEN, four_more = TWO, high_two = TWO
+        0x95,  // low_two = ONE, next_four = FIVE, straddle = TEN
+        0x8a,  // straddle = TEN, four_more = TWO, high_two = TWO
 };
 
 TEST(GeneratedPacketTest, testMiddleFourBitsPacket) {
@@ -283,7 +293,12 @@ TEST(GeneratedPacketTest, testChildWithSixBytes) {
 
 namespace {
 vector<uint8_t> parent_with_sum = {
-    0x11 /* TwoBytes */, 0x12, 0x21 /* Sum Bytes */, 0x22, 0x43 /* Sum, excluding TwoBytes */, 0x00,
+        0x11 /* TwoBytes */,
+        0x12,
+        0x21 /* Sum Bytes */,
+        0x22,
+        0x43 /* Sum, excluding TwoBytes */,
+        0x00,
 };
 
 }  // namespace
@@ -291,7 +306,8 @@ vector<uint8_t> parent_with_sum = {
 TEST(GeneratedPacketTest, testParentWithSum) {
   uint16_t two_bytes = 0x1211;
   uint16_t sum_bytes = 0x2221;
-  auto packet = ParentWithSumBuilder::Create(two_bytes, sum_bytes, std::make_unique<packet::RawBuilder>());
+  auto packet = ParentWithSumBuilder::Create(two_bytes, sum_bytes,
+                                             std::make_unique<packet::RawBuilder>());
 
   ASSERT_EQ(parent_with_sum.size(), packet->size());
 
@@ -318,18 +334,18 @@ TEST(GeneratedPacketTest, testParentWithSum) {
 
 namespace {
 vector<uint8_t> child_with_nested_sum = {
-    0x11 /* TwoBytes */,
-    0x12,
-    0x21 /* Sum Bytes */,
-    0x22,
-    0x31 /* More Bytes */,
-    0x32,
-    0x33,
-    0x34,
-    0xca /* Nested Sum */,
-    0x00,
-    0xd7 /* Sum, excluding TwoBytes */,
-    0x01,
+        0x11 /* TwoBytes */,
+        0x12,
+        0x21 /* Sum Bytes */,
+        0x22,
+        0x31 /* More Bytes */,
+        0x32,
+        0x33,
+        0x34,
+        0xca /* Nested Sum */,
+        0x00,
+        0xd7 /* Sum, excluding TwoBytes */,
+        0x01,
 };
 
 }  // namespace
@@ -374,9 +390,9 @@ TEST(GeneratedPacketTest, testSizedWithSumBadSize) {
 
 namespace {
 vector<uint8_t> parent_size_modifier = {
-    0x02 /* Size */,
-    0x11 /* TwoBytes */,
-    0x12,
+        0x02 /* Size */,
+        0x11 /* TwoBytes */,
+        0x12,
 };
 
 }  // namespace
@@ -404,13 +420,13 @@ TEST(GeneratedPacketTest, testParentSizeModifier) {
 
 namespace {
 vector<uint8_t> child_size_modifier = {
-    0x06 /* PayloadSize (TwoBytes + MoreBytes)*/,
-    0x31 /* MoreBytes */,
-    0x32,
-    0x33,
-    0x34,
-    0x11 /* TwoBytes = 0x1211 */,
-    0x12,
+        0x06 /* PayloadSize (TwoBytes + MoreBytes)*/,
+        0x31 /* MoreBytes */,
+        0x32,
+        0x33,
+        0x34,
+        0x11 /* TwoBytes = 0x1211 */,
+        0x12,
 };
 
 }  // namespace
@@ -444,22 +460,22 @@ TEST(GeneratedPacketTest, testChildSizeModifier) {
 
 namespace {
 vector<uint8_t> fixed_array_enum{
-    0x01,  // ONE
-    0x00,
-    0x02,  // TWO
-    0x00,
-    0x01,  // ONE_TWO
-    0x02,
-    0x02,  // TWO_THREE
-    0x03,
-    0xff,  // FFFF
-    0xff,
+        0x01,  // ONE
+        0x00,
+        0x02,  // TWO
+        0x00,
+        0x01,  // ONE_TWO
+        0x02,
+        0x02,  // TWO_THREE
+        0x03,
+        0xff,  // FFFF
+        0xff,
 };
 }
 
 TEST(GeneratedPacketTest, testFixedArrayEnum) {
-  std::array<ForArrays, 5> fixed_array{
-      {ForArrays::ONE, ForArrays::TWO, ForArrays::ONE_TWO, ForArrays::TWO_THREE, ForArrays::FFFF}};
+  std::array<ForArrays, 5> fixed_array{{ForArrays::ONE, ForArrays::TWO, ForArrays::ONE_TWO,
+                                        ForArrays::TWO_THREE, ForArrays::FFFF}};
   auto packet = FixedArrayEnumBuilder::Create(fixed_array);
   ASSERT_EQ(fixed_array_enum.size(), packet->size());
 
@@ -488,24 +504,24 @@ TEST(GeneratedPacketTest, testFixedArrayEnum) {
 
 namespace {
 vector<uint8_t> sized_array_enum{
-    0x0a,  // _size_
-    0x00,
-    0x01,  // ONE
-    0x00,
-    0x02,  // TWO
-    0x00,
-    0x01,  // ONE_TWO
-    0x02,
-    0x02,  // TWO_THREE
-    0x03,
-    0xff,  // FFFF
-    0xff,
+        0x0a,  // _size_
+        0x00,
+        0x01,  // ONE
+        0x00,
+        0x02,  // TWO
+        0x00,
+        0x01,  // ONE_TWO
+        0x02,
+        0x02,  // TWO_THREE
+        0x03,
+        0xff,  // FFFF
+        0xff,
 };
 }
 
 TEST(GeneratedPacketTest, testSizedArrayEnum) {
-  std::vector<ForArrays> sized_array{
-      {ForArrays::ONE, ForArrays::TWO, ForArrays::ONE_TWO, ForArrays::TWO_THREE, ForArrays::FFFF}};
+  std::vector<ForArrays> sized_array{{ForArrays::ONE, ForArrays::TWO, ForArrays::ONE_TWO,
+                                      ForArrays::TWO_THREE, ForArrays::FFFF}};
   auto packet = SizedArrayEnumBuilder::Create(sized_array);
   ASSERT_EQ(sized_array_enum.size(), packet->size());
 
@@ -534,13 +550,13 @@ TEST(GeneratedPacketTest, testSizedArrayEnum) {
 
 namespace {
 vector<uint8_t> count_array_enum{
-    0x03,  // _count_
-    0x01,  // ONE
-    0x00,
-    0x02,  // TWO_THREE
-    0x03,
-    0xff,  // FFFF
-    0xff,
+        0x03,  // _count_
+        0x01,  // ONE
+        0x00,
+        0x02,  // TWO_THREE
+        0x03,
+        0xff,  // FFFF
+        0xff,
 };
 }
 
@@ -571,11 +587,15 @@ TEST(GeneratedPacketTest, testCountArrayEnum) {
 TEST(GeneratedPacketTest, testFixedSizeByteArray) {
   constexpr std::size_t byte_array_size = 32;
   std::array<uint8_t, byte_array_size> byte_array;
-  for (uint8_t i = 0; i < byte_array_size; i++) byte_array[i] = i;
+  for (uint8_t i = 0; i < byte_array_size; i++) {
+    byte_array[i] = i;
+  }
 
   constexpr int word_array_size = 8;
   std::array<uint32_t, word_array_size> word_array;
-  for (uint32_t i = 0; i < word_array_size; i++) word_array[i] = i;
+  for (uint32_t i = 0; i < word_array_size; i++) {
+    word_array[i] = i;
+  }
 
   auto packet = PacketWithFixedArraysOfBytesBuilder::Create(byte_array, word_array);
   ASSERT_EQ((size_t)(2 * (256 / 8)), packet->size());
@@ -607,7 +627,7 @@ TEST(GeneratedPacketTest, testFixedSizeByteArray) {
 }
 
 vector<uint8_t> one_variable{
-    0x03, 'o', 'n', 'e',  // "one"
+        0x03, 'o', 'n', 'e',  // "one"
 };
 
 TEST(GeneratedPacketTest, testOneVariableField) {
@@ -633,11 +653,12 @@ TEST(GeneratedPacketTest, testOneVariableField) {
 }
 
 vector<uint8_t> fou_variable{
-    0x04, 'f', 'o', 'u',  // too short
+        0x04, 'f', 'o', 'u',  // too short
 };
 
 TEST(GeneratedPacketTest, testOneVariableFieldTooShort) {
-  std::shared_ptr<std::vector<uint8_t>> packet_bytes = std::make_shared<std::vector<uint8_t>>(fou_variable);
+  std::shared_ptr<std::vector<uint8_t>> packet_bytes =
+          std::make_shared<std::vector<uint8_t>>(fou_variable);
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = OneVariableView::Create(packet_bytes_view);
   ASSERT_TRUE(view.IsValid());
@@ -646,10 +667,10 @@ TEST(GeneratedPacketTest, testOneVariableFieldTooShort) {
 }
 
 vector<uint8_t> sized_array_variable{
-    0x0e,                           // _size_
-    0x03, 'o', 'n', 'e',            // "one"
-    0x03, 't', 'w', 'o',            // "two"
-    0x05, 't', 'h', 'r', 'e', 'e',  // "three"
+        0x0e,                           // _size_
+        0x03, 'o', 'n', 'e',            // "one"
+        0x03, 't', 'w', 'o',            // "two"
+        0x05, 't', 'h', 'r', 'e', 'e',  // "three"
 };
 
 TEST(GeneratedPacketTest, testSizedArrayVariableLength) {
@@ -681,10 +702,10 @@ TEST(GeneratedPacketTest, testSizedArrayVariableLength) {
 }
 
 vector<uint8_t> sized_array_variable_too_short{
-    0x0e,                           // _size_
-    0x03, 'o', 'n', 'e',            // "one"
-    0x03, 't', 'w', 'o',            // "two"
-    0x06, 't', 'h', 'r', 'e', 'e',  // "three" needs another letter to be length 6
+        0x0e,                           // _size_
+        0x03, 'o', 'n', 'e',            // "one"
+        0x03, 't', 'w', 'o',            // "two"
+        0x06, 't', 'h', 'r', 'e', 'e',  // "three" needs another letter to be length 6
 };
 
 TEST(GeneratedPacketTest, testSizedArrayVariableLengthLastBad) {
@@ -693,7 +714,7 @@ TEST(GeneratedPacketTest, testSizedArrayVariableLengthLastBad) {
   sized_array.emplace_back("two");
 
   std::shared_ptr<std::vector<uint8_t>> packet_bytes =
-      std::make_shared<std::vector<uint8_t>>(sized_array_variable_too_short);
+          std::make_shared<std::vector<uint8_t>>(sized_array_variable_too_short);
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = SizedArrayVariableView::Create(packet_bytes_view);
@@ -706,10 +727,10 @@ TEST(GeneratedPacketTest, testSizedArrayVariableLengthLastBad) {
 }
 
 vector<uint8_t> sized_array_variable_first_too_short{
-    0x0e,                           // _size_
-    0x02, 'o', 'n', 'e',            // "on"
-    0x03, 't', 'w', 'o',            // "two"
-    0x05, 't', 'h', 'r', 'e', 'e',  // "three"
+        0x0e,                           // _size_
+        0x02, 'o', 'n', 'e',            // "on"
+        0x03, 't', 'w', 'o',            // "two"
+        0x05, 't', 'h', 'r', 'e', 'e',  // "three"
 };
 
 TEST(GeneratedPacketTest, testSizedArrayVariableLengthFirstBad) {
@@ -717,7 +738,7 @@ TEST(GeneratedPacketTest, testSizedArrayVariableLengthFirstBad) {
   sized_array.emplace_back("on");
 
   std::shared_ptr<std::vector<uint8_t>> packet_bytes =
-      std::make_shared<std::vector<uint8_t>>(sized_array_variable_first_too_short);
+          std::make_shared<std::vector<uint8_t>>(sized_array_variable_first_too_short);
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = SizedArrayVariableView::Create(packet_bytes_view);
@@ -730,16 +751,16 @@ TEST(GeneratedPacketTest, testSizedArrayVariableLengthFirstBad) {
 }
 
 vector<uint8_t> fixed_array_variable{
-    0x03, 'o', 'n', 'e',            // "one"
-    0x03, 't', 'w', 'o',            // "two"
-    0x05, 't', 'h', 'r', 'e', 'e',  // "three"
-    0x04, 'f', 'o', 'u', 'r',       // "four"
-    0x04, 'f', 'i', 'v', 'e',       // "five"
+        0x03, 'o', 'n', 'e',            // "one"
+        0x03, 't', 'w', 'o',            // "two"
+        0x05, 't', 'h', 'r', 'e', 'e',  // "three"
+        0x04, 'f', 'o', 'u', 'r',       // "four"
+        0x04, 'f', 'i', 'v', 'e',       // "five"
 };
 
 TEST(GeneratedPacketTest, testFixedArrayVariableLength) {
-  std::array<Variable, 5> fixed_array{std::string("one"), std::string("two"), std::string("three"), std::string("four"),
-                                      std::string("five")};
+  std::array<Variable, 5> fixed_array{std::string("one"), std::string("two"), std::string("three"),
+                                      std::string("four"), std::string("five")};
 
   auto packet = FixedArrayVariableBuilder::Create(fixed_array);
   ASSERT_EQ(fixed_array_variable.size(), packet->size());
@@ -764,11 +785,11 @@ TEST(GeneratedPacketTest, testFixedArrayVariableLength) {
 }
 
 vector<uint8_t> fixed_array_variable_too_short{
-    0x03, 'o', 'n', 'e',            // "one"
-    0x03, 't', 'w', 'o',            // "two"
-    0x05, 't', 'h', 'r', 'e', 'e',  // "three"
-    0x04, 'f', 'o', 'u', 'r',       // "four"
-    0x05, 'f', 'i', 'v', 'e',       // "five"
+        0x03, 'o', 'n', 'e',            // "one"
+        0x03, 't', 'w', 'o',            // "two"
+        0x05, 't', 'h', 'r', 'e', 'e',  // "three"
+        0x04, 'f', 'o', 'u', 'r',       // "four"
+        0x05, 'f', 'i', 'v', 'e',       // "five"
 };
 
 TEST(GeneratedPacketTest, testFixedArrayVariableLengthTooShort) {
@@ -776,7 +797,7 @@ TEST(GeneratedPacketTest, testFixedArrayVariableLengthTooShort) {
                                       std::string("four")};
 
   std::shared_ptr<std::vector<uint8_t>> packet_bytes =
-      std::make_shared<std::vector<uint8_t>>(fixed_array_variable_too_short);
+          std::make_shared<std::vector<uint8_t>>(fixed_array_variable_too_short);
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = FixedArrayVariableView::Create(packet_bytes_view);
@@ -789,11 +810,11 @@ TEST(GeneratedPacketTest, testFixedArrayVariableLengthTooShort) {
 }
 
 vector<uint8_t> count_array_variable{
-    0x04,                           // _count_
-    0x03, 'o', 'n', 'e',            // "one"
-    0x03, 't', 'w', 'o',            // "two"
-    0x05, 't', 'h', 'r', 'e', 'e',  // "three"
-    0x04, 'f', 'o', 'u', 'r',       // "four"
+        0x04,                           // _count_
+        0x03, 'o', 'n', 'e',            // "one"
+        0x03, 't', 'w', 'o',            // "two"
+        0x05, 't', 'h', 'r', 'e', 'e',  // "three"
+        0x04, 'f', 'o', 'u', 'r',       // "four"
 };
 
 TEST(GeneratedPacketTest, testCountArrayVariableLength) {
@@ -826,12 +847,12 @@ TEST(GeneratedPacketTest, testCountArrayVariableLength) {
 }
 
 vector<uint8_t> count_array_variable_extra{
-    0x04,                           // _count_
-    0x03, 'o', 'n', 'e',            // "one"
-    0x03, 't', 'w', 'o',            // "two"
-    0x05, 't', 'h', 'r', 'e', 'e',  // "three"
-    0x04, 'f', 'o', 'u', 'r',       // "four"
-    0x04, 'x', 't', 'r', 'a',       // "xtra"
+        0x04,                           // _count_
+        0x03, 'o', 'n', 'e',            // "one"
+        0x03, 't', 'w', 'o',            // "two"
+        0x05, 't', 'h', 'r', 'e', 'e',  // "three"
+        0x04, 'f', 'o', 'u', 'r',       // "four"
+        0x04, 'x', 't', 'r', 'a',       // "xtra"
 };
 
 TEST(GeneratedPacketTest, testCountArrayVariableLengthExtraData) {
@@ -842,7 +863,7 @@ TEST(GeneratedPacketTest, testCountArrayVariableLengthExtraData) {
   count_array.emplace_back("four");
 
   std::shared_ptr<std::vector<uint8_t>> packet_bytes =
-      std::make_shared<std::vector<uint8_t>>(count_array_variable_extra);
+          std::make_shared<std::vector<uint8_t>>(count_array_variable_extra);
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = CountArrayVariableView::Create(packet_bytes_view);
@@ -855,10 +876,10 @@ TEST(GeneratedPacketTest, testCountArrayVariableLengthExtraData) {
 }
 
 vector<uint8_t> count_array_variable_too_few{
-    0x04,                           // _count_
-    0x03, 'o', 'n', 'e',            // "one"
-    0x03, 't', 'w', 'o',            // "two"
-    0x05, 't', 'h', 'r', 'e', 'e',  // "three"
+        0x04,                           // _count_
+        0x03, 'o', 'n', 'e',            // "one"
+        0x03, 't', 'w', 'o',            // "two"
+        0x05, 't', 'h', 'r', 'e', 'e',  // "three"
 };
 
 TEST(GeneratedPacketTest, testCountArrayVariableLengthMissingData) {
@@ -868,7 +889,7 @@ TEST(GeneratedPacketTest, testCountArrayVariableLengthMissingData) {
   count_array.emplace_back("three");
 
   std::shared_ptr<std::vector<uint8_t>> packet_bytes =
-      std::make_shared<std::vector<uint8_t>>(count_array_variable_too_few);
+          std::make_shared<std::vector<uint8_t>>(count_array_variable_too_few);
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = CountArrayVariableView::Create(packet_bytes_view);
@@ -881,7 +902,7 @@ TEST(GeneratedPacketTest, testCountArrayVariableLengthMissingData) {
 }
 
 vector<uint8_t> one_struct{
-    0x01, 0x02, 0x03,  // id = 0x01, count = 0x0302
+        0x01, 0x02, 0x03,  // id = 0x01, count = 0x0302
 };
 
 TEST(GeneratedPacketTest, testOneStruct) {
@@ -914,8 +935,8 @@ TEST(GeneratedPacketTest, testOneStruct) {
 }
 
 vector<uint8_t> two_structs{
-    0x01, 0x01, 0x02,  // id, id * 0x0201
-    0x02, 0x02, 0x04,
+        0x01, 0x01, 0x02,  // id, id * 0x0201
+        0x02, 0x02, 0x04,
 };
 
 TEST(GeneratedPacketTest, testTwoStructs) {
@@ -951,9 +972,9 @@ TEST(GeneratedPacketTest, testTwoStructs) {
 }
 
 vector<uint8_t> array_or_vector_of_struct{
-    0x04,              // _count_
-    0x01, 0x01, 0x02,  // id, id * 0x0201
-    0x02, 0x02, 0x04, 0x03, 0x03, 0x06, 0x04, 0x04, 0x08,
+        0x04,              // _count_
+        0x01, 0x01, 0x02,  // id, id * 0x0201
+        0x02, 0x02, 0x04, 0x03, 0x03, 0x06, 0x04, 0x04, 0x08,
 };
 
 TEST(GeneratedPacketTest, testVectorOfStruct) {
@@ -1035,12 +1056,12 @@ TEST(GeneratedPacketTest, testArrayOfStruct) {
 }
 
 vector<uint8_t> one_fixed_types_struct{
-    0x05,                                // four_bits = FIVE, reserved
-    0xf3,                                // _fixed_
-    0x0d,                                // id = 0x0d
-    0x01, 0x02, 0x03,                    // array = { 1, 2, 3}
-    0x06, 0x01,                          // example_checksum
-    0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6,  // six_bytes
+        0x05,                                // four_bits = FIVE, reserved
+        0xf3,                                // _fixed_
+        0x0d,                                // id = 0x0d
+        0x01, 0x02, 0x03,                    // array = { 1, 2, 3}
+        0x06, 0x01,                          // example_checksum
+        0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6,  // six_bytes
 };
 
 TEST(GeneratedPacketTest, testOneFixedTypesStruct) {
@@ -1073,11 +1094,11 @@ TEST(GeneratedPacketTest, testOneFixedTypesStruct) {
 }
 
 vector<uint8_t> array_of_struct_and_another{
-    0x03,              // _count_
-    0x01, 0x01, 0x02,  // id, id * 0x0201
-    0x02, 0x02, 0x04,  // 2
-    0x03, 0x03, 0x06,  // 3
-    0x04, 0x04, 0x08,  // Another
+        0x03,              // _count_
+        0x01, 0x01, 0x02,  // id, id * 0x0201
+        0x02, 0x02, 0x04,  // 2
+        0x03, 0x03, 0x06,  // 3
+        0x04, 0x04, 0x08,  // Another
 };
 
 TEST(GeneratedPacketTest, testArrayOfStructAndAnother) {
@@ -1122,7 +1143,7 @@ DEFINE_AND_INSTANTIATE_OneArrayOfStructAndAnotherStructReflectionTest(array_of_s
 
 TEST(GeneratedPacketTest, testOneArrayOfStructAndAnotherStruct) {
   std::shared_ptr<std::vector<uint8_t>> packet_bytes =
-      std::make_shared<std::vector<uint8_t>>(array_of_struct_and_another);
+          std::make_shared<std::vector<uint8_t>>(array_of_struct_and_another);
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = OneArrayOfStructAndAnotherStructView::Create(packet_bytes_view);
@@ -1134,19 +1155,20 @@ TEST(GeneratedPacketTest, testOneArrayOfStructAndAnotherStruct) {
 }
 
 vector<uint8_t> sized_array_of_struct_and_another{
-    0x09,              // _size_
-    0x01, 0x01, 0x02,  // id, id * 0x0201
-    0x02, 0x02, 0x04,  // 2
-    0x03, 0x03, 0x06,  // 3
-    0x04, 0x04, 0x08,  // Another
+        0x09,              // _size_
+        0x01, 0x01, 0x02,  // id, id * 0x0201
+        0x02, 0x02, 0x04,  // 2
+        0x03, 0x03, 0x06,  // 3
+        0x04, 0x04, 0x08,  // Another
 };
 
-DEFINE_AND_INSTANTIATE_OneSizedArrayOfStructAndAnotherStructReflectionTest(sized_array_of_struct_and_another);
+DEFINE_AND_INSTANTIATE_OneSizedArrayOfStructAndAnotherStructReflectionTest(
+        sized_array_of_struct_and_another);
 
 vector<uint8_t> bit_field_group_packet{
-    // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
-    0xf7,  // 0x77 | (0x5 & 0x1) << 7
-    0xaa,  //  0x15 << 3 | (0x5 >> 1)
+        // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
+        0xf7,  // 0x77 | (0x5 & 0x1) << 7
+        0xaa,  //  0x15 << 3 | (0x5 >> 1)
 };
 
 TEST(GeneratedPacketTest, testBitFieldGroupPacket) {
@@ -1175,9 +1197,9 @@ TEST(GeneratedPacketTest, testBitFieldGroupPacket) {
 }
 
 vector<uint8_t> bit_field_packet{
-    // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
-    0xf7,  // 0x77 | (0x5 & 0x1) << 7
-    0xaa,  //  0x15 << 3 | (0x5 >> 1)
+        // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
+        0xf7,  // 0x77 | (0x5 & 0x1) << 7
+        0xaa,  //  0x15 << 3 | (0x5 >> 1)
 };
 
 TEST(GeneratedPacketTest, testBitFieldPacket) {
@@ -1208,10 +1230,10 @@ TEST(GeneratedPacketTest, testBitFieldPacket) {
 }
 
 vector<uint8_t> bit_field_group_after_unsized_array_packet{
-    0x01, 0x02, 0x03, 0x04,  // byte array
-    // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
-    0xf7,  // 0x77 | (0x5 & 0x1) << 7
-    0xaa,  //  0x15 << 3 | (0x5 >> 1)
+        0x01, 0x02, 0x03, 0x04,  // byte array
+        // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
+        0xf7,  // 0x77 | (0x5 & 0x1) << 7
+        0xaa,  //  0x15 << 3 | (0x5 >> 1)
 };
 
 TEST(GeneratedPacketTest, testBitFieldGroupAfterUnsizedArrayPacket) {
@@ -1223,7 +1245,8 @@ TEST(GeneratedPacketTest, testBitFieldGroupAfterUnsizedArrayPacket) {
   uint8_t straddle = 0x5;
   uint8_t five_bits = 0x15;
 
-  auto packet = BitFieldGroupAfterUnsizedArrayPacketBuilder::Create(count_array, seven_bits, straddle, five_bits);
+  auto packet = BitFieldGroupAfterUnsizedArrayPacketBuilder::Create(count_array, seven_bits,
+                                                                    straddle, five_bits);
   ASSERT_EQ(bit_field_group_after_unsized_array_packet.size(), packet->size());
 
   std::shared_ptr<std::vector<uint8_t>> packet_bytes = std::make_shared<std::vector<uint8_t>>();
@@ -1255,10 +1278,10 @@ TEST(GeneratedPacketTest, testBitFieldGroupAfterUnsizedArrayPacket) {
 }
 
 vector<uint8_t> bit_field_after_unsized_array_packet{
-    0x01, 0x02, 0x03, 0x04,  // byte array
-    // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
-    0xf7,  // 0x77 | (0x5 & 0x1) << 7
-    0xaa,  //  0x15 << 3 | (0x5 >> 1)
+        0x01, 0x02, 0x03, 0x04,  // byte array
+        // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
+        0xf7,  // 0x77 | (0x5 & 0x1) << 7
+        0xaa,  //  0x15 << 3 | (0x5 >> 1)
 };
 
 TEST(GeneratedPacketTest, testBitFieldAfterUnsizedArrayPacket) {
@@ -1305,18 +1328,18 @@ TEST(GeneratedPacketTest, testBitFieldAfterUnsizedArrayPacket) {
 }
 
 vector<uint8_t> bit_field_array_packet{
-    0x06,  // _size_(array)
-    // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
-    0xf7,  // 0x77 | (0x5 & 0x1) << 7
-    0xaa,  //  0x15 << 3 | (0x5 >> 1)
+        0x06,  // _size_(array)
+        // seven_bits_ = 0x77, straddle_ = 0x5, five_bits_ = 0x15
+        0xf7,  // 0x77 | (0x5 & 0x1) << 7
+        0xaa,  //  0x15 << 3 | (0x5 >> 1)
 
-    // seven_bits_ = 0x78, straddle_ = 0x6, five_bits_ = 0x16
-    0x78,  // 0x78 | (0x6 & 0x1) << 7
-    0xb3,  //  0x16 << 3 | (0x6 >> 1)
+        // seven_bits_ = 0x78, straddle_ = 0x6, five_bits_ = 0x16
+        0x78,  // 0x78 | (0x6 & 0x1) << 7
+        0xb3,  //  0x16 << 3 | (0x6 >> 1)
 
-    // seven_bits_ = 0x79, straddle_ = 0x7, five_bits_ = 0x17
-    0xf9,  // 0x79 | (0x7 & 0x1) << 7
-    0xbb,  //  0x17 << 3 | (0x7 >> 1)
+        // seven_bits_ = 0x79, straddle_ = 0x7, five_bits_ = 0x17
+        0xf9,  // 0x79 | (0x7 & 0x1) << 7
+        0xbb,  //  0x17 << 3 | (0x7 >> 1)
 };
 
 TEST(GeneratedPacketTest, testBitFieldArrayPacket) {
@@ -1354,7 +1377,8 @@ TEST(GeneratedPacketTest, testBitFieldArrayPacket) {
 }
 
 TEST(GeneratedPacketTest, testNewBitFieldArrayPacket) {
-  PacketView<kLittleEndian> packet_bytes_view(std::make_shared<std::vector<uint8_t>>(bit_field_array_packet));
+  PacketView<kLittleEndian> packet_bytes_view(
+          std::make_shared<std::vector<uint8_t>>(bit_field_array_packet));
   auto view = BitFieldArrayPacketView::Create(packet_bytes_view);
   ASSERT_TRUE(view.IsValid());
 
@@ -1372,9 +1396,11 @@ std::vector<uint8_t> child_two_two_two_ = {0x20, 0x02};
 std::vector<uint8_t> child_two_two_three_ = {0x20, 0x03};
 std::vector<uint8_t> child_two_two_four_ = {0x20, 0x04};
 
-DEFINE_AND_INSTANTIATE_ParentTwoReflectionTest(child_two_two_two_, child_two_two_three_, child_two_two_four_);
+DEFINE_AND_INSTANTIATE_ParentTwoReflectionTest(child_two_two_two_, child_two_two_three_,
+                                               child_two_two_four_);
 
-DEFINE_AND_INSTANTIATE_ChildTwoTwoReflectionTest(child_two_two_two_, child_two_two_three_, child_two_two_four_);
+DEFINE_AND_INSTANTIATE_ChildTwoTwoReflectionTest(child_two_two_two_, child_two_two_three_,
+                                                 child_two_two_four_);
 
 DEFINE_AND_INSTANTIATE_ChildTwoTwoThreeReflectionTest(child_two_two_three_);
 
@@ -1393,7 +1419,7 @@ DEFINE_AND_INSTANTIATE_OneVersionOneStructPacketReflectionTest(one_version_one_s
 DEFINE_AND_INSTANTIATE_OneVersionTwoStructPacketReflectionTest(one_version_two_struct_packet);
 
 vector<uint8_t> one_struct_be{
-    0x01, 0x02, 0x03,  // id = 0x01, count = 0x0203
+        0x01, 0x02, 0x03,  // id = 0x01, count = 0x0203
 };
 
 TEST(GeneratedPacketTest, testOneStructBe) {
@@ -1422,8 +1448,8 @@ TEST(GeneratedPacketTest, testOneStructBe) {
 }
 
 vector<uint8_t> two_structs_be{
-    0x01, 0x01, 0x02,  // id, id * 0x0102
-    0x02, 0x02, 0x04,
+        0x01, 0x01, 0x02,  // id, id * 0x0102
+        0x02, 0x02, 0x04,
 };
 
 TEST(GeneratedPacketTest, testTwoStructsBe) {
@@ -1459,9 +1485,9 @@ TEST(GeneratedPacketTest, testTwoStructsBe) {
 }
 
 vector<uint8_t> array_of_struct_be{
-    0x04,              // _count_
-    0x01, 0x01, 0x02,  // id, id * 0x0102
-    0x02, 0x02, 0x04, 0x03, 0x03, 0x06, 0x04, 0x04, 0x08,
+        0x04,              // _count_
+        0x01, 0x01, 0x02,  // id, id * 0x0102
+        0x02, 0x02, 0x04, 0x03, 0x03, 0x06, 0x04, 0x04, 0x08,
 };
 
 TEST(GeneratedPacketTest, testArrayOfStructBe) {
@@ -1498,8 +1524,8 @@ TEST(GeneratedPacketTest, testArrayOfStructBe) {
 }
 
 vector<uint8_t> one_four_byte_struct{
-    0x04,                    // struct_type_ = FourByte
-    0xd1, 0xd2, 0xd3, 0xd4,  // four_bytes_
+        0x04,                    // struct_type_ = FourByte
+        0xd1, 0xd2, 0xd3, 0xd4,  // four_bytes_
 };
 
 TEST(GeneratedPacketTest, testOneFourByteStruct) {
@@ -1525,13 +1551,14 @@ TEST(GeneratedPacketTest, testOneFourByteStruct) {
 }
 
 vector<uint8_t> generic_struct_two{
-    0x02,        // struct_type_ = TwoByte
-    0x01, 0x02,  // two_bytes_
+        0x02,        // struct_type_ = TwoByte
+        0x01, 0x02,  // two_bytes_
 };
 
 TEST(GeneratedPacketTest, testOneGenericStructTwo) {
   TwoByteStruct two_byte_struct(0x0201);
-  std::unique_ptr<TwoByteStruct> two_byte_struct_ptr = std::make_unique<TwoByteStruct>(two_byte_struct);
+  std::unique_ptr<TwoByteStruct> two_byte_struct_ptr =
+          std::make_unique<TwoByteStruct>(two_byte_struct);
 
   auto packet = OneGenericStructBuilder::Create(std::move(two_byte_struct_ptr));
   ASSERT_EQ(generic_struct_two.size(), packet->size());
@@ -1561,13 +1588,14 @@ TEST(GeneratedPacketTest, testOneGenericStructTwo) {
 }
 
 vector<uint8_t> generic_struct_four{
-    0x04,                    // struct_type_ = FourByte
-    0x01, 0x02, 0x03, 0x04,  // four_bytes_
+        0x04,                    // struct_type_ = FourByte
+        0x01, 0x02, 0x03, 0x04,  // four_bytes_
 };
 
 TEST(GeneratedPacketTest, testOneGenericStructFour) {
   FourByteStruct four_byte_struct(0x04030201);
-  std::unique_ptr<FourByteStruct> four_byte_struct_p = std::make_unique<FourByteStruct>(four_byte_struct);
+  std::unique_ptr<FourByteStruct> four_byte_struct_p =
+          std::make_unique<FourByteStruct>(four_byte_struct);
   ASSERT_EQ(four_byte_struct.four_bytes_, four_byte_struct_p->four_bytes_);
 
   auto packet = OneGenericStructBuilder::Create(std::move(four_byte_struct_p));
@@ -1592,14 +1620,14 @@ TEST(GeneratedPacketTest, testOneGenericStructFour) {
 }
 
 vector<uint8_t> one_struct_array{
-    0x04,                    // struct_type_ = FourByte
-    0xa1, 0xa2, 0xa3, 0xa4,  // four_bytes_
-    0x04,                    // struct_type_ = FourByte
-    0xb2, 0xb2, 0xb3, 0xb4,  // four_bytes_
-    0x02,                    // struct_type_ = TwoByte
-    0xc3, 0xc2,              // two_bytes_
-    0x04,                    // struct_type_ = TwoByte
-    0xd4, 0xd2, 0xd3, 0xd4,  // four_bytes_
+        0x04,                    // struct_type_ = FourByte
+        0xa1, 0xa2, 0xa3, 0xa4,  // four_bytes_
+        0x04,                    // struct_type_ = FourByte
+        0xb2, 0xb2, 0xb3, 0xb4,  // four_bytes_
+        0x02,                    // struct_type_ = TwoByte
+        0xc3, 0xc2,              // two_bytes_
+        0x04,                    // struct_type_ = TwoByte
+        0xd4, 0xd2, 0xd3, 0xd4,  // four_bytes_
 };
 
 TEST(GeneratedPacketTest, testOneGenericStructArray) {
@@ -1711,31 +1739,31 @@ TEST(GeneratedPacketTest, testOneGenericStructFourArray) {
 }
 
 vector<uint8_t> one_struct_array_after_fixed{
-    0x01, 0x02,              // two_bytes = 0x0201
-    0x04,                    // struct_type_ = FourByte
-    0xa1, 0xa2, 0xa3, 0xa4,  // four_bytes_
-    0x04,                    // struct_type_ = FourByte
-    0xb2, 0xb2, 0xb3, 0xb4,  // four_bytes_
-    0x02,                    // struct_type_ = TwoByte
-    0xc3, 0xc2,              // two_bytes_
-    0x04,                    // struct_type_ = TwoByte
-    0xd4, 0xd2, 0xd3, 0xd4,  // four_bytes_
+        0x01, 0x02,              // two_bytes = 0x0201
+        0x04,                    // struct_type_ = FourByte
+        0xa1, 0xa2, 0xa3, 0xa4,  // four_bytes_
+        0x04,                    // struct_type_ = FourByte
+        0xb2, 0xb2, 0xb3, 0xb4,  // four_bytes_
+        0x02,                    // struct_type_ = TwoByte
+        0xc3, 0xc2,              // two_bytes_
+        0x04,                    // struct_type_ = TwoByte
+        0xd4, 0xd2, 0xd3, 0xd4,  // four_bytes_
 };
 
 DEFINE_AND_INSTANTIATE_OneGenericStructArrayAfterFixedReflectionTest(one_struct_array_after_fixed);
 
 vector<uint8_t> one_length_type_value_struct{
-    // _size_(value):16 type value
-    0x04, 0x00, 0x01, 'o', 'n', 'e',            // ONE
-    0x04, 0x00, 0x02, 't', 'w', 'o',            // TWO
-    0x06, 0x00, 0x03, 't', 'h', 'r', 'e', 'e',  // THREE
+        // _size_(value):16 type value
+        0x04, 0x00, 0x01, 'o', 'n', 'e',            // ONE
+        0x04, 0x00, 0x02, 't', 'w', 'o',            // TWO
+        0x06, 0x00, 0x03, 't', 'h', 'r', 'e', 'e',  // THREE
 };
 
 DEFINE_AND_INSTANTIATE_OneLengthTypeValueStructReflectionTest(one_length_type_value_struct);
 
 TEST(GeneratedPacketTest, testOneLengthTypeValueStruct) {
   std::shared_ptr<std::vector<uint8_t>> packet_bytes =
-      std::make_shared<std::vector<uint8_t>>(one_length_type_value_struct);
+          std::make_shared<std::vector<uint8_t>>(one_length_type_value_struct);
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
   auto view = OneLengthTypeValueStructView::Create(packet_bytes_view);
@@ -1763,23 +1791,23 @@ TEST(GeneratedPacketTest, testOneLengthTypeValueStruct) {
 }
 
 vector<uint8_t> one_length_type_value_struct_padded_10{
-    0x20,                                                        // _size_(payload),
-    0x14,                                                        // valid bytes
-    0x04, 0x00, 0x01, 'o',  'n',  'e',                           // ONE
-    0x04, 0x00, 0x02, 't',  'w',  'o',                           // TWO
-    0x06, 0x00, 0x03, 't',  'h',  'r',  'e',  'e',               // THREE
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // padding to 30
-    0x20,                                                        // after padding
+        0x20,                                                        // _size_(payload),
+        0x14,                                                        // valid bytes
+        0x04, 0x00, 0x01, 'o',  'n',  'e',                           // ONE
+        0x04, 0x00, 0x02, 't',  'w',  'o',                           // TWO
+        0x06, 0x00, 0x03, 't',  'h',  'r',  'e',  'e',               // THREE
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // padding to 30
+        0x20,                                                        // after padding
 };
 
 vector<uint8_t> one_length_type_value_struct_padded_18{
-    0x20,                                                        // _size_(payload),
-    0x0C,                                                        // valid bytes
-    0x04, 0x00, 0x01, 'o',  'n',  'e',                           // ONE
-    0x04, 0x00, 0x02, 't',  'w',  'o',                           // TWO
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,              // padding to 20
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // padding to 30
-    0x20,                                                        // after padding
+        0x20,                                                        // _size_(payload),
+        0x0C,                                                        // valid bytes
+        0x04, 0x00, 0x01, 'o',  'n',  'e',                           // ONE
+        0x04, 0x00, 0x02, 't',  'w',  'o',                           // TWO
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,              // padding to 20
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // padding to 30
+        0x20,                                                        // after padding
 };
 
 // TODO: Revisit LTV parsing.  Right now, the padding bytes are parsed
@@ -1791,16 +1819,16 @@ TEST(GeneratedPacketTest, testOneLengthTypeValueStructPaddedGeneration) {
   LengthTypeValueStruct ltv;
   ltv.type_ = DataType::ONE;
   ltv.value_ = {
-      'o',
-      'n',
-      'e',
+          'o',
+          'n',
+          'e',
   };
   ltv_vector.push_back(ltv);
   ltv.type_ = DataType::TWO;
   ltv.value_ = {
-      't',
-      'w',
-      'o',
+          't',
+          'w',
+          'o',
   };
   ltv_vector.push_back(ltv);
   uint8_t after_padding = 0x20;
@@ -1818,7 +1846,8 @@ TEST(GeneratedPacketTest, testOneLengthTypeValueStructPaddedGeneration) {
   }
 
   PacketView<kLittleEndian> packet_bytes_view(packet_bytes);
-  auto view = OneLengthTypeValueStructPaddedView::Create(SizedParentView::Create(packet_bytes_view));
+  auto view =
+          OneLengthTypeValueStructPaddedView::Create(SizedParentView::Create(packet_bytes_view));
   ASSERT_TRUE(view.IsValid());
   auto an_array = view.GetOneArray();
   // TODO: Revisit LTV parsing.  Right now, the padding bytes are parsed
@@ -1831,30 +1860,30 @@ TEST(GeneratedPacketTest, testOneLengthTypeValueStructPaddedGeneration) {
 }
 
 vector<uint8_t> byte_sized{
-    0x11,                                            // 1
-    0x21, 0x22,                                      // 2
-    0x31, 0x32, 0x33,                                // 3
-    0x41, 0x42, 0x43, 0x44,                          // 4
-    0x51, 0x52, 0x53, 0x54, 0x55,                    // 5
-    0x61, 0x62, 0x63, 0x64, 0x65, 0x66,              // 6
-    0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,        // 7
-    0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,  // 8
+        0x11,                                            // 1
+        0x21, 0x22,                                      // 2
+        0x31, 0x32, 0x33,                                // 3
+        0x41, 0x42, 0x43, 0x44,                          // 4
+        0x51, 0x52, 0x53, 0x54, 0x55,                    // 5
+        0x61, 0x62, 0x63, 0x64, 0x65, 0x66,              // 6
+        0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,        // 7
+        0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,  // 8
 };
 
 TEST(GeneratedPacketTest, testByteSizedFields) {
   uint64_t array[9]{
-      0xbadbadbad,
-      0x11,                // 1
-      0x2221,              // 2
-      0x333231,            // 3
-      0x44434241,          // 4
-      0x5554535251,        // 5
-      0x666564636261,      // 6
-      0x77767574737271,    // 7
-      0x8887868584838281,  // 8
+          0xbadbadbad,
+          0x11,                // 1
+          0x2221,              // 2
+          0x333231,            // 3
+          0x44434241,          // 4
+          0x5554535251,        // 5
+          0x666564636261,      // 6
+          0x77767574737271,    // 7
+          0x8887868584838281,  // 8
   };
-  auto packet =
-      ByteSizedFieldsBuilder::Create(array[1], array[2], array[3], array[4], array[5], array[6], array[7], array[8]);
+  auto packet = ByteSizedFieldsBuilder::Create(array[1], array[2], array[3], array[4], array[5],
+                                               array[6], array[7], array[8]);
   ASSERT_EQ(byte_sized.size(), packet->size());
 
   std::shared_ptr<std::vector<uint8_t>> packet_bytes = std::make_shared<std::vector<uint8_t>>();
@@ -1893,9 +1922,9 @@ TEST(GeneratedPacketTest, testOneGenericStructArrayNoZeroEmpty) {
   }
 
   std::vector<uint8_t> a_two_byte_struct = {
-      static_cast<uint8_t>(StructTypeNoZero::TWO_BYTE),
-      0x01,
-      0x02,
+          static_cast<uint8_t>(StructTypeNoZero::TWO_BYTE),
+          0x01,
+          0x02,
   };
   too_few_bytes = std::make_shared<std::vector<uint8_t>>(a_two_byte_struct);
   view = OneGenericStructArrayNoZeroView::Create(PacketView<kLittleEndian>(too_few_bytes));
@@ -1930,10 +1959,12 @@ TEST(GeneratedPacketTest, testToStringOutput) {
   ASSERT_TRUE(view.IsValid());
 
   ASSERT_EQ(
-      "ArrayOfStructBe { array_count = 0x4, array = VECTOR[TwoRelatedNumbersBe { id = 0x1, count = 0x102 }, "
-      "TwoRelatedNumbersBe { id = 0x2, count = 0x204 }, TwoRelatedNumbersBe { id = 0x3, count = 0x306 }, "
-      "TwoRelatedNumbersBe { id = 0x4, count = 0x408 }] }",
-      view.ToString());
+          "ArrayOfStructBe { array_count = 0x4, array = VECTOR[TwoRelatedNumbersBe { id = 0x1, "
+          "count = 0x102 }, "
+          "TwoRelatedNumbersBe { id = 0x2, count = 0x204 }, TwoRelatedNumbersBe { id = 0x3, count "
+          "= 0x306 }, "
+          "TwoRelatedNumbersBe { id = 0x4, count = 0x408 }] }",
+          view.ToString());
 }
 
 TEST(GeneratedPacketTest, testEnumText) {
@@ -1967,9 +1998,9 @@ TEST(GeneratedPacketTest, testToStringOneFixedTypesStruct) {
   ASSERT_TRUE(view.IsValid());
 
   ASSERT_EQ(
-      "OneFixedTypesStruct { one = StructWithFixedTypes { four_bits = FIVE(0x5), id = 0xd, "
-      "array = ARRAY[0x1, 0x2, 0x3], example_checksum = CHECKSUM, six_bytes = SixBytes } }",
-      view.ToString());
+          "OneFixedTypesStruct { one = StructWithFixedTypes { four_bits = FIVE(0x5), id = 0xd, "
+          "array = ARRAY[0x1, 0x2, 0x3], example_checksum = CHECKSUM, six_bytes = SixBytes } }",
+          view.ToString());
 }
 
 TEST(GeneratedPacketTest, testCreateOptional) {

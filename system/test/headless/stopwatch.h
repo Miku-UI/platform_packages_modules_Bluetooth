@@ -23,28 +23,27 @@
 #include <string>
 
 class Stopwatch {
- public:
+public:
   Stopwatch(std::string name)
       : name_(std::move(name)),
         start_(std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::system_clock::now().time_since_epoch())
-                   .count()) {}
+                       std::chrono::system_clock::now().time_since_epoch())
+                       .count()) {}
 
   uint64_t LapMs() const {
     uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                       std::chrono::system_clock::now().time_since_epoch())
-                       .count();
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count();
     return now - start_;
   }
 
   std::string ToString() { return ToString(""); }
 
   std::string ToString(const std::string& comment) {
-    return fmt::format("{}: {} ms {}", name_,
-                       static_cast<unsigned long>(LapMs()), comment);
+    return fmt::format("{}: {} ms {}", name_, static_cast<unsigned long>(LapMs()), comment);
   }
 
- private:
+private:
   std::string name_;
   uint64_t start_;
 };

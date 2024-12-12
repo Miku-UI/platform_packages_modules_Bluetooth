@@ -12,7 +12,7 @@ use bluetooth_core::{
         ids::{AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex},
         mocks::mock_callbacks::{MockCallbackEvents, MockCallbacks},
     },
-    packets::AttErrorCode,
+    packets::att::AttErrorCode,
 };
 use tokio::{sync::mpsc::UnboundedReceiver, task::spawn_local, time::Instant};
 use utils::start_test;
@@ -272,11 +272,11 @@ fn test_write_characteristic_response() {
         // provide a response with some error code
         let trans_id = pull_trans_id(&mut callbacks_rx).await;
         callback_manager
-            .send_response(CONN_ID, trans_id, Err(AttErrorCode::WRITE_NOT_PERMITTED))
+            .send_response(CONN_ID, trans_id, Err(AttErrorCode::WriteNotPermitted))
             .unwrap();
 
         // assert: that the error code was received
-        assert_eq!(pending_write.await.unwrap(), Err(AttErrorCode::WRITE_NOT_PERMITTED));
+        assert_eq!(pending_write.await.unwrap(), Err(AttErrorCode::WriteNotPermitted));
     });
 }
 
@@ -295,7 +295,7 @@ fn test_response_timeout() {
             );
 
         // assert: that we time-out after 15s
-        assert_eq!(pending_write.await.unwrap(), Err(AttErrorCode::UNLIKELY_ERROR));
+        assert_eq!(pending_write.await.unwrap(), Err(AttErrorCode::UnlikelyError));
         let time_slept = Instant::now().duration_since(time_sent);
         assert!(time_slept > Duration::from_secs(14));
         assert!(time_slept < Duration::from_secs(16));
@@ -316,10 +316,10 @@ fn test_transaction_cleanup_after_timeout() {
             );
         let trans_id = pull_trans_id(&mut callbacks_rx).await;
         // let it time out
-        assert_eq!(pending.await.unwrap(), Err(AttErrorCode::UNLIKELY_ERROR));
+        assert_eq!(pending.await.unwrap(), Err(AttErrorCode::UnlikelyError));
         // try responding to it now
         let resp =
-            callback_manager.send_response(CONN_ID, trans_id, Err(AttErrorCode::INVALID_HANDLE));
+            callback_manager.send_response(CONN_ID, trans_id, Err(AttErrorCode::InvalidHandle));
 
         // assert: the response failed
         assert_eq!(resp, Err(CallbackResponseError::NonExistentTransaction(trans_id)));
@@ -344,7 +344,7 @@ fn test_listener_hang_up() {
         pending.await.unwrap_err();
         // try responding to it now
         let resp =
-            callback_manager.send_response(CONN_ID, trans_id, Err(AttErrorCode::INVALID_HANDLE));
+            callback_manager.send_response(CONN_ID, trans_id, Err(AttErrorCode::InvalidHandle));
 
         // assert: we get the expected error
         assert_eq!(resp, Err(CallbackResponseError::ListenerHungUp(trans_id)));
@@ -422,10 +422,10 @@ fn test_execute_characteristic_response() {
         // provide a response with some error code
         let trans_id = pull_trans_id(&mut callbacks_rx).await;
         callback_manager
-            .send_response(CONN_ID, trans_id, Err(AttErrorCode::WRITE_NOT_PERMITTED))
+            .send_response(CONN_ID, trans_id, Err(AttErrorCode::WriteNotPermitted))
             .unwrap();
 
         // assert: that the error code was received
-        assert_eq!(pending_execute.await.unwrap(), Err(AttErrorCode::WRITE_NOT_PERMITTED));
+        assert_eq!(pending_execute.await.unwrap(), Err(AttErrorCode::WriteNotPermitted));
     });
 }

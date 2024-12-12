@@ -22,8 +22,8 @@ import com.android.obex.HeaderSet;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /* Get a listing of messages in directory. */
 class RequestGetMessagesListing extends Request {
@@ -66,8 +66,8 @@ class RequestGetMessagesListing extends Request {
         ObexAppParameters oap = new ObexAppParameters();
 
         if (filter != null) {
-            if (filter.messageType != MessagesFilter.MESSAGE_TYPE_ALL) {
-                oap.add(OAP_TAGID_FILTER_MESSAGE_TYPE, filter.messageType);
+            if (filter.excludedMessageTypes != MessagesFilter.MESSAGE_TYPE_NONE) {
+                oap.add(OAP_TAGID_FILTER_MESSAGE_TYPE, filter.excludedMessageTypes);
             }
 
             if (filter.periodBegin != null) {
@@ -135,7 +135,7 @@ class RequestGetMessagesListing extends Request {
         }
     }
 
-    public ArrayList<Message> getList() {
+    public List<Message> getList() {
         if (mResponse == null) {
             return null;
         }

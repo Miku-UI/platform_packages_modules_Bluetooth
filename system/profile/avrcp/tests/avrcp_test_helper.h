@@ -37,16 +37,16 @@ using TestAvrcpPacket = TestPacketType<Packet>;
 using TestBrowsePacket = TestPacketType<BrowsePacket>;
 
 class MockMediaInterface : public MediaInterface {
- public:
+public:
   MOCK_METHOD2(SendKeyEvent, void(uint8_t, KeyState));
   MOCK_METHOD1(GetSongInfo, void(MediaInterface::SongInfoCallback));
   MOCK_METHOD1(GetPlayStatus, void(MediaInterface::PlayStatusCallback));
   MOCK_METHOD1(GetNowPlayingList, void(MediaInterface::NowPlayingCallback));
   MOCK_METHOD1(GetMediaPlayerList, void(MediaInterface::MediaListCallback));
-  MOCK_METHOD3(GetFolderItems, void(uint16_t, std::string,
-                                    MediaInterface::FolderItemsCallback));
-  MOCK_METHOD2(SetBrowsedPlayer,
-               void(uint16_t, MediaInterface::SetBrowsedPlayerCallback));
+  MOCK_METHOD1(GetAddressedPlayer, void(MediaInterface::GetAddressedPlayerCallback));
+  MOCK_METHOD3(GetFolderItems, void(uint16_t, std::string, MediaInterface::FolderItemsCallback));
+  MOCK_METHOD2(SetBrowsedPlayer, void(uint16_t, MediaInterface::SetBrowsedPlayerCallback));
+  MOCK_METHOD2(SetAddressedPlayer, void(uint16_t, MediaInterface::SetAddressedPlayerCallback));
   MOCK_METHOD3(PlayItem, void(uint16_t, bool, std::string));
   MOCK_METHOD1(SetActiveDevice, void(const RawAddress&));
   MOCK_METHOD1(RegisterUpdateCallback, void(MediaCallbacks*));
@@ -54,7 +54,7 @@ class MockMediaInterface : public MediaInterface {
 };
 
 class MockVolumeInterface : public VolumeInterface {
- public:
+public:
   MOCK_METHOD1(DeviceConnected, void(const RawAddress&));
   MOCK_METHOD2(DeviceConnected, void(const RawAddress&, VolumeChangedCb));
   MOCK_METHOD1(DeviceDisconnected, void(const RawAddress&));
@@ -62,26 +62,23 @@ class MockVolumeInterface : public VolumeInterface {
 };
 
 class MockPlayerSettingsInterface : public PlayerSettingsInterface {
- public:
+public:
   MOCK_METHOD1(ListPlayerSettings, void(ListPlayerSettingsCallback));
-  MOCK_METHOD2(ListPlayerSettingValues,
-               void(PlayerAttribute, ListPlayerSettingValuesCallback));
+  MOCK_METHOD2(ListPlayerSettingValues, void(PlayerAttribute, ListPlayerSettingValuesCallback));
   MOCK_METHOD2(GetCurrentPlayerSettingValue,
-               void(std::vector<PlayerAttribute>,
-                    GetCurrentPlayerSettingValueCallback));
-  MOCK_METHOD3(SetPlayerSettings,
-               void(std::vector<PlayerAttribute>, std::vector<uint8_t>,
-                    SetPlayerSettingValueCallback));
+               void(std::vector<PlayerAttribute>, GetCurrentPlayerSettingValueCallback));
+  MOCK_METHOD3(SetPlayerSettings, void(std::vector<PlayerAttribute>, std::vector<uint8_t>,
+                                       SetPlayerSettingValueCallback));
 };
 
 class MockAvrcpInterface : public AvrcpInterface {
- public:
+public:
   MOCK_METHOD0(GetAvrcpVersion, uint16_t(void));
-  MOCK_METHOD8(AddRecord, uint16_t(uint16_t, const char*, const char*, uint16_t,
-                                   uint32_t, bool, uint16_t, uint16_t));
+  MOCK_METHOD8(AddRecord, uint16_t(uint16_t, const char*, const char*, uint16_t, uint32_t, bool,
+                                   uint16_t, uint16_t));
   MOCK_METHOD1(RemoveRecord, uint16_t(uint32_t));
-  MOCK_METHOD4(FindService, uint16_t(uint16_t, const RawAddress&,
-                                     tAVRC_SDP_DB_PARAMS*, tAVRC_FIND_CBACK));
+  MOCK_METHOD4(FindService,
+               uint16_t(uint16_t, const RawAddress&, tAVRC_SDP_DB_PARAMS*, tAVRC_FIND_CBACK));
   MOCK_METHOD3(Open, uint16_t(uint8_t*, tAVRC_CONN_CB*, const RawAddress&));
   MOCK_METHOD2(OpenBrowse, uint16_t(uint8_t, uint8_t));
   MOCK_METHOD1(GetPeerMtu, uint16_t(uint8_t));
@@ -93,55 +90,47 @@ class MockAvrcpInterface : public AvrcpInterface {
 };
 
 class MockA2dpInterface : public A2dpInterface {
- public:
+public:
   MOCK_METHOD1(event_open, void(const RawAddress&));
   MOCK_METHOD1(event_close, void(const RawAddress&));
   MOCK_METHOD0(active_peer, RawAddress());
   MOCK_METHOD1(is_peer_in_silence_mode, bool(const RawAddress&));
   MOCK_METHOD2(connect_audio_sink_delayed, void(uint8_t, const RawAddress&));
-  MOCK_METHOD2(find_audio_sink_service,
-               uint16_t(const RawAddress&, tA2DP_FIND_CBACK));
+  MOCK_METHOD2(find_audio_sink_service, uint16_t(const RawAddress&, tA2DP_FIND_CBACK));
 };
 
 class MockSdpInterface : public SdpInterface {
- public:
-  MOCK_METHOD6(InitDiscoveryDb,
-               bool(tSDP_DISCOVERY_DB*, uint32_t, uint16_t,
-                    const bluetooth::Uuid*, uint16_t, uint16_t*));
+public:
+  MOCK_METHOD6(InitDiscoveryDb, bool(tSDP_DISCOVERY_DB*, uint32_t, uint16_t, const bluetooth::Uuid*,
+                                     uint16_t, uint16_t*));
   MOCK_METHOD3(ServiceSearchAttributeRequest,
                bool(const RawAddress&, tSDP_DISCOVERY_DB*, tSDP_DISC_CMPL_CB*));
-  MOCK_METHOD3(FindServiceInDb,
-               tSDP_DISC_REC*(tSDP_DISCOVERY_DB*, uint16_t, t_sdp_disc_rec*));
+  MOCK_METHOD3(FindServiceInDb, tSDP_DISC_REC*(tSDP_DISCOVERY_DB*, uint16_t, t_sdp_disc_rec*));
   MOCK_METHOD2(FindAttributeInRec, tSDP_DISC_ATTR*(t_sdp_disc_rec*, uint16_t));
-  MOCK_METHOD3(FindProfileVersionInRec,
-               bool(t_sdp_disc_rec*, uint16_t, uint16_t*));
+  MOCK_METHOD3(FindProfileVersionInRec, bool(t_sdp_disc_rec*, uint16_t, uint16_t*));
 };
 
-ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k),
-                AND_1_VALUE_PARAMS(input)) {
+ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k), AND_1_VALUE_PARAMS(input)) {
   ::testing::get<k>(args).Run(input);
 }
 
-ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k),
-                AND_2_VALUE_PARAMS(a, b)) {
+ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k), AND_2_VALUE_PARAMS(a, b)) {
   ::testing::get<k>(args).Run(a, b);
 }
 
-ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k),
-                AND_3_VALUE_PARAMS(a, b, c)) {
+ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k), AND_3_VALUE_PARAMS(a, b, c)) {
   ::testing::get<k>(args).Run(a, b, c);
 }
 
 template <class PacketType>
 class PacketMatcher : public ::testing::MatcherInterface<const AvrcpResponse&> {
- public:
+public:
   AvrcpResponse pkt_to_compare_to_;
 
   PacketMatcher(AvrcpResponse&& pkt) { pkt_to_compare_to_ = std::move(pkt); }
 
-  bool MatchAndExplain(
-      const AvrcpResponse& r,
-      ::testing::MatchResultListener* listener) const override {
+  bool MatchAndExplain(const AvrcpResponse& r,
+                       ::testing::MatchResultListener* listener) const override {
     auto packet1 = TestPacketType<PacketType>::Make();
     r->Serialize(packet1);
 
@@ -161,13 +150,12 @@ class PacketMatcher : public ::testing::MatcherInterface<const AvrcpResponse&> {
   void DescribeTo(::std::ostream* os) const override { *os << "Packets match"; }
 };
 
-inline ::testing::Matcher<const AvrcpResponse&> matchPacket(
-    std::unique_ptr<PacketBuilder>&& arg) {
+inline ::testing::Matcher<const AvrcpResponse&> matchPacket(std::unique_ptr<PacketBuilder>&& arg) {
   return MakeMatcher(new PacketMatcher<Packet>(std::move(arg)));
 }
 
 inline ::testing::Matcher<const AvrcpResponse&> matchPacket(
-    std::unique_ptr<BrowsePacketBuilder>&& arg) {
+        std::unique_ptr<BrowsePacketBuilder>&& arg) {
   return MakeMatcher(new PacketMatcher<BrowsePacket>(std::move(arg)));
 }
 

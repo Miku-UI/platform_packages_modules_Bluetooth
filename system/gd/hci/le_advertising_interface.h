@@ -23,8 +23,8 @@ namespace bluetooth {
 namespace hci {
 
 constexpr hci::SubeventCode LeAdvertisingEvents[] = {
-    hci::SubeventCode::SCAN_REQUEST_RECEIVED,
-    hci::SubeventCode::ADVERTISING_SET_TERMINATED,
+        hci::SubeventCode::SCAN_REQUEST_RECEIVED,
+        hci::SubeventCode::ADVERTISING_SET_TERMINATED,
 };
 
 typedef CommandInterface<LeAdvertisingCommandBuilder> LeAdvertisingInterface;

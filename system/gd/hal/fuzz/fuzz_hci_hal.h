@@ -25,7 +25,7 @@ namespace hal {
 namespace fuzz {
 
 class FuzzHciHal : public HciHal {
- public:
+public:
   void registerIncomingPacketCallback(HciHalCallbacks* callbacks) override;
   void unregisterIncomingPacketCallback() override;
 
@@ -36,18 +36,16 @@ class FuzzHciHal : public HciHal {
 
   void injectArbitrary(FuzzedDataProvider& fdp);
 
-  std::string ToString() const override {
-    return "HciHalFuzz";
-  }
+  std::string ToString() const override { return "HciHalFuzz"; }
 
   static const ModuleFactory Factory;
 
- protected:
+protected:
   void ListDependencies(ModuleList* /* list */) const override {}
   void Start() override {}
   void Stop() override {}
 
- private:
+private:
   void injectAclData(std::vector<uint8_t> data);
   void injectHciEvent(std::vector<uint8_t> data);
   void injectScoData(std::vector<uint8_t> data);

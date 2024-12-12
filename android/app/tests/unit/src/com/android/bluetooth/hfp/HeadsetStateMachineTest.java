@@ -26,7 +26,6 @@ import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.content.ContentResolver;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.Cursor;
@@ -37,6 +36,7 @@ import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.HandlerThread;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.CallLog;
 import android.provider.CallLog.Calls;
@@ -1288,7 +1288,6 @@ public class HeadsetStateMachineTest {
     /** A test to verify that we correctly send CIND response when a call is in progress */
     @Test
     public void testCindEventWhenCallIsInProgress() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_PRETEND_NETWORK_SERVICE);
         when(mPhoneState.getCindService())
                 .thenReturn(HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE);
         when(mHeadsetService.isVirtualCallStarted()).thenReturn(false);
@@ -1300,29 +1299,16 @@ public class HeadsetStateMachineTest {
                 HeadsetStateMachine.STACK_EVENT,
                 new HeadsetStackEvent(HeadsetStackEvent.EVENT_TYPE_AT_CIND, mTestDevice));
         // wait state machine to process the message
-        if (Flags.pretendNetworkService()) {
-            verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
-                    .cindResponse(
-                            eq(mTestDevice),
-                            eq(HeadsetHalConstants.NETWORK_STATE_AVAILABLE),
-                            anyInt(),
-                            anyInt(),
-                            anyInt(),
-                            anyInt(),
-                            anyInt(),
-                            anyInt());
-        } else {
-            verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
-                    .cindResponse(
-                            eq(mTestDevice),
-                            eq(HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE),
-                            anyInt(),
-                            anyInt(),
-                            anyInt(),
-                            anyInt(),
-                            anyInt(),
-                            anyInt());
-        }
+        verify(mNativeInterface, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
+                .cindResponse(
+                        eq(mTestDevice),
+                        eq(HeadsetHalConstants.NETWORK_STATE_AVAILABLE),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        anyInt());
     }
 
     /** A test to verify that we correctly handles key pressed event from a HSP headset */
@@ -1824,6 +1810,49 @@ public class HeadsetStateMachineTest {
     }
 
     @Test
+    @EnableFlags({Flags.FLAG_HFP_ALLOW_VOLUME_CHANGE_WITHOUT_SCO})
+    public void testVolumeChangeEvent_fromIntentWhenConnected() {
+        setUpConnectedState();
+        int originalVolume = mHeadsetStateMachine.mSpeakerVolume;
+        mHeadsetStateMachine.mSpeakerVolume = 0;
+        int vol = 10;
+
+        // Send INTENT_SCO_VOLUME_CHANGED message
+        Intent volumeChange = new Intent(AudioManager.ACTION_VOLUME_CHANGED);
+        volumeChange.putExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, vol);
+
+        mHeadsetStateMachine.sendMessage(
+                HeadsetStateMachine.INTENT_SCO_VOLUME_CHANGED, volumeChange);
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        // verify volume processed
+        verify(mNativeInterface).setVolume(mTestDevice, HeadsetHalConstants.VOLUME_TYPE_SPK, vol);
+
+        mHeadsetStateMachine.mSpeakerVolume = originalVolume;
+    }
+
+    @Test
+    public void testVolumeChangeEvent_fromIntentWhenAudioOn() {
+        setUpAudioOnState();
+        int originalVolume = mHeadsetStateMachine.mSpeakerVolume;
+        mHeadsetStateMachine.mSpeakerVolume = 0;
+        int vol = 10;
+
+        // Send INTENT_SCO_VOLUME_CHANGED message
+        Intent volumeChange = new Intent(AudioManager.ACTION_VOLUME_CHANGED);
+        volumeChange.putExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, vol);
+
+        mHeadsetStateMachine.sendMessage(
+                HeadsetStateMachine.INTENT_SCO_VOLUME_CHANGED, volumeChange);
+        TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
+
+        // verify volume processed
+        verify(mNativeInterface).setVolume(mTestDevice, HeadsetHalConstants.VOLUME_TYPE_SPK, vol);
+
+        mHeadsetStateMachine.mSpeakerVolume = originalVolume;
+    }
+
+    @Test
     public void testDump_doesNotCrash() {
         StringBuilder sb = new StringBuilder();
 
@@ -2062,10 +2091,8 @@ public class HeadsetStateMachineTest {
         verify(mAudioManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
                 .setParameters(lc3Enabled ? "bt_lc3_swb=on" : "bt_lc3_swb=off");
 
-        if (Flags.hfpCodecAptxVoice()) {
-            verify(mAudioManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
-                    .setParameters(aptxEnabled ? "bt_swb=0" : "bt_swb=65535");
-        }
+        verify(mAudioManager, timeout(ASYNC_CALL_TIMEOUT_MILLIS))
+                .setParameters(aptxEnabled ? "bt_swb=0" : "bt_swb=65535");
     }
 
     /**
@@ -2253,11 +2280,6 @@ public class HeadsetStateMachineTest {
     private void configureHeadsetServiceForAptxVoice(boolean enable) {
         if (enable) {
             when(mHeadsetService.isAptXSwbEnabled()).thenReturn(true);
-            mSetFlagsRule.enableFlags(Flags.FLAG_HFP_CODEC_APTX_VOICE);
-            Assert.assertTrue(Flags.hfpCodecAptxVoice());
-        } else {
-            mSetFlagsRule.disableFlags(Flags.FLAG_HFP_CODEC_APTX_VOICE);
-            Assert.assertFalse(Flags.hfpCodecAptxVoice());
         }
     }
 }

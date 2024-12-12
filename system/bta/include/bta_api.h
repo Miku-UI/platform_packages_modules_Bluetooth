@@ -81,10 +81,10 @@
 typedef uint8_t tBTA_SERVICE_ID;
 
 /* Service ID Mask */
-#define BTA_RES_SERVICE_MASK 0x00000001    /* Reserved */
-#define BTA_HSP_SERVICE_MASK 0x00000020    /* HSP AG role. */
-#define BTA_HFP_SERVICE_MASK 0x00000040    /* HFP AG role */
-#define BTA_HL_SERVICE_MASK 0x08000000     /* Health Device Profile */
+#define BTA_RES_SERVICE_MASK 0x00000001 /* Reserved */
+#define BTA_HSP_SERVICE_MASK 0x00000020 /* HSP AG role. */
+#define BTA_HFP_SERVICE_MASK 0x00000040 /* HFP AG role */
+#define BTA_HL_SERVICE_MASK 0x08000000  /* Health Device Profile */
 
 #define BTA_BLE_SERVICE_MASK 0x40000000  /* GATT based service */
 #define BTA_ALL_SERVICE_MASK 0x7FFFFFFF  /* All services supported by BTA. */
@@ -96,9 +96,8 @@ typedef uint32_t tBTA_SERVICE_MASK;
 #define BTA_ALL_APP_ID 0xFF
 
 /* Discoverable Modes */
-typedef uint16_t
-    tBTA_DM_DISC; /* this discoverability mode is a bit mask among BR mode and
-                     LE mode */
+typedef uint16_t tBTA_DM_DISC; /* this discoverability mode is a bit mask among BR mode and
+                                  LE mode */
 
 /* Connectable Modes */
 typedef uint16_t tBTA_DM_CONN;
@@ -113,10 +112,9 @@ typedef enum : uint8_t {
 } tBTA_PREF_ROLES;
 
 inline tBTA_PREF_ROLES toBTA_PREF_ROLES(uint8_t role) {
-  bluetooth::log::assert_that(
-      role <= BTA_PERIPHERAL_ROLE_ONLY,
-      "Passing illegal preferred role:0x{:02x} [0x{:02x}<=>0x{:02x}]", role,
-      int(BTA_ANY_ROLE), int(BTA_PERIPHERAL_ROLE_ONLY));
+  bluetooth::log::assert_that(role <= BTA_PERIPHERAL_ROLE_ONLY,
+                              "Passing illegal preferred role:0x{:02x} [0x{:02x}<=>0x{:02x}]", role,
+                              int(BTA_ANY_ROLE), int(BTA_PERIPHERAL_ROLE_ONLY));
   return static_cast<tBTA_PREF_ROLES>(role);
 }
 
@@ -140,32 +138,32 @@ enum {
   BTA_DM_PARTIAL_SCATTERNET, /* Device supports partial scatternet. It can have
                                 simultaneous connection in Central and
                                 Peripheral roles for short period of time */
-  BTA_DM_FULL_SCATTERNET /* Device can have simultaneous connection in central
-                            and peripheral roles */
+  BTA_DM_FULL_SCATTERNET     /* Device can have simultaneous connection in central
+                                and peripheral roles */
 
 };
 
 typedef struct {
-  uint8_t bta_dm_eir_min_name_len; /* minimum length of local name when it is
-                                      shortened */
+  uint8_t bta_dm_eir_min_name_len;                /* minimum length of local name when it is
+                                                     shortened */
   uint32_t uuid_mask[BTM_EIR_SERVICE_ARRAY_SIZE]; /* mask of UUID list in EIR */
-  int8_t* bta_dm_eir_inq_tx_power;     /* Inquiry TX power         */
-  uint8_t bta_dm_eir_flag_len;         /* length of flags in bytes */
-  uint8_t* bta_dm_eir_flags;           /* flags for EIR */
-  uint8_t bta_dm_eir_manufac_spec_len; /* length of manufacturer specific in
-                                          bytes */
-  uint8_t* bta_dm_eir_manufac_spec;    /* manufacturer specific */
-  uint8_t bta_dm_eir_additional_len;   /* length of additional data in bytes */
-  uint8_t* bta_dm_eir_additional;      /* additional data */
+  int8_t* bta_dm_eir_inq_tx_power;                /* Inquiry TX power         */
+  uint8_t bta_dm_eir_flag_len;                    /* length of flags in bytes */
+  uint8_t* bta_dm_eir_flags;                      /* flags for EIR */
+  uint8_t bta_dm_eir_manufac_spec_len;            /* length of manufacturer specific in
+                                                     bytes */
+  uint8_t* bta_dm_eir_manufac_spec;               /* manufacturer specific */
+  uint8_t bta_dm_eir_additional_len;              /* length of additional data in bytes */
+  uint8_t* bta_dm_eir_additional;                 /* additional data */
 } tBTA_DM_EIR_CONF;
 
 typedef uint8_t tBTA_DM_BLE_RSSI_ALERT_TYPE;
 
-typedef enum: uint8_t {
-  BTA_DM_LINK_UP_EVT = 5,          /* Connection UP event */
-  BTA_DM_LINK_DOWN_EVT = 6,        /* Connection DOWN event */
-  BTA_DM_LE_FEATURES_READ = 27,    /* Cotroller specific LE features are read */
-  BTA_DM_LINK_UP_FAILED_EVT = 34,    /* Create connection failed event */
+typedef enum : uint8_t {
+  BTA_DM_LINK_UP_EVT = 5,         /* Connection UP event */
+  BTA_DM_LINK_DOWN_EVT = 6,       /* Connection DOWN event */
+  BTA_DM_LE_FEATURES_READ = 27,   /* Cotroller specific LE features are read */
+  BTA_DM_LINK_UP_FAILED_EVT = 34, /* Create connection failed event */
 } tBTA_DM_ACL_EVT;
 
 /* Structure associated with BTA_DM_LINK_UP_EVT */
@@ -190,9 +188,9 @@ typedef struct {
 } tBTA_DM_LINK_DOWN;
 
 typedef union {
-  tBTA_DM_LINK_UP link_up;        /* ACL connection up event */
+  tBTA_DM_LINK_UP link_up;               /* ACL connection up event */
   tBTA_DM_LINK_UP_FAILED link_up_failed; /* ACL connection up failure event */
-  tBTA_DM_LINK_DOWN link_down;    /* ACL connection down event */
+  tBTA_DM_LINK_DOWN link_down;           /* ACL connection down event */
 } tBTA_DM_ACL;
 
 typedef void(tBTA_DM_ACL_CBACK)(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data);
@@ -202,10 +200,10 @@ typedef void(tBTA_DM_ACL_CBACK)(tBTA_DM_ACL_EVT event, tBTA_DM_ACL* p_data);
 
 /* Search callback events */
 typedef enum : uint8_t {
-  BTA_DM_INQ_RES_EVT = 0,   /* Inquiry result for a peer device. */
-  BTA_DM_INQ_CMPL_EVT = 1,  /* Inquiry complete. */
-  BTA_DM_DISC_RES_EVT = 2,  /* Service Discovery result for a peer device. */
-  BTA_DM_DISC_CMPL_EVT = 3, /* Discovery complete. */
+  BTA_DM_INQ_RES_EVT = 0,            /* Inquiry result for a peer device. */
+  BTA_DM_INQ_CMPL_EVT = 1,           /* Inquiry complete. */
+  BTA_DM_DISC_RES_EVT = 2,           /* Service Discovery result for a peer device. */
+  BTA_DM_DISC_CMPL_EVT = 3,          /* Discovery complete. */
   BTA_DM_SEARCH_CANCEL_CMPL_EVT = 4, /* Search cancelled */
   BTA_DM_NAME_READ_EVT = 5,          /* Name read complete. */
   BTA_DM_OBSERVE_CMPL_EVT = 6,       /* Observe complete. */
@@ -233,10 +231,10 @@ typedef struct {
                                   the name of the device */
   /* If the device name is known to application BTA skips the remote name
    * request */
-  bool is_limited; /* true, if the limited inquiry bit is set in the CoD */
-  int8_t rssi;     /* The rssi value */
+  bool is_limited;      /* true, if the limited inquiry bit is set in the CoD */
+  int8_t rssi;          /* The rssi value */
   const uint8_t* p_eir; /* received EIR */
-  uint16_t eir_len; /* received EIR length */
+  uint16_t eir_len;     /* received EIR length */
   uint8_t inq_result_type;
   tBLE_ADDR_TYPE ble_addr_type;
   uint16_t ble_evt_type;
@@ -247,7 +245,7 @@ typedef struct {
   uint16_t ble_periodic_adv_int;
   tBT_DEVICE_TYPE device_type;
   uint8_t flag;
-  bool include_rsi; /* true, if ADV contains RSI data */
+  bool include_rsi;        /* true, if ADV contains RSI data */
   RawAddress original_bda; /* original address to pass up to
                               GattService#onScanResult */
   uint16_t clock_offset;
@@ -260,78 +258,62 @@ typedef struct {
 
 /* Structure associated with BTA_DM_NAME_READ_EVT */
 typedef struct {
-  RawAddress bd_addr;          /* BD address peer device. */
-  BD_NAME bd_name;             /* Name of peer device. */
+  RawAddress bd_addr; /* BD address peer device. */
+  BD_NAME bd_name;    /* Name of peer device. */
 } tBTA_DM_NAME_READ_CMPL;
 
 /* Union of all search callback structures */
 typedef union {
-  tBTA_DM_INQ_RES inq_res;   /* Inquiry result for a peer device. */
+  tBTA_DM_INQ_RES inq_res;           /* Inquiry result for a peer device. */
   tBTA_DM_NAME_READ_CMPL name_res;   /* Name read result for a peer device. */
   tBTA_DM_OBSERVE_CMPL observe_cmpl; /* Observe complete. */
 } tBTA_DM_SEARCH;
 
 /* Search callback */
-typedef void(tBTA_DM_SEARCH_CBACK)(tBTA_DM_SEARCH_EVT event,
-                                   tBTA_DM_SEARCH* p_data);
+typedef void(tBTA_DM_SEARCH_CBACK)(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data);
 
-// TODO: delete bd_name parameter after separate_service_and_device_discovery
-// rolls out
-typedef void(tBTA_DM_GATT_DISC_CBACK)(RawAddress bd_addr, BD_NAME bd_name,
-                                      std::vector<bluetooth::Uuid>& services,
+typedef void(tBTA_DM_GATT_DISC_CBACK)(RawAddress bd_addr, std::vector<bluetooth::Uuid>& services,
                                       bool transport_le);
-typedef void(tBTA_DM_DID_RES_CBACK)(RawAddress bd_addr, uint8_t vendor_id_src,
-                                    uint16_t vendor_id, uint16_t product_id,
-                                    uint16_t version);
-// TODO: delete after separate_service_and_device_discovery rolls out
-typedef void(tBTA_DM_NAME_READ_CBACK)(RawAddress bd_addr,
-                                      tHCI_ERROR_CODE hci_status,
-                                      const BD_NAME bd_name);
-typedef void(tBTA_DM_DISC_CBACK)(RawAddress bd_addr,
-                                 const std::vector<bluetooth::Uuid>& uuids,
+typedef void(tBTA_DM_DID_RES_CBACK)(RawAddress bd_addr, uint8_t vendor_id_src, uint16_t vendor_id,
+                                    uint16_t product_id, uint16_t version);
+typedef void(tBTA_DM_DISC_CBACK)(RawAddress bd_addr, const std::vector<bluetooth::Uuid>& uuids,
                                  tBTA_STATUS result);
 struct service_discovery_callbacks {
   tBTA_DM_GATT_DISC_CBACK* on_gatt_results;
   tBTA_DM_DID_RES_CBACK* on_did_received;
-  // TODO: delete after separate_service_and_device_discovery rolls out
-  tBTA_DM_NAME_READ_CBACK* on_name_read;
   tBTA_DM_DISC_CBACK* on_service_discovery_results;
 };
 
 /* Execute call back */
 typedef void(tBTA_DM_EXEC_CBACK)(void* p_param);
 
-typedef void(tBTA_BLE_ENERGY_INFO_CBACK)(tBTM_BLE_TX_TIME_MS tx_time,
-                                         tBTM_BLE_RX_TIME_MS rx_time,
+typedef void(tBTA_BLE_ENERGY_INFO_CBACK)(tBTM_BLE_TX_TIME_MS tx_time, tBTM_BLE_RX_TIME_MS rx_time,
                                          tBTM_BLE_IDLE_TIME_MS idle_time,
                                          tBTM_BLE_ENERGY_USED energy_used,
-                                         tBTM_CONTRL_STATE ctrl_state,
-                                         tBTA_STATUS status);
+                                         tBTM_CONTRL_STATE ctrl_state, tBTA_STATUS status);
 
 /* Maximum service name length */
 #define BTA_SERVICE_NAME_LEN 35
 
 typedef enum : uint8_t {
   /* power mode actions  */
-  BTA_DM_PM_NO_ACTION = 0x00, /* no change to the current pm setting */
-  BTA_DM_PM_PARK = 0x10,      /* prefers park mode */
-  BTA_DM_PM_SNIFF = 0x20,     /* prefers sniff mode */
-  BTA_DM_PM_SNIFF1 = 0x21,    /* prefers sniff1 mode */
-  BTA_DM_PM_SNIFF2 = 0x22,    /* prefers sniff2 mode */
-  BTA_DM_PM_SNIFF3 = 0x23,    /* prefers sniff3 mode */
-  BTA_DM_PM_SNIFF4 = 0x24,    /* prefers sniff4 mode */
-  BTA_DM_PM_SNIFF5 = 0x25,    /* prefers sniff5 mode */
-  BTA_DM_PM_SNIFF6 = 0x26,    /* prefers sniff6 mode */
-  BTA_DM_PM_SNIFF7 = 0x27,    /* prefers sniff7 mode */
-  BTA_DM_PM_SNIFF_USER0 =
-      0x28, /* prefers user-defined sniff0 mode (testtool only) */
-  BTA_DM_PM_SNIFF_USER1 =
-      0x29, /* prefers user-defined sniff1 mode (testtool only) */
-  BTA_DM_PM_ACTIVE = 0x40,  /* prefers active mode */
-  BTA_DM_PM_RETRY = 0x80,   /* retry power mode based on current settings */
-  BTA_DM_PM_SUSPEND = 0x04, /* prefers suspend mode */
-  BTA_DM_PM_NO_PREF = 0x01, /* service has no preference on power mode setting.
-                               eg. connection to \ service got closed */
+  BTA_DM_PM_NO_ACTION = 0x00,   /* no change to the current pm setting */
+  BTA_DM_PM_PARK = 0x10,        /* prefers park mode */
+  BTA_DM_PM_SNIFF = 0x20,       /* prefers sniff mode */
+  BTA_DM_PM_SNIFF1 = 0x21,      /* prefers sniff1 mode */
+  BTA_DM_PM_SNIFF2 = 0x22,      /* prefers sniff2 mode */
+  BTA_DM_PM_SNIFF3 = 0x23,      /* prefers sniff3 mode */
+  BTA_DM_PM_SNIFF4 = 0x24,      /* prefers sniff4 mode */
+  BTA_DM_PM_SNIFF5 = 0x25,      /* prefers sniff5 mode */
+  BTA_DM_PM_SNIFF6 = 0x26,      /* prefers sniff6 mode */
+  BTA_DM_PM_SNIFF7 = 0x27,      /* prefers sniff7 mode */
+  BTA_DM_PM_SNIFF_USER0 = 0x28, /* prefers user-defined sniff0 mode (testtool only) */
+  BTA_DM_PM_SNIFF_USER1 = 0x29, /* prefers user-defined sniff1 mode (testtool only) */
+  BTA_DM_PM_ACTIVE = 0x40,      /* prefers active mode */
+  BTA_DM_PM_RETRY = 0x80,       /* retry power mode based on current settings */
+  BTA_DM_PM_SUSPEND = 0x04,     /* prefers suspend mode */
+  BTA_DM_PM_NO_PREF = 0x01,     /* service has no preference on power mode setting.
+                                   eg. connection to \ service got closed */
   BTA_DM_PM_SNIFF_MASK = 0x0f,  // Masks the sniff submode
 } tBTA_DM_PM_ACTION_BITMASK;
 typedef uint8_t tBTA_DM_PM_ACTION;
@@ -350,8 +332,7 @@ enum {
 #define BTA_DM_PM_NUM_EVTS 9
 
 #ifndef BTA_DM_PM_PARK_IDX
-#define BTA_DM_PM_PARK_IDX \
-  7 /* the actual index to bta_dm_pm_md[] for PARK mode */
+#define BTA_DM_PM_PARK_IDX 7 /* the actual index to bta_dm_pm_md[] for PARK mode */
 #endif
 
 #ifndef BTA_DM_PM_SNIFF_A2DP_IDX
@@ -457,7 +438,7 @@ enum {
 #endif
 
 /* Device Identification (DI) data structure
-*/
+ */
 
 #ifndef BTA_DI_NUM_MAX
 #define BTA_DI_NUM_MAX 3
@@ -553,8 +534,8 @@ void BTA_DmSearchCancel(void);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmDiscover(const RawAddress& bd_addr,
-                    service_discovery_callbacks cback, tBT_TRANSPORT transport);
+void BTA_DmDiscover(const RawAddress& bd_addr, service_discovery_callbacks cback,
+                    tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -566,8 +547,7 @@ void BTA_DmDiscover(const RawAddress& bd_addr,
  *                  BTA_FAILURE if cached name is not available
  *
  ******************************************************************************/
-tBTA_STATUS BTA_DmGetCachedRemoteName(const RawAddress& remote_device,
-                                      uint8_t** pp_cached_name);
+tBTA_STATUS BTA_DmGetCachedRemoteName(const RawAddress& remote_device, uint8_t** pp_cached_name);
 
 /*******************************************************************************
  *
@@ -589,8 +569,7 @@ bool BTA_DmGetConnectionState(const RawAddress& bd_addr);
  * Returns          BTA_SUCCESS if record set sucessfully, otherwise error code.
  *
  ******************************************************************************/
-tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info,
-                                   uint32_t* p_handle);
+tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info, uint32_t* p_handle);
 
 /*******************************************************************************
  *
@@ -609,9 +588,8 @@ tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmSetBlePrefConnParams(const RawAddress& bd_addr,
-                                uint16_t min_conn_int, uint16_t max_conn_int,
-                                uint16_t peripheral_latency,
+void BTA_DmSetBlePrefConnParams(const RawAddress& bd_addr, uint16_t min_conn_int,
+                                uint16_t max_conn_int, uint16_t peripheral_latency,
                                 uint16_t supervision_tout);
 
 /*******************************************************************************
@@ -623,13 +601,11 @@ void BTA_DmSetBlePrefConnParams(const RawAddress& bd_addr,
  * Parameters       start: start or stop the scan procedure,
  *                  duration_sec: Duration of the scan. Continuous scan if 0 is
  *                                passed,
- *                  low_latency_scan: whether this is a low latency scan,
- *                                    default is false,
  *
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleScan(bool start, uint8_t duration, bool low_latency_scan = false);
+void BTA_DmBleScan(bool start, uint8_t duration);
 
 /*******************************************************************************
  *
@@ -671,8 +647,7 @@ void BTA_DmBleConfigLocalPrivacy(bool privacy_enable);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleEnableRemotePrivacy(const RawAddress& bd_addr,
-                                  bool privacy_enable);
+void BTA_DmBleEnableRemotePrivacy(const RawAddress& bd_addr, bool privacy_enable);
 
 /*******************************************************************************
  *
@@ -690,10 +665,9 @@ void BTA_DmBleEnableRemotePrivacy(const RawAddress& bd_addr,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleUpdateConnectionParams(const RawAddress& bd_addr,
-                                     uint16_t min_int, uint16_t max_int,
-                                     uint16_t latency, uint16_t timeout,
-                                     uint16_t min_ce_len, uint16_t max_ce_len);
+void BTA_DmBleUpdateConnectionParams(const RawAddress& bd_addr, uint16_t min_int, uint16_t max_int,
+                                     uint16_t latency, uint16_t timeout, uint16_t min_ce_len,
+                                     uint16_t max_ce_len);
 
 /*******************************************************************************
  *
@@ -794,9 +768,8 @@ void BTA_DmSetEventFilterConnectionSetupAllDevices();
  * Parameters
  *
  *******************************************************************************/
-void BTA_DmAllowWakeByHid(
-    std::vector<RawAddress> classic_hid_devices,
-    std::vector<std::pair<RawAddress, uint8_t>> le_hid_devices);
+void BTA_DmAllowWakeByHid(std::vector<RawAddress> classic_hid_devices,
+                          std::vector<std::pair<RawAddress, uint8_t>> le_hid_devices);
 
 /*******************************************************************************
  *
@@ -807,8 +780,7 @@ void BTA_DmAllowWakeByHid(
  * Parameters
  *
  *******************************************************************************/
-void BTA_DmRestoreFilterAcceptList(
-    std::vector<std::pair<RawAddress, uint8_t>> le_devices);
+void BTA_DmRestoreFilterAcceptList(std::vector<std::pair<RawAddress, uint8_t>> le_devices);
 
 /*******************************************************************************
  *
@@ -862,9 +834,8 @@ void BTA_DmBleResetId(void);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_DmBleSubrateRequest(const RawAddress& bd_addr, uint16_t subrate_min,
-                             uint16_t subrate_max, uint16_t max_latency,
-                             uint16_t cont_num, uint16_t timeout);
+void BTA_DmBleSubrateRequest(const RawAddress& bd_addr, uint16_t subrate_min, uint16_t subrate_max,
+                             uint16_t max_latency, uint16_t cont_num, uint16_t timeout);
 
 /*******************************************************************************
  *

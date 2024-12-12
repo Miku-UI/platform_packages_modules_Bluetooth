@@ -48,8 +48,8 @@ namespace osi_config {
 struct checksum_read {
   std::string return_value{std::string()};
   std::function<std::string(const char* filename)> body{
-      [this](const char* /* filename */) { return return_value; }};
-  std::string operator()(const char* filename) { return body(filename); };
+          [this](const char* /* filename */) { return return_value; }};
+  std::string operator()(const char* filename) { return body(filename); }
 };
 extern struct checksum_read checksum_read;
 
@@ -58,12 +58,13 @@ extern struct checksum_read checksum_read;
 // Return: bool
 struct checksum_save {
   bool return_value{false};
-  std::function<bool(const std::string& checksum, const std::string& filename)>
-      body{[this](const std::string& /* checksum */,
-                  const std::string& /* filename */) { return return_value; }};
+  std::function<bool(const std::string& checksum, const std::string& filename)> body{
+          [this](const std::string& /* checksum */, const std::string& /* filename */) {
+            return return_value;
+          }};
   bool operator()(const std::string& checksum, const std::string& filename) {
     return body(checksum, filename);
-  };
+  }
 };
 extern struct checksum_save checksum_save;
 
@@ -72,16 +73,14 @@ extern struct checksum_save checksum_save;
 // std::string& key, bool def_value Return: bool
 struct config_get_bool {
   bool return_value{false};
-  std::function<bool(const config_t& config, const std::string& section,
-                     const std::string& key, bool def_value)>
-      body{[this](const config_t& /* config */,
-                  const std::string& /* section */,
-                  const std::string& /* key */,
-                  bool /* def_value */) { return return_value; }};
-  bool operator()(const config_t& config, const std::string& section,
-                  const std::string& key, bool def_value) {
+  std::function<bool(const config_t& config, const std::string& section, const std::string& key,
+                     bool def_value)>
+          body{[this](const config_t& /* config */, const std::string& /* section */,
+                      const std::string& /* key */, bool /* def_value */) { return return_value; }};
+  bool operator()(const config_t& config, const std::string& section, const std::string& key,
+                  bool def_value) {
     return body(config, section, key, def_value);
-  };
+  }
 };
 extern struct config_get_bool config_get_bool;
 
@@ -90,16 +89,14 @@ extern struct config_get_bool config_get_bool;
 // std::string& key, int def_value Return: int
 struct config_get_int {
   int return_value{0};
-  std::function<int(const config_t& config, const std::string& section,
-                    const std::string& key, int def_value)>
-      body{[this](const config_t& /* config */,
-                  const std::string& /* section */,
-                  const std::string& /* key */,
-                  int /* def_value */) { return return_value; }};
-  int operator()(const config_t& config, const std::string& section,
-                 const std::string& key, int def_value) {
+  std::function<int(const config_t& config, const std::string& section, const std::string& key,
+                    int def_value)>
+          body{[this](const config_t& /* config */, const std::string& /* section */,
+                      const std::string& /* key */, int /* def_value */) { return return_value; }};
+  int operator()(const config_t& config, const std::string& section, const std::string& key,
+                 int def_value) {
     return body(config, section, key, def_value);
-  };
+  }
 };
 extern struct config_get_int config_get_int;
 
@@ -108,19 +105,15 @@ extern struct config_get_int config_get_int;
 // std::string& key, const std::string* def_value Return: const std::string*
 struct config_get_string {
   const std::string* return_value{0};
-  std::function<const std::string*(
-      const config_t& config, const std::string& section,
-      const std::string& key, const std::string* def_value)>
-      body{[this](const config_t& /* config */,
-                  const std::string& /* section */,
-                  const std::string& /* key */,
-                  const std::string* /* def_value */) { return return_value; }};
-  const std::string* operator()(const config_t& config,
-                                const std::string& section,
-                                const std::string& key,
-                                const std::string* def_value) {
+  std::function<const std::string*(const config_t& config, const std::string& section,
+                                   const std::string& key, const std::string* def_value)>
+          body{[this](const config_t& /* config */, const std::string& /* section */,
+                      const std::string& /* key */,
+                      const std::string* /* def_value */) { return return_value; }};
+  const std::string* operator()(const config_t& config, const std::string& section,
+                                const std::string& key, const std::string* def_value) {
     return body(config, section, key, def_value);
-  };
+  }
 };
 extern struct config_get_string config_get_string;
 
@@ -129,16 +122,15 @@ extern struct config_get_string config_get_string;
 // std::string& key, uint64_t def_value Return: uint64_t
 struct config_get_uint64 {
   uint64_t return_value{0};
-  std::function<uint64_t(const config_t& config, const std::string& section,
-                         const std::string& key, uint64_t def_value)>
-      body{[this](const config_t& /* config */,
-                  const std::string& /* section */,
-                  const std::string& /* key */,
-                  uint64_t /* def_value */) { return return_value; }};
-  uint64_t operator()(const config_t& config, const std::string& section,
-                      const std::string& key, uint64_t def_value) {
+  std::function<uint64_t(const config_t& config, const std::string& section, const std::string& key,
+                         uint64_t def_value)>
+          body{[this](const config_t& /* config */, const std::string& /* section */,
+                      const std::string& /* key */,
+                      uint64_t /* def_value */) { return return_value; }};
+  uint64_t operator()(const config_t& config, const std::string& section, const std::string& key,
+                      uint64_t def_value) {
     return body(config, section, key, def_value);
-  };
+  }
 };
 extern struct config_get_uint64 config_get_uint64;
 
@@ -147,15 +139,12 @@ extern struct config_get_uint64 config_get_uint64;
 // std::string& key Return: bool
 struct config_has_key {
   bool return_value{false};
-  std::function<bool(const config_t& config, const std::string& section,
-                     const std::string& key)>
-      body{[this](const config_t& /* config */,
-                  const std::string& /* section */,
-                  const std::string& /* key */) { return return_value; }};
-  bool operator()(const config_t& config, const std::string& section,
-                  const std::string& key) {
+  std::function<bool(const config_t& config, const std::string& section, const std::string& key)>
+          body{[this](const config_t& /* config */, const std::string& /* section */,
+                      const std::string& /* key */) { return return_value; }};
+  bool operator()(const config_t& config, const std::string& section, const std::string& key) {
     return body(config, section, key);
-  };
+  }
 };
 extern struct config_has_key config_has_key;
 
@@ -164,13 +153,13 @@ extern struct config_has_key config_has_key;
 // Return: bool
 struct config_has_section {
   bool return_value{false};
-  std::function<bool(const config_t& /* config */,
-                     const std::string& /* section */)>
-      body{[this](const config_t& /* config */,
-                  const std::string& /* section */) { return return_value; }};
+  std::function<bool(const config_t& /* config */, const std::string& /* section */)> body{
+          [this](const config_t& /* config */, const std::string& /* section */) {
+            return return_value;
+          }};
   bool operator()(const config_t& config, const std::string& section) {
     return body(config, section);
-  };
+  }
 };
 extern struct config_has_section config_has_section;
 
@@ -179,10 +168,8 @@ extern struct config_has_section config_has_section;
 // Return: std::unique_ptr<config_t>
 struct config_new {
   std::function<std::unique_ptr<config_t>(const char* filename)> body{
-      [](const char* /* filename */) { return std::make_unique<config_t>(); }};
-  std::unique_ptr<config_t> operator()(const char* filename) {
-    return body(filename);
-  };
+          [](const char* /* filename */) { return std::make_unique<config_t>(); }};
+  std::unique_ptr<config_t> operator()(const char* filename) { return body(filename); }
 };
 extern struct config_new config_new;
 
@@ -191,10 +178,8 @@ extern struct config_new config_new;
 // Return: std::unique_ptr<config_t>
 struct config_new_clone {
   std::function<std::unique_ptr<config_t>(const config_t& src)> body{
-      [](const config_t& /* src */) { return std::make_unique<config_t>(); }};
-  std::unique_ptr<config_t> operator()(const config_t& src) {
-    return body(src);
-  };
+          [](const config_t& /* src */) { return std::make_unique<config_t>(); }};
+  std::unique_ptr<config_t> operator()(const config_t& src) { return body(src); }
 };
 extern struct config_new_clone config_new_clone;
 
@@ -203,8 +188,8 @@ extern struct config_new_clone config_new_clone;
 // Return: std::unique_ptr<config_t>
 struct config_new_empty {
   std::function<std::unique_ptr<config_t>(void)> body{
-      [](void) { return std::make_unique<config_t>(); }};
-  std::unique_ptr<config_t> operator()(void) { return body(); };
+          [](void) { return std::make_unique<config_t>(); }};
+  std::unique_ptr<config_t> operator()(void) { return body(); }
 };
 extern struct config_new_empty config_new_empty;
 
@@ -213,14 +198,12 @@ extern struct config_new_empty config_new_empty;
 // Return: bool
 struct config_remove_key {
   bool return_value{false};
-  std::function<bool(config_t* config, const std::string& section,
-                     const std::string& key)>
-      body{[this](config_t* /* config */, const std::string& /* section */,
-                  const std::string& /* key */) { return return_value; }};
-  bool operator()(config_t* config, const std::string& section,
-                  const std::string& key) {
+  std::function<bool(config_t* config, const std::string& section, const std::string& key)> body{
+          [this](config_t* /* config */, const std::string& /* section */,
+                 const std::string& /* key */) { return return_value; }};
+  bool operator()(config_t* config, const std::string& section, const std::string& key) {
     return body(config, section, key);
-  };
+  }
 };
 extern struct config_remove_key config_remove_key;
 
@@ -230,12 +213,10 @@ extern struct config_remove_key config_remove_key;
 struct config_remove_section {
   bool return_value{false};
   std::function<bool(config_t* config, const std::string& section)> body{
-      [this](config_t* /* config */, const std::string& /* section */) {
-        return return_value;
-      }};
-  bool operator()(config_t* config, const std::string& section) {
-    return body(config, section);
-  };
+          [this](config_t* /* config */, const std::string& /* section */) {
+            return return_value;
+          }};
+  bool operator()(config_t* config, const std::string& section) { return body(config, section); }
 };
 extern struct config_remove_section config_remove_section;
 
@@ -245,12 +226,12 @@ extern struct config_remove_section config_remove_section;
 struct config_save {
   bool return_value{false};
   std::function<bool(const config_t& config, const std::string& filename)> body{
-      [this](const config_t& /* config */, const std::string& /* filename */) {
-        return return_value;
-      }};
+          [this](const config_t& /* config */, const std::string& /* filename */) {
+            return return_value;
+          }};
   bool operator()(const config_t& config, const std::string& filename) {
     return body(config, filename);
-  };
+  }
 };
 extern struct config_save config_save;
 
@@ -258,14 +239,14 @@ extern struct config_save config_save;
 // Params: config_t* config, const std::string& section, const std::string& key,
 // bool value Return: void
 struct config_set_bool {
-  std::function<void(config_t* config, const std::string& section,
-                     const std::string& key, bool value)>
-      body{[](config_t* /* config */, const std::string& /* section */,
-              const std::string& /* key */, bool /* value */) {}};
-  void operator()(config_t* config, const std::string& section,
-                  const std::string& key, bool value) {
+  std::function<void(config_t* config, const std::string& section, const std::string& key,
+                     bool value)>
+          body{[](config_t* /* config */, const std::string& /* section */,
+                  const std::string& /* key */, bool /* value */) {}};
+  void operator()(config_t* config, const std::string& section, const std::string& key,
+                  bool value) {
     body(config, section, key, value);
-  };
+  }
 };
 extern struct config_set_bool config_set_bool;
 
@@ -273,14 +254,13 @@ extern struct config_set_bool config_set_bool;
 // Params: config_t* config, const std::string& section, const std::string& key,
 // int value Return: void
 struct config_set_int {
-  std::function<void(config_t* config, const std::string& section,
-                     const std::string& key, int value)>
-      body{[](config_t* /* config */, const std::string& /* section */,
-              const std::string& /* key */, int /* value */) {}};
-  void operator()(config_t* config, const std::string& section,
-                  const std::string& key, int value) {
+  std::function<void(config_t* config, const std::string& section, const std::string& key,
+                     int value)>
+          body{[](config_t* /* config */, const std::string& /* section */,
+                  const std::string& /* key */, int /* value */) {}};
+  void operator()(config_t* config, const std::string& section, const std::string& key, int value) {
     body(config, section, key, value);
-  };
+  }
 };
 extern struct config_set_int config_set_int;
 
@@ -288,14 +268,14 @@ extern struct config_set_int config_set_int;
 // Params: config_t* config, const std::string& section, const std::string& key,
 // const std::string& value Return: void
 struct config_set_string {
-  std::function<void(config_t* config, const std::string& section,
-                     const std::string& key, const std::string& value)>
-      body{[](config_t* /* config */, const std::string& /* section */,
-              const std::string& /* key */, const std::string& /* value */) {}};
-  void operator()(config_t* config, const std::string& section,
-                  const std::string& key, const std::string& value) {
+  std::function<void(config_t* config, const std::string& section, const std::string& key,
+                     const std::string& value)>
+          body{[](config_t* /* config */, const std::string& /* section */,
+                  const std::string& /* key */, const std::string& /* value */) {}};
+  void operator()(config_t* config, const std::string& section, const std::string& key,
+                  const std::string& value) {
     body(config, section, key, value);
-  };
+  }
 };
 extern struct config_set_string config_set_string;
 
@@ -303,14 +283,14 @@ extern struct config_set_string config_set_string;
 // Params: config_t* config, const std::string& section, const std::string& key,
 // uint64_t value Return: void
 struct config_set_uint64 {
-  std::function<void(config_t* config, const std::string& section,
-                     const std::string& key, uint64_t value)>
-      body{[](config_t* /* config */, const std::string& /* section */,
-              const std::string& /* key */, uint64_t /* value */) {}};
-  void operator()(config_t* config, const std::string& section,
-                  const std::string& key, uint64_t value) {
+  std::function<void(config_t* config, const std::string& section, const std::string& key,
+                     uint64_t value)>
+          body{[](config_t* /* config */, const std::string& /* section */,
+                  const std::string& /* key */, uint64_t /* value */) {}};
+  void operator()(config_t* config, const std::string& section, const std::string& key,
+                  uint64_t value) {
     body(config, section, key, value);
-  };
+  }
 };
 extern struct config_set_uint64 config_set_uint64;
 
@@ -319,13 +299,9 @@ extern struct config_set_uint64 config_set_uint64;
 // Return: std::list<section_t>::iterator
 struct config_t_Find {
   std::list<section_t> section_;
-  std::function<std::list<section_t>::iterator(const std::string& section)>
-      body{[this](const std::string& /* section */) {
-        return section_.begin();
-      }};
-  std::list<section_t>::iterator operator()(const std::string& section) {
-    return body(section);
-  };
+  std::function<std::list<section_t>::iterator(const std::string& section)> body{
+          [this](const std::string& /* section */) { return section_.begin(); }};
+  std::list<section_t>::iterator operator()(const std::string& section) { return body(section); }
 };
 extern struct config_t_Find config_t_Find;
 
@@ -335,8 +311,8 @@ extern struct config_t_Find config_t_Find;
 struct config_t_Has {
   bool return_value{false};
   std::function<bool(const std::string& key)> body{
-      [this](const std::string& /* key */) { return return_value; }};
-  bool operator()(const std::string& key) { return body(key); };
+          [this](const std::string& /* key */) { return return_value; }};
+  bool operator()(const std::string& key) { return body(key); }
 };
 extern struct config_t_Has config_t_Has;
 
@@ -346,10 +322,8 @@ extern struct config_t_Has config_t_Has;
 struct section_t_Find {
   std::list<entry_t> list_;
   std::function<std::list<entry_t>::iterator(const std::string& key)> body{
-      [this](const std::string& /* key */) { return list_.begin(); }};
-  std::list<entry_t>::iterator operator()(const std::string& key) {
-    return body(key);
-  };
+          [this](const std::string& /* key */) { return list_.begin(); }};
+  std::list<entry_t>::iterator operator()(const std::string& key) { return body(key); }
 };
 extern struct section_t_Find section_t_Find;
 
@@ -359,8 +333,8 @@ extern struct section_t_Find section_t_Find;
 struct section_t_Has {
   bool return_value{false};
   std::function<bool(const std::string& key)> body{
-      [this](const std::string& /* key */) { return return_value; }};
-  bool operator()(const std::string& key) { return body(key); };
+          [this](const std::string& /* key */) { return return_value; }};
+  bool operator()(const std::string& key) { return body(key); }
 };
 extern struct section_t_Has section_t_Has;
 
@@ -369,8 +343,8 @@ extern struct section_t_Has section_t_Has;
 // Return: void
 struct section_t_Set {
   std::function<void(std::string key, std::string value)> body{
-      [](std::string /* key */, std::string /* value */) {}};
-  void operator()(std::string key, std::string value) { body(key, value); };
+          [](std::string /* key */, std::string /* value */) {}};
+  void operator()(std::string key, std::string value) { body(key, value); }
 };
 extern struct section_t_Set section_t_Set;
 

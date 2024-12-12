@@ -27,7 +27,7 @@ namespace bluetooth {
 namespace os {
 
 class BM_QueuePerformance : public ::benchmark::Fixture {
- protected:
+protected:
   void SetUp(State& st) override {
     ::benchmark::Fixture::SetUp(st);
     enqueue_thread_ = new Thread("enqueue_thread", Thread::Priority::NORMAL);
@@ -55,12 +55,14 @@ class BM_QueuePerformance : public ::benchmark::Fixture {
 };
 
 class TestEnqueueEnd {
- public:
-  explicit TestEnqueueEnd(int64_t count, Queue<std::string>* queue, Handler* handler, std::promise<void>* promise)
+public:
+  explicit TestEnqueueEnd(int64_t count, Queue<std::string>* queue, Handler* handler,
+                          std::promise<void>* promise)
       : count_(count), handler_(handler), queue_(queue), promise_(promise) {}
 
   void RegisterEnqueue() {
-    handler_->Post(common::BindOnce(&TestEnqueueEnd::handle_register_enqueue, common::Unretained(this)));
+    handler_->Post(
+            common::BindOnce(&TestEnqueueEnd::handle_register_enqueue, common::Unretained(this)));
   }
 
   void push(std::string data) {
@@ -93,24 +95,27 @@ class TestEnqueueEnd {
   std::queue<std::string> buffer_;
   int64_t count_;
 
- private:
+private:
   Handler* handler_;
   Queue<std::string>* queue_;
   std::promise<void>* promise_;
   std::mutex mutex_;
 
   void handle_register_enqueue() {
-    queue_->RegisterEnqueue(handler_, common::Bind(&TestEnqueueEnd::EnqueueCallbackForTest, common::Unretained(this)));
+    queue_->RegisterEnqueue(handler_, common::Bind(&TestEnqueueEnd::EnqueueCallbackForTest,
+                                                   common::Unretained(this)));
   }
 };
 
 class TestDequeueEnd {
- public:
-  explicit TestDequeueEnd(int64_t count, Queue<std::string>* queue, Handler* handler, std::promise<void>* promise)
+public:
+  explicit TestDequeueEnd(int64_t count, Queue<std::string>* queue, Handler* handler,
+                          std::promise<void>* promise)
       : count_(count), handler_(handler), queue_(queue), promise_(promise) {}
 
   void RegisterDequeue() {
-    handler_->Post(common::BindOnce(&TestDequeueEnd::handle_register_dequeue, common::Unretained(this)));
+    handler_->Post(
+            common::BindOnce(&TestDequeueEnd::handle_register_dequeue, common::Unretained(this)));
   }
 
   void DequeueCallbackForTest() {
@@ -127,13 +132,14 @@ class TestDequeueEnd {
   std::queue<std::string> buffer_;
   int64_t count_;
 
- private:
+private:
   Handler* handler_;
   Queue<std::string>* queue_;
   std::promise<void>* promise_;
 
   void handle_register_dequeue() {
-    queue_->RegisterDequeue(handler_, common::Bind(&TestDequeueEnd::DequeueCallbackForTest, common::Unretained(this)));
+    queue_->RegisterDequeue(handler_, common::Bind(&TestDequeueEnd::DequeueCallbackForTest,
+                                                   common::Unretained(this)));
   }
 };
 
@@ -159,16 +165,16 @@ BENCHMARK_DEFINE_F(BM_QueuePerformance, send_packet_vary_by_packet_num)(State& s
   }
 
   state.SetBytesProcessed(static_cast<int_fast64_t>(state.iterations()) * state.range(0));
-};
+}
 
 BENCHMARK_REGISTER_F(BM_QueuePerformance, send_packet_vary_by_packet_num)
-    ->Arg(10)
-    ->Arg(100)
-    ->Arg(1000)
-    ->Arg(10000)
-    ->Arg(100000)
-    ->Iterations(100)
-    ->UseRealTime();
+        ->Arg(10)
+        ->Arg(100)
+        ->Arg(1000)
+        ->Arg(10000)
+        ->Arg(100000)
+        ->Iterations(100)
+        ->UseRealTime();
 
 BENCHMARK_DEFINE_F(BM_QueuePerformance, send_10000_packet_vary_by_packet_size)(State& state) {
   for (auto _ : state) {
@@ -193,14 +199,14 @@ BENCHMARK_DEFINE_F(BM_QueuePerformance, send_10000_packet_vary_by_packet_size)(S
   }
 
   state.SetBytesProcessed(static_cast<int_fast64_t>(state.iterations()) * state.range(0) * 10000);
-};
+}
 
 BENCHMARK_REGISTER_F(BM_QueuePerformance, send_10000_packet_vary_by_packet_size)
-    ->Arg(10)
-    ->Arg(100)
-    ->Arg(1000)
-    ->Iterations(100)
-    ->UseRealTime();
+        ->Arg(10)
+        ->Arg(100)
+        ->Arg(1000)
+        ->Iterations(100)
+        ->UseRealTime();
 
 }  // namespace os
 }  // namespace bluetooth

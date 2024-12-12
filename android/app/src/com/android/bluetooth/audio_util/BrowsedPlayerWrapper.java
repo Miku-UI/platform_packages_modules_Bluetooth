@@ -499,10 +499,10 @@ class BrowsedPlayerWrapper {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("Browsable Package Name: " + mPackageName + "\n");
+        sb.append("Browsable Package Name: ").append(mPackageName).append("\n");
         sb.append("   Cached Media ID's: ");
         for (String id : mCachedFolders.keySet()) {
-            sb.append("\"" + id + "\", ");
+            sb.append("\"").append(id).append("\", ");
         }
         sb.append("\n");
         return sb.toString();

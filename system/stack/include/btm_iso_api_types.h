@@ -21,6 +21,7 @@
 
 #include "hcimsgs.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_ble_api_types.h"
 
 namespace bluetooth {
 namespace hci {

@@ -28,9 +28,9 @@ namespace hci {
 namespace acl_manager {
 
 class MockConnectionCallback : public ConnectionCallbacks {
- public:
-  MOCK_METHOD(
-      void, OnConnectSuccess, (std::unique_ptr<ClassicAclConnection> connection), (override));
+public:
+  MOCK_METHOD(void, OnConnectSuccess, (std::unique_ptr<ClassicAclConnection> connection),
+              (override));
   MOCK_METHOD(void, OnConnectRequest, (Address, ClassOfDevice), (override));
   MOCK_METHOD(void, OnConnectFail, (Address, ErrorCode reason, bool locally_initiated), (override));
 };

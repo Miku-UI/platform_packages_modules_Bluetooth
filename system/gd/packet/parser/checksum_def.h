@@ -24,7 +24,7 @@
 #include "type_def.h"
 
 class ChecksumDef : public CustomFieldDef {
- public:
+public:
   ChecksumDef(std::string name, std::string include, int size);
 
   virtual PacketField* GetNewField(const std::string& name, ParseLocation loc) const override;

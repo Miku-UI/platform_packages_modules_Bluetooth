@@ -28,7 +28,7 @@ namespace facade {
 class LeAclManagerFacadeService;
 
 class LeAclManagerFacadeModule : public ::bluetooth::grpc::GrpcFacadeModule {
- public:
+public:
   static const ModuleFactory Factory;
 
   void ListDependencies(ModuleList* list) const override;
@@ -36,7 +36,7 @@ class LeAclManagerFacadeModule : public ::bluetooth::grpc::GrpcFacadeModule {
   void Stop() override;
   ::grpc::Service* GetService() const override;
 
- private:
+private:
   LeAclManagerFacadeService* service_;
 };
 

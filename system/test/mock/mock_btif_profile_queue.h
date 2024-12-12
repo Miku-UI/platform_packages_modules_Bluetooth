@@ -43,7 +43,7 @@ namespace btif_profile_queue {
 // Return: void
 struct btif_queue_advance {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct btif_queue_advance btif_queue_advance;
 
@@ -52,7 +52,7 @@ extern struct btif_queue_advance btif_queue_advance;
 // Return: void
 struct btif_queue_cleanup {
   std::function<void(uint16_t uuid)> body{[](uint16_t /* uuid */) {}};
-  void operator()(uint16_t uuid) { body(uuid); };
+  void operator()(uint16_t uuid) { body(uuid); }
 };
 extern struct btif_queue_cleanup btif_queue_cleanup;
 
@@ -61,14 +61,12 @@ extern struct btif_queue_cleanup btif_queue_cleanup;
 // Return: bt_status_t
 struct btif_queue_connect {
   static bt_status_t return_value;
-  std::function<bt_status_t(uint16_t uuid, const RawAddress* bda,
-                            btif_connect_cb_t connect_cb)>
-      body{[](uint16_t /* uuid */, const RawAddress* /* bda */,
-              btif_connect_cb_t /* connect_cb */) { return return_value; }};
-  bt_status_t operator()(uint16_t uuid, const RawAddress* bda,
-                         btif_connect_cb_t connect_cb) {
+  std::function<bt_status_t(uint16_t uuid, const RawAddress* bda, btif_connect_cb_t connect_cb)>
+          body{[](uint16_t /* uuid */, const RawAddress* /* bda */,
+                  btif_connect_cb_t /* connect_cb */) { return return_value; }};
+  bt_status_t operator()(uint16_t uuid, const RawAddress* bda, btif_connect_cb_t connect_cb) {
     return body(uuid, bda, connect_cb);
-  };
+  }
 };
 extern struct btif_queue_connect btif_queue_connect;
 
@@ -78,7 +76,7 @@ extern struct btif_queue_connect btif_queue_connect;
 struct btif_queue_connect_next {
   static bt_status_t return_value;
   std::function<bt_status_t(void)> body{[](void) { return return_value; }};
-  bt_status_t operator()(void) { return body(); };
+  bt_status_t operator()(void) { return body(); }
 };
 extern struct btif_queue_connect_next btif_queue_connect_next;
 
@@ -87,7 +85,7 @@ extern struct btif_queue_connect_next btif_queue_connect_next;
 // Return: void
 struct btif_queue_release {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct btif_queue_release btif_queue_release;
 

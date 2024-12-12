@@ -32,25 +32,24 @@ constexpr char kBtmLogTag[] = "SMP";
 
 }
 
-const char* const smp_state_name[] = {
-    "SMP_STATE_IDLE",
-    "SMP_STATE_WAIT_APP_RSP",
-    "SMP_STATE_SEC_REQ_PENDING",
-    "SMP_STATE_PAIR_REQ_RSP",
-    "SMP_STATE_WAIT_CONFIRM",
-    "SMP_STATE_CONFIRM",
-    "SMP_STATE_RAND",
-    "SMP_STATE_PUBLIC_KEY_EXCH",
-    "SMP_STATE_SEC_CONN_PHS1_START",
-    "SMP_STATE_WAIT_COMMITMENT",
-    "SMP_STATE_WAIT_NONCE",
-    "SMP_STATE_SEC_CONN_PHS2_START",
-    "SMP_STATE_WAIT_DHK_CHECK",
-    "SMP_STATE_DHK_CHECK",
-    "SMP_STATE_ENCRYPTION_PENDING",
-    "SMP_STATE_BOND_PENDING",
-    "SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA",
-    "SMP_STATE_MAX"};
+const char* const smp_state_name[] = {"SMP_STATE_IDLE",
+                                      "SMP_STATE_WAIT_APP_RSP",
+                                      "SMP_STATE_SEC_REQ_PENDING",
+                                      "SMP_STATE_PAIR_REQ_RSP",
+                                      "SMP_STATE_WAIT_CONFIRM",
+                                      "SMP_STATE_CONFIRM",
+                                      "SMP_STATE_RAND",
+                                      "SMP_STATE_PUBLIC_KEY_EXCH",
+                                      "SMP_STATE_SEC_CONN_PHS1_START",
+                                      "SMP_STATE_WAIT_COMMITMENT",
+                                      "SMP_STATE_WAIT_NONCE",
+                                      "SMP_STATE_SEC_CONN_PHS2_START",
+                                      "SMP_STATE_WAIT_DHK_CHECK",
+                                      "SMP_STATE_DHK_CHECK",
+                                      "SMP_STATE_ENCRYPTION_PENDING",
+                                      "SMP_STATE_BOND_PENDING",
+                                      "SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA",
+                                      "SMP_STATE_MAX"};
 
 const char* const smp_event_name[] = {"PAIRING_REQ_EVT",
                                       "PAIRING_RSP_EVT",
@@ -170,190 +169,185 @@ enum {
   SMP_SM_NO_ACTION
 };
 
-static const tSMP_ACT smp_sm_action[] = {
-    smp_proc_sec_req,
-    smp_send_pair_req,
-    smp_send_pair_rsp,
-    smp_send_confirm,
-    smp_send_pair_fail,
-    smp_send_rand,
-    smp_send_enc_info,
-    smp_send_id_info,
-    smp_send_ltk_reply,
-    smp_proc_pair_cmd,
-    smp_proc_pair_fail,
-    smp_proc_confirm,
-    smp_proc_rand,
-    smp_proc_enc_info,
-    smp_proc_central_id,
-    smp_proc_id_info,
-    smp_proc_id_addr,
-    smp_proc_srk_info,
-    smp_proc_sec_grant,
-    smp_proc_sl_key,
-    smp_proc_compare,
-    smp_process_io_response,
-    smp_generate_compare,
-    smp_generate_srand_mrand_confirm,
-    smp_generate_stk,
-    smp_key_distribution,
-    smp_start_enc,
-    smp_pairing_cmpl,
-    smp_decide_association_model,
-    smp_send_app_cback,
-    smp_check_auth_req,
-    smp_pair_terminate,
-    smp_enc_cmpl,
-    smp_sirk_verify,
-    smp_proc_discard,
-    smp_create_private_key,
-    smp_use_oob_private_key,
-    smp_send_pair_public_key,
-    smp_process_pairing_public_key,
-    smp_both_have_public_keys,
-    smp_start_secure_connection_phase1,
-    smp_process_local_nonce,
-    smp_send_commitment,
-    smp_process_pairing_commitment,
-    smp_process_peer_nonce,
-    smp_calculate_local_dhkey_check,
-    smp_send_dhkey_check,
-    smp_process_dhkey_check,
-    smp_calculate_peer_dhkey_check,
-    smp_match_dhkey_checks,
-    smp_calculate_numeric_comparison_display_number,
-    smp_move_to_secure_connections_phase2,
-    smp_phase_2_dhkey_checks_are_present,
-    smp_wait_for_both_public_keys,
-    smp_start_passkey_verification,
-    smp_send_keypress_notification,
-    smp_process_keypress_notification,
-    smp_process_secure_connection_oob_data,
-    smp_set_local_oob_keys,
-    smp_set_local_oob_random_commitment,
-    smp_idle_terminate};
+static const tSMP_ACT smp_sm_action[] = {smp_proc_sec_req,
+                                         smp_send_pair_req,
+                                         smp_send_pair_rsp,
+                                         smp_send_confirm,
+                                         smp_send_pair_fail,
+                                         smp_send_rand,
+                                         smp_send_enc_info,
+                                         smp_send_id_info,
+                                         smp_send_ltk_reply,
+                                         smp_proc_pair_cmd,
+                                         smp_proc_pair_fail,
+                                         smp_proc_confirm,
+                                         smp_proc_rand,
+                                         smp_proc_enc_info,
+                                         smp_proc_central_id,
+                                         smp_proc_id_info,
+                                         smp_proc_id_addr,
+                                         smp_proc_srk_info,
+                                         smp_proc_sec_grant,
+                                         smp_proc_sl_key,
+                                         smp_proc_compare,
+                                         smp_process_io_response,
+                                         smp_generate_compare,
+                                         smp_generate_srand_mrand_confirm,
+                                         smp_generate_stk,
+                                         smp_key_distribution,
+                                         smp_start_enc,
+                                         smp_pairing_cmpl,
+                                         smp_decide_association_model,
+                                         smp_send_app_cback,
+                                         smp_check_auth_req,
+                                         smp_pair_terminate,
+                                         smp_enc_cmpl,
+                                         smp_sirk_verify,
+                                         smp_proc_discard,
+                                         smp_create_private_key,
+                                         smp_use_oob_private_key,
+                                         smp_send_pair_public_key,
+                                         smp_process_pairing_public_key,
+                                         smp_both_have_public_keys,
+                                         smp_start_secure_connection_phase1,
+                                         smp_process_local_nonce,
+                                         smp_send_commitment,
+                                         smp_process_pairing_commitment,
+                                         smp_process_peer_nonce,
+                                         smp_calculate_local_dhkey_check,
+                                         smp_send_dhkey_check,
+                                         smp_process_dhkey_check,
+                                         smp_calculate_peer_dhkey_check,
+                                         smp_match_dhkey_checks,
+                                         smp_calculate_numeric_comparison_display_number,
+                                         smp_move_to_secure_connections_phase2,
+                                         smp_phase_2_dhkey_checks_are_present,
+                                         smp_wait_for_both_public_keys,
+                                         smp_start_passkey_verification,
+                                         smp_send_keypress_notification,
+                                         smp_process_keypress_notification,
+                                         smp_process_secure_connection_oob_data,
+                                         smp_set_local_oob_keys,
+                                         smp_set_local_oob_random_commitment,
+                                         smp_idle_terminate};
 
 /************ SMP Central FSM State/Event Indirection Table **************/
 static const uint8_t smp_central_entry_map[][SMP_STATE_MAX] = {
-    /* state name: */
-    /* Idle, WaitApp Rsp, SecReq Pend, Pair ReqRsp, Wait Cfm,
-       Confirm, Rand, PublKey Exch, SCPhs1 Strt, Wait Cmtm, Wait Nonce,
-       SCPhs2 Strt, Wait DHKChk, DHKChk, Enc Pend, Bond Pend, CrLocSc OobData
-     */
-    /* PAIR_REQ */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_RSP */
-    {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* CONFIRM */
-    {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* RAND */
-    {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-    /* PAIR_FAIL */
-    {0, 0x81, 0, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
-     0x81, 0, 0x81, 0},
-    /* ENC_INFO */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
-    /* CENTRAL_ID */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0},
-    /* ID_INFO */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0},
-    /* ID_ADDR */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0},
-    /* SIGN_INFO */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
-    /* SEC_REQ */
-    {2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_PUBLIC_KEY */
-    {0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_DHKEY_CHCK */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
-    /* PAIR_KEYPR_NOTIF */
-    {0, 8, 0, 0, 0, 0, 0, 0, 5, 2, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_COMMITM */
-    {0, 0, 0, 0, 0, 0, 0, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0},
-    /* KEY_READY */
-    {0, 3, 0, 3, 1, 0, 2, 0, 4, 0, 0, 0, 0, 0, 1, 6, 0},
-    /* ENC_CMPL */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0},
-    /* L2C_CONN */
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* L2C_DISC */
-    {3, 0x83, 0, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83,
-     0x83, 0x83, 0x83, 0},
-    /* IO_RSP */
-    {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SEC_GRANT */
-    {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* TK_REQ */
-    {0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* AUTH_CMPL */
-    {4, 0x82, 0, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82,
-     0x82, 0x82, 7, 0},
-    /* ENC_REQ */
-    {0, 4, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
-    /* BOND_REQ */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
-    /* DISCARD_SEC_REQ */
-    {0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
-    /* PUBL_KEY_EXCH_REQ */
-    {0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* LOC_PUBL_KEY_CRTD */
-    {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    /* BOTH_PUBL_KEYS_RCVD */
-    {0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SC_DHKEY_CMPLT */
-    {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* HAVE_LOC_NONCE */
-    {0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2},
-    /* SC_PHASE1_CMPLT */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
-    /* SC_CALC_NC */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0},
-    /* SC_DSPL_NC */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
-    /* SC_NC_OK */
-    {0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SC_2_DHCK_CHKS_PRES */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SC_KEY_READY */
-    {0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-    /* KEYPR_NOTIF */
-    {0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SC_OOB_DATA */
-    {0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* CR_LOC_SC_OOB_DATA */
-    {5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SIRK_VERIFY */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x82, 0},
+        /* state name: */
+        /* Idle, WaitApp Rsp, SecReq Pend, Pair ReqRsp, Wait Cfm,
+           Confirm, Rand, PublKey Exch, SCPhs1 Strt, Wait Cmtm, Wait Nonce,
+           SCPhs2 Strt, Wait DHKChk, DHKChk, Enc Pend, Bond Pend, CrLocSc OobData
+         */
+        /* PAIR_REQ */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_RSP */
+        {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* CONFIRM */
+        {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* RAND */
+        {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+        /* PAIR_FAIL */
+        {0, 0x81, 0, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0, 0x81, 0},
+        /* ENC_INFO */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+        /* CENTRAL_ID */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0},
+        /* ID_INFO */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0},
+        /* ID_ADDR */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0},
+        /* SIGN_INFO */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
+        /* SEC_REQ */
+        {2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_PUBLIC_KEY */
+        {0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_DHKEY_CHCK */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+        /* PAIR_KEYPR_NOTIF */
+        {0, 8, 0, 0, 0, 0, 0, 0, 5, 2, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_COMMITM */
+        {0, 0, 0, 0, 0, 0, 0, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0},
+        /* KEY_READY */
+        {0, 3, 0, 3, 1, 0, 2, 0, 4, 0, 0, 0, 0, 0, 1, 6, 0},
+        /* ENC_CMPL */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0},
+        /* L2C_CONN */
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* L2C_DISC */
+        {3, 0x83, 0, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83,
+         0},
+        /* IO_RSP */
+        {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SEC_GRANT */
+        {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* TK_REQ */
+        {0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* AUTH_CMPL */
+        {4, 0x82, 0, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 7, 0},
+        /* ENC_REQ */
+        {0, 4, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
+        /* BOND_REQ */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+        /* DISCARD_SEC_REQ */
+        {0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+        /* PUBL_KEY_EXCH_REQ */
+        {0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* LOC_PUBL_KEY_CRTD */
+        {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        /* BOTH_PUBL_KEYS_RCVD */
+        {0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SC_DHKEY_CMPLT */
+        {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* HAVE_LOC_NONCE */
+        {0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2},
+        /* SC_PHASE1_CMPLT */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+        /* SC_CALC_NC */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0},
+        /* SC_DSPL_NC */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+        /* SC_NC_OK */
+        {0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SC_2_DHCK_CHKS_PRES */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SC_KEY_READY */
+        {0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+        /* KEYPR_NOTIF */
+        {0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SC_OOB_DATA */
+        {0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* CR_LOC_SC_OOB_DATA */
+        {5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SIRK_VERIFY */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x82, 0},
 };
 
 static const uint8_t smp_all_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action             Next State */
-    /* PAIR_FAIL */
-    {SMP_PROC_PAIR_FAIL, SMP_PAIRING_CMPL, SMP_STATE_IDLE},
-    /* AUTH_CMPL */
-    {SMP_SEND_PAIR_FAIL, SMP_PAIRING_CMPL, SMP_STATE_IDLE},
-    /* L2C_DISC */
-    {SMP_PAIR_TERMINATE, SMP_SM_NO_ACTION, SMP_STATE_IDLE}};
+        /* Event                  Action             Next State */
+        /* PAIR_FAIL */
+        {SMP_PROC_PAIR_FAIL, SMP_PAIRING_CMPL, SMP_STATE_IDLE},
+        /* AUTH_CMPL */
+        {SMP_SEND_PAIR_FAIL, SMP_PAIRING_CMPL, SMP_STATE_IDLE},
+        /* L2C_DISC */
+        {SMP_PAIR_TERMINATE, SMP_SM_NO_ACTION, SMP_STATE_IDLE}};
 
 static const uint8_t smp_central_idle_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action               Next State */
-    /* L2C_CONN */
-    {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
-    /* SEC_REQ */
-    {SMP_PROC_SEC_REQ, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
-    /* L2C_DISC */
-    {SMP_IDLE_TERMINATE, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
-    /* AUTH_CMPL */
-    {SMP_PAIRING_CMPL, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
-    /* CR_LOC_SC_OOB_DATA */
-    {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION,
-     SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA}
+        /* Event                  Action               Next State */
+        /* L2C_CONN */
+        {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
+        /* SEC_REQ */
+        {SMP_PROC_SEC_REQ, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
+        /* L2C_DISC */
+        {SMP_IDLE_TERMINATE, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
+        /* AUTH_CMPL */
+        {SMP_PAIRING_CMPL, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
+        /* CR_LOC_SC_OOB_DATA */
+        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA}
 
 };
 
-static const uint8_t
-    smp_central_wait_for_app_response_table[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_central_wait_for_app_response_table[][SMP_SM_NUM_COLS] = {
         /* Event                Action               Next State */
         /* SEC_GRANT */
         {SMP_PROC_SEC_GRANT, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
@@ -371,23 +365,18 @@ static const uint8_t
         {SMP_PROC_DISCARD, SMP_SM_NO_ACTION, SMP_STATE_IDLE}
         /* user confirms NC 'OK', i.e. phase 1 is completed */
         /* SC_NC_OK */,
-        {SMP_MOVE_TO_SEC_CONN_PHASE2, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS2_START},
+        {SMP_MOVE_TO_SEC_CONN_PHASE2, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS2_START},
         /* user-provided passkey is rcvd */
         /* SC_KEY_READY */
-        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
         /* PAIR_KEYPR_NOTIF */
-        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK,
-         SMP_STATE_WAIT_APP_RSP},
+        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
         /* KEYPR_NOTIF */
-        {SMP_SEND_KEYPRESS_NOTIFICATION, SMP_SM_NO_ACTION,
-         SMP_STATE_WAIT_APP_RSP},
+        {SMP_SEND_KEYPRESS_NOTIFICATION, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
         /* SC_OOB_DATA */
         {SMP_USE_OOB_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH}};
 
-static const uint8_t
-    smp_central_pair_request_response_table[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_central_pair_request_response_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action            Next State */
         /* PAIR_RSP */
         {SMP_PROC_PAIR_CMD, SMP_SM_NO_ACTION, SMP_STATE_PAIR_REQ_RSP},
@@ -401,44 +390,39 @@ static const uint8_t
         {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH}};
 
 static const uint8_t smp_central_wait_for_confirm_table[][SMP_SM_NUM_COLS] = {
-    /* Event                Action            Next State */
-    /* KEY_READY*/
-    /* CONFIRM ready */
-    {SMP_SEND_CONFIRM, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM}};
+        /* Event                Action            Next State */
+        /* KEY_READY*/
+        /* CONFIRM ready */
+        {SMP_SEND_CONFIRM, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM}};
 
 static const uint8_t smp_central_confirm_table[][SMP_SM_NUM_COLS] = {
-    /* Event            Action         Next State */
-    /* CONFIRM */
-    {SMP_PROC_CONFIRM, SMP_SEND_RAND, SMP_STATE_RAND}};
+        /* Event            Action         Next State */
+        /* CONFIRM */
+        {SMP_PROC_CONFIRM, SMP_SEND_RAND, SMP_STATE_RAND}};
 
 static const uint8_t smp_central_rand_table[][SMP_SM_NUM_COLS] = {
-    /*               Event                  Action Next State */
-    /* RAND */
-    {SMP_PROC_RAND, SMP_GENERATE_COMPARE, SMP_STATE_RAND},
-    /* KEY_READY */
-    {SMP_PROC_COMPARE, SMP_SM_NO_ACTION, SMP_STATE_RAND}, /* Compare ready */
-    /* ENC_REQ */
-    {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING}};
+        /*               Event                  Action Next State */
+        /* RAND */
+        {SMP_PROC_RAND, SMP_GENERATE_COMPARE, SMP_STATE_RAND},
+        /* KEY_READY */
+        {SMP_PROC_COMPARE, SMP_SM_NO_ACTION, SMP_STATE_RAND}, /* Compare ready */
+        /* ENC_REQ */
+        {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING}};
 
-static const uint8_t smp_central_public_key_exchange_table[][SMP_SM_NUM_COLS] =
-    {
+static const uint8_t smp_central_public_key_exchange_table[][SMP_SM_NUM_COLS] = {
         /* Event                        Action              Next State */
         /* LOC_PUBL_KEY_CRTD */
         {SMP_SEND_PAIR_PUBLIC_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH},
         /* PAIR_PUBLIC_KEY */
-        {SMP_PROCESS_PAIR_PUBLIC_KEY, SMP_SM_NO_ACTION,
-         SMP_STATE_PUBLIC_KEY_EXCH},
+        {SMP_PROCESS_PAIR_PUBLIC_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH},
         /* BOTH_PUBL_KEYS_RCVD */
-        {SMP_HAVE_BOTH_PUBLIC_KEYS, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_HAVE_BOTH_PUBLIC_KEYS, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
 };
 
-static const uint8_t smp_central_sec_conn_phs1_start_table[][SMP_SM_NUM_COLS] =
-    {
+static const uint8_t smp_central_sec_conn_phs1_start_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                Next State */
         /* SC_DHKEY_CMPLT */
-        {SMP_START_SEC_CONN_PHASE1, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_START_SEC_CONN_PHASE1, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
         /* HAVE_LOC_NONCE */
         {SMP_PROCESS_LOCAL_NONCE, SMP_SM_NO_ACTION, SMP_STATE_WAIT_COMMITMENT},
         /* TK_REQ */
@@ -447,212 +431,200 @@ static const uint8_t smp_central_sec_conn_phs1_start_table[][SMP_SM_NUM_COLS] =
            display,*/
         /* It's time to start commitment calculation */
         /* KEY_READY */
-        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
         /* PAIR_KEYPR_NOTIF */
-        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK, SMP_STATE_SEC_CONN_PHS1_START},
         /* PAIR_COMMITM */
-        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
 };
 
 static const uint8_t smp_central_wait_commitment_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* PAIR_COMMITM */
-    {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SEND_RAND, SMP_STATE_WAIT_NONCE},
-    /* PAIR_KEYPR_NOTIF */
-    {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK,
-     SMP_STATE_WAIT_COMMITMENT},
+        /* Event                  Action                 Next State */
+        /* PAIR_COMMITM */
+        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SEND_RAND, SMP_STATE_WAIT_NONCE},
+        /* PAIR_KEYPR_NOTIF */
+        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_COMMITMENT},
 };
 
 static const uint8_t smp_central_wait_nonce_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* peer nonce is received */
-    /* RAND */
-    {SMP_PROC_RAND, SMP_PROCESS_PEER_NONCE, SMP_STATE_SEC_CONN_PHS2_START},
-    /* NC model, time to calculate number for NC */
-    /* SC_CALC_NC */
-    {SMP_CALCULATE_NUMERIC_COMPARISON_DISPLAY_NUMBER, SMP_SM_NO_ACTION,
-     SMP_STATE_WAIT_NONCE},
-    /* NC model, time to display calculated number for NC to the user */
-    /* SC_DSPL_NC */
-    {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
+        /* Event                  Action                 Next State */
+        /* peer nonce is received */
+        /* RAND */
+        {SMP_PROC_RAND, SMP_PROCESS_PEER_NONCE, SMP_STATE_SEC_CONN_PHS2_START},
+        /* NC model, time to calculate number for NC */
+        /* SC_CALC_NC */
+        {SMP_CALCULATE_NUMERIC_COMPARISON_DISPLAY_NUMBER, SMP_SM_NO_ACTION, SMP_STATE_WAIT_NONCE},
+        /* NC model, time to display calculated number for NC to the user */
+        /* SC_DSPL_NC */
+        {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
 };
 
-static const uint8_t smp_central_sec_conn_phs2_start_table[][SMP_SM_NUM_COLS] =
-    {
+static const uint8_t smp_central_sec_conn_phs2_start_table[][SMP_SM_NUM_COLS] = {
         /* Event                           Action                 Next State */
         /* SC_PHASE1_CMPLT */
-        {SMP_CALCULATE_LOCAL_DHKEY_CHECK, SMP_SEND_DHKEY_CHECK,
-         SMP_STATE_WAIT_DHK_CHECK},
+        {SMP_CALCULATE_LOCAL_DHKEY_CHECK, SMP_SEND_DHKEY_CHECK, SMP_STATE_WAIT_DHK_CHECK},
 };
 
 static const uint8_t smp_central_wait_dhk_check_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                          Next State */
-    /* PAIR_DHKEY_CHCK */
-    {SMP_PROCESS_DHKEY_CHECK, SMP_CALCULATE_PEER_DHKEY_CHECK,
-     SMP_STATE_DHK_CHECK},
+        /* Event                  Action                          Next State */
+        /* PAIR_DHKEY_CHCK */
+        {SMP_PROCESS_DHKEY_CHECK, SMP_CALCULATE_PEER_DHKEY_CHECK, SMP_STATE_DHK_CHECK},
 };
 
 static const uint8_t smp_central_dhk_check_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* locally calculated peer dhkey check is ready -> compare it withs DHKey
-     * Check
-     * actually received from peer */
-    /* SC_KEY_READY */
-    {SMP_MATCH_DHKEY_CHECKS, SMP_SM_NO_ACTION, SMP_STATE_DHK_CHECK},
-    /* locally calculated peer dhkey check is ready -> calculate STK, go to
-     * sending
-     */
-    /* HCI LE Start Encryption command */
-    /* ENC_REQ */
-    {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+        /* Event                  Action                 Next State */
+        /* locally calculated peer dhkey check is ready -> compare it withs DHKey
+         * Check
+         * actually received from peer */
+        /* SC_KEY_READY */
+        {SMP_MATCH_DHKEY_CHECKS, SMP_SM_NO_ACTION, SMP_STATE_DHK_CHECK},
+        /* locally calculated peer dhkey check is ready -> calculate STK, go to
+         * sending
+         */
+        /* HCI LE Start Encryption command */
+        /* ENC_REQ */
+        {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
 };
 
 static const uint8_t smp_central_enc_pending_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* STK ready */
-    /* KEY_READY */
-    {SMP_START_ENC, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
-    /* ENCRYPTED */
-    {SMP_CHECK_AUTH_REQ, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
-    /* BOND_REQ */
-    {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING}};
+        /* Event                  Action                 Next State */
+        /* STK ready */
+        /* KEY_READY */
+        {SMP_START_ENC, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+        /* ENCRYPTED */
+        {SMP_CHECK_AUTH_REQ, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+        /* BOND_REQ */
+        {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING}};
 
 static const uint8_t smp_central_bond_pending_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* ENC_INFO */
-    {SMP_PROC_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* ID_INFO */
-    {SMP_PROC_ID_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* SIGN_INFO */
-    {SMP_PROC_SRK_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* CENTRAL_ID */
-    {SMP_PROC_CENTRAL_ID, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* ID_ADDR */
-    {SMP_PROC_ID_ADDR, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* KEY_READY */
-    /* LTK ready */
-    {SMP_SEND_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* AUTH_CMPL */
-    {SMP_SIRK_VERIFY, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* Event                  Action                 Next State */
+        /* ENC_INFO */
+        {SMP_PROC_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* ID_INFO */
+        {SMP_PROC_ID_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* SIGN_INFO */
+        {SMP_PROC_SRK_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* CENTRAL_ID */
+        {SMP_PROC_CENTRAL_ID, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* ID_ADDR */
+        {SMP_PROC_ID_ADDR, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* KEY_READY */
+        /* LTK ready */
+        {SMP_SEND_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* AUTH_CMPL */
+        {SMP_SIRK_VERIFY, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
 };
 
-static const uint8_t
-    smp_central_create_local_sec_conn_oob_data[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_central_create_local_sec_conn_oob_data[][SMP_SM_NUM_COLS] = {
         /* Event                   Action            Next State */
         /* LOC_PUBL_KEY_CRTD */
-        {SMP_SET_LOCAL_OOB_KEYS, SMP_SM_NO_ACTION,
-         SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
+        {SMP_SET_LOCAL_OOB_KEYS, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
         /* HAVE_LOC_NONCE */
         {SMP_SET_LOCAL_OOB_RAND_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_IDLE}};
 
 /************ SMP Peripheral FSM State/Event Indirection Table **************/
 static const uint8_t smp_peripheral_entry_map[][SMP_STATE_MAX] = {
-    /* state name: */
-    /* Idle, WaitApp Rsp, SecReq Pend, Pair ReqRsp, Wait Cfm, Confirm, Rand,
-       PublKey Exch, SCPhs1 Strt, Wait Cmtm, Wait Nonce, SCPhs2 Strt, Wait
-       DHKChk, DHKChk, Enc Pend, Bond Pend, CrLocSc OobData */
-    /* PAIR_REQ */
-    {2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_RSP */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* CONFIRM */
-    {0, 4, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* RAND */
-    {0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-    /* PAIR_FAIL */
-    {0, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81,
-     0x81, 0x81, 0, 0},
-    /* ENC_INFO */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
-    /* CENTRAL_ID */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0},
-    /* ID_INFO */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0},
-    /* ID_ADDR */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0},
-    /* SIGN_INFO */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0},
-    /* SEC_REQ */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_PUBLIC_KEY */
-    {0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_DHKEY_CHCK */
-    {0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 0, 0, 0},
-    /* PAIR_KEYPR_NOTIF */
-    {0, 9, 0, 0, 0, 0, 0, 0, 5, 2, 0, 0, 0, 0, 0, 0, 0},
-    /* PAIR_COMMITM */
-    {0, 8, 0, 0, 0, 0, 0, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0},
-    /* KEY_READY */
-    {0, 3, 0, 3, 2, 2, 1, 0, 4, 0, 0, 0, 0, 0, 2, 1, 0},
-    /* ENC_CMPL */
-    {0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
-    /* L2C_CONN */
-    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* L2C_DISC */
-    {0, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83,
-     0x83, 0x83, 0x83, 0},
-    /* IO_RSP */
-    {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SEC_GRANT */
-    {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* TK_REQ */
-    {0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* AUTH_CMPL */
-    {0, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82,
-     0x82, 0x82, 0x82, 0},
-    /* ENC_REQ */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
-    /* BOND_REQ */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 1},
-    /* DISCARD_SEC_REQ */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* PUBL_KEY_EXCH_REQ */
-    {0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* LOC_PUBL_KEY_CRTD */
-    {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    /* BOTH_PUBL_KEYS_RCVD */
-    {0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SC_DHKEY_CMPLT */
-    {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* HAVE_LOC_NONCE */
-    {0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2},
-    /* SC_PHASE1_CMPLT */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
-    /* SC_CALC_NC */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0},
-    /* SC_DSPL_NC */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
-    /* SC_NC_OK */
-    {0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SC_2_DHCK_CHKS_PRES */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0},
-    /* SC_KEY_READY */
-    {0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-    /* KEYPR_NOTIF */
-    {0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SC_OOB_DATA */
-    {0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* CR_LOC_SC_OOB_DATA */
-    {3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* SIRK_VERIFY */
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* state name: */
+        /* Idle, WaitApp Rsp, SecReq Pend, Pair ReqRsp, Wait Cfm, Confirm, Rand,
+           PublKey Exch, SCPhs1 Strt, Wait Cmtm, Wait Nonce, SCPhs2 Strt, Wait
+           DHKChk, DHKChk, Enc Pend, Bond Pend, CrLocSc OobData */
+        /* PAIR_REQ */
+        {2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_RSP */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* CONFIRM */
+        {0, 4, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* RAND */
+        {0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+        /* PAIR_FAIL */
+        {0, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0,
+         0},
+        /* ENC_INFO */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
+        /* CENTRAL_ID */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0},
+        /* ID_INFO */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0},
+        /* ID_ADDR */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0},
+        /* SIGN_INFO */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0},
+        /* SEC_REQ */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_PUBLIC_KEY */
+        {0, 0, 0, 5, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_DHKEY_CHCK */
+        {0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 2, 0, 0, 0},
+        /* PAIR_KEYPR_NOTIF */
+        {0, 9, 0, 0, 0, 0, 0, 0, 5, 2, 0, 0, 0, 0, 0, 0, 0},
+        /* PAIR_COMMITM */
+        {0, 8, 0, 0, 0, 0, 0, 0, 6, 1, 0, 0, 0, 0, 0, 0, 0},
+        /* KEY_READY */
+        {0, 3, 0, 3, 2, 2, 1, 0, 4, 0, 0, 0, 0, 0, 2, 1, 0},
+        /* ENC_CMPL */
+        {0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+        /* L2C_CONN */
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* L2C_DISC */
+        {0, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83, 0x83,
+         0x83, 0},
+        /* IO_RSP */
+        {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SEC_GRANT */
+        {0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* TK_REQ */
+        {0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* AUTH_CMPL */
+        {0, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82, 0x82,
+         0x82, 0},
+        /* ENC_REQ */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0},
+        /* BOND_REQ */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 1},
+        /* DISCARD_SEC_REQ */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* PUBL_KEY_EXCH_REQ */
+        {0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* LOC_PUBL_KEY_CRTD */
+        {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+        /* BOTH_PUBL_KEYS_RCVD */
+        {0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SC_DHKEY_CMPLT */
+        {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* HAVE_LOC_NONCE */
+        {0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2},
+        /* SC_PHASE1_CMPLT */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+        /* SC_CALC_NC */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0},
+        /* SC_DSPL_NC */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+        /* SC_NC_OK */
+        {0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SC_2_DHCK_CHKS_PRES */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0},
+        /* SC_KEY_READY */
+        {0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+        /* KEYPR_NOTIF */
+        {0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SC_OOB_DATA */
+        {0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* CR_LOC_SC_OOB_DATA */
+        {3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        /* SIRK_VERIFY */
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
 static const uint8_t smp_peripheral_idle_table[][SMP_SM_NUM_COLS] = {
-    /* Event                 Action                Next State */
-    /* L2C_CONN */
-    {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
-    /* PAIR_REQ */
-    {SMP_PROC_PAIR_CMD, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
-    /* CR_LOC_SC_OOB_DATA */
-    {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION,
-     SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA}};
+        /* Event                 Action                Next State */
+        /* L2C_CONN */
+        {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
+        /* PAIR_REQ */
+        {SMP_PROC_PAIR_CMD, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
+        /* CR_LOC_SC_OOB_DATA */
+        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA}};
 
-static const uint8_t
-    smp_peripheral_wait_for_app_response_table[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_peripheral_wait_for_app_response_table[][SMP_SM_NUM_COLS] = {
         /* Event                   Action                 Next State */
         /* IO_RSP */
         {SMP_PROC_IO_RSP, SMP_SM_NO_ACTION, SMP_STATE_PAIR_REQ_RSP},
@@ -670,35 +642,29 @@ static const uint8_t
         {SMP_PROCESS_DHKEY_CHECK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
         /* user confirms NC 'OK', i.e. phase 1 is completed */
         /* SC_NC_OK */
-        {SMP_MOVE_TO_SEC_CONN_PHASE2, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS2_START},
+        {SMP_MOVE_TO_SEC_CONN_PHASE2, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS2_START},
         /* user-provided passkey is rcvd */
         /* SC_KEY_READY */
-        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
         /* PAIR_COMMITM */
-        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SM_NO_ACTION,
-         SMP_STATE_WAIT_APP_RSP},
+        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
         /* PAIR_KEYPR_NOTIF */
-        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK,
-         SMP_STATE_WAIT_APP_RSP},
+        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
         /* KEYPR_NOTIF */
-        {SMP_SEND_KEYPRESS_NOTIFICATION, SMP_SM_NO_ACTION,
-         SMP_STATE_WAIT_APP_RSP},
+        {SMP_SEND_KEYPRESS_NOTIFICATION, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
         /* SC_OOB_DATA */
         {SMP_SEND_PAIR_RSP, SMP_SM_NO_ACTION, SMP_STATE_PAIR_REQ_RSP},
 };
 
 static const uint8_t smp_peripheral_sec_request_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* PAIR_REQ */
-    {SMP_PROC_PAIR_CMD, SMP_SM_NO_ACTION, SMP_STATE_PAIR_REQ_RSP},
-    /* ENCRYPTED*/
-    {SMP_ENC_CMPL, SMP_SM_NO_ACTION, SMP_STATE_PAIR_REQ_RSP},
+        /* Event                  Action                 Next State */
+        /* PAIR_REQ */
+        {SMP_PROC_PAIR_CMD, SMP_SM_NO_ACTION, SMP_STATE_PAIR_REQ_RSP},
+        /* ENCRYPTED*/
+        {SMP_ENC_CMPL, SMP_SM_NO_ACTION, SMP_STATE_PAIR_REQ_RSP},
 };
 
-static const uint8_t
-    smp_peripheral_pair_request_response_table[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_peripheral_pair_request_response_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
         /* CONFIRM */
         {SMP_PROC_CONFIRM, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM},
@@ -715,46 +681,42 @@ static const uint8_t
 };
 
 static const uint8_t smp_peripheral_wait_confirm_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* CONFIRM */
-    {SMP_PROC_CONFIRM, SMP_SEND_CONFIRM, SMP_STATE_CONFIRM},
-    /* KEY_READY*/
-    {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_WAIT_CONFIRM}};
+        /* Event                  Action                 Next State */
+        /* CONFIRM */
+        {SMP_PROC_CONFIRM, SMP_SEND_CONFIRM, SMP_STATE_CONFIRM},
+        /* KEY_READY*/
+        {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_WAIT_CONFIRM}};
 
 static const uint8_t smp_peripheral_confirm_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* RAND */
-    {SMP_PROC_RAND, SMP_GENERATE_COMPARE, SMP_STATE_RAND},
+        /* Event                  Action                 Next State */
+        /* RAND */
+        {SMP_PROC_RAND, SMP_GENERATE_COMPARE, SMP_STATE_RAND},
 
-    /* TK/Confirm ready */
-    /* KEY_READY*/
-    {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM}};
+        /* TK/Confirm ready */
+        /* KEY_READY*/
+        {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM}};
 
 static const uint8_t smp_peripheral_rand_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* KEY_READY */
-    {SMP_PROC_COMPARE, SMP_SM_NO_ACTION, SMP_STATE_RAND}, /* compare match */
-    /* RAND */
-    {SMP_SEND_RAND, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING}};
+        /* Event                  Action                 Next State */
+        /* KEY_READY */
+        {SMP_PROC_COMPARE, SMP_SM_NO_ACTION, SMP_STATE_RAND}, /* compare match */
+        /* RAND */
+        {SMP_SEND_RAND, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING}};
 
 static const uint8_t smp_peripheral_public_key_exch_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* LOC_PUBL_KEY_CRTD */
-    {SMP_WAIT_FOR_BOTH_PUBLIC_KEYS, SMP_SM_NO_ACTION,
-     SMP_STATE_PUBLIC_KEY_EXCH},
-    /* PAIR_PUBLIC_KEY */
-    {SMP_PROCESS_PAIR_PUBLIC_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH},
-    /* BOTH_PUBL_KEYS_RCVD */
-    {SMP_HAVE_BOTH_PUBLIC_KEYS, SMP_SM_NO_ACTION,
-     SMP_STATE_SEC_CONN_PHS1_START},
+        /* Event                  Action                 Next State */
+        /* LOC_PUBL_KEY_CRTD */
+        {SMP_WAIT_FOR_BOTH_PUBLIC_KEYS, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH},
+        /* PAIR_PUBLIC_KEY */
+        {SMP_PROCESS_PAIR_PUBLIC_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH},
+        /* BOTH_PUBL_KEYS_RCVD */
+        {SMP_HAVE_BOTH_PUBLIC_KEYS, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
 };
 
-static const uint8_t
-    smp_peripheral_sec_conn_phs1_start_table[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_peripheral_sec_conn_phs1_start_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
         /* SC_DHKEY_CMPLT */
-        {SMP_START_SEC_CONN_PHASE1, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_START_SEC_CONN_PHASE1, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
         /* HAVE_LOC_NONCE */
         {SMP_PROCESS_LOCAL_NONCE, SMP_SM_NO_ACTION, SMP_STATE_WAIT_COMMITMENT},
         /* TK_REQ */
@@ -764,41 +726,35 @@ static const uint8_t
          * time to start */
         /* commitment calculation */
         /* KEY_READY */
-        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_START_PASSKEY_VERIFICATION, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
         /* PAIR_KEYPR_NOTIF */
-        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK, SMP_STATE_SEC_CONN_PHS1_START},
         /*COMMIT*/
-        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS1_START},
+        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS1_START},
 };
 
 static const uint8_t smp_peripheral_wait_commitment_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* PAIR_COMMITM */
-    {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SEND_COMMITMENT, SMP_STATE_WAIT_NONCE},
-    /* PAIR_KEYPR_NOTIF */
-    {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK,
-     SMP_STATE_WAIT_COMMITMENT},
+        /* Event                  Action                 Next State */
+        /* PAIR_COMMITM */
+        {SMP_PROCESS_PAIRING_COMMITMENT, SMP_SEND_COMMITMENT, SMP_STATE_WAIT_NONCE},
+        /* PAIR_KEYPR_NOTIF */
+        {SMP_PROCESS_KEYPRESS_NOTIFICATION, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_COMMITMENT},
 };
 
 static const uint8_t smp_peripheral_wait_nonce_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* peer nonce is received */
-    /* RAND */
-    {SMP_PROC_RAND, SMP_PROCESS_PEER_NONCE, SMP_STATE_SEC_CONN_PHS2_START},
-    /* NC model, time to calculate number for NC */
-    /* SC_CALC_NC */
-    {SMP_CALCULATE_NUMERIC_COMPARISON_DISPLAY_NUMBER, SMP_SM_NO_ACTION,
-     SMP_STATE_WAIT_NONCE},
-    /* NC model, time to display calculated number for NC to the user */
-    /* SC_DSPL_NC */
-    {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
+        /* Event                  Action                 Next State */
+        /* peer nonce is received */
+        /* RAND */
+        {SMP_PROC_RAND, SMP_PROCESS_PEER_NONCE, SMP_STATE_SEC_CONN_PHS2_START},
+        /* NC model, time to calculate number for NC */
+        /* SC_CALC_NC */
+        {SMP_CALCULATE_NUMERIC_COMPARISON_DISPLAY_NUMBER, SMP_SM_NO_ACTION, SMP_STATE_WAIT_NONCE},
+        /* NC model, time to display calculated number for NC to the user */
+        /* SC_DSPL_NC */
+        {SMP_SEND_APP_CBACK, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
 };
 
-static const uint8_t
-    smp_peripheral_sec_conn_phs2_start_table[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_peripheral_sec_conn_phs2_start_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
         /* SC_PHASE1_CMPLT */
         {SMP_CALCULATE_LOCAL_DHKEY_CHECK, SMP_PH2_DHKEY_CHECKS_ARE_PRESENT,
@@ -806,145 +762,134 @@ static const uint8_t
         /* DHKey Check from central is received before peripheral DHKey
          * calculation is completed - race */
         /* PAIR_DHKEY_CHCK */
-        {SMP_PROCESS_DHKEY_CHECK, SMP_SM_NO_ACTION,
-         SMP_STATE_SEC_CONN_PHS2_START},
+        {SMP_PROCESS_DHKEY_CHECK, SMP_SM_NO_ACTION, SMP_STATE_SEC_CONN_PHS2_START},
 };
 
 static const uint8_t smp_peripheral_wait_dhk_check_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* PAIR_DHKEY_CHCK */
-    {SMP_PROCESS_DHKEY_CHECK, SMP_CALCULATE_PEER_DHKEY_CHECK,
-     SMP_STATE_DHK_CHECK},
-    /* DHKey Check from central was received before peripheral came to this
-       state */
-    /* SC_2_DHCK_CHKS_PRES */
-    {SMP_CALCULATE_PEER_DHKEY_CHECK, SMP_SM_NO_ACTION, SMP_STATE_DHK_CHECK},
+        /* Event                  Action                 Next State */
+        /* PAIR_DHKEY_CHCK */
+        {SMP_PROCESS_DHKEY_CHECK, SMP_CALCULATE_PEER_DHKEY_CHECK, SMP_STATE_DHK_CHECK},
+        /* DHKey Check from central was received before peripheral came to this
+           state */
+        /* SC_2_DHCK_CHKS_PRES */
+        {SMP_CALCULATE_PEER_DHKEY_CHECK, SMP_SM_NO_ACTION, SMP_STATE_DHK_CHECK},
 };
 
 static const uint8_t smp_peripheral_dhk_check_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
+        /* Event                  Action                 Next State */
 
-    /* locally calculated peer dhkey check is ready -> compare it withs DHKey
-     * Check
-     */
-    /* actually received from peer */
-    /* SC_KEY_READY */
-    {SMP_MATCH_DHKEY_CHECKS, SMP_SM_NO_ACTION, SMP_STATE_DHK_CHECK},
+        /* locally calculated peer dhkey check is ready -> compare it withs DHKey
+         * Check
+         */
+        /* actually received from peer */
+        /* SC_KEY_READY */
+        {SMP_MATCH_DHKEY_CHECKS, SMP_SM_NO_ACTION, SMP_STATE_DHK_CHECK},
 
-    /* dhkey checks match -> send local dhkey check to central, go to wait for
-     * HCI LE
-     */
-    /* Long Term Key Request Event */
-    /* PAIR_DHKEY_CHCK */
-    {SMP_SEND_DHKEY_CHECK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+        /* dhkey checks match -> send local dhkey check to central, go to wait for
+         * HCI LE
+         */
+        /* Long Term Key Request Event */
+        /* PAIR_DHKEY_CHCK */
+        {SMP_SEND_DHKEY_CHECK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
 };
 
 static const uint8_t smp_peripheral_enc_pending_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
-    /* ENC_REQ */
-    {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+        /* Event                  Action                 Next State */
+        /* ENC_REQ */
+        {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
 
-    /* STK ready */
-    /* KEY_READY */
-    {SMP_SEND_LTK_REPLY, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
-    /* ENCRYPTED */
-    {SMP_CHECK_AUTH_REQ, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
-    /* BOND_REQ */
-    {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING}};
+        /* STK ready */
+        /* KEY_READY */
+        {SMP_SEND_LTK_REPLY, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+        /* ENCRYPTED */
+        {SMP_CHECK_AUTH_REQ, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+        /* BOND_REQ */
+        {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING}};
 
 static const uint8_t smp_peripheral_bond_pending_table[][SMP_SM_NUM_COLS] = {
-    /* Event                  Action                 Next State */
+        /* Event                  Action                 Next State */
 
-    /* LTK ready */
-    /* KEY_READY */
-    {SMP_SEND_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* LTK ready */
+        /* KEY_READY */
+        {SMP_SEND_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
 
-    /* rev SRK */
-    /* SIGN_INFO */
-    {SMP_PROC_SRK_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* ENC_INFO */
-    {SMP_PROC_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* ID_INFO */
-    {SMP_PROC_ID_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* CENTRAL_ID*/
-    {SMP_PROC_CENTRAL_ID, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* ID_ADDR */
-    {SMP_PROC_ID_ADDR, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
-    /* AUTH_CMPL */
-    {SMP_SIRK_VERIFY, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* rev SRK */
+        /* SIGN_INFO */
+        {SMP_PROC_SRK_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* ENC_INFO */
+        {SMP_PROC_ENC_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* ID_INFO */
+        {SMP_PROC_ID_INFO, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* CENTRAL_ID*/
+        {SMP_PROC_CENTRAL_ID, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* ID_ADDR */
+        {SMP_PROC_ID_ADDR, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+        /* AUTH_CMPL */
+        {SMP_SIRK_VERIFY, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
 };
 
-static const uint8_t
-    smp_peripheral_create_local_sec_conn_oob_data[][SMP_SM_NUM_COLS] = {
+static const uint8_t smp_peripheral_create_local_sec_conn_oob_data[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
         /* LOC_PUBL_KEY_CRTD */
-        {SMP_SET_LOCAL_OOB_KEYS, SMP_SM_NO_ACTION,
-         SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
+        {SMP_SET_LOCAL_OOB_KEYS, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
         /* HAVE_LOC_NONCE */
         {SMP_SET_LOCAL_OOB_RAND_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_IDLE}};
 
 static const tSMP_SM_TBL smp_state_table[][2] = {
-    /* SMP_STATE_IDLE */
-    {smp_central_idle_table, smp_peripheral_idle_table},
+        /* SMP_STATE_IDLE */
+        {smp_central_idle_table, smp_peripheral_idle_table},
 
-    /* SMP_STATE_WAIT_APP_RSP */
-    {smp_central_wait_for_app_response_table,
-     smp_peripheral_wait_for_app_response_table},
+        /* SMP_STATE_WAIT_APP_RSP */
+        {smp_central_wait_for_app_response_table, smp_peripheral_wait_for_app_response_table},
 
-    /* SMP_STATE_SEC_REQ_PENDING */
-    {NULL, smp_peripheral_sec_request_table},
+        /* SMP_STATE_SEC_REQ_PENDING */
+        {NULL, smp_peripheral_sec_request_table},
 
-    /* SMP_STATE_PAIR_REQ_RSP */
-    {smp_central_pair_request_response_table,
-     smp_peripheral_pair_request_response_table},
+        /* SMP_STATE_PAIR_REQ_RSP */
+        {smp_central_pair_request_response_table, smp_peripheral_pair_request_response_table},
 
-    /* SMP_STATE_WAIT_CONFIRM */
-    {smp_central_wait_for_confirm_table, smp_peripheral_wait_confirm_table},
+        /* SMP_STATE_WAIT_CONFIRM */
+        {smp_central_wait_for_confirm_table, smp_peripheral_wait_confirm_table},
 
-    /* SMP_STATE_CONFIRM */
-    {smp_central_confirm_table, smp_peripheral_confirm_table},
+        /* SMP_STATE_CONFIRM */
+        {smp_central_confirm_table, smp_peripheral_confirm_table},
 
-    /* SMP_STATE_RAND */
-    {smp_central_rand_table, smp_peripheral_rand_table},
+        /* SMP_STATE_RAND */
+        {smp_central_rand_table, smp_peripheral_rand_table},
 
-    /* SMP_STATE_PUBLIC_KEY_EXCH */
-    {smp_central_public_key_exchange_table,
-     smp_peripheral_public_key_exch_table},
+        /* SMP_STATE_PUBLIC_KEY_EXCH */
+        {smp_central_public_key_exchange_table, smp_peripheral_public_key_exch_table},
 
-    /* SMP_STATE_SEC_CONN_PHS1_START */
-    {smp_central_sec_conn_phs1_start_table,
-     smp_peripheral_sec_conn_phs1_start_table},
+        /* SMP_STATE_SEC_CONN_PHS1_START */
+        {smp_central_sec_conn_phs1_start_table, smp_peripheral_sec_conn_phs1_start_table},
 
-    /* SMP_STATE_WAIT_COMMITMENT */
-    {smp_central_wait_commitment_table, smp_peripheral_wait_commitment_table},
+        /* SMP_STATE_WAIT_COMMITMENT */
+        {smp_central_wait_commitment_table, smp_peripheral_wait_commitment_table},
 
-    /* SMP_STATE_WAIT_NONCE */
-    {smp_central_wait_nonce_table, smp_peripheral_wait_nonce_table},
+        /* SMP_STATE_WAIT_NONCE */
+        {smp_central_wait_nonce_table, smp_peripheral_wait_nonce_table},
 
-    /* SMP_STATE_SEC_CONN_PHS2_START */
-    {smp_central_sec_conn_phs2_start_table,
-     smp_peripheral_sec_conn_phs2_start_table},
+        /* SMP_STATE_SEC_CONN_PHS2_START */
+        {smp_central_sec_conn_phs2_start_table, smp_peripheral_sec_conn_phs2_start_table},
 
-    /* SMP_STATE_WAIT_DHK_CHECK */
-    {smp_central_wait_dhk_check_table, smp_peripheral_wait_dhk_check_table},
+        /* SMP_STATE_WAIT_DHK_CHECK */
+        {smp_central_wait_dhk_check_table, smp_peripheral_wait_dhk_check_table},
 
-    /* SMP_STATE_DHK_CHECK */
-    {smp_central_dhk_check_table, smp_peripheral_dhk_check_table},
+        /* SMP_STATE_DHK_CHECK */
+        {smp_central_dhk_check_table, smp_peripheral_dhk_check_table},
 
-    /* SMP_STATE_ENCRYPTION_PENDING */
-    {smp_central_enc_pending_table, smp_peripheral_enc_pending_table},
+        /* SMP_STATE_ENCRYPTION_PENDING */
+        {smp_central_enc_pending_table, smp_peripheral_enc_pending_table},
 
-    /* SMP_STATE_BOND_PENDING */
-    {smp_central_bond_pending_table, smp_peripheral_bond_pending_table},
+        /* SMP_STATE_BOND_PENDING */
+        {smp_central_bond_pending_table, smp_peripheral_bond_pending_table},
 
-    /* SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA */
-    {smp_central_create_local_sec_conn_oob_data,
-     smp_peripheral_create_local_sec_conn_oob_data},
+        /* SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA */
+        {smp_central_create_local_sec_conn_oob_data, smp_peripheral_create_local_sec_conn_oob_data},
 };
 
 typedef const uint8_t (*tSMP_ENTRY_TBL)[SMP_STATE_MAX];
-static const tSMP_ENTRY_TBL smp_entry_table[] = {smp_central_entry_map,
-                                                 smp_peripheral_entry_map};
+static const tSMP_ENTRY_TBL smp_entry_table[] = {smp_central_entry_map, smp_peripheral_entry_map};
 
 tSMP_CB smp_cb;
 
@@ -956,14 +901,12 @@ tSMP_CB smp_cb;
  ******************************************************************************/
 void smp_set_state(tSMP_STATE state) {
   if (state < SMP_STATE_MAX) {
-    log::debug("State change: {}({})==>{}({})",
-               smp_get_state_name(smp_cb.state), smp_cb.state,
+    log::debug("State change: {}({})==>{}({})", smp_get_state_name(smp_cb.state), smp_cb.state,
                smp_get_state_name(state), state);
     if (smp_cb.state != state) {
-      BTM_LogHistory(
-          kBtmLogTag, smp_cb.pairing_ble_bd_addr, "Security state changed",
-          base::StringPrintf("%s => %s", smp_get_state_name(smp_cb.state),
-                             smp_get_state_name(state)));
+      BTM_LogHistory(kBtmLogTag, smp_cb.pairing_ble_bd_addr, "Security state changed",
+                     base::StringPrintf("%s => %s", smp_get_state_name(smp_cb.state),
+                                        smp_get_state_name(state)));
     }
     smp_cb.state = state;
   } else {
@@ -1012,16 +955,14 @@ bool smp_sm_event(tSMP_CB* p_cb, tSMP_EVENT event, tSMP_INT_DATA* p_data) {
     return false;
   }
 
-  log::debug("Role:{}, State:[{}({})], Event:[{}({})]",
-             hci_role_text(p_cb->role), smp_get_state_name(p_cb->state),
-             p_cb->state, smp_get_event_name(event), event);
+  log::debug("Role:{}, State:[{}({})], Event:[{}({})]", hci_role_text(p_cb->role),
+             smp_get_state_name(p_cb->state), p_cb->state, smp_get_event_name(event), event);
 
   /* look up the state table for the current state */
   /* lookup entry /w event & curr_state */
   /* If entry is ignore, return.
    * Otherwise, get state table (according to curr_state or all_state) */
-  if ((event <= SMP_MAX_EVT) &&
-      ((entry = entry_table[event - 1][curr_state]) != SMP_SM_IGNORE)) {
+  if ((event <= SMP_MAX_EVT) && ((entry = entry_table[event - 1][curr_state]) != SMP_SM_IGNORE)) {
     if (entry & SMP_ALL_TBL_MASK) {
       entry &= ~SMP_ALL_TBL_MASK;
       state_table = smp_all_table;
@@ -1029,9 +970,8 @@ bool smp_sm_event(tSMP_CB* p_cb, tSMP_EVENT event, tSMP_INT_DATA* p_data) {
       state_table = smp_state_table[curr_state][p_cb->role];
     }
   } else {
-    log::warn("Ignore event[{}({})] in state[{}({})]",
-              smp_get_event_name(event), event, smp_get_state_name(curr_state),
-              curr_state);
+    log::warn("Ignore event[{}({})] in state[{}({})]", smp_get_event_name(event), event,
+              smp_get_state_name(curr_state), curr_state);
     return false;
   }
 

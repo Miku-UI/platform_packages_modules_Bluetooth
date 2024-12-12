@@ -24,23 +24,20 @@
 namespace gatt {
 
 class MockBtaGattQueue {
- public:
+public:
   MOCK_METHOD((void), Clean, (uint16_t conn_id));
   MOCK_METHOD((void), ReadCharacteristic,
-              (uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb,
-               void* cb_data));
+              (uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb, void* cb_data));
   MOCK_METHOD((void), WriteCharacteristic,
               (uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-               tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
-               void* cb_data));
+               tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data));
   MOCK_METHOD((void), WriteDescriptor,
               (uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-               tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
-               void* cb_data));
+               tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data));
   MOCK_METHOD((void), ConfigureMtu, (uint16_t conn_id, uint16_t mtu));
   MOCK_METHOD((void), ReadMultiCharacteristic,
-              (uint16_t conn_id, tBTA_GATTC_MULTI& p_read_multi,
-               bool variable_len, GATT_READ_MULTI_OP_CB cb, void* cb_data));
+              (uint16_t conn_id, tBTA_GATTC_MULTI& p_read_multi, GATT_READ_MULTI_OP_CB cb,
+               void* cb_data));
 };
 
 /**

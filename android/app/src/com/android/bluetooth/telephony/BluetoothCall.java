@@ -30,6 +30,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -269,11 +270,22 @@ public class BluetoothCall {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (o == null) {
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
             return getCall() == null;
         }
-        return o instanceof BluetoothCall && getCall() == ((BluetoothCall) o).getCall();
+        if (!(obj instanceof BluetoothCall other)) {
+            return false;
+        }
+        return getCall() == other.getCall();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getCall());
     }
 
     // helper functions

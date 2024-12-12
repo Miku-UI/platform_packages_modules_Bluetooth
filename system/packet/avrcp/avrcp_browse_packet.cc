@@ -16,27 +16,26 @@
 
 #include "avrcp_browse_packet.h"
 
+#include <base/sys_byteorder.h>
+
 #include "internal_include/bt_trace.h"
 
 namespace bluetooth {
 namespace avrcp {
 
 std::unique_ptr<BrowsePacketBuilder> BrowsePacketBuilder::MakeBuilder(
-    BrowsePdu pdu, std::unique_ptr<::bluetooth::PacketBuilder> payload) {
+        BrowsePdu pdu, std::unique_ptr<::bluetooth::PacketBuilder> payload) {
   std::unique_ptr<BrowsePacketBuilder> builder =
-      std::unique_ptr<BrowsePacketBuilder>(new BrowsePacketBuilder(pdu));
+          std::unique_ptr<BrowsePacketBuilder>(new BrowsePacketBuilder(pdu));
 
   builder->payload_ = std::move(payload);
 
   return builder;
 }
 
-size_t BrowsePacketBuilder::size() const {
-  return BrowsePacket::kMinSize() + payload_->size();
-}
+size_t BrowsePacketBuilder::size() const { return BrowsePacket::kMinSize() + payload_->size(); }
 
-bool BrowsePacketBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool BrowsePacketBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   PushHeader(pkt, payload_->size());
@@ -44,20 +43,17 @@ bool BrowsePacketBuilder::Serialize(
   return payload_->Serialize(pkt);
 }
 
-void BrowsePacketBuilder::PushHeader(
-    const std::shared_ptr<::bluetooth::Packet>& pkt, uint16_t length) {
+void BrowsePacketBuilder::PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt,
+                                     uint16_t length) {
   AddPayloadOctets1(pkt, (uint8_t)pdu_);
   AddPayloadOctets2(pkt, base::ByteSwap(length));
 }
 
-std::shared_ptr<BrowsePacket> BrowsePacket::Parse(
-    std::shared_ptr<::bluetooth::Packet> pkt) {
+std::shared_ptr<BrowsePacket> BrowsePacket::Parse(std::shared_ptr<::bluetooth::Packet> pkt) {
   return std::shared_ptr<BrowsePacket>(new BrowsePacket(pkt));
 }
 
-BrowsePdu BrowsePacket::GetPdu() const {
-  return static_cast<BrowsePdu>(*begin());
-}
+BrowsePdu BrowsePacket::GetPdu() const { return static_cast<BrowsePdu>(*begin()); }
 
 uint16_t BrowsePacket::GetLength() const {
   auto it = begin() + static_cast<size_t>(1);
@@ -65,7 +61,9 @@ uint16_t BrowsePacket::GetLength() const {
 }
 
 bool BrowsePacket::IsValid() const {
-  if (size() < kMinSize()) return false;
+  if (size() < kMinSize()) {
+    return false;
+  }
   return size() == GetLength() + kMinSize();
 }
 

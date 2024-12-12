@@ -20,13 +20,9 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.verify;
 
-import android.bluetooth.le.AdvertiseData;
-import android.bluetooth.le.AdvertisingSetParameters;
-import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.bluetooth.IBluetoothGattCallback;
 import android.content.pm.PackageManager;
-import android.os.Binder;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.rule.ServiceTestRule;
@@ -35,7 +31,7 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.le_scan.TransitionalScanHelper;
+import com.android.bluetooth.gatt.ContextMap.App;
 
 import org.junit.After;
 import org.junit.Before;
@@ -47,6 +43,7 @@ import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Test cases for {@link ContextMap}. */
@@ -54,15 +51,21 @@ import java.util.UUID;
 @RunWith(AndroidJUnit4.class)
 public class ContextMapTest {
     private static final String APP_NAME = "com.android.what.a.name";
+    private static final int APP_ID1 = 123;
+    private static final int APP_ID2 = 987;
+    private static final int CONN_ID1 = 321;
+    private static final int CONN_ID2 = 654;
+    private static final String ADDRESS1 = "FA:CE:FA:CE:FA:CE";
+    private static final String ADDRESS2 = "CE:FA:CE:FA:CE:FE";
+    private static final UUID RANDOM_UUID1 = UUID.randomUUID();
+    private static final UUID RANDOM_UUID2 = UUID.randomUUID();
 
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private AdapterService mAdapterService;
-    @Mock private AppAdvertiseStats appAdvertiseStats;
-    @Mock private GattService mMockGatt;
-    @Mock private TransitionalScanHelper mMockScanHelper;
+    @Mock private IBluetoothGattCallback mMockCallback;
     @Mock private PackageManager mMockPackageManager;
 
     @Spy private BluetoothMethodProxy mMapMethodProxy = BluetoothMethodProxy.getInstance();
@@ -73,7 +76,7 @@ public class ContextMapTest {
 
         TestUtils.setAdapterService(mAdapterService);
 
-        doReturn(mMockPackageManager).when(mMockGatt).getPackageManager();
+        doReturn(mMockPackageManager).when(mAdapterService).getPackageManager();
         doReturn(APP_NAME).when(mMockPackageManager).getNameForUid(anyInt());
     }
 
@@ -85,98 +88,99 @@ public class ContextMapTest {
     }
 
     @Test
-    public void getByMethods() {
-        ContextMap contextMap = new ContextMap<>();
-
-        int id = 12345;
-        contextMap.add(id, null, mMockGatt);
-
-        contextMap.add(UUID.randomUUID(), null, null, null, mMockGatt, mMockScanHelper);
-
-        int appUid = Binder.getCallingUid();
-
-        ContextMap.App contextMapById = contextMap.getById(appUid);
+    public void getAppMethods() {
+        ContextMap<IBluetoothGattCallback> contextMap = getMapWithAppAndConnection();
+        App contextMapById = contextMap.getById(APP_ID1);
         assertThat(contextMapById.name).isEqualTo(APP_NAME);
+        assertThat(contextMapById.callback).isEqualTo(mMockCallback);
+        assertThat(contextMapById.uuid).isEqualTo(RANDOM_UUID1);
+        App contextMapByUuid = contextMap.getByUuid(RANDOM_UUID1);
+        assertThat(contextMapByUuid.name).isEqualTo(APP_NAME);
+        App contextMapByConn = contextMap.getByConnId(CONN_ID1);
+        assertThat(contextMapByConn.name).isEqualTo(APP_NAME);
 
-        ContextMap.App contextMapByName = contextMap.getByName(APP_NAME);
-        assertThat(contextMapByName.name).isEqualTo(APP_NAME);
+        List<Integer> ids = contextMap.getAllAppsIds();
+        assertThat(ids).containsExactly(APP_ID1, APP_ID2);
     }
 
     @Test
-    public void advertisingSetAndData() {
-        ContextMap contextMap = new ContextMap<>();
+    public void getConnMethods() {
+        ContextMap<IBluetoothGattCallback> contextMap = getMapWithAppAndConnection();
+        assertThat(contextMap.getConnectedDevices()).containsExactly(ADDRESS1, ADDRESS2);
 
-        int id = 12345;
-        doReturn(appAdvertiseStats)
-                .when(mMapMethodProxy)
-                .createAppAdvertiseStats(id, APP_NAME, contextMap, mMockGatt);
+        assertThat(contextMap.connIdByAddress(APP_ID1, ADDRESS1)).isEqualTo(CONN_ID1);
+        assertThat(contextMap.connIdByAddress(APP_ID2, ADDRESS2)).isEqualTo(CONN_ID2);
+        assertThat(contextMap.connIdByAddress(123456, ADDRESS1)).isNull();
 
-        contextMap.add(id, null, mMockGatt);
+        assertThat(contextMap.addressByConnId(CONN_ID1)).isEqualTo(ADDRESS1);
+        assertThat(contextMap.addressByConnId(CONN_ID2)).isEqualTo(ADDRESS2);
+        assertThat(contextMap.addressByConnId(123456)).isNull();
 
-        int duration = 60;
-        int maxExtAdvEvents = 100;
-        contextMap.enableAdvertisingSet(id, true, duration, maxExtAdvEvents);
-        verify(appAdvertiseStats).enableAdvertisingSet(true, duration, maxExtAdvEvents);
+        List<ContextMap.Connection> connList = contextMap.getConnectionByApp(APP_ID1);
+        assertThat(connList).hasSize(1);
+        assertThat(connList.get(0).connId).isEqualTo(CONN_ID1);
+        assertThat(connList.get(0).address).isEqualTo(ADDRESS1);
+        assertThat(connList.get(0).appId).isEqualTo(APP_ID1);
+        assertThat(contextMap.getConnectionByApp(APP_ID2)).hasSize(1);
+        assertThat(contextMap.getConnectionByApp(123456)).isEmpty();
 
-        AdvertiseData advertiseData = new AdvertiseData.Builder().build();
-        contextMap.setAdvertisingData(id, advertiseData);
-        verify(appAdvertiseStats).setAdvertisingData(advertiseData);
-
-        AdvertiseData scanResponse = new AdvertiseData.Builder().build();
-        contextMap.setScanResponseData(id, scanResponse);
-        verify(appAdvertiseStats).setScanResponseData(scanResponse);
-
-        AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
-        contextMap.setAdvertisingParameters(id, parameters);
-        verify(appAdvertiseStats).setAdvertisingParameters(parameters);
-
-        PeriodicAdvertisingParameters periodicParameters =
-                new PeriodicAdvertisingParameters.Builder().build();
-        contextMap.setPeriodicAdvertisingParameters(id, periodicParameters);
-        verify(appAdvertiseStats).setPeriodicAdvertisingParameters(periodicParameters);
-
-        AdvertiseData periodicData = new AdvertiseData.Builder().build();
-        contextMap.setPeriodicAdvertisingData(id, periodicData);
-        verify(appAdvertiseStats).setPeriodicAdvertisingData(periodicData);
-
-        contextMap.onPeriodicAdvertiseEnabled(id, true);
-        verify(appAdvertiseStats).onPeriodicAdvertiseEnabled(true);
-
-        AppAdvertiseStats toBeRemoved = contextMap.getAppAdvertiseStatsById(id);
-        assertThat(toBeRemoved).isNotNull();
-
-        contextMap.removeAppAdvertiseStats(id);
-
-        AppAdvertiseStats isRemoved = contextMap.getAppAdvertiseStatsById(id);
-        assertThat(isRemoved).isNull();
+        assertThat(contextMap.getConnectedMap())
+                .containsExactly(APP_ID1, ADDRESS1, APP_ID2, ADDRESS2);
     }
 
     @Test
-    public void emptyStop_doesNotCrash() throws Exception {
-        ContextMap contextMap = new ContextMap<>();
+    public void clear() {
+        ContextMap<IBluetoothGattCallback> contextMap = getMapWithAppAndConnection();
+        contextMap.clear();
+        assertThat(contextMap.getConnectedMap()).isEmpty();
+        assertThat(contextMap.getAllAppsIds()).isEmpty();
+    }
 
-        int id = 12345;
-        contextMap.recordAdvertiseStop(id);
+    @Test
+    public void removeMethods() {
+        ContextMap<IBluetoothGattCallback> contextMap = getMapWithAppAndConnection();
+        contextMap.remove(APP_ID1);
+        assertThat(contextMap.getAllAppsIds()).isNotEmpty();
+        contextMap.remove(APP_ID2);
+        assertThat(contextMap.getAllAppsIds()).isEmpty();
+
+        contextMap = getMapWithAppAndConnection();
+        contextMap.remove(RANDOM_UUID1);
+        assertThat(contextMap.getAllAppsIds()).isNotEmpty();
+        contextMap.remove(RANDOM_UUID2);
+        assertThat(contextMap.getAllAppsIds()).isEmpty();
+
+        contextMap = getMapWithAppAndConnection();
+        contextMap.removeConnection(APP_ID1, CONN_ID1);
+        assertThat(contextMap.getConnectedMap()).isNotEmpty();
+        contextMap.removeConnection(APP_ID2, CONN_ID2);
+        assertThat(contextMap.getConnectedMap()).isEmpty();
+
+        contextMap = getMapWithAppAndConnection();
+        contextMap.removeConnectionsByAppId(APP_ID1);
+        assertThat(contextMap.getConnectedMap()).isNotEmpty();
+        contextMap.removeConnectionsByAppId(APP_ID2);
+        assertThat(contextMap.getConnectedMap()).isEmpty();
     }
 
     @Test
     public void testDump_doesNotCrash() throws Exception {
         StringBuilder sb = new StringBuilder();
-
-        ContextMap contextMap = new ContextMap<>();
-
-        int id = 12345;
-        contextMap.add(id, null, mMockGatt);
-
-        contextMap.add(UUID.randomUUID(), null, null, null, mMockGatt, mMockScanHelper);
-
-        contextMap.recordAdvertiseStop(id);
-
-        int idSecond = 54321;
-        contextMap.add(idSecond, null, mMockGatt);
-
+        ContextMap<IBluetoothGattCallback> contextMap = getMapWithAppAndConnection();
         contextMap.dump(sb);
+    }
 
-        contextMap.dumpAdvertiser(sb);
+    private ContextMap<IBluetoothGattCallback> getMapWithAppAndConnection() {
+        ContextMap<IBluetoothGattCallback> contextMap = new ContextMap<>();
+        App app = contextMap.add(RANDOM_UUID1, mMockCallback, mAdapterService);
+        app.id = APP_ID1;
+        app = contextMap.add(RANDOM_UUID2, mMockCallback, mAdapterService);
+        app.id = APP_ID2;
+
+        contextMap.addConnection(APP_ID1, CONN_ID1, ADDRESS1);
+        contextMap.addConnection(APP_ID2, CONN_ID2, ADDRESS2);
+        assertThat(contextMap.getConnectedMap()).isNotEmpty();
+        assertThat(contextMap.getAllAppsIds()).isNotEmpty();
+        return contextMap;
     }
 }

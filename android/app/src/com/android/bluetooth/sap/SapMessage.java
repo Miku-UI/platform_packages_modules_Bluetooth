@@ -24,8 +24,8 @@ import org.android.btsap.SapApi.RIL_SIM_SAP_TRANSFER_CARD_READER_STATUS_RSP;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Hashtable;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -165,7 +165,7 @@ public class SapMessage {
     static AtomicInteger sNextSerial = new AtomicInteger(1);
 
     // Map<rilSerial, RequestType> - HashTable is synchronized
-    static Map<Integer, Integer> sOngoingRequests = new Hashtable<Integer, Integer>();
+    static Map<Integer, Integer> sOngoingRequests = new ConcurrentHashMap<Integer, Integer>();
     private boolean mSendToRil = false; // set to true for messages that needs to go to the RIL
     private boolean mClearRilQueue = false; /* set to true for messages that needs to cause the
                                               sOngoingRequests to be cleared. */
@@ -864,8 +864,8 @@ public class SapMessage {
                     throw new IOException("Wrong msg header received: Type: " + msg.getType());
             }
         } catch (InvalidProtocolBufferMicroException e) {
-            Log.w(TAG, "Error occured parsing a RIL message", e);
-            throw new IOException("Error occured parsing a RIL message");
+            Log.w(TAG, "Error occurred parsing a RIL message", e);
+            throw new IOException("Error occurred parsing a RIL message");
         }
     }
 

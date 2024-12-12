@@ -30,16 +30,14 @@ using TestRegNotifReqPacket = TestPacketType<RegisterNotificationRequest>;
 using TestRegNotifRspPacket = TestPacketType<RegisterNotificationResponse>;
 
 TEST(RegisterNotificationRequestTest, getterTest) {
-  auto test_packet =
-      TestRegNotifReqPacket::Make(register_play_status_notification);
+  auto test_packet = TestRegNotifReqPacket::Make(register_play_status_notification);
 
   ASSERT_EQ(test_packet->GetEventRegistered(), Event::PLAYBACK_STATUS_CHANGED);
   ASSERT_EQ(test_packet->GetInterval(), 5u);
 }
 
 TEST(RegisterNotificationRequestTest, validTest) {
-  auto test_packet =
-      TestRegNotifReqPacket::Make(register_play_status_notification);
+  auto test_packet = TestRegNotifReqPacket::Make(register_play_status_notification);
   ASSERT_TRUE(test_packet->IsValid());
 }
 
@@ -55,8 +53,7 @@ TEST(RegisterNotificationRequestTest, invalidTest) {
 }
 
 TEST(RegisterNotificationRequestBuilderTest, builderTest) {
-  auto builder =
-      RegisterNotificationRequestBuilder::MakeBuilder(Event::VOLUME_CHANGED, 0);
+  auto builder = RegisterNotificationRequestBuilder::MakeBuilder(Event::VOLUME_CHANGED, 0);
   ASSERT_EQ(builder->size(), register_volume_changed_notification.size());
 
   auto test_packet = TestRegNotifReqPacket::Make();
@@ -65,8 +62,7 @@ TEST(RegisterNotificationRequestBuilderTest, builderTest) {
 }
 
 TEST(RegisterNotificationResponseTest, volumeGetterTest) {
-  auto test_packet =
-      TestRegNotifRspPacket::Make(interim_volume_changed_notification);
+  auto test_packet = TestRegNotifRspPacket::Make(interim_volume_changed_notification);
 
   ASSERT_TRUE(test_packet->IsInterim());
   ASSERT_EQ(test_packet->GetEvent(), Event::VOLUME_CHANGED);
@@ -74,8 +70,7 @@ TEST(RegisterNotificationResponseTest, volumeGetterTest) {
 }
 
 TEST(RegisterNotificationResponseTest, validTest) {
-  auto test_packet =
-      TestRegNotifRspPacket::Make(interim_volume_changed_notification);
+  auto test_packet = TestRegNotifRspPacket::Make(interim_volume_changed_notification);
 
   ASSERT_TRUE(test_packet->IsValid());
 }
@@ -104,13 +99,11 @@ TEST(RegisterNotificationResponseDeathTest, wrongEventDeathTest) {
   // this will silent SIGABRT sent in ASSERT_DEATH below
   ScopedSilentDeath _silentDeath;
 
-  ASSERT_DEATH(test_packet->GetVolume(),
-               "GetEvent\\(\\) == Event::VOLUME_CHANGED");
+  ASSERT_DEATH(test_packet->GetVolume(), "GetEvent\\(\\) == Event::VOLUME_CHANGED");
 }
 
 TEST(RegisterNotificationResponseBuilderTest, playStatusBuilderTest) {
-  auto builder = RegisterNotificationResponseBuilder::MakePlaybackStatusBuilder(
-      true, 0x00);
+  auto builder = RegisterNotificationResponseBuilder::MakePlaybackStatusBuilder(true, 0x00);
   ASSERT_EQ(builder->size(), interim_play_status_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
@@ -118,39 +111,31 @@ TEST(RegisterNotificationResponseBuilderTest, playStatusBuilderTest) {
 }
 
 TEST(RegisterNotificationResponseBuilderTest, trackChangedBuilderTest) {
-  auto builder = RegisterNotificationResponseBuilder::MakeTrackChangedBuilder(
-      true, 0x0102030405060708);
+  auto builder =
+          RegisterNotificationResponseBuilder::MakeTrackChangedBuilder(true, 0x0102030405060708);
   ASSERT_EQ(builder->size(), interim_track_changed_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
   ASSERT_EQ(test_packet->GetData(), interim_track_changed_notification);
 }
 
-TEST(RegisterNotificationResponseBuilderTest,
-     interimPlayerSettingChangedBuilderTest) {
-  std::vector<PlayerAttribute> attrs = {
-      PlayerAttribute::EQUALIZER, PlayerAttribute::REPEAT,
-      PlayerAttribute::SHUFFLE, PlayerAttribute::SCAN};
+TEST(RegisterNotificationResponseBuilderTest, interimPlayerSettingChangedBuilderTest) {
+  std::vector<PlayerAttribute> attrs = {PlayerAttribute::EQUALIZER, PlayerAttribute::REPEAT,
+                                        PlayerAttribute::SHUFFLE, PlayerAttribute::SCAN};
   std::vector<uint8_t> vals = {0x01, 0x01, 0x01, 0x01};  // All off
   auto builder =
-      RegisterNotificationResponseBuilder::MakePlayerSettingChangedBuilder(
-          true, attrs, vals);
-  ASSERT_EQ(builder->size(),
-            interim_changed_player_setting_notification.size());
+          RegisterNotificationResponseBuilder::MakePlayerSettingChangedBuilder(true, attrs, vals);
+  ASSERT_EQ(builder->size(), interim_changed_player_setting_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
-  ASSERT_EQ(test_packet->GetData(),
-            interim_changed_player_setting_notification);
+  ASSERT_EQ(test_packet->GetData(), interim_changed_player_setting_notification);
 }
 
 TEST(RegisterNotificationResponseBuilderTest, playerSettingChangedBuilderTest) {
-  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT,
-                                        PlayerAttribute::SHUFFLE};
-  std::vector<uint8_t> vals = {(uint8_t)PlayerRepeatValue::OFF,
-                               (uint8_t)PlayerShuffleValue::ALL};
+  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT, PlayerAttribute::SHUFFLE};
+  std::vector<uint8_t> vals = {(uint8_t)PlayerRepeatValue::OFF, (uint8_t)PlayerShuffleValue::ALL};
   auto builder =
-      RegisterNotificationResponseBuilder::MakePlayerSettingChangedBuilder(
-          false, attrs, vals);
+          RegisterNotificationResponseBuilder::MakePlayerSettingChangedBuilder(false, attrs, vals);
   ASSERT_EQ(builder->size(), changed_player_setting_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
@@ -159,8 +144,7 @@ TEST(RegisterNotificationResponseBuilderTest, playerSettingChangedBuilderTest) {
 
 TEST(RegisterNotificationResponseBuilderTest, playPositionBuilderTest) {
   auto builder =
-      RegisterNotificationResponseBuilder::MakePlaybackPositionBuilder(
-          false, 0x00000000);
+          RegisterNotificationResponseBuilder::MakePlaybackPositionBuilder(false, 0x00000000);
   ASSERT_EQ(builder->size(), changed_play_pos_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
@@ -168,8 +152,7 @@ TEST(RegisterNotificationResponseBuilderTest, playPositionBuilderTest) {
 }
 
 TEST(RegisterNotificationResponseBuilderTest, nowPlayingBuilderTest) {
-  auto builder =
-      RegisterNotificationResponseBuilder::MakeNowPlayingBuilder(true);
+  auto builder = RegisterNotificationResponseBuilder::MakeNowPlayingBuilder(true);
   ASSERT_EQ(builder->size(), interim_now_playing_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
@@ -177,8 +160,7 @@ TEST(RegisterNotificationResponseBuilderTest, nowPlayingBuilderTest) {
 }
 
 TEST(RegisterNotificationResponseBuilderTest, availablePlayersBuilderTest) {
-  auto builder =
-      RegisterNotificationResponseBuilder::MakeAvailablePlayersBuilder(true);
+  auto builder = RegisterNotificationResponseBuilder::MakeAvailablePlayersBuilder(true);
   ASSERT_EQ(builder->size(), interim_available_players_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
@@ -186,9 +168,7 @@ TEST(RegisterNotificationResponseBuilderTest, availablePlayersBuilderTest) {
 }
 
 TEST(RegisterNotificationResponseBuilderTest, addressedPlayerBuilderTest) {
-  auto builder =
-      RegisterNotificationResponseBuilder::MakeAddressedPlayerBuilder(true, 1,
-                                                                      0x0000);
+  auto builder = RegisterNotificationResponseBuilder::MakeAddressedPlayerBuilder(true, 1, 0x0000);
   ASSERT_EQ(builder->size(), interim_addressed_player_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
@@ -196,12 +176,11 @@ TEST(RegisterNotificationResponseBuilderTest, addressedPlayerBuilderTest) {
 }
 
 TEST(RegisterNotificationResponseBuilderTest, uidsChangedBuilderTest) {
-  auto builder =
-      RegisterNotificationResponseBuilder::MakeUidsChangedBuilder(true, 0x0000);
-  ASSERT_EQ(builder->size(), interim_uids_notificaiton.size());
+  auto builder = RegisterNotificationResponseBuilder::MakeUidsChangedBuilder(true, 0x0000);
+  ASSERT_EQ(builder->size(), interim_uids_notification.size());
   auto test_packet = TestRegNotifReqPacket::Make();
   builder->Serialize(test_packet);
-  ASSERT_EQ(test_packet->GetData(), interim_uids_notificaiton);
+  ASSERT_EQ(test_packet->GetData(), interim_uids_notification);
 }
 
 }  // namespace avrcp

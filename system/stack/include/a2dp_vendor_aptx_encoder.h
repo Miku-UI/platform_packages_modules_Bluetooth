@@ -39,11 +39,10 @@ void A2DP_VendorUnloadEncoderAptx(void);
 // The current A2DP codec config is in |a2dp_codec_config|.
 // |read_callback| is the callback for reading the input audio data.
 // |enqueue_callback| is the callback for enqueueing the encoded audio data.
-void a2dp_vendor_aptx_encoder_init(
-    const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
-    A2dpCodecConfig* a2dp_codec_config,
-    a2dp_source_read_callback_t read_callback,
-    a2dp_source_enqueue_callback_t enqueue_callback);
+void a2dp_vendor_aptx_encoder_init(const tA2DP_ENCODER_INIT_PEER_PARAMS* p_peer_params,
+                                   A2dpCodecConfig* a2dp_codec_config,
+                                   a2dp_source_read_callback_t read_callback,
+                                   a2dp_source_enqueue_callback_t enqueue_callback);
 
 // Cleanup the A2DP aptX encoder.
 void a2dp_vendor_aptx_encoder_cleanup(void);
@@ -66,8 +65,7 @@ void a2dp_vendor_aptx_send_frames(uint64_t timestamp_us);
 
 typedef int (*tAPTX_ENCODER_INIT)(void* state, short endian);
 
-typedef int (*tAPTX_ENCODER_ENCODE_STEREO)(void* state, void* pcmL, void* pcmR,
-                                           void* buffer);
+typedef int (*tAPTX_ENCODER_ENCODE_STEREO)(void* state, void* pcmL, void* pcmR, void* buffer);
 
 typedef int (*tAPTX_ENCODER_SIZEOF_PARAMS)(void);
 

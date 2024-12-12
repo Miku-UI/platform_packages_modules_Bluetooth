@@ -23,7 +23,7 @@
 
       <option name="host-setup-command" value="adb -s $SERIAL reverse tcp:7999 tcp:7999" />
       <option name="host-background-command"
-        value="$EXTRA_FILE(host_testcases)/BumbleBluetoothTests/bumble_pandora_server --transport pyusb:8087:0036 --config $EXTRA_FILE(host_testcases)/BumbleBluetoothTests/bumble_config.json"/>
+        value="$EXTRA_FILE(host_testcases)/BumbleBluetoothTestsPhy/bumble_pandora_server --transport pyusb:8087:0036 --config $EXTRA_FILE(host_testcases)/BumbleBluetoothTestsPhy/bumble_config.json"/>
       <option name="host-teardown-command" value="adb -s $SERIAL reverse --remove tcp:7999" />
     </target_preparer>
 
@@ -39,7 +39,7 @@
         <option name="run-command" value="cmd bluetooth_manager wait-for-state:STATE_ON" />
     </target_preparer>
 
-    <option name="test-tag" value="BumbleBluetoothTests" />
+    <option name="test-tag" value="BumbleBluetoothTestsPhy" />
     <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
         <option name="package" value="android.bluetooth" />
     </test>

@@ -23,25 +23,24 @@ namespace hci {
 namespace acl_manager {
 
 class LeConnectionManagementCallbacks {
- public:
+public:
   virtual ~LeConnectionManagementCallbacks() = default;
-  virtual void OnConnectionUpdate(
-      hci::ErrorCode hci_status,
-      uint16_t connection_interval,
-      uint16_t connection_latency,
-      uint16_t supervision_timeout) = 0;
-  virtual void OnDataLengthChange(uint16_t tx_octets, uint16_t tx_time, uint16_t rx_octets, uint16_t rx_time) = 0;
+  virtual void OnConnectionUpdate(hci::ErrorCode hci_status, uint16_t connection_interval,
+                                  uint16_t connection_latency, uint16_t supervision_timeout) = 0;
+  virtual void OnParameterUpdateRequest(uint16_t interval_min, uint16_t interval_max,
+                                        uint16_t latency, uint16_t supervision_timeout) = 0;
+  virtual void OnDataLengthChange(uint16_t tx_octets, uint16_t tx_time, uint16_t rx_octets,
+                                  uint16_t rx_time) = 0;
   virtual void OnDisconnection(hci::ErrorCode reason) = 0;
-  virtual void OnReadRemoteVersionInformationComplete(
-      hci::ErrorCode hci_status, uint8_t lmp_version, uint16_t manufacturer_name, uint16_t sub_version) = 0;
+  virtual void OnReadRemoteVersionInformationComplete(hci::ErrorCode hci_status,
+                                                      uint8_t lmp_version,
+                                                      uint16_t manufacturer_name,
+                                                      uint16_t sub_version) = 0;
   virtual void OnLeReadRemoteFeaturesComplete(hci::ErrorCode hci_status, uint64_t features) = 0;
   virtual void OnPhyUpdate(hci::ErrorCode hci_status, uint8_t tx_phy, uint8_t rx_phy) = 0;
-  virtual void OnLeSubrateChange(
-      hci::ErrorCode hci_status,
-      uint16_t subrate_factor,
-      uint16_t peripheral_latency,
-      uint16_t continuation_number,
-      uint16_t supervision_timeout) = 0;
+  virtual void OnLeSubrateChange(hci::ErrorCode hci_status, uint16_t subrate_factor,
+                                 uint16_t peripheral_latency, uint16_t continuation_number,
+                                 uint16_t supervision_timeout) = 0;
 };
 
 }  // namespace acl_manager

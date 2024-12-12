@@ -567,6 +567,20 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
 
+        recyclerViewAdapter.setOnGattBrConnectListener(
+                new LeAudioRecycleViewAdapter.OnGattBrListener() {
+                    @Override
+                    public void onToggleSwitch(
+                            LeAudioDeviceStateWrapper device_wrapper, boolean switchState) {
+                        Toast.makeText(
+                                        MainActivity.this,
+                                        "Connecting GATT BR to " + device_wrapper.device.toString(),
+                                        Toast.LENGTH_SHORT)
+                                .show();
+                        leAudioViewModel.connectGattBr(
+                                getApplicationContext(), device_wrapper, switchState);
+                    }
+                });
         recyclerViewAdapter.setOnHapInteractionListener(
                 new LeAudioRecycleViewAdapter.OnHapInteractionListener() {
                     @Override

@@ -38,7 +38,7 @@ namespace common {
  * An interface to various thread related functionality
  */
 class MessageLoopThread final : public PostableContext {
- public:
+public:
   /**
    * Create a message loop thread with name. Thread won't be running until
    * StartUp is called.
@@ -165,8 +165,7 @@ class MessageLoopThread final : public PostableContext {
    * @return true if task is successfully scheduled, false if task cannot be
    * scheduled
    */
-  bool DoInThreadDelayed(const base::Location& from_here,
-                         base::OnceClosure task,
+  bool DoInThreadDelayed(const base::Location& from_here, base::OnceClosure task,
                          std::chrono::microseconds delay);
   /**
    * Wrapper around DoInThread without a location.
@@ -178,7 +177,7 @@ class MessageLoopThread final : public PostableContext {
    */
   PostableContext* Postable();
 
- private:
+private:
   /**
    * Static method to run the thread
    *
@@ -188,8 +187,7 @@ class MessageLoopThread final : public PostableContext {
    * @param start_up_promise a std::promise that is used to notify calling
    * thread the completion of message loop start-up
    */
-  static void RunThread(MessageLoopThread* context,
-                        std::promise<void> start_up_promise);
+  static void RunThread(MessageLoopThread* context, std::promise<void> start_up_promise);
 
   /**
    * Actual method to run the thread, blocking until ShutDown() is called
@@ -211,8 +209,7 @@ class MessageLoopThread final : public PostableContext {
   bool shutting_down_;
 };
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const bluetooth::common::MessageLoopThread& a) {
+inline std::ostream& operator<<(std::ostream& os, const bluetooth::common::MessageLoopThread& a) {
   os << a.ToString();
   return os;
 }

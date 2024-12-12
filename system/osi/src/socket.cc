@@ -59,8 +59,7 @@ socket_t* socket_new(void) {
     goto error;
   }
 
-  if (setsockopt(ret->fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) ==
-      -1) {
+  if (setsockopt(ret->fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) == -1) {
     log::error("unable to set SO_REUSEADDR: {}", strerror(errno));
     goto error;
   }
@@ -68,7 +67,9 @@ socket_t* socket_new(void) {
   return ret;
 
 error:;
-  if (ret) close(ret->fd);
+  if (ret) {
+    close(ret->fd);
+  }
   osi_free(ret);
   return NULL;
 }
@@ -83,7 +84,9 @@ socket_t* socket_new_from_fd(int fd) {
 }
 
 void socket_free(socket_t* socket) {
-  if (!socket) return;
+  if (!socket) {
+    return;
+  }
 
   socket_unregister(socket);
   close(socket->fd);
@@ -146,12 +149,14 @@ ssize_t socket_write(const socket_t* socket, const void* buf, size_t count) {
   return ret;
 }
 
-ssize_t socket_write_and_transfer_fd(const socket_t* socket, const void* buf,
-                                     size_t count, int fd) {
+ssize_t socket_write_and_transfer_fd(const socket_t* socket, const void* buf, size_t count,
+                                     int fd) {
   log::assert_that(socket != NULL, "assert failed: socket != NULL");
   log::assert_that(buf != NULL, "assert failed: buf != NULL");
 
-  if (fd == INVALID_FD) return socket_write(socket, buf, count);
+  if (fd == INVALID_FD) {
+    return socket_write(socket, buf, count);
+  }
 
   struct msghdr msg;
   struct iovec iov;
@@ -184,12 +189,14 @@ ssize_t socket_bytes_available(const socket_t* socket) {
   log::assert_that(socket != NULL, "assert failed: socket != NULL");
 
   int size = 0;
-  if (ioctl(socket->fd, FIONREAD, &size) == -1) return -1;
+  if (ioctl(socket->fd, FIONREAD, &size) == -1) {
+    return -1;
+  }
   return size;
 }
 
-void socket_register(socket_t* socket, reactor_t* reactor, void* context,
-                     socket_cb read_cb, socket_cb write_cb) {
+void socket_register(socket_t* socket, reactor_t* reactor, void* context, socket_cb read_cb,
+                     socket_cb write_cb) {
   log::assert_that(socket != NULL, "assert failed: socket != NULL");
 
   // Make sure the socket isn't currently registered.
@@ -202,14 +209,15 @@ void socket_register(socket_t* socket, reactor_t* reactor, void* context,
   void (*read_fn)(void*) = (read_cb != NULL) ? internal_read_ready : NULL;
   void (*write_fn)(void*) = (write_cb != NULL) ? internal_write_ready : NULL;
 
-  socket->reactor_object =
-      reactor_register(reactor, socket->fd, socket, read_fn, write_fn);
+  socket->reactor_object = reactor_register(reactor, socket->fd, socket, read_fn, write_fn);
 }
 
 void socket_unregister(socket_t* socket) {
   log::assert_that(socket != NULL, "assert failed: socket != NULL");
 
-  if (socket->reactor_object) reactor_unregister(socket->reactor_object);
+  if (socket->reactor_object) {
+    reactor_unregister(socket->reactor_object);
+  }
   socket->reactor_object = NULL;
 }
 

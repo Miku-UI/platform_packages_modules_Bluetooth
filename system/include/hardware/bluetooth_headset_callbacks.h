@@ -28,7 +28,7 @@ namespace headset {
  * All callbacks are invoked on the JNI thread
  */
 class Callbacks {
- public:
+public:
   virtual ~Callbacks() = default;
   /**
    * Callback for connection state change.
@@ -36,8 +36,7 @@ class Callbacks {
    * @param state one of the values from bthf_connection_state_t
    * @param bd_addr remote device address
    */
-  virtual void ConnectionStateCallback(bthf_connection_state_t state,
-                                       RawAddress* bd_addr) = 0;
+  virtual void ConnectionStateCallback(bthf_connection_state_t state, RawAddress* bd_addr) = 0;
 
   /**
    * Callback for audio connection state change.
@@ -45,8 +44,7 @@ class Callbacks {
    * @param state one of the values from bthf_audio_state_t
    * @param bd_addr remote device address
    */
-  virtual void AudioStateCallback(bthf_audio_state_t state,
-                                  RawAddress* bd_addr) = 0;
+  virtual void AudioStateCallback(bthf_audio_state_t state, RawAddress* bd_addr) = 0;
 
   /**
    * Callback for VR connection state change.
@@ -54,8 +52,7 @@ class Callbacks {
    * @param state one of the values from bthf_vr_state_t
    * @param bd_addr
    */
-  virtual void VoiceRecognitionCallback(bthf_vr_state_t state,
-                                        RawAddress* bd_addr) = 0;
+  virtual void VoiceRecognitionCallback(bthf_vr_state_t state, RawAddress* bd_addr) = 0;
 
   /**
    * Callback for answer incoming call (ATA)
@@ -78,8 +75,7 @@ class Callbacks {
    * @param volume volume value 0 to 15, p69, HFP 1.7.1 spec
    * @param bd_addr remote device address
    */
-  virtual void VolumeControlCallback(bthf_volume_type_t type, int volume,
-                                     RawAddress* bd_addr) = 0;
+  virtual void VolumeControlCallback(bthf_volume_type_t type, int volume, RawAddress* bd_addr) = 0;
 
   /**
    * Callback for dialing an outgoing call
@@ -103,8 +99,7 @@ class Callbacks {
    * @param nrec 1 to enable, 0 to disable
    * @param bd_addr remote device address
    */
-  virtual void NoiseReductionCallback(bthf_nrec_t nrec,
-                                      RawAddress* bd_addr) = 0;
+  virtual void NoiseReductionCallback(bthf_nrec_t nrec, RawAddress* bd_addr) = 0;
 
   /**
    * Callback for AT+BCS and event from BAC
@@ -121,8 +116,7 @@ class Callbacks {
    * @param swb SWB enable, SWB disable
    * @param bd_addr remote device address
    */
-  virtual void SwbCallback(bthf_swb_codec_t codec, bthf_swb_config_t swb,
-                           RawAddress* bd_addr) = 0;
+  virtual void SwbCallback(bthf_swb_codec_t codec, bthf_swb_config_t swb, RawAddress* bd_addr) = 0;
 
   /**
    * Callback for call hold handling (AT+CHLD)
@@ -190,8 +184,7 @@ class Callbacks {
    * @param ind_value HF indicator value
    * @param bd_addr remote device address
    */
-  virtual void AtBievCallback(bthf_hf_ind_type_t ind_id, int ind_value,
-                              RawAddress* bd_addr) = 0;
+  virtual void AtBievCallback(bthf_hf_ind_type_t ind_id, int ind_value, RawAddress* bd_addr) = 0;
 
   /**
    * Callback for BIA. Pass the change in AG indicator activation.
@@ -219,10 +212,9 @@ class Callbacks {
    * @param pkt_status_in_hex recorded packets' status in hex string.
    * @param pkt_status_in_binary recorde packets' status in binary string.
    */
-  virtual void DebugDumpCallback(bool active, uint16_t codec_id,
-                                 int total_num_decoded_frames,
-                                 double pkt_loss_ratio, uint64_t begin_ts,
-                                 uint64_t end_ts, const char* pkt_status_in_hex,
+  virtual void DebugDumpCallback(bool active, uint16_t codec_id, int total_num_decoded_frames,
+                                 double pkt_loss_ratio, uint64_t begin_ts, uint64_t end_ts,
+                                 const char* pkt_status_in_hex,
                                  const char* pkt_status_in_binary) = 0;
 };
 

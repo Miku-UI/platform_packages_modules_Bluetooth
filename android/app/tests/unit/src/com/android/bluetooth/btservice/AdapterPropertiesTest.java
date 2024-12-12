@@ -89,7 +89,6 @@ public class AdapterPropertiesTest {
         mRemoteDevices.reset();
 
         doReturn(mHandlerThread.getLooper()).when(mAdapterService).getMainLooper();
-        doReturn(true).when(mAdapterService).isMock();
         when(mAdapterService.getResources())
                 .thenReturn(InstrumentationRegistry.getTargetContext().getResources());
 

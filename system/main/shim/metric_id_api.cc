@@ -27,32 +27,28 @@ namespace bluetooth {
 namespace shim {
 using CallbackGd = std::function<bool(const Address& address, const int id)>;
 
-bool InitMetricIdAllocator(
-    const std::unordered_map<RawAddress, int>& paired_device_map,
-    CallbackLegacy save_id_callback, CallbackLegacy forget_device_callback) {
+bool InitMetricIdAllocator(const std::unordered_map<RawAddress, int>& paired_device_map,
+                           CallbackLegacy save_id_callback, CallbackLegacy forget_device_callback) {
   std::unordered_map<Address, int> paired_device_map_gd;
   for (const auto& device : paired_device_map) {
     Address address = bluetooth::ToGdAddress(device.first);
     paired_device_map_gd[address] = device.second;
   }
 
-  CallbackGd save_id_callback_gd = [save_id_callback](const Address& address,
-                                                      const int id) {
+  CallbackGd save_id_callback_gd = [save_id_callback](const Address& address, const int id) {
     return save_id_callback(bluetooth::ToRawAddress(address), id);
   };
-  CallbackGd forget_device_callback_gd =
-      [forget_device_callback](const Address& address, const int id) {
-        return forget_device_callback(bluetooth::ToRawAddress(address), id);
-      };
-  return MetricIdManager::GetInstance().Init(
-      paired_device_map_gd, save_id_callback_gd, forget_device_callback_gd);
+  CallbackGd forget_device_callback_gd = [forget_device_callback](const Address& address,
+                                                                  const int id) {
+    return forget_device_callback(bluetooth::ToRawAddress(address), id);
+  };
+  return MetricIdManager::GetInstance().Init(paired_device_map_gd, save_id_callback_gd,
+                                             forget_device_callback_gd);
 }
 
 bool CloseMetricIdAllocator() { return MetricIdManager::GetInstance().Close(); }
 
-bool IsEmptyMetricIdAllocator() {
-  return MetricIdManager::GetInstance().IsEmpty();
-}
+bool IsEmptyMetricIdAllocator() { return MetricIdManager::GetInstance().IsEmpty(); }
 
 int AllocateIdFromMetricIdAllocator(const RawAddress& raw_address) {
   Address address = bluetooth::ToGdAddress(raw_address);

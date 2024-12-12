@@ -28,10 +28,12 @@ using ProfileStopCallback = void();
 
 typedef struct {
   void (*init_stack)(bluetooth::core::CoreInterface*);
-  void (*start_up_stack_async)(bluetooth::core::CoreInterface*,
-                               ProfileStartCallback, ProfileStopCallback);
+  void (*start_up_stack_async)(bluetooth::core::CoreInterface*, ProfileStartCallback,
+                               ProfileStopCallback);
   void (*shut_down_stack_async)(ProfileStopCallback);
   void (*clean_up_stack)(ProfileStopCallback);
+  void (*start_up_rust_module_async)();
+  void (*shut_down_rust_module_async)();
 
   bool (*get_stack_is_running)(void);
 } stack_manager_t;

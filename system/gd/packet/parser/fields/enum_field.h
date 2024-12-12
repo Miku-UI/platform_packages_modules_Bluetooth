@@ -22,7 +22,7 @@
 #include "parse_location.h"
 
 class EnumField : public ScalarField {
- public:
+public:
   EnumField(std::string name, EnumDef enum_def, std::string value, ParseLocation loc);
 
   EnumDef GetEnumDef();
@@ -43,7 +43,7 @@ class EnumField : public ScalarField {
 
   virtual void GenStringRepresentation(std::ostream& s, std::string accessor) const override;
 
- private:
+private:
   EnumDef enum_def_;
   std::string value_;
 };

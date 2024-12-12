@@ -20,9 +20,7 @@ namespace bluetooth {
 namespace hci {
 namespace acl_manager {
 
-AclConnection::QueueUpEnd* AclConnection::GetAclQueueEnd() const {
-  return queue_up_end_;
-}
+AclConnection::QueueUpEnd* AclConnection::GetAclQueueEnd() const { return queue_up_end_; }
 
 }  // namespace acl_manager
 }  // namespace hci

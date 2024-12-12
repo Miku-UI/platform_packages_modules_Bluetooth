@@ -25,7 +25,7 @@
 
 #include "btif/include/btif_metrics_logging.h"
 #include "btif/include/btif_sock.h"
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "types/raw_address.h"
 
 #define SOCK_LOGGER_SIZE_MAX 16
@@ -49,24 +49,24 @@ static std::atomic<uint8_t> logger_index;
 
 static SockConnectionEvent connection_logger[SOCK_LOGGER_SIZE_MAX];
 
-static android::bluetooth::SocketConnectionstateEnum toConnectionStateEnum(
-    int state);
+static android::bluetooth::SocketConnectionstateEnum toConnectionStateEnum(int state);
 static android::bluetooth::SocketRoleEnum toSocketRoleEnum(int role);
 
-void btif_sock_connection_logger(const RawAddress& address, int port, int type,
-                                 int state, int role, int uid, int server_port,
-                                 int64_t tx_bytes, int64_t rx_bytes,
+void btif_sock_connection_logger(const RawAddress& address, int port, int type, int state, int role,
+                                 int uid, int server_port, int64_t tx_bytes, int64_t rx_bytes,
                                  const char* server_name) {
+  log::verbose("bd_addr: {}, port: {}, role: {}, state: {}", address, port, role, state);
+
   uint8_t index = logger_index++ % SOCK_LOGGER_SIZE_MAX;
 
   connection_logger[index] = {
-      .used = true,
-      .addr = address,
-      .state = state,
-      .role = role,
-      .channel = server_port,
-      .type = type,
-      .server_name = {'\0'},
+          .used = true,
+          .addr = address,
+          .state = state,
+          .role = role,
+          .channel = server_port,
+          .type = type,
+          .server_name = {'\0'},
   };
 
   if (server_name != nullptr) {
@@ -75,9 +75,8 @@ void btif_sock_connection_logger(const RawAddress& address, int port, int type,
   }
 
   clock_gettime(CLOCK_REALTIME, &connection_logger[index].timestamp);
-  log_socket_connection_state(address, port, type, toConnectionStateEnum(state),
-                              tx_bytes, rx_bytes, uid, server_port,
-                              toSocketRoleEnum(role));
+  log_socket_connection_state(address, port, type, toConnectionStateEnum(state), tx_bytes, rx_bytes,
+                              uid, server_port, toSocketRoleEnum(role));
 }
 
 void btif_sock_dump(int fd) {
@@ -107,8 +106,7 @@ void SockConnectionEvent::dump(const int fd) {
   char temptime[20];
   struct tm* tstamp = localtime(&timestamp.tv_sec);
   strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp);
-  snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
-           timestamp.tv_nsec / 1000000);
+  snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime, timestamp.tv_nsec / 1000000);
 
   const char* str_state;
   switch (state) {
@@ -165,32 +163,24 @@ void SockConnectionEvent::dump(const int fd) {
   }
 
   dprintf(fd, "  %s\t%s\t%s   \t%s      \t%d         \t%s\t%s\n", eventtime,
-          ADDRESS_TO_LOGGABLE_CSTR(addr), str_state, str_role, channel,
-          str_type, server_name);
+          ADDRESS_TO_LOGGABLE_CSTR(addr), str_state, str_role, channel, str_type, server_name);
 }
 
-static android::bluetooth::SocketConnectionstateEnum toConnectionStateEnum(
-    int state) {
+static android::bluetooth::SocketConnectionstateEnum toConnectionStateEnum(int state) {
   switch (state) {
     case SOCKET_CONNECTION_STATE_LISTENING:
-      return android::bluetooth::SocketConnectionstateEnum::
-          SOCKET_CONNECTION_STATE_LISTENING;
+      return android::bluetooth::SocketConnectionstateEnum::SOCKET_CONNECTION_STATE_LISTENING;
       break;
     case SOCKET_CONNECTION_STATE_CONNECTING:
-      return android::bluetooth::SocketConnectionstateEnum::
-          SOCKET_CONNECTION_STATE_CONNECTING;
+      return android::bluetooth::SocketConnectionstateEnum::SOCKET_CONNECTION_STATE_CONNECTING;
     case SOCKET_CONNECTION_STATE_CONNECTED:
-      return android::bluetooth::SocketConnectionstateEnum::
-          SOCKET_CONNECTION_STATE_CONNECTED;
+      return android::bluetooth::SocketConnectionstateEnum::SOCKET_CONNECTION_STATE_CONNECTED;
     case SOCKET_CONNECTION_STATE_DISCONNECTING:
-      return android::bluetooth::SocketConnectionstateEnum::
-          SOCKET_CONNECTION_STATE_DISCONNECTING;
+      return android::bluetooth::SocketConnectionstateEnum::SOCKET_CONNECTION_STATE_DISCONNECTING;
     case SOCKET_CONNECTION_STATE_DISCONNECTED:
-      return android::bluetooth::SocketConnectionstateEnum::
-          SOCKET_CONNECTION_STATE_DISCONNECTED;
+      return android::bluetooth::SocketConnectionstateEnum::SOCKET_CONNECTION_STATE_DISCONNECTED;
   }
-  return android::bluetooth::SocketConnectionstateEnum::
-      SOCKET_CONNECTION_STATE_UNKNOWN;
+  return android::bluetooth::SocketConnectionstateEnum::SOCKET_CONNECTION_STATE_UNKNOWN;
 }
 
 static android::bluetooth::SocketRoleEnum toSocketRoleEnum(int role) {

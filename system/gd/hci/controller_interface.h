@@ -26,12 +26,12 @@ namespace bluetooth {
 namespace hci {
 
 class ControllerInterface {
- public:
+public:
   ControllerInterface() = default;
   virtual ~ControllerInterface() = default;
 
   using CompletedAclPacketsCallback =
-      common::ContextualCallback<void(uint16_t /* handle */, uint16_t /* num_packets */)>;
+          common::ContextualCallback<void(uint16_t /* handle */, uint16_t /* num_packets */)>;
   virtual void RegisterCompletedAclPacketsCallback(CompletedAclPacketsCallback cb) = 0;
 
   virtual void UnregisterCompletedAclPacketsCallback() = 0;
@@ -133,28 +133,26 @@ class ControllerInterface {
 
   virtual void SetEventFilterInquiryResultAllDevices() = 0;
 
-  virtual void SetEventFilterInquiryResultClassOfDevice(
-      ClassOfDevice class_of_device, ClassOfDevice class_of_device_mask) = 0;
+  virtual void SetEventFilterInquiryResultClassOfDevice(ClassOfDevice class_of_device,
+                                                        ClassOfDevice class_of_device_mask) = 0;
 
   virtual void SetEventFilterInquiryResultAddress(Address address) = 0;
 
   virtual void SetEventFilterConnectionSetupAllDevices(AutoAcceptFlag auto_accept_flag) = 0;
 
-  virtual void SetEventFilterConnectionSetupClassOfDevice(
-      ClassOfDevice class_of_device,
-      ClassOfDevice class_of_device_mask,
-      AutoAcceptFlag auto_accept_flag) = 0;
+  virtual void SetEventFilterConnectionSetupClassOfDevice(ClassOfDevice class_of_device,
+                                                          ClassOfDevice class_of_device_mask,
+                                                          AutoAcceptFlag auto_accept_flag) = 0;
 
-  virtual void SetEventFilterConnectionSetupAddress(
-      Address address, AutoAcceptFlag auto_accept_flag) = 0;
+  virtual void SetEventFilterConnectionSetupAddress(Address address,
+                                                    AutoAcceptFlag auto_accept_flag) = 0;
 
   virtual void WriteLocalName(std::string local_name) = 0;
 
-  virtual void HostBufferSize(
-      uint16_t host_acl_data_packet_length,
-      uint8_t host_synchronous_data_packet_length,
-      uint16_t host_total_num_acl_data_packets,
-      uint16_t host_total_num_synchronous_data_packets) = 0;
+  virtual void HostBufferSize(uint16_t host_acl_data_packet_length,
+                              uint8_t host_synchronous_data_packet_length,
+                              uint16_t host_total_num_acl_data_packets,
+                              uint16_t host_total_num_synchronous_data_packets) = 0;
 
   // LE controller commands
   virtual void LeSetEventMask(uint64_t le_event_mask) = 0;
@@ -206,7 +204,7 @@ class ControllerInterface {
 
   virtual uint32_t GetDabSupportedCodecs() const = 0;
   virtual const std::array<DynamicAudioBufferCodecCapability, 32>& GetDabCodecCapabilities()
-      const = 0;
+          const = 0;
 
   virtual void SetDabAudioBufferTime(uint16_t buffer_time_ms) = 0;
 

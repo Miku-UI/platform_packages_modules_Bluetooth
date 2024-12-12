@@ -44,11 +44,9 @@
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
 
-static void bta_hd_cback(const RawAddress& bd_addr, uint8_t event,
-                         uint32_t data, BT_HDR* pdata);
+static void bta_hd_cback(const RawAddress& bd_addr, uint8_t event, uint32_t data, BT_HDR* pdata);
 
-static bool check_descriptor(uint8_t* data, uint16_t length,
-                             bool* has_report_id) {
+static bool check_descriptor(uint8_t* data, uint16_t length, bool* has_report_id) {
   uint8_t* ptr = data;
 
   *has_report_id = FALSE;
@@ -74,7 +72,7 @@ static bool check_descriptor(uint8_t* data, uint16_t length,
     }
   }
 
-  return (ptr == data + length);
+  return ptr == data + length;
 }
 
 /*******************************************************************************
@@ -128,12 +126,13 @@ void bta_hd_api_disable(void) {
   log::verbose("");
 
   /* service is not enabled */
-  if (bta_hd_cb.p_cback == NULL) return;
+  if (bta_hd_cb.p_cback == NULL) {
+    return;
+  }
 
   /* Remove service record */
   if (bta_hd_cb.sdp_handle != 0) {
-    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-            bta_hd_cb.sdp_handle)) {
+    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(bta_hd_cb.sdp_handle)) {
       log::warn("Unable to delete SDP record handle:{}", bta_hd_cb.sdp_handle);
     };
     bta_sys_remove_uuid(UUID_SERVCLASS_HUMAN_INTERFACE);
@@ -176,15 +175,12 @@ void bta_hd_register_act(tBTA_HD_DATA* p_data) {
    * itself is well-formed. Also check if descriptor has Report Id item so we
    * know if report will have prefix or not. */
   if (p_app_data->d_len > BTA_HD_APP_DESCRIPTOR_LEN ||
-      !check_descriptor(p_app_data->d_data, p_app_data->d_len,
-                        &use_report_id)) {
+      !check_descriptor(p_app_data->d_data, p_app_data->d_len, &use_report_id)) {
     log::error("Descriptor is too long or malformed");
     ret.reg_status.status = BTA_HD_ERROR;
     (*bta_hd_cb.p_cback)(BTA_HD_REGISTER_APP_EVT, &ret);
     bluetooth::shim::CountCounterMetrics(
-        android::bluetooth::CodePathCounterKeyEnum::
-            HIDD_REGISTER_DESCRIPTOR_MALFORMED,
-        1);
+            android::bluetooth::CodePathCounterKeyEnum::HIDD_REGISTER_DESCRIPTOR_MALFORMED, 1);
     return;
   }
 
@@ -192,28 +188,25 @@ void bta_hd_register_act(tBTA_HD_DATA* p_data) {
 
   /* Remove old record if for some reason it's already registered */
   if (bta_hd_cb.sdp_handle != 0) {
-    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-            bta_hd_cb.sdp_handle)) {
+    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(bta_hd_cb.sdp_handle)) {
       log::warn("Unable to delete SDP record handle:{}", bta_hd_cb.sdp_handle);
     }
   }
 
   bta_hd_cb.use_report_id = use_report_id;
   bta_hd_cb.sdp_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-  HID_DevAddRecord(bta_hd_cb.sdp_handle, p_app_data->name,
-                   p_app_data->description, p_app_data->provider,
-                   p_app_data->subclass, p_app_data->d_len, p_app_data->d_data);
+  HID_DevAddRecord(bta_hd_cb.sdp_handle, p_app_data->name, p_app_data->description,
+                   p_app_data->provider, p_app_data->subclass, p_app_data->d_len,
+                   p_app_data->d_data);
   bta_sys_add_uuid(UUID_SERVCLASS_HUMAN_INTERFACE);
 
-  HID_DevSetIncomingQos(
-      p_app_data->in_qos.service_type, p_app_data->in_qos.token_rate,
-      p_app_data->in_qos.token_bucket_size, p_app_data->in_qos.peak_bandwidth,
-      p_app_data->in_qos.access_latency, p_app_data->in_qos.delay_variation);
+  HID_DevSetIncomingQos(p_app_data->in_qos.service_type, p_app_data->in_qos.token_rate,
+                        p_app_data->in_qos.token_bucket_size, p_app_data->in_qos.peak_bandwidth,
+                        p_app_data->in_qos.access_latency, p_app_data->in_qos.delay_variation);
 
-  HID_DevSetOutgoingQos(
-      p_app_data->out_qos.service_type, p_app_data->out_qos.token_rate,
-      p_app_data->out_qos.token_bucket_size, p_app_data->out_qos.peak_bandwidth,
-      p_app_data->out_qos.access_latency, p_app_data->out_qos.delay_variation);
+  HID_DevSetOutgoingQos(p_app_data->out_qos.service_type, p_app_data->out_qos.token_rate,
+                        p_app_data->out_qos.token_bucket_size, p_app_data->out_qos.peak_bandwidth,
+                        p_app_data->out_qos.access_latency, p_app_data->out_qos.delay_variation);
 
   // application is registered so we can accept incoming connections
   HID_DevSetIncomingPolicy(TRUE);
@@ -243,8 +236,7 @@ void bta_hd_unregister_act() {
   HID_DevSetIncomingPolicy(FALSE);
 
   if (bta_hd_cb.sdp_handle != 0) {
-    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(
-            bta_hd_cb.sdp_handle)) {
+    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(bta_hd_cb.sdp_handle)) {
       log::warn("Unable to delete SDP record handle:{}", bta_hd_cb.sdp_handle);
     }
   }
@@ -393,11 +385,9 @@ void bta_hd_send_report_act(tBTA_HD_DATA* p_data) {
   log::verbose("");
 
   channel = p_report->use_intr ? HID_CHANNEL_INTR : HID_CHANNEL_CTRL;
-  report_id =
-      (bta_hd_cb.use_report_id || bta_hd_cb.boot_mode) ? p_report->id : 0x00;
+  report_id = (bta_hd_cb.use_report_id || bta_hd_cb.boot_mode) ? p_report->id : 0x00;
 
-  HID_DevSendReport(channel, p_report->type, report_id, p_report->len,
-                    p_report->data);
+  HID_DevSendReport(channel, p_report->type, report_id, p_report->len, p_report->data);
 
   /* trigger PM */
   bta_sys_busy(BTA_ID_HD, 1, bta_hd_cb.bd_addr);
@@ -728,8 +718,7 @@ void bta_hd_exit_suspend_act(tBTA_HD_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_hd_cback(const RawAddress& bd_addr, uint8_t event,
-                         uint32_t data, BT_HDR* pdata) {
+static void bta_hd_cback(const RawAddress& bd_addr, uint8_t event, uint32_t data, BT_HDR* pdata) {
   tBTA_HD_CBACK_DATA* p_buf = NULL;
   uint16_t sm_event = BTA_HD_INVALID_EVT;
 
@@ -774,8 +763,8 @@ static void bta_hd_cback(const RawAddress& bd_addr, uint8_t event,
   }
 
   if (sm_event != BTA_HD_INVALID_EVT &&
-      (p_buf = (tBTA_HD_CBACK_DATA*)osi_malloc(sizeof(tBTA_HD_CBACK_DATA) +
-                                               sizeof(BT_HDR))) != NULL) {
+      (p_buf = (tBTA_HD_CBACK_DATA*)osi_malloc(sizeof(tBTA_HD_CBACK_DATA) + sizeof(BT_HDR))) !=
+              NULL) {
     p_buf->hdr.event = sm_event;
     p_buf->addr = bd_addr;
     p_buf->data = data;

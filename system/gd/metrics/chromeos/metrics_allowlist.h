@@ -21,7 +21,8 @@ namespace bluetooth {
 namespace metrics {
 
 bool IsDeviceInfoInAllowlist(int vendor_id_source, int vendor_id, int product_id);
-bool IsChipsetInfoInAllowList(int vendor_id, int product_id, int transport, const char* chipset_string, uint64_t* hval);
+bool IsChipsetInfoInAllowList(int vendor_id, int product_id, int transport,
+                              const char* chipset_string, uint64_t* hval);
 
 }  // namespace metrics
 }  // namespace bluetooth

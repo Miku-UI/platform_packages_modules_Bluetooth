@@ -31,12 +31,10 @@ namespace gatt {
 namespace {
 /* EXPECT_EQ doesn't work well with static constexpr fields, need a variable
  * with address */
-constexpr std::pair<uint16_t, uint16_t> EXPLORE_END =
-    DatabaseBuilder::EXPLORE_END;
+constexpr std::pair<uint16_t, uint16_t> EXPLORE_END = DatabaseBuilder::EXPLORE_END;
 
 /* make_pair doesn't work well with EXPECT_EQ, have own helper instead */
-inline std::pair<uint16_t, uint16_t> make_pair_u16(uint16_t first,
-                                                   uint16_t second) {
+inline std::pair<uint16_t, uint16_t> make_pair_u16(uint16_t first, uint16_t second) {
   return std::make_pair(first, second);
 }
 
@@ -160,8 +158,7 @@ TEST(DatabaseBuilderSampleDeviceTest, DoDiscovery) {
 
   builder.AddCharacteristic(0x000a, 0x000b, SERVICE_3_CHAR_1_UUID, 0x12);
 
-  EXPECT_EQ(builder.NextDescriptorRangeToExplore(),
-            make_pair_u16(0x000c, 0x000c));
+  EXPECT_EQ(builder.NextDescriptorRangeToExplore(), make_pair_u16(0x000c, 0x000c));
 
   builder.AddDescriptor(0x000c, SERVICE_3_CHAR_1_DESC_1_UUID);
 
@@ -179,8 +176,7 @@ TEST(DatabaseBuilderSampleDeviceTest, DoDiscovery) {
   builder.AddCharacteristic(0x0018, 0x0019, SERVICE_4_CHAR_6_UUID, 0x12);
 
   // Just last Characteristic have space for descriptor
-  EXPECT_EQ(builder.NextDescriptorRangeToExplore(),
-            make_pair_u16(0x001a, 0x001a));
+  EXPECT_EQ(builder.NextDescriptorRangeToExplore(), make_pair_u16(0x001a, 0x001a));
 
   builder.AddDescriptor(0x001a, SERVICE_4_CHAR_6_DESC_1_UUID);
 
@@ -209,8 +205,7 @@ TEST(DatabaseBuilderSampleDeviceTest, DoDiscovery) {
   builder.AddCharacteristic(0x0030, 0x0031, SERVICE_6_CHAR_3_UUID, 0x02);
 
   // Just one Characteristic have space for descriptor
-  EXPECT_EQ(builder.NextDescriptorRangeToExplore(),
-            make_pair_u16(0x002d, 0x002d));
+  EXPECT_EQ(builder.NextDescriptorRangeToExplore(), make_pair_u16(0x002d, 0x002d));
 
   builder.AddDescriptor(0x002d, SERVICE_6_CHAR_1_DESC_1_UUID);
 
@@ -238,8 +233,7 @@ TEST(DatabaseBuilderSampleDeviceTest, DoDiscovery) {
   service++;
   EXPECT_EQ(service->uuid, SERVICE_3_UUID);
   EXPECT_EQ(service->characteristics[0].uuid, SERVICE_3_CHAR_1_UUID);
-  EXPECT_EQ(service->characteristics[0].descriptors[0].uuid,
-            SERVICE_3_CHAR_1_DESC_1_UUID);
+  EXPECT_EQ(service->characteristics[0].descriptors[0].uuid, SERVICE_3_CHAR_1_DESC_1_UUID);
 
   service++;
   EXPECT_EQ(service->uuid, SERVICE_4_UUID);
@@ -249,8 +243,7 @@ TEST(DatabaseBuilderSampleDeviceTest, DoDiscovery) {
   EXPECT_EQ(service->characteristics[3].uuid, SERVICE_4_CHAR_4_UUID);
   EXPECT_EQ(service->characteristics[4].uuid, SERVICE_4_CHAR_5_UUID);
   EXPECT_EQ(service->characteristics[5].uuid, SERVICE_4_CHAR_6_UUID);
-  EXPECT_EQ(service->characteristics[5].descriptors[0].uuid,
-            SERVICE_4_CHAR_6_DESC_1_UUID);
+  EXPECT_EQ(service->characteristics[5].descriptors[0].uuid, SERVICE_4_CHAR_6_DESC_1_UUID);
 
   service++;
   EXPECT_EQ(service->uuid, SERVICE_5_UUID);
@@ -265,8 +258,7 @@ TEST(DatabaseBuilderSampleDeviceTest, DoDiscovery) {
   service++;
   EXPECT_EQ(service->uuid, SERVICE_6_UUID);
   EXPECT_EQ(service->characteristics[0].uuid, SERVICE_6_CHAR_1_UUID);
-  EXPECT_EQ(service->characteristics[0].descriptors[0].uuid,
-            SERVICE_6_CHAR_1_DESC_1_UUID);
+  EXPECT_EQ(service->characteristics[0].descriptors[0].uuid, SERVICE_6_CHAR_1_DESC_1_UUID);
   EXPECT_EQ(service->characteristics[1].uuid, SERVICE_6_CHAR_2_UUID);
   EXPECT_EQ(service->characteristics[2].uuid, SERVICE_6_CHAR_3_UUID);
 }

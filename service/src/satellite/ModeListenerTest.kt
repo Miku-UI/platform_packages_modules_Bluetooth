@@ -57,9 +57,10 @@ class ModeListenerTest {
         }
     }
 
+    @get:Rule val testName = TestName()
+
     private val resolver: ContentResolver =
         ApplicationProvider.getApplicationContext<Context>().getContentResolver()
-    @JvmField @Rule val testName = TestName()
 
     private val looper: Looper = Looper.getMainLooper()
 

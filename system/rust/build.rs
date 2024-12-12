@@ -2,7 +2,6 @@
 //!
 //! Run `cargo install --path .` in `external/rust/crates/pdl-compiler` to ensure `pdlc`
 //! is in your path.
-use pdl_compiler;
 use std::{env, fs::File, io::Write, path::Path};
 
 fn main() {
@@ -13,9 +12,8 @@ fn main() {
     let mut sources = pdl_compiler::ast::SourceDatabase::new();
     let file = pdl_compiler::parser::parse_file(&mut sources, "src/packets.pdl")
         .expect("failed to parse input pdl file");
-    let schema = pdl_compiler::backends::intermediate::generate(&file).unwrap();
 
-    let generated = pdl_compiler::backends::rust_no_allocation::generate(&file, &schema).unwrap();
+    let generated = pdl_compiler::backends::rust::generate(&sources, &file, &[]);
     dest_file.write_all(generated.as_bytes()).unwrap();
 
     println!("cargo:rerun-if-changed=build.rs");

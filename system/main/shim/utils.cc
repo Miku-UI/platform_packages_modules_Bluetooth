@@ -22,27 +22,25 @@
 
 namespace bluetooth {
 namespace shim {
-void parse_gap_data(const std::vector<uint8_t> &raw_data,
-                    std::vector<hci::GapData> &output) {
-    size_t offset = 0;
-    while (offset < raw_data.size()) {
-      hci::GapData gap_data;
-      uint8_t len = raw_data[offset];
+void parse_gap_data(const std::vector<uint8_t> &raw_data, std::vector<hci::GapData> &output) {
+  size_t offset = 0;
+  while (offset < raw_data.size()) {
+    hci::GapData gap_data;
+    uint8_t len = raw_data[offset];
 
-      if (offset + len + 1 > raw_data.size()) {
-        log::warn("GAP data out of bound");
-        break;
-      }
-
-      auto begin = raw_data.begin() + offset;
-      auto end = begin + len + 1;  // 1 byte for len
-      auto data_copy = std::make_shared<std::vector<uint8_t>>(begin, end);
-      bluetooth::packet::PacketView<bluetooth::packet::kLittleEndian> packet(
-          data_copy);
-      hci::GapData::Parse(&gap_data, packet.begin());
-      output.push_back(gap_data);
-      offset += len + 1;  // 1 byte for len
+    if (offset + len + 1 > raw_data.size()) {
+      log::warn("GAP data out of bound");
+      break;
     }
+
+    auto begin = raw_data.begin() + offset;
+    auto end = begin + len + 1;  // 1 byte for len
+    auto data_copy = std::make_shared<std::vector<uint8_t>>(begin, end);
+    bluetooth::packet::PacketView<bluetooth::packet::kLittleEndian> packet(data_copy);
+    hci::GapData::Parse(&gap_data, packet.begin());
+    output.push_back(gap_data);
+    offset += len + 1;  // 1 byte for len
+  }
 }
 
 }  // namespace shim

@@ -21,8 +21,8 @@
 
 #include "Qmf.h"
 
-void AsmQmfConvO(const int16_t* p1dl_buffPtr, const int16_t* p2dl_buffPtr,
-                 const int32_t* coeffPtr, int32_t* convSumDiff) {
+void AsmQmfConvO(const int16_t* p1dl_buffPtr, const int16_t* p2dl_buffPtr, const int32_t* coeffPtr,
+                 int32_t* convSumDiff) {
   /* Since all manipulated data are "int16_t" it is possible to
    * reduce the number of loads by using int32_t type and manipulating
    * pairs of data
@@ -191,8 +191,8 @@ void AsmQmfConvO(const int16_t* p1dl_buffPtr, const int16_t* p2dl_buffPtr,
   *(convSumDiff + 2) = convDiff;
 }
 
-void AsmQmfConvI(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr,
-                 const int32_t* coeffPtr, int32_t* filterOutputs) {
+void AsmQmfConvI(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr, const int32_t* coeffPtr,
+                 int32_t* filterOutputs) {
   int32_t acc;
   // WARNING: This inlining assumes that m_qmfDelayLineLength == 16
   int32_t tmp_round0;
@@ -309,7 +309,7 @@ void AsmQmfConvI(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr,
   local_acc0 += 0x00400000L;
   acc = (int32_t)(local_acc0 >> 23);
 
-  if ((((tmp_round0 << 8) ^ 0x40000000) == 0)) {
+  if (((tmp_round0 << 8) ^ 0x40000000) == 0) {
     acc--;
   }
 
@@ -325,7 +325,7 @@ void AsmQmfConvI(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr,
 
   local_acc1 += 0x00400000L;
   acc = (int32_t)(local_acc1 >> 23);
-  if ((((tmp_round0 << 8) ^ 0x40000000) == 0)) {
+  if (((tmp_round0 << 8) ^ 0x40000000) == 0) {
     acc--;
   }
 

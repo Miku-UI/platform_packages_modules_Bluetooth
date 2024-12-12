@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include "hci/le_advertising_manager.h"
-
 #include <gmock/gmock.h>
+
+#include "hci/le_advertising_manager.h"
 
 // Unit test interfaces
 namespace bluetooth {
@@ -31,21 +31,14 @@ using hci::AdvertiserId;
 using hci::LeAdvertisingManager;
 
 class MockLeAdvertisingManager : public LeAdvertisingManager {
- public:
+public:
   MOCK_METHOD(size_t, GetNumberOfAdvertisingInstances, (), (const));
-  MOCK_METHOD(
-      AdvertiserId,
-      ExtendedCreateAdvertiser,
-      (uint8_t client_id,
-       int regId,
-       const AdvertisingConfig,
-       const common::Callback<void(Address, AddressType)>&,
-       const common::Callback<void(ErrorCode, uint8_t, uint8_t)>&,
-       uint16_t,
-       uint8_t,
-       os::Handler*));
+  MOCK_METHOD(AdvertiserId, ExtendedCreateAdvertiser,
+              (uint8_t client_id, int regId, const AdvertisingConfig,
+               const common::Callback<void(Address, AddressType)>&,
+               const common::Callback<void(ErrorCode, uint8_t, uint8_t)>&, uint16_t, uint8_t,
+               os::Handler*));
   MOCK_METHOD(void, RemoveAdvertiser, (AdvertiserId));
-
 };
 
 }  // namespace testing

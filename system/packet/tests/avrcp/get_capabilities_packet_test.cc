@@ -30,8 +30,7 @@ using GetCapRequestTestPacket = TestPacketType<GetCapabilitiesRequest>;
 TEST(GetCapabilitiesRequestPacketTest, getterTest) {
   auto test_packet = GetCapRequestTestPacket::Make(get_capabilities_request);
 
-  ASSERT_EQ(test_packet->GetCapabilityRequested(),
-            Capability::EVENTS_SUPPORTED);
+  ASSERT_EQ(test_packet->GetCapabilityRequested(), Capability::EVENTS_SUPPORTED);
 }
 
 TEST(GetCapabilitiesRequestPacketTest, validTest) {
@@ -46,7 +45,7 @@ TEST(GetCapabilitiesRequestPacketTest, invalidTest) {
   ASSERT_FALSE(test_packet->IsValid());
 
   std::vector<uint8_t> short_packet = {
-      0, 1, 2, 3, 4, 5, 6,
+          0, 1, 2, 3, 4, 5, 6,
   };
   test_packet = GetCapRequestTestPacket::Make(short_packet);
   ASSERT_FALSE(test_packet->IsValid());
@@ -63,7 +62,7 @@ TEST(GetCapabilityResponseBuilder, builderLengthTest) {
   ASSERT_EQ(builder->size(), 21u);
 
   builder = GetCapabilitiesResponseBuilder::MakeEventsSupportedBuilder(
-      Event::PLAYBACK_STATUS_CHANGED);
+          Event::PLAYBACK_STATUS_CHANGED);
   ASSERT_EQ(builder->size(), 13u);
   builder->AddEvent(Event::TRACK_CHANGED);
   ASSERT_EQ(builder->size(), 14u);
@@ -79,7 +78,7 @@ TEST(GetCapabilityResponseBuilder, duplicateAddTest) {
   ASSERT_EQ(builder->size(), 15u);
 
   builder = GetCapabilitiesResponseBuilder::MakeEventsSupportedBuilder(
-      Event::PLAYBACK_STATUS_CHANGED);
+          Event::PLAYBACK_STATUS_CHANGED);
   ASSERT_EQ(builder->size(), 13u);
   builder->AddEvent(Event::PLAYBACK_STATUS_CHANGED);
   ASSERT_EQ(builder->size(), 13u);
@@ -98,13 +97,12 @@ TEST(GetCapabilityResponseBuilderDeathTest, mismatchAddDeathTest) {
   }
 
   builder = GetCapabilitiesResponseBuilder::MakeEventsSupportedBuilder(
-      Event::PLAYBACK_STATUS_CHANGED);
+          Event::PLAYBACK_STATUS_CHANGED);
 
   // this will silent SIGABRT sent in ASSERT_DEATH below
   ScopedSilentDeath _silentDeath;
 
-  ASSERT_DEATH(builder->AddCompanyId(0x000000),
-               "capability_ == Capability::COMPANY_ID");
+  ASSERT_DEATH(builder->AddCompanyId(0x000000), "capability_ == Capability::COMPANY_ID");
 }
 
 // Test building a GetCapabilities Response to a Company ID request
@@ -120,7 +118,7 @@ TEST(GetCapabilityResponseBuilder, comanyIdBuilderTest) {
 // Test building a GetCapabilities Response to an Events Supported request
 TEST(GetCapabilityResponseBuilder, eventsSupportedBuilderTest) {
   auto builder = GetCapabilitiesResponseBuilder::MakeEventsSupportedBuilder(
-      Event::PLAYBACK_STATUS_CHANGED);
+          Event::PLAYBACK_STATUS_CHANGED);
   builder->AddEvent(Event::TRACK_CHANGED);
   builder->AddEvent(Event::PLAYBACK_POS_CHANGED);
 

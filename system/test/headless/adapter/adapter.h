@@ -24,9 +24,8 @@ namespace test {
 namespace headless {
 
 class Adapter : public HeadlessTest<int> {
- public:
-  Adapter(const bluetooth::test::headless::GetOpt& options)
-      : HeadlessTest<int>(options) {}
+public:
+  Adapter(const bluetooth::test::headless::GetOpt& options) : HeadlessTest<int>(options) {}
   virtual ~Adapter() = default;
 
   int Run() override;

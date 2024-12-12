@@ -22,6 +22,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Object representation of message in bMessage format
@@ -42,8 +43,8 @@ public class Bmessage {
 
     String mMessage;
 
-    ArrayList<VCardEntry> mOriginators;
-    ArrayList<VCardEntry> mRecipients;
+    List<VCardEntry> mOriginators;
+    List<VCardEntry> mRecipients;
 
     /** Constructs empty message object */
     public Bmessage() {
@@ -59,7 +60,7 @@ public class Bmessage {
         }
     }
 
-    public ArrayList<VCardEntry> getOriginators() {
+    public List<VCardEntry> getOriginators() {
         return mOriginators;
     }
 
@@ -68,7 +69,7 @@ public class Bmessage {
         return this;
     }
 
-    public ArrayList<VCardEntry> getRecipients() {
+    public List<VCardEntry> getRecipients() {
         return mRecipients;
     }
 

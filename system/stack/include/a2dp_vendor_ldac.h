@@ -31,42 +31,39 @@
 #include "stack/include/bt_hdr.h"
 
 class A2dpCodecConfigLdacBase : public A2dpCodecConfig {
- protected:
-  A2dpCodecConfigLdacBase(btav_a2dp_codec_index_t codec_index,
-                          const std::string& name,
-                          btav_a2dp_codec_priority_t codec_priority,
-                          bool is_source)
+protected:
+  A2dpCodecConfigLdacBase(btav_a2dp_codec_index_t codec_index, const std::string& name,
+                          btav_a2dp_codec_priority_t codec_priority, bool is_source)
       : A2dpCodecConfig(codec_index, A2DP_CODEC_ID_LDAC, name, codec_priority),
         is_source_(is_source) {}
-  bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                      uint8_t* p_result_codec_config) override;
-  bool setPeerCodecCapabilities(
-      const uint8_t* p_peer_codec_capabilities) override;
+  tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
+                              uint8_t* p_result_codec_config) override;
+  bool setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) override;
 
- private:
+private:
   [[maybe_unused]] bool is_source_;  // True if local is Source
 };
 
 class A2dpCodecConfigLdacSource : public A2dpCodecConfigLdacBase {
- public:
+public:
   A2dpCodecConfigLdacSource(btav_a2dp_codec_priority_t codec_priority);
   virtual ~A2dpCodecConfigLdacSource();
 
   bool init() override;
 
- private:
+private:
   bool useRtpHeaderMarkerBit() const override;
   void debug_codec_dump(int fd) override;
 };
 
 class A2dpCodecConfigLdacSink : public A2dpCodecConfigLdacBase {
- public:
+public:
   A2dpCodecConfigLdacSink(btav_a2dp_codec_priority_t codec_priority);
   virtual ~A2dpCodecConfigLdacSink();
 
   bool init() override;
 
- private:
+private:
   bool useRtpHeaderMarkerBit() const override;
 };
 
@@ -75,49 +72,19 @@ class A2dpCodecConfigLdacSink : public A2dpCodecConfigLdacBase {
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid LDAC
 // codec, otherwise false.
-bool A2DP_IsVendorSourceCodecValidLdac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid A2DP LDAC Sink
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid LDAC
-// codec, otherwise false.
-bool A2DP_IsVendorSinkCodecValidLdac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP LDAC Sink
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid LDAC
-// codec, otherwise false.
-bool A2DP_IsVendorPeerSinkCodecValidLdac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP LDAC Source
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid LDAC
-// codec, otherwise false.
-bool A2DP_IsVendorPeerSourceCodecValidLdac(const uint8_t* p_codec_info);
+bool A2DP_IsCodecValidLdac(const uint8_t* p_codec_info);
 
 // Checks whether A2DP LDAC Sink codec is supported.
 // |p_codec_info| contains information about the codec capabilities.
 // Returns true if the A2DP LDAC Sink codec is supported, otherwise false.
-bool A2DP_IsVendorSinkCodecSupportedLdac(const uint8_t* p_codec_info);
-
-// Checks whether an A2DP LDAC Source codec for a peer Source device is
-// supported.
-// |p_codec_info| contains information about the codec capabilities of the
-// peer device.
-// Returns true if the A2DP LDAC Source codec for a peer Source device is
-// supported, otherwise false.
-bool A2DP_IsPeerSourceCodecSupportedLdac(const uint8_t* p_codec_info);
+tA2DP_STATUS A2DP_IsVendorSinkCodecSupportedLdac(const uint8_t* p_codec_info);
 
 // Checks whether the A2DP data packets should contain RTP header.
 // |content_protection_enabled| is true if Content Protection is
 // enabled. |p_codec_info| contains information about the codec capabilities.
 // Returns true if the A2DP data packets should contain RTP header, otherwise
 // false.
-bool A2DP_VendorUsesRtpHeaderLdac(bool content_protection_enabled,
-                                  const uint8_t* p_codec_info);
+bool A2DP_VendorUsesRtpHeaderLdac(bool content_protection_enabled, const uint8_t* p_codec_info);
 
 // Gets the A2DP LDAC codec name for a given |p_codec_info|.
 const char* A2DP_VendorCodecNameLdac(const uint8_t* p_codec_info);
@@ -125,15 +92,13 @@ const char* A2DP_VendorCodecNameLdac(const uint8_t* p_codec_info);
 // Checks whether two A2DP LDAC codecs |p_codec_info_a| and |p_codec_info_b|
 // have the same type.
 // Returns true if the two codecs have the same type, otherwise false.
-bool A2DP_VendorCodecTypeEqualsLdac(const uint8_t* p_codec_info_a,
-                                    const uint8_t* p_codec_info_b);
+bool A2DP_VendorCodecTypeEqualsLdac(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Checks whether two A2DP LDAC codecs |p_codec_info_a| and |p_codec_info_b|
 // are exactly the same.
 // Returns true if the two codecs are exactly the same, otherwise false.
 // If the codec type is not LDAC, the return value is false.
-bool A2DP_VendorCodecEqualsLdac(const uint8_t* p_codec_info_a,
-                                const uint8_t* p_codec_info_b);
+bool A2DP_VendorCodecEqualsLdac(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Gets the track sample rate value for the A2DP LDAC codec.
 // |p_codec_info| is a pointer to the LDAC codec_info to decode.
@@ -178,8 +143,7 @@ int A2DP_VendorGetChannelModeCodeLdac(const uint8_t* p_codec_info);
 // |p_data| contains the audio data.
 // The timestamp is stored in |p_timestamp|.
 // Returns true on success, otherwise false.
-bool A2DP_VendorGetPacketTimestampLdac(const uint8_t* p_codec_info,
-                                       const uint8_t* p_data,
+bool A2DP_VendorGetPacketTimestampLdac(const uint8_t* p_codec_info, const uint8_t* p_data,
                                        uint32_t* p_timestamp);
 
 // Builds A2DP LDAC codec header for audio data.
@@ -200,16 +164,14 @@ std::string A2DP_VendorCodecInfoStringLdac(const uint8_t* p_codec_info);
 // |p_codec_info| contains the codec information.
 // Returns the A2DP LDAC encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(
-    const uint8_t* p_codec_info);
+const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(const uint8_t* p_codec_info);
 
 // Gets the current A2DP LDAC decoder interface that can be used to decode
 // received A2DP packets - see |tA2DP_DECODER_INTERFACE|.
 // |p_codec_info| contains the codec information.
 // Returns the A2DP LDAC decoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceLdac(
-    const uint8_t* p_codec_info);
+const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceLdac(const uint8_t* p_codec_info);
 
 // Adjusts the A2DP LDAC codec, based on local support and Bluetooth
 // specification.
@@ -220,14 +182,12 @@ bool A2DP_VendorAdjustCodecLdac(uint8_t* p_codec_info);
 // Gets the A2DP LDAC Source codec index for a given |p_codec_info|.
 // Returns the corresponding |btav_a2dp_codec_index_t| on success,
 // otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
-btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexLdac(
-    const uint8_t* p_codec_info);
+btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexLdac(const uint8_t* p_codec_info);
 
 // Gets the A2DP LDAC Sink codec index for a given |p_codec_info|.
 // Returns the corresponding |btav_a2dp_codec_index_t| on success,
 // otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
-btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndexLdac(
-    const uint8_t* p_codec_info);
+btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndexLdac(const uint8_t* p_codec_info);
 
 // Gets the A2DP LDAC Source codec name.
 const char* A2DP_VendorCodecIndexStrLdac(void);

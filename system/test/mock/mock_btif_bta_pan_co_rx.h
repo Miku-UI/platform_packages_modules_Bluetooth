@@ -36,9 +36,8 @@ namespace btif_bta_pan_co_rx {
 // Params: uint8_t* q_level
 // Returns: uint8_t
 struct bta_pan_co_init {
-  std::function<uint8_t(uint8_t* q_level)> body{
-      [](uint8_t* /* q_level */) { return 0; }};
-  uint8_t operator()(uint8_t* q_level) { return body(q_level); };
+  std::function<uint8_t(uint8_t* q_level)> body{[](uint8_t* /* q_level */) { return 0; }};
+  uint8_t operator()(uint8_t* q_level) { return body(q_level); }
 };
 extern struct bta_pan_co_init bta_pan_co_init;
 // Name: bta_pan_co_close
@@ -46,8 +45,8 @@ extern struct bta_pan_co_init bta_pan_co_init;
 // Returns: void
 struct bta_pan_co_close {
   std::function<void(uint16_t handle, uint8_t app_id)> body{
-      [](uint16_t /* handle */, uint8_t /* app_id */) { ; }};
-  void operator()(uint16_t handle, uint8_t app_id) { body(handle, app_id); };
+          [](uint16_t /* handle */, uint8_t /* app_id */) { ; }};
+  void operator()(uint16_t handle, uint8_t app_id) { body(handle, app_id); }
 };
 extern struct bta_pan_co_close bta_pan_co_close;
 // Name: bta_pan_co_mfilt_ind
@@ -55,15 +54,14 @@ extern struct bta_pan_co_close bta_pan_co_close;
 // tBTA_PAN_STATUS result, uint16_t len, uint8_t*
 // p_filters Returns: void
 struct bta_pan_co_mfilt_ind {
-  std::function<void(uint16_t handle, bool indication, tBTA_PAN_STATUS result,
-                     uint16_t len, uint8_t* p_filters)>
-      body{[](uint16_t /* handle */, bool /* indication */,
-              tBTA_PAN_STATUS /* result */, uint16_t /* len */,
-              uint8_t* /* p_filters */) { ; }};
-  void operator()(uint16_t handle, bool indication, tBTA_PAN_STATUS result,
-                  uint16_t len, uint8_t* p_filters) {
+  std::function<void(uint16_t handle, bool indication, tBTA_PAN_STATUS result, uint16_t len,
+                     uint8_t* p_filters)>
+          body{[](uint16_t /* handle */, bool /* indication */, tBTA_PAN_STATUS /* result */,
+                  uint16_t /* len */, uint8_t* /* p_filters */) { ; }};
+  void operator()(uint16_t handle, bool indication, tBTA_PAN_STATUS result, uint16_t len,
+                  uint8_t* p_filters) {
     body(handle, indication, result, len, p_filters);
-  };
+  }
 };
 extern struct bta_pan_co_mfilt_ind bta_pan_co_mfilt_ind;
 // Name: bta_pan_co_pfilt_ind
@@ -71,15 +69,14 @@ extern struct bta_pan_co_mfilt_ind bta_pan_co_mfilt_ind;
 // tBTA_PAN_STATUS result, uint16_t len, uint8_t*
 // p_filters Returns: void
 struct bta_pan_co_pfilt_ind {
-  std::function<void(uint16_t handle, bool indication, tBTA_PAN_STATUS result,
-                     uint16_t len, uint8_t* p_filters)>
-      body{[](uint16_t /* handle */, bool /* indication */,
-              tBTA_PAN_STATUS /* result */, uint16_t /* len */,
-              uint8_t* /* p_filters */) { ; }};
-  void operator()(uint16_t handle, bool indication, tBTA_PAN_STATUS result,
-                  uint16_t len, uint8_t* p_filters) {
+  std::function<void(uint16_t handle, bool indication, tBTA_PAN_STATUS result, uint16_t len,
+                     uint8_t* p_filters)>
+          body{[](uint16_t /* handle */, bool /* indication */, tBTA_PAN_STATUS /* result */,
+                  uint16_t /* len */, uint8_t* /* p_filters */) { ; }};
+  void operator()(uint16_t handle, bool indication, tBTA_PAN_STATUS result, uint16_t len,
+                  uint8_t* p_filters) {
     body(handle, indication, result, len, p_filters);
-  };
+  }
 };
 extern struct bta_pan_co_pfilt_ind bta_pan_co_pfilt_ind;
 // Name: bta_pan_co_rx_flow
@@ -87,10 +84,8 @@ extern struct bta_pan_co_pfilt_ind bta_pan_co_pfilt_ind;
 // bool enable Returns: void
 struct bta_pan_co_rx_flow {
   std::function<void(uint16_t handle, uint8_t app_id, bool enable)> body{
-      [](uint16_t /* handle */, uint8_t /* app_id */, bool /* enable */) { ; }};
-  void operator()(uint16_t handle, uint8_t app_id, bool enable) {
-    body(handle, app_id, enable);
-  };
+          [](uint16_t /* handle */, uint8_t /* app_id */, bool /* enable */) { ; }};
+  void operator()(uint16_t handle, uint8_t app_id, bool enable) { body(handle, app_id, enable); }
 };
 extern struct bta_pan_co_rx_flow bta_pan_co_rx_flow;
 // Name: bta_pan_co_rx_path
@@ -98,8 +93,8 @@ extern struct bta_pan_co_rx_flow bta_pan_co_rx_flow;
 // Returns: void
 struct bta_pan_co_rx_path {
   std::function<void(uint16_t handle, uint8_t app_id)> body{
-      [](uint16_t /* handle */, uint8_t /* app_id */) { ; }};
-  void operator()(uint16_t handle, uint8_t app_id) { body(handle, app_id); };
+          [](uint16_t /* handle */, uint8_t /* app_id */) { ; }};
+  void operator()(uint16_t handle, uint8_t app_id) { body(handle, app_id); }
 };
 extern struct bta_pan_co_rx_path bta_pan_co_rx_path;
 // Name: bta_pan_co_tx_path
@@ -107,8 +102,8 @@ extern struct bta_pan_co_rx_path bta_pan_co_rx_path;
 // Returns: void
 struct bta_pan_co_tx_path {
   std::function<void(uint16_t handle, uint8_t app_id)> body{
-      [](uint16_t /* handle */, uint8_t /* app_id */) { ; }};
-  void operator()(uint16_t handle, uint8_t app_id) { body(handle, app_id); };
+          [](uint16_t /* handle */, uint8_t /* app_id */) { ; }};
+  void operator()(uint16_t handle, uint8_t app_id) { body(handle, app_id); }
 };
 extern struct bta_pan_co_tx_path bta_pan_co_tx_path;
 

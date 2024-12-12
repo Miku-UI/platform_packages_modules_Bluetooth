@@ -117,13 +117,7 @@
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Sula ohlwini"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Sula"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Okudlala manje"</string>
-    <string name="bluetooth_map_settings_save" msgid="8309113239113961550">"Londoloza"</string>
-    <string name="bluetooth_map_settings_cancel" msgid="3374494364625947793">"Khansela"</string>
-    <string name="bluetooth_map_settings_intro" msgid="4748160773998753325">"Khetha ama-akhawunti ofuna ukwabelana nawo nge-Bluetooth. Kusazomele wamukele noma yikuphi ukufinyelelwa kuma-akhawunti uma kuxhunywa."</string>
-    <string name="bluetooth_map_settings_count" msgid="183013143617807702">"Izikhala ezisele:"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Isithonjana sohlelo lokusebenza"</string>
-    <string name="bluetooth_map_settings_title" msgid="4226030082708590023">"Izilungiselelo zokwabelana ngomlayezo we-Bluetooth"</string>
-    <string name="bluetooth_map_settings_no_account_slots_left" msgid="755024228476065757">"Ayikwazi ukukhetha i-akhawunti. 0 izikhala ezisele"</string>
     <string name="bluetooth_connected" msgid="5687474377090799447">"Umsindo we-Bluetooth uxhunyiwe"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Umsindo we-Bluetooth unqanyuliwe"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Umsindo we-Bluetooth"</string>

@@ -28,15 +28,7 @@
 namespace testing {
 
 const char* data[] = {
-    "One",
-    "Two",
-    "Two",
-    "Three",
-    "Three",
-    "Three",
-    "AAA",
-    "ZZZ",
-    nullptr,
+        "One", "Two", "Two", "Three", "Three", "Three", "AAA", "ZZZ", nullptr,
 };
 
 namespace {
@@ -86,18 +78,12 @@ TEST(SyncMapCount, sorted_string_value_high_to_low) {
 
 struct TestString {
   TestString(std::string string) : string_(string) {}
-  std::string String() const {
-    return string_;
-  }
+  std::string String() const { return string_; }
 
-  bool operator<(const TestString& other) const {
-    return (other.string_ > string_);
-  }
-  bool operator==(const TestString& other) const {
-    return (other.string_ == string_);
-  }
+  bool operator<(const TestString& other) const { return other.string_ > string_; }
+  bool operator==(const TestString& other) const { return other.string_ == string_; }
 
- private:
+private:
   std::string string_;
 };
 

@@ -33,8 +33,7 @@ using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth::test::headless;
 
 static void bta_jv_start_discovery_callback(std::promise<tSDP_STATUS>* promise,
-                                            const RawAddress& /* bd_addr */,
-                                            tSDP_STATUS result) {
+                                            const RawAddress& /* bd_addr */, tSDP_STATUS result) {
   promise->set_value(result);
 }
 
@@ -47,10 +46,10 @@ int sdp_query_uuid([[maybe_unused]] unsigned int num_loops,
                    [[maybe_unused]] const bluetooth::Uuid& uuid) {
   SdpDb sdp_discovery_db(kMaxDiscoveryRecords);
 
-  if (!get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
-          sdp_discovery_db.RawPointer(), sdp_discovery_db.Length(),
-          1,  // num_uuid,
-          &uuid, 0, nullptr)) {
+  if (!get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(sdp_discovery_db.RawPointer(),
+                                                               sdp_discovery_db.Length(),
+                                                               1,  // num_uuid,
+                                                               &uuid, 0, nullptr)) {
     LOG_CONSOLE("Unable to initialize sdp discovery");
     return -1;
   }
@@ -62,26 +61,24 @@ int sdp_query_uuid([[maybe_unused]] unsigned int num_loops,
   sdp_discovery_db.Print(stdout);
 
   if (!get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
-          raw_address, sdp_discovery_db.RawPointer(),
-          base::BindRepeating(bta_jv_start_discovery_callback, &promise))) {
+              raw_address, sdp_discovery_db.RawPointer(),
+              base::BindRepeating(bta_jv_start_discovery_callback, &promise))) {
     fprintf(stdout, "%s Failed to start search attribute request\n", __func__);
     return -2;
   }
   LOG_CONSOLE("Started service search for uuid:%s", uuid.ToString().c_str());
 
   const tSDP_STATUS result = future.get();
-  if (result != SDP_SUCCESS) {
-    fprintf(stdout, "Failed search discovery result:%s\n",
-            sdp_status_text(result).c_str());
-    return result;
+  if (result != tSDP_STATUS::SDP_SUCCESS) {
+    fprintf(stdout, "Failed search discovery result:%s\n", sdp_status_text(result).c_str());
+    return static_cast<int>(result);
   }
 
   LOG_CONSOLE("Found records peer:%s uuid:%s", raw_address.ToString().c_str(),
               uuid.ToString().c_str());
   for (unsigned i = 0; i < BTA_MAX_SERVICE_ID; i++) {
     uint16_t uuid_as16Bit = bta_service_id_to_uuid_lkup_tbl[i];
-    tSDP_DISC_REC* rec = SDP_FindServiceInDb(sdp_discovery_db.RawPointer(),
-                                             uuid_as16Bit, nullptr);
+    tSDP_DISC_REC* rec = SDP_FindServiceInDb(sdp_discovery_db.RawPointer(), uuid_as16Bit, nullptr);
     if (rec != nullptr) {
       LOG_CONSOLE("   uuid:0x%x", uuid_as16Bit);
     }
@@ -110,7 +107,6 @@ int bluetooth::test::headless::Sdp::Run() {
   }
 
   return RunOnHeadlessStack<int>([this]() {
-    return sdp_query_uuid(options_.loop_, options_.device_.front(),
-                          options_.uuid_.front());
+    return sdp_query_uuid(options_.loop_, options_.device_.front(), options_.uuid_.front());
   });
 }

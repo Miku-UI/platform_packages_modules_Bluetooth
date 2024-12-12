@@ -27,7 +27,6 @@ rust_defaults {
         "libclap",
         "libfutures",
         "libgrpcio",
-        "liblazy_static",
         "liblog_rust",
         "libnix",
         "libnum_traits",
@@ -39,11 +38,9 @@ rust_defaults {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
-        "libaudio-a2dp-hw-utils",
         "libbluetooth-dumpsys",
         "libbluetooth-gdx",
         "libbluetooth-types",
-        "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd", // Gabeldorsche
         "libbluetooth_log",
@@ -93,10 +90,16 @@ rust_defaults {
 rust_binary_host {
     name: "bt_topshim_facade",
     defaults: ["bt_topshim_facade.defaults"],
+    static_libs: [
+        "bluetooth_flags_c_lib",
+    ],
 }
 
 rust_test_host {
     name: "bt_topshim_facade.test",
     defaults: ["bt_topshim_facade.defaults"],
+    static_libs: [
+        "bluetooth_flags_c_lib_for_test",
+    ],
     test_suites: ["general-tests"],
 }

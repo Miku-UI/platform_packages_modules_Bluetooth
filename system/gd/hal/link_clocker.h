@@ -22,7 +22,7 @@
 namespace bluetooth::hal {
 
 class ReadClockHandler {
- public:
+public:
   virtual ~ReadClockHandler() = default;
 
   /// Report a measurement of the BT clock.
@@ -33,7 +33,7 @@ class ReadClockHandler {
 };
 
 class LinkClocker : public ::bluetooth::Module {
- public:
+public:
   static const ModuleFactory Factory;
 
   void OnHciEvent(const HciPacket& packet);
@@ -41,16 +41,14 @@ class LinkClocker : public ::bluetooth::Module {
   static void Register(ReadClockHandler*);
   static void Unregister();
 
- protected:
+protected:
   LinkClocker() = default;
 
   void ListDependencies(ModuleList*) const override {}
   void Start() override {}
   void Stop() override {}
 
-  std::string ToString() const override {
-    return std::string("LinkClocker");
-  }
+  std::string ToString() const override { return std::string("LinkClocker"); }
 };
 
 }  // namespace bluetooth::hal

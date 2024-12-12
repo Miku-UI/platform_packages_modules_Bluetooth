@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <string>
-
 #include <base/files/file_path.h>
+
+#include <string>
 
 namespace bluetooth {
 namespace testing {

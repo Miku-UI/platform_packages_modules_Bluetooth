@@ -32,11 +32,10 @@ namespace bluetooth {
 namespace audio {
 namespace hidl {
 
-using SessionType_2_1 =
-    ::android::hardware::bluetooth::audio::V2_1::SessionType;
+using SessionType_2_1 = ::android::hardware::bluetooth::audio::V2_1::SessionType;
 
 class BluetoothAudioPortHidl : public BluetoothAudioPort {
- public:
+public:
   BluetoothAudioPortHidl();
   virtual ~BluetoothAudioPortHidl() = default;
 
@@ -62,26 +61,20 @@ class BluetoothAudioPortHidl : public BluetoothAudioPort {
   void SetState(BluetoothStreamState state) override;
 
   bool IsA2dp() const override {
-    return session_type_hidl_ ==
-               SessionType_2_1::A2DP_SOFTWARE_ENCODING_DATAPATH ||
-           session_type_hidl_ ==
-               SessionType_2_1::A2DP_HARDWARE_OFFLOAD_DATAPATH;
+    return session_type_hidl_ == SessionType_2_1::A2DP_SOFTWARE_ENCODING_DATAPATH ||
+           session_type_hidl_ == SessionType_2_1::A2DP_HARDWARE_OFFLOAD_DATAPATH;
   }
 
   bool IsLeAudio() const override {
-    return session_type_hidl_ ==
-               SessionType_2_1::LE_AUDIO_SOFTWARE_ENCODING_DATAPATH ||
-           session_type_hidl_ ==
-               SessionType_2_1::LE_AUDIO_SOFTWARE_DECODED_DATAPATH ||
-           session_type_hidl_ ==
-               SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
-           session_type_hidl_ ==
-               SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH;
+    return session_type_hidl_ == SessionType_2_1::LE_AUDIO_SOFTWARE_ENCODING_DATAPATH ||
+           session_type_hidl_ == SessionType_2_1::LE_AUDIO_SOFTWARE_DECODED_DATAPATH ||
+           session_type_hidl_ == SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
+           session_type_hidl_ == SessionType_2_1::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH;
   }
 
   bool GetPreferredDataIntervalUs(size_t* interval_us) const override;
 
- protected:
+protected:
   SessionType_2_1 session_type_hidl_;
   uint16_t cookie_;
   BluetoothStreamState state_;
@@ -90,7 +83,7 @@ class BluetoothAudioPortHidl : public BluetoothAudioPort {
 
   bool in_use() const;
 
- private:
+private:
   mutable std::mutex cv_mutex_;
   std::condition_variable internal_cv_;
 
@@ -98,14 +91,13 @@ class BluetoothAudioPortHidl : public BluetoothAudioPort {
 
   bool CondwaitState(BluetoothStreamState state);
 
-  void ControlResultHandler(
-      const ::android::hardware::bluetooth::audio::V2_0::Status& status);
+  void ControlResultHandler(const ::android::hardware::bluetooth::audio::V2_0::Status& status);
 
   void SessionChangedHandler();
 };
 
 class BluetoothAudioPortHidlOut : public BluetoothAudioPortHidl {
- public:
+public:
   ~BluetoothAudioPortHidlOut();
 
   size_t WriteData(const void* buffer, size_t bytes) const override;
@@ -113,7 +105,7 @@ class BluetoothAudioPortHidlOut : public BluetoothAudioPortHidl {
 };
 
 class BluetoothAudioPortHidlIn : public BluetoothAudioPortHidl {
- public:
+public:
   ~BluetoothAudioPortHidlIn();
 
   size_t ReadData(void* buffer, size_t bytes) const override;

@@ -22,7 +22,7 @@
 #include "stack/include/bt_types.h"
 
 class StackAvrcpTest : public ::testing::Test {
- protected:
+protected:
   StackAvrcpTest() = default;
 
   virtual ~StackAvrcpTest() = default;
@@ -48,9 +48,8 @@ TEST_F(StackAvrcpTest, test_avrcp_ctrl_parse_vendor_rsp) {
   UINT16_TO_STREAM(p, 0xffff);      // attribute value length
   msg.vendor.p_vendor_data = vendor_rsp_buf;
   msg.vendor.vendor_len = 13;
-  EXPECT_EQ(
-      AVRC_Ctrl_ParsResponse(&msg, &result, scratch_buf, &scratch_buf_len),
-      AVRC_STS_INTERNAL_ERR);
+  EXPECT_EQ(AVRC_Ctrl_ParsResponse(&msg, &result, scratch_buf, &scratch_buf_len),
+            AVRC_STS_INTERNAL_ERR);
 }
 
 TEST_F(StackAvrcpTest, test_avrcp_parse_browse_rsp) {
@@ -73,9 +72,7 @@ TEST_F(StackAvrcpTest, test_avrcp_parse_browse_rsp) {
   UINT16_TO_STREAM(p, 0xffff);      // attribute value length
   msg.browse.p_browse_data = browse_rsp_buf;
   msg.browse.browse_len = 13;
-  EXPECT_EQ(
-      AVRC_Ctrl_ParsResponse(&msg, &result, scratch_buf, &scratch_buf_len),
-      AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_Ctrl_ParsResponse(&msg, &result, scratch_buf, &scratch_buf_len), AVRC_STS_BAD_CMD);
 }
 
 TEST_F(StackAvrcpTest, test_avrcp_parse_browse_cmd) {
@@ -87,24 +84,20 @@ TEST_F(StackAvrcpTest, test_avrcp_parse_browse_cmd) {
   msg.hdr.opcode = AVRC_OP_BROWSE;
   msg.browse.p_browse_data = browse_cmd_buf;
   msg.browse.browse_len = 2;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_BAD_CMD);
 
   memset(browse_cmd_buf, 0, sizeof(browse_cmd_buf));
   browse_cmd_buf[0] = AVRC_PDU_SET_BROWSED_PLAYER;
   msg.browse.browse_len = 3;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_BAD_CMD);
 
   msg.browse.browse_len = 5;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_NO_ERROR);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_NO_ERROR);
 
   memset(browse_cmd_buf, 0, sizeof(browse_cmd_buf));
   browse_cmd_buf[0] = AVRC_PDU_GET_FOLDER_ITEMS;
   msg.browse.browse_len = 3;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_BAD_CMD);
 
   msg.browse.browse_len = 13;
   uint8_t* p = &browse_cmd_buf[3];
@@ -112,55 +105,46 @@ TEST_F(StackAvrcpTest, test_avrcp_parse_browse_cmd) {
   UINT32_TO_STREAM(p, 0x00000001);             // start_item
   UINT32_TO_STREAM(p, 0x00000002);             // end_item
   browse_cmd_buf[12] = 0;                      // attr_count
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_NO_ERROR);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_NO_ERROR);
 
   memset(browse_cmd_buf, 0, sizeof(browse_cmd_buf));
   browse_cmd_buf[0] = AVRC_PDU_CHANGE_PATH;
   msg.browse.browse_len = 3;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_BAD_CMD);
 
   msg.browse.browse_len = 14;
   p = &browse_cmd_buf[3];
   UINT16_TO_STREAM(p, 0x1234);      // uid_counter
   UINT8_TO_STREAM(p, AVRC_DIR_UP);  // direction
   UINT8_TO_STREAM(p, 0);            // attr_count
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_NO_ERROR);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_NO_ERROR);
 
   memset(browse_cmd_buf, 0, sizeof(browse_cmd_buf));
   browse_cmd_buf[0] = AVRC_PDU_GET_ITEM_ATTRIBUTES;
   msg.browse.browse_len = 3;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_BAD_CMD);
 
   msg.browse.browse_len = 15;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_NO_ERROR);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_NO_ERROR);
 
   memset(browse_cmd_buf, 0, sizeof(browse_cmd_buf));
   browse_cmd_buf[0] = AVRC_PDU_GET_TOTAL_NUM_OF_ITEMS;
   msg.browse.browse_len = 3;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_BAD_CMD);
 
   msg.browse.browse_len = 4;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_NO_ERROR);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_NO_ERROR);
 
   memset(browse_cmd_buf, 0, sizeof(browse_cmd_buf));
   browse_cmd_buf[0] = AVRC_PDU_SEARCH;
   msg.browse.browse_len = 3;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_BAD_CMD);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_BAD_CMD);
 
   p = &browse_cmd_buf[3];
   UINT16_TO_STREAM(p, 0x0000);  // charset_id
   UINT16_TO_STREAM(p, 0x0000);  // str_len
   msg.browse.browse_len = 7;
-  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)),
-            AVRC_STS_NO_ERROR);
+  EXPECT_EQ(AVRC_ParsCommand(&msg, &result, scratch_buf, sizeof(scratch_buf)), AVRC_STS_NO_ERROR);
 }
 
 TEST_F(StackAvrcpTest, test_avrcp_pdu_register_notification) {
@@ -175,27 +159,27 @@ TEST_F(StackAvrcpTest, test_avrcp_pdu_register_notification) {
       uint32_t param;
     } payload;
   } data = {
-      AVRC_PDU_REGISTER_NOTIFICATION,
-      0,  // reserved
-      htons(sizeof(data.payload)),
-      .payload =
-          {
-              .event_id = 0,
-              .param = 0x1234,
-          },
+          AVRC_PDU_REGISTER_NOTIFICATION,
+          0,  // reserved
+          htons(sizeof(data.payload)),
+          .payload =
+                  {
+                          .event_id = 0,
+                          .param = 0x1234,
+                  },
   };
 
   tAVRC_MSG msg = {
-      .vendor =
-          {
-              .hdr =
+          .vendor =
                   {
-                      .ctype = AVRC_CMD_NOTIF,
-                      .opcode = AVRC_OP_VENDOR,
+                          .hdr =
+                                  {
+                                          .ctype = AVRC_CMD_NOTIF,
+                                          .opcode = AVRC_OP_VENDOR,
+                                  },
+                          .p_vendor_data = (uint8_t*)&data,
+                          .vendor_len = sizeof(data),
                   },
-              .p_vendor_data = (uint8_t*)&data,
-              .vendor_len = sizeof(data),
-          },
   };
   tAVRC_COMMAND result{};
 
@@ -203,8 +187,7 @@ TEST_F(StackAvrcpTest, test_avrcp_pdu_register_notification) {
   uint8_t id = 0;
   do {
     data.payload.event_id = id;
-    ASSERT_EQ((id == 0 || id > AVRC_NUM_NOTIF_EVENTS) ? AVRC_STS_BAD_PARAM
-                                                      : AVRC_STS_NO_ERROR,
+    ASSERT_EQ((id == 0 || id > AVRC_NUM_NOTIF_EVENTS) ? AVRC_STS_BAD_PARAM : AVRC_STS_NO_ERROR,
               AVRC_Ctrl_ParsCommand(&msg, &result));
   } while (++id != 0);
 }

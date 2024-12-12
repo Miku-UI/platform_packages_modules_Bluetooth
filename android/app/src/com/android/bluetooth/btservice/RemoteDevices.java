@@ -20,7 +20,10 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
 
+import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
+
 import android.annotation.RequiresPermission;
+import android.app.Activity;
 import android.app.admin.SecurityLog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAssignedNumbers;
@@ -39,7 +42,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelUuid;
-import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.util.Log;
 
@@ -53,7 +55,7 @@ import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetHalConstants;
 import com.android.internal.annotations.VisibleForTesting;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -77,6 +79,8 @@ public class RemoteDevices {
 
     private static final int UUID_INTENT_DELAY = 6000;
     private static final int MESSAGE_UUID_INTENT = 1;
+    private static final int MESSAGE_UUID_STATUS_SUCCESS = 0;
+    private static final int MESSAGE_UUID_STATUS_TIMEOUT = 1;
     private static final String LOG_SOURCE_DIS = "DIS";
 
     private final HashMap<String, DeviceProperties> mDevices;
@@ -117,11 +121,13 @@ public class RemoteDevices {
                 case MESSAGE_UUID_INTENT:
                     BluetoothDevice device = (BluetoothDevice) msg.obj;
                     if (device != null) {
+                        boolean success = (msg.arg1 == MESSAGE_UUID_STATUS_SUCCESS);
+                        debugLog("MESSAGE_UUID_INTENT: " + device);
                         // SDP Sending delayed SDP UUID intent
                         MetricsLogger.getInstance()
                                 .cacheCount(BluetoothProtoEnums.SDP_SENDING_DELAYED_UUID, 1);
                         DeviceProperties prop = getDeviceProperties(device);
-                        sendUuidIntent(device, prop);
+                        sendUuidIntent(device, prop, success);
                     } else {
                         // SDP Not sending delayed SDP UUID intent b/c device is not there
                         MetricsLogger.getInstance()
@@ -166,7 +172,7 @@ public class RemoteDevices {
      * Reset should be called when the state of this object needs to be cleared RemoteDevices is
      * still usable after reset
      */
-    @RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(BLUETOOTH_CONNECT)
     void reset() {
         mSdpTracker.clear();
 
@@ -227,6 +233,46 @@ public class RemoteDevices {
             }
             return mDevices.get(address);
         }
+    }
+
+    int getBondState(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return BluetoothDevice.BOND_NONE;
+        }
+        return deviceProp.getBondState();
+    }
+
+    String getName(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return null;
+        }
+        return deviceProp.getName();
+    }
+
+    int getType(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return BluetoothDevice.DEVICE_TYPE_UNKNOWN;
+        }
+        return deviceProp.getDeviceType();
+    }
+
+    public ParcelUuid[] getUuids(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return null;
+        }
+        return deviceProp.getUuids();
+    }
+
+    public int getBluetoothClass(BluetoothDevice device) {
+        DeviceProperties deviceProp = getDeviceProperties(device);
+        if (deviceProp == null) {
+            return 0;
+        }
+        return deviceProp.getBluetoothClass();
     }
 
     BluetoothDevice getDevice(byte[] address) {
@@ -667,14 +713,10 @@ public class RemoteDevices {
 
         public void setModelName(String modelName) {
             mModelName = modelName;
-            try {
-                mAdapterService.setMetadata(
-                        this.mDevice,
-                        BluetoothDevice.METADATA_MODEL_NAME,
-                        mModelName.getBytes("UTF-8"));
-            } catch (UnsupportedEncodingException uee) {
-                Log.e(TAG, "setModelName: UTF-8 not supported?!?"); // this should not happen
-            }
+            mAdapterService.setMetadata(
+                    this.mDevice,
+                    BluetoothDevice.METADATA_MODEL_NAME,
+                    mModelName.getBytes(StandardCharsets.UTF_8));
         }
 
         /**
@@ -687,10 +729,13 @@ public class RemoteDevices {
         }
     }
 
-    private void sendUuidIntent(BluetoothDevice device, DeviceProperties prop) {
+    private void sendUuidIntent(BluetoothDevice device, DeviceProperties prop, boolean success) {
         // Send uuids within the stack before the broadcast is sent out
         ParcelUuid[] uuids = prop == null ? null : prop.getUuids();
-        mAdapterService.sendUuidsInternal(device, uuids);
+
+        if (!Flags.preventDuplicateUuidIntent() || success) {
+            mAdapterService.sendUuidsInternal(device, uuids);
+        }
 
         Intent intent = new Intent(BluetoothDevice.ACTION_UUID);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
@@ -700,7 +745,19 @@ public class RemoteDevices {
 
         // SDP Sent UUID Intent here
         MetricsLogger.getInstance().cacheCount(BluetoothProtoEnums.SDP_SENT_UUID, 1);
+
         // Remove the outstanding UUID request
+        if (Flags.preventDuplicateUuidIntent()) {
+            // Handler.removeMessages() compares the object pointer so we cannot use the device
+            // directly. So we have to extract original BluetoothDevice object from mSdpTracker.
+            int index = mSdpTracker.indexOf(device);
+            if (index >= 0) {
+                BluetoothDevice originalDevice = mSdpTracker.get(index);
+                if (originalDevice != null) {
+                    mHandler.removeMessages(MESSAGE_UUID_INTENT, originalDevice);
+                }
+            }
+        }
         mSdpTracker.remove(device);
     }
 
@@ -950,7 +1007,7 @@ public class RemoteDevices {
                                         .cacheCount(
                                                 BluetoothProtoEnums.SDP_ADD_UUID_WITH_INTENT, 1);
                                 mAdapterService.deviceUuidUpdated(bdDevice);
-                                sendUuidIntent(bdDevice, deviceProperties);
+                                sendUuidIntent(bdDevice, deviceProperties, true);
                             } else if (mAdapterService.getState()
                                     == BluetoothAdapter.STATE_BLE_ON) {
                                 // SDP Adding UUIDs to property cache but with no intent
@@ -1113,11 +1170,6 @@ public class RemoteDevices {
         deviceProperties.mIdentityAddress = Utils.getAddressStringFromByte(secondaryAddress);
     }
 
-    @RequiresPermission(
-            allOf = {
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_PRIVILEGED,
-            })
     void aclStateChangeCallback(
             int status,
             byte[] address,
@@ -1130,17 +1182,19 @@ public class RemoteDevices {
             return;
         }
 
-        BluetoothDevice device = getDevice(address);
-
-        if (device == null) {
-            warnLog(
-                    "aclStateChangeCallback: device is NULL, address="
-                            + Utils.getRedactedAddressStringFromByte(address)
-                            + ", newState="
-                            + newState);
-            addDeviceProperties(address);
-            device = Objects.requireNonNull(getDevice(address));
-        }
+        final BluetoothDevice device =
+                Objects.requireNonNullElseGet(
+                        getDevice(address),
+                        () -> {
+                            Log.w(
+                                    TAG,
+                                    "aclStateChangeCallback: device is NULL"
+                                            + ("address="
+                                                    + Utils.getRedactedAddressStringFromByte(
+                                                            address))
+                                            + (" newState=" + newState));
+                            return addDeviceProperties(address).getDevice();
+                        });
 
         DeviceProperties deviceProperties = getDeviceProperties(device);
 
@@ -1173,10 +1227,10 @@ public class RemoteDevices {
                             + device);
         } else {
             deviceProperties.setConnectionHandle(BluetoothDevice.ERROR, transportLinkType);
-            if (device.getBondState() == BluetoothDevice.BOND_BONDING) {
+            if (getBondState(device) == BluetoothDevice.BOND_BONDING) {
                 // Send PAIRING_CANCEL intent to dismiss any dialog requesting bonding.
                 sendPairingCancelIntent(device);
-            } else if (device.getBondState() == BluetoothDevice.BOND_NONE) {
+            } else if (getBondState(device) == BluetoothDevice.BOND_NONE) {
                 removeAddressMapping(Utils.getAddressStringFromByte(address));
             }
             if (state == BluetoothAdapter.STATE_ON || state == BluetoothAdapter.STATE_TURNING_OFF) {
@@ -1233,43 +1287,35 @@ public class RemoteDevices {
                 metricId,
                 transportLinkType);
 
-        BluetoothClass deviceClass = device.getBluetoothClass();
-        int classOfDevice = deviceClass == null ? 0 : deviceClass.getClassOfDevice();
         BluetoothStatsLog.write(
                 BluetoothStatsLog.BLUETOOTH_CLASS_OF_DEVICE_REPORTED,
                 mAdapterService.obfuscateAddress(device),
-                classOfDevice,
+                getBluetoothClass(device),
                 metricId);
 
-        if (intent != null) {
-            intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device)
-                    .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT)
-                    .addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            mAdapterService.sendBroadcast(
-                    intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
-
-            synchronized (mAdapterService.getBluetoothConnectionCallbacks()) {
-                Set<IBluetoothConnectionCallback> bluetoothConnectionCallbacks =
-                        mAdapterService.getBluetoothConnectionCallbacks();
-                for (IBluetoothConnectionCallback callback : bluetoothConnectionCallbacks) {
-                    try {
-                        if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
-                            callback.onDeviceConnected(device);
-                        } else {
-                            callback.onDeviceDisconnected(
-                                    device, AdapterService.hciToAndroidDisconnectReason(hciReason));
-                        }
-                    } catch (RemoteException ex) {
-                        Log.e(TAG, "RemoteException in calling IBluetoothConnectionCallback");
-                    }
-                }
-            }
-        } else {
-            Log.e(
-                    TAG,
-                    "aclStateChangeCallback intent is null. deviceBondState: "
-                            + device.getBondState());
+        if (intent == null) {
+            Log.e(TAG, "aclStateChangeCallback intent is null. BondState: " + getBondState(device));
+            return;
         }
+
+        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device)
+                .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT)
+                .addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mAdapterService.sendBroadcast(
+                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
+
+        Utils.RemoteExceptionIgnoringConsumer<IBluetoothConnectionCallback>
+                connectionChangeConsumer;
+        if (connectionState == BluetoothAdapter.STATE_CONNECTED) {
+            connectionChangeConsumer = cb -> cb.onDeviceConnected(device);
+        } else {
+            connectionChangeConsumer =
+                    cb ->
+                            cb.onDeviceDisconnected(
+                                    device, AdapterService.hciToAndroidDisconnectReason(hciReason));
+        }
+
+        mAdapterService.aclStateChangeBroadcastCallback(connectionChangeConsumer);
     }
 
     @NonNull
@@ -1337,7 +1383,7 @@ public class RemoteDevices {
         }
         Log.i(TAG, "keyMissingCallback device: " + bluetoothDevice);
 
-        if (bluetoothDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
+        if (getBondState(bluetoothDevice) == BluetoothDevice.BOND_BONDED) {
             if (!Flags.keyMissingBroadcast()) {
                 Log.d(TAG, "flag not set - don't send key missing broadcast");
                 return;
@@ -1348,10 +1394,26 @@ public class RemoteDevices {
                             .addFlags(
                                     Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                                             | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            mAdapterService.sendBroadcastMultiplePermissions(
-                    intent,
-                    new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
-                    Utils.getTempBroadcastOptions());
+
+            if (isAtLeastV()
+                    && Flags.keyMissingAsOrderedBroadcast()
+                    && android.os.Flags.orderedBroadcastMultiplePermissions()) {
+                mAdapterService.sendOrderedBroadcastMultiplePermissions(
+                        intent,
+                        new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+                        null /* receiverAppOp */,
+                        null /* resultReceiver */,
+                        null /* scheduler */,
+                        Activity.RESULT_OK /* initialCode */,
+                        null /* initialData */,
+                        null /* initialExtras */,
+                        Utils.getTempBroadcastOptions().toBundle());
+            } else {
+                mAdapterService.sendBroadcastMultiplePermissions(
+                        intent,
+                        new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+                        Utils.getTempBroadcastOptions());
+            }
         }
     }
 
@@ -1382,6 +1444,7 @@ public class RemoteDevices {
 
         Message message = mHandler.obtainMessage(MESSAGE_UUID_INTENT);
         message.obj = device;
+        message.arg1 = MESSAGE_UUID_STATUS_TIMEOUT;
         mHandler.sendMessageDelayed(message, UUID_INTENT_DELAY);
 
         // Uses cached UUIDs if we are bonding. If not, we fetch the UUIDs with SDP.
@@ -1401,6 +1464,7 @@ public class RemoteDevices {
     void updateUuids(BluetoothDevice device) {
         Message message = mHandler.obtainMessage(MESSAGE_UUID_INTENT);
         message.obj = device;
+        message.arg1 = MESSAGE_UUID_STATUS_SUCCESS;
         mHandler.sendMessage(message);
     }
 

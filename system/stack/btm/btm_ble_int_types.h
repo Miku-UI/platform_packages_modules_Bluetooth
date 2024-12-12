@@ -85,7 +85,7 @@ typedef struct {
   uint16_t connectable_mode;
   uint16_t scan_window;
   uint16_t scan_interval;
-  uint8_t scan_type;             /* current scan type: active or passive */
+  uint8_t scan_type; /* current scan type: active or passive */
   uint8_t scan_phy;
 
   tBTM_BLE_AFP afp; /* advertising filter policy */
@@ -97,9 +97,7 @@ typedef struct {
   uint8_t adv_mode;
   void enable_advertising_mode() { adv_mode = BTM_BLE_ADV_ENABLE; }
   void disable_advertising_mode() { adv_mode = BTM_BLE_ADV_DISABLE; }
-  bool is_advertising_mode_enabled() const {
-    return (adv_mode == BTM_BLE_ADV_ENABLE);
-  }
+  bool is_advertising_mode_enabled() const { return adv_mode == BTM_BLE_ADV_ENABLE; }
 
   tBLE_BD_ADDR direct_bda;
   tBTM_BLE_EVT directed_conn;
@@ -140,7 +138,9 @@ enum : uint8_t {
 };
 typedef uint8_t tBTM_BLE_RL_STATE;
 
-typedef struct { void* p_param; } tBTM_BLE_CONN_REQ;
+typedef struct {
+  void* p_param;
+} tBTM_BLE_CONN_REQ;
 
 /* LE state request */
 #define BTM_BLE_STATE_INVALID 0
@@ -163,8 +163,7 @@ typedef uint16_t tBTM_BLE_STATE_MASK;
 #define BTM_BLE_STATE_ALL_ADV_MASK                                  \
   (BTM_BLE_STATE_CONN_ADV_BIT | BTM_BLE_STATE_LO_DUTY_DIR_ADV_BIT | \
    BTM_BLE_STATE_HI_DUTY_DIR_ADV_BIT | BTM_BLE_STATE_SCAN_ADV_BIT)
-#define BTM_BLE_STATE_ALL_CONN_MASK \
-  (BTM_BLE_STATE_CENTRAL_BIT | BTM_BLE_STATE_PERIPHERAL_BIT)
+#define BTM_BLE_STATE_ALL_CONN_MASK (BTM_BLE_STATE_CENTRAL_BIT | BTM_BLE_STATE_PERIPHERAL_BIT)
 
 typedef struct {
   RawAddress* resolve_q_random_pseudo{nullptr};
@@ -174,30 +173,25 @@ typedef struct {
 } tBTM_BLE_RESOLVE_Q;
 
 /* BLE privacy mode */
-#define BTM_PRIVACY_NONE 0 /* BLE no privacy */
-#define BTM_PRIVACY_1_1 1  /* BLE privacy 1.1, do not support privacy 1.0 */
-#define BTM_PRIVACY_1_2 2  /* BLE privacy 1.2 */
-#define BTM_PRIVACY_MIXED \
-  3 /* BLE privacy mixed mode, broadcom propietary mode */
+#define BTM_PRIVACY_NONE 0  /* BLE no privacy */
+#define BTM_PRIVACY_1_1 1   /* BLE privacy 1.1, do not support privacy 1.0 */
+#define BTM_PRIVACY_1_2 2   /* BLE privacy 1.2 */
+#define BTM_PRIVACY_MIXED 3 /* BLE privacy mixed mode, broadcom propietary mode */
 typedef uint8_t tBTM_PRIVACY_MODE;
 
 /* Define BLE Device Management control structure
-*/
+ */
 constexpr uint8_t kBTM_BLE_INQUIRY_ACTIVE = 0x10;
 constexpr uint8_t kBTM_BLE_OBSERVE_ACTIVE = 0x80;
 constexpr size_t kCentralAndPeripheralCount = 2;
 
 typedef struct {
- private:
+private:
   uint8_t scan_activity_; /* LE scan activity mask */
 
- public:
-  bool is_ble_inquiry_active() const {
-    return (scan_activity_ & kBTM_BLE_INQUIRY_ACTIVE);
-  }
-  bool is_ble_observe_active() const {
-    return (scan_activity_ & kBTM_BLE_OBSERVE_ACTIVE);
-  }
+public:
+  bool is_ble_inquiry_active() const { return scan_activity_ & kBTM_BLE_INQUIRY_ACTIVE; }
+  bool is_ble_observe_active() const { return scan_activity_ & kBTM_BLE_OBSERVE_ACTIVE; }
 
   void set_ble_inquiry_active() { scan_activity_ |= kBTM_BLE_INQUIRY_ACTIVE; }
   void set_ble_observe_active() { scan_activity_ |= kBTM_BLE_OBSERVE_ACTIVE; }
@@ -205,9 +199,7 @@ typedef struct {
   void reset_ble_inquiry() { scan_activity_ &= ~kBTM_BLE_INQUIRY_ACTIVE; }
   void reset_ble_observe() { scan_activity_ &= ~kBTM_BLE_OBSERVE_ACTIVE; }
 
-  bool is_ble_scan_active() const {
-    return (is_ble_inquiry_active() || is_ble_observe_active());
-  }
+  bool is_ble_scan_active() const { return is_ble_inquiry_active() || is_ble_observe_active(); }
 
   /*****************************************************
   **      BLE Inquiry
@@ -225,21 +217,17 @@ typedef struct {
   /* target announcement observer */
   tBTM_INQ_RESULTS_CB* p_target_announcement_obs_results_cb;
 
- private:
+private:
   enum : uint8_t { /* BLE connection state */
                    BLE_CONN_IDLE = 0,
                    BLE_CONNECTING = 2,
                    BLE_CONN_CANCEL = 3,
   } conn_state_{BLE_CONN_IDLE};
 
- public:
+public:
   bool is_connection_state_idle() const { return conn_state_ == BLE_CONN_IDLE; }
-  bool is_connection_state_connecting() const {
-    return conn_state_ == BLE_CONNECTING;
-  }
-  bool is_connection_state_cancelled() const {
-    return conn_state_ == BLE_CONN_CANCEL;
-  }
+  bool is_connection_state_connecting() const { return conn_state_ == BLE_CONNECTING; }
+  bool is_connection_state_cancelled() const { return conn_state_ == BLE_CONN_CANCEL; }
   void set_connection_state_idle() { conn_state_ = BLE_CONN_IDLE; }
   void set_connection_state_connecting() { conn_state_ = BLE_CONNECTING; }
   void set_connection_state_cancelled() { conn_state_ = BLE_CONN_CANCEL; }
@@ -247,8 +235,8 @@ typedef struct {
   /* random address management control block */
   tBTM_LE_RANDOM_CB addr_mgnt_cb;
 
-  tBTM_PRIVACY_MODE privacy_mode;    /* privacy mode */
-  uint8_t resolving_list_avail_size; /* resolving list available size */
+  tBTM_PRIVACY_MODE privacy_mode;           /* privacy mode */
+  uint8_t resolving_list_avail_size;        /* resolving list available size */
   tBTM_BLE_RESOLVE_Q resolving_list_pend_q; /* Resolving list queue */
   tBTM_BLE_RL_STATE suspended_rl_state;     /* Suspended resolving list state */
   /* IRK list availability mask, up to max entry bits */

@@ -17,7 +17,6 @@
 from blueberry.tests.gd.cert.capture import Capture
 from blueberry.tests.gd.cert.matchers import HciMatchers
 from blueberry.tests.gd.cert.matchers import SecurityMatchers
-from blueberry.facade.security.facade_pb2 import UiMsgType
 import hci_packets as hci
 
 
@@ -93,16 +92,3 @@ class HciCaptures(object):
     def SimplePairingCompleteCapture():
         return Capture(HciMatchers.EventWithCode(hci.EventCode.SIMPLE_PAIRING_COMPLETE),
                        lambda packet: hci.Event.parse_all(packet.payload))
-
-
-class SecurityCaptures(object):
-
-    @staticmethod
-    def DisplayPasskey():
-        return Capture(SecurityMatchers.UiMsg(UiMsgType.DISPLAY_PASSKEY), SecurityCaptures._extract_passkey)
-
-    @staticmethod
-    def _extract_passkey(event):
-        if event is None:
-            return None
-        return event.numeric_value

@@ -53,6 +53,7 @@ source_set("nonstandard_codecs") {
 
 source_set("stack") {
   sources = [
+    "ais/ais_ble.cc",
     "a2dp/a2dp_api.cc",
     "a2dp/a2dp_codec_config.cc",
     "a2dp/a2dp_ext.cc",
@@ -150,6 +151,7 @@ source_set("stack") {
     "l2cap/l2c_link.cc",
     "l2cap/l2c_main.cc",
     "l2cap/l2c_utils.cc",
+    "l2cap/l2cap_api.cc",
     "metrics/stack_metrics_logging.cc",
     "pan/pan_api.cc",
     "pan/pan_main.cc",
@@ -163,6 +165,7 @@ source_set("stack") {
     "rfcomm/rfc_port_if.cc",
     "rfcomm/rfc_ts_frames.cc",
     "rfcomm/rfc_utils.cc",
+    "rnr/remote_name_request.cc",
     "sdp/sdp_api.cc",
     "sdp/sdp_db.cc",
     "sdp/sdp_discovery.cc",
@@ -186,6 +189,7 @@ source_set("stack") {
   include_dirs = [
     ".",
     "include",
+    "ais",
     "avct",
     "btm",
     "avrc",
@@ -225,6 +229,11 @@ source_set("stack") {
     "//bt/system/stack/mmc",
     "//bt/system/types",
   ]
+  if (use.test) {
+    deps += [
+      ":sco_hci_linux_test",
+    ]
+  }
 
   configs += [
     "//bt/system:target_defaults",
@@ -233,6 +242,44 @@ source_set("stack") {
 }
 
 if (use.test) {
+  executable("sco_hci_linux_test") {
+    sources = [
+      "btm/btm_sco_hci.cc",
+      "test/btm/sco_hci_linux_test.cc",
+      "//bt/system/test/common/core_interface.cc",
+      "//bt/system/test/common/mock_functions.cc",
+      "//bt/system/test/fake/fake_osi.cc",
+      "//bt/system/test/mock/mock_bluetooth_interface.cc",
+      "//bt/system/test/mock/mock_btif_stack_manager.cc",
+      "//bt/system/test/mock/mock_osi_alarm.cc",
+      "//bt/system/test/mock/mock_osi_allocator.cc",
+      "//bt/system/test/mock/mock_osi_fixed_queue.cc",
+      "//bt/system/test/mock/mock_osi_list.cc",
+      "//bt/system/test/mock/mock_stack_rnr_interface.cc",
+      "//bt/system/test/mock/mock_udrv_ulinux_uipc.cc",
+    ]
+
+    include_dirs = [
+      "btm",
+      "include",
+      "test/common",
+    ]
+    libs = [
+      "fmt",
+    ]
+    deps = [
+      "//bt/system/log:libbluetooth_log",
+      "//bt/system/common",
+      "//bt/system/osi",
+      "//bt/system/types",
+    ]
+    configs += [
+      "//bt/system:external_gmock_main",
+      "//bt/system:target_defaults",
+      "//bt/system/log:log_defaults",
+    ]
+  }
+
   executable("net_test_btm_iso") {
     sources = [
       "btm/btm_iso.cc",

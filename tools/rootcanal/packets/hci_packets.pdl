@@ -749,6 +749,7 @@ enum EventCode : 8 {
   REMOTE_HOST_SUPPORTED_FEATURES_NOTIFICATION = 0x3D,
   LE_META_EVENT = 0x3e,
   NUMBER_OF_COMPLETED_DATA_BLOCKS = 0x48,
+  ENCRYPTION_CHANGE_V2 = 0x59,
   VENDOR_SPECIFIC = 0xFF,
 }
 
@@ -4767,6 +4768,13 @@ packet EncryptionChange : Event (event_code = ENCRYPTION_CHANGE) {
   encryption_enabled : EncryptionEnabled,
 }
 
+packet EncryptionChangeV2 : Event (event_code = ENCRYPTION_CHANGE_V2) {
+  status : ErrorCode,
+  connection_handle : 12,
+  _reserved_ : 4,
+  encryption_enabled : EncryptionEnabled,
+  key_size : 8,
+}
 packet ChangeConnectionLinkKeyComplete : Event (event_code = CHANGE_CONNECTION_LINK_KEY_COMPLETE) {
   status : ErrorCode,
   connection_handle : 12,

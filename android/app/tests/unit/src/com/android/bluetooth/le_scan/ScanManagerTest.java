@@ -29,8 +29,14 @@ import static android.bluetooth.le.ScanSettings.SCAN_MODE_OPPORTUNISTIC;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_SCREEN_OFF;
 import static android.bluetooth.le.ScanSettings.SCAN_MODE_SCREEN_OFF_BALANCED;
 
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_BALANCED_INTERVAL_MS;
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_BALANCED_WINDOW_MS;
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_LOW_POWER_INTERVAL_MS;
+import static com.android.bluetooth.le_scan.ScanManager.SCAN_MODE_SCREEN_OFF_LOW_POWER_WINDOW_MS;
+
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
@@ -58,7 +64,9 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.WorkSource;
 import android.os.test.TestLooper;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.test.mock.MockContentProvider;
@@ -71,10 +79,12 @@ import androidx.test.filters.SmallTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.BluetoothAdapterProxy;
 import com.android.bluetooth.btservice.MetricsLogger;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.GattNativeInterface;
 import com.android.bluetooth.gatt.GattObjectsFactory;
 import com.android.bluetooth.gatt.GattService;
@@ -95,6 +105,7 @@ import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -107,11 +118,15 @@ public class ScanManagerTest {
     private static final int DELAY_ASYNC_MS = 50;
     private static final int DELAY_DEFAULT_SCAN_TIMEOUT_MS = 1500000;
     private static final int DELAY_SCAN_TIMEOUT_MS = 100;
-    private static final int DEFAULT_SCAN_REPORT_DELAY_MS = 100;
+    private static final int DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS = 0;
+    private static final int DEFAULT_BATCH_SCAN_REPORT_DELAY_MS = 100;
     private static final int DEFAULT_NUM_OFFLOAD_SCAN_FILTER = 16;
     private static final int DEFAULT_BYTES_OFFLOAD_SCAN_RESULT_STORAGE = 4096;
     private static final int DELAY_SCAN_UPGRADE_DURATION_MS = 150;
     private static final int DELAY_SCAN_DOWNGRADE_DURATION_MS = 100;
+    private static final int TEST_SCAN_QUOTA_COUNT = 5;
+    private static final String TEST_APP_NAME = "Test";
+    private static final String TEST_PACKAGE_NAME = "com.test.package";
 
     private Context mTargetContext;
     private ScanManager mScanManager;
@@ -156,6 +171,15 @@ public class ScanManagerTest {
                 .thenReturn(DEFAULT_NUM_OFFLOAD_SCAN_FILTER);
         when(mAdapterService.getOffloadedScanResultStorage())
                 .thenReturn(DEFAULT_BYTES_OFFLOAD_SCAN_RESULT_STORAGE);
+        when(mAdapterService.getScanQuotaCount()).thenReturn(TEST_SCAN_QUOTA_COUNT);
+        when(mAdapterService.getScreenOffLowPowerWindowMillis())
+                .thenReturn(SCAN_MODE_SCREEN_OFF_LOW_POWER_WINDOW_MS);
+        when(mAdapterService.getScreenOffBalancedWindowMillis())
+                .thenReturn(SCAN_MODE_SCREEN_OFF_BALANCED_WINDOW_MS);
+        when(mAdapterService.getScreenOffLowPowerIntervalMillis())
+                .thenReturn(SCAN_MODE_SCREEN_OFF_LOW_POWER_INTERVAL_MS);
+        when(mAdapterService.getScreenOffBalancedIntervalMillis())
+                .thenReturn(SCAN_MODE_SCREEN_OFF_BALANCED_INTERVAL_MS);
 
         TestUtils.mockGetSystemService(
                 mAdapterService, Context.LOCATION_SERVICE, LocationManager.class, mLocationManager);
@@ -215,9 +239,9 @@ public class ScanManagerTest {
         mLatch = new CountDownLatch(1);
         assertThat(mLatch).isNotNull();
 
-        mScanReportDelay = DEFAULT_SCAN_REPORT_DELAY_MS;
+        mScanReportDelay = DEFAULT_BATCH_SCAN_REPORT_DELAY_MS;
         mMockAppScanStats =
-                spy(new AppScanStats("Test", null, null, mMockGattService, mMockScanHelper));
+                spy(new AppScanStats(TEST_APP_NAME, null, null, mMockGattService, mMockScanHelper));
     }
 
     @After
@@ -255,28 +279,60 @@ public class ScanManagerTest {
             boolean isEmptyFilter,
             int scanMode,
             boolean isBatch,
-            boolean isAutoBatch) {
+            boolean isAutoBatch,
+            int appUid,
+            AppScanStats appScanStats) {
         List<ScanFilter> scanFilterList = createScanFilterList(isFiltered, isEmptyFilter);
         ScanSettings scanSettings = createScanSettings(scanMode, isBatch, isAutoBatch);
 
-        ScanClient client = new ScanClient(id, scanSettings, scanFilterList);
-        client.stats = mMockAppScanStats;
+        ScanClient client = new ScanClient(id, scanSettings, scanFilterList, appUid);
+        client.stats = appScanStats;
         client.stats.recordScanStart(scanSettings, scanFilterList, isFiltered, false, id);
         return client;
     }
 
     private ScanClient createScanClient(int id, boolean isFiltered, int scanMode) {
-        return createScanClient(id, isFiltered, false, scanMode, false, false);
+        return createScanClient(
+                id,
+                isFiltered,
+                false,
+                scanMode,
+                false,
+                false,
+                Binder.getCallingUid(),
+                mMockAppScanStats);
+    }
+
+    private ScanClient createScanClient(
+            int id, boolean isFiltered, int scanMode, int appUid, AppScanStats appScanStats) {
+        return createScanClient(
+                id, isFiltered, false, scanMode, false, false, appUid, appScanStats);
     }
 
     private ScanClient createScanClient(
             int id, boolean isFiltered, int scanMode, boolean isBatch, boolean isAutoBatch) {
-        return createScanClient(id, isFiltered, false, scanMode, isBatch, isAutoBatch);
+        return createScanClient(
+                id,
+                isFiltered,
+                false,
+                scanMode,
+                isBatch,
+                isAutoBatch,
+                Binder.getCallingUid(),
+                mMockAppScanStats);
     }
 
     private ScanClient createScanClient(
             int id, boolean isFiltered, boolean isEmptyFilter, int scanMode) {
-        return createScanClient(id, isFiltered, isEmptyFilter, scanMode, false, false);
+        return createScanClient(
+                id,
+                isFiltered,
+                isEmptyFilter,
+                scanMode,
+                false,
+                false,
+                Binder.getCallingUid(),
+                mMockAppScanStats);
     }
 
     private List<ScanFilter> createScanFilterList(boolean isFiltered, boolean isEmptyFilter) {
@@ -328,6 +384,8 @@ public class ScanManagerTest {
         ScanSettings scanSettings = createScanSettingsWithPhy(scanMode, phy);
 
         ScanClient client = new ScanClient(id, scanSettings, scanFilterList);
+        client.stats = mMockAppScanStats;
+        client.stats.recordScanStart(scanSettings, scanFilterList, isFiltered, false, id);
         return client;
     }
 
@@ -353,11 +411,14 @@ public class ScanManagerTest {
     }
 
     private Message createImportanceMessage(boolean isForeground) {
+        return createImportanceMessage(isForeground, Binder.getCallingUid());
+    }
+
+    private Message createImportanceMessage(boolean isForeground, int uid) {
         final int importance =
                 isForeground
                         ? ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE
                         : ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE + 1;
-        final int uid = Binder.getCallingUid();
         Message message = new Message();
         message.what = ScanManager.MSG_IMPORTANCE_CHANGE;
         message.obj = new ScanManager.UidImportance(uid, importance);
@@ -1316,6 +1377,376 @@ public class ScanManagerTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_BLE_SCAN_ADV_METRICS_REDESIGN)
+    public void testMetricsAppScanScreenOn() {
+        // Set filtered scan flag
+        final boolean isFiltered = true;
+        final long scanTestDuration = 100;
+        // Turn on screen
+        sendMessageWaitForProcessed(createScreenOnOffMessage(true));
+
+        // Set scan mode map {original scan mode (ScanMode) : logged scan mode (loggedScanMode)}
+        SparseIntArray scanModeMap = new SparseIntArray();
+        scanModeMap.put(
+                SCAN_MODE_LOW_POWER,
+                BluetoothStatsLog.LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER);
+        scanModeMap.put(
+                SCAN_MODE_BALANCED,
+                BluetoothStatsLog.LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED);
+        scanModeMap.put(
+                SCAN_MODE_LOW_LATENCY,
+                BluetoothStatsLog.LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY);
+        scanModeMap.put(
+                SCAN_MODE_AMBIENT_DISCOVERY,
+                BluetoothStatsLog
+                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_AMBIENT_DISCOVERY);
+
+        for (int i = 0; i < scanModeMap.size(); i++) {
+            int scanMode = scanModeMap.keyAt(i);
+            int loggedScanMode = scanModeMap.get(scanMode);
+
+            // Create workSource for the app
+            final String APP_NAME = TEST_APP_NAME + i;
+            final int UID = 10000 + i;
+            final String PACKAGE_NAME = TEST_PACKAGE_NAME + i;
+            WorkSource source = new WorkSource(UID, PACKAGE_NAME);
+            // Create app scan stats for the app
+            AppScanStats appScanStats =
+                    spy(
+                            new AppScanStats(
+                                    APP_NAME, source, null, mMockGattService, mMockScanHelper));
+            // Create scan client for the app, which also records scan start
+            ScanClient client = createScanClient(i, isFiltered, scanMode, UID, appScanStats);
+            // Verify that the app scan start is logged
+            verify(mMetricsLogger, times(1))
+                    .logAppScanStateChanged(
+                            new int[] {UID},
+                            new String[] {PACKAGE_NAME},
+                            true,
+                            true,
+                            false,
+                            BluetoothStatsLog
+                                    .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES,
+                            BluetoothStatsLog
+                                    .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR,
+                            loggedScanMode,
+                            DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS,
+                            0,
+                            0,
+                            true,
+                            false);
+
+            // Wait for scan test duration
+            testSleep(scanTestDuration);
+            // Record scan stop
+            client.stats.recordScanStop(i);
+            // Verify that the app scan stop is logged
+            verify(mMetricsLogger, times(1))
+                    .logAppScanStateChanged(
+                            eq(new int[] {UID}),
+                            eq(new String[] {PACKAGE_NAME}),
+                            eq(false),
+                            eq(true),
+                            eq(false),
+                            eq(
+                                    BluetoothStatsLog
+                                            .LE_APP_SCAN_STATE_CHANGED__SCAN_CALLBACK_TYPE__TYPE_ALL_MATCHES),
+                            eq(
+                                    BluetoothStatsLog
+                                            .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                            eq(loggedScanMode),
+                            eq((long) DEFAULT_REGULAR_SCAN_REPORT_DELAY_MS),
+                            mScanDurationCaptor.capture(),
+                            eq(0),
+                            eq(true),
+                            eq(false));
+            long capturedAppScanDuration = mScanDurationCaptor.getValue();
+            Log.d(TAG, "capturedDuration: " + capturedAppScanDuration);
+            assertThat(capturedAppScanDuration).isAtLeast(scanTestDuration);
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_BLE_SCAN_ADV_METRICS_REDESIGN)
+    public void testMetricsRadioScanScreenOnOffMultiScan() {
+        mTestLooper.stopAutoDispatchAndIgnoreExceptions();
+        // Set filtered scan flag
+        final boolean isFiltered = true;
+        final long scanTestDuration = 100;
+        // Turn on screen
+        mHandler.sendMessage(createScreenOnOffMessage(true));
+        mTestLooper.dispatchAll();
+
+        // Create workSource for the first app
+        final int UID_1 = 10001;
+        final String APP_NAME_1 = TEST_APP_NAME + UID_1;
+        final String PACKAGE_NAME_1 = TEST_PACKAGE_NAME + UID_1;
+        WorkSource source1 = new WorkSource(UID_1, PACKAGE_NAME_1);
+        // Create app scan stats for the first app
+        AppScanStats appScanStats1 =
+                spy(new AppScanStats(APP_NAME_1, source1, null, mMockGattService, mMockScanHelper));
+        // Create scan client for the first app
+        ScanClient client1 =
+                createScanClient(0, isFiltered, SCAN_MODE_LOW_POWER, UID_1, appScanStats1);
+        // Start scan with lower duty cycle for the first app
+        mHandler.sendMessage(createStartStopScanMessage(true, client1));
+        mTestLooper.dispatchAll();
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Create workSource for the second app
+        final int UID_2 = 10002;
+        final String APP_NAME_2 = TEST_APP_NAME + UID_2;
+        final String PACKAGE_NAME_2 = TEST_PACKAGE_NAME + UID_2;
+        WorkSource source2 = new WorkSource(UID_2, PACKAGE_NAME_2);
+        // Create app scan stats for the second app
+        AppScanStats appScanStats2 =
+                spy(new AppScanStats(APP_NAME_2, source2, null, mMockGattService, mMockScanHelper));
+        // Create scan client for the second app
+        ScanClient client2 =
+                createScanClient(1, isFiltered, SCAN_MODE_BALANCED, UID_2, appScanStats2);
+        // Start scan with higher duty cycle for the second app
+        mHandler.sendMessage(createStartStopScanMessage(true, client2));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is logged with the first app
+        verify(mMetricsLogger, times(1))
+                .logRadioScanStopped(
+                        eq(new int[] {UID_1}),
+                        eq(new String[] {PACKAGE_NAME_1}),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
+                        eq((long) ScanManager.SCAN_MODE_LOW_POWER_INTERVAL_MS),
+                        eq((long) ScanManager.SCAN_MODE_LOW_POWER_WINDOW_MS),
+                        eq(true),
+                        mScanDurationCaptor.capture());
+        long capturedRadioScanDuration1 = mScanDurationCaptor.getValue();
+        Log.d(TAG, "capturedDuration: " + capturedRadioScanDuration1);
+        assertThat(capturedRadioScanDuration1).isAtLeast(scanTestDuration);
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Create workSource for the third app
+        final int UID_3 = 10003;
+        final String APP_NAME_3 = TEST_APP_NAME + UID_3;
+        final String PACKAGE_NAME_3 = TEST_PACKAGE_NAME + UID_3;
+        WorkSource source3 = new WorkSource(UID_3, PACKAGE_NAME_3);
+        // Create app scan stats for the third app
+        AppScanStats appScanStats3 =
+                spy(new AppScanStats(APP_NAME_3, source3, null, mMockGattService, mMockScanHelper));
+        // Create scan client for the third app
+        ScanClient client3 =
+                createScanClient(2, isFiltered, SCAN_MODE_LOW_LATENCY, UID_3, appScanStats3);
+        // Start scan with highest duty cycle for the third app
+        mHandler.sendMessage(createStartStopScanMessage(true, client3));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is logged with the second app
+        verify(mMetricsLogger, times(1))
+                .logRadioScanStopped(
+                        eq(new int[] {UID_2}),
+                        eq(new String[] {PACKAGE_NAME_2}),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
+                        eq((long) ScanManager.SCAN_MODE_BALANCED_INTERVAL_MS),
+                        eq((long) ScanManager.SCAN_MODE_BALANCED_WINDOW_MS),
+                        eq(true),
+                        mScanDurationCaptor.capture());
+        long capturedRadioScanDuration2 = mScanDurationCaptor.getValue();
+        Log.d(TAG, "capturedDuration: " + capturedRadioScanDuration2);
+        assertThat(capturedRadioScanDuration2).isAtLeast(scanTestDuration);
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Create workSource for the fourth app
+        final int UID_4 = 10004;
+        final String APP_NAME_4 = TEST_APP_NAME + UID_4;
+        final String PACKAGE_NAME_4 = TEST_PACKAGE_NAME + UID_4;
+        WorkSource source4 = new WorkSource(UID_4, PACKAGE_NAME_4);
+        // Create app scan stats for the fourth app
+        AppScanStats appScanStats4 =
+                spy(new AppScanStats(APP_NAME_4, source4, null, mMockGattService, mMockScanHelper));
+        // Create scan client for the fourth app
+        ScanClient client4 =
+                createScanClient(3, isFiltered, SCAN_MODE_AMBIENT_DISCOVERY, UID_4, appScanStats4);
+        // Start scan with lower duty cycle for the fourth app
+        mHandler.sendMessage(createStartStopScanMessage(true, client4));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is not logged with the third app since there is no change in radio
+        // scan
+        verify(mMetricsLogger, never())
+                .logRadioScanStopped(
+                        eq(new int[] {UID_3}),
+                        eq(new String[] {PACKAGE_NAME_3}),
+                        anyInt(),
+                        anyInt(),
+                        anyLong(),
+                        anyLong(),
+                        anyBoolean(),
+                        anyLong());
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Set as background app
+        mHandler.sendMessage(createImportanceMessage(false, UID_1));
+        mHandler.sendMessage(createImportanceMessage(false, UID_2));
+        mHandler.sendMessage(createImportanceMessage(false, UID_3));
+        mHandler.sendMessage(createImportanceMessage(false, UID_4));
+        // Turn off screen
+        mHandler.sendMessage(createScreenOnOffMessage(false));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is logged with the third app when screen turns off
+        verify(mMetricsLogger, times(1))
+                .logRadioScanStopped(
+                        eq(new int[] {UID_3}),
+                        eq(new String[] {PACKAGE_NAME_3}),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
+                        eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_INTERVAL_MS),
+                        eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_WINDOW_MS),
+                        eq(true),
+                        mScanDurationCaptor.capture());
+        long capturedRadioScanDuration3 = mScanDurationCaptor.getValue();
+        Log.d(TAG, "capturedDuration: " + capturedRadioScanDuration3);
+        assertThat(capturedRadioScanDuration3).isAtLeast(scanTestDuration * 2);
+        Mockito.clearInvocations(mMetricsLogger);
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Get the most aggressive scan client when screen is off
+        // Since all the clients are updated to SCAN_MODE_SCREEN_OFF when screen is off and
+        // app is in background mode, get the first client in the iterator
+        Set<ScanClient> scanClients = mScanManager.getRegularScanQueue();
+        ScanClient mostAggressiveClient = scanClients.iterator().next();
+
+        // Turn on screen
+        mHandler.sendMessage(createScreenOnOffMessage(true));
+        // Set as foreground app
+        mHandler.sendMessage(createImportanceMessage(true, UID_1));
+        mHandler.sendMessage(createImportanceMessage(true, UID_2));
+        mHandler.sendMessage(createImportanceMessage(true, UID_3));
+        mHandler.sendMessage(createImportanceMessage(true, UID_4));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is logged with the third app when screen turns on
+        verify(mMetricsLogger, times(1))
+                .logRadioScanStopped(
+                        eq(new int[] {mostAggressiveClient.appUid}),
+                        eq(new String[] {TEST_PACKAGE_NAME + mostAggressiveClient.appUid}),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(AppScanStats.convertScanMode(mostAggressiveClient.scanModeApp)),
+                        eq((long) SCAN_MODE_SCREEN_OFF_LOW_POWER_INTERVAL_MS),
+                        eq((long) SCAN_MODE_SCREEN_OFF_LOW_POWER_WINDOW_MS),
+                        eq(false),
+                        mScanDurationCaptor.capture());
+        long capturedRadioScanDuration4 = mScanDurationCaptor.getValue();
+        Log.d(TAG, "capturedDuration: " + capturedRadioScanDuration4);
+        assertThat(capturedRadioScanDuration4).isAtLeast(scanTestDuration);
+        Mockito.clearInvocations(mMetricsLogger);
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Stop scan for the fourth app
+        mHandler.sendMessage(createStartStopScanMessage(false, client4));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is not logged with the third app since there is no change in radio
+        // scan
+        verify(mMetricsLogger, never())
+                .logRadioScanStopped(
+                        eq(new int[] {UID_3}),
+                        eq(new String[] {PACKAGE_NAME_3}),
+                        anyInt(),
+                        anyInt(),
+                        anyLong(),
+                        anyLong(),
+                        anyBoolean(),
+                        anyLong());
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Stop scan for the third app
+        mHandler.sendMessage(createStartStopScanMessage(false, client3));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is logged with the third app
+        verify(mMetricsLogger, times(1))
+                .logRadioScanStopped(
+                        eq(new int[] {UID_3}),
+                        eq(new String[] {PACKAGE_NAME_3}),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_LATENCY),
+                        eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_INTERVAL_MS),
+                        eq((long) ScanManager.SCAN_MODE_LOW_LATENCY_WINDOW_MS),
+                        eq(true),
+                        mScanDurationCaptor.capture());
+        long capturedRadioScanDuration5 = mScanDurationCaptor.getValue();
+        Log.d(TAG, "capturedDuration: " + capturedRadioScanDuration5);
+        assertThat(capturedRadioScanDuration5).isAtLeast(scanTestDuration);
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Stop scan for the second app
+        mHandler.sendMessage(createStartStopScanMessage(false, client2));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is logged with the second app
+        verify(mMetricsLogger, times(1))
+                .logRadioScanStopped(
+                        eq(new int[] {UID_2}),
+                        eq(new String[] {PACKAGE_NAME_2}),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_BALANCED),
+                        eq((long) ScanManager.SCAN_MODE_BALANCED_INTERVAL_MS),
+                        eq((long) ScanManager.SCAN_MODE_BALANCED_WINDOW_MS),
+                        eq(true),
+                        mScanDurationCaptor.capture());
+        long capturedRadioScanDuration6 = mScanDurationCaptor.getValue();
+        Log.d(TAG, "capturedDuration: " + capturedRadioScanDuration6);
+        assertThat(capturedRadioScanDuration6).isAtLeast(scanTestDuration);
+        // Wait for scan test duration
+        testSleep(scanTestDuration);
+
+        // Stop scan for the first app
+        mHandler.sendMessage(createStartStopScanMessage(false, client1));
+        mTestLooper.dispatchAll();
+        // Verify radio scan stop is logged with the first app
+        verify(mMetricsLogger, times(1))
+                .logRadioScanStopped(
+                        eq(new int[] {UID_1}),
+                        eq(new String[] {PACKAGE_NAME_1}),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_TYPE__SCAN_TYPE_REGULAR),
+                        eq(
+                                BluetoothStatsLog
+                                        .LE_APP_SCAN_STATE_CHANGED__LE_SCAN_MODE__SCAN_MODE_LOW_POWER),
+                        eq((long) ScanManager.SCAN_MODE_LOW_POWER_INTERVAL_MS),
+                        eq((long) ScanManager.SCAN_MODE_LOW_POWER_WINDOW_MS),
+                        eq(true),
+                        mScanDurationCaptor.capture());
+        long capturedRadioScanDuration7 = mScanDurationCaptor.getValue();
+        Log.d(TAG, "capturedDuration: " + capturedRadioScanDuration7);
+        assertThat(capturedRadioScanDuration7).isAtLeast(scanTestDuration);
+    }
+
+    @Test
     public void testMetricsScanRadioDurationScreenOn() {
         // Set filtered scan flag
         final boolean isFiltered = true;
@@ -1696,19 +2127,10 @@ public class ScanManagerTest {
         for (int i = 0; i < scanModeMap.size(); i++) {
             int phy = PHY_LE_ALL_SUPPORTED;
             int ScanMode = scanModeMap.keyAt(i);
-            boolean adapterServiceSupportsCoded = mAdapterService.isLeCodedPhySupported();
             int expectedScanMode = scanModeMap.get(ScanMode);
-            int expectedPhy;
+            int expectedPhy = PHY_LE_1M_MASK;
 
-            if (adapterServiceSupportsCoded) expectedPhy = PHY_LE_1M_MASK | PHY_LE_CODED_MASK;
-            else expectedPhy = PHY_LE_1M_MASK;
-
-            Log.d(
-                    TAG,
-                    "ScanMode: "
-                            + String.valueOf(ScanMode)
-                            + " expectedScanMode: "
-                            + String.valueOf(expectedScanMode));
+            Log.d(TAG, "ScanMode: " + ScanMode + " expectedScanMode: " + expectedScanMode);
 
             // Turn on screen
             sendMessageWaitForProcessed(createScreenOnOffMessage(true));

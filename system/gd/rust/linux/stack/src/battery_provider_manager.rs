@@ -106,8 +106,7 @@ impl IBatteryProviderManager for BatteryProviderManager {
             return;
         }
 
-        let batteries =
-            self.battery_info.entry(battery_set.address).or_insert_with(|| Batteries::new());
+        let batteries = self.battery_info.entry(battery_set.address).or_default();
         batteries.add_or_update_battery_set(battery_set);
 
         if let Some(best_battery_set) = batteries.pick_best() {

@@ -51,7 +51,7 @@ impl BluetoothManager {
         } else {
             warn!("Presence removed: {}", hci);
         }
-        for (_, callback) in &mut self.callbacks {
+        for callback in self.callbacks.values_mut() {
             callback.on_hci_device_changed(hci.to_i32(), present);
         }
     }
@@ -63,13 +63,13 @@ impl BluetoothManager {
             warn!("Stopped {}", hci);
         }
 
-        for (_, callback) in &mut self.callbacks {
+        for callback in self.callbacks.values_mut() {
             callback.on_hci_enabled_changed(hci.to_i32(), enabled);
         }
     }
 
     pub(crate) fn callback_default_adapter_change(&mut self, hci: VirtualHciIndex) {
-        for (_, callback) in &mut self.callbacks {
+        for callback in self.callbacks.values_mut() {
             callback.on_default_adapter_changed(hci.to_i32());
         }
     }
@@ -161,7 +161,7 @@ impl IBluetoothManager for BluetoothManager {
         config_util::write_floss_enabled(enabled);
 
         if prev != enabled && enabled {
-            if let Err(e) = Command::new("initctl").args(&["stop", BLUEZ_INIT_TARGET]).output() {
+            if let Err(e) = Command::new("initctl").args(["stop", BLUEZ_INIT_TARGET]).output() {
                 warn!("Failed to stop bluetoothd: {}", e);
             }
             migrate::migrate_bluez_devices();
@@ -177,7 +177,7 @@ impl IBluetoothManager for BluetoothManager {
                 }
             }
             migrate::migrate_floss_devices();
-            if let Err(e) = Command::new("initctl").args(&["start", BLUEZ_INIT_TARGET]).output() {
+            if let Err(e) = Command::new("initctl").args(["start", BLUEZ_INIT_TARGET]).output() {
                 warn!("Failed to start bluetoothd: {}", e);
             }
         }
@@ -230,7 +230,7 @@ fn config_with_le_device_entry(filename: &str) -> bool {
     };
     for (sec, props) in floss_map {
         // Skip all the non-device sections
-        if !sec.contains(":") {
+        if !sec.contains(':') {
             continue;
         }
         // Invalid entries have no DevType
@@ -247,7 +247,7 @@ fn config_with_le_device_entry(filename: &str) -> bool {
             }
         }
     }
-    return false;
+    false
 }
 
 /// Check if there are any LE Floss devices in storage.
@@ -265,21 +265,16 @@ fn floss_have_le_devices() -> bool {
             return true;
         }
     }
-    return false;
+    false
 }
 
 /// Implementation of IBluetoothExperimental
 impl IBluetoothExperimental for BluetoothManager {
     fn set_ll_privacy(&mut self, enabled: bool) -> bool {
         warn!("Set Floss LL Privacy={}", enabled);
-        let current_status = match config_util::read_floss_ll_privacy_enabled() {
-            Ok(true) => true,
-            _ => false,
-        };
-        let current_address_status = match config_util::read_floss_address_privacy_enabled() {
-            Ok(true) => true,
-            _ => false,
-        };
+        let current_status = matches!(config_util::read_floss_ll_privacy_enabled(), Ok(true));
+        let current_address_status =
+            matches!(config_util::read_floss_address_privacy_enabled(), Ok(true));
 
         let mut need_restart = current_status != enabled;
 
@@ -305,7 +300,7 @@ impl IBluetoothExperimental for BluetoothManager {
             self.restart_adapters();
         }
 
-        return true;
+        true
     }
 
     fn set_devcoredump(&mut self, enabled: bool) -> bool {

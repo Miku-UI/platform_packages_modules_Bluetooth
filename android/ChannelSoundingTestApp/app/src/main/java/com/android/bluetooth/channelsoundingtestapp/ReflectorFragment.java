@@ -19,21 +19,18 @@ package com.android.bluetooth.channelsoundingtestapp;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProviders;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.lifecycle.ViewModelProvider;
 
 /** The fragment holds the reflector of channel sounding. */
 @SuppressWarnings("SetTextI18n")
 public class ReflectorFragment extends Fragment {
-
-    private ReflectorViewModel mReflectorViewModel;
-    private Button mBtnAdvertising;
+    private BleConnectionViewModel mBleConnectionViewModel;
     private TextView mLogText;
 
     @Override
@@ -41,40 +38,24 @@ public class ReflectorFragment extends Fragment {
             @NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_reflector, container, false);
 
-        mBtnAdvertising = (Button) root.findViewById(R.id.btn_advertising);
+        Fragment bleConnectionFragment = new BleConnectionFragment();
+        FragmentTransaction transaction = getChildFragmentManager().beginTransaction();
+        transaction.replace(R.id.ref_ble_connection_container, bleConnectionFragment).commit();
         mLogText = (TextView) root.findViewById(R.id.text_log);
         return root;
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        mReflectorViewModel = ViewModelProviders.of(getActivity()).get(ReflectorViewModel.class);
-        mReflectorViewModel
-                .getIsAdvertising()
-                .observe(
-                        getActivity(),
-                        isAdvertising -> {
-                            if (isAdvertising) {
-                                mBtnAdvertising.setText("Stop Advertising");
-                            } else {
-                                mBtnAdvertising.setText("Start Advertising");
-                            }
-                        });
-        mReflectorViewModel
+
+        mBleConnectionViewModel = new ViewModelProvider(this).get(BleConnectionViewModel.class);
+        mBleConnectionViewModel
                 .getLogText()
                 .observe(
                         getActivity(),
                         log -> {
                             mLogText.setText(log);
                         });
-
-        mBtnAdvertising.setOnClickListener(
-                new OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        mReflectorViewModel.toggleAdvertising();
-                    }
-                });
     }
 
     @Override

@@ -33,48 +33,28 @@ namespace common {
 template <std::size_t LENGTH>
 class ByteArray : public packet::CustomFieldFixedSizeInterface<ByteArray<LENGTH>>,
                   public storage::Serializable<ByteArray<LENGTH>> {
- public:
+public:
   static constexpr size_t kLength = LENGTH;
   ByteArray() = default;
-  ByteArray(const uint8_t (&d)[kLength]) {
-    std::copy(d, d + kLength, data());
-  }
+  ByteArray(const uint8_t (&d)[kLength]) { std::copy(d, d + kLength, data()); }
   ByteArray(std::array<uint8_t, kLength> a) : bytes(std::move(a)) {}
 
   std::array<uint8_t, kLength> bytes = {};
 
-  uint8_t* data() override {
-    return bytes.data();
-  }
+  uint8_t* data() override { return bytes.data(); }
 
-  const uint8_t* data() const override {
-    return bytes.data();
-  }
+  const uint8_t* data() const override { return bytes.data(); }
 
   // operators
-  bool operator<(const ByteArray& rhs) const {
-    return bytes < rhs.bytes;
-  }
-  bool operator==(const ByteArray& rhs) const {
-    return bytes == rhs.bytes;
-  }
-  bool operator>(const ByteArray& rhs) const {
-    return (rhs < *this);
-  }
-  bool operator<=(const ByteArray& rhs) const {
-    return !(*this > rhs);
-  }
-  bool operator>=(const ByteArray& rhs) const {
-    return !(*this < rhs);
-  }
-  bool operator!=(const ByteArray& rhs) const {
-    return !(*this == rhs);
-  }
+  bool operator<(const ByteArray& rhs) const { return bytes < rhs.bytes; }
+  bool operator==(const ByteArray& rhs) const { return bytes == rhs.bytes; }
+  bool operator>(const ByteArray& rhs) const { return rhs < *this; }
+  bool operator<=(const ByteArray& rhs) const { return !(*this > rhs); }
+  bool operator>=(const ByteArray& rhs) const { return !(*this < rhs); }
+  bool operator!=(const ByteArray& rhs) const { return !(*this == rhs); }
 
   // storage::Serializable methods
-  std::string ToString() const override {
-    return common::ToHexString(bytes.begin(), bytes.end());
-  }
+  std::string ToString() const override { return common::ToHexString(bytes.begin(), bytes.end()); }
   static std::optional<ByteArray<kLength>> FromString(const std::string& from) {
     if (from.length() != (kLength * 2)) {
       return std::nullopt;
@@ -87,9 +67,7 @@ class ByteArray : public packet::CustomFieldFixedSizeInterface<ByteArray<LENGTH>
     std::move(vec->data(), vec->data() + vec->size(), byte_array.data());
     return byte_array;
   }
-  std::string ToLegacyConfigString() const override {
-    return ToString();
-  }
+  std::string ToLegacyConfigString() const override { return ToString(); }
   static std::optional<ByteArray<kLength>> FromLegacyConfigString(const std::string& from) {
     return FromString(from);
   }

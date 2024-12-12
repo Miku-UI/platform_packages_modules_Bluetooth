@@ -36,13 +36,12 @@ bool BtifConfigInterface::HasSection(const std::string& section) {
   return GetStorage()->HasSection(section);
 }
 
-bool BtifConfigInterface::HasProperty(const std::string& section,
-                                      const std::string& property) {
+bool BtifConfigInterface::HasProperty(const std::string& section, const std::string& property) {
   return GetStorage()->HasProperty(section, property);
 }
 
-bool BtifConfigInterface::GetInt(const std::string& section,
-                                 const std::string& property, int* value) {
+bool BtifConfigInterface::GetInt(const std::string& section, const std::string& property,
+                                 int* value) {
   log::assert_that(value != nullptr, "assert failed: value != nullptr");
   auto ret = GetStorage()->GetInt(section, property);
   if (ret) {
@@ -51,14 +50,13 @@ bool BtifConfigInterface::GetInt(const std::string& section,
   return ret.has_value();
 }
 
-bool BtifConfigInterface::SetInt(const std::string& section,
-                                 const std::string& property, int value) {
+bool BtifConfigInterface::SetInt(const std::string& section, const std::string& property,
+                                 int value) {
   GetStorage()->SetInt(section, property, value);
   return true;
 }
 
-bool BtifConfigInterface::GetUint64(const std::string& section,
-                                    const std::string& property,
+bool BtifConfigInterface::GetUint64(const std::string& section, const std::string& property,
                                     uint64_t* value) {
   log::assert_that(value != nullptr, "assert failed: value != nullptr");
   auto ret = GetStorage()->GetUint64(section, property);
@@ -68,19 +66,16 @@ bool BtifConfigInterface::GetUint64(const std::string& section,
   return ret.has_value();
 }
 
-bool BtifConfigInterface::SetUint64(const std::string& section,
-                                    const std::string& property,
+bool BtifConfigInterface::SetUint64(const std::string& section, const std::string& property,
                                     uint64_t value) {
   GetStorage()->SetUint64(section, property, value);
   return true;
 }
 
-bool BtifConfigInterface::GetStr(const std::string& section,
-                                 const std::string& property, char* value,
-                                 int* size_bytes) {
+bool BtifConfigInterface::GetStr(const std::string& section, const std::string& property,
+                                 char* value, int* size_bytes) {
   log::assert_that(value != nullptr, "assert failed: value != nullptr");
-  log::assert_that(size_bytes != nullptr,
-                   "assert failed: size_bytes != nullptr");
+  log::assert_that(size_bytes != nullptr, "assert failed: size_bytes != nullptr");
   if (*size_bytes == 0) {
     return HasProperty(section, property);
   }
@@ -96,22 +91,20 @@ bool BtifConfigInterface::GetStr(const std::string& section,
   return true;
 }
 
-std::optional<std::string> BtifConfigInterface::GetStr(
-    const std::string& section, const std::string& property) {
+std::optional<std::string> BtifConfigInterface::GetStr(const std::string& section,
+                                                       const std::string& property) {
   return GetStorage()->GetProperty(section, property);
 }
 
-bool BtifConfigInterface::SetStr(const std::string& section,
-                                 const std::string& property,
+bool BtifConfigInterface::SetStr(const std::string& section, const std::string& property,
                                  const std::string& value) {
   GetStorage()->SetProperty(section, property, value);
   return true;
 }
 
 // TODO: implement encrypted read
-bool BtifConfigInterface::GetBin(const std::string& section,
-                                 const std::string& property, uint8_t* value,
-                                 size_t* length) {
+bool BtifConfigInterface::GetBin(const std::string& section, const std::string& property,
+                                 uint8_t* value, size_t* length) {
   log::assert_that(value != nullptr, "assert failed: value != nullptr");
   log::assert_that(length != nullptr, "assert failed: length != nullptr");
   auto value_vec = GetStorage()->GetBin(section, property);
@@ -122,24 +115,21 @@ bool BtifConfigInterface::GetBin(const std::string& section,
   std::memcpy(value, value_vec->data(), *length);
   return true;
 }
-size_t BtifConfigInterface::GetBinLength(const std::string& section,
-                                         const std::string& property) {
+size_t BtifConfigInterface::GetBinLength(const std::string& section, const std::string& property) {
   auto value_vec = GetStorage()->GetBin(section, property);
   if (!value_vec) {
     return 0;
   }
   return value_vec->size();
 }
-bool BtifConfigInterface::SetBin(const std::string& section,
-                                 const std::string& property,
+bool BtifConfigInterface::SetBin(const std::string& section, const std::string& property,
                                  const uint8_t* value, size_t length) {
   log::assert_that(value != nullptr, "assert failed: value != nullptr");
   std::vector<uint8_t> value_vec(value, value + length);
   GetStorage()->SetBin(section, property, value_vec);
   return true;
 }
-bool BtifConfigInterface::RemoveProperty(const std::string& section,
-                                         const std::string& property) {
+bool BtifConfigInterface::RemoveProperty(const std::string& section, const std::string& property) {
   return GetStorage()->RemoveProperty(section, property);
 }
 

@@ -28,10 +28,9 @@
 namespace bluetooth {
 namespace hci {
 
-class ClassOfDevice final
-    : public packet::CustomFieldFixedSizeInterface<ClassOfDevice>,
-      public storage::Serializable<ClassOfDevice> {
- public:
+class ClassOfDevice final : public packet::CustomFieldFixedSizeInterface<ClassOfDevice>,
+                            public storage::Serializable<ClassOfDevice> {
+public:
   static constexpr size_t kLength = 3;
 
   std::array<uint8_t, kLength> cod = {};
@@ -47,12 +46,11 @@ class ClassOfDevice final
   std::string ToString() const;
   static std::optional<ClassOfDevice> FromString(const std::string& str);
   std::string ToLegacyConfigString() const override;
-  static std::optional<ClassOfDevice> FromLegacyConfigString(
-      const std::string& str);
+  static std::optional<ClassOfDevice> FromLegacyConfigString(const std::string& str);
 
   bool operator<(const ClassOfDevice& rhs) const { return cod < rhs.cod; }
   bool operator==(const ClassOfDevice& rhs) const { return cod == rhs.cod; }
-  bool operator>(const ClassOfDevice& rhs) const { return (rhs < *this); }
+  bool operator>(const ClassOfDevice& rhs) const { return rhs < *this; }
   bool operator<=(const ClassOfDevice& rhs) const { return !(*this > rhs); }
   bool operator>=(const ClassOfDevice& rhs) const { return !(*this < rhs); }
   bool operator!=(const ClassOfDevice& rhs) const { return !(*this == rhs); }

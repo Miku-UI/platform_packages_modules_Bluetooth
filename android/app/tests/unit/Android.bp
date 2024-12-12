@@ -4,15 +4,18 @@ package {
 
 java_defaults {
     name: "BluetoothInstrumentationTestsDefaults",
-    defaults: ["framework-bluetooth-tests-defaults"],
+    defaults: [
+        "bluetooth_errorprone_rules",
+        "framework-bluetooth-tests-defaults",
+    ],
 
     min_sdk_version: "Tiramisu",
     target_sdk_version: "current",
     libs: [
-        "android.test.base",
-        "android.test.mock",
-        "android.test.runner",
-        "javax.obex",
+        "android.test.base.stubs",
+        "android.test.mock.stubs",
+        "android.test.runner.stubs",
+        "javax.obex.stubs",
         "libprotobuf-java-micro",
         "telephony-common",
     ],
@@ -53,32 +56,6 @@ java_defaults {
         "general-tests",
         "mts-bluetooth",
     ],
-
-    errorprone: {
-        enabled: true,
-        javacflags: [
-            "-Xep:AlmostJavadoc:ERROR",
-            "-Xep:BadImport:ERROR",
-            "-Xep:CatchFail:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:EmptyCatch:ERROR",
-            "-Xep:FutureReturnValueIgnored:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidInlineTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:NonApiType:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:StringCharset:ERROR",
-            "-Xep:UnnecessaryAssignment:ERROR",
-            "-Xep:UnnecessaryAsync:ERROR",
-            "-Xep:UnusedMethod:ERROR",
-            "-Xep:UnusedVariable:ERROR",
-        ],
-    },
 
     instrumentation_for: "Bluetooth",
 }

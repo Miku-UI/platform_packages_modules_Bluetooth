@@ -42,67 +42,55 @@ constexpr uint8_t kDummyAddr[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
 
 // Set up default callback structure
 tL2CAP_APPL_INFO cb_info = {
-    .pL2CA_ConnectInd_Cb = [](const RawAddress& bd_addr, uint16_t lcid,
-                              uint16_t psm,
-                              uint8_t id) {},  // tL2CA_CONNECT_IND_CB
-    .pL2CA_ConnectCfm_Cb = [](uint16_t lcid,
-                              uint16_t result) {},  // tL2CA_CONNECT_CFM_CB
-    .pL2CA_ConfigInd_Cb = [](uint16_t lcid,
-                             tL2CAP_CFG_INFO* p_cfg) {},  // tL2CA_CONFIG_IND_CB
-    .pL2CA_ConfigCfm_Cb = [](uint16_t lcid, uint16_t initiator,
-                             tL2CAP_CFG_INFO* p_cfg) {},  // tL2CA_CONFIG_CFM_CB
-    .pL2CA_DisconnectInd_Cb =
-        [](uint16_t lcid, bool should_ack) {},  // tL2CA_DISCONNECT_IND_CB
-    .pL2CA_DisconnectCfm_Cb =
-        [](uint16_t lcid, uint16_t result) {},  // tL2CA_DISCONNECT_CFM_CB
-    .pL2CA_DataInd_Cb = [](uint16_t lcid,
-                           BT_HDR* data) {},  // tL2CA_DATA_IND_CB
-    .pL2CA_CongestionStatus_Cb =
-        [](uint16_t lcid, bool is_congested) {},  // tL2CA_CONGESTION_STATUS_CB
-    .pL2CA_TxComplete_Cb = [](uint16_t lcid,
-                              uint16_t num_sdu) {},  // tL2CA_TX_COMPLETE_CB
-    .pL2CA_Error_Cb = [](uint16_t lcid,
-                         uint16_t error_type) {},  // tL2CA_ERROR_CB
-    .pL2CA_CreditBasedConnectInd_Cb =
-        [](const RawAddress& bdaddr, std::vector<uint16_t>& lcids, uint16_t psm,
-           uint16_t peer_mtu,
-           uint8_t identifier) {},  // tL2CA_CREDIT_BASED_CONNECT_IND_CB
-    .pL2CA_CreditBasedConnectCfm_Cb =
-        [](const RawAddress& bdaddr, uint16_t lcid, uint16_t peer_mtu,
-           uint16_t result) {},  // tL2CA_CREDIT_BASED_CONNECT_CFM_CB
-    .pL2CA_CreditBasedReconfigCompleted_Cb =
-        [](const RawAddress& bdaddr, uint16_t lcid, bool is_local_cfg,
-           tL2CAP_LE_CFG_INFO* p_cfg) {
-        },  // tL2CA_CREDIT_BASED_RECONFIG_COMPLETED_CB
-    .pL2CA_CreditBasedCollisionInd_Cb =
-        [](const RawAddress& bdaddr) {},  // tL2CA_CREDIT_BASED_COLLISION_IND_CB
+        .pL2CA_ConnectInd_Cb = [](const RawAddress& bd_addr, uint16_t lcid, uint16_t psm,
+                                  uint8_t id) {},                            // tL2CA_CONNECT_IND_CB
+        .pL2CA_ConnectCfm_Cb = [](uint16_t lcid, tL2CAP_CONN result) {},     // tL2CA_CONNECT_CFM_CB
+        .pL2CA_ConfigInd_Cb = [](uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {},  // tL2CA_CONFIG_IND_CB
+        .pL2CA_ConfigCfm_Cb = [](uint16_t lcid, uint16_t initiator,
+                                 tL2CAP_CFG_INFO* p_cfg) {},              // tL2CA_CONFIG_CFM_CB
+        .pL2CA_DisconnectInd_Cb = [](uint16_t lcid, bool should_ack) {},  // tL2CA_DISCONNECT_IND_CB
+        .pL2CA_DisconnectCfm_Cb = [](uint16_t lcid, uint16_t result) {},  // tL2CA_DISCONNECT_CFM_CB
+        .pL2CA_DataInd_Cb = [](uint16_t lcid, BT_HDR* data) {},           // tL2CA_DATA_IND_CB
+        .pL2CA_CongestionStatus_Cb = [](uint16_t lcid,
+                                        bool is_congested) {},  // tL2CA_CONGESTION_STATUS_CB
+        .pL2CA_TxComplete_Cb = [](uint16_t lcid, uint16_t num_sdu) {},  // tL2CA_TX_COMPLETE_CB
+        .pL2CA_Error_Cb = [](uint16_t lcid, uint16_t error_type) {},    // tL2CA_ERROR_CB
+        .pL2CA_CreditBasedConnectInd_Cb =
+                [](const RawAddress& bdaddr, std::vector<uint16_t>& lcids, uint16_t psm,
+                   uint16_t peer_mtu, uint8_t identifier) {},  // tL2CA_CREDIT_BASED_CONNECT_IND_CB
+        .pL2CA_CreditBasedConnectCfm_Cb =
+                [](const RawAddress& bdaddr, uint16_t lcid, uint16_t peer_mtu,
+                   tL2CAP_LE_RESULT_CODE result) {},  // tL2CA_CREDIT_BASED_CONNECT_CFM_CB
+        .pL2CA_CreditBasedReconfigCompleted_Cb =
+                [](const RawAddress& bdaddr, uint16_t lcid, bool is_local_cfg,
+                   tL2CAP_LE_CFG_INFO* p_cfg) {},  // tL2CA_CREDIT_BASED_RECONFIG_COMPLETED_CB
+        .pL2CA_CreditBasedCollisionInd_Cb =
+                [](const RawAddress& bdaddr) {},  // tL2CA_CREDIT_BASED_COLLISION_IND_CB
 };
 
 class FakeL2cap {
- public:
+public:
   FakeL2cap() {
     test::mock::stack_l2cap_api::L2CA_ConnectReq.body =
-        [](uint16_t psm, const RawAddress& raw_address) { return kDummyCID; };
+            [](uint16_t psm, const RawAddress& raw_address) { return kDummyCID; };
     test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
-        [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
-          return L2CA_ConnectReq(psm, p_bd_addr);
-        };
+            [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
+              return bluetooth::stack::l2cap::get_interface().L2CA_ConnectReq(psm, p_bd_addr);
+            };
     test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid,
-                                                          BT_HDR* p_data) {
+                                                          BT_HDR* p_data) -> tL2CAP_DW_RESULT {
       auto len = p_data->len;
       osi_free(p_data);
-      return (uint8_t)len;
+      return tL2CAP_DW_RESULT::SUCCESS;
     };
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t lcid) {
-      return true;
-    };
+    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t lcid) { return true; };
     test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
-        [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
-           tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
-           uint16_t required_remote_mtu, uint16_t sec_level) {
-          cb_info = p_cb_info;
-          return psm;
-        };
+            [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
+               tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
+               uint16_t sec_level) {
+              cb_info = p_cb_info;
+              return psm;
+            };
   }
 
   ~FakeL2cap() {
@@ -115,22 +103,22 @@ class FakeL2cap {
 };
 
 class FakeBtifConfig {
- public:
+public:
   FakeBtifConfig() {
-    test::mock::btif_config::btif_config_set_bin.body =
-        [](const std::string&, const std::string&, const uint8_t*, size_t) {
-          // This function is not properly mocked. The abort here allows us to
-          // catch any cases using this mock.
-          abort();
-          return true;
-        };
-    test::mock::btif_config::btif_config_set_int.body =
-        [](const std::string& section, const std::string& key, int value) {
-          // This function is not properly mocked. The abort here allows us to
-          // catch any cases using this mock.
-          abort();
-          return true;
-        };
+    test::mock::btif_config::btif_config_set_bin.body = [](const std::string&, const std::string&,
+                                                           const uint8_t*, size_t) {
+      // This function is not properly mocked. The abort here allows us to
+      // catch any cases using this mock.
+      abort();
+      return true;
+    };
+    test::mock::btif_config::btif_config_set_int.body = [](const std::string& section,
+                                                           const std::string& key, int value) {
+      // This function is not properly mocked. The abort here allows us to
+      // catch any cases using this mock.
+      abort();
+      return true;
+    };
   }
 
   ~FakeBtifConfig() {
@@ -140,7 +128,7 @@ class FakeBtifConfig {
 };
 
 class Fakes {
- public:
+public:
   test::fake::FakeOsi fake_osi;
   FakeL2cap fake_l2cap;
   FakeBtifConfig fake_btif_config;
@@ -157,8 +145,7 @@ static void FuzzAsServer(FuzzedDataProvider& fdp) {
     auto handle = SDP_CreateRecord();
     auto attr_num = fdp.ConsumeIntegralInRange<uint8_t>(0, 10);
     for (uint8_t s = 0; s < attr_num; s++) {
-      auto id = (i == 0) ? ATTR_ID_BT_PROFILE_DESC_LIST
-                         : fdp.ConsumeIntegral<uint16_t>();
+      auto id = (i == 0) ? ATTR_ID_BT_PROFILE_DESC_LIST : fdp.ConsumeIntegral<uint16_t>();
       auto type = fdp.ConsumeIntegral<uint8_t>();
       auto len = fdp.ConsumeIntegralInRange<uint16_t>(1, 512);
       auto data = fdp.ConsumeBytes<uint8_t>(len);
@@ -172,8 +159,7 @@ static void FuzzAsServer(FuzzedDataProvider& fdp) {
     }
   }
 
-  cb_info.pL2CA_ConnectInd_Cb(RawAddress(kDummyAddr), kDummyCID, kDummyPSM,
-                              kDummyID);
+  cb_info.pL2CA_ConnectInd_Cb(RawAddress(kDummyAddr), kDummyCID, kDummyPSM, kDummyID);
 
   tL2CAP_CFG_INFO cfg = {};
   cb_info.pL2CA_ConfigCfm_Cb(kDummyCID, 0, &cfg);
@@ -192,42 +178,36 @@ static void FuzzAsServer(FuzzedDataProvider& fdp) {
 }
 
 static void FuzzAsClient(FuzzedDataProvider& fdp) {
-  std::shared_ptr<tSDP_DISCOVERY_DB> p_db(
-      (tSDP_DISCOVERY_DB*)malloc(SDP_DB_SIZE), free);
+  std::shared_ptr<tSDP_DISCOVERY_DB> p_db((tSDP_DISCOVERY_DB*)malloc(SDP_DB_SIZE), free);
 
   std::vector<bluetooth::Uuid> init_uuids;
   std::vector<uint16_t> init_attrs;
 
   sdp_init();
 
-  uint8_t num_uuid =
-      fdp.ConsumeIntegralInRange<uint8_t>(0, SDP_MAX_UUID_FILTERS);
-  uint8_t num_attr =
-      fdp.ConsumeIntegralInRange<uint8_t>(0, SDP_MAX_ATTR_FILTERS);
+  uint8_t num_uuid = fdp.ConsumeIntegralInRange<uint8_t>(0, SDP_MAX_UUID_FILTERS);
+  uint8_t num_attr = fdp.ConsumeIntegralInRange<uint8_t>(0, SDP_MAX_ATTR_FILTERS);
 
   for (uint8_t i = 0; i < num_uuid; i++) {
-    init_uuids.push_back(
-        bluetooth::Uuid::From16Bit(fdp.ConsumeIntegral<uint16_t>()));
+    init_uuids.push_back(bluetooth::Uuid::From16Bit(fdp.ConsumeIntegral<uint16_t>()));
   }
 
   for (uint8_t i = 0; i < num_attr; i++) {
     init_attrs.push_back(fdp.ConsumeIntegral<uint16_t>());
   }
 
-  SDP_InitDiscoveryDb(p_db.get(), SDP_DB_SIZE, init_uuids.size(),
-                      init_uuids.data(), init_attrs.size(), init_attrs.data());
+  SDP_InitDiscoveryDb(p_db.get(), SDP_DB_SIZE, init_uuids.size(), init_uuids.data(),
+                      init_attrs.size(), init_attrs.data());
 
   bool is_di_discover = fdp.ConsumeBool();
   if (is_di_discover) {
-    SDP_ServiceSearchRequest(
-        kDummyAddr, p_db.get(),
-        [](const RawAddress& bd_addr, tSDP_RESULT result) {});
+    SDP_ServiceSearchRequest(kDummyAddr, p_db.get(),
+                             [](const RawAddress& bd_addr, tSDP_RESULT result) {});
   } else {
-    SDP_ServiceSearchAttributeRequest(
-        kDummyAddr, p_db.get(),
-        [](const RawAddress& bd_addr, tSDP_RESULT result) {});
+    SDP_ServiceSearchAttributeRequest(kDummyAddr, p_db.get(),
+                                      [](const RawAddress& bd_addr, tSDP_RESULT result) {});
   }
-  cb_info.pL2CA_ConnectCfm_Cb(kDummyCID, L2CAP_CONN_OK);
+  cb_info.pL2CA_ConnectCfm_Cb(kDummyCID, tL2CAP_CONN::L2CAP_CONN_OK);
 
   tL2CAP_CFG_INFO cfg = {};
   cb_info.pL2CA_ConfigCfm_Cb(kDummyCID, 0, &cfg);

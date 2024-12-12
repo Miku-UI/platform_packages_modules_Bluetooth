@@ -47,8 +47,7 @@ int HfpLc3Decoder::init(ConfigParam config) {
 
   hfp_lc3_decoder_mem_ = osi_malloc(dec_size);
 
-  hfp_lc3_decoder_ =
-      lc3_setup_decoder(dt_us, sr_hz, sr_pcm_hz, hfp_lc3_decoder_mem_);
+  hfp_lc3_decoder_ = lc3_setup_decoder(dt_us, sr_hz, sr_pcm_hz, hfp_lc3_decoder_mem_);
 
   if (hfp_lc3_decoder_ == nullptr) {
     log::error("Wrong parameters provided");
@@ -65,29 +64,28 @@ void HfpLc3Decoder::cleanup() {
   }
 }
 
-int HfpLc3Decoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf,
-                             int o_len) {
+int HfpLc3Decoder::transcode(uint8_t* i_buf, int i_len, uint8_t* o_buf, int o_len) {
   if (o_buf == nullptr || o_len < HFP_LC3_PCM_BYTES + 1) {
     log::error("Output buffer size is less than LC3 frame size");
     return -EINVAL;
   }
 
   // Check header to decide whether it's PLC.
-  uint8_t* in_frame =
-      (i_buf[0] || i_buf[1]) ? i_buf + HFP_LC3_H2_HEADER_LEN : nullptr;
+  uint8_t* in_frame = (i_buf[0] || i_buf[1]) ? i_buf + HFP_LC3_H2_HEADER_LEN : nullptr;
 
   // First byte is reserved to indicate PLC.
   uint8_t* out_frame = o_buf + 1;
 
   /* Note this only fails when wrong parameters are supplied. */
-  int rc = lc3_decode(hfp_lc3_decoder_, in_frame, HFP_LC3_PKT_FRAME_LEN,
-                      MapLc3PcmFmt(param_.fmt()), out_frame, param_.stride());
+  int rc = lc3_decode(hfp_lc3_decoder_, in_frame, HFP_LC3_PKT_FRAME_LEN, MapLc3PcmFmt(param_.fmt()),
+                      out_frame, param_.stride());
 
   if (rc != 0 && rc != 1) {
     log::warn("Wrong decode parameters");
     std::fill(o_buf, o_buf + o_len, 0);
-  } else
+  } else {
     o_buf[0] = rc;
+  }
   return HFP_LC3_PCM_BYTES + 1;
 }
 

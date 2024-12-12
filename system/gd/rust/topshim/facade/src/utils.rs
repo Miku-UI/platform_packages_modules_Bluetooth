@@ -19,9 +19,6 @@ pub mod converters {
                 }
                 (String::from("Uuids"), event)
             }
-            BluetoothProperty::AdapterScanMode(mode) => {
-                (String::from("AdapterScanMode"), event_data_from_string(format!("{:?}", mode)))
-            }
             BluetoothProperty::LocalIoCaps(caps) => {
                 (String::from("LocalIoCaps"), event_data_from_string(format!("{:?}", caps)))
             }

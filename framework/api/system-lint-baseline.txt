@@ -43,29 +43,3 @@ BroadcastBehavior: android.bluetooth.BluetoothDevice#ACTION_SWITCH_BUFFER_SIZE:
     Field 'ACTION_SWITCH_BUFFER_SIZE' is missing @BroadcastBehavior
 BroadcastBehavior: android.bluetooth.BluetoothDevice#ACTION_UUID:
     Field 'ACTION_UUID' is missing @BroadcastBehavior
-
-
-RequiresPermission: android.bluetooth.BluetoothA2dp#setCodecConfigPreference(android.bluetooth.BluetoothDevice, android.bluetooth.BluetoothCodecConfig):
-    Method 'setCodecConfigPreference' documentation mentions permissions already declared by @RequiresPermission
-RequiresPermission: android.bluetooth.BluetoothAdapter#getAddress():
-    Method 'getAddress' documentation mentions permissions without declaring @RequiresPermission
-RequiresPermission: android.bluetooth.BluetoothDevice#setAlias(String):
-    Method 'setAlias' documentation mentions permissions already declared by @RequiresPermission
-
-
-UnflaggedApi: android.bluetooth.BluetoothHapClient#PRESET_INDEX_UNAVAILABLE:
-    New API must be flagged with @FlaggedApi: field android.bluetooth.BluetoothHapClient.PRESET_INDEX_UNAVAILABLE
-UnflaggedApi: android.bluetooth.BluetoothHapClient#getActivePresetIndex(android.bluetooth.BluetoothDevice):
-    New API must be flagged with @FlaggedApi: method android.bluetooth.BluetoothHapClient.getActivePresetIndex(android.bluetooth.BluetoothDevice)
-UnflaggedApi: android.bluetooth.BluetoothHapClient#getHapGroup(android.bluetooth.BluetoothDevice):
-    New API must be flagged with @FlaggedApi: method android.bluetooth.BluetoothHapClient.getHapGroup(android.bluetooth.BluetoothDevice)
-UnflaggedApi: android.bluetooth.BluetoothHapClient#getPresetInfo(android.bluetooth.BluetoothDevice, int):
-    New API must be flagged with @FlaggedApi: method android.bluetooth.BluetoothHapClient.getPresetInfo(android.bluetooth.BluetoothDevice,int)
-UnflaggedApi: android.bluetooth.BluetoothHapClient#switchToNextPreset(android.bluetooth.BluetoothDevice):
-    New API must be flagged with @FlaggedApi: method android.bluetooth.BluetoothHapClient.switchToNextPreset(android.bluetooth.BluetoothDevice)
-UnflaggedApi: android.bluetooth.BluetoothHapClient#switchToNextPresetForGroup(int):
-    New API must be flagged with @FlaggedApi: method android.bluetooth.BluetoothHapClient.switchToNextPresetForGroup(int)
-UnflaggedApi: android.bluetooth.BluetoothHapClient#switchToPreviousPreset(android.bluetooth.BluetoothDevice):
-    New API must be flagged with @FlaggedApi: method android.bluetooth.BluetoothHapClient.switchToPreviousPreset(android.bluetooth.BluetoothDevice)
-UnflaggedApi: android.bluetooth.BluetoothHapClient#switchToPreviousPresetForGroup(int):
-    New API must be flagged with @FlaggedApi: method android.bluetooth.BluetoothHapClient.switchToPreviousPresetForGroup(int)

@@ -36,8 +36,8 @@ namespace {
 const std::string kLeIdentityAddressKey = "LeIdentityAddr";
 const std::string kLeLegacyPseudoAddr = "LeLegacyPseudoAddr";
 
-std::string GetConfigSection(
-    ConfigCache* config, const hci::Address& key_address, Device::ConfigKeyAddressType key_address_type) {
+std::string GetConfigSection(ConfigCache* config, const hci::Address& key_address,
+                             Device::ConfigKeyAddressType key_address_type) {
   log::assert_that(config != nullptr, "config cannot be null");
   log::assert_that(!key_address.IsEmpty(), "key_address cannot be empty");
   // assume lower case
@@ -47,14 +47,16 @@ std::string GetConfigSection(
     case Device::ConfigKeyAddressType::CLASSIC_ADDRESS:
       return key_address_string;
     case Device::ConfigKeyAddressType::LE_IDENTITY_ADDRESS:
-      for (const auto& section_and_property : config->GetSectionNamesWithProperty(kLeIdentityAddressKey)) {
+      for (const auto& section_and_property :
+           config->GetSectionNamesWithProperty(kLeIdentityAddressKey)) {
         if (section_and_property.property == key_address_string) {
           return section_and_property.section;
         }
       }
       return key_address_string;
     case Device::ConfigKeyAddressType::LE_LEGACY_PSEUDO_ADDRESS:
-      for (const auto& section_and_property : config->GetSectionNamesWithProperty(kLeLegacyPseudoAddr)) {
+      for (const auto& section_and_property :
+           config->GetSectionNamesWithProperty(kLeLegacyPseudoAddr)) {
         if (section_and_property.property == key_address_string) {
           return section_and_property.section;
         }
@@ -70,21 +72,16 @@ std::string GetConfigSection(
 }  // namespace
 
 const std::unordered_set<std::string_view> Device::kLinkKeyProperties = {
-    "LinkKey", "LE_KEY_PENC", "LE_KEY_PID", "LE_KEY_PCSRK", "LE_KEY_LENC", "LE_KEY_LCSRK"};
+        "LinkKey", "LE_KEY_PENC", "LE_KEY_PID", "LE_KEY_PCSRK", "LE_KEY_LENC", "LE_KEY_LCSRK"};
 
-Device::Device(
-    ConfigCache* config,
-    ConfigCache* memory_only_config,
-    const hci::Address& key_address,
-    ConfigKeyAddressType key_address_type)
+Device::Device(ConfigCache* config, ConfigCache* memory_only_config,
+               const hci::Address& key_address, ConfigKeyAddressType key_address_type)
     : Device(config, memory_only_config, GetConfigSection(config, key_address, key_address_type)) {}
 
 Device::Device(ConfigCache* config, ConfigCache* memory_only_config, std::string section)
     : config_(config), memory_only_config_(memory_only_config), section_(std::move(section)) {}
 
-bool Device::Exists() {
-  return config_->HasSection(section_);
-}
+bool Device::Exists() { return config_->HasSection(section_); }
 
 MutationEntry Device::RemoveFromConfig() {
   return MutationEntry::Remove(MutationEntry::PropertyType::NORMAL, section_);
@@ -98,8 +95,8 @@ LeDevice Device::Le() {
   auto device_type = GetDeviceType();
   log::assert_that(device_type.has_value(), "assert failed: device_type.has_value()");
   log::assert_that(
-      device_type == DeviceType::LE || device_type == DeviceType::DUAL,
-      "assert failed: device_type == DeviceType::LE || device_type == DeviceType::DUAL");
+          device_type == DeviceType::LE || device_type == DeviceType::DUAL,
+          "assert failed: device_type == DeviceType::LE || device_type == DeviceType::DUAL");
   return LeDevice(config_, memory_only_config_, section_);
 }
 
@@ -107,8 +104,8 @@ ClassicDevice Device::Classic() {
   auto device_type = GetDeviceType();
   log::assert_that(device_type.has_value(), "assert failed: device_type.has_value()");
   log::assert_that(
-      device_type == DeviceType::BR_EDR || device_type == DeviceType::DUAL,
-      "assert failed: device_type == DeviceType::BR_EDR || device_type == DeviceType::DUAL");
+          device_type == DeviceType::BR_EDR || device_type == DeviceType::DUAL,
+          "assert failed: device_type == DeviceType::BR_EDR || device_type == DeviceType::DUAL");
   return ClassicDevice(config_, memory_only_config_, section_);
 }
 
@@ -119,9 +116,7 @@ hci::Address Device::GetAddress() const {
   return addr.value();
 }
 
-std::string Device::ToLogString() const {
-  return section_;
-}
+std::string Device::ToLogString() const { return section_; }
 
 }  // namespace storage
 }  // namespace bluetooth

@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Request to get a listing of messages in directory. Listing is used to determine the remote
@@ -92,11 +91,9 @@ class RequestGetMessagesListingForOwnNumber extends Request {
             }
             mMaxListCount = min(2 * mMaxListCount, sMaxListCountUpperLimit);
             logD(
-                    String.format(
-                            Locale.US,
-                            "MessagesSlidingWindow, moveWindow: startOffset=%d, maxCount=%d",
-                            mListStartOffset,
-                            mMaxListCount));
+                    "MessagesSlidingWindow.moveWindow:"
+                            + (" startOffset= " + mListStartOffset)
+                            + (" maxCount=" + mMaxListCount));
             return true;
         }
 
@@ -150,7 +147,7 @@ class RequestGetMessagesListingForOwnNumber extends Request {
             return;
         }
 
-        ArrayList<Message> messageListing = response.getList();
+        List<Message> messageListing = response.getList();
         if (messageListing == null || messageListing.isEmpty()) {
             // No more messages in this folder; move on to the next folder;
             logD("readResponse: no messages, moving to next folder");
@@ -162,16 +159,14 @@ class RequestGetMessagesListingForOwnNumber extends Request {
         // Message listings by spec arrive ordered newest first.
         String folderName = FOLDERS_TO_SEARCH.get(mFolderCounter);
         logD(
-                String.format(
-                        Locale.US,
-                        "readResponse: Folder=%s, # of msgs=%d, startOffset=%d, maxCount=%d",
-                        folderName,
-                        messageListing.size(),
-                        mMessageListingWindow.getStartOffset(),
-                        mMessageListingWindow.getMaxCount()));
+                "readResponse:"
+                        + (" folder=" + folderName)
+                        + (" # of msgs=" + messageListing.size())
+                        + (" startOffset= " + mMessageListingWindow.getStartOffset())
+                        + (" maxCount=" + mMessageListingWindow.getMaxCount()));
+
         String number = null;
-        for (int i = 0; i < messageListing.size(); i++) {
-            Message msg = messageListing.get(i);
+        for (Message msg : messageListing) {
             if (MceStateMachine.FOLDER_INBOX.equals(folderName)) {
                 number = PhoneNumberUtils.extractNetworkPortion(msg.getRecipientAddressing());
             } else if (MceStateMachine.FOLDER_SENT.equals(folderName)) {
@@ -181,7 +176,7 @@ class RequestGetMessagesListingForOwnNumber extends Request {
                 // Search is completed when a phone number is found
                 mPhoneNumber = number;
                 mSearchCompleted = true;
-                logD(String.format("readResponse: phone number found = %s", mPhoneNumber));
+                logD("readResponse: phone number found = " + mPhoneNumber);
                 return;
             }
         }
@@ -241,13 +236,11 @@ class RequestGetMessagesListingForOwnNumber extends Request {
         int offset = mMessageListingWindow.getStartOffset();
         setListOffsetAndMaxCountInHeaderSet(maxCount, offset);
         logD(
-                String.format(
-                        Locale.US,
-                        "setupCurrentFolderForSearch: folder=%s, filter=%d, offset=%d, maxCount=%d",
-                        folderName,
-                        filter,
-                        maxCount,
-                        offset));
+                "setupCurrentFolderForSearch:"
+                        + (" Folder=" + folderName)
+                        + (" filter= " + filter)
+                        + (" offset= " + offset)
+                        + (" maxCount=" + maxCount));
     }
 
     private byte messageTypeBasedOnFolder(String folderName) {

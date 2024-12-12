@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.btservice;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -222,7 +223,7 @@ public class CompanionManager {
 
         if (mCompanionDevice == null) {
             // We don't have any companion phone registered, try look from the bonded devices
-            for (BluetoothDevice device : mAdapter.getBondedDevices()) {
+            for (BluetoothDevice device : mAdapterService.getBondedDevices()) {
                 byte[] metadata =
                         mAdapterService.getMetadata(
                                 device, BluetoothDevice.METADATA_SOFTWARE_VERSION);
@@ -247,12 +248,12 @@ public class CompanionManager {
             new BluetoothAdapter.OnMetadataChangedListener() {
                 @Override
                 public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
+                    if (value == null) {
+                        Log.d(TAG, "onMetadataChanged(device, " + key + ", null)");
+                        return;
+                    }
                     String valueStr = new String(value);
-                    Log.d(
-                            TAG,
-                            String.format(
-                                    "Metadata updated in Device %s: %d = %s.",
-                                    device, key, value == null ? null : valueStr));
+                    Log.d(TAG, "Metadata updated in " + device + ": " + key + "=" + valueStr);
                     if (key == BluetoothDevice.METADATA_SOFTWARE_VERSION
                             && (valueStr.equals(BluetoothDevice.COMPANION_TYPE_PRIMARY)
                                     || valueStr.equals(BluetoothDevice.COMPANION_TYPE_SECONDARY))) {
@@ -261,6 +262,7 @@ public class CompanionManager {
                 }
             };
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private void setCompanionDevice(BluetoothDevice companionDevice, String type) {
         synchronized (mMetadataListeningDevices) {
             Log.i(TAG, "setCompanionDevice: " + companionDevice + ", type=" + type);
@@ -316,6 +318,7 @@ public class CompanionManager {
         }
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private void registerMetadataListener(BluetoothDevice device) {
         synchronized (mMetadataListeningDevices) {
             Log.d(TAG, "register metadata listener: " + device);
@@ -329,6 +332,7 @@ public class CompanionManager {
         }
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private void removeMetadataListener(BluetoothDevice device) {
         synchronized (mMetadataListeningDevices) {
             if (!mMetadataListeningDevices.contains(device)) return;

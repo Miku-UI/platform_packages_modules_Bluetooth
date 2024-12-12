@@ -130,8 +130,7 @@ void bta_pan_co_rx_flow(uint16_t handle, uint8_t app_id, bool enable);
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_co_pfilt_ind(uint16_t handle, bool indication,
-                          tBTA_PAN_STATUS result, uint16_t len,
+void bta_pan_co_pfilt_ind(uint16_t handle, bool indication, tBTA_PAN_STATUS result, uint16_t len,
                           uint8_t* p_filters);
 
 /*******************************************************************************
@@ -143,8 +142,7 @@ void bta_pan_co_pfilt_ind(uint16_t handle, bool indication,
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_co_mfilt_ind(uint16_t handle, bool indication,
-                          tBTA_PAN_STATUS result, uint16_t len,
+void bta_pan_co_mfilt_ind(uint16_t handle, bool indication, tBTA_PAN_STATUS result, uint16_t len,
                           uint8_t* p_filters);
 
 #endif /* BTA_PAN_CO_H */

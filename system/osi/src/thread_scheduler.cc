@@ -22,8 +22,7 @@ constexpr int kRealTimeFifoSchedulingPriority = 1;
 }  // namespace
 
 bool thread_scheduler_enable_real_time(pid_t linux_tid) {
-  struct sched_param rt_params = {.sched_priority =
-                                      kRealTimeFifoSchedulingPriority};
+  struct sched_param rt_params = {.sched_priority = kRealTimeFifoSchedulingPriority};
   return sched_setscheduler(linux_tid, SCHED_FIFO, &rt_params) == 0;
 }
 

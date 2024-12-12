@@ -23,14 +23,10 @@
 #include "gatt_api.h"
 #include "types/raw_address.h"
 
-typedef enum {
-  BTIF_DEBUG_CONNECTED = 1,
-  BTIF_DEBUG_DISCONNECTED
-} btif_debug_conn_state_t;
+typedef enum { BTIF_DEBUG_CONNECTED = 1, BTIF_DEBUG_DISCONNECTED } btif_debug_conn_state_t;
 
 // Report a connection state change
-void btif_debug_conn_state(const RawAddress& bda,
-                           const btif_debug_conn_state_t state,
+void btif_debug_conn_state(const RawAddress& bda, const btif_debug_conn_state_t state,
                            const tGATT_DISCONN_REASON disconnect_reason);
 
 void btif_debug_conn_dump(int fd);

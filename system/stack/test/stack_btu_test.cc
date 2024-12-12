@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <com_android_bluetooth_flags.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -24,19 +25,55 @@
 #include "test/common/mock_functions.h"
 
 /* Function for test provided by btu_hcif.cc */
-void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status,
-                                 const uint8_t* p_cmd);
+void btu_hcif_hdl_command_status(uint16_t opcode, uint8_t status, const uint8_t* p_cmd);
 
 class StackBtuTest : public ::testing::Test {
- protected:
-  void SetUp() override { reset_mock_function_count_map(); }
+protected:
+  void SetUp() override {
+    reset_mock_function_count_map();
+    com::android::bluetooth::flags::provider_->reset_flags();
+  }
 };
 
 TEST_F(StackBtuTest, post_on_main) {}
 
 TEST_F(StackBtuTest, btm_sco_connection_failed_called) {
+  // TODO b/358573137  - remove when flag is removing
+  com::android::bluetooth::flags::provider_->fix_sco_command_status_handling(false);
   uint8_t p_cmd[10];  // garbage data for testing
-  bluetooth::legacy::testing::btu_hcif_hdl_command_status(
-      HCI_SETUP_ESCO_CONNECTION, HCI_ERR_UNSPECIFIED, p_cmd);
+  bluetooth::legacy::testing::btu_hcif_hdl_command_status(HCI_SETUP_ESCO_CONNECTION,
+                                                          HCI_ERR_UNSPECIFIED, p_cmd);
   ASSERT_EQ(1, get_func_call_count("btm_sco_connection_failed"));
+}
+
+TEST_F(StackBtuTest, btm_sco_connection_failed_called_fixed) {
+  com::android::bluetooth::flags::provider_->fix_sco_command_status_handling(true);
+  uint8_t test_data[18];  // garbage data for testing
+  bluetooth::legacy::testing::btu_hcif_hdl_command_status(HCI_SETUP_ESCO_CONNECTION,
+                                                          HCI_ERR_UNSPECIFIED, test_data);
+  ASSERT_EQ(0, get_func_call_count("btm_sco_connection_failed"));
+
+  // prepare sco complete event with an error
+  BT_HDR* esco_command_complete_ev = (BT_HDR*)malloc(sizeof(BT_HDR) + sizeof(test_data));
+  esco_command_complete_ev->event = HCI_ESCO_CONNECTION_COMP_EVT,
+  esco_command_complete_ev->len = sizeof(test_data);
+  esco_command_complete_ev->offset = 0,
+
+  // Event code
+          esco_command_complete_ev->data[0] = HCI_ESCO_CONNECTION_COMP_EVT;
+  // Event len
+  esco_command_complete_ev->data[1] = 17;
+  // Event status - error
+  esco_command_complete_ev->data[2] = 0x0a;
+
+  bluetooth::legacy::testing::btu_hcif_process_event(0, esco_command_complete_ev);
+  ASSERT_EQ(1, get_func_call_count("btm_sco_connection_failed"));
+}
+
+TEST_F(StackBtuTest, btm_sco_create_connection_status_failed_called) {
+  com::android::bluetooth::flags::provider_->fix_sco_command_status_handling(true);
+  uint8_t test_data[10];  // garbage data for testing
+  bluetooth::legacy::testing::btu_hcif_hdl_command_status(HCI_SETUP_ESCO_CONNECTION,
+                                                          HCI_ERR_UNSPECIFIED, test_data);
+  ASSERT_EQ(1, get_func_call_count("btm_sco_create_command_status_failed"));
 }

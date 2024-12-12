@@ -49,7 +49,7 @@ static std::unique_ptr<std::promise<void>> acquire_promise = nullptr;
 static std::unique_ptr<std::promise<void>> release_promise = nullptr;
 
 class PromiseFutureContext {
- public:
+public:
   static void FulfilPromise(std::unique_ptr<std::promise<void>>& promise) {
     std::lock_guard<std::recursive_mutex> lock_guard(mutex);
     if (promise != nullptr) {
@@ -59,7 +59,8 @@ class PromiseFutureContext {
     }
   }
 
-  explicit PromiseFutureContext(std::unique_ptr<std::promise<void>>& promise, bool expect_fulfillment)
+  explicit PromiseFutureContext(std::unique_ptr<std::promise<void>>& promise,
+                                bool expect_fulfillment)
       : promise_(promise), expect_fulfillment_(expect_fulfillment) {
     std::lock_guard<std::recursive_mutex> lock_guard(mutex);
     EXPECT_EQ(promise_, nullptr);
@@ -78,14 +79,14 @@ class PromiseFutureContext {
     promise_ = nullptr;
   }
 
- private:
+private:
   std::unique_ptr<std::promise<void>>& promise_;
   bool expect_fulfillment_ = true;
   std::future<void> future_;
 };
 
 class WakelockCallback : public BnWakelockCallback {
- public:
+public:
   ScopedAStatus notifyAcquired() override {
     std::lock_guard<std::recursive_mutex> lock_guard(mutex);
     net_acquired_count++;
@@ -105,9 +106,9 @@ class WakelockCallback : public BnWakelockCallback {
 };
 
 class SuspendCallback : public BnSuspendCallback {
- public:
-  ScopedAStatus notifyWakeup(
-      bool /* success */, const std::vector<std::string>& /* wakeup_reasons */) override {
+public:
+  ScopedAStatus notifyWakeup(bool /* success */,
+                             const std::vector<std::string>& /* wakeup_reasons */) override {
     std::lock_guard<std::recursive_mutex> lock_guard(mutex);
     fprintf(stderr, "notifyWakeup\n");
     return ScopedAStatus::ok();
@@ -120,7 +121,7 @@ static std::shared_ptr<SuspendCallback> suspend_callback = nullptr;
 static std::shared_ptr<WakelockCallback> control_callback = nullptr;
 
 class WakelockNativeTest : public Test {
- protected:
+protected:
   void SetUp() override {
     ABinderProcess_setThreadPoolMaxThreadCount(1);
     ABinderProcess_startThreadPool();
@@ -147,8 +148,8 @@ class WakelockNativeTest : public Test {
     if (control_callback == nullptr) {
       control_callback = SharedRefBase::make<WakelockCallback>();
       bool is_registered = false;
-      ScopedAStatus status =
-          control_service_->registerWakelockCallback(control_callback, kTestWakelockName, &is_registered);
+      ScopedAStatus status = control_service_->registerWakelockCallback(
+              control_callback, kTestWakelockName, &is_registered);
       if (!is_registered || !status.isOk()) {
         FAIL() << "Fail to register wakeup callback";
       }

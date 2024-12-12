@@ -211,9 +211,7 @@ inline std::string ScopeText(const Scope& scope) {
   }
 }
 
-inline std::ostream& operator<<(std::ostream& os, const Scope& pdu) {
-  return os << ScopeText(pdu);
-}
+inline std::ostream& operator<<(std::ostream& os, const Scope& pdu) { return os << ScopeText(pdu); }
 
 inline std::string DirectionText(const Direction& dir) {
   switch (dir) {
@@ -265,8 +263,7 @@ inline std::string PlayerRepeatValueText(const PlayerRepeatValue& val) {
   return "Unknown Player Repeat Value: " + loghex((uint8_t)val);
 }
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const PlayerRepeatValue& val) {
+inline std::ostream& operator<<(std::ostream& os, const PlayerRepeatValue& val) {
   return os << PlayerRepeatValueText(val);
 }
 
@@ -279,8 +276,7 @@ inline std::string PlayerShuffleValueText(const PlayerShuffleValue& val) {
   return "Unknown Player Shuffle Value: " + loghex((uint8_t)val);
 }
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const PlayerShuffleValue& val) {
+inline std::ostream& operator<<(std::ostream& os, const PlayerShuffleValue& val) {
   return os << PlayerShuffleValueText(val);
 }
 

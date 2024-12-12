@@ -24,7 +24,7 @@
 #include "osi/include/allocator.h"
 
 class HashMapUtilsTest : public ::testing::Test {
- protected:
+protected:
   void TearDown() override { map.clear(); }
 
   std::unordered_map<std::string, std::string> map;

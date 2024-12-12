@@ -157,8 +157,8 @@ public class BluetoothOppUtility {
 
     /** Organize Array list for transfers in one batch */
     // This function is used when UI show batch transfer. Currently only show single transfer.
-    public static ArrayList<String> queryTransfersInBatch(Context context, Long timeStamp) {
-        ArrayList<String> uris = new ArrayList();
+    public static List<String> queryTransfersInBatch(Context context, Long timeStamp) {
+        List<String> uris = new ArrayList<>();
         final String where = BluetoothShare.TIMESTAMP + " == " + timeStamp;
         Cursor metadataCursor =
                 BluetoothMethodProxy.getInstance()
@@ -301,7 +301,7 @@ public class BluetoothOppUtility {
                     BluetoothProtoEnums.BLUETOOTH_OPP_UTILITY,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     4);
-            e.printStackTrace();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         }
         return false;
     }

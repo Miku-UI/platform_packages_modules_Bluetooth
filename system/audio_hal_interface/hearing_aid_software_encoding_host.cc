@@ -22,8 +22,7 @@ namespace hearing_aid {
 
 bool is_hal_enabled() { return false; }
 
-bool init(StreamCallbacks stream_cb,
-          bluetooth::common::MessageLoopThread* message_loop) {
+bool init(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop) {
   return false;
 }
 

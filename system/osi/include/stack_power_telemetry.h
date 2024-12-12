@@ -26,7 +26,7 @@ namespace power_telemetry {
 struct PowerTelemetryImpl;
 
 class PowerTelemetry {
- public:
+public:
   PowerTelemetry();
 
   void RecordLogDataContainer();
@@ -35,19 +35,18 @@ class PowerTelemetry {
   void LogHciCmdDetail();
   void LogHciEvtDetail();
 
-  void LogLinkDetails(uint16_t handle, const RawAddress& bdaddr,
-                      bool isConnected, bool is_acl_link);
+  void LogLinkDetails(uint16_t handle, const RawAddress& bdaddr, bool isConnected,
+                      bool is_acl_link);
   void LogRxAclPktData(uint16_t len);
   void LogTxAclPktData(uint16_t len);
 
-  void LogChannelConnected(uint16_t psm, int32_t src_id, int32_t dst_id,
-                           const RawAddress& bd_addr);
+  void LogChannelConnected(uint16_t psm, int32_t src_id, int32_t dst_id, const RawAddress& bd_addr);
   void LogChannelDisconnected(uint16_t psm, int32_t src_id, int32_t dst_id,
                               const RawAddress& bd_addr);
-  void LogRxBytes(uint16_t psm, int32_t src_id, int32_t dst_id,
-                  const RawAddress& bd_addr, int32_t num_bytes);
-  void LogTxBytes(uint16_t psm, int32_t src_id, int32_t dst_id,
-                  const RawAddress& bd_addr, int32_t num_bytes);
+  void LogRxBytes(uint16_t psm, int32_t src_id, int32_t dst_id, const RawAddress& bd_addr,
+                  int32_t num_bytes);
+  void LogTxBytes(uint16_t psm, int32_t src_id, int32_t dst_id, const RawAddress& bd_addr,
+                  int32_t num_bytes);
 
   void LogSniffStarted(uint16_t handle, const RawAddress& bdaddr);
   void LogSniffStopped(uint16_t handle, const RawAddress& bdaddr);

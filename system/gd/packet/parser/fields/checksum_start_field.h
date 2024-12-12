@@ -20,7 +20,7 @@
 #include "parse_location.h"
 
 class ChecksumStartField : public PacketField {
- public:
+public:
   ChecksumStartField(std::string name, ParseLocation loc);
 
   static const std::string kFieldType;
@@ -53,6 +53,6 @@ class ChecksumStartField : public PacketField {
 
   virtual void GenStringRepresentation(std::ostream& s, std::string accessor) const override;
 
- private:
+private:
   std::string started_field_name_;
 };

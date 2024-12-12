@@ -36,8 +36,7 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
     for (size_t x = 0; x < size; x++) {
       get_item_attributes_request.push_back(data[x]);
     }
-    auto test_packet =
-        TestGetItemAttrsReqPacket::Make(get_item_attributes_request);
+    auto test_packet = TestGetItemAttrsReqPacket::Make(get_item_attributes_request);
   }
 
   return 0;

@@ -92,6 +92,9 @@ public class Config {
         if (Flags.leaudioSynchronizeStart()) {
             PROFILE_SERVICES_AND_FLAGS =
                     new ProfileConfig[] {
+                        // Prioritize GattService startup by making it the first Profile to
+                        // boot. This resolves dependency issues for some Profiles.
+                        new ProfileConfig(GattService.isEnabled(), BluetoothProfile.GATT),
                         new ProfileConfig(A2dpService.isEnabled(), BluetoothProfile.A2DP),
                         new ProfileConfig(A2dpSinkService.isEnabled(), BluetoothProfile.A2DP_SINK),
                         new ProfileConfig(AvrcpTargetService.isEnabled(), BluetoothProfile.AVRCP),
@@ -115,7 +118,6 @@ public class Config {
                         new ProfileConfig(
                                 HidDeviceService.isEnabled(), BluetoothProfile.HID_DEVICE),
                         new ProfileConfig(HidHostService.isEnabled(), BluetoothProfile.HID_HOST),
-                        new ProfileConfig(GattService.isEnabled(), BluetoothProfile.GATT),
                         new ProfileConfig(TbsService.isEnabled(), BluetoothProfile.LE_CALL_CONTROL),
                         new ProfileConfig(BluetoothMapService.isEnabled(), BluetoothProfile.MAP),
                         new ProfileConfig(
@@ -137,6 +139,9 @@ public class Config {
         } else {
             PROFILE_SERVICES_AND_FLAGS =
                     new ProfileConfig[] {
+                        // Prioritize GattService startup by making it the first Profile to
+                        // boot. This resolves dependency issues for some Profiles.
+                        new ProfileConfig(GattService.isEnabled(), BluetoothProfile.GATT),
                         new ProfileConfig(A2dpService.isEnabled(), BluetoothProfile.A2DP),
                         new ProfileConfig(A2dpSinkService.isEnabled(), BluetoothProfile.A2DP_SINK),
                         new ProfileConfig(AvrcpTargetService.isEnabled(), BluetoothProfile.AVRCP),
@@ -160,7 +165,6 @@ public class Config {
                         new ProfileConfig(
                                 HidDeviceService.isEnabled(), BluetoothProfile.HID_DEVICE),
                         new ProfileConfig(HidHostService.isEnabled(), BluetoothProfile.HID_HOST),
-                        new ProfileConfig(GattService.isEnabled(), BluetoothProfile.GATT),
                         new ProfileConfig(LeAudioService.isEnabled(), BluetoothProfile.LE_AUDIO),
                         new ProfileConfig(
                                 LeAudioService.isBroadcastEnabled(),
@@ -231,16 +235,6 @@ public class Config {
             }
         }
 
-        // TODO: b/321806163 Cleanup post the flag cleanup.
-        // Disable A2DP source profile for automotive devices only if sink is enabled and
-        // concurrent support is not enabled.
-        if (!Flags.a2dpConcurrentSourceSink()
-                && Utils.isAutomotive(ctx)
-                && A2dpSinkService.isEnabled()) {
-            setProfileEnabled(BluetoothProfile.A2DP, false);
-            setProfileEnabled(BluetoothProfile.AVRCP, false);
-        }
-
         // Disable ASHA if BLE is not supported on this platform even if the platform enabled ASHA
         // accidentally
         if (!Utils.isBleSupported(ctx)) {
@@ -250,9 +244,10 @@ public class Config {
         for (ProfileConfig config : PROFILE_SERVICES_AND_FLAGS) {
             Log.i(
                     TAG,
-                    String.format(
-                            "init: profile=%s, enabled=%s",
-                            BluetoothProfile.getProfileName(config.mProfileId), config.mSupported));
+                    "init: profile= "
+                            + BluetoothProfile.getProfileName(config.mProfileId)
+                            + ", enabled="
+                            + config.mSupported);
         }
     }
 

@@ -21,7 +21,6 @@
 
 #include "btif/include/btif_storage.h"
 #include "btif/include/stack_manager_t.h"
-#include "common/init_flags.h"
 #include "device/include/interop.h"
 #include "mock_btif_config.h"
 #include "osi/include/allocator.h"
@@ -35,7 +34,7 @@
 #include "test/mock/mock_btif_config.h"
 #include "test/mock/mock_osi_allocator.h"
 #include "test/mock/mock_osi_properties.h"
-#include "test/mock/mock_stack_l2cap_api.h"
+#include "test/mock/mock_stack_l2cap_interface.h"
 
 #ifndef BT_DEFAULT_BUFFER_SIZE
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
@@ -54,65 +53,43 @@ static int L2CA_ConnectReqWithSecurity_cid = 0x42;
 static RawAddress addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
 static tSDP_DISCOVERY_DB* sdp_db = nullptr;
 
-using testing::_;
-using testing::DoAll;
-using testing::Return;
-using testing::SetArrayArgument;
+using ::testing::_;
+using ::testing::DoAll;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::ReturnArg;
+using ::testing::SaveArg;
+using ::testing::SetArrayArgument;
 
-bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr,
-                                    const RawAddress& remote_address);
+bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress& remote_address);
 void hfp_fallback(bool& is_hfp_fallback, const tSDP_ATTRIBUTE* p_attr);
 
 void sdp_callback(const RawAddress& bd_addr, tSDP_RESULT result);
 tCONN_CB* find_ccb(uint16_t cid, uint8_t state);
 
-const char* test_flags_feature_disabled[] = {
-    "INIT_dynamic_avrcp_version_enhancement=false",
-    nullptr,
-};
-
-const char* test_flags_feature_enabled[] = {
-    "INIT_dynamic_avrcp_version_enhancement=true",
-    nullptr,
-};
-const char* hfp_test_flags_feature_disabled[] = {
-    "INIT_hfp_dynamic_version=false",
-    nullptr,
-};
-
-const char* hfp_test_flags_feature_enabled[] = {
-    "INIT_hfp_dynamic_version=true",
-    nullptr,
-};
-
 namespace {
 // convenience mock
 class IopMock {
- public:
-  MOCK_METHOD(bool, InteropMatchAddr,
-              (const interop_feature_t, const RawAddress*));
+public:
+  MOCK_METHOD(bool, InteropMatchAddr, (const interop_feature_t, const RawAddress*));
   MOCK_METHOD(bool, InteropMatchName, (const interop_feature_t, const char*));
   MOCK_METHOD(void, InteropDatabaseAdd, (uint16_t, const RawAddress*, size_t));
   MOCK_METHOD(void, InteropDatabaseClear, ());
   MOCK_METHOD(bool, InteropMatchAddrOrName,
               (const interop_feature_t, const RawAddress*,
                bt_status_t (*)(const RawAddress*, bt_property_t*)));
-  MOCK_METHOD(bool, InteropMatchManufacturer,
-              (const interop_feature_t, uint16_t));
-  MOCK_METHOD(bool, InteropMatchVendorProductIds,
-              (const interop_feature_t, uint16_t, uint16_t));
-  MOCK_METHOD(bool, InteropDatabaseMatchVersion,
-              (const interop_feature_t, uint16_t));
+  MOCK_METHOD(bool, InteropMatchManufacturer, (const interop_feature_t, uint16_t));
+  MOCK_METHOD(bool, InteropMatchVendorProductIds, (const interop_feature_t, uint16_t, uint16_t));
+  MOCK_METHOD(bool, InteropDatabaseMatchVersion, (const interop_feature_t, uint16_t));
   MOCK_METHOD(bool, InteropMatchAddrGetMaxLat,
               (const interop_feature_t, const RawAddress*, uint16_t*));
   MOCK_METHOD(bool, InteropGetAllowlistedMediaPlayersList, (list_t*));
   MOCK_METHOD(int, InteropFeatureNameToFeatureId, (const char*));
-  MOCK_METHOD(void, InteropDatabaseAddAddr,
-              (uint16_t, const RawAddress*, size_t));
+  MOCK_METHOD(void, InteropDatabaseAddAddr, (uint16_t, const RawAddress*, size_t));
 };
 
 class AvrcpVersionMock {
- public:
+public:
   MOCK_METHOD0(AvrcpProfileVersionMock, uint16_t(void));
 };
 
@@ -120,44 +97,37 @@ std::unique_ptr<IopMock> localIopMock;
 std::unique_ptr<AvrcpVersionMock> localAvrcpVersionMock;
 }  // namespace
 
-bool interop_match_addr(const interop_feature_t feature,
-                        const RawAddress* addr) {
+bool interop_match_addr(const interop_feature_t feature, const RawAddress* addr) {
   return localIopMock->InteropMatchAddr(feature, addr);
 }
 bool interop_match_name(const interop_feature_t feature, const char* name) {
   return localIopMock->InteropMatchName(feature, name);
 }
-void interop_database_add(uint16_t feature, const RawAddress* addr,
-                          size_t length) {
+void interop_database_add(uint16_t feature, const RawAddress* addr, size_t length) {
   return localIopMock->InteropDatabaseAdd(feature, addr, length);
 }
 void interop_database_clear() { localIopMock->InteropDatabaseClear(); }
 
-bool interop_match_addr_or_name(const interop_feature_t feature,
-                                const RawAddress* addr,
-                                bt_status_t (*get_remote_device_property)(
-                                    const RawAddress*, bt_property_t*)) {
-  return localIopMock->InteropMatchAddrOrName(feature, addr,
-                                              get_remote_device_property);
+bool interop_match_addr_or_name(const interop_feature_t feature, const RawAddress* addr,
+                                bt_status_t (*get_remote_device_property)(const RawAddress*,
+                                                                          bt_property_t*)) {
+  return localIopMock->InteropMatchAddrOrName(feature, addr, get_remote_device_property);
 }
 
-bool interop_match_manufacturer(const interop_feature_t feature,
-                                uint16_t manufacturer) {
+bool interop_match_manufacturer(const interop_feature_t feature, uint16_t manufacturer) {
   return localIopMock->InteropMatchManufacturer(feature, manufacturer);
 }
 
-bool interop_match_vendor_product_ids(const interop_feature_t feature,
-                                      uint16_t vendor_id, uint16_t product_id) {
-  return localIopMock->InteropMatchVendorProductIds(feature, vendor_id,
-                                                    product_id);
+bool interop_match_vendor_product_ids(const interop_feature_t feature, uint16_t vendor_id,
+                                      uint16_t product_id) {
+  return localIopMock->InteropMatchVendorProductIds(feature, vendor_id, product_id);
 }
 
-bool interop_database_match_version(const interop_feature_t feature,
-                                    uint16_t version) {
+bool interop_database_match_version(const interop_feature_t feature, uint16_t version) {
   return localIopMock->InteropDatabaseMatchVersion(feature, version);
 }
-bool interop_match_addr_get_max_lat(const interop_feature_t feature,
-                                    const RawAddress* addr, uint16_t* max_lat) {
+bool interop_match_addr_get_max_lat(const interop_feature_t feature, const RawAddress* addr,
+                                    uint16_t* max_lat) {
   return localIopMock->InteropMatchAddrGetMaxLat(feature, addr, max_lat);
 }
 
@@ -165,50 +135,47 @@ int interop_feature_name_to_feature_id(const char* feature_name) {
   return localIopMock->InteropFeatureNameToFeatureId(feature_name);
 }
 
-void interop_database_add_addr(uint16_t feature, const RawAddress* addr,
-                               size_t length) {
+void interop_database_add_addr(uint16_t feature, const RawAddress* addr, size_t length) {
   return localIopMock->InteropDatabaseAddAddr(feature, addr, length);
 }
 
-uint16_t AVRC_GetProfileVersion() {
-  return localAvrcpVersionMock->AvrcpProfileVersionMock();
-}
+uint16_t AVRC_GetProfileVersion() { return localAvrcpVersionMock->AvrcpProfileVersionMock(); }
 
 uint8_t avrc_value[8] = {
-    ((DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE),  // data_element
-    6,                                                    // data_len
-    ((UUID_DESC_TYPE << 3) | SIZE_TWO_BYTES),             // uuid_element
-    0,                                                    // uuid
-    0,                                                    // uuid
-    ((UINT_DESC_TYPE << 3) | SIZE_TWO_BYTES),             // version_element
-    0,                                                    // version
-    0                                                     // version
+        ((DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE),  // data_element
+        6,                                                    // data_len
+        ((UUID_DESC_TYPE << 3) | SIZE_TWO_BYTES),             // uuid_element
+        0,                                                    // uuid
+        0,                                                    // uuid
+        ((UINT_DESC_TYPE << 3) | SIZE_TWO_BYTES),             // version_element
+        0,                                                    // version
+        0                                                     // version
 };
 tSDP_ATTRIBUTE avrcp_attr = {
-    .len = 0,
-    .value_ptr = (uint8_t*)(&avrc_value),
-    .id = 0,
-    .type = 0,
+        .len = 0,
+        .value_ptr = (uint8_t*)(&avrc_value),
+        .id = 0,
+        .type = 0,
 };
 
 uint8_t avrc_feat_value[2] = {
-    0,  // feature
-    0   // feature
+        0,  // feature
+        0   // feature
 };
 tSDP_ATTRIBUTE avrcp_feat_attr = {
-    .len = 0,
-    .value_ptr = (uint8_t*)(&avrc_feat_value),
-    .id = 0,
-    .type = 0,
+        .len = 0,
+        .value_ptr = (uint8_t*)(&avrc_feat_value),
+        .id = 0,
+        .type = 0,
 };
 
 uint8_t hfp_value[8] = {0, 0, 0, 0x11, 0x1E, 0, 0, 0};
 
 tSDP_ATTRIBUTE hfp_attr = {
-    .len = 0,
-    .value_ptr = (uint8_t*)(hfp_value),
-    .id = 0,
-    .type = 0,
+        .len = 0,
+        .value_ptr = (uint8_t*)(hfp_value),
+        .id = 0,
+        .type = 0,
 };
 
 void set_hfp_attr(uint32_t len, uint16_t id, uint16_t uuid) {
@@ -223,8 +190,7 @@ void set_avrcp_feat_attr(uint32_t len, uint16_t id, uint16_t feature) {
   avrcp_feat_attr.id = id;
 }
 
-void set_avrcp_attr(uint32_t len, uint16_t id, uint16_t uuid,
-                    uint16_t version) {
+void set_avrcp_attr(uint32_t len, uint16_t id, uint16_t uuid, uint16_t version) {
   UINT16_TO_BE_FIELD(avrc_value + 3, uuid);
   UINT16_TO_BE_FIELD(avrc_value + 6, version);
   avrcp_attr.len = len;
@@ -233,54 +199,38 @@ void set_avrcp_attr(uint32_t len, uint16_t id, uint16_t uuid,
 
 uint16_t get_avrc_target_version(tSDP_ATTRIBUTE* p_attr) {
   uint8_t* p_version = p_attr->value_ptr + 6;
-  uint16_t version =
-      (((uint16_t)(*(p_version))) << 8) + ((uint16_t)(*((p_version) + 1)));
+  uint16_t version = (((uint16_t)(*(p_version))) << 8) + ((uint16_t)(*((p_version) + 1)));
   return version;
 }
 
 uint16_t get_avrc_target_feature(tSDP_ATTRIBUTE* p_attr) {
   uint8_t* p_feature = p_attr->value_ptr;
-  uint16_t feature =
-      (((uint16_t)(*(p_feature))) << 8) + ((uint16_t)(*((p_feature) + 1)));
+  uint16_t feature = (((uint16_t)(*(p_feature))) << 8) + ((uint16_t)(*((p_feature) + 1)));
   return feature;
 }
 
 class StackSdpMockAndFakeTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     fake_osi_ = std::make_unique<test::fake::FakeOsi>();
-    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
-        [](uint16_t /* psm */, const RawAddress& /* p_bd_addr */,
-           uint16_t /* sec_level */) {
-          return ++L2CA_ConnectReqWithSecurity_cid;
-        };
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t /* cid */,
-                                                          BT_HDR* p_data) {
-      osi_free_and_reset((void**)&p_data);
-      return 0;
-    };
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body =
-        [](uint16_t /* cid */) { return true; };
-    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
-        [](uint16_t /* psm */, const tL2CAP_APPL_INFO& /* p_cb_info */,
-           bool /* enable_snoop */, tL2CAP_ERTM_INFO* /* p_ertm_info */,
-           uint16_t /* my_mtu */, uint16_t /* required_remote_mtu */,
-           uint16_t /* sec_level */) {
-          return 42;  // return non zero
-        };
+    bluetooth::testing::stack::l2cap::set_interface(&mock_stack_l2cap_interface_);
+    EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
+            .WillOnce(DoAll(SaveArg<1>(&l2cap_callbacks_), ::testing::ReturnArg<0>()));
+    EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(_));
   }
 
   void TearDown() override {
-    test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity = {};
-    test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity = {};
-    test::mock::stack_l2cap_api::L2CA_DataWrite = {};
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
+    bluetooth::testing::stack::l2cap::reset_interface();
+    fake_osi_.reset();
   }
+
+  tL2CAP_APPL_INFO l2cap_callbacks_{};
+  bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
   std::unique_ptr<test::fake::FakeOsi> fake_osi_;
 };
 
 class StackSdpInitTest : public StackSdpMockAndFakeTest {
- protected:
+protected:
   void SetUp() override {
     StackSdpMockAndFakeTest::SetUp();
     sdp_init();
@@ -289,42 +239,37 @@ class StackSdpInitTest : public StackSdpMockAndFakeTest {
 
   void TearDown() override {
     osi_free(sdp_db);
+    sdp_free();
     StackSdpMockAndFakeTest::TearDown();
   }
 };
 
 class StackSdpUtilsTest : public StackSdpInitTest {
- protected:
+protected:
   void SetUp() override {
     StackSdpInitTest::SetUp();
-    bluetooth::common::InitFlags::Load(hfp_test_flags_feature_disabled);
-    bluetooth::common::InitFlags::Load(test_flags_feature_disabled);
-    GetInterfaceToProfiles()->profileSpecific_HACK->AVRC_GetProfileVersion =
-        AVRC_GetProfileVersion;
-    test::mock::btif_config::btif_config_get_bin.body =
-        [this](const std::string& section, const std::string& key,
-               uint8_t* value, size_t* length) {
-          return btif_config_interface_.GetBin(section, key, value, length);
-        };
-    test::mock::btif_config::btif_config_get_bin_length.body =
-        [this](const std::string& section, const std::string& key) {
-          return btif_config_interface_.GetBinLength(section, key);
-        };
+    GetInterfaceToProfiles()->profileSpecific_HACK->AVRC_GetProfileVersion = AVRC_GetProfileVersion;
+    test::mock::btif_config::btif_config_get_bin.body = [this](const std::string& section,
+                                                               const std::string& key,
+                                                               uint8_t* value, size_t* length) {
+      return btif_config_interface_.GetBin(section, key, value, length);
+    };
+    test::mock::btif_config::btif_config_get_bin_length.body = [this](const std::string& section,
+                                                                      const std::string& key) {
+      return btif_config_interface_.GetBinLength(section, key);
+    };
     test::mock::osi_properties::osi_property_get_bool.body =
-        [](const char* /* key */, bool /* default_value */) { return true; };
+            [](const char* /* key */, bool /* default_value */) { return true; };
 
     localIopMock = std::make_unique<IopMock>();
     localAvrcpVersionMock = std::make_unique<AvrcpVersionMock>();
-    set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST,
-                   UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
+    set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
     set_avrcp_feat_attr(2, ATTR_ID_SUPPORTED_FEATURES, AVRCP_SUPF_TG_1_5);
-    set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST,
-                 UUID_HF_LSB);
+    set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_HF_LSB);
   }
 
   void TearDown() override {
-    GetInterfaceToProfiles()->profileSpecific_HACK->AVRC_GetProfileVersion =
-        nullptr;
+    GetInterfaceToProfiles()->profileSpecific_HACK->AVRC_GetProfileVersion = nullptr;
     test::mock::btif_config::btif_config_get_bin_length = {};
     test::mock::btif_config::btif_config_get_bin = {};
     test::mock::osi_properties::osi_property_get_bool = {};
@@ -336,46 +281,43 @@ class StackSdpUtilsTest : public StackSdpInitTest {
   bluetooth::manager::MockBtifConfigInterface btif_config_interface_;
 };
 
-TEST_F(StackSdpUtilsTest,
-       sdpu_set_avrc_target_version_device_in_iop_table_versoin_1_4) {
+TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_in_iop_table_version_1_4) {
   RawAddress bdaddr;
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(true));
+          .WillOnce(Return(true));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_4);
 }
 
-TEST_F(StackSdpUtilsTest,
-       sdpu_set_avrc_target_version_device_in_iop_table_versoin_1_3) {
+TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_in_iop_table_version_1_3) {
   RawAddress bdaddr;
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(true));
+          .WillOnce(Return(true));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_3);
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_wrong_len) {
   RawAddress bdaddr;
-  set_avrcp_attr(5, ATTR_ID_BT_PROFILE_DESC_LIST,
-                 UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
+  set_avrcp_attr(5, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_wrong_attribute_id) {
   RawAddress bdaddr;
-  set_avrcp_attr(8, ATTR_ID_SERVICE_CLASS_ID_LIST,
-                 UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
+  set_avrcp_attr(8, ATTR_ID_SERVICE_CLASS_ID_LIST, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_wrong_uuid) {
   RawAddress bdaddr;
-  set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_SERVCLASS_AUDIO_SOURCE,
-                 AVRC_REV_1_5);
+  set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_SERVCLASS_AUDIO_SOURCE, AVRC_REV_1_5);
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
@@ -384,15 +326,14 @@ TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_wrong_uuid) {
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_older_version) {
   RawAddress bdaddr;
   uint8_t config_0104[2] = {0x04, 0x01};
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(DoAll(SetArrayArgument<2>(config_0104, config_0104 + 2),
-                      Return(true)));
+          .WillOnce(DoAll(SetArrayArgument<2>(config_0104, config_0104 + 2), Return(true)));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_4);
 }
@@ -401,15 +342,14 @@ TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_older_version) {
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_same_version) {
   RawAddress bdaddr;
   uint8_t config_0105[2] = {0x05, 0x01};
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(DoAll(SetArrayArgument<2>(config_0105, config_0105 + 2),
-                      Return(true)));
+          .WillOnce(DoAll(SetArrayArgument<2>(config_0105, config_0105 + 2), Return(true)));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
@@ -418,15 +358,14 @@ TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_same_version) {
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_newer_version) {
   RawAddress bdaddr;
   uint8_t config_0106[2] = {0x06, 0x01};
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(DoAll(SetArrayArgument<2>(config_0106, config_0106 + 2),
-                      Return(true)));
+          .WillOnce(DoAll(SetArrayArgument<2>(config_0106, config_0106 + 2), Return(true)));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
@@ -434,12 +373,12 @@ TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_device_newer_version) {
 // cannot read device's controller version from bt_config
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_no_config_value) {
   RawAddress bdaddr;
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(0));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(0));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
@@ -447,12 +386,12 @@ TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_no_config_value) {
 // read device's controller version from bt_config return only 1 byte
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_config_value_1_byte) {
   RawAddress bdaddr;
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(1));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(1));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
@@ -460,12 +399,12 @@ TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_config_value_1_byte) {
 // read device's controller version from bt_config return 3 bytes
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_config_value_3_bytes) {
   RawAddress bdaddr;
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(3));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(3));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
@@ -474,236 +413,185 @@ TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_config_value_3_bytes) {
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_version_config_value_not_valid) {
   RawAddress bdaddr;
   uint8_t config_not_valid[2] = {0x12, 0x34};
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(
-          DoAll(SetArrayArgument<2>(config_not_valid, config_not_valid + 2),
-                Return(true)));
+          .WillOnce(
+                  DoAll(SetArrayArgument<2>(config_not_valid, config_not_valid + 2), Return(true)));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_wrong_len) {
-  bluetooth::common::InitFlags::Load(test_flags_feature_enabled);
   RawAddress bdaddr;
-  set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST,
-                 UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
+  set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   set_avrcp_feat_attr(6, ATTR_ID_SUPPORTED_FEATURES, AVRCP_SUPF_TG_1_5);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
-  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr,
-                                get_avrc_target_version(&avrcp_attr));
+  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr, get_avrc_target_version(&avrcp_attr));
   ASSERT_EQ(get_avrc_target_feature(&avrcp_feat_attr), AVRCP_SUPF_TG_1_5);
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_wrong_attribute_id) {
-  bluetooth::common::InitFlags::Load(test_flags_feature_enabled);
   RawAddress bdaddr;
-  set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST,
-                 UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
+  set_avrcp_attr(8, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_SERVCLASS_AV_REMOTE_CONTROL, AVRC_REV_1_5);
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   set_avrcp_feat_attr(2, ATTR_ID_BT_PROFILE_DESC_LIST, AVRCP_SUPF_TG_1_5);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
-  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr,
-                                get_avrc_target_version(&avrcp_attr));
+  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr, get_avrc_target_version(&avrcp_attr));
   ASSERT_EQ(get_avrc_target_feature(&avrcp_feat_attr), AVRCP_SUPF_TG_1_5);
 }
 
-TEST_F(StackSdpUtilsTest,
-       sdpu_set_avrc_target_feature_device_in_iop_table_versoin_1_4) {
-  bluetooth::common::InitFlags::Load(test_flags_feature_enabled);
+TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_device_in_iop_table_version_1_4) {
   RawAddress bdaddr;
   uint8_t feature_0105[2] = {0xC1, 0x00};
-  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock())
-      .WillOnce(Return(AVRC_REV_1_5));
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(true));
+          .WillOnce(Return(true));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_4);
   set_avrcp_feat_attr(2, ATTR_ID_SUPPORTED_FEATURES, AVRCP_SUPF_TG_1_5);
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(DoAll(SetArrayArgument<2>(feature_0105, feature_0105 + 2),
-                      Return(true)));
-  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr,
-                                get_avrc_target_version(&avrcp_attr));
+          .WillOnce(DoAll(SetArrayArgument<2>(feature_0105, feature_0105 + 2), Return(true)));
+  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr, get_avrc_target_version(&avrcp_attr));
   ASSERT_EQ(get_avrc_target_feature(&avrcp_feat_attr), AVRCP_SUPF_TG_1_4);
 }
 
-TEST_F(StackSdpUtilsTest,
-       sdpu_set_avrc_target_feature_device_in_iop_table_versoin_1_3) {
-  bluetooth::common::InitFlags::Load(test_flags_feature_enabled);
+TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_device_in_iop_table_version_1_3) {
   RawAddress bdaddr;
   uint8_t feature_0105[2] = {0xC1, 0x00};
-  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock())
-      .WillOnce(Return(AVRC_REV_1_5));
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(true));
+          .WillOnce(Return(true));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_3);
   set_avrcp_feat_attr(2, ATTR_ID_SUPPORTED_FEATURES, AVRCP_SUPF_TG_1_5);
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(DoAll(SetArrayArgument<2>(feature_0105, feature_0105 + 2),
-                      Return(true)));
-  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr,
-                                get_avrc_target_version(&avrcp_attr));
+          .WillOnce(DoAll(SetArrayArgument<2>(feature_0105, feature_0105 + 2), Return(true)));
+  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr, get_avrc_target_version(&avrcp_attr));
   ASSERT_EQ(get_avrc_target_feature(&avrcp_feat_attr), AVRCP_SUPF_TG_1_3);
 }
 
 // cannot read device's controller feature from bt_config
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_no_config_value) {
-  bluetooth::common::InitFlags::Load(test_flags_feature_enabled);
   RawAddress bdaddr;
-  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock())
-      .WillOnce(Return(AVRC_REV_1_5));
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(0));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(0));
   set_avrcp_feat_attr(2, ATTR_ID_SUPPORTED_FEATURES, AVRCP_SUPF_TG_1_5);
-  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr,
-                                get_avrc_target_version(&avrcp_attr));
+  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr, get_avrc_target_version(&avrcp_attr));
   ASSERT_EQ(get_avrc_target_feature(&avrcp_feat_attr), AVRCP_SUPF_TG_1_5);
 }
 
 // read device's controller feature from bt_config return only 1 byte
 TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_config_value_1_byte) {
-  bluetooth::common::InitFlags::Load(test_flags_feature_enabled);
   RawAddress bdaddr;
-  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock())
-      .WillOnce(Return(AVRC_REV_1_5));
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_5));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_5);
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(1));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(1));
   set_avrcp_feat_attr(2, ATTR_ID_SUPPORTED_FEATURES, AVRCP_SUPF_TG_1_5);
-  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr,
-                                get_avrc_target_version(&avrcp_attr));
+  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr, get_avrc_target_version(&avrcp_attr));
   ASSERT_EQ(get_avrc_target_feature(&avrcp_feat_attr), AVRCP_SUPF_TG_1_5);
 }
 
-TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_device_versoin_1_6) {
-  bluetooth::common::InitFlags::Load(test_flags_feature_enabled);
+TEST_F(StackSdpUtilsTest, sdpu_set_avrc_target_feature_device_version_1_6) {
   RawAddress bdaddr;
   uint8_t config_0106[2] = {0x06, 0x01};
   uint8_t feature_0106[2] = {0xC1, 0x01};
-  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock())
-      .WillOnce(Return(AVRC_REV_1_6));
+  EXPECT_CALL(*localAvrcpVersionMock, AvrcpProfileVersionMock()).WillOnce(Return(AVRC_REV_1_6));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_4_ONLY, &bdaddr))
-      .WillOnce(Return(false));
+          .WillOnce(Return(false));
   EXPECT_CALL(*localIopMock, InteropMatchAddr(INTEROP_AVRCP_1_3_ONLY, &bdaddr))
-      .WillOnce(Return(false));
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+          .WillOnce(Return(false));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(DoAll(SetArrayArgument<2>(config_0106, config_0106 + 2),
-                      Return(true)));
+          .WillOnce(DoAll(SetArrayArgument<2>(config_0106, config_0106 + 2), Return(true)));
   sdpu_set_avrc_target_version(&avrcp_attr, &bdaddr);
   ASSERT_EQ(get_avrc_target_version(&avrcp_attr), AVRC_REV_1_6);
   set_avrcp_feat_attr(2, ATTR_ID_SUPPORTED_FEATURES, AVRCP_SUPF_TG_1_5);
-  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _))
-      .WillOnce(Return(2));
+  EXPECT_CALL(btif_config_interface_, GetBinLength(bdaddr.ToString(), _)).WillOnce(Return(2));
   EXPECT_CALL(btif_config_interface_, GetBin(bdaddr.ToString(), _, _, _))
-      .WillOnce(DoAll(SetArrayArgument<2>(feature_0106, feature_0106 + 2),
-                      Return(true)));
-  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr,
-                                get_avrc_target_version(&avrcp_attr));
+          .WillOnce(DoAll(SetArrayArgument<2>(feature_0106, feature_0106 + 2), Return(true)));
+  sdpu_set_avrc_target_features(&avrcp_feat_attr, &bdaddr, get_avrc_target_version(&avrcp_attr));
   ASSERT_EQ(get_avrc_target_feature(&avrcp_feat_attr),
             AVRCP_SUPF_TG_1_6 | AVRC_SUPF_TG_PLAYER_COVER_ART);
 }
 
 TEST_F(StackSdpUtilsTest, dynamic_hfp_version_with_invalid_length) {
-  bluetooth::common::InitFlags::Load(hfp_test_flags_feature_enabled);
   RawAddress bdaddr(RawAddress::kEmpty);
   set_hfp_attr(INVALID_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_HF_LSB);
   ASSERT_EQ(sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr), false);
 }
 
 TEST_F(StackSdpUtilsTest, dynamic_hfp_version_with_invalid_UUID) {
-  bluetooth::common::InitFlags::Load(hfp_test_flags_feature_enabled);
   RawAddress bdaddr(RawAddress::kEmpty);
-  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST,
-               INVALID_UUID);
+  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST, INVALID_UUID);
   ASSERT_EQ(sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr), false);
 }
 
 TEST_F(StackSdpUtilsTest, check_HFP_version_change_fail) {
-  bluetooth::common::InitFlags::Load(hfp_test_flags_feature_enabled);
   RawAddress bdaddr(RawAddress::kEmpty);
-  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST,
-               UUID_HF_LSB);
+  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_HF_LSB);
   test::mock::osi_properties::osi_property_get_bool.body =
-      [](const char* /* key */, bool /* default_value */) { return false; };
-  EXPECT_CALL(*localIopMock,
-              InteropMatchAddrOrName(INTEROP_HFP_1_7_ALLOWLIST, &bdaddr,
-                                     &btif_storage_get_remote_device_property))
-      .WillOnce(Return(false));
-  EXPECT_CALL(*localIopMock,
-              InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
-                                     &btif_storage_get_remote_device_property))
-      .WillOnce(Return(false));
+          [](const char* /* key */, bool /* default_value */) { return false; };
+  EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_7_ALLOWLIST, &bdaddr,
+                                                    &btif_storage_get_remote_device_property))
+          .WillOnce(Return(false));
+  EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
+                                                    &btif_storage_get_remote_device_property))
+          .WillOnce(Return(false));
   ASSERT_EQ(sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr), false);
 }
 
 TEST_F(StackSdpUtilsTest, check_HFP_version_change_success) {
-  bluetooth::common::InitFlags::Load(hfp_test_flags_feature_enabled);
   RawAddress bdaddr(RawAddress::kEmpty);
-  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST,
-               UUID_HF_LSB);
-  EXPECT_CALL(*localIopMock,
-              InteropMatchAddrOrName(INTEROP_HFP_1_7_ALLOWLIST, &bdaddr,
-                                     &btif_storage_get_remote_device_property))
-      .WillOnce(Return(true));
-  EXPECT_CALL(*localIopMock,
-              InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
-                                     &btif_storage_get_remote_device_property))
-      .WillOnce(Return(true));
+  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_HF_LSB);
+  EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_7_ALLOWLIST, &bdaddr,
+                                                    &btif_storage_get_remote_device_property))
+          .WillOnce(Return(true));
+  EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
+                                                    &btif_storage_get_remote_device_property))
+          .WillOnce(Return(true));
   ASSERT_EQ(sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr), true);
 }
 
 TEST_F(StackSdpUtilsTest, check_HFP_version_fallback_success) {
-  bluetooth::common::InitFlags::Load(hfp_test_flags_feature_enabled);
   RawAddress bdaddr(RawAddress::kEmpty);
-  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST,
-               UUID_HF_LSB);
-  EXPECT_CALL(*localIopMock,
-              InteropMatchAddrOrName(INTEROP_HFP_1_7_ALLOWLIST, &bdaddr,
-                                     &btif_storage_get_remote_device_property))
-      .WillOnce(Return(true));
-  EXPECT_CALL(*localIopMock,
-              InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
-                                     &btif_storage_get_remote_device_property))
-      .WillOnce(Return(true));
+  set_hfp_attr(SDP_PROFILE_DESC_LENGTH, ATTR_ID_BT_PROFILE_DESC_LIST, UUID_HF_LSB);
+  EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_7_ALLOWLIST, &bdaddr,
+                                                    &btif_storage_get_remote_device_property))
+          .WillOnce(Return(true));
+  EXPECT_CALL(*localIopMock, InteropMatchAddrOrName(INTEROP_HFP_1_9_ALLOWLIST, &bdaddr,
+                                                    &btif_storage_get_remote_device_property))
+          .WillOnce(Return(true));
   bool is_hfp_fallback = sdp_dynamic_change_hfp_version(&hfp_attr, bdaddr);
-  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION],
-            HFP_PROFILE_MINOR_VERSION_7);
+  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION], HFP_PROFILE_MINOR_VERSION_7);
   hfp_fallback(is_hfp_fallback, &hfp_attr);
-  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION],
-            HFP_PROFILE_MINOR_VERSION_6);
+  ASSERT_EQ(hfp_attr.value_ptr[PROFILE_VERSION_POSITION], HFP_PROFILE_MINOR_VERSION_6);
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_compare_uuid_with_attr_u16) {
   tSDP_DISC_ATTR attr = {
-      .p_next_attr = nullptr,
-      .attr_id = 0,
-      .attr_len_type = bluetooth::Uuid::kNumBytes16,
-      .attr_value =
-          {
-              .v =
+          .p_next_attr = nullptr,
+          .attr_id = 0,
+          .attr_len_type = bluetooth::Uuid::kNumBytes16,
+          .attr_value =
                   {
-                      .u16 = 0x1234,
+                          .v =
+                                  {
+                                          .u16 = 0x1234,
+                                  },
                   },
-          },
   };
 
   bool is_valid{false};
@@ -716,16 +604,16 @@ TEST_F(StackSdpUtilsTest, sdpu_compare_uuid_with_attr_u16) {
 
 TEST_F(StackSdpUtilsTest, sdpu_compare_uuid_with_attr_u32) {
   tSDP_DISC_ATTR attr = {
-      .p_next_attr = nullptr,
-      .attr_id = 0,
-      .attr_len_type = bluetooth::Uuid::kNumBytes32,
-      .attr_value =
-          {
-              .v =
+          .p_next_attr = nullptr,
+          .attr_id = 0,
+          .attr_len_type = bluetooth::Uuid::kNumBytes32,
+          .attr_value =
                   {
-                      .u32 = 0x12345678,
+                          .v =
+                                  {
+                                          .u32 = 0x12345678,
+                                  },
                   },
-          },
   };
 
   bool is_valid{false};
@@ -737,30 +625,28 @@ TEST_F(StackSdpUtilsTest, sdpu_compare_uuid_with_attr_u32) {
 }
 
 TEST_F(StackSdpUtilsTest, sdpu_compare_uuid_with_attr_u128) {
-  tSDP_DISC_ATTR* p_attr =
-      (tSDP_DISC_ATTR*)calloc(1, sizeof(tSDP_DISC_ATTR) + 16);
+  tSDP_DISC_ATTR* p_attr = (tSDP_DISC_ATTR*)calloc(1, sizeof(tSDP_DISC_ATTR) + 16);
   tSDP_DISC_ATTR attr = {
-      .p_next_attr = nullptr,
-      .attr_id = 0,
-      .attr_len_type = bluetooth::Uuid::kNumBytes128,
-      .attr_value = {},
+          .p_next_attr = nullptr,
+          .attr_id = 0,
+          .attr_len_type = bluetooth::Uuid::kNumBytes128,
+          .attr_value = {},
   };
 
   uint8_t data[] = {
-      0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
-      0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
+          0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
+          0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
   };
 
   memcpy(p_attr, &attr, sizeof(tSDP_DISC_ATTR));
   memcpy(p_attr->attr_value.v.array, data, 16);
 
   bool is_valid{false};
-  bluetooth::Uuid uuid = bluetooth::Uuid::FromString(
-      "12345678-9abc-def0-1234-56789abcdef0", &is_valid);
+  bluetooth::Uuid uuid =
+          bluetooth::Uuid::FromString("12345678-9abc-def0-1234-56789abcdef0", &is_valid);
 
-  ASSERT_EQ(0,
-            memcmp(uuid.To128BitBE().data(), (void*)p_attr->attr_value.v.array,
-                   bluetooth::Uuid::kNumBytes128));
+  ASSERT_EQ(0, memcmp(uuid.To128BitBE().data(), (void*)p_attr->attr_value.v.array,
+                      bluetooth::Uuid::kNumBytes128));
   ASSERT_TRUE(is_valid);
   ASSERT_TRUE(sdpu_compare_uuid_with_attr(uuid, p_attr));
 

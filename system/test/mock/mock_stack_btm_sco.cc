@@ -30,10 +30,6 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
-bool BTM_IsScoActiveByBdaddr(const RawAddress& /* remote_bda */) {
-  inc_func_call_count(__func__);
-  return false;
-}
 bool btm_sco_removed(uint16_t /* hci_handle */, tHCI_REASON /* reason */) {
   inc_func_call_count(__func__);
   return false;
@@ -42,26 +38,11 @@ const RawAddress* BTM_ReadScoBdAddr(uint16_t /* sco_inx */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
-tBTM_STATUS BTM_CreateSco(const RawAddress* /* remote_bda */,
-                          bool /* is_orig */, uint16_t /* pkt_types */,
-                          uint16_t* /* p_sco_inx */,
-                          tBTM_SCO_CB* /* p_conn_cb */,
-                          tBTM_SCO_CB* /* p_disc_cb */) {
+tBTM_STATUS BTM_CreateSco(const RawAddress* /* remote_bda */, bool /* is_orig */,
+                          uint16_t /* pkt_types */, uint16_t* /* p_sco_inx */,
+                          tBTM_SCO_CB* /* p_conn_cb */, tBTM_SCO_CB* /* p_disc_cb */) {
   inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS BTM_RegForEScoEvts(uint16_t /* sco_inx */,
-                               tBTM_ESCO_CBACK* /* p_esco_cback */) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS BTM_RemoveSco(uint16_t /* sco_inx */) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
-}
-tBTM_STATUS BTM_SetEScoMode(enh_esco_params_t* /* p_parms */) {
-  inc_func_call_count(__func__);
-  return BTM_SUCCESS;
+  return tBTM_STATUS::BTM_SUCCESS;
 }
 uint8_t BTM_GetNumScoLinks(void) {
   inc_func_call_count(__func__);
@@ -75,21 +56,13 @@ void BTM_EScoConnRsp(uint16_t /* sco_inx */, tHCI_STATUS /* hci_status */,
                      enh_esco_params_t* /* p_parms */) {
   inc_func_call_count(__func__);
 }
-void BTM_RemoveSco(const RawAddress& /* bda */) {
+void BTM_RemoveScoByBdaddr(const RawAddress& /* bd_addr */) { inc_func_call_count(__func__); }
+void btm_sco_acl_removed(const RawAddress* /* bda */) { inc_func_call_count(__func__); }
+void btm_sco_chk_pend_rolechange(uint16_t /* hci_handle */) { inc_func_call_count(__func__); }
+void btm_sco_chk_pend_unpark(tHCI_STATUS /* hci_status */, uint16_t /* hci_handle */) {
   inc_func_call_count(__func__);
 }
-void btm_sco_acl_removed(const RawAddress* /* bda */) {
-  inc_func_call_count(__func__);
-}
-void btm_sco_chk_pend_rolechange(uint16_t /* hci_handle */) {
-  inc_func_call_count(__func__);
-}
-void btm_sco_chk_pend_unpark(tHCI_STATUS /* hci_status */,
-                             uint16_t /* hci_handle */) {
-  inc_func_call_count(__func__);
-}
-void btm_sco_conn_req(const RawAddress& /* bda */,
-                      const DEV_CLASS& /* dev_class */,
+void btm_sco_conn_req(const RawAddress& /* bda */, const DEV_CLASS& /* dev_class */,
                       uint8_t /* link_type */) {
   inc_func_call_count(__func__);
 }
@@ -97,27 +70,25 @@ void btm_sco_connected(const RawAddress& /* bda */, uint16_t /* hci_handle */,
                        tBTM_ESCO_DATA* /* p_esco_data */) {
   inc_func_call_count(__func__);
 }
-void btm_sco_connection_failed(tHCI_STATUS /* hci_status */,
-                               const RawAddress& /* bda */,
-                               uint16_t /* hci_handle */,
-                               tBTM_ESCO_DATA* /* p_esco_data */) {
+void btm_sco_connection_failed(tHCI_STATUS /* hci_status */, const RawAddress& /* bda */,
+                               uint16_t /* hci_handle */, tBTM_ESCO_DATA* /* p_esco_data */) {
+  inc_func_call_count(__func__);
+}
+void btm_sco_create_command_status_failed(tHCI_STATUS /* hci_status */) {
   inc_func_call_count(__func__);
 }
 void btm_sco_disc_chk_pend_for_modechange(uint16_t /* hci_handle */) {
   inc_func_call_count(__func__);
 }
-void btm_sco_on_esco_connect_request(
-    const RawAddress& /* bda */,
-    const bluetooth::hci::ClassOfDevice& /* cod */) {
+void btm_sco_on_esco_connect_request(const RawAddress& /* bda */,
+                                     const bluetooth::hci::ClassOfDevice& /* cod */) {
   inc_func_call_count(__func__);
 }
-void btm_sco_on_sco_connect_request(
-    const RawAddress& /* bda */,
-    const bluetooth::hci::ClassOfDevice& /* cod */) {
+void btm_sco_on_sco_connect_request(const RawAddress& /* bda */,
+                                    const bluetooth::hci::ClassOfDevice& /* cod */) {
   inc_func_call_count(__func__);
 }
-void btm_sco_on_disconnected(uint16_t /* hci_handle */,
-                             tHCI_REASON /* reason */) {
+void btm_sco_on_disconnected(uint16_t /* hci_handle */, tHCI_REASON /* reason */) {
   inc_func_call_count(__func__);
 }
 bool btm_peer_supports_esco_2m_phy(RawAddress /* bd_addr */) {

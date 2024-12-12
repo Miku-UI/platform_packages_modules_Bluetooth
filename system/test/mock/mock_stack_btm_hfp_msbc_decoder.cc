@@ -60,11 +60,10 @@ void hfp_msbc_decoder_cleanup(void) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_hfp_msbc_decoder::hfp_msbc_decoder_cleanup();
 }
-bool hfp_msbc_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf,
-                                    size_t out_len) {
+bool hfp_msbc_decoder_decode_packet(const uint8_t* i_buf, int16_t* o_buf, size_t out_len) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_hfp_msbc_decoder::hfp_msbc_decoder_decode_packet(
-      i_buf, o_buf, out_len);
+  return test::mock::stack_btm_hfp_msbc_decoder::hfp_msbc_decoder_decode_packet(i_buf, o_buf,
+                                                                                out_len);
 }
 bool hfp_msbc_decoder_init() {
   inc_func_call_count(__func__);

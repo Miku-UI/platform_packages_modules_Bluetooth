@@ -136,6 +136,10 @@ public fun setUserEnabled(
     if (!isUserSupported(context.contentResolver)) {
         throw IllegalStateException("AutoOnFeature not supported for user: ${context.getUser()}")
     }
+    if (isFeatureEnabledForUser(context.contentResolver) && status == true) {
+        Log.i(TAG, "setUserEnabled: Nothing to do, feature is already enabled")
+        return
+    }
     if (!setFeatureEnabledForUserUnchecked(context, status)) {
         throw IllegalStateException("AutoOnFeature database failure for user: ${context.getUser()}")
     }

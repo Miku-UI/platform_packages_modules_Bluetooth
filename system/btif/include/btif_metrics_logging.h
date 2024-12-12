@@ -22,51 +22,41 @@
 #include "main/shim/metric_id_api.h"
 #include "types/raw_address.h"
 
-void log_a2dp_audio_underrun_event(const RawAddress& address,
-                                   uint64_t encoding_interval_millis,
+void log_a2dp_audio_underrun_event(const RawAddress& address, uint64_t encoding_interval_millis,
                                    int num_missing_pcm_bytes);
 
-void log_a2dp_audio_overrun_event(const RawAddress& address,
-                                  uint64_t encoding_interval_millis,
-                                  int num_dropped_buffers,
-                                  int num_dropped_encoded_frames,
+void log_a2dp_audio_overrun_event(const RawAddress& address, uint64_t encoding_interval_millis,
+                                  int num_dropped_buffers, int num_dropped_encoded_frames,
                                   int num_dropped_encoded_bytes);
 
-void log_a2dp_playback_event(const RawAddress& address, int playback_state,
-                             int audio_coding_mode);
+void log_a2dp_playback_event(const RawAddress& address, int playback_state, int audio_coding_mode);
 
-void log_a2dp_session_metrics_event(
-    const RawAddress& address, int64_t audio_duration_ms,
-    int media_timer_min_ms, int media_timer_max_ms, int media_timer_avg_ms,
-    int total_scheduling_count, int buffer_overruns_max_count,
-    int buffer_overruns_total, float buffer_underruns_average,
-    int buffer_underruns_count, int64_t codec_index, bool is_a2dp_offload);
+void log_a2dp_session_metrics_event(const RawAddress& address, int64_t audio_duration_ms,
+                                    int media_timer_min_ms, int media_timer_max_ms,
+                                    int media_timer_avg_ms, int total_scheduling_count,
+                                    int buffer_overruns_max_count, int buffer_overruns_total,
+                                    float buffer_underruns_average, int buffer_underruns_count,
+                                    int64_t codec_index, bool is_a2dp_offload);
 
-void log_read_rssi_result(const RawAddress& address, uint16_t handle,
-                          uint32_t cmd_status, int8_t rssi);
+void log_read_rssi_result(const RawAddress& address, uint16_t handle, uint32_t cmd_status,
+                          int8_t rssi);
 
-void log_read_failed_contact_counter_result(const RawAddress& address,
-                                            uint16_t handle,
-                                            uint32_t cmd_status,
-                                            int32_t failed_contact_counter);
+void log_read_failed_contact_counter_result(const RawAddress& address, uint16_t handle,
+                                            uint32_t cmd_status, int32_t failed_contact_counter);
 
-void log_read_tx_power_level_result(const RawAddress& address, uint16_t handle,
-                                    uint32_t cmd_status,
+void log_read_tx_power_level_result(const RawAddress& address, uint16_t handle, uint32_t cmd_status,
                                     int32_t transmit_power_level);
 
-void log_counter_metrics_btif(android::bluetooth::CodePathCounterKeyEnum key,
-                              int64_t value);
+void log_counter_metrics_btif(android::bluetooth::CodePathCounterKeyEnum key, int64_t value);
 
-void log_socket_connection_state(
-    const RawAddress& address, int port, int type,
-    android::bluetooth::SocketConnectionstateEnum connection_state,
-    int64_t tx_bytes, int64_t rx_bytes, int uid, int server_port,
-    android::bluetooth::SocketRoleEnum socket_role);
+void log_socket_connection_state(const RawAddress& address, int port, int type,
+                                 android::bluetooth::SocketConnectionstateEnum connection_state,
+                                 int64_t tx_bytes, int64_t rx_bytes, int uid, int server_port,
+                                 android::bluetooth::SocketRoleEnum socket_role);
 
-bool init_metric_id_allocator(
-    const std::unordered_map<RawAddress, int>& paired_device_map,
-    bluetooth::shim::CallbackLegacy save_id_callback,
-    bluetooth::shim::CallbackLegacy forget_device_callback);
+bool init_metric_id_allocator(const std::unordered_map<RawAddress, int>& paired_device_map,
+                              bluetooth::shim::CallbackLegacy save_id_callback,
+                              bluetooth::shim::CallbackLegacy forget_device_callback);
 
 bool close_metric_id_allocator();
 

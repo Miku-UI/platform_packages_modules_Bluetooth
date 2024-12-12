@@ -15,6 +15,7 @@
  */
 
 #include "fields/custom_field.h"
+
 #include "util.h"
 
 const std::string CustomField::kFieldType = "CustomField";
@@ -22,22 +23,16 @@ const std::string CustomField::kFieldType = "CustomField";
 CustomField::CustomField(std::string name, std::string type_name, ParseLocation loc)
     : PacketField(name, loc), type_name_(type_name) {}
 
-const std::string& CustomField::GetFieldType() const {
-  return CustomField::kFieldType;
-}
+const std::string& CustomField::GetFieldType() const { return CustomField::kFieldType; }
 
-Size CustomField::GetSize() const {
-  return Size();
-}
+Size CustomField::GetSize() const { return Size(); }
 
 Size CustomField::GetBuilderSize() const {
   std::string ret = "(" + GetName() + "_.size() * 8) ";
   return ret;
 }
 
-std::string CustomField::GetDataType() const {
-  return type_name_;
-}
+std::string CustomField::GetDataType() const { return type_name_; }
 
 void CustomField::GenExtractor(std::ostream& s, int, bool) const {
   s << "auto optional_it = ";
@@ -72,21 +67,15 @@ void CustomField::GenGetter(std::ostream& s, Size start_offset, Size end_offset)
   s << "}\n";
 }
 
-std::string CustomField::GetBuilderParameterType() const {
-  return GetDataType();
-}
+std::string CustomField::GetBuilderParameterType() const { return GetDataType(); }
 
-bool CustomField::HasParameterValidator() const {
-  return false;
-}
+bool CustomField::HasParameterValidator() const { return false; }
 
 void CustomField::GenParameterValidator(std::ostream&) const {
   // Do nothing.
 }
 
-void CustomField::GenInserter(std::ostream& s) const {
-  s << GetName() << "_.Serialize(i);";
-}
+void CustomField::GenInserter(std::ostream& s) const { s << GetName() << "_.Serialize(i);"; }
 
 void CustomField::GenValidator(std::ostream&) const {
   // Do nothing.

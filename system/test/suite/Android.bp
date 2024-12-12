@@ -55,7 +55,6 @@ cc_defaults {
     ],
     static_libs: [
         "android.hardware.audio.common@5.0",
-        "android.hardware.bluetooth.a2dp@1.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.common-V2-ndk",
@@ -67,7 +66,6 @@ cc_defaults {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
-        "libaudio-a2dp-hw-utils",
         "libbluetooth-dumpsys",
         "libbluetooth-types",
         "libbluetooth_core_rs",
@@ -89,6 +87,7 @@ cc_defaults {
         "libbtif",
         "libbtif-core",
         "libcom.android.sysprop.bluetooth.wrapped",
+        "libexpresslog",
         "libflatbuffers-cpp",
         "libg722codec",
         "libgmock",
@@ -96,6 +95,8 @@ cc_defaults {
         "libopus",
         "libosi",
         "libstatslog_bt",
+        "libstatslog_express",
+        "libtextclassifier_hash_static",
     ],
     header_libs: [
         "libbluetooth_headers",
@@ -119,6 +120,7 @@ cc_test {
         "gatt/gatt_unittest.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth-gdx",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
@@ -130,6 +132,7 @@ cc_test {
         "libbt_shim_bridge",
         "libchrome",
         "libevent",
+        "libflags_rust_cpp_bridge",
         "libprotobuf-cpp-lite",
     ],
     shared_libs: [

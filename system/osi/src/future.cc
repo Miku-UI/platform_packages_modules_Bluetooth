@@ -63,8 +63,7 @@ future_t* future_new_immediate(void* value) {
 
 void future_ready(future_t* future, void* value) {
   log::assert_that(future != NULL, "assert failed: future != NULL");
-  log::assert_that(future->ready_can_be_called,
-                   "assert failed: future->ready_can_be_called");
+  log::assert_that(future->ready_can_be_called, "assert failed: future->ready_can_be_called");
 
   future->ready_can_be_called = false;
   future->result = value;
@@ -75,7 +74,9 @@ void* future_await(future_t* future) {
   log::assert_that(future != NULL, "assert failed: future != NULL");
 
   // If the future is immediate, it will not have a semaphore
-  if (future->semaphore) semaphore_wait(future->semaphore);
+  if (future->semaphore) {
+    semaphore_wait(future->semaphore);
+  }
 
   void* result = future->result;
   future_free(future);
@@ -83,7 +84,9 @@ void* future_await(future_t* future) {
 }
 
 static void future_free(future_t* future) {
-  if (!future) return;
+  if (!future) {
+    return;
+  }
 
   semaphore_free(future->semaphore);
   osi_free(future);

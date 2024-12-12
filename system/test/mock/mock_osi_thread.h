@@ -40,7 +40,7 @@ namespace osi_thread {
 // Return: void
 struct thread_free {
   std::function<void(thread_t* thread)> body{[](thread_t* /* thread */) {}};
-  void operator()(thread_t* thread) { body(thread); };
+  void operator()(thread_t* thread) { body(thread); }
 };
 extern struct thread_free thread_free;
 
@@ -50,8 +50,8 @@ extern struct thread_free thread_free;
 struct thread_get_reactor {
   reactor_t* return_value{0};
   std::function<reactor_t*(const thread_t* thread)> body{
-      [this](const thread_t* /* thread */) { return return_value; }};
-  reactor_t* operator()(const thread_t* thread) { return body(thread); };
+          [this](const thread_t* /* thread */) { return return_value; }};
+  reactor_t* operator()(const thread_t* thread) { return body(thread); }
 };
 extern struct thread_get_reactor thread_get_reactor;
 
@@ -61,8 +61,8 @@ extern struct thread_get_reactor thread_get_reactor;
 struct thread_is_self {
   bool return_value{false};
   std::function<bool(const thread_t* thread)> body{
-      [this](const thread_t* /* thread */) { return return_value; }};
-  bool operator()(const thread_t* thread) { return body(thread); };
+          [this](const thread_t* /* thread */) { return return_value; }};
+  bool operator()(const thread_t* thread) { return body(thread); }
 };
 extern struct thread_is_self thread_is_self;
 
@@ -71,7 +71,7 @@ extern struct thread_is_self thread_is_self;
 // Return: void
 struct thread_join {
   std::function<void(thread_t* thread)> body{[](thread_t* /* thread */) {}};
-  void operator()(thread_t* thread) { body(thread); };
+  void operator()(thread_t* thread) { body(thread); }
 };
 extern struct thread_join thread_join;
 
@@ -81,8 +81,8 @@ extern struct thread_join thread_join;
 struct thread_name {
   const char* return_value{0};
   std::function<const char*(const thread_t* thread)> body{
-      [this](const thread_t* /* thread */) { return return_value; }};
-  const char* operator()(const thread_t* thread) { return body(thread); };
+          [this](const thread_t* /* thread */) { return return_value; }};
+  const char* operator()(const thread_t* thread) { return body(thread); }
 };
 extern struct thread_name thread_name;
 
@@ -92,8 +92,8 @@ extern struct thread_name thread_name;
 struct thread_new {
   thread_t* return_value{0};
   std::function<thread_t*(const char* name)> body{
-      [this](const char* /* name */) { return return_value; }};
-  thread_t* operator()(const char* name) { return body(name); };
+          [this](const char* /* name */) { return return_value; }};
+  thread_t* operator()(const char* name) { return body(name); }
 };
 extern struct thread_new thread_new;
 
@@ -103,12 +103,12 @@ extern struct thread_new thread_new;
 struct thread_new_sized {
   thread_t* return_value{0};
   std::function<thread_t*(const char* name, size_t work_queue_capacity)> body{
-      [this](const char* /* name */, size_t /* work_queue_capacity */) {
-        return return_value;
-      }};
+          [this](const char* /* name */, size_t /* work_queue_capacity */) {
+            return return_value;
+          }};
   thread_t* operator()(const char* name, size_t work_queue_capacity) {
     return body(name, work_queue_capacity);
-  };
+  }
 };
 extern struct thread_new_sized thread_new_sized;
 
@@ -118,11 +118,12 @@ extern struct thread_new_sized thread_new_sized;
 struct thread_post {
   bool return_value{false};
   std::function<bool(thread_t* thread, thread_fn func, void* context)> body{
-      [this](thread_t* /* thread */, thread_fn /* func */,
-             void* /* context */) { return return_value; }};
+          [this](thread_t* /* thread */, thread_fn /* func */, void* /* context */) {
+            return return_value;
+          }};
   bool operator()(thread_t* thread, thread_fn func, void* context) {
     return body(thread, func, context);
-  };
+  }
 };
 extern struct thread_post thread_post;
 
@@ -132,12 +133,8 @@ extern struct thread_post thread_post;
 struct thread_set_priority {
   bool return_value{false};
   std::function<bool(thread_t* thread, int priority)> body{
-      [this](thread_t* /* thread */, int /* priority */) {
-        return return_value;
-      }};
-  bool operator()(thread_t* thread, int priority) {
-    return body(thread, priority);
-  };
+          [this](thread_t* /* thread */, int /* priority */) { return return_value; }};
+  bool operator()(thread_t* thread, int priority) { return body(thread, priority); }
 };
 extern struct thread_set_priority thread_set_priority;
 
@@ -147,12 +144,8 @@ extern struct thread_set_priority thread_set_priority;
 struct thread_set_rt_priority {
   bool return_value{false};
   std::function<bool(thread_t* thread, int priority)> body{
-      [this](thread_t* /* thread */, int /* priority */) {
-        return return_value;
-      }};
-  bool operator()(thread_t* thread, int priority) {
-    return body(thread, priority);
-  };
+          [this](thread_t* /* thread */, int /* priority */) { return return_value; }};
+  bool operator()(thread_t* thread, int priority) { return body(thread, priority); }
 };
 extern struct thread_set_rt_priority thread_set_rt_priority;
 
@@ -161,7 +154,7 @@ extern struct thread_set_rt_priority thread_set_rt_priority;
 // Return: void
 struct thread_stop {
   std::function<void(thread_t* thread)> body{[](thread_t* /* thread */) {}};
-  void operator()(thread_t* thread) { body(thread); };
+  void operator()(thread_t* thread) { body(thread); }
 };
 extern struct thread_stop thread_stop;
 

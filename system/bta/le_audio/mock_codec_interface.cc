@@ -16,13 +16,15 @@
 
 #include "mock_codec_interface.h"
 
+#include "le_audio/codec_interface.h"
+
+static std::list<std::function<void(MockCodecInterface*, bool)>> mock_life_listener_list;
+
 namespace bluetooth::le_audio {
 
 struct CodecInterface::Impl : public MockCodecInterface {
- public:
-  Impl(const types::LeAudioCodecId& codec_id) {
-    output_channel_data_.resize(1);
-  };
+public:
+  Impl(const types::LeAudioCodecId& codec_id) { output_channel_data_.resize(1); }
   ~Impl() = default;
 
   std::vector<int16_t>& GetDecodedSamples() { return output_channel_data_; }
@@ -31,37 +33,43 @@ struct CodecInterface::Impl : public MockCodecInterface {
 
 CodecInterface::CodecInterface(const types::LeAudioCodecId& codec_id) {
   impl = new Impl(codec_id);
+  for (auto& foo : mock_life_listener_list) {
+    foo(impl, false);
+  }
 }
-CodecInterface::~CodecInterface() { delete impl; }
-bool CodecInterface::IsReady() { return impl->IsReady(); };
-CodecInterface::Status CodecInterface::InitEncoder(
-    const LeAudioCodecConfiguration& pcm_config,
-    const LeAudioCodecConfiguration& codec_config) {
+CodecInterface::~CodecInterface() {
+  for (auto& foo : mock_life_listener_list) {
+    foo(impl, true);
+  }
+  delete impl;
+}
+bool CodecInterface::IsReady() { return impl->IsReady(); }
+CodecInterface::Status CodecInterface::InitEncoder(const LeAudioCodecConfiguration& pcm_config,
+                                                   const LeAudioCodecConfiguration& codec_config) {
   return impl->InitEncoder(pcm_config, codec_config);
 }
-CodecInterface::Status CodecInterface::InitDecoder(
-    const LeAudioCodecConfiguration& codec_config,
-    const LeAudioCodecConfiguration& pcm_config) {
+CodecInterface::Status CodecInterface::InitDecoder(const LeAudioCodecConfiguration& codec_config,
+                                                   const LeAudioCodecConfiguration& pcm_config) {
   return impl->InitDecoder(codec_config, pcm_config);
 }
-std::vector<int16_t>& CodecInterface::GetDecodedSamples() {
-  return impl->GetDecodedSamples();
-}
+std::vector<int16_t>& CodecInterface::GetDecodedSamples() { return impl->GetDecodedSamples(); }
 CodecInterface::Status CodecInterface::Decode(uint8_t* data, uint16_t size) {
   return impl->Decode(data, size);
 }
-CodecInterface::Status CodecInterface::Encode(const uint8_t* data, int stride,
-                                              uint16_t out_size,
+CodecInterface::Status CodecInterface::Encode(const uint8_t* data, int stride, uint16_t out_size,
                                               std::vector<int16_t>* out_buffer,
                                               uint16_t out_offset) {
   return impl->Encode(data, stride, out_size, out_buffer, out_offset);
 }
 void CodecInterface::Cleanup() { return impl->Cleanup(); }
 
-uint16_t CodecInterface::GetNumOfSamplesPerChannel() {
-  return impl->GetNumOfSamplesPerChannel();
-};
-uint8_t CodecInterface::GetNumOfBytesPerSample() {
-  return impl->GetNumOfBytesPerSample();
-};
+uint16_t CodecInterface::GetNumOfSamplesPerChannel() { return impl->GetNumOfSamplesPerChannel(); }
+uint8_t CodecInterface::GetNumOfBytesPerSample() { return impl->GetNumOfBytesPerSample(); }
 }  // namespace bluetooth::le_audio
+
+void MockCodecInterface::RegisterMockInstanceHook(
+        std::function<void(MockCodecInterface*, bool)> listener) {
+  mock_life_listener_list.push_back(std::move(listener));
+}
+
+void MockCodecInterface::ClearMockInstanceHookList() { mock_life_listener_list.clear(); }

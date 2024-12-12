@@ -30,7 +30,7 @@
 #include "types/raw_address.h"
 
 class tBTM_SEC_CB {
- public:
+public:
   tBTM_CFG cfg; /* Device configuration */
 
   /*****************************************************
@@ -43,7 +43,7 @@ class tBTM_SEC_CB {
   uint16_t ediv{0};   /* received ediv value from LTK request */
   uint8_t key_size{0};
 
- public:
+public:
   /*****************************************************
   **      Security Management
   *****************************************************/
@@ -59,15 +59,14 @@ class tBTM_SEC_CB {
   bool pin_type_changed{false};      /* pin type changed during bonding */
   bool sec_req_pending{false};       /*   true if a request is pending */
 
-  uint8_t pin_code_len{0}; /* for legacy devices */
-  PIN_CODE pin_code;       /* for legacy devices */
-  tBTM_PAIRING_STATE pairing_state{
-      BTM_PAIR_STATE_IDLE};               /* The current pairing state    */
-  uint8_t pairing_flags{0};               /* The current pairing flags    */
-  RawAddress pairing_bda;                 /* The device currently pairing */
-  alarm_t* pairing_timer{nullptr};        /* Timer for pairing process    */
-  alarm_t* execution_wait_timer{nullptr}; /* To avoid concurrent auth request */
-  list_t* sec_dev_rec{nullptr}; /* list of tBTM_SEC_DEV_REC */
+  uint8_t pin_code_len{0};                               /* for legacy devices */
+  PIN_CODE pin_code;                                     /* for legacy devices */
+  tBTM_PAIRING_STATE pairing_state{BTM_PAIR_STATE_IDLE}; /* The current pairing state    */
+  uint8_t pairing_flags{0};                              /* The current pairing flags    */
+  RawAddress pairing_bda;                                /* The device currently pairing */
+  alarm_t* pairing_timer{nullptr};                       /* Timer for pairing process    */
+  alarm_t* execution_wait_timer{nullptr};                /* To avoid concurrent auth request */
+  list_t* sec_dev_rec{nullptr};                          /* list of tBTM_SEC_DEV_REC */
   tBTM_SEC_SERV_REC* p_out_serv{nullptr};
   tBTM_MKEY_CALLBACK* mkey_cback{nullptr};
 
@@ -88,16 +87,14 @@ class tBTM_SEC_CB {
   bool IsDeviceBonded(const RawAddress bd_addr);
   bool IsDeviceEncrypted(const RawAddress bd_addr, tBT_TRANSPORT transport);
   bool IsDeviceAuthenticated(const RawAddress bd_addr, tBT_TRANSPORT transport);
-  bool IsLinkKeyAuthenticated(const RawAddress bd_addr,
-                              tBT_TRANSPORT transport);
+  bool IsLinkKeyAuthenticated(const RawAddress bd_addr, tBT_TRANSPORT transport);
 
   bool IsLinkKeyKnown(const RawAddress bd_addr, tBT_TRANSPORT transport);
 
   tBTM_SEC_REC* getSecRec(const RawAddress bd_addr);
 
-  bool AddService(bool is_originator, const char* p_name, uint8_t service_id,
-                  uint16_t sec_level, uint16_t psm, uint32_t mx_proto_id,
-                  uint32_t mx_chan_id);
+  bool AddService(bool is_originator, const char* p_name, uint8_t service_id, uint16_t sec_level,
+                  uint16_t psm, uint32_t mx_proto_id, uint32_t mx_chan_id);
   uint8_t RemoveServiceById(uint8_t service_id);
   uint8_t RemoveServiceByPsm(uint16_t psm);
 
@@ -108,6 +105,16 @@ class tBTM_SEC_CB {
 };
 
 extern tBTM_SEC_CB btm_sec_cb;
+
+#define BTM_BLE_SEC_CALLBACK(event_, bda_, data_)                                          \
+  do {                                                                                     \
+    if (btm_sec_cb.api.p_le_callback != nullptr) {                                         \
+      tBTM_STATUS status_ = (*btm_sec_cb.api.p_le_callback)((event_), (bda_), (data_));    \
+      if (status_ != tBTM_STATUS::BTM_SUCCESS) {                                           \
+        log::warn("Security callback failed {} for {}", btm_status_text(status_), (bda_)); \
+      }                                                                                    \
+    }                                                                                      \
+  } while (0)
 
 void BTM_Sec_Init();
 void BTM_Sec_Free();

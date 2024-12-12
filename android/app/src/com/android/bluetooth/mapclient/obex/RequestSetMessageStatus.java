@@ -32,8 +32,8 @@ final class RequestSetMessageStatus extends Request {
 
     private static final String TAG = "RequestSetMessageStatus";
     private static final String TYPE = "x-bt/messageStatus";
-    private static StatusIndicator mStatusInd;
-    private static byte mValue;
+    private final StatusIndicator mStatusInd;
+    private final byte mValue;
 
     public RequestSetMessageStatus(String handle, StatusIndicator statusInd, byte value) {
         mHeaderSet.setHeader(HeaderSet.TYPE, TYPE);

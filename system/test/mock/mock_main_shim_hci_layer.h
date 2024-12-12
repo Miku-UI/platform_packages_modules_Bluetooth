@@ -61,12 +61,12 @@ namespace main_shim_hci_layer {
 struct OnTransmitPacketCommandComplete {
   std::function<void(command_complete_cb complete_callback, void* context,
                      bluetooth::hci::CommandCompleteView view)>
-      body{[](command_complete_cb /* complete_callback */, void* /* context */,
-              bluetooth::hci::CommandCompleteView /* view */) {}};
+          body{[](command_complete_cb /* complete_callback */, void* /* context */,
+                  bluetooth::hci::CommandCompleteView /* view */) {}};
   void operator()(command_complete_cb complete_callback, void* context,
                   bluetooth::hci::CommandCompleteView view) {
     body(complete_callback, context, view);
-  };
+  }
 };
 extern struct OnTransmitPacketCommandComplete OnTransmitPacketCommandComplete;
 
@@ -76,16 +76,14 @@ extern struct OnTransmitPacketCommandComplete OnTransmitPacketCommandComplete;
 // Return: void
 struct OnTransmitPacketStatus {
   std::function<void(command_status_cb status_callback, void* context,
-                     std::unique_ptr<OsiObject> command,
-                     bluetooth::hci::CommandStatusView view)>
-      body{[](command_status_cb /* status_callback */, void* /* context */,
-              std::unique_ptr<OsiObject> /* command */,
-              bluetooth::hci::CommandStatusView /* view */) {}};
+                     std::unique_ptr<OsiObject> command, bluetooth::hci::CommandStatusView view)>
+          body{[](command_status_cb /* status_callback */, void* /* context */,
+                  std::unique_ptr<OsiObject> /* command */,
+                  bluetooth::hci::CommandStatusView /* view */) {}};
   void operator()(command_status_cb status_callback, void* context,
-                  std::unique_ptr<OsiObject> command,
-                  bluetooth::hci::CommandStatusView view) {
+                  std::unique_ptr<OsiObject> command, bluetooth::hci::CommandStatusView view) {
     body(status_callback, context, std::move(command), view);
-  };
+  }
 };
 extern struct OnTransmitPacketStatus OnTransmitPacketStatus;
 
@@ -95,7 +93,7 @@ extern struct OnTransmitPacketStatus OnTransmitPacketStatus;
 struct hci_layer_get_interface {
   static const hci_t* return_value;
   std::function<const hci_t*()> body{[]() { return return_value; }};
-  const hci_t* operator()() { return body(); };
+  const hci_t* operator()() { return body(); }
 };
 extern struct hci_layer_get_interface hci_layer_get_interface;
 
@@ -104,7 +102,7 @@ extern struct hci_layer_get_interface hci_layer_get_interface;
 // Return: void
 struct hci_on_reset_complete {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct hci_on_reset_complete hci_on_reset_complete;
 
@@ -113,7 +111,7 @@ extern struct hci_on_reset_complete hci_on_reset_complete;
 // Return: void
 struct hci_on_shutting_down {
   std::function<void()> body{[]() {}};
-  void operator()() { body(); };
+  void operator()() { body(); }
 };
 extern struct hci_on_shutting_down hci_on_shutting_down;
 

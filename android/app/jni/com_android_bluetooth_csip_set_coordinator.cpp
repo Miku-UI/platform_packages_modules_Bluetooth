@@ -69,50 +69,48 @@ static uint64_t uuid_msb(const Uuid& uuid) {
 }
 
 class CsisClientCallbacksImpl : public CsisClientCallbacks {
- public:
+public:
   ~CsisClientCallbacksImpl() = default;
 
-  void OnConnectionState(const RawAddress& bd_addr,
-                         ConnectionState state) override {
-    log::info("state:{}, addr: {}", int(state),
-              bd_addr.ToRedactedStringForLogging());
+  void OnConnectionState(const RawAddress& bd_addr, ConnectionState state) override {
+    log::info("state:{}, addr: {}", int(state), bd_addr.ToRedactedStringForLogging());
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
-    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) return;
+    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) {
+      return;
+    }
 
-    ScopedLocalRef<jbyteArray> addr(
-        sCallbackEnv.get(), sCallbackEnv->NewByteArray(sizeof(RawAddress)));
+    ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
+                                    sCallbackEnv->NewByteArray(sizeof(RawAddress)));
     if (!addr.get()) {
       log::error("Failed to new bd addr jbyteArray for connection state");
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
-                                     (jbyte*)&bd_addr);
-    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onConnectionStateChanged,
-                                 addr.get(), (jint)state);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onConnectionStateChanged, addr.get(),
+                                 (jint)state);
   }
 
-  void OnDeviceAvailable(const RawAddress& bd_addr, int group_id,
-                         int group_size, int rank,
+  void OnDeviceAvailable(const RawAddress& bd_addr, int group_id, int group_size, int rank,
                          const bluetooth::Uuid& uuid) override {
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
-    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) return;
+    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) {
+      return;
+    }
 
-    ScopedLocalRef<jbyteArray> addr(
-        sCallbackEnv.get(), sCallbackEnv->NewByteArray(sizeof(RawAddress)));
+    ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
+                                    sCallbackEnv->NewByteArray(sizeof(RawAddress)));
     if (!addr.get()) {
       log::error("Failed to new bd addr jbyteArray for device available");
       return;
     }
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
-                                     (jbyte*)&bd_addr);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
 
-    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onDeviceAvailable,
-                                 addr.get(), (jint)group_id, (jint)group_size,
-                                 (jint)rank, UUID_PARAMS(uuid));
+    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onDeviceAvailable, addr.get(),
+                                 (jint)group_id, (jint)group_size, (jint)rank, UUID_PARAMS(uuid));
   }
 
   void OnSetMemberAvailable(const RawAddress& bd_addr, int group_id) override {
@@ -120,33 +118,33 @@ class CsisClientCallbacksImpl : public CsisClientCallbacks {
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
-    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) return;
+    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) {
+      return;
+    }
 
-    ScopedLocalRef<jbyteArray> addr(
-        sCallbackEnv.get(), sCallbackEnv->NewByteArray(sizeof(RawAddress)));
+    ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
+                                    sCallbackEnv->NewByteArray(sizeof(RawAddress)));
     if (!addr.get()) {
       log::error("Failed to new jbyteArray bd addr for connection state");
       return;
     }
 
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
-                                     (jbyte*)&bd_addr);
-    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onSetMemberAvailable,
-                                 addr.get(), (jint)group_id);
+    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress), (jbyte*)&bd_addr);
+    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onSetMemberAvailable, addr.get(),
+                                 (jint)group_id);
   }
 
-  void OnGroupLockChanged(int group_id, bool locked,
-                          CsisGroupLockStatus status) override {
-    log::info("group_id: {}, locked: {}, status: {}", group_id, locked,
-              (int)status);
+  void OnGroupLockChanged(int group_id, bool locked, CsisGroupLockStatus status) override {
+    log::info("group_id: {}, locked: {}, status: {}", group_id, locked, (int)status);
 
     std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
     CallbackEnv sCallbackEnv(__func__);
-    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) return;
+    if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) {
+      return;
+    }
 
-    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onGroupLockChanged,
-                                 (jint)group_id, (jboolean)locked,
-                                 (jint)status);
+    sCallbackEnv->CallVoidMethod(mCallbacksObj, method_onGroupLockChanged, (jint)group_id,
+                                 (jboolean)locked, (jint)status);
   }
 };
 
@@ -179,8 +177,8 @@ static void initNative(JNIEnv* env, jobject object) {
     return;
   }
 
-  sCsisClientInterface = (CsisClientInterface*)btInf->get_profile_interface(
-      BT_PROFILE_CSIS_CLIENT_ID);
+  sCsisClientInterface =
+          (CsisClientInterface*)btInf->get_profile_interface(BT_PROFILE_CSIS_CLIENT_ID);
   if (sCsisClientInterface == nullptr) {
     log::error("Failed to get Csis Client Interface");
     return;
@@ -210,8 +208,7 @@ static void cleanupNative(JNIEnv* env, jobject /* object */) {
   }
 }
 
-static jboolean connectNative(JNIEnv* env, jobject /* object */,
-                              jbyteArray address) {
+static jboolean connectNative(JNIEnv* env, jobject /* object */, jbyteArray address) {
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);
   if (!sCsisClientInterface) {
     log::error("Failed to get the Csis Client Interface Interface");
@@ -230,8 +227,7 @@ static jboolean connectNative(JNIEnv* env, jobject /* object */,
   return JNI_TRUE;
 }
 
-static jboolean disconnectNative(JNIEnv* env, jobject /* object */,
-                                 jbyteArray address) {
+static jboolean disconnectNative(JNIEnv* env, jobject /* object */, jbyteArray address) {
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);
   if (!sCsisClientInterface) {
     log::error("Failed to get the Csis Client Interface");
@@ -250,8 +246,8 @@ static jboolean disconnectNative(JNIEnv* env, jobject /* object */,
   return JNI_TRUE;
 }
 
-static void groupLockSetNative(JNIEnv* /* env */, jobject /* object */,
-                               jint group_id, jboolean lock) {
+static void groupLockSetNative(JNIEnv* /* env */, jobject /* object */, jint group_id,
+                               jboolean lock) {
   log::info("");
 
   if (!sCsisClientInterface) {
@@ -264,28 +260,26 @@ static void groupLockSetNative(JNIEnv* /* env */, jobject /* object */,
 
 int register_com_android_bluetooth_csip_set_coordinator(JNIEnv* env) {
   const JNINativeMethod methods[] = {
-      {"initNative", "()V", (void*)initNative},
-      {"cleanupNative", "()V", (void*)cleanupNative},
-      {"connectNative", "([B)Z", (void*)connectNative},
-      {"disconnectNative", "([B)Z", (void*)disconnectNative},
-      {"groupLockSetNative", "(IZ)V", (void*)groupLockSetNative},
+          {"initNative", "()V", (void*)initNative},
+          {"cleanupNative", "()V", (void*)cleanupNative},
+          {"connectNative", "([B)Z", (void*)connectNative},
+          {"disconnectNative", "([B)Z", (void*)disconnectNative},
+          {"groupLockSetNative", "(IZ)V", (void*)groupLockSetNative},
   };
   const int result = REGISTER_NATIVE_METHODS(
-      env, "com/android/bluetooth/csip/CsipSetCoordinatorNativeInterface",
-      methods);
+          env, "com/android/bluetooth/csip/CsipSetCoordinatorNativeInterface", methods);
   if (result != 0) {
     return result;
   }
 
   const JNIJavaMethod javaMethods[]{
-      {"onConnectionStateChanged", "([BI)V", &method_onConnectionStateChanged},
-      {"onDeviceAvailable", "([BIIIJJ)V", &method_onDeviceAvailable},
-      {"onSetMemberAvailable", "([BI)V", &method_onSetMemberAvailable},
-      {"onGroupLockChanged", "(IZI)V", &method_onGroupLockChanged},
+          {"onConnectionStateChanged", "([BI)V", &method_onConnectionStateChanged},
+          {"onDeviceAvailable", "([BIIIJJ)V", &method_onDeviceAvailable},
+          {"onSetMemberAvailable", "([BI)V", &method_onSetMemberAvailable},
+          {"onGroupLockChanged", "(IZI)V", &method_onGroupLockChanged},
   };
-  GET_JAVA_METHODS(
-      env, "com/android/bluetooth/csip/CsipSetCoordinatorNativeInterface",
-      javaMethods);
+  GET_JAVA_METHODS(env, "com/android/bluetooth/csip/CsipSetCoordinatorNativeInterface",
+                   javaMethods);
 
   return 0;
 }

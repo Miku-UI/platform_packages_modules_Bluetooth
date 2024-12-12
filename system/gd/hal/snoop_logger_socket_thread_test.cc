@@ -23,7 +23,6 @@
 
 #include <future>
 
-#include "common/init_flags.h"
 #include "hal/snoop_logger_common.h"
 #include "hal/syscall_wrapper_impl.h"
 #include "os/utils.h"
@@ -166,7 +165,8 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_send_before_connect_test) {
   thread_start_future.wait();
   ASSERT_TRUE(thread_start_future.get());
 
-  char test_data[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0f};
+  char test_data[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0f};
   sls.Write(test_data, sizeof(test_data));
 
   // // Create a TCP socket file descriptor
@@ -257,7 +257,8 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_send_recv_test) {
   RUN_NO_INTR(ret = connect(socket_fd, (struct sockaddr*)&addr, sizeof(addr)));
   ASSERT_TRUE(ret == 0);
 
-  char test_data[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0f};
+  char test_data[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0f};
 
   char recv_buf1[sizeof(SnoopLoggerCommon::FileHeaderType)];
   char recv_buf2[sizeof(test_data)];
@@ -274,7 +275,8 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_send_recv_test) {
   a.wait();
   bytes_read = a.get();
 
-  ASSERT_TRUE(std::memcmp(recv_buf1, &SnoopLoggerCommon::kBtSnoopFileHeader, sizeof(recv_buf1)) == 0);
+  ASSERT_TRUE(std::memcmp(recv_buf1, &SnoopLoggerCommon::kBtSnoopFileHeader, sizeof(recv_buf1)) ==
+              0);
 
   ASSERT_EQ(bytes_read, static_cast<int>(sizeof(test_data)));
   ASSERT_TRUE(std::memcmp(recv_buf2, test_data, bytes_read) == 0);

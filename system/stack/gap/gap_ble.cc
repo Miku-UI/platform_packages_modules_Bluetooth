@@ -22,14 +22,13 @@
 #include <array>
 #include <queue>
 
-#include "common/init_flags.h"
 #include "gap_api.h"
 #include "gatt_api.h"
 #include "hardware/bt_gatt_types.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_status.h"
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
@@ -47,7 +46,7 @@ typedef struct {
 typedef struct {
   RawAddress bda;
   tGAP_BLE_CMPL_CBACK* p_cback;
-  uint16_t conn_id;
+  tCONN_ID conn_id;
   uint16_t cl_op_uuid;
   bool connected;
   std::queue<tGAP_REQUEST> requests;
@@ -59,24 +58,22 @@ typedef struct {
   tGAP_BLE_ATTR_VALUE attr_value;
 } tGAP_ATTR;
 
-void server_attr_request_cback(uint16_t, uint32_t, tGATTS_REQ_TYPE,
-                               tGATTS_DATA*);
-void client_connect_cback(tGATT_IF, const RawAddress&, uint16_t, bool,
-                          tGATT_DISCONN_REASON, tBT_TRANSPORT);
-void client_cmpl_cback(uint16_t, tGATTC_OPTYPE, tGATT_STATUS,
-                       tGATT_CL_COMPLETE*);
+void server_attr_request_cback(tCONN_ID, uint32_t, tGATTS_REQ_TYPE, tGATTS_DATA*);
+void client_connect_cback(tGATT_IF, const RawAddress&, tCONN_ID, bool, tGATT_DISCONN_REASON,
+                          tBT_TRANSPORT);
+void client_cmpl_cback(tCONN_ID, tGATTC_OPTYPE, tGATT_STATUS, tGATT_CL_COMPLETE*);
 
 tGATT_CBACK gap_cback = {
-    .p_conn_cb = client_connect_cback,
-    .p_cmpl_cb = client_cmpl_cback,
-    .p_disc_res_cb = nullptr,
-    .p_disc_cmpl_cb = nullptr,
-    .p_req_cb = server_attr_request_cback,
-    .p_enc_cmpl_cb = nullptr,
-    .p_congestion_cb = nullptr,
-    .p_phy_update_cb = nullptr,
-    .p_conn_update_cb = nullptr,
-    .p_subrate_chg_cb = nullptr,
+        .p_conn_cb = client_connect_cback,
+        .p_cmpl_cb = client_cmpl_cback,
+        .p_disc_res_cb = nullptr,
+        .p_disc_cmpl_cb = nullptr,
+        .p_req_cb = server_attr_request_cback,
+        .p_enc_cmpl_cb = nullptr,
+        .p_congestion_cb = nullptr,
+        .p_phy_update_cb = nullptr,
+        .p_conn_update_cb = nullptr,
+        .p_subrate_chg_cb = nullptr,
 };
 
 constexpr int GAP_CHAR_DEV_NAME_SIZE = BD_NAME_LEN;
@@ -87,18 +84,24 @@ std::vector<tGAP_CLCB> gap_clcbs;
 std::array<tGAP_ATTR, GAP_MAX_CHAR_NUM> gatt_attr;
 tGATT_IF gatt_if;
 
-/** returns LCB with macthing bd address, or nullptr */
+/** returns LCB with matching bd address, or nullptr */
 tGAP_CLCB* find_clcb_by_bd_addr(const RawAddress& bda) {
-  for (auto& cb : gap_clcbs)
-    if (cb.bda == bda) return &cb;
+  for (auto& cb : gap_clcbs) {
+    if (cb.bda == bda) {
+      return &cb;
+    }
+  }
 
   return nullptr;
 }
 
-/** returns LCB with macthing connection ID, or nullptr if not found  */
-tGAP_CLCB* ble_find_clcb_by_conn_id(uint16_t conn_id) {
-  for (auto& cb : gap_clcbs)
-    if (cb.connected && cb.conn_id == conn_id) return &cb;
+/** returns LCB with matching connection ID, or nullptr if not found  */
+tGAP_CLCB* ble_find_clcb_by_conn_id(tCONN_ID conn_id) {
+  for (auto& cb : gap_clcbs) {
+    if (cb.connected && cb.conn_id == conn_id) {
+      return &cb;
+    }
+  }
 
   return nullptr;
 }
@@ -126,8 +129,7 @@ void clcb_dealloc(tGAP_CLCB& clcb) {
 }
 
 /** GAP Attributes Database Request callback */
-tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value,
-                             bool is_long) {
+tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value, bool is_long) {
   uint8_t* p = p_value->value;
   uint16_t offset = p_value->offset;
   uint8_t* p_dev_name = NULL;
@@ -135,23 +137,25 @@ tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value,
   for (const tGAP_ATTR& db_attr : gatt_attr) {
     const tGAP_BLE_ATTR_VALUE& attr_value = db_attr.attr_value;
     if (handle == db_attr.handle) {
-      if (db_attr.uuid != GATT_UUID_GAP_DEVICE_NAME && is_long)
+      if (db_attr.uuid != GATT_UUID_GAP_DEVICE_NAME && is_long) {
         return GATT_NOT_LONG;
+      }
 
       switch (db_attr.uuid) {
         case GATT_UUID_GAP_DEVICE_NAME:
-          if (get_btm_client_interface().local.BTM_ReadLocalDeviceName(
-                  (const char**)&p_dev_name) != BTM_SUCCESS) {
+          if (get_btm_client_interface().local.BTM_ReadLocalDeviceName((const char**)&p_dev_name) !=
+              tBTM_STATUS::BTM_SUCCESS) {
             log::warn("Unable to read local device name");
           };
-          if (strlen((char*)p_dev_name) > GATT_MAX_ATTR_LEN)
+          if (strlen((char*)p_dev_name) > GATT_MAX_ATTR_LEN) {
             p_value->len = GATT_MAX_ATTR_LEN;
-          else
+          } else {
             p_value->len = (uint16_t)strlen((char*)p_dev_name);
+          }
 
-          if (offset > p_value->len)
+          if (offset > p_value->len) {
             return GATT_INVALID_OFFSET;
-          else {
+          } else {
             p_value->len -= offset;
             p_dev_name += offset;
             ARRAY_TO_STREAM(p, p_dev_name, p_value->len);
@@ -184,9 +188,10 @@ tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value,
 }
 
 /** GAP Attributes Database Read/Read Blob Request process */
-tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
-                       tGATTS_RSP* p_rsp) {
-  if (p_data->is_long) p_rsp->attr_value.offset = p_data->offset;
+tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data, tGATTS_RSP* p_rsp) {
+  if (p_data->is_long) {
+    p_rsp->attr_value.offset = p_data->offset;
+  }
 
   p_rsp->attr_value.handle = p_data->handle;
 
@@ -195,15 +200,18 @@ tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
 
 /** GAP ATT server process a write request */
 tGATT_STATUS proc_write_req(tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
-  for (const auto& db_addr : gatt_attr)
-    if (p_data->handle == db_addr.handle) return GATT_WRITE_NOT_PERMIT;
+  for (const auto& db_addr : gatt_attr) {
+    if (p_data->handle == db_addr.handle) {
+      return GATT_WRITE_NOT_PERMIT;
+    }
+  }
 
   return GATT_NOT_FOUND;
 }
 
 /** GAP ATT server attribute access request callback */
-void server_attr_request_cback(uint16_t conn_id, uint32_t trans_id,
-                               tGATTS_REQ_TYPE type, tGATTS_DATA* p_data) {
+void server_attr_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+                               tGATTS_DATA* p_data) {
   tGATT_STATUS status = GATT_INVALID_PDU;
   bool ignore = false;
 
@@ -218,7 +226,9 @@ void server_attr_request_cback(uint16_t conn_id, uint32_t trans_id,
 
     case GATTS_REQ_TYPE_WRITE_CHARACTERISTIC:
     case GATTS_REQ_TYPE_WRITE_DESCRIPTOR:
-      if (!p_data->write_req.need_rsp) ignore = true;
+      if (!p_data->write_req.need_rsp) {
+        ignore = true;
+      }
 
       status = proc_write_req(type, &p_data->write_req);
       break;
@@ -246,7 +256,7 @@ void server_attr_request_cback(uint16_t conn_id, uint32_t trans_id,
 }
 
 /**
- * utility function to send a read request for a GAP charactersitic.
+ * Utility function to send a read request for GAP characteristics.
  * Returns true if read started, else false if GAP is busy.
  */
 bool send_cl_read_request(tGAP_CLCB& clcb) {
@@ -298,9 +308,8 @@ void cl_op_cmpl(tGAP_CLCB& clcb, bool status, uint16_t len, uint8_t* p_name) {
 }
 
 /** Client connection callback */
-void client_connect_cback(tGATT_IF, const RawAddress& bda, uint16_t conn_id,
-                          bool connected, tGATT_DISCONN_REASON /* reason */,
-                          tBT_TRANSPORT) {
+void client_connect_cback(tGATT_IF, const RawAddress& bda, tCONN_ID conn_id, bool connected,
+                          tGATT_DISCONN_REASON /* reason */, tBT_TRANSPORT) {
   tGAP_CLCB* p_clcb = find_clcb_by_bd_addr(bda);
   if (p_clcb == NULL) {
     log::info("No active GAP service found for peer:{} callback:{}", bda,
@@ -324,7 +333,7 @@ void client_connect_cback(tGATT_IF, const RawAddress& bda, uint16_t conn_id,
 }
 
 /** Client operation complete callback */
-void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+void client_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
                        tGATT_CL_COMPLETE* p_data) {
   tGAP_CLCB* p_clcb = ble_find_clcb_by_conn_id(conn_id);
   uint16_t op_type;
@@ -332,12 +341,16 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
   uint16_t len;
   uint8_t* pp;
 
-  if (p_clcb == NULL) return;
+  if (p_clcb == NULL) {
+    return;
+  }
 
   op_type = p_clcb->cl_op_uuid;
 
   /* Currently we only issue read commands */
-  if (op != GATTC_OPTYPE_READ) return;
+  if (op != GATTC_OPTYPE_READ) {
+    return;
+  }
 
   if (status != GATT_SUCCESS) {
     cl_op_cmpl(*p_clcb, false, 0, NULL);
@@ -353,56 +366,69 @@ void client_cmpl_cback(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
       STREAM_TO_UINT16(latency, pp);
       STREAM_TO_UINT16(tout, pp);
 
-      BTM_BleSetPrefConnParams(p_clcb->bda, min, max, latency, tout);
+      get_btm_client_interface().ble.BTM_BleSetPrefConnParams(p_clcb->bda, min, max, latency, tout);
       /* release the connection here */
       cl_op_cmpl(*p_clcb, true, 0, NULL);
       break;
 
     case GATT_UUID_GAP_DEVICE_NAME:
       len = (uint16_t)strlen((char*)pp);
-      if (len > GAP_CHAR_DEV_NAME_SIZE) len = GAP_CHAR_DEV_NAME_SIZE;
+      if (len > GAP_CHAR_DEV_NAME_SIZE) {
+        len = GAP_CHAR_DEV_NAME_SIZE;
+      }
       cl_op_cmpl(*p_clcb, true, len, pp);
       break;
 
     case GATT_UUID_GAP_CENTRAL_ADDR_RESOL:
       cl_op_cmpl(*p_clcb, true, 1, pp);
       break;
+
+    case GATT_UUID_GAP_ICON:
+      cl_op_cmpl(*p_clcb, true, p_data->att_value.len, pp);
+      break;
+
+    default:
+      log::error("Unexpected operation {}", op);
+      break;
   }
 }
 
 bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
                              tGAP_BLE_CMPL_CBACK* p_cback) {
-  if (p_cback == NULL && uuid != GATT_UUID_GAP_PREF_CONN_PARAM) return false;
+  if (p_cback == NULL && uuid != GATT_UUID_GAP_PREF_CONN_PARAM) {
+    return false;
+  }
 
   tGAP_CLCB* p_clcb = find_clcb_by_bd_addr(peer_bda);
   if (p_clcb == NULL) {
     p_clcb = clcb_alloc(peer_bda);
   }
 
-  if (GATT_GetConnIdIfConnected(gatt_if, peer_bda, &p_clcb->conn_id,
-                                BT_TRANSPORT_LE))
+  if (GATT_GetConnIdIfConnected(gatt_if, peer_bda, &p_clcb->conn_id, BT_TRANSPORT_LE)) {
     p_clcb->connected = true;
+  }
 
-  if (!GATT_Connect(gatt_if, p_clcb->bda, BTM_BLE_DIRECT_CONNECTION,
-                    BT_TRANSPORT_LE, true))
+  if (!GATT_Connect(gatt_if, p_clcb->bda, BTM_BLE_DIRECT_CONNECTION, BT_TRANSPORT_LE, true)) {
     return false;
+  }
 
   /* enqueue the request */
   p_clcb->requests.push({.uuid = uuid, .p_cback = p_cback});
 
-  if (p_clcb->connected && p_clcb->cl_op_uuid == 0)
+  if (p_clcb->connected && p_clcb->cl_op_uuid == 0) {
     return send_cl_read_request(*p_clcb);
-  else /* wait for connection up or pending operation to finish */
+  } else { /* wait for connection up or pending operation to finish */
     return true;
+  }
 }
 
 }  // namespace
 
 /*******************************************************************************
  *
- * Function         btm_ble_att_db_init
+ * Function         gap_attr_db_init
  *
- * Description      GAP ATT database initalization.
+ * Description      GAP ATT database initialization.
  *
  * Returns          void.
  *
@@ -423,35 +449,33 @@ void gap_attr_db_init(void) {
   Uuid icon_uuid = Uuid::From16Bit(GATT_UUID_GAP_ICON);
   Uuid addr_res_uuid = Uuid::From16Bit(GATT_UUID_GAP_CENTRAL_ADDR_RESOL);
 
-  btgatt_db_element_t service[] = {
-      {
-          .uuid = svc_uuid,
-          .type = BTGATT_DB_PRIMARY_SERVICE,
-      },
-      {.uuid = name_uuid,
-       .type = BTGATT_DB_CHARACTERISTIC,
-       .properties = GATT_CHAR_PROP_BIT_READ,
-       .permissions = GATT_PERM_READ_IF_ENCRYPTED_OR_DISCOVERABLE},
-      {.uuid = icon_uuid,
-       .type = BTGATT_DB_CHARACTERISTIC,
-       .properties = GATT_CHAR_PROP_BIT_READ,
-       .permissions = GATT_PERM_READ},
-      {.uuid = addr_res_uuid,
-       .type = BTGATT_DB_CHARACTERISTIC,
-       .properties = GATT_CHAR_PROP_BIT_READ,
-       .permissions = GATT_PERM_READ}
+  btgatt_db_element_t service[] = {{
+                                           .uuid = svc_uuid,
+                                           .type = BTGATT_DB_PRIMARY_SERVICE,
+                                   },
+                                   {.uuid = name_uuid,
+                                    .type = BTGATT_DB_CHARACTERISTIC,
+                                    .properties = GATT_CHAR_PROP_BIT_READ,
+                                    .permissions = GATT_PERM_READ_IF_ENCRYPTED_OR_DISCOVERABLE},
+                                   {.uuid = icon_uuid,
+                                    .type = BTGATT_DB_CHARACTERISTIC,
+                                    .properties = GATT_CHAR_PROP_BIT_READ,
+                                    .permissions = GATT_PERM_READ},
+                                   {.uuid = addr_res_uuid,
+                                    .type = BTGATT_DB_CHARACTERISTIC,
+                                    .properties = GATT_CHAR_PROP_BIT_READ,
+                                    .permissions = GATT_PERM_READ}
 #if (BTM_PERIPHERAL_ENABLED == TRUE) /* Only needed for peripheral testing */
-      ,
-      {.uuid = Uuid::From16Bit(GATT_UUID_GAP_PREF_CONN_PARAM),
-       .type = BTGATT_DB_CHARACTERISTIC,
-       .properties = GATT_CHAR_PROP_BIT_READ,
-       .permissions = GATT_PERM_READ}
+                                   ,
+                                   {.uuid = Uuid::From16Bit(GATT_UUID_GAP_PREF_CONN_PARAM),
+                                    .type = BTGATT_DB_CHARACTERISTIC,
+                                    .properties = GATT_CHAR_PROP_BIT_READ,
+                                    .permissions = GATT_PERM_READ}
 #endif
   };
 
   /* Add a GAP service */
-  if (GATTS_AddService(gatt_if, service,
-                       sizeof(service) / sizeof(btgatt_db_element_t)) !=
+  if (GATTS_AddService(gatt_if, service, sizeof(service) / sizeof(btgatt_db_element_t)) !=
       GATT_SERVICE_STARTED) {
     log::warn("Unable to add GATT services gatt_if:{}", gatt_if);
   }
@@ -472,8 +496,7 @@ void gap_attr_db_init(void) {
   gatt_attr[3].attr_value.conn_param.int_max = GAP_PREFER_CONN_INT_MAX; /* 6 */
   gatt_attr[3].attr_value.conn_param.int_min = GAP_PREFER_CONN_INT_MIN; /* 0 */
   gatt_attr[3].attr_value.conn_param.latency = GAP_PREFER_CONN_LATENCY; /* 0 */
-  gatt_attr[3].attr_value.conn_param.sp_tout =
-      GAP_PREFER_CONN_SP_TOUT; /* 2000 */
+  gatt_attr[3].attr_value.conn_param.sp_tout = GAP_PREFER_CONN_SP_TOUT; /* 2000 */
   gatt_attr[3].handle = service[4].attribute_handle;
 #endif
 }
@@ -494,14 +517,13 @@ void GAP_BleAttrDBUpdate(uint16_t attr_uuid, tGAP_BLE_ATTR_VALUE* p_value) {
           break;
 
         case GATT_UUID_GAP_PREF_CONN_PARAM:
-          memcpy((void*)&db_attr.attr_value.conn_param,
-                 (const void*)&p_value->conn_param,
+          memcpy((void*)&db_attr.attr_value.conn_param, (const void*)&p_value->conn_param,
                  sizeof(tGAP_BLE_PREF_PARAM));
           break;
 
         case GATT_UUID_GAP_DEVICE_NAME:
           if (get_btm_client_interface().local.BTM_SetLocalDeviceName(
-                  (const char*)p_value->p_dev_name) != BTM_SUCCESS) {
+                      (const char*)p_value->p_dev_name) != tBTM_STATUS::BTM_SUCCESS) {
             log::warn("Unable to set local name");
           }
           break;
@@ -541,9 +563,21 @@ bool GAP_BleReadPeerPrefConnParams(const RawAddress& peer_bda) {
  * Returns          true if request accepted
  *
  ******************************************************************************/
-bool GAP_BleReadPeerDevName(const RawAddress& peer_bda,
-                            tGAP_BLE_CMPL_CBACK* p_cback) {
+bool GAP_BleReadPeerDevName(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
   return accept_client_operation(peer_bda, GATT_UUID_GAP_DEVICE_NAME, p_cback);
+}
+
+/*******************************************************************************
+ *
+ * Function         GAP_BleReadPeerAppearance
+ *
+ * Description      Start a process to read a connected peripheral's appearance.
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_BleReadPeerAppearance(const RawAddress& peer_bda, tGAP_BLE_CMPL_CBACK* p_cback) {
+  return accept_client_operation(peer_bda, GATT_UUID_GAP_ICON, p_cback);
 }
 
 /*******************************************************************************
@@ -572,5 +606,5 @@ bool GAP_BleCancelReadPeerDevName(const RawAddress& peer_bda) {
 
   cl_op_cmpl(*p_clcb, false, 0, NULL);
 
-  return (true);
+  return true;
 }

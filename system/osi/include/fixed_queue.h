@@ -125,8 +125,8 @@ int fixed_queue_get_dequeue_fd(const fixed_queue_t* queue);
 // element in the queue, ready_cb will be called. The |context| parameter is
 // passed, untouched, to the callback routine. Neither |queue|, nor |reactor|,
 // nor |read_cb| may be NULL. |context| may be NULL.
-void fixed_queue_register_dequeue(fixed_queue_t* queue, reactor_t* reactor,
-                                  fixed_queue_cb ready_cb, void* context);
+void fixed_queue_register_dequeue(fixed_queue_t* queue, reactor_t* reactor, fixed_queue_cb ready_cb,
+                                  void* context);
 
 // Unregisters the dequeue ready callback for |queue| from whichever reactor
 // it is registered with, if any. This function is idempotent.

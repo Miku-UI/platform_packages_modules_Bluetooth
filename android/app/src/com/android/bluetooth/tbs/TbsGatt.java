@@ -28,6 +28,7 @@ import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
@@ -397,7 +398,7 @@ public class TbsGatt {
 
     private void removeUuidFromMetadata(ParcelUuid charUuid, BluetoothDevice device) {
         List<ParcelUuid> uuidList;
-        byte[] gtbs_cccd = device.getMetadata(METADATA_GTBS_CCCD);
+        byte[] gtbs_cccd = mAdapterService.getMetadata(device, METADATA_GTBS_CCCD);
 
         if ((gtbs_cccd == null) || (gtbs_cccd.length == 0)) {
             uuidList = new ArrayList<ParcelUuid>();
@@ -405,25 +406,24 @@ public class TbsGatt {
             uuidList = new ArrayList<>(Arrays.asList(Utils.byteArrayToUuid(gtbs_cccd)));
 
             if (!uuidList.contains(charUuid)) {
-                Log.d(
-                        TAG,
-                        "Characteristic CCCD can't be removed (not cached): "
-                                + charUuid.toString());
+                Log.d(TAG, "Characteristic CCCD already removed: " + charUuid.toString());
                 return;
             }
         }
 
         uuidList.remove(charUuid);
 
-        if (!device.setMetadata(
-                METADATA_GTBS_CCCD, Utils.uuidsToByteArray(uuidList.toArray(new ParcelUuid[0])))) {
+        if (!mAdapterService.setMetadata(
+                device,
+                METADATA_GTBS_CCCD,
+                Utils.uuidsToByteArray(uuidList.toArray(new ParcelUuid[0])))) {
             Log.e(TAG, "Can't set CCCD for GTBS characteristic UUID: " + charUuid + ", (remove)");
         }
     }
 
     private void addUuidToMetadata(ParcelUuid charUuid, BluetoothDevice device) {
         List<ParcelUuid> uuidList;
-        byte[] gtbs_cccd = device.getMetadata(METADATA_GTBS_CCCD);
+        byte[] gtbs_cccd = mAdapterService.getMetadata(device, METADATA_GTBS_CCCD);
 
         if ((gtbs_cccd == null) || (gtbs_cccd.length == 0)) {
             uuidList = new ArrayList<ParcelUuid>();
@@ -431,15 +431,17 @@ public class TbsGatt {
             uuidList = new ArrayList<>(Arrays.asList(Utils.byteArrayToUuid(gtbs_cccd)));
 
             if (uuidList.contains(charUuid)) {
-                Log.d(TAG, "Characteristic CCCD already add: " + charUuid.toString());
+                Log.d(TAG, "Characteristic CCCD already added: " + charUuid.toString());
                 return;
             }
         }
 
         uuidList.add(charUuid);
 
-        if (!device.setMetadata(
-                METADATA_GTBS_CCCD, Utils.uuidsToByteArray(uuidList.toArray(new ParcelUuid[0])))) {
+        if (!mAdapterService.setMetadata(
+                device,
+                METADATA_GTBS_CCCD,
+                Utils.uuidsToByteArray(uuidList.toArray(new ParcelUuid[0])))) {
             Log.e(TAG, "Can't set CCCD for GTBS characteristic UUID: " + charUuid + ", (add)");
         }
     }
@@ -909,7 +911,10 @@ public class TbsGatt {
     }
 
     public boolean setIncomingCall(int callIndex, String uri) {
-        Log.d(TAG, "setIncomingCall: callIndex=" + callIndex + " uri=" + uri);
+        Log.d(
+                TAG,
+                ("setIncomingCall: callIndex=" + callIndex)
+                        + (" uri=" + (uri == null ? "null" : Uri.parse(uri).toSafeString())));
         int uri_len = 0;
         if (uri != null) {
             uri_len = uri.length();
@@ -982,7 +987,7 @@ public class TbsGatt {
         BluetoothGattService gattService = mBluetoothGattServer.getService(UUID_GTBS);
 
         for (BluetoothDevice device : mAdapterService.getBondedDevices()) {
-            byte[] gtbs_cccd = device.getMetadata(METADATA_GTBS_CCCD);
+            byte[] gtbs_cccd = mAdapterService.getMetadata(device, METADATA_GTBS_CCCD);
 
             if ((gtbs_cccd == null) || (gtbs_cccd.length == 0)) {
                 return;
@@ -1705,17 +1710,16 @@ public class TbsGatt {
             };
 
     public void dump(StringBuilder sb) {
-        sb.append("\n\tSilent mode: " + mSilentMode);
+        sb.append("\n\tSilent mode: ").append(mSilentMode);
 
         for (Map.Entry<BluetoothDevice, HashMap<UUID, Short>> deviceEntry :
                 mCccDescriptorValues.entrySet()) {
-            sb.append("\n\tCCC states for device: " + deviceEntry.getKey());
+            sb.append("\n\tCCC states for device: ").append(deviceEntry.getKey());
             for (Map.Entry<UUID, Short> entry : deviceEntry.getValue().entrySet()) {
-                sb.append(
-                        "\n\t\tCharacteristic: "
-                                + tbsUuidToString(entry.getKey())
-                                + ", value: "
-                                + Utils.cccIntToStr(entry.getValue()));
+                sb.append("\n\t\tCharacteristic: ")
+                        .append(tbsUuidToString(entry.getKey()))
+                        .append(", value: ")
+                        .append(Utils.cccIntToStr(entry.getValue()));
             }
         }
 

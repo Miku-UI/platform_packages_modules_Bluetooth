@@ -28,7 +28,7 @@ namespace facade {
 class LeInitiatorAddressFacadeService;
 
 class LeInitiatorAddressFacadeModule : public ::bluetooth::grpc::GrpcFacadeModule {
- public:
+public:
   static const ModuleFactory Factory;
 
   void ListDependencies(ModuleList* list) const override;
@@ -36,7 +36,7 @@ class LeInitiatorAddressFacadeModule : public ::bluetooth::grpc::GrpcFacadeModul
   void Stop() override;
   ::grpc::Service* GetService() const override;
 
- private:
+private:
   LeInitiatorAddressFacadeService* service_;
 };
 

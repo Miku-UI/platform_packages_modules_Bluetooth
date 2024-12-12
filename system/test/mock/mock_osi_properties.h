@@ -39,12 +39,13 @@ namespace osi_properties {
 // Return: int
 struct osi_property_get {
   int return_value{0};
-  std::function<int(const char* key, char* value, const char* default_value)>
-      body{[this](const char* /* key */, char* /* value */,
-                  const char* /* default_value */) { return return_value; }};
+  std::function<int(const char* key, char* value, const char* default_value)> body{
+          [this](const char* /* key */, char* /* value */, const char* /* default_value */) {
+            return return_value;
+          }};
   int operator()(const char* key, char* value, const char* default_value) {
     return body(key, value, default_value);
-  };
+  }
 };
 extern struct osi_property_get osi_property_get;
 
@@ -54,12 +55,8 @@ extern struct osi_property_get osi_property_get;
 struct osi_property_get_bool {
   bool return_value{false};
   std::function<bool(const char* key, bool default_value)> body{
-      [this](const char* /* key */, bool /* default_value */) {
-        return return_value;
-      }};
-  bool operator()(const char* key, bool default_value) {
-    return body(key, default_value);
-  };
+          [this](const char* /* key */, bool /* default_value */) { return return_value; }};
+  bool operator()(const char* key, bool default_value) { return body(key, default_value); }
 };
 extern struct osi_property_get_bool osi_property_get_bool;
 
@@ -69,12 +66,8 @@ extern struct osi_property_get_bool osi_property_get_bool;
 struct osi_property_get_int32 {
   int32_t return_value{0};
   std::function<int32_t(const char* key, int32_t default_value)> body{
-      [this](const char* /* key */, int32_t /* default_value */) {
-        return return_value;
-      }};
-  int32_t operator()(const char* key, int32_t default_value) {
-    return body(key, default_value);
-  };
+          [this](const char* /* key */, int32_t /* default_value */) { return return_value; }};
+  int32_t operator()(const char* key, int32_t default_value) { return body(key, default_value); }
 };
 extern struct osi_property_get_int32 osi_property_get_int32;
 
@@ -84,12 +77,8 @@ extern struct osi_property_get_int32 osi_property_get_int32;
 struct osi_property_set {
   int return_value{0};
   std::function<int(const char* key, const char* value)> body{
-      [this](const char* /* key */, const char* /* value */) {
-        return return_value;
-      }};
-  int operator()(const char* key, const char* value) {
-    return body(key, value);
-  };
+          [this](const char* /* key */, const char* /* value */) { return return_value; }};
+  int operator()(const char* key, const char* value) { return body(key, value); }
 };
 extern struct osi_property_set osi_property_set;
 

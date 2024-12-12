@@ -32,19 +32,16 @@ namespace hal {
 
 class HciHalFacadeService : public blueberry::facade::hal::HciHalFacade::Service,
                             public ::bluetooth::hal::HciHalCallbacks {
- public:
+public:
   explicit HciHalFacadeService(HciHal* hal) : hal_(hal) {
     hal->registerIncomingPacketCallback(this);
   }
 
-  ~HciHalFacadeService() {
-    hal_->unregisterIncomingPacketCallback();
-  }
+  ~HciHalFacadeService() { hal_->unregisterIncomingPacketCallback(); }
 
-  ::grpc::Status SendCommand(
-      ::grpc::ServerContext* /* context */,
-      const ::blueberry::facade::Data* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status SendCommand(::grpc::ServerContext* /* context */,
+                             const ::blueberry::facade::Data* request,
+                             ::google::protobuf::Empty* /* response */) override {
     std::unique_lock<std::mutex> lock(mutex_);
     can_send_hci_command_ = false;
     std::string req_string = request->payload();
@@ -55,51 +52,45 @@ class HciHalFacadeService : public blueberry::facade::hal::HciHalFacade::Service
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status SendAcl(
-      ::grpc::ServerContext* /* context */,
-      const ::blueberry::facade::Data* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status SendAcl(::grpc::ServerContext* /* context */,
+                         const ::blueberry::facade::Data* request,
+                         ::google::protobuf::Empty* /* response */) override {
     std::string req_string = request->payload();
     hal_->sendAclData(std::vector<uint8_t>(req_string.begin(), req_string.end()));
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status SendSco(
-      ::grpc::ServerContext* /* context */,
-      const ::blueberry::facade::Data* request,
-      ::google::protobuf::Empty* /* response */) override {
+  ::grpc::Status SendSco(::grpc::ServerContext* /* context */,
+                         const ::blueberry::facade::Data* request,
+                         ::google::protobuf::Empty* /* response */) override {
     std::string req_string = request->payload();
     hal_->sendScoData(std::vector<uint8_t>(req_string.begin(), req_string.end()));
     return ::grpc::Status::OK;
   }
 
-  ::grpc::Status StreamEvents(
-      ::grpc::ServerContext* context,
-      const ::google::protobuf::Empty* /* request */,
-      ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
+  ::grpc::Status StreamEvents(::grpc::ServerContext* context,
+                              const ::google::protobuf::Empty* /* request */,
+                              ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
     return pending_hci_events_.RunLoop(context, writer);
-  };
+  }
 
-  ::grpc::Status StreamAcl(
-      ::grpc::ServerContext* context,
-      const ::google::protobuf::Empty* /* request */,
-      ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
+  ::grpc::Status StreamAcl(::grpc::ServerContext* context,
+                           const ::google::protobuf::Empty* /* request */,
+                           ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
     return pending_acl_events_.RunLoop(context, writer);
-  };
+  }
 
-  ::grpc::Status StreamSco(
-      ::grpc::ServerContext* context,
-      const ::google::protobuf::Empty* /* request */,
-      ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
+  ::grpc::Status StreamSco(::grpc::ServerContext* context,
+                           const ::google::protobuf::Empty* /* request */,
+                           ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
     return pending_sco_events_.RunLoop(context, writer);
-  };
+  }
 
-  ::grpc::Status StreamIso(
-      ::grpc::ServerContext* context,
-      const ::google::protobuf::Empty* /* request */,
-      ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
+  ::grpc::Status StreamIso(::grpc::ServerContext* context,
+                           const ::google::protobuf::Empty* /* request */,
+                           ::grpc::ServerWriter<::blueberry::facade::Data>* writer) override {
     return pending_iso_events_.RunLoop(context, writer);
-  };
+  }
 
   void hciEventReceived(bluetooth::hal::HciPacket event) override {
     {
@@ -129,7 +120,7 @@ class HciHalFacadeService : public blueberry::facade::hal::HciHalFacade::Service
     pending_iso_events_.OnIncomingEvent(std::move(response));
   }
 
- private:
+private:
   HciHal* hal_;
   bool can_send_hci_command_ = true;
   mutable std::mutex mutex_;
@@ -155,11 +146,10 @@ void HciHalFacadeModule::Stop() {
   ::bluetooth::grpc::GrpcFacadeModule::Stop();
 }
 
-::grpc::Service* HciHalFacadeModule::GetService() const {
-  return service_;
-}
+::grpc::Service* HciHalFacadeModule::GetService() const { return service_; }
 
-const ModuleFactory HciHalFacadeModule::Factory = ::bluetooth::ModuleFactory([]() { return new HciHalFacadeModule(); });
+const ModuleFactory HciHalFacadeModule::Factory =
+        ::bluetooth::ModuleFactory([]() { return new HciHalFacadeModule(); });
 
 }  // namespace hal
 }  // namespace bluetooth

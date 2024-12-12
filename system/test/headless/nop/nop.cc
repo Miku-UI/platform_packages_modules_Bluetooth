@@ -20,7 +20,7 @@
 
 #include <future>
 
-#include "os/log.h"        // android log only
+#include "os/log.h"  // android log only
 #include "stack/include/sdp_api.h"
 #include "test/headless/get_options.h"
 #include "test/headless/headless.h"

@@ -103,7 +103,7 @@ typedef enum : uint8_t {
 enum : uint8_t {
   SMP_AUTH_NO_BOND = 0x00,
   /* no MITM, No Bonding, encryption only */
-  SMP_AUTH_NB_ENC_ONLY = 0x00,  //(SMP_AUTH_MASK | BTM_AUTH_SP_NO)
+  SMP_AUTH_NB_ENC_ONLY = 0x00,  // (SMP_AUTH_MASK | BTM_AUTH_SP_NO)
   SMP_AUTH_BOND = (1u << 0),
   SMP_AUTH_UNUSED = (1u << 1),
   /* SMP Authentication requirement */
@@ -113,9 +113,8 @@ enum : uint8_t {
   SMP_H7_SUPPORT_BIT = (1u << 5),
 };
 
-#define SMP_AUTH_MASK                                                          \
-  (SMP_AUTH_BOND | SMP_AUTH_YN_BIT | SMP_SC_SUPPORT_BIT | SMP_KP_SUPPORT_BIT | \
-   SMP_H7_SUPPORT_BIT)
+#define SMP_AUTH_MASK \
+  (SMP_AUTH_BOND | SMP_AUTH_YN_BIT | SMP_SC_SUPPORT_BIT | SMP_KP_SUPPORT_BIT | SMP_H7_SUPPORT_BIT)
 
 /* Secure Connections, no MITM, no Bonding */
 #define SMP_AUTH_SC_ENC_ONLY (SMP_H7_SUPPORT_BIT | SMP_SC_SUPPORT_BIT)
@@ -146,12 +145,11 @@ enum tSMP_KEYS_BITMASK : uint8_t {
 typedef uint8_t tSMP_KEYS;
 
 constexpr tSMP_KEYS SMP_BR_SEC_DEFAULT_KEY =
-    (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK);
+        (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK);
 
 /* default security key distribution value */
 constexpr tSMP_KEYS SMP_SEC_DEFAULT_KEY =
-    (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK |
-     SMP_SEC_KEY_TYPE_LK);
+        (SMP_SEC_KEY_TYPE_ENC | SMP_SEC_KEY_TYPE_ID | SMP_SEC_KEY_TYPE_CSRK | SMP_SEC_KEY_TYPE_LK);
 
 #define SMP_SC_KEY_OUT_OF_RANGE 5 /* out of range */
 typedef uint8_t tSMP_SC_KEY_TYPE;
@@ -225,7 +223,7 @@ typedef struct {
 /* Security Manager events - Called by the stack when Security Manager related
  * events occur.*/
 typedef tBTM_STATUS(tSMP_CALLBACK)(tSMP_EVT event, const RawAddress& bd_addr,
-                                   const tSMP_EVT_DATA* p_data);
+                                   tSMP_EVT_DATA* p_data);
 /* Security Manager SIRK verification event - Called by the stack when Security
  * Manager requires verification from CSIP.*/
 typedef tBTM_STATUS(tSMP_SIRK_CALLBACK)(const RawAddress& bd_addr);

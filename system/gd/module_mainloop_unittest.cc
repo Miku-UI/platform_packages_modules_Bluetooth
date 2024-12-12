@@ -58,13 +58,13 @@ struct TestModule::PrivateImpl : public ModuleMainloop {
     private_impl_promise.set_value(base::PlatformThread::CurrentId());
   }
 
-  void privateCallableRepostMethod(
-      std::shared_ptr<TestModule::PrivateImpl> ptr, int a, double b, char c) {
+  void privateCallableRepostMethod(std::shared_ptr<TestModule::PrivateImpl> ptr, int a, double b,
+                                   char c) {
     PostMethodOnMain(ptr, &PrivateImpl::repostMethodTest, a, b, c);
   }
 
-  void privateCallableRecursiveMethod(
-      std::shared_ptr<TestModule::PrivateImpl> ptr, int depth, double b, char c) {
+  void privateCallableRecursiveMethod(std::shared_ptr<TestModule::PrivateImpl> ptr, int depth,
+                                      double b, char c) {
     if (depth > kMaxTestModuleRecurseDepth) {
       private_impl_promise.set_value(base::PlatformThread::CurrentId());
       return;
@@ -113,8 +113,8 @@ void TestModule::call_on_main_repost(int loop_tid, int a, int b, int c) {
 void TestModule::call_on_main_recurse(int loop_tid, int depth, int b, int c) {
   private_impl_promise = std::promise<pid_t>();
   auto future = private_impl_promise.get_future();
-  PostMethodOnMain(
-      pimpl_, &TestModule::PrivateImpl::privateCallableRecursiveMethod, pimpl_, depth, b, c);
+  PostMethodOnMain(pimpl_, &TestModule::PrivateImpl::privateCallableRecursiveMethod, pimpl_, depth,
+                   b, c);
   ASSERT_EQ(future.wait_for(std::chrono::seconds(3)), std::future_status::ready);
   ASSERT_EQ(future.get(), loop_tid);
 }
@@ -123,9 +123,7 @@ void TestModule::protected_method(int /* a */, int /* b */, int /* c */) {
   protected_method_promise.set_value(base::PlatformThread::CurrentId());
 }
 
-bool TestModule::IsStarted() const {
-  return pimpl_ != nullptr;
-}
+bool TestModule::IsStarted() const { return pimpl_ != nullptr; }
 
 void TestModule::Start() {
   ASSERT_FALSE(IsStarted());
@@ -137,18 +135,16 @@ void TestModule::Stop() {
   pimpl_.reset();
 }
 
-std::string TestModule::ToString() const {
-  return std::string(__func__);
-}
+std::string TestModule::ToString() const { return std::string(__func__); }
 
 const bluetooth::ModuleFactory TestModule::Factory =
-    bluetooth::ModuleFactory([]() { return new TestModule(); });
+        bluetooth::ModuleFactory([]() { return new TestModule(); });
 
 //
 // Module GDx Testing Below
 //
 class ModuleMainGdxTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     test_framework_tid_ = base::PlatformThread::CurrentId();
     module_ = new TestModule();
@@ -167,7 +163,7 @@ class ModuleMainGdxTest : public ::testing::Test {
     std::future future = promise.get_future();
     post_on_bt_main([&promise]() { promise.set_value(); });
     future.wait_for(std::chrono::milliseconds(sync_timeout_in_ms));
-  };
+  }
 
   static pid_t get_mainloop_tid() {
     std::promise<pid_t> pid_promise = std::promise<pid_t>();
@@ -183,7 +179,7 @@ class ModuleMainGdxTest : public ::testing::Test {
 };
 
 class ModuleMainGdxWithStackTest : public ModuleMainGdxTest {
- protected:
+protected:
   void SetUp() override {
     ModuleMainGdxTest::SetUp();
     module_registry_.InjectTestModule(&TestModule::Factory, module_ /* pass ownership */);
@@ -195,8 +191,10 @@ class ModuleMainGdxWithStackTest : public ModuleMainGdxTest {
     std::promise<pid_t> handler_tid_promise = std::promise<pid_t>();
     std::future<pid_t> future = handler_tid_promise.get_future();
     handler->Post(common::BindOnce(
-        [](std::promise<pid_t> promise) { promise.set_value(base::PlatformThread::CurrentId()); },
-        std::move(handler_tid_promise)));
+            [](std::promise<pid_t> promise) {
+              promise.set_value(base::PlatformThread::CurrentId());
+            },
+            std::move(handler_tid_promise)));
     return future.get();
   }
 
@@ -205,9 +203,7 @@ class ModuleMainGdxWithStackTest : public ModuleMainGdxTest {
     ModuleMainGdxTest::TearDown();
   }
 
-  TestModule* Mod() {
-    return module_registry_.GetModuleUnderTest<TestModule>();
-  }
+  TestModule* Mod() { return module_registry_.GetModuleUnderTest<TestModule>(); }
 
   pid_t handler_tid_{-1};
 };
@@ -216,7 +212,7 @@ TEST_F(ModuleMainGdxTest, nop) {}
 
 TEST_F(ModuleMainGdxTest, lifecycle) {
   ::bluetooth::os::Thread* thread =
-      new bluetooth::os::Thread("Name", bluetooth::os::Thread::Priority::REAL_TIME);
+          new bluetooth::os::Thread("Name", bluetooth::os::Thread::Priority::REAL_TIME);
   ASSERT_FALSE(module_registry_.IsStarted<TestModule>());
   module_registry_.Start<TestModule>(thread);
   ASSERT_TRUE(module_registry_.IsStarted<TestModule>());

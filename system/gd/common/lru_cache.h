@@ -53,7 +53,7 @@ namespace common {
 // */
 template <typename Key, typename T>
 class LruCache {
- public:
+public:
   using value_type = typename ListMap<Key, T>::value_type;
   // different from c++17 node_type on purpose as we want node to be copyable
   using node_type = typename ListMap<Key, T>::node_type;
@@ -88,30 +88,24 @@ class LruCache {
   bool operator==(const LruCache& rhs) const {
     return capacity_ == rhs.capacity_ && list_map_ == rhs.list_map_;
   }
-  bool operator!=(const LruCache& rhs) const {
-    return !(*this == rhs);
-  }
+  bool operator!=(const LruCache& rhs) const { return !(*this == rhs); }
 
-  ~LruCache() {
-    clear();
-  }
+  ~LruCache() { clear(); }
 
   // Clear the cache
-  void clear() {
-    list_map_.clear();
-  }
+  void clear() { list_map_.clear(); }
 
-  // Find the value of a key, and move the key to the head of cache, if there is one. Return iterator to value if key
-  // exists, end() if not. Iterator might be invalidated when removed or evicted. Const version.
+  // Find the value of a key, and move the key to the head of cache, if there is one. Return
+  // iterator to value if key exists, end() if not. Iterator might be invalidated when removed or
+  // evicted. Const version.
   //
   // LRU: Will warm up key
   // LRU: Access to returned iterator won't move key in LRU
-  const_iterator find(const Key& key) const {
-    return const_cast<LruCache*>(this)->find(key);
-  }
+  const_iterator find(const Key& key) const { return const_cast<LruCache*>(this)->find(key); }
 
-  // Find the value of a key, and move the key to the head of cache, if there is one. Return iterator to value if key
-  // exists, end() if not. Iterator might be invalidated when removed or evicted
+  // Find the value of a key, and move the key to the head of cache, if there is one. Return
+  // iterator to value if key exists, end() if not. Iterator might be invalidated when removed or
+  // evicted
   //
   // LRU: Will warm up key
   // LRU: Access to returned iterator won't move key in LRU
@@ -128,14 +122,12 @@ class LruCache {
   // Check if key exist in the cache. Return true if key exist in cache, false, if not
   //
   // LRU: Will warm up key
-  bool contains(const Key& key) const {
-    return find(key) != list_map_.end();
-  }
+  bool contains(const Key& key) const { return find(key) != list_map_.end(); }
 
-  // Put a key-value pair to the head of cache, evict the oldest key if cache is at capacity. Eviction is based on key
-  // ONLY. Hence, updating a key will not evict the oldest key. Return evicted value if old value was evicted,
-  // std::nullopt if not. The return value will be evaluated to true in a boolean context if a value is contained by
-  // std::optional, false otherwise.
+  // Put a key-value pair to the head of cache, evict the oldest key if cache is at capacity.
+  // Eviction is based on key ONLY. Hence, updating a key will not evict the oldest key. Return
+  // evicted value if old value was evicted, std::nullopt if not. The return value will be evaluated
+  // to true in a boolean context if a value is contained by std::optional, false otherwise.
   //
   // LRU: Will warm up key
   std::optional<node_type> insert_or_assign(const Key& key, T value) {
@@ -154,10 +146,11 @@ class LruCache {
     return evicted_node;
   }
 
-  // Put a key-value pair to the head of cache, evict the oldest key if cache is at capacity. Eviction is based on key
-  // ONLY. Hence, updating a key will not evict the oldest key. This method tries to construct the value in-place. If
-  // the key already exist, this method only update the value. Return inserted iterator, whether insertion happens, and
-  // evicted value if old value was evicted or std::nullopt
+  // Put a key-value pair to the head of cache, evict the oldest key if cache is at capacity.
+  // Eviction is based on key ONLY. Hence, updating a key will not evict the oldest key. This method
+  // tries to construct the value in-place. If the key already exist, this method only update the
+  // value. Return inserted iterator, whether insertion happens, and evicted value if old value was
+  // evicted or std::nullopt
   //
   // LRU: Will warm up key
   template <class... Args>
@@ -176,43 +169,31 @@ class LruCache {
     return std::make_tuple(pair.first, pair.second, std::move(evicted_node));
   }
 
-  // Delete a key from cache, return removed value if old value was evicted, std::nullopt if not. The return value will
-  // be evaluated to true in a boolean context if a value is contained by std::optional, false otherwise.
-  inline std::optional<node_type> extract(const Key& key) {
-    return list_map_.extract(key);
-  }
+  // Delete a key from cache, return removed value if old value was evicted, std::nullopt if not.
+  // The return value will be evaluated to true in a boolean context if a value is contained by
+  // std::optional, false otherwise.
+  inline std::optional<node_type> extract(const Key& key) { return list_map_.extract(key); }
 
-  /// Remove an iterator pointed item from the lru cache and return the iterator immediately after the erased item
-  iterator erase(const_iterator iter) {
-    return list_map_.erase(iter);
-  }
+  /// Remove an iterator pointed item from the lru cache and return the iterator immediately after
+  /// the erased item
+  iterator erase(const_iterator iter) { return list_map_.erase(iter); }
 
   // Return size of the cache
-  inline size_t size() const {
-    return list_map_.size();
-  }
+  inline size_t size() const { return list_map_.size(); }
 
   // Iterator interface for begin
-  inline iterator begin() {
-    return list_map_.begin();
-  }
+  inline iterator begin() { return list_map_.begin(); }
 
   // Return iterator interface for begin, const
-  inline const_iterator begin() const {
-    return list_map_.begin();
-  }
+  inline const_iterator begin() const { return list_map_.begin(); }
 
   // Return iterator interface for end
-  inline iterator end() {
-    return list_map_.end();
-  }
+  inline iterator end() { return list_map_.end(); }
 
   // Iterator interface for end, const
-  inline const_iterator end() const {
-    return list_map_.end();
-  }
+  inline const_iterator end() const { return list_map_.end(); }
 
- private:
+private:
   size_t capacity_;
   ListMap<Key, T> list_map_;
 };

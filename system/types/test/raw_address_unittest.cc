@@ -16,9 +16,9 @@
  *
  ******************************************************************************/
 
-#include <gtest/gtest.h>
-
 #include "raw_address.h"
+
+#include <gtest/gtest.h>
 
 static const char* test_addr = "12:34:56:78:9a:bc";
 static const char* test_addr2 = "cb:a9:87:65:43:21";

@@ -22,8 +22,6 @@ import static android.content.pm.PackageManager.FEATURE_WATCH;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.AT_OK;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.ENTER_PRIVATE_MODE;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.EXPLICIT_CALL_TRANSFER;
-import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.MAX_HFP_SCO_VOICE_CALL_VOLUME;
-import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.MIN_HFP_SCO_VOICE_CALL_VOLUME;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.VOICE_RECOGNITION_START;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.VOICE_RECOGNITION_STOP;
 
@@ -48,7 +46,6 @@ import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Pair;
 
@@ -63,7 +60,6 @@ import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.RemoteDevices;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetService;
 
 import org.hamcrest.core.AllOf;
@@ -81,9 +77,7 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /** Test cases for {@link HeadsetClientStateMachine}. */
@@ -129,7 +123,6 @@ public class HeadsetClientStateMachineTest {
         when(mMockHfpResources.getInteger(R.integer.hfp_clcc_poll_interval_during_call))
                 .thenReturn(2000);
 
-        TestUtils.setAdapterService(mAdapterService);
         doReturn(mRemoteDevices).when(mAdapterService).getRemoteDevices();
         doReturn(true).when(mNativeInterface).sendAndroidAt(anyObject(), anyString());
 
@@ -144,6 +137,7 @@ public class HeadsetClientStateMachineTest {
         // Manage looper execution in main test thread explicitly to guarantee timing consistency
         mHeadsetClientStateMachine =
                 new TestHeadsetClientStateMachine(
+                        mAdapterService,
                         mHeadsetClientService,
                         mHeadsetService,
                         mHandlerThread.getLooper(),
@@ -159,97 +153,7 @@ public class HeadsetClientStateMachineTest {
         mHeadsetClientStateMachine.doQuit();
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         mHandlerThread.quit();
-        TestUtils.clearAdapterService(mAdapterService);
         verifyNoMoreInteractions(mHeadsetService);
-    }
-
-    private void quitHeadsetClientStateMachine() {
-        if (mHeadsetClientStateMachine != null) {
-            TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-            mHeadsetClientStateMachine.allowConnect = null;
-            mHeadsetClientStateMachine.doQuit();
-            TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-            mHeadsetClientStateMachine = null;
-        }
-    }
-
-    private void startHeadsetClientStateMachine() {
-        if (mHeadsetClientStateMachine == null) {
-            mHeadsetClientStateMachine =
-                    new TestHeadsetClientStateMachine(
-                            mHeadsetClientService,
-                            mHeadsetService,
-                            mHandlerThread.getLooper(),
-                            mNativeInterface);
-            mHeadsetClientStateMachine.start();
-            TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
-        }
-    }
-
-    /**
-     * Test AM to HF volume symmetric. The test takes the AM volume range 1-10 and HF 1-15. All the
-     * AM values are mapped with corresponding HF values. After all collected, the test converts
-     * back HF values and checks if they match AM. This proves that the conversion is symmetric.
-     */
-    @Test
-    @EnableFlags(Flags.FLAG_HEADSET_CLIENT_AM_HF_VOLUME_SYMMETRIC)
-    public void testAmHfVolumeSymmetric_AmLowerRange() {
-        int amMin = 1;
-        int amMax = 10;
-        Map<Integer, Integer> amToHfMap = new HashMap<>();
-
-        Assert.assertTrue(amMax < MAX_HFP_SCO_VOICE_CALL_VOLUME);
-
-        quitHeadsetClientStateMachine();
-
-        when(mAudioManager.getStreamMaxVolume(anyInt())).thenReturn(amMax);
-        when(mAudioManager.getStreamMinVolume(anyInt())).thenReturn(amMin);
-
-        startHeadsetClientStateMachine();
-
-        for (int i = amMin; i <= amMax; i++) {
-            // Collect AM to HF conversion
-            amToHfMap.put(i, HeadsetClientStateMachine.amToHfVol(i));
-        }
-
-        for (Map.Entry entry : amToHfMap.entrySet()) {
-            // Convert back from collected HF to AM and check if equal the saved AM value
-            Assert.assertEquals(
-                    HeadsetClientStateMachine.hfToAmVol((int) entry.getValue()), entry.getKey());
-        }
-    }
-
-    /**
-     * Test HF to AM volume symmetric. The test takes the AM volume range 1-20 and HF 1-15. All the
-     * HF values are mapped with corresponding AM values. After all collected, the test converts
-     * back AM values and checks if they match HF. This proves that the conversion is symmetric.
-     */
-    @Test
-    @EnableFlags(Flags.FLAG_HEADSET_CLIENT_AM_HF_VOLUME_SYMMETRIC)
-    public void testAmHfVolumeSymmetric_HfLowerRange() {
-        int amMin = 1;
-        int amMax = 20;
-        Map<Integer, Integer> hfToAmMap = new HashMap<>();
-
-        Assert.assertTrue(amMax > MAX_HFP_SCO_VOICE_CALL_VOLUME);
-
-        quitHeadsetClientStateMachine();
-
-        when(mAudioManager.getStreamMaxVolume(anyInt())).thenReturn(amMax);
-        when(mAudioManager.getStreamMinVolume(anyInt())).thenReturn(amMin);
-
-        startHeadsetClientStateMachine();
-
-        for (int i = MIN_HFP_SCO_VOICE_CALL_VOLUME; i <= MAX_HFP_SCO_VOICE_CALL_VOLUME; i++) {
-            // Collect HF to AM conversion
-            hfToAmMap.put(i, HeadsetClientStateMachine.hfToAmVol(i));
-        }
-
-        for (Map.Entry entry : hfToAmMap.entrySet()) {
-            // Convert back from collected AM to HF and check if equal the saved HF value
-            Assert.assertEquals(
-                    HeadsetClientStateMachine.amToHfVol((int) entry.getValue()), entry.getKey());
-        }
     }
 
     /** Test that default state is disconnected */
@@ -725,7 +629,7 @@ public class HeadsetClientStateMachineTest {
             mHeadsetClientStateMachine.sendMessage(StackEvent.STACK_EVENT, unknownEvt);
             TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
 
-            // receive CMD_RESULT OK after the Anroid AT command from remote
+            // receive CMD_RESULT OK after the Android AT command from remote
             StackEvent cmdResEvt = new StackEvent(StackEvent.EVENT_TYPE_CMD_RESULT);
             cmdResEvt.valueInt = StackEvent.CMD_RESULT_TYPE_OK;
             cmdResEvt.device = mTestDevice;
@@ -1837,11 +1741,12 @@ public class HeadsetClientStateMachineTest {
         boolean mForceSetAudioPolicyProperty = false;
 
         TestHeadsetClientStateMachine(
+                AdapterService adapterService,
                 HeadsetClientService context,
                 HeadsetService headsetService,
                 Looper looper,
                 NativeInterface nativeInterface) {
-            super(context, headsetService, looper, nativeInterface);
+            super(adapterService, context, headsetService, looper, nativeInterface);
         }
 
         public boolean doesSuperHaveDeferredMessages(int what) {

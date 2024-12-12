@@ -29,7 +29,7 @@ class ContextualOnceCallback;
 // A callback bound to an execution context that can be invoked only once.
 template <typename R, typename... Args>
 class ContextualOnceCallback<R(Args...)> {
- public:
+public:
   ContextualOnceCallback(common::OnceCallback<R(Args...)>&& callback, IPostableContext* context)
       : callback_(std::move(callback)), context_(context) {}
 
@@ -44,18 +44,16 @@ class ContextualOnceCallback<R(Args...)> {
     context_->Post(common::BindOnce(std::move(callback_), std::forward<Args>(args)...));
   }
 
-  operator bool() const {
-    return context_ && callback_;
-  }
+  operator bool() const { return context_ && callback_; }
 
- private:
+private:
   common::OnceCallback<R(Args...)> callback_;
   IPostableContext* context_;
 };
 
 template <typename Callback>
 ContextualOnceCallback(Callback&& callback, IPostableContext* context)
-    -> ContextualOnceCallback<typename Callback::RunType>;
+        -> ContextualOnceCallback<typename Callback::RunType>;
 
 template <typename R, typename... Args>
 class ContextualCallback;
@@ -63,7 +61,7 @@ class ContextualCallback;
 // A callback bound to an execution context that can be invoked multiple times.
 template <typename R, typename... Args>
 class ContextualCallback<R(Args...)> {
- public:
+public:
   ContextualCallback(common::Callback<R(Args...)>&& callback, IPostableContext* context)
       : callback_(std::move(callback)), context_(context) {}
 
@@ -78,18 +76,16 @@ class ContextualCallback<R(Args...)> {
     context_->Post(common::BindOnce(callback_, std::forward<Args>(args)...));
   }
 
-  operator bool() const {
-    return context_ && callback_;
-  }
+  operator bool() const { return context_ && callback_; }
 
- private:
+private:
   common::Callback<R(Args...)> callback_;
   IPostableContext* context_;
 };
 
 template <typename Callback>
-ContextualCallback(Callback&& callback, IPostableContext* context)
-    -> ContextualCallback<typename Callback::RunType>;
+ContextualCallback(Callback&& callback,
+                   IPostableContext* context) -> ContextualCallback<typename Callback::RunType>;
 
 }  // namespace common
 }  // namespace bluetooth

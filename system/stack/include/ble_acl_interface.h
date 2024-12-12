@@ -23,24 +23,23 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
-void acl_ble_enhanced_connection_complete(
-    const tBLE_BD_ADDR& address_with_type, uint16_t handle, tHCI_ROLE role,
-    bool match, uint16_t conn_interval, uint16_t conn_latency,
-    uint16_t conn_timeout, const RawAddress& local_rpa,
-    const RawAddress& peer_rpa, tBLE_ADDR_TYPE peer_addr_type,
-    bool can_read_discoverable_characteristics);
+void acl_ble_enhanced_connection_complete(const tBLE_BD_ADDR& address_with_type, uint16_t handle,
+                                          tHCI_ROLE role, bool match, uint16_t conn_interval,
+                                          uint16_t conn_latency, uint16_t conn_timeout,
+                                          const RawAddress& local_rpa, const RawAddress& peer_rpa,
+                                          tBLE_ADDR_TYPE peer_addr_type,
+                                          bool can_read_discoverable_characteristics);
 void acl_ble_enhanced_connection_complete_from_shim(
-    const tBLE_BD_ADDR& address_with_type, uint16_t handle, tHCI_ROLE role,
-    uint16_t conn_interval, uint16_t conn_latency, uint16_t conn_timeout,
-    const RawAddress& local_rpa, const RawAddress& peer_rpa,
-    tBLE_ADDR_TYPE peer_addr_type, bool can_read_discoverable_characteristics);
-void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type,
-                             uint16_t handle, bool enhanced,
+        const tBLE_BD_ADDR& address_with_type, uint16_t handle, tHCI_ROLE role,
+        uint16_t conn_interval, uint16_t conn_latency, uint16_t conn_timeout,
+        const RawAddress& local_rpa, const RawAddress& peer_rpa, tBLE_ADDR_TYPE peer_addr_type,
+        bool can_read_discoverable_characteristics);
+void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type, uint16_t handle, bool enhanced,
                              tHCI_STATUS status);
-void acl_ble_update_event_received(tHCI_STATUS status, uint16_t handle,
-                                   uint16_t interval, uint16_t latency,
-                                   uint16_t timeout);
-void acl_ble_data_length_change_event(uint16_t handle, uint16_t max_tx_octets,
-                                      uint16_t max_tx_time,
-                                      uint16_t max_rx_octets,
-                                      uint16_t max_rx_time);
+void acl_ble_update_event_received(tHCI_STATUS status, uint16_t handle, uint16_t interval,
+                                   uint16_t latency, uint16_t timeout);
+void acl_ble_update_request_event_received(uint16_t handle, uint16_t interval_min,
+                                           uint16_t interval_max, uint16_t latency,
+                                           uint16_t timeout);
+void acl_ble_data_length_change_event(uint16_t handle, uint16_t max_tx_octets, uint16_t max_tx_time,
+                                      uint16_t max_rx_octets, uint16_t max_rx_time);

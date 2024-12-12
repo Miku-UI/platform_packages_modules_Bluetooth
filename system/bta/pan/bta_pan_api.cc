@@ -38,17 +38,15 @@ static const tBTA_SYS_REG bta_pan_reg = {bta_pan_hdl_event, BTA_PanDisable};
 void bta_pan_api_disable(tBTA_PAN_DATA* p_data);
 void bta_pan_api_enable(tBTA_PAN_DATA* p_data);
 void bta_pan_api_open(tBTA_PAN_DATA* p_data);
-void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event,
-                        tBTA_PAN_DATA* p_data);
+void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event, tBTA_PAN_DATA* p_data);
 
 std::string user_service_name; /* Service name for PANU role */
 std::string gn_service_name;   /* Service name for GN role */
 std::string nap_service_name;  /* Service name for NAP role */
 
 #ifndef PAN_SECURITY
-#define PAN_SECURITY                                                         \
-  (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_IN_ENCRYPT | \
-   BTM_SEC_OUT_ENCRYPT)
+#define PAN_SECURITY \
+  (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT)
 #endif
 
 /*******************************************************************************
@@ -64,8 +62,7 @@ std::string nap_service_name;  /* Service name for NAP role */
  *
  ******************************************************************************/
 void BTA_PanEnable(tBTA_PAN_CBACK p_cback) {
-  tBTA_PAN_API_ENABLE* p_buf =
-      (tBTA_PAN_API_ENABLE*)osi_malloc(sizeof(tBTA_PAN_API_ENABLE));
+  tBTA_PAN_API_ENABLE* p_buf = (tBTA_PAN_API_ENABLE*)osi_malloc(sizeof(tBTA_PAN_API_ENABLE));
 
   /* register with BTA system manager */
   bta_sys_register(BTA_ID_PAN, &bta_pan_reg);
@@ -110,28 +107,28 @@ void BTA_PanSetRole(tBTA_PAN_ROLE role, const tBTA_PAN_ROLE_INFO user_info,
                     const tBTA_PAN_ROLE_INFO nap_info) {
   post_on_bt_main([=]() {
     tBTA_PAN_DATA data = {
-        .api_set_role =
-            {
-                .hdr =
+            .api_set_role =
                     {
-                        .event = BTA_PAN_API_SET_ROLE_EVT,
+                            .hdr =
+                                    {
+                                            .event = BTA_PAN_API_SET_ROLE_EVT,
+                                    },
+                            .user_name = {},
+                            .nap_name = {},
+                            .role = role,
                     },
-                .user_name = {},
-                .nap_name = {},
-                .role = role,
-            },
     };
     if (role & BTA_PAN_ROLE_PANU) {
-      if (!user_info.p_srv_name.empty())
-        strncpy(data.api_set_role.user_name, user_info.p_srv_name.data(),
-                BTA_SERVICE_NAME_LEN);
+      if (!user_info.p_srv_name.empty()) {
+        strncpy(data.api_set_role.user_name, user_info.p_srv_name.data(), BTA_SERVICE_NAME_LEN);
+      }
       data.api_set_role.user_app_id = user_info.app_id;
     }
 
     if (role & BTA_PAN_ROLE_NAP) {
-      if (!nap_info.p_srv_name.empty())
-        strncpy(data.api_set_role.nap_name, nap_info.p_srv_name.data(),
-                BTA_SERVICE_NAME_LEN);
+      if (!nap_info.p_srv_name.empty()) {
+        strncpy(data.api_set_role.nap_name, nap_info.p_srv_name.data(), BTA_SERVICE_NAME_LEN);
+      }
       data.api_set_role.nap_app_id = nap_info.app_id;
     }
     bta_pan_set_role(&data);
@@ -150,10 +147,8 @@ void BTA_PanSetRole(tBTA_PAN_ROLE role, const tBTA_PAN_ROLE_INFO user_info,
  * Returns          void
  *
  ******************************************************************************/
-void BTA_PanOpen(const RawAddress& bd_addr, tBTA_PAN_ROLE local_role,
-                 tBTA_PAN_ROLE peer_role) {
-  tBTA_PAN_API_OPEN* p_buf =
-      (tBTA_PAN_API_OPEN*)osi_malloc(sizeof(tBTA_PAN_API_OPEN));
+void BTA_PanOpen(const RawAddress& bd_addr, tBTA_PAN_ROLE local_role, tBTA_PAN_ROLE peer_role) {
+  tBTA_PAN_API_OPEN* p_buf = (tBTA_PAN_API_OPEN*)osi_malloc(sizeof(tBTA_PAN_API_OPEN));
 
   p_buf->hdr.event = BTA_PAN_API_OPEN_EVT;
   p_buf->local_role = local_role;

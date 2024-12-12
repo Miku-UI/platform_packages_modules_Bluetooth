@@ -38,45 +38,39 @@ namespace {
 constexpr uint16_t kDummyCid = 0x1234;
 constexpr uint8_t kDummyId = 0x77;
 constexpr uint8_t kDummyRemoteAddr[] = {0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC};
-constexpr uint8_t kDummySrcUuid[] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55,
-                                     0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
-                                     0xcc, 0xdd, 0xee, 0xff};
-constexpr uint8_t kDummyDstUuid[] = {0x00, 0x00, 0x00, 0x00, 0x22, 0x22,
-                                     0x22, 0x22, 0x33, 0x33, 0x55, 0x55,
-                                     0x55, 0x55, 0x55, 0x59};
+constexpr uint8_t kDummySrcUuid[] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                                     0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
+constexpr uint8_t kDummyDstUuid[] = {0x00, 0x00, 0x00, 0x00, 0x22, 0x22, 0x22, 0x22,
+                                     0x33, 0x33, 0x55, 0x55, 0x55, 0x55, 0x55, 0x59};
 
 // Set up default callback structure
 static tL2CAP_APPL_INFO appl_info;
 
 class FakeBtStack {
- public:
+public:
   FakeBtStack() {
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid,
-                                                          BT_HDR* p_data) {
-      bluetooth::log::assert_that(cid == kDummyCid,
-                                  "assert failed: cid == kDummyCid");
+    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t cid, BT_HDR* p_data) {
+      bluetooth::log::assert_that(cid == kDummyCid, "assert failed: cid == kDummyCid");
       osi_free(p_data);
-      return L2CAP_DW_SUCCESS;
+      return tL2CAP_DW_RESULT::SUCCESS;
     };
     test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t cid) {
-      bluetooth::log::assert_that(cid == kDummyCid,
-                                  "assert failed: cid == kDummyCid");
+      bluetooth::log::assert_that(cid == kDummyCid, "assert failed: cid == kDummyCid");
       return true;
     };
     test::mock::stack_l2cap_api::L2CA_ConnectReqWithSecurity.body =
-        [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
-          bluetooth::log::assert_that(
-              p_bd_addr == kDummyRemoteAddr,
-              "assert failed: p_bd_addr == kDummyRemoteAddr");
-          return kDummyCid;
-        };
+            [](uint16_t psm, const RawAddress& p_bd_addr, uint16_t sec_level) {
+              bluetooth::log::assert_that(p_bd_addr == kDummyRemoteAddr,
+                                          "assert failed: p_bd_addr == kDummyRemoteAddr");
+              return kDummyCid;
+            };
     test::mock::stack_l2cap_api::L2CA_RegisterWithSecurity.body =
-        [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
-           tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu,
-           uint16_t required_remote_mtu, uint16_t sec_level) {
-          appl_info = p_cb_info;
-          return psm;
-        };
+            [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
+               tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
+               uint16_t sec_level) {
+              appl_info = p_cb_info;
+              return psm;
+            };
     test::mock::stack_l2cap_api::L2CA_Deregister.body = [](uint16_t psm) {};
   }
 
@@ -90,7 +84,7 @@ class FakeBtStack {
 };
 
 class Fakes {
- public:
+public:
   test::fake::FakeOsi fake_osi;
   FakeBtStack fake_stack;
 };
@@ -107,26 +101,21 @@ static void ConsumeData(const uint8_t* data, size_t size) {
 
 static void Fuzz(const uint8_t* data, size_t size) {
   tBNEP_REGISTER reg = {
-      .p_conn_ind_cb =
-          [](uint16_t handle, const RawAddress& bd_addr,
-             const bluetooth::Uuid& remote_uuid,
-             const bluetooth::Uuid& local_uuid,
-             bool is_role_change) { BNEP_ConnectResp(handle, BNEP_SUCCESS); },
-      .p_conn_state_cb = [](uint16_t handle, const RawAddress& rem_bda,
-                            tBNEP_RESULT result, bool is_role_change) {},
-      .p_data_ind_cb = [](uint16_t handle, const RawAddress& src,
-                          const RawAddress& dst, uint16_t protocol,
-                          uint8_t* p_data, uint16_t len,
-                          bool fw_ext_present) { ConsumeData(p_data, len); },
-      .p_tx_data_flow_cb = [](uint16_t handle, tBNEP_RESULT event) {},
-      .p_filter_ind_cb =
-          [](uint16_t handle, bool indication, tBNEP_RESULT result,
-             uint16_t num_filters,
-             uint8_t* p_filters) { ConsumeData(p_filters, num_filters); },
-      .p_mfilter_ind_cb =
-          [](uint16_t handle, bool indication, tBNEP_RESULT result,
-             uint16_t num_mfilters,
-             uint8_t* p_mfilters) { ConsumeData(p_mfilters, num_mfilters); },
+          .p_conn_ind_cb = [](uint16_t handle, const RawAddress& bd_addr,
+                              const bluetooth::Uuid& remote_uuid, const bluetooth::Uuid& local_uuid,
+                              bool is_role_change) { BNEP_ConnectResp(handle, BNEP_SUCCESS); },
+          .p_conn_state_cb = [](uint16_t handle, const RawAddress& rem_bda, tBNEP_RESULT result,
+                                bool is_role_change) {},
+          .p_data_ind_cb = [](uint16_t handle, const RawAddress& src, const RawAddress& dst,
+                              uint16_t protocol, uint8_t* p_data, uint16_t len,
+                              bool fw_ext_present) { ConsumeData(p_data, len); },
+          .p_tx_data_flow_cb = [](uint16_t handle, tBNEP_RESULT event) {},
+          .p_filter_ind_cb = [](uint16_t handle, bool indication, tBNEP_RESULT result,
+                                uint16_t num_filters,
+                                uint8_t* p_filters) { ConsumeData(p_filters, num_filters); },
+          .p_mfilter_ind_cb = [](uint16_t handle, bool indication, tBNEP_RESULT result,
+                                 uint16_t num_mfilters,
+                                 uint8_t* p_mfilters) { ConsumeData(p_mfilters, num_mfilters); },
   };
 
   BNEP_Init();
@@ -146,7 +135,7 @@ static void Fuzz(const uint8_t* data, size_t size) {
                  Uuid::From128BitBE(kDummyDstUuid), &handle, 0);
 
     // Simulating outbound connection confirm event
-    appl_info.pL2CA_ConnectCfm_Cb(kDummyCid, L2CAP_CONN_OK);
+    appl_info.pL2CA_ConnectCfm_Cb(kDummyCid, tL2CAP_CONN::L2CAP_CONN_OK);
   }
 
   // Simulating configuration confirmation event

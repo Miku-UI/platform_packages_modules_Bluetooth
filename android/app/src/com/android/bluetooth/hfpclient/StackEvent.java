@@ -70,13 +70,13 @@ public class StackEvent {
     public String toString() {
         // event dump
         StringBuilder result = new StringBuilder();
-        result.append("StackEvent {type:" + eventTypeToString(type));
-        result.append(", value1:" + valueInt);
-        result.append(", value2:" + valueInt2);
-        result.append(", value3:" + valueInt3);
-        result.append(", value4:" + valueInt4);
-        result.append(", string: \"" + valueString + "\"");
-        result.append(", device:" + device + "}");
+        result.append("StackEvent {type:").append(eventTypeToString(type));
+        result.append(", value1:").append(valueInt);
+        result.append(", value2:").append(valueInt2);
+        result.append(", value3:").append(valueInt3);
+        result.append(", value4:").append(valueInt4);
+        result.append(", string: \"").append(valueString).append("\"");
+        result.append(", device:").append(device).append("}");
         return result.toString();
     }
 

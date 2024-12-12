@@ -165,7 +165,7 @@ void BTA_HdDisable(void);
  * Function         BTA_HdRegisterApp
  *
  * Description      This function is called when application should be
-*registered
+ *registered
  *
  * Returns          void
  *
@@ -178,7 +178,7 @@ void BTA_HdRegisterApp(tBTA_HD_APP_INFO* p_app_info, tBTA_HD_QOS_INFO* p_in_qos,
  * Function         BTA_HdUnregisterApp
  *
  * Description      This function is called when application should be
-*unregistered
+ *unregistered
  *
  * Returns          void
  *

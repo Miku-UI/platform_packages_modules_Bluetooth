@@ -98,11 +98,11 @@ cc_library_shared {
         "android.system.suspend-V1-ndk",
         "android.system.suspend.control-V1-ndk",
         "avrcp-target-service",
+        "bluetooth_flags_c_lib",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
         "libaconfig_storage_read_api_cc",
-        "libaudio-a2dp-hw-utils",
         "libbase",
         "libbluetooth",
         "libbluetooth-dumpsys",
@@ -134,6 +134,8 @@ cc_library_shared {
         "libchrome",
         "libcutils",
         "libevent",
+        "libexpresslog",
+        "libflags_rust_cpp_bridge",
         "libflatbuffers-cpp",
         "libfmq",
         "libg722codec",
@@ -144,6 +146,8 @@ cc_library_shared {
         "libosi",
         "libprotobuf-cpp-lite",
         "libstatslog_bt",
+        "libstatslog_express",
+        "libtextclassifier_hash_static",
         "libudrv-uipc",
         "libutils",
         "server_configurable_flags",
@@ -164,7 +168,6 @@ cc_library_shared {
         "com.android.btservices",
     ],
     min_sdk_version: "Tiramisu",
-    ldflags: ["-Wl,--allow-multiple-definition"],
 
     // TODO(b/346919576) Workaround LTO build breakage.
     lto_O0: true,
@@ -217,6 +220,7 @@ cc_library {
 
 android_app {
     name: "Bluetooth",
+    defaults: ["bluetooth_framework_errorprone_rules"],
 
     srcs: [
         ":statslog-bluetooth-java-gen",
@@ -244,21 +248,22 @@ android_app {
         "error_prone_annotations",
         "framework-annotations-lib",
         "framework-bluetooth-pre-jarjar",
-        "framework-configinfrastructure",
+        "framework-configinfrastructure.stubs.module_lib",
         "framework-connectivity.stubs.module_lib",
         "framework-location.stubs.module_lib",
-        "framework-mediaprovider",
+        "framework-mediaprovider.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
         "framework-tethering.stubs.module_lib",
         "unsupportedappusage",
 
         // Need to link the class at runtime
-        "framework-bluetooth",
+        "framework-bluetooth.stubs.module_lib",
     ],
     static_libs: [
         "BluetoothApiShims",
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio.sap-V1-java",
+        "android.os.flags-aconfig-java-export",
         "androidx.annotation_annotation",
         "androidx.core_core",
         "androidx.lifecycle_lifecycle-livedata",
@@ -283,6 +288,7 @@ android_app {
 
     plugins: [
         "androidx.room_room-compiler-plugin",
+        "error_prone_android_framework",
     ],
 
     // Export schemas to the test directory so that we have an history
@@ -317,25 +323,6 @@ android_app {
     apex_available: [
         "com.android.btservices",
     ],
-    errorprone: {
-        enabled: true,
-        javacflags: [
-            // "-Xep:AndroidFrameworkRequiresPermission:ERROR",
-            "-Xep:AlmostJavadoc:ERROR",
-            "-Xep:BadImport:ERROR",
-            "-Xep:ClassCanBeStatic:ERROR",
-            "-Xep:EmptyBlockTag:ERROR",
-            "-Xep:InlineMeInliner:ERROR",
-            "-Xep:InvalidBlockTag:ERROR",
-            "-Xep:InvalidParam:ERROR",
-            "-Xep:MockNotUsedInProduction:ERROR",
-            "-Xep:NonCanonicalType:ERROR",
-            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
-            "-Xep:UnusedMethod:ERROR",
-            "-Xep:UnusedVariable:ERROR",
-            "-XepExcludedPaths:.*/srcjars/.*", // Exclude generated files
-        ],
-    },
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
 }

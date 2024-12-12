@@ -31,23 +31,23 @@ class Packet : public std::enable_shared_from_this<Packet> {
   friend class Iterator;
   friend class PacketBuilder;
 
- public:
+public:
   virtual ~Packet() = default;
 
- protected:
+protected:
   Packet()
       : packet_start_index_(0),
         packet_end_index_(0),
-        data_(std::make_shared<std::vector<uint8_t>>(0)){};
+        data_(std::make_shared<std::vector<uint8_t>>(0)) {}
   Packet(std::shared_ptr<const Packet> pkt, size_t start, size_t end)
-      : packet_start_index_(start), packet_end_index_(end), data_(pkt->data_){};
+      : packet_start_index_(start), packet_end_index_(end), data_(pkt->data_) {}
   Packet(std::shared_ptr<const Packet> pkt) : data_(pkt->data_) {
     auto indices = pkt->GetPayloadIndecies();
     packet_start_index_ = indices.first;
     packet_end_index_ = indices.second;
-  };
+  }
 
- public:
+public:
   size_t size() const;
   class Iterator begin() const;
   class Iterator end() const;
@@ -76,17 +76,16 @@ class Packet : public std::enable_shared_from_this<Packet> {
                   "Unable to specialize to something that isn't a packet");
     static_assert(std::is_convertible<T*, U*>::value,
                   "Can not convert between the two packet types.");
-    return std::shared_ptr<T>(
-        new T(pkt, pkt->packet_start_index_, pkt->packet_end_index_));
-  };
+    return std::shared_ptr<T>(new T(pkt, pkt->packet_start_index_, pkt->packet_end_index_));
+  }
 
- protected:
+protected:
   // Packet should be immutable other than when building
   size_t packet_start_index_;
   size_t packet_end_index_;
   std::shared_ptr<std::vector<uint8_t>> data_;
 
- private:
+private:
   // Only Available to the iterators
   virtual size_t get_length() const;
   virtual uint8_t get_at_index(size_t index) const;

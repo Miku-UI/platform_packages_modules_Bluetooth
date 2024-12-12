@@ -41,8 +41,7 @@ void a2dp_vendor_opus_decoder_cleanup(void) {
     osi_free(a2dp_opus_decoder_cb.opus_handle);
 
     if (a2dp_opus_decoder_cb.decode_buf != nullptr) {
-      memset(a2dp_opus_decoder_cb.decode_buf, 0,
-             A2DP_OPUS_DECODE_BUFFER_LENGTH);
+      memset(a2dp_opus_decoder_cb.decode_buf, 0, A2DP_OPUS_DECODE_BUFFER_LENGTH);
       osi_free(a2dp_opus_decoder_cb.decode_buf);
       a2dp_opus_decoder_cb.decode_buf = nullptr;
     }
@@ -59,20 +58,18 @@ bool a2dp_vendor_opus_decoder_init(decoded_data_callback_t decode_callback) {
   int32_t size = 0;
 
   size = opus_decoder_get_size(A2DP_OPUS_CODEC_OUTPUT_CHS);
-  a2dp_opus_decoder_cb.opus_handle =
-      static_cast<OpusDecoder*>(osi_malloc(size));
+  a2dp_opus_decoder_cb.opus_handle = static_cast<OpusDecoder*>(osi_malloc(size));
   if (a2dp_opus_decoder_cb.opus_handle == nullptr) {
     log::error("failed to allocate opus decoder handle");
     return false;
   }
-  err_val = opus_decoder_init(a2dp_opus_decoder_cb.opus_handle,
-                              A2DP_OPUS_CODEC_DEFAULT_SAMPLERATE,
+  err_val = opus_decoder_init(a2dp_opus_decoder_cb.opus_handle, A2DP_OPUS_CODEC_DEFAULT_SAMPLERATE,
                               A2DP_OPUS_CODEC_OUTPUT_CHS);
   if (err_val == OPUS_OK) {
     a2dp_opus_decoder_cb.has_opus_handle = true;
 
     a2dp_opus_decoder_cb.decode_buf =
-        static_cast<int16_t*>(osi_malloc(A2DP_OPUS_DECODE_BUFFER_LENGTH));
+            static_cast<int16_t*>(osi_malloc(A2DP_OPUS_DECODE_BUFFER_LENGTH));
 
     memset(a2dp_opus_decoder_cb.decode_buf, 0, A2DP_OPUS_DECODE_BUFFER_LENGTH);
 
@@ -88,7 +85,7 @@ bool a2dp_vendor_opus_decoder_init(decoded_data_callback_t decode_callback) {
   return false;
 }
 
-void a2dp_vendor_opus_decoder_configure(const uint8_t* p_codec_info) { return; }
+void a2dp_vendor_opus_decoder_configure(const uint8_t* /* p_codec_info */) { return; }
 
 bool a2dp_vendor_opus_decoder_decode_packet(BT_HDR* p_buf) {
   uint32_t frameSize;
@@ -107,50 +104,43 @@ bool a2dp_vendor_opus_decoder_decode_packet(BT_HDR* p_buf) {
     return false;
   }
 
-  auto* pBuffer =
-      reinterpret_cast<unsigned char*>(p_buf->data + p_buf->offset + 1);
+  auto* pBuffer = reinterpret_cast<unsigned char*>(p_buf->data + p_buf->offset + 1);
   int32_t bufferSize = p_buf->len - 1;
 
   numChannels = opus_packet_get_nb_channels(pBuffer);
   numFrames = opus_packet_get_nb_frames(pBuffer, bufferSize);
-  frameSize = opus_packet_get_samples_per_frame(
-      pBuffer, A2DP_OPUS_CODEC_DEFAULT_SAMPLERATE);
-  frameLen = opus_packet_get_nb_samples(pBuffer, bufferSize,
-                                        A2DP_OPUS_CODEC_DEFAULT_SAMPLERATE);
+  frameSize = opus_packet_get_samples_per_frame(pBuffer, A2DP_OPUS_CODEC_DEFAULT_SAMPLERATE);
+  frameLen = opus_packet_get_nb_samples(pBuffer, bufferSize, A2DP_OPUS_CODEC_DEFAULT_SAMPLERATE);
   uint32_t num_frames = pBuffer[0] & 0xf;
 
-  log::error("numframes {} framesize {} framelen {} bufferSize {}", num_frames,
-             frameSize, frameLen, bufferSize);
-  log::error("numChannels {} numFrames {} offset {}", numChannels, numFrames,
-             p_buf->offset);
+  log::error("numframes {} framesize {} framelen {} bufferSize {}", num_frames, frameSize, frameLen,
+             bufferSize);
+  log::error("numChannels {} numFrames {} offset {}", numChannels, numFrames, p_buf->offset);
 
   for (uint32_t frame = 0; frame < numFrames; ++frame) {
     {
       numChannels = opus_packet_get_nb_channels(pBuffer);
 
       ret_val = opus_decode(a2dp_opus_decoder_cb.opus_handle,
-                            reinterpret_cast<unsigned char*>(pBuffer),
-                            bufferSize, a2dp_opus_decoder_cb.decode_buf,
-                            A2DP_OPUS_DECODE_BUFFER_LENGTH, 0 /* flags */);
+                            reinterpret_cast<unsigned char*>(pBuffer), bufferSize,
+                            a2dp_opus_decoder_cb.decode_buf, A2DP_OPUS_DECODE_BUFFER_LENGTH,
+                            0 /* flags */);
 
       if (ret_val < OPUS_OK) {
         log::error("Opus DecodeFrame failed {}, applying concealment", ret_val);
         ret_val = opus_decode(a2dp_opus_decoder_cb.opus_handle, NULL, 0,
-                              a2dp_opus_decoder_cb.decode_buf,
-                              A2DP_OPUS_DECODE_BUFFER_LENGTH, 0 /* flags */);
+                              a2dp_opus_decoder_cb.decode_buf, A2DP_OPUS_DECODE_BUFFER_LENGTH,
+                              0 /* flags */);
       }
 
       if (ret_val < OPUS_OK) {
-        log::error("Opus DecodeFrame retry failed with {}, dropping packet",
-                   ret_val);
+        log::error("Opus DecodeFrame retry failed with {}, dropping packet", ret_val);
         return false;
       }
 
-      size_t frame_len =
-          ret_val * numChannels * sizeof(a2dp_opus_decoder_cb.decode_buf[0]);
+      size_t frame_len = ret_val * numChannels * sizeof(a2dp_opus_decoder_cb.decode_buf[0]);
       a2dp_opus_decoder_cb.decode_callback(
-          reinterpret_cast<uint8_t*>(a2dp_opus_decoder_cb.decode_buf),
-          frame_len);
+              reinterpret_cast<uint8_t*>(a2dp_opus_decoder_cb.decode_buf), frame_len);
     }
   }
   return true;
@@ -162,8 +152,7 @@ void a2dp_vendor_opus_decoder_suspend(void) {
   int32_t err_val = 0;
 
   if (a2dp_opus_decoder_cb.has_opus_handle) {
-    err_val =
-        opus_decoder_ctl(a2dp_opus_decoder_cb.opus_handle, OPUS_RESET_STATE);
+    err_val = opus_decoder_ctl(a2dp_opus_decoder_cb.opus_handle, OPUS_RESET_STATE);
     if (err_val != OPUS_OK) {
       log::error("failed to reset decoder");
     }

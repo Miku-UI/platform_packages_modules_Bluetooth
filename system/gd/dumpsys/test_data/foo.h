@@ -6,7 +6,7 @@
 namespace testing {
 
 class FooTestDataClass : public DumpsysTestDataClass {
- public:
+public:
   TableAddFunction GetTable(flatbuffers::FlatBufferBuilder& fb_builder) override {
     auto int_string = fb_builder.CreateString("123");
     auto float_string = fb_builder.CreateString("123.456");
@@ -33,7 +33,9 @@ class FooTestDataClass : public DumpsysTestDataClass {
 
     auto foo_table = builder.Finish();
 
-    return [foo_table](DumpsysTestDataRootBuilder* builder) { builder->add_foo_module_data(foo_table); };
+    return [foo_table](DumpsysTestDataRootBuilder* builder) {
+      builder->add_foo_module_data(foo_table);
+    };
   }
 };
 

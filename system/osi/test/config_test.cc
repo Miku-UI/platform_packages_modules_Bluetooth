@@ -22,10 +22,10 @@
 #include <filesystem>
 
 static const std::filesystem::path kConfigFile =
-    std::filesystem::temp_directory_path() / "config_test.conf";
+        std::filesystem::temp_directory_path() / "config_test.conf";
 static const char* CONFIG_FILE = kConfigFile.c_str();
 static const char CONFIG_FILE_CONTENT[] =
-    "                                                                                \n\
+        "                                                                                \n\
 first_key=value                                                                      \n\
                                                                                      \n\
 # Device ID (DID) configuration                                                      \n\
@@ -69,7 +69,7 @@ HiSyncId2 = 15001900                                                            
 ";
 
 class ConfigTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     FILE* fp = fopen(CONFIG_FILE, "wt");
     ASSERT_NE(fp, nullptr);
@@ -78,9 +78,7 @@ class ConfigTest : public ::testing::Test {
     ASSERT_EQ(fclose(fp), 0);
   }
 
-  void TearDown() override {
-    EXPECT_TRUE(std::filesystem::remove(kConfigFile));
-  }
+  void TearDown() override { EXPECT_TRUE(std::filesystem::remove(kConfigFile)); }
 };
 
 TEST_F(ConfigTest, config_find) {
@@ -149,15 +147,11 @@ TEST_F(ConfigTest, config_new_clone) {
   std::unique_ptr<config_t> config = config_new(CONFIG_FILE);
   std::unique_ptr<config_t> clone = config_new_clone(*config);
 
-  config_set_string(clone.get(), CONFIG_DEFAULT_SECTION, "first_key",
-                    "not_value");
+  config_set_string(clone.get(), CONFIG_DEFAULT_SECTION, "first_key", "not_value");
 
   std::string one = std::string("one");
-  EXPECT_STRNE(
-      config_get_string(*config, CONFIG_DEFAULT_SECTION, "first_key", &one)
-          ->c_str(),
-      config_get_string(*clone, CONFIG_DEFAULT_SECTION, "first_key", &one)
-          ->c_str());
+  EXPECT_STRNE(config_get_string(*config, CONFIG_DEFAULT_SECTION, "first_key", &one)->c_str(),
+               config_get_string(*clone, CONFIG_DEFAULT_SECTION, "first_key", &one)->c_str());
 }
 
 TEST_F(ConfigTest, config_has_section) {
@@ -168,10 +162,8 @@ TEST_F(ConfigTest, config_has_section) {
 TEST_F(ConfigTest, config_has_key_in_default_section) {
   std::unique_ptr<config_t> config = config_new(CONFIG_FILE);
   EXPECT_TRUE(config_has_key(*config, CONFIG_DEFAULT_SECTION, "first_key"));
-  EXPECT_STREQ(
-      config_get_string(*config, CONFIG_DEFAULT_SECTION, "first_key", nullptr)
-          ->c_str(),
-      "value");
+  EXPECT_STREQ(config_get_string(*config, CONFIG_DEFAULT_SECTION, "first_key", nullptr)->c_str(),
+               "value");
 }
 
 TEST_F(ConfigTest, config_has_keys) {
@@ -186,8 +178,7 @@ TEST_F(ConfigTest, config_no_bad_keys) {
   std::unique_ptr<config_t> config = config_new(CONFIG_FILE);
   EXPECT_FALSE(config_has_key(*config, "DID_BAD", "primaryRecord"));
   EXPECT_FALSE(config_has_key(*config, "DID", "primaryRecord_BAD"));
-  EXPECT_FALSE(
-      config_has_key(*config, CONFIG_DEFAULT_SECTION, "primaryRecord"));
+  EXPECT_FALSE(config_has_key(*config, CONFIG_DEFAULT_SECTION, "primaryRecord"));
 }
 
 TEST_F(ConfigTest, config_get_int_version) {
@@ -202,16 +193,13 @@ TEST_F(ConfigTest, config_get_int_default) {
 
 TEST_F(ConfigTest, config_get_uint64) {
   std::unique_ptr<config_t> config = config_new(CONFIG_FILE);
-  EXPECT_EQ(config_get_uint64(*config, "DID", "HiSyncId", 0),
-            0xFFFFFFFFFFFFFFFF);
-  EXPECT_EQ(config_get_uint64(*config, "DID", "HiSyncId2", 0),
-            uint64_t(15001900));
+  EXPECT_EQ(config_get_uint64(*config, "DID", "HiSyncId", 0), 0xFFFFFFFFFFFFFFFF);
+  EXPECT_EQ(config_get_uint64(*config, "DID", "HiSyncId2", 0), uint64_t(15001900));
 }
 
 TEST_F(ConfigTest, config_get_uint64_default) {
   std::unique_ptr<config_t> config = config_new(CONFIG_FILE);
-  EXPECT_EQ(config_get_uint64(*config, "DID", "primaryRecord", 123),
-            uint64_t(123));
+  EXPECT_EQ(config_get_uint64(*config, "DID", "primaryRecord", 123), uint64_t(123));
 }
 
 TEST_F(ConfigTest, config_remove_section) {
@@ -251,8 +239,7 @@ TEST_F(ConfigTest, checksum_read) {
   std::string checksum = "0x1234";
   base::FilePath file_path(filename.string());
 
-  EXPECT_EQ(base::WriteFile(file_path, checksum.data(), checksum.size()),
-            (int)checksum.size());
+  EXPECT_EQ(base::WriteFile(file_path, checksum.data(), checksum.size()), (int)checksum.size());
 
   EXPECT_EQ(checksum_read(filename.c_str()), checksum.c_str());
 

@@ -25,7 +25,7 @@ namespace mmc {
 // MmcRttLogger computes and uploads below rtt stats:
 //   Maximum rtt, mean rtt, num requests, codec type.
 class MmcRttLogger {
- public:
+public:
   explicit MmcRttLogger(int codec_type);
   ~MmcRttLogger();
 
@@ -41,7 +41,7 @@ class MmcRttLogger {
   // and clears the record. Empty record will be ignored.
   void UploadTranscodeRttStatics();
 
- private:
+private:
   int codec_type_;
   int64_t num_requests_;
   double rtt_sum_;  // for computing mean rtt

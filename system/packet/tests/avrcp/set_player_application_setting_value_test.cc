@@ -25,16 +25,15 @@ namespace bluetooth {
 namespace avrcp {
 
 using SetPlayerApplicationSettingValueRequestTestPacket =
-    TestPacketType<SetPlayerApplicationSettingValueRequest>;
+        TestPacketType<SetPlayerApplicationSettingValueRequest>;
 using SetPlayerApplicationSettingValueRspTestPacket = TestPacketType<Packet>;
 
 // Test parsing a Set Player Application Setting Value Request
 TEST(SetPlayerApplicationSettingValueRequestPacketTest, getterTest) {
-  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT,
-                                        PlayerAttribute::SHUFFLE};
+  std::vector<PlayerAttribute> attrs = {PlayerAttribute::REPEAT, PlayerAttribute::SHUFFLE};
   std::vector<uint8_t> vals = {0x01, 0x01};  // All values: OFF
   auto test_packet = SetPlayerApplicationSettingValueRequestTestPacket::Make(
-      set_player_application_setting_value_request);
+          set_player_application_setting_value_request);
 
   ASSERT_EQ(test_packet->GetNumberOfRequestedAttributes(), 2);
   ASSERT_EQ(test_packet->GetRequestedAttributes(), attrs);
@@ -43,36 +42,31 @@ TEST(SetPlayerApplicationSettingValueRequestPacketTest, getterTest) {
 
 TEST(SetPlayerApplicationSettingValueRequestPacketTest, validTest) {
   auto test_packet = SetPlayerApplicationSettingValueRequestTestPacket::Make(
-      set_player_application_setting_value_request);
+          set_player_application_setting_value_request);
   ASSERT_TRUE(test_packet->IsValid());
 }
 
 TEST(SetPlayerApplicationSettingValueRequestPacketTest, invalidTest) {
-  std::vector<uint8_t> packet_copy =
-      set_player_application_setting_value_request;
+  std::vector<uint8_t> packet_copy = set_player_application_setting_value_request;
   packet_copy.push_back(0x00);
-  auto test_packet =
-      SetPlayerApplicationSettingValueRequestTestPacket::Make(packet_copy);
+  auto test_packet = SetPlayerApplicationSettingValueRequestTestPacket::Make(packet_copy);
   ASSERT_FALSE(test_packet->IsValid());
 
   std::vector<uint8_t> short_packet = {
-      0, 1, 2, 3, 4, 5, 6,
+          0, 1, 2, 3, 4, 5, 6,
   };
-  test_packet =
-      SetPlayerApplicationSettingValueRequestTestPacket::Make(short_packet);
+  test_packet = SetPlayerApplicationSettingValueRequestTestPacket::Make(short_packet);
   ASSERT_FALSE(test_packet->IsValid());
 }
 
 TEST(SetPlayerApplicationSettingValueResponseBuilderBuilderTest, builderTest) {
   auto builder = SetPlayerApplicationSettingValueResponseBuilder::MakeBuilder();
 
-  ASSERT_EQ(builder->size(),
-            set_player_application_setting_value_response.size());
+  ASSERT_EQ(builder->size(), set_player_application_setting_value_response.size());
 
   auto test_packet = SetPlayerApplicationSettingValueRspTestPacket::Make();
   builder->Serialize(test_packet);
-  ASSERT_EQ(test_packet->GetData(),
-            set_player_application_setting_value_response);
+  ASSERT_EQ(test_packet->GetData(), set_player_application_setting_value_response);
 }
 
 }  // namespace avrcp

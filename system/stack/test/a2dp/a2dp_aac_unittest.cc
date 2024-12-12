@@ -22,9 +22,7 @@
 #include <cstdint>
 #include <string>
 
-#include "common/init_flags.h"
 #include "common/time_util.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/a2dp_aac_decoder.h"
 #include "stack/include/a2dp_aac_encoder.h"
@@ -39,20 +37,20 @@ constexpr uint32_t kA2dpTickUs = 23 * 1000;
 constexpr uint16_t kPeerMtu = 1000;
 constexpr char kWavFile[] = "test/a2dp/raw_data/pcm1644s.wav";
 constexpr uint8_t kCodecInfoAacCapability[AVDT_CODEC_SIZE] = {
-    8,           // Length (A2DP_AAC_INFO_LEN)
-    0,           // Media Type: AVDT_MEDIA_TYPE_AUDIO
-    2,           // Media Codec Type: A2DP_MEDIA_CT_AAC
-    0x80,        // Object Type: A2DP_AAC_OBJECT_TYPE_MPEG2_LC
-    0x01,        // Sampling Frequency: A2DP_AAC_SAMPLING_FREQ_44100
-    0x04,        // Channels: A2DP_AAC_CHANNEL_MODE_STEREO
-    0x00 | 0x4,  // Variable Bit Rate:
-                 // A2DP_AAC_VARIABLE_BIT_RATE_DISABLED
-                 // Bit Rate: 320000 = 0x4e200
-    0xe2,        // Bit Rate: 320000 = 0x4e200
-    0x00,        // Bit Rate: 320000 = 0x4e200
-    7,           // Unused
-    8,           // Unused
-    9            // Unused
+        8,           // Length (A2DP_AAC_INFO_LEN)
+        0,           // Media Type: AVDT_MEDIA_TYPE_AUDIO
+        2,           // Media Codec Type: A2DP_MEDIA_CT_AAC
+        0x80,        // Object Type: A2DP_AAC_OBJECT_TYPE_MPEG2_LC
+        0x01,        // Sampling Frequency: A2DP_AAC_SAMPLING_FREQ_44100
+        0x04,        // Channels: A2DP_AAC_CHANNEL_MODE_STEREO
+        0x00 | 0x4,  // Variable Bit Rate:
+                     // A2DP_AAC_VARIABLE_BIT_RATE_DISABLED
+                     // Bit Rate: 320000 = 0x4e200
+        0xe2,        // Bit Rate: 320000 = 0x4e200
+        0x00,        // Bit Rate: 320000 = 0x4e200
+        7,           // Unused
+        8,           // Unused
+        9            // Unused
 };
 uint8_t* Data(BT_HDR* packet) { return packet->data + packet->offset; }
 }  // namespace
@@ -64,15 +62,14 @@ static BT_HDR* packet = nullptr;
 static WavReader wav_reader = WavReader(GetWavFilePath(kWavFile).c_str());
 
 class A2dpAacTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
-    common::InitFlags::SetAllForTesting();
     SetCodecConfig();
     encoder_iface_ = const_cast<tA2DP_ENCODER_INTERFACE*>(
-        A2DP_GetEncoderInterfaceAac(kCodecInfoAacCapability));
+            A2DP_GetEncoderInterfaceAac(kCodecInfoAacCapability));
     ASSERT_NE(encoder_iface_, nullptr);
     decoder_iface_ = const_cast<tA2DP_DECODER_INTERFACE*>(
-        A2DP_GetDecoderInterfaceAac(kCodecInfoAacCapability));
+            A2DP_GetDecoderInterfaceAac(kCodecInfoAacCapability));
     ASSERT_NE(decoder_iface_, nullptr);
   }
 
@@ -99,32 +96,30 @@ class A2dpAacTest : public ::testing::Test {
 
     // Create the codec capability - AAC Sink
     memset(codec_info_result, 0, sizeof(codec_info_result));
-    ASSERT_TRUE(A2DP_IsSinkCodecSupportedAac(kCodecInfoAacCapability));
+    ASSERT_EQ(A2DP_IsSinkCodecSupportedAac(kCodecInfoAacCapability), A2DP_SUCCESS);
     peer_codec_index = A2DP_SinkCodecIndex(kCodecInfoAacCapability);
     ASSERT_NE(peer_codec_index, BTAV_A2DP_CODEC_INDEX_MAX);
     sink_codec_config_ = a2dp_codecs_->findSinkCodecConfig(kCodecInfoAacCapability);
     ASSERT_NE(sink_codec_config_, nullptr);
-    ASSERT_TRUE(a2dp_codecs_->setSinkCodecConfig(kCodecInfoAacCapability, true,
-                                                 codec_info_result, true));
+    ASSERT_TRUE(a2dp_codecs_->setSinkCodecConfig(kCodecInfoAacCapability, true, codec_info_result,
+                                                 true));
     ASSERT_TRUE(a2dp_codecs_->setPeerSinkCodecCapabilities(kCodecInfoAacCapability));
     // Compare the result codec with the local test codec info
     for (size_t i = 0; i < kCodecInfoAacCapability[0] + 1; i++) {
       ASSERT_EQ(codec_info_result[i], kCodecInfoAacCapability[i]);
     }
-    ASSERT_TRUE(a2dp_codecs_->setCodecConfig(kCodecInfoAacCapability, true, codec_info_result, true));
+    ASSERT_TRUE(
+            a2dp_codecs_->setCodecConfig(kCodecInfoAacCapability, true, codec_info_result, true));
     source_codec_config_ = a2dp_codecs_->getCurrentCodecConfig();
   }
 
   void InitializeEncoder(bool peer_supports_3mbps, a2dp_source_read_callback_t read_cb,
                          a2dp_source_enqueue_callback_t enqueue_cb) {
     tA2DP_ENCODER_INIT_PEER_PARAMS peer_params = {true, peer_supports_3mbps, kPeerMtu};
-    encoder_iface_->encoder_init(&peer_params, sink_codec_config_, read_cb,
-                                 enqueue_cb);
+    encoder_iface_->encoder_init(&peer_params, sink_codec_config_, read_cb, enqueue_cb);
   }
 
-  void InitializeDecoder(decoded_data_callback_t data_cb) {
-    decoder_iface_->decoder_init(data_cb);
-  }
+  void InitializeDecoder(decoded_data_callback_t data_cb) { decoder_iface_->decoder_init(data_cb); }
 
   BT_HDR* AllocateL2capPacket(const std::vector<uint8_t> data) const {
     auto packet = AllocatePacket(data.size());
@@ -133,8 +128,7 @@ class A2dpAacTest : public ::testing::Test {
   }
 
   BT_HDR* AllocatePacket(size_t packet_length) const {
-    BT_HDR* packet =
-        static_cast<BT_HDR*>(osi_calloc(sizeof(BT_HDR) + packet_length));
+    BT_HDR* packet = static_cast<BT_HDR*>(osi_calloc(sizeof(BT_HDR) + packet_length));
     packet->len = packet_length;
     return packet;
   }
@@ -236,7 +230,7 @@ TEST_F(A2dpAacTest, set_source_codec_config_works) {
 }
 
 TEST_F(A2dpAacTest, sink_supports_aac) {
-  ASSERT_TRUE(A2DP_IsSinkCodecSupportedAac(kCodecInfoAacCapability));
+  ASSERT_EQ(A2DP_IsSinkCodecSupportedAac(kCodecInfoAacCapability), A2DP_SUCCESS);
 }
 
 TEST_F(A2dpAacTest, effective_mtu_when_peer_supports_3mbps) {

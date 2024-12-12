@@ -25,7 +25,7 @@ namespace fuzz {
 // Drops stuff you send it, and banishes it into the void.
 template <typename T>
 class DevNullQueue {
- public:
+public:
   DevNullQueue(IQueueDequeue<T>* queue, Handler* handler) : queue_(queue), handler_(handler) {}
   ~DevNullQueue() {}
 
@@ -33,15 +33,11 @@ class DevNullQueue {
     queue_->RegisterDequeue(handler_, common::Bind(&DevNullQueue::Dump, common::Unretained(this)));
   }
 
-  void Stop() {
-    queue_->UnregisterDequeue();
-  }
+  void Stop() { queue_->UnregisterDequeue(); }
 
-  void Dump() {
-    queue_->TryDequeue();
-  }
+  void Dump() { queue_->TryDequeue(); }
 
- private:
+private:
   IQueueDequeue<T>* queue_;
   Handler* handler_;
 };

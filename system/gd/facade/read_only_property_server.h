@@ -29,7 +29,7 @@ namespace facade {
 class ReadOnlyPropertyService;
 
 class ReadOnlyPropertyServerModule : public ::bluetooth::grpc::GrpcFacadeModule {
- public:
+public:
   static const ModuleFactory Factory;
 
   void ListDependencies(ModuleList* list) const override;
@@ -37,7 +37,7 @@ class ReadOnlyPropertyServerModule : public ::bluetooth::grpc::GrpcFacadeModule 
   void Stop() override;
   ::grpc::Service* GetService() const override;
 
- private:
+private:
   std::unique_ptr<ReadOnlyPropertyService> service_;
 };
 

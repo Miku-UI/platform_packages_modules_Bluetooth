@@ -96,13 +96,11 @@ void BTA_AvEnable(tBTA_AV_FEAT features, tBTA_AV_CBACK* p_cback) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvEnable(features, p_cback);
 }
-void BTA_AvMetaCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CMD cmd_code,
-                   BT_HDR* p_pkt) {
+void BTA_AvMetaCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CMD cmd_code, BT_HDR* p_pkt) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvMetaCmd(rc_handle, label, cmd_code, p_pkt);
 }
-void BTA_AvMetaRsp(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE rsp_code,
-                   BT_HDR* p_pkt) {
+void BTA_AvMetaRsp(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE rsp_code, BT_HDR* p_pkt) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvMetaRsp(rc_handle, label, rsp_code, p_pkt);
 }
@@ -110,8 +108,7 @@ void BTA_AvOffloadStart(tBTA_AV_HNDL hndl) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvOffloadStart(hndl);
 }
-void BTA_AvOpen(const RawAddress& bd_addr, tBTA_AV_HNDL handle, bool use_rc,
-                uint16_t uuid) {
+void BTA_AvOpen(const RawAddress& bd_addr, tBTA_AV_HNDL handle, bool use_rc, uint16_t uuid) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvOpen(bd_addr, handle, use_rc, uuid);
 }
@@ -123,36 +120,30 @@ void BTA_AvProtectReq(tBTA_AV_HNDL hndl, uint8_t* p_data, uint16_t len) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvProtectReq(hndl, p_data, len);
 }
-void BTA_AvProtectRsp(tBTA_AV_HNDL hndl, uint8_t error_code, uint8_t* p_data,
-                      uint16_t len) {
+void BTA_AvProtectRsp(tBTA_AV_HNDL hndl, uint8_t error_code, uint8_t* p_data, uint16_t len) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvProtectRsp(hndl, error_code, p_data, len);
 }
-void BTA_AvReconfig(tBTA_AV_HNDL hndl, bool suspend, uint8_t sep_info_idx,
-                    uint8_t* p_codec_info, uint8_t num_protect,
-                    const uint8_t* p_protect_info) {
+void BTA_AvReconfig(tBTA_AV_HNDL hndl, bool suspend, uint8_t sep_info_idx, uint8_t* p_codec_info,
+                    uint8_t num_protect, const uint8_t* p_protect_info) {
   inc_func_call_count(__func__);
-  test::mock::bta_av_api::BTA_AvReconfig(
-      hndl, suspend, sep_info_idx, p_codec_info, num_protect, p_protect_info);
+  test::mock::bta_av_api::BTA_AvReconfig(hndl, suspend, sep_info_idx, p_codec_info, num_protect,
+                                         p_protect_info);
 }
-void BTA_AvRegister(tBTA_AV_CHNL chnl, const char* p_service_name,
-                    uint8_t app_id, tBTA_AV_SINK_DATA_CBACK* p_sink_data_cback,
-                    uint16_t service_uuid) {
+void BTA_AvRegister(tBTA_AV_CHNL chnl, const char* p_service_name, uint8_t app_id,
+                    tBTA_AV_SINK_DATA_CBACK* p_sink_data_cback, uint16_t service_uuid) {
   inc_func_call_count(__func__);
-  test::mock::bta_av_api::BTA_AvRegister(chnl, p_service_name, app_id,
-                                         p_sink_data_cback, service_uuid);
+  test::mock::bta_av_api::BTA_AvRegister(chnl, p_service_name, app_id, p_sink_data_cback,
+                                         service_uuid);
 }
-void BTA_AvRemoteCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_RC rc_id,
-                     tBTA_AV_STATE key_state) {
+void BTA_AvRemoteCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_RC rc_id, tBTA_AV_STATE key_state) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvRemoteCmd(rc_handle, label, rc_id, key_state);
 }
-void BTA_AvRemoteVendorUniqueCmd(uint8_t rc_handle, uint8_t label,
-                                 tBTA_AV_STATE key_state, uint8_t* p_msg,
-                                 uint8_t buf_len) {
+void BTA_AvRemoteVendorUniqueCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_STATE key_state,
+                                 uint8_t* p_msg, uint8_t buf_len) {
   inc_func_call_count(__func__);
-  test::mock::bta_av_api::BTA_AvRemoteVendorUniqueCmd(
-      rc_handle, label, key_state, p_msg, buf_len);
+  test::mock::bta_av_api::BTA_AvRemoteVendorUniqueCmd(rc_handle, label, key_state, p_msg, buf_len);
 }
 void BTA_AvSetLatency(tBTA_AV_HNDL handle, bool is_low_latency) {
   inc_func_call_count(__func__);
@@ -170,17 +161,15 @@ void BTA_AvStop(tBTA_AV_HNDL handle, bool suspend) {
   inc_func_call_count(__func__);
   test::mock::bta_av_api::BTA_AvStop(handle, suspend);
 }
-void BTA_AvVendorCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE cmd_code,
-                     uint8_t* p_data, uint16_t len) {
+void BTA_AvVendorCmd(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE cmd_code, uint8_t* p_data,
+                     uint16_t len) {
   inc_func_call_count(__func__);
-  test::mock::bta_av_api::BTA_AvVendorCmd(rc_handle, label, cmd_code, p_data,
-                                          len);
+  test::mock::bta_av_api::BTA_AvVendorCmd(rc_handle, label, cmd_code, p_data, len);
 }
-void BTA_AvVendorRsp(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE rsp_code,
-                     uint8_t* p_data, uint16_t len, uint32_t company_id) {
+void BTA_AvVendorRsp(uint8_t rc_handle, uint8_t label, tBTA_AV_CODE rsp_code, uint8_t* p_data,
+                     uint16_t len, uint32_t company_id) {
   inc_func_call_count(__func__);
-  test::mock::bta_av_api::BTA_AvVendorRsp(rc_handle, label, rsp_code, p_data,
-                                          len, company_id);
+  test::mock::bta_av_api::BTA_AvVendorRsp(rc_handle, label, rsp_code, p_data, len, company_id);
 }
 // Mocked functions complete
 // END mockcify generation

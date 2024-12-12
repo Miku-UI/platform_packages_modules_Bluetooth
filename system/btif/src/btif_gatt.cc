@@ -28,12 +28,14 @@
 
 #include "btif_gatt.h"
 
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "bta_gatt_api.h"
+#include "bta/include/bta_gatt_api.h"
+#include "btif/include/btif_common.h"
 #include "main/shim/distance_measurement_manager.h"
 #include "main/shim/le_advertising_manager.h"
 
@@ -64,22 +66,24 @@ static bt_status_t btif_gatt_init(const btgatt_callbacks_t* callbacks) {
  *
  ******************************************************************************/
 static void btif_gatt_cleanup(void) {
-  if (bt_gatt_callbacks) bt_gatt_callbacks = NULL;
+  if (bt_gatt_callbacks) {
+    bt_gatt_callbacks = NULL;
+  }
 
   BTA_GATTC_Disable();
   BTA_GATTS_Disable();
 }
 
 static btgatt_interface_t btgattInterface = {
-    .size = sizeof(btgattInterface),
+        .size = sizeof(btgattInterface),
 
-    .init = btif_gatt_init,
-    .cleanup = btif_gatt_cleanup,
+        .init = btif_gatt_init,
+        .cleanup = btif_gatt_cleanup,
 
-    .client = &btgattClientInterface,
-    .server = &btgattServerInterface,
-    .scanner = nullptr,    // filled in btif_gatt_get_interface
-    .advertiser = nullptr  // filled in btif_gatt_get_interface
+        .client = &btgattClientInterface,
+        .server = &btgattServerInterface,
+        .scanner = nullptr,    // filled in btif_gatt_get_interface
+        .advertiser = nullptr  // filled in btif_gatt_get_interface
 };
 
 /*******************************************************************************
@@ -98,6 +102,6 @@ const btgatt_interface_t* btif_gatt_get_interface() {
   btgattInterface.scanner = get_ble_scanner_instance();
   btgattInterface.advertiser = bluetooth::shim::get_ble_advertiser_instance();
   btgattInterface.distance_measurement_manager =
-      bluetooth::shim::get_distance_measurement_instance();
+          bluetooth::shim::get_distance_measurement_instance();
   return &btgattInterface;
 }

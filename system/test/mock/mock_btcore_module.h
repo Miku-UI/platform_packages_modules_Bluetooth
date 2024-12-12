@@ -39,8 +39,8 @@ namespace btcore_module {
 struct get_module {
   const module_t* return_value{0};
   std::function<const module_t*(const char* name)> body{
-      [this](const char* /* name */) { return return_value; }};
-  const module_t* operator()(const char* name) { return body(name); };
+          [this](const char* /* name */) { return return_value; }};
+  const module_t* operator()(const char* name) { return body(name); }
 };
 extern struct get_module get_module;
 
@@ -48,9 +48,8 @@ extern struct get_module get_module;
 // Params: const module_t* module
 // Return: void
 struct module_clean_up {
-  std::function<void(const module_t* module)> body{
-      [](const module_t* /* module */) {}};
-  void operator()(const module_t* module) { body(module); };
+  std::function<void(const module_t* module)> body{[](const module_t* /* module */) {}};
+  void operator()(const module_t* module) { body(module); }
 };
 extern struct module_clean_up module_clean_up;
 
@@ -60,8 +59,8 @@ extern struct module_clean_up module_clean_up;
 struct module_init {
   bool return_value{false};
   std::function<bool(const module_t* module)> body{
-      [this](const module_t* /* module */) { return return_value; }};
-  bool operator()(const module_t* module) { return body(module); };
+          [this](const module_t* /* module */) { return return_value; }};
+  bool operator()(const module_t* module) { return body(module); }
 };
 extern struct module_init module_init;
 
@@ -70,7 +69,7 @@ extern struct module_init module_init;
 // Return: void
 struct module_management_start {
   std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
+  void operator()(void) { body(); }
 };
 extern struct module_management_start module_management_start;
 
@@ -79,7 +78,7 @@ extern struct module_management_start module_management_start;
 // Return: void
 struct module_management_stop {
   std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
+  void operator()(void) { body(); }
 };
 extern struct module_management_stop module_management_stop;
 
@@ -87,9 +86,8 @@ extern struct module_management_stop module_management_stop;
 // Params: const module_t* module
 // Return: void
 struct module_shut_down {
-  std::function<void(const module_t* module)> body{
-      [](const module_t* /* module */) {}};
-  void operator()(const module_t* module) { body(module); };
+  std::function<void(const module_t* module)> body{[](const module_t* /* module */) {}};
+  void operator()(const module_t* module) { body(module); }
 };
 extern struct module_shut_down module_shut_down;
 
@@ -99,8 +97,8 @@ extern struct module_shut_down module_shut_down;
 struct module_start_up {
   bool return_value{false};
   std::function<bool(const module_t* module)> body{
-      [this](const module_t* /* module */) { return return_value; }};
-  bool operator()(const module_t* module) { return body(module); };
+          [this](const module_t* /* module */) { return return_value; }};
+  bool operator()(const module_t* module) { return body(module); }
 };
 extern struct module_start_up module_start_up;
 

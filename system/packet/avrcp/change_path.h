@@ -22,17 +22,16 @@ namespace bluetooth {
 namespace avrcp {
 
 class ChangePathResponseBuilder : public BrowsePacketBuilder {
- public:
+public:
   virtual ~ChangePathResponseBuilder() = default;
 
-  static std::unique_ptr<ChangePathResponseBuilder> MakeBuilder(
-      Status status, uint32_t num_items_in_folder);
+  static std::unique_ptr<ChangePathResponseBuilder> MakeBuilder(Status status,
+                                                                uint32_t num_items_in_folder);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- private:
+private:
   Status status_;
   uint32_t num_items_in_folder_;
 
@@ -43,7 +42,7 @@ class ChangePathResponseBuilder : public BrowsePacketBuilder {
 };
 
 class ChangePathRequest : public BrowsePacket {
- public:
+public:
   virtual ~ChangePathRequest() = default;
 
   /**
@@ -65,28 +64,27 @@ class ChangePathRequest : public BrowsePacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using BrowsePacket::BrowsePacket;
 };
 
 class ChangePathRequestBuilder : public BrowsePacketBuilder {
- public:
+public:
   virtual ~ChangePathRequestBuilder() = default;
 
-  static std::unique_ptr<ChangePathRequestBuilder> MakeBuilder(
-      uint16_t uid_counter, Direction direction, uint64_t folder_uid);
+  static std::unique_ptr<ChangePathRequestBuilder> MakeBuilder(uint16_t uid_counter,
+                                                               Direction direction,
+                                                               uint64_t folder_uid);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- private:
-  ChangePathRequestBuilder(uint16_t uid_counter, Direction direction,
-                           uint64_t folder_uid)
+private:
+  ChangePathRequestBuilder(uint16_t uid_counter, Direction direction, uint64_t folder_uid)
       : BrowsePacketBuilder(BrowsePdu::CHANGE_PATH),
         uid_counter_(uid_counter),
         direction_(direction),
-        folder_uid_(folder_uid){};
+        folder_uid_(folder_uid) {}
 
   uint16_t uid_counter_;
   Direction direction_;

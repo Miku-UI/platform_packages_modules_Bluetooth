@@ -19,7 +19,6 @@
 #pragma once
 
 #include <base/functional/callback.h>
-#include <base/location.h>
 
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -31,9 +30,9 @@
 #define MSG_SUB_EVT_MASK 0x00FF /* eq. BT_SUB_EVT_MASK */
 
 /* Message event ID passed from Host/Controller lib to stack */
-#define MSG_HC_TO_STACK_HCI_ERR 0x1300      /* eq. BT_EVT_TO_BTU_HCIT_ERR */
-#define MSG_HC_TO_STACK_HCI_ISO 0x1700      /* eq. BT_EVT_TO_BTU_HCI_ISO */
-#define MSG_HC_TO_STACK_HCI_EVT 0x1000      /* eq. BT_EVT_TO_BTU_HCI_EVT */
+#define MSG_HC_TO_STACK_HCI_ERR 0x1300 /* eq. BT_EVT_TO_BTU_HCIT_ERR */
+#define MSG_HC_TO_STACK_HCI_ISO 0x1700 /* eq. BT_EVT_TO_BTU_HCI_ISO */
+#define MSG_HC_TO_STACK_HCI_EVT 0x1000 /* eq. BT_EVT_TO_BTU_HCI_EVT */
 
 /* Message event ID passed from stack to vendor lib */
 #define MSG_STACK_TO_HC_HCI_ISO 0x2d00 /* eq. BT_EVT_TO_LM_HCI_ISO */
@@ -47,17 +46,14 @@ typedef struct packet_fragmenter_t packet_fragmenter_t;
 typedef uint16_t command_opcode_t;
 
 typedef void (*command_complete_cb)(BT_HDR* response, void* context);
-typedef void (*command_status_cb)(uint8_t status, BT_HDR* command,
-                                  void* context);
+typedef void (*command_status_cb)(uint8_t status, BT_HDR* command, void* context);
 
 typedef struct hci_t {
   // Set the callback that the HCI layer uses to send data upwards
-  void (*set_data_cb)(
-      base::Callback<void(const base::Location&, BT_HDR*)> send_data_cb);
+  void (*set_data_cb)(base::Callback<void(BT_HDR*)> send_data_cb);
 
   // Send a command through the HCI layer
-  void (*transmit_command)(const BT_HDR* command,
-                           command_complete_cb complete_callback,
+  void (*transmit_command)(const BT_HDR* command, command_complete_cb complete_callback,
                            command_status_cb status_cb, void* context);
 
   // Send some data downward through the HCI layer

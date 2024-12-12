@@ -17,6 +17,7 @@
 #include "packet/fragmenting_inserter.h"
 
 #include <gtest/gtest.h>
+
 #include <memory>
 
 #include "os/log.h"
@@ -28,8 +29,8 @@ namespace bluetooth {
 namespace packet {
 
 TEST(FragmentingInserterTest, addMoreBits) {
-  std::vector<uint8_t> result = {0b00011101 /* 3 2 1 */, 0b00010101 /* 5 4 */, 0b11100011 /* 7 6 */, 0b10000000 /* 8 */,
-                                 0b10100000 /* filled with 1010 */};
+  std::vector<uint8_t> result = {0b00011101 /* 3 2 1 */, 0b00010101 /* 5 4 */, 0b11100011 /* 7 6 */,
+                                 0b10000000 /* 8 */, 0b10100000 /* filled with 1010 */};
   std::vector<std::unique_ptr<RawBuilder>> fragments;
 
   FragmentingInserter it(result.size(), std::back_insert_iterator(fragments));
@@ -54,8 +55,8 @@ TEST(FragmentingInserterTest, addMoreBits) {
 }
 
 TEST(FragmentingInserterTest, observerTest) {
-  std::vector<uint8_t> result = {0b00011101 /* 3 2 1 */, 0b00010101 /* 5 4 */, 0b11100011 /* 7 6 */, 0b10000000 /* 8 */,
-                                 0b10100000 /* filled with 1010 */};
+  std::vector<uint8_t> result = {0b00011101 /* 3 2 1 */, 0b00010101 /* 5 4 */, 0b11100011 /* 7 6 */,
+                                 0b10000000 /* 8 */, 0b10100000 /* filled with 1010 */};
   std::vector<std::unique_ptr<RawBuilder>> fragments;
 
   FragmentingInserter it(result.size() + 1, std::back_insert_iterator(fragments));
@@ -63,7 +64,8 @@ TEST(FragmentingInserterTest, observerTest) {
   std::vector<uint8_t> copy;
 
   uint64_t checksum = 0x0123456789abcdef;
-  it.RegisterObserver(ByteObserver([&copy](uint8_t byte) { copy.push_back(byte); }, [checksum]() { return checksum; }));
+  it.RegisterObserver(ByteObserver([&copy](uint8_t byte) { copy.push_back(byte); },
+                                   [checksum]() { return checksum; }));
 
   for (size_t i = 0; i < 9; i++) {
     it.insert_bits(static_cast<uint8_t>(i), i);
@@ -123,16 +125,14 @@ TEST(FragmentingInserterTest, testMtuBoundaries) {
 
 constexpr size_t kPacketSize = 128;
 class FragmentingTest : public ::testing::TestWithParam<size_t> {
- public:
+public:
   void StartUp() {
     counts_.reserve(kPacketSize);
     for (size_t i = 0; i < kPacketSize; i++) {
       counts_.push_back(static_cast<uint8_t>(i));
     }
   }
-  void ShutDown() {
-    counts_.clear();
-  }
+  void ShutDown() { counts_.clear(); }
   std::vector<uint8_t> counts_;
 };
 

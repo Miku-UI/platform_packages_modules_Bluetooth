@@ -32,13 +32,14 @@
 #include "bta/test/bta_test_fixtures.h"
 #include "bta_api_data_types.h"
 #include "stack/btm/neighbor_inquiry.h"
-#include "stack/include/gatt_api.h"
-#include "test/common/main_handler.h"
 #include "types/bt_transport.h"
 
 #define TEST_BT com::android::bluetooth::flags
 
 using namespace bluetooth;
+
+using ::testing::_;
+using ::testing::Return;
 
 namespace {
 const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
@@ -50,27 +51,24 @@ namespace legacy {
 namespace testing {
 
 void bta_dm_disc_init_search_cb(tBTA_DM_SEARCH_CB& bta_dm_search_cb);
-bool bta_dm_read_remote_device_name(const RawAddress& bd_addr,
-                                    tBT_TRANSPORT transport);
+bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 tBTA_DM_SEARCH_CB& bta_dm_disc_search_cb();
 void bta_dm_discover_next_device();
 void bta_dm_sdp_find_services(tBTA_DM_SDP_STATE* state);
 void bta_dm_inq_cmpl();
 void bta_dm_inq_cmpl_cb(void* p_result);
 void bta_dm_observe_cmpl_cb(void* p_result);
-void bta_dm_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir,
-                               uint16_t eir_len);
-void bta_dm_opportunistic_observe_results_cb(tBTM_INQ_RESULTS* p_inq,
-                                             const uint8_t* p_eir,
+void bta_dm_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir, uint16_t eir_len);
+void bta_dm_opportunistic_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir,
                                              uint16_t eir_len);
 void bta_dm_queue_search(tBTA_DM_API_SEARCH& search);
-void bta_dm_start_scan(uint8_t duration_sec, bool low_latency_scan = false);
+void bta_dm_start_scan(uint8_t duration_sec);
 }  // namespace testing
 }  // namespace legacy
 }  // namespace bluetooth
 
 class BtaInitializedTest : public BtaWithContextTest {
- protected:
+protected:
   void SetUp() override {
     BtaWithContextTest::SetUp();
     BTA_dm_init();
@@ -88,53 +86,41 @@ TEST_F(BtaInitializedTest, DumpsysBtaDmDisc) {
 
 TEST_F(BtaInitializedTest, bta_dm_ble_csis_observe) {
   bta_dm_ble_csis_observe(true, [](tBTA_DM_SEARCH_EVT, tBTA_DM_SEARCH*) {});
-};
+}
 
 TEST_F(BtaInitializedTest, bta_dm_ble_csis_observe__false) {
   bta_dm_ble_csis_observe(false, [](tBTA_DM_SEARCH_EVT, tBTA_DM_SEARCH*) {});
-};
+}
 
 TEST_F(BtaInitializedTest, bta_dm_ble_scan) {
-  // bool start, uint8_t duration_sec, bool low_latency_scan
+  // bool start, uint8_t duration_sec
   constexpr bool kStartLeScan = true;
   constexpr bool kStopLeScan = false;
   const uint8_t duration_in_seconds = 5;
-  constexpr bool kLowLatencyScan = true;
-  constexpr bool kHighLatencyScan = false;
 
-  bta_dm_ble_scan(kStartLeScan, duration_in_seconds, kLowLatencyScan);
-  bta_dm_ble_scan(kStopLeScan, duration_in_seconds, kLowLatencyScan);
-
-  bta_dm_ble_scan(kStartLeScan, duration_in_seconds, kHighLatencyScan);
-  bta_dm_ble_scan(kStopLeScan, duration_in_seconds, kHighLatencyScan);
+  bta_dm_ble_scan(kStartLeScan, duration_in_seconds);
+  bta_dm_ble_scan(kStopLeScan, duration_in_seconds);
 }
 
-TEST_F(BtaInitializedTest, bta_dm_disc_discover_next_device) {
-  bta_dm_disc_discover_next_device();
-}
+TEST_F(BtaInitializedTest, bta_dm_disc_discover_next_device) { bta_dm_disc_discover_next_device(); }
 
-TEST_F(BtaInitializedTest, bta_dm_disc_remove_device) {
-  bta_dm_disc_remove_device(kRawAddress);
-}
+TEST_F(BtaInitializedTest, bta_dm_disc_remove_device) { bta_dm_disc_remove_device(kRawAddress); }
 
 TEST_F(BtaInitializedTest, bta_dm_discover_next_device) {
   bluetooth::legacy::testing::bta_dm_discover_next_device();
 }
 
 TEST_F(BtaInitializedTest, bta_dm_sdp_find_services) {
-  std::unique_ptr<tBTA_DM_SDP_STATE> state =
-      std::make_unique<tBTA_DM_SDP_STATE>(tBTA_DM_SDP_STATE{
+  std::unique_ptr<tBTA_DM_SDP_STATE> state = std::make_unique<tBTA_DM_SDP_STATE>(tBTA_DM_SDP_STATE{
           .bd_addr = kRawAddress,
           .services_to_search = BTA_ALL_SERVICE_MASK,
           .services_found = 0,
           .service_index = 0,
-      });
+  });
   bluetooth::legacy::testing::bta_dm_sdp_find_services(state.get());
 }
 
-TEST_F(BtaInitializedTest, bta_dm_inq_cmpl) {
-  bluetooth::legacy::testing::bta_dm_inq_cmpl();
-}
+TEST_F(BtaInitializedTest, bta_dm_inq_cmpl) { bluetooth::legacy::testing::bta_dm_inq_cmpl(); }
 
 TEST_F(BtaInitializedTest, bta_dm_inq_cmpl_cb) {
   tBTM_INQUIRY_CMPL complete;
@@ -149,16 +135,14 @@ TEST_F(BtaInitializedTest, bta_dm_observe_results_cb) {
   tBTM_INQ_RESULTS result;
   const uint8_t p_eir[] = {0x0, 0x1, 0x2, 0x3};
   uint16_t eir_len = sizeof(p_eir);
-  bluetooth::legacy::testing::bta_dm_observe_results_cb(&result, p_eir,
-                                                        eir_len);
+  bluetooth::legacy::testing::bta_dm_observe_results_cb(&result, p_eir, eir_len);
 }
 
 TEST_F(BtaInitializedTest, bta_dm_opportunistic_observe_results_cb) {
   tBTM_INQ_RESULTS result;
   const uint8_t p_eir[] = {0x0, 0x1, 0x2, 0x3};
   uint16_t eir_len = sizeof(p_eir);
-  bluetooth::legacy::testing::bta_dm_opportunistic_observe_results_cb(
-      &result, p_eir, eir_len);
+  bluetooth::legacy::testing::bta_dm_opportunistic_observe_results_cb(&result, p_eir, eir_len);
 }
 
 TEST_F(BtaInitializedTest, bta_dm_queue_search) {
@@ -170,59 +154,52 @@ TEST_F(BtaInitializedTest, bta_dm_queue_search) {
 }
 
 TEST_F(BtaInitializedTest, bta_dm_read_remote_device_name) {
-  bluetooth::legacy::testing::bta_dm_read_remote_device_name(
-      kRawAddress, BT_TRANSPORT_BR_EDR);
+  EXPECT_CALL(mock_stack_rnr_interface_, BTM_ReadRemoteDeviceName(_, _, _))
+          .WillOnce(Return(tBTM_STATUS::BTM_CMD_STARTED));
+
+  bluetooth::legacy::testing::bta_dm_read_remote_device_name(kRawAddress, BT_TRANSPORT_BR_EDR);
 }
 
 TEST_F(BtaInitializedTest, bta_dm_start_scan) {
-  constexpr bool kLowLatencyScan = true;
-  constexpr bool kHighLatencyScan = false;
   const uint8_t duration_sec = 5;
-  bluetooth::legacy::testing::bta_dm_start_scan(duration_sec, kLowLatencyScan);
-  bluetooth::legacy::testing::bta_dm_start_scan(duration_sec, kHighLatencyScan);
+  bluetooth::legacy::testing::bta_dm_start_scan(duration_sec);
+  bluetooth::legacy::testing::bta_dm_start_scan(duration_sec);
 }
 
 TEST_F(BtaInitializedTest, bta_dm_disc_start_device_discovery) {
-  bta_dm_disc_start_device_discovery(
-      [](tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data) {});
+  bta_dm_disc_start_device_discovery([](tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH* p_data) {});
 }
 
 TEST_F(BtaInitializedTest, bta_dm_disc_stop_device_discovery) {
   bta_dm_disc_stop_device_discovery();
 }
 
-TEST_F(BtaInitializedTest,
-       bta_dm_disc_start_service_discovery__BT_TRANSPORT_AUTO) {
+TEST_F(BtaInitializedTest, bta_dm_disc_start_service_discovery__BT_TRANSPORT_AUTO) {
   bta_dm_disc_start_service_discovery(
-      {nullptr, nullptr, nullptr,
-       [](RawAddress, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {}},
-      kRawAddress, BT_TRANSPORT_AUTO);
+          {nullptr, nullptr,
+           [](RawAddress, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {}},
+          kRawAddress, BT_TRANSPORT_AUTO);
 }
 
 // must be global, as capturing lambda can't be treated as function
 int service_cb_call_cnt = 0;
 
-TEST_F_WITH_FLAGS(BtaInitializedTest,
-                  bta_dm_disc_start_service_discovery__BT_TRANSPORT_BR_EDR,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, separate_service_and_device_discovery))) {
+TEST_F(BtaInitializedTest, bta_dm_disc_start_service_discovery__BT_TRANSPORT_BR_EDR) {
   bta_dm_disc_start(true);
   int sdp_call_cnt = 0;
   base::RepeatingCallback<void(tBTA_DM_SDP_STATE*)> sdp_performer =
-      base::BindLambdaForTesting([&](tBTA_DM_SDP_STATE* sdp_state) {
-        sdp_call_cnt++;
-        bta_dm_sdp_finished(sdp_state->bd_addr, BTA_SUCCESS, {}, {});
-      });
+          base::BindLambdaForTesting([&](tBTA_DM_SDP_STATE* sdp_state) {
+            sdp_call_cnt++;
+            bta_dm_sdp_finished(sdp_state->bd_addr, BTA_SUCCESS, {}, {});
+          });
 
   bta_dm_disc_override_sdp_performer_for_testing(sdp_performer);
   service_cb_call_cnt = 0;
 
-  bta_dm_disc_start_service_discovery(
-      {nullptr, nullptr, nullptr,
-       [](RawAddress addr, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {
-         service_cb_call_cnt++;
-       }},
-      kRawAddress, BT_TRANSPORT_BR_EDR);
+  bta_dm_disc_start_service_discovery({nullptr, nullptr,
+                                       [](RawAddress addr, const std::vector<bluetooth::Uuid>&,
+                                          tBTA_STATUS) { service_cb_call_cnt++; }},
+                                      kRawAddress, BT_TRANSPORT_BR_EDR);
 
   EXPECT_EQ(sdp_call_cnt, 1);
   EXPECT_EQ(service_cb_call_cnt, 1);
@@ -233,26 +210,21 @@ TEST_F_WITH_FLAGS(BtaInitializedTest,
 // must be global, as capturing lambda can't be treated as function
 int gatt_service_cb_call_cnt = 0;
 
-TEST_F_WITH_FLAGS(BtaInitializedTest,
-                  bta_dm_disc_start_service_discovery__BT_TRANSPORT_LE,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      TEST_BT, separate_service_and_device_discovery))) {
+TEST_F(BtaInitializedTest, bta_dm_disc_start_service_discovery__BT_TRANSPORT_LE) {
   bta_dm_disc_start(true);
   int gatt_call_cnt = 0;
   base::RepeatingCallback<void(const RawAddress&)> gatt_performer =
-      base::BindLambdaForTesting([&](const RawAddress& bd_addr) {
-        gatt_call_cnt++;
-        bta_dm_gatt_finished(bd_addr, BTA_SUCCESS);
-      });
+          base::BindLambdaForTesting([&](const RawAddress& bd_addr) {
+            gatt_call_cnt++;
+            bta_dm_gatt_finished(bd_addr, BTA_SUCCESS);
+          });
   bta_dm_disc_override_gatt_performer_for_testing(gatt_performer);
   gatt_service_cb_call_cnt = 0;
 
-  bta_dm_disc_start_service_discovery(
-      {[](RawAddress, BD_NAME, std::vector<bluetooth::Uuid>&, bool) {
-         gatt_service_cb_call_cnt++;
-       },
-       nullptr, nullptr, nullptr},
-      kRawAddress, BT_TRANSPORT_LE);
+  bta_dm_disc_start_service_discovery({[](RawAddress, std::vector<bluetooth::Uuid>&,
+                                          bool) { gatt_service_cb_call_cnt++; },
+                                       nullptr, nullptr},
+                                      kRawAddress, BT_TRANSPORT_LE);
 
   EXPECT_EQ(gatt_call_cnt, 1);
   EXPECT_EQ(gatt_service_cb_call_cnt, 1);
@@ -267,48 +239,42 @@ int gatt_service_cb_both_call_cnt = 0;
 /* This test exercises the usual service discovery flow when bonding to
  * dual-mode, CTKD capable device on LE transport.
  */
-TEST_F_WITH_FLAGS(
-    BtaInitializedTest, bta_dm_disc_both_transports_flag_disabled,
-    REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                        separate_service_and_device_discovery)),
-    REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(TEST_BT, bta_dm_discover_both))) {
+TEST_F_WITH_FLAGS(BtaInitializedTest, bta_dm_disc_both_transports_flag_disabled,
+                  REQUIRES_FLAGS_DISABLED(ACONFIG_FLAG(TEST_BT, bta_dm_discover_both))) {
   bta_dm_disc_start(true);
 
   std::promise<void> gatt_triggered;
   int gatt_call_cnt = 0;
   base::RepeatingCallback<void(const RawAddress&)> gatt_performer =
-      base::BindLambdaForTesting([&](const RawAddress& bd_addr) {
-        gatt_call_cnt++;
-        gatt_triggered.set_value();
-      });
+          base::BindLambdaForTesting([&](const RawAddress& bd_addr) {
+            gatt_call_cnt++;
+            gatt_triggered.set_value();
+          });
   bta_dm_disc_override_gatt_performer_for_testing(gatt_performer);
 
   int sdp_call_cnt = 0;
   base::RepeatingCallback<void(tBTA_DM_SDP_STATE*)> sdp_performer =
-      base::BindLambdaForTesting(
-          [&](tBTA_DM_SDP_STATE* sdp_state) { sdp_call_cnt++; });
+          base::BindLambdaForTesting([&](tBTA_DM_SDP_STATE* sdp_state) { sdp_call_cnt++; });
   bta_dm_disc_override_sdp_performer_for_testing(sdp_performer);
 
   gatt_service_cb_both_call_cnt = 0;
   service_cb_both_call_cnt = 0;
 
   bta_dm_disc_start_service_discovery(
-      {[](RawAddress, BD_NAME, std::vector<bluetooth::Uuid>&, bool) {}, nullptr,
-       nullptr,
-       [](RawAddress addr, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {
-         service_cb_both_call_cnt++;
-       }},
-      kRawAddress, BT_TRANSPORT_BR_EDR);
+          {[](RawAddress, std::vector<bluetooth::Uuid>&, bool) {}, nullptr,
+           [](RawAddress addr, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {
+             service_cb_both_call_cnt++;
+           }},
+          kRawAddress, BT_TRANSPORT_BR_EDR);
   EXPECT_EQ(sdp_call_cnt, 1);
 
   bta_dm_disc_start_service_discovery(
-      {[](RawAddress, BD_NAME, std::vector<bluetooth::Uuid>&, bool) {
-         gatt_service_cb_both_call_cnt++;
-       },
-       nullptr, nullptr,
-       [](RawAddress addr, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {
-       }},
-      kRawAddress, BT_TRANSPORT_LE);
+          {[](RawAddress, std::vector<bluetooth::Uuid>&, bool) {
+             gatt_service_cb_both_call_cnt++;
+           },
+           nullptr,
+           [](RawAddress addr, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {}},
+          kRawAddress, BT_TRANSPORT_LE);
 
   // GATT discovery is queued, until SDP finishes
   EXPECT_EQ(gatt_call_cnt, 0);
@@ -330,45 +296,36 @@ TEST_F_WITH_FLAGS(
  * dual-mode, CTKD capable device on LE transport.
  */
 TEST_F_WITH_FLAGS(BtaInitializedTest, bta_dm_disc_both_transports_flag_enabled,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT,
-                                                      bta_dm_discover_both))) {
+                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, bta_dm_discover_both))) {
   bta_dm_disc_start(true);
 
   int gatt_call_cnt = 0;
   base::RepeatingCallback<void(const RawAddress&)> gatt_performer =
-      base::BindLambdaForTesting(
-          [&](const RawAddress& bd_addr) { gatt_call_cnt++; });
+          base::BindLambdaForTesting([&](const RawAddress& bd_addr) { gatt_call_cnt++; });
   bta_dm_disc_override_gatt_performer_for_testing(gatt_performer);
 
   int sdp_call_cnt = 0;
   base::RepeatingCallback<void(tBTA_DM_SDP_STATE*)> sdp_performer =
-      base::BindLambdaForTesting(
-          [&](tBTA_DM_SDP_STATE* sdp_state) { sdp_call_cnt++; });
+          base::BindLambdaForTesting([&](tBTA_DM_SDP_STATE* sdp_state) { sdp_call_cnt++; });
   bta_dm_disc_override_sdp_performer_for_testing(sdp_performer);
 
   gatt_service_cb_both_call_cnt = 0;
   service_cb_both_call_cnt = 0;
 
-  bta_dm_disc_start_service_discovery(
-      {[](RawAddress, BD_NAME, std::vector<bluetooth::Uuid>&, bool) {
-         gatt_service_cb_both_call_cnt++;
-       },
-       nullptr, nullptr,
-       [](RawAddress addr, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {
-         service_cb_both_call_cnt++;
-       }},
-      kRawAddress, BT_TRANSPORT_BR_EDR);
+  bta_dm_disc_start_service_discovery({[](RawAddress, std::vector<bluetooth::Uuid>&,
+                                          bool) { gatt_service_cb_both_call_cnt++; },
+                                       nullptr,
+                                       [](RawAddress addr, const std::vector<bluetooth::Uuid>&,
+                                          tBTA_STATUS) { service_cb_both_call_cnt++; }},
+                                      kRawAddress, BT_TRANSPORT_BR_EDR);
   EXPECT_EQ(sdp_call_cnt, 1);
 
-  bta_dm_disc_start_service_discovery(
-      {[](RawAddress, BD_NAME, std::vector<bluetooth::Uuid>&, bool) {
-         gatt_service_cb_both_call_cnt++;
-       },
-       nullptr, nullptr,
-       [](RawAddress addr, const std::vector<bluetooth::Uuid>&, tBTA_STATUS) {
-         service_cb_both_call_cnt++;
-       }},
-      kRawAddress, BT_TRANSPORT_LE);
+  bta_dm_disc_start_service_discovery({[](RawAddress, std::vector<bluetooth::Uuid>&,
+                                          bool) { gatt_service_cb_both_call_cnt++; },
+                                       nullptr,
+                                       [](RawAddress addr, const std::vector<bluetooth::Uuid>&,
+                                          tBTA_STATUS) { service_cb_both_call_cnt++; }},
+                                      kRawAddress, BT_TRANSPORT_LE);
 
   // GATT discovery on same device is immediately started
   EXPECT_EQ(gatt_call_cnt, 1);
@@ -387,8 +344,7 @@ TEST_F_WITH_FLAGS(BtaInitializedTest, bta_dm_disc_both_transports_flag_enabled,
 
 TEST_F(BtaInitializedTest, init_bta_dm_search_cb__conn_id) {
   // Set the global search block target field to some non-reset value
-  tBTA_DM_SEARCH_CB& search_cb =
-      bluetooth::legacy::testing::bta_dm_disc_search_cb();
+  tBTA_DM_SEARCH_CB& search_cb = bluetooth::legacy::testing::bta_dm_disc_search_cb();
   search_cb.name_discover_done = true;
 
   bluetooth::legacy::testing::bta_dm_disc_init_search_cb(search_cb);

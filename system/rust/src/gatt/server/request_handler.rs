@@ -1,13 +1,10 @@
 use log::warn;
+use pdl_runtime::DecodeError;
+use pdl_runtime::EncodeError;
 
 use crate::{
     gatt::ids::AttHandle,
-    packets::{
-        AttChild, AttErrorCode, AttErrorResponseBuilder, AttFindByTypeValueRequestView,
-        AttFindInformationRequestView, AttOpcode, AttReadByGroupTypeRequestView,
-        AttReadByTypeRequestView, AttReadRequestView, AttView, AttWriteRequestView, Packet,
-        ParseError,
-    },
+    packets::att::{self, AttErrorCode},
 };
 
 use super::{
@@ -27,6 +24,26 @@ pub struct AttRequestHandler<Db: AttDatabase> {
     db: Db,
 }
 
+/// Type of errors raised by request handlers.
+#[allow(dead_code)]
+enum ProcessingError {
+    DecodeError(DecodeError),
+    EncodeError(EncodeError),
+    RequestNotSupported(att::AttOpcode),
+}
+
+impl From<DecodeError> for ProcessingError {
+    fn from(err: DecodeError) -> Self {
+        Self::DecodeError(err)
+    }
+}
+
+impl From<EncodeError> for ProcessingError {
+    fn from(err: EncodeError) -> Self {
+        Self::EncodeError(err)
+    }
+}
+
 impl<Db: AttDatabase> AttRequestHandler<Db> {
     pub fn new(db: Db) -> Self {
         Self { db }
@@ -35,65 +52,53 @@ impl<Db: AttDatabase> AttRequestHandler<Db> {
     // Runs a task to process an incoming packet. Takes an exclusive reference to
     // ensure that only one request is outstanding at a time (notifications +
     // commands should take a different path)
-    pub async fn process_packet(&mut self, packet: AttView<'_>, mtu: usize) -> AttChild {
-        match self.try_parse_and_process_packet(packet, mtu).await {
+    pub async fn process_packet(&mut self, packet: att::Att, mtu: usize) -> att::Att {
+        match self.try_parse_and_process_packet(&packet, mtu).await {
             Ok(result) => result,
             Err(_) => {
                 // parse error, assume it's an unsupported request
                 // TODO(aryarahul): distinguish between REQUEST_NOT_SUPPORTED and INVALID_PDU
-                AttErrorResponseBuilder {
-                    opcode_in_error: packet.get_opcode(),
+                att::AttErrorResponse {
+                    opcode_in_error: packet.opcode,
                     handle_in_error: AttHandle(0).into(),
-                    error_code: AttErrorCode::REQUEST_NOT_SUPPORTED,
+                    error_code: AttErrorCode::RequestNotSupported,
                 }
-                .into()
+                .try_into()
+                .unwrap()
             }
         }
     }
 
     async fn try_parse_and_process_packet(
         &mut self,
-        packet: AttView<'_>,
+        packet: &att::Att,
         mtu: usize,
-    ) -> Result<AttChild, ParseError> {
+    ) -> Result<att::Att, ProcessingError> {
         let snapshotted_db = self.db.snapshot();
-        match packet.get_opcode() {
-            AttOpcode::READ_REQUEST => {
-                Ok(handle_read_request(AttReadRequestView::try_parse(packet)?, mtu, &self.db).await)
+        match packet.opcode {
+            att::AttOpcode::ReadRequest => {
+                Ok(handle_read_request(packet.try_into()?, mtu, &self.db).await?)
             }
-            AttOpcode::READ_BY_GROUP_TYPE_REQUEST => {
-                handle_read_by_group_type_request(
-                    AttReadByGroupTypeRequestView::try_parse(packet)?,
-                    mtu,
-                    &snapshotted_db,
-                )
-                .await
+            att::AttOpcode::ReadByGroupTypeRequest => {
+                Ok(handle_read_by_group_type_request(packet.try_into()?, mtu, &snapshotted_db)
+                    .await?)
             }
-            AttOpcode::READ_BY_TYPE_REQUEST => {
-                handle_read_by_type_request(
-                    AttReadByTypeRequestView::try_parse(packet)?,
-                    mtu,
-                    &snapshotted_db,
-                )
-                .await
+            att::AttOpcode::ReadByTypeRequest => {
+                Ok(handle_read_by_type_request(packet.try_into()?, mtu, &snapshotted_db).await?)
             }
-            AttOpcode::FIND_INFORMATION_REQUEST => Ok(handle_find_information_request(
-                AttFindInformationRequestView::try_parse(packet)?,
-                mtu,
-                &snapshotted_db,
-            )),
-            AttOpcode::FIND_BY_TYPE_VALUE_REQUEST => Ok(handle_find_by_type_value_request(
-                AttFindByTypeValueRequestView::try_parse(packet)?,
-                mtu,
-                &snapshotted_db,
-            )
-            .await),
-            AttOpcode::WRITE_REQUEST => {
-                Ok(handle_write_request(AttWriteRequestView::try_parse(packet)?, &self.db).await)
+            att::AttOpcode::FindInformationRequest => {
+                Ok(handle_find_information_request(packet.try_into()?, mtu, &snapshotted_db)?)
+            }
+            att::AttOpcode::FindByTypeValueRequest => {
+                Ok(handle_find_by_type_value_request(packet.try_into()?, mtu, &snapshotted_db)
+                    .await?)
+            }
+            att::AttOpcode::WriteRequest => {
+                Ok(handle_write_request(packet.try_into()?, &self.db).await?)
             }
             _ => {
-                warn!("Dropping unsupported opcode {:?}", packet.get_opcode());
-                Err(ParseError::InvalidEnumValue)
+                warn!("Dropping unsupported opcode {:?}", packet.opcode);
+                Err(ProcessingError::RequestNotSupported(packet.opcode))
             }
         }
     }
@@ -110,11 +115,7 @@ mod test {
             request_handler::AttRequestHandler,
             test::test_att_db::TestAttDatabase,
         },
-        packets::{
-            AttAttributeDataChild, AttReadRequestBuilder, AttReadResponseBuilder,
-            AttWriteResponseBuilder,
-        },
-        utils::packet::{build_att_data, build_att_view_or_crash},
+        packets::att,
     };
 
     #[test]
@@ -129,20 +130,14 @@ mod test {
             vec![1, 2, 3],
         )]);
         let mut handler = AttRequestHandler { db };
-        let att_view = build_att_view_or_crash(AttReadRequestBuilder {
-            attribute_handle: AttHandle(3).into(),
-        });
+        let att_view =
+            att::AttReadRequest { attribute_handle: AttHandle(3).into() }.try_into().unwrap();
 
         // act
-        let response = tokio_test::block_on(handler.process_packet(att_view.view(), 31));
+        let response = tokio_test::block_on(handler.process_packet(att_view, 31));
 
         // assert
-        assert_eq!(
-            response,
-            AttChild::AttReadResponse(AttReadResponseBuilder {
-                value: build_att_data(AttAttributeDataChild::RawData([1, 2, 3].into()))
-            })
-        );
+        assert_eq!(Ok(response), att::AttReadResponse { value: vec![1, 2, 3] }.try_into());
     }
 
     #[test]
@@ -157,19 +152,20 @@ mod test {
             vec![1, 2, 3],
         )]);
         let mut handler = AttRequestHandler { db };
-        let att_view = build_att_view_or_crash(AttWriteResponseBuilder {});
+        let att_view = att::AttWriteResponse {}.try_into().unwrap();
 
         // act
-        let response = tokio_test::block_on(handler.process_packet(att_view.view(), 31));
+        let response = tokio_test::block_on(handler.process_packet(att_view, 31));
 
         // assert
         assert_eq!(
-            response,
-            AttChild::AttErrorResponse(AttErrorResponseBuilder {
-                opcode_in_error: AttOpcode::WRITE_RESPONSE,
+            Ok(response),
+            att::AttErrorResponse {
+                opcode_in_error: att::AttOpcode::WriteResponse,
                 handle_in_error: AttHandle(0).into(),
-                error_code: AttErrorCode::REQUEST_NOT_SUPPORTED
-            })
+                error_code: AttErrorCode::RequestNotSupported
+            }
+            .try_into()
         );
     }
 }

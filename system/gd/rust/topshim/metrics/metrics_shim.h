@@ -26,22 +26,17 @@ namespace topshim {
 namespace rust {
 
 void adapter_state_changed(uint32_t state);
-void bond_state_changed(
-    RawAddress addr, uint32_t device_type, uint32_t status, uint32_t bond_state, int32_t fail_reason);
+void bond_state_changed(RawAddress addr, uint32_t device_type, uint32_t status, uint32_t bond_state,
+                        int32_t fail_reason);
 void bond_create_attempt(RawAddress addr, uint32_t device_type);
-void device_info_report(
-    RawAddress addr,
-    uint32_t device_type,
-    uint32_t class_of_device,
-    uint32_t appearance,
-    uint32_t vendor_id,
-    uint32_t vendor_id_src,
-    uint32_t product_id,
-    uint32_t version);
-void profile_connection_state_changed(RawAddress addr, uint32_t profile, uint32_t status, uint32_t state);
+void device_info_report(RawAddress addr, uint32_t device_type, uint32_t class_of_device,
+                        uint32_t appearance, uint32_t vendor_id, uint32_t vendor_id_src,
+                        uint32_t product_id, uint32_t version);
+void profile_connection_state_changed(RawAddress addr, uint32_t profile, uint32_t status,
+                                      uint32_t state);
 void acl_connect_attempt(RawAddress addr, uint32_t acl_state);
-void acl_connection_state_changed(
-    RawAddress addr, uint32_t transport, uint32_t status, uint32_t acl_state, uint32_t direction, uint32_t hci_reason);
+void acl_connection_state_changed(RawAddress addr, uint32_t transport, uint32_t status,
+                                  uint32_t acl_state, uint32_t direction, uint32_t hci_reason);
 void suspend_complete_state(uint32_t state);
 
 }  // namespace rust

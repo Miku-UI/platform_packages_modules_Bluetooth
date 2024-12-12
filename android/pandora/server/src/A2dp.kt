@@ -161,6 +161,11 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
                 throw RuntimeException("Device is not connected, cannot start")
             }
 
+            // Configure the selected device as active device if it is not
+            // already.
+            bluetoothA2dp.setActiveDevice(device)
+
+            // Play an audio track.
             audioTrack!!.play()
 
             // If A2dp is not already playing, wait for it
@@ -281,6 +286,7 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
                     )
                 }
             }
+
             override fun onError(t: Throwable) {
                 t.printStackTrace()
                 val sw = StringWriter()
@@ -289,6 +295,7 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
                     Status.UNKNOWN.withCause(t).withDescription(sw.toString()).asException()
                 )
             }
+
             override fun onCompleted() {
                 responseObserver.onNext(PlaybackAudioResponse.getDefaultInstance())
                 responseObserver.onCompleted()

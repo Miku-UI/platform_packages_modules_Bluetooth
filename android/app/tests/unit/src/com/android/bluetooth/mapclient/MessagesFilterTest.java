@@ -85,7 +85,7 @@ public class MessagesFilterTest {
     public void testBuilder() {
         String originator = "test_originator";
         String recipient = "test_recipient";
-        byte messageType = MessagesFilter.MESSAGE_TYPE_EMAIL;
+        byte excludedMessageTypes = MessagesFilter.MESSAGE_TYPE_EMAIL;
         byte readStatus = MessagesFilter.READ_STATUS_READ;
         byte priority = MessagesFilter.PRIORITY_HIGH;
         Calendar begin = Calendar.getInstance();
@@ -97,7 +97,7 @@ public class MessagesFilterTest {
                 new MessagesFilter.Builder()
                         .setOriginator(originator)
                         .setRecipient(recipient)
-                        .setMessageType(messageType)
+                        .setExcludedMessageTypes(excludedMessageTypes)
                         .setReadStatus(readStatus)
                         .setPriority(priority)
                         .setPeriod(begin.getTime(), end.getTime())
@@ -105,7 +105,7 @@ public class MessagesFilterTest {
 
         assertThat(filter.originator).isEqualTo(originator);
         assertThat(filter.recipient).isEqualTo(recipient);
-        assertThat(filter.messageType).isEqualTo(messageType);
+        assertThat(filter.excludedMessageTypes).isEqualTo(excludedMessageTypes);
         assertThat(filter.readStatus).isEqualTo(readStatus);
         assertThat(filter.priority).isEqualTo(priority);
         assertThat(filter.periodBegin).isEqualTo((new ObexTime(begin.getTime())).toString());

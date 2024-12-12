@@ -30,7 +30,8 @@ using common::OnceClosure;
 Handler::Handler(Thread* thread) : tasks_(new std::queue<OnceClosure>()), thread_(thread) {
   event_ = thread_->GetReactor()->NewEvent();
   reactable_ = thread_->GetReactor()->Register(
-      event_->Id(), common::Bind(&Handler::handle_next_event, common::Unretained(this)), common::Closure());
+          event_->Id(), common::Bind(&Handler::handle_next_event, common::Unretained(this)),
+          common::Closure());
 }
 
 Handler::~Handler() {
@@ -70,9 +71,8 @@ void Handler::Clear() {
 
 void Handler::WaitUntilStopped(std::chrono::milliseconds timeout) {
   log::assert_that(reactable_ == nullptr, "assert failed: reactable_ == nullptr");
-  log::assert_that(
-      thread_->GetReactor()->WaitForUnregisteredReactable(timeout),
-      "assert failed: thread_->GetReactor()->WaitForUnregisteredReactable(timeout)");
+  log::assert_that(thread_->GetReactor()->WaitForUnregisteredReactable(timeout),
+                   "assert failed: thread_->GetReactor()->WaitForUnregisteredReactable(timeout)");
 }
 
 void Handler::handle_next_event() {

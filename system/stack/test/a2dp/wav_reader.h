@@ -44,14 +44,14 @@ constexpr size_t kWavHeaderSize = sizeof(WavHeader);
 }
 
 class WavReader {
- public:
+public:
   WavReader(const char* filename);
   ~WavReader();
   WavHeader GetHeader() const;
   uint8_t* GetSamples();
   size_t GetSampleCount();
 
- private:
+private:
   std::ifstream wavFile_;
   WavHeader header_;
   std::vector<uint8_t> samples_;

@@ -138,36 +138,30 @@ typedef enum {
 } bthf_client_in_band_ring_state_t;
 
 /* Peer features masks */
-#define BTHF_CLIENT_PEER_FEAT_3WAY 0x00000001 /* Three-way calling */
-#define BTHF_CLIENT_PEER_FEAT_ECNR \
-  0x00000002 /* Echo cancellation and/or noise reduction */
+#define BTHF_CLIENT_PEER_FEAT_3WAY 0x00000001   /* Three-way calling */
+#define BTHF_CLIENT_PEER_FEAT_ECNR 0x00000002   /* Echo cancellation and/or noise reduction */
 #define BTHF_CLIENT_PEER_FEAT_VREC 0x00000004   /* Voice recognition */
 #define BTHF_CLIENT_PEER_FEAT_INBAND 0x00000008 /* In-band ring tone */
-#define BTHF_CLIENT_PEER_FEAT_VTAG \
-  0x00000010 /* Attach a phone number to a voice tag */
-#define BTHF_CLIENT_PEER_FEAT_REJECT \
-  0x00000020 /* Ability to reject incoming call */
+#define BTHF_CLIENT_PEER_FEAT_VTAG 0x00000010   /* Attach a phone number to a voice tag */
+#define BTHF_CLIENT_PEER_FEAT_REJECT 0x00000020 /* Ability to reject incoming call */
 #define BTHF_CLIENT_PEER_FEAT_ECS 0x00000040    /* Enhanced Call Status */
 #define BTHF_CLIENT_PEER_FEAT_ECC 0x00000080    /* Enhanced Call Control */
 #define BTHF_CLIENT_PEER_FEAT_EXTERR 0x00000100 /* Extended error codes */
 #define BTHF_CLIENT_PEER_FEAT_CODEC 0x00000200  /* Codec Negotiation */
 
 /* Peer call handling features masks */
-#define BTHF_CLIENT_CHLD_FEAT_REL \
-  0x00000001 /* 0  Release waiting call or held calls */
-#define BTHF_CLIENT_CHLD_FEAT_REL_ACC                    \
-  0x00000002 /* 1  Release active calls and accept other \
-                   (waiting or held) cal */
-#define BTHF_CLIENT_CHLD_FEAT_REL_X \
-  0x00000004 /* 1x Release specified active call only */
+#define BTHF_CLIENT_CHLD_FEAT_REL 0x00000001 /* 0  Release waiting call or held calls */
+#define BTHF_CLIENT_CHLD_FEAT_REL_ACC                                                      \
+  0x00000002                                   /* 1  Release active calls and accept other \
+                                                     (waiting or held) cal */
+#define BTHF_CLIENT_CHLD_FEAT_REL_X 0x00000004 /* 1x Release specified active call only */
 #define BTHF_CLIENT_CHLD_FEAT_HOLD_ACC                   \
   0x00000008 /* 2  Active calls on hold and accept other \
                    (waiting or held) call */
-#define BTHF_CLIENT_CHLD_FEAT_PRIV_X                   \
-  0x00000010 /* 2x Request private mode with specified \
-                   call (put the rest on hold) */
-#define BTHF_CLIENT_CHLD_FEAT_MERGE \
-  0x00000020 /* 3  Add held call to multiparty */
+#define BTHF_CLIENT_CHLD_FEAT_PRIV_X                                                     \
+  0x00000010                                   /* 2x Request private mode with specified \
+                                                     call (put the rest on hold) */
+#define BTHF_CLIENT_CHLD_FEAT_MERGE 0x00000020 /* 3  Add held call to multiparty */
 #define BTHF_CLIENT_CHLD_FEAT_MERGE_DETACH     \
   0x00000040 /* 4  Connect two calls and leave \
                    (disconnect from) multiparty */
@@ -177,15 +171,16 @@ typedef enum {
  *  peer/chld_features are valid only for
  * BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED state
  */
-typedef void (*bthf_client_connection_state_callback)(
-    const RawAddress* bd_addr, bthf_client_connection_state_t state,
-    unsigned int peer_feat, unsigned int chld_feat);
+typedef void (*bthf_client_connection_state_callback)(const RawAddress* bd_addr,
+                                                      bthf_client_connection_state_t state,
+                                                      unsigned int peer_feat,
+                                                      unsigned int chld_feat);
 
 /** Callback for audio connection state change.
  *  state will have one of the values from BtHfAudioState
  */
-typedef void (*bthf_client_audio_state_callback)(
-    const RawAddress* bd_addr, bthf_client_audio_state_t state);
+typedef void (*bthf_client_audio_state_callback)(const RawAddress* bd_addr,
+                                                 bthf_client_audio_state_t state);
 
 /** Callback for VR connection state change.
  *  state will have one of the values from BtHfVRState
@@ -195,38 +190,34 @@ typedef void (*bthf_client_vr_cmd_callback)(const RawAddress* bd_addr,
 
 /** Callback for network state change
  */
-typedef void (*bthf_client_network_state_callback)(
-    const RawAddress* bd_addr, bthf_client_network_state_t state);
+typedef void (*bthf_client_network_state_callback)(const RawAddress* bd_addr,
+                                                   bthf_client_network_state_t state);
 
 /** Callback for network roaming status change
  */
-typedef void (*bthf_client_network_roaming_callback)(
-    const RawAddress* bd_addr, bthf_client_service_type_t type);
+typedef void (*bthf_client_network_roaming_callback)(const RawAddress* bd_addr,
+                                                     bthf_client_service_type_t type);
 
 /** Callback for signal strength indication
  */
-typedef void (*bthf_client_network_signal_callback)(const RawAddress* bd_addr,
-                                                    int signal_strength);
+typedef void (*bthf_client_network_signal_callback)(const RawAddress* bd_addr, int signal_strength);
 
 /** Callback for battery level indication
  */
-typedef void (*bthf_client_battery_level_callback)(const RawAddress* bd_addr,
-                                                   int battery_level);
+typedef void (*bthf_client_battery_level_callback)(const RawAddress* bd_addr, int battery_level);
 
 /** Callback for current operator name
  */
-typedef void (*bthf_client_current_operator_callback)(const RawAddress* bd_addr,
-                                                      const char* name);
+typedef void (*bthf_client_current_operator_callback)(const RawAddress* bd_addr, const char* name);
 
 /** Callback for call indicator
  */
-typedef void (*bthf_client_call_callback)(const RawAddress* bd_addr,
-                                          bthf_client_call_t call);
+typedef void (*bthf_client_call_callback)(const RawAddress* bd_addr, bthf_client_call_t call);
 
 /** Callback for callsetup indicator
  */
-typedef void (*bthf_client_callsetup_callback)(
-    const RawAddress* bd_addr, bthf_client_callsetup_t callsetup);
+typedef void (*bthf_client_callsetup_callback)(const RawAddress* bd_addr,
+                                               bthf_client_callsetup_t callsetup);
 
 /** Callback for callheld indicator
  */
@@ -235,20 +226,18 @@ typedef void (*bthf_client_callheld_callback)(const RawAddress* bd_addr,
 
 /** Callback for response and hold
  */
-typedef void (*bthf_client_resp_and_hold_callback)(
-    const RawAddress* bd_addr, bthf_client_resp_and_hold_t resp_and_hold);
+typedef void (*bthf_client_resp_and_hold_callback)(const RawAddress* bd_addr,
+                                                   bthf_client_resp_and_hold_t resp_and_hold);
 
 /** Callback for Calling Line Identification notification
  *  Will be called only when there is an incoming call and number is provided.
  */
-typedef void (*bthf_client_clip_callback)(const RawAddress* bd_addr,
-                                          const char* number);
+typedef void (*bthf_client_clip_callback)(const RawAddress* bd_addr, const char* number);
 
 /**
  * Callback for Call Waiting notification
  */
-typedef void (*bthf_client_call_waiting_callback)(const RawAddress* bd_addr,
-                                                  const char* number);
+typedef void (*bthf_client_call_waiting_callback)(const RawAddress* bd_addr, const char* number);
 
 /**
  *  Callback for listing current calls. Can be called multiple time.
@@ -257,36 +246,34 @@ typedef void (*bthf_client_call_waiting_callback)(const RawAddress* bd_addr,
 typedef void (*bthf_client_current_calls)(const RawAddress* bd_addr, int index,
                                           bthf_client_call_direction_t dir,
                                           bthf_client_call_state_t state,
-                                          bthf_client_call_mpty_type_t mpty,
-                                          const char* number);
+                                          bthf_client_call_mpty_type_t mpty, const char* number);
 
 /** Callback for audio volume change
  */
-typedef void (*bthf_client_volume_change_callback)(
-    const RawAddress* bd_addr, bthf_client_volume_type_t type, int volume);
+typedef void (*bthf_client_volume_change_callback)(const RawAddress* bd_addr,
+                                                   bthf_client_volume_type_t type, int volume);
 
 /** Callback for command complete event
  *  cme is valid only for BTHF_CLIENT_CMD_COMPLETE_ERROR_CME type
  */
-typedef void (*bthf_client_cmd_complete_callback)(
-    const RawAddress* bd_addr, bthf_client_cmd_complete_t type, int cme);
+typedef void (*bthf_client_cmd_complete_callback)(const RawAddress* bd_addr,
+                                                  bthf_client_cmd_complete_t type, int cme);
 
 /** Callback for subscriber information
  */
-typedef void (*bthf_client_subscriber_info_callback)(
-    const RawAddress* bd_addr, const char* name,
-    bthf_client_subscriber_service_type_t type);
+typedef void (*bthf_client_subscriber_info_callback)(const RawAddress* bd_addr, const char* name,
+                                                     bthf_client_subscriber_service_type_t type);
 
 /** Callback for in-band ring tone settings
  */
-typedef void (*bthf_client_in_band_ring_tone_callback)(
-    const RawAddress* bd_addr, bthf_client_in_band_ring_state_t state);
+typedef void (*bthf_client_in_band_ring_tone_callback)(const RawAddress* bd_addr,
+                                                       bthf_client_in_band_ring_state_t state);
 
 /**
  * Callback for requested number from AG
  */
-typedef void (*bthf_client_last_voice_tag_number_callback)(
-    const RawAddress* bd_addr, const char* number);
+typedef void (*bthf_client_last_voice_tag_number_callback)(const RawAddress* bd_addr,
+                                                           const char* number);
 
 /**
  * Callback for sending ring indication to app
@@ -355,8 +342,8 @@ typedef struct {
   bt_status_t (*stop_voice_recognition)(const RawAddress* bd_addr);
 
   /** volume control */
-  bt_status_t (*volume_control)(const RawAddress* bd_addr,
-                                bthf_client_volume_type_t type, int volume);
+  bt_status_t (*volume_control)(const RawAddress* bd_addr, bthf_client_volume_type_t type,
+                                int volume);
 
   /** place a call with number a number
    * if number is NULL last called number is called (aka re-dial)*/
@@ -368,8 +355,8 @@ typedef struct {
   /** perform specified call related action
    * idx is limited only for enhanced call control related action
    */
-  bt_status_t (*handle_call_action)(const RawAddress* bd_addr,
-                                    bthf_client_call_action_t action, int idx);
+  bt_status_t (*handle_call_action)(const RawAddress* bd_addr, bthf_client_call_action_t action,
+                                    int idx);
 
   /** query list of current calls */
   bt_status_t (*query_current_calls)(const RawAddress* bd_addr);
@@ -390,8 +377,8 @@ typedef struct {
   void (*cleanup)(void);
 
   /** Send AT Command. */
-  bt_status_t (*send_at_cmd)(const RawAddress* bd_addr, int cmd, int val1,
-                             int val2, const char* arg);
+  bt_status_t (*send_at_cmd)(const RawAddress* bd_addr, int cmd, int val1, int val2,
+                             const char* arg);
 
   /** Send hfp audio policy to remote */
   bt_status_t (*send_android_at)(const RawAddress* bd_addr, const char* arg);
@@ -399,6 +386,6 @@ typedef struct {
 
 namespace fmt {
 template <>
-struct formatter<bthf_client_connection_state_t>
-    : enum_formatter<bthf_client_connection_state_t> {};
+struct formatter<bthf_client_connection_state_t> : enum_formatter<bthf_client_connection_state_t> {
+};
 }  // namespace fmt

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include "avrcp_browse_packet.h"
+
 #include <gtest/gtest.h>
 
-#include "avrcp_browse_packet.h"
 #include "avrcp_test_packets.h"
 #include "packet_test_helper.h"
 
@@ -24,23 +25,22 @@ namespace bluetooth {
 
 // A helper class that has public accessors to protected methods
 class TestPacketBuilder : public PacketBuilder {
- public:
-  static std::unique_ptr<TestPacketBuilder> MakeBuilder(
-      std::vector<uint8_t> data) {
+public:
+  static std::unique_ptr<TestPacketBuilder> MakeBuilder(std::vector<uint8_t> data) {
     std::unique_ptr<TestPacketBuilder> builder(new TestPacketBuilder(data));
     return builder;
-  };
+  }
 
   // Make all the utility functions public
-  using PacketBuilder::ReserveSpace;
   using PacketBuilder::AddPayloadOctets1;
   using PacketBuilder::AddPayloadOctets2;
   using PacketBuilder::AddPayloadOctets3;
   using PacketBuilder::AddPayloadOctets4;
   using PacketBuilder::AddPayloadOctets6;
   using PacketBuilder::AddPayloadOctets8;
+  using PacketBuilder::ReserveSpace;
 
-  size_t size() const override { return data_.size(); };
+  size_t size() const override { return data_.size(); }
 
   bool Serialize(const std::shared_ptr<Packet>& pkt) override {
     ReserveSpace(pkt, size());
@@ -52,7 +52,7 @@ class TestPacketBuilder : public PacketBuilder {
     return true;
   }
 
-  TestPacketBuilder(std::vector<uint8_t> data) : data_(data){};
+  TestPacketBuilder(std::vector<uint8_t> data) : data_(data) {}
 
   std::vector<uint8_t> data_;
 };
@@ -62,13 +62,12 @@ namespace avrcp {
 using TestBrowsePacket = TestPacketType<BrowsePacket>;
 
 TEST(AvrcpBrowsePacketBuilderTest, buildPacketTest) {
-  std::vector<uint8_t> get_folder_items_request_payload = {
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00};
-  auto payload_builder =
-      TestPacketBuilder::MakeBuilder(get_folder_items_request_payload);
+  std::vector<uint8_t> get_folder_items_request_payload = {0x00, 0x00, 0x00, 0x00, 0x00,
+                                                           0x00, 0x00, 0x00, 0x03, 0x00};
+  auto payload_builder = TestPacketBuilder::MakeBuilder(get_folder_items_request_payload);
 
-  auto builder = BrowsePacketBuilder::MakeBuilder(BrowsePdu::GET_FOLDER_ITEMS,
-                                                  std::move(payload_builder));
+  auto builder =
+          BrowsePacketBuilder::MakeBuilder(BrowsePdu::GET_FOLDER_ITEMS, std::move(payload_builder));
 
   ASSERT_EQ(builder->size(), get_folder_items_request.size());
 
@@ -86,15 +85,14 @@ TEST(AvrcpBrowsePacketTest, gettersTest) {
 
 TEST(AvrcpBrowsePacketTest, payloadBoundsTest) {
   auto test_browse_packet = TestBrowsePacket::Make(get_folder_items_request);
-  std::vector<uint8_t> get_folder_items_request_payload = {
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00};
+  std::vector<uint8_t> get_folder_items_request_payload = {0x00, 0x00, 0x00, 0x00, 0x00,
+                                                           0x00, 0x00, 0x00, 0x03, 0x00};
 
   // Make a folder items payload packet out of the payload of the browse packet
   auto get_folder_items_payload = TestBrowsePacket::Make(test_browse_packet);
 
   for (size_t i = 0; i < get_folder_items_request_payload.size(); i++) {
-    ASSERT_EQ((*get_folder_items_payload)[i],
-              get_folder_items_request_payload[i]);
+    ASSERT_EQ((*get_folder_items_payload)[i], get_folder_items_request_payload[i]);
   }
 }
 

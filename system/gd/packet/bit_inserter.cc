@@ -24,13 +24,12 @@ namespace packet {
 
 BitInserter::BitInserter(std::vector<uint8_t>& vector) : ByteInserter(vector) {}
 
-BitInserter::~BitInserter() {
-  assert(num_saved_bits_ == 0);
-}
+BitInserter::~BitInserter() { assert(num_saved_bits_ == 0); }
 
 void BitInserter::insert_bits(uint8_t byte, size_t num_bits) {
   size_t total_bits = num_bits + num_saved_bits_;
-  uint16_t new_value = static_cast<uint8_t>(saved_bits_) | (static_cast<uint16_t>(byte) << num_saved_bits_);
+  uint16_t new_value =
+          static_cast<uint8_t>(saved_bits_) | (static_cast<uint16_t>(byte) << num_saved_bits_);
   if (total_bits >= 8) {
     ByteInserter::insert_byte(static_cast<uint8_t>(new_value));
     total_bits -= 8;
@@ -41,9 +40,7 @@ void BitInserter::insert_bits(uint8_t byte, size_t num_bits) {
   saved_bits_ = static_cast<uint8_t>(new_value) & mask;
 }
 
-void BitInserter::insert_byte(uint8_t byte) {
-  insert_bits(byte, 8);
-}
+void BitInserter::insert_byte(uint8_t byte) { insert_bits(byte, 8); }
 
 }  // namespace packet
 }  // namespace bluetooth

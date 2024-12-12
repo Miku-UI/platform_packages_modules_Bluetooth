@@ -16,10 +16,10 @@
  *
  ******************************************************************************/
 
+#include "hci/class_of_device.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#include "hci/class_of_device.h"
 
 using bluetooth::hci::ClassOfDevice;
 

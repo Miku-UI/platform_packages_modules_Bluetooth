@@ -25,33 +25,25 @@ namespace bluetooth {
 namespace manager {
 
 class BtmApiInterface {
- public:
-  virtual bool SetSecurityLevel(bool is_originator, const char* p_name,
-                                uint8_t service_id, uint16_t sec_level,
-                                uint16_t psm, uint32_t mx_proto_id,
+public:
+  virtual bool SetSecurityLevel(bool is_originator, const char* p_name, uint8_t service_id,
+                                uint16_t sec_level, uint16_t psm, uint32_t mx_proto_id,
                                 uint32_t mx_chan_id) = 0;
-  virtual uint8_t acl_link_role(const RawAddress& remote_bd_addr,
-                                tBT_TRANSPORT transport) = 0;
-  virtual bool IsEncrypted(const RawAddress& remote_bd_addr,
-                           tBT_TRANSPORT transport) = 0;
-  virtual bool IsLinkKeyKnown(const RawAddress& remote_bd_addr,
-                              tBT_TRANSPORT transport) = 0;
+  virtual uint8_t acl_link_role(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport) = 0;
+  virtual bool IsEncrypted(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport) = 0;
+  virtual bool IsLinkKeyKnown(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport) = 0;
   virtual uint8_t ReadSecKeySize(const RawAddress& remote_bd_addr) = 0;
   virtual ~BtmApiInterface() = default;
 };
 
 class MockBtmApiInterface : public BtmApiInterface {
- public:
+public:
   MOCK_METHOD7(SetSecurityLevel,
-               bool(bool is_originator, const char* p_name, uint8_t service_id,
-                    uint16_t sec_level, uint16_t psm, uint32_t mx_proto_id,
-                    uint32_t mx_chan_id));
-  MOCK_METHOD2(acl_link_role, uint8_t(const RawAddress& remote_bd_addr,
-                                      tBT_TRANSPORT transport));
-  MOCK_METHOD2(IsEncrypted,
-               bool(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport));
-  MOCK_METHOD2(IsLinkKeyKnown,
-               bool(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport));
+               bool(bool is_originator, const char* p_name, uint8_t service_id, uint16_t sec_level,
+                    uint16_t psm, uint32_t mx_proto_id, uint32_t mx_chan_id));
+  MOCK_METHOD2(acl_link_role, uint8_t(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport));
+  MOCK_METHOD2(IsEncrypted, bool(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport));
+  MOCK_METHOD2(IsLinkKeyKnown, bool(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport));
   MOCK_METHOD1(ReadSecKeySize, uint8_t(const RawAddress& remote_bd_addr));
 };
 

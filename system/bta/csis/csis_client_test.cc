@@ -36,11 +36,10 @@
 #include "stack/include/bt_uuid16.h"
 #include "test/common/mock_functions.h"
 
-bool gatt_cl_read_sirk_req(
-    const RawAddress& peer_bda,
-    base::OnceCallback<void(tGATT_STATUS status, const RawAddress&,
-                            uint8_t sirk_type, Octet16& sirk)>
-        cb) {
+bool gatt_cl_read_sirk_req(const RawAddress& peer_bda,
+                           base::OnceCallback<void(tGATT_STATUS status, const RawAddress&,
+                                                   uint8_t sirk_type, Octet16& sirk)>
+                                   cb) {
   return true;
 }
 
@@ -73,118 +72,92 @@ using testing::SetArgPointee;
 using testing::WithArg;
 
 // Disables most likely false-positives from base::SplitString()
-extern "C" const char* __asan_default_options() {
-  return "detect_container_overflow=0";
-}
+extern "C" const char* __asan_default_options() { return "detect_container_overflow=0"; }
 
 RawAddress GetTestAddress(int index) {
   EXPECT_LT(index, UINT8_MAX);
-  RawAddress result = {
-      {0xC0, 0xDE, 0xC0, 0xDE, 0x00, static_cast<uint8_t>(index)}};
+  RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, static_cast<uint8_t>(index)}};
   return result;
 }
 
 /* Csis lock callback */
 class MockCsisLockCallback {
- public:
+public:
   MockCsisLockCallback() = default;
   MockCsisLockCallback(const MockCsisLockCallback&) = delete;
   MockCsisLockCallback& operator=(const MockCsisLockCallback&) = delete;
 
   ~MockCsisLockCallback() = default;
-  MOCK_METHOD((void), CsisGroupLockCb,
-              (int group_id, bool locked, CsisGroupLockStatus status));
+  MOCK_METHOD((void), CsisGroupLockCb, (int group_id, bool locked, CsisGroupLockStatus status));
 };
 
 static MockCsisLockCallback* csis_lock_callback_mock;
 
-void SetMockCsisLockCallback(MockCsisLockCallback* mock) {
-  csis_lock_callback_mock = mock;
-}
+void SetMockCsisLockCallback(MockCsisLockCallback* mock) { csis_lock_callback_mock = mock; }
 
 /* Csis callbacks to JNI */
 class MockCsisCallbacks : public CsisClientCallbacks {
- public:
+public:
   MockCsisCallbacks() = default;
   MockCsisCallbacks(const MockCsisCallbacks&) = delete;
   MockCsisCallbacks& operator=(const MockCsisCallbacks&) = delete;
 
   ~MockCsisCallbacks() override = default;
 
-  MOCK_METHOD((void), OnConnectionState,
-              (const RawAddress& address, ConnectionState state), (override));
+  MOCK_METHOD((void), OnConnectionState, (const RawAddress& address, ConnectionState state),
+              (override));
   MOCK_METHOD((void), OnDeviceAvailable,
-              (const RawAddress& address, int group_id, int group_size,
-               int rank, const bluetooth::Uuid& uuid),
+              (const RawAddress& address, int group_id, int group_size, int rank,
+               const bluetooth::Uuid& uuid),
               (override));
-  MOCK_METHOD((void), OnSetMemberAvailable,
-              (const RawAddress& address, int group_id), (override));
+  MOCK_METHOD((void), OnSetMemberAvailable, (const RawAddress& address, int group_id), (override));
   MOCK_METHOD((void), OnGroupLockChanged,
-              (int group_id, bool locked,
-               bluetooth::csis::CsisGroupLockStatus status),
-              (override));
+              (int group_id, bool locked, bluetooth::csis::CsisGroupLockStatus status), (override));
   MOCK_METHOD((void), OnGattCsisWriteLockRsp,
-              (uint16_t conn_id, tGATT_STATUS status, uint16_t handle,
-               void* data));
+              (uint16_t conn_id, tGATT_STATUS status, uint16_t handle, void* data));
 };
 
 class CsisClientTest : public ::testing::Test {
- private:
-  void set_sample_cap_included_database(uint16_t conn_id, bool csis,
-                                        bool csis_broken, uint8_t rank,
+private:
+  void set_sample_cap_included_database(uint16_t conn_id, bool csis, bool csis_broken, uint8_t rank,
                                         uint8_t sirk_msb = 1) {
     gatt::DatabaseBuilder builder;
     builder.AddService(0x0001, 0x0003, Uuid::From16Bit(0x1800), true);
-    builder.AddCharacteristic(0x0002, 0x0003, Uuid::From16Bit(0x2a00),
-                              GATT_CHAR_PROP_BIT_READ);
+    builder.AddCharacteristic(0x0002, 0x0003, Uuid::From16Bit(0x2a00), GATT_CHAR_PROP_BIT_READ);
     if (csis) {
-      builder.AddService(0x0005, 0x0009,
-                         bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE),
+      builder.AddService(0x0005, 0x0009, bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE),
                          true);
       builder.AddIncludedService(0x0006, kCsisServiceUuid, 0x0010, 0x0030);
 
       builder.AddService(0x0010, 0x0030, kCsisServiceUuid, true);
-      builder.AddCharacteristic(
-          0x0020, 0x0021, kCsisSirkUuid,
-          GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+      builder.AddCharacteristic(0x0020, 0x0021, kCsisSirkUuid,
+                                GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
 
-      builder.AddDescriptor(0x0022,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddDescriptor(0x0022, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddCharacteristic(0x0023, 0x0024, kCsisSizeUuid,
+                                GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+      builder.AddDescriptor(0x0025, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
       builder.AddCharacteristic(
-          0x0023, 0x0024, kCsisSizeUuid,
-          GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
-      builder.AddDescriptor(0x0025,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-      builder.AddCharacteristic(0x0026, 0x0027, kCsisLockUuid,
-                                GATT_CHAR_PROP_BIT_READ |
-                                    GATT_CHAR_PROP_BIT_NOTIFY |
-                                    GATT_CHAR_PROP_BIT_WRITE);
-      builder.AddDescriptor(0x0028,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-      builder.AddCharacteristic(0x0029, 0x0030, kCsisRankUuid,
-                                GATT_CHAR_PROP_BIT_READ);
+              0x0026, 0x0027, kCsisLockUuid,
+              GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY | GATT_CHAR_PROP_BIT_WRITE);
+      builder.AddDescriptor(0x0028, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddCharacteristic(0x0029, 0x0030, kCsisRankUuid, GATT_CHAR_PROP_BIT_READ);
     }
     if (csis_broken) {
-      builder.AddCharacteristic(
-          0x0020, 0x0021, kCsisSirkUuid,
-          GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+      builder.AddCharacteristic(0x0020, 0x0021, kCsisSirkUuid,
+                                GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
 
-      builder.AddDescriptor(0x0022,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddDescriptor(0x0022, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     }
-    builder.AddService(0x0090, 0x0093,
-                       Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER), true);
-    builder.AddCharacteristic(0x0091, 0x0092,
-                              Uuid::From16Bit(GATT_UUID_GATT_SRV_CHGD),
+    builder.AddService(0x0090, 0x0093, Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER), true);
+    builder.AddCharacteristic(0x0091, 0x0092, Uuid::From16Bit(GATT_UUID_GATT_SRV_CHGD),
                               GATT_CHAR_PROP_BIT_NOTIFY);
-    builder.AddDescriptor(0x0093,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddDescriptor(0x0093, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     services_map[conn_id] = builder.Build().Services();
 
     ON_CALL(gatt_queue, ReadCharacteristic(conn_id, _, _, _))
-        .WillByDefault(
-            Invoke([rank, sirk_msb](uint16_t conn_id, uint16_t handle,
-                                    GATT_READ_OP_CB cb, void* cb_data) -> void {
+            .WillByDefault(Invoke([rank, sirk_msb](uint16_t conn_id, uint16_t handle,
+                                                   GATT_READ_OP_CB cb, void* cb_data) -> void {
               std::vector<uint8_t> value;
 
               switch (handle) {
@@ -211,60 +184,45 @@ class CsisClientTest : public ::testing::Test {
                   return;
               }
 
-              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(),
-                 cb_data);
+              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
             }));
   }
 
-  void set_sample_database(uint16_t conn_id, bool csis, bool csis_broken,
-                           uint8_t rank, uint8_t sirk_msb = 1) {
+  void set_sample_database(uint16_t conn_id, bool csis, bool csis_broken, uint8_t rank,
+                           uint8_t sirk_msb = 1) {
     gatt::DatabaseBuilder builder;
     builder.AddService(0x0001, 0x0003, Uuid::From16Bit(0x1800), true);
-    builder.AddCharacteristic(0x0002, 0x0003, Uuid::From16Bit(0x2a00),
-                              GATT_CHAR_PROP_BIT_READ);
+    builder.AddCharacteristic(0x0002, 0x0003, Uuid::From16Bit(0x2a00), GATT_CHAR_PROP_BIT_READ);
     if (csis) {
       builder.AddService(0x0010, 0x0030, kCsisServiceUuid, true);
-      builder.AddCharacteristic(
-          0x0020, 0x0021, kCsisSirkUuid,
-          GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+      builder.AddCharacteristic(0x0020, 0x0021, kCsisSirkUuid,
+                                GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
 
-      builder.AddDescriptor(0x0022,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddDescriptor(0x0022, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddCharacteristic(0x0023, 0x0024, kCsisSizeUuid,
+                                GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+      builder.AddDescriptor(0x0025, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
       builder.AddCharacteristic(
-          0x0023, 0x0024, kCsisSizeUuid,
-          GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
-      builder.AddDescriptor(0x0025,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-      builder.AddCharacteristic(0x0026, 0x0027, kCsisLockUuid,
-                                GATT_CHAR_PROP_BIT_READ |
-                                    GATT_CHAR_PROP_BIT_NOTIFY |
-                                    GATT_CHAR_PROP_BIT_WRITE);
-      builder.AddDescriptor(0x0028,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-      builder.AddCharacteristic(0x0029, 0x0030, kCsisRankUuid,
-                                GATT_CHAR_PROP_BIT_READ);
+              0x0026, 0x0027, kCsisLockUuid,
+              GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY | GATT_CHAR_PROP_BIT_WRITE);
+      builder.AddDescriptor(0x0028, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddCharacteristic(0x0029, 0x0030, kCsisRankUuid, GATT_CHAR_PROP_BIT_READ);
     }
     if (csis_broken) {
-      builder.AddCharacteristic(
-          0x0020, 0x0021, kCsisSirkUuid,
-          GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+      builder.AddCharacteristic(0x0020, 0x0021, kCsisSirkUuid,
+                                GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
 
-      builder.AddDescriptor(0x0022,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddDescriptor(0x0022, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     }
-    builder.AddService(0x0090, 0x0093,
-                       Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER), true);
-    builder.AddCharacteristic(0x0091, 0x0092,
-                              Uuid::From16Bit(GATT_UUID_GATT_SRV_CHGD),
+    builder.AddService(0x0090, 0x0093, Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER), true);
+    builder.AddCharacteristic(0x0091, 0x0092, Uuid::From16Bit(GATT_UUID_GATT_SRV_CHGD),
                               GATT_CHAR_PROP_BIT_NOTIFY);
-    builder.AddDescriptor(0x0093,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddDescriptor(0x0093, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     services_map[conn_id] = builder.Build().Services();
 
     ON_CALL(gatt_queue, ReadCharacteristic(conn_id, _, _, _))
-        .WillByDefault(
-            Invoke([rank, sirk_msb](uint16_t conn_id, uint16_t handle,
-                                    GATT_READ_OP_CB cb, void* cb_data) -> void {
+            .WillByDefault(Invoke([rank, sirk_msb](uint16_t conn_id, uint16_t handle,
+                                                   GATT_READ_OP_CB cb, void* cb_data) -> void {
               std::vector<uint8_t> value;
 
               switch (handle) {
@@ -287,144 +245,119 @@ class CsisClientTest : public ::testing::Test {
                   value.assign(1, rank);
                   break;
                 default:
-                  ASSERT_TRUE(false);
+                  FAIL();
                   return;
               }
 
-              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(),
-                 cb_data);
+              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
             }));
   }
 
-  void set_sample_database_double_csis(uint16_t conn_id, uint8_t rank_1,
-                                       uint8_t rank_2, bool broken,
-                                       uint8_t sirk1_infill = 1,
+  void set_sample_database_double_csis(uint16_t conn_id, uint8_t rank_1, uint8_t rank_2,
+                                       bool broken, uint8_t sirk1_infill = 1,
                                        uint8_t sirk2_infill = 2) {
     gatt::DatabaseBuilder builder;
 
     builder.AddService(0x0001, 0x0003, Uuid::From16Bit(0x1800), true);
-    builder.AddCharacteristic(0x0002, 0x0003, Uuid::From16Bit(0x2a00),
-                              GATT_CHAR_PROP_BIT_READ);
-    builder.AddService(0x0010, 0x0026, bluetooth::Uuid::From16Bit(0x1850),
-                       true);
+    builder.AddCharacteristic(0x0002, 0x0003, Uuid::From16Bit(0x2a00), GATT_CHAR_PROP_BIT_READ);
+    builder.AddService(0x0010, 0x0026, bluetooth::Uuid::From16Bit(0x1850), true);
     builder.AddIncludedService(0x0011, kCsisServiceUuid, 0x0031, 0x0041);
-    builder.AddCharacteristic(
-        0x0031, 0x0032, kCsisSirkUuid,
-        GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+    builder.AddCharacteristic(0x0031, 0x0032, kCsisSirkUuid,
+                              GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
 
-    builder.AddDescriptor(0x0033,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddDescriptor(0x0033, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddCharacteristic(0x0034, 0x0035, kCsisSizeUuid,
+                              GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+    builder.AddDescriptor(0x0036, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     builder.AddCharacteristic(
-        0x0034, 0x0035, kCsisSizeUuid,
-        GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
-    builder.AddDescriptor(0x0036,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-    builder.AddCharacteristic(0x0037, 0x0038, kCsisLockUuid,
-                              GATT_CHAR_PROP_BIT_READ |
-                                  GATT_CHAR_PROP_BIT_NOTIFY |
-                                  GATT_CHAR_PROP_BIT_WRITE);
-    builder.AddDescriptor(0x0039,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-    builder.AddCharacteristic(0x0040, 0x0041, kCsisRankUuid,
-                              GATT_CHAR_PROP_BIT_READ);
+            0x0037, 0x0038, kCsisLockUuid,
+            GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY | GATT_CHAR_PROP_BIT_WRITE);
+    builder.AddDescriptor(0x0039, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddCharacteristic(0x0040, 0x0041, kCsisRankUuid, GATT_CHAR_PROP_BIT_READ);
 
     if (broken) {
-      builder.AddCharacteristic(
-          0x0020, 0x0021, kCsisSirkUuid,
-          GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+      builder.AddCharacteristic(0x0020, 0x0021, kCsisSirkUuid,
+                                GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
 
-      builder.AddDescriptor(0x0022,
-                            Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+      builder.AddDescriptor(0x0022, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     }
 
-    builder.AddService(0x0042, 0x0044, bluetooth::Uuid::From16Bit(0x1860),
-                       true);
+    builder.AddService(0x0042, 0x0044, bluetooth::Uuid::From16Bit(0x1860), true);
     builder.AddIncludedService(0x0043, kCsisServiceUuid, 0x0045, 0x0055);
 
-    builder.AddCharacteristic(
-        0x0045, 0x0046, kCsisSirkUuid,
-        GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+    builder.AddCharacteristic(0x0045, 0x0046, kCsisSirkUuid,
+                              GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
 
-    builder.AddDescriptor(0x0047,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddDescriptor(0x0047, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddCharacteristic(0x0048, 0x0049, kCsisSizeUuid,
+                              GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
+    builder.AddDescriptor(0x0050, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     builder.AddCharacteristic(
-        0x0048, 0x0049, kCsisSizeUuid,
-        GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY);
-    builder.AddDescriptor(0x0050,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-    builder.AddCharacteristic(0x0051, 0x0052, kCsisLockUuid,
-                              GATT_CHAR_PROP_BIT_READ |
-                                  GATT_CHAR_PROP_BIT_NOTIFY |
-                                  GATT_CHAR_PROP_BIT_WRITE);
-    builder.AddDescriptor(0x0053,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
-    builder.AddCharacteristic(0x0054, 0x0055, kCsisRankUuid,
-                              GATT_CHAR_PROP_BIT_READ);
+            0x0051, 0x0052, kCsisLockUuid,
+            GATT_CHAR_PROP_BIT_READ | GATT_CHAR_PROP_BIT_NOTIFY | GATT_CHAR_PROP_BIT_WRITE);
+    builder.AddDescriptor(0x0053, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddCharacteristic(0x0054, 0x0055, kCsisRankUuid, GATT_CHAR_PROP_BIT_READ);
 
-    builder.AddService(0x0090, 0x0093,
-                       Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER), true);
-    builder.AddCharacteristic(0x0091, 0x0092,
-                              Uuid::From16Bit(GATT_UUID_GATT_SRV_CHGD),
+    builder.AddService(0x0090, 0x0093, Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER), true);
+    builder.AddCharacteristic(0x0091, 0x0092, Uuid::From16Bit(GATT_UUID_GATT_SRV_CHGD),
                               GATT_CHAR_PROP_BIT_NOTIFY);
-    builder.AddDescriptor(0x0093,
-                          Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
+    builder.AddDescriptor(0x0093, Uuid::From16Bit(GATT_UUID_CHAR_CLIENT_CONFIG));
     services_map[conn_id] = builder.Build().Services();
 
     ON_CALL(gatt_queue, ReadCharacteristic(conn_id, _, _, _))
-        .WillByDefault(Invoke([sirk1_infill, sirk2_infill, rank_1, rank_2](
-                                  uint16_t conn_id, uint16_t handle,
-                                  GATT_READ_OP_CB cb, void* cb_data) -> void {
-          std::vector<uint8_t> value;
+            .WillByDefault(Invoke([sirk1_infill, sirk2_infill, rank_1, rank_2](
+                                          uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb,
+                                          void* cb_data) -> void {
+              std::vector<uint8_t> value;
 
-          switch (handle) {
-            case 0x0003:
-              /* device name */
-              value.resize(20);
-              break;
-            case 0x0032:
-              value.resize(17);
-              value.assign(17, sirk1_infill);
-              value[0] = 1;  // Plain text SIRK
-              break;
-            case 0x0035:
-              value.resize(1);
-              value.assign(1, 2);
-              break;
-            case 0x0038:
-              value.resize(1);
-              break;
-            case 0x0041:
-              value.resize(1);
-              value.assign(1, rank_1);
-              break;
-            case 0x0046:
-              value.resize(17);
-              value.assign(17, sirk2_infill);
-              value[0] = 1;  // Plain text SIRK
-              break;
-            case 0x0049:
-              value.resize(1);
-              value.assign(1, 2);
-              break;
-            case 0x0052:
-              value.resize(1);
-              break;
-            case 0x0055:
-              value.resize(1);
-              value.assign(1, rank_2);
-              break;
-            default:
-              log::error("Unknown handle? {}", handle);
-              ASSERT_TRUE(false);
-              return;
-          }
+              switch (handle) {
+                case 0x0003:
+                  /* device name */
+                  value.resize(20);
+                  break;
+                case 0x0032:
+                  value.resize(17);
+                  value.assign(17, sirk1_infill);
+                  value[0] = 1;  // Plain text SIRK
+                  break;
+                case 0x0035:
+                  value.resize(1);
+                  value.assign(1, 2);
+                  break;
+                case 0x0038:
+                  value.resize(1);
+                  break;
+                case 0x0041:
+                  value.resize(1);
+                  value.assign(1, rank_1);
+                  break;
+                case 0x0046:
+                  value.resize(17);
+                  value.assign(17, sirk2_infill);
+                  value[0] = 1;  // Plain text SIRK
+                  break;
+                case 0x0049:
+                  value.resize(1);
+                  value.assign(1, 2);
+                  break;
+                case 0x0052:
+                  value.resize(1);
+                  break;
+                case 0x0055:
+                  value.resize(1);
+                  value.assign(1, rank_2);
+                  break;
+                default:
+                  log::error("Unknown handle? {}", handle);
+                  FAIL();
+                  return;
+              }
 
-          cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(),
-             cb_data);
-        }));
+              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
+            }));
   }
 
- protected:
+protected:
   void SetUp(void) override {
     reset_mock_function_count_map();
     bluetooth::manager::SetMockBtmInterface(&btm_interface);
@@ -434,32 +367,28 @@ class CsisClientTest : public ::testing::Test {
     SetMockCsisLockCallback(&csis_lock_cb);
     callbacks.reset(new MockCsisCallbacks());
 
-    ON_CALL(btm_interface, IsLinkKeyKnown(_, _))
-        .WillByDefault(DoAll(Return(true)));
+    ON_CALL(btm_interface, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(true)));
 
-    ON_CALL(btm_interface, BTM_IsEncrypted(_, _))
-        .WillByDefault(DoAll(Return(true)));
+    ON_CALL(btm_interface, BTM_IsEncrypted(_, _)).WillByDefault(DoAll(Return(true)));
 
     ON_CALL(gatt_interface, GetCharacteristic(_, _))
-        .WillByDefault(
-            Invoke([&](uint16_t conn_id,
-                       uint16_t handle) -> const gatt::Characteristic* {
-              std::list<gatt::Service>& services = services_map[conn_id];
-              for (auto const& service : services) {
-                for (auto const& characteristic : service.characteristics) {
-                  if (characteristic.value_handle == handle) {
-                    return &characteristic;
-                  }
-                }
-              }
+            .WillByDefault(
+                    Invoke([&](uint16_t conn_id, uint16_t handle) -> const gatt::Characteristic* {
+                      std::list<gatt::Service>& services = services_map[conn_id];
+                      for (auto const& service : services) {
+                        for (auto const& characteristic : service.characteristics) {
+                          if (characteristic.value_handle == handle) {
+                            return &characteristic;
+                          }
+                        }
+                      }
 
-              return nullptr;
-            }));
+                      return nullptr;
+                    }));
 
     // default action for GetOwningService function call
     ON_CALL(gatt_interface, GetOwningService(_, _))
-        .WillByDefault(Invoke(
-            [&](uint16_t conn_id, uint16_t handle) -> const gatt::Service* {
+            .WillByDefault(Invoke([&](uint16_t conn_id, uint16_t handle) -> const gatt::Service* {
               std::list<gatt::Service>& services = services_map[conn_id];
               for (auto const& service : services) {
                 if (service.handle <= handle && service.end_handle >= handle) {
@@ -472,28 +401,26 @@ class CsisClientTest : public ::testing::Test {
 
     // default action for GetServices function call
     ON_CALL(gatt_interface, GetServices(_))
-        .WillByDefault(WithArg<0>(
-            Invoke([&](uint16_t conn_id) -> std::list<gatt::Service>* {
+            .WillByDefault(WithArg<0>(Invoke([&](uint16_t conn_id) -> std::list<gatt::Service>* {
               return &services_map[conn_id];
             })));
 
     // default action for RegisterForNotifications function call
     ON_CALL(gatt_interface, RegisterForNotifications(gatt_if, _, _))
-        .WillByDefault(Return(GATT_SUCCESS));
+            .WillByDefault(Return(GATT_SUCCESS));
 
     // default action for DeregisterForNotifications function call
     ON_CALL(gatt_interface, DeregisterForNotifications(gatt_if, _, _))
-        .WillByDefault(Return(GATT_SUCCESS));
+            .WillByDefault(Return(GATT_SUCCESS));
 
     // default action for WriteDescriptor function call
     ON_CALL(gatt_queue, WriteDescriptor(_, _, _, _, _, _))
-        .WillByDefault(
-            Invoke([](uint16_t conn_id, uint16_t handle,
-                      std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
-                      GATT_WRITE_OP_CB cb, void* cb_data) -> void {
-              if (cb)
-                cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(),
-                   cb_data);
+            .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                                     tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                     void* cb_data) -> void {
+              if (cb) {
+                cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
+              }
             }));
   }
 
@@ -508,10 +435,8 @@ class CsisClientTest : public ::testing::Test {
   void TestAppRegister(void) {
     BtaAppRegisterCallback app_register_callback;
     EXPECT_CALL(gatt_interface, AppRegister(_, _, _))
-        .WillOnce(DoAll(SaveArg<0>(&gatt_callback),
-                        SaveArg<1>(&app_register_callback)));
-    CsisClient::Initialize(callbacks.get(),
-                           Bind(&btif_storage_load_bonded_csis_devices));
+            .WillOnce(DoAll(SaveArg<0>(&gatt_callback), SaveArg<1>(&app_register_callback)));
+    CsisClient::Initialize(callbacks.get(), Bind(&btif_storage_load_bonded_csis_devices));
     ASSERT_TRUE(gatt_callback);
     ASSERT_TRUE(app_register_callback);
     app_register_callback.Run(gatt_if, GATT_SUCCESS);
@@ -528,11 +453,9 @@ class CsisClientTest : public ::testing::Test {
   void TestConnect(const RawAddress& address, bool encrypted = true) {
     // by default indicate link as encrypted
     ON_CALL(btm_interface, GetSecurityFlagsByTransport(address, NotNull(), _))
-        .WillByDefault(
-            DoAll(SetArgPointee<1>(BTM_SEC_FLAG_ENCRYPTED), Return(encrypted)));
+            .WillByDefault(DoAll(SetArgPointee<1>(BTM_SEC_FLAG_ENCRYPTED), Return(encrypted)));
 
-    EXPECT_CALL(gatt_interface,
-                Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, _));
+    EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, _));
     CsisClient::Get()->Connect(address);
     Mock::VerifyAndClearExpectations(&gatt_interface);
     Mock::VerifyAndClearExpectations(&btm_interface);
@@ -541,8 +464,7 @@ class CsisClientTest : public ::testing::Test {
   void TestDisconnect(const RawAddress& address, uint16_t conn_id) {
     if (conn_id != GATT_INVALID_CONN_ID) {
       EXPECT_CALL(gatt_interface, Close(conn_id));
-      EXPECT_CALL(*callbacks, OnConnectionState(test_address,
-                                                ConnectionState::DISCONNECTED));
+      EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::DISCONNECTED));
     } else {
       EXPECT_CALL(gatt_interface, CancelOpen(_, address, _));
     }
@@ -552,20 +474,15 @@ class CsisClientTest : public ::testing::Test {
   void TestAddFromStorage(const RawAddress& address, uint16_t conn_id,
                           std::vector<uint8_t>& storage_group_buf,
                           std::vector<uint8_t>& storage_buf) {
-    EXPECT_CALL(*callbacks,
-                OnConnectionState(address, ConnectionState::CONNECTED))
-        .Times(1);
-    EXPECT_CALL(*callbacks, OnDeviceAvailable(address, _, _, _, _))
-        .Times(AtLeast(1));
+    EXPECT_CALL(*callbacks, OnConnectionState(address, ConnectionState::CONNECTED)).Times(1);
+    EXPECT_CALL(*callbacks, OnDeviceAvailable(address, _, _, _, _)).Times(AtLeast(1));
 
-    EXPECT_CALL(gatt_interface,
-                Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, true))
-        .WillOnce(Invoke([this, conn_id](tGATT_IF client_if,
-                                         const RawAddress& remote_bda,
-                                         bool is_direct, bool opportunistic) {
-          InjectConnectedEvent(remote_bda, conn_id);
-          GetSearchCompleteEvent(conn_id);
-        }));
+    EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, true))
+            .WillOnce(Invoke([this, conn_id](tGATT_IF client_if, const RawAddress& remote_bda,
+                                             bool is_direct, bool opportunistic) {
+              InjectConnectedEvent(remote_bda, conn_id);
+              GetSearchCompleteEvent(conn_id);
+            }));
 
     DeviceGroups::AddFromStorage(address, storage_group_buf);
     CsisClient::AddFromStorage(address, storage_buf);
@@ -573,35 +490,35 @@ class CsisClientTest : public ::testing::Test {
 
   void InjectEncryptionEvent(const RawAddress& test_address, uint16_t conn_id) {
     tBTA_GATTC_ENC_CMPL_CB event_data = {
-        .client_if = static_cast<tGATT_IF>(conn_id),
-        .remote_bda = test_address,
+            .client_if = static_cast<tGATT_IF>(conn_id),
+            .remote_bda = test_address,
     };
 
     gatt_callback(BTA_GATTC_ENC_CMPL_CB_EVT, (tBTA_GATTC*)&event_data);
   }
 
-  void InjectConnectedEvent(const RawAddress& address, uint16_t conn_id) {
+  void InjectConnectedEvent(const RawAddress& address, uint16_t conn_id,
+                            tGATT_STATUS status = GATT_SUCCESS) {
     tBTA_GATTC_OPEN event_data = {
-        .status = GATT_SUCCESS,
-        .conn_id = conn_id,
-        .client_if = gatt_if,
-        .remote_bda = address,
-        .transport = GATT_TRANSPORT_LE,
-        .mtu = 240,
+            .status = status,
+            .conn_id = conn_id,
+            .client_if = gatt_if,
+            .remote_bda = address,
+            .transport = BT_TRANSPORT_LE,
+            .mtu = 240,
     };
 
     gatt_callback(BTA_GATTC_OPEN_EVT, (tBTA_GATTC*)&event_data);
   }
 
-  void InjectDisconnectedEvent(
-      const RawAddress& address, uint16_t conn_id,
-      tGATT_DISCONN_REASON reason = GATT_CONN_TERMINATE_PEER_USER) {
+  void InjectDisconnectedEvent(const RawAddress& address, uint16_t conn_id,
+                               tGATT_DISCONN_REASON reason = GATT_CONN_TERMINATE_PEER_USER) {
     tBTA_GATTC_CLOSE event_data = {
-        .conn_id = conn_id,
-        .status = GATT_SUCCESS,
-        .client_if = gatt_if,
-        .remote_bda = address,
-        .reason = reason,
+            .conn_id = conn_id,
+            .status = GATT_SUCCESS,
+            .client_if = gatt_if,
+            .remote_bda = address,
+            .reason = reason,
     };
 
     gatt_callback(BTA_GATTC_CLOSE_EVT, (tBTA_GATTC*)&event_data);
@@ -609,8 +526,8 @@ class CsisClientTest : public ::testing::Test {
 
   void GetSearchCompleteEvent(uint16_t conn_id) {
     tBTA_GATTC_SEARCH_CMPL event_data = {
-        .conn_id = conn_id,
-        .status = GATT_SUCCESS,
+            .conn_id = conn_id,
+            .status = GATT_SUCCESS,
     };
 
     gatt_callback(BTA_GATTC_SEARCH_CMPL_EVT, (tBTA_GATTC*)&event_data);
@@ -623,30 +540,25 @@ class CsisClientTest : public ::testing::Test {
     TestConnect(address);
     InjectConnectedEvent(address, conn_id);
 
-    EXPECT_CALL(gatt_queue, ReadCharacteristic(conn_id, _, _, _))
-        .WillRepeatedly(DoDefault());
+    EXPECT_CALL(gatt_queue, ReadCharacteristic(conn_id, _, _, _)).WillRepeatedly(DoDefault());
     for (auto const& handle : handles) {
-      EXPECT_CALL(gatt_queue, ReadCharacteristic(conn_id, handle, _, _))
-          .WillOnce(DoDefault());
+      EXPECT_CALL(gatt_queue, ReadCharacteristic(conn_id, handle, _, _)).WillOnce(DoDefault());
     }
 
     GetSearchCompleteEvent(conn_id);
     TestAppUnregister();
   }
 
-  void TestGattWriteCCC(uint16_t ccc_handle, GattStatus status,
-                        int deregister_times) {
+  void TestGattWriteCCC(uint16_t ccc_handle, GattStatus status, int deregister_times) {
     SetSampleDatabaseCsis(1, 1);
     TestAppRegister();
     TestConnect(test_address);
     InjectConnectedEvent(test_address, 1);
 
-    auto WriteDescriptorCbGenerator = [](tGATT_STATUS status,
-                                         uint16_t ccc_handle) {
-      return [status, ccc_handle](uint16_t conn_id, uint16_t handle,
-                                  std::vector<uint8_t> value,
-                                  tGATT_WRITE_TYPE write_type,
-                                  GATT_WRITE_OP_CB cb, void* cb_data) -> void {
+    auto WriteDescriptorCbGenerator = [](tGATT_STATUS status, uint16_t ccc_handle) {
+      return [status, ccc_handle](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                                  tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                  void* cb_data) -> void {
         if (cb) {
           if (ccc_handle) {
             handle = ccc_handle;
@@ -658,13 +570,12 @@ class CsisClientTest : public ::testing::Test {
 
     // sirk, size, lock
     EXPECT_CALL(gatt_queue, WriteDescriptor(_, _, _, _, _, _))
-        .Times(3)
-        .WillOnce(Invoke(WriteDescriptorCbGenerator(GATT_SUCCESS, 0)))
-        .WillOnce(Invoke(WriteDescriptorCbGenerator(GATT_SUCCESS, 0)))
-        .WillOnce(Invoke(WriteDescriptorCbGenerator(status, ccc_handle)));
+            .Times(3)
+            .WillOnce(Invoke(WriteDescriptorCbGenerator(GATT_SUCCESS, 0)))
+            .WillOnce(Invoke(WriteDescriptorCbGenerator(GATT_SUCCESS, 0)))
+            .WillOnce(Invoke(WriteDescriptorCbGenerator(status, ccc_handle)));
 
-    EXPECT_CALL(gatt_interface, DeregisterForNotifications(_, _, _))
-        .Times(deregister_times);
+    EXPECT_CALL(gatt_interface, DeregisterForNotifications(_, _, _)).Times(deregister_times);
 
     GetSearchCompleteEvent(1);
     Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -672,22 +583,20 @@ class CsisClientTest : public ::testing::Test {
 
   void GetDisconnectedEvent(const RawAddress& address, uint16_t conn_id) {
     tBTA_GATTC_CLOSE event_data = {
-        .conn_id = conn_id,
-        .status = GATT_SUCCESS,
-        .client_if = gatt_if,
-        .remote_bda = address,
-        .reason = GATT_CONN_TERMINATE_PEER_USER,
+            .conn_id = conn_id,
+            .status = GATT_SUCCESS,
+            .client_if = gatt_if,
+            .remote_bda = address,
+            .reason = GATT_CONN_TERMINATE_PEER_USER,
     };
 
     gatt_callback(BTA_GATTC_CLOSE_EVT, (tBTA_GATTC*)&event_data);
   }
 
-  void SetSampleCapIncludedDatabaseCsis(uint16_t conn_id, uint8_t rank,
-                                        uint8_t sirk_msb = 1) {
+  void SetSampleCapIncludedDatabaseCsis(uint16_t conn_id, uint8_t rank, uint8_t sirk_msb = 1) {
     set_sample_cap_included_database(conn_id, true, false, rank, sirk_msb);
   }
-  void SetSampleDatabaseCsis(uint16_t conn_id, uint8_t rank,
-                             uint8_t sirk_msb = 1) {
+  void SetSampleDatabaseCsis(uint16_t conn_id, uint8_t rank, uint8_t sirk_msb = 1) {
     set_sample_database(conn_id, true, false, rank, sirk_msb);
   }
   void SetSampleDatabaseNoCsis(uint16_t conn_id, uint8_t rank) {
@@ -696,12 +605,10 @@ class CsisClientTest : public ::testing::Test {
   void SetSampleDatabaseCsisBroken(uint16_t conn_id, uint rank) {
     set_sample_database(conn_id, false, true, rank);
   }
-  void SetSampleDatabaseDoubleCsis(uint16_t conn_id, uint8_t rank_1,
-                                   uint8_t rank_2) {
+  void SetSampleDatabaseDoubleCsis(uint16_t conn_id, uint8_t rank_1, uint8_t rank_2) {
     set_sample_database_double_csis(conn_id, rank_1, rank_2, false);
   }
-  void SetSampleDatabaseDoubleCsisBroken(uint16_t conn_id, uint8_t rank_1,
-                                         uint8_t rank_2) {
+  void SetSampleDatabaseDoubleCsisBroken(uint16_t conn_id, uint8_t rank_1, uint8_t rank_2) {
     set_sample_database_double_csis(conn_id, rank_1, rank_2, true);
   }
 
@@ -720,9 +627,7 @@ class CsisClientTest : public ::testing::Test {
   const RawAddress test_address2 = GetTestAddress(1);
 };
 
-TEST_F(CsisClientTest, test_get_uninitialized) {
-  ASSERT_DEATH(CsisClient::Get(), "");
-}
+TEST_F(CsisClientTest, test_get_uninitialized) { ASSERT_DEATH(CsisClient::Get(), ""); }
 
 TEST_F(CsisClientTest, test_initialize) {
   CsisClient::Initialize(callbacks.get(), base::DoNothing());
@@ -760,6 +665,30 @@ TEST_F(CsisClientTest, test_connect) {
   TestAppUnregister();
 }
 
+TEST_F(CsisClientTest, test_verify_opportunistic_connect_active_after_connect_timeout) {
+  TestAppRegister();
+
+  std::vector<uint8_t> no_set_info;
+
+  DeviceGroups::AddFromStorage(test_address, no_set_info);
+  CsisClient::AddFromStorage(test_address, no_set_info);
+
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+  Mock::VerifyAndClearExpectations(callbacks.get());
+
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::DISCONNECTED)).Times(1);
+  TestConnect(test_address);
+
+  EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, test_address, _)).Times(0);
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, true))
+          .Times(1);
+
+  InjectConnectedEvent(test_address, 0, GATT_ERROR);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+  Mock::VerifyAndClearExpectations(callbacks.get());
+  TestAppUnregister();
+}
+
 TEST_F(CsisClientTest, test_disconnect_non_connected) {
   TestAppRegister();
   TestConnect(test_address);
@@ -780,8 +709,7 @@ TEST_F(CsisClientTest, test_disconnected) {
   TestAppRegister();
   TestConnect(test_address);
   InjectConnectedEvent(test_address, 1);
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::DISCONNECTED));
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::DISCONNECTED));
   InjectDisconnectedEvent(test_address, 1);
 
   TestAppUnregister();
@@ -793,8 +721,7 @@ TEST_F(CsisClientTest, test_connect_after_remove) {
   InjectConnectedEvent(test_address, 1);
   CsisClient::Get()->RemoveDevice(test_address);
 
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::DISCONNECTED));
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::DISCONNECTED));
   ON_CALL(btm_interface, IsLinkKeyKnown(_, _)).WillByDefault(Return(false));
   CsisClient::Get()->Connect(test_address);
   Mock::VerifyAndClearExpectations(callbacks.get());
@@ -806,8 +733,7 @@ TEST_F(CsisClientTest, test_discovery_csis_found) {
   SetSampleDatabaseCsis(1, 1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::CONNECTED));
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::CONNECTED));
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _, _, _));
   InjectConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
@@ -856,7 +782,7 @@ TEST_F(CsisClientTest, test_ccc_reg_fail_out_of_sync) {
 }
 
 class CsisClientCallbackTest : public CsisClientTest {
- protected:
+protected:
   const RawAddress test_address = GetTestAddress(0);
   uint16_t conn_id = 22;
 
@@ -876,11 +802,11 @@ class CsisClientCallbackTest : public CsisClientTest {
 
   void GetNotificationEvent(uint16_t handle, std::vector<uint8_t>& value) {
     tBTA_GATTC_NOTIFY event_data = {
-        .conn_id = conn_id,
-        .bda = test_address,
-        .handle = handle,
-        .len = (uint8_t)value.size(),
-        .is_notify = true,
+            .conn_id = conn_id,
+            .bda = test_address,
+            .handle = handle,
+            .len = (uint8_t)value.size(),
+            .is_notify = true,
     };
 
     std::copy(value.begin(), value.end(), event_data.value);
@@ -890,19 +816,16 @@ class CsisClientCallbackTest : public CsisClientTest {
 
 TEST_F(CsisClientCallbackTest, test_on_group_lock_changed_group_not_found) {
   bool callback_called = false;
-  EXPECT_CALL(
-      *callbacks,
-      OnGroupLockChanged(2, false, CsisGroupLockStatus::FAILED_INVALID_GROUP));
+  EXPECT_CALL(*callbacks, OnGroupLockChanged(2, false, CsisGroupLockStatus::FAILED_INVALID_GROUP));
   CsisClient::Get()->LockGroup(
-      2, true,
-      base::BindOnce(
-          [](bool* callback_called, int group_id, bool locked,
-             CsisGroupLockStatus status) {
-            if ((group_id == 2) &&
-                (status == CsisGroupLockStatus::FAILED_INVALID_GROUP))
-              *callback_called = true;
-          },
-          &callback_called));
+          2, true,
+          base::BindOnce(
+                  [](bool* callback_called, int group_id, bool locked, CsisGroupLockStatus status) {
+                    if ((group_id == 2) && (status == CsisGroupLockStatus::FAILED_INVALID_GROUP)) {
+                      *callback_called = true;
+                    }
+                  },
+                  &callback_called));
   ASSERT_TRUE(callback_called);
 }
 
@@ -910,8 +833,7 @@ TEST_F(CsisClientTest, test_get_group_id) {
   SetSampleDatabaseCsis(1, 1);
   TestAppRegister();
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::CONNECTED));
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::CONNECTED));
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _, _, _));
   InjectConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
@@ -924,26 +846,20 @@ TEST_F(CsisClientTest, test_search_complete_before_encryption) {
   SetSampleDatabaseCsis(1, 1);
   TestAppRegister();
   TestConnect(test_address, false);
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::CONNECTED))
-      .Times(0);
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::CONNECTED)).Times(0);
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _, _, _)).Times(0);
 
-  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _))
-      .WillByDefault(DoAll(Return(false)));
+  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(false)));
 
   InjectConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
   Mock::VerifyAndClearExpectations(callbacks.get());
 
   /* Incject encryption and expect device connection */
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::CONNECTED))
-      .Times(1);
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::CONNECTED)).Times(1);
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _, _, _)).Times(1);
 
-  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _))
-      .WillByDefault(DoAll(Return(true)));
+  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(true)));
   EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _)).Times(1);
 
   InjectEncryptionEvent(test_address, 1);
@@ -959,14 +875,11 @@ TEST_F(CsisClientTest, test_disconnect_when_link_key_is_gone) {
   SetSampleDatabaseCsis(1, 1);
   TestAppRegister();
   TestConnect(test_address, false);
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::CONNECTED))
-      .Times(0);
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::CONNECTED)).Times(0);
 
-  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _))
-      .WillByDefault(DoAll(Return(false)));
+  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(false)));
   ON_CALL(btm_interface, SetEncryption(test_address, _, _, _, _))
-      .WillByDefault(Return(BTM_ERR_KEY_MISSING));
+          .WillByDefault(Return(tBTM_STATUS::BTM_ERR_KEY_MISSING));
 
   EXPECT_CALL(gatt_interface, Close(1));
 
@@ -1053,8 +966,7 @@ TEST_F(CsisClientTest, test_set_various_lock_states) {
 TEST_F(CsisClientTest, test_set_discovery_state_completed) {
   auto g_1 = std::make_shared<CsisGroup>(666, bluetooth::Uuid::kEmpty);
   g_1->SetDiscoveryState(CsisDiscoveryState::CSIS_DISCOVERY_COMPLETED);
-  ASSERT_EQ(g_1->GetDiscoveryState(),
-            CsisDiscoveryState::CSIS_DISCOVERY_COMPLETED);
+  ASSERT_EQ(g_1->GetDiscoveryState(), CsisDiscoveryState::CSIS_DISCOVERY_COMPLETED);
 }
 
 TEST_F(CsisClientTest, test_set_discovery_state_idle) {
@@ -1066,20 +978,17 @@ TEST_F(CsisClientTest, test_set_discovery_state_idle) {
 TEST_F(CsisClientTest, test_set_discovery_state_ongoing) {
   auto g_1 = std::make_shared<CsisGroup>(666, bluetooth::Uuid::kEmpty);
   g_1->SetDiscoveryState(CsisDiscoveryState::CSIS_DISCOVERY_ONGOING);
-  ASSERT_EQ(g_1->GetDiscoveryState(),
-            CsisDiscoveryState::CSIS_DISCOVERY_ONGOING);
+  ASSERT_EQ(g_1->GetDiscoveryState(), CsisDiscoveryState::CSIS_DISCOVERY_ONGOING);
 }
 
 TEST_F(CsisClientTest, test_set_various_discovery_states) {
   auto g_1 = std::make_shared<CsisGroup>(666, bluetooth::Uuid::kEmpty);
   g_1->SetDiscoveryState(CsisDiscoveryState::CSIS_DISCOVERY_COMPLETED);
-  ASSERT_EQ(g_1->GetDiscoveryState(),
-            CsisDiscoveryState::CSIS_DISCOVERY_COMPLETED);
+  ASSERT_EQ(g_1->GetDiscoveryState(), CsisDiscoveryState::CSIS_DISCOVERY_COMPLETED);
   g_1->SetDiscoveryState(CsisDiscoveryState::CSIS_DISCOVERY_IDLE);
   ASSERT_EQ(g_1->GetDiscoveryState(), CsisDiscoveryState::CSIS_DISCOVERY_IDLE);
   g_1->SetDiscoveryState(CsisDiscoveryState::CSIS_DISCOVERY_ONGOING);
-  ASSERT_EQ(g_1->GetDiscoveryState(),
-            CsisDiscoveryState::CSIS_DISCOVERY_ONGOING);
+  ASSERT_EQ(g_1->GetDiscoveryState(), CsisDiscoveryState::CSIS_DISCOVERY_ONGOING);
 }
 
 TEST_F(CsisClientTest, test_get_first_last_device) {
@@ -1104,8 +1013,7 @@ TEST_F(CsisClientTest, test_get_set_sirk) {
   ASSERT_EQ(g_1->GetSirk(), sirk);
 }
 
-TEST_F(CsisClientTest,
-       test_not_open_duplicate_active_scan_while_bonding_set_member) {
+TEST_F(CsisClientTest, test_not_open_duplicate_active_scan_while_bonding_set_member) {
   uint16_t conn_id = 0x0001;
   EXPECT_CALL(dm_interface, BTA_DmBleCsisObserve(true, _)).Times(1);
   SetSampleDatabaseCsis(conn_id, 1, 1);
@@ -1118,8 +1026,7 @@ TEST_F(CsisClientTest,
   InjectConnectedEvent(test_address, 1);
 
   auto ReadCharacteristicCbGenerator = []() {
-    return [](uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb,
-              void* cb_data) -> void {
+    return [](uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb, void* cb_data) -> void {
       std::vector<uint8_t> value;
       switch (handle) {
         case 0x0003:
@@ -1157,17 +1064,17 @@ TEST_F(CsisClientTest,
 
   // We should read 4 times for sirk, rank, size, and lock characteristics
   EXPECT_CALL(gatt_queue, ReadCharacteristic(conn_id, _, _, _))
-      .Times(4)
-      .WillOnce(Invoke(ReadCharacteristicCbGenerator()))
-      .WillOnce(Invoke(ReadCharacteristicCbGenerator()))
-      .WillOnce(Invoke(ReadCharacteristicCbGenerator()))
-      .WillOnce(Invoke(ReadCharacteristicCbGenerator()));
+          .Times(4)
+          .WillOnce(Invoke(ReadCharacteristicCbGenerator()))
+          .WillOnce(Invoke(ReadCharacteristicCbGenerator()))
+          .WillOnce(Invoke(ReadCharacteristicCbGenerator()))
+          .WillOnce(Invoke(ReadCharacteristicCbGenerator()));
 
   // Here is actual active scan request for the first device
   tBTA_DM_SEARCH_CBACK* p_results_cb = nullptr;
   EXPECT_CALL(dm_interface, BTA_DmBleCsisObserve(true, _))
-      .Times(1)
-      .WillOnce(DoAll(SaveArg<1>(&p_results_cb)));
+          .Times(1)
+          .WillOnce(DoAll(SaveArg<1>(&p_results_cb)));
 
   GetSearchCompleteEvent(conn_id);
 
@@ -1209,7 +1116,7 @@ TEST_F(CsisClientTest, test_csis_member_not_found) {
   tBTA_DM_SEARCH_CBACK* p_results_cb = nullptr;
   /* Here is actual Active Scan request  */
   EXPECT_CALL(dm_interface, BTA_DmBleCsisObserve(true, _))
-      .WillOnce(DoAll(SaveArg<1>(&p_results_cb)));
+          .WillOnce(DoAll(SaveArg<1>(&p_results_cb)));
 
   TestConnect(test_address);
   InjectConnectedEvent(test_address, 1);
@@ -1233,7 +1140,7 @@ TEST_F(CsisClientTest, test_csis_member_not_found) {
 }
 
 class CsisMultiClientTest : public CsisClientTest {
- protected:
+protected:
   const RawAddress test_address_1 = GetTestAddress(1);
   const RawAddress test_address_2 = GetTestAddress(2);
 
@@ -1245,7 +1152,7 @@ class CsisMultiClientTest : public CsisClientTest {
 };
 
 class CsisMultiClientTestBroken : public CsisClientTest {
- protected:
+protected:
   const RawAddress test_address_1 = GetTestAddress(1);
   const RawAddress test_address_2 = GetTestAddress(2);
 
@@ -1274,8 +1181,7 @@ TEST_F(CsisMultiClientTest, test_connect_multiple_instances) {
 TEST_F(CsisMultiClientTest, test_disconnect_multiple_instances) {
   TestConnect(test_address);
   InjectConnectedEvent(test_address, 1);
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::DISCONNECTED));
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::DISCONNECTED));
   InjectDisconnectedEvent(test_address, 1);
 
   TestAppUnregister();
@@ -1287,34 +1193,27 @@ TEST_F(CsisMultiClientTest, test_lock_multiple_instances) {
   InjectConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
 
-  EXPECT_CALL(*callbacks,
-              OnGroupLockChanged(1, true, CsisGroupLockStatus::SUCCESS));
-  EXPECT_CALL(*csis_lock_callback_mock,
-              CsisGroupLockCb(1, true, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*callbacks, OnGroupLockChanged(1, true, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*csis_lock_callback_mock, CsisGroupLockCb(1, true, CsisGroupLockStatus::SUCCESS));
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-      .WillByDefault(
-          Invoke([](uint16_t conn_id, uint16_t handle,
-                    std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
-                    GATT_WRITE_OP_CB cb, void* cb_data) -> void {
-            if (cb)
-              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(),
-                 cb_data);
+          .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                                   tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                   void* cb_data) -> void {
+            if (cb) {
+              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
+            }
           }));
   CsisClient::Get()->LockGroup(
-      1, true,
-      base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
-        csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
-      }));
+          1, true, base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
+            csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
+          }));
 
-  EXPECT_CALL(*callbacks,
-              OnGroupLockChanged(2, true, CsisGroupLockStatus::SUCCESS));
-  EXPECT_CALL(*csis_lock_callback_mock,
-              CsisGroupLockCb(2, true, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*callbacks, OnGroupLockChanged(2, true, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*csis_lock_callback_mock, CsisGroupLockCb(2, true, CsisGroupLockStatus::SUCCESS));
   CsisClient::Get()->LockGroup(
-      2, true,
-      base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
-        csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
-      }));
+          2, true, base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
+            csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
+          }));
 }
 
 TEST_F(CsisMultiClientTest, test_unlock_multiple_instances) {
@@ -1323,29 +1222,24 @@ TEST_F(CsisMultiClientTest, test_unlock_multiple_instances) {
   GetSearchCompleteEvent(1);
 
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-      .WillByDefault(
-          Invoke([](uint16_t conn_id, uint16_t handle,
-                    std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
-                    GATT_WRITE_OP_CB cb, void* cb_data) -> void {
-            if (cb)
-              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(),
-                 cb_data);
+          .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                                   tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                   void* cb_data) -> void {
+            if (cb) {
+              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
+            }
           }));
   CsisClient::Get()->LockGroup(
-      1, true,
-      base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
-        csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
-      }));
+          1, true, base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
+            csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
+          }));
 
-  EXPECT_CALL(*callbacks,
-              OnGroupLockChanged(1, false, CsisGroupLockStatus::SUCCESS));
-  EXPECT_CALL(*csis_lock_callback_mock,
-              CsisGroupLockCb(1, false, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*callbacks, OnGroupLockChanged(1, false, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*csis_lock_callback_mock, CsisGroupLockCb(1, false, CsisGroupLockStatus::SUCCESS));
   CsisClient::Get()->LockGroup(
-      1, false,
-      base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
-        csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
-      }));
+          1, false, base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
+            csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
+          }));
 }
 
 TEST_F(CsisMultiClientTest, test_disconnect_locked_multiple_instances) {
@@ -1357,36 +1251,29 @@ TEST_F(CsisMultiClientTest, test_disconnect_locked_multiple_instances) {
   InjectConnectedEvent(test_address2, 2);
   GetSearchCompleteEvent(2);
 
-  EXPECT_CALL(*callbacks,
-              OnGroupLockChanged(1, true, CsisGroupLockStatus::SUCCESS));
-  EXPECT_CALL(*csis_lock_callback_mock,
-              CsisGroupLockCb(1, true, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*callbacks, OnGroupLockChanged(1, true, CsisGroupLockStatus::SUCCESS));
+  EXPECT_CALL(*csis_lock_callback_mock, CsisGroupLockCb(1, true, CsisGroupLockStatus::SUCCESS));
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-      .WillByDefault(
-          Invoke([](uint16_t conn_id, uint16_t handle,
-                    std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
-                    GATT_WRITE_OP_CB cb, void* cb_data) -> void {
-            if (cb)
-              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(),
-                 cb_data);
+          .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                                   tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                   void* cb_data) -> void {
+            if (cb) {
+              cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
+            }
           }));
   CsisClient::Get()->LockGroup(
-      1, true,
-      base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
-        csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
-      }));
+          1, true, base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
+            csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
+          }));
 
   EXPECT_CALL(*callbacks,
-              OnGroupLockChanged(
-                  1, false, CsisGroupLockStatus::LOCKED_GROUP_MEMBER_LOST));
+              OnGroupLockChanged(1, false, CsisGroupLockStatus::LOCKED_GROUP_MEMBER_LOST));
   InjectDisconnectedEvent(test_address, 2, GATT_CONN_TIMEOUT);
 }
 
 TEST_F(CsisMultiClientTest, test_discover_multiple_instances) {
   TestConnect(test_address);
-  EXPECT_CALL(*callbacks,
-              OnConnectionState(test_address, ConnectionState::CONNECTED))
-      .Times(1);
+  EXPECT_CALL(*callbacks, OnConnectionState(test_address, ConnectionState::CONNECTED)).Times(1);
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _, _, _)).Times(2);
   InjectConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
@@ -1428,22 +1315,19 @@ TEST_F(CsisClientTest, test_storage_content) {
   InjectConnectedEvent(GetTestAddress(1), 1);
   GetSearchCompleteEvent(1);
   ASSERT_EQ(1, CsisClient::Get()->GetGroupId(
-                   GetTestAddress(1),
-                   bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
+                       GetTestAddress(1), bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
 
   TestConnect(GetTestAddress(2));
   InjectConnectedEvent(GetTestAddress(2), 2);
   GetSearchCompleteEvent(2);
   ASSERT_EQ(1, CsisClient::Get()->GetGroupId(
-                   GetTestAddress(2),
-                   bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
+                       GetTestAddress(2), bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
 
   TestConnect(GetTestAddress(3));
   InjectConnectedEvent(GetTestAddress(3), 3);
   GetSearchCompleteEvent(3);
   ASSERT_EQ(2, CsisClient::Get()->GetGroupId(
-                   GetTestAddress(3),
-                   bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
+                       GetTestAddress(3), bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
 
   std::vector<uint8_t> dev1_storage;
   std::vector<uint8_t> dev2_storage;
@@ -1479,27 +1363,23 @@ TEST_F(CsisClientTest, test_storage_content) {
   // Restore dev1 from the byte buffer
   TestAddFromStorage(GetTestAddress(1), 1, dev1_group_storage, dev1_storage);
   ASSERT_EQ(1, CsisClient::Get()->GetGroupId(
-                   GetTestAddress(1),
-                   bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
+                       GetTestAddress(1), bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
 
   // Restore dev2 from the byte buffer
   TestAddFromStorage(GetTestAddress(2), 2, dev2_group_storage, dev2_storage);
   ASSERT_EQ(1, CsisClient::Get()->GetGroupId(
-                   GetTestAddress(2),
-                   bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
+                       GetTestAddress(2), bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
 
   // Restore dev3 from the byte buffer
   TestAddFromStorage(GetTestAddress(3), 3, dev3_group_storage, dev3_storage);
   ASSERT_EQ(2, CsisClient::Get()->GetGroupId(
-                   GetTestAddress(3),
-                   bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
+                       GetTestAddress(3), bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
 
   // Restore not inerrogated dev4 - empty buffer but valid sirk for group 2
   std::vector<uint8_t> no_set_info;
   TestAddFromStorage(GetTestAddress(4), 4, no_set_info, no_set_info);
   ASSERT_EQ(3, CsisClient::Get()->GetGroupId(
-                   GetTestAddress(4),
-                   bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
+                       GetTestAddress(4), bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE)));
 
   TestAppUnregister();
 }
@@ -1513,30 +1393,30 @@ TEST_F(CsisClientTest, test_database_out_of_sync) {
   TestConnect(test_address);
   InjectConnectedEvent(test_address, conn_id);
   GetSearchCompleteEvent(conn_id);
-  ASSERT_EQ(1, CsisClient::Get()->GetGroupId(
-                   test_address, bluetooth::Uuid::From16Bit(0x0000)));
+  ASSERT_EQ(1, CsisClient::Get()->GetGroupId(test_address, bluetooth::Uuid::From16Bit(0x0000)));
 
   // Simulated database changed on the remote side.
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-      .WillByDefault(
-          Invoke([this](uint16_t conn_id, uint16_t handle,
-                        std::vector<uint8_t> value, tGATT_WRITE_TYPE write_type,
-                        GATT_WRITE_OP_CB cb, void* cb_data) {
-            auto* svc = gatt::FindService(services_map[conn_id], handle);
-            if (svc == nullptr) return;
+          .WillByDefault(
+                  Invoke([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
+                                tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
+                    auto* svc = gatt::FindService(services_map[conn_id], handle);
+                    if (svc == nullptr) {
+                      return;
+                    }
 
-            tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
-            if (cb)
-              cb(conn_id, status, handle, value.size(), value.data(), cb_data);
-          }));
+                    tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
+                    if (cb) {
+                      cb(conn_id, status, handle, value.size(), value.data(), cb_data);
+                    }
+                  }));
 
   ON_CALL(gatt_interface, ServiceSearchRequest(_, _)).WillByDefault(Return());
   EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _));
   CsisClient::Get()->LockGroup(
-      1, true,
-      base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
-        csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
-      }));
+          1, true, base::BindOnce([](int group_id, bool locked, CsisGroupLockStatus status) {
+            csis_lock_callback_mock->CsisGroupLockCb(group_id, locked, status);
+          }));
   TestAppUnregister();
 }
 

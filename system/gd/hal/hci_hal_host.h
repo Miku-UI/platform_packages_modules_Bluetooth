@@ -24,33 +24,25 @@ namespace hal {
 
 // Singleton object to store runtime configuration for rootcanal
 class HciHalHostRootcanalConfig {
- public:
+public:
   static HciHalHostRootcanalConfig* Get() {
     static HciHalHostRootcanalConfig instance;
     return &instance;
   }
 
   // Get the listening TCP port for rootcanal HCI socket
-  uint16_t GetPort() {
-    return port_;
-  }
+  uint16_t GetPort() { return port_; }
 
   // Set the listening TCP port for rootcanal HCI socket
-  void SetPort(uint16_t port) {
-    port_ = port;
-  }
+  void SetPort(uint16_t port) { port_ = port; }
 
   // Get the server address for rootcanal HCI socket
-  std::string GetServerAddress() {
-    return server_address_;
-  }
+  std::string GetServerAddress() { return server_address_; }
 
   // Set the server address for rootcanal HCI socket
-  void SetServerAddress(const std::string& address) {
-    server_address_ = address;
-  }
+  void SetServerAddress(const std::string& address) { server_address_ = address; }
 
- private:
+private:
   HciHalHostRootcanalConfig() = default;
   uint16_t port_ = 6402;                      // Default server TCP port
   std::string server_address_ = "127.0.0.1";  // Default server address

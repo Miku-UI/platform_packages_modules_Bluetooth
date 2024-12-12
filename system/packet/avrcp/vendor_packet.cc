@@ -16,6 +16,7 @@
 
 #include "vendor_packet.h"
 
+#include <base/sys_byteorder.h>
 #include <bluetooth/log.h>
 
 #include "internal_include/bt_trace.h"
@@ -24,54 +25,45 @@ namespace bluetooth {
 namespace avrcp {
 
 std::unique_ptr<VendorPacketBuilder> VendorPacketBuilder::MakeBuilder(
-    CType ctype, CommandPdu pdu, PacketType packet_type,
-    std::unique_ptr<::bluetooth::PacketBuilder> payload) {
+        CType ctype, CommandPdu pdu, PacketType packet_type,
+        std::unique_ptr<::bluetooth::PacketBuilder> payload) {
   // If the payload size is greater than max uint16_t
   // the packet should be fragmented
-  log::assert_that(payload->size() <= size_t(0xFFFF),
-                   "payload size bigger than uint16_t");
+  log::assert_that(payload->size() <= size_t(0xFFFF), "payload size bigger than uint16_t");
 
-  std::unique_ptr<VendorPacketBuilder> builder(
-      new VendorPacketBuilder(ctype, pdu, packet_type));
+  std::unique_ptr<VendorPacketBuilder> builder(new VendorPacketBuilder(ctype, pdu, packet_type));
   builder->payload_ = std::move(payload);
 
   return builder;
 }
 
-size_t VendorPacketBuilder::size() const {
-  return VendorPacket::kMinSize() + payload_->size();
-}
+size_t VendorPacketBuilder::size() const { return VendorPacket::kMinSize() + payload_->size(); }
 
-bool VendorPacketBuilder::Serialize(
-    const std::shared_ptr<::bluetooth::Packet>& pkt) {
+bool VendorPacketBuilder::Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) {
   ReserveSpace(pkt, size());
 
   // Push the standard avrcp headers
   PacketBuilder::PushHeader(pkt);
 
   // Push the avrcp vendor command headers
-  log::assert_that(payload_->size() < size_t(0xFFFF),
-                   "payload size bigger than uint16_t");
+  log::assert_that(payload_->size() < size_t(0xFFFF), "payload size bigger than uint16_t");
   PushHeader(pkt, payload_->size());
 
   // Push the payload for the packet
   return payload_->Serialize(pkt);
 }
 
-void VendorPacketBuilder::PushHeader(
-    const std::shared_ptr<::bluetooth::Packet>& pkt,
-    uint16_t parameter_length) {
+void VendorPacketBuilder::PushHeader(const std::shared_ptr<::bluetooth::Packet>& pkt,
+                                     uint16_t parameter_length) {
   PushCompanyId(pkt, BLUETOOTH_COMPANY_ID);
   AddPayloadOctets1(pkt, static_cast<uint8_t>(pdu_));
   AddPayloadOctets1(pkt, static_cast<uint8_t>(packet_type_));
   AddPayloadOctets2(pkt, base::ByteSwap(parameter_length));
 }
 
-bool VendorPacketBuilder::PushAttributeValue(
-    const std::shared_ptr<::bluetooth::Packet>& pkt,
-    const AttributeEntry& entry) {
-  AddPayloadOctets4(pkt,
-                    base::ByteSwap(static_cast<uint32_t>(entry.attribute())));
+bool VendorPacketBuilder::PushAttributeValue(const std::shared_ptr<::bluetooth::Packet>& pkt,
+                                             const AttributeEntry& entry) {
+  AddPayloadOctets4(pkt, base::ByteSwap(static_cast<uint32_t>(entry.attribute())));
   uint16_t character_set = 0x006a;  // UTF-8
   AddPayloadOctets2(pkt, base::ByteSwap(character_set));
   uint16_t value_length = entry.value().length();
@@ -83,9 +75,7 @@ bool VendorPacketBuilder::PushAttributeValue(
   return true;
 }
 
-uint32_t VendorPacket::GetCompanyId() const {
-  return PullCompanyId(begin() + Packet::kMinSize());
-}
+uint32_t VendorPacket::GetCompanyId() const { return PullCompanyId(begin() + Packet::kMinSize()); }
 
 CommandPdu VendorPacket::GetCommandPdu() const {
   auto value = *(begin() + Packet::kMinSize() + static_cast<size_t>(3));
@@ -104,7 +94,9 @@ uint16_t VendorPacket::GetParameterLength() const {
 }
 
 bool VendorPacket::IsValid() const {
-  if (size() < VendorPacket::kMinSize()) return false;
+  if (size() < VendorPacket::kMinSize()) {
+    return false;
+  }
 
   auto start = begin() + VendorPacket::kMinSize();
   // Even if end is less than start and a sign extension occurs, thats fine as

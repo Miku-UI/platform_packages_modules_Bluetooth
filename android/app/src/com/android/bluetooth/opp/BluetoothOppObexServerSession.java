@@ -61,6 +61,7 @@ import com.android.obex.ServerRequestHandler;
 import com.android.obex.ServerSession;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Ascii;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -253,7 +254,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                     5);
             return ResponseCodes.OBEX_HTTP_BAD_REQUEST;
         } else {
-            extension = name.substring(dotIndex + 1).toLowerCase();
+            extension = Ascii.toLowerCase(name.substring(dotIndex + 1));
             MimeTypeMap map = MimeTypeMap.getSingleton();
             type = map.getMimeTypeFromExtension(extension);
             Log.v(TAG, "Mimetype guessed from extension " + extension + " is " + type);
@@ -271,7 +272,7 @@ public class BluetoothOppObexServerSession extends ServerRequestHandler
                     return ResponseCodes.OBEX_HTTP_UNSUPPORTED_TYPE;
                 }
             }
-            mimeType = mimeType.toLowerCase();
+            mimeType = Ascii.toLowerCase(mimeType);
         }
 
         // Reject anything outside the "acceptlist" plus unspecified MIME Types.

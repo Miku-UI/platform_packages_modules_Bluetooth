@@ -1,7 +1,7 @@
 /// Inits logging for Android
 #[cfg(target_os = "android")]
 pub fn init_logging() {
-    android_logger::init_once(android_logger::Config::default().with_tag("bt"));
+    android_logger::init_once(android_logger::Config::default().with_tag("bluetooth"));
 }
 
 /// Inits logging for host

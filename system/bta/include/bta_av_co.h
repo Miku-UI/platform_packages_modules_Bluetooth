@@ -28,7 +28,7 @@
 
 #include "bta/include/bta_av_api.h"
 #include "include/hardware/bt_av.h"
-#include "stack/include/a2dp_error_codes.h"
+#include "stack/include/a2dp_constants.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
@@ -50,8 +50,7 @@
  * Returns          Stream codec and content protection capabilities info.
  *
  ******************************************************************************/
-bool bta_av_co_audio_init(btav_a2dp_codec_index_t codec_index,
-                          AvdtpSepConfig* p_cfg);
+bool bta_av_co_audio_init(btav_a2dp_codec_index_t codec_index, AvdtpSepConfig* p_cfg);
 
 /*******************************************************************************
  *
@@ -65,9 +64,8 @@ bool bta_av_co_audio_init(btav_a2dp_codec_index_t codec_index,
  * Returns          void.
  *
  ******************************************************************************/
-void bta_av_co_audio_disc_res(tBTA_AV_HNDL bta_av_handle,
-                              const RawAddress& peer_address, uint8_t num_seps,
-                              uint8_t num_sinks, uint8_t num_sources,
+void bta_av_co_audio_disc_res(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address,
+                              uint8_t num_seps, uint8_t num_sinks, uint8_t num_sources,
                               uint16_t uuid_local);
 
 /*******************************************************************************
@@ -82,12 +80,9 @@ void bta_av_co_audio_disc_res(tBTA_AV_HNDL bta_av_handle,
  * Returns          Stream codec and content protection configuration info.
  *
  ******************************************************************************/
-tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL bta_av_handle,
-                                       const RawAddress& peer_address,
-                                       uint8_t* p_codec_info,
-                                       uint8_t* p_sep_info_idx, uint8_t seid,
-                                       uint8_t* p_num_protect,
-                                       uint8_t* p_protect_info);
+tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address,
+                                       uint8_t* p_codec_info, uint8_t* p_sep_info_idx, uint8_t seid,
+                                       uint8_t* p_num_protect, uint8_t* p_protect_info);
 
 /*******************************************************************************
  *
@@ -101,12 +96,10 @@ tA2DP_STATUS bta_av_co_audio_getconfig(tBTA_AV_HNDL bta_av_handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_setconfig(tBTA_AV_HNDL bta_av_handle,
-                               const RawAddress& peer_address,
-                               const uint8_t* p_codec_info, uint8_t seid,
-                               uint8_t num_protect,
-                               const uint8_t* p_protect_info,
-                               uint8_t t_local_sep, uint8_t avdt_handle);
+void bta_av_co_audio_setconfig(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address,
+                               const uint8_t* p_codec_info, uint8_t seid, uint8_t num_protect,
+                               const uint8_t* p_protect_info, uint8_t t_local_sep,
+                               uint8_t avdt_handle);
 
 /*******************************************************************************
  *
@@ -121,8 +114,7 @@ void bta_av_co_audio_setconfig(tBTA_AV_HNDL bta_av_handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_open(tBTA_AV_HNDL bta_av_handle,
-                          const RawAddress& peer_address, uint16_t mtu);
+void bta_av_co_audio_open(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address, uint16_t mtu);
 
 /*******************************************************************************
  *
@@ -138,8 +130,7 @@ void bta_av_co_audio_open(tBTA_AV_HNDL bta_av_handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_close(tBTA_AV_HNDL bta_av_handle,
-                           const RawAddress& peer_address);
+void bta_av_co_audio_close(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address);
 
 /*******************************************************************************
  *
@@ -152,8 +143,7 @@ void bta_av_co_audio_close(tBTA_AV_HNDL bta_av_handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_start(tBTA_AV_HNDL bta_av_handle,
-                           const RawAddress& peer_address,
+void bta_av_co_audio_start(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address,
                            const uint8_t* p_codec_info, bool* p_no_rtp_header);
 
 /*******************************************************************************
@@ -167,8 +157,7 @@ void bta_av_co_audio_start(tBTA_AV_HNDL bta_av_handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_stop(tBTA_AV_HNDL bta_av_handle,
-                          const RawAddress& peer_address);
+void bta_av_co_audio_stop(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address);
 
 /*******************************************************************************
  *
@@ -181,8 +170,7 @@ void bta_av_co_audio_stop(tBTA_AV_HNDL bta_av_handle,
  *                  Otherwise, a buffer (BT_HDR*) containing the audio data.
  *
  ******************************************************************************/
-BT_HDR* bta_av_co_audio_source_data_path(const uint8_t* p_codec_info,
-                                         uint32_t* p_timestamp);
+BT_HDR* bta_av_co_audio_source_data_path(const uint8_t* p_codec_info, uint32_t* p_timestamp);
 
 /*******************************************************************************
  *
@@ -196,8 +184,7 @@ BT_HDR* bta_av_co_audio_source_data_path(const uint8_t* p_codec_info,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_drop(tBTA_AV_HNDL bta_av_handle,
-                          const RawAddress& peer_address);
+void bta_av_co_audio_drop(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address);
 
 /*******************************************************************************
  *
@@ -211,8 +198,8 @@ void bta_av_co_audio_drop(tBTA_AV_HNDL bta_av_handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_delay(tBTA_AV_HNDL bta_av_handle,
-                           const RawAddress& peer_address, uint16_t delay);
+void bta_av_co_audio_delay(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address,
+                           uint16_t delay);
 
 /*******************************************************************************
  *
@@ -227,8 +214,8 @@ void bta_av_co_audio_delay(tBTA_AV_HNDL bta_av_handle,
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_co_audio_update_mtu(tBTA_AV_HNDL bta_av_handle,
-                                const RawAddress& peer_address, uint16_t mtu);
+void bta_av_co_audio_update_mtu(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address,
+                                uint16_t mtu);
 
 /*******************************************************************************
  **

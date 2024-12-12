@@ -31,22 +31,24 @@ using std::vector;
 
 namespace {
 vector<uint8_t> count_all = {
-    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+        0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+        0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
 };
 
 vector<uint8_t> count_1 = {
-    0x00,
-    0x01,
-    0x02,
+        0x00,
+        0x01,
+        0x02,
 };
 
 vector<uint8_t> count_2 = {
-    0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
+        0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
 };
 
 vector<uint8_t> count_3 = {
-    0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
+        0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
 };
 }  // namespace
 
@@ -55,17 +57,16 @@ namespace packet {
 
 template <typename T>
 class IteratorTest : public ::testing::Test {
- public:
+public:
   IteratorTest() = default;
   ~IteratorTest() override = default;
 
   void SetUp() override {
-    packet = std::shared_ptr<T>(new T({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())}));
+    packet = std::shared_ptr<T>(
+            new T({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())}));
   }
 
-  void TearDown() override {
-    packet.reset();
-  }
+  void TearDown() override { packet.reset(); }
 
   std::shared_ptr<T> packet;
 };
@@ -74,14 +75,14 @@ using PacketViewTypes = ::testing::Types<PacketView<true>, PacketView<false>>;
 TYPED_TEST_CASE(IteratorTest, PacketViewTypes);
 
 class IteratorExtractTest : public ::testing::Test {
- public:
+public:
   IteratorExtractTest() = default;
   ~IteratorExtractTest() override = default;
 };
 
 template <typename T>
 class PacketViewTest : public IteratorTest<T> {
- public:
+public:
   PacketViewTest() = default;
   ~PacketViewTest() = default;
 };
@@ -90,26 +91,26 @@ using PacketViewTypes = ::testing::Types<PacketView<true>, PacketView<false>>;
 TYPED_TEST_CASE(PacketViewTest, PacketViewTypes);
 
 class PacketViewMultiViewTest : public ::testing::Test {
- public:
+public:
   PacketViewMultiViewTest() = default;
   ~PacketViewMultiViewTest() override = default;
 
-  const PacketView<true> single_view =
-      PacketView<true>({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  const PacketView<true> single_view = PacketView<true>(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   const PacketView<true> multi_view = PacketView<true>({
-      View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
   });
 };
 
 class PacketViewMultiViewAppendTest : public ::testing::Test {
- public:
+public:
   PacketViewMultiViewAppendTest() = default;
   ~PacketViewMultiViewAppendTest() override = default;
 
   class AppendedPacketView : public PacketView<true> {
-   public:
+  public:
     AppendedPacketView(PacketView<true> first, std::forward_list<PacketView<true>> to_append)
         : PacketView<true>(first) {
       for (const auto& packet_view : to_append) {
@@ -117,22 +118,26 @@ class PacketViewMultiViewAppendTest : public ::testing::Test {
       }
     }
   };
-  const PacketView<true> single_view =
-      PacketView<true>({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  const PacketView<true> single_view = PacketView<true>(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   const PacketView<true> multi_view = AppendedPacketView(
-      PacketView<true>({View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size())}),
-      {PacketView<true>({View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size())}),
-       PacketView<true>({View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size())})});
+          PacketView<true>(
+                  {View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size())}),
+          {PacketView<true>(
+                   {View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size())}),
+           PacketView<true>(
+                   {View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size())})});
 };
 
 class ViewTest : public ::testing::Test {
- public:
+public:
   ViewTest() = default;
   ~ViewTest() override = default;
 };
 
 TEST(IteratorExtractTest, extractLeTest) {
-  PacketView<true> packet({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  PacketView<true> packet(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   auto general_case = packet.begin();
 
   ASSERT_EQ(0x00, general_case.extract<uint8_t>());
@@ -146,7 +151,8 @@ TEST(IteratorExtractTest, extractLeTest) {
 }
 
 TEST(IteratorExtractTest, extractBeTest) {
-  PacketView<false> packet({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  PacketView<false> packet(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   auto general_case = packet.begin();
 
   ASSERT_EQ(0x00, general_case.extract<uint8_t>());
@@ -178,7 +184,8 @@ TYPED_TEST(IteratorTest, dereferenceDeathTest) {
 TYPED_TEST(IteratorTest, plusEqTest) {
   auto plus_eq = this->packet->begin();
   for (size_t i = 0; i < count_all.size(); i += 2) {
-    ASSERT_EQ(count_all[i], *plus_eq) << "+= test: Dereferenced iterator does not equal expected at index " << i;
+    ASSERT_EQ(count_all[i], *plus_eq)
+            << "+= test: Dereferenced iterator does not equal expected at index " << i;
     plus_eq += 2;
   }
 }
@@ -186,8 +193,9 @@ TYPED_TEST(IteratorTest, plusEqTest) {
 TYPED_TEST(IteratorTest, preIncrementTest) {
   auto plus_plus = this->packet->begin();
   for (size_t i = 0; i < count_all.size() - 1; i++) {
-    ASSERT_EQ(count_all[i + 1], *(++plus_plus)) << "Pre-increment test: Dereferenced iterator does not equal expected "
-                                                << "at index " << i;
+    ASSERT_EQ(count_all[i + 1], *(++plus_plus))
+            << "Pre-increment test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
   }
 }
 
@@ -195,8 +203,8 @@ TYPED_TEST(IteratorTest, postIncrementTest) {
   auto plus_plus = this->packet->begin();
   for (size_t i = 0; i < count_all.size(); i++) {
     ASSERT_EQ(count_all[i], plus_plus.operator*())
-        << "Post-increment test: Dereferenced iterator does not equal expected "
-        << "at index " << i;
+            << "Post-increment test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
     plus_plus.operator++();
   }
 }
@@ -204,7 +212,8 @@ TYPED_TEST(IteratorTest, postIncrementTest) {
 TYPED_TEST(IteratorTest, additionTest) {
   auto plus = this->packet->begin();
   for (size_t i = 0; i < count_all.size(); i++) {
-    ASSERT_EQ(count_all[i], *plus) << "+ test: Dereferenced iterator does not equal expected at index " << i;
+    ASSERT_EQ(count_all[i], *plus)
+            << "+ test: Dereferenced iterator does not equal expected at index " << i;
     plus = plus + 1;
   }
 }
@@ -215,7 +224,7 @@ TYPED_TEST(IteratorTest, minusEqTest) {
   size_t index = count_all.size() - 1;
   for (size_t i = 0; index > i; i++) {
     ASSERT_EQ(count_all[index], *minus_eq)
-        << "-= test: Dereferenced iterator does not equal expected at index " << index;
+            << "-= test: Dereferenced iterator does not equal expected at index " << index;
     index -= i;
     minus_eq -= i;
   }
@@ -225,8 +234,8 @@ TYPED_TEST(IteratorTest, preDecrementTest) {
   auto minus_minus = this->packet->end();
   for (size_t i = count_all.size(); i > 0; i--) {
     ASSERT_EQ(count_all[i - 1], *(--minus_minus))
-        << "Pre-decrement test: Dereferenced iterator does not equal expected "
-        << "at index " << i;
+            << "Pre-decrement test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
   }
 }
 
@@ -235,8 +244,8 @@ TYPED_TEST(IteratorTest, postDecrementTest) {
   minus_minus.operator--();
   for (size_t i = count_all.size() - 1; i > 0; i--) {
     ASSERT_EQ(count_all[i], minus_minus.operator*())
-        << "Post-decrement test: Dereferenced iterator does not equal expected "
-        << "at index " << i;
+            << "Post-decrement test: Dereferenced iterator does not equal expected " << "at index "
+            << i;
     minus_minus.operator--();
   }
 }
@@ -245,7 +254,8 @@ TYPED_TEST(IteratorTest, subtractionTest) {
   auto minus = this->packet->end();
   minus = minus - 1;
   for (size_t i = count_all.size() - 1; i > 0; i--) {
-    ASSERT_EQ(count_all[i], *minus) << "- test: Dereferenced iterator does not equal expected at index " << i;
+    ASSERT_EQ(count_all[i], *minus)
+            << "- test: Dereferenced iterator does not equal expected at index " << i;
     minus = minus - 1;
   }
 }
@@ -412,9 +422,9 @@ TYPED_TEST(IteratorTest, constructor_from_shared_vector_test) {
 
 using SubviewTestParam = std::pair<size_t, size_t>;
 class SubviewBaseTest : public ::testing::TestWithParam<SubviewTestParam> {
- public:
+public:
   class SubPacketView : public PacketView<true> {
-   public:
+  public:
     using PacketView<true>::PacketView;
     PacketView<true> Slice(size_t header, size_t tail) {
       return PacketView<true>::GetLittleEndianSubview(header, tail);
@@ -427,11 +437,12 @@ class SubviewPassTest : public SubviewBaseTest {};
 TEST_P(SubviewPassTest, subviewTest) {
   auto header = GetParam().first;
   auto tail = GetParam().second;
-  SubPacketView single_view({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  SubPacketView single_view(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   SubPacketView multi_view({
-      View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
   });
 
   auto single_slice = single_view.Slice(header, tail);
@@ -448,31 +459,40 @@ static const size_t boundary_1 = count_1.size();
 static const size_t boundary_2 = count_1.size() + count_2.size();
 
 INSTANTIATE_TEST_CASE_P(
-    chopomatic, SubviewPassTest,
-    ::testing::Values(
-        // {begin, end} pairs for subsets into the PacketView
-        SubviewTestParam{0, 0}, SubviewTestParam{0, boundary_1}, SubviewTestParam{0, boundary_1 + 1},
-        SubviewTestParam{0, boundary_2}, SubviewTestParam{0, boundary_2 + 1}, SubviewTestParam{0, count_all.size()},
-        SubviewTestParam{boundary_1 - 1, boundary_1}, SubviewTestParam{boundary_1 - 1, boundary_1 + 1},
-        SubviewTestParam{boundary_1 - 1, boundary_2}, SubviewTestParam{boundary_1 - 1, boundary_2 + 1},
-        SubviewTestParam{boundary_1 - 1, count_all.size()}, SubviewTestParam{boundary_1, boundary_1},
-        SubviewTestParam{boundary_1, boundary_2}, SubviewTestParam{boundary_1, boundary_2 + 1},
-        SubviewTestParam{boundary_1, count_all.size()}, SubviewTestParam{boundary_2 - 1, boundary_2},
-        SubviewTestParam{boundary_2 - 1, boundary_2 + 1}, SubviewTestParam{boundary_2 - 1, count_all.size()},
-        SubviewTestParam{boundary_2, boundary_2}, SubviewTestParam{boundary_2, boundary_2 + 1},
-        SubviewTestParam{boundary_2, count_all.size()}, SubviewTestParam{count_all.size() - 1, count_all.size()},
-        SubviewTestParam{count_all.size(), count_all.size()}));
+        chopomatic, SubviewPassTest,
+        ::testing::Values(
+                // {begin, end} pairs for subsets into the PacketView
+                SubviewTestParam{0, 0}, SubviewTestParam{0, boundary_1},
+                SubviewTestParam{0, boundary_1 + 1}, SubviewTestParam{0, boundary_2},
+                SubviewTestParam{0, boundary_2 + 1}, SubviewTestParam{0, count_all.size()},
+                SubviewTestParam{boundary_1 - 1, boundary_1},
+                SubviewTestParam{boundary_1 - 1, boundary_1 + 1},
+                SubviewTestParam{boundary_1 - 1, boundary_2},
+                SubviewTestParam{boundary_1 - 1, boundary_2 + 1},
+                SubviewTestParam{boundary_1 - 1, count_all.size()},
+                SubviewTestParam{boundary_1, boundary_1}, SubviewTestParam{boundary_1, boundary_2},
+                SubviewTestParam{boundary_1, boundary_2 + 1},
+                SubviewTestParam{boundary_1, count_all.size()},
+                SubviewTestParam{boundary_2 - 1, boundary_2},
+                SubviewTestParam{boundary_2 - 1, boundary_2 + 1},
+                SubviewTestParam{boundary_2 - 1, count_all.size()},
+                SubviewTestParam{boundary_2, boundary_2},
+                SubviewTestParam{boundary_2, boundary_2 + 1},
+                SubviewTestParam{boundary_2, count_all.size()},
+                SubviewTestParam{count_all.size() - 1, count_all.size()},
+                SubviewTestParam{count_all.size(), count_all.size()}));
 
 class SubviewDeathTest : public SubviewBaseTest {};
 
 TEST_P(SubviewDeathTest, subviewDeathTest) {
   auto header = GetParam().first;
   auto tail = GetParam().second;
-  SubPacketView single_view({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  SubPacketView single_view(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   SubPacketView multi_view({
-      View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
   });
 
   ASSERT_DEATH(auto single_slice = single_view.Slice(header, tail), "");
@@ -481,12 +501,14 @@ TEST_P(SubviewDeathTest, subviewDeathTest) {
 
 INSTANTIATE_TEST_CASE_P(chopomaticDeath, SubviewDeathTest,
                         ::testing::Values(
-                            // {begin, end} pairs for subsets into the PacketView
-                            SubviewTestParam{1, 0}, SubviewTestParam{count_all.size(), count_all.size() - 1},
-                            SubviewTestParam{count_all.size(), count_all.size() + 1}));
+                                // {begin, end} pairs for subsets into the PacketView
+                                SubviewTestParam{1, 0},
+                                SubviewTestParam{count_all.size(), count_all.size() - 1},
+                                SubviewTestParam{count_all.size(), count_all.size() + 1}));
 
 TEST(SubviewTest, simpleSubviewTest) {
-  PacketView<true> view({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  PacketView<true> view(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   PacketView<true> sub_1_view = view.GetLittleEndianSubview(0, view.size());
   PacketView<true> sub_2_view = sub_1_view.GetLittleEndianSubview(0, sub_1_view.size());
   PacketView<true> sub_3_view = sub_2_view.GetLittleEndianSubview(0, sub_2_view.size());
@@ -498,7 +520,8 @@ TEST(SubviewTest, simpleSubviewTest) {
 }
 
 TEST(SubviewTest, realSubviewTest) {
-  PacketView<true> view({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  PacketView<true> view(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   std::vector<PacketView<true>> sub_views{view};
   for (size_t i = 1; i < 6; i++) {
     size_t parent_size = sub_views[i - 1].size();
@@ -509,11 +532,12 @@ TEST(SubviewTest, realSubviewTest) {
 }
 
 TEST(SubviewTest, subSubviewTest) {
-  PacketView<true> single_view({View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
+  PacketView<true> single_view(
+          {View(std::make_shared<const vector<uint8_t>>(count_all), 0, count_all.size())});
   PacketView<true> multi_view({
-      View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
-      View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_1), 0, count_1.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_2), 0, count_2.size()),
+          View(std::make_shared<const vector<uint8_t>>(count_3), 0, count_3.size()),
   });
   ASSERT_EQ(single_view.size(), multi_view.size());
   for (size_t i = 0; i < count_all.size() / 2; i++) {
@@ -522,17 +546,17 @@ TEST(SubviewTest, subSubviewTest) {
     ASSERT_EQ(count_all.size() - 2 * i, sub_single_view.size());
     ASSERT_EQ(sub_single_view.size(), sub_multi_view.size());
     for (size_t j = 0; j < sub_single_view.size() / 2; j++) {
-      PacketView<true> sub_sub_single_view = sub_single_view.GetLittleEndianSubview(j, sub_single_view.size() - j);
-      PacketView<true> sub_sub_multi_view = sub_multi_view.GetLittleEndianSubview(j, sub_multi_view.size() - j);
+      PacketView<true> sub_sub_single_view =
+              sub_single_view.GetLittleEndianSubview(j, sub_single_view.size() - j);
+      PacketView<true> sub_sub_multi_view =
+              sub_multi_view.GetLittleEndianSubview(j, sub_multi_view.size() - j);
       ASSERT_EQ(sub_single_view.size() - 2 * j, sub_sub_single_view.size());
       ASSERT_EQ(sub_sub_single_view.size(), sub_sub_multi_view.size());
     }
   }
 }
 
-TEST_F(PacketViewMultiViewTest, sizeTest) {
-  ASSERT_EQ(single_view.size(), multi_view.size());
-}
+TEST_F(PacketViewMultiViewTest, sizeTest) { ASSERT_EQ(single_view.size(), multi_view.size()); }
 
 TEST_F(PacketViewMultiViewTest, dereferenceTestLittleEndian) {
   auto single_itr = single_view.begin();
@@ -606,7 +630,8 @@ TEST(ViewTest, arrayOperatorTest) {
 
   size_t header_size = 2;
   size_t tail_size = 3;
-  View view_subset(std::make_shared<const vector<uint8_t>>(count_all), header_size, count_all.size() - tail_size);
+  View view_subset(std::make_shared<const vector<uint8_t>>(count_all), header_size,
+                   count_all.size() - tail_size);
   View view_subset2(view_all, header_size, count_all.size() - tail_size);
   size_t subset_length = view_subset.size();
   for (size_t i = 0; i < subset_length; i++) {

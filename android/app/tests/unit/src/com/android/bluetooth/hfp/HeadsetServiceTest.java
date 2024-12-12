@@ -1289,6 +1289,7 @@ public class HeadsetServiceTest {
                 mCurrentDevice,
                 BluetoothProfile.STATE_DISCONNECTED,
                 BluetoothProfile.STATE_CONNECTED);
+        mHeadsetService.setActiveDevice(mCurrentDevice);
 
         when(mStateMachines.get(mCurrentDevice).getHfpCallAudioPolicy())
                 .thenReturn(

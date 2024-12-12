@@ -23,9 +23,8 @@
 #include "btif/include/btif_storage.h"
 #include "btm_ble_api.h"
 #include "device/include/device_iot_config.h"
-#include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "stack/acl/acl.h"
+#include "stack/include/btm_client_interface.h"
 
 using namespace bluetooth;
 
@@ -48,33 +47,29 @@ void btm_iot_save_remote_properties(tACL_CONN* p_acl_cb) {
   // save remote name to iot conf file
   if (BTM_GetRemoteDeviceName(p_acl_cb->remote_addr, bd_name)) {
     std::string name_str{(char*)bd_name};
-    DEVICE_IOT_CONFIG_ADDR_SET_STR(p_acl_cb->remote_addr,
-                                   IOT_CONF_KEY_REMOTE_NAME, name_str);
+    DEVICE_IOT_CONFIG_ADDR_SET_STR(p_acl_cb->remote_addr, IOT_CONF_KEY_REMOTE_NAME, name_str);
   }
 
   /* Try to retrieve cod from storage */
-  BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_CLASS_OF_DEVICE,
-                             sizeof(cod), &cod);
-  if (btif_storage_get_remote_device_property(&p_acl_cb->remote_addr,
-                                              &prop_name) == BT_STATUS_SUCCESS)
+  BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_CLASS_OF_DEVICE, sizeof(cod), &cod);
+  if (btif_storage_get_remote_device_property(&p_acl_cb->remote_addr, &prop_name) ==
+      BT_STATUS_SUCCESS) {
     log::verbose("cod retrieved from storage is 0x{:06x}", cod);
+  }
   if (cod == 0) {
     log::verbose("cod is 0, set as unclassified");
     cod = (0x1F) << 8;
   }
 
-  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_DEVCLASS,
-                                 (int)cod);
+  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_DEVCLASS, (int)cod);
 
-  BTM_ReadDevInfo(p_acl_cb->remote_addr, &dev_type, &addr_type);
+  get_btm_client_interface().peer.BTM_ReadDevInfo(p_acl_cb->remote_addr, &dev_type, &addr_type);
 
   // save remote dev type to iot conf file
-  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_DEVTYPE,
-                                 (int)dev_type);
+  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_DEVTYPE, (int)dev_type);
 
   // save remote addr type to iot conf file
-  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_ADDRTYPE,
-                                 (int)addr_type);
+  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_ADDRTYPE, (int)addr_type);
 
   // save default recorded value to iot conf file
   DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_RECORDED,
@@ -91,8 +86,7 @@ void btm_iot_save_remote_properties(tACL_CONN* p_acl_cb) {
  *
  *******************************************************************************/
 void btm_iot_save_remote_versions(tACL_CONN* p_acl_cb) {
-  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr,
-                                 IOT_CONF_KEY_MANUFACTURER,
+  DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_MANUFACTURER,
                                  p_acl_cb->remote_version_info.manufacturer);
   DEVICE_IOT_CONFIG_ADDR_SET_INT(p_acl_cb->remote_addr, IOT_CONF_KEY_LMPVER,
                                  p_acl_cb->remote_version_info.lmp_version);

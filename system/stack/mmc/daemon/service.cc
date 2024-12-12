@@ -49,8 +49,7 @@ namespace {
 using namespace bluetooth;
 
 // Task that would run on the thread.
-void StartSocketListener(int fd, struct sockaddr_un addr,
-                         std::promise<void> task_ended,
+void StartSocketListener(int fd, struct sockaddr_un addr, std::promise<void> task_ended,
                          std::unique_ptr<MmcInterface> codec_server) {
   socklen_t addr_size = sizeof(struct sockaddr_un);
   int client_fd = accept(fd, (struct sockaddr*)&addr, &addr_size);
@@ -85,16 +84,15 @@ void StartSocketListener(int fd, struct sockaddr_un addr,
       break;
     }
 
-    int i_data_len =
-        recv(client_fd, i_buf.data(), kMaximumBufferSize, MSG_NOSIGNAL);
+    int i_data_len = recv(client_fd, i_buf.data(), kMaximumBufferSize, MSG_NOSIGNAL);
     if (i_data_len <= 0) {
       log::error("Failed to recv data: {}", strerror(errno));
       break;
     }
 
     // Start transcode.
-    int o_data_len = codec_server->transcode(i_buf.data(), i_data_len,
-                                             o_buf.data(), kMaximumBufferSize);
+    int o_data_len =
+            codec_server->transcode(i_buf.data(), i_data_len, o_buf.data(), kMaximumBufferSize);
     if (o_data_len < 0) {
       log::error("Failed to transcode: {}", strerror(-o_data_len));
       break;
@@ -117,8 +115,7 @@ void StartSocketListener(int fd, struct sockaddr_un addr,
 }  // namespace
 
 Service::Service(base::OnceClosure shutdown_callback)
-    : shutdown_callback_(std::move(shutdown_callback)),
-      weak_ptr_factory_(this) {}
+    : shutdown_callback_(std::move(shutdown_callback)), weak_ptr_factory_(this) {}
 
 bool Service::Init() {
   // Set up the dbus service.
@@ -137,25 +134,23 @@ bool Service::Init() {
     return false;
   }
 
-  using ServiceMethod = void (Service::*)(dbus::MethodCall*,
-                                          dbus::ExportedObject::ResponseSender);
+  using ServiceMethod = void (Service::*)(dbus::MethodCall*, dbus::ExportedObject::ResponseSender);
   const std::map<const char*, ServiceMethod> kServiceMethods = {
-      {kCodecInitMethod, &Service::CodecInit},
-      {kCodecCleanUpMethod, &Service::CodecCleanUp},
+          {kCodecInitMethod, &Service::CodecInit},
+          {kCodecCleanUpMethod, &Service::CodecCleanUp},
   };
 
   for (const auto& iter : kServiceMethods) {
     bool ret = exported_object_->ExportMethodAndBlock(
-        kMmcServiceInterface, iter.first,
-        base::BindRepeating(iter.second, weak_ptr_factory_.GetWeakPtr()));
+            kMmcServiceInterface, iter.first,
+            base::BindRepeating(iter.second, weak_ptr_factory_.GetWeakPtr()));
     if (!ret) {
       log::error("Failed to export method: {}", iter.first);
       return false;
     }
   }
 
-  if (!bus_->RequestOwnershipAndBlock(kMmcServiceName,
-                                      dbus::Bus::REQUIRE_PRIMARY)) {
+  if (!bus_->RequestOwnershipAndBlock(kMmcServiceName, dbus::Bus::REQUIRE_PRIMARY)) {
     log::error("Failed to take ownership of {}", kMmcServiceName);
     return false;
   }
@@ -174,14 +169,13 @@ void Service::CodecInit(dbus::MethodCall* method_call,
 
   if (!reader.PopArrayOfBytesAsProto(&request)) {
     std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError,
-        "Unable to parse CodecInitRequest from message"));
+            method_call, kMmcServiceError, "Unable to parse CodecInitRequest from message"));
     return;
   }
 
   if (!request.has_config()) {
-    std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError, "'Config Param' must be set"));
+    std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(method_call, kMmcServiceError,
+                                                              "'Config Param' must be set"));
     return;
   }
 
@@ -198,43 +192,41 @@ void Service::CodecInit(dbus::MethodCall* method_call,
   }
 #endif
   else {
-    std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError, "Codec type must be specified"));
+    std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(method_call, kMmcServiceError,
+                                                              "Codec type must be specified"));
     return;
   }
 
   int frame_size = codec_server->init(request.config());
   if (frame_size < 0) {
     std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError,
-        "Init codec server failed: " + std::string(strerror(-frame_size))));
+            method_call, kMmcServiceError,
+            "Init codec server failed: " + std::string(strerror(-frame_size))));
     return;
   }
   response.set_input_frame_size(frame_size);
 
   // Generate socket name for client.
   std::string socket_path =
-      std::string(kMmcSocketName) + base::UnguessableToken::Create().ToString();
+          std::string(kMmcSocketName) + base::UnguessableToken::Create().ToString();
   response.set_socket_token(socket_path);
 
   int skt_fd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
   if (skt_fd < 0) {
     std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError,
-        "Create socket failed: " + std::string(strerror(errno))));
+            method_call, kMmcServiceError,
+            "Create socket failed: " + std::string(strerror(errno))));
     return;
   }
 
   struct sockaddr_un addr = {};
   addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, response.socket_token().c_str(),
-          sizeof(addr.sun_path) - 1);
+  strncpy(addr.sun_path, response.socket_token().c_str(), sizeof(addr.sun_path) - 1);
   unlink(addr.sun_path);
 
   if (bind(skt_fd, (struct sockaddr*)&addr, sizeof(struct sockaddr_un)) == -1) {
     std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError,
-        "Bind socket failed: " + std::string(strerror(errno))));
+            method_call, kMmcServiceError, "Bind socket failed: " + std::string(strerror(errno))));
     return;
   }
 
@@ -242,22 +234,21 @@ void Service::CodecInit(dbus::MethodCall* method_call,
   int rc = chmod(addr.sun_path, 0770);
   if (rc < 0) {
     std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError,
-        "Chmod socket failed: " + std::string(strerror(errno))));
+            method_call, kMmcServiceError, "Chmod socket failed: " + std::string(strerror(errno))));
     return;
   }
 
   if (listen(skt_fd, kClientMaximum) == -1) {
     std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError,
-        "Listen socket failed: " + std::string(strerror(errno))));
+            method_call, kMmcServiceError,
+            "Listen socket failed: " + std::string(strerror(errno))));
     return;
   }
 
   // Create a thread and pass codec server and socket fd to it.
   if (!StartWorkerThread(skt_fd, std::move(addr), std::move(codec_server))) {
-    std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(
-        method_call, kMmcServiceError, "No free thread available"));
+    std::move(sender).Run(dbus::ErrorResponse::FromMethodCall(method_call, kMmcServiceError,
+                                                              "No free thread available"));
     return;
   }
 
@@ -278,9 +269,9 @@ bool Service::StartWorkerThread(int fd, struct sockaddr_un addr,
                                 std::unique_ptr<MmcInterface> codec_server) {
   // Each thread has its associated future to indicate task completion.
   std::promise<void> task_ended;
-  thread_pool_.push_back(std::make_pair(
-      std::make_unique<bluetooth::common::MessageLoopThread>(kWorkerThreadName),
-      std::make_unique<std::future<void>>(task_ended.get_future())));
+  thread_pool_.push_back(
+          std::make_pair(std::make_unique<bluetooth::common::MessageLoopThread>(kWorkerThreadName),
+                         std::make_unique<std::future<void>>(task_ended.get_future())));
 
   // Start up thread and assign task to it.
   thread_pool_.back().first->StartUp();
@@ -296,9 +287,8 @@ bool Service::StartWorkerThread(int fd, struct sockaddr_un addr,
   }
 
   if (!thread_pool_.back().first->DoInThread(
-          FROM_HERE,
-          base::BindOnce(&StartSocketListener, fd, std::move(addr),
-                         std::move(task_ended), std::move(codec_server)))) {
+              FROM_HERE, base::BindOnce(&StartSocketListener, fd, std::move(addr),
+                                        std::move(task_ended), std::move(codec_server)))) {
     log::error("Failed to run task");
     return false;
   }
@@ -308,8 +298,8 @@ bool Service::StartWorkerThread(int fd, struct sockaddr_un addr,
 
 void Service::RemoveIdleThread() {
   for (auto thread = thread_pool_.begin(); thread != thread_pool_.end();) {
-    if (thread->second->wait_for(std::chrono::milliseconds(
-            kThreadCheckTimeout)) == std::future_status::ready) {
+    if (thread->second->wait_for(std::chrono::milliseconds(kThreadCheckTimeout)) ==
+        std::future_status::ready) {
       // The task is over, close the thread and remove it from the thread pool.
       thread->first->ShutDown();
       thread = thread_pool_.erase(thread);

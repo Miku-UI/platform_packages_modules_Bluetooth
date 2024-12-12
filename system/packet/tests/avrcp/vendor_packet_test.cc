@@ -14,35 +14,35 @@
  * limitations under the License.
  */
 
-#include <tuple>
+#include "vendor_packet.h"
 
 #include <gtest/gtest.h>
 
+#include <tuple>
+
 #include "avrcp_test_packets.h"
 #include "packet_test_helper.h"
-#include "vendor_packet.h"
 
 namespace bluetooth {
 
 // A helper class that has public accessors to protected methods
 class TestPacketBuilder : public PacketBuilder {
- public:
-  static std::unique_ptr<TestPacketBuilder> MakeBuilder(
-      std::vector<uint8_t> data) {
+public:
+  static std::unique_ptr<TestPacketBuilder> MakeBuilder(std::vector<uint8_t> data) {
     std::unique_ptr<TestPacketBuilder> builder(new TestPacketBuilder(data));
     return builder;
-  };
+  }
 
   // Make all the utility functions public
-  using PacketBuilder::ReserveSpace;
   using PacketBuilder::AddPayloadOctets1;
   using PacketBuilder::AddPayloadOctets2;
   using PacketBuilder::AddPayloadOctets3;
   using PacketBuilder::AddPayloadOctets4;
   using PacketBuilder::AddPayloadOctets6;
   using PacketBuilder::AddPayloadOctets8;
+  using PacketBuilder::ReserveSpace;
 
-  size_t size() const override { return data_.size(); };
+  size_t size() const override { return data_.size(); }
 
   bool Serialize(const std::shared_ptr<Packet>& pkt) override {
     ReserveSpace(pkt, size());
@@ -54,7 +54,7 @@ class TestPacketBuilder : public PacketBuilder {
     return true;
   }
 
-  TestPacketBuilder(std::vector<uint8_t> data) : data_(data){};
+  TestPacketBuilder(std::vector<uint8_t> data) : data_(data) {}
 
   std::vector<uint8_t> data_;
 };
@@ -68,9 +68,8 @@ TEST(VendorPacketBuilderTest, builderTest) {
 
   auto get_cap_payload = TestPacketBuilder::MakeBuilder(get_cap_payload_data);
 
-  auto builder = VendorPacketBuilder::MakeBuilder(
-      CType::STATUS, CommandPdu::GET_CAPABILITIES, PacketType::SINGLE,
-      std::move(get_cap_payload));
+  auto builder = VendorPacketBuilder::MakeBuilder(CType::STATUS, CommandPdu::GET_CAPABILITIES,
+                                                  PacketType::SINGLE, std::move(get_cap_payload));
 
   ASSERT_EQ(builder->size(), get_capabilities_request.size());
 
@@ -81,35 +80,33 @@ TEST(VendorPacketBuilderTest, builderTest) {
 
 using TestParam = std::tuple<std::vector<uint8_t>, CommandPdu>;
 class VendorPacketTest : public ::testing::TestWithParam<TestParam> {
- public:
+public:
   std::vector<uint8_t> GetPacketData() { return std::get<0>(GetParam()); }
   CommandPdu GetCommandPdu() { return std::get<1>(GetParam()); }
 };
 
 INSTANTIATE_TEST_CASE_P(
-    VendorPacketParameterTest, VendorPacketTest,
-    ::testing::Values(
-        std::make_tuple(get_capabilities_request, CommandPdu::GET_CAPABILITIES),
-        std::make_tuple(get_capabilities_response_company_id,
-                        CommandPdu::GET_CAPABILITIES),
-        std::make_tuple(get_capabilities_response_events_supported,
-                        CommandPdu::GET_CAPABILITIES),
-        std::make_tuple(get_element_attributes_request_partial,
-                        CommandPdu::GET_ELEMENT_ATTRIBUTES),
-        std::make_tuple(get_element_attributes_request_full,
-                        CommandPdu::GET_ELEMENT_ATTRIBUTES),
-        std::make_tuple(get_elements_attributes_response_full,
-                        CommandPdu::GET_ELEMENT_ATTRIBUTES),
-        std::make_tuple(get_play_status_request, CommandPdu::GET_PLAY_STATUS),
-        std::make_tuple(get_play_status_response, CommandPdu::GET_PLAY_STATUS),
-        std::make_tuple(register_play_status_notification,
-                        CommandPdu::REGISTER_NOTIFICATION),
-        std::make_tuple(interim_play_status_notification,
-                        CommandPdu::REGISTER_NOTIFICATION),
-        std::make_tuple(interim_track_changed_notification,
-                        CommandPdu::REGISTER_NOTIFICATION),
-        std::make_tuple(changed_play_pos_notification,
-                        CommandPdu::REGISTER_NOTIFICATION)));
+        VendorPacketParameterTest, VendorPacketTest,
+        ::testing::Values(
+                std::make_tuple(get_capabilities_request, CommandPdu::GET_CAPABILITIES),
+                std::make_tuple(get_capabilities_response_company_id, CommandPdu::GET_CAPABILITIES),
+                std::make_tuple(get_capabilities_response_events_supported,
+                                CommandPdu::GET_CAPABILITIES),
+                std::make_tuple(get_element_attributes_request_partial,
+                                CommandPdu::GET_ELEMENT_ATTRIBUTES),
+                std::make_tuple(get_element_attributes_request_full,
+                                CommandPdu::GET_ELEMENT_ATTRIBUTES),
+                std::make_tuple(get_elements_attributes_response_full,
+                                CommandPdu::GET_ELEMENT_ATTRIBUTES),
+                std::make_tuple(get_play_status_request, CommandPdu::GET_PLAY_STATUS),
+                std::make_tuple(get_play_status_response, CommandPdu::GET_PLAY_STATUS),
+                std::make_tuple(register_play_status_notification,
+                                CommandPdu::REGISTER_NOTIFICATION),
+                std::make_tuple(interim_play_status_notification,
+                                CommandPdu::REGISTER_NOTIFICATION),
+                std::make_tuple(interim_track_changed_notification,
+                                CommandPdu::REGISTER_NOTIFICATION),
+                std::make_tuple(changed_play_pos_notification, CommandPdu::REGISTER_NOTIFICATION)));
 
 TEST_P(VendorPacketTest, getterTest) {
   auto test_packet = TestVendorPacket::Make(GetPacketData());

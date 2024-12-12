@@ -20,8 +20,8 @@
 
 namespace server_configurable_flags {
 
-std::string GetServerConfigurableFlag(
-    const std::string& experiment_category_name,
-    const std::string& experiment_flag_name, const std::string& default_value);
+std::string GetServerConfigurableFlag(const std::string& experiment_category_name,
+                                      const std::string& experiment_flag_name,
+                                      const std::string& default_value);
 
 }  // namespace server_configurable_flags

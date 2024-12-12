@@ -26,10 +26,9 @@
 namespace bluetooth {
 namespace shim {
 
-bool InitMetricIdAllocator(
-    const std::unordered_map<RawAddress, int>& /* paired_device_map */,
-    CallbackLegacy /* save_id_callback */,
-    CallbackLegacy /* forget_device_callback */) {
+bool InitMetricIdAllocator(const std::unordered_map<RawAddress, int>& /* paired_device_map */,
+                           CallbackLegacy /* save_id_callback */,
+                           CallbackLegacy /* forget_device_callback */) {
   inc_func_call_count(__func__);
   return false;
 }

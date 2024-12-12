@@ -15,14 +15,14 @@
  */
 
 #include <fuzzer/FuzzedDataProvider.h>
+
 #include "osi/include/allocator.h"
 #include "osi/test/fuzzers/include/libosiFuzzHelperFunctions.h"
 
 #define MAX_NUM_FUNCTIONS 512
 #define MAX_BUF_SIZE 256
 
-void callArbitraryFunction(std::vector<void*>* alloc_vector,
-                           FuzzedDataProvider* dataProvider) {
+void callArbitraryFunction(std::vector<void*>* alloc_vector, FuzzedDataProvider* dataProvider) {
   // Get our function identifier
   char func_id = dataProvider->ConsumeIntegralInRange<char>(0, 6);
 
@@ -34,8 +34,7 @@ void callArbitraryFunction(std::vector<void*>* alloc_vector,
     // Let case 1 be osi_malloc, and 2 be osi_calloc
     case 1:
     case 2: {
-      size_t size =
-          dataProvider->ConsumeIntegralInRange<size_t>(0, MAX_BUF_SIZE);
+      size_t size = dataProvider->ConsumeIntegralInRange<size_t>(0, MAX_BUF_SIZE);
       void* ptr = nullptr;
       if (size == 0) {
         return;
@@ -56,8 +55,7 @@ void callArbitraryFunction(std::vector<void*>* alloc_vector,
       if (alloc_vector->size() == 0) {
         return;
       }
-      size_t index = dataProvider->ConsumeIntegralInRange<size_t>(
-          0, alloc_vector->size() - 1);
+      size_t index = dataProvider->ConsumeIntegralInRange<size_t>(0, alloc_vector->size() - 1);
       void* ptr = alloc_vector->at(index);
       if (ptr) {
         if (func_id == 3) {
@@ -81,8 +79,7 @@ void callArbitraryFunction(std::vector<void*>* alloc_vector,
       if (func_id == 5) {
         str = osi_strdup(buf);
       } else {
-        size_t size =
-            dataProvider->ConsumeIntegralInRange<size_t>(1, MAX_BUF_SIZE);
+        size_t size = dataProvider->ConsumeIntegralInRange<size_t>(1, MAX_BUF_SIZE);
         str = osi_strndup(buf, size);
       }
       free(buf);
@@ -103,8 +100,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* Data, size_t Size) {
   // Keep a vector of our allocated objects for freeing later
   std::vector<void*> alloc_vector;
   // Call some functions, create some buffers
-  size_t num_functions =
-      dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
+  size_t num_functions = dataProvider.ConsumeIntegralInRange<size_t>(0, MAX_NUM_FUNCTIONS);
   for (size_t i = 0; i < num_functions; i++) {
     callArbitraryFunction(&alloc_vector, &dataProvider);
   }

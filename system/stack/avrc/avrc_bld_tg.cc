@@ -36,11 +36,10 @@ using namespace bluetooth;
 /*****************************************************************************
  *  Global data
  ****************************************************************************/
-#define AVRC_ITEM_PLAYER_IS_VALID(_p_player)                 \
-  ((_p_player)->name.p_str &&                                \
-   ((_p_player)->major_type & AVRC_MJ_TYPE_INVALID) == 0 &&  \
-   ((_p_player)->sub_type & AVRC_SUB_TYPE_INVALID) == 0 &&   \
-   (((_p_player)->play_status <= AVRC_PLAYSTATE_REV_SEEK) || \
+#define AVRC_ITEM_PLAYER_IS_VALID(_p_player)                                           \
+  ((_p_player)->name.p_str && ((_p_player)->major_type & AVRC_MJ_TYPE_INVALID) == 0 && \
+   ((_p_player)->sub_type & AVRC_SUB_TYPE_INVALID) == 0 &&                             \
+   (((_p_player)->play_status <= AVRC_PLAYSTATE_REV_SEEK) ||                           \
     ((_p_player)->play_status == AVRC_PLAYSTATE_ERROR)))
 
 /* 17 = item_type(1) + item len(2) + min item (14) */
@@ -56,8 +55,7 @@ using namespace bluetooth;
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_capability_rsp(tAVRC_GET_CAPS_RSP* p_rsp,
-                                             BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_capability_rsp(tAVRC_GET_CAPS_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start, *p_len, *p_count;
   uint16_t len = 0;
   uint8_t xx;
@@ -124,8 +122,8 @@ static tAVRC_STS avrc_bld_get_capability_rsp(tAVRC_GET_CAPS_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_list_app_settings_attr_rsp(
-    tAVRC_LIST_APP_ATTR_RSP* p_rsp, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_list_app_settings_attr_rsp(tAVRC_LIST_APP_ATTR_RSP* p_rsp,
+                                                     BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start, *p_len, *p_num;
   uint16_t len = 0;
   uint8_t xx;
@@ -170,8 +168,8 @@ static tAVRC_STS avrc_bld_list_app_settings_attr_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_list_app_settings_values_rsp(
-    tAVRC_LIST_APP_VALUES_RSP* p_rsp, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_list_app_settings_values_rsp(tAVRC_LIST_APP_VALUES_RSP* p_rsp,
+                                                       BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start, *p_len, *p_num;
   uint8_t xx;
   uint16_t len;
@@ -214,8 +212,8 @@ static tAVRC_STS avrc_bld_list_app_settings_values_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_cur_app_setting_value_rsp(
-    tAVRC_GET_CUR_APP_VALUE_RSP* p_rsp, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_cur_app_setting_value_rsp(tAVRC_GET_CUR_APP_VALUE_RSP* p_rsp,
+                                                        BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start, *p_len, *p_count;
   uint16_t len;
   uint8_t xx;
@@ -241,8 +239,7 @@ static tAVRC_STS avrc_bld_get_cur_app_setting_value_rsp(
   }
 
   for (xx = 0; xx < p_rsp->num_val; xx++) {
-    if (avrc_is_valid_player_attrib_value(p_rsp->p_vals[xx].attr_id,
-                                          p_rsp->p_vals[xx].attr_val)) {
+    if (avrc_is_valid_player_attrib_value(p_rsp->p_vals[xx].attr_id, p_rsp->p_vals[xx].attr_val)) {
       (*p_count)++;
       UINT8_TO_BE_STREAM(p_data, p_rsp->p_vals[xx].attr_id);
       UINT8_TO_BE_STREAM(p_data, p_rsp->p_vals[xx].attr_val);
@@ -266,8 +263,7 @@ static tAVRC_STS avrc_bld_get_cur_app_setting_value_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_set_app_setting_value_rsp(tAVRC_RSP* /* p_rsp */,
-                                                    BT_HDR* /* p_pkt */) {
+static tAVRC_STS avrc_bld_set_app_setting_value_rsp(tAVRC_RSP* /* p_rsp */, BT_HDR* /* p_pkt */) {
   /* nothing to be added. */
   log::verbose("");
   return AVRC_STS_NO_ERROR;
@@ -284,8 +280,7 @@ static tAVRC_STS avrc_bld_set_app_setting_value_rsp(tAVRC_RSP* /* p_rsp */,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_app_setting_text_rsp(
-    tAVRC_GET_APP_ATTR_TXT_RSP* p_rsp, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_app_setting_text_rsp(tAVRC_GET_APP_ATTR_TXT_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start, *p_len, *p_count;
   uint16_t len, len_left;
   uint8_t xx;
@@ -318,8 +313,7 @@ static tAVRC_STS avrc_bld_app_setting_text_rsp(
 
   for (xx = 0; xx < p_rsp->num_attr; xx++) {
     if (len_left < (p_rsp->p_attrs[xx].str_len + 4)) {
-      log::error("out of room (str_len:{}, left:{})",
-                 p_rsp->p_attrs[xx].str_len, len_left);
+      log::error("out of room (str_len:{}, left:{})", p_rsp->p_attrs[xx].str_len, len_left);
       p_rsp->num_attr = num_added;
       sts = AVRC_STS_INTERNAL_ERR;
       break;
@@ -331,8 +325,7 @@ static tAVRC_STS avrc_bld_app_setting_text_rsp(
     UINT8_TO_BE_STREAM(p_data, p_rsp->p_attrs[xx].attr_id);
     UINT16_TO_BE_STREAM(p_data, p_rsp->p_attrs[xx].charset_id);
     UINT8_TO_BE_STREAM(p_data, p_rsp->p_attrs[xx].str_len);
-    ARRAY_TO_BE_STREAM(p_data, p_rsp->p_attrs[xx].p_str,
-                       p_rsp->p_attrs[xx].str_len);
+    ARRAY_TO_BE_STREAM(p_data, p_rsp->p_attrs[xx].p_str, p_rsp->p_attrs[xx].str_len);
     (*p_count)++;
     num_added++;
   }
@@ -354,8 +347,8 @@ static tAVRC_STS avrc_bld_app_setting_text_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_app_setting_attr_text_rsp(
-    tAVRC_GET_APP_ATTR_TXT_RSP* p_rsp, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_app_setting_attr_text_rsp(tAVRC_GET_APP_ATTR_TXT_RSP* p_rsp,
+                                                        BT_HDR* p_pkt) {
   log::verbose("");
   return avrc_bld_app_setting_text_rsp(p_rsp, p_pkt);
 }
@@ -371,8 +364,8 @@ static tAVRC_STS avrc_bld_get_app_setting_attr_text_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_app_setting_value_text_rsp(
-    tAVRC_GET_APP_ATTR_TXT_RSP* p_rsp, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_app_setting_value_text_rsp(tAVRC_GET_APP_ATTR_TXT_RSP* p_rsp,
+                                                         BT_HDR* p_pkt) {
   log::verbose("");
   return avrc_bld_app_setting_text_rsp(p_rsp, p_pkt);
 }
@@ -388,8 +381,7 @@ static tAVRC_STS avrc_bld_get_app_setting_value_text_rsp(
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_inform_charset_rsp(tAVRC_RSP* /* p_rsp */,
-                                             BT_HDR* /* p_pkt */) {
+static tAVRC_STS avrc_bld_inform_charset_rsp(tAVRC_RSP* /* p_rsp */, BT_HDR* /* p_pkt */) {
   /* nothing to be added. */
   log::verbose("");
   return AVRC_STS_NO_ERROR;
@@ -406,17 +398,14 @@ static tAVRC_STS avrc_bld_inform_charset_rsp(tAVRC_RSP* /* p_rsp */,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_inform_battery_status_rsp(tAVRC_RSP* /* p_rsp */,
-                                                    BT_HDR* /* p_pkt */) {
+static tAVRC_STS avrc_bld_inform_battery_status_rsp(tAVRC_RSP* /* p_rsp */, BT_HDR* /* p_pkt */) {
   /* nothing to be added. */
   log::verbose("");
   return AVRC_STS_NO_ERROR;
 }
 
-static void avrc_build_attribute_entries(int num_attrs,
-                                         tAVRC_ATTR_ENTRY* p_attrs,
-                                         int remaining_buffer_capacity,
-                                         uint8_t** pp_data,
+static void avrc_build_attribute_entries(int num_attrs, tAVRC_ATTR_ENTRY* p_attrs,
+                                         int remaining_buffer_capacity, uint8_t** pp_data,
                                          uint8_t* p_attribute_count) {
   log::verbose("num_attrs: {}, remaining_buffer_capacity: {}", num_attrs,
                remaining_buffer_capacity);
@@ -424,24 +413,21 @@ static void avrc_build_attribute_entries(int num_attrs,
   /* Fill in the Attribute ID, Character Set, Length and Values */
   for (int index = 0; index < num_attrs; index++) {
     log::verbose("attr id[{}]: {}", index, p_attrs[index].attr_id);
-    log::assert_that(
-        AVRC_IS_VALID_MEDIA_ATTRIBUTE(p_attrs[index].attr_id),
-        "assert failed: AVRC_IS_VALID_MEDIA_ATTRIBUTE(p_attrs[index].attr_id)");
+    log::assert_that(AVRC_IS_VALID_MEDIA_ATTRIBUTE(p_attrs[index].attr_id),
+                     "assert failed: AVRC_IS_VALID_MEDIA_ATTRIBUTE(p_attrs[index].attr_id)");
     if (!p_attrs[index].name.p_str) {
       p_attrs[index].name.str_len = 0;
     }
     /* 8 is the size of attr_id, char set and str_len */
     remaining_buffer_capacity -= 8;
     if (remaining_buffer_capacity < 0) {
-      log::warn(
-          "not enough buffer space for attr_id[{}]: {}, skipping {} attributes",
-          index, p_attrs[index].attr_id, num_attrs - index);
+      log::warn("not enough buffer space for attr_id[{}]: {}, skipping {} attributes", index,
+                p_attrs[index].attr_id, num_attrs - index);
       break;
     }
     if (remaining_buffer_capacity < p_attrs[index].name.str_len) {
-      log::warn(
-          "not enough buffer space for attr_id[{}]: {}, truncating attribute",
-          index, p_attrs[index].attr_id);
+      log::warn("not enough buffer space for attr_id[{}]: {}, truncating attribute", index,
+                p_attrs[index].attr_id);
       p_attrs[index].name.str_len = remaining_buffer_capacity;
       remaining_buffer_capacity = 0;
     }
@@ -449,13 +435,11 @@ static void avrc_build_attribute_entries(int num_attrs,
     UINT32_TO_BE_STREAM(p_data, p_attrs[index].attr_id);
     UINT16_TO_BE_STREAM(p_data, p_attrs[index].name.charset_id);
     UINT16_TO_BE_STREAM(p_data, p_attrs[index].name.str_len);
-    ARRAY_TO_BE_STREAM(p_data, p_attrs[index].name.p_str,
-                       p_attrs[index].name.str_len);
+    ARRAY_TO_BE_STREAM(p_data, p_attrs[index].name.p_str, p_attrs[index].name.str_len);
     (*p_attribute_count)++;
   }
   *pp_data = p_data;
-  log::verbose("filled attributes, remaining_buffer_capacity: {}",
-               remaining_buffer_capacity);
+  log::verbose("filled attributes, remaining_buffer_capacity: {}", remaining_buffer_capacity);
 }
 
 /*******************************************************************************
@@ -469,19 +453,16 @@ static void avrc_build_attribute_entries(int num_attrs,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_elem_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp,
-                                             BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_elem_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp, BT_HDR* p_pkt) {
   log::verbose("");
   if (!p_rsp->p_attrs) {
     log::error("NULL p_attrs");
     return AVRC_STS_BAD_PARAM;
   }
   /* Figure out how much we have left in current buffer */
-  int remaining_buffer_capacity =
-      BT_DEFAULT_BUFFER_SIZE - BT_HDR_SIZE - p_pkt->offset;
+  int remaining_buffer_capacity = BT_DEFAULT_BUFFER_SIZE - BT_HDR_SIZE - p_pkt->offset;
   if (remaining_buffer_capacity < 5) {
-    log::error("{} not enough buffer for packet header",
-               remaining_buffer_capacity);
+    log::error("{} not enough buffer for packet header", remaining_buffer_capacity);
     return AVRC_STS_INTERNAL_ERR;
   }
   /* Get to the beginning of PDU */
@@ -509,8 +490,7 @@ static tAVRC_STS avrc_bld_get_elem_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp,
     return AVRC_STS_BAD_PARAM;
   }
   /* Fill in the Attribute ID, Character Set, Length and Values */
-  avrc_build_attribute_entries(p_rsp->num_attrs, p_rsp->p_attrs,
-                               remaining_buffer_capacity, &p_data,
+  avrc_build_attribute_entries(p_rsp->num_attrs, p_rsp->p_attrs, remaining_buffer_capacity, &p_data,
                                p_attribute_count);
   parameter_len = p_data - p_attribute_count;
   UINT16_TO_BE_STREAM(p_parameter_len, parameter_len);
@@ -529,15 +509,14 @@ static tAVRC_STS avrc_bld_get_elem_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_play_status_rsp(tAVRC_GET_PLAY_STATUS_RSP* p_rsp,
-                                              BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_play_status_rsp(tAVRC_GET_PLAY_STATUS_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start;
 
   log::verbose("");
   p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
   p_data = p_start + 2;
 
-  /* add fixed lenth - song len(4) + song position(4) + status(1) */
+  /* add fixed length - song len(4) + song position(4) + status(1) */
   UINT16_TO_BE_STREAM(p_data, 9);
   UINT32_TO_BE_STREAM(p_data, p_rsp->song_len);
   UINT32_TO_BE_STREAM(p_data, p_rsp->song_pos);
@@ -557,8 +536,7 @@ static tAVRC_STS avrc_bld_get_play_status_rsp(tAVRC_GET_PLAY_STATUS_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_notify_rsp(tAVRC_REG_NOTIF_RSP* p_rsp,
-                                     BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_notify_rsp(tAVRC_REG_NOTIF_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start;
   uint8_t* p_len;
   uint16_t len = 0;
@@ -623,19 +601,18 @@ static tAVRC_STS avrc_bld_notify_rsp(tAVRC_REG_NOTIF_RSP* p_rsp,
       break;
 
     case AVRC_EVT_APP_SETTING_CHANGE: /* 0x08 */
-      if (p_rsp->param.player_setting.num_attr > AVRC_MAX_APP_SETTINGS)
+      if (p_rsp->param.player_setting.num_attr > AVRC_MAX_APP_SETTINGS) {
         p_rsp->param.player_setting.num_attr = AVRC_MAX_APP_SETTINGS;
+      }
 
       if (p_rsp->param.player_setting.num_attr > 0) {
         UINT8_TO_BE_STREAM(p_data, p_rsp->param.player_setting.num_attr);
         len = 2;
         for (xx = 0; xx < p_rsp->param.player_setting.num_attr; xx++) {
-          if (avrc_is_valid_player_attrib_value(
-                  p_rsp->param.player_setting.attr_id[xx],
-                  p_rsp->param.player_setting.attr_value[xx])) {
+          if (avrc_is_valid_player_attrib_value(p_rsp->param.player_setting.attr_id[xx],
+                                                p_rsp->param.player_setting.attr_value[xx])) {
             UINT8_TO_BE_STREAM(p_data, p_rsp->param.player_setting.attr_id[xx]);
-            UINT8_TO_BE_STREAM(p_data,
-                               p_rsp->param.player_setting.attr_value[xx]);
+            UINT8_TO_BE_STREAM(p_data, p_rsp->param.player_setting.attr_value[xx]);
           } else {
             log::error("bad player app seeting attribute or value");
             status = AVRC_STS_BAD_PARAM;
@@ -643,8 +620,9 @@ static tAVRC_STS avrc_bld_notify_rsp(tAVRC_REG_NOTIF_RSP* p_rsp,
           }
           len += 2;
         }
-      } else
+      } else {
         status = AVRC_STS_BAD_PARAM;
+      }
       break;
 
     case AVRC_EVT_VOLUME_CHANGE: /* 0x0d */
@@ -705,13 +683,12 @@ static tAVRC_STS avrc_bld_next_rsp(tAVRC_NEXT_RSP* p_rsp, BT_HDR* p_pkt) {
  * Returns       AVRC_STS_NO_ERROR, if the response is build successfully
  *
  *****************************************************************************/
-static tAVRC_STS avrc_bld_set_absolute_volume_rsp(uint8_t abs_vol,
-                                                  BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_set_absolute_volume_rsp(uint8_t abs_vol, BT_HDR* p_pkt) {
   log::verbose("");
   uint8_t* p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
   /* To calculate length */
   uint8_t* p_data = p_start + 2;
-  /* add fixed lenth status(1) */
+  /* add fixed length status(1) */
   UINT16_TO_BE_STREAM(p_data, 1);
   UINT8_TO_BE_STREAM(p_data, abs_vol);
   p_pkt->len = (p_data - p_start);
@@ -755,13 +732,11 @@ static tAVRC_STS avrc_bld_rejected_rsp(tAVRC_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t* p_data;
   uint8_t opcode = p_rsp->opcode;
 
-  log::verbose("status={}, pdu:x{:x}, opcode={:x}", p_rsp->status, p_rsp->pdu,
-               opcode);
+  log::verbose("status={}, pdu:x{:x}, opcode={:x}", p_rsp->status, p_rsp->pdu, opcode);
 
   if (opcode == AVRC_OP_BROWSE) {
     p_data = p_start + 1;
-    if ((AVRC_PDU_INVALID == *p_start) ||
-        (avrc_opcode_from_pdu(*p_start) != AVRC_OP_BROWSE)) {
+    if ((AVRC_PDU_INVALID == *p_start) || (avrc_opcode_from_pdu(*p_start) != AVRC_OP_BROWSE)) {
       /* if invalid or the given opcode is not recognized as a browsing command
        * opcode, */
       /* use general reject command */
@@ -798,7 +773,7 @@ static tAVRC_STS avrc_bld_ctrl_status_rsp(tAVRC_RSP* p_rsp, BT_HDR* p_pkt) {
   /* To calculate length */
   uint8_t* p_data = p_start + 2; /* pdu + rsvd */
 
-  /* add fixed lenth - status(1) */
+  /* add fixed length - status(1) */
   UINT16_TO_BE_STREAM(p_data, 1);
   UINT8_TO_BE_STREAM(p_data, p_rsp->status);
   p_pkt->len = (p_data - p_start);
@@ -832,8 +807,7 @@ static tAVRC_STS avrc_bld_set_addr_player_rsp(tAVRC_RSP* p_rsp, BT_HDR* p_pkt) {
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_set_browsed_player_rsp(tAVRC_SET_BR_PLAYER_RSP* p_rsp,
-                                                 BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_set_browsed_player_rsp(tAVRC_SET_BR_PLAYER_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start;
   uint8_t* p_len;
   uint16_t len;
@@ -877,8 +851,7 @@ static tAVRC_STS avrc_bld_set_browsed_player_rsp(tAVRC_SET_BR_PLAYER_RSP* p_rsp,
     p_data = p_start + p_pkt->len;
   }
 
-  for (uint8_t xx = 0;
-       (xx < p_rsp->folder_depth) && (len_left > (p_folders[xx].str_len + 2));
+  for (uint8_t xx = 0; (xx < p_rsp->folder_depth) && (len_left > (p_folders[xx].str_len + 2));
        xx++) {
     (*p_folder_depth)++;
     UINT16_TO_BE_STREAM(p_data, p_folders[xx].str_len);
@@ -907,8 +880,7 @@ static tAVRC_STS avrc_bld_set_browsed_player_rsp(tAVRC_SET_BR_PLAYER_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
-                                               BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start;
   uint8_t *p_len, xx;
   uint16_t len;
@@ -932,12 +904,14 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
   len_left = BT_DEFAULT_BUFFER_SIZE - BT_HDR_SIZE;
   p = (uint8_t*)(p_pkt + 1);
   BE_STREAM_TO_UINT16(mtu, p);
-  if (len_left > mtu) len_left = mtu;
+  if (len_left > mtu) {
+    len_left = mtu;
+  }
 
   // according to spec
   // Version 5.3 | Vol 3, Part A, Chapter 5
   // MTU may be controlled by the peer
-  if (len_left < p_pkt->offset  + p_pkt->len) {
+  if (len_left < p_pkt->offset + p_pkt->len) {
     log::error("memory not enough (len_left={})", len_left);
     return AVRC_STS_INTERNAL_ERR;
   }
@@ -973,13 +947,12 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
   log::verbose("len:{}, len_left:{}, num:{}", len, len_left, item_count);
 
   /* min len required = item_type(1) + item len(2) + min item (14) = 17 */
-  for (xx = 0;
-       xx < p_rsp->item_count && len_left > AVRC_MIN_LEN_GET_FOLDER_ITEMS_RSP &&
-       !multi_items_add_fail;
+  for (xx = 0; xx < p_rsp->item_count && len_left > AVRC_MIN_LEN_GET_FOLDER_ITEMS_RSP &&
+               !multi_items_add_fail;
        xx++) {
     p_item_start = p_data;
     UINT8_TO_BE_STREAM(p_data, p_item_list[xx].item_type);
-    /* variable item lenth - save the location to add length */
+    /* variable item length - save the location to add length */
     p_item_len = p_data;
     p_data += 2;
     item_len = 0;
@@ -991,8 +964,7 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
         p_player = &p_item_list[xx].u.player;
         item_len = AVRC_FEATURE_MASK_SIZE + p_player->name.str_len + 12;
 
-        if ((item_len_left < item_len) ||
-            !AVRC_ITEM_PLAYER_IS_VALID(p_player)) {
+        if ((item_len_left < item_len) || !AVRC_ITEM_PLAYER_IS_VALID(p_player)) {
           if (item_len_left < item_len && item_count > 0) {
             multi_items_add_fail = true;
           }
@@ -1006,8 +978,7 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
         ARRAY_TO_BE_STREAM(p_data, p_player->features, AVRC_FEATURE_MASK_SIZE);
         UINT16_TO_BE_STREAM(p_data, p_player->name.charset_id);
         UINT16_TO_BE_STREAM(p_data, p_player->name.str_len);
-        ARRAY_TO_BE_STREAM(p_data, p_player->name.p_str,
-                           p_player->name.str_len);
+        ARRAY_TO_BE_STREAM(p_data, p_player->name.p_str, p_player->name.str_len);
         break;
 
       case AVRC_ITEM_FOLDER:
@@ -1028,8 +999,7 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
         UINT8_TO_BE_STREAM(p_data, p_folder->playable);
         UINT16_TO_BE_STREAM(p_data, p_folder->name.charset_id);
         UINT16_TO_BE_STREAM(p_data, p_folder->name.str_len);
-        ARRAY_TO_BE_STREAM(p_data, p_folder->name.p_str,
-                           p_folder->name.str_len);
+        ARRAY_TO_BE_STREAM(p_data, p_folder->name.p_str, p_folder->name.str_len);
         break;
 
       case AVRC_ITEM_MEDIA:
@@ -1070,8 +1040,7 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
           UINT32_TO_BE_STREAM(p_data, p_attr[yy].attr_id);
           UINT16_TO_BE_STREAM(p_data, p_attr[yy].name.charset_id);
           UINT16_TO_BE_STREAM(p_data, p_attr[yy].name.str_len);
-          ARRAY_TO_BE_STREAM(p_data, p_attr[yy].name.p_str,
-                             p_attr[yy].name.str_len);
+          ARRAY_TO_BE_STREAM(p_data, p_attr[yy].name.p_str, p_attr[yy].name.str_len);
           item_len += attribute_len;
           attribute_len_left -= attribute_len;
         }
@@ -1081,20 +1050,20 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
     if (p_item_start != p_data) {
       /* successfully added the item */
       item_count++;
-      /* fill in variable item lenth */
+      /* fill in variable item length */
       UINT16_TO_BE_STREAM(p_item_len, item_len);
       len_left -= item_len + item_header_len;
       len += item_len + item_header_len;
     } else if (!multi_items_add_fail) {
       /* some item is not added properly - set an error status */
-      if (item_len_left < item_len)
+      if (item_len_left < item_len) {
         status = AVRC_STS_INTERNAL_ERR;
-      else
+      } else {
         status = AVRC_STS_BAD_PARAM;
+      }
       break;
     }
-    log::verbose("len:{}, len_left:{}, num:{}, item_len:{}", len, len_left,
-                 item_count, item_len);
+    log::verbose("len:{}, len_left:{}, num:{}, item_len:{}", len, len_left, item_count, item_len);
   } /* for item_count */
 
   UINT16_TO_BE_STREAM(p_num, item_count);
@@ -1116,8 +1085,7 @@ static tAVRC_STS avrc_bld_get_folder_items_rsp(tAVRC_GET_ITEMS_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_change_path_rsp(tAVRC_CHG_PATH_RSP* p_rsp,
-                                          BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_change_path_rsp(tAVRC_CHG_PATH_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start;
 
   /* get the existing length, if any, and also the num attributes */
@@ -1146,16 +1114,14 @@ static tAVRC_STS avrc_bld_change_path_rsp(tAVRC_CHG_PATH_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_item_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp,
-                                             BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_item_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp, BT_HDR* p_pkt) {
   log::verbose("");
   if (!p_rsp->p_attrs) {
     log::error("NULL p_attrs");
     return AVRC_STS_BAD_PARAM;
   }
   /* Figure out how much we have left in current buffer */
-  int remaining_buffer_capacity =
-      BT_DEFAULT_BUFFER_SIZE - BT_HDR_SIZE - p_pkt->offset;
+  int remaining_buffer_capacity = BT_DEFAULT_BUFFER_SIZE - BT_HDR_SIZE - p_pkt->offset;
   /* Get to the beginning of data section in buffer */
   uint8_t* p_data = (uint8_t*)(p_pkt + 1);
   /* Get the MTU size that is filled in earlier */
@@ -1164,11 +1130,9 @@ static tAVRC_STS avrc_bld_get_item_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp,
   if (remaining_buffer_capacity > mtu) {
     remaining_buffer_capacity = mtu;
   }
-  log::verbose("remaining_buffer_capacity:{}, mtu:{}",
-               remaining_buffer_capacity, mtu);
+  log::verbose("remaining_buffer_capacity:{}, mtu:{}", remaining_buffer_capacity, mtu);
   if (remaining_buffer_capacity < 5) {
-    log::error("not enough space for packet header, remaining:{} < 5",
-               remaining_buffer_capacity);
+    log::error("not enough space for packet header, remaining:{} < 5", remaining_buffer_capacity);
     return AVRC_STS_INTERNAL_ERR;
   }
   /* Get to the beginning of PDU */
@@ -1199,8 +1163,7 @@ static tAVRC_STS avrc_bld_get_item_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp,
   }
   remaining_buffer_capacity -= p_data - p_pdu_start;
   /* Fill in the Attribute ID, Character Set, Length and Values */
-  avrc_build_attribute_entries(p_rsp->num_attrs, p_rsp->p_attrs,
-                               remaining_buffer_capacity, &p_data,
+  avrc_build_attribute_entries(p_rsp->num_attrs, p_rsp->p_attrs, remaining_buffer_capacity, &p_data,
                                p_attribute_count);
   parameter_len = p_data - p_status;
   UINT16_TO_BE_STREAM(p_parameter_len, parameter_len);
@@ -1222,8 +1185,7 @@ static tAVRC_STS avrc_bld_get_item_attrs_rsp(tAVRC_GET_ATTRS_RSP* p_rsp,
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_get_num_of_item_rsp(tAVRC_GET_NUM_OF_ITEMS_RSP* p_rsp,
-                                              BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_get_num_of_item_rsp(tAVRC_GET_NUM_OF_ITEMS_RSP* p_rsp, BT_HDR* p_pkt) {
   uint8_t *p_data, *p_start, *p_len;
 
   log::verbose("");
@@ -1232,7 +1194,7 @@ static tAVRC_STS avrc_bld_get_num_of_item_rsp(tAVRC_GET_NUM_OF_ITEMS_RSP* p_rsp,
   p_data = p_len = p_start + 1; /* pdu */
 
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
-    /* add fixed lenth - status(1) + uid_counter(2) + num_items(4) */
+    /* add fixed length - status(1) + uid_counter(2) + num_items(4) */
     UINT16_TO_BE_STREAM(p_data, 7);
     UINT8_TO_BE_STREAM(p_data, p_rsp->status);
     UINT16_TO_BE_STREAM(p_data, p_rsp->uid_counter);
@@ -1240,7 +1202,7 @@ static tAVRC_STS avrc_bld_get_num_of_item_rsp(tAVRC_GET_NUM_OF_ITEMS_RSP* p_rsp,
     p_pkt->len = (p_data - p_start);
     return AVRC_STS_NO_ERROR;
   } else {
-    /* add fixed lenth - status(1) */
+    /* add fixed length - status(1) */
     UINT16_TO_BE_STREAM(p_data, 7);
     UINT8_TO_BE_STREAM(p_data, p_rsp->status);
     p_pkt->len = (p_data - p_start);
@@ -1268,7 +1230,7 @@ static tAVRC_STS avrc_bld_search_rsp(tAVRC_SEARCH_RSP* p_rsp, BT_HDR* p_pkt) {
   p_start = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
   p_data = p_len = p_start + 1; /* pdu */
 
-  /* add fixed lenth - status(1) + uid_counter(2) + num_items(4) */
+  /* add fixed length - status(1) + uid_counter(2) + num_items(4) */
   UINT16_TO_BE_STREAM(p_data, 7);
   UINT8_TO_BE_STREAM(p_data, p_rsp->status);
   UINT16_TO_BE_STREAM(p_data, p_rsp->uid_counter);
@@ -1302,8 +1264,7 @@ static tAVRC_STS avrc_bld_play_item_rsp(tAVRC_RSP* p_rsp, BT_HDR* p_pkt) {
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-static tAVRC_STS avrc_bld_add_to_now_playing_rsp(tAVRC_RSP* p_rsp,
-                                                 BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_add_to_now_playing_rsp(tAVRC_RSP* p_rsp, BT_HDR* p_pkt) {
   log::verbose("");
   return avrc_bld_ctrl_status_rsp(p_rsp, p_pkt);
 }
@@ -1323,8 +1284,7 @@ static BT_HDR* avrc_bld_init_rsp_buffer(tAVRC_RESPONSE* p_rsp) {
   uint16_t chnl = AVCT_DATA_CTRL;
   uint8_t opcode = avrc_opcode_from_pdu(p_rsp->pdu);
 
-  log::verbose("pdu={:x}, opcode={:x}/{:x}", p_rsp->pdu, opcode,
-               p_rsp->rsp.opcode);
+  log::verbose("pdu={:x}, opcode={:x}/{:x}", p_rsp->pdu, opcode, p_rsp->rsp.opcode);
   if (opcode != p_rsp->rsp.opcode && p_rsp->rsp.status != AVRC_STS_NO_ERROR &&
       avrc_is_valid_opcode(p_rsp->rsp.opcode)) {
     opcode = p_rsp->rsp.opcode;
@@ -1357,7 +1317,9 @@ static BT_HDR* avrc_bld_init_rsp_buffer(tAVRC_RESPONSE* p_rsp) {
   p_start = p_data;
 
   /* pass thru - group navigation - has a two byte op_id, so dont do it here */
-  if (opcode != AVRC_OP_PASS_THRU) *p_data++ = p_rsp->pdu;
+  if (opcode != AVRC_OP_PASS_THRU) {
+    *p_data++ = p_rsp->pdu;
+  }
 
   switch (opcode) {
     case AVRC_OP_VENDOR:
@@ -1365,7 +1327,7 @@ static BT_HDR* avrc_bld_init_rsp_buffer(tAVRC_RESPONSE* p_rsp) {
       UINT8_TO_BE_STREAM(p_data, 0);
       [[fallthrough]];
     case AVRC_OP_BROWSE:
-      /* add fixed lenth - 0 */
+      /* add fixed length - 0 */
       UINT16_TO_BE_STREAM(p_data, 0);
       break;
   }
@@ -1387,8 +1349,7 @@ static BT_HDR* avrc_bld_init_rsp_buffer(tAVRC_RESPONSE* p_rsp) {
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp,
-                           BT_HDR** pp_pkt) {
+tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp, BT_HDR** pp_pkt) {
   tAVRC_STS status = AVRC_STS_BAD_PARAM;
   BT_HDR* p_pkt;
   bool alloc = false;
@@ -1396,8 +1357,8 @@ tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp,
   uint16_t peer_mtu;
 
   if (!p_rsp || !pp_pkt) {
-    log::verbose("Invalid parameters passed. p_rsp={}, pp_pkt={}",
-                 fmt::ptr(p_rsp), fmt::ptr(pp_pkt));
+    log::verbose("Invalid parameters passed. p_rsp={}, pp_pkt={}", fmt::ptr(p_rsp),
+                 fmt::ptr(pp_pkt));
     return AVRC_STS_BAD_PARAM;
   }
 
@@ -1421,7 +1382,7 @@ tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp,
 
   log::verbose("pdu={:x} status={:x}", p_rsp->rsp.pdu, p_rsp->rsp.status);
   if (p_rsp->rsp.status != AVRC_STS_NO_ERROR) {
-    return (avrc_bld_rejected_rsp(&p_rsp->rsp, p_pkt));
+    return avrc_bld_rejected_rsp(&p_rsp->rsp, p_pkt);
   }
 
   switch (p_rsp->pdu) {
@@ -1435,18 +1396,15 @@ tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp,
       break;
 
     case AVRC_PDU_LIST_PLAYER_APP_ATTR:
-      status =
-          avrc_bld_list_app_settings_attr_rsp(&p_rsp->list_app_attr, p_pkt);
+      status = avrc_bld_list_app_settings_attr_rsp(&p_rsp->list_app_attr, p_pkt);
       break;
 
     case AVRC_PDU_LIST_PLAYER_APP_VALUES:
-      status =
-          avrc_bld_list_app_settings_values_rsp(&p_rsp->list_app_values, p_pkt);
+      status = avrc_bld_list_app_settings_values_rsp(&p_rsp->list_app_values, p_pkt);
       break;
 
     case AVRC_PDU_GET_CUR_PLAYER_APP_VALUE:
-      status = avrc_bld_get_cur_app_setting_value_rsp(&p_rsp->get_cur_app_val,
-                                                      p_pkt);
+      status = avrc_bld_get_cur_app_setting_value_rsp(&p_rsp->get_cur_app_val, p_pkt);
       break;
 
     case AVRC_PDU_SET_PLAYER_APP_VALUE:
@@ -1454,13 +1412,11 @@ tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp,
       break;
 
     case AVRC_PDU_GET_PLAYER_APP_ATTR_TEXT:
-      status = avrc_bld_get_app_setting_attr_text_rsp(&p_rsp->get_app_attr_txt,
-                                                      p_pkt);
+      status = avrc_bld_get_app_setting_attr_text_rsp(&p_rsp->get_app_attr_txt, p_pkt);
       break;
 
     case AVRC_PDU_GET_PLAYER_APP_VALUE_TEXT:
-      status = avrc_bld_get_app_setting_value_text_rsp(&p_rsp->get_app_val_txt,
-                                                       p_pkt);
+      status = avrc_bld_get_app_setting_value_text_rsp(&p_rsp->get_app_val_txt, p_pkt);
       break;
 
     case AVRC_PDU_INFORM_DISPLAY_CHARSET:
@@ -1468,8 +1424,7 @@ tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp,
       break;
 
     case AVRC_PDU_INFORM_BATTERY_STAT_OF_CT:
-      status = avrc_bld_inform_battery_status_rsp(&p_rsp->inform_battery_status,
-                                                  p_pkt);
+      status = avrc_bld_inform_battery_status_rsp(&p_rsp->inform_battery_status, p_pkt);
       break;
 
     case AVRC_PDU_GET_ELEMENT_ATTR:

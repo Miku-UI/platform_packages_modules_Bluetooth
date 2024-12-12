@@ -24,31 +24,25 @@ std::string PacketField::GetDebugName() const {
   return "Field{Type:" + GetFieldType() + ", Name:" + GetName() + "}";
 }
 
-ParseLocation PacketField::GetLocation() const {
-  return loc_;
-}
+ParseLocation PacketField::GetLocation() const { return loc_; }
 
-std::string PacketField::GetName() const {
-  return name_;
-}
+std::string PacketField::GetName() const { return name_; }
 
-Size PacketField::GetBuilderSize() const {
-  return GetSize();
-}
+Size PacketField::GetBuilderSize() const { return GetSize(); }
 
-Size PacketField::GetStructSize() const {
-  return GetSize();
-}
+Size PacketField::GetStructSize() const { return GetSize(); }
 
 int PacketField::GenBounds(std::ostream& s, Size start_offset, Size end_offset, Size size) const {
   // In order to find field_begin and field_end, we must have two of the three Sizes.
   if ((start_offset.empty() && size.empty()) || (start_offset.empty() && end_offset.empty()) ||
       (end_offset.empty() && size.empty())) {
-    ERROR(this) << "GenBounds called without enough information. " << start_offset << end_offset << size;
+    ERROR(this) << "GenBounds called without enough information. " << start_offset << end_offset
+                << size;
   }
 
   if (start_offset.bits() % 8 != 0 || end_offset.bits() % 8 != 0) {
-    ERROR(this) << "Can not find the bounds of a field at a non byte-aligned offset." << start_offset << end_offset;
+    ERROR(this) << "Can not find the bounds of a field at a non byte-aligned offset."
+                << start_offset << end_offset;
   }
 
   if (!start_offset.empty()) {
@@ -81,25 +75,17 @@ bool PacketField::GenBuilderParameter(std::ostream& s) const {
   return true;
 }
 
-bool PacketField::BuilderParameterMustBeMoved() const {
-  return false;
-}
+bool PacketField::BuilderParameterMustBeMoved() const { return false; }
 
-bool PacketField::GenBuilderMember(std::ostream& s) const {
-  return GenBuilderParameter(s);
-}
+bool PacketField::GenBuilderMember(std::ostream& s) const { return GenBuilderParameter(s); }
 
 void PacketField::GenBuilderParameterFromView(std::ostream& s) const {
   s << "view.Get" << util::UnderscoreToCamelCase(GetName()) << "()";
 }
 
-bool PacketField::IsContainerField() const {
-  return false;
-}
+bool PacketField::IsContainerField() const { return false; }
 
-const PacketField* PacketField::GetElementField() const {
-  return nullptr;
-}
+const PacketField* PacketField::GetElementField() const { return nullptr; }
 
 void PacketField::GenStringRepresentation(std::ostream& s, std::string accessor) const {
   s << "\"REPRESENTATION_UNIMPLEMENTED " << GetFieldType() << " " << accessor << "\"";

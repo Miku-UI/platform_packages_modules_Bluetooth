@@ -30,42 +30,39 @@
 #include "stack/include/bt_hdr.h"
 
 class A2dpCodecConfigAacBase : public A2dpCodecConfig {
- protected:
-  A2dpCodecConfigAacBase(btav_a2dp_codec_index_t codec_index,
-                         const std::string& name,
-                         btav_a2dp_codec_priority_t codec_priority,
-                         bool is_source)
+protected:
+  A2dpCodecConfigAacBase(btav_a2dp_codec_index_t codec_index, const std::string& name,
+                         btav_a2dp_codec_priority_t codec_priority, bool is_source)
       : A2dpCodecConfig(codec_index, A2DP_CODEC_ID_AAC, name, codec_priority),
         is_source_(is_source) {}
-  bool setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
-                      uint8_t* p_result_codec_config) override;
-  bool setPeerCodecCapabilities(
-      const uint8_t* p_peer_codec_capabilities) override;
+  tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
+                              uint8_t* p_result_codec_config) override;
+  bool setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) override;
 
- private:
+private:
   bool is_source_;  // True if local is Source
 };
 
 class A2dpCodecConfigAacSource : public A2dpCodecConfigAacBase {
- public:
+public:
   A2dpCodecConfigAacSource(btav_a2dp_codec_priority_t codec_priority);
   virtual ~A2dpCodecConfigAacSource();
 
   bool init() override;
 
- private:
+private:
   bool useRtpHeaderMarkerBit() const override;
   void debug_codec_dump(int fd) override;
 };
 
 class A2dpCodecConfigAacSink : public A2dpCodecConfigAacBase {
- public:
+public:
   A2dpCodecConfigAacSink(btav_a2dp_codec_priority_t codec_priority);
   virtual ~A2dpCodecConfigAacSink();
 
   bool init() override;
 
- private:
+private:
   bool useRtpHeaderMarkerBit() const override;
 };
 
@@ -74,48 +71,12 @@ class A2dpCodecConfigAacSink : public A2dpCodecConfigAacBase {
 // NOTE: only codecs that are implemented are considered valid.
 // Returns true if |p_codec_info| contains information about a valid AAC
 // codec, otherwise false.
-bool A2DP_IsSourceCodecValidAac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid A2DP AAC Sink codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid AAC codec,
-// otherwise false.
-bool A2DP_IsSinkCodecValidAac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP AAC Source
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid AAC codec,
-// otherwise false.
-bool A2DP_IsPeerSourceCodecValidAac(const uint8_t* p_codec_info);
-
-// Checks whether the codec capabilities contain a valid peer A2DP AAC Sink
-// codec.
-// NOTE: only codecs that are implemented are considered valid.
-// Returns true if |p_codec_info| contains information about a valid AAC
-// codec, otherwise false.
-bool A2DP_IsPeerSinkCodecValidAac(const uint8_t* p_codec_info);
+bool A2DP_IsCodecValidAac(const uint8_t* p_codec_info);
 
 // Checks whether A2DP AAC Sink codec is supported.
 // |p_codec_info| contains information about the codec capabilities.
 // Returns true if the A2DP AAC Sink codec is supported, otherwise false.
-bool A2DP_IsSinkCodecSupportedAac(const uint8_t* p_codec_info);
-
-// Checks whether an A2DP AAC Source codec for a peer Source device is
-// supported.
-// |p_codec_info| contains information about the codec capabilities of the
-// peer device.
-// Returns true if the A2DP AAC Source codec for a peer Source device is
-// supported, otherwise false.
-bool A2DP_IsPeerSourceCodecSupportedAac(const uint8_t* p_codec_info);
-
-// Checks whether the A2DP data packets should contain RTP header.
-// |content_protection_enabled| is true if Content Protection is
-// enabled. |p_codec_info| contains information about the codec capabilities.
-// Returns true if the A2DP data packets should contain RTP header, otherwise
-// false.
-bool A2DP_UsesRtpHeaderAac(bool content_protection_enabled,
-                           const uint8_t* p_codec_info);
+tA2DP_STATUS A2DP_IsSinkCodecSupportedAac(const uint8_t* p_codec_info);
 
 // Gets the A2DP AAC codec name for a given |p_codec_info|.
 const char* A2DP_CodecNameAac(const uint8_t* p_codec_info);
@@ -123,15 +84,13 @@ const char* A2DP_CodecNameAac(const uint8_t* p_codec_info);
 // Checks whether two A2DP AAC codecs |p_codec_info_a| and |p_codec_info_b|
 // have the same type.
 // Returns true if the two codecs have the same type, otherwise false.
-bool A2DP_CodecTypeEqualsAac(const uint8_t* p_codec_info_a,
-                             const uint8_t* p_codec_info_b);
+bool A2DP_CodecTypeEqualsAac(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Checks whether two A2DP AAC codecs |p_codec_info_a| and |p_codec_info_b|
 // are exactly the same.
 // Returns true if the two codecs are exactly the same, otherwise false.
 // If the codec type is not AAC, the return value is false.
-bool A2DP_CodecEqualsAac(const uint8_t* p_codec_info_a,
-                         const uint8_t* p_codec_info_b);
+bool A2DP_CodecEqualsAac(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
 // Gets the track sample rate value for the A2DP AAC codec.
 // |p_codec_info| is a pointer to the AAC codec_info to decode.
@@ -199,8 +158,8 @@ int A2DP_ComputeMaxBitRateAac(const uint8_t* p_codec_info, uint16_t mtu);
 // |p_data| contains the audio data.
 // The timestamp is stored in |p_timestamp|.
 // Returns true on success, otherwise false.
-bool A2DP_GetPacketTimestampAac(const uint8_t* p_codec_info,
-                                const uint8_t* p_data, uint32_t* p_timestamp);
+bool A2DP_GetPacketTimestampAac(const uint8_t* p_codec_info, const uint8_t* p_data,
+                                uint32_t* p_timestamp);
 
 // Builds A2DP AAC codec header for audio data.
 // |p_codec_info| contains the codec information.
@@ -220,16 +179,14 @@ std::string A2DP_CodecInfoStringAac(const uint8_t* p_codec_info);
 // |p_codec_info| contains the codec information.
 // Returns the A2DP AAC encoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
-    const uint8_t* p_codec_info);
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(const uint8_t* p_codec_info);
 
 // Gets the current A2DP AAC decoder interface that can be used to decode
 // received A2DP packets - see |tA2DP_DECODER_INTERFACE|.
 // |p_codec_info| contains the codec information.
 // Returns the A2DP AAC decoder interface if the |p_codec_info| is valid and
 // supported, otherwise NULL.
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(
-    const uint8_t* p_codec_info);
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(const uint8_t* p_codec_info);
 
 // Adjusts the A2DP AAC codec, based on local support and Bluetooth
 // specification.

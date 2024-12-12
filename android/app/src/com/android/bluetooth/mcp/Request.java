@@ -102,7 +102,7 @@ public final class Request {
             StringBuilder sb = new StringBuilder();
             boolean is_complex = false;
 
-            sb.append("0x" + Integer.toHexString(opcodes) + " (");
+            sb.append("0x").append(Integer.toHexString(opcodes)).append(" (");
             for (int i = 1; i <= opcodes; i <<= 1) {
                 int opcode = opcodes & i;
                 if (opcode != 0) {

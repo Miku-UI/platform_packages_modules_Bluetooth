@@ -62,7 +62,7 @@ MATCHER_P(IsSetWithValue, matcher, "Future is not set with value") {
 }
 
 class RemoteNameRequestModuleTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override {
     test_hci_layer_ = new HciLayerFake;
     fake_registry_.InjectTestModule(&HciLayer::Factory, test_hci_layer_);
@@ -74,7 +74,7 @@ class RemoteNameRequestModuleTest : public ::testing::Test {
     ASSERT_NE(client_handler_, nullptr);
 
     remote_name_request_module_ = static_cast<RemoteNameRequestModule*>(
-        fake_registry_.GetModuleUnderTest(&RemoteNameRequestModule::Factory));
+            fake_registry_.GetModuleUnderTest(&RemoteNameRequestModule::Factory));
 
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
@@ -97,24 +97,22 @@ class RemoteNameRequestModuleTest : public ::testing::Test {
   template <typename... T>
   common::ContextualOnceCallback<void(T...)> promiseCallback(std::promise<void> promise) {
     return client_handler_->BindOnce(
-        [](std::promise<void> promise, T... /* args */) { promise.set_value(); },
-        std::move(promise));
+            [](std::promise<void> promise, T... /* args */) { promise.set_value(); },
+            std::move(promise));
   }
 
   template <typename... T>
   common::ContextualOnceCallback<void(T...)> capturingPromiseCallback(
-      std::promise<std::tuple<T...>> promise) {
-    return client_handler_->BindOnce(
-        [](std::promise<std::tuple<T...>> promise, T... args) {
-          promise.set_value(std::make_tuple(args...));
-        },
-        std::move(promise));
+          std::promise<std::tuple<T...>> promise) {
+    return client_handler_->BindOnce([](std::promise<std::tuple<T...>> promise,
+                                        T... args) { promise.set_value(std::make_tuple(args...)); },
+                                     std::move(promise));
   }
 
   template <typename T>
   common::ContextualOnceCallback<void(T)> capturingPromiseCallback(std::promise<T> promise) {
-    return client_handler_->BindOnce(
-        [](std::promise<T> promise, T arg) { promise.set_value(arg); }, std::move(promise));
+    return client_handler_->BindOnce([](std::promise<T> promise, T arg) { promise.set_value(arg); },
+                                     std::move(promise));
   }
 
   TestModuleRegistry fake_registry_;
@@ -127,12 +125,11 @@ class RemoteNameRequestModuleTest : public ::testing::Test {
 TEST_F(RemoteNameRequestModuleTest, CorrectCommandSent) {
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      impossibleCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          impossibleCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
 
   // verify that the correct HCI command was sent
   auto command = test_hci_layer_->GetCommand();
@@ -152,16 +149,15 @@ TEST_F(RemoteNameRequestModuleTest, FailToSendCommand) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      capturingPromiseCallback<ErrorCode>(std::move(promise)),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          capturingPromiseCallback<ErrorCode>(std::move(promise)), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
   // on the command, return a failure HCI status
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestStatusBuilder::Create(ErrorCode::STATUS_UNKNOWN, 1));
+          RemoteNameRequestStatusBuilder::Create(ErrorCode::STATUS_UNKNOWN, 1));
 
   // the completion callback should be immediately invoked with the failing status
   EXPECT_THAT(future, IsSetWithValue(Eq(ErrorCode::STATUS_UNKNOWN)));
@@ -173,12 +169,11 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandSuccessfully) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      capturingPromiseCallback<ErrorCode>(std::move(promise)),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          capturingPromiseCallback<ErrorCode>(std::move(promise)), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
   // the command receives a successful reply, so it successfully starts
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(RemoteNameRequestStatusBuilder::Create(ErrorCode::SUCCESS, 1));
@@ -193,12 +188,11 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelIt) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
 
   // we successfully start
   test_hci_layer_->GetCommand();
@@ -212,7 +206,7 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelIt) {
   auto discovery_command = DiscoveryCommandView::Create(command);
   ASSERT_TRUE(discovery_command.IsValid());
   auto cancel_command =
-      RemoteNameRequestCancelView::Create(DiscoveryCommandView::Create(discovery_command));
+          RemoteNameRequestCancelView::Create(DiscoveryCommandView::Create(discovery_command));
   ASSERT_TRUE(cancel_command.IsValid());
   EXPECT_EQ(cancel_command.GetBdAddr(), address1);
 }
@@ -223,12 +217,11 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCallback) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
 
   // we successfully start
   test_hci_layer_->GetCommand();
@@ -238,7 +231,7 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCallback) {
   remote_name_request_module_->CancelRemoteNameRequest(address1);
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
+          RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
 
   // verify that the completion has NOT yet been invoked (we need to wait for the RNR itself to
   // complete)
@@ -246,11 +239,11 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCallback) {
 
   // let the RNR complete with a failure
   test_hci_layer_->IncomingEvent(RemoteNameRequestCompleteBuilder::Create(
-      ErrorCode::UNKNOWN_CONNECTION, address1, remote_name1));
+          ErrorCode::UNKNOWN_CONNECTION, address1, remote_name1));
 
   // only now should the name callback be invoked
-  EXPECT_THAT(
-      future, IsSetWithValue(Eq(std::make_tuple(ErrorCode::UNKNOWN_CONNECTION, remote_name1))));
+  EXPECT_THAT(future,
+              IsSetWithValue(Eq(std::make_tuple(ErrorCode::UNKNOWN_CONNECTION, remote_name1))));
 }
 
 // TODO(aryarahul) - unify HciLayerFake so this test can be run
@@ -264,12 +257,11 @@ TEST_F(RemoteNameRequestModuleTest, DISABLED_SendCommandThenCancelItCallbackInte
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
 
   // we successfully start
   test_hci_layer_->GetCommand();
@@ -279,17 +271,15 @@ TEST_F(RemoteNameRequestModuleTest, DISABLED_SendCommandThenCancelItCallbackInte
   remote_name_request_module_->CancelRemoteNameRequest(address1);
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
+          RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
 
   // get the INCORRECT ACL connection complete event
   test_hci_layer_->IncomingEvent(ConnectionCompleteBuilder::Create(
-      ErrorCode::UNKNOWN_CONNECTION, 0, address1, LinkType::ACL, Enable::DISABLED));
+          ErrorCode::UNKNOWN_CONNECTION, 0, address1, LinkType::ACL, Enable::DISABLED));
 
   // we expect the name callback to be invoked nonetheless
-  EXPECT_THAT(
-      future,
-      IsSetWithValue(
-          Eq(std::make_tuple(ErrorCode::UNKNOWN_CONNECTION, std::array<uint8_t, 248>{}))));
+  EXPECT_THAT(future, IsSetWithValue(Eq(std::make_tuple(ErrorCode::UNKNOWN_CONNECTION,
+                                                        std::array<uint8_t, 248>{}))));
 }
 
 // This test should be replaced with the above one, so we test the integration of AclManager and
@@ -300,12 +290,11 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCallbackInteropWorkar
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
 
   // we successfully start
   test_hci_layer_->GetCommand();
@@ -315,16 +304,14 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCallbackInteropWorkar
   remote_name_request_module_->CancelRemoteNameRequest(address1);
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
+          RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
 
   // the INCORRECT ACL connection complete event will, from ACLManager, trigger this event
   remote_name_request_module_->ReportRemoteNameRequestCancellation(address1);
 
   // we expect the name callback to be invoked nonetheless
-  EXPECT_THAT(
-      future,
-      IsSetWithValue(
-          Eq(std::make_tuple(ErrorCode::UNKNOWN_CONNECTION, std::array<uint8_t, 248>{}))));
+  EXPECT_THAT(future, IsSetWithValue(Eq(std::make_tuple(ErrorCode::UNKNOWN_CONNECTION,
+                                                        std::array<uint8_t, 248>{}))));
 }
 
 TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCancelFails) {
@@ -333,12 +320,11 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCancelFails) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
 
   // we successfully start
   test_hci_layer_->GetCommand();
@@ -348,13 +334,11 @@ TEST_F(RemoteNameRequestModuleTest, SendCommandThenCancelItCancelFails) {
   remote_name_request_module_->CancelRemoteNameRequest(address1);
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(RemoteNameRequestCancelCompleteBuilder::Create(
-      1, ErrorCode::INVALID_HCI_COMMAND_PARAMETERS, address1));
+          1, ErrorCode::INVALID_HCI_COMMAND_PARAMETERS, address1));
 
   // we expect the name callback to be invoked nonetheless
-  EXPECT_THAT(
-      future,
-      IsSetWithValue(Eq(
-          std::make_tuple(ErrorCode::INVALID_HCI_COMMAND_PARAMETERS, std::array<uint8_t, 248>{}))));
+  EXPECT_THAT(future, IsSetWithValue(Eq(std::make_tuple(ErrorCode::INVALID_HCI_COMMAND_PARAMETERS,
+                                                        std::array<uint8_t, 248>{}))));
 }
 
 TEST_F(RemoteNameRequestModuleTest, HostSupportedEvents) {
@@ -363,12 +347,11 @@ TEST_F(RemoteNameRequestModuleTest, HostSupportedEvents) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      capturingPromiseCallback<uint64_t>(std::move(promise)),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), capturingPromiseCallback<uint64_t>(std::move(promise)),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(RemoteNameRequestStatusBuilder::Create(ErrorCode::SUCCESS, 1));
 
@@ -378,7 +361,7 @@ TEST_F(RemoteNameRequestModuleTest, HostSupportedEvents) {
 
   // report host supported events
   test_hci_layer_->IncomingEvent(
-      RemoteHostSupportedFeaturesNotificationBuilder::Create(address1, 1234));
+          RemoteHostSupportedFeaturesNotificationBuilder::Create(address1, 1234));
 
   // verify that we got the features
   EXPECT_THAT(future, IsSetWithValue(Eq((uint64_t)1234)));
@@ -390,12 +373,11 @@ TEST_F(RemoteNameRequestModuleTest, CompletedRemoteNameRequest) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(RemoteNameRequestStatusBuilder::Create(ErrorCode::SUCCESS, 1));
 
@@ -404,8 +386,8 @@ TEST_F(RemoteNameRequestModuleTest, CompletedRemoteNameRequest) {
   EXPECT_THAT(future.wait_for(timeout), std::future_status::timeout);
 
   // report remote name (with some random status that should be passed through)
-  test_hci_layer_->IncomingEvent(
-      RemoteNameRequestCompleteBuilder::Create(ErrorCode::STATUS_UNKNOWN, address1, remote_name1));
+  test_hci_layer_->IncomingEvent(RemoteNameRequestCompleteBuilder::Create(ErrorCode::STATUS_UNKNOWN,
+                                                                          address1, remote_name1));
 
   // verify that the callback was invoked with the same status
   EXPECT_THAT(future, IsSetWithValue(Eq(std::make_tuple(ErrorCode::STATUS_UNKNOWN, remote_name1))));
@@ -419,29 +401,27 @@ TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsSecondOneStarts) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      promiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise1)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          promiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise1)));
 
   // enqueue a second one
   remote_name_request_module_->StartRemoteNameRequest(
-      address2,
-      RemoteNameRequestBuilder::Create(
-          address2, PageScanRepetitionMode::R1, 4, ClockOffsetValid::VALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise2)));
+          address2,
+          RemoteNameRequestBuilder::Create(address2, PageScanRepetitionMode::R1, 4,
+                                           ClockOffsetValid::VALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise2)));
 
   // acknowledge that the first one has started
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(RemoteNameRequestStatusBuilder::Create(ErrorCode::SUCCESS, 1));
 
   // report remote name for the first one
-  test_hci_layer_->IncomingEvent(
-      RemoteNameRequestCompleteBuilder::Create(ErrorCode::STATUS_UNKNOWN, address1, remote_name1));
+  test_hci_layer_->IncomingEvent(RemoteNameRequestCompleteBuilder::Create(ErrorCode::STATUS_UNKNOWN,
+                                                                          address1, remote_name1));
 
   // verify that the first callback was invoked
   EXPECT_THAT(future1, IsSet());
@@ -465,21 +445,19 @@ TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsSecondOneCancelledW
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      emptyCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          emptyCallback<ErrorCode, std::array<uint8_t, 248>>());
 
   // enqueue a second one
   remote_name_request_module_->StartRemoteNameRequest(
-      address2,
-      RemoteNameRequestBuilder::Create(
-          address2, PageScanRepetitionMode::R1, 4, ClockOffsetValid::VALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          address2,
+          RemoteNameRequestBuilder::Create(address2, PageScanRepetitionMode::R1, 4,
+                                           ClockOffsetValid::VALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
 
   // acknowledge that the first one has started
   test_hci_layer_->GetCommand();
@@ -490,8 +468,8 @@ TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsSecondOneCancelledW
 
   // verify that the cancellation callback was properly invoked immediately
   EXPECT_THAT(
-      future,
-      IsSetWithValue(Eq(std::make_tuple(ErrorCode::PAGE_TIMEOUT, std::array<uint8_t, 248>{}))));
+          future,
+          IsSetWithValue(Eq(std::make_tuple(ErrorCode::PAGE_TIMEOUT, std::array<uint8_t, 248>{}))));
 }
 
 TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsCancelFirst) {
@@ -502,21 +480,19 @@ TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsCancelFirst) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      promiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise1)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          promiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise1)));
 
   // enqueue a second one
   remote_name_request_module_->StartRemoteNameRequest(
-      address2,
-      RemoteNameRequestBuilder::Create(
-          address2, PageScanRepetitionMode::R1, 4, ClockOffsetValid::VALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise2)));
+          address2,
+          RemoteNameRequestBuilder::Create(address2, PageScanRepetitionMode::R1, 4,
+                                           ClockOffsetValid::VALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise2)));
 
   // acknowledge that the first one has started
   test_hci_layer_->GetCommand();
@@ -528,9 +504,9 @@ TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsCancelFirst) {
   // let the cancel complete
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
+          RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
   test_hci_layer_->IncomingEvent(RemoteNameRequestCompleteBuilder::Create(
-      ErrorCode::UNKNOWN_CONNECTION, address1, remote_name1));
+          ErrorCode::UNKNOWN_CONNECTION, address1, remote_name1));
 
   // verify that the second request has now started
   auto command = test_hci_layer_->GetCommand();
@@ -549,21 +525,19 @@ TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsCancelFirstWithBugg
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      promiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise1)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          promiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise1)));
 
   // enqueue a second one
   remote_name_request_module_->StartRemoteNameRequest(
-      address2,
-      RemoteNameRequestBuilder::Create(
-          address2, PageScanRepetitionMode::R1, 4, ClockOffsetValid::VALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise2)));
+          address2,
+          RemoteNameRequestBuilder::Create(address2, PageScanRepetitionMode::R1, 4,
+                                           ClockOffsetValid::VALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise2)));
 
   // acknowledge that the first one has started
   test_hci_layer_->GetCommand();
@@ -575,7 +549,7 @@ TEST_F(RemoteNameRequestModuleTest, QueuingRemoteNameRequestsCancelFirstWithBugg
   // let the cancel complete
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
+          RemoteNameRequestCancelCompleteBuilder::Create(1, ErrorCode::SUCCESS, address1));
   // send the INCORRECT response that we tolerate for interop reasons
   remote_name_request_module_->ReportRemoteNameRequestCancellation(address1);
 
@@ -594,25 +568,23 @@ TEST_F(RemoteNameRequestModuleTest, FailToSendCommandThenSendNext) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      capturingPromiseCallback<ErrorCode>(std::move(promise)),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          capturingPromiseCallback<ErrorCode>(std::move(promise)), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
   // on the command, return a failure HCI status
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestStatusBuilder::Create(ErrorCode::STATUS_UNKNOWN, 1));
+          RemoteNameRequestStatusBuilder::Create(ErrorCode::STATUS_UNKNOWN, 1));
 
   // start a second request
   remote_name_request_module_->StartRemoteNameRequest(
-      address2,
-      RemoteNameRequestBuilder::Create(
-          address2, PageScanRepetitionMode::R1, 4, ClockOffsetValid::VALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address2,
+          RemoteNameRequestBuilder::Create(address2, PageScanRepetitionMode::R1, 4,
+                                           ClockOffsetValid::VALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
 
   // verify that it started
   auto command = test_hci_layer_->GetCommand();
@@ -629,26 +601,24 @@ TEST_F(RemoteNameRequestModuleTest, FailToSendCommandThenDequeueNext) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
 
   // enqueue a second one
   remote_name_request_module_->StartRemoteNameRequest(
-      address2,
-      RemoteNameRequestBuilder::Create(
-          address2, PageScanRepetitionMode::R1, 4, ClockOffsetValid::VALID),
-      impossibleCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
+          address2,
+          RemoteNameRequestBuilder::Create(address2, PageScanRepetitionMode::R1, 4,
+                                           ClockOffsetValid::VALID),
+          impossibleCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
 
   // for the first, return a failure HCI status
   test_hci_layer_->GetCommand();
   test_hci_layer_->IncomingEvent(
-      RemoteNameRequestStatusBuilder::Create(ErrorCode::STATUS_UNKNOWN, 1));
+          RemoteNameRequestStatusBuilder::Create(ErrorCode::STATUS_UNKNOWN, 1));
 
   // verify that the second one started
   auto command = test_hci_layer_->GetCommand();
@@ -665,12 +635,11 @@ TEST_F(RemoteNameRequestModuleTest, CancelJustWhenRNREventReturns) {
 
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
-      address1,
-      RemoteNameRequestBuilder::Create(
-          address1, PageScanRepetitionMode::R0, 3, ClockOffsetValid::INVALID),
-      emptyCallback<ErrorCode>(),
-      impossibleCallback<uint64_t>(),
-      capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          address1,
+          RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
+                                           ClockOffsetValid::INVALID),
+          emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
+          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
 
   // we successfully start
   test_hci_layer_->GetCommand();
@@ -678,21 +647,18 @@ TEST_F(RemoteNameRequestModuleTest, CancelJustWhenRNREventReturns) {
   auto promise2 = std::promise<void>();
   auto future2 = promise2.get_future();
   client_handler_->Post(base::BindOnce(
-      [](RemoteNameRequestModule* remote_name_request_module,
-         HciLayerFake* test_hci_layer,
-         std::promise<void> promise2) {
-        // but then the request is cancelled successfully (the status doesn't matter)
-        remote_name_request_module->CancelRemoteNameRequest(address1);
+          [](RemoteNameRequestModule* remote_name_request_module, HciLayerFake* test_hci_layer,
+             std::promise<void> promise2) {
+            // but then the request is cancelled successfully (the status doesn't matter)
+            remote_name_request_module->CancelRemoteNameRequest(address1);
 
-        // Send an rnr event completed with page timeout status
-        test_hci_layer->IncomingEvent(
-            RemoteNameRequestStatusBuilder::Create(ErrorCode::PAGE_TIMEOUT, 1));
+            // Send an rnr event completed with page timeout status
+            test_hci_layer->IncomingEvent(
+                    RemoteNameRequestStatusBuilder::Create(ErrorCode::PAGE_TIMEOUT, 1));
 
-        promise2.set_value();
-      },
-      remote_name_request_module_,
-      test_hci_layer_,
-      std::move(promise2)));
+            promise2.set_value();
+          },
+          remote_name_request_module_, test_hci_layer_, std::move(promise2)));
 
   future2.wait();
 }

@@ -48,17 +48,9 @@ class SyscallWrapperImpl : public SyscallWrapperInterface {
 
   int GetErrno() const;
 
-  void FDSet(int fd, fd_set* set);
+  int Poll(struct pollfd* fds, nfds_t nfds, int timeout);
 
-  void FDClr(int fd, fd_set* set);
-
-  bool FDIsSet(int fd, fd_set* set);
-
-  void FDZero(fd_set* set);
-
-  int Select(int __nfds, fd_set* __readfds, fd_set* __writefds, fd_set* __exceptfds, struct timeval* __timeout);
-
- private:
+private:
   int errno_;
 };
 

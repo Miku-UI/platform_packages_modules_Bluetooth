@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
+#include "get_play_status_packet.h"
+
 #include <gtest/gtest.h>
 
 #include "avrcp_test_packets.h"
-#include "get_play_status_packet.h"
 #include "packet_test_helper.h"
 
 namespace bluetooth {

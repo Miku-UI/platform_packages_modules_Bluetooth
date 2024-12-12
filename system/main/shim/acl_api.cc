@@ -35,8 +35,9 @@
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/inq_hci_link_interface.h"
 #include "stack/include/main_thread.h"
+#include "stack/include/rnr_interface.h"
+#include "stack/rnr/remote_name_request.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 #ifndef PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED
@@ -44,149 +45,124 @@
   "bluetooth.core.gap.le.privacy.own_address_type.enabled"
 #endif
 
-void bluetooth::shim::ACL_CreateClassicConnection(
-    const RawAddress& raw_address) {
+void bluetooth::shim::ACL_CreateClassicConnection(const RawAddress& raw_address) {
   auto address = ToGdAddress(raw_address);
   Stack::GetInstance()->GetAcl()->CreateClassicConnection(address);
 }
 
-void bluetooth::shim::ACL_CancelClassicConnection(
-    const RawAddress& raw_address) {
+void bluetooth::shim::ACL_CancelClassicConnection(const RawAddress& raw_address) {
   auto address = ToGdAddress(raw_address);
   Stack::GetInstance()->GetAcl()->CancelClassicConnection(address);
 }
 
-bool bluetooth::shim::ACL_AcceptLeConnectionFrom(
-    const tBLE_BD_ADDR& legacy_address_with_type, bool is_direct) {
+bool bluetooth::shim::ACL_AcceptLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type,
+                                                 bool is_direct) {
   std::promise<bool> promise;
   auto future = promise.get_future();
   Stack::GetInstance()->GetAcl()->AcceptLeConnectionFrom(
-      ToAddressWithTypeFromLegacy(legacy_address_with_type), is_direct,
-      std::move(promise));
+          ToAddressWithTypeFromLegacy(legacy_address_with_type), is_direct, std::move(promise));
   return future.get();
 }
 
-void bluetooth::shim::ACL_IgnoreLeConnectionFrom(
-    const tBLE_BD_ADDR& legacy_address_with_type) {
+void bluetooth::shim::ACL_IgnoreLeConnectionFrom(const tBLE_BD_ADDR& legacy_address_with_type) {
   Stack::GetInstance()->GetAcl()->IgnoreLeConnectionFrom(
-      ToAddressWithTypeFromLegacy(legacy_address_with_type));
+          ToAddressWithTypeFromLegacy(legacy_address_with_type));
 }
 
 void bluetooth::shim::ACL_WriteData(uint16_t handle, BT_HDR* p_buf) {
-  std::unique_ptr<bluetooth::packet::RawBuilder> packet = MakeUniquePacket(
-      p_buf->data + p_buf->offset + HCI_DATA_PREAMBLE_SIZE,
-      p_buf->len - HCI_DATA_PREAMBLE_SIZE, IsPacketFlushable(p_buf));
+  std::unique_ptr<bluetooth::packet::RawBuilder> packet =
+          MakeUniquePacket(p_buf->data + p_buf->offset + HCI_DATA_PREAMBLE_SIZE,
+                           p_buf->len - HCI_DATA_PREAMBLE_SIZE, IsPacketFlushable(p_buf));
   Stack::GetInstance()->GetAcl()->WriteData(handle, std::move(packet));
   osi_free(p_buf);
 }
 
-void bluetooth::shim::ACL_Flush(uint16_t handle) {
-  Stack::GetInstance()->GetAcl()->Flush(handle);
-}
+void bluetooth::shim::ACL_Flush(uint16_t handle) { Stack::GetInstance()->GetAcl()->Flush(handle); }
 
 void bluetooth::shim::ACL_SendConnectionParameterUpdateRequest(
-    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
-    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
-    uint16_t max_ce_len) {
+        uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max, uint16_t conn_latency,
+        uint16_t conn_timeout, uint16_t min_ce_len, uint16_t max_ce_len) {
   Stack::GetInstance()->GetAcl()->UpdateConnectionParameters(
-      handle, conn_int_min, conn_int_max, conn_latency, conn_timeout,
-      min_ce_len, max_ce_len);
+          handle, conn_int_min, conn_int_max, conn_latency, conn_timeout, min_ce_len, max_ce_len);
 }
 
 void bluetooth::shim::ACL_ConfigureLePrivacy(bool is_le_privacy_enabled) {
   hci::LeAddressManager::AddressPolicy address_policy =
-      is_le_privacy_enabled
-          ? hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS
-          : hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
+          is_le_privacy_enabled ? hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS
+                                : hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
   /* This is a Floss only flag. Android determines address policy according to
    * privacy mode, hence it is not necessary to enable resolvable address with
    * another sysprop */
-  if (com::android::bluetooth::flags::
-          floss_separate_host_privacy_and_llprivacy()) {
+  if (com::android::bluetooth::flags::floss_separate_host_privacy_and_llprivacy()) {
     address_policy = hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
-    if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED,
-                              is_le_privacy_enabled))
-      address_policy =
-          hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
+    if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED, is_le_privacy_enabled)) {
+      address_policy = hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
+    }
   }
 
-  hci::AddressWithType empty_address_with_type(
-      hci::Address{}, hci::AddressType::RANDOM_DEVICE_ADDRESS);
+  hci::AddressWithType empty_address_with_type(hci::Address{},
+                                               hci::AddressType::RANDOM_DEVICE_ADDRESS);
 
   /* Default to 7 minutes minimum, 15 minutes maximum for random address refreshing;
    * device can override. */
   auto minimum_rotation_time = std::chrono::minutes(
-      GET_SYSPROP(Ble, random_address_rotation_interval_min, 7));
+          android::sysprop::bluetooth::Ble::random_address_rotation_interval_min().value_or(7));
   auto maximum_rotation_time = std::chrono::minutes(
-      GET_SYSPROP(Ble, random_address_rotation_interval_max, 15));
+          android::sysprop::bluetooth::Ble::random_address_rotation_interval_max().value_or(15));
 
   Stack::GetInstance()
-      ->GetStackManager()
-      ->GetInstance<bluetooth::hci::AclManager>()
-      ->SetPrivacyPolicyForInitiatorAddress(
-          address_policy, empty_address_with_type, minimum_rotation_time,
-          maximum_rotation_time);
+          ->GetStackManager()
+          ->GetInstance<bluetooth::hci::AclManager>()
+          ->SetPrivacyPolicyForInitiatorAddress(address_policy, empty_address_with_type,
+                                                minimum_rotation_time, maximum_rotation_time);
 }
 
-void bluetooth::shim::ACL_Disconnect(uint16_t handle, bool is_classic,
-                                     tHCI_STATUS reason, std::string comment) {
-  (is_classic)
-      ? Stack::GetInstance()->GetAcl()->DisconnectClassic(handle, reason,
-                                                          comment)
-      : Stack::GetInstance()->GetAcl()->DisconnectLe(handle, reason, comment);
+void bluetooth::shim::ACL_Disconnect(uint16_t handle, bool is_classic, tHCI_STATUS reason,
+                                     std::string comment) {
+  (is_classic) ? Stack::GetInstance()->GetAcl()->DisconnectClassic(handle, reason, comment)
+               : Stack::GetInstance()->GetAcl()->DisconnectLe(handle, reason, comment);
 }
 
-void bluetooth::shim::ACL_Shutdown() {
-  Stack::GetInstance()->GetAcl()->Shutdown();
-}
+void bluetooth::shim::ACL_Shutdown() { Stack::GetInstance()->GetAcl()->Shutdown(); }
 
 void bluetooth::shim::ACL_IgnoreAllLeConnections() {
   return Stack::GetInstance()->GetAcl()->ClearFilterAcceptList();
 }
 
-void bluetooth::shim::ACL_ReadConnectionAddress(uint16_t handle,
-                                                RawAddress& conn_addr,
-                                                tBLE_ADDR_TYPE* p_addr_type,
-                                                bool ota_address) {
+void bluetooth::shim::ACL_ReadConnectionAddress(uint16_t handle, RawAddress& conn_addr,
+                                                tBLE_ADDR_TYPE* p_addr_type, bool ota_address) {
   auto local_address =
-      Stack::GetInstance()->GetAcl()->GetConnectionLocalAddress(handle,
-                                                                ota_address);
+          Stack::GetInstance()->GetAcl()->GetConnectionLocalAddress(handle, ota_address);
 
   conn_addr = ToRawAddress(local_address.GetAddress());
   *p_addr_type = static_cast<tBLE_ADDR_TYPE>(local_address.GetAddressType());
 }
 
-void bluetooth::shim::ACL_ReadPeerConnectionAddress(uint16_t handle,
-                                                    RawAddress& conn_addr,
-                                                    tBLE_ADDR_TYPE* p_addr_type,
-                                                    bool ota_address) {
+void bluetooth::shim::ACL_ReadPeerConnectionAddress(uint16_t handle, RawAddress& conn_addr,
+                                                    tBLE_ADDR_TYPE* p_addr_type, bool ota_address) {
   auto remote_ota_address =
-      Stack::GetInstance()->GetAcl()->GetConnectionPeerAddress(handle,
-                                                               ota_address);
+          Stack::GetInstance()->GetAcl()->GetConnectionPeerAddress(handle, ota_address);
 
   conn_addr = ToRawAddress(remote_ota_address.GetAddress());
-  *p_addr_type =
-      static_cast<tBLE_ADDR_TYPE>(remote_ota_address.GetAddressType());
+  *p_addr_type = static_cast<tBLE_ADDR_TYPE>(remote_ota_address.GetAddressType());
 }
 
-std::optional<uint8_t> bluetooth::shim::ACL_GetAdvertisingSetConnectedTo(
-    const RawAddress& addr) {
+std::optional<uint8_t> bluetooth::shim::ACL_GetAdvertisingSetConnectedTo(const RawAddress& addr) {
   return Stack::GetInstance()->GetAcl()->GetAdvertisingSetConnectedTo(addr);
 }
 
-void bluetooth::shim::ACL_AddToAddressResolution(
-    const tBLE_BD_ADDR& legacy_address_with_type, const Octet16& peer_irk,
-    const Octet16& local_irk) {
+void bluetooth::shim::ACL_AddToAddressResolution(const tBLE_BD_ADDR& legacy_address_with_type,
+                                                 const Octet16& peer_irk,
+                                                 const Octet16& local_irk) {
   Stack::GetInstance()->GetAcl()->AddToAddressResolution(
-      ToAddressWithType(legacy_address_with_type.bda,
-                        legacy_address_with_type.type),
-      peer_irk, local_irk);
+          ToAddressWithType(legacy_address_with_type.bda, legacy_address_with_type.type), peer_irk,
+          local_irk);
 }
 
 void bluetooth::shim::ACL_RemoveFromAddressResolution(
-    const tBLE_BD_ADDR& legacy_address_with_type) {
-  Stack::GetInstance()->GetAcl()->RemoveFromAddressResolution(ToAddressWithType(
-      legacy_address_with_type.bda, legacy_address_with_type.type));
+        const tBLE_BD_ADDR& legacy_address_with_type) {
+  Stack::GetInstance()->GetAcl()->RemoveFromAddressResolution(
+          ToAddressWithType(legacy_address_with_type.bda, legacy_address_with_type.type));
 }
 
 void bluetooth::shim::ACL_ClearAddressResolution() {
@@ -196,81 +172,69 @@ void bluetooth::shim::ACL_ClearAddressResolution() {
 void bluetooth::shim::ACL_ClearFilterAcceptList() {
   Stack::GetInstance()->GetAcl()->ClearFilterAcceptList();
 }
-void bluetooth::shim::ACL_LeSetDefaultSubrate(uint16_t subrate_min,
-                                              uint16_t subrate_max,
-                                              uint16_t max_latency,
-                                              uint16_t cont_num,
+void bluetooth::shim::ACL_LeSetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
+                                              uint16_t max_latency, uint16_t cont_num,
                                               uint16_t sup_tout) {
-  Stack::GetInstance()->GetAcl()->LeSetDefaultSubrate(
-      subrate_min, subrate_max, max_latency, cont_num, sup_tout);
+  Stack::GetInstance()->GetAcl()->LeSetDefaultSubrate(subrate_min, subrate_max, max_latency,
+                                                      cont_num, sup_tout);
 }
 
-void bluetooth::shim::ACL_LeSubrateRequest(
-    uint16_t hci_handle, uint16_t subrate_min, uint16_t subrate_max,
-    uint16_t max_latency, uint16_t cont_num, uint16_t sup_tout) {
-  Stack::GetInstance()->GetAcl()->LeSubrateRequest(
-      hci_handle, subrate_min, subrate_max, max_latency, cont_num, sup_tout);
+void bluetooth::shim::ACL_LeSubrateRequest(uint16_t hci_handle, uint16_t subrate_min,
+                                           uint16_t subrate_max, uint16_t max_latency,
+                                           uint16_t cont_num, uint16_t sup_tout) {
+  Stack::GetInstance()->GetAcl()->LeSubrateRequest(hci_handle, subrate_min, subrate_max,
+                                                   max_latency, cont_num, sup_tout);
 }
 
-void bluetooth::shim::ACL_RemoteNameRequest(const RawAddress& addr,
-                                            uint8_t page_scan_rep_mode,
-                                            uint8_t /* page_scan_mode */,
-                                            uint16_t clock_offset) {
+void bluetooth::shim::ACL_RemoteNameRequest(const RawAddress& addr, uint8_t page_scan_rep_mode,
+                                            uint8_t /* page_scan_mode */, uint16_t clock_offset) {
   bluetooth::shim::GetRemoteNameRequest()->StartRemoteNameRequest(
-      ToGdAddress(addr),
-      hci::RemoteNameRequestBuilder::Create(
-          ToGdAddress(addr), hci::PageScanRepetitionMode(page_scan_rep_mode),
-          clock_offset & (~BTM_CLOCK_OFFSET_VALID),
-          (clock_offset & BTM_CLOCK_OFFSET_VALID)
-              ? hci::ClockOffsetValid::VALID
-              : hci::ClockOffsetValid::INVALID),
-      GetGdShimHandler()->BindOnce([](hci::ErrorCode status) {
-        if (status != hci::ErrorCode::SUCCESS) {
-          do_in_main_thread(
-              FROM_HERE,
-              base::BindOnce(
-                  [](hci::ErrorCode status) {
-                    // NOTE: we intentionally don't supply the address, to match
-                    // the legacy behavior.
-                    // Callsites that want the address should use
-                    // StartRemoteNameRequest() directly, rather than going
-                    // through this shim.
-                    btm_process_remote_name(nullptr, nullptr, 0,
-                                            static_cast<tHCI_STATUS>(status));
-                    btm_sec_rmt_name_request_complete(
-                        nullptr, nullptr, static_cast<tHCI_STATUS>(status));
+          ToGdAddress(addr),
+          hci::RemoteNameRequestBuilder::Create(
+                  ToGdAddress(addr), hci::PageScanRepetitionMode(page_scan_rep_mode),
+                  clock_offset & (~BTM_CLOCK_OFFSET_VALID),
+                  (clock_offset & BTM_CLOCK_OFFSET_VALID) ? hci::ClockOffsetValid::VALID
+                                                          : hci::ClockOffsetValid::INVALID),
+          GetGdShimHandler()->BindOnce([](hci::ErrorCode status) {
+            if (status != hci::ErrorCode::SUCCESS) {
+              do_in_main_thread(base::BindOnce(
+                      [](hci::ErrorCode status) {
+                        // NOTE: we intentionally don't supply the
+                        // address, to match the legacy behavior.
+                        // Callsites that want the address should use
+                        // StartRemoteNameRequest() directly, rather
+                        // than going through this shim.
+                        get_stack_rnr_interface().btm_process_remote_name(
+                                nullptr, nullptr, 0, static_cast<tHCI_STATUS>(status));
+                        btm_sec_rmt_name_request_complete(nullptr, nullptr,
+                                                          static_cast<tHCI_STATUS>(status));
+                      },
+                      status));
+            }
+          }),
+          GetGdShimHandler()->BindOnce(
+                  [](RawAddress addr, uint64_t features) {
+                    static_assert(sizeof(features) == 8);
+                    do_in_main_thread(base::BindOnce(btm_sec_rmt_host_support_feat_evt, addr,
+                                                     static_cast<uint8_t>(features & 0xff)));
                   },
-                  status));
-        }
-      }),
-      GetGdShimHandler()->BindOnce(
-          [](RawAddress addr, uint64_t features) {
-            static_assert(sizeof(features) == 8);
-            do_in_main_thread(
-                FROM_HERE,
-                base::BindOnce(btm_sec_rmt_host_support_feat_evt, addr,
-                               static_cast<uint8_t>(features & 0xff)));
-          },
-          addr),
-      GetGdShimHandler()->BindOnce(
-          [](RawAddress addr, hci::ErrorCode status,
-             std::array<uint8_t, 248> name) {
-            do_in_main_thread(
-                FROM_HERE,
-                base::BindOnce(
-                    [](RawAddress addr, hci::ErrorCode status,
-                       std::array<uint8_t, 248> name) {
-                      btm_process_remote_name(&addr, name.data(), name.size(),
-                                              static_cast<tHCI_STATUS>(status));
-                      btm_sec_rmt_name_request_complete(
-                          &addr, name.data(), static_cast<tHCI_STATUS>(status));
-                    },
-                    addr, status, name));
-          },
-          addr));
+                  addr),
+          GetGdShimHandler()->BindOnce(
+                  [](RawAddress addr, hci::ErrorCode status, std::array<uint8_t, 248> name) {
+                    do_in_main_thread(base::BindOnce(
+                            [](RawAddress addr, hci::ErrorCode status,
+                               std::array<uint8_t, 248> name) {
+                              get_stack_rnr_interface().btm_process_remote_name(
+                                      &addr, name.data(), name.size(),
+                                      static_cast<tHCI_STATUS>(status));
+                              btm_sec_rmt_name_request_complete(&addr, name.data(),
+                                                                static_cast<tHCI_STATUS>(status));
+                            },
+                            addr, status, name));
+                  },
+                  addr));
 }
 
 void bluetooth::shim::ACL_CancelRemoteNameRequest(const RawAddress& addr) {
-  bluetooth::shim::GetRemoteNameRequest()->CancelRemoteNameRequest(
-      ToGdAddress(addr));
+  bluetooth::shim::GetRemoteNameRequest()->CancelRemoteNameRequest(ToGdAddress(addr));
 }

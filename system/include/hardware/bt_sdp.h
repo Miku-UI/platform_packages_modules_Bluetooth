@@ -132,10 +132,8 @@ typedef union {
 } bluetooth_sdp_record;
 
 /** Callback for SDP search */
-typedef void (*btsdp_search_callback)(bt_status_t status,
-                                      const RawAddress& bd_addr,
-                                      const bluetooth::Uuid& uuid,
-                                      int num_records,
+typedef void (*btsdp_search_callback)(bt_status_t status, const RawAddress& bd_addr,
+                                      const bluetooth::Uuid& uuid, int num_records,
                                       bluetooth_sdp_record* records);
 
 typedef struct {
@@ -170,8 +168,7 @@ typedef struct {
    * record_handle    (out)The corresponding record handle will be written to
    * this pointer.
    */
-  bt_status_t (*create_sdp_record)(bluetooth_sdp_record* record,
-                                   int* record_handle);
+  bt_status_t (*create_sdp_record)(bluetooth_sdp_record* record, int* record_handle);
 
   /** Remove a SDP record created by createSdpRecord */
   bt_status_t (*remove_sdp_record)(int sdp_handle);

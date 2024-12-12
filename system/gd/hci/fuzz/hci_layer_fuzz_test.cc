@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+#include <fuzzer/FuzzedDataProvider.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #include "fuzz/helpers.h"
 #include "hal/fuzz/fuzz_hci_hal.h"
 #include "hci/fuzz/hci_layer_fuzz_client.h"
@@ -23,8 +25,6 @@
 #include "module.h"
 #include "os/fake_timer/fake_timerfd.h"
 #include "os/log.h"
-
-#include <fuzzer/FuzzedDataProvider.h>
 
 using bluetooth::FuzzTestModuleRegistry;
 using bluetooth::fuzz::GetArbitraryBytes;

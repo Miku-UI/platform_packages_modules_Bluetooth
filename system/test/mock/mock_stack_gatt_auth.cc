@@ -42,13 +42,10 @@ tGATT_STATUS gatt_get_link_encrypt_status(tGATT_TCB& /* tcb */) {
   inc_func_call_count(__func__);
   return GATT_SUCCESS;
 }
-void gatt_notify_enc_cmpl(const RawAddress& /* bd_addr */) {
-  inc_func_call_count(__func__);
-}
+void gatt_notify_enc_cmpl(const RawAddress& /* bd_addr */) { inc_func_call_count(__func__); }
 void gatt_set_sec_act(tGATT_TCB* /* p_tcb */, tGATT_SEC_ACTION /* sec_act */) {
   inc_func_call_count(__func__);
 }
-void gatt_verify_signature(tGATT_TCB& /* tcb */, uint16_t /* cid */,
-                           BT_HDR* /* p_buf */) {
+void gatt_verify_signature(tGATT_TCB& /* tcb */, uint16_t /* cid */, BT_HDR* /* p_buf */) {
   inc_func_call_count(__func__);
 }

@@ -55,7 +55,6 @@ from blueberry.facade.hci import le_scanning_manager_facade_pb2_grpc
 from blueberry.facade.l2cap.classic import facade_pb2_grpc as l2cap_facade_pb2_grpc
 from blueberry.facade.l2cap.le import facade_pb2_grpc as l2cap_le_facade_pb2_grpc
 from blueberry.facade.neighbor import facade_pb2_grpc as neighbor_facade_pb2_grpc
-from blueberry.facade.security import facade_pb2_grpc as security_facade_pb2_grpc
 
 from mobly import utils
 from mobly.controllers.android_device_lib.adb import AdbError
@@ -259,7 +258,6 @@ class GdDeviceBase(ABC):
         self.hci_le_scanning_manager = le_scanning_manager_facade_pb2_grpc.LeScanningManagerFacadeStub(
             self.grpc_channel)
         self.neighbor = neighbor_facade_pb2_grpc.NeighborFacadeStub(self.grpc_channel)
-        self.security = security_facade_pb2_grpc.SecurityModuleFacadeStub(self.grpc_channel)
 
     def get_crash_snippet_and_log_tail(self):
         if is_subprocess_alive(self.backing_process):

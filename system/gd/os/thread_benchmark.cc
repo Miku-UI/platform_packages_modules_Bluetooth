@@ -31,15 +31,13 @@ using ::bluetooth::os::Thread;
 #define NUM_MESSAGES_TO_SEND 100000
 
 class BM_ThreadPerformance : public ::benchmark::Fixture {
- protected:
+protected:
   void SetUp(State& st) override {
     benchmark::Fixture::SetUp(st);
     counter_promise_ = std::promise<void>();
     counter_ = 0;
   }
-  void TearDown(State& st) override {
-    benchmark::Fixture::TearDown(st);
-  }
+  void TearDown(State& st) override { benchmark::Fixture::TearDown(st); }
   void callback_batch() {
     counter_++;
     if (counter_ >= num_messages_to_send_) {
@@ -47,9 +45,7 @@ class BM_ThreadPerformance : public ::benchmark::Fixture {
     }
   }
 
-  void callback() {
-    counter_promise_.set_value();
-  }
+  void callback() { counter_promise_.set_value(); }
 
   int64_t num_messages_to_send_;
   int64_t counter_;
@@ -57,7 +53,7 @@ class BM_ThreadPerformance : public ::benchmark::Fixture {
 };
 
 class BM_ReactorThread : public BM_ThreadPerformance {
- protected:
+protected:
   void SetUp(State& st) override {
     BM_ThreadPerformance::SetUp(st);
     thread_ = std::make_unique<Thread>("BM_ReactorThread thread", Thread::Priority::NORMAL);
@@ -80,20 +76,20 @@ BENCHMARK_DEFINE_F(BM_ReactorThread, batch_enque_dequeue)(State& state) {
     counter_promise_ = std::promise<void>();
     std::future<void> counter_future = counter_promise_.get_future();
     for (int i = 0; i < num_messages_to_send_; i++) {
-      handler_->Post(BindOnce(
-          &BM_ReactorThread_batch_enque_dequeue_Benchmark::callback_batch, bluetooth::common::Unretained(this)));
+      handler_->Post(BindOnce(&BM_ReactorThread_batch_enque_dequeue_Benchmark::callback_batch,
+                              bluetooth::common::Unretained(this)));
     }
     counter_future.wait();
   }
-};
+}
 
 BENCHMARK_REGISTER_F(BM_ReactorThread, batch_enque_dequeue)
-    ->Arg(10)
-    ->Arg(1000)
-    ->Arg(10000)
-    ->Arg(100000)
-    ->Iterations(1)
-    ->UseRealTime();
+        ->Arg(10)
+        ->Arg(1000)
+        ->Arg(10000)
+        ->Arg(100000)
+        ->Iterations(1)
+        ->UseRealTime();
 
 BENCHMARK_DEFINE_F(BM_ReactorThread, sequential_execution)(State& state) {
   for (auto _ : state) {
@@ -101,17 +97,17 @@ BENCHMARK_DEFINE_F(BM_ReactorThread, sequential_execution)(State& state) {
     for (int i = 0; i < num_messages_to_send_; i++) {
       counter_promise_ = std::promise<void>();
       std::future<void> counter_future = counter_promise_.get_future();
-      handler_->Post(
-          BindOnce(&BM_ReactorThread_sequential_execution_Benchmark::callback, bluetooth::common::Unretained(this)));
+      handler_->Post(BindOnce(&BM_ReactorThread_sequential_execution_Benchmark::callback,
+                              bluetooth::common::Unretained(this)));
       counter_future.wait();
     }
   }
-};
+}
 
 BENCHMARK_REGISTER_F(BM_ReactorThread, sequential_execution)
-    ->Arg(10)
-    ->Arg(1000)
-    ->Arg(10000)
-    ->Arg(100000)
-    ->Iterations(1)
-    ->UseRealTime();
+        ->Arg(10)
+        ->Arg(1000)
+        ->Arg(10000)
+        ->Arg(100000)
+        ->Iterations(1)
+        ->UseRealTime();

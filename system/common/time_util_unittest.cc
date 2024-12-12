@@ -16,9 +16,9 @@
  *
  ******************************************************************************/
 
-#include <gtest/gtest.h>
-
 #include "common/time_util.h"
+
+#include <gtest/gtest.h>
 
 // Generous upper bound: 10 seconds
 static const uint32_t TEST_TIME_DELTA_UPPER_BOUND_MS = 10 * 1000;

@@ -18,6 +18,7 @@ pub struct AdapterWithEnabledDbus {
 }
 
 /// D-Bus projection of IBluetoothManager.
+#[allow(dead_code)]
 struct BluetoothManagerDBus {}
 
 #[generate_dbus_exporter(
@@ -84,6 +85,7 @@ impl IBluetoothManager for BluetoothManagerDBus {
 }
 
 /// D-Bus projection of IBluetoothManagerCallback.
+#[allow(dead_code)]
 struct BluetoothManagerCallbackDBus {}
 
 #[dbus_proxy_obj(BluetoothManagerCallback, "org.chromium.bluetooth.ManagerCallback")]

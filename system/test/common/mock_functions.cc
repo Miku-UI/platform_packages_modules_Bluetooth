@@ -49,8 +49,7 @@ int get_func_call_size() {
 
 void dump_mock_function_count_map() {
   std::lock_guard<std::mutex> lock(mutex_);
-  bluetooth::log::info("Mock function count map size:{}",
-                       _get_func_call_count_map().size());
+  bluetooth::log::info("Mock function count map size:{}", _get_func_call_count_map().size());
 
   for (const auto& it : _get_func_call_count_map()) {
     bluetooth::log::info("function:{}: call_count:{}", it.first, it.second);

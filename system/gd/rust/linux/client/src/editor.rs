@@ -84,19 +84,19 @@ impl BtHelper {
         let mut result = HashSet::<CommandCandidate>::new();
 
         for rule in self.command_rules.iter() {
-            let n_splits = cmd.split(" ").count();
+            let n_splits = cmd.split(' ').count();
             // The tokens should have empty strings removed from them, except the last one.
             let tokens = cmd
-                .split(" ")
+                .split(' ')
                 .enumerate()
-                .filter_map(|(i, token)| (i == n_splits - 1 || token != "").then(|| token));
+                .filter_map(|(i, token)| (i == n_splits - 1 || !token.is_empty()).then_some(token));
 
             let n_cmd = tokens.clone().count();
-            for (i, (rule_token, cmd_token)) in rule.split(" ").zip(tokens).enumerate() {
+            for (i, (rule_token, cmd_token)) in rule.split(' ').zip(tokens).enumerate() {
                 let mut candidates = Vec::<String>::new();
                 let mut match_some = false;
 
-                for opt in rule_token.replace("<", "").replace(">", "").split("|") {
+                for opt in rule_token.replace(['<', '>'], "").split('|') {
                     if opt.eq("address") {
                         let devices = self.client_context.lock().unwrap().get_devices();
                         candidates.extend(devices);
@@ -105,7 +105,7 @@ impl BtHelper {
                     }
                 }
 
-                if cmd_token.len() == 0 {
+                if cmd_token.is_empty() {
                     candidates.iter().for_each(|s| {
                         result.insert(CommandCandidate { suggest_word: s.clone(), matched_len: 0 });
                     });

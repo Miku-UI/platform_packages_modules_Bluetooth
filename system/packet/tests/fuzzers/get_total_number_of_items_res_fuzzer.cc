@@ -27,14 +27,13 @@
 namespace bluetooth {
 namespace avrcp {
 
-using TestGetTotalNumItemsReqPacket =
-    TestPacketType<GetTotalNumberOfItemsRequest>;
+using TestGetTotalNumItemsReqPacket = TestPacketType<GetTotalNumberOfItemsRequest>;
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t* data, size_t size) {
   FuzzedDataProvider data_provider(data, size);
   auto builder = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(
-      Status::NO_ERROR, data_provider.ConsumeIntegral<uint32_t>(),
-      data_provider.ConsumeIntegral<uint32_t>());
+          Status::NO_ERROR, data_provider.ConsumeIntegral<uint32_t>(),
+          data_provider.ConsumeIntegral<uint32_t>());
 
   auto test_packet = TestGetTotalNumItemsReqPacket::Make();
   builder->Serialize(test_packet);

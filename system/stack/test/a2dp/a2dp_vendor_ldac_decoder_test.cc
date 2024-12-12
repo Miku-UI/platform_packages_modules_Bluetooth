@@ -33,17 +33,16 @@ uint8_t* Data(BT_HDR* packet) { return packet->data + packet->offset; }
  * Test class to test selected functionality in stack/a2dp
  */
 class A2dpStackTest : public ::testing::Test {
- protected:
+protected:
   BT_HDR* AllocateL2capPacket(const std::vector<uint8_t> data) const {
     auto packet = AllocatePacket(data.size());
     std::copy(data.cbegin(), data.cend(), Data(packet));
     return packet;
   }
 
- private:
+private:
   BT_HDR* AllocatePacket(size_t packet_length) const {
-    BT_HDR* packet =
-        static_cast<BT_HDR*>(osi_calloc(sizeof(BT_HDR) + packet_length));
+    BT_HDR* packet = static_cast<BT_HDR*>(osi_calloc(sizeof(BT_HDR) + packet_length));
     packet->len = packet_length;
     return packet;
   }

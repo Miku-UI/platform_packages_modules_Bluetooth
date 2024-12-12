@@ -77,8 +77,7 @@ tAVCT_CCB* avct_ccb_alloc(tAVCT_CC* p_cc) {
  * Returns          void.
  *
  ******************************************************************************/
-void avct_ccb_dealloc(tAVCT_CCB* p_ccb, uint8_t event, uint16_t result,
-                      const RawAddress* bd_addr) {
+void avct_ccb_dealloc(tAVCT_CCB* p_ccb, uint8_t event, uint16_t result, const RawAddress* bd_addr) {
   tAVCT_CTRL_CBACK* p_cback = p_ccb->cc.p_ctrl_cback;
 
   log::verbose("avct_ccb_dealloc {}", avct_ccb_to_idx(p_ccb));
@@ -88,8 +87,7 @@ void avct_ccb_dealloc(tAVCT_CCB* p_ccb, uint8_t event, uint16_t result,
   } else {
     /* control channel is down, but the browsing channel is still connected 0
      * disconnect it now */
-    avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_UNBIND_EVT,
-                   (tAVCT_LCB_EVT*)&p_ccb);
+    avct_bcb_event(p_ccb->p_bcb, AVCT_LCB_UL_UNBIND_EVT, (tAVCT_LCB_EVT*)&p_ccb);
     p_ccb->p_lcb = NULL;
   }
 

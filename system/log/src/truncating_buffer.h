@@ -61,7 +61,7 @@ struct truncating_buffer {
     return buffer;
   }
 
- private:
+private:
   char buffer[buffer_size];
   size_t len{0};
 };

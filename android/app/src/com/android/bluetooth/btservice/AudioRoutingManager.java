@@ -19,7 +19,6 @@ package com.android.bluetooth.btservice;
 import static android.bluetooth.IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
 import android.annotation.NonNull;
-import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
@@ -69,7 +68,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
     private AudioRoutingHandler mHandler = null;
     private final AudioManager mAudioManager;
     private final MediaSessionManager mSessionManager;
-    private final AudioManagerAudioDeviceCallback mAudioManagerAudioDeviceCallback;
+    private final AudioManagerAudioDeviceCallback mAudioRoutingManagerAudioDeviceCallback;
 
     @Override
     public void onBluetoothStateChange(int prevState, int newState) {
@@ -145,7 +144,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         mFactory = factory;
         mAudioManager = service.getSystemService(AudioManager.class);
         mSessionManager = service.getSystemService(MediaSessionManager.class);
-        mAudioManagerAudioDeviceCallback = new AudioManagerAudioDeviceCallback();
+        mAudioRoutingManagerAudioDeviceCallback = new AudioManagerAudioDeviceCallback();
     }
 
     @Override
@@ -158,7 +157,8 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         mHandler = new AudioRoutingHandler(mp.handlerThreadGetLooper(mHandlerThread));
 
         mAudioManager.addOnModeChangedListener(cmd -> mHandler.post(cmd), mHandler);
-        mAudioManager.registerAudioDeviceCallback(mAudioManagerAudioDeviceCallback, mHandler);
+        mAudioManager.registerAudioDeviceCallback(
+                mAudioRoutingManagerAudioDeviceCallback, mHandler);
         mAdapterService.registerBluetoothStateCallback((command) -> mHandler.post(command), this);
     }
 
@@ -167,7 +167,7 @@ public class AudioRoutingManager extends ActiveDeviceManager {
         Log.d(TAG, "cleanup()");
 
         mAudioManager.removeOnModeChangedListener(mHandler);
-        mAudioManager.unregisterAudioDeviceCallback(mAudioManagerAudioDeviceCallback);
+        mAudioManager.unregisterAudioDeviceCallback(mAudioRoutingManagerAudioDeviceCallback);
         mAdapterService.unregisterBluetoothStateCallback(this);
         if (mHandlerThread != null) {
             mHandlerThread.quit();
@@ -695,9 +695,8 @@ public class AudioRoutingManager extends ActiveDeviceManager {
                     }
                 }
             }
-            BluetoothClass deviceClass = device.getBluetoothClass();
-            if (deviceClass != null
-                    && deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
+            BluetoothClass deviceClass = new BluetoothClass(mAdapterService.getRemoteClass(device));
+            if (deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
                 Log.i(TAG, "Do not set profile active for watch device when connected: " + device);
                 return false;
             }
@@ -734,7 +733,6 @@ public class AudioRoutingManager extends ActiveDeviceManager {
          * time a wired audio device is connected.
          */
         @VisibleForTesting
-        @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
         void wiredAudioDeviceConnected() {
             Log.d(TAG, "wiredAudioDeviceConnected");
             removeActiveDevice(BluetoothProfile.A2DP, true);

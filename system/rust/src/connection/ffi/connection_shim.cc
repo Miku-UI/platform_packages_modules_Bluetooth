@@ -41,10 +41,10 @@ struct LeAclManagerCallbackShim {
   }
   void OnLeConnectFail(core::AddressWithType addr, uint8_t status) const {
     log::fatal("system/rust not available in Floss");
-  };
+  }
   void OnLeDisconnection(core::AddressWithType addr) const {
     log::fatal("system/rust not available in Floss");
-  };
+  }
 };
 
 using BoxedLeAclManagerCallbackShim = std::unique_ptr<LeAclManagerCallbackShim>;
@@ -59,8 +59,7 @@ namespace {
 hci::AddressWithType ToCppAddress(core::AddressWithType address) {
   auto hci_address = hci::Address();
   hci_address.FromOctets(address.address.data());
-  return hci::AddressWithType(hci_address,
-                              (hci::AddressType)address.address_type);
+  return hci::AddressWithType(hci_address, (hci::AddressType)address.address_type);
 }
 
 core::AddressWithType ToRustAddress(hci::AddressWithType address) {
@@ -70,7 +69,7 @@ core::AddressWithType ToRustAddress(hci::AddressWithType address) {
 }  // namespace
 
 struct LeAclManagerShim::impl : hci::acl_manager::LeAcceptlistCallbacks {
- public:
+public:
   impl() { acl_manager_ = shim::GetAclManager(); }
 
   ~impl() {
@@ -104,10 +103,8 @@ struct LeAclManagerShim::impl : hci::acl_manager::LeAcceptlistCallbacks {
   }
 
   // hci::acl_manager::LeAcceptlistCallbacks
-  virtual void OnLeConnectFail(hci::AddressWithType address,
-                               hci::ErrorCode reason) {
-    callbacks_.value()->OnLeConnectFail(ToRustAddress(address),
-                                        static_cast<uint8_t>(reason));
+  virtual void OnLeConnectFail(hci::AddressWithType address, hci::ErrorCode reason) {
+    callbacks_.value()->OnLeConnectFail(ToRustAddress(address), static_cast<uint8_t>(reason));
   }
 
   // hci::acl_manager::LeAcceptlistCallbacks
@@ -118,19 +115,16 @@ struct LeAclManagerShim::impl : hci::acl_manager::LeAcceptlistCallbacks {
   // hci::acl_manager::LeAcceptlistCallbacks
   virtual void OnResolvingListChange() {}
 
- private:
+private:
   std::optional<BoxedLeAclManagerCallbackShim> callbacks_;
   hci::AclManager* acl_manager_{};
 };
 
-LeAclManagerShim::LeAclManagerShim() {
-  pimpl_ = std::make_unique<LeAclManagerShim::impl>();
-}
+LeAclManagerShim::LeAclManagerShim() { pimpl_ = std::make_unique<LeAclManagerShim::impl>(); }
 
 LeAclManagerShim::~LeAclManagerShim() = default;
 
-void LeAclManagerShim::CreateLeConnection(core::AddressWithType address,
-                                          bool is_direct) const {
+void LeAclManagerShim::CreateLeConnection(core::AddressWithType address, bool is_direct) const {
   pimpl_->CreateLeConnection(address, is_direct);
 }
 
@@ -139,8 +133,7 @@ void LeAclManagerShim::CancelLeConnect(core::AddressWithType address) const {
 }
 
 #ifndef TARGET_FLOSS
-void LeAclManagerShim::RegisterRustCallbacks(
-    BoxedLeAclManagerCallbackShim callbacks) {
+void LeAclManagerShim::RegisterRustCallbacks(BoxedLeAclManagerCallbackShim callbacks) {
   pimpl_->RegisterRustCallbacks(std::move(callbacks));
 }
 #endif
@@ -151,28 +144,20 @@ std::optional<RustConnectionManager> connection_manager;
 
 }  // namespace
 
-RustConnectionManager& GetConnectionManager() {
-  return connection_manager.value();
-}
+RustConnectionManager& GetConnectionManager() { return connection_manager.value(); }
 
 void RegisterRustApis(
-    ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)>
-        start_direct_connection,
-    ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)>
-        stop_direct_connection,
-    ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)>
-        add_background_connection,
-    ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)>
-        remove_background_connection,
-    ::rust::Fn<void(uint8_t client_id)> remove_client,
-    ::rust::Fn<void(core::AddressWithType address)>
-        stop_all_connections_to_device) {
-  connection_manager = {start_direct_connection,
-                        stop_direct_connection,
-                        add_background_connection,
-                        remove_background_connection,
-                        remove_client,
-                        stop_all_connections_to_device};
+        ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)> start_direct_connection,
+        ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)> stop_direct_connection,
+        ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)>
+                add_background_connection,
+        ::rust::Fn<void(uint8_t client_id, core::AddressWithType address)>
+                remove_background_connection,
+        ::rust::Fn<void(uint8_t client_id)> remove_client,
+        ::rust::Fn<void(core::AddressWithType address)> stop_all_connections_to_device) {
+  connection_manager = {
+          start_direct_connection,      stop_direct_connection, add_background_connection,
+          remove_background_connection, remove_client,          stop_all_connections_to_device};
 }
 
 core::AddressWithType ResolveRawAddress(RawAddress bd_addr) {

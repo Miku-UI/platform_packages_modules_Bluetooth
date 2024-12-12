@@ -16,9 +16,9 @@
 
 #include "common/numbers.h"
 
-#include <cstdint>
-
 #include <gtest/gtest.h>
+
+#include <cstdint>
 
 namespace testing {
 

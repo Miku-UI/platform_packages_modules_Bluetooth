@@ -41,8 +41,7 @@ struct is_common_criteria_mode is_common_criteria_mode;
 struct is_restricted_mode is_restricted_mode;
 struct dut_mode_configure dut_mode_configure;
 struct dut_mode_send dut_mode_send;
-struct get_common_criteria_config_compare_result
-    get_common_criteria_config_compare_result;
+struct get_common_criteria_config_compare_result get_common_criteria_config_compare_result;
 struct get_remote_device_properties get_remote_device_properties;
 struct get_remote_device_property get_remote_device_property;
 struct get_remote_services get_remote_services;
@@ -77,18 +76,15 @@ int dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len) {
 }
 int get_common_criteria_config_compare_result() {
   inc_func_call_count(__func__);
-  return test::mock::btif_bluetooth::
-      get_common_criteria_config_compare_result();
+  return test::mock::btif_bluetooth::get_common_criteria_config_compare_result();
 }
 int get_remote_device_properties(RawAddress* remote_addr) {
   inc_func_call_count(__func__);
   return test::mock::btif_bluetooth::get_remote_device_properties(remote_addr);
 }
-int get_remote_device_property(RawAddress* remote_addr,
-                               bt_property_type_t type) {
+int get_remote_device_property(RawAddress* remote_addr, bt_property_type_t type) {
   inc_func_call_count(__func__);
-  return test::mock::btif_bluetooth::get_remote_device_property(remote_addr,
-                                                                type);
+  return test::mock::btif_bluetooth::get_remote_device_property(remote_addr, type);
 }
 int get_remote_services(RawAddress* remote_addr) {
   inc_func_call_count(__func__);
@@ -98,16 +94,13 @@ int le_test_mode(uint16_t opcode, uint8_t* buf, uint8_t len) {
   inc_func_call_count(__func__);
   return test::mock::btif_bluetooth::le_test_mode(opcode, buf, len);
 }
-int set_remote_device_property(RawAddress* remote_addr,
-                               const bt_property_t* property) {
+int set_remote_device_property(RawAddress* remote_addr, const bt_property_t* property) {
   inc_func_call_count(__func__);
-  return test::mock::btif_bluetooth::set_remote_device_property(remote_addr,
-                                                                property);
+  return test::mock::btif_bluetooth::set_remote_device_property(remote_addr, property);
 }
 void invoke_switch_buffer_size_cb(bool invoke_switch_buffer_size_cb) {
   inc_func_call_count(__func__);
-  test::mock::btif_bluetooth::invoke_switch_buffer_size_cb(
-      invoke_switch_buffer_size_cb);
+  test::mock::btif_bluetooth::invoke_switch_buffer_size_cb(invoke_switch_buffer_size_cb);
 }
 
 // END mockcify generation

@@ -31,10 +31,7 @@ typedef enum {
   BTHD_REPORT_TYPE_INTRDATA
 } bthd_report_type_t;
 
-typedef enum {
-  BTHD_APP_STATE_NOT_REGISTERED,
-  BTHD_APP_STATE_REGISTERED
-} bthd_application_state_t;
+typedef enum { BTHD_APP_STATE_NOT_REGISTERED, BTHD_APP_STATE_REGISTERED } bthd_application_state_t;
 
 typedef enum {
   BTHD_CONN_STATE_CONNECTED,
@@ -64,15 +61,11 @@ typedef struct {
 
 typedef void (*bthd_application_state_callback)(RawAddress* bd_addr,
                                                 bthd_application_state_t state);
-typedef void (*bthd_connection_state_callback)(RawAddress* bd_addr,
-                                               bthd_connection_state_t state);
-typedef void (*bthd_get_report_callback)(uint8_t type, uint8_t id,
-                                         uint16_t buffer_size);
-typedef void (*bthd_set_report_callback)(uint8_t type, uint8_t id, uint16_t len,
-                                         uint8_t* p_data);
+typedef void (*bthd_connection_state_callback)(RawAddress* bd_addr, bthd_connection_state_t state);
+typedef void (*bthd_get_report_callback)(uint8_t type, uint8_t id, uint16_t buffer_size);
+typedef void (*bthd_set_report_callback)(uint8_t type, uint8_t id, uint16_t len, uint8_t* p_data);
 typedef void (*bthd_set_protocol_callback)(uint8_t protocol);
-typedef void (*bthd_intr_data_callback)(uint8_t report_id, uint16_t len,
-                                        uint8_t* p_data);
+typedef void (*bthd_intr_data_callback)(uint8_t report_id, uint16_t len, uint8_t* p_data);
 typedef void (*bthd_vc_unplug_callback)(void);
 
 /** BT-HD callbacks */
@@ -99,8 +92,7 @@ typedef struct {
   void (*cleanup)(void);
 
   /** register application */
-  bt_status_t (*register_app)(bthd_app_param_t* app_param,
-                              bthd_qos_param_t* in_qos,
+  bt_status_t (*register_app)(bthd_app_param_t* app_param, bthd_qos_param_t* in_qos,
                               bthd_qos_param_t* out_qos);
 
   /** unregister application */
@@ -113,8 +105,7 @@ typedef struct {
   bt_status_t (*disconnect)(void);
 
   /** send report */
-  bt_status_t (*send_report)(bthd_report_type_t type, uint8_t id, uint16_t len,
-                             uint8_t* p_data);
+  bt_status_t (*send_report)(bthd_report_type_t type, uint8_t id, uint16_t len, uint8_t* p_data);
 
   /** notifies error for invalid SET_REPORT */
   bt_status_t (*report_error)(uint8_t error);

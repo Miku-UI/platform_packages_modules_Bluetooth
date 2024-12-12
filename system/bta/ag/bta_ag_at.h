@@ -25,6 +25,7 @@
 #define BTA_AG_AT_H
 
 #include <stddef.h>
+
 #include <cstddef>
 #include <cstdint>
 
@@ -59,13 +60,11 @@ typedef struct {
 
 /* callback function executed when command is parsed */
 struct tBTA_AG_SCB;
-typedef void(tBTA_AG_AT_CMD_CBACK)(tBTA_AG_SCB* p_user, uint16_t command_id,
-                                   uint8_t arg_type, char* p_arg, char* p_end,
-                                   int16_t int_arg);
+typedef void(tBTA_AG_AT_CMD_CBACK)(tBTA_AG_SCB* p_user, uint16_t command_id, uint8_t arg_type,
+                                   char* p_arg, char* p_end, int16_t int_arg);
 
 /* callback function executed to send "ERROR" result code */
-typedef void(tBTA_AG_AT_ERR_CBACK)(tBTA_AG_SCB* p_user, bool unknown,
-                                   const char* p_arg);
+typedef void(tBTA_AG_AT_ERR_CBACK)(tBTA_AG_SCB* p_user, bool unknown, const char* p_arg);
 
 /* AT command parsing control block */
 typedef struct {

@@ -35,21 +35,20 @@ namespace audio {
 
 class HalVersionManager {
   static inline std::unique_ptr<HalVersionManager> instance_ptr =
-      std::make_unique<HalVersionManager>();
+          std::make_unique<HalVersionManager>();
 };
 
 }  // namespace audio
 }  // namespace bluetooth
 
-void LeAudioClient::AddFromStorage(
-    const RawAddress& /* addr */, bool /* autoconnect */,
-    int /* sink_audio_location */, int /* source_audio_location */,
-    int /* sink_supported_context_types */,
-    int /* source_supported_context_types */,
-    const std::vector<uint8_t>& /* handles */,
-    const std::vector<uint8_t>& /* sink_pacs */,
-    const std::vector<uint8_t>& /* source_pacs */,
-    const std::vector<uint8_t>& /* ases */) {
+void LeAudioClient::AddFromStorage(const RawAddress& /* addr */, bool /* autoconnect */,
+                                   int /* sink_audio_location */, int /* source_audio_location */,
+                                   int /* sink_supported_context_types */,
+                                   int /* source_supported_context_types */,
+                                   const std::vector<uint8_t>& /* handles */,
+                                   const std::vector<uint8_t>& /* sink_pacs */,
+                                   const std::vector<uint8_t>& /* source_pacs */,
+                                   const std::vector<uint8_t>& /* ases */) {
   inc_func_call_count(__func__);
 }
 
@@ -91,17 +90,16 @@ bool LeAudioClient::IsLeAudioClientInStreaming(void) {
   inc_func_call_count(__func__);
   return false;
 }
-void LeAudioClient::Initialize(
-    bluetooth::le_audio::LeAudioClientCallbacks* /* callbacks_ */,
-    base::Closure /* initCb */, base::Callback<bool()> /* hal_2_1_verifier */,
-    const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>&
-    /* offloading_preference */) {
+void LeAudioClient::Initialize(bluetooth::le_audio::LeAudioClientCallbacks* /* callbacks_ */,
+                               base::Closure /* initCb */,
+                               base::Callback<bool()> /* hal_2_1_verifier */,
+                               const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>&
+                               /* offloading_preference */) {
   inc_func_call_count(__func__);
 }
 void LeAudioClient::DebugDump(int /* fd */) { inc_func_call_count(__func__); }
 
-bool LeAudioClient::RegisterIsoDataConsumer(
-    LeAudioIsoDataCallback /* callback */) {
+bool LeAudioClient::RegisterIsoDataConsumer(LeAudioIsoDataCallback /* callback */) {
   inc_func_call_count(__func__);
   return true;
 }

@@ -45,25 +45,24 @@ using rootcanal::Device;
 using rootcanal::Phy;
 
 class BluetoothHci : public IBluetoothHci {
- public:
+public:
   BluetoothHci();
 
-  ::android::hardware::Return<void> initialize(
-      const sp<V1_0::IBluetoothHciCallbacks>& cb) override;
+  ::android::hardware::Return<void> initialize(const sp<V1_0::IBluetoothHciCallbacks>& cb) override;
   ::android::hardware::Return<void> initialize_1_1(
-      const sp<V1_1::IBluetoothHciCallbacks>& cb) override;
+          const sp<V1_1::IBluetoothHciCallbacks>& cb) override;
 
   ::android::hardware::Return<void> sendHciCommand(
-      const ::android::hardware::hidl_vec<uint8_t>& packet) override;
+          const ::android::hardware::hidl_vec<uint8_t>& packet) override;
 
   ::android::hardware::Return<void> sendAclData(
-      const ::android::hardware::hidl_vec<uint8_t>& packet) override;
+          const ::android::hardware::hidl_vec<uint8_t>& packet) override;
 
   ::android::hardware::Return<void> sendScoData(
-      const ::android::hardware::hidl_vec<uint8_t>& packet) override;
+          const ::android::hardware::hidl_vec<uint8_t>& packet) override;
 
   ::android::hardware::Return<void> sendIsoData(
-      const ::android::hardware::hidl_vec<uint8_t>& packet) override;
+          const ::android::hardware::hidl_vec<uint8_t>& packet) override;
 
   ::android::hardware::Return<void> close() override;
 
@@ -71,10 +70,9 @@ class BluetoothHci : public IBluetoothHci {
 
   static BluetoothHci* get();
 
- private:
-  ::android::hardware::Return<void> initialize_impl(
-      const sp<V1_0::IBluetoothHciCallbacks>& cb,
-      const sp<V1_1::IBluetoothHciCallbacks>& cb_1_1);
+private:
+  ::android::hardware::Return<void> initialize_impl(const sp<V1_0::IBluetoothHciCallbacks>& cb,
+                                                    const sp<V1_1::IBluetoothHciCallbacks>& cb_1_1);
 
   sp<BluetoothDeathRecipient> death_recipient_;
 
@@ -91,8 +89,8 @@ class BluetoothHci : public IBluetoothHci {
   void SetUpTestChannel();
   void SetUpHciServer(ConnectCallback on_connect);
   void SetUpLinkLayerServer(ConnectCallback on_connect);
-  std::shared_ptr<Device> ConnectToRemoteServer(const std::string& server,
-                                                int port, Phy::Type phy_type);
+  std::shared_ptr<Device> ConnectToRemoteServer(const std::string& server, int port,
+                                                Phy::Type phy_type);
 
   std::shared_ptr<rootcanal::DualModeController> controller_;
 
@@ -102,30 +100,24 @@ class BluetoothHci : public IBluetoothHci {
 
   rootcanal::AsyncUserId user_id_ = async_manager_.GetNextUserId();
   rootcanal::TestModel test_model_{
-      [this]() { return async_manager_.GetNextUserId(); },
-      [this](rootcanal::AsyncUserId user_id, std::chrono::milliseconds delay,
-             const rootcanal::TaskCallback& task) {
-        return async_manager_.ExecAsync(user_id, delay, task);
-      },
+          [this]() { return async_manager_.GetNextUserId(); },
+          [this](rootcanal::AsyncUserId user_id, std::chrono::milliseconds delay,
+                 const rootcanal::TaskCallback& task) {
+            return async_manager_.ExecAsync(user_id, delay, task);
+          },
 
-      [this](rootcanal::AsyncUserId user_id, std::chrono::milliseconds delay,
-             std::chrono::milliseconds period,
-             const rootcanal::TaskCallback& task) {
-        return async_manager_.ExecAsyncPeriodically(user_id, delay, period,
-                                                    task);
-      },
+          [this](rootcanal::AsyncUserId user_id, std::chrono::milliseconds delay,
+                 std::chrono::milliseconds period, const rootcanal::TaskCallback& task) {
+            return async_manager_.ExecAsyncPeriodically(user_id, delay, period, task);
+          },
 
-      [this](rootcanal::AsyncUserId user) {
-        async_manager_.CancelAsyncTasksFromUser(user);
-      },
+          [this](rootcanal::AsyncUserId user) { async_manager_.CancelAsyncTasksFromUser(user); },
 
-      [this](rootcanal::AsyncTaskId task) {
-        async_manager_.CancelAsyncTask(task);
-      },
+          [this](rootcanal::AsyncTaskId task) { async_manager_.CancelAsyncTask(task); },
 
-      [this](const std::string& server, int port, Phy::Type phy_type) {
-        return ConnectToRemoteServer(server, port, phy_type);
-      }};
+          [this](const std::string& server, int port, Phy::Type phy_type) {
+            return ConnectToRemoteServer(server, port, phy_type);
+          }};
   rootcanal::TestCommandHandler test_channel_{test_model_};
 };
 

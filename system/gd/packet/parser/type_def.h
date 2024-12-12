@@ -21,16 +21,14 @@
 #include "fields/packet_field.h"
 
 class TypeDef {
- public:
+public:
   TypeDef(std::string name) : name_(name) {}
 
   TypeDef(std::string name, int size) : name_(name), size_(size) {}
 
   virtual ~TypeDef() = default;
 
-  std::string GetTypeName() const {
-    return name_;
-  }
+  std::string GetTypeName() const { return name_; }
 
   enum class Type {
     INVALID,

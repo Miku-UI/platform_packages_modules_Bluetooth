@@ -19,7 +19,6 @@
 
 #include <vector>
 
-#include "common/init_flags.h"
 #include "hci/address_with_type.h"
 #include "hci/class_of_device.h"
 #include "osi/include/allocator.h"
@@ -57,61 +56,54 @@ inline hci::Address ToGdAddress(const RawAddress& address) {
   return ret;
 }
 
-inline hci::AddressWithType ToAddressWithType(
-    const RawAddress& legacy_address, const tBLE_ADDR_TYPE& legacy_type) {
+inline hci::AddressWithType ToAddressWithType(const RawAddress& legacy_address,
+                                              const tBLE_ADDR_TYPE& legacy_type) {
   hci::Address address = ToGdAddress(legacy_address);
 
   hci::AddressType type;
-  if (legacy_type == BLE_ADDR_PUBLIC)
+  if (legacy_type == BLE_ADDR_PUBLIC) {
     type = hci::AddressType::PUBLIC_DEVICE_ADDRESS;
-  else if (legacy_type == BLE_ADDR_RANDOM)
+  } else if (legacy_type == BLE_ADDR_RANDOM) {
     type = hci::AddressType::RANDOM_DEVICE_ADDRESS;
-  else if (legacy_type == BLE_ADDR_PUBLIC_ID)
+  } else if (legacy_type == BLE_ADDR_PUBLIC_ID) {
     type = hci::AddressType::PUBLIC_IDENTITY_ADDRESS;
-  else if (legacy_type == BLE_ADDR_RANDOM_ID)
+  } else if (legacy_type == BLE_ADDR_RANDOM_ID) {
     type = hci::AddressType::RANDOM_IDENTITY_ADDRESS;
-  else {
+  } else {
     log::fatal("Bad address type {:02x}", legacy_type);
-    return hci::AddressWithType{address,
-                                hci::AddressType::PUBLIC_DEVICE_ADDRESS};
+    return hci::AddressWithType{address, hci::AddressType::PUBLIC_DEVICE_ADDRESS};
   }
 
   return hci::AddressWithType{address, type};
 }
 
 inline hci::AddressWithType ToAddressWithTypeFromLegacy(
-    const tBLE_BD_ADDR& legacy_address_with_type) {
-  return ToAddressWithType(legacy_address_with_type.bda,
-                           legacy_address_with_type.type);
+        const tBLE_BD_ADDR& legacy_address_with_type) {
+  return ToAddressWithType(legacy_address_with_type.bda, legacy_address_with_type.type);
 }
 
-inline tBLE_BD_ADDR ToLegacyAddressWithType(
-    const hci::AddressWithType& address_with_type) {
+inline tBLE_BD_ADDR ToLegacyAddressWithType(const hci::AddressWithType& address_with_type) {
   tBLE_BD_ADDR legacy_address_with_type;
   legacy_address_with_type.bda = ToRawAddress(address_with_type.GetAddress());
 
-  if (address_with_type.GetAddressType() ==
-      hci::AddressType::PUBLIC_DEVICE_ADDRESS) {
+  if (address_with_type.GetAddressType() == hci::AddressType::PUBLIC_DEVICE_ADDRESS) {
     legacy_address_with_type.type = BLE_ADDR_PUBLIC;
-  } else if (address_with_type.GetAddressType() ==
-             hci::AddressType::RANDOM_DEVICE_ADDRESS) {
+  } else if (address_with_type.GetAddressType() == hci::AddressType::RANDOM_DEVICE_ADDRESS) {
     legacy_address_with_type.type = BLE_ADDR_RANDOM;
-  } else if (address_with_type.GetAddressType() ==
-             hci::AddressType::PUBLIC_IDENTITY_ADDRESS) {
+  } else if (address_with_type.GetAddressType() == hci::AddressType::PUBLIC_IDENTITY_ADDRESS) {
     legacy_address_with_type.type = BLE_ADDR_PUBLIC_ID;
-  } else if (address_with_type.GetAddressType() ==
-             hci::AddressType::RANDOM_IDENTITY_ADDRESS) {
+  } else if (address_with_type.GetAddressType() == hci::AddressType::RANDOM_IDENTITY_ADDRESS) {
     legacy_address_with_type.type = BLE_ADDR_RANDOM_ID;
   } else {
-    log::fatal("Bad address type {:02x}",
-               static_cast<uint8_t>(address_with_type.GetAddressType()));
+    log::fatal("Bad address type {:02x}", static_cast<uint8_t>(address_with_type.GetAddressType()));
     legacy_address_with_type.type = BLE_ADDR_PUBLIC;
   }
   return legacy_address_with_type;
 }
 
-inline std::unique_ptr<bluetooth::packet::RawBuilder> MakeUniquePacket(
-    const uint8_t* data, size_t len, bool is_flushable) {
+inline std::unique_ptr<bluetooth::packet::RawBuilder> MakeUniquePacket(const uint8_t* data,
+                                                                       size_t len,
+                                                                       bool is_flushable) {
   bluetooth::packet::RawBuilder builder;
   std::vector<uint8_t> bytes(data, data + len);
   auto payload = std::make_unique<bluetooth::packet::RawBuilder>();
@@ -121,22 +113,18 @@ inline std::unique_ptr<bluetooth::packet::RawBuilder> MakeUniquePacket(
 }
 
 inline BT_HDR* MakeLegacyBtHdrPacket(
-    std::unique_ptr<bluetooth::hci::PacketView<bluetooth::hci::kLittleEndian>>
-        packet,
-    const std::vector<uint8_t>& preamble) {
+        std::unique_ptr<bluetooth::hci::PacketView<bluetooth::hci::kLittleEndian>> packet,
+        const std::vector<uint8_t>& preamble) {
   std::vector<uint8_t> packet_vector(packet->begin(), packet->end());
-  BT_HDR* buffer = static_cast<BT_HDR*>(
-      osi_calloc(packet_vector.size() + preamble.size() + sizeof(BT_HDR)));
+  BT_HDR* buffer =
+          static_cast<BT_HDR*>(osi_calloc(packet_vector.size() + preamble.size() + sizeof(BT_HDR)));
   std::copy(preamble.begin(), preamble.end(), buffer->data);
-  std::copy(packet_vector.begin(), packet_vector.end(),
-            buffer->data + preamble.size());
+  std::copy(packet_vector.begin(), packet_vector.end(), buffer->data + preamble.size());
   buffer->len = preamble.size() + packet_vector.size();
   return buffer;
 }
 
-inline tHCI_ROLE ToLegacyRole(hci::Role role) {
-  return to_hci_role(static_cast<uint8_t>(role));
-}
+inline tHCI_ROLE ToLegacyRole(hci::Role role) { return to_hci_role(static_cast<uint8_t>(role)); }
 
 inline hci::Role ToHciRole(const hci_role_t& role) {
   switch (role) {
@@ -186,18 +174,17 @@ inline tHCI_STATUS ToLegacyHciErrorCode(const hci::ErrorCode& reason) {
     case hci::ErrorCode::CONNECTION_ACCEPT_TIMEOUT:
       return HCI_ERR_HOST_TIMEOUT;
     case hci::ErrorCode::UNSUPPORTED_FEATURE_OR_PARAMETER_VALUE:
-      return static_cast<tHCI_STATUS>(
-          hci::ErrorCode::UNSUPPORTED_FEATURE_OR_PARAMETER_VALUE);
+      return static_cast<tHCI_STATUS>(hci::ErrorCode::UNSUPPORTED_FEATURE_OR_PARAMETER_VALUE);
     case hci::ErrorCode::INVALID_HCI_COMMAND_PARAMETERS:
       return HCI_ERR_ILLEGAL_PARAMETER_FMT;
     case hci::ErrorCode::REMOTE_USER_TERMINATED_CONNECTION:
       return HCI_ERR_PEER_USER;
     case hci::ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES:
       return static_cast<tHCI_STATUS>(
-          hci::ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES);
+              hci::ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_LOW_RESOURCES);
     case hci::ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF:
       return static_cast<tHCI_STATUS>(
-          hci::ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF);
+              hci::ErrorCode::REMOTE_DEVICE_TERMINATED_CONNECTION_POWER_OFF);
     case hci::ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST:
       return HCI_ERR_CONN_CAUSE_LOCAL_HOST;
     case hci::ErrorCode::REPEATED_ATTEMPTS:
@@ -215,13 +202,11 @@ inline tHCI_STATUS ToLegacyHciErrorCode(const hci::ErrorCode& reason) {
     case hci::ErrorCode::SCO_AIR_MODE_REJECTED:
       return static_cast<tHCI_STATUS>(hci::ErrorCode::SCO_AIR_MODE_REJECTED);
     case hci::ErrorCode::INVALID_LMP_OR_LL_PARAMETERS:
-      return static_cast<tHCI_STATUS>(
-          hci::ErrorCode::INVALID_LMP_OR_LL_PARAMETERS);
+      return static_cast<tHCI_STATUS>(hci::ErrorCode::INVALID_LMP_OR_LL_PARAMETERS);
     case hci::ErrorCode::UNSPECIFIED_ERROR:
       return HCI_ERR_UNSPECIFIED;
     case hci::ErrorCode::UNSUPPORTED_LMP_OR_LL_PARAMETER:
-      return static_cast<tHCI_STATUS>(
-          hci::ErrorCode::UNSUPPORTED_LMP_OR_LL_PARAMETER);
+      return static_cast<tHCI_STATUS>(hci::ErrorCode::UNSUPPORTED_LMP_OR_LL_PARAMETER);
     case hci::ErrorCode::ROLE_CHANGE_NOT_ALLOWED:
       return static_cast<tHCI_STATUS>(hci::ErrorCode::ROLE_CHANGE_NOT_ALLOWED);
     case hci::ErrorCode::LINK_LAYER_COLLISION:
@@ -241,12 +226,9 @@ inline tHCI_STATUS ToLegacyHciErrorCode(const hci::ErrorCode& reason) {
   }
 }
 
-inline tHCI_MODE ToLegacyHciMode(const hci::Mode& mode) {
-  return static_cast<tHCI_MODE>(mode);
-}
+inline tHCI_MODE ToLegacyHciMode(const hci::Mode& mode) { return static_cast<tHCI_MODE>(mode); }
 
-inline hci::DisconnectReason ToDisconnectReasonFromLegacy(
-    const tHCI_STATUS& reason) {
+inline hci::DisconnectReason ToDisconnectReasonFromLegacy(const tHCI_STATUS& reason) {
   return static_cast<hci::DisconnectReason>(reason);
 }
 
@@ -273,7 +255,9 @@ inline void DumpBtHdr(const BT_HDR* p_buf, const char* token) {
     char* pbuf = buf;
     pbuf += sprintf(pbuf, "len:%5u %5d: ", p_buf->len, cnt);
     for (int j = 0; j < 16; j++, --len, data++, cnt++) {
-      if (len == 0) break;
+      if (len == 0) {
+        break;
+      }
       pbuf += sprintf(pbuf, "0x%02x ", *data);
     }
     log::debug("{} {}", token, buf);

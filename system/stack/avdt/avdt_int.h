@@ -24,16 +24,21 @@
 #ifndef AVDT_INT_H
 #define AVDT_INT_H
 
+#include <bluetooth/log.h>
+
+#include <cstdint>
+#include <string>
 #include <unordered_map>
 
 #include "avdt_api.h"
 #include "avdt_defs.h"
 #include "avdtc_api.h"
+#include "include/macros.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 #ifndef AVDT_DEBUG
@@ -45,9 +50,9 @@
  ****************************************************************************/
 
 /* channel types */
-enum {
-  AVDT_CHAN_SIG,   /* signaling channel */
-  AVDT_CHAN_MEDIA, /* media channel */
+enum tTRANSPORT_CHANNEL_TYPE : uint8_t {
+  AVDT_CHAN_SIG,    /* signaling channel */
+  AVDT_CHAN_MEDIA,  /* media channel */
   AVDT_CHAN_REPORT, /* reporting channel */
   AVDT_CHAN_NUM_TYPES
 };
@@ -78,7 +83,7 @@ enum {
  * |  BT_HDR  | SCB handles | L2CAP + HCI header | AVDTP header | data ... |
  *
  * Note that we "hide" the scb handles at the top of the message buffer.
-*/
+ */
 #define AVDT_MSG_OFFSET (L2CAP_MIN_OFFSET + AVDT_NUM_SEPS + AVDT_LEN_TYPE_START)
 
 /* scb transport channel connect timeout value (in milliseconds) */
@@ -93,12 +98,7 @@ enum {
 #endif
 
 /* ccb state machine states */
-enum {
-  AVDT_CCB_IDLE_ST,
-  AVDT_CCB_OPENING_ST,
-  AVDT_CCB_OPEN_ST,
-  AVDT_CCB_CLOSING_ST
-};
+enum { AVDT_CCB_IDLE_ST, AVDT_CCB_OPENING_ST, AVDT_CCB_OPEN_ST, AVDT_CCB_CLOSING_ST };
 
 /* state machine action enumeration list */
 enum : uint8_t {
@@ -177,7 +177,7 @@ enum {
 
 /* scb state machine states; these state values are private to this module so
  * the scb state cannot be read or set by actions functions
-*/
+ */
 enum {
   AVDT_SCB_IDLE_ST,
   AVDT_SCB_CONF_ST,
@@ -306,26 +306,62 @@ enum {
   AVDT_SCB_CC_CLOSE_EVT
 };
 
-/* adaption layer number of stream routing table entries */
+/* Adaptation layer number of stream routing table entries */
 /* 2 channels(1 media, 1 report) for each SEP and one for signalling */
 #define AVDT_NUM_RT_TBL (AVDT_NUM_SEPS * AVDT_CHAN_NUM_TYPES + 1)
 
-/* adaption layer number of transport channel table entries - moved to target.h
+/* Adaptation layer number of transport channel table entries - moved to target.h
 #define AVDT_NUM_TC_TBL     (AVDT_NUM_SEPS + AVDT_NUM_LINKS) */
-
-/* "states" used in transport channel table */
-#define AVDT_AD_ST_UNUSED 0  /* Unused - unallocated */
-#define AVDT_AD_ST_IDLE 1    /* No connection */
-#define AVDT_AD_ST_ACP 2     /* Waiting to accept a connection */
-#define AVDT_AD_ST_CONN 4    /* Waiting for connection confirm */
-#define AVDT_AD_ST_CFG 5     /* Waiting for configuration complete */
-#define AVDT_AD_ST_OPEN 6    /* Channel opened */
-#define AVDT_AD_ST_SEC_INT 7 /* Security process as INT */
-#define AVDT_AD_ST_SEC_ACP 8 /* Security process as ACP */
 
 /* Configuration flags. AvdtpTransportChannel.cfg_flags */
 #define AVDT_L2C_CFG_CONN_INT (1 << 2)
 #define AVDT_L2C_CFG_CONN_ACP (1 << 3)
+
+/* "states" used in transport channel table */
+enum tTRANSPORT_CHANNEL_STATE : uint8_t {
+  AVDT_AD_ST_UNUSED = 0,  /* Unused - unallocated */
+  AVDT_AD_ST_IDLE = 1,    /* No connection */
+  AVDT_AD_ST_ACP = 2,     /* Waiting to accept a connection */
+  AVDT_AD_ST_CONN = 4,    /* Waiting for connection confirm */
+  AVDT_AD_ST_CFG = 5,     /* Waiting for configuration complete */
+  AVDT_AD_ST_OPEN = 6,    /* Channel opened */
+  AVDT_AD_ST_SEC_INT = 7, /* Security process as INT */
+  AVDT_AD_ST_SEC_ACP = 8, /* Security process as ACP */
+};
+
+inline std::string tc_state_text(uint8_t state) {
+  tTRANSPORT_CHANNEL_STATE state_ = static_cast<tTRANSPORT_CHANNEL_STATE>(state);
+  switch (state_) {
+    CASE_RETURN_TEXT(AVDT_AD_ST_UNUSED);
+    CASE_RETURN_TEXT(AVDT_AD_ST_IDLE);
+    CASE_RETURN_TEXT(AVDT_AD_ST_ACP);
+    CASE_RETURN_TEXT(AVDT_AD_ST_CONN);
+    CASE_RETURN_TEXT(AVDT_AD_ST_CFG);
+    CASE_RETURN_TEXT(AVDT_AD_ST_OPEN);
+    CASE_RETURN_TEXT(AVDT_AD_ST_SEC_INT);
+    CASE_RETURN_TEXT(AVDT_AD_ST_SEC_ACP);
+    default:
+      RETURN_UNKNOWN_TYPE_STRING(tTRANSPORT_CHANNEL_STATE, state_);
+  }
+}
+
+inline std::string tc_type_text(uint8_t type) {
+  tTRANSPORT_CHANNEL_TYPE type_ = static_cast<tTRANSPORT_CHANNEL_TYPE>(type);
+  switch (type_) {
+    CASE_RETURN_TEXT(AVDT_CHAN_SIG);
+    CASE_RETURN_TEXT(AVDT_CHAN_MEDIA);
+    CASE_RETURN_TEXT(AVDT_CHAN_REPORT);
+    default:
+      RETURN_UNKNOWN_TYPE_STRING(tTRANSPORT_CHANNEL_TYPE, type_);
+  }
+}
+
+namespace fmt {
+template <>
+struct formatter<tTRANSPORT_CHANNEL_STATE> : enum_formatter<tTRANSPORT_CHANNEL_STATE> {};
+template <>
+struct formatter<tTRANSPORT_CHANNEL_TYPE> : enum_formatter<tTRANSPORT_CHANNEL_TYPE> {};
+}  // namespace fmt
 
 /*****************************************************************************
  * data types
@@ -365,7 +401,9 @@ typedef struct {
 } tAVDT_CCB_API_CONNECT;
 
 /* data type for AVDT_CCB_API_DISCONNECT_REQ_EVT */
-typedef struct { tAVDT_CTRL_CBACK* p_cback; } tAVDT_CCB_API_DISCONNECT;
+typedef struct {
+  tAVDT_CTRL_CBACK* p_cback;
+} tAVDT_CCB_API_DISCONNECT;
 
 /* union associated with ccb state machine events */
 typedef union {
@@ -410,7 +448,7 @@ class AvdtpCcb;
  * AVDTP Stream Control Block.
  */
 class AvdtpScb {
- public:
+public:
   AvdtpScb()
       : transport_channel_timer(nullptr),
         p_pkt(nullptr),
@@ -425,6 +463,7 @@ class AvdtpScb {
         curr_evt(0),
         cong(false),
         close_code(0),
+        curr_stream(false),
         scb_handle_(0) {}
 
   /**
@@ -434,8 +473,7 @@ class AvdtpScb {
    * @param p_avdtp_ccb the AvdtCcb entry to use
    * @param avdtp_stream_config the stream config to use
    */
-  void Allocate(AvdtpCcb* p_avdtp_ccb,
-                const AvdtpStreamConfig& avdtp_stream_config);
+  void Allocate(AvdtpCcb* p_avdtp_ccb, const AvdtpStreamConfig& avdtp_stream_config);
 
   /**
    * Recycle the entry by resetting it, mark it as allocated and keeping
@@ -474,6 +512,7 @@ class AvdtpScb {
     curr_evt = 0;
     cong = false;
     close_code = 0;
+    curr_stream = false;
     scb_handle_ = scb_handle;
   }
 
@@ -491,16 +530,16 @@ class AvdtpScb {
   uint16_t media_seq;                // Media packet sequence number
   bool allocated;                    // True if the SCB is allocated
   bool in_use;                       // True if used by peer
-  uint8_t role;        // Initiator/acceptor role in current procedure
-  bool remove;         // True if the SCB is marked for removal
-  uint8_t state;       // State machine state
-  uint8_t peer_seid;   // SEID of peer stream
-  uint8_t curr_evt;    // current event; set only by the state machine
-  bool cong;           // True if the media transport channel is congested
-  uint8_t close_code;  // Error code received in close response
-  bool curr_stream;    // True if the SCB is the current stream, False otherwise
+  uint8_t role;                      // Initiator/acceptor role in current procedure
+  bool remove;                       // True if the SCB is marked for removal
+  uint8_t state;                     // State machine state
+  uint8_t peer_seid;                 // SEID of peer stream
+  uint8_t curr_evt;                  // current event; set only by the state machine
+  bool cong;                         // True if the media transport channel is congested
+  uint8_t close_code;                // Error code received in close response
+  bool curr_stream;                  // True if the SCB is the current stream, False otherwise
 
- private:
+private:
   uint8_t scb_handle_;  // Unique handle for this AvdtpScb entry
 };
 
@@ -508,7 +547,7 @@ class AvdtpScb {
  * AVDTP Channel Control Block.
  */
 class AvdtpCcb {
- public:
+public:
   AvdtpCcb()
       : peer_addr(RawAddress::kEmpty),
         scb{},
@@ -606,31 +645,31 @@ class AvdtpCcb {
    * NOTE: idle_ccb_timer, ret_ccb_timer and rsp_ccb_timer are mutually
    * exclusive - no more than one timer should be running at the same time.
    */
-  alarm_t* idle_ccb_timer;  // Idle CCB timer entry
-  alarm_t* ret_ccb_timer;   // Ret CCB timer entry
-  alarm_t* rsp_ccb_timer;   // Rsp CCB timer entry
-  fixed_queue_t* cmd_q;     // Queue for outgoing command messages
-  fixed_queue_t* rsp_q;     // Queue for outgoing response and reject messages
+  alarm_t* idle_ccb_timer;         // Idle CCB timer entry
+  alarm_t* ret_ccb_timer;          // Ret CCB timer entry
+  alarm_t* rsp_ccb_timer;          // Rsp CCB timer entry
+  fixed_queue_t* cmd_q;            // Queue for outgoing command messages
+  fixed_queue_t* rsp_q;            // Queue for outgoing response and reject messages
   tAVDT_CTRL_CBACK* proc_cback;    // Procedure callback function
   tAVDT_CTRL_CBACK* p_conn_cback;  // Connection/disconnection callback function
   void* p_proc_data;               // Pointer to data storage for procedure
-  BT_HDR* p_curr_cmd;  // Current command being sent awaiting response
-  BT_HDR* p_curr_msg;  // Current message being sent
-  BT_HDR* p_rx_msg;    // Current message being received
-  bool allocated;      // Whether ccb is allocated
-  uint8_t state;       // The CCB state machine state
-  bool ll_opened;      // True if LL is opened
-  bool proc_busy;      // True when a discover or get capabilities procedure in
-                       // progress
-  uint8_t proc_param;  // Procedure parameter; either SEID for get capabilities
-                       // or number of SEPS for discover
-  bool cong;           // True if the signaling channel is congested
-  uint8_t label;       // Message header "label" (sequence number)
-  bool reconn;        // If true, reinitiate connection after transitioning from
-                      // CLOSING to IDLE state
-  uint8_t ret_count;  // Command retransmission count
+  BT_HDR* p_curr_cmd;              // Current command being sent awaiting response
+  BT_HDR* p_curr_msg;              // Current message being sent
+  BT_HDR* p_rx_msg;                // Current message being received
+  bool allocated;                  // Whether ccb is allocated
+  uint8_t state;                   // The CCB state machine state
+  bool ll_opened;                  // True if LL is opened
+  bool proc_busy;                  // True when a discover or get capabilities procedure in
+                                   // progress
+  uint8_t proc_param;              // Procedure parameter; either SEID for get capabilities
+                                   // or number of SEPS for discover
+  bool cong;                       // True if the signaling channel is congested
+  uint8_t label;                   // Message header "label" (sequence number)
+  bool reconn;                     // If true, reinitiate connection after transitioning from
+                                   // CLOSING to IDLE state
+  uint8_t ret_count;               // Command retransmission count
 
- private:
+private:
   // The corresponding BTA AV stream control block index for this entry
   uint8_t bta_av_scb_index_;
 };
@@ -640,15 +679,9 @@ class AvdtpCcb {
  * Used in the transport channel table in the adaptation layer.
  */
 class AvdtpTransportChannel {
- public:
+public:
   AvdtpTransportChannel()
-      : peer_mtu(0),
-        my_mtu(0),
-        lcid(0),
-        tcid(0),
-        ccb_idx(0),
-        state(0),
-        cfg_flags(0) {}
+      : peer_mtu(0), my_mtu(0), lcid(0), tcid(0), ccb_idx(0), state(0), cfg_flags(0) {}
 
   void Reset() {
     peer_mtu = 0;
@@ -660,8 +693,8 @@ class AvdtpTransportChannel {
     cfg_flags = 0;
   }
 
-  uint16_t peer_mtu;     // L2CAP MTU of the peer device
-  uint16_t my_mtu;       // Our MTU for this channel
+  uint16_t peer_mtu;  // L2CAP MTU of the peer device
+  uint16_t my_mtu;    // Our MTU for this channel
   uint16_t lcid;
   uint8_t tcid;       // Transport channel ID
   uint8_t ccb_idx;    // Channel control block for with this transport channel
@@ -671,10 +704,10 @@ class AvdtpTransportChannel {
 
 /**
  * AVDTP stream routing entry.
- * Used in the routing table in the adaption layer.
+ * Used in the routing table in the Adaptation layer.
  */
 class AvdtpRoutingEntry {
- public:
+public:
   AvdtpRoutingEntry() : lcid(0), scb_hdl(0) {}
 
   void Reset() {
@@ -687,10 +720,10 @@ class AvdtpRoutingEntry {
 };
 
 /**
- * AVDTP adaption layer control block.
+ * AVDTP Adaptation layer control block.
  */
 class AvdtpAdaptationLayer {
- public:
+public:
   AvdtpAdaptationLayer() {}
 
   void Reset() {
@@ -730,12 +763,9 @@ typedef void (*tAVDT_SCB_ACTION)(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
  * Control block for AVDTP.
  */
 class AvdtpCb {
- public:
+public:
   AvdtpCb()
-      : p_conf_cback(nullptr),
-        p_ccb_act(nullptr),
-        p_scb_act(nullptr),
-        p_conn_cback(nullptr) {}
+      : p_conf_cback(nullptr), p_ccb_act(nullptr), p_scb_act(nullptr), p_conn_cback(nullptr) {}
 
   void Reset() {
     rcb.Reset();
@@ -751,7 +781,7 @@ class AvdtpCb {
 
   AvdtpRcb rcb;                       // Registration control block
   AvdtpCcb ccb[AVDT_NUM_LINKS];       // Channel control blocks
-  AvdtpAdaptationLayer ad;            // Adaption layer control block
+  AvdtpAdaptationLayer ad;            // Adaptation layer control block
   tAVDTC_CTRL_CBACK* p_conf_cback;    // Conformance callback function
   const tAVDT_CCB_ACTION* p_ccb_act;  // Pointer to CCB action functions
   const tAVDT_SCB_ACTION* p_scb_act;  // Pointer to SCB action functions
@@ -789,8 +819,7 @@ void avdt_ccb_init(void);
 void avdt_ccb_event(AvdtpCcb* p_ccb, uint8_t event, tAVDT_CCB_EVT* p_data);
 AvdtpCcb* avdt_ccb_by_bd(const RawAddress& bd_addr);
 AvdtpCcb* avdt_ccb_alloc(const RawAddress& bd_addr);
-AvdtpCcb* avdt_ccb_alloc_by_channel_index(const RawAddress& bd_addr,
-                                          uint8_t channel_index);
+AvdtpCcb* avdt_ccb_alloc_by_channel_index(const RawAddress& bd_addr, uint8_t channel_index);
 void avdt_ccb_dealloc(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* p_data);
 uint8_t avdt_ccb_to_idx(AvdtpCcb* p_ccb);
 AvdtpCcb* avdt_ccb_by_idx(uint8_t idx);
@@ -835,13 +864,12 @@ void avdt_ccb_ll_opened(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* p_data);
 /* SCB function prototypes */
 void avdt_scb_event(AvdtpScb* p_scb, uint8_t event, tAVDT_SCB_EVT* p_data);
 void avdt_scb_init(void);
-AvdtpScb* avdt_scb_alloc(uint8_t peer_id,
-                         const AvdtpStreamConfig& avdtp_stream_config);
+AvdtpScb* avdt_scb_alloc(uint8_t peer_id, const AvdtpStreamConfig& avdtp_stream_config);
 void avdt_scb_dealloc(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 uint8_t avdt_scb_to_hdl(AvdtpScb* p_scb);
 AvdtpScb* avdt_scb_by_hdl(uint8_t hdl);
-uint8_t avdt_scb_verify(AvdtpCcb* p_ccb, uint8_t state, uint8_t* p_seid,
-                        uint16_t num_seid, uint8_t* p_err_code);
+uint8_t avdt_scb_verify(AvdtpCcb* p_ccb, uint8_t state, uint8_t* p_seid, uint16_t num_seid,
+                        uint8_t* p_err_code);
 void avdt_scb_peer_seid_list(tAVDT_MULTI* p_multi);
 uint32_t avdt_scb_gen_ssrc(AvdtpScb* p_scb);
 
@@ -908,18 +936,16 @@ void avdt_scb_clr_vars(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 
 /* msg function declarations */
 bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg);
-void avdt_msg_send_cmd(AvdtpCcb* p_ccb, void* p_scb, uint8_t sig_id,
-                       tAVDT_MSG* p_params);
+void avdt_msg_send_cmd(AvdtpCcb* p_ccb, void* p_scb, uint8_t sig_id, tAVDT_MSG* p_params);
 void avdt_msg_send_rsp(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params);
 void avdt_msg_send_rej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params);
 void avdt_msg_send_grej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params);
 void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf);
 
-/* adaption layer function declarations */
+/* Adaptation layer function declarations */
 void avdt_ad_init(void);
 uint8_t avdt_ad_type_to_tcid(uint8_t type, AvdtpScb* p_scb);
-AvdtpTransportChannel* avdt_ad_tc_tbl_by_st(uint8_t type, AvdtpCcb* p_ccb,
-                                            uint8_t state);
+AvdtpTransportChannel* avdt_ad_tc_tbl_by_st(uint8_t type, AvdtpCcb* p_ccb, uint8_t state);
 AvdtpTransportChannel* avdt_ad_tc_tbl_by_lcid(uint16_t lcid);
 AvdtpTransportChannel* avdt_ad_tc_tbl_alloc(AvdtpCcb* p_ccb);
 uint8_t avdt_ad_tc_tbl_to_idx(AvdtpTransportChannel* p_tbl);
@@ -927,12 +953,9 @@ void avdt_ad_tc_close_ind(AvdtpTransportChannel* p_tbl);
 void avdt_ad_tc_open_ind(AvdtpTransportChannel* p_tbl);
 void avdt_ad_tc_cong_ind(AvdtpTransportChannel* p_tbl, bool is_congested);
 void avdt_ad_tc_data_ind(AvdtpTransportChannel* p_tbl, BT_HDR* p_buf);
-AvdtpTransportChannel* avdt_ad_tc_tbl_by_type(uint8_t type, AvdtpCcb* p_ccb,
-                                              AvdtpScb* p_scb);
-uint8_t avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
-                          BT_HDR* p_buf);
-void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
-                      uint8_t role);
+AvdtpTransportChannel* avdt_ad_tc_tbl_by_type(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb);
+tL2CAP_DW_RESULT avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, BT_HDR* p_buf);
+void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t role);
 void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb);
 
 void avdt_ccb_idle_ccb_timer_timeout(void* data);
@@ -946,12 +969,12 @@ void avdt_scb_transport_channel_timer_timeout(void* data);
 
 /* we store the scb and the label in the layer_specific field of the
  * current cmd
-*/
+ */
 #define AVDT_BLD_LAYERSPEC(ls, msg, label) ls = (((label) << 4) | (msg))
 
 #define AVDT_LAYERSPEC_LABEL(ls) ((uint8_t)((ls) >> 4))
 
-#define AVDT_LAYERSPEC_MSG(ls) ((uint8_t)((ls)&0x000F))
+#define AVDT_LAYERSPEC_MSG(ls) ((uint8_t)((ls) & 0x000F))
 
 /*****************************************************************************
  * global data
@@ -967,8 +990,6 @@ extern const tL2CAP_APPL_INFO avdt_l2c_appl;
 
 /* reject message event lookup table */
 extern const uint8_t avdt_msg_rej_2_evt[];
-
-void avdt_l2c_disconnect(uint16_t lcid);
 
 constexpr uint16_t kAvdtpMtu = 1024;
 

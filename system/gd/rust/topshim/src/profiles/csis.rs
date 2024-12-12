@@ -143,10 +143,9 @@ impl ToggleableProfile for CsisClient {
 
 impl CsisClient {
     pub fn new(intf: &BluetoothInterface) -> CsisClient {
-        let csis_if: cxx::UniquePtr<ffi::CsisClientIntf>;
-
         // SAFETY: `intf.as_raw_ptr()` is a valid pointer to a `BluetoothInterface`
-        csis_if = unsafe { ffi::GetCsisClientProfile(intf.as_raw_ptr()) };
+        let csis_if: cxx::UniquePtr<ffi::CsisClientIntf> =
+            unsafe { ffi::GetCsisClientProfile(intf.as_raw_ptr()) };
 
         CsisClient { internal: csis_if, is_init: false, is_enabled: false }
     }

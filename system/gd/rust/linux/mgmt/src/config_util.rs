@@ -138,19 +138,19 @@ pub fn get_default_adapter() -> VirtualHciIndex {
                 .try_into()
                 .ok()
         })
-        .map(|i| VirtualHciIndex(i))
+        .map(VirtualHciIndex)
         .unwrap_or(DEFAULT_ADAPTER)
 }
 
 pub fn set_default_adapter(hci: VirtualHciIndex) -> bool {
-    match read_config().ok().and_then(|config| {
-        let mut cfg = serde_json::from_str::<Value>(config.as_str()).ok()?;
-        cfg[DEFAULT_ADAPTER_KEY] = serde_json::to_value(hci.to_i32()).ok().unwrap();
-        serde_json::ser::to_string_pretty(&cfg).ok()
-    }) {
-        Some(s) => std::fs::write(BTMANAGERD_CONF, s).is_ok(),
-        None => false,
-    }
+    (|| {
+        let config: String = read_config()?;
+        let mut cfg = serde_json::from_str::<Value>(config.as_str())?;
+        cfg[DEFAULT_ADAPTER_KEY] = serde_json::to_value(hci.to_i32())?;
+        let new_config: String = serde_json::ser::to_string_pretty(&cfg)?;
+        std::fs::write(BTMANAGERD_CONF, new_config)
+    })()
+    .is_ok()
 }
 
 fn list_hci_devices_string() -> Vec<String> {
@@ -310,18 +310,15 @@ mod tests {
             get_log_level_internal("{\"log_level\": \"trace\"}".to_string()).unwrap(),
             LevelFilter::Trace
         );
-        assert_eq!(
-            get_log_level_internal("{\"log_level\": \"random\"}".to_string()).is_none(),
-            true
-        );
+        assert!(get_log_level_internal("{\"log_level\": \"random\"}".to_string()).is_none());
     }
 
     #[test]
     fn parse_hci0_enabled() {
-        assert_eq!(
-            is_hci_n_enabled_internal_wrapper("{\"hci0\":\n{\"enabled\": true}}".to_string(), 0),
-            true
-        );
+        assert!(is_hci_n_enabled_internal_wrapper(
+            "{\"hci0\":\n{\"enabled\": true}}".to_string(),
+            0
+        ));
     }
 
     #[test]
@@ -332,29 +329,29 @@ mod tests {
             true,
         )
         .unwrap();
-        assert_eq!(is_hci_n_enabled_internal_wrapper(modified_string, 0), true);
+        assert!(is_hci_n_enabled_internal_wrapper(modified_string, 0));
     }
 
     #[test]
     fn modify_hci0_enabled_from_empty() {
         let modified_string =
             modify_hci_n_enabled_internal("{}".to_string(), VirtualHciIndex(0), true).unwrap();
-        assert_eq!(is_hci_n_enabled_internal_wrapper(modified_string, 0), true);
+        assert!(is_hci_n_enabled_internal_wrapper(modified_string, 0));
     }
 
     #[test]
     fn parse_hci0_not_enabled() {
-        assert_eq!(
-            is_hci_n_enabled_internal_wrapper("{\"hci0\":\n{\"enabled\": false}}".to_string(), 0),
-            false
-        );
+        assert!(!is_hci_n_enabled_internal_wrapper(
+            "{\"hci0\":\n{\"enabled\": false}}".to_string(),
+            0
+        ));
     }
 
     #[test]
     fn parse_hci1_not_present() {
-        assert_eq!(
-            is_hci_n_enabled_internal_wrapper("{\"hci0\":\n{\"enabled\": true}}".to_string(), 1),
-            true
-        );
+        assert!(is_hci_n_enabled_internal_wrapper(
+            "{\"hci0\":\n{\"enabled\": true}}".to_string(),
+            1
+        ));
     }
 }

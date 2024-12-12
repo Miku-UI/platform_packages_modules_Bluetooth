@@ -69,22 +69,22 @@ typedef struct {
 
 /* BT GATT client error codes */
 typedef enum {
-  BT_GATTC_COMMAND_SUCCESS = 0, /* 0  Command succeeded                 */
-  BT_GATTC_COMMAND_STARTED,     /* 1  Command started OK.               */
-  BT_GATTC_COMMAND_BUSY,        /* 2  Device busy with another command  */
-  BT_GATTC_COMMAND_STORED,      /* 3 request is stored in control block */
-  BT_GATTC_NO_RESOURCES,        /* 4  No resources to issue command     */
-  BT_GATTC_MODE_UNSUPPORTED,    /* 5  Request for 1 or more unsupported modes */
-  BT_GATTC_ILLEGAL_VALUE,       /* 6  Illegal command /parameter value  */
-  BT_GATTC_INCORRECT_STATE,     /* 7  Device in wrong state for request  */
-  BT_GATTC_UNKNOWN_ADDR,        /* 8  Unknown remote BD address         */
-  BT_GATTC_DEVICE_TIMEOUT,      /* 9  Device timeout                    */
+  BT_GATTC_COMMAND_SUCCESS = 0,       /* 0  Command succeeded                 */
+  BT_GATTC_COMMAND_STARTED,           /* 1  Command started OK.               */
+  BT_GATTC_COMMAND_BUSY,              /* 2  Device busy with another command  */
+  BT_GATTC_COMMAND_STORED,            /* 3 request is stored in control block */
+  BT_GATTC_NO_RESOURCES,              /* 4  No resources to issue command     */
+  BT_GATTC_MODE_UNSUPPORTED,          /* 5  Request for 1 or more unsupported modes */
+  BT_GATTC_ILLEGAL_VALUE,             /* 6  Illegal command /parameter value  */
+  BT_GATTC_INCORRECT_STATE,           /* 7  Device in wrong state for request  */
+  BT_GATTC_UNKNOWN_ADDR,              /* 8  Unknown remote BD address         */
+  BT_GATTC_DEVICE_TIMEOUT,            /* 9  Device timeout                    */
   BT_GATTC_INVALID_CONTROLLER_OUTPUT, /* 10  An incorrect value was received
                                          from HCI */
-  BT_GATTC_SECURITY_ERROR, /* 11 Authorization or security failure or not
-                              authorized  */
-  BT_GATTC_DELAYED_ENCRYPTION_CHECK, /*12 Delayed encryption check */
-  BT_GATTC_ERR_PROCESSING            /* 12 Generic error                     */
+  BT_GATTC_SECURITY_ERROR,            /* 11 Authorization or security failure or not
+                                         authorized  */
+  BT_GATTC_DELAYED_ENCRYPTION_CHECK,  /*12 Delayed encryption check */
+  BT_GATTC_ERR_PROCESSING             /* 12 Generic error                     */
 } btgattc_error_t;
 
 /** BT-GATT Client callback structure. */
@@ -94,12 +94,10 @@ typedef void (*register_client_callback)(int status, int client_if,
                                          const bluetooth::Uuid& app_uuid);
 
 /** GATT open callback invoked in response to open */
-typedef void (*connect_callback)(int conn_id, int status, int client_if,
-                                 const RawAddress& bda);
+typedef void (*connect_callback)(int conn_id, int status, int client_if, const RawAddress& bda);
 
 /** Callback invoked in response to close */
-typedef void (*disconnect_callback)(int conn_id, int status, int client_if,
-                                    const RawAddress& bda);
+typedef void (*disconnect_callback)(int conn_id, int status, int client_if, const RawAddress& bda);
 
 /**
  * Invoked in response to search_service when the GATT service search
@@ -108,24 +106,22 @@ typedef void (*disconnect_callback)(int conn_id, int status, int client_if,
 typedef void (*search_complete_callback)(int conn_id, int status);
 
 /** Callback invoked in response to (de)register_for_notification */
-typedef void (*register_for_notification_callback)(int conn_id, int registered,
-                                                   int status, uint16_t handle);
+typedef void (*register_for_notification_callback)(int conn_id, int registered, int status,
+                                                   uint16_t handle);
 
 /**
  * Remote device notification callback, invoked when a remote device sends
  * a notification or indication that a client has registered for.
  */
-typedef void (*notify_callback)(int conn_id,
-                                const btgatt_notify_params_t& p_data);
+typedef void (*notify_callback)(int conn_id, const btgatt_notify_params_t& p_data);
 
 /** Reports result of a GATT read operation */
-typedef void (*read_characteristic_callback)(
-    int conn_id, int status, const btgatt_read_params_t& p_data);
+typedef void (*read_characteristic_callback)(int conn_id, int status,
+                                             const btgatt_read_params_t& p_data);
 
 /** GATT write characteristic operation callback */
-typedef void (*write_characteristic_callback)(int conn_id, int status,
-                                              uint16_t handle, uint16_t len,
-                                              const uint8_t* value);
+typedef void (*write_characteristic_callback)(int conn_id, int status, uint16_t handle,
+                                              uint16_t len, const uint8_t* value);
 
 /** GATT execute prepared write callback */
 typedef void (*execute_write_callback)(int conn_id, int status);
@@ -135,13 +131,12 @@ typedef void (*read_descriptor_callback)(int conn_id, int status,
                                          const btgatt_read_params_t& p_data);
 
 /** Callback invoked in response to write_descriptor */
-typedef void (*write_descriptor_callback)(int conn_id, int status,
-                                          uint16_t handle, uint16_t len,
+typedef void (*write_descriptor_callback)(int conn_id, int status, uint16_t handle, uint16_t len,
                                           const uint8_t* value);
 
 /** Callback triggered in response to read_remote_rssi */
-typedef void (*read_remote_rssi_callback)(int client_if, const RawAddress& bda,
-                                          int rssi, int status);
+typedef void (*read_remote_rssi_callback)(int client_if, const RawAddress& bda, int rssi,
+                                          int status);
 
 /** Callback invoked when the MTU for a given connection changes */
 typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
@@ -155,36 +150,30 @@ typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
 typedef void (*congestion_callback)(int conn_id, bool congested);
 
 /** GATT get database callback */
-typedef void (*get_gatt_db_callback)(int conn_id, const btgatt_db_element_t* db,
-                                     int count);
+typedef void (*get_gatt_db_callback)(int conn_id, const btgatt_db_element_t* db, int count);
 
 /** GATT services between start_handle and end_handle were removed */
-typedef void (*services_removed_callback)(int conn_id, uint16_t start_handle,
-                                          uint16_t end_handle);
+typedef void (*services_removed_callback)(int conn_id, uint16_t start_handle, uint16_t end_handle);
 
 /** GATT services were added */
-typedef void (*services_added_callback)(int conn_id,
-                                        const btgatt_db_element_t& added,
+typedef void (*services_added_callback)(int conn_id, const btgatt_db_element_t& added,
                                         int added_count);
 
 /** Callback invoked when the PHY for a given connection changes */
-typedef void (*phy_updated_callback)(int conn_id, uint8_t tx_phy,
-                                     uint8_t rx_phy, uint8_t status);
+typedef void (*phy_updated_callback)(int conn_id, uint8_t tx_phy, uint8_t rx_phy, uint8_t status);
 
 /** Callback invoked when the connection parameters for a given connection
  * changes */
-typedef void (*conn_updated_callback)(int conn_id, uint16_t interval,
-                                      uint16_t latency, uint16_t timeout,
-                                      uint8_t status);
+typedef void (*conn_updated_callback)(int conn_id, uint16_t interval, uint16_t latency,
+                                      uint16_t timeout, uint8_t status);
 
 /** Callback when services are changed */
 typedef void (*service_changed_callback)(int conn_id);
 
 /** Callback invoked when the subrate change event for a given connection
  * is received */
-typedef void (*subrate_change_callback)(int conn_id, uint16_t subrate_factor,
-                                        uint16_t latency, uint16_t cont_num,
-                                        uint16_t timeout, uint8_t status);
+typedef void (*subrate_change_callback)(int conn_id, uint16_t subrate_factor, uint16_t latency,
+                                        uint16_t cont_num, uint16_t timeout, uint8_t status);
 
 typedef struct {
   register_client_callback register_client_cb;
@@ -214,20 +203,18 @@ typedef struct {
 
 typedef struct {
   /** Registers a GATT client application with the stack */
-  bt_status_t (*register_client)(const bluetooth::Uuid& uuid,
-                                 bool eatt_support);
+  bt_status_t (*register_client)(const bluetooth::Uuid& uuid, bool eatt_support);
 
   /** Unregister a client application from the stack */
   bt_status_t (*unregister_client)(int client_if);
 
   /** Create a connection to a remote LE or dual-mode device */
-  bt_status_t (*connect)(int client_if, const RawAddress& bd_addr,
-                         uint8_t addr_type, bool is_direct, int transport,
-                         bool opportunistic, int initiating_phys);
+  bt_status_t (*connect)(int client_if, const RawAddress& bd_addr, uint8_t addr_type,
+                         bool is_direct, int transport, bool opportunistic, int initiating_phys,
+                         int preferred_mtu);
 
   /** Disconnect a remote device or cancel a pending connection */
-  bt_status_t (*disconnect)(int client_if, const RawAddress& bd_addr,
-                            int conn_id);
+  bt_status_t (*disconnect)(int client_if, const RawAddress& bd_addr, int conn_id);
 
   /** Clear the attribute cache for a given device */
   bt_status_t (*refresh)(int client_if, const RawAddress& bd_addr);
@@ -236,37 +223,30 @@ typedef struct {
    * Enumerate all GATT services on a connected device.
    * Optionally, the results can be filtered for a given UUID.
    */
-  bt_status_t (*search_service)(int conn_id,
-                                const bluetooth::Uuid* filter_uuid);
+  bt_status_t (*search_service)(int conn_id, const bluetooth::Uuid* filter_uuid);
 
   /**
    * Sead "Find service by UUID" request. Used only for PTS tests.
    */
-  void (*btif_gattc_discover_service_by_uuid)(int conn_id,
-                                              const bluetooth::Uuid& uuid);
+  void (*btif_gattc_discover_service_by_uuid)(int conn_id, const bluetooth::Uuid& uuid);
 
   /** Read a characteristic on a remote device */
-  bt_status_t (*read_characteristic)(int conn_id, uint16_t handle,
-                                     int auth_req);
+  bt_status_t (*read_characteristic)(int conn_id, uint16_t handle, int auth_req);
 
   /** Read a characteristic on a remote device */
-  bt_status_t (*read_using_characteristic_uuid)(int conn_id,
-                                                const bluetooth::Uuid& uuid,
-                                                uint16_t s_handle,
-                                                uint16_t e_handle,
-                                                int auth_req);
+  bt_status_t (*read_using_characteristic_uuid)(int conn_id, const bluetooth::Uuid& uuid,
+                                                uint16_t s_handle, uint16_t e_handle, int auth_req);
 
   /** Write a remote characteristic */
-  bt_status_t (*write_characteristic)(int conn_id, uint16_t handle,
-                                      int write_type, int auth_req,
+  bt_status_t (*write_characteristic)(int conn_id, uint16_t handle, int write_type, int auth_req,
                                       const uint8_t* value, size_t length);
 
   /** Read the descriptor for a given characteristic */
   bt_status_t (*read_descriptor)(int conn_id, uint16_t handle, int auth_req);
 
   /** Write a remote descriptor for a given characteristic */
-  bt_status_t (*write_descriptor)(int conn_id, uint16_t handle, int auth_req,
-                                  const uint8_t* value, size_t length);
+  bt_status_t (*write_descriptor)(int conn_id, uint16_t handle, int auth_req, const uint8_t* value,
+                                  size_t length);
 
   /** Execute a prepared write operation */
   bt_status_t (*execute_write)(int conn_id, int execute);
@@ -275,13 +255,11 @@ typedef struct {
    * Register to receive notifications or indications for a given
    * characteristic
    */
-  bt_status_t (*register_for_notification)(int client_if,
-                                           const RawAddress& bd_addr,
+  bt_status_t (*register_for_notification)(int client_if, const RawAddress& bd_addr,
                                            uint16_t handle);
 
   /** Deregister a previous request for notifications/indications */
-  bt_status_t (*deregister_for_notification)(int client_if,
-                                             const RawAddress& bd_addr,
+  bt_status_t (*deregister_for_notification)(int client_if, const RawAddress& bd_addr,
                                              uint16_t handle);
 
   /** Request RSSI for a given remote device */
@@ -294,18 +272,15 @@ typedef struct {
   bt_status_t (*configure_mtu)(int conn_id, int mtu);
 
   /** Request a connection parameter update */
-  bt_status_t (*conn_parameter_update)(const RawAddress& bd_addr,
-                                       int min_interval, int max_interval,
-                                       int latency, int timeout,
-                                       uint16_t min_ce_len,
-                                       uint16_t max_ce_len);
+  bt_status_t (*conn_parameter_update)(const RawAddress& bd_addr, int min_interval,
+                                       int max_interval, int latency, int timeout,
+                                       uint16_t min_ce_len, uint16_t max_ce_len);
 
-  bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy,
-                                   uint8_t rx_phy, uint16_t phy_options);
+  bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy, uint8_t rx_phy,
+                                   uint16_t phy_options);
 
-  bt_status_t (*read_phy)(
-      const RawAddress& bd_addr,
-      base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
+  bt_status_t (*read_phy)(const RawAddress& bd_addr,
+                          base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
 
   /** Test mode interface */
   bt_status_t (*test_command)(int command, const btgatt_test_params_t& params);
@@ -314,9 +289,8 @@ typedef struct {
   bt_status_t (*get_gatt_db)(int conn_id);
 
   /** Request a BLE subrate request procedure */
-  bt_status_t (*subrate_request)(const RawAddress& bd_addr, int subrate_min,
-                                 int subrate_max, int max_latency, int cont_num,
-                                 int timeout);
+  bt_status_t (*subrate_request)(const RawAddress& bd_addr, int subrate_min, int subrate_max,
+                                 int max_latency, int cont_num, int timeout);
 
 } btgatt_client_interface_t;
 

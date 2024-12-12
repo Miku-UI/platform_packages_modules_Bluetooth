@@ -48,10 +48,15 @@ import android.content.ContextWrapper;
 import android.os.IBinder;
 import android.os.Process;
 import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.flags.Flags;
 
 import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges;
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
@@ -79,6 +84,8 @@ public class BluetoothServiceBinderTest {
             "android.permission.READ_COMPAT_CHANGE_CONFIG";
 
     @Rule public MockitoRule mockito = MockitoJUnit.rule().strictness(STRICT_STUBS);
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Rule public TestRule compatChangeRule = new PlatformCompatChangeRule();
 
@@ -146,10 +153,10 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.enable(mSource));
         checkHardDenied(() -> mBinder.enable(mSource), true);
-        doReturn(true).when(mManagerService).enable(any());
+        doReturn(true).when(mManagerService).enableFromBinder(any());
         checkGranted(() -> mBinder.enable(mSource), true);
         verify(mUserManager).getProfileParent(any());
-        verify(mManagerService).enable(eq(TAG));
+        verify(mManagerService).enableFromBinder(eq(TAG));
         verifyMock();
     }
 
@@ -193,10 +200,10 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.disable(mSource, true));
         checkHardDenied(() -> mBinder.disable(mSource, true), true);
-        doReturn(true).when(mManagerService).disable(any(), anyBoolean());
+        doReturn(true).when(mManagerService).disableFromBinder(any(), anyBoolean());
         checkGranted(() -> mBinder.disable(mSource, true), true);
         verify(mUserManager).getProfileParent(any());
-        verify(mManagerService).disable(eq(TAG), anyBoolean());
+        verify(mManagerService).disableFromBinder(eq(TAG), anyBoolean());
         verifyMock();
     }
 
@@ -217,6 +224,7 @@ public class BluetoothServiceBinderTest {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER)
     public void getState() {
         // TODO(b/280518177): add more test from not System / ...
         // TODO(b/280518177): add more test when caller is not in foreground
@@ -224,6 +232,14 @@ public class BluetoothServiceBinderTest {
         mBinder.getState();
         verify(mManagerService).getState();
         verify(mUserManager).getProfileParent(any());
+        verifyMock();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER)
+    public void getStateFromSystemServer() {
+        mBinder.getState();
+        verify(mManagerService).getState();
         verifyMock();
     }
 
@@ -288,7 +304,7 @@ public class BluetoothServiceBinderTest {
                 .adoptShellPermissionIdentity(BLUETOOTH_PRIVILEGED, BLUETOOTH_CONNECT);
 
         assertThat(mBinder.onFactoryReset(mSource)).isFalse();
-        verify(mManagerService).onFactoryReset();
+        verify(mManagerService).onFactoryResetFromBinder();
         verifyMock();
     }
 
@@ -308,9 +324,9 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.enableBle(mSource, token));
         checkHardDenied(() -> mBinder.enableBle(mSource, token), false);
-        doReturn(true).when(mManagerService).enableBle(eq(TAG), eq(token));
+        doReturn(true).when(mManagerService).enableBleFromBinder(eq(TAG), eq(token));
         checkGranted(() -> mBinder.enableBle(mSource, token), true);
-        verify(mManagerService).enableBle(eq(TAG), eq(token));
+        verify(mManagerService).enableBleFromBinder(eq(TAG), eq(token));
         verifyMock();
     }
 
@@ -322,9 +338,9 @@ public class BluetoothServiceBinderTest {
 
         checkDisabled(() -> mBinder.disableBle(mSource, token));
         checkHardDenied(() -> mBinder.disableBle(mSource, token), false);
-        doReturn(true).when(mManagerService).disableBle(eq(TAG), eq(token));
+        doReturn(true).when(mManagerService).disableBleFromBinder(eq(TAG), eq(token));
         checkGranted(() -> mBinder.disableBle(mSource, token), true);
-        verify(mManagerService).disableBle(eq(TAG), eq(token));
+        verify(mManagerService).disableBleFromBinder(eq(TAG), eq(token));
         verifyMock();
     }
 

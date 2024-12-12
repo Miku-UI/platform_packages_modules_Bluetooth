@@ -46,6 +46,8 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 
+import com.google.common.base.Ascii;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -430,13 +432,13 @@ public class BluetoothOppNotificationTest {
         UiObject2 buttonOk = device.findObject(By.text(confirmString));
         // In AOSP, all actions' titles are converted into upper case
         if (buttonOk == null) {
-            buttonOk = device.findObject(By.text(confirmString.toUpperCase()));
+            buttonOk = device.findObject(By.text(Ascii.toUpperCase(confirmString)));
         }
 
         UiObject2 buttonDecline = device.findObject(By.text(declineString));
         // In AOSP, all actions' titles are converted into upper case
         if (buttonDecline == null) {
-            buttonDecline = device.findObject(By.text(declineString.toUpperCase()));
+            buttonDecline = device.findObject(By.text(Ascii.toUpperCase(declineString)));
         }
 
         assertThat(title).isNotNull();
@@ -454,8 +456,8 @@ public class BluetoothOppNotificationTest {
 
         assertThat(device.findObject(By.text(titleString))).isNull();
         assertThat(device.findObject(By.text(confirmString))).isNull();
-        assertThat(device.findObject(By.text(confirmString.toUpperCase()))).isNull();
+        assertThat(device.findObject(By.text(Ascii.toUpperCase(confirmString)))).isNull();
         assertThat(device.findObject(By.text(declineString))).isNull();
-        assertThat(device.findObject(By.text(declineString.toUpperCase()))).isNull();
+        assertThat(device.findObject(By.text(Ascii.toUpperCase(declineString)))).isNull();
     }
 }

@@ -73,8 +73,8 @@ bool osi_property_get_bool(const char* key, bool default_value) {
   }
 }
 
-std::vector<uint32_t> osi_property_get_uintlist(
-    const char* key, const std::vector<uint32_t> default_value) {
+std::vector<uint32_t> osi_property_get_uintlist(const char* key,
+                                                const std::vector<uint32_t> default_value) {
   std::optional<std::string> result = bluetooth::os::GetSystemProperty(key);
   if (!result || result->empty() || result->size() > PROPERTY_VALUE_MAX) {
     return default_value;

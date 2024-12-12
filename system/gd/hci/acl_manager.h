@@ -50,7 +50,7 @@ class AclManager : public Module {
   friend class bluetooth::hci::LeScanningManager;
   friend class bluetooth::hci::DistanceMeasurementManager;
 
- public:
+public:
   AclManager();
   AclManager(const AclManager&) = delete;
   AclManager& operator=(const AclManager&) = delete;
@@ -66,17 +66,17 @@ class AclManager : public Module {
   // Should register only once when user module starts.
   // Generates OnConnectSuccess when an incoming connection is established.
   virtual void RegisterCallbacks(acl_manager::ConnectionCallbacks* callbacks, os::Handler* handler);
-  virtual void UnregisterCallbacks(
-      acl_manager::ConnectionCallbacks* callbacks, std::promise<void> promise);
+  virtual void UnregisterCallbacks(acl_manager::ConnectionCallbacks* callbacks,
+                                   std::promise<void> promise);
 
   // Should register only once when user module starts.
-  virtual void RegisterLeCallbacks(
-      acl_manager::LeConnectionCallbacks* callbacks, os::Handler* handler);
-  virtual void UnregisterLeCallbacks(
-      acl_manager::LeConnectionCallbacks* callbacks, std::promise<void> promise);
+  virtual void RegisterLeCallbacks(acl_manager::LeConnectionCallbacks* callbacks,
+                                   os::Handler* handler);
+  virtual void UnregisterLeCallbacks(acl_manager::LeConnectionCallbacks* callbacks,
+                                     std::promise<void> promise);
   void RegisterLeAcceptlistCallbacks(acl_manager::LeAcceptlistCallbacks* callbacks);
-  void UnregisterLeAcceptlistCallbacks(
-      acl_manager::LeAcceptlistCallbacks* callbacks, std::promise<void> promise);
+  void UnregisterLeAcceptlistCallbacks(acl_manager::LeAcceptlistCallbacks* callbacks,
+                                       std::promise<void> promise);
 
   // Generates OnConnectSuccess if connected, or OnConnectFail otherwise
   virtual void CreateConnection(Address address);
@@ -87,26 +87,19 @@ class AclManager : public Module {
   // Ask the controller for specific data parameters
   virtual void SetLeSuggestedDefaultDataParameters(uint16_t octets, uint16_t time);
 
-  virtual void LeSetDefaultSubrate(
-      uint16_t subrate_min,
-      uint16_t subrate_max,
-      uint16_t max_latency,
-      uint16_t cont_num,
-      uint16_t sup_tout);
+  virtual void LeSetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency,
+                                   uint16_t cont_num, uint16_t sup_tout);
 
-  virtual void SetPrivacyPolicyForInitiatorAddress(
-      LeAddressManager::AddressPolicy address_policy,
-      AddressWithType fixed_address,
-      std::chrono::milliseconds minimum_rotation_time,
-      std::chrono::milliseconds maximum_rotation_time);
+  virtual void SetPrivacyPolicyForInitiatorAddress(LeAddressManager::AddressPolicy address_policy,
+                                                   AddressWithType fixed_address,
+                                                   std::chrono::milliseconds minimum_rotation_time,
+                                                   std::chrono::milliseconds maximum_rotation_time);
 
   // TODO(jpawlowski): remove once we have config file abstraction in cert tests
   virtual void SetPrivacyPolicyForInitiatorAddressForTest(
-      LeAddressManager::AddressPolicy address_policy,
-      AddressWithType fixed_address,
-      Octet16 rotation_irk,
-      std::chrono::milliseconds minimum_rotation_time,
-      std::chrono::milliseconds maximum_rotation_time);
+          LeAddressManager::AddressPolicy address_policy, AddressWithType fixed_address,
+          Octet16 rotation_irk, std::chrono::milliseconds minimum_rotation_time,
+          std::chrono::milliseconds maximum_rotation_time);
 
   // Generates OnConnectFail with error code "terminated by local host 0x16" if
   // cancelled, or OnConnectSuccess if not successfully cancelled and already
@@ -119,10 +112,9 @@ class AclManager : public Module {
 
   virtual void ClearFilterAcceptList();
 
-  virtual void AddDeviceToResolvingList(
-      AddressWithType address_with_type,
-      const std::array<uint8_t, 16>& peer_irk,
-      const std::array<uint8_t, 16>& local_irk);
+  virtual void AddDeviceToResolvingList(AddressWithType address_with_type,
+                                        const std::array<uint8_t, 16>& peer_irk,
+                                        const std::array<uint8_t, 16>& local_irk);
   virtual void RemoveDeviceFromResolvingList(AddressWithType address_with_type);
   virtual void ClearResolvingList();
 
@@ -132,12 +124,9 @@ class AclManager : public Module {
   virtual void WriteDefaultLinkPolicySettings(uint16_t default_link_policy_settings);
 
   // Callback from Advertising Manager to notify the advitiser (local) address
-  virtual void OnAdvertisingSetTerminated(
-      ErrorCode status,
-      uint16_t conn_handle,
-      uint8_t adv_set_id,
-      hci::AddressWithType adv_address,
-      bool is_discoverable);
+  virtual void OnAdvertisingSetTerminated(ErrorCode status, uint16_t conn_handle,
+                                          uint8_t adv_set_id, hci::AddressWithType adv_address,
+                                          bool is_discoverable);
 
   virtual LeAddressManager* GetLeAddressManager();
 
@@ -148,7 +137,7 @@ class AclManager : public Module {
 
   static const ModuleFactory Factory;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
 
   void Start() override;
@@ -158,9 +147,9 @@ class AclManager : public Module {
   std::string ToString() const override;
 
   DumpsysDataFinisher GetDumpsysData(
-      flatbuffers::FlatBufferBuilder* builder) const override;  // Module
+          flatbuffers::FlatBufferBuilder* builder) const override;  // Module
 
- private:
+private:
   virtual uint16_t HACK_GetHandle(const Address address);
   virtual uint16_t HACK_GetLeHandle(const Address address);
   virtual Address HACK_GetLeAddress(uint16_t connection_handle);

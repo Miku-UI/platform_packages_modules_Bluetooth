@@ -42,19 +42,23 @@ using namespace bluetooth;
 using namespace bluetooth::legacy::stack::sdp;
 
 static const uint8_t pan_proto_elem_data[] = {
-    0x35, 0x18,       /* data element sequence of length 0x18 bytes */
-    0x35, 0x06,       /* data element sequence for L2CAP descriptor */
-    0x19, 0x01, 0x00, /* UUID for L2CAP - 0x0100 */
-    0x09, 0x00, 0x0F, /* PSM for BNEP - 0x000F */
-    0x35, 0x0E,       /* data element seqence for BNEP descriptor */
-    0x19, 0x00, 0x0F, /* UUID for BNEP - 0x000F */
-    0x09, 0x01,
-    0x00, /* BNEP specific parameter 0 -- Version of BNEP = version 1 = 0x0001
-           */
-    0x35,
-    0x06, /* BNEP specific parameter 1 -- Supported network packet type list */
-    0x09, 0x08, 0x00, /* network packet type IPv4 = 0x0800 */
-    0x09, 0x08, 0x06  /* network packet type ARP  = 0x0806 */
+        0x35, 0x18, /* data element sequence of length 0x18 bytes */
+        0x35, 0x06, /* data element sequence for L2CAP descriptor */
+        0x19, 0x01,
+        0x00, /* UUID for L2CAP - 0x0100 */
+        0x09, 0x00,
+        0x0F,       /* PSM for BNEP - 0x000F */
+        0x35, 0x0E, /* data element seqence for BNEP descriptor */
+        0x19, 0x00,
+        0x0F, /* UUID for BNEP - 0x000F */
+        0x09, 0x01,
+        0x00,       /* BNEP specific parameter 0 -- Version of BNEP = version 1 = 0x0001
+                     */
+        0x35, 0x06, /* BNEP specific parameter 1 -- Supported network packet type list */
+        0x09, 0x08,
+        0x00, /* network packet type IPv4 = 0x0800 */
+        0x09, 0x08,
+        0x06 /* network packet type ARP  = 0x0806 */
 };
 
 /*******************************************************************************
@@ -66,8 +70,7 @@ static const uint8_t pan_proto_elem_data[] = {
  * Returns
  *
  ******************************************************************************/
-uint32_t pan_register_with_sdp(uint16_t uuid, const char* p_name,
-                               const char* p_desc) {
+uint32_t pan_register_with_sdp(uint16_t uuid, const char* p_name, const char* p_desc) {
   uint32_t sdp_handle;
   uint16_t browse_list = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
   uint16_t security = 0;
@@ -82,44 +85,41 @@ uint32_t pan_register_with_sdp(uint16_t uuid, const char* p_name,
   }
 
   /* Service Class ID List */
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle,
-                                                                    1, &uuid)) {
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1, &uuid)) {
     log::warn("Unable to add SDP class id list handle:{}", sdp_handle);
   }
 
   /* Add protocol element sequence from the constant string */
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          sdp_handle, ATTR_ID_PROTOCOL_DESC_LIST, DATA_ELE_SEQ_DESC_TYPE,
-          proto_len, (uint8_t*)(pan_proto_elem_data + 2))) {
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(sdp_handle, ATTR_ID_PROTOCOL_DESC_LIST,
+                                                           DATA_ELE_SEQ_DESC_TYPE, proto_len,
+                                                           (uint8_t*)(pan_proto_elem_data + 2))) {
     log::warn("Unable to add SDP PAN profile attribute handle:{}", sdp_handle);
   }
 
   /* Language base */
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddLanguageBaseAttrIDList(
-          sdp_handle, LANG_ID_CODE_ENGLISH, LANG_ID_CHAR_ENCODE_UTF8,
-          LANGUAGE_BASE_ID)) {
+              sdp_handle, LANG_ID_CODE_ENGLISH, LANG_ID_CHAR_ENCODE_UTF8, LANGUAGE_BASE_ID)) {
     log::warn("Unable to add SDP language base attribute");
   }
 
   /* Profile descriptor list */
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-          sdp_handle, uuid, PAN_PROFILE_VERSION)) {
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(sdp_handle, uuid,
+                                                                       PAN_PROFILE_VERSION)) {
     log::warn("Unable to add SDP PAN profile version");
   }
 
   /* Service Name */
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE,
-          (uint8_t)(strlen(p_name) + 1), (uint8_t*)p_name)) {
+              sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE, (uint8_t)(strlen(p_name) + 1),
+              (uint8_t*)p_name)) {
     log::warn("Unable to add SDP service name attribute handle:{}", sdp_handle);
   }
 
   /* Service description */
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          sdp_handle, ATTR_ID_SERVICE_DESCRIPTION, TEXT_STR_DESC_TYPE,
-          (uint8_t)(strlen(p_desc) + 1), (uint8_t*)p_desc)) {
-    log::warn("Unable to add SDP service description attribute handle:{}",
-              sdp_handle);
+              sdp_handle, ATTR_ID_SERVICE_DESCRIPTION, TEXT_STR_DESC_TYPE,
+              (uint8_t)(strlen(p_desc) + 1), (uint8_t*)p_desc)) {
+    log::warn("Unable to add SDP service description attribute handle:{}", sdp_handle);
   }
 
   /* Security description */
@@ -128,10 +128,8 @@ uint32_t pan_register_with_sdp(uint16_t uuid, const char* p_name,
     UINT16_TO_BE_FIELD(&security, 0x0001);
   }
   if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          sdp_handle, ATTR_ID_SECURITY_DESCRIPTION, UINT_DESC_TYPE, 2,
-          (uint8_t*)&security)) {
-    log::warn("Unable to add SDP security description attribute handle:{}",
-              sdp_handle);
+              sdp_handle, ATTR_ID_SECURITY_DESCRIPTION, UINT_DESC_TYPE, 2, (uint8_t*)&security)) {
+    log::warn("Unable to add SDP security description attribute handle:{}", sdp_handle);
   }
 
   if (uuid == UUID_SERVCLASS_NAP) {
@@ -142,28 +140,24 @@ uint32_t pan_register_with_sdp(uint16_t uuid, const char* p_name,
     /* Net access type. */
     p = array;
     UINT16_TO_BE_STREAM(p, NetAccessType);
-    if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-            sdp_handle, ATTR_ID_NET_ACCESS_TYPE, UINT_DESC_TYPE, 2, array)) {
-      log::warn("Unable to add SDP attribute net access type handle:{}",
-                sdp_handle);
+    if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(sdp_handle, ATTR_ID_NET_ACCESS_TYPE,
+                                                             UINT_DESC_TYPE, 2, array)) {
+      log::warn("Unable to add SDP attribute net access type handle:{}", sdp_handle);
     }
 
     /* Net access rate. */
     p = array;
     UINT32_TO_BE_STREAM(p, NetAccessRate);
     if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-            sdp_handle, ATTR_ID_MAX_NET_ACCESS_RATE, UINT_DESC_TYPE, 4,
-            array)) {
-      log::warn("Unable to add SDP attribute net access rate handle:{}",
-                sdp_handle);
+                sdp_handle, ATTR_ID_MAX_NET_ACCESS_RATE, UINT_DESC_TYPE, 4, array)) {
+      log::warn("Unable to add SDP attribute net access rate handle:{}", sdp_handle);
     }
   }
 
   /* Make the service browsable */
-  if (!get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse_list)) {
-    log::warn("Unable to add SDP uuid sequence browse group list handle:{}",
-              sdp_handle);
+  if (!get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(sdp_handle, ATTR_ID_BROWSE_GROUP_LIST,
+                                                              1, &browse_list)) {
+    log::warn("Unable to add SDP uuid sequence browse group list handle:{}", sdp_handle);
   }
 
   return sdp_handle;
@@ -182,15 +176,15 @@ tPAN_CONN* pan_allocate_pcb(const RawAddress& p_bda, uint16_t handle) {
   uint16_t i;
 
   for (i = 0; i < MAX_PAN_CONNS; i++) {
-    if (pan_cb.pcb[i].con_state != PAN_STATE_IDLE &&
-        pan_cb.pcb[i].handle == handle)
+    if (pan_cb.pcb[i].con_state != PAN_STATE_IDLE && pan_cb.pcb[i].handle == handle) {
       return NULL;
+    }
   }
 
   for (i = 0; i < MAX_PAN_CONNS; i++) {
-    if (pan_cb.pcb[i].con_state != PAN_STATE_IDLE &&
-        pan_cb.pcb[i].rem_bda == p_bda)
+    if (pan_cb.pcb[i].con_state != PAN_STATE_IDLE && pan_cb.pcb[i].rem_bda == p_bda) {
       return NULL;
+    }
   }
 
   for (i = 0; i < MAX_PAN_CONNS; i++) {
@@ -217,9 +211,9 @@ tPAN_CONN* pan_get_pcb_by_handle(uint16_t handle) {
   uint16_t i;
 
   for (i = 0; i < MAX_PAN_CONNS; i++) {
-    if (pan_cb.pcb[i].con_state != PAN_STATE_IDLE &&
-        pan_cb.pcb[i].handle == handle)
+    if (pan_cb.pcb[i].con_state != PAN_STATE_IDLE && pan_cb.pcb[i].handle == handle) {
       return &(pan_cb.pcb[i]);
+    }
   }
 
   return NULL;
@@ -238,9 +232,13 @@ tPAN_CONN* pan_get_pcb_by_addr(const RawAddress& p_bda) {
   uint16_t i;
 
   for (i = 0; i < MAX_PAN_CONNS; i++) {
-    if (pan_cb.pcb[i].con_state == PAN_STATE_IDLE) continue;
+    if (pan_cb.pcb[i].con_state == PAN_STATE_IDLE) {
+      continue;
+    }
 
-    if (pan_cb.pcb[i].rem_bda == p_bda) return &(pan_cb.pcb[i]);
+    if (pan_cb.pcb[i].rem_bda == p_bda) {
+      return &(pan_cb.pcb[i]);
+    }
 
     /*
     if (pan_cb.pcb[i].mfilter_present &&
@@ -306,12 +304,12 @@ void pan_dump_status(void) {
   uint16_t i;
   tPAN_CONN* p_pcb;
 
-  log::verbose("PAN role {:x}, active role {}, num_conns {}", pan_cb.role,
-               pan_cb.active_role, pan_cb.num_conns);
+  log::verbose("PAN role {:x}, active role {}, num_conns {}", pan_cb.role, pan_cb.active_role,
+               pan_cb.num_conns);
 
   for (i = 0, p_pcb = pan_cb.pcb; i < MAX_PAN_CONNS; i++, p_pcb++) {
-    log::verbose("{} state:{}, handle:{}, src{}, BD:{}", i, p_pcb->con_state,
-                 p_pcb->handle, p_pcb->src_uuid, p_pcb->rem_bda);
+    log::verbose("{} state:{}, handle:{}, src{}, BD:{}", i, p_pcb->con_state, p_pcb->handle,
+                 p_pcb->src_uuid, p_pcb->rem_bda);
   }
 #endif
 }

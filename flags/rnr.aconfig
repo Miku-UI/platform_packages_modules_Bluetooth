@@ -2,20 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "rnr_present_during_service_discovery"
-    namespace: "bluetooth"
-    description: "Present RNR result during service discovery"
-    bug: "321809163"
-}
-
-flag {
-    name: "rnr_reset_state_at_cancel"
-    namespace: "bluetooth"
-    description: "Clear rnr in-progress-state when rnr_cancel called"
-    bug: "333094503"
-}
-
-flag {
     name: "rnr_store_device_type"
     namespace: "bluetooth"
     description: "Store BREDR/LE when issuing RNR so we can cancel the correct type"
@@ -30,6 +16,16 @@ flag {
     namespace: "bluetooth"
     description: "Validate page scan repetition mode parameter before sending RNR"
     bug: "344520866"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "rnr_directly_call_gap_over_le"
+    namespace: "bluetooth"
+    description: "Directly call GAP for remote name request over LE"
+    bug: "363052833"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

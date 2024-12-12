@@ -51,11 +51,10 @@ void BTM_acl_after_controller_started();
  *
  * Description      Create and send HCI "Write Link Supervision Timeout" command
  *
- * Returns          BTM_CMD_STARTED if successfully initiated, otherwise error
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if successfully initiated, otherwise error
  *
  ******************************************************************************/
-tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda,
-                                 uint16_t timeout);
+tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda, uint16_t timeout);
 /*******************************************************************************
  *
  * Function         BTM_GetLinkSuperTout
@@ -65,8 +64,7 @@ tBTM_STATUS BTM_SetLinkSuperTout(const RawAddress& remote_bda,
  * Returns          status of the operation
  *
  ******************************************************************************/
-tBTM_STATUS BTM_GetLinkSuperTout(const RawAddress& remote_bda,
-                                 uint16_t* p_timeout);
+tBTM_STATUS BTM_GetLinkSuperTout(const RawAddress& remote_bda, uint16_t* p_timeout);
 
 /*******************************************************************************
  *
@@ -79,11 +77,9 @@ tBTM_STATUS BTM_GetLinkSuperTout(const RawAddress& remote_bda,
  * Returns          true if connection is up, else false.
  *
  ******************************************************************************/
-bool BTM_IsAclConnectionUp(const RawAddress& remote_bda,
-                           tBT_TRANSPORT transport);
+bool BTM_IsAclConnectionUp(const RawAddress& remote_bda, tBT_TRANSPORT transport);
 
-bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda,
-                                         tBT_TRANSPORT transport);
+bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -92,8 +88,8 @@ bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda,
  * Description      This function is called to get the role of the local device
  *                  for the ACL connection with the specified remote device
  *
- * Returns          BTM_SUCCESS if connection exists.
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ * Returns          tBTM_STATUS::BTM_SUCCESS if connection exists.
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *
  ******************************************************************************/
 tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role);
@@ -105,12 +101,12 @@ tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role);
  * Description      This function is called to switch role between central and
  *                  peripheral.  If role is already set it will do nothing.
  *
- * Returns          BTM_SUCCESS if already in specified role.
- *                  BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ * Returns          tBTM_STATUS::BTM_SUCCESS if already in specified role.
+ *                  tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  BTM_MODE_UNSUPPORTED if the local device does not support
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_MODE_UNSUPPORTED if the local device does not support
  *                                       role switching
  *
  ******************************************************************************/
@@ -124,11 +120,11 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr);
  *                  The address of link policy results are returned in the
  *                  callback. (tBTM_RSSI_RESULT)
  *
- * Returns          BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  BTM_BUSY if command is already in progress
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_BUSY if command is already in progress
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
@@ -141,15 +137,15 @@ tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
  *                  The result is returned in the callback.
  *                  (tBTM_FAILED_CONTACT_COUNTER_RESULT)
  *
- * Returns          BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
  *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  BTM_BUSY if command is already in progress
+ *                  tBTM_STATUS::BTM_BUSY if command is already in progress
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *
  ******************************************************************************/
-tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda,
-                                         tBTM_CMPL_CB* p_cb);
+tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
 
 /*******************************************************************************
  *
@@ -160,15 +156,15 @@ tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda,
  *                  are returned in the callback.
  *                  (tBTM_RSSI_RESULT)
  *
- * Returns          BTM_CMD_STARTED if command issued to controller.
- *                  BTM_NO_RESOURCES if memory couldn't be allocated to issue
+ * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
+ *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
  *                                   the command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  BTM_BUSY if command is already in progress
+ *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
+ *                  tBTM_STATUS::BTM_BUSY if command is already in progress
  *
  ******************************************************************************/
-tBTM_STATUS BTM_ReadTxPower(const RawAddress& remote_bda,
-                            tBT_TRANSPORT transport, tBTM_CMPL_CB* p_cb);
+tBTM_STATUS BTM_ReadTxPower(const RawAddress& remote_bda, tBT_TRANSPORT transport,
+                            tBTM_CMPL_CB* p_cb);
 
 /*******************************************************************************
  *
@@ -182,8 +178,7 @@ tBTM_STATUS BTM_ReadTxPower(const RawAddress& remote_bda,
  ******************************************************************************/
 uint16_t BTM_GetNumAclLinks(void);
 
-void btm_set_packet_types_from_address(const RawAddress& bda,
-                                       uint16_t pkt_types);
+void btm_set_packet_types_from_address(const RawAddress& bda, uint16_t pkt_types);
 
 #define BLE_RESOLVE_ADDR_MASK 0xc0
 #define BLE_RESOLVE_ADDR_MSB 0x40
@@ -191,27 +186,22 @@ void btm_set_packet_types_from_address(const RawAddress& bda,
 bool BTM_BLE_IS_RESOLVE_BDA(const RawAddress& x);
 
 bool acl_refresh_remote_address(const RawAddress& identity_address,
-                                tBLE_ADDR_TYPE identity_address_type,
-                                const RawAddress& remote_bda,
-                                tBLE_RAND_ADDR_TYPE rra_type,
-                                const RawAddress& rpa);
+                                tBLE_ADDR_TYPE identity_address_type, const RawAddress& remote_bda,
+                                tBLE_RAND_ADDR_TYPE rra_type, const RawAddress& rpa);
 
-void btm_establish_continue_from_address(const RawAddress& remote_bda,
-                                         tBT_TRANSPORT transport);
+void btm_establish_continue_from_address(const RawAddress& remote_bda, tBT_TRANSPORT transport);
 
-bool acl_peer_supports_ble_connection_parameters_request(
-    const RawAddress& remote_bda);
-void acl_ble_connection_parameters_request(
-    uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
-    uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
-    uint16_t max_ce_len);
+bool acl_peer_supports_ble_connection_parameters_request(const RawAddress& remote_bda);
+void acl_ble_connection_parameters_request(uint16_t handle, uint16_t conn_int_min,
+                                           uint16_t conn_int_max, uint16_t conn_latency,
+                                           uint16_t conn_timeout, uint16_t min_ce_len,
+                                           uint16_t max_ce_len);
 
 bool acl_peer_supports_ble_packet_extension(uint16_t hci_handle);
 bool acl_peer_supports_ble_2m_phy(uint16_t hci_handle);
 bool acl_peer_supports_ble_coded_phy(uint16_t hci_handle);
 
-bool acl_is_switch_role_idle(const RawAddress& bd_addr,
-                             tBT_TRANSPORT transport);
+bool acl_is_switch_role_idle(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 bool acl_peer_supports_ble_packet_extension(uint16_t hci_handle);
 
@@ -224,10 +214,8 @@ bool acl_peer_supports_ble_packet_extension(uint16_t hci_handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTM_ReadConnectionAddr(const RawAddress& remote_bda,
-                            RawAddress& local_conn_addr,
-                            tBLE_ADDR_TYPE* p_addr_type,
-                            bool ota_address = false);
+void BTM_ReadConnectionAddr(const RawAddress& remote_bda, RawAddress& local_conn_addr,
+                            tBLE_ADDR_TYPE* p_addr_type, bool ota_address = false);
 
 /*******************************************************************************
  *
@@ -255,11 +243,9 @@ bool acl_is_role_switch_allowed();
 
 uint16_t acl_get_supported_packet_types();
 
-bool acl_set_peer_le_features_from_handle(uint16_t hci_handle,
-                                          const uint8_t* p);
+bool acl_set_peer_le_features_from_handle(uint16_t hci_handle, const uint8_t* p);
 
-tBTM_STATUS btm_read_power_mode_state(const RawAddress& remote_bda,
-                                      tBTM_PM_STATE* pmState);
+tBTM_STATUS btm_read_power_mode_state(const RawAddress& remote_bda, tBTM_PM_STATE* pmState);
 
 void btm_acl_notif_conn_collision(const RawAddress& bda);
 
@@ -277,32 +263,29 @@ void btm_acl_notif_conn_collision(const RawAddress& bda);
  *                          BTM_ACL_MODE_HOLD
  *                          BTM_ACL_MODE_SNIFF
  *                          BTM_ACL_MODE_PARK
- *                          (valid only if return code is BTM_SUCCESS)
+ *                          (valid only if return code is tBTM_STATUS::BTM_SUCCESS)
  *
  * Returns          true if successful, false otherwise.
  *
  ******************************************************************************/
 bool BTM_ReadPowerMode(const RawAddress& remote_bda, tBTM_PM_MODE* p_mode);
 
-void btm_acl_created(const RawAddress& bda, uint16_t hci_handle,
-                     tHCI_ROLE link_role, tBT_TRANSPORT transport);
+void btm_acl_created(const RawAddress& bda, uint16_t hci_handle, tHCI_ROLE link_role,
+                     tBT_TRANSPORT transport);
 
-void btm_acl_create_failed(const RawAddress& bda, tBT_TRANSPORT transport,
-                           tHCI_STATUS reason);
+void btm_acl_create_failed(const RawAddress& bda, tBT_TRANSPORT transport, tHCI_STATUS reason);
 
 void btm_acl_removed(uint16_t handle);
 
 void btm_acl_flush(uint16_t handle);
 
-void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason,
-                                std::string comment);
+void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string comment);
 void acl_disconnect_after_role_switch(uint16_t conn_handle, tHCI_STATUS reason,
                                       std::string comment);
 
 bool acl_peer_supports_sniff_subrating(const RawAddress& remote_bda);
 bool acl_peer_supports_ble_connection_subrating(const RawAddress& remote_bda);
-bool acl_peer_supports_ble_connection_subrating_host(
-    const RawAddress& remote_bda);
+bool acl_peer_supports_ble_connection_subrating_host(const RawAddress& remote_bda);
 
 uint8_t btm_handle_to_acl_index(uint16_t hci_handle);
 
@@ -316,5 +299,4 @@ void btm_acl_device_down(void);
 
 void ACL_RegisterClient(struct acl_client_callback_s* callbacks);
 void ACL_UnregisterClient(struct acl_client_callback_s* callbacks);
-void btm_acl_consolidate(const RawAddress& identity_addr,
-                         const RawAddress& rpa);
+void btm_acl_consolidate(const RawAddress& identity_addr, const RawAddress& rpa);

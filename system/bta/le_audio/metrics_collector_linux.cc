@@ -28,16 +28,14 @@ MetricsCollector* MetricsCollector::Get() {
   return MetricsCollector::instance;
 }
 
-void MetricsCollector::OnGroupSizeUpdate(int32_t group_id, int32_t group_size) {
-}
+void MetricsCollector::OnGroupSizeUpdate(int32_t group_id, int32_t group_size) {}
 
-void MetricsCollector::OnConnectionStateChanged(
-    int32_t group_id, const RawAddress& address,
-    bluetooth::le_audio::ConnectionState state, ConnectionStatus status) {}
+void MetricsCollector::OnConnectionStateChanged(int32_t group_id, const RawAddress& address,
+                                                bluetooth::le_audio::ConnectionState state,
+                                                ConnectionStatus status) {}
 
 void MetricsCollector::OnStreamStarted(
-    int32_t group_id,
-    bluetooth::le_audio::types::LeAudioContextType context_type) {}
+        int32_t group_id, bluetooth::le_audio::types::LeAudioContextType context_type) {}
 
 void MetricsCollector::OnStreamEnded(int32_t group_id) {}
 

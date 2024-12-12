@@ -7,7 +7,7 @@ package blueberry.facade.topshim;
 service AdapterService {
   rpc FetchEvents(FetchEventsRequest) returns (stream FetchEventsResponse) {}
   rpc ToggleStack(ToggleStackRequest) returns (ToggleStackResponse) {}
-  rpc SetDiscoveryMode(SetDiscoveryModeRequest) returns (SetDiscoveryModeResponse) {}
+  rpc SetDiscoveryMode(SetDiscoveryModeRequest) returns (google.protobuf.Empty) {}
   rpc ClearEventFilter(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc ClearEventMask(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc ClearFilterAcceptList(google.protobuf.Empty) returns (google.protobuf.Empty) {}
@@ -154,10 +154,6 @@ message ToggleStackResponse {}
 message SetDiscoveryModeRequest {
   bool enable_page_scan = 1;
   bool enable_inquiry_scan = 2;
-}
-
-message SetDiscoveryModeResponse {
-  int32 status = 1;
 }
 
 service MediaService {

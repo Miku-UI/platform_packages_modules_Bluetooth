@@ -16,9 +16,9 @@
  *
  ******************************************************************************/
 
-#include <gtest/gtest.h>
-
 #include "common/state_machine.h"
+
+#include <gtest/gtest.h>
 
 using bluetooth::common::StateMachine;
 
@@ -34,7 +34,7 @@ static char dataTwo = 2;
 }  // namespace
 
 class StateMachineImpl : public StateMachine {
- public:
+public:
   enum {
     kStateZero,
     kStateOne,
@@ -42,7 +42,7 @@ class StateMachineImpl : public StateMachine {
   };
 
   class StateZero : public State {
-   public:
+  public:
     StateZero(StateMachine& sm)
         : State(sm, kStateZero),
           on_enter_(false),
@@ -71,7 +71,7 @@ class StateMachineImpl : public StateMachine {
   };
 
   class StateOne : public State {
-   public:
+  public:
     StateOne(StateMachine& sm)
         : State(sm, kStateOne),
           on_enter_(false),
@@ -100,7 +100,7 @@ class StateMachineImpl : public StateMachine {
   };
 
   class StateTwo : public State {
-   public:
+  public:
     StateTwo(StateMachine& sm)
         : State(sm, kStateTwo),
           on_enter_(false),
@@ -145,7 +145,7 @@ class StateMachineImpl : public StateMachine {
 };
 
 class StateMachineTest : public ::testing::Test {
- protected:
+protected:
   StateMachineTest() {}
 
   void SetUp() override { sm_.Start(); }
@@ -245,7 +245,7 @@ TEST_F(StateMachineTest, test_process_event) {
   // Process an event and transition to StateZero
   // NOTE: StateZero was exited before and has local state
   ASSERT_FALSE(sm_.state_zero_->on_enter_);
-  ASSERT_TRUE(sm_.state_zero_->on_exit_);  // NOTE: already exited before
+  ASSERT_TRUE(sm_.state_zero_->on_exit_);          // NOTE: already exited before
   ASSERT_EQ(sm_.state_zero_->event_, kEventZero);  // NOTE: state from before
   ASSERT_EQ(sm_.state_zero_->data_, &dataZero);    // NOTE: state from before
   ASSERT_TRUE(sm_.ProcessEvent(kEventTwo, &dataTwo));

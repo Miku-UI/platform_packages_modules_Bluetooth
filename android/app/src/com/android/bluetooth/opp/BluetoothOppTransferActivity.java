@@ -187,10 +187,10 @@ public class BluetoothOppTransferActivity extends AlertActivity
                 if (isSuccess) {
                     // should not go here
                     mWhichDialog = DIALOG_RECEIVE_COMPLETE_SUCCESS;
-                } else if (!isSuccess) {
+                } else {
                     mWhichDialog = DIALOG_RECEIVE_COMPLETE_FAIL;
                 }
-            } else if (!isComplete) {
+            } else {
                 mWhichDialog = DIALOG_RECEIVE_ONGOING;
             }
         } else if (direction == BluetoothShare.DIRECTION_OUTBOUND) {
@@ -198,10 +198,10 @@ public class BluetoothOppTransferActivity extends AlertActivity
                 if (isSuccess) {
                     mWhichDialog = DIALOG_SEND_COMPLETE_SUCCESS;
 
-                } else if (!isSuccess) {
+                } else {
                     mWhichDialog = DIALOG_SEND_COMPLETE_FAIL;
                 }
-            } else if (!isComplete) {
+            } else {
                 mWhichDialog = DIALOG_SEND_ONGOING;
             }
         }

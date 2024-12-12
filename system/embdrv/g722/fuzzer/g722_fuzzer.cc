@@ -22,7 +22,7 @@ namespace {
 
 uint32_t get_rate_from_fdp(FuzzedDataProvider* fdp) {
   uint32_t rate = fdp->ConsumeIntegralInRange<uint32_t>(
-      0, 3);  // Currently 3 different bit rates are available in G.722 codec
+          0, 3);  // Currently 3 different bit rates are available in G.722 codec
   switch (rate) {
     case 0:
       return 48000;
@@ -37,8 +37,7 @@ void fuzz_encode(FuzzedDataProvider* fdp) {
   uint32_t rate = get_rate_from_fdp(fdp);
   std::vector<uint8_t> buff = fdp->ConsumeRemainingBytes<uint8_t>();
 
-  int num_samples =
-      buff.size() / (2 /*bytes_per_sample*/ * 2 /*number of channels*/);
+  int num_samples = buff.size() / (2 /*bytes_per_sample*/ * 2 /*number of channels*/);
 
   // The G.722 codec accept only even number of samples for encoding
   if (num_samples % 2 != 0) {
@@ -72,9 +71,8 @@ void fuzz_encode(FuzzedDataProvider* fdp) {
   // used "size" of the input that libfuzzer generates as the initial
   // parameter to resize
   encoded_data.resize(buff.size());
-  int encoded_size =
-      g722_encode(encoder_state, encoded_data.data(),
-                  (const int16_t*)channel_data.data(), channel_data.size());
+  int encoded_size = g722_encode(encoder_state, encoded_data.data(),
+                                 (const int16_t*)channel_data.data(), channel_data.size());
   encoded_data.resize(encoded_size);
 
   // Encoder release
@@ -95,15 +93,13 @@ void fuzz_decode(FuzzedDataProvider* fdp) {
   decoder_state = g722_decode_init(decoder_state, rate, options);
 
   std::vector<uint8_t> encoded_input = fdp->ConsumeRemainingBytes<uint8_t>();
-  int out_len =
-      encoded_input.size() * 2 /*bytes_per_sample*/ * 2 /*number of channels*/;
+  int out_len = encoded_input.size() * 2 /*bytes_per_sample*/ * 2 /*number of channels*/;
 
   // Decode
   std::vector<int16_t> decoded_output;
   decoded_output.resize(out_len);
   int decoded_size = g722_decode(decoder_state, decoded_output.data(),
-                                 (const uint8_t*)encoded_input.data(),
-                                 encoded_input.size(), gain);
+                                 (const uint8_t*)encoded_input.data(), encoded_input.size(), gain);
   if (decoded_size > decoded_output.size()) {
     abort();
   }

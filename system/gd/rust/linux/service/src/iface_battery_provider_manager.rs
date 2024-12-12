@@ -8,6 +8,7 @@ use dbus_projection::prelude::*;
 
 use crate::dbus_arg::DBusArg;
 
+#[allow(dead_code)]
 struct IBatteryProviderCallbackDBus {}
 
 #[dbus_proxy_obj(BatteryProviderCallback, "org.chromium.bluetooth.BatteryProviderCallback")]
@@ -18,6 +19,7 @@ impl IBatteryProviderCallback for IBatteryProviderCallbackDBus {
     }
 }
 
+#[allow(dead_code)]
 struct IBatteryProviderManagerDBus {}
 
 #[generate_dbus_exporter(

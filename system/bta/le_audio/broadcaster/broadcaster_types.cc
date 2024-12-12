@@ -48,9 +48,9 @@ static void EmitHeader(const BasicAudioAnnouncementData& announcement_data,
   UINT24_TO_STREAM(p_value, announcement_data.presentation_delay_us);
 }
 
-static void EmitCodecConfiguration(
-    const BasicAudioAnnouncementCodecConfig& config, std::vector<uint8_t>& data,
-    const BasicAudioAnnouncementCodecConfig* lower_lvl_config) {
+static void EmitCodecConfiguration(const BasicAudioAnnouncementCodecConfig& config,
+                                   std::vector<uint8_t>& data,
+                                   const BasicAudioAnnouncementCodecConfig* lower_lvl_config) {
   size_t old_size = data.size();
 
   // Add 5 for full, or 1 for short Codec ID
@@ -77,17 +77,15 @@ static void EmitCodecConfiguration(
   // Codec specific config length and data (either vendor specific or the LTVs)
   UINT8_TO_STREAM(p_value, codec_spec_raw_sz);
   if (config.vendor_codec_specific_params) {
-    ARRAY_TO_STREAM(
-        p_value, config.vendor_codec_specific_params->data(),
-        static_cast<int>(config.vendor_codec_specific_params->size()));
+    ARRAY_TO_STREAM(p_value, config.vendor_codec_specific_params->data(),
+                    static_cast<int>(config.vendor_codec_specific_params->size()));
   } else {
     p_value = ltv.RawPacket(p_value);
   }
 }
 
-static void EmitMetadata(
-    const std::map<uint8_t, std::vector<uint8_t>>& metadata,
-    std::vector<uint8_t>& data) {
+static void EmitMetadata(const std::map<uint8_t, std::vector<uint8_t>>& metadata,
+                         std::vector<uint8_t>& data) {
   auto ltv = types::LeAudioLtvMap(metadata);
   auto ltv_raw_sz = ltv.RawPacketSize();
 
@@ -103,8 +101,7 @@ static void EmitMetadata(
   }
 }
 
-static void EmitBroadcastName(const std::string& name,
-                              std::vector<uint8_t>& data) {
+static void EmitBroadcastName(const std::string& name, std::vector<uint8_t>& data) {
   int name_len = name.length();
   size_t old_size = data.size();
   data.resize(old_size + name_len + 2);
@@ -118,9 +115,8 @@ static void EmitBroadcastName(const std::string& name,
   ARRAY_TO_STREAM(p_value, vec.data(), name_len);
 }
 
-static void EmitBisConfigs(
-    const std::vector<BasicAudioAnnouncementBisConfig>& bis_configs,
-    std::vector<uint8_t>& data) {
+static void EmitBisConfigs(const std::vector<BasicAudioAnnouncementBisConfig>& bis_configs,
+                           std::vector<uint8_t>& data) {
   // Emit each BIS config - that's the level 3 data
   for (auto const& bis_config : bis_configs) {
     auto ltv = types::LeAudioLtvMap(bis_config.codec_specific_params);
@@ -162,8 +158,7 @@ static void EmitSubgroup(const BasicAudioAnnouncementSubgroup& subgroup_config,
   EmitBisConfigs(subgroup_config.bis_configs, data);
 }
 
-bool ToRawPacket(BasicAudioAnnouncementData const& in,
-                 std::vector<uint8_t>& data) {
+bool ToRawPacket(BasicAudioAnnouncementData const& in, std::vector<uint8_t>& data) {
   EmitHeader(in, data);
 
   // Set the cursor behind the old data and resize
@@ -183,11 +178,10 @@ bool ToRawPacket(BasicAudioAnnouncementData const& in,
 }
 
 void PrepareAdvertisingData(
-    bool is_public, const std::string& broadcast_name,
-    bluetooth::le_audio::BroadcastId& broadcast_id,
-    const bluetooth::le_audio::PublicBroadcastAnnouncementData&
-        public_announcement,
-    std::vector<uint8_t>& adv_data) {
+        bool is_public, const std::string& broadcast_name,
+        bluetooth::le_audio::BroadcastId& broadcast_id,
+        const bluetooth::le_audio::PublicBroadcastAnnouncementData& public_announcement,
+        std::vector<uint8_t>& adv_data) {
   adv_data.resize(7);
   uint8_t* data_ptr = adv_data.data();
   UINT8_TO_STREAM(data_ptr, 6);
@@ -236,27 +230,24 @@ void PreparePeriodicData(const BasicAudioAnnouncementData& announcement,
   UINT8_TO_STREAM(data_ptr, periodic_data.size() - 1);
 }
 
-le_audio::LeAudioCodecConfiguration
-BroadcastConfiguration::GetAudioHalClientConfig() const {
+le_audio::LeAudioCodecConfiguration BroadcastConfiguration::GetAudioHalClientConfig() const {
   return {
-      // Get the maximum number of channels
-      .num_channels = GetNumChannelsMax(),
-      // Get the max sampling frequency
-      .sample_rate = GetSamplingFrequencyHzMax(),
-      // Use the default 16 bits per sample resolution in the audio framework
-      .bits_per_sample = 16,
-      // Get the data interval
-      .data_interval_us = GetSduIntervalUs(),
+          // Get the maximum number of channels
+          .num_channels = GetNumChannelsMax(),
+          // Get the max sampling frequency
+          .sample_rate = GetSamplingFrequencyHzMax(),
+          // Use the default 16 bits per sample resolution in the audio framework
+          .bits_per_sample = 16,
+          // Get the data interval
+          .data_interval_us = GetSduIntervalUs(),
   };
 }
 
 std::ostream& operator<<(
-    std::ostream& os,
-    const bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig&
-        config) {
+        std::ostream& os,
+        const bluetooth::le_audio::broadcaster::BroadcastSubgroupCodecConfig& config) {
   os << " BroadcastSubgroupCodecConfig={";
-  os << "CodecID="
-     << "{" << +config.GetLeAudioCodecId().coding_format << ":"
+  os << "CodecID=" << "{" << +config.GetLeAudioCodecId().coding_format << ":"
      << +config.GetLeAudioCodecId().vendor_company_id << ":"
      << +config.GetLeAudioCodecId().vendor_codec_id << "}, ";
   os << "BISes=[";
@@ -272,9 +263,8 @@ std::ostream& operator<<(
   return os;
 }
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const le_audio::broadcaster::BroadcastSubgroupBisCodecConfig& config) {
+std::ostream& operator<<(std::ostream& os,
+                         const le_audio::broadcaster::BroadcastSubgroupBisCodecConfig& config) {
   os << "BisCfg={numBis=" << +config.GetNumBis()
      << ", NumChannelsPerBis=" << +config.GetNumChannelsPerBis()
      << ", CodecSpecific=" << config.GetCodecSpecData().GetAsCoreCodecConfig();
@@ -290,9 +280,8 @@ std::ostream& operator<<(
   return os;
 }
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const bluetooth::le_audio::broadcaster::BroadcastQosConfig& config) {
+std::ostream& operator<<(std::ostream& os,
+                         const bluetooth::le_audio::broadcaster::BroadcastQosConfig& config) {
   os << " BroadcastQosConfig=[";
   os << "RTN=" << +config.getRetransmissionNumber();
   os << ", MaxTransportLatency=" << config.getMaxTransportLatency();
@@ -300,9 +289,8 @@ std::ostream& operator<<(
   return os;
 }
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const le_audio::broadcaster::BroadcastConfiguration& config) {
+std::ostream& operator<<(std::ostream& os,
+                         const le_audio::broadcaster::BroadcastConfiguration& config) {
   os << "BroadcastCfg={";
   for (const auto& subgroup_cfg : config.subgroups) {
     os << subgroup_cfg << std::endl;
@@ -327,59 +315,75 @@ namespace bluetooth::le_audio {
 
 static bool isMetadataSame(std::map<uint8_t, std::vector<uint8_t>> m1,
                            std::map<uint8_t, std::vector<uint8_t>> m2) {
-  if (m1.size() != m2.size()) return false;
+  if (m1.size() != m2.size()) {
+    return false;
+  }
 
   for (auto& m1pair : m1) {
-    if (m2.count(m1pair.first) == 0) return false;
+    if (m2.count(m1pair.first) == 0) {
+      return false;
+    }
 
     auto& m2val = m2.at(m1pair.first);
-    if (m1pair.second.size() != m2val.size()) return false;
+    if (m1pair.second.size() != m2val.size()) {
+      return false;
+    }
 
     if (m1pair.second.size() != 0) {
-      if (memcmp(m1pair.second.data(), m2val.data(), m2val.size()) != 0)
+      if (memcmp(m1pair.second.data(), m2val.data(), m2val.size()) != 0) {
         return false;
+      }
     }
   }
   return true;
 }
 
-bool operator==(const BasicAudioAnnouncementData& lhs,
-                const BasicAudioAnnouncementData& rhs) {
-  if (lhs.presentation_delay_us != rhs.presentation_delay_us) return false;
+bool operator==(const BasicAudioAnnouncementData& lhs, const BasicAudioAnnouncementData& rhs) {
+  if (lhs.presentation_delay_us != rhs.presentation_delay_us) {
+    return false;
+  }
 
-  if (lhs.subgroup_configs.size() != rhs.subgroup_configs.size()) return false;
+  if (lhs.subgroup_configs.size() != rhs.subgroup_configs.size()) {
+    return false;
+  }
 
   for (auto i = 0lu; i < lhs.subgroup_configs.size(); ++i) {
     auto& lhs_subgroup = lhs.subgroup_configs[i];
     auto& rhs_subgroup = rhs.subgroup_configs[i];
 
-    if (lhs_subgroup.codec_config.codec_id !=
-        rhs_subgroup.codec_config.codec_id)
+    if (lhs_subgroup.codec_config.codec_id != rhs_subgroup.codec_config.codec_id) {
       return false;
+    }
 
     if (lhs_subgroup.codec_config.vendor_company_id !=
-        rhs_subgroup.codec_config.vendor_company_id)
+        rhs_subgroup.codec_config.vendor_company_id) {
       return false;
+    }
 
-    if (lhs_subgroup.codec_config.vendor_codec_id !=
-        rhs_subgroup.codec_config.vendor_codec_id)
+    if (lhs_subgroup.codec_config.vendor_codec_id != rhs_subgroup.codec_config.vendor_codec_id) {
       return false;
+    }
 
     if (!isMetadataSame(lhs_subgroup.codec_config.codec_specific_params,
-                        rhs_subgroup.codec_config.codec_specific_params))
+                        rhs_subgroup.codec_config.codec_specific_params)) {
       return false;
+    }
 
-    if (!isMetadataSame(lhs_subgroup.metadata, rhs_subgroup.metadata))
+    if (!isMetadataSame(lhs_subgroup.metadata, rhs_subgroup.metadata)) {
       return false;
+    }
 
     for (auto j = 0lu; j < lhs_subgroup.bis_configs.size(); ++j) {
       auto& lhs_bis_config = lhs_subgroup.bis_configs[i];
       auto& rhs_bis_config = rhs_subgroup.bis_configs[i];
-      if (lhs_bis_config.bis_index != rhs_bis_config.bis_index) return false;
+      if (lhs_bis_config.bis_index != rhs_bis_config.bis_index) {
+        return false;
+      }
 
       if (!isMetadataSame(lhs_bis_config.codec_specific_params,
-                          rhs_bis_config.codec_specific_params))
+                          rhs_bis_config.codec_specific_params)) {
         return false;
+      }
     }
   }
 
@@ -388,8 +392,12 @@ bool operator==(const BasicAudioAnnouncementData& lhs,
 
 bool operator==(const PublicBroadcastAnnouncementData& lhs,
                 const PublicBroadcastAnnouncementData& rhs) {
-  if (lhs.features != rhs.features) return false;
-  if (!isMetadataSame(lhs.metadata, rhs.metadata)) return false;
+  if (lhs.features != rhs.features) {
+    return false;
+  }
+  if (!isMetadataSame(lhs.metadata, rhs.metadata)) {
+    return false;
+  }
 
   return true;
 }

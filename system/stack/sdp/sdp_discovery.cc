@@ -22,9 +22,10 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "sdp_discovery"
+#define LOG_TAG "stack::sdp"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -55,14 +56,14 @@ using namespace bluetooth;
  * Returns          Pointer to next byte in the output buffer.
  *
  ******************************************************************************/
-static uint8_t* sdpu_build_uuid_seq(uint8_t* p_out, uint16_t num_uuids,
-                                    Uuid* p_uuid_list, uint16_t& bytes_left) {
+static uint8_t* sdpu_build_uuid_seq(uint8_t* p_out, uint16_t num_uuids, Uuid* p_uuid_list,
+                                    uint16_t& bytes_left) {
   uint16_t xx;
   uint8_t* p_len;
 
   if (bytes_left < 2) {
     DCHECK(0) << "SDP: No space for data element header";
-    return (p_out);
+    return p_out;
   }
 
   /* First thing is the data element header */
@@ -94,8 +95,7 @@ static uint8_t* sdpu_build_uuid_seq(uint8_t* p_out, uint16_t num_uuids,
       UINT32_TO_BE_STREAM(p_out, p_uuid_list->As32Bit());
     } else if (len == Uuid::kNumBytes128) {
       UINT8_TO_BE_STREAM(p_out, (UUID_DESC_TYPE << 3) | SIZE_SIXTEEN_BYTES);
-      ARRAY_TO_BE_STREAM(p_out, p_uuid_list->To128BitBE(),
-                         (int)Uuid::kNumBytes128);
+      ARRAY_TO_BE_STREAM(p_out, p_uuid_list->To128BitBE(), (int)Uuid::kNumBytes128);
     } else {
       DCHECK(0) << "SDP: Passed UUID has invalid length " << len;
     }
@@ -105,7 +105,7 @@ static uint8_t* sdpu_build_uuid_seq(uint8_t* p_out, uint16_t num_uuids,
   xx = (uint16_t)(p_out - p_len - 1);
   UINT8_TO_BE_STREAM(p_len, xx);
 
-  return (p_out);
+  return p_out;
 }
 
 /*******************************************************************************
@@ -117,8 +117,7 @@ static uint8_t* sdpu_build_uuid_seq(uint8_t* p_out, uint16_t num_uuids,
  * Returns          void
  *
  ******************************************************************************/
-static void sdp_snd_service_search_req(tCONN_CB* p_ccb, uint8_t cont_len,
-                                       uint8_t* p_cont) {
+static void sdp_snd_service_search_req(tCONN_CB* p_ccb, uint8_t cont_len, uint8_t* p_cont) {
   uint8_t *p, *p_start, *p_param_len;
   BT_HDR* p_cmd = (BT_HDR*)osi_malloc(SDP_DATA_BUF_SIZE);
   uint16_t param_len;
@@ -139,10 +138,10 @@ static void sdp_snd_service_search_req(tCONN_CB* p_ccb, uint8_t cont_len,
 
   /* Account for header size, max service record count and
    * continuation state */
-  const uint16_t base_bytes = (sizeof(BT_HDR) + L2CAP_MIN_OFFSET +
-                               3u + /* service search request header */
-                               2u + /* param len */
-                               3u + ((p_cont) ? cont_len : 0));
+  const uint16_t base_bytes =
+          (sizeof(BT_HDR) + L2CAP_MIN_OFFSET + 3u + /* service search request header */
+           2u +                                     /* param len */
+           3u + ((p_cont) ? cont_len : 0));
 
   if (base_bytes > bytes_left) {
     DCHECK(0) << "SDP: Overran SDP data buffer";
@@ -152,9 +151,10 @@ static void sdp_snd_service_search_req(tCONN_CB* p_ccb, uint8_t cont_len,
 
   bytes_left -= base_bytes;
 
+  log::assert_that(p_ccb->p_db != nullptr, "SDP database has not been set");
+
   /* Build the UID sequence. */
-  p = sdpu_build_uuid_seq(p, p_ccb->p_db->num_uuid_filters,
-                          p_ccb->p_db->uuid_filters, bytes_left);
+  p = sdpu_build_uuid_seq(p, p_ccb->p_db->num_uuid_filters, p_ccb->p_db->uuid_filters, bytes_left);
 
   /* Set max service record count */
   UINT16_TO_BE_STREAM(p, sdp_cb.max_recs_per_search);
@@ -177,14 +177,14 @@ static void sdp_snd_service_search_req(tCONN_CB* p_ccb, uint8_t cont_len,
   /* Set the length of the SDP data in the buffer */
   p_cmd->len = (uint16_t)(p - p_start);
 
-  if (L2CA_DataWrite(p_ccb->connection_id, p_cmd) != L2CAP_DW_SUCCESS) {
-    log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
-              p_ccb->device_address, p_ccb->connection_id, p_cmd->len);
+  if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_cmd) !=
+      tL2CAP_DW_RESULT::SUCCESS) {
+    log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
+              p_ccb->connection_id, p_cmd->len);
   }
 
   /* Start inactivity timer */
-  alarm_set_on_mloop(p_ccb->sdp_conn_timer, SDP_INACT_TIMEOUT_MS,
-                     sdp_conn_timer_timeout, p_ccb);
+  alarm_set_on_mloop(p_ccb->sdp_conn_timer, SDP_INACT_TIMEOUT_MS, sdp_conn_timer_timeout, p_ccb);
 }
 
 /*******************************************************************************
@@ -254,7 +254,9 @@ tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& bd_addr) {
   tSDP_DISC_REC* p_rec;
 
   /* See if there is enough space in the database */
-  if (p_db->mem_free < sizeof(tSDP_DISC_REC)) return (NULL);
+  if (p_db->mem_free < sizeof(tSDP_DISC_REC)) {
+    return NULL;
+  }
 
   p_rec = (tSDP_DISC_REC*)p_db->p_free_mem;
   p_db->p_free_mem += sizeof(tSDP_DISC_REC);
@@ -266,17 +268,19 @@ tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& bd_addr) {
   p_rec->remote_bd_addr = bd_addr;
 
   /* Add the record to the end of chain */
-  if (!p_db->p_first_rec)
+  if (!p_db->p_first_rec) {
     p_db->p_first_rec = p_rec;
-  else {
+  } else {
     tSDP_DISC_REC* p_rec1 = p_db->p_first_rec;
 
-    while (p_rec1->p_next_rec) p_rec1 = p_rec1->p_next_rec;
+    while (p_rec1->p_next_rec) {
+      p_rec1 = p_rec1->p_next_rec;
+    }
 
     p_rec1->p_next_rec = p_rec;
   }
 
-  return (p_rec);
+  return p_rec;
 }
 
 #define SDP_ADDITIONAL_LIST_MASK 0x80
@@ -290,9 +294,8 @@ tSDP_DISC_REC* add_record(tSDP_DISCOVERY_DB* p_db, const RawAddress& bd_addr) {
  * Returns          pointer to next byte in data stream
  *
  ******************************************************************************/
-static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
-                         tSDP_DISC_REC* p_rec, uint16_t attr_id,
-                         tSDP_DISC_ATTR* p_parent_attr, uint8_t nest_level) {
+static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db, tSDP_DISC_REC* p_rec,
+                         uint16_t attr_id, tSDP_DISC_ATTR* p_parent_attr, uint8_t nest_level) {
   tSDP_DISC_ATTR* p_attr;
   uint32_t attr_len;
   uint32_t total_len;
@@ -314,10 +317,11 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
   attr_type = (type >> 3) & 0x0f;
 
   /* See if there is enough space in the database */
-  if (attr_len > 4)
+  if (attr_len > 4) {
     total_len = attr_len - 4 + (uint16_t)sizeof(tSDP_DISC_ATTR);
-  else
+  } else {
     total_len = sizeof(tSDP_DISC_ATTR);
+  }
 
   p_attr_end = p + attr_len;
   if (p_attr_end > p_end) {
@@ -329,7 +333,9 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
   total_len = (total_len + 3) & ~3;
 
   /* See if there is enough space in the database */
-  if (p_db->mem_free < total_len) return (NULL);
+  if (p_db->mem_free < total_len) {
+    return NULL;
+  }
 
   p_attr = (tSDP_DISC_ATTR*)p_db->p_free_mem;
   p_attr->attr_id = attr_id;
@@ -341,9 +347,9 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
     case UINT_DESC_TYPE:
       if ((is_additional_list != 0) && (attr_len == 2)) {
         BE_STREAM_TO_UINT16(id, p);
-        if (id != ATTR_ID_PROTOCOL_DESC_LIST)
+        if (id != ATTR_ID_PROTOCOL_DESC_LIST) {
           p -= 2;
-        else {
+        } else {
           /* Reserve the memory for the attribute now, as we need to add
            * sub-attributes */
           p_db->p_free_mem += sizeof(tSDP_DISC_ATTR);
@@ -357,8 +363,8 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
           }
 
           /* Now, add the list entry */
-          p = add_attr(p, p_end, p_db, p_rec, ATTR_ID_PROTOCOL_DESC_LIST,
-                       p_attr, (uint8_t)(nest_level + 1));
+          p = add_attr(p, p_end, p_db, p_rec, ATTR_ID_PROTOCOL_DESC_LIST, p_attr,
+                       (uint8_t)(nest_level + 1));
 
           break;
         }
@@ -399,20 +405,17 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
           /* See if we can compress the UUID down to 16 or 32bit UUIDs */
           if (sdpu_is_base_uuid(p)) {
             if ((p[0] == 0) && (p[1] == 0)) {
-              p_attr->attr_len_type =
-                  (p_attr->attr_len_type & ~SDP_DISC_ATTR_LEN_MASK) | 2;
+              p_attr->attr_len_type = (p_attr->attr_len_type & ~SDP_DISC_ATTR_LEN_MASK) | 2;
               p += 2;
               BE_STREAM_TO_UINT16(p_attr->attr_value.v.u16, p);
               p += Uuid::kNumBytes128 - 4;
             } else {
-              p_attr->attr_len_type =
-                  (p_attr->attr_len_type & ~SDP_DISC_ATTR_LEN_MASK) | 4;
+              p_attr->attr_len_type = (p_attr->attr_len_type & ~SDP_DISC_ATTR_LEN_MASK) | 4;
               BE_STREAM_TO_UINT32(p_attr->attr_value.v.u32, p);
               p += Uuid::kNumBytes128 - 4;
             }
           } else {
-            BE_STREAM_TO_ARRAY(p, p_attr->attr_value.v.array,
-                               (int32_t)attr_len);
+            BE_STREAM_TO_ARRAY(p, p_attr->attr_value.v.array, (int32_t)attr_len);
           }
           break;
         default:
@@ -434,17 +437,18 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
         log::error("SDP - attr nesting too deep");
         return p_attr_end;
       }
-      if (is_additional_list != 0 ||
-          attr_id == ATTR_ID_ADDITION_PROTO_DESC_LISTS)
+      if (is_additional_list != 0 || attr_id == ATTR_ID_ADDITION_PROTO_DESC_LISTS) {
         nest_level |= SDP_ADDITIONAL_LIST_MASK;
+      }
       /* LOG_VERBOSE ("SDP - attr nest level:0x%x(finish)", nest_level); */
 
       while (p < p_attr_end) {
         /* Now, add the list entry */
-        p = add_attr(p, p_end, p_db, p_rec, 0, p_attr,
-                     (uint8_t)(nest_level + 1));
+        p = add_attr(p, p_end, p_db, p_rec, 0, p_attr, (uint8_t)(nest_level + 1));
 
-        if (!p) return (NULL);
+        if (!p) {
+          return NULL;
+        }
       }
       break;
 
@@ -473,12 +477,14 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
 
   /* Add the attribute to the end of the chain */
   if (!p_parent_attr) {
-    if (!p_rec->p_first_attr)
+    if (!p_rec->p_first_attr) {
       p_rec->p_first_attr = p_attr;
-    else {
+    } else {
       tSDP_DISC_ATTR* p_attr1 = p_rec->p_first_attr;
 
-      while (p_attr1->p_next_attr) p_attr1 = p_attr1->p_next_attr;
+      while (p_attr1->p_next_attr) {
+        p_attr1 = p_attr1->p_next_attr;
+      }
 
       p_attr1->p_next_attr = p_attr;
     }
@@ -492,14 +498,16 @@ static uint8_t* add_attr(uint8_t* p, uint8_t* p_end, tSDP_DISCOVERY_DB* p_db,
       /* LOG_VERBOSE ("parent:0x%x(id:%d), ch1:0x%x(id:%d)",
           p_parent_attr, p_parent_attr->attr_id, p_attr1, p_attr1->attr_id); */
 
-      while (p_attr1->p_next_attr) p_attr1 = p_attr1->p_next_attr;
+      while (p_attr1->p_next_attr) {
+        p_attr1 = p_attr1->p_next_attr;
+      }
 
       p_attr1->p_next_attr = p_attr;
       /* LOG_VERBOSE ("new ch:0x%x(id:%d)", p_attr, p_attr->attr_id); */
     }
   }
 
-  return (p);
+  return p;
 }
 
 /*******************************************************************************
@@ -522,19 +530,19 @@ static uint8_t* save_attr_seq(tCONN_CB* p_ccb, uint8_t* p, uint8_t* p_msg_end) {
 
   if ((type >> 3) != DATA_ELE_SEQ_DESC_TYPE) {
     log::warn("SDP - Wrong type: 0x{:02x} in attr_rsp", type);
-    return (NULL);
+    return NULL;
   }
   p = sdpu_get_len_from_type(p, p_msg_end, type, &seq_len);
   if (p == NULL || (p + seq_len) > p_msg_end) {
     log::warn("SDP - Bad len in attr_rsp {}", seq_len);
-    return (NULL);
+    return NULL;
   }
 
   /* Create a record */
   p_rec = add_record(p_ccb->p_db, p_ccb->device_address);
   if (!p_rec) {
     log::warn("SDP - DB full add_record");
-    return (NULL);
+    return NULL;
   }
 
   p_seq_end = p + seq_len;
@@ -545,12 +553,11 @@ static uint8_t* save_attr_seq(tCONN_CB* p_ccb, uint8_t* p, uint8_t* p_msg_end) {
     p = sdpu_get_len_from_type(p, p_msg_end, type, &attr_len);
     if (p == NULL || (p + attr_len) > p_seq_end) {
       log::warn("Bad len in attr_rsp {}", attr_len);
-      return (NULL);
+      return NULL;
     }
     if (((type >> 3) != UINT_DESC_TYPE) || (attr_len != 2)) {
-      log::warn("SDP - Bad type: 0x{:02x} or len: {} in attr_rsp", type,
-                attr_len);
-      return (NULL);
+      log::warn("SDP - Bad type: 0x{:02x} or len: {} in attr_rsp", type, attr_len);
+      return NULL;
     }
     BE_STREAM_TO_UINT16(attr_id, p);
 
@@ -559,11 +566,11 @@ static uint8_t* save_attr_seq(tCONN_CB* p_ccb, uint8_t* p, uint8_t* p_msg_end) {
 
     if (!p) {
       log::warn("SDP - DB full add_attr");
-      return (NULL);
+      return NULL;
     }
   }
 
-  return (p);
+  return p;
 }
 
 /*******************************************************************************
@@ -586,9 +593,8 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
 
   /* If p_reply is NULL, we were called for the initial read */
   if (p_reply) {
-    if (p_reply + 4 /* transaction ID and length */ + sizeof(lists_byte_count) >
-        p_reply_end) {
-      sdp_disconnect(p_ccb, SDP_INVALID_PDU_SIZE);
+    if (p_reply + 4 /* transaction ID and length */ + sizeof(lists_byte_count) > p_reply_end) {
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_PDU_SIZE);
       return;
     }
 
@@ -600,23 +606,24 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     /* Copy the response to the scratchpad. First, a safety check on the length
      */
     if ((p_ccb->list_len + lists_byte_count) > SDP_MAX_LIST_BYTE_COUNT) {
-      sdp_disconnect(p_ccb, SDP_INVALID_PDU_SIZE);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_PDU_SIZE);
       return;
     }
 
     if (p_reply + lists_byte_count + 1 /* continuation */ > p_reply_end) {
-      sdp_disconnect(p_ccb, SDP_INVALID_PDU_SIZE);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_PDU_SIZE);
       return;
     }
 
-    if (p_ccb->rsp_list == NULL)
+    if (p_ccb->rsp_list == NULL) {
       p_ccb->rsp_list = (uint8_t*)osi_malloc(SDP_MAX_LIST_BYTE_COUNT);
+    }
     memcpy(&p_ccb->rsp_list[p_ccb->list_len], p_reply, lists_byte_count);
     p_ccb->list_len += lists_byte_count;
     p_reply += lists_byte_count;
     if (*p_reply) {
       if (*p_reply > SDP_MAX_CONTINUATION_LEN) {
-        sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
+        sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
         return;
       }
 
@@ -629,6 +636,16 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     BT_HDR* p_msg = (BT_HDR*)osi_malloc(SDP_DATA_BUF_SIZE);
     uint8_t* p;
     uint16_t bytes_left = SDP_DATA_BUF_SIZE;
+
+    /* If we don't have a valid discovery database, we can't do anything. */
+    if (com::android::bluetooth::flags::btsec_check_valid_discovery_database() &&
+        p_ccb->p_db == NULL) {
+      log::warn(
+              "Attempted continuation or first time request with invalid discovery "
+              "database");
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
+      return;
+    }
 
     p_msg->offset = L2CAP_MIN_OFFSET;
     p = p_start = (uint8_t*)(p_msg + 1) + L2CAP_MIN_OFFSET;
@@ -644,32 +661,32 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
 
     /* Account for header size, max service record count and
      * continuation state */
-    const uint16_t base_bytes = (sizeof(BT_HDR) + L2CAP_MIN_OFFSET +
-                                 3u + /* service search request header */
-                                 2u + /* param len */
-                                 3u + /* max service record count */
-                                 ((p_reply) ? (*p_reply) : 0));
+    const uint16_t base_bytes =
+            (sizeof(BT_HDR) + L2CAP_MIN_OFFSET + 3u + /* service search request header */
+             2u +                                     /* param len */
+             3u +                                     /* max service record count */
+             ((p_reply) ? (*p_reply) : 0));
 
     if (base_bytes > bytes_left) {
-      sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
       return;
     }
 
     bytes_left -= base_bytes;
 
     /* Build the UID sequence. */
-    p = sdpu_build_uuid_seq(p, p_ccb->p_db->num_uuid_filters,
-                            p_ccb->p_db->uuid_filters, bytes_left);
+    p = sdpu_build_uuid_seq(p, p_ccb->p_db->num_uuid_filters, p_ccb->p_db->uuid_filters,
+                            bytes_left);
 
     /* Max attribute byte count */
     UINT16_TO_BE_STREAM(p, sdp_cb.max_attr_list_size);
 
     /* If no attribute filters, build a wildcard attribute sequence */
-    if (p_ccb->p_db->num_attr_filters)
-      p = sdpu_build_attrib_seq(p, p_ccb->p_db->attr_filters,
-                                p_ccb->p_db->num_attr_filters);
-    else
+    if (p_ccb->p_db->num_attr_filters) {
+      p = sdpu_build_attrib_seq(p, p_ccb->p_db->attr_filters, p_ccb->p_db->num_attr_filters);
+    } else {
       p = sdpu_build_attrib_seq(p, NULL, 0);
+    }
 
     /* No continuation for first request */
     if (p_reply) {
@@ -677,8 +694,9 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
         memcpy(p, p_reply, *p_reply + 1);
         p += *p_reply + 1;
       }
-    } else
+    } else {
       UINT8_TO_BE_STREAM(p, 0);
+    }
 
     /* Go back and put the parameter length into the buffer */
     param_len = p - p_param_len - 2;
@@ -687,25 +705,24 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     /* Set the length of the SDP data in the buffer */
     p_msg->len = p - p_start;
 
-    if (L2CA_DataWrite(p_ccb->connection_id, p_msg) != L2CAP_DW_SUCCESS) {
-      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
-                p_ccb->device_address, p_ccb->connection_id, p_msg->len);
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_msg) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
+      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
+                p_ccb->connection_id, p_msg->len);
     }
 
     /* Start inactivity timer */
-    alarm_set_on_mloop(p_ccb->sdp_conn_timer, SDP_INACT_TIMEOUT_MS,
-                       sdp_conn_timer_timeout, p_ccb);
+    alarm_set_on_mloop(p_ccb->sdp_conn_timer, SDP_INACT_TIMEOUT_MS, sdp_conn_timer_timeout, p_ccb);
 
     return;
   }
 
-/*******************************************************************/
-/* We now have the full response, which is a sequence of sequences */
-/*******************************************************************/
+  /*******************************************************************/
+  /* We now have the full response, which is a sequence of sequences */
+  /*******************************************************************/
 
   if (!sdp_copy_raw_data(p_ccb, true)) {
-    log::error("sdp_copy_raw_data failed");
-    sdp_disconnect(p_ccb, SDP_ILLEGAL_PARAMETER);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_ILLEGAL_PARAMETER);
     return;
   }
 
@@ -715,34 +732,32 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
   type = *p++;
 
   if ((type >> 3) != DATA_ELE_SEQ_DESC_TYPE) {
-    log::warn("Wrong element in attr_rsp type:0x{:02x}", type);
-    sdp_disconnect(p_ccb, SDP_ILLEGAL_PARAMETER);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_ILLEGAL_PARAMETER);
     return;
   }
   p = sdpu_get_len_from_type(p, p + p_ccb->list_len, type, &seq_len);
   if (p == NULL || (p + seq_len) > (p + p_ccb->list_len)) {
-    log::warn("Illegal search attribute length");
-    sdp_disconnect(p_ccb, SDP_ILLEGAL_PARAMETER);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_ILLEGAL_PARAMETER);
     return;
   }
   p_end = &p_ccb->rsp_list[p_ccb->list_len];
 
   if ((p + seq_len) != p_end) {
-    sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
     return;
   }
 
   while (p < p_end) {
     p = save_attr_seq(p_ccb, p, &p_ccb->rsp_list[p_ccb->list_len]);
     if (!p) {
-      sdp_disconnect(p_ccb, SDP_DB_FULL);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_DB_FULL);
       return;
     }
   }
 
   /* Since we got everything we need, disconnect the call */
   sdpu_log_attribute_metrics(p_ccb->device_address, p_ccb->p_db);
-  sdp_disconnect(p_ccb, SDP_SUCCESS);
+  sdp_disconnect(p_ccb, tSDP_STATUS::SDP_SUCCESS);
 }
 
 /*******************************************************************************
@@ -755,17 +770,15 @@ static void process_service_search_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
  * Returns          void
  *
  ******************************************************************************/
-static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
-                                     uint8_t* p_reply_end) {
+static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply, uint8_t* p_reply_end) {
   uint8_t *p_start, *p_param_len;
   uint16_t param_len, list_byte_count;
   bool cont_request_needed = false;
 
   /* If p_reply is NULL, we were called after the records handles were read */
   if (p_reply) {
-    if (p_reply + 4 /* transaction ID and length */ + sizeof(list_byte_count) >
-        p_reply_end) {
-      sdp_disconnect(p_ccb, SDP_INVALID_PDU_SIZE);
+    if (p_reply + 4 /* transaction ID and length */ + sizeof(list_byte_count) > p_reply_end) {
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_PDU_SIZE);
       return;
     }
 
@@ -777,38 +790,37 @@ static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     /* Copy the response to the scratchpad. First, a safety check on the length
      */
     if ((p_ccb->list_len + list_byte_count) > SDP_MAX_LIST_BYTE_COUNT) {
-      sdp_disconnect(p_ccb, SDP_INVALID_PDU_SIZE);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_PDU_SIZE);
       return;
     }
 
     if (p_reply + list_byte_count + 1 /* continuation */ > p_reply_end) {
-      sdp_disconnect(p_ccb, SDP_INVALID_PDU_SIZE);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_PDU_SIZE);
       return;
     }
 
-    if (p_ccb->rsp_list == NULL)
+    if (p_ccb->rsp_list == NULL) {
       p_ccb->rsp_list = (uint8_t*)osi_malloc(SDP_MAX_LIST_BYTE_COUNT);
+    }
     memcpy(&p_ccb->rsp_list[p_ccb->list_len], p_reply, list_byte_count);
     p_ccb->list_len += list_byte_count;
     p_reply += list_byte_count;
     if (*p_reply) {
       if (*p_reply > SDP_MAX_CONTINUATION_LEN) {
-        sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
+        sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
         return;
       }
       cont_request_needed = true;
     } else {
       log::warn("process_service_attr_rsp");
       if (!sdp_copy_raw_data(p_ccb, false)) {
-        log::error("sdp_copy_raw_data failed");
-        sdp_disconnect(p_ccb, SDP_ILLEGAL_PARAMETER);
+        sdp_disconnect(p_ccb, tSDP_STATUS::SDP_ILLEGAL_PARAMETER);
         return;
       }
 
       /* Save the response in the database. Stop on any error */
-      if (!save_attr_seq(p_ccb, &p_ccb->rsp_list[0],
-                         &p_ccb->rsp_list[p_ccb->list_len])) {
-        sdp_disconnect(p_ccb, SDP_DB_FULL);
+      if (!save_attr_seq(p_ccb, &p_ccb->rsp_list[0], &p_ccb->rsp_list[p_ccb->list_len])) {
+        sdp_disconnect(p_ccb, tSDP_STATUS::SDP_DB_FULL);
         return;
       }
       p_ccb->list_len = 0;
@@ -839,11 +851,11 @@ static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     UINT16_TO_BE_STREAM(p, sdp_cb.max_attr_list_size);
 
     /* If no attribute filters, build a wildcard attribute sequence */
-    if (p_ccb->p_db->num_attr_filters)
-      p = sdpu_build_attrib_seq(p, p_ccb->p_db->attr_filters,
-                                p_ccb->p_db->num_attr_filters);
-    else
+    if (p_ccb->p_db->num_attr_filters) {
+      p = sdpu_build_attrib_seq(p, p_ccb->p_db->attr_filters, p_ccb->p_db->num_attr_filters);
+    } else {
       p = sdpu_build_attrib_seq(p, NULL, 0);
+    }
 
     /* Was this a continuation request ? */
     if (cont_request_needed) {
@@ -851,8 +863,9 @@ static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
         memcpy(p, p_reply, *p_reply + 1);
         p += *p_reply + 1;
       }
-    } else
+    } else {
       UINT8_TO_BE_STREAM(p, 0);
+    }
 
     /* Go back and put the parameter length into the buffer */
     param_len = (uint16_t)(p - p_param_len - 2);
@@ -861,17 +874,17 @@ static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
     /* Set the length of the SDP data in the buffer */
     p_msg->len = (uint16_t)(p - p_start);
 
-    if (L2CA_DataWrite(p_ccb->connection_id, p_msg) != L2CAP_DW_SUCCESS) {
-      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}",
-                p_ccb->device_address, p_ccb->connection_id, p_msg->len);
+    if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_msg) !=
+        tL2CAP_DW_RESULT::SUCCESS) {
+      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
+                p_ccb->connection_id, p_msg->len);
     }
 
     /* Start inactivity timer */
-    alarm_set_on_mloop(p_ccb->sdp_conn_timer, SDP_INACT_TIMEOUT_MS,
-                       sdp_conn_timer_timeout, p_ccb);
+    alarm_set_on_mloop(p_ccb->sdp_conn_timer, SDP_INACT_TIMEOUT_MS, sdp_conn_timer_timeout, p_ccb);
   } else {
     sdpu_log_attribute_metrics(p_ccb->device_address, p_ccb->p_db);
-    sdp_disconnect(p_ccb, SDP_SUCCESS);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_SUCCESS);
     return;
   }
 }
@@ -886,14 +899,13 @@ static void process_service_attr_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
  * Returns          void
  *
  ******************************************************************************/
-static void process_service_search_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
-                                       uint8_t* p_reply_end) {
+static void process_service_search_rsp(tCONN_CB* p_ccb, uint8_t* p_reply, uint8_t* p_reply_end) {
   uint16_t xx;
   uint16_t total, cur_handles, orig;
   uint8_t cont_len;
 
   if (p_reply + 8 > p_reply_end) {
-    sdp_disconnect(p_ccb, SDP_GENERIC_ERROR);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_GENERIC_ERROR);
     return;
   }
   /* Skip transaction, and param len */
@@ -905,31 +917,35 @@ static void process_service_search_rsp(tCONN_CB* p_ccb, uint8_t* p_reply,
   p_ccb->num_handles += cur_handles;
   if (p_ccb->num_handles == 0 || p_ccb->num_handles < orig) {
     log::warn("SDP - Rcvd ServiceSearchRsp, no matches");
-    sdp_disconnect(p_ccb, SDP_NO_RECS_MATCH);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_NO_RECS_MATCH);
     return;
   }
 
   /* Save the handles that match. We will can only process a certain number. */
-  if (total > sdp_cb.max_recs_per_search) total = sdp_cb.max_recs_per_search;
-  if (p_ccb->num_handles > sdp_cb.max_recs_per_search)
+  if (total > sdp_cb.max_recs_per_search) {
+    total = sdp_cb.max_recs_per_search;
+  }
+  if (p_ccb->num_handles > sdp_cb.max_recs_per_search) {
     p_ccb->num_handles = sdp_cb.max_recs_per_search;
+  }
 
   if (p_reply + ((p_ccb->num_handles - orig) * 4) + 1 > p_reply_end) {
-    sdp_disconnect(p_ccb, SDP_GENERIC_ERROR);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_GENERIC_ERROR);
     return;
   }
 
-  for (xx = orig; xx < p_ccb->num_handles; xx++)
+  for (xx = orig; xx < p_ccb->num_handles; xx++) {
     BE_STREAM_TO_UINT32(p_ccb->handles[xx], p_reply);
+  }
 
   BE_STREAM_TO_UINT8(cont_len, p_reply);
   if (cont_len != 0) {
     if (cont_len > SDP_MAX_CONTINUATION_LEN) {
-      sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
       return;
     }
     if (p_reply + cont_len > p_reply_end) {
-      sdp_disconnect(p_ccb, SDP_INVALID_CONT_STATE);
+      sdp_disconnect(p_ccb, tSDP_STATUS::SDP_INVALID_CONT_STATE);
       return;
     }
     /* stay in the same state */
@@ -990,7 +1006,7 @@ void sdp_disc_server_rsp(tCONN_CB* p_ccb, BT_HDR* p_msg) {
   uint8_t* p_end = p + p_msg->len;
 
   if (p_msg->len < 1) {
-    sdp_disconnect(p_ccb, SDP_GENERIC_ERROR);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_GENERIC_ERROR);
     return;
   }
 
@@ -1023,6 +1039,6 @@ void sdp_disc_server_rsp(tCONN_CB* p_ccb, BT_HDR* p_msg) {
 
   if (invalid_pdu) {
     log::warn("SDP - Unexp. PDU: {} in state: {}", rsp_pdu, p_ccb->disc_state);
-    sdp_disconnect(p_ccb, SDP_GENERIC_ERROR);
+    sdp_disconnect(p_ccb, tSDP_STATUS::SDP_GENERIC_ERROR);
   }
 }

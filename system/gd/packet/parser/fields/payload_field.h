@@ -21,7 +21,7 @@
 #include "parse_location.h"
 
 class PayloadField : public PacketField {
- public:
+public:
   PayloadField(std::string modifier, ParseLocation loc);
 
   static const std::string kFieldType;

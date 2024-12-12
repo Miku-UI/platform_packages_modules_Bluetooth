@@ -113,9 +113,7 @@ public class BluetoothMapServiceBinderTest {
     @Test
     public void getClient_callsServiceStaticMethod() {
         mBinder.getClient(null);
-
-        // TODO: Check the static BluetoothMapService.getRemoteDevice() is called
-        //       when static methods become mockable.
+        verify(mService).getRemoteDevice();
     }
 
     @Test

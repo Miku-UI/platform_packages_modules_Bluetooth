@@ -16,6 +16,7 @@
 package com.android.server.bluetooth.test
 
 import com.android.server.bluetooth.Log
+import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -56,6 +57,11 @@ class LogTest {
 
     @Test
     fun log_errorThrowable() {
-        Log.e(TAG, "Logging error… ", RuntimeException("With a Throwable"))
+        Log.e(TAG, "Logging error... ", RuntimeException("With a Throwable"))
+    }
+
+    @Test
+    fun log_timeToStringWithZone() {
+        assertThat(Log.timeToStringWithZone(123456789)).isEqualTo("01-02 02:17:36.789")
     }
 }

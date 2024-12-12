@@ -42,8 +42,7 @@ Iterator Iterator::operator+(size_t offset) {
 
 Iterator& Iterator::operator+=(size_t offset) {
   size_t new_offset = index_ + offset;
-  index_ = new_offset > packet_->packet_end_index_ ? packet_->packet_end_index_
-                                                   : new_offset;
+  index_ = new_offset > packet_->packet_end_index_ ? packet_->packet_end_index_ : new_offset;
   return *this;
 }
 
@@ -51,7 +50,9 @@ Iterator Iterator::operator++(int) {
   auto itr(*this);
   index_++;
 
-  if (index_ > packet_->packet_end_index_) index_ = packet_->packet_end_index_;
+  if (index_ > packet_->packet_end_index_) {
+    index_ = packet_->packet_end_index_;
+  }
 
   return itr;
 }
@@ -59,7 +60,9 @@ Iterator Iterator::operator++(int) {
 Iterator& Iterator::operator++() {
   index_++;
 
-  if (index_ > packet_->packet_end_index_) index_ = packet_->packet_end_index_;
+  if (index_ > packet_->packet_end_index_) {
+    index_ = packet_->packet_end_index_;
+  }
 
   return *this;
 }
@@ -74,21 +77,25 @@ int Iterator::operator-(const Iterator& itr) { return index_ - itr.index_; }
 
 Iterator& Iterator::operator-=(size_t offset) {
   index_ = (index_ < offset || index_ - offset < packet_->packet_start_index_)
-               ? packet_->packet_start_index_
-               : index_ - offset;
+                   ? packet_->packet_start_index_
+                   : index_ - offset;
 
   return *this;
 }
 
 Iterator Iterator::operator--(int) {
   auto itr(*this);
-  if (index_ != packet_->packet_start_index_) index_--;
+  if (index_ != packet_->packet_start_index_) {
+    index_--;
+  }
 
   return itr;
 }
 
 Iterator& Iterator::operator--() {
-  if (index_ != packet_->packet_start_index_) index_--;
+  if (index_ != packet_->packet_start_index_) {
+    index_--;
+  }
 
   return *this;
 }
@@ -101,25 +108,25 @@ Iterator& Iterator::operator=(const Iterator& itr) {
 }
 
 bool Iterator::operator==(const Iterator& itr) const {
-  return ((packet_ == itr.packet_) && (index_ == itr.index_));
+  return (packet_ == itr.packet_) && (index_ == itr.index_);
 }
 
 bool Iterator::operator!=(const Iterator& itr) const { return !(*this == itr); }
 
 bool Iterator::operator<(const Iterator& itr) const {
-  return ((packet_ == itr.packet_) && (index_ < itr.index_));
+  return (packet_ == itr.packet_) && (index_ < itr.index_);
 }
 
 bool Iterator::operator>(const Iterator& itr) const {
-  return ((packet_ == itr.packet_) && (index_ > itr.index_));
+  return (packet_ == itr.packet_) && (index_ > itr.index_);
 }
 
 bool Iterator::operator<=(const Iterator& itr) const {
-  return ((packet_ == itr.packet_) && (index_ <= itr.index_));
+  return (packet_ == itr.packet_) && (index_ <= itr.index_);
 }
 
 bool Iterator::operator>=(const Iterator& itr) const {
-  return ((packet_ == itr.packet_) && (index_ >= itr.index_));
+  return (packet_ == itr.packet_) && (index_ >= itr.index_);
 }
 
 uint8_t Iterator::operator*() const {

@@ -44,8 +44,7 @@
  * Returns          void
  *
  ******************************************************************************/
-void bta_dm_ci_rmt_oob(bool accept, const RawAddress& bd_addr, const Octet16& c,
-                       const Octet16& r);
+void bta_dm_ci_rmt_oob(bool accept, const RawAddress& bd_addr, const Octet16& c, const Octet16& r);
 /*******************************************************************************
  *
  * Function         bta_dm_sco_ci_data_ready

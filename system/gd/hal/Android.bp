@@ -21,7 +21,6 @@ filegroup {
 filegroup {
     name: "BluetoothHalTestSources",
     srcs: [
-        "hci_hal_android.cc",
         "hci_hal_android_test.cc",
         "snoop_logger_socket_test.cc",
         "snoop_logger_socket_thread_test.cc",

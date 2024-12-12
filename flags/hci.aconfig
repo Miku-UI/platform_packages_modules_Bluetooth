@@ -1,0 +1,19 @@
+package: "com.android.bluetooth.flags"
+container: "com.android.btservices"
+
+flag {
+    name: "unified_connection_manager"
+    namespace: "bluetooth"
+    description: "Manage connections centrally and remove the ACL shim layer"
+    bug: "349469413"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "encryption_change_v2"
+    namespace: "bluetooth"
+    description: "Enable encryption change V2 event"
+    bug: "366018699"
+}

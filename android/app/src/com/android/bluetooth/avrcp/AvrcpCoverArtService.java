@@ -263,10 +263,10 @@ public class AvrcpCoverArtService {
     public void dump(StringBuilder sb) {
         int psm = getL2capPsm();
         sb.append("AvrcpCoverArtService:");
-        sb.append("\n\tpsm = " + (psm == 0 ? "null" : psm));
+        sb.append("\n\tpsm = ").append((psm == 0 ? "null" : psm));
         mStorage.dump(sb);
         synchronized (mClientsLock) {
-            sb.append("\n\tclients = " + Arrays.toString(mClients.keySet().toArray()));
+            sb.append("\n\tclients = ").append(Arrays.toString(mClients.keySet().toArray()));
         }
         sb.append("\n");
     }

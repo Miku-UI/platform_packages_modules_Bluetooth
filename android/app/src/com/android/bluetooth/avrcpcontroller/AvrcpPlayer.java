@@ -106,10 +106,13 @@ class AvrcpPlayer {
 
     public void setPlayStatus(int playStatus) {
         if (mPlayTime != PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN) {
-            mPlayTime +=
-                    mPlaySpeed
-                            * (SystemClock.elapsedRealtime()
-                                    - mPlaybackStateCompat.getLastPositionUpdateTime());
+            mPlayTime =
+                    (long)
+                            (mPlayTime
+                                    + mPlaySpeed
+                                            * (SystemClock.elapsedRealtime()
+                                                    - mPlaybackStateCompat
+                                                            .getLastPositionUpdateTime()));
         }
         mPlayStatus = playStatus;
         switch (mPlayStatus) {

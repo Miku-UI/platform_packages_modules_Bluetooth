@@ -47,8 +47,7 @@ void lea_data_cb(tUIPC_CH_ID, tUIPC_EVENT event) {
        * Read directly from media task from here on (keep callback for
        * connection events.
        */
-      UIPC_Ioctl(*lea_uipc, UIPC_CH_ID_AV_AUDIO, UIPC_REG_REMOVE_ACTIVE_READSET,
-                 NULL);
+      UIPC_Ioctl(*lea_uipc, UIPC_CH_ID_AV_AUDIO, UIPC_REG_REMOVE_ACTIVE_READSET, NULL);
       UIPC_Ioctl(*lea_uipc, UIPC_CH_ID_AV_AUDIO, UIPC_SET_READ_POLL_TMO,
                  reinterpret_cast<void*>(LEA_DATA_READ_POLL_MS));
       break;
@@ -86,8 +85,7 @@ bool HostStartRequest() {
     return false;
   }
 
-  host::le_audio::LeAudioSinkTransport::stream_started =
-      btle_stream_started_status::IDLE;
+  host::le_audio::LeAudioSinkTransport::stream_started = btle_stream_started_status::IDLE;
   host::le_audio::LeAudioSinkTransport::instance->ResetPresentationPosition();
   return host::le_audio::LeAudioSinkTransport::instance->StartRequest();
 }
@@ -107,14 +105,14 @@ btle_pcm_parameters GetHostPcmConfig() {
     return {};
   }
 
-  auto pcm_params = host::le_audio::LeAudioSinkTransport::instance
-                        ->LeAudioGetSelectedHalPcmConfig();
+  auto pcm_params =
+          host::le_audio::LeAudioSinkTransport::instance->LeAudioGetSelectedHalPcmConfig();
 
   btle_pcm_parameters pcm_config = {
-      .data_interval_us = pcm_params.data_interval_us,
-      .sample_rate = pcm_params.sample_rate,
-      .bits_per_sample = pcm_params.bits_per_sample,
-      .channels_count = pcm_params.channels_count,
+          .data_interval_us = pcm_params.data_interval_us,
+          .sample_rate = pcm_params.sample_rate,
+          .bits_per_sample = pcm_params.bits_per_sample,
+          .channels_count = pcm_params.channels_count,
   };
 
   return pcm_config;
@@ -127,8 +125,7 @@ bool PeerStartRequest() {
     return false;
   }
 
-  host::le_audio::LeAudioSourceTransport::stream_started =
-      btle_stream_started_status::IDLE;
+  host::le_audio::LeAudioSourceTransport::stream_started = btle_stream_started_status::IDLE;
   host::le_audio::LeAudioSourceTransport::instance->ResetPresentationPosition();
   return host::le_audio::LeAudioSourceTransport::instance->StartRequest();
 }
@@ -148,14 +145,14 @@ btle_pcm_parameters GetPeerPcmConfig() {
     return {};
   }
 
-  auto pcm_params = host::le_audio::LeAudioSourceTransport::instance
-                        ->LeAudioGetSelectedHalPcmConfig();
+  auto pcm_params =
+          host::le_audio::LeAudioSourceTransport::instance->LeAudioGetSelectedHalPcmConfig();
 
   btle_pcm_parameters pcm_config = {
-      .data_interval_us = pcm_params.data_interval_us,
-      .sample_rate = pcm_params.sample_rate,
-      .bits_per_sample = pcm_params.bits_per_sample,
-      .channels_count = pcm_params.channels_count,
+          .data_interval_us = pcm_params.data_interval_us,
+          .sample_rate = pcm_params.sample_rate,
+          .bits_per_sample = pcm_params.bits_per_sample,
+          .channels_count = pcm_params.channels_count,
   };
 
   return pcm_config;
@@ -171,34 +168,27 @@ btle_stream_started_status GetPeerStreamStarted() {
 
 void SourceMetadataChanged(const source_metadata_v7_t& metadata) {
   if (host::le_audio::LeAudioSourceTransport::instance) {
-    host::le_audio::LeAudioSourceTransport::instance->SourceMetadataChanged(
-        metadata);
+    host::le_audio::LeAudioSourceTransport::instance->SourceMetadataChanged(metadata);
   }
 
   if (host::le_audio::LeAudioSinkTransport::instance) {
-    host::le_audio::LeAudioSinkTransport::instance->SourceMetadataChanged(
-        metadata);
+    host::le_audio::LeAudioSinkTransport::instance->SourceMetadataChanged(metadata);
   }
 }
 
 void SinkMetadataChanged(const sink_metadata_v7_t& metadata) {
   if (host::le_audio::LeAudioSourceTransport::instance) {
-    host::le_audio::LeAudioSourceTransport::instance->SinkMetadataChanged(
-        metadata);
+    host::le_audio::LeAudioSourceTransport::instance->SinkMetadataChanged(metadata);
   }
 
   if (host::le_audio::LeAudioSinkTransport::instance) {
-    host::le_audio::LeAudioSinkTransport::instance->SinkMetadataChanged(
-        metadata);
+    host::le_audio::LeAudioSinkTransport::instance->SinkMetadataChanged(metadata);
   }
 }
 
 OffloadCapabilities get_offload_capabilities() {
-  return {
-      std::vector<
-          bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0),
-      std::vector<
-          bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0)};
+  return {std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0),
+          std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0)};
 }
 
 int GetAidlInterfaceVersion() { return 0; }
@@ -212,21 +202,19 @@ void LeAudioClientInterface::Sink::Cleanup() {
   host::le_audio::LeAudioSinkTransport::instance = nullptr;
 }
 
-void LeAudioClientInterface::Sink::SetPcmParameters(
-    const PcmParameters& params) {
+void LeAudioClientInterface::Sink::SetPcmParameters(const PcmParameters& params) {
   if (!host::le_audio::LeAudioSinkTransport::instance) {
     log::warn("instance is null");
     return;
   }
 
   log::info(
-      "sample_rate={}, bits_per_sample={}, channels_count={}, "
-      "data_interval_us={}",
-      params.sample_rate, params.bits_per_sample, params.channels_count,
-      params.data_interval_us);
+          "sample_rate={}, bits_per_sample={}, channels_count={}, "
+          "data_interval_us={}",
+          params.sample_rate, params.bits_per_sample, params.channels_count,
+          params.data_interval_us);
 
-  host::le_audio::LeAudioSinkTransport::instance
-      ->LeAudioSetSelectedHalPcmConfig(
+  host::le_audio::LeAudioSinkTransport::instance->LeAudioSetSelectedHalPcmConfig(
           params.sample_rate, params.bits_per_sample, params.channels_count,
           params.data_interval_us);
 }
@@ -239,8 +227,7 @@ void LeAudioClientInterface::Sink::SetRemoteDelay(uint16_t delay_report_ms) {
 
   log::info("delay_report_ms={} msec", delay_report_ms);
 
-  host::le_audio::LeAudioSinkTransport::instance->SetRemoteDelay(
-      delay_report_ms);
+  host::le_audio::LeAudioSinkTransport::instance->SetRemoteDelay(delay_report_ms);
 }
 
 void LeAudioClientInterface::Sink::StartSession() { log::info(""); }
@@ -252,8 +239,7 @@ void LeAudioClientInterface::Sink::StopSession() {
     host::le_audio::LeAudioSinkTransport::instance->ClearStartRequestState();
   }
 
-  host::le_audio::LeAudioSinkTransport::stream_started =
-      btle_stream_started_status::IDLE;
+  host::le_audio::LeAudioSinkTransport::stream_started = btle_stream_started_status::IDLE;
 }
 
 void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {
@@ -280,18 +266,13 @@ void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {
       log::info("Response after sending PENDING to audio HAL");
       instance->ClearStartRequestState();
       lea_data_path_open();
-      host::le_audio::LeAudioSinkTransport::stream_started =
-          btle_stream_started_status::STARTED;
+      host::le_audio::LeAudioSinkTransport::stream_started = btle_stream_started_status::STARTED;
       return;
     case StartRequestState::CONFIRMED:
     case StartRequestState::CANCELED:
       log::error("Invalid state, start stream already confirmed");
       return;
   }
-}
-
-void LeAudioClientInterface::Sink::ConfirmStreamingRequestV2() {
-  ConfirmStreamingRequest();
 }
 
 void LeAudioClientInterface::Sink::CancelStreamingRequest() {
@@ -316,8 +297,7 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
     case StartRequestState::PENDING_AFTER_RESUME:
       log::info("Response after sending PENDING to audio HAL");
       instance->ClearStartRequestState();
-      host::le_audio::LeAudioSinkTransport::stream_started =
-          btle_stream_started_status::CANCELED;
+      host::le_audio::LeAudioSinkTransport::stream_started = btle_stream_started_status::CANCELED;
       return;
     case StartRequestState::CONFIRMED:
     case StartRequestState::CANCELED:
@@ -326,15 +306,11 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
   }
 }
 
-void LeAudioClientInterface::Sink::CancelStreamingRequestV2() {
-  CancelStreamingRequest();
-}
-
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
-    const ::le_audio::offload_config& offload_config) {}
+        const ::le_audio::offload_config& offload_config) {}
 
 void LeAudioClientInterface::Sink::UpdateBroadcastAudioConfigToHal(
-    ::le_audio::broadcast_offload_config const& config) {}
+        ::le_audio::broadcast_offload_config const& config) {}
 
 void LeAudioClientInterface::Sink::SuspendedForReconfiguration() {
   log::info("");
@@ -355,18 +331,16 @@ size_t LeAudioClientInterface::Sink::Read(uint8_t* p_buf, uint32_t len) {
 
 std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
 LeAudioClientInterface::Sink::GetUnicastConfig(
-    const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&
-        requirements) const {
+        const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements& requirements)
+        const {
   return std::nullopt;
 }
 
 std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
 LeAudioClientInterface::Sink::GetBroadcastConfig(
-    const std::vector<
-        std::pair<::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
-        subgroup_quality,
-    const std::optional<
-        std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs) const {
+        const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
+                subgroup_quality,
+        const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs) const {
   return std::nullopt;
 }
 
@@ -379,21 +353,19 @@ void LeAudioClientInterface::Source::Cleanup() {
   host::le_audio::LeAudioSourceTransport::instance = nullptr;
 }
 
-void LeAudioClientInterface::Source::SetPcmParameters(
-    const PcmParameters& params) {
+void LeAudioClientInterface::Source::SetPcmParameters(const PcmParameters& params) {
   if (!host::le_audio::LeAudioSourceTransport::instance) {
     log::warn("instance is null");
     return;
   }
 
   log::info(
-      "sample_rate={}, bits_per_sample={}, channels_count={}, "
-      "data_interval_us={}",
-      params.sample_rate, params.bits_per_sample, params.channels_count,
-      params.data_interval_us);
+          "sample_rate={}, bits_per_sample={}, channels_count={}, "
+          "data_interval_us={}",
+          params.sample_rate, params.bits_per_sample, params.channels_count,
+          params.data_interval_us);
 
-  host::le_audio::LeAudioSourceTransport::instance
-      ->LeAudioSetSelectedHalPcmConfig(
+  host::le_audio::LeAudioSourceTransport::instance->LeAudioSetSelectedHalPcmConfig(
           params.sample_rate, params.bits_per_sample, params.channels_count,
           params.data_interval_us);
 }
@@ -406,8 +378,7 @@ void LeAudioClientInterface::Source::SetRemoteDelay(uint16_t delay_report_ms) {
 
   log::info("delay_report_ms={} msec", delay_report_ms);
 
-  host::le_audio::LeAudioSourceTransport::instance->SetRemoteDelay(
-      delay_report_ms);
+  host::le_audio::LeAudioSourceTransport::instance->SetRemoteDelay(delay_report_ms);
 }
 
 void LeAudioClientInterface::Source::StartSession() { log::info(""); }
@@ -419,8 +390,7 @@ void LeAudioClientInterface::Source::StopSession() {
     host::le_audio::LeAudioSourceTransport::instance->ClearStartRequestState();
   }
 
-  host::le_audio::LeAudioSourceTransport::stream_started =
-      btle_stream_started_status::IDLE;
+  host::le_audio::LeAudioSourceTransport::stream_started = btle_stream_started_status::IDLE;
 }
 
 void LeAudioClientInterface::Source::ConfirmStreamingRequest() {
@@ -447,18 +417,13 @@ void LeAudioClientInterface::Source::ConfirmStreamingRequest() {
       log::info("Response after sending PENDING to audio HAL");
       instance->ClearStartRequestState();
       lea_data_path_open();
-      host::le_audio::LeAudioSourceTransport::stream_started =
-          btle_stream_started_status::STARTED;
+      host::le_audio::LeAudioSourceTransport::stream_started = btle_stream_started_status::STARTED;
       return;
     case StartRequestState::CONFIRMED:
     case StartRequestState::CANCELED:
       log::error("Invalid state, start stream already confirmed");
       return;
   }
-}
-
-void LeAudioClientInterface::Source::ConfirmStreamingRequestV2() {
-  ConfirmStreamingRequest();
 }
 
 void LeAudioClientInterface::Source::CancelStreamingRequest() {
@@ -483,8 +448,7 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
     case StartRequestState::PENDING_AFTER_RESUME:
       log::info("Response after sending PENDING to audio HAL");
       instance->ClearStartRequestState();
-      host::le_audio::LeAudioSourceTransport::stream_started =
-          btle_stream_started_status::CANCELED;
+      host::le_audio::LeAudioSourceTransport::stream_started = btle_stream_started_status::CANCELED;
       return;
     case StartRequestState::CANCELED:
     case StartRequestState::CONFIRMED:
@@ -493,34 +457,25 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
   }
 }
 
-void LeAudioClientInterface::Source::CancelStreamingRequestV2() {
-  CancelStreamingRequest();
-}
-
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
-    const ::le_audio::offload_config& offload_config) {}
+        const ::le_audio::offload_config& offload_config) {}
 
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {
   log::info("");
   // TODO
 }
 
-void LeAudioClientInterface::Source::ReconfigurationComplete() {
-  log::info("");
-}
+void LeAudioClientInterface::Source::ReconfigurationComplete() { log::info(""); }
 
-size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf,
-                                             uint32_t len) {
+size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf, uint32_t len) {
   bool ok = UIPC_Send(*lea_uipc, UIPC_CH_ID_AV_AUDIO, 0, p_buf, len);
   return ok ? len : 0;
 }
 
 LeAudioClientInterface::Sink* LeAudioClientInterface::GetSink(
-    StreamCallbacks stream_cb,
-    bluetooth::common::MessageLoopThread* message_loop,
-    bool is_broadcasting_session_type) {
-  if (is_broadcasting_session_type &&
-      !LeAudioHalVerifier::SupportsLeAudioBroadcast()) {
+        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop,
+        bool is_broadcasting_session_type) {
+  if (is_broadcasting_session_type && !LeAudioHalVerifier::SupportsLeAudioBroadcast()) {
     log::warn("No support for broadcasting Le Audio");
     return nullptr;
   }
@@ -535,18 +490,14 @@ LeAudioClientInterface::Sink* LeAudioClientInterface::GetSink(
   }
 
   host::le_audio::LeAudioSinkTransport::instance =
-      new host::le_audio::LeAudioSinkTransport(std::move(stream_cb));
+          new host::le_audio::LeAudioSinkTransport(std::move(stream_cb));
 
   return sink;
 }
 
-bool LeAudioClientInterface::IsUnicastSinkAcquired() {
-  return unicast_sink_ != nullptr;
-}
+bool LeAudioClientInterface::IsUnicastSinkAcquired() { return unicast_sink_ != nullptr; }
 
-bool LeAudioClientInterface::IsBroadcastSinkAcquired() {
-  return broadcast_sink_ != nullptr;
-}
+bool LeAudioClientInterface::IsBroadcastSinkAcquired() { return broadcast_sink_ != nullptr; }
 
 bool LeAudioClientInterface::ReleaseSink(LeAudioClientInterface::Sink* sink) {
   if (sink != unicast_sink_ && sink != broadcast_sink_) {
@@ -568,8 +519,7 @@ bool LeAudioClientInterface::ReleaseSink(LeAudioClientInterface::Sink* sink) {
 }
 
 LeAudioClientInterface::Source* LeAudioClientInterface::GetSource(
-    StreamCallbacks stream_cb,
-    bluetooth::common::MessageLoopThread* message_loop) {
+        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop) {
   if (source_ == nullptr) {
     source_ = new Source();
   } else {
@@ -580,15 +530,14 @@ LeAudioClientInterface::Source* LeAudioClientInterface::GetSource(
   log::info("");
 
   host::le_audio::LeAudioSourceTransport::instance =
-      new host::le_audio::LeAudioSourceTransport(std::move(stream_cb));
+          new host::le_audio::LeAudioSourceTransport(std::move(stream_cb));
 
   return source_;
 }
 
 bool LeAudioClientInterface::IsSourceAcquired() { return source_ != nullptr; }
 
-bool LeAudioClientInterface::ReleaseSource(
-    LeAudioClientInterface::Source* source) {
+bool LeAudioClientInterface::ReleaseSource(LeAudioClientInterface::Source* source) {
   if (source != source_) {
     log::warn("Can't release not acquired source");
     return false;
@@ -596,7 +545,9 @@ bool LeAudioClientInterface::ReleaseSource(
 
   log::info("");
 
-  if (host::le_audio::LeAudioSourceTransport::instance) source->Cleanup();
+  if (host::le_audio::LeAudioSourceTransport::instance) {
+    source->Cleanup();
+  }
 
   delete (source_);
   source_ = nullptr;

@@ -39,8 +39,8 @@ namespace audio {
  * verbose logging, it is not locked, so the state may not be synchronized.
  ***/
 class BluetoothAudioPort {
- public:
-  BluetoothAudioPort(){};
+public:
+  BluetoothAudioPort() {}
   virtual ~BluetoothAudioPort() = default;
 
   /***
@@ -61,7 +61,7 @@ class BluetoothAudioPort {
    * channel mask and sample rate, it uses this function to fetch from the
    * Bluetooth stack
    ***/
-  virtual bool LoadAudioConfig(audio_config_t*) const { return false; };
+  virtual bool LoadAudioConfig(audio_config_t*) const { return false; }
 
   /***
    * WAR to support Mono mode / 16 bits per sample
@@ -79,7 +79,7 @@ class BluetoothAudioPort {
   /***
    * Called by Audio framework / HAL to suspend the stream
    ***/
-  virtual bool Suspend() { return false; };
+  virtual bool Suspend() { return false; }
 
   /***
     virtual bool Suspend() { return false; }
@@ -91,16 +91,12 @@ class BluetoothAudioPort {
    * Called by the Audio framework / HAL to fetch information about audio frames
    * presented to an external sink, or frames presented fror an internal sink
    ***/
-  virtual bool GetPresentationPosition(uint64_t*, uint64_t*, timespec*) const {
-    return false;
-  }
+  virtual bool GetPresentationPosition(uint64_t*, uint64_t*, timespec*) const { return false; }
 
   /***
    * Return the current BluetoothStreamState
    ***/
-  virtual BluetoothStreamState GetState() const {
-    return static_cast<BluetoothStreamState>(0);
-  }
+  virtual BluetoothStreamState GetState() const { return static_cast<BluetoothStreamState>(0); }
 
   /***
    * Set the current BluetoothStreamState
@@ -111,14 +107,10 @@ class BluetoothAudioPort {
 
   virtual bool IsLeAudio() const { return false; }
 
-  virtual bool GetPreferredDataIntervalUs(size_t* interval_us) const {
-    return false;
-  };
+  virtual bool GetPreferredDataIntervalUs(size_t* interval_us) const { return false; }
 
-  virtual size_t WriteData(const void* buffer, size_t bytes) const {
-    return 0;
-  };
-  virtual size_t ReadData(void* buffer, size_t bytes) const { return 0; };
+  virtual size_t WriteData(const void* buffer, size_t bytes) const { return 0; }
+  virtual size_t ReadData(void* buffer, size_t bytes) const { return 0; }
 };
 
 namespace aidl {
@@ -127,7 +119,7 @@ using ::aidl::android::hardware::bluetooth::audio::BluetoothAudioStatus;
 using ::aidl::android::hardware::bluetooth::audio::SessionType;
 
 class BluetoothAudioPortAidl : public BluetoothAudioPort {
- public:
+public:
   BluetoothAudioPortAidl();
   virtual ~BluetoothAudioPortAidl() = default;
 
@@ -158,27 +150,21 @@ class BluetoothAudioPortAidl : public BluetoothAudioPort {
 
   bool IsA2dp() const override {
     return session_type_ == SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH ||
-           session_type_ ==
-               SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH;
+           session_type_ == SessionType::A2DP_HARDWARE_OFFLOAD_ENCODING_DATAPATH;
   }
 
   bool IsLeAudio() const override {
     return session_type_ == SessionType::LE_AUDIO_SOFTWARE_ENCODING_DATAPATH ||
            session_type_ == SessionType::LE_AUDIO_SOFTWARE_DECODING_DATAPATH ||
-           session_type_ ==
-               SessionType::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
-           session_type_ ==
-               SessionType::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH ||
-           session_type_ ==
-               SessionType::LE_AUDIO_BROADCAST_SOFTWARE_ENCODING_DATAPATH ||
-           session_type_ ==
-               SessionType::
-                   LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_ENCODING_DATAPATH;
+           session_type_ == SessionType::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
+           session_type_ == SessionType::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH ||
+           session_type_ == SessionType::LE_AUDIO_BROADCAST_SOFTWARE_ENCODING_DATAPATH ||
+           session_type_ == SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_ENCODING_DATAPATH;
   }
 
   bool GetPreferredDataIntervalUs(size_t* interval_us) const override;
 
- protected:
+protected:
   uint16_t cookie_;
   BluetoothStreamState state_;
   SessionType session_type_;
@@ -186,7 +172,7 @@ class BluetoothAudioPortAidl : public BluetoothAudioPort {
   bool is_stereo_to_mono_ = false;
   virtual bool in_use() const;
 
- private:
+private:
   mutable std::mutex cv_mutex_;
   std::condition_variable internal_cv_;
 
@@ -201,7 +187,7 @@ class BluetoothAudioPortAidl : public BluetoothAudioPort {
 };
 
 class BluetoothAudioPortAidlOut : public BluetoothAudioPortAidl {
- public:
+public:
   ~BluetoothAudioPortAidlOut();
 
   // The audio data path to the Bluetooth stack (Software encoding)
@@ -210,7 +196,7 @@ class BluetoothAudioPortAidlOut : public BluetoothAudioPortAidl {
 };
 
 class BluetoothAudioPortAidlIn : public BluetoothAudioPortAidl {
- public:
+public:
   ~BluetoothAudioPortAidlIn();
 
   // The audio data path from the Bluetooth stack (Software decoded)

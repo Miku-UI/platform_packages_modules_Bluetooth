@@ -18,15 +18,13 @@
 
 #include "test/headless/read/read.h"
 
-#include "os/log.h"        // android log only
+#include "os/log.h"  // android log only
 #include "test/headless/get_options.h"
 #include "test/headless/headless.h"
 #include "test/headless/read/name.h"
 
 using namespace bluetooth::test::headless;
 
-Read::Read(const bluetooth::test::headless::GetOpt& options)
-    : HeadlessTest<int>(options) {
-  test_nodes_.emplace(
-      "name", std::make_unique<bluetooth::test::headless::Name>(options));
+Read::Read(const bluetooth::test::headless::GetOpt& options) : HeadlessTest<int>(options) {
+  test_nodes_.emplace("name", std::make_unique<bluetooth::test::headless::Name>(options));
 }

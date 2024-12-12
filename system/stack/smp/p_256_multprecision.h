@@ -47,7 +47,7 @@ void multiprecision_rshift(uint32_t* c, uint32_t* a);  // c=a>>1, return carrier
 void multiprecision_lshift_mod(uint32_t* c,
                                uint32_t* a);  // c=a<<b, return carrier
 uint32_t multiprecision_lshift(uint32_t* c,
-                               uint32_t* a);  // c=a<<b, return carrier
+                               uint32_t* a);                      // c=a<<b, return carrier
 void multiprecision_mult(uint32_t* c, uint32_t* a, uint32_t* b);  // c=a*b
 void multiprecision_mersenns_mult_mod(uint32_t* c, uint32_t* a, uint32_t* b);
 void multiprecision_mersenns_squa_mod(uint32_t* c, uint32_t* a);

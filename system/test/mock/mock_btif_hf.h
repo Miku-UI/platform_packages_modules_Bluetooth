@@ -47,9 +47,8 @@ namespace btif_hf {
 // Returns: bluetooth::headset::Interface*
 
 struct GetInterface {
-  std::function<bluetooth::headset::Interface*()> body{
-      []() { return nullptr; }};
-  bluetooth::headset::Interface* operator()() { return body(); };
+  std::function<bluetooth::headset::Interface*()> body{[]() { return nullptr; }};
+  bluetooth::headset::Interface* operator()() { return body(); }
 };
 extern struct GetInterface GetInterface;
 

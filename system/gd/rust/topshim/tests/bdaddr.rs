@@ -25,14 +25,14 @@ mod tests {
 
     #[test]
     fn from_bytes_invalid() {
-        assert!(RawAddress::from_bytes(&vec![]).is_none());
-        assert!(RawAddress::from_bytes(&vec![1, 2, 3, 4, 5]).is_none());
-        assert!(RawAddress::from_bytes(&vec![1, 2, 3, 4, 5, 6, 7]).is_none());
+        assert!(RawAddress::from_bytes(&[]).is_none());
+        assert!(RawAddress::from_bytes(&[1, 2, 3, 4, 5]).is_none());
+        assert!(RawAddress::from_bytes(&[1, 2, 3, 4, 5, 6, 7]).is_none());
     }
 
     #[test]
     fn from_bytes_valid() {
-        let addr = RawAddress::from_bytes(&vec![1, 2, 3, 4, 5, 6]);
+        let addr = RawAddress::from_bytes(&[1, 2, 3, 4, 5, 6]);
         assert!(addr.is_some());
         assert_eq!([1, 2, 3, 4, 5, 6], addr.unwrap().to_byte_arr());
     }

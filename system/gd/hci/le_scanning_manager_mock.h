@@ -30,10 +30,9 @@ namespace testing {
 class MockScanningCallback : public ScanningCallback {
   MOCK_METHOD(void, OnScannerRegistered, (const bluetooth::hci::Uuid, ScannerId, ScanningStatus));
   MOCK_METHOD(void, OnSetScannerParameterComplete, (ScannerId scanner_id, ScanningStatus status));
-  MOCK_METHOD(
-      void,
-      OnScanResult,
-      (uint16_t, uint8_t, Address, uint8_t, uint8_t, uint8_t, int8_t, int8_t, uint16_t, std::vector<uint8_t>));
+  MOCK_METHOD(void, OnScanResult,
+              (uint16_t, uint8_t, Address, uint8_t, uint8_t, uint8_t, int8_t, int8_t, uint16_t,
+               std::vector<uint8_t>));
   MOCK_METHOD(void, OnTrackAdvFoundLost, (AdvertisingFilterOnFoundOnLostInfo));
   MOCK_METHOD(void, OnBatchScanReports, (int, int, int, int, std::vector<uint8_t>));
   MOCK_METHOD(void, OnBatchScanThresholdCrossed, (int));
@@ -41,14 +40,16 @@ class MockScanningCallback : public ScanningCallback {
   MOCK_METHOD(void, OnFilterEnable, (Enable, uint8_t));
   MOCK_METHOD(void, OnFilterParamSetup, (uint8_t, ApcfAction, uint8_t));
   MOCK_METHOD(void, OnFilterConfigCallback, (ApcfFilterType, uint8_t, ApcfAction, uint8_t));
-  MOCK_METHOD(void, OnPeriodicSyncStarted, (int, uint8_t, uint16_t, uint8_t, AddressWithType, uint8_t, uint16_t));
-  MOCK_METHOD(void, OnPeriodicSyncReport, (uint16_t, int8_t, int8_t, uint8_t, std::vector<uint8_t>));
+  MOCK_METHOD(void, OnPeriodicSyncStarted,
+              (int, uint8_t, uint16_t, uint8_t, AddressWithType, uint8_t, uint16_t));
+  MOCK_METHOD(void, OnPeriodicSyncReport,
+              (uint16_t, int8_t, int8_t, uint8_t, std::vector<uint8_t>));
   MOCK_METHOD(void, OnPeriodicSyncLost, (uint16_t));
   MOCK_METHOD(void, OnPeriodicSyncTransferred, (int, uint8_t, Address));
 };
 
 class MockLeScanningManager : public LeScanningManager {
- public:
+public:
   MOCK_METHOD(void, RegisterScanner, (const Uuid));
   MOCK_METHOD(void, Unregister, (ScannerId));
   MOCK_METHOD(void, Scan, (bool));
@@ -65,18 +66,11 @@ class MockLeScanningManager : public LeScanningManager {
   MOCK_METHOD(void, StartSync, (uint8_t, const AddressWithType&, uint16_t, uint16_t, int));
   MOCK_METHOD(void, StopSync, (uint16_t));
   MOCK_METHOD(void, CancelCreateSync, (uint8_t, const Address&));
-  MOCK_METHOD(
-      void,
-      TransferSync,
-      (const Address&,
-       uint16_t connection_handle,
-       uint16_t service_data,
-       uint16_t sync_handle,
-       int pa_source));
-  MOCK_METHOD(
-      void,
-      TransferSetInfo,
-      (const Address&, uint16_t connection_handle, uint16_t service_data, uint8_t, int));
+  MOCK_METHOD(void, TransferSync,
+              (const Address&, uint16_t connection_handle, uint16_t service_data,
+               uint16_t sync_handle, int pa_source));
+  MOCK_METHOD(void, TransferSetInfo,
+              (const Address&, uint16_t connection_handle, uint16_t service_data, uint8_t, int));
   MOCK_METHOD(void, SyncTxParameters, (const Address&, uint8_t, uint16_t, uint16_t, int));
 };
 

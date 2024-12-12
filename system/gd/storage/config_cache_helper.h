@@ -34,28 +34,36 @@ namespace storage {
 // A thin wrapper around ConfigCache and implement more type supports other than std::string
 //
 // - all SetX methods accept value as copy and std::move() in encouraged
-// - all GetX methods return std::optional<X> and std::nullopt if not exist. std::optional<> can be treated as bool
+// - all GetX methods return std::optional<X> and std::nullopt if not exist. std::optional<> can be
+// treated as bool
 class ConfigCacheHelper {
- public:
+public:
   static ConfigCacheHelper FromConfigCache(ConfigCache& config_cache) {
     return ConfigCacheHelper(config_cache);
   }
   explicit ConfigCacheHelper(ConfigCache& config_cache) : config_cache_(config_cache) {}
   virtual ~ConfigCacheHelper() = default;
   virtual void SetBool(const std::string& section, const std::string& property, bool value);
-  virtual std::optional<bool> GetBool(const std::string& section, const std::string& property) const;
+  virtual std::optional<bool> GetBool(const std::string& section,
+                                      const std::string& property) const;
   virtual void SetUint64(const std::string& section, const std::string& property, uint64_t value);
-  virtual std::optional<uint64_t> GetUint64(const std::string& section, const std::string& property) const;
+  virtual std::optional<uint64_t> GetUint64(const std::string& section,
+                                            const std::string& property) const;
   virtual void SetUint32(const std::string& section, const std::string& property, uint32_t value);
-  virtual std::optional<uint32_t> GetUint32(const std::string& section, const std::string& property) const;
+  virtual std::optional<uint32_t> GetUint32(const std::string& section,
+                                            const std::string& property) const;
   virtual void SetInt64(const std::string& section, const std::string& property, int64_t value);
-  virtual std::optional<int64_t> GetInt64(const std::string& section, const std::string& property) const;
+  virtual std::optional<int64_t> GetInt64(const std::string& section,
+                                          const std::string& property) const;
   virtual void SetInt(const std::string& section, const std::string& property, int value);
   virtual std::optional<int> GetInt(const std::string& section, const std::string& property) const;
-  virtual void SetBin(const std::string& section, const std::string& property, const std::vector<uint8_t>& value);
-  virtual std::optional<std::vector<uint8_t>> GetBin(const std::string& section, const std::string& property) const;
+  virtual void SetBin(const std::string& section, const std::string& property,
+                      const std::vector<uint8_t>& value);
+  virtual std::optional<std::vector<uint8_t>> GetBin(const std::string& section,
+                                                     const std::string& property) const;
 
-  template <typename T, typename std::enable_if<std::is_signed_v<T> && std::is_integral_v<T>, int>::type = 0>
+  template <typename T,
+            typename std::enable_if<std::is_signed_v<T> && std::is_integral_v<T>, int>::type = 0>
   std::optional<T> Get(const std::string& section, const std::string& property) {
     auto value = GetInt64(section, property);
     if (!value) {
@@ -67,7 +75,8 @@ class ConfigCacheHelper {
     return static_cast<T>(*value);
   }
 
-  template <typename T, typename std::enable_if<std::is_unsigned_v<T> && std::is_integral_v<T>, int>::type = 0>
+  template <typename T,
+            typename std::enable_if<std::is_unsigned_v<T> && std::is_integral_v<T>, int>::type = 0>
   std::optional<T> Get(const std::string& section, const std::string& property) {
     auto value = GetUint64(section, property);
     if (!value) {
@@ -84,7 +93,8 @@ class ConfigCacheHelper {
     return config_cache_.GetProperty(section, property);
   }
 
-  template <typename T, typename std::enable_if<std::is_same_v<T, std::vector<uint8_t>>, int>::type = 0>
+  template <typename T,
+            typename std::enable_if<std::is_same_v<T, std::vector<uint8_t>>, int>::type = 0>
   std::optional<T> Get(const std::string& section, const std::string& property) {
     return GetBin(section, property);
   }
@@ -94,7 +104,8 @@ class ConfigCacheHelper {
     return GetBool(section, property);
   }
 
-  template <typename T, typename std::enable_if<std::is_base_of_v<Serializable<T>, T>, int>::type = 0>
+  template <typename T,
+            typename std::enable_if<std::is_base_of_v<Serializable<T>, T>, int>::type = 0>
   std::optional<T> Get(const std::string& section, const std::string& property) {
     auto value = config_cache_.GetProperty(section, property);
     if (!value) {
@@ -112,12 +123,11 @@ class ConfigCacheHelper {
     return bluetooth::FromLegacyConfigString<T>(*value);
   }
 
-  template <
-      typename T,
-      typename std::enable_if<
-          bluetooth::common::is_specialization_of<T, std::vector>::value &&
-              std::is_base_of_v<Serializable<typename T::value_type>, typename T::value_type>,
-          int>::type = 0>
+  template <typename T, typename std::enable_if<
+                                bluetooth::common::is_specialization_of<T, std::vector>::value &&
+                                        std::is_base_of_v<Serializable<typename T::value_type>,
+                                                          typename T::value_type>,
+                                int>::type = 0>
   std::optional<T> Get(const std::string& section, const std::string& property) {
     auto value = config_cache_.GetProperty(section, property);
     if (!value) {
@@ -136,7 +146,7 @@ class ConfigCacheHelper {
     return result;
   }
 
- private:
+private:
   ConfigCache& config_cache_;
 };
 

@@ -26,10 +26,8 @@ using namespace bluetooth;
 namespace bluetooth::le_audio {
 namespace has {
 
-std::optional<HasPreset> HasPreset::FromCharacteristicValue(
-    uint16_t& len, const uint8_t* value) {
-  if ((len < kCharValueMinSize) ||
-      (len > kCharValueMinSize + kPresetNameLengthLimit)) {
+std::optional<HasPreset> HasPreset::FromCharacteristicValue(uint16_t& len, const uint8_t* value) {
+  if ((len < kCharValueMinSize) || (len > kCharValueMinSize + kPresetNameLengthLimit)) {
     log::error("Preset record to long: {}", len);
     return std::nullopt;
   }
@@ -76,8 +74,7 @@ uint8_t* HasPreset::Serialize(uint8_t* p_out, size_t buffer_size) const {
   return p_out;
 }
 
-const uint8_t* HasPreset::Deserialize(const uint8_t* p_in, size_t len,
-                                      HasPreset& preset) {
+const uint8_t* HasPreset::Deserialize(const uint8_t* p_in, size_t len, HasPreset& preset) {
   const uint8_t nonamed_size = HasPreset(0, 0).SerializedSize();
   auto* p_curr = p_in;
 
@@ -94,15 +91,16 @@ const uint8_t* HasPreset::Deserialize(const uint8_t* p_in, size_t len,
   }
 
   auto name_len = serialized_data_len - 2;
-  if ((name_len > kPresetNameLengthLimit) ||
-      ((size_t)nonamed_size + name_len > len)) {
+  if ((name_len > kPresetNameLengthLimit) || ((size_t)nonamed_size + name_len > len)) {
     log::error("Invalid preset name length. Cannot be deserialized!");
     return p_in;
   }
 
   STREAM_TO_UINT8(preset.index_, p_curr);
   STREAM_TO_UINT8(preset.properties_, p_curr);
-  if (name_len) preset.name_ = std::string((const char*)p_curr, name_len);
+  if (name_len) {
+    preset.name_ = std::string((const char*)p_curr, name_len);
+  }
 
   return p_curr + name_len;
 }

@@ -80,12 +80,10 @@ void WakelockNative::Initialize() {
   log::info("Initializing native wake locks");
   const std::string suspendInstance = std::string() + ISystemSuspend::descriptor + "/default";
   pimpl_->suspend_service = ISystemSuspend::fromBinder(
-      ndk::SpAIBinder(AServiceManager_waitForService(suspendInstance.c_str())));
+          ndk::SpAIBinder(AServiceManager_waitForService(suspendInstance.c_str())));
   log::assert_that(pimpl_->suspend_service != nullptr, "Cannot get ISystemSuspend service");
-  AIBinder_linkToDeath(
-      pimpl_->suspend_service->asBinder().get(),
-      pimpl_->suspend_death_recipient.get(),
-      static_cast<void*>(&pimpl_->onDeath));
+  AIBinder_linkToDeath(pimpl_->suspend_service->asBinder().get(),
+                       pimpl_->suspend_death_recipient.get(), static_cast<void*>(&pimpl_->onDeath));
 }
 
 WakelockNative::StatusCode WakelockNative::Acquire(const std::string& lock_name) {
@@ -99,8 +97,8 @@ WakelockNative::StatusCode WakelockNative::Acquire(const std::string& lock_name)
     return StatusCode::SUCCESS;
   }
 
-  auto status = pimpl_->suspend_service->acquireWakeLock(
-      WakeLockType::PARTIAL, lock_name, &pimpl_->current_wakelock);
+  auto status = pimpl_->suspend_service->acquireWakeLock(WakeLockType::PARTIAL, lock_name,
+                                                         &pimpl_->current_wakelock);
   if (!pimpl_->current_wakelock) {
     log::error("wake lock not acquired: {}", status.getDescription());
     return StatusCode::NATIVE_API_ERROR;
@@ -128,10 +126,9 @@ void WakelockNative::CleanUp() {
   }
   if (pimpl_->suspend_service) {
     log::info("Unlink death recipient");
-    AIBinder_unlinkToDeath(
-        pimpl_->suspend_service->asBinder().get(),
-        pimpl_->suspend_death_recipient.get(),
-        static_cast<void*>(&pimpl_->onDeath));
+    AIBinder_unlinkToDeath(pimpl_->suspend_service->asBinder().get(),
+                           pimpl_->suspend_death_recipient.get(),
+                           static_cast<void*>(&pimpl_->onDeath));
     pimpl_->suspend_service = nullptr;
   }
 }

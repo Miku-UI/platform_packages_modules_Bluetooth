@@ -337,7 +337,7 @@ public class NativeInterface {
     }
 
     private byte[] getByteAddress(BluetoothDevice device) {
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getByteBrEdrAddress(device);
         } else {
             return mAdapterService.getByteIdentityAddress(device);

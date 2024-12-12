@@ -31,7 +31,7 @@ using TestGetPlayStatusRspPacket = TestPacketType<Packet>;
 extern "C" int LLVMFuzzerTestOneInput(uint8_t* data, size_t size) {
   FuzzedDataProvider data_provider(data, size);
   auto builder = GetPlayStatusResponseBuilder::MakeBuilder(
-      0, data_provider.ConsumeIntegral<uint32_t>(), 0);
+          0, data_provider.ConsumeIntegral<uint32_t>(), 0);
   auto test_packet = TestGetPlayStatusRspPacket::Make();
   builder->Serialize(test_packet);
 

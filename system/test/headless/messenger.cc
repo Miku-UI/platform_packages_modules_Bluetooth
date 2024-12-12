@@ -35,11 +35,11 @@ struct callback_queue_t {
   // Must be held with lock
   size_t size() const { return callback_queue.size(); }
 
- private:
+private:
   const std::string name_;
   std::deque<T> callback_queue;
 
- public:
+public:
   void Push(T elem) { callback_queue.push_back(elem); }
   // Must be held with lock
   T Pop() {
@@ -55,7 +55,7 @@ struct messenger_t {
   mutable std::mutex mutex;
   std::condition_variable cv;
   callback_queue_t<std::shared_ptr<callback_params_t>> callback_queue =
-      callback_queue_t<std::shared_ptr<callback_params_t>>("callbacks");
+          callback_queue_t<std::shared_ptr<callback_params_t>>("callbacks");
   void Push(std::shared_ptr<callback_params_t> elem) {
     std::unique_lock<std::mutex> lk(mutex);
     callback_queue.Push(elem);
@@ -75,8 +75,8 @@ bool await_callback(Context& context) {
   std::unique_lock<std::mutex> lk(callback_data_.mutex);
   while (!callback_data_.callback_queue.empty()) {
     std::shared_ptr<callback_params_t> cb = callback_data_.callback_queue.Pop();
-    if (std::find(context.callbacks.begin(), context.callbacks.end(),
-                  cb->CallbackType()) != context.callbacks.end()) {
+    if (std::find(context.callbacks.begin(), context.callbacks.end(), cb->CallbackType()) !=
+        context.callbacks.end()) {
       context.callback_ready_q.push_back(cb);
     }
   }
@@ -105,23 +105,21 @@ void start_messenger() {
   headless_add_callback("acl_state_changed", [](callback_data_t* data) {
     log::assert_that(data != nullptr, "Received nullptr callback data");
     messenger::callback_data_.Push(std::make_shared<acl_state_changed_params_t>(
-        *(static_cast<acl_state_changed_params_t*>(data))));
+            *(static_cast<acl_state_changed_params_t*>(data))));
   });
   headless_add_callback("adapter_properties", [](callback_data_t* data) {
     log::assert_that(data != nullptr, "Received nullptr callback data");
-    messenger::callback_data_.Push(
-        std::make_shared<adapter_properties_params_t>(
+    messenger::callback_data_.Push(std::make_shared<adapter_properties_params_t>(
             *(static_cast<adapter_properties_params_t*>(data))));
   });
   headless_add_callback("device_found", [](callback_data_t* data) {
     log::assert_that(data != nullptr, "Received nullptr callback data");
-    messenger::callback_data_.Push(std::make_shared<device_found_params_t>(
-        *(static_cast<device_found_params_t*>(data))));
+    messenger::callback_data_.Push(
+            std::make_shared<device_found_params_t>(*(static_cast<device_found_params_t*>(data))));
   });
   headless_add_callback("remote_device_properties", [](callback_data_t* data) {
     log::assert_that(data != nullptr, "Received nullptr callback data");
-    messenger::callback_data_.Push(
-        std::make_shared<remote_device_properties_params_t>(
+    messenger::callback_data_.Push(std::make_shared<remote_device_properties_params_t>(
             *(static_cast<remote_device_properties_params_t*>(data))));
   });
   LOG_CONSOLE("Started messenger service");

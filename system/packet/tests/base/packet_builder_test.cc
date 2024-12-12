@@ -15,6 +15,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <memory>
 
 #include "packet.h"

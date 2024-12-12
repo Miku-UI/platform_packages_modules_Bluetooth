@@ -59,8 +59,7 @@ uint32_t hfp_lc3_encode_frames::return_value = 0;
 // Mocked functions, if any
 uint32_t hfp_lc3_encode_frames(int16_t* input, uint8_t* output) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_hfp_lc3_encoder::hfp_lc3_encode_frames(input,
-                                                                      output);
+  return test::mock::stack_btm_hfp_lc3_encoder::hfp_lc3_encode_frames(input, output);
 }
 void hfp_lc3_encoder_cleanup(void) {
   inc_func_call_count(__func__);

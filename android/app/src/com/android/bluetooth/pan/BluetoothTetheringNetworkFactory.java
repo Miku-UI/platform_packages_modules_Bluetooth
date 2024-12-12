@@ -108,6 +108,7 @@ public class BluetoothTetheringNetworkFactory extends NetworkFactory {
         }
     }
 
+    @GuardedBy("this")
     private void stopIpClientLocked() {
         // Mark all previous start requests as obsolete
         mIpClientStartIndex++;
@@ -121,6 +122,7 @@ public class BluetoothTetheringNetworkFactory extends NetworkFactory {
         }
     }
 
+    @GuardedBy("this")
     private BtIpClientCallback startIpClientLocked() {
         mIpClientStartIndex++;
         final BtIpClientCallback callback = new BtIpClientCallback(mIpClientStartIndex);

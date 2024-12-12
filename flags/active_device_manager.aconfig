@@ -1,0 +1,22 @@
+package: "com.android.bluetooth.flags"
+container: "com.android.btservices"
+
+flag {
+    name: "adm_fallback_when_wired_audio_disconnected"
+    namespace: "bluetooth"
+    description: "Fallback to other connected device when wired audio device disconnects"
+    bug: "348124361"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "adm_always_fallback_to_available_device"
+    namespace: "bluetooth"
+    description: "Fix audio path and always fallback to available device"
+    bug: "351820274"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

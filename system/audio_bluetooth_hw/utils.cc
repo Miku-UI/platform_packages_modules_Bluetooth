@@ -30,8 +30,7 @@ namespace bluetooth {
 namespace audio {
 namespace utils {
 
-std::unordered_map<std::string, std::string> ParseAudioParams(
-    const std::string& params) {
+std::unordered_map<std::string, std::string> ParseAudioParams(const std::string& params) {
   std::vector<std::string> segments = android::base::Split(params, ";");
   std::unordered_map<std::string, std::string> params_map;
   for (const auto& segment : segments) {
@@ -48,8 +47,7 @@ std::unordered_map<std::string, std::string> ParseAudioParams(
   return params_map;
 }
 
-std::string GetAudioParamString(
-    std::unordered_map<std::string, std::string>& params_map) {
+std::string GetAudioParamString(std::unordered_map<std::string, std::string>& params_map) {
   std::ostringstream sout;
   for (const auto& ptr : params_map) {
     sout << "key: '" << ptr.first << "' value: '" << ptr.second << "'\n";

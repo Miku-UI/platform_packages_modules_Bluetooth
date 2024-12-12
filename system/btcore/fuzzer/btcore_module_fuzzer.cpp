@@ -21,13 +21,11 @@
 extern const module_t osi_module;
 
 extern "C" {
-struct android_namespace_t* android_get_exported_namespace(const char*) {
-  return nullptr;
-}
+struct android_namespace_t* android_get_exported_namespace(const char*) { return nullptr; }
 }
 
 class BTCoreModuleFuzzer {
- public:
+public:
   void process();
 };
 

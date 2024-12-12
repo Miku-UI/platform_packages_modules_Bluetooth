@@ -22,10 +22,7 @@ namespace bluetooth {
 namespace headset {
 
 /* AT response code - OK/Error */
-typedef enum {
-  BTHF_AT_RESPONSE_ERROR = 0,
-  BTHF_AT_RESPONSE_OK
-} bthf_at_response_t;
+typedef enum { BTHF_AT_RESPONSE_ERROR = 0, BTHF_AT_RESPONSE_OK } bthf_at_response_t;
 
 typedef enum {
   BTHF_CONNECTION_STATE_DISCONNECTED = 0,
@@ -42,15 +39,9 @@ typedef enum {
   BTHF_AUDIO_STATE_DISCONNECTING
 } bthf_audio_state_t;
 
-typedef enum {
-  BTHF_VR_STATE_STOPPED = 0,
-  BTHF_VR_STATE_STARTED
-} bthf_vr_state_t;
+typedef enum { BTHF_VR_STATE_STOPPED = 0, BTHF_VR_STATE_STARTED } bthf_vr_state_t;
 
-typedef enum {
-  BTHF_VOLUME_TYPE_SPK = 0,
-  BTHF_VOLUME_TYPE_MIC
-} bthf_volume_type_t;
+typedef enum { BTHF_VOLUME_TYPE_SPK = 0, BTHF_VOLUME_TYPE_MIC } bthf_volume_type_t;
 
 /* Noise Reduction and Echo Cancellation */
 typedef enum { BTHF_NREC_STOP, BTHF_NREC_START } bthf_nrec_t;
@@ -59,10 +50,7 @@ typedef enum { BTHF_NREC_STOP, BTHF_NREC_START } bthf_nrec_t;
 typedef enum { BTHF_WBS_NONE, BTHF_WBS_NO, BTHF_WBS_YES } bthf_wbs_config_t;
 
 /* SWB codec */
-typedef enum {
-  BTHF_SWB_CODEC_LC3 = 0,
-  BTHF_SWB_CODEC_VENDOR_APTX
-} bthf_swb_codec_t;
+typedef enum { BTHF_SWB_CODEC_LC3 = 0, BTHF_SWB_CODEC_VENDOR_APTX } bthf_swb_codec_t;
 
 /* SWB codec setting */
 typedef enum {
@@ -73,13 +61,13 @@ typedef enum {
 
 /* CHLD - Call held handling */
 typedef enum {
-  BTHF_CHLD_TYPE_RELEASEHELD,  // Terminate all held or set UDUB("busy") to a
-                               // waiting call
+  BTHF_CHLD_TYPE_RELEASEHELD,               // Terminate all held or set UDUB("busy") to a
+                                            // waiting call
   BTHF_CHLD_TYPE_RELEASEACTIVE_ACCEPTHELD,  // Terminate all active calls and
                                             // accepts a waiting/held call
-  BTHF_CHLD_TYPE_HOLDACTIVE_ACCEPTHELD,  // Hold all active calls and accepts a
-                                         // waiting/held call
-  BTHF_CHLD_TYPE_ADDHELDTOCONF,          // Add all held calls to a conference
+  BTHF_CHLD_TYPE_HOLDACTIVE_ACCEPTHELD,     // Hold all active calls and accepts a
+                                            // waiting/held call
+  BTHF_CHLD_TYPE_ADDHELDTOCONF,             // Add all held calls to a conference
 } bthf_chld_type_t;
 
 /* HF Indicators HFP 1.7 */
@@ -100,10 +88,7 @@ typedef enum {
 } bthf_network_state_t;
 
 /** Service type */
-typedef enum {
-  BTHF_SERVICE_TYPE_HOME = 0,
-  BTHF_SERVICE_TYPE_ROAMING
-} bthf_service_type_t;
+typedef enum { BTHF_SERVICE_TYPE_HOME = 0, BTHF_SERVICE_TYPE_ROAMING } bthf_service_type_t;
 
 typedef enum {
   BTHF_CALL_STATE_ACTIVE = 0,
@@ -121,16 +106,9 @@ typedef enum {
   BTHF_CALL_DIRECTION_INCOMING
 } bthf_call_direction_t;
 
-typedef enum {
-  BTHF_CALL_TYPE_VOICE = 0,
-  BTHF_CALL_TYPE_DATA,
-  BTHF_CALL_TYPE_FAX
-} bthf_call_mode_t;
+typedef enum { BTHF_CALL_TYPE_VOICE = 0, BTHF_CALL_TYPE_DATA, BTHF_CALL_TYPE_FAX } bthf_call_mode_t;
 
-typedef enum {
-  BTHF_CALL_MPTY_TYPE_SINGLE = 0,
-  BTHF_CALL_MPTY_TYPE_MULTI
-} bthf_call_mpty_type_t;
+typedef enum { BTHF_CALL_MPTY_TYPE_SINGLE = 0, BTHF_CALL_MPTY_TYPE_MULTI } bthf_call_mpty_type_t;
 
 typedef enum {
   BTHF_CALL_ADDRTYPE_UNKNOWN = 0x81,

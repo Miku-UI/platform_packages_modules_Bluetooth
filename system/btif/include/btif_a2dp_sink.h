@@ -25,7 +25,6 @@
 #include <cstdint>
 #include <future>
 
-#include "audio_a2dp_hw/include/audio_a2dp_hw.h"
 #include "bta/include/bta_av_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
@@ -85,18 +84,9 @@ void btif_a2dp_sink_shutdown(void);
 // cleanup.
 void btif_a2dp_sink_cleanup(void);
 
-// Get the audio sample rate for the A2DP Sink module.
-tA2DP_SAMPLE_RATE btif_a2dp_sink_get_sample_rate(void);
-
-// Get the audio channel count for the A2DP Sink module.
-tA2DP_CHANNEL_COUNT btif_a2dp_sink_get_channel_count(void);
-
-// Get the audio bits per sample for the A2DP Sink module.
-tA2DP_BITS_PER_SAMPLE btif_a2dp_sink_get_bits_per_sample(void);
-
 // Update the decoder for the A2DP Sink module.
 // |p_codec_info| contains the new codec information.
-void btif_a2dp_sink_update_decoder(const uint8_t* p_codec_info);
+void btif_a2dp_sink_update_decoder(const RawAddress& peer_address, const uint8_t* p_codec_info);
 
 // Process 'idle' request from the BTIF state machine during initialization.
 void btif_a2dp_sink_on_idle(void);
@@ -141,12 +131,11 @@ void btif_a2dp_sink_set_focus_state_req(btif_a2dp_sink_focus_state_t state);
 void btif_a2dp_sink_set_audio_track_gain(float gain);
 
 // Get audio track handle
-void * btif_a2dp_sink_get_audio_track(void);
+void* btif_a2dp_sink_get_audio_track(void);
 
 namespace fmt {
 template <>
-struct formatter<btif_a2dp_sink_focus_state_t>
-    : enum_formatter<btif_a2dp_sink_focus_state_t> {};
+struct formatter<btif_a2dp_sink_focus_state_t> : enum_formatter<btif_a2dp_sink_focus_state_t> {};
 }  // namespace fmt
 
 #endif /* BTIF_A2DP_SINK_H */

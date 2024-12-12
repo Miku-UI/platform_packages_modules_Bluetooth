@@ -34,8 +34,7 @@ namespace base {
 template <typename T>
 bool ParseUint(const char* s, T* out, T max = std::numeric_limits<T>::max(),
                bool allow_suffixes = false) {
-  static_assert(std::is_unsigned<T>::value,
-                "ParseUint can only be used with unsigned types");
+  static_assert(std::is_unsigned<T>::value, "ParseUint can only be used with unsigned types");
   while (isspace(*s)) {
     s++;
   }
@@ -52,7 +51,9 @@ bool ParseUint(const char* s, T* out, T max = std::numeric_limits<T>::max(),
   errno = 0;
   char* end;
   unsigned long long int result = strtoull(s, &end, base);
-  if (errno != 0) return false;
+  if (errno != 0) {
+    return false;
+  }
   if (end == s) {
     errno = EINVAL;
     return false;
@@ -60,10 +61,8 @@ bool ParseUint(const char* s, T* out, T max = std::numeric_limits<T>::max(),
   if (*end != '\0') {
     const char* suffixes = "bkmgtpe";
     const char* suffix;
-    if ((!allow_suffixes ||
-         (suffix = strchr(suffixes, tolower(*end))) == nullptr) ||
-        __builtin_mul_overflow(result, 1ULL << (10 * (suffix - suffixes)),
-                               &result)) {
+    if ((!allow_suffixes || (suffix = strchr(suffixes, tolower(*end))) == nullptr) ||
+        __builtin_mul_overflow(result, 1ULL << (10 * (suffix - suffixes)), &result)) {
       errno = EINVAL;
       return false;
     }
@@ -80,22 +79,19 @@ bool ParseUint(const char* s, T* out, T max = std::numeric_limits<T>::max(),
 
 // TODO: string_view
 template <typename T>
-bool ParseUint(const std::string& s, T* out,
-               T max = std::numeric_limits<T>::max(),
+bool ParseUint(const std::string& s, T* out, T max = std::numeric_limits<T>::max(),
                bool allow_suffixes = false) {
   return ParseUint(s.c_str(), out, max, allow_suffixes);
 }
 
 template <typename T>
-bool ParseByteCount(const char* s, T* out,
-                    T max = std::numeric_limits<T>::max()) {
+bool ParseByteCount(const char* s, T* out, T max = std::numeric_limits<T>::max()) {
   return ParseUint(s, out, max, true);
 }
 
 // TODO: string_view
 template <typename T>
-bool ParseByteCount(const std::string& s, T* out,
-                    T max = std::numeric_limits<T>::max()) {
+bool ParseByteCount(const std::string& s, T* out, T max = std::numeric_limits<T>::max()) {
   return ParseByteCount(s.c_str(), out, max);
 }
 
@@ -106,8 +102,7 @@ bool ParseByteCount(const std::string& s, T* out,
 template <typename T>
 bool ParseInt(const char* s, T* out, T min = std::numeric_limits<T>::min(),
               T max = std::numeric_limits<T>::max()) {
-  static_assert(std::is_signed<T>::value,
-                "ParseInt can only be used with signed types");
+  static_assert(std::is_signed<T>::value, "ParseInt can only be used with signed types");
   while (isspace(*s)) {
     s++;
   }
@@ -135,8 +130,7 @@ bool ParseInt(const char* s, T* out, T min = std::numeric_limits<T>::min(),
 
 // TODO: string_view
 template <typename T>
-bool ParseInt(const std::string& s, T* out,
-              T min = std::numeric_limits<T>::min(),
+bool ParseInt(const std::string& s, T* out, T min = std::numeric_limits<T>::min(),
               T max = std::numeric_limits<T>::max()) {
   return ParseInt(s.c_str(), out, min, max);
 }

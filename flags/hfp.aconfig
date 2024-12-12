@@ -2,31 +2,10 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "auto_connect_on_hfp_when_no_a2dp_device"
-    namespace: "bluetooth"
-    description: "Auto connect to hfp device is there is no a2dp device to connect to"
-    bug: "305799237"
-}
-
-flag {
     name: "auto_connect_on_multiple_hfp_when_no_a2dp_device"
     namespace: "bluetooth"
     description: "Auto connect to hfp device is there is no a2dp device to connect to"
     bug: "305867804"
-}
-
-flag {
-    name: "hfp_codec_aptx_voice"
-    namespace: "bluetooth"
-    description: "AptX Voice codec support for HFP calls"
-    bug: "308497929"
-}
-
-flag {
-    name: "use_dsp_codec_when_controller_does_not_support"
-    namespace: "bluetooth"
-    description: "use codec on the DSP when the BT controller does not support it"
-    bug: "308838380"
 }
 
 flag {
@@ -44,17 +23,10 @@ flag {
 }
 
 flag {
-    name: "close_rfcomm_instead_of_reset"
+    name: "hfp_software_datapath"
     namespace: "bluetooth"
-    description: "Closing Rfcomm Connection instead of reset"
-    bug: "316993992"
-}
-
-flag {
-    name: "pretend_network_service"
-    namespace: "bluetooth"
-    description: "during ongoing call, pretend network service in +CIND when network is unavailable"
-    bug: "317307596"
+    description: "enable HFP software decode/encode data path"
+    bug: "362865563"
 }
 
 flag {
@@ -70,7 +42,7 @@ flag {
 flag {
     name: "reset_after_collision"
     namespace: "bluetooth"
-    description: "Reset p_scb when collision occured and rfcomm is not opened yet"
+    description: "Reset p_scb when collision occurred and rfcomm is not opened yet"
     bug: "332324315"
     metadata {
         purpose: PURPOSE_BUGFIX
@@ -82,16 +54,6 @@ flag {
     namespace: "bluetooth"
     description: "If sink audio policy makes device active for call, then resume past active device"
     bug: "333562819"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "keep_hfp_active_during_leaudio_handover"
-    namespace: "bluetooth"
-    description: "During LE audio to HFP handover, keep HFP active throughout SCO retry"
-    bug: "339528451"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -122,6 +84,66 @@ flag {
     namespace: "bluetooth"
     description: "Fix AM/HF volume conversion to be symmetric"
     bug: "340482648"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "maintain_call_index_after_conference"
+    namespace: "bluetooth"
+    description: "Avoid change of clcc call index after call disconnects from conference"
+    bug: "345380335"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_notify_when_already_connected"
+    namespace: "bluetooth"
+    description: "Flag to ignore connect state notification from Native to Java layer when already connected"
+    bug: "346679106"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "update_sco_state_correctly_on_rfcomm_disconnect_during_codec_nego"
+    namespace: "bluetooth"
+    description: "Flag to set the SCO state correctly on RFCOMM disconnection during Codec Negotiation"
+    bug: "351778741"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "update_active_device_in_band_ringtone"
+    namespace: "bluetooth"
+    description: "Active device update the in band ringtone, but how ringtone is played is still decided by the headset"
+    bug: "349318724"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hfp_allow_volume_change_without_sco"
+    namespace: "bluetooth"
+    description: "Allow Audio Fwk to change SCO volume when HFP profile is connected and SCO not connected"
+    bug: "362313390"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "choose_wrong_hfp_codec_in_specific_config"
+    namespace: "bluetooth"
+    description: "Flag to fix codec selection in nego when the peer device only support NB and SWB."
+    bug: "354070098"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -21,11 +21,9 @@
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
 
-void BTM_LogHistory(const std::string& tag, const RawAddress& addr,
-                    const std::string& msg);
-void BTM_LogHistory(const std::string& tag, const RawAddress& addr,
-                    const std::string& msg, const std::string& extra);
-void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& addr,
-                    const std::string& msg);
-void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& addr,
-                    const std::string& msg, const std::string& extra);
+void BTM_LogHistory(const std::string& tag, const RawAddress& addr, const std::string& msg);
+void BTM_LogHistory(const std::string& tag, const RawAddress& addr, const std::string& msg,
+                    const std::string& extra);
+void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& addr, const std::string& msg);
+void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& addr, const std::string& msg,
+                    const std::string& extra);

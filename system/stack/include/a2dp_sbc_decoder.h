@@ -24,13 +24,6 @@
 #include "a2dp_codec_api.h"
 #include "stack/include/bt_hdr.h"
 
-// Loads the A2DP SBC decoder.
-// Return true on success, otherwise false.
-bool A2DP_LoadDecoderSbc(void);
-
-// Unloads the A2DP SBC decoder.
-void A2DP_UnloadDecoderSbc(void);
-
 // Initialize the A2DP SBC decoder.
 bool a2dp_sbc_decoder_init(decoded_data_callback_t decode_callback);
 

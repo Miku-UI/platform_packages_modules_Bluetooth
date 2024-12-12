@@ -17,6 +17,9 @@
 package com.android.bluetooth.hfp;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.MODIFY_PHONE_STATE;
+import static android.bluetooth.BluetoothDevice.ACCESS_ALLOWED;
+import static android.bluetooth.BluetoothDevice.ACCESS_REJECTED;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastU;
 
@@ -509,9 +512,6 @@ class HeadsetStateMachine extends StateMachine {
         abstract int getAudioStateInt();
 
         protected void setAptxVoice(HeadsetCallState callState) {
-            if (!Flags.hfpCodecAptxVoice()) {
-                return;
-            }
             if (!mHeadsetService.isAptXSwbEnabled()) {
                 return;
             }
@@ -1121,6 +1121,12 @@ class HeadsetStateMachine extends StateMachine {
                         }
                     }
                     break;
+                case INTENT_SCO_VOLUME_CHANGED:
+                    if (Flags.hfpAllowVolumeChangeWithoutSco()) {
+                        // when flag is removed, remove INTENT_SCO_VOLUME_CHANGED case in AudioOn
+                        processIntentScoVolume((Intent) message.obj, mDevice);
+                    }
+                    break;
                 case INTENT_CONNECTION_ACCESS_REPLY:
                     handleAccessPermissionResult((Intent) message.obj);
                     break;
@@ -1242,6 +1248,20 @@ class HeadsetStateMachine extends StateMachine {
          * @param state audio state
          */
         public abstract void processAudioEvent(int state);
+
+        void processIntentScoVolume(Intent intent, BluetoothDevice device) {
+            int volumeValue = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
+            stateLogD(
+                    "processIntentScoVolume: mSpeakerVolume="
+                            + mSpeakerVolume
+                            + ", volumeValue="
+                            + volumeValue);
+            if (mSpeakerVolume != volumeValue) {
+                mSpeakerVolume = volumeValue;
+                mNativeInterface.setVolume(
+                        device, HeadsetHalConstants.VOLUME_TYPE_SPK, mSpeakerVolume);
+            }
+        }
     }
 
     class Connected extends ConnectedBase {
@@ -1316,8 +1336,7 @@ class HeadsetStateMachine extends StateMachine {
                         mSystemInterface.getAudioManager().setLeAudioSuspended(true);
                     }
 
-                    if (Flags.hfpCodecAptxVoice()
-                            && mHeadsetService.isAptXSwbEnabled()
+                    if (mHeadsetService.isAptXSwbEnabled()
                             && mHeadsetService.isAptXSwbPmEnabled()) {
                         if (!mHeadsetService.isVirtualCallStarted()
                                 && mSystemInterface.isHighDefCallInProgress()) {
@@ -1610,6 +1629,8 @@ class HeadsetStateMachine extends StateMachine {
                         break;
                     }
                 case INTENT_SCO_VOLUME_CHANGED:
+                    // TODO: b/362313390 Remove this case once the fix is in place because this
+                    // message will be handled by the ConnectedBase state.
                     processIntentScoVolume((Intent) message.obj, mDevice);
                     break;
                 case STACK_EVENT:
@@ -1655,20 +1676,6 @@ class HeadsetStateMachine extends StateMachine {
                 default:
                     stateLogE("processAudioEvent: bad state: " + state);
                     break;
-            }
-        }
-
-        private void processIntentScoVolume(Intent intent, BluetoothDevice device) {
-            int volumeValue = intent.getIntExtra(AudioManager.EXTRA_VOLUME_STREAM_VALUE, 0);
-            stateLogD(
-                    "processIntentScoVolume: mSpeakerVolume="
-                            + mSpeakerVolume
-                            + ", volumeValue="
-                            + volumeValue);
-            if (mSpeakerVolume != volumeValue) {
-                mSpeakerVolume = volumeValue;
-                mNativeInterface.setVolume(
-                        device, HeadsetHalConstants.VOLUME_TYPE_SPK, mSpeakerVolume);
             }
         }
     }
@@ -1869,7 +1876,7 @@ class HeadsetStateMachine extends StateMachine {
                         + (" hasSwbEnabled=" + mHasSwbLc3Enabled)
                         + (" hasAptXSwbEnabled=" + mHasSwbAptXEnabled));
         am.setParameters("bt_lc3_swb=" + (mHasSwbLc3Enabled ? "on" : "off"));
-        if (Flags.hfpCodecAptxVoice() && mHeadsetService.isAptXSwbEnabled()) {
+        if (mHeadsetService.isAptXSwbEnabled()) {
             /* AptX bt_swb: 0 -> on, 65535 -> off */
             am.setParameters("bt_swb=" + (mHasSwbAptXEnabled ? "0" : "65535"));
         }
@@ -1889,7 +1896,8 @@ class HeadsetStateMachine extends StateMachine {
                     atCommand.append('"');
                     break;
                 }
-                atCommand.append(atString.substring(i, j + 1));
+                String atSubString = atString.substring(i, j + 1);
+                atCommand.append(atSubString);
                 i = j;
             } else if (c != ' ') {
                 atCommand.append(Character.toUpperCase(c));
@@ -1918,7 +1926,6 @@ class HeadsetStateMachine extends StateMachine {
         return commandType;
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     private void processDialCall(String number) {
         String dialNumber;
         if (mHeadsetService.hasDeviceInitiatedDialingOut()) {
@@ -1963,7 +1970,6 @@ class HeadsetStateMachine extends StateMachine {
         mNeedDialingOutReply = true;
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     private void processVrEvent(int state) {
         if (state == HeadsetHalConstants.VR_STATE_STARTED) {
             if (!mHeadsetService.startVoiceRecognitionByHeadset(mDevice)) {
@@ -2020,7 +2026,7 @@ class HeadsetStateMachine extends StateMachine {
         switch (wbsConfig) {
             case HeadsetHalConstants.BTHF_WBS_YES:
                 mHasWbsEnabled = true;
-                if (Flags.hfpCodecAptxVoice() && mHeadsetService.isAptXSwbEnabled()) {
+                if (mHeadsetService.isAptXSwbEnabled()) {
                     mHasSwbAptXEnabled = false;
                 }
                 break;
@@ -2079,7 +2085,7 @@ class HeadsetStateMachine extends StateMachine {
         log("processSWBEvent AptX SWB config: " + prevSwbAptx + " -> " + mHasSwbAptXEnabled);
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
+    @RequiresPermission(MODIFY_PHONE_STATE)
     @VisibleForTesting
     void processAtChld(int chld, BluetoothDevice device) {
         if (mSystemInterface.processChld(chld)) {
@@ -2089,7 +2095,7 @@ class HeadsetStateMachine extends StateMachine {
         }
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
+    @RequiresPermission(MODIFY_PHONE_STATE)
     @VisibleForTesting
     void processSubscriberNumberRequest(BluetoothDevice device) {
         String number = mSystemInterface.getSubscriberNumber();
@@ -2123,28 +2129,28 @@ class HeadsetStateMachine extends StateMachine {
             callSetup = phoneState.getNumHeldCall();
         }
 
-        if (Flags.pretendNetworkService()) {
-            logd("processAtCind: pretendNetworkService enabled");
-            boolean isCallOngoing =
-                    (phoneState.getNumActiveCall() > 0)
-                            || (phoneState.getNumHeldCall() > 0)
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_ALERTING
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_DIALING
-                            || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_INCOMING;
-            if ((isCallOngoing
-                    && (!mHeadsetService.isVirtualCallStarted())
-                    && (phoneState.getCindService()
-                            == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE))) {
-                logi(
-                        "processAtCind: If regular call is in progress/active/held while no network"
+        // During wifi call, a regular call in progress while no network service,
+        // pretend service availability and signal strength.
+        boolean isCallOngoing =
+                (phoneState.getNumActiveCall() > 0)
+                        || (phoneState.getNumHeldCall() > 0)
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_ALERTING
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_DIALING
+                        || phoneState.getCallState() == HeadsetHalConstants.CALL_STATE_INCOMING;
+        if ((isCallOngoing
+                && (!mHeadsetService.isVirtualCallStarted())
+                && (phoneState.getCindService()
+                        == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE))) {
+            logi(
+                    "processAtCind: If regular call is in progress/active/held while no network"
                             + " during BT-ON, pretend service availability and signal strength");
-                service = HeadsetHalConstants.NETWORK_STATE_AVAILABLE;
-                signal = 3;
-            } else {
-                service = phoneState.getCindService();
-                signal = phoneState.getCindSignal();
-            }
+            service = HeadsetHalConstants.NETWORK_STATE_AVAILABLE;
+            signal = 3; // use a non-zero signal strength
+        } else {
+            service = phoneState.getCindService();
+            signal = phoneState.getCindSignal();
         }
+
         mNativeInterface.cindResponse(
                 device,
                 service,
@@ -2156,7 +2162,7 @@ class HeadsetStateMachine extends StateMachine {
                 phoneState.getCindBatteryCharge());
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
+    @RequiresPermission(MODIFY_PHONE_STATE)
     @VisibleForTesting
     void processAtCops(BluetoothDevice device) {
         // Get operator name suggested by Telephony
@@ -2178,7 +2184,7 @@ class HeadsetStateMachine extends StateMachine {
         mNativeInterface.copsResponse(device, operatorName);
     }
 
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, MODIFY_PHONE_STATE})
     @VisibleForTesting
     void processAtClcc(BluetoothDevice device) {
         if (mHeadsetService.isVirtualCallStarted()) {
@@ -2543,7 +2549,7 @@ class HeadsetStateMachine extends StateMachine {
     @VisibleForTesting
     void processAtCgmr(BluetoothDevice device) {
         mNativeInterface.atResponseString(
-                device, String.format("%s (%s)", Build.VERSION.RELEASE, Build.VERSION.INCREMENTAL));
+                device, Build.VERSION.RELEASE + " (" + Build.VERSION.INCREMENTAL + ")");
     }
 
     /**
@@ -2580,7 +2586,7 @@ class HeadsetStateMachine extends StateMachine {
     }
 
     // HSP +CKPD command
-    @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
+    @RequiresPermission(MODIFY_PHONE_STATE)
     private void processKeyPressed(BluetoothDevice device) {
         if (mSystemInterface.isRinging()) {
             mSystemInterface.answerCall(device);
@@ -2691,7 +2697,7 @@ class HeadsetStateMachine extends StateMachine {
     void processSendVendorSpecificResultCode(HeadsetVendorSpecificResultCode resultCode) {
         String stringToSend = resultCode.mCommand + ": ";
         if (resultCode.mArg != null) {
-            stringToSend += resultCode.mArg;
+            stringToSend = stringToSend + resultCode.mArg;
         }
         mNativeInterface.atResponseString(resultCode.mDevice, stringToSend);
     }
@@ -2767,12 +2773,12 @@ class HeadsetStateMachine extends StateMachine {
                             BluetoothDevice.CONNECTION_ACCESS_NO)
                     == BluetoothDevice.CONNECTION_ACCESS_YES) {
                 if (intent.getBooleanExtra(BluetoothDevice.EXTRA_ALWAYS_ALLOWED, false)) {
-                    mDevice.setPhonebookAccessPermission(BluetoothDevice.ACCESS_ALLOWED);
+                    mAdapterService.setPhonebookAccessPermission(device, ACCESS_ALLOWED);
                 }
                 atCommandResult = mPhonebook.processCpbrCommand(device);
             } else {
                 if (intent.getBooleanExtra(BluetoothDevice.EXTRA_ALWAYS_ALLOWED, false)) {
-                    mDevice.setPhonebookAccessPermission(BluetoothDevice.ACCESS_REJECTED);
+                    mAdapterService.setPhonebookAccessPermission(device, ACCESS_REJECTED);
                 }
             }
         }

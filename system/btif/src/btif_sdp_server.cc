@@ -41,12 +41,10 @@
 #include "bta/sys/bta_sys.h"
 #include "btif_common.h"
 #include "btif_sock_sdp.h"
-#include "common/init_flags.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
-#include "stack/sdp/sdpint.h"
 #include "types/bluetooth/uuid.h"
 #include "utl.h"
 
@@ -101,7 +99,7 @@ static int free_sdp_slot(int id);
  *     point will be linked to a specific SDP handle.
  *  2) createRecord() requests the BTU task(thread) to call a callback in SDP
  *     which creates the actual record, and updates the ID<->SDPHandle map
- *     based on the ID beeing passed to BTA as user_data.
+ *     based on the ID being passed to BTA as user_data.
  *****************************************************************************/
 
 static void init_sdp_slots() {
@@ -127,9 +125,9 @@ void sdp_server_cleanup() {
   int i;
   for (i = 0; i < MAX_SDP_SLOTS; i++) {
     /*remove_sdp_record(i); we cannot send messages to the other threads, since
-    * they might
-    *                       have been shut down already. Just do local cleanup.
-    */
+     * they might
+     *                       have been shut down already. Just do local cleanup.
+     */
     free_sdp_slot(i);
   }
 }
@@ -154,28 +152,25 @@ int get_sdp_records_size(bluetooth_sdp_record* in_record, int count) {
 /* Deep copy all content of in_records into out_records.
  * out_records must point to a chunk of memory large enough to contain all
  * the data. Use getSdpRecordsSize() to calculate the needed size. */
-void copy_sdp_records(bluetooth_sdp_record* in_records,
-                      bluetooth_sdp_record* out_records, int count) {
+void copy_sdp_records(bluetooth_sdp_record* in_records, bluetooth_sdp_record* out_records,
+                      int count) {
   int i;
   bluetooth_sdp_record* in_record;
   bluetooth_sdp_record* out_record;
-  char* free_ptr =
-      (char*)(&out_records[count]); /* set pointer to after the last entry */
+  char* free_ptr = (char*)(&out_records[count]); /* set pointer to after the last entry */
 
   for (i = 0; i < count; i++) {
     in_record = &in_records[i];
     out_record = &out_records[i];
     *out_record = *in_record;
 
-    if (in_record->hdr.service_name == NULL ||
-        in_record->hdr.service_name_length == 0) {
+    if (in_record->hdr.service_name == NULL || in_record->hdr.service_name_length == 0) {
       out_record->hdr.service_name = NULL;
       out_record->hdr.service_name_length = 0;
     } else {
       out_record->hdr.service_name = free_ptr;  // Update service_name pointer
       // Copy string
-      memcpy(free_ptr, in_record->hdr.service_name,
-             in_record->hdr.service_name_length);
+      memcpy(free_ptr, in_record->hdr.service_name, in_record->hdr.service_name_length);
       free_ptr += in_record->hdr.service_name_length;
       *(free_ptr) = '\0';  // Set '\0' termination of string
       free_ptr++;
@@ -267,9 +262,8 @@ static const sdp_slot_t* start_create_sdp(int id) {
   std::unique_lock<std::recursive_mutex> lock(sdp_lock);
   if (sdp_slots[id].state != SDP_RECORD_ALLOCED) {
     /* The record have been removed before this event occurred - e.g. deinit */
-    log::error(
-        "failed - state for id {} is sdp_slots[id].state = {} expected {}", id,
-        sdp_slots[id].state, SDP_RECORD_ALLOCED);
+    log::error("failed - state for id {} is sdp_slots[id].state = {} expected {}", id,
+               sdp_slots[id].state, SDP_RECORD_ALLOCED);
     return NULL;
   }
 
@@ -281,14 +275,15 @@ static void set_sdp_handle(int id, int handle) {
   sdp_slots[id].sdp_handle = handle;
 }
 
-bt_status_t create_sdp_record(bluetooth_sdp_record* record,
-                              int* record_handle) {
+bt_status_t create_sdp_record(bluetooth_sdp_record* record, int* record_handle) {
   int handle;
 
   handle = alloc_sdp_slot(record);
   log::verbose("handle = 0x{:08x}", handle);
 
-  if (handle < 0) return BT_STATUS_NOMEM;
+  if (handle < 0) {
+    return BT_STATUS_NOMEM;
+  }
 
   BTA_SdpCreateRecordByUser(INT_TO_PTR(handle));
 
@@ -458,8 +453,7 @@ static int add_maps_sdp(const bluetooth_sdp_mas_record* rec) {
   }
 
   /* add service class */
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, 1, &service);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1, &service);
   memset(protoList, 0, 3 * sizeof(tSDP_PROTOCOL_ELEM));
 
   /* add protocol list, including RFCOMM scn */
@@ -470,46 +464,43 @@ static int add_maps_sdp(const bluetooth_sdp_mas_record* rec) {
   protoList[1].params[0] = rec->hdr.rfcomm_channel_number;
   protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
   protoList[2].num_params = 0;
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-      sdp_handle, 3, protoList);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(sdp_handle, 3, protoList);
 
   /* Add a name entry */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
-      (uint32_t)(rec->hdr.service_name_length + 1),
-      (uint8_t*)rec->hdr.service_name);
+          sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
+          (uint32_t)(rec->hdr.service_name_length + 1), (uint8_t*)rec->hdr.service_name);
 
   /* Add in the Bluetooth Profile Descriptor List */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, UUID_SERVCLASS_MAP_PROFILE, rec->hdr.profile_version);
+          sdp_handle, UUID_SERVCLASS_MAP_PROFILE, rec->hdr.profile_version);
 
   /* Add MAS instance ID */
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_MAS_INSTANCE_ID, UINT_DESC_TYPE, (uint32_t)1,
-      (uint8_t*)&rec->mas_instance_id);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(sdp_handle, ATTR_ID_MAS_INSTANCE_ID,
+                                                                UINT_DESC_TYPE, (uint32_t)1,
+                                                                (uint8_t*)&rec->mas_instance_id);
 
   /* Add supported message types */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_SUPPORTED_MSG_TYPE, UINT_DESC_TYPE, (uint32_t)1,
-      (uint8_t*)&rec->supported_message_types);
+          sdp_handle, ATTR_ID_SUPPORTED_MSG_TYPE, UINT_DESC_TYPE, (uint32_t)1,
+          (uint8_t*)&rec->supported_message_types);
 
   /* Add supported feature */
   UINT32_TO_BE_STREAM(p_temp, rec->supported_features);
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE, (uint32_t)4,
-      temp);
+          sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE, (uint32_t)4, temp);
 
   /* Add the L2CAP PSM if present */
   if (rec->hdr.l2cap_psm != -1) {
     p_temp = temp;  // The macro modifies p_temp, hence rewind.
     UINT16_TO_BE_STREAM(p_temp, rec->hdr.l2cap_psm);
     status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2, temp);
+            sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2, temp);
   }
 
   /* Make the service browseable */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
 
   if (!status) {
     if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(sdp_handle)) {
@@ -542,8 +533,7 @@ static int add_mapc_sdp(const bluetooth_sdp_mns_record* rec) {
   }
 
   /* add service class */
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, 1, &service);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1, &service);
   memset(protoList, 0, 3 * sizeof(tSDP_PROTOCOL_ELEM));
 
   /* add protocol list, including RFCOMM scn */
@@ -554,36 +544,33 @@ static int add_mapc_sdp(const bluetooth_sdp_mns_record* rec) {
   protoList[1].params[0] = rec->hdr.rfcomm_channel_number;
   protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
   protoList[2].num_params = 0;
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-      sdp_handle, 3, protoList);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(sdp_handle, 3, protoList);
 
   /* Add a name entry */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
-      (uint32_t)(rec->hdr.service_name_length + 1),
-      (uint8_t*)rec->hdr.service_name);
+          sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
+          (uint32_t)(rec->hdr.service_name_length + 1), (uint8_t*)rec->hdr.service_name);
 
   /* Add in the Bluetooth Profile Descriptor List */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, UUID_SERVCLASS_MAP_PROFILE, rec->hdr.profile_version);
+          sdp_handle, UUID_SERVCLASS_MAP_PROFILE, rec->hdr.profile_version);
 
   /* Add supported feature */
   UINT32_TO_BE_STREAM(p_temp, rec->supported_features);
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE, (uint32_t)4,
-      temp);
+          sdp_handle, ATTR_ID_MAP_SUPPORTED_FEATURES, UINT_DESC_TYPE, (uint32_t)4, temp);
 
   /* Add the L2CAP PSM if present */
   if (rec->hdr.l2cap_psm != -1) {
     p_temp = temp;  // The macro modifies p_temp, hence rewind.
     UINT16_TO_BE_STREAM(p_temp, rec->hdr.l2cap_psm);
     status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2, temp);
+            sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2, temp);
   }
 
   /* Make the service browseable */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
 
   if (!status) {
     if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(sdp_handle)) {
@@ -612,22 +599,20 @@ static int add_pbapc_sdp(const bluetooth_sdp_pce_record* rec) {
     return sdp_handle;
   }
 
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, 1, &service);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1, &service);
 
   /* Add a name entry */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
-      (uint32_t)(rec->hdr.service_name_length + 1),
-      (uint8_t*)rec->hdr.service_name);
+          sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
+          (uint32_t)(rec->hdr.service_name_length + 1), (uint8_t*)rec->hdr.service_name);
 
   /* Add in the Bluetooth Profile Descriptor List */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, UUID_SERVCLASS_PHONE_ACCESS, rec->hdr.profile_version);
+          sdp_handle, UUID_SERVCLASS_PHONE_ACCESS, rec->hdr.profile_version);
 
   /* Make the service browseable */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
 
   if (!status) {
     if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(sdp_handle)) {
@@ -660,8 +645,7 @@ static int add_pbaps_sdp(const bluetooth_sdp_pse_record* rec) {
   }
 
   /* add service class */
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, 1, &service);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1, &service);
   memset(protoList, 0, 3 * sizeof(tSDP_PROTOCOL_ELEM));
 
   /* add protocol list, including RFCOMM scn */
@@ -672,61 +656,31 @@ static int add_pbaps_sdp(const bluetooth_sdp_pse_record* rec) {
   protoList[1].params[0] = rec->hdr.rfcomm_channel_number;
   protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
   protoList[2].num_params = 0;
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-      sdp_handle, 3, protoList);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(sdp_handle, 3, protoList);
 
   /* Add a name entry */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
-      (uint32_t)(rec->hdr.service_name_length + 1),
-      (uint8_t*)rec->hdr.service_name);
-  if (bluetooth::common::init_flags::
-          pbap_pse_dynamic_version_upgrade_is_enabled()) {
-    /*
-    PBAP 1.1.1  repositories bits
-    Bit 0 = Local Phonebook
-    Bit 1 = SIM card
-    Bit 2~7 reserved for future use */
-    uint8_t supported_repositories_1_1_mask = 0x03;
-    uint8_t supported_repositories_1_1 =
-        ((uint8_t)rec->supported_repositories) &
-        supported_repositories_1_1_mask;
-    status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-        sdp_handle, UUID_SERVCLASS_PHONE_ACCESS, 0x0101);
+          sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
+          (uint32_t)(rec->hdr.service_name_length + 1), (uint8_t*)rec->hdr.service_name);
+  /* Add in the Bluetooth Profile Descriptor List */
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
+          sdp_handle, UUID_SERVCLASS_PHONE_ACCESS, rec->hdr.profile_version);
 
-    /* Add supported repositories 1 byte */
-    status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_SUPPORTED_REPOSITORIES, UINT_DESC_TYPE, (uint32_t)1,
-        (uint8_t*)&supported_repositories_1_1);
-    log::verbose("supported_repositories_1_1: 0x{:x}",
-                 supported_repositories_1_1);
-    sdp_save_local_pse_record_attributes(
-        rec->hdr.rfcomm_channel_number, rec->hdr.l2cap_psm,
-        rec->hdr.profile_version, rec->supported_features,
-        rec->supported_repositories);
-  } else {
-    /* Add in the Bluetooth Profile Descriptor List */
-    status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-        sdp_handle, UUID_SERVCLASS_PHONE_ACCESS, rec->hdr.profile_version);
+  /* Add supported repositories 1 byte */
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+          sdp_handle, ATTR_ID_SUPPORTED_REPOSITORIES, UINT_DESC_TYPE, (uint32_t)1,
+          (uint8_t*)&rec->supported_repositories);
+  /* Add supported feature 4 bytes*/
+  UINT32_TO_BE_STREAM(p_temp, rec->supported_features);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+          sdp_handle, ATTR_ID_PBAP_SUPPORTED_FEATURES, UINT_DESC_TYPE, (uint32_t)4, temp);
 
-    /* Add supported repositories 1 byte */
+  /* Add the L2CAP PSM if present */
+  if (rec->hdr.l2cap_psm != -1) {
+    p_temp = temp;  // The macro modifies p_temp, hence rewind.
+    UINT16_TO_BE_STREAM(p_temp, rec->hdr.l2cap_psm);
     status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_SUPPORTED_REPOSITORIES, UINT_DESC_TYPE, (uint32_t)1,
-        (uint8_t*)&rec->supported_repositories);
-    /* Add supported feature 4 bytes*/
-    UINT32_TO_BE_STREAM(p_temp, rec->supported_features);
-    status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_PBAP_SUPPORTED_FEATURES, UINT_DESC_TYPE,
-        (uint32_t)4, temp);
-
-    /* Add the L2CAP PSM if present */
-    if (rec->hdr.l2cap_psm != -1) {
-      p_temp = temp;  // The macro modifies p_temp, hence rewind.
-      UINT16_TO_BE_STREAM(p_temp, rec->hdr.l2cap_psm);
-      status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-          sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2,
-          temp);
-    }
+            sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2, temp);
 #if 0
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
       sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
@@ -759,7 +713,7 @@ static int add_pbaps_sdp(const bluetooth_sdp_pse_record* rec) {
 
   /* Make the service browseable */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
 
   if (!status) {
     if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(sdp_handle)) {
@@ -797,8 +751,7 @@ static int add_opps_sdp(const bluetooth_sdp_ops_record* rec) {
   }
 
   /* add service class */
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, 1, &service);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1, &service);
   memset(protoList, 0, 3 * sizeof(tSDP_PROTOCOL_ELEM));
 
   /* add protocol list, including RFCOMM scn */
@@ -809,18 +762,16 @@ static int add_opps_sdp(const bluetooth_sdp_ops_record* rec) {
   protoList[1].params[0] = rec->hdr.rfcomm_channel_number;
   protoList[2].protocol_uuid = UUID_PROTOCOL_OBEX;
   protoList[2].num_params = 0;
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-      sdp_handle, 3, protoList);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(sdp_handle, 3, protoList);
 
   /* Add a name entry */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
-      (uint32_t)(rec->hdr.service_name_length + 1),
-      (uint8_t*)rec->hdr.service_name);
+          sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
+          (uint32_t)(rec->hdr.service_name_length + 1), (uint8_t*)rec->hdr.service_name);
 
   /* Add in the Bluetooth Profile Descriptor List */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, UUID_SERVCLASS_OBEX_OBJECT_PUSH, rec->hdr.profile_version);
+          sdp_handle, UUID_SERVCLASS_OBEX_OBJECT_PUSH, rec->hdr.profile_version);
 
   /* add sequence for supported types */
   for (i = 0, j = 0; i < rec->supported_formats_list_len; i++) {
@@ -830,21 +781,20 @@ static int add_opps_sdp(const bluetooth_sdp_ops_record* rec) {
   }
 
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddSequence(
-      sdp_handle, (uint16_t)ATTR_ID_SUPPORTED_FORMATS_LIST,
-      (uint8_t)rec->supported_formats_list_len, desc_type, type_len,
-      type_value);
+          sdp_handle, (uint16_t)ATTR_ID_SUPPORTED_FORMATS_LIST,
+          (uint8_t)rec->supported_formats_list_len, desc_type, type_len, type_value);
 
   /* Add the L2CAP PSM if present */
   if (rec->hdr.l2cap_psm != -1) {
     p_temp = temp;  // The macro modifies p_temp, hence rewind.
     UINT16_TO_BE_STREAM(p_temp, rec->hdr.l2cap_psm);
     status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-        sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2, temp);
+            sdp_handle, ATTR_ID_GOEP_L2CAP_PSM, UINT_DESC_TYPE, (uint32_t)2, temp);
   }
 
   /* Make the service browseable */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
 
   if (!status) {
     if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(sdp_handle)) {
@@ -882,8 +832,7 @@ static int add_saps_sdp(const bluetooth_sdp_sap_record* rec) {
   services[1] = UUID_SERVCLASS_GENERIC_TELEPHONY;
 
   // add service class
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, 2, services);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 2, services);
   memset(protoList, 0, 2 * sizeof(tSDP_PROTOCOL_ELEM));
 
   // add protocol list, including RFCOMM scn
@@ -892,22 +841,20 @@ static int add_saps_sdp(const bluetooth_sdp_sap_record* rec) {
   protoList[1].protocol_uuid = UUID_PROTOCOL_RFCOMM;
   protoList[1].num_params = 1;
   protoList[1].params[0] = rec->hdr.rfcomm_channel_number;
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-      sdp_handle, 2, protoList);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(sdp_handle, 2, protoList);
 
   // Add a name entry
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
-      (uint32_t)(rec->hdr.service_name_length + 1),
-      (uint8_t*)rec->hdr.service_name);
+          sdp_handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
+          (uint32_t)(rec->hdr.service_name_length + 1), (uint8_t*)rec->hdr.service_name);
 
   // Add in the Bluetooth Profile Descriptor List
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, UUID_SERVCLASS_SAP, rec->hdr.profile_version);
+          sdp_handle, UUID_SERVCLASS_SAP, rec->hdr.profile_version);
 
   // Make the service browseable
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
 
   if (!status) {
     if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(sdp_handle)) {
@@ -936,29 +883,28 @@ static int add_mps_sdp(const bluetooth_sdp_mps_record* rec) {
     return sdp_handle;
   }
 
-  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-      sdp_handle, 1, &service);
+  status &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(sdp_handle, 1, &service);
 
   /* Add in the Bluetooth Profile Descriptor List */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(
-      sdp_handle, UUID_SERVCLASS_MPS_PROFILE, rec->hdr.profile_version);
+          sdp_handle, UUID_SERVCLASS_MPS_PROFILE, rec->hdr.profile_version);
 
   /* Add supported scenarios MPSD */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_MPS_SUPPORTED_SCENARIOS_MPSD, UINT_DESC_TYPE,
-      (uint32_t)8, (uint8_t*)&rec->supported_scenarios_mpsd);
+          sdp_handle, ATTR_ID_MPS_SUPPORTED_SCENARIOS_MPSD, UINT_DESC_TYPE, (uint32_t)8,
+          (uint8_t*)&rec->supported_scenarios_mpsd);
   /* Add supported scenarios MPMD */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_MPS_SUPPORTED_SCENARIOS_MPMD, UINT_DESC_TYPE,
-      (uint32_t)8, (uint8_t*)&rec->supported_scenarios_mpmd);
+          sdp_handle, ATTR_ID_MPS_SUPPORTED_SCENARIOS_MPMD, UINT_DESC_TYPE, (uint32_t)8,
+          (uint8_t*)&rec->supported_scenarios_mpmd);
   /* Add supported dependencies */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-      sdp_handle, ATTR_ID_MPS_SUPPORTED_DEPENDENCIES, UINT_DESC_TYPE,
-      (uint32_t)2, (uint8_t*)&rec->supported_dependencies);
+          sdp_handle, ATTR_ID_MPS_SUPPORTED_DEPENDENCIES, UINT_DESC_TYPE, (uint32_t)2,
+          (uint8_t*)&rec->supported_dependencies);
 
   /* Make the service browseable */
   status &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-      sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
 
   if (!status) {
     if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(sdp_handle)) {

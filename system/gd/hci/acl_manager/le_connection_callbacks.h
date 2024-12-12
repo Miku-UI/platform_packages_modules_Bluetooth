@@ -27,12 +27,13 @@ namespace hci {
 namespace acl_manager {
 
 class LeConnectionCallbacks {
- public:
+public:
   virtual ~LeConnectionCallbacks() = default;
   // Invoked when controller sends Connection Complete event with Success error code
   // AddressWithType is always equal to the object used in AclManager#CreateLeConnection
   virtual void OnLeConnectSuccess(AddressWithType, std::unique_ptr<LeAclConnection>) = 0;
-  // Invoked when create connection timeout or controller sends Connection Complete event with non-Success error code
+  // Invoked when create connection timeout or controller sends Connection Complete event with
+  // non-Success error code
   virtual void OnLeConnectFail(AddressWithType, ErrorCode reason) = 0;
 };
 

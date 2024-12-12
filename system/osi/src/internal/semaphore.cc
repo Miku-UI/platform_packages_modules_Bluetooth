@@ -53,26 +53,29 @@ semaphore_t* semaphore_new(unsigned int value) {
 }
 
 void semaphore_free(semaphore_t* semaphore) {
-  if (!semaphore) return;
+  if (!semaphore) {
+    return;
+  }
 
-  if (semaphore->fd != INVALID_FD) close(semaphore->fd);
+  if (semaphore->fd != INVALID_FD) {
+    close(semaphore->fd);
+  }
   osi_free(semaphore);
 }
 
 void semaphore_wait(semaphore_t* semaphore) {
   log::assert_that(semaphore != NULL, "assert failed: semaphore != NULL");
-  log::assert_that(semaphore->fd != INVALID_FD,
-                   "assert failed: semaphore->fd != INVALID_FD");
+  log::assert_that(semaphore->fd != INVALID_FD, "assert failed: semaphore->fd != INVALID_FD");
 
   eventfd_t value;
-  if (eventfd_read(semaphore->fd, &value) == -1)
+  if (eventfd_read(semaphore->fd, &value) == -1) {
     log::error("unable to wait on semaphore: {}", strerror(errno));
+  }
 }
 
 bool semaphore_try_wait(semaphore_t* semaphore) {
   log::assert_that(semaphore != NULL, "assert failed: semaphore != NULL");
-  log::assert_that(semaphore->fd != INVALID_FD,
-                   "assert failed: semaphore->fd != INVALID_FD");
+  log::assert_that(semaphore->fd != INVALID_FD, "assert failed: semaphore->fd != INVALID_FD");
 
   int flags = fcntl(semaphore->fd, F_GETFL);
   if (flags == -1) {
@@ -80,32 +83,33 @@ bool semaphore_try_wait(semaphore_t* semaphore) {
     return false;
   }
   if (fcntl(semaphore->fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    log::error("unable to set O_NONBLOCK for semaphore fd: {}",
-               strerror(errno));
+    log::error("unable to set O_NONBLOCK for semaphore fd: {}", strerror(errno));
     return false;
   }
 
   bool rc = true;
   eventfd_t value;
-  if (eventfd_read(semaphore->fd, &value) == -1) rc = false;
+  if (eventfd_read(semaphore->fd, &value) == -1) {
+    rc = false;
+  }
 
-  if (fcntl(semaphore->fd, F_SETFL, flags) == -1)
+  if (fcntl(semaphore->fd, F_SETFL, flags) == -1) {
     log::error("unable to restore flags for semaphore fd: {}", strerror(errno));
+  }
   return rc;
 }
 
 void semaphore_post(semaphore_t* semaphore) {
   log::assert_that(semaphore != NULL, "assert failed: semaphore != NULL");
-  log::assert_that(semaphore->fd != INVALID_FD,
-                   "assert failed: semaphore->fd != INVALID_FD");
+  log::assert_that(semaphore->fd != INVALID_FD, "assert failed: semaphore->fd != INVALID_FD");
 
-  if (eventfd_write(semaphore->fd, 1ULL) == -1)
+  if (eventfd_write(semaphore->fd, 1ULL) == -1) {
     log::error("unable to post to semaphore: {}", strerror(errno));
+  }
 }
 
 int semaphore_get_fd(const semaphore_t* semaphore) {
   log::assert_that(semaphore != NULL, "assert failed: semaphore != NULL");
-  log::assert_that(semaphore->fd != INVALID_FD,
-                   "assert failed: semaphore->fd != INVALID_FD");
+  log::assert_that(semaphore->fd != INVALID_FD, "assert failed: semaphore->fd != INVALID_FD");
   return semaphore->fd;
 }

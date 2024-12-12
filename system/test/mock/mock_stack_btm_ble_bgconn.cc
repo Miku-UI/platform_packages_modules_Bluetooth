@@ -50,8 +50,7 @@ struct BTM_AcceptlistClear BTM_AcceptlistClear;
 
 void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy) {
   inc_func_call_count(__func__);
-  test::mock::stack_btm_ble_bgconn::btm_update_scanner_filter_policy(
-      scan_policy);
+  test::mock::stack_btm_ble_bgconn::btm_update_scanner_filter_policy(scan_policy);
 }
 bool BTM_SetLeConnectionModeToFast() {
   inc_func_call_count(__func__);
@@ -67,8 +66,7 @@ bool BTM_AcceptlistAdd(const RawAddress& address) {
 }
 bool BTM_AcceptlistAdd(const RawAddress& address, bool is_direct) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_ble_bgconn::BTM_AcceptlistAddDirect(address,
-                                                                   is_direct);
+  return test::mock::stack_btm_ble_bgconn::BTM_AcceptlistAddDirect(address, is_direct);
 }
 void BTM_AcceptlistRemove(const RawAddress& address) {
   inc_func_call_count(__func__);

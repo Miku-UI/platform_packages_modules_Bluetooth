@@ -28,14 +28,14 @@
 
 #include "AptxParameters.h"
 
-void quantiseDifference_HDLL(const int32_t diffSignal, const int32_t ditherVal,
-                             const int32_t delta, Quantiser_data* qdata_pt);
-void quantiseDifference_HDHL(const int32_t diffSignal, const int32_t ditherVal,
-                             const int32_t delta, Quantiser_data* qdata_pt);
-void quantiseDifference_HDLH(const int32_t diffSignal, const int32_t ditherVal,
-                             const int32_t delta, Quantiser_data* qdata_pt);
-void quantiseDifference_HDHH(const int32_t diffSignal, const int32_t ditherVal,
-                             const int32_t delta, Quantiser_data* qdata_p);
+void quantiseDifference_HDLL(const int32_t diffSignal, const int32_t ditherVal, const int32_t delta,
+                             Quantiser_data* qdata_pt);
+void quantiseDifference_HDHL(const int32_t diffSignal, const int32_t ditherVal, const int32_t delta,
+                             Quantiser_data* qdata_pt);
+void quantiseDifference_HDLH(const int32_t diffSignal, const int32_t ditherVal, const int32_t delta,
+                             Quantiser_data* qdata_pt);
+void quantiseDifference_HDHH(const int32_t diffSignal, const int32_t ditherVal, const int32_t delta,
+                             Quantiser_data* qdata_p);
 
 #ifdef _GCC
 #pragma GCC visibility pop

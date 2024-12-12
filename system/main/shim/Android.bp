@@ -20,7 +20,7 @@ filegroup {
     srcs: [
         "acl.cc",
         "acl_api.cc",
-        "acl_legacy_interface.cc",
+        "acl_interface.cc",
         "btm_api.cc",
         "config.cc",
         "distance_measurement_manager.cc",

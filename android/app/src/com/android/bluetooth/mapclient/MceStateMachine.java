@@ -56,6 +56,7 @@ import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.map.BluetoothMapbMessageMime;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -64,7 +65,6 @@ import com.android.vcard.VCardEntry;
 import com.android.vcard.VCardProperty;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -117,6 +117,9 @@ class MceStateMachine extends StateMachine {
     private static final boolean MESSAGE_SEEN = true;
     private static final boolean MESSAGE_NOT_SEEN = false;
 
+    // Do we download attachments, e.g., if a MMS contains an image.
+    private static final boolean DOWNLOAD_ATTACHMENTS = false;
+
     // Folder names as defined in Bluetooth.org MAP spec V10
     private static final String FOLDER_TELECOM = "telecom";
     private static final String FOLDER_MSG = "msg";
@@ -128,8 +131,8 @@ class MceStateMachine extends StateMachine {
     // URI Scheme for messages with email contact
     private static final String SCHEME_MAILTO = "mailto";
 
-    private static final String FETCH_MESSAGE_TYPE =
-            "persist.bluetooth.pts.mapclient.fetchmessagetype";
+    private static final String EXCLUDED_MESSAGE_TYPES =
+            "persist.bluetooth.pts.mapclient.excludedmessagetypes";
     private static final String SEND_MESSAGE_TYPE =
             "persist.bluetooth.pts.mapclient.sendmessagetype";
 
@@ -149,6 +152,10 @@ class MceStateMachine extends StateMachine {
     private HashMap<Bmessage, PendingIntent> mSentReceiptRequested = new HashMap<>(MAX_MESSAGES);
     private HashMap<Bmessage, PendingIntent> mDeliveryReceiptRequested =
             new HashMap<>(MAX_MESSAGES);
+
+    private final Object mLock = new Object();
+
+    @GuardedBy("mLock")
     private Bmessage.Type mDefaultMessageType = Bmessage.Type.SMS_CDMA;
 
     // The amount of time for MCE to search for remote device's own phone number before:
@@ -473,7 +480,7 @@ class MceStateMachine extends StateMachine {
     }
 
     Bmessage.Type getDefaultMessageType() {
-        synchronized (mDefaultMessageType) {
+        synchronized (mLock) {
             if (Utils.isPtsTestMode()) {
                 int messageType = SystemProperties.getInt(SEND_MESSAGE_TYPE, -1);
                 if (messageType > 0 && messageType < Bmessage.Type.values().length) {
@@ -486,7 +493,7 @@ class MceStateMachine extends StateMachine {
 
     void setDefaultMessageType(SdpMasRecord sdpMasRecord) {
         int supportedMessageTypes = sdpMasRecord.getSupportedMessageTypes();
-        synchronized (mDefaultMessageType) {
+        synchronized (mLock) {
             if ((supportedMessageTypes & SdpMasRecord.MessageType.MMS) > 0) {
                 mDefaultMessageType = Bmessage.Type.MMS;
             } else if ((supportedMessageTypes & SdpMasRecord.MessageType.SMS_CDMA) > 0) {
@@ -709,7 +716,9 @@ class MceStateMachine extends StateMachine {
                 case MSG_INBOUND_MESSAGE:
                     mMasClient.makeRequest(
                             new RequestGetMessage(
-                                    (String) message.obj, MasClient.CharsetType.UTF_8, false));
+                                    (String) message.obj,
+                                    MasClient.CharsetType.UTF_8,
+                                    DOWNLOAD_ATTACHMENTS));
                     break;
 
                 case MSG_NOTIFICATION:
@@ -725,15 +734,14 @@ class MceStateMachine extends StateMachine {
                     // Get the 50 most recent messages from the last week
                     Calendar calendar = Calendar.getInstance();
                     calendar.add(Calendar.DATE, -7);
-                    byte messageType;
+                    // bit mask - excludedMessageType filters out unsupported message types
+                    byte excludedMessageTypes =
+                            MessagesFilter.MESSAGE_TYPE_EMAIL | MessagesFilter.MESSAGE_TYPE_IM;
                     if (Utils.isPtsTestMode()) {
-                        messageType =
+                        excludedMessageTypes =
                                 (byte)
                                         SystemProperties.getInt(
-                                                FETCH_MESSAGE_TYPE,
-                                                MessagesFilter.MESSAGE_TYPE_ALL);
-                    } else {
-                        messageType = MessagesFilter.MESSAGE_TYPE_ALL;
+                                                EXCLUDED_MESSAGE_TYPES, excludedMessageTypes);
                     }
 
                     mMasClient.makeRequest(
@@ -742,7 +750,7 @@ class MceStateMachine extends StateMachine {
                                     0,
                                     new MessagesFilter.Builder()
                                             .setPeriod(calendar.getTime(), null)
-                                            .setMessageType(messageType)
+                                            .setExcludedMessageTypes(excludedMessageTypes)
                                             .build(),
                                     0,
                                     50,
@@ -766,19 +774,34 @@ class MceStateMachine extends StateMachine {
                                 Utils.getLoggableAddress(mDevice)
                                         + " [Connected]: Message Sent, handle="
                                         + messageHandle);
-                        // ignore the top-order byte (converted to string) in the handle for now
-                        // some test devices don't populate messageHandle field.
-                        // in such cases, no need to wait up for response for such messages.
-                        if (messageHandle != null && messageHandle.length() > 2) {
-                            if (SAVE_OUTBOUND_MESSAGES) {
-                                mDatabase.storeMessage(
-                                        requestPushMessage.getBMsg(),
-                                        messageHandle,
-                                        System.currentTimeMillis(),
-                                        MESSAGE_SEEN);
+                        if (Flags.useEntireMessageHandle()) {
+                            // some test devices don't populate messageHandle field.
+                            // in such cases, no need to wait up for response for such messages.
+                            if (messageHandle != null) {
+                                if (SAVE_OUTBOUND_MESSAGES) {
+                                    mDatabase.storeMessage(
+                                            requestPushMessage.getBMsg(),
+                                            messageHandle,
+                                            System.currentTimeMillis(),
+                                            MESSAGE_SEEN);
+                                }
+                                mSentMessageLog.put(messageHandle, requestPushMessage.getBMsg());
                             }
-                            mSentMessageLog.put(
-                                    messageHandle.substring(2), requestPushMessage.getBMsg());
+                        } else {
+                            // ignore the top-order byte (converted to string) in the handle for now
+                            // some test devices don't populate messageHandle field.
+                            // in such cases, no need to wait up for response for such messages.
+                            if (messageHandle != null && messageHandle.length() > 2) {
+                                if (SAVE_OUTBOUND_MESSAGES) {
+                                    mDatabase.storeMessage(
+                                            requestPushMessage.getBMsg(),
+                                            messageHandle,
+                                            System.currentTimeMillis(),
+                                            MESSAGE_SEEN);
+                                }
+                                mSentMessageLog.put(
+                                        messageHandle.substring(2), requestPushMessage.getBMsg());
+                            }
                         }
                     } else if (message.obj instanceof RequestGetMessagesListing) {
                         processMessageListing((RequestGetMessagesListing) message.obj);
@@ -875,7 +898,9 @@ class MceStateMachine extends StateMachine {
                     }
                     mMasClient.makeRequest(
                             new RequestGetMessage(
-                                    event.getHandle(), MasClient.CharsetType.UTF_8, false));
+                                    event.getHandle(),
+                                    MasClient.CharsetType.UTF_8,
+                                    DOWNLOAD_ATTACHMENTS));
                     break;
                 case DELIVERY_FAILURE:
                     // fall through
@@ -907,6 +932,7 @@ class MceStateMachine extends StateMachine {
          *
          * @param request - A request object that has been resolved and returned with a message list
          */
+        @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
         private void processMessageListing(RequestGetMessagesListing request) {
             Log.i(
                     TAG,
@@ -918,7 +944,7 @@ class MceStateMachine extends StateMachine {
                                             : "null list")
                                     : "null request"));
 
-            ArrayList<com.android.bluetooth.mapclient.Message> messageListing = request.getList();
+            List<com.android.bluetooth.mapclient.Message> messageListing = request.getList();
             if (messageListing != null) {
                 // Message listings by spec arrive ordered newest first but we wish to broadcast as
                 // oldest first. Iterate in reverse order so we initiate requests oldest first.
@@ -1117,7 +1143,7 @@ class MceStateMachine extends StateMachine {
                         mmsBmessage.parseMsgPart(message.getBodyContent());
                         intent.putExtra(
                                 android.content.Intent.EXTRA_TEXT, mmsBmessage.getMessageAsText());
-                        ArrayList<VCardEntry> recipients = message.getRecipients();
+                        List<VCardEntry> recipients = message.getRecipients();
                         if (recipients != null && !recipients.isEmpty()) {
                             intent.putExtra(
                                     android.content.Intent.EXTRA_CC, getRecipientsUri(recipients));
@@ -1135,6 +1161,9 @@ class MceStateMachine extends StateMachine {
                         if (smsReceiverPackageName != null && !smsReceiverPackageName.isEmpty()) {
                             // Clone intent and broadcast to SMS receiver package if one exists
                             Intent messageNotificationIntent = (Intent) intent.clone();
+                            // Repeat action for easier static analyze of the intent
+                            messageNotificationIntent.setAction(
+                                    BluetoothMapClient.ACTION_MESSAGE_RECEIVED);
                             messageNotificationIntent.setPackage(smsReceiverPackageName);
                             mService.sendBroadcast(messageNotificationIntent, RECEIVE_SMS);
                         }
@@ -1154,7 +1183,7 @@ class MceStateMachine extends StateMachine {
          * Retrieves the URIs of all the participants of a group conversation, besides the sender of
          * the message.
          */
-        private String[] getRecipientsUri(ArrayList<VCardEntry> recipients) {
+        private String[] getRecipientsUri(List<VCardEntry> recipients) {
             Set<String> uris = new HashSet<>();
 
             for (VCardEntry recipient : recipients) {
@@ -1173,16 +1202,31 @@ class MceStateMachine extends StateMachine {
             Log.d(TAG, "got a status for " + handle + " Status = " + status);
             // some test devices don't populate messageHandle field.
             // in such cases, ignore such messages.
-            if (handle == null || handle.length() <= 2) return;
+            if (Flags.useEntireMessageHandle()) {
+                if (handle == null) return;
+            } else {
+                if (handle == null || handle.length() <= 2) return;
+            }
             PendingIntent intentToSend = null;
-            // ignore the top-order byte (converted to string) in the handle for now
-            String shortHandle = handle.substring(2);
-            if (status == EventReport.Type.SENDING_FAILURE
-                    || status == EventReport.Type.SENDING_SUCCESS) {
-                intentToSend = mSentReceiptRequested.remove(mSentMessageLog.get(shortHandle));
-            } else if (status == EventReport.Type.DELIVERY_SUCCESS
-                    || status == EventReport.Type.DELIVERY_FAILURE) {
-                intentToSend = mDeliveryReceiptRequested.remove(mSentMessageLog.get(shortHandle));
+            if (Flags.useEntireMessageHandle()) {
+                if (status == EventReport.Type.SENDING_FAILURE
+                        || status == EventReport.Type.SENDING_SUCCESS) {
+                    intentToSend = mSentReceiptRequested.remove(mSentMessageLog.get(handle));
+                } else if (status == EventReport.Type.DELIVERY_SUCCESS
+                        || status == EventReport.Type.DELIVERY_FAILURE) {
+                    intentToSend = mDeliveryReceiptRequested.remove(mSentMessageLog.get(handle));
+                }
+            } else {
+                // ignore the top-order byte (converted to string) in the handle for now
+                String shortHandle = handle.substring(2);
+                if (status == EventReport.Type.SENDING_FAILURE
+                        || status == EventReport.Type.SENDING_SUCCESS) {
+                    intentToSend = mSentReceiptRequested.remove(mSentMessageLog.get(shortHandle));
+                } else if (status == EventReport.Type.DELIVERY_SUCCESS
+                        || status == EventReport.Type.DELIVERY_FAILURE) {
+                    intentToSend =
+                            mDeliveryReceiptRequested.remove(mSentMessageLog.get(shortHandle));
+                }
             }
 
             if (intentToSend != null) {

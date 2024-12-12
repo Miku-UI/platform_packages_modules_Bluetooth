@@ -88,11 +88,9 @@
 #define UUID_SERVCLASS_PBAP_PCE 0X112E /* Phonebook Access - PCE */
 #define UUID_SERVCLASS_PBAP_PSE 0X112F /* Phonebook Access - PSE */
 #define UUID_SERVCLASS_PHONE_ACCESS 0x1130
-#define UUID_SERVCLASS_HEADSET_HS 0x1131 /* Headset - HS, from HSP v1.2 */
-#define UUID_SERVCLASS_MPS_PROFILE \
-  0x113A /* Multi-Profile Specification - Profile */
-#define UUID_SERVCLASS_MPS_SC \
-  0x113B /* Multi-Profile Specification - Service Class */
+#define UUID_SERVCLASS_HEADSET_HS 0x1131      /* Headset - HS, from HSP v1.2 */
+#define UUID_SERVCLASS_MPS_PROFILE 0x113A     /* Multi-Profile Specification - Profile */
+#define UUID_SERVCLASS_MPS_SC 0x113B          /* Multi-Profile Specification - Service Class */
 #define UUID_SERVCLASS_PNP_INFORMATION 0X1200 /* Device Identification */
 #define UUID_SERVCLASS_GENERIC_NETWORKING 0X1201
 #define UUID_SERVCLASS_GENERIC_FILETRANSFER 0X1202
@@ -109,13 +107,12 @@
 #define UUID_SERVCLASS_VIDEO_SINK 0X1304
 #define UUID_SERVCLASS_VIDEO_DISTRIBUTION 0X1305
 
-#define UUID_SERVCLASS_HDP_PROFILE 0X1400    /* Health Device profile (HDP) */
-#define UUID_SERVCLASS_HDP_SOURCE 0X1401     /* Health Device profile (HDP) */
-#define UUID_SERVCLASS_HDP_SINK 0X1402       /* Health Device profile (HDP) */
-#define UUID_SERVCLASS_MAP_PROFILE 0X1134    /* MAP profile */
-#define UUID_SERVCLASS_MESSAGE_ACCESS 0X1132 /* Message Access Service */
-#define UUID_SERVCLASS_MESSAGE_NOTIFICATION \
-  0X1133 /* Message Notification Service */
+#define UUID_SERVCLASS_HDP_PROFILE 0X1400          /* Health Device profile (HDP) */
+#define UUID_SERVCLASS_HDP_SOURCE 0X1401           /* Health Device profile (HDP) */
+#define UUID_SERVCLASS_HDP_SINK 0X1402             /* Health Device profile (HDP) */
+#define UUID_SERVCLASS_MAP_PROFILE 0X1134          /* MAP profile */
+#define UUID_SERVCLASS_MESSAGE_ACCESS 0X1132       /* Message Access Service */
+#define UUID_SERVCLASS_MESSAGE_NOTIFICATION 0X1133 /* Message Notification Service */
 
 #define UUID_SERVCLASS_GAP_SERVER 0x1800
 #define UUID_SERVCLASS_GATT_SERVER 0x1801
@@ -125,8 +122,8 @@
 
 #define UUID_SERVCLASS_VOLUME_CONTROL_SERVER 0x1844
 #define UUID_SERVCLASS_GMCS_SERVER 0x1849 /* Generic Media Control Service */
-#define UUID_SERVCLASS_GTBS_SERVER   \
-  0x184c /* Generic Telephony Bearer \
-            Service*/
-#define UUID_SERVCLASS_TMAS_SERVER \
-  0x1855 /* Telephone and Media Audio Service */
+#define UUID_SERVCLASS_GTBS_SERVER                                    \
+  0x184c                                  /* Generic Telephony Bearer \
+                                             Service*/
+#define UUID_SERVCLASS_TMAS_SERVER 0x1855 /* Telephone and Media Audio Service */
+#define UUID_SERVCLASS_RAS 0x7F7D         /* Ranging Service */

@@ -24,22 +24,16 @@ namespace bluetooth {
 namespace common {
 namespace {
 class BlockingQueueTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    EXPECT_TRUE(queue_.empty());
-  }
+protected:
+  void SetUp() override { EXPECT_TRUE(queue_.empty()); }
 
   // Postcondition for each test case: clear the blocking queue
-  void TearDown() override {
-    EXPECT_TRUE(queue_.empty());
-  }
+  void TearDown() override { EXPECT_TRUE(queue_.empty()); }
 
   BlockingQueue<int> queue_;
 };
 
-TEST_F(BlockingQueueTest, initial_empty) {
-  EXPECT_TRUE(queue_.empty());
-}
+TEST_F(BlockingQueueTest, initial_empty) { EXPECT_TRUE(queue_.empty()); }
 
 TEST_F(BlockingQueueTest, same_thread_push_and_pop) {
   int data = 1;
@@ -99,7 +93,8 @@ TEST_F(BlockingQueueTest, wait_to_take_after_non_empty) {
 
 TEST_F(BlockingQueueTest, wait_to_take_before_non_empty) {
   int data = 1;
-  std::thread waiter_thread([this] { EXPECT_TRUE(queue_.wait_to_take(std::chrono::milliseconds(3))); });
+  std::thread waiter_thread(
+          [this] { EXPECT_TRUE(queue_.wait_to_take(std::chrono::milliseconds(3))); });
   queue_.push(data);
   waiter_thread.join();
   queue_.clear();
@@ -119,15 +114,11 @@ TEST_F(BlockingQueueTest, wait_for_non_empty_batch) {
 }
 
 class VectorBlockingQueueTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    EXPECT_TRUE(queue_.empty());
-  }
+protected:
+  void SetUp() override { EXPECT_TRUE(queue_.empty()); }
 
   // Postcondition for each test case: clear the blocking queue
-  void TearDown() override {
-    EXPECT_TRUE(queue_.empty());
-  }
+  void TearDown() override { EXPECT_TRUE(queue_.empty()); }
 
   BlockingQueue<std::vector<uint8_t>> queue_;
 };

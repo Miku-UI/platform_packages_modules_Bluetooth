@@ -61,11 +61,12 @@ static const char* format_state(const btif_debug_conn_state_t state) {
 
 static void next_event() {
   ++current_event;
-  if (current_event == NUM_CONNECTION_EVENTS) current_event = 0;
+  if (current_event == NUM_CONNECTION_EVENTS) {
+    current_event = 0;
+  }
 }
 
-void btif_debug_conn_state(const RawAddress& bda,
-                           const btif_debug_conn_state_t state,
+void btif_debug_conn_state(const RawAddress& bda, const btif_debug_conn_state_t state,
                            const tGATT_DISCONN_REASON disconnect_reason) {
   next_event();
 
@@ -77,29 +78,34 @@ void btif_debug_conn_state(const RawAddress& bda,
 }
 
 void btif_debug_conn_dump(int fd) {
-  const uint8_t current_event_local =
-      current_event;  // Cache to avoid threading issues
+  const uint8_t current_event_local = current_event;  // Cache to avoid threading issues
   uint8_t dump_event = current_event_local;
   char ts_buffer[TEMP_BUFFER_SIZE] = {0};
 
   dprintf(fd, "\nConnection Events:\n");
-  if (connection_events[dump_event].ts == 0) dprintf(fd, "  None\n");
+  if (connection_events[dump_event].ts == 0) {
+    dprintf(fd, "  None\n");
+  }
 
   while (connection_events[dump_event].ts) {
     conn_event_t* evt = &connection_events[dump_event];
     dprintf(fd, "  %s %s %s", format_ts(evt->ts, ts_buffer, sizeof(ts_buffer)),
             format_state(evt->state), ADDRESS_TO_LOGGABLE_CSTR(evt->bda));
-    if (evt->state == BTIF_DEBUG_DISCONNECTED)
+    if (evt->state == BTIF_DEBUG_DISCONNECTED) {
       dprintf(fd, " reason=%d", evt->disconnect_reason);
+    }
     dprintf(fd, "\n");
 
     // Go to previous event; wrap if needed
-    if (dump_event > 0)
+    if (dump_event > 0) {
       --dump_event;
-    else
+    } else {
       dump_event = NUM_CONNECTION_EVENTS - 1;
+    }
 
     // Check if we dumped all events
-    if (dump_event == current_event_local) break;
+    if (dump_event == current_event_local) {
+      break;
+    }
   }
 }

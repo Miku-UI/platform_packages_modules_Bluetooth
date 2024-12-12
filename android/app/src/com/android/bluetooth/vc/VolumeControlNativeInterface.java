@@ -215,6 +215,125 @@ public class VolumeControlNativeInterface {
         return setExtAudioOutDescriptionNative(getByteAddress(device), externalOutputId, descr);
     }
 
+    /**
+     * Gets external audio input state from a remote device.
+     *
+     * <p>note: state describes configuration
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean getExtAudioInState(BluetoothDevice device, int externalInputId) {
+        return getExtAudioInStateNative(getByteAddress(device), externalInputId);
+    }
+
+    /**
+     * Gets external audio input status from a remote device.
+     *
+     * <p>note: status says if input is active or not.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean getExtAudioInStatus(BluetoothDevice device, int externalInputId) {
+        return getExtAudioInStatusNative(getByteAddress(device), externalInputId);
+    }
+
+    /**
+     * Gets external audio input type from a remote device.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean getExtAudioInType(BluetoothDevice device, int externalInputId) {
+        return getExtAudioInTypeNative(getByteAddress(device), externalInputId);
+    }
+
+    /**
+     * Gets external audio input gain properties from a remote device.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean getExtAudioInGainProps(BluetoothDevice device, int externalInputId) {
+        return getExtAudioInGainPropsNative(getByteAddress(device), externalInputId);
+    }
+
+    /**
+     * Gets external audio input description from a remote device.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean getExtAudioInDescription(BluetoothDevice device, int externalInputId) {
+        return getExtAudioInDescriptionNative(getByteAddress(device), externalInputId);
+    }
+
+    /**
+     * Sets external audio input description from a remote device.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @param descr requested description
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean setExtAudioInDescription(
+            BluetoothDevice device, int externalInputId, String descr) {
+        return setExtAudioInDescriptionNative(getByteAddress(device), externalInputId, descr);
+    }
+
+    /**
+     * Sets external audio input gain value to a remote device.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @param value requested gain value
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean setExtAudioInGainValue(BluetoothDevice device, int externalInputId, int value) {
+        return setExtAudioInGainValueNative(getByteAddress(device), externalInputId, value);
+    }
+
+    /**
+     * Sets external audio input gain mode to a remote device.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @param autoMode true when auto mode requested
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean setExtAudioInGainMode(
+            BluetoothDevice device, int externalInputId, boolean autoMode) {
+        return setExtAudioInGainModeNative(getByteAddress(device), externalInputId, autoMode);
+    }
+
+    /**
+     * Sets external audio input gain mode to a remote device.
+     *
+     * @param device the remote device
+     * @param externalInputId external audio input id
+     * @param mute true when mute requested
+     * @return true on success, otherwise false.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean setExtAudioInGainMute(
+            BluetoothDevice device, int externalInputId, boolean mute) {
+        return setExtAudioInGainMuteNative(getByteAddress(device), externalInputId, mute);
+    }
+
     private BluetoothDevice getDevice(byte[] address) {
         return mAdapter.getRemoteDevice(address);
     }
@@ -251,13 +370,15 @@ public class VolumeControlNativeInterface {
     }
 
     @VisibleForTesting
-    void onVolumeStateChanged(int volume, boolean mute, byte[] address, boolean isAutonomous) {
+    void onVolumeStateChanged(
+            int volume, boolean mute, int flags, byte[] address, boolean isAutonomous) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(
                         VolumeControlStackEvent.EVENT_TYPE_VOLUME_STATE_CHANGED);
         event.device = getDevice(address);
         event.valueInt1 = -1;
         event.valueInt2 = volume;
+        event.valueInt3 = flags;
         event.valueBool1 = mute;
         event.valueBool2 = isAutonomous;
 
@@ -281,11 +402,12 @@ public class VolumeControlNativeInterface {
     }
 
     @VisibleForTesting
-    void onDeviceAvailable(int numOfExternalOutputs, byte[] address) {
+    void onDeviceAvailable(int numOfExternalOutputs, int numOfExternalInputs, byte[] address) {
         VolumeControlStackEvent event =
                 new VolumeControlStackEvent(VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
         event.device = getDevice(address);
         event.valueInt1 = numOfExternalOutputs;
+        event.valueInt2 = numOfExternalInputs;
 
         Log.d(TAG, "onDeviceAvailable: " + event);
         sendMessageToService(event);
@@ -330,6 +452,77 @@ public class VolumeControlNativeInterface {
         sendMessageToService(event);
     }
 
+    @VisibleForTesting
+    void onExtAudioInStateChanged(
+            int externalInputId, int gainValue, int gainMode, boolean mute, byte[] address) {
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATE_CHANGED);
+        event.device = getDevice(address);
+        event.valueInt1 = externalInputId;
+        event.valueInt2 = gainValue;
+        event.valueInt3 = gainMode;
+        event.valueBool1 = mute;
+
+        Log.d(TAG, "onExtAudioInStateChanged: " + event);
+        sendMessageToService(event);
+    }
+
+    @VisibleForTesting
+    void onExtAudioInStatusChanged(int externalInputId, int status, byte[] address) {
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_STATUS_CHANGED);
+        event.device = getDevice(address);
+        event.valueInt1 = externalInputId;
+        event.valueInt2 = status;
+
+        Log.d(TAG, "onExtAudioInStatusChanged: " + event);
+        sendMessageToService(event);
+    }
+
+    @VisibleForTesting
+    void onExtAudioInTypeChanged(int externalInputId, int type, byte[] address) {
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_TYPE_CHANGED);
+        event.device = getDevice(address);
+        event.valueInt1 = externalInputId;
+        event.valueInt2 = type;
+
+        Log.d(TAG, "onExtAudioInTypeChanged: " + event);
+        sendMessageToService(event);
+    }
+
+    @VisibleForTesting
+    void onExtAudioInDescriptionChanged(int externalInputId, String descr, byte[] address) {
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_DESCR_CHANGED);
+        event.device = getDevice(address);
+        event.valueInt1 = externalInputId;
+        event.valueString1 = descr;
+
+        Log.d(TAG, "onExtAudioInDescriptionChanged: " + event);
+        sendMessageToService(event);
+    }
+
+    @VisibleForTesting
+    void onExtAudioInGainPropsChanged(
+            int externalInputId, int unit, int min, int max, byte[] address) {
+        VolumeControlStackEvent event =
+                new VolumeControlStackEvent(
+                        VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_IN_GAIN_PROPS_CHANGED);
+        event.device = getDevice(address);
+        event.valueInt1 = externalInputId;
+        event.valueInt2 = unit;
+        event.valueInt3 = min;
+        event.valueInt4 = max;
+
+        Log.d(TAG, "onExtAudioInGainPropsChanged: " + event);
+        sendMessageToService(event);
+    }
+
     // Native methods that call into the JNI interface
     private native void initNative();
 
@@ -365,4 +558,27 @@ public class VolumeControlNativeInterface {
 
     private native boolean setExtAudioOutDescriptionNative(
             byte[] address, int externalOutputId, String descr);
+
+    /* Native methods for external audio inputs */
+    private native boolean getExtAudioInStateNative(byte[] address, int externalInputId);
+
+    private native boolean getExtAudioInStatusNative(byte[] address, int externalInputId);
+
+    private native boolean getExtAudioInTypeNative(byte[] address, int externalInputId);
+
+    private native boolean getExtAudioInGainPropsNative(byte[] address, int externalInputId);
+
+    private native boolean getExtAudioInDescriptionNative(byte[] address, int externalInputId);
+
+    private native boolean setExtAudioInDescriptionNative(
+            byte[] address, int externalInputId, String descr);
+
+    private native boolean setExtAudioInGainValueNative(
+            byte[] address, int externalInputId, int gainValue);
+
+    private native boolean setExtAudioInGainModeNative(
+            byte[] address, int externalInputId, boolean modeAuto);
+
+    private native boolean setExtAudioInGainMuteNative(
+            byte[] address, int externalInputId, boolean mute);
 }

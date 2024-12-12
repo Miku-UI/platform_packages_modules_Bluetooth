@@ -30,15 +30,11 @@
 namespace {
 
 struct IsSpace {
-  bool operator()(std::string::value_type v) {
-    return isspace(static_cast<int>(v));
-  }
+  bool operator()(std::string::value_type v) { return isspace(static_cast<int>(v)); }
 };
 
 struct IsHexDigit {
-  bool operator()(std::string::value_type v) {
-    return isxdigit(static_cast<int>(v));
-  }
+  bool operator()(std::string::value_type v) { return isxdigit(static_cast<int>(v)); }
 };
 
 }  // namespace
@@ -83,13 +79,15 @@ std::string StringTrim(std::string str) {
   return str;
 }
 
-std::vector<std::string> StringSplit(const std::string& str, const std::string& delim, size_t max_token) {
+std::vector<std::string> StringSplit(const std::string& str, const std::string& delim,
+                                     size_t max_token) {
   log::assert_that(!delim.empty(), "delim cannot be empty");
   std::vector<std::string> tokens;
   // Use std::string::find and std::string::substr to avoid copying str into a stringstream
   std::string::size_type starting_index = 0;
   auto index_of_delim = str.find(delim);
-  while ((max_token == 0 || tokens.size() < (max_token - 1)) && index_of_delim != std::string::npos) {
+  while ((max_token == 0 || tokens.size() < (max_token - 1)) &&
+         index_of_delim != std::string::npos) {
     tokens.push_back(str.substr(starting_index, index_of_delim - starting_index));
     starting_index = index_of_delim + delim.size();
     index_of_delim = str.find(delim, starting_index);
@@ -131,9 +129,7 @@ std::optional<int64_t> Int64FromString(const std::string& str) {
   return value;
 }
 
-std::string ToString(int64_t value) {
-  return std::to_string(value);
-}
+std::string ToString(int64_t value) { return std::to_string(value); }
 
 std::optional<uint64_t> Uint64FromString(const std::string& str) {
   if (str.find('-') != std::string::npos) {
@@ -158,9 +154,7 @@ std::optional<uint64_t> Uint64FromString(const std::string& str) {
   return value;
 }
 
-std::string ToString(uint64_t value) {
-  return std::to_string(value);
-}
+std::string ToString(uint64_t value) { return std::to_string(value); }
 
 std::optional<bool> BoolFromString(const std::string& str) {
   if (str == "true") {
@@ -173,9 +167,7 @@ std::optional<bool> BoolFromString(const std::string& str) {
   }
 }
 
-std::string ToString(bool value) {
-  return value ? "true" : "false";
-}
+std::string ToString(bool value) { return value ? "true" : "false"; }
 
 }  // namespace common
 }  // namespace bluetooth

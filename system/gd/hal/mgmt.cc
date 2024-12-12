@@ -30,8 +30,9 @@
 
 #include <cerrno>
 
-#include "common/init_flags.h"
 #include "os/log.h"
+
+extern int GetAdapterIndex();
 
 namespace bluetooth {
 namespace hal {
@@ -42,8 +43,8 @@ namespace hal {
 
 struct sockaddr_hci {
   sa_family_t hci_family;
-  unsigned short hci_dev;
-  unsigned short hci_channel;
+  uint16_t hci_dev;
+  uint16_t hci_channel;
 };
 
 constexpr static uint8_t BTPROTO_HCI = 1;
@@ -58,9 +59,9 @@ static int btsocket_open_mgmt(uint16_t hci) {
   }
 
   struct sockaddr_hci addr = {
-      .hci_family = AF_BLUETOOTH,
-      .hci_dev = HCI_DEV_NONE,
-      .hci_channel = HCI_CHANNEL_CONTROL,
+          .hci_family = AF_BLUETOOTH,
+          .hci_dev = HCI_DEV_NONE,
+          .hci_channel = HCI_CHANNEL_CONTROL,
   };
 
   int ret = bind(fd, (struct sockaddr*)&addr, sizeof(addr));
@@ -82,7 +83,7 @@ static int btsocket_open_mgmt(uint16_t hci) {
  * be HCI_OP_NOP (0x0000).
  */
 uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
-  int hci = bluetooth::common::InitFlags::GetAdapterIndex();
+  int hci = GetAdapterIndex();
   int fd = btsocket_open_mgmt(hci);
   uint16_t ret_opcode = HCI_OP_NOP;
 
@@ -113,7 +114,7 @@ uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
         log::error("Failed to call MGMT opcode 0x{:04x}, errno {}", ev.opcode, -errno);
         close(fd);
         return ret_opcode;
-      };
+      }
       break;
     } else if (ret < 0) {
       log::error("msft poll ret {} errno {}", ret, -errno);
@@ -121,8 +122,8 @@ uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
   } while (ret > 0);
 
   if (ret <= 0) {
-    log::info(
-        "Skip because mgmt socket is not writable: ev.opcode 0x{:04x} ret {}", ev.opcode, ret);
+    log::info("Skip because mgmt socket is not writable: ev.opcode 0x{:04x} ret {}", ev.opcode,
+              ret);
     close(fd);
     return ret_opcode;
   }
@@ -141,12 +142,18 @@ uint16_t Mgmt::get_vs_opcode(uint16_t vendor_specification) {
           log::error("Failed to read mgmt socket: {}", -errno);
           close(fd);
           return ret_opcode;
+        } else if (ret == 0) { // unlikely to happen, just a safeguard.
+          log::error("Failed to read mgmt socket: EOF");
+          close(fd);
+          return ret_opcode;
         }
 
         if (cc_ev.opcode == MGMT_EV_COMMAND_COMPLETE) {
-          struct mgmt_ev_cmd_complete* cc = reinterpret_cast<struct mgmt_ev_cmd_complete*>(cc_ev.data);
+          struct mgmt_ev_cmd_complete* cc =
+                  reinterpret_cast<struct mgmt_ev_cmd_complete*>(cc_ev.data);
           if (cc->opcode == ev.opcode && cc->status == 0) {
-            struct mgmt_rp_get_vs_opcode* rp = reinterpret_cast<struct mgmt_rp_get_vs_opcode*>(cc->data);
+            struct mgmt_rp_get_vs_opcode* rp =
+                    reinterpret_cast<struct mgmt_rp_get_vs_opcode*>(cc->data);
             if (rp->hci_id == hci) {
               // If the controller supports the MSFT extension, the returned opcode
               // will not be HCI_OP_NOP.

@@ -17,6 +17,7 @@
 
 package com.android.bluetooth.tbs;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattServer;
@@ -36,6 +37,7 @@ import java.util.UUID;
  * test the correct functioning of the TbsService class, the final class must be put into a
  * container that can be mocked correctly.
  */
+@SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
 public class BluetoothGattServerProxy {
 
     private final Context mContext;

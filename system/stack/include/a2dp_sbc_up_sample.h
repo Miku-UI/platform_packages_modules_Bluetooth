@@ -41,8 +41,7 @@
  * Returns          none
  *
  ******************************************************************************/
-void a2dp_sbc_init_up_sample(uint32_t src_sps, uint32_t dst_sps, uint8_t bits,
-                             uint8_t n_channels);
+void a2dp_sbc_init_up_sample(uint32_t src_sps, uint32_t dst_sps, uint8_t bits, uint8_t n_channels);
 
 /*******************************************************************************
  *
@@ -70,8 +69,8 @@ void a2dp_sbc_init_up_sample(uint32_t src_sps, uint32_t dst_sps, uint8_t bits,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample(void* p_src, void* p_dst, uint32_t src_samples,
-                       uint32_t dst_samples, uint32_t* p_ret);
+int a2dp_sbc_up_sample(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                       uint32_t* p_ret);
 
 /*******************************************************************************
  *
@@ -92,8 +91,8 @@ int a2dp_sbc_up_sample(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_16s(void* p_src, void* p_dst, uint32_t src_samples,
-                           uint32_t dst_samples, uint32_t* p_ret);
+int a2dp_sbc_up_sample_16s(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                           uint32_t* p_ret);
 
 /*******************************************************************************
  *
@@ -114,8 +113,8 @@ int a2dp_sbc_up_sample_16s(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples,
-                           uint32_t dst_samples, uint32_t* p_ret);
+int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                           uint32_t* p_ret);
 
 /*******************************************************************************
  *
@@ -136,8 +135,8 @@ int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_8s(void* p_src, void* p_dst, uint32_t src_samples,
-                          uint32_t dst_samples, uint32_t* p_ret);
+int a2dp_sbc_up_sample_8s(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                          uint32_t* p_ret);
 
 /*******************************************************************************
  *
@@ -157,7 +156,7 @@ int a2dp_sbc_up_sample_8s(void* p_src, void* p_dst, uint32_t src_samples,
  *                  The number of bytes used in p_src (in *p_ret)
  *
  ******************************************************************************/
-int a2dp_sbc_up_sample_8m(void* p_src, void* p_dst, uint32_t src_samples,
-                          uint32_t dst_samples, uint32_t* p_ret);
+int a2dp_sbc_up_sample_8m(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
+                          uint32_t* p_ret);
 
 #endif  // A2DP_SBC_UP_SAMPLE_H

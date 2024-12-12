@@ -140,6 +140,9 @@ pub fn try_from_fd(fd: i32) -> Result<File, FdError> {
 impl BtSocket {
     pub fn new(intf: &BluetoothInterface) -> Self {
         let r = intf.get_profile_interface(SupportedProfiles::Socket);
+        if r.is_null() {
+            panic!("Failed to get Socket interface");
+        }
         BtSocket { internal: RawBtSockWrapper { raw: r as *const bindings::btsock_interface_t } }
     }
 

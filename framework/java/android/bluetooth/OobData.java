@@ -284,7 +284,7 @@ public final class OobData implements Parcelable {
             this.mConfirmationHash = confirmationHash;
             if (deviceAddressWithType.length != OobData.DEVICE_ADDRESS_OCTETS) {
                 throw new IllegalArgumentException(
-                        "confirmationHash must be "
+                        "deviceAddressWithType must be "
                                 + OobData.DEVICE_ADDRESS_OCTETS
                                 + " octets in length.");
             }
@@ -914,7 +914,7 @@ public final class OobData implements Parcelable {
         if (array == null) return "null";
         StringBuilder builder = new StringBuilder(array.length * 2);
         for (byte b : array) {
-            builder.append(String.format("%02x", b));
+            builder.append(BluetoothUtils.formatSimple("%02x", b));
         }
         return builder.toString();
     }

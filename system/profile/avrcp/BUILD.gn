@@ -32,6 +32,8 @@ config("avrcp_config") {
 
 static_library("profile_avrcp") {
   sources = [
+    "avrcp_sdp_records.cc",
+    "avrcp_sdp_service.cc",
     "connection_handler.cc",
     "device.cc",
   ]

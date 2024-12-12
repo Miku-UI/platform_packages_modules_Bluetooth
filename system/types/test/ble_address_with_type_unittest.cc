@@ -17,8 +17,7 @@
 #include "types/ble_address_with_type.h"
 
 #include <gtest/gtest.h>
-static constexpr uint8_t RAW_ADDRESS_TEST1[6] = {0x01, 0x02, 0x03,
-                                                 0x04, 0x05, 0x06};
+static constexpr uint8_t RAW_ADDRESS_TEST1[6] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
 
 TEST(BleAddressWithTypeTest, to_ble_addr_type) {
   for (unsigned i = 0; i < 0xff + 1; i++) {
@@ -50,9 +49,8 @@ TEST(BleAddressWithTypeTest, from_ble_addr_type) {
     tBLE_ADDR_TYPE type;
     uint8_t value;
   } type_table[] = {
-      {BLE_ADDR_PUBLIC, 0},       {BLE_ADDR_RANDOM, 1},
-      {BLE_ADDR_PUBLIC_ID, 2},    {BLE_ADDR_RANDOM_ID, 3},
-      {BLE_ADDR_ANONYMOUS, 0xff},
+          {BLE_ADDR_PUBLIC, 0},    {BLE_ADDR_RANDOM, 1},       {BLE_ADDR_PUBLIC_ID, 2},
+          {BLE_ADDR_RANDOM_ID, 3}, {BLE_ADDR_ANONYMOUS, 0xff},
   };
 
   for (unsigned i = 0; i < sizeof(type_table) / sizeof(type_table[0]); i++) {
@@ -100,12 +98,9 @@ TEST(BleAddressWithTypeTest, STREAM_TO_BLE_ADDR_TYPE) {
 }
 
 TEST(BleAddressWithTypeTest, TYPED_ADDRESS_TRANSPORT) {
-  tAclLinkSpec linkSpecA = {{BLE_ADDR_PUBLIC, RAW_ADDRESS_TEST1},
-                            BT_TRANSPORT_AUTO};
-  tAclLinkSpec linkSpecB = {{BLE_ADDR_PUBLIC, RAW_ADDRESS_TEST1},
-                            BT_TRANSPORT_BR_EDR};
-  tAclLinkSpec linkSpecC = {{BLE_ADDR_PUBLIC, RAW_ADDRESS_TEST1},
-                            BT_TRANSPORT_LE};
+  tAclLinkSpec linkSpecA = {{BLE_ADDR_PUBLIC, RAW_ADDRESS_TEST1}, BT_TRANSPORT_AUTO};
+  tAclLinkSpec linkSpecB = {{BLE_ADDR_PUBLIC, RAW_ADDRESS_TEST1}, BT_TRANSPORT_BR_EDR};
+  tAclLinkSpec linkSpecC = {{BLE_ADDR_PUBLIC, RAW_ADDRESS_TEST1}, BT_TRANSPORT_LE};
 
   ASSERT_EQ(linkSpecA, linkSpecB);
   ASSERT_EQ(linkSpecA, linkSpecC);

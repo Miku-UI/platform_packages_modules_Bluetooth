@@ -50,7 +50,7 @@ const packet_fragmenter_t* packet_fragmenter_get_interface() {
   return nullptr;
 }  // main::shim::hci_layer
 bluetooth::common::TimestamperInMilliseconds
-    timestamper_in_milliseconds;  // main::shim::le_scanning_manager
+        timestamper_in_milliseconds;  // main::shim::le_scanning_manager
 
 namespace {
 constexpr char kLogTagStopped[] = "STOPPED";
@@ -72,7 +72,7 @@ inline void log_tag(std::string tag) {
 }
 
 class MainThread {
- public:
+public:
   MainThread() {
     main_thread_start_up();
     post_on_bt_main([]() { log::info("<=== tid Main loop started"); });
@@ -83,7 +83,7 @@ class MainThread {
     main_thread_shut_down();
   }
 
- private:
+private:
   void sync_main_handler() {
     std::promise promise = std::promise<void>();
     std::future future = promise.get_future();
@@ -93,7 +93,7 @@ class MainThread {
 };
 
 class TestStackManager {
- public:
+public:
   TestStackManager() {
     // Stack manager is started in the test after each test uses the default
     // or adds their own modules
@@ -112,19 +112,22 @@ class TestStackManager {
   }
 
   void Start() {
-    if (stack_started_) return;
+    if (stack_started_) {
+      return;
+    }
     log::info("Starting up stack manager");
     stack_started_ = true;
     bluetooth::os::Thread* stack_thread = new bluetooth::os::Thread(
-        kTestStackThreadName, bluetooth::os::Thread::Priority::NORMAL);
-    bluetooth::shim::Stack::GetInstance()->StartModuleStack(&modules_,
-                                                            stack_thread);
+            kTestStackThreadName, bluetooth::os::Thread::Priority::NORMAL);
+    bluetooth::shim::Stack::GetInstance()->StartModuleStack(&modules_, stack_thread);
     bluetooth::shim::Stack::GetInstance()->GetHandler()->Call(
-        []() { log::info("<=== tid GD Event loop started"); });
+            []() { log::info("<=== tid GD Event loop started"); });
   }
 
   void Stop() {
-    if (!stack_started_) return;
+    if (!stack_started_) {
+      return;
+    }
     stack_started_ = false;
     bluetooth::shim::Stack::GetInstance()->Stop();
   }
@@ -133,14 +136,12 @@ class TestStackManager {
   // if stack manager has not started or shutdown
   template <typename T>
   static T* GetUnsafeModule() {
-    return bluetooth::shim::Stack::GetInstance()
-        ->GetStackManager()
-        ->GetInstance<T>();
+    return bluetooth::shim::Stack::GetInstance()->GetStackManager()->GetInstance<T>();
   }
 
   size_t NumModules() const { return modules_.NumModules(); }
 
- private:
+private:
   bluetooth::ModuleList modules_;
   bool stack_started_{false};
 };
@@ -160,24 +161,22 @@ struct TestData {
 
 }  // namespace
 
-class TestStackDumpsysBase : public bluetooth::Module,
-                             public ModuleMainloop,
-                             public ModuleJniloop {
- public:
+class TestStackDumpsysBase : public bluetooth::Module, public ModuleMainloop, public ModuleJniloop {
+public:
   TestStackDumpsysBase(const TestStackDumpsysBase&) = delete;
   TestStackDumpsysBase& operator=(const TestStackDumpsysBase&) = delete;
 
-  virtual ~TestStackDumpsysBase(){};
+  virtual ~TestStackDumpsysBase() {}
   static const ModuleFactory Factory;
 
   virtual void TestMethod(TestData test_data) const {
     log::info("Test base class iter:{} tag:{}", test_data.iter, test_data.tag);
   }
 
- protected:
-  void ListDependencies(ModuleList* /* list */) const override{};
-  void Start() override { log::error("Started TestStackDumpsysBase"); };
-  void Stop() override { log::error("Stopped TestStackDumpsysBase"); };
+protected:
+  void ListDependencies(ModuleList* /* list */) const override {}
+  void Start() override { log::error("Started TestStackDumpsysBase"); }
+  void Stop() override { log::error("Stopped TestStackDumpsysBase"); }
   std::string ToString() const override { return std::string("TestFunction"); }
 
   TestStackDumpsysBase() = default;
@@ -188,7 +187,7 @@ struct StackRunningData {
 };
 
 class TestStackDumpsys1 : public TestStackDumpsysBase {
- public:
+public:
   TestStackDumpsys1(const TestStackDumpsys1&) = delete;
   TestStackDumpsys1& operator=(const TestStackDumpsys1&) = delete;
   virtual ~TestStackDumpsys1() = default;
@@ -198,7 +197,7 @@ class TestStackDumpsys1 : public TestStackDumpsysBase {
   void TestMethod(TestData test_data) const override;
   void IsStackRunning(StackRunningData stack_running_data) const;
 
- private:
+private:
   struct impl;
   std::shared_ptr<impl> impl_;
   TestStackDumpsys1();
@@ -207,13 +206,12 @@ class TestStackDumpsys1 : public TestStackDumpsysBase {
 struct TestStackDumpsys1::impl : public ModuleMainloop, public ModuleJniloop {
   void test(TestData test_data) {
     TestCallbackData callback_data{
-        .iter = test_data.iter,
-        .tag = std::string(__func__),
+            .iter = test_data.iter,
+            .tag = std::string(__func__),
     };
-    PostFunctionOnMain(
-        [](std::function<void(TestCallbackData callback_data)> callback,
-           TestCallbackData data) { callback(data); },
-        test_data.callback, callback_data);
+    PostFunctionOnMain([](std::function<void(TestCallbackData callback_data)> callback,
+                          TestCallbackData data) { callback(data); },
+                       test_data.callback, callback_data);
   }
   void is_stack_running(StackRunningData stack_running_data) const {
     bool is_running = bluetooth::shim::Stack::GetInstance()->IsRunning();
@@ -231,14 +229,12 @@ void TestStackDumpsys1::TestMethod(TestData test_data) const {
   PostMethodOnMain(impl_, &impl::test, test_data);
 }
 
-void TestStackDumpsys1::IsStackRunning(
-    StackRunningData stack_running_data) const {
-  GetHandler()->CallOn(impl_.get(), &impl::is_stack_running,
-                       stack_running_data);
+void TestStackDumpsys1::IsStackRunning(StackRunningData stack_running_data) const {
+  GetHandler()->CallOn(impl_.get(), &impl::is_stack_running, stack_running_data);
 }
 
 class TestStackDumpsys2 : public TestStackDumpsysBase {
- public:
+public:
   TestStackDumpsys2(const TestStackDumpsys2&) = delete;
   TestStackDumpsys2& operator=(const TestStackDumpsys2&) = delete;
   virtual ~TestStackDumpsys2() = default;
@@ -247,7 +243,7 @@ class TestStackDumpsys2 : public TestStackDumpsysBase {
 
   void TestMethod(TestData test_data) const override;
 
- private:
+private:
   struct impl;
   std::shared_ptr<impl> impl_;
   TestStackDumpsys2();
@@ -256,13 +252,12 @@ class TestStackDumpsys2 : public TestStackDumpsysBase {
 struct TestStackDumpsys2::impl : public ModuleMainloop, public ModuleJniloop {
   void test(TestData test_data) {
     TestCallbackData callback_data{
-        .iter = test_data.iter,
-        .tag = std::string(__func__),
+            .iter = test_data.iter,
+            .tag = std::string(__func__),
     };
-    PostFunctionOnMain(
-        [](std::function<void(TestCallbackData callback_data)> callback,
-           TestCallbackData data) { callback(data); },
-        test_data.callback, callback_data);
+    PostFunctionOnMain([](std::function<void(TestCallbackData callback_data)> callback,
+                          TestCallbackData data) { callback(data); },
+                       test_data.callback, callback_data);
   }
 };
 
@@ -275,7 +270,7 @@ void TestStackDumpsys2::TestMethod(TestData test_data) const {
 }
 
 class TestStackDumpsys3 : public TestStackDumpsysBase {
- public:
+public:
   TestStackDumpsys3(const TestStackDumpsys3&) = delete;
   TestStackDumpsys3& operator=(const TestStackDumpsys3&) = delete;
   virtual ~TestStackDumpsys3() = default;
@@ -284,7 +279,7 @@ class TestStackDumpsys3 : public TestStackDumpsysBase {
 
   void TestMethod(TestData test_data) const override;
 
- private:
+private:
   struct impl;
   std::shared_ptr<impl> impl_;
   TestStackDumpsys3();
@@ -293,13 +288,12 @@ class TestStackDumpsys3 : public TestStackDumpsysBase {
 struct TestStackDumpsys3::impl : public ModuleMainloop, public ModuleJniloop {
   void test(TestData test_data) {
     TestCallbackData callback_data{
-        .iter = test_data.iter,
-        .tag = std::string(__func__),
+            .iter = test_data.iter,
+            .tag = std::string(__func__),
     };
-    PostFunctionOnMain(
-        [](std::function<void(TestCallbackData callback_data)> callback,
-           TestCallbackData data) { callback(data); },
-        test_data.callback, callback_data);
+    PostFunctionOnMain([](std::function<void(TestCallbackData callback_data)> callback,
+                          TestCallbackData data) { callback(data); },
+                       test_data.callback, callback_data);
   }
 };
 
@@ -312,7 +306,7 @@ void TestStackDumpsys3::TestMethod(TestData test_data) const {
 }
 
 class TestStackDumpsys4 : public TestStackDumpsysBase {
- public:
+public:
   TestStackDumpsys4(const TestStackDumpsys4&) = delete;
   TestStackDumpsys4& operator=(const TestStackDumpsys3&) = delete;
   virtual ~TestStackDumpsys4() = default;
@@ -323,7 +317,7 @@ class TestStackDumpsys4 : public TestStackDumpsysBase {
     log::info("mod:{} iter:{} tag:{}", __func__, test_data.iter, test_data.tag);
   }
 
- private:
+private:
   struct impl;
   std::shared_ptr<impl> impl_;
   TestStackDumpsys4() : TestStackDumpsysBase() {}
@@ -332,33 +326,31 @@ class TestStackDumpsys4 : public TestStackDumpsysBase {
 struct TestStackDumpsys4::impl : public ModuleMainloop, public ModuleJniloop {};
 
 const ModuleFactory TestStackDumpsysBase::Factory =
-    ModuleFactory([]() { return new TestStackDumpsysBase(); });
+        ModuleFactory([]() { return new TestStackDumpsysBase(); });
 
 const ModuleFactory TestStackDumpsys1::Factory =
-    ModuleFactory([]() { return new TestStackDumpsys1(); });
+        ModuleFactory([]() { return new TestStackDumpsys1(); });
 const ModuleFactory TestStackDumpsys2::Factory =
-    ModuleFactory([]() { return new TestStackDumpsys2(); });
+        ModuleFactory([]() { return new TestStackDumpsys2(); });
 const ModuleFactory TestStackDumpsys3::Factory =
-    ModuleFactory([]() { return new TestStackDumpsys3(); });
+        ModuleFactory([]() { return new TestStackDumpsys3(); });
 const ModuleFactory TestStackDumpsys4::Factory =
-    ModuleFactory([]() { return new TestStackDumpsys4(); });
+        ModuleFactory([]() { return new TestStackDumpsys4(); });
 
 class StackWithMainThreadUnitTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override { main_thread_ = std::make_unique<MainThread>(); }
   void TearDown() override { main_thread_.reset(); }
 
- private:
+private:
   std::unique_ptr<MainThread> main_thread_;
 };
 
 class StackLifecycleUnitTest : public StackWithMainThreadUnitTest {
- public:
-  std::shared_ptr<TestStackManager> StackManager() const {
-    return stack_manager_;
-  }
+public:
+  std::shared_ptr<TestStackManager> StackManager() const { return stack_manager_; }
 
- protected:
+protected:
   void SetUp() override {
     StackWithMainThreadUnitTest::SetUp();
     stack_manager_ = std::make_shared<TestStackManager>();
@@ -369,12 +361,12 @@ class StackLifecycleUnitTest : public StackWithMainThreadUnitTest {
     StackWithMainThreadUnitTest::TearDown();
   }
 
- private:
+private:
   std::shared_ptr<TestStackManager> stack_manager_;
 };
 
 class MainShimStackDumpsysTest : public StackLifecycleUnitTest {
- protected:
+protected:
   void SetUp() override {
     StackLifecycleUnitTest::SetUp();
     StackManager()->AddModule<TestStackDumpsys1>();
@@ -384,9 +376,8 @@ class MainShimStackDumpsysTest : public StackLifecycleUnitTest {
     StackManager()->Start();
     ASSERT_EQ(4U, StackManager()->NumModules());
 
-    bluetooth::shim::RegisterDumpsysFunction((void*)this, [](int fd) {
-      log::info("Callback to dump legacy data fd:{}", fd);
-    });
+    bluetooth::shim::RegisterDumpsysFunction(
+            (void*)this, [](int fd) { log::info("Callback to dump legacy data fd:{}", fd); });
   }
 
   void TearDown() override {
@@ -399,14 +390,13 @@ struct CallablePostCnt {
   size_t success{0};
   size_t misses{0};
   CallablePostCnt operator+=(const CallablePostCnt& post_cnt) {
-    return CallablePostCnt(
-        {success += post_cnt.success, misses += post_cnt.misses});
+    return CallablePostCnt({success += post_cnt.success, misses += post_cnt.misses});
   }
 };
 
 // Provide a client user of the stack manager module services
 class Client {
- public:
+public:
   Client(int id) : id_(id) {}
   Client(const Client&) = default;
   virtual ~Client() = default;
@@ -416,17 +406,16 @@ class Client {
     thread_ = new os::Thread(common::StringFormat("ClientThread%d", id_),
                              os::Thread::Priority::NORMAL);
     handler_ = new os::Handler(thread_);
-    handler_->Post(common::BindOnce(
-        [](int id) { log::info("<=== tid Started client id:{}", id); }, id_));
+    handler_->Post(
+            common::BindOnce([](int id) { log::info("<=== tid Started client id:{}", id); }, id_));
   }
 
   // Ensure all the client handlers are running
   void Await() {
     std::promise<void> promise;
     std::future future = promise.get_future();
-    handler_->Post(
-        base::BindOnce([](std::promise<void> promise) { promise.set_value(); },
-                       std::move(promise)));
+    handler_->Post(base::BindOnce([](std::promise<void> promise) { promise.set_value(); },
+                                  std::move(promise)));
     future.wait();
   }
 
@@ -442,16 +431,18 @@ class Client {
 
   // Safely prevent new work tasks from being posted
   void Quiesce() {
-    if (quiesced_) return;
+    if (quiesced_) {
+      return;
+    }
     quiesced_ = true;
     std::promise promise = std::promise<void>();
     std::future future = promise.get_future();
     handler_->Post(common::BindOnce(
-        [](std::promise<void> promise, int id) {
-          promise.set_value();
-          log::info("<=== tid Quiesced client id:{}", id);
-        },
-        std::move(promise), id_));
+            [](std::promise<void> promise, int id) {
+              promise.set_value();
+              log::info("<=== tid Quiesced client id:{}", id);
+            },
+            std::move(promise), id_));
     future.wait_for(std::chrono::milliseconds(kSyncMainLoopTimeoutMs));
   }
 
@@ -461,8 +452,7 @@ class Client {
       Quiesce();
     }
     handler_->Clear();
-    handler_->WaitUntilStopped(
-        std::chrono::milliseconds(kWaitUntilHandlerStoppedMs));
+    handler_->WaitUntilStopped(std::chrono::milliseconds(kWaitUntilHandlerStoppedMs));
     delete handler_;
     delete thread_;
   }
@@ -471,11 +461,9 @@ class Client {
 
   CallablePostCnt GetCallablePostCnt() const { return post_cnt_; }
 
-  std::string Name() const {
-    return common::StringFormat("%s%d", __func__, id_);
-  }
+  std::string Name() const { return common::StringFormat("%s%d", __func__, id_); }
 
- private:
+private:
   int id_{0};
   CallablePostCnt post_cnt_{};
   bool quiesced_{false};
@@ -485,7 +473,7 @@ class Client {
 
 // Convenience object to handle multiple clients with logging
 class ClientGroup {
- public:
+public:
   explicit ClientGroup(size_t num_clients) {
     for (size_t i = 0; i < num_clients; i++) {
       clients_.emplace_back(std::make_unique<Client>(i));
@@ -524,8 +512,7 @@ class ClientGroup {
   void Dump() const {
     for (auto& c : clients_) {
       log::info("Callable post cnt client_id:{} success:{} misses:{}", c->Id(),
-                c->GetCallablePostCnt().success,
-                c->GetCallablePostCnt().misses);
+                c->GetCallablePostCnt().success, c->GetCallablePostCnt().misses);
     }
   }
 
@@ -543,7 +530,7 @@ class ClientGroup {
 };
 
 class MainShimStackDumpsysWithClientsTest : public MainShimStackDumpsysTest {
- protected:
+protected:
   void SetUp() override {
     MainShimStackDumpsysTest::SetUp();
     client_group_.Start();
@@ -560,10 +547,10 @@ class MainShimStackDumpsysWithClientsTest : public MainShimStackDumpsysTest {
 
 TEST_F(MainShimStackDumpsysWithClientsTest, all_clients_check_stack_running) {
   StackRunningData stack_running_data = {
-      .cb =
-          [](bool is_stack_running) {
-            log::info("Stack is running:{}", (is_stack_running) ? 'T' : 'F');
-          },
+          .cb =
+                  [](bool is_stack_running) {
+                    log::info("Stack is running:{}", (is_stack_running) ? 'T' : 'F');
+                  },
   };
 
   // Ensure the dumpsys instance is included within the stack
@@ -571,24 +558,23 @@ TEST_F(MainShimStackDumpsysWithClientsTest, all_clients_check_stack_running) {
 
   for (auto& c : client_group_.clients_) {
     c->Post(base::BindOnce(
-        [](StackRunningData stack_running_data) {
-          bluetooth::shim::Stack::GetInstance()
-              ->GetStackManager()
-              ->GetInstance<TestStackDumpsys1>()
-              ->IsStackRunning(stack_running_data);
-        },
-        stack_running_data));
+            [](StackRunningData stack_running_data) {
+              bluetooth::shim::Stack::GetInstance()
+                      ->GetStackManager()
+                      ->GetInstance<TestStackDumpsys1>()
+                      ->IsStackRunning(stack_running_data);
+            },
+            stack_running_data));
   }
 }
 
-TEST_F(MainShimStackDumpsysWithClientsTest,
-       all_clients_check_stack_running_with_iterations) {
+TEST_F(MainShimStackDumpsysWithClientsTest, all_clients_check_stack_running_with_iterations) {
   StackRunningData stack_running_data = {
-      .cb =
-          [](bool is_stack_running) {
-            log::info("Run on mainloop: Stack is running:{}",
-                      (is_stack_running) ? 'T' : 'F');
-          },
+          .cb =
+                  [](bool is_stack_running) {
+                    log::info("Run on mainloop: Stack is running:{}",
+                              (is_stack_running) ? 'T' : 'F');
+                  },
   };
 
   // Ensure the dumpsys instance is included within the stack
@@ -598,13 +584,13 @@ TEST_F(MainShimStackDumpsysWithClientsTest,
     log::info("Iteration:{}", i);
     for (auto& c : client_group_.clients_) {
       c->Post(base::BindOnce(
-          [](StackRunningData stack_running_data) {
-            bluetooth::shim::Stack::GetInstance()
-                ->GetStackManager()
-                ->GetInstance<TestStackDumpsys1>()
-                ->IsStackRunning(stack_running_data);
-          },
-          stack_running_data));
+              [](StackRunningData stack_running_data) {
+                bluetooth::shim::Stack::GetInstance()
+                        ->GetStackManager()
+                        ->GetInstance<TestStackDumpsys1>()
+                        ->IsStackRunning(stack_running_data);
+              },
+              stack_running_data));
     }
   }
 }
@@ -615,16 +601,15 @@ TEST_F(MainShimStackDumpsysWithClientsTest, dumpsys_single_client) {
 
   const int fd = 1;
   client_group_.clients_[0]->Post(
-      base::BindOnce([](int fd) { bluetooth::shim::Dump(fd, nullptr); }, fd));
+          base::BindOnce([](int fd) { bluetooth::shim::Dump(fd, nullptr); }, fd));
 }
 
-TEST_F(MainShimStackDumpsysWithClientsTest,
-       dumpsys_single_client_with_running_check) {
+TEST_F(MainShimStackDumpsysWithClientsTest, dumpsys_single_client_with_running_check) {
   StackRunningData stack_running_data = {
-      .cb =
-          [](bool is_stack_running) {
-            log::info("Stack is running:{}", (is_stack_running) ? 'T' : 'F');
-          },
+          .cb =
+                  [](bool is_stack_running) {
+                    log::info("Stack is running:{}", (is_stack_running) ? 'T' : 'F');
+                  },
   };
 
   // Ensure the dumpsys instance is included within the stack
@@ -632,28 +617,27 @@ TEST_F(MainShimStackDumpsysWithClientsTest,
 
   const int fd = 1;
   client_group_.clients_[0]->Post(base::BindOnce(
-      [](StackRunningData stack_running_data) {
-        bluetooth::shim::Stack::GetInstance()
-            ->GetStackManager()
-            ->GetInstance<TestStackDumpsys1>()
-            ->IsStackRunning(stack_running_data);
-      },
-      stack_running_data));
+          [](StackRunningData stack_running_data) {
+            bluetooth::shim::Stack::GetInstance()
+                    ->GetStackManager()
+                    ->GetInstance<TestStackDumpsys1>()
+                    ->IsStackRunning(stack_running_data);
+          },
+          stack_running_data));
   client_group_.clients_[0]->Post(
-      base::BindOnce([](int fd) { bluetooth::shim::Dump(fd, nullptr); }, fd));
+          base::BindOnce([](int fd) { bluetooth::shim::Dump(fd, nullptr); }, fd));
 }
 
 TEST_F(MainShimStackDumpsysWithClientsTest, dumpsys_many_clients) {
   StackRunningData stack_running_data = {
-      .cb =
-          [](bool is_stack_running) {
-            log::info("Stack is running:{}", (is_stack_running) ? 'T' : 'F');
-          },
+          .cb =
+                  [](bool is_stack_running) {
+                    log::info("Stack is running:{}", (is_stack_running) ? 'T' : 'F');
+                  },
   };
 
   const int fd = 1;
   for (auto& c : client_group_.clients_) {
-    c->Post(
-        base::BindOnce([](int fd) { bluetooth::shim::Dump(fd, nullptr); }, fd));
+    c->Post(base::BindOnce([](int fd) { bluetooth::shim::Dump(fd, nullptr); }, fd));
   }
 }

@@ -290,10 +290,10 @@ public class BluetoothPbapSimVcardManagerTest {
                                         return nameList.get(currentPosition.get());
                                     });
 
-            ArrayList<String> result =
+            List<String> result =
                     mManager.getSIMPhonebookNameList(BluetoothPbapObexServer.ORDER_BY_INDEXED);
 
-            ArrayList<String> expectedResult = new ArrayList<>();
+            List<String> expectedResult = new ArrayList<>();
             expectedResult.add(localPhoneName);
             expectedResult.addAll(nameList);
 

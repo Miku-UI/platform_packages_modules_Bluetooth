@@ -69,15 +69,15 @@ struct StreamCallbacks {
 
 struct OffloadCapabilities {
   std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-      unicast_offload_capabilities;
+          unicast_offload_capabilities;
   std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-      broadcast_offload_capabilities;
+          broadcast_offload_capabilities;
 };
 
 OffloadCapabilities get_offload_capabilities();
 
 class LeAudioClientInterface {
- public:
+public:
   struct PcmParameters {
     uint32_t data_interval_us;
     uint32_t sample_rate;
@@ -85,9 +85,9 @@ class LeAudioClientInterface {
     uint8_t channels_count;
   };
 
- private:
+private:
   class IClientInterfaceEndpoint {
-   public:
+  public:
     virtual ~IClientInterfaceEndpoint() = default;
     virtual void Cleanup() = 0;
     virtual void SetPcmParameters(const PcmParameters& params) = 0;
@@ -96,18 +96,15 @@ class LeAudioClientInterface {
     virtual void StopSession() = 0;
     virtual void ConfirmStreamingRequest() = 0;
     virtual void CancelStreamingRequest() = 0;
-    virtual void ConfirmStreamingRequestV2() = 0;
-    virtual void CancelStreamingRequestV2() = 0;
-    virtual void UpdateAudioConfigToHal(
-        const ::bluetooth::le_audio::offload_config& config) = 0;
+    virtual void UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) = 0;
     virtual void SuspendedForReconfiguration() = 0;
     virtual void ReconfigurationComplete() = 0;
   };
 
- public:
+public:
   class Sink : public IClientInterfaceEndpoint {
-   public:
-    Sink(bool is_broadcaster = false) : is_broadcaster_(is_broadcaster){};
+  public:
+    Sink(bool is_broadcaster = false) : is_broadcaster_(is_broadcaster) {}
     virtual ~Sink() = default;
 
     void Cleanup() override;
@@ -117,35 +114,28 @@ class LeAudioClientInterface {
     void StopSession() override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
-    void ConfirmStreamingRequestV2() override;
-    void CancelStreamingRequestV2() override;
-    void UpdateAudioConfigToHal(
-        const ::bluetooth::le_audio::offload_config& config) override;
+    void UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) override;
     void UpdateBroadcastAudioConfigToHal(
-        const ::bluetooth::le_audio::broadcast_offload_config& config);
+            const ::bluetooth::le_audio::broadcast_offload_config& config);
     void SuspendedForReconfiguration() override;
     void ReconfigurationComplete() override;
     // Read the stream of bytes sinked to us by the upper layers
     size_t Read(uint8_t* p_buf, uint32_t len);
     bool IsBroadcaster() { return is_broadcaster_; }
-    std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
-    GetBroadcastConfig(
-        const std::vector<std::pair<
-            ::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
-            subgroup_quality,
-        const std::optional<
-            std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs)
-        const;
-    std::optional<
-        ::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
-    GetUnicastConfig(const ::bluetooth::le_audio::CodecManager::
-                         UnicastConfigurationRequirements& requirements) const;
+    std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration> GetBroadcastConfig(
+            const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
+                    subgroup_quality,
+            const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs)
+            const;
+    std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+    GetUnicastConfig(const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements&
+                             requirements) const;
 
-   private:
+  private:
     bool is_broadcaster_ = false;
   };
   class Source : public IClientInterfaceEndpoint {
-   public:
+  public:
     virtual ~Source() = default;
 
     void Cleanup() override;
@@ -155,10 +145,7 @@ class LeAudioClientInterface {
     void StopSession() override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
-    void ConfirmStreamingRequestV2() override;
-    void CancelStreamingRequestV2() override;
-    void UpdateAudioConfigToHal(
-        const ::bluetooth::le_audio::offload_config& config) override;
+    void UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) override;
     void SuspendedForReconfiguration() override;
     void ReconfigurationComplete() override;
     // Source the given stream of bytes to be sinked into the upper layers
@@ -167,8 +154,7 @@ class LeAudioClientInterface {
 
   // Get LE Audio sink client interface if it's not previously acquired and not
   // yet released.
-  Sink* GetSink(StreamCallbacks stream_cb,
-                bluetooth::common::MessageLoopThread* message_loop,
+  Sink* GetSink(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop,
                 bool is_broadcasting_session_type);
   // This should be called before trying to get unicast sink interface
   bool IsUnicastSinkAcquired();
@@ -179,8 +165,7 @@ class LeAudioClientInterface {
 
   // Get LE Audio source client interface if it's not previously acquired and
   // not yet released.
-  Source* GetSource(StreamCallbacks stream_cb,
-                    bluetooth::common::MessageLoopThread* message_loop);
+  Source* GetSource(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop);
   // This should be called before trying to get source interface
   bool IsSourceAcquired();
   // Release source interface if belongs to LE audio client interface
@@ -193,7 +178,7 @@ class LeAudioClientInterface {
   // singleton.
   static LeAudioClientInterface* Get();
 
- private:
+private:
   static LeAudioClientInterface* interface;
   Sink* unicast_sink_ = nullptr;
   Sink* broadcast_sink_ = nullptr;

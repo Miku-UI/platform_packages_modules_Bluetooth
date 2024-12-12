@@ -28,7 +28,7 @@
 #include "struct_def.h"
 
 class Declarations {
- public:
+public:
   void AddTypeDef(std::string name, TypeDef* def) {
     auto it = type_defs_.find(name);
     if (it != type_defs_.end()) {

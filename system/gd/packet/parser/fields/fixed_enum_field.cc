@@ -15,6 +15,7 @@
  */
 
 #include "fields/fixed_enum_field.h"
+
 #include "util.h"
 
 const std::string FixedEnumField::kFieldType = "FixedEnumField";
@@ -22,14 +23,8 @@ const std::string FixedEnumField::kFieldType = "FixedEnumField";
 FixedEnumField::FixedEnumField(EnumDef* enum_def, std::string value, ParseLocation loc)
     : FixedField("fixed_enum", enum_def->size_, loc), enum_(enum_def), value_(value) {}
 
-const std::string& FixedEnumField::GetFieldType() const {
-  return FixedEnumField::kFieldType;
-}
+const std::string& FixedEnumField::GetFieldType() const { return FixedEnumField::kFieldType; }
 
-std::string FixedEnumField::GetDataType() const {
-  return enum_->name_;
-}
+std::string FixedEnumField::GetDataType() const { return enum_->name_; }
 
-void FixedEnumField::GenValue(std::ostream& s) const {
-  s << enum_->name_ << "::" << value_;
-}
+void FixedEnumField::GenValue(std::ostream& s) const { s << enum_->name_ << "::" << value_; }

@@ -144,13 +144,13 @@ public class SdpManager {
         SdpSearchInstance getSearchInstance(byte[] address, byte[] uuidBytes) {
             String addressString = Utils.getAddressStringFromByte(address);
             addressString =
-                    Flags.identityAddressNullIfUnknown()
+                    Flags.identityAddressNullIfNotKnown()
                             ? Utils.getBrEdrAddress(addressString, mAdapterService)
                             : mAdapterService.getIdentityAddress(addressString);
             ParcelUuid uuid = Utils.byteArrayToUuid(uuidBytes)[0];
             for (SdpSearchInstance inst : mList) {
                 String instAddressString =
-                        Flags.identityAddressNullIfUnknown()
+                        Flags.identityAddressNullIfNotKnown()
                                 ? Utils.getBrEdrAddress(inst.getDevice(), mAdapterService)
                                 : mAdapterService.getIdentityAddress(inst.getDevice().getAddress());
                 if (instAddressString.equals(addressString) && inst.getUuid().equals(uuid)) {
@@ -162,12 +162,12 @@ public class SdpManager {
 
         boolean isSearching(BluetoothDevice device, ParcelUuid uuid) {
             String addressString =
-                    Flags.identityAddressNullIfUnknown()
+                    Flags.identityAddressNullIfNotKnown()
                             ? Utils.getBrEdrAddress(device, mAdapterService)
                             : mAdapterService.getIdentityAddress(device.getAddress());
             for (SdpSearchInstance inst : mList) {
                 String instAddressString =
-                        Flags.identityAddressNullIfUnknown()
+                        Flags.identityAddressNullIfNotKnown()
                                 ? Utils.getBrEdrAddress(inst.getDevice(), mAdapterService)
                                 : mAdapterService.getIdentityAddress(inst.getDevice().getAddress());
                 if (instAddressString != null
@@ -473,7 +473,7 @@ public class SdpManager {
             inst.startSearch(); // Trigger timeout message
 
             mNativeInterface.sdpSearch(
-                    Flags.identityAddressNullIfUnknown()
+                    Flags.identityAddressNullIfNotKnown()
                             ? Utils.getByteBrEdrAddress(inst.getDevice())
                             : mAdapterService.getByteIdentityAddress(inst.getDevice()),
                     Utils.uuidToByteArray(inst.getUuid()));

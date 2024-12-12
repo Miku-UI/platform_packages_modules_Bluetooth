@@ -47,7 +47,7 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -157,19 +157,10 @@ public class BluetoothOppReceiveFileInfo {
             Log.i(Constants.TAG, " File Name Length :" + filename.length());
             Log.i(Constants.TAG, " File Name Length in Bytes:" + filename.getBytes().length);
 
-            try {
-                byte[] oldfilename = filename.getBytes("UTF-8");
-                byte[] newfilename = new byte[OPP_LENGTH_OF_FILE_NAME];
-                System.arraycopy(oldfilename, 0, newfilename, 0, OPP_LENGTH_OF_FILE_NAME);
-                filename = new String(newfilename, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_RECEIVE_FILE_INFO,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        0);
-                Log.e(Constants.TAG, "Exception: " + e);
-            }
+            byte[] oldfilename = filename.getBytes(StandardCharsets.UTF_8);
+            byte[] newfilename = new byte[OPP_LENGTH_OF_FILE_NAME];
+            System.arraycopy(oldfilename, 0, newfilename, 0, OPP_LENGTH_OF_FILE_NAME);
+            filename = new String(newfilename, StandardCharsets.UTF_8);
             Log.d(Constants.TAG, "File name is too long. Name is truncated as: " + filename);
         }
 

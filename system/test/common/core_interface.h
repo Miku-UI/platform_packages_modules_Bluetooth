@@ -27,5 +27,5 @@ struct MockCoreInterface : bluetooth::core::CoreInterface {
   void onBluetoothEnabled() override;
   bt_status_t toggleProfile(tBTA_SERVICE_ID service_id, bool enable) override;
   void removeDeviceFromProfiles(const RawAddress& bd_addr) override;
-  void onLinkDown(const RawAddress& bd_addr) override;
+  void onLinkDown(const RawAddress& bd_addr, tBT_TRANSPORT transport) override;
 };

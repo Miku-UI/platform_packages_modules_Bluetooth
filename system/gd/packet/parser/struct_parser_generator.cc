@@ -44,17 +44,20 @@ void StructParserGenerator::explore_children(const TreeNode& node, std::ostream&
     s << "if (!" << field->GetName() << "_child_found && ";
     s << child->struct_def_->name_ << "::IsInstance(*" << field->GetName() << "_value.get())) {";
     s << field->GetName() << "_child_found = true;";
-    s << "std::unique_ptr<" << child->struct_def_->name_ << "> " << child->packet_field_->GetName() << "_value;";
+    s << "std::unique_ptr<" << child->struct_def_->name_ << "> " << child->packet_field_->GetName()
+      << "_value;";
     s << child->packet_field_->GetName() << "_value.reset(new ";
     s << child->struct_def_->name_ << "(*" << field->GetName() << "_value));";
     if (child->struct_def_->fields_.HasBody()) {
       s << "auto optional_it = ";
-      s << child->struct_def_->name_ << "::Parse( " << child->packet_field_->GetName() << "_value.get(), ";
+      s << child->struct_def_->name_ << "::Parse( " << child->packet_field_->GetName()
+        << "_value.get(), ";
       s << "to_bound, false);";
       s << "if (optional_it) {";
       s << "} else { return " << field->GetName() << "_value;}";
     } else {
-      s << child->struct_def_->name_ << "::Parse( " << child->packet_field_->GetName() << "_value.get(), ";
+      s << child->struct_def_->name_ << "::Parse( " << child->packet_field_->GetName()
+        << "_value.get(), ";
       s << "to_bound, false);";
     }
     explore_children(*child, s);
@@ -70,7 +73,8 @@ void StructParserGenerator::Generate(std::ostream& s) const {
       continue;
     }
     auto field = node.packet_field_;
-    s << "inline std::unique_ptr<" << node.struct_def_->name_ << "> Parse" << node.struct_def_->name_;
+    s << "inline std::unique_ptr<" << node.struct_def_->name_ << "> Parse"
+      << node.struct_def_->name_;
     if (is_little_endian) {
       s << "(Iterator<kLittleEndian> to_bound) {";
     } else {

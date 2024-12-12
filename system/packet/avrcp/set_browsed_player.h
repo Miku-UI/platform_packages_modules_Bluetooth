@@ -22,26 +22,26 @@ namespace bluetooth {
 namespace avrcp {
 
 class SetBrowsedPlayerResponseBuilder : public BrowsePacketBuilder {
- public:
+public:
   virtual ~SetBrowsedPlayerResponseBuilder() = default;
 
-  static std::unique_ptr<SetBrowsedPlayerResponseBuilder> MakeBuilder(
-      Status status, uint16_t uid_counter, uint32_t num_items_in_folder,
-      uint8_t folder_depth, std::string folder_name);
+  static std::unique_ptr<SetBrowsedPlayerResponseBuilder> MakeBuilder(Status status,
+                                                                      uint16_t uid_counter,
+                                                                      uint32_t num_items_in_folder,
+                                                                      uint8_t folder_depth,
+                                                                      std::string folder_name);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   Status status_;
   uint16_t uid_counter_;
   uint32_t num_items_in_folder_;
   uint8_t folder_depth_;
   std::string folder_name_;
 
-  SetBrowsedPlayerResponseBuilder(Status status, uint16_t uid_counter,
-                                  uint32_t num_items_in_folder,
+  SetBrowsedPlayerResponseBuilder(Status status, uint16_t uid_counter, uint32_t num_items_in_folder,
                                   uint8_t folder_depth, std::string folder_name)
       : BrowsePacketBuilder(BrowsePdu::SET_BROWSED_PLAYER),
         status_(status),
@@ -52,7 +52,7 @@ class SetBrowsedPlayerResponseBuilder : public BrowsePacketBuilder {
 };
 
 class SetBrowsedPlayerRequest : public BrowsePacket {
- public:
+public:
   virtual ~SetBrowsedPlayerRequest() = default;
 
   /**
@@ -70,7 +70,7 @@ class SetBrowsedPlayerRequest : public BrowsePacket {
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using BrowsePacket::BrowsePacket;
 };
 

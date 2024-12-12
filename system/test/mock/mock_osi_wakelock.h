@@ -41,7 +41,7 @@ namespace osi_wakelock {
 struct wakelock_acquire {
   bool return_value{false};
   std::function<bool(void)> body{[this](void) { return return_value; }};
-  bool operator()(void) { return body(); };
+  bool operator()(void) { return body(); }
 };
 extern struct wakelock_acquire wakelock_acquire;
 
@@ -50,7 +50,7 @@ extern struct wakelock_acquire wakelock_acquire;
 // Return: void
 struct wakelock_cleanup {
   std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); };
+  void operator()(void) { body(); }
 };
 extern struct wakelock_cleanup wakelock_cleanup;
 
@@ -59,7 +59,7 @@ extern struct wakelock_cleanup wakelock_cleanup;
 // Return: void
 struct wakelock_debug_dump {
   std::function<void(int fd)> body{[](int /* fd */) {}};
-  void operator()(int fd) { body(fd); };
+  void operator()(int fd) { body(fd); }
 };
 extern struct wakelock_debug_dump wakelock_debug_dump;
 
@@ -69,7 +69,7 @@ extern struct wakelock_debug_dump wakelock_debug_dump;
 struct wakelock_release {
   bool return_value{false};
   std::function<bool(void)> body{[this](void) { return return_value; }};
-  bool operator()(void) { return body(); };
+  bool operator()(void) { return body(); }
 };
 extern struct wakelock_release wakelock_release;
 
@@ -77,9 +77,8 @@ extern struct wakelock_release wakelock_release;
 // Params: bt_os_callouts_t* callouts
 // Return: void
 struct wakelock_set_os_callouts {
-  std::function<void(bt_os_callouts_t* callouts)> body{
-      [](bt_os_callouts_t* /* callouts */) {}};
-  void operator()(bt_os_callouts_t* callouts) { body(callouts); };
+  std::function<void(bt_os_callouts_t* callouts)> body{[](bt_os_callouts_t* /* callouts */) {}};
+  void operator()(bt_os_callouts_t* callouts) { body(callouts); }
 };
 extern struct wakelock_set_os_callouts wakelock_set_os_callouts;
 
@@ -88,10 +87,8 @@ extern struct wakelock_set_os_callouts wakelock_set_os_callouts;
 // Return: void
 struct wakelock_set_paths {
   std::function<void(const char* lock_path, const char* unlock_path)> body{
-      [](const char* /* lock_path */, const char* /* unlock_path */) {}};
-  void operator()(const char* lock_path, const char* unlock_path) {
-    body(lock_path, unlock_path);
-  };
+          [](const char* /* lock_path */, const char* /* unlock_path */) {}};
+  void operator()(const char* lock_path, const char* unlock_path) { body(lock_path, unlock_path); }
 };
 extern struct wakelock_set_paths wakelock_set_paths;
 

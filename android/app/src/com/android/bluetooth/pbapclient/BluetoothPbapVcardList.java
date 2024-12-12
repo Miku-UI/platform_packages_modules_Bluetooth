@@ -33,13 +33,14 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.List;
 
 class BluetoothPbapVcardList {
     private static final String TAG = BluetoothPbapVcardList.class.getSimpleName();
     // {@link BufferedInputStream#DEFAULT_BUFFER_SIZE} is not public
     private static final int BIS_DEFAULT_BUFFER_SIZE = 8192;
 
-    private final ArrayList<VCardEntry> mCards = new ArrayList<VCardEntry>();
+    private final List<VCardEntry> mCards = new ArrayList<VCardEntry>();
     private final Account mAccount;
 
     class CardEntryHandler implements VCardEntryHandler {
@@ -135,7 +136,7 @@ class BluetoothPbapVcardList {
         return mCards.size();
     }
 
-    public ArrayList<VCardEntry> getList() {
+    public List<VCardEntry> getList() {
         return mCards;
     }
 

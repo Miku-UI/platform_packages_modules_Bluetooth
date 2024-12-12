@@ -103,7 +103,9 @@ impl DisconnectWatcher {
     pub async fn setup_watch(&mut self, conn: Arc<SyncConnection>) {
         let mr = MatchRule::new_signal("org.freedesktop.DBus", "NameOwnerChanged");
 
-        conn.add_match_no_cb(&mr.match_str()).await.unwrap();
+        conn.add_match_no_cb(&mr.match_str())
+            .await
+            .expect("Unable to add match to D-Bus for monitoring client disconnects");
         let callbacks_map = self.callbacks.clone();
         conn.start_receive(
             mr,

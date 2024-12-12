@@ -18,39 +18,37 @@
 
 /******************************************************************************
  *
- *  This module contains the AVDTP adaption layer.
+ *  This module contains the AVDTP adaptation layer.
  *
  ******************************************************************************/
 
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "avdt_api.h"
 #include "avdt_int.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
-#include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_sec_api_types.h"
+#include "stack/include/l2cap_interface.h"
 
 using namespace bluetooth;
 
-AvdtpScb* AvdtpAdaptationLayer::LookupAvdtpScb(
-    const AvdtpTransportChannel& tc) {
+AvdtpScb* AvdtpAdaptationLayer::LookupAvdtpScb(const AvdtpTransportChannel& tc) {
   if (tc.ccb_idx >= AVDT_NUM_LINKS) {
-    log::error("AvdtpScb entry not found: invalid ccb_idx:{}", tc.ccb_idx);
+    log::error("AvdtpScb entry not found: invalid ccb_idx: {}", tc.ccb_idx);
     return nullptr;
   }
   if (tc.tcid >= AVDT_NUM_RT_TBL) {
-    log::error("AvdtpScb entry not found: invalid tcid:{}", tc.tcid);
+    log::error("AvdtpScb entry not found: invalid tcid: {}", tc.tcid);
     return nullptr;
   }
   const AvdtpRoutingEntry& re = rt_tbl[tc.ccb_idx][tc.tcid];
-  log::verbose("ccb_idx:{} tcid:{} scb_hdl:{}", tc.ccb_idx, tc.tcid,
-               re.scb_hdl);
+  log::verbose("ccb_idx: {} tcid: {} scb_hdl: {}", tc.ccb_idx, tc.tcid, re.scb_hdl);
   return avdt_scb_by_hdl(re.scb_hdl);
 }
 
@@ -74,9 +72,7 @@ uint8_t avdt_ad_type_to_tcid(uint8_t type, AvdtpScb* p_scb) {
   uint8_t scb_idx = (avdt_scb_to_hdl(p_scb) - 1) % AVDT_NUM_LINKS;
   // There are AVDT_CHAN_NUM_TYPES channel types per SEP. Here we compute
   // the type index (TCID) from the SEP index and the type itself.
-  uint8_t tcid = (scb_idx * (AVDT_CHAN_NUM_TYPES - 1)) + type;
-  log::verbose("type:{}, tcid: {}", type, tcid);
-  return tcid;
+  return (scb_idx * (AVDT_CHAN_NUM_TYPES - 1)) + type;
 }
 
 /*******************************************************************************
@@ -90,27 +86,22 @@ uint8_t avdt_ad_type_to_tcid(uint8_t type, AvdtpScb* p_scb) {
  *
  ******************************************************************************/
 static uint8_t avdt_ad_tcid_to_type(uint8_t tcid) {
-  uint8_t type;
-
   if (tcid == 0) {
-    type = AVDT_CHAN_SIG;
-  } else {
-    /* tcid translates to type based on number of channels, as follows:
-    ** only media channel   :  tcid=1,2,3,4,5,6...  type=1,1,1,1,1,1...
-    ** media and report     :  tcid=1,2,3,4,5,6...  type=1,2,1,2,1,2...
-    ** media, report, recov :  tcid=1,2,3,4,5,6...  type=1,2,3,1,2,3...
-    */
-    type = ((tcid + AVDT_CHAN_NUM_TYPES - 2) % (AVDT_CHAN_NUM_TYPES - 1)) + 1;
+    return AVDT_CHAN_SIG;
   }
-  log::verbose("tcid: {}, type: {}", tcid, type);
-  return type;
+  /* tcid translates to type based on number of channels, as follows:
+  ** only media channel   :  tcid=1,2,3,4,5,6...  type=1,1,1,1,1,1...
+  ** media and report     :  tcid=1,2,3,4,5,6...  type=1,2,1,2,1,2...
+  ** media, report, recov :  tcid=1,2,3,4,5,6...  type=1,2,3,1,2,3...
+  */
+  return ((tcid + AVDT_CHAN_NUM_TYPES - 2) % (AVDT_CHAN_NUM_TYPES - 1)) + 1;
 }
 
 /*******************************************************************************
  *
  * Function         avdt_ad_init
  *
- * Description      Initialize adaption layer.
+ * Description      Initialize adaptation layer.
  *
  *
  * Returns          Nothing.
@@ -131,7 +122,7 @@ void avdt_ad_init(void) {
  *
  * Function         avdt_ad_tc_tbl_by_st
  *
- * Description      Find adaption layer transport channel table entry matching
+ * Description      Find adaptation layer transport channel table entry matching
  *                  the given state.
  *
  *
@@ -140,8 +131,7 @@ void avdt_ad_init(void) {
  *                  first matching entry (there could be more than one).
  *
  ******************************************************************************/
-AvdtpTransportChannel* avdt_ad_tc_tbl_by_st(uint8_t type, AvdtpCcb* p_ccb,
-                                            uint8_t state) {
+AvdtpTransportChannel* avdt_ad_tc_tbl_by_st(uint8_t type, AvdtpCcb* p_ccb, uint8_t state) {
   int i;
   AvdtpTransportChannel* p_tbl = avdtp_cb.ad.tc_tbl;
   uint8_t ccb_idx;
@@ -160,14 +150,12 @@ AvdtpTransportChannel* avdt_ad_tc_tbl_by_st(uint8_t type, AvdtpCcb* p_ccb,
     for (i = 0; i < AVDT_NUM_TC_TBL; i++, p_tbl++) {
       if (type == AVDT_CHAN_SIG) {
         /* if control channel, tcid always zero */
-        if ((p_tbl->tcid == 0) && (p_tbl->ccb_idx == ccb_idx) &&
-            (p_tbl->state == state)) {
+        if ((p_tbl->tcid == 0) && (p_tbl->ccb_idx == ccb_idx) && (p_tbl->state == state)) {
           break;
         }
       } else {
         /* if other channel, tcid is always > zero */
-        if ((p_tbl->tcid > 0) && (p_tbl->ccb_idx == ccb_idx) &&
-            (p_tbl->state == state)) {
+        if ((p_tbl->tcid > 0) && (p_tbl->ccb_idx == ccb_idx) && (p_tbl->state == state)) {
           break;
         }
       }
@@ -186,7 +174,7 @@ AvdtpTransportChannel* avdt_ad_tc_tbl_by_st(uint8_t type, AvdtpCcb* p_ccb,
  *
  * Function         avdt_ad_tc_tbl_by_lcid
  *
- * Description      Find adaption layer transport channel table entry by LCID.
+ * Description      Find adaptation layer transport channel table entry by LCID.
  *
  *
  * Returns          Pointer to entry.
@@ -212,8 +200,7 @@ AvdtpTransportChannel* avdt_ad_tc_tbl_by_lcid(uint16_t lcid) {
  * Returns          Pointer to transport channel table entry.
  *
  ******************************************************************************/
-AvdtpTransportChannel* avdt_ad_tc_tbl_by_type(uint8_t type, AvdtpCcb* p_ccb,
-                                              AvdtpScb* p_scb) {
+AvdtpTransportChannel* avdt_ad_tc_tbl_by_type(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
   uint8_t tcid;
   int i;
   AvdtpTransportChannel* p_tbl = avdtp_cb.ad.tc_tbl;
@@ -276,8 +263,6 @@ AvdtpTransportChannel* avdt_ad_tc_tbl_alloc(AvdtpCcb* p_ccb) {
  *
  ******************************************************************************/
 uint8_t avdt_ad_tc_tbl_to_idx(AvdtpTransportChannel* p_tbl) {
-  log::verbose("avdt_ad_tc_tbl_to_idx: {}", (long)(p_tbl - avdtp_cb.ad.tc_tbl));
-  /* use array arithmetic to determine index */
   return (uint8_t)(p_tbl - avdtp_cb.ad.tc_tbl);
 }
 
@@ -300,14 +285,18 @@ void avdt_ad_tc_close_ind(AvdtpTransportChannel* p_tbl) {
   AvdtpScb* p_scb;
   tAVDT_SCB_TC_CLOSE close;
 
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}", fmt::ptr(p_tbl),
+               tc_state_text(p_tbl->state), p_tbl->tcid,
+               tc_type_text(avdt_ad_tcid_to_type(p_tbl->tcid)), p_tbl->ccb_idx,
+               avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl);
+
   close.old_tc_state = p_tbl->state;
   /* clear avdt_ad_tc_tbl entry */
   p_tbl->state = AVDT_AD_ST_UNUSED;
   p_tbl->cfg_flags = 0;
   p_tbl->peer_mtu = L2CAP_DEFAULT_MTU;
 
-  log::verbose("tcid: {}, old: {}", p_tbl->tcid, close.old_tc_state);
-  /* if signaling channel, notify ccb that channel open */
+  /* if signaling channel, notify ccb that channel close */
   if (p_tbl->tcid == 0) {
     p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
     avdt_ccb_event(p_ccb, AVDT_CCB_LL_CLOSE_EVT, NULL);
@@ -317,8 +306,7 @@ void avdt_ad_tc_close_ind(AvdtpTransportChannel* p_tbl) {
   /* look up scb in stream routing table by ccb, tcid */
   p_scb = avdtp_cb.ad.LookupAvdtpScb(*p_tbl);
   if (p_scb == nullptr) {
-    log::error("Cannot find AvdtScb entry: ccb_idx:{} tcid:{}", p_tbl->ccb_idx,
-               p_tbl->tcid);
+    log::error("Cannot find AvdtScb entry: ccb_idx: {} tcid: {}", p_tbl->ccb_idx, p_tbl->tcid);
     return;
   }
   close.tcid = p_tbl->tcid;
@@ -346,8 +334,9 @@ void avdt_ad_tc_open_ind(AvdtpTransportChannel* p_tbl) {
   tAVDT_OPEN open;
   tAVDT_EVT_HDR evt;
 
-  log::verbose("p_tbl:{} state:{} ccb_idx:{} tcid:{} scb_hdl:{}",
-               fmt::ptr(p_tbl), p_tbl->state, p_tbl->ccb_idx, p_tbl->tcid,
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}", fmt::ptr(p_tbl),
+               tc_state_text(p_tbl->state), p_tbl->tcid,
+               tc_type_text(avdt_ad_tcid_to_type(p_tbl->tcid)), p_tbl->ccb_idx,
                avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl);
 
   p_tbl->state = AVDT_AD_ST_OPEN;
@@ -355,10 +344,9 @@ void avdt_ad_tc_open_ind(AvdtpTransportChannel* p_tbl) {
   /* if signaling channel, notify ccb that channel open */
   if (p_tbl->tcid == 0) {
     /* set the signal channel to use high priority within the ACL link */
-    if (!L2CA_SetTxPriority(
-            avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid,
-            L2CAP_CHNL_PRIORITY_HIGH)) {
-      log::warn("Unable to set L2CAP transmit high priority cid:{}",
+    if (!stack::l2cap::get_interface().L2CA_SetTxPriority(
+                avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid, L2CAP_CHNL_PRIORITY_HIGH)) {
+      log::warn("Unable to set L2CAP transmit high priority cid: 0x{:x}",
                 avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][AVDT_CHAN_SIG].lcid);
     }
 
@@ -378,8 +366,7 @@ void avdt_ad_tc_open_ind(AvdtpTransportChannel* p_tbl) {
   /* look up scb in stream routing table by ccb, tcid */
   p_scb = avdtp_cb.ad.LookupAvdtpScb(*p_tbl);
   if (p_scb == nullptr) {
-    log::error("Cannot find AvdtScb entry: ccb_idx:{} tcid:{}", p_tbl->ccb_idx,
-               p_tbl->tcid);
+    log::error("Cannot find AvdtScb entry: ccb_idx: {} tcid: {}", p_tbl->ccb_idx, p_tbl->tcid);
     return;
   }
   /* put lcid in event data */
@@ -409,6 +396,11 @@ void avdt_ad_tc_cong_ind(AvdtpTransportChannel* p_tbl, bool is_congested) {
   AvdtpCcb* p_ccb;
   AvdtpScb* p_scb;
 
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {} is_congested: {}",
+               fmt::ptr(p_tbl), tc_state_text(p_tbl->state), p_tbl->tcid,
+               tc_type_text(avdt_ad_tcid_to_type(p_tbl->tcid)), p_tbl->ccb_idx,
+               avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl, is_congested);
+
   /* if signaling channel, notify ccb of congestion */
   if (p_tbl->tcid == 0) {
     p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
@@ -421,8 +413,7 @@ void avdt_ad_tc_cong_ind(AvdtpTransportChannel* p_tbl, bool is_congested) {
   /* look up scb in stream routing table by ccb, tcid */
   p_scb = avdtp_cb.ad.LookupAvdtpScb(*p_tbl);
   if (p_scb == nullptr) {
-    log::error("Cannot find AvdtScb entry: ccb_idx:{} tcid:{}", p_tbl->ccb_idx,
-               p_tbl->tcid);
+    log::error("Cannot find AvdtScb entry: ccb_idx: {} tcid: {}", p_tbl->ccb_idx, p_tbl->tcid);
     return;
   }
   tAVDT_SCB_EVT avdt_scb_evt;
@@ -458,8 +449,7 @@ void avdt_ad_tc_data_ind(AvdtpTransportChannel* p_tbl, BT_HDR* p_buf) {
   /* if media or other channel, send event to scb */
   p_scb = avdtp_cb.ad.LookupAvdtpScb(*p_tbl);
   if (p_scb == nullptr) {
-    log::error("Cannot find AvdtScb entry: ccb_idx:{} tcid:{}", p_tbl->ccb_idx,
-               p_tbl->tcid);
+    log::error("Cannot find AvdtScb entry: ccb_idx: {} tcid: {}", p_tbl->ccb_idx, p_tbl->tcid);
     osi_free(p_buf);
     log::error("buffer freed");
     return;
@@ -483,15 +473,14 @@ void avdt_ad_tc_data_ind(AvdtpTransportChannel* p_tbl, BT_HDR* p_buf) {
  *                  AVDT_AD_FAILED, if error
  *
  ******************************************************************************/
-uint8_t avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
-                          BT_HDR* p_buf) {
+tL2CAP_DW_RESULT avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, BT_HDR* p_buf) {
   uint8_t tcid;
 
   /* get tcid from type, scb */
   tcid = avdt_ad_type_to_tcid(type, p_scb);
 
-  return L2CA_DataWrite(avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid,
-                        p_buf);
+  return stack::l2cap::get_interface().L2CA_DataWrite(
+          avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid, p_buf);
 }
 
 /*******************************************************************************
@@ -510,59 +499,57 @@ uint8_t avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
  * Returns          Nothing.
  *
  ******************************************************************************/
-void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
-                      uint8_t role) {
+void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t role) {
   AvdtpTransportChannel* p_tbl;
   uint16_t lcid;
 
   p_tbl = avdt_ad_tc_tbl_alloc(p_ccb);
   if (p_tbl == NULL) {
-    log::error("avdt_ad_open_req: Cannot allocate p_tbl");
+    log::error("Cannot allocate p_tbl");
     return;
   }
 
   p_tbl->tcid = avdt_ad_type_to_tcid(type, p_scb);
-  log::verbose("avdt_ad_open_req: type: {}, role: {}, tcid:{}", type, role,
-               p_tbl->tcid);
+  p_tbl->my_mtu = kAvdtpMtu;
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} role: {} my_mtu: {}", fmt::ptr(p_tbl),
+               tc_state_text(p_tbl->state), p_tbl->tcid, tc_type_text(type), role, p_tbl->my_mtu);
 
-  if (type == AVDT_CHAN_SIG) {
-    /* if signaling, get mtu from registration control block */
-    p_tbl->my_mtu = kAvdtpMtu;
-  } else {
-    /* otherwise get mtu from scb */
-    p_tbl->my_mtu = kAvdtpMtu;
-
+  if (type != AVDT_CHAN_SIG) {
     /* also set scb_hdl in rt_tbl */
-    avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].scb_hdl =
-        avdt_scb_to_hdl(p_scb);
-    log::verbose("avdtp_cb.ad.rt_tbl[{}][{}].scb_hdl = {}",
-                 avdt_ccb_to_idx(p_ccb), p_tbl->tcid, avdt_scb_to_hdl(p_scb));
+    avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].scb_hdl = avdt_scb_to_hdl(p_scb);
+    log::verbose("For ccb index: {}, tcid: {} store scb_hdl: {}", avdt_ccb_to_idx(p_ccb),
+                 p_tbl->tcid, avdt_scb_to_hdl(p_scb));
   }
 
-  /* if we're acceptor, we're done; just sit back and listen */
   if (role == AVDT_ACP) {
+    /* if we're acceptor, we're done; just sit back and listen */
     p_tbl->state = AVDT_AD_ST_ACP;
-  }
-  /* else we're inititator, start the L2CAP connection */
-  else {
+  } else {
+    /* else we're inititator, start the L2CAP connection */
     p_tbl->state = AVDT_AD_ST_CONN;
 
     /* call l2cap connect req */
-    lcid = L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
-                                       BTM_SEC_OUT_AUTHENTICATE);
-    if (lcid != 0) {
-      /* if connect req ok, store tcid in lcid table  */
-      avdtp_cb.ad.lcid_tbl[lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
-      log::verbose("avdtp_cb.ad.lcid_tbl[{}] = {}", lcid,
-                   avdt_ad_tc_tbl_to_idx(p_tbl));
-
-      avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].lcid = lcid;
-      log::verbose("avdtp_cb.ad.rt_tbl[{}][{}].lcid = 0x{:x}",
-                   avdt_ccb_to_idx(p_ccb), p_tbl->tcid, lcid);
+    if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
+      lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+              AVDT_PSM, p_ccb->peer_addr, BTM_SEC_OUT_AUTHENTICATE | BTM_SEC_OUT_ENCRYPT);
     } else {
+      lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(AVDT_PSM, p_ccb->peer_addr,
+                                                                       BTM_SEC_OUT_AUTHENTICATE);
+    }
+
+    if (lcid == 0) {
       /* if connect req failed, call avdt_ad_tc_close_ind() */
       avdt_ad_tc_close_ind(p_tbl);
+      return;
     }
+
+    /* if connect req ok, store tcid in lcid table  */
+    avdtp_cb.ad.lcid_tbl[lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
+    log::verbose("For lcid: 0x{:x} store table index: {}", lcid, avdt_ad_tc_tbl_to_idx(p_tbl));
+
+    avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].lcid = lcid;
+    log::verbose("For ccb index: {} and tcid: {} store lcid 0x{:x}", avdt_ccb_to_idx(p_ccb),
+                 p_tbl->tcid, lcid);
   }
 }
 
@@ -579,11 +566,13 @@ void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb,
  *
  ******************************************************************************/
 void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
-  uint8_t tcid;
+  uint16_t lcid;
   AvdtpTransportChannel* p_tbl;
 
   p_tbl = avdt_ad_tc_tbl_by_type(type, p_ccb, p_scb);
-  log::verbose("avdt_ad_close_req state: {}", p_tbl->state);
+  log::verbose("p_tbl: {} state: {} tcid: {} type: {} ccb_idx: {} scb_hdl: {}", fmt::ptr(p_tbl),
+               tc_state_text(p_tbl->state), p_tbl->tcid, tc_type_text(type), p_tbl->ccb_idx,
+               avdtp_cb.ad.rt_tbl[p_tbl->ccb_idx][p_tbl->tcid].scb_hdl);
 
   switch (p_tbl->state) {
     case AVDT_AD_ST_UNUSED:
@@ -594,11 +583,11 @@ void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb) {
       avdt_ad_tc_close_ind(p_tbl);
       break;
     default:
-      /* get tcid from type, scb */
-      tcid = avdt_ad_type_to_tcid(type, p_scb);
-
+      lcid = p_tbl->lcid;
       /* call l2cap disconnect req */
-      avdt_l2c_disconnect(
-          avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][tcid].lcid);
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
+        log::warn("Unable to disconnect L2CAP lcid: 0x{:04x}", lcid);
+      }
+      avdt_ad_tc_close_ind(p_tbl);
   }
 }

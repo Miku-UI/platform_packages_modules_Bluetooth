@@ -114,8 +114,7 @@ void list_clear(list_t* list);
 // the list inside the callback. If an element is added before the node being
 // visited, there will be no callback for the newly-inserted node. Neither
 // |list| nor |callback| may be NULL.
-list_node_t* list_foreach(const list_t* list, list_iter_cb callback,
-                          void* context);
+list_node_t* list_foreach(const list_t* list, list_iter_cb callback, void* context);
 
 // Returns an iterator to the first element in |list|. |list| may not be NULL.
 // The returned iterator is valid as long as it does not equal the value

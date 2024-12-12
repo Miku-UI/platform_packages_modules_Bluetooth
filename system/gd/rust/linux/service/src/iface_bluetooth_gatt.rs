@@ -435,27 +435,24 @@ impl DBusArg for ScanFilterCondition {
         let patterns =
             <<Vec<ScanFilterPattern> as DBusArg>::DBusType as RefArgToRust>::ref_arg_to_rust(
                 variant.as_static_inner(0).unwrap(),
-                format!("ScanFilterCondition::Patterns"),
+                "ScanFilterCondition::Patterns".to_string(),
             )?;
 
         let patterns = Vec::<ScanFilterPattern>::from_dbus(patterns, None, None, None)?;
-        return Ok(ScanFilterCondition::Patterns(patterns));
+        Ok(ScanFilterCondition::Patterns(patterns))
     }
 
     fn to_dbus(
         condition: ScanFilterCondition,
     ) -> Result<dbus::arg::PropMap, Box<dyn std::error::Error>> {
         let mut map: dbus::arg::PropMap = std::collections::HashMap::new();
-        match condition {
-            ScanFilterCondition::Patterns(patterns) => {
-                map.insert(
-                    String::from("patterns"),
-                    dbus::arg::Variant(Box::new(DBusArg::to_dbus(patterns)?)),
-                );
-            }
-            _ => {}
+        if let ScanFilterCondition::Patterns(patterns) = condition {
+            map.insert(
+                String::from("patterns"),
+                dbus::arg::Variant(Box::new(DBusArg::to_dbus(patterns)?)),
+            );
         }
-        return Ok(map);
+        Ok(map)
     }
 
     fn log(condition: &ScanFilterCondition) -> String {
@@ -817,7 +814,7 @@ impl IBluetoothGatt for IBluetoothGattDBus {
 
     #[dbus_method("WriteCharacteristic", DBusLog::Disable)]
     fn write_characteristic(
-        &self,
+        &mut self,
         client_id: i32,
         addr: RawAddress,
         handle: i32,

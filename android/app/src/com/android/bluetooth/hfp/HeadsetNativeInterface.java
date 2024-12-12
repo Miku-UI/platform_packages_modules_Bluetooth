@@ -94,7 +94,7 @@ public class HeadsetNativeInterface {
             // Set bt_stack's active device to default if java layer set active device to null
             return Utils.getBytesFromAddress("00:00:00:00:00:00");
         }
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getByteBrEdrAddress(device);
         } else {
             return mAdapterService.getByteIdentityAddress(device);

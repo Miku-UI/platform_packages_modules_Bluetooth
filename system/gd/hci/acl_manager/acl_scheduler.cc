@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-#include "acl_scheduler.h"
+#include "hci/acl_manager/acl_scheduler.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
+#include <deque>
 #include <optional>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 
 namespace bluetooth {
@@ -41,8 +44,10 @@ struct RemoteNameRequestQueueEntry {
 using QueueEntry = std::variant<AclCreateConnectionQueueEntry, RemoteNameRequestQueueEntry>;
 
 struct AclScheduler::impl {
-  void EnqueueOutgoingAclConnection(Address address, common::ContextualOnceCallback<void()> start_connection) {
-    pending_outgoing_operations_.push_back(AclCreateConnectionQueueEntry{address, std::move(start_connection)});
+  void EnqueueOutgoingAclConnection(Address address,
+                                    common::ContextualOnceCallback<void()> start_connection) {
+    pending_outgoing_operations_.push_back(
+            AclCreateConnectionQueueEntry{address, std::move(start_connection)});
     try_dequeue_next_operation();
   }
 
@@ -51,11 +56,11 @@ struct AclScheduler::impl {
   }
 
   void ReportAclConnectionCompletion(
-      Address address,
-      common::ContextualOnceCallback<void()> handle_outgoing_connection,
-      common::ContextualOnceCallback<void()> handle_incoming_connection,
-      common::ContextualOnceCallback<void(std::string)> handle_unknown_connection) {
-    // Check if an outgoing request (a) exists, (b) is a Create Connection, (c) matches the received address
+          Address address, common::ContextualOnceCallback<void()> handle_outgoing_connection,
+          common::ContextualOnceCallback<void()> handle_incoming_connection,
+          common::ContextualOnceCallback<void(std::string)> handle_unknown_connection) {
+    // Check if an outgoing request (a) exists, (b) is a Create Connection, (c) matches the received
+    // address
     if (outgoing_entry_.has_value()) {
       auto entry = std::get_if<AclCreateConnectionQueueEntry>(&outgoing_entry_.value());
       if (entry != nullptr && entry->address == address) {
@@ -91,28 +96,26 @@ struct AclScheduler::impl {
     try_dequeue_next_operation();
   }
 
-  void CancelAclConnection(
-      Address address,
-      common::ContextualOnceCallback<void()> cancel_connection,
-      common::ContextualOnceCallback<void()> cancel_connection_completed) {
+  void CancelAclConnection(Address address,
+                           common::ContextualOnceCallback<void()> cancel_connection,
+                           common::ContextualOnceCallback<void()> cancel_connection_completed) {
     auto ok = cancel_outgoing_or_queued_connection(
-        [&](auto& entry) {
-          auto entry_ptr = std::get_if<AclCreateConnectionQueueEntry>(&entry);
-          return entry_ptr != nullptr && entry_ptr->address == address;
-        },
-        [&]() { cancel_connection(); },
-        [&](auto /* entry */) { cancel_connection_completed(); });
+            [&](auto& entry) {
+              auto entry_ptr = std::get_if<AclCreateConnectionQueueEntry>(&entry);
+              return entry_ptr != nullptr && entry_ptr->address == address;
+            },
+            [&]() { cancel_connection(); },
+            [&](auto /* entry */) { cancel_connection_completed(); });
     if (!ok) {
       log::error("Attempted to cancel connection to {} that does not exist", address);
     }
   }
 
-  void EnqueueRemoteNameRequest(
-      Address address,
-      common::ContextualOnceCallback<void()> start_request,
-      common::ContextualOnceCallback<void()> cancel_request_completed) {
-    pending_outgoing_operations_.push_back(
-        RemoteNameRequestQueueEntry{address, std::move(start_request), std::move(cancel_request_completed)});
+  void EnqueueRemoteNameRequest(Address address,
+                                common::ContextualOnceCallback<void()> start_request,
+                                common::ContextualOnceCallback<void()> cancel_request_completed) {
+    pending_outgoing_operations_.push_back(RemoteNameRequestQueueEntry{
+            address, std::move(start_request), std::move(cancel_request_completed)});
     try_dequeue_next_operation();
   }
 
@@ -123,48 +126,64 @@ struct AclScheduler::impl {
     }
 
     std::visit(
-        [](auto&& entry) {
-          using T = std::decay_t<decltype(entry)>;
-          if constexpr (std::is_same_v<T, RemoteNameRequestQueueEntry>) {
-            log::info("Remote name request completed");
-          } else if constexpr (std::is_same_v<T, AclCreateConnectionQueueEntry>) {
-            log::error(
-                "Received RNR completion when ACL connection is outstanding - assuming the "
-                "connection has failed and continuing");
-          } else {
-            static_assert(!sizeof(T*), "non-exhaustive visitor!");
-          }
-        },
-        outgoing_entry_.value());
+            [](auto&& entry) {
+              using T = std::decay_t<decltype(entry)>;
+              if constexpr (std::is_same_v<T, RemoteNameRequestQueueEntry>) {
+                log::info("Remote name request completed");
+              } else if constexpr (std::is_same_v<T, AclCreateConnectionQueueEntry>) {
+                log::error(
+                        "Received RNR completion when ACL connection is outstanding - assuming the "
+                        "connection has failed and continuing");
+              } else {
+                static_assert(!sizeof(T*), "non-exhaustive visitor!");
+              }
+            },
+            outgoing_entry_.value());
 
     outgoing_entry_.reset();
     try_dequeue_next_operation();
   }
 
-  void CancelRemoteNameRequest(Address address, common::ContextualOnceCallback<void()> cancel_request) {
+  void CancelRemoteNameRequest(Address address,
+                               common::ContextualOnceCallback<void()> cancel_request) {
     auto ok = cancel_outgoing_or_queued_connection(
-        [&](auto& entry) {
-          auto entry_ptr = std::get_if<RemoteNameRequestQueueEntry>(&entry);
-          return entry_ptr != nullptr && entry_ptr->address == address;
-        },
-        [&]() { cancel_request(); },
-        [](auto entry) { std::get<RemoteNameRequestQueueEntry>(entry).callback_when_cancelled(); });
+            [&](auto& entry) {
+              auto entry_ptr = std::get_if<RemoteNameRequestQueueEntry>(&entry);
+              return entry_ptr != nullptr && entry_ptr->address == address;
+            },
+            [&]() { cancel_request(); },
+            [](auto entry) {
+              std::get<RemoteNameRequestQueueEntry>(entry).callback_when_cancelled();
+            });
     if (!ok) {
       log::error("Attempted to cancel remote name request to {} that does not exist", address);
     }
-  };
-
-  void Stop() {
-    stopped_ = true;
   }
 
- private:
-  void try_dequeue_next_operation() {
+  void Stop() { stopped_ = true; }
+
+private:
+  bool ready_to_send_next_operation() const {
     if (stopped_) {
-      return;
+      return false;
     }
-    if (incoming_connecting_address_set_.empty() && !outgoing_entry_.has_value() &&
-        !pending_outgoing_operations_.empty()) {
+    if (pending_outgoing_operations_.empty()) {
+      return false;
+    }
+    if (com::android::bluetooth::flags::progress_acl_scheduler_upon_incoming_connection()) {
+      if (const RemoteNameRequestQueueEntry* peek =
+                  std::get_if<RemoteNameRequestQueueEntry>(&pending_outgoing_operations_.front())) {
+        if (incoming_connecting_address_set_.contains(peek->address)) {
+          log::info("Pending incoming connection and outgoing RNR to same peer:{}", peek->address);
+          return true;
+        }
+      }
+    }
+    return incoming_connecting_address_set_.empty() && !outgoing_entry_.has_value();
+  }
+
+  void try_dequeue_next_operation() {
+    if (ready_to_send_next_operation()) {
       log::info("Pending connections is not empty; so sending next connection");
       auto entry = std::move(pending_outgoing_operations_.front());
       pending_outgoing_operations_.pop_front();
@@ -183,7 +202,8 @@ struct AclScheduler::impl {
       }
     }
     // Otherwise, clear from the queue
-    auto it = std::find_if(pending_outgoing_operations_.begin(), pending_outgoing_operations_.end(), matcher);
+    auto it = std::find_if(pending_outgoing_operations_.begin(), pending_outgoing_operations_.end(),
+                           matcher);
     if (it == pending_outgoing_operations_.end()) {
       return false;
     }
@@ -194,7 +214,9 @@ struct AclScheduler::impl {
 
   const std::string set_of_incoming_connecting_addresses() const {
     std::stringstream buffer;
-    for (const auto& c : incoming_connecting_address_set_) buffer << " " << c;
+    for (const auto& c : incoming_connecting_address_set_) {
+      buffer << " " << c;
+    }
     return buffer.str();
   }
 
@@ -206,31 +228,27 @@ struct AclScheduler::impl {
 
 const ModuleFactory AclScheduler::Factory = ModuleFactory([]() { return new AclScheduler(); });
 
-AclScheduler::AclScheduler() : pimpl_(std::make_unique<impl>()){};
+AclScheduler::AclScheduler() : pimpl_(std::make_unique<impl>()) {}
 AclScheduler::~AclScheduler() = default;
 
 void AclScheduler::EnqueueOutgoingAclConnection(
-    Address address, common::ContextualOnceCallback<void()> start_connection) {
-  GetHandler()->Call(
-      &impl::EnqueueOutgoingAclConnection, common::Unretained(pimpl_.get()), address, std::move(start_connection));
+        Address address, common::ContextualOnceCallback<void()> start_connection) {
+  GetHandler()->Call(&impl::EnqueueOutgoingAclConnection, common::Unretained(pimpl_.get()), address,
+                     std::move(start_connection));
 }
 
 void AclScheduler::RegisterPendingIncomingConnection(Address address) {
-  GetHandler()->Call(&impl::RegisterPendingIncomingConnection, common::Unretained(pimpl_.get()), address);
+  GetHandler()->Call(&impl::RegisterPendingIncomingConnection, common::Unretained(pimpl_.get()),
+                     address);
 }
 
 void AclScheduler::ReportAclConnectionCompletion(
-    Address address,
-    common::ContextualOnceCallback<void()> handle_outgoing_connection,
-    common::ContextualOnceCallback<void()> handle_incoming_connection,
-    common::ContextualOnceCallback<void(std::string)> handle_unknown_connection) {
-  GetHandler()->Call(
-      &impl::ReportAclConnectionCompletion,
-      common::Unretained(pimpl_.get()),
-      address,
-      std::move(handle_outgoing_connection),
-      std::move(handle_incoming_connection),
-      std::move(handle_unknown_connection));
+        Address address, common::ContextualOnceCallback<void()> handle_outgoing_connection,
+        common::ContextualOnceCallback<void()> handle_incoming_connection,
+        common::ContextualOnceCallback<void(std::string)> handle_unknown_connection) {
+  GetHandler()->Call(&impl::ReportAclConnectionCompletion, common::Unretained(pimpl_.get()),
+                     address, std::move(handle_outgoing_connection),
+                     std::move(handle_incoming_connection), std::move(handle_unknown_connection));
 }
 
 void AclScheduler::ReportOutgoingAclConnectionFailure() {
@@ -238,45 +256,35 @@ void AclScheduler::ReportOutgoingAclConnectionFailure() {
 }
 
 void AclScheduler::CancelAclConnection(
-    Address address,
-    common::ContextualOnceCallback<void()> cancel_connection,
-    common::ContextualOnceCallback<void()> cancel_connection_completed) {
-  GetHandler()->Call(
-      &impl::CancelAclConnection,
-      common::Unretained(pimpl_.get()),
-      address,
-      std::move(cancel_connection),
-      std::move(cancel_connection_completed));
+        Address address, common::ContextualOnceCallback<void()> cancel_connection,
+        common::ContextualOnceCallback<void()> cancel_connection_completed) {
+  GetHandler()->Call(&impl::CancelAclConnection, common::Unretained(pimpl_.get()), address,
+                     std::move(cancel_connection), std::move(cancel_connection_completed));
 }
 
 void AclScheduler::EnqueueRemoteNameRequest(
-    Address address,
-    common::ContextualOnceCallback<void()> start_request,
-    common::ContextualOnceCallback<void()> cancel_request_completed) {
-  GetHandler()->Call(
-      &impl::EnqueueRemoteNameRequest,
-      common::Unretained(pimpl_.get()),
-      address,
-      std::move(start_request),
-      std::move(cancel_request_completed));
+        Address address, common::ContextualOnceCallback<void()> start_request,
+        common::ContextualOnceCallback<void()> cancel_request_completed) {
+  GetHandler()->Call(&impl::EnqueueRemoteNameRequest, common::Unretained(pimpl_.get()), address,
+                     std::move(start_request), std::move(cancel_request_completed));
 }
 
 void AclScheduler::ReportRemoteNameRequestCompletion(Address address) {
-  GetHandler()->Call(&impl::ReportRemoteNameRequestCompletion, common::Unretained(pimpl_.get()), address);
+  GetHandler()->Call(&impl::ReportRemoteNameRequestCompletion, common::Unretained(pimpl_.get()),
+                     address);
 }
 
-void AclScheduler::CancelRemoteNameRequest(Address address, common::ContextualOnceCallback<void()> cancel_request) {
-  GetHandler()->Call(
-      &impl::CancelRemoteNameRequest, common::Unretained(pimpl_.get()), address, std::move(cancel_request));
+void AclScheduler::CancelRemoteNameRequest(Address address,
+                                           common::ContextualOnceCallback<void()> cancel_request) {
+  GetHandler()->Call(&impl::CancelRemoteNameRequest, common::Unretained(pimpl_.get()), address,
+                     std::move(cancel_request));
 }
 
 void AclScheduler::ListDependencies(ModuleList* /* list */) const {}
 
 void AclScheduler::Start() {}
 
-void AclScheduler::Stop() {
-  pimpl_->Stop();
-}
+void AclScheduler::Stop() { pimpl_->Stop(); }
 
 }  // namespace acl_manager
 }  // namespace hci

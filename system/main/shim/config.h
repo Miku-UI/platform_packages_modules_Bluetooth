@@ -25,33 +25,24 @@ namespace bluetooth {
 namespace shim {
 
 class BtifConfigInterface {
- public:
+public:
   ~BtifConfigInterface() = default;
   static bool HasSection(const std::string& section);
-  static bool HasProperty(const std::string& section,
-                          const std::string& property);
-  static bool GetInt(const std::string& section, const std::string& key,
-                     int* value);
-  static bool SetInt(const std::string& section, const std::string& key,
-                     int value);
-  static bool GetUint64(const std::string& section, const std::string& key,
-                        uint64_t* value);
-  static bool SetUint64(const std::string& section, const std::string& key,
-                        uint64_t value);
-  static bool GetStr(const std::string& section, const std::string& key,
-                     char* value, int* size_bytes);
-  static std::optional<std::string> GetStr(const std::string& section,
-                                           const std::string& key);
-  static bool SetStr(const std::string& section, const std::string& key,
-                     const std::string& value);
-  static bool GetBin(const std::string& section, const std::string& key,
-                     uint8_t* value, size_t* length);
-  static size_t GetBinLength(const std::string& section,
-                             const std::string& key);
-  static bool SetBin(const std::string& section, const std::string& key,
-                     const uint8_t* value, size_t length);
-  static bool RemoveProperty(const std::string& section,
-                             const std::string& key);
+  static bool HasProperty(const std::string& section, const std::string& property);
+  static bool GetInt(const std::string& section, const std::string& key, int* value);
+  static bool SetInt(const std::string& section, const std::string& key, int value);
+  static bool GetUint64(const std::string& section, const std::string& key, uint64_t* value);
+  static bool SetUint64(const std::string& section, const std::string& key, uint64_t value);
+  static bool GetStr(const std::string& section, const std::string& key, char* value,
+                     int* size_bytes);
+  static std::optional<std::string> GetStr(const std::string& section, const std::string& key);
+  static bool SetStr(const std::string& section, const std::string& key, const std::string& value);
+  static bool GetBin(const std::string& section, const std::string& key, uint8_t* value,
+                     size_t* length);
+  static size_t GetBinLength(const std::string& section, const std::string& key);
+  static bool SetBin(const std::string& section, const std::string& key, const uint8_t* value,
+                     size_t length);
+  static bool RemoveProperty(const std::string& section, const std::string& key);
   static void RemoveSection(const std::string& section);
   static std::vector<std::string> GetPersistentDevices();
   static void ConvertEncryptOrDecryptKeyIfNeeded();

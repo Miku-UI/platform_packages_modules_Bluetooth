@@ -27,51 +27,70 @@
 #include "p_256_ecc_pp.h"
 
 void multiprecision_init(uint32_t* c) {
-  for (uint32_t i = 0; i < KEY_LENGTH_DWORDS_P256; i++) c[i] = 0;
+  for (uint32_t i = 0; i < KEY_LENGTH_DWORDS_P256; i++) {
+    c[i] = 0;
+  }
 }
 
 void multiprecision_copy(uint32_t* c, uint32_t* a) {
-  for (uint32_t i = 0; i < KEY_LENGTH_DWORDS_P256; i++) c[i] = a[i];
+  for (uint32_t i = 0; i < KEY_LENGTH_DWORDS_P256; i++) {
+    c[i] = a[i];
+  }
 }
 
 int multiprecision_compare(uint32_t* a, uint32_t* b) {
   for (int i = KEY_LENGTH_DWORDS_P256 - 1; i >= 0; i--) {
-    if (a[i] > b[i]) return 1;
-    if (a[i] < b[i]) return -1;
+    if (a[i] > b[i]) {
+      return 1;
+    }
+    if (a[i] < b[i]) {
+      return -1;
+    }
   }
   return 0;
 }
 
 int multiprecision_iszero(uint32_t* a) {
-  for (uint32_t i = 0; i < KEY_LENGTH_DWORDS_P256; i++)
-    if (a[i]) return 0;
+  for (uint32_t i = 0; i < KEY_LENGTH_DWORDS_P256; i++) {
+    if (a[i]) {
+      return 0;
+    }
+  }
 
   return 1;
 }
 
 uint32_t multiprecision_dword_bits(uint32_t a) {
   uint32_t i;
-  for (i = 0; i < DWORD_BITS; i++, a >>= 1)
-    if (a == 0) break;
+  for (i = 0; i < DWORD_BITS; i++, a >>= 1) {
+    if (a == 0) {
+      break;
+    }
+  }
 
   return i;
 }
 
 uint32_t multiprecision_most_signdwords(uint32_t* a) {
   int i;
-  for (i = KEY_LENGTH_DWORDS_P256 - 1; i >= 0; i--)
-    if (a[i]) break;
-  return (i + 1);
+  for (i = KEY_LENGTH_DWORDS_P256 - 1; i >= 0; i--) {
+    if (a[i]) {
+      break;
+    }
+  }
+  return i + 1;
 }
 
 uint32_t multiprecision_most_signbits(uint32_t* a) {
   int aMostSignDWORDs;
 
   aMostSignDWORDs = multiprecision_most_signdwords(a);
-  if (aMostSignDWORDs == 0) return 0;
+  if (aMostSignDWORDs == 0) {
+    return 0;
+  }
 
-  return (((aMostSignDWORDs - 1) << DWORD_BITS_SHIFT) +
-          multiprecision_dword_bits(a[aMostSignDWORDs - 1]));
+  return ((aMostSignDWORDs - 1) << DWORD_BITS_SHIFT) +
+         multiprecision_dword_bits(a[aMostSignDWORDs - 1]);
 }
 
 uint32_t multiprecision_add(uint32_t* c, uint32_t* a, uint32_t* b) {
@@ -168,7 +187,9 @@ void multiprecision_sub_mod(uint32_t* c, uint32_t* a, uint32_t* b) {
   uint32_t* modp = curve_p256.p;
 
   borrow = multiprecision_sub(c, a, b);
-  if (borrow) multiprecision_add(c, c, modp);
+  if (borrow) {
+    multiprecision_add(c, c, modp);
+  }
 }
 
 // c=a<<b, b<DWORD_BITS, c has a buffer size of Numuint32_ts+1
@@ -447,7 +468,9 @@ void multiprecision_fast_mod_P256(uint32_t* c, uint32_t* a) {
     }
   }
 
-  if (multiprecision_compare(c, modp) >= 0) multiprecision_sub(c, c, modp);
+  if (multiprecision_compare(c, modp) >= 0) {
+    multiprecision_sub(c, c, modp);
+  }
 }
 
 void multiprecision_inv_mod(uint32_t* aminus, uint32_t* u) {
@@ -465,9 +488,9 @@ void multiprecision_inv_mod(uint32_t* aminus, uint32_t* u) {
     while (!(u[0] & 0x01))  // u is even
     {
       multiprecision_rshift(u, u);
-      if (!(A[0] & 0x01))  // A is even
+      if (!(A[0] & 0x01)) {  // A is even
         multiprecision_rshift(A, A);
-      else {
+      } else {
         A[KEY_LENGTH_DWORDS_P256] = multiprecision_add(A, A, modp);  // A =A+p
         multiprecision_rshift(A, A);
         A[KEY_LENGTH_DWORDS_P256 - 1] |= (A[KEY_LENGTH_DWORDS_P256] << 31);
@@ -496,8 +519,9 @@ void multiprecision_inv_mod(uint32_t* aminus, uint32_t* u) {
     }
   }
 
-  if (multiprecision_compare(C, modp) >= 0)
+  if (multiprecision_compare(C, modp) >= 0) {
     multiprecision_sub(aminus, C, modp);
-  else
+  } else {
     multiprecision_copy(aminus, C);
+  }
 }

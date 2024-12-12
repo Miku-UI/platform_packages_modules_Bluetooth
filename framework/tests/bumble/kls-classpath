@@ -1,0 +1,41 @@
+#!/bin/bash
+# Copyright (C) 2024 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+if [ -n "${ANDROID_BUILD_TOP}" ]; then
+    ANDROID_SOURCE_TREE="${ANDROID_BUILD_TOP}"
+else
+    ANDROID_SOURCE_TREE="$PWD/../../../../../../"
+fi
+
+OUT="${ANDROID_SOURCE_TREE}out/soong/.intermediates/"
+
+CLASSPATH=""
+CLASSPATH+="${ANDROID_SOURCE_TREE}external/kotlinc/lib/kotlin-stdlib.jar"
+CLASSPATH+=":${ANDROID_SOURCE_TREE}prebuilts/sdk/33/system-server/android.jar"
+CLASSPATH+=":${OUT}external/kotlinx.coroutines/kotlinx-coroutines-core/android_common/turbine-combined/kotlinx-coroutines-core.jar"
+CLASSPATH+=":${OUT}packages/modules/Bluetooth/framework/framework-bluetooth-pre-jarjar/android_common/turbine-combined/framework-bluetooth-pre-jarjar.jar"
+CLASSPATH+=":${OUT}packages/modules/Bluetooth/pandora/interfaces/pandora_experimental-grpc-java/android_common/combined/pandora_experimental-grpc-java.jar"
+CLASSPATH+=":${OUT}packages/modules/Bluetooth/pandora/interfaces/pandora_experimental-proto-java/android_common/combined/pandora_experimental-proto-java.jar"
+CLASSPATH+=":${OUT}external/junit/junit/android_common/turbine-combined/junit.jar"
+CLASSPATH+=":${OUT}external/truth/truth/android_common/turbine-combined/truth.jar"
+CLASSPATH+=":${OUT}prebuilts/misc/common/androidx-test/androidx.test.core/android_common/combined/androidx.test.core.jar"
+CLASSPATH+=":${OUT}prebuilts/misc/common/androidx-test/androidx.test.ext.junit/android_common/combined/androidx.test.ext.junit.jar"
+CLASSPATH+=":${OUT}external/protobuf/libprotobuf-java-micro/android_common/turbine-combined/libprotobuf-java-micro.jar"
+CLASSPATH+=":${OUT}cts/common/device-side/util-axt/compatibility-device-util-axt/android_common/combined/compatibility-device-util-axt.jar"
+CLASSPATH+=":${OUT}external/TestParameterInjector/TestParameterInjector/android_common/combined/TestParameterInjector.jar"
+CLASSPATH+=":${OUT}external/grpc-grpc-java/grpc-java-okhttp-client-lite/android_common/combined/grpc-java-okhttp-client-lite.jar"
+CLASSPATH+=":${OUT}external/mockito-kotlin/mockito-kotlin2/android_common/combined/mockito-kotlin2.jar"
+
+echo "$CLASSPATH"

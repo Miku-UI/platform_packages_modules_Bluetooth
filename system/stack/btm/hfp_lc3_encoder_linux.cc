@@ -74,8 +74,7 @@ uint32_t hfp_lc3_encode_frames(int16_t* input, uint8_t* output) {
     return 0;
   }
 
-  int rc = client->transcode((uint8_t*)input, HFP_LC3_PCM_BYTES, output,
-                             HFP_LC3_PKT_FRAME_LEN);
+  int rc = client->transcode((uint8_t*)input, HFP_LC3_PCM_BYTES, output, HFP_LC3_PKT_FRAME_LEN);
 
   if (rc < 0) {
     log::warn("Encode failed with error message, {}", strerror(-rc));

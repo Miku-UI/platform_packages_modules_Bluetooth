@@ -45,17 +45,14 @@ namespace bluetooth {
 namespace legacy {
 namespace testing {
 
-void set_interface_to_profiles(
-    bluetooth::core::CoreInterface* interfaceToProfiles);
+void set_interface_to_profiles(bluetooth::core::CoreInterface* interfaceToProfiles);
 
-void bta_energy_info_cb(tBTM_BLE_TX_TIME_MS tx_time,
-                        tBTM_BLE_RX_TIME_MS rx_time,
-                        tBTM_BLE_IDLE_TIME_MS idle_time,
-                        tBTM_BLE_ENERGY_USED energy_used,
+void bta_energy_info_cb(tBTM_BLE_TX_TIME_MS tx_time, tBTM_BLE_RX_TIME_MS rx_time,
+                        tBTM_BLE_IDLE_TIME_MS idle_time, tBTM_BLE_ENERGY_USED energy_used,
                         tBTM_CONTRL_STATE ctrl_state, tBTA_STATUS status);
 
-void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status,
-                       const BD_NAME bd_name, bool during_device_search);
+void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, const BD_NAME bd_name,
+                       bool during_device_search);
 
 }  // namespace testing
 }  // namespace legacy
@@ -69,7 +66,7 @@ constexpr tBTM_BLE_ENERGY_USED energy_used = 0x13579bdf;
 }  // namespace
 
 class BtifDmWithMocksTest : public ::testing::Test {
- protected:
+protected:
   void SetUp() override { fake_osi_ = std::make_unique<test::fake::FakeOsi>(); }
 
   void TearDown() override { fake_osi_.reset(); }
@@ -78,12 +75,11 @@ class BtifDmWithMocksTest : public ::testing::Test {
 };
 
 class BtifDmTest : public BtifDmWithMocksTest {
- protected:
+protected:
   void SetUp() override {
     BtifDmWithMocksTest::SetUp();
     mock_core_interface_ = std::make_unique<MockCoreInterface>();
-    bluetooth::legacy::testing::set_interface_to_profiles(
-        mock_core_interface_.get());
+    bluetooth::legacy::testing::set_interface_to_profiles(mock_core_interface_.get());
   }
 
   void TearDown() override {
@@ -98,20 +94,18 @@ class BtifDmTest : public BtifDmWithMocksTest {
 TEST_F(BtifDmTest, bta_energy_info_cb__with_no_uid) {
   static bool invoke_energy_info_cb_entered = false;
   bluetooth::core::testing::mock_event_callbacks.invoke_energy_info_cb =
-      [](bt_activity_energy_info /* energy_info */,
-         bt_uid_traffic_t* /* uid_data */) {
-        invoke_energy_info_cb_entered = true;
-      };
+          [](bt_activity_energy_info /* energy_info */, bt_uid_traffic_t* /* uid_data */) {
+            invoke_energy_info_cb_entered = true;
+          };
 
-  bluetooth::legacy::testing::bta_energy_info_cb(
-      tx_time, rx_time, idle_time, energy_used, BTM_CONTRL_UNKNOWN,
-      BTA_SUCCESS);
+  bluetooth::legacy::testing::bta_energy_info_cb(tx_time, rx_time, idle_time, energy_used,
+                                                 BTM_CONTRL_UNKNOWN, BTA_SUCCESS);
 
   ASSERT_FALSE(invoke_energy_info_cb_entered);
 }
 
 class BtifDmWithUidTest : public BtifDmTest {
- protected:
+protected:
   void SetUp() override {
     BtifDmTest::SetUp();
     btif_dm_init(uid_set_create());
@@ -126,26 +120,23 @@ class BtifDmWithUidTest : public BtifDmTest {
 TEST_F(BtifDmWithUidTest, bta_energy_info_cb__with_uid) {
   static bool invoke_energy_info_cb_entered = false;
   bluetooth::core::testing::mock_event_callbacks.invoke_energy_info_cb =
-      [](bt_activity_energy_info /* energy_info */,
-         bt_uid_traffic_t* /* uid_data */) {
-        invoke_energy_info_cb_entered = true;
-      };
-  bluetooth::legacy::testing::bta_energy_info_cb(
-      tx_time, rx_time, idle_time, energy_used, BTM_CONTRL_UNKNOWN,
-      BTA_SUCCESS);
+          [](bt_activity_energy_info /* energy_info */, bt_uid_traffic_t* /* uid_data */) {
+            invoke_energy_info_cb_entered = true;
+          };
+  bluetooth::legacy::testing::bta_energy_info_cb(tx_time, rx_time, idle_time, energy_used,
+                                                 BTM_CONTRL_UNKNOWN, BTA_SUCCESS);
 
   ASSERT_TRUE(invoke_energy_info_cb_entered);
 }
 
 class BtifDmWithStackTest : public BtifDmTest {
- protected:
+protected:
   void SetUp() override {
     BtifDmTest::SetUp();
     modules_.add<bluetooth::storage::StorageModule>();
     bluetooth::shim::Stack::GetInstance()->StartModuleStack(
-        &modules_,
-        new bluetooth::os::Thread("gd_stack_thread",
-                                  bluetooth::os::Thread::Priority::NORMAL));
+            &modules_,
+            new bluetooth::os::Thread("gd_stack_thread", bluetooth::os::Thread::Priority::NORMAL));
   }
 
   void TearDown() override {
@@ -155,53 +146,42 @@ class BtifDmWithStackTest : public BtifDmTest {
   bluetooth::ModuleList modules_;
 };
 
-#define MY_PACKAGE com::android::bluetooth::flags
-
-TEST_F_WITH_FLAGS(BtifDmWithStackTest,
-                  btif_dm_search_services_evt__BTA_DM_NAME_READ_EVT,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(
-                      MY_PACKAGE, rnr_present_during_service_discovery))) {
+TEST_F_WITH_FLAGS(BtifDmWithStackTest, btif_dm_search_services_evt__BTA_DM_NAME_READ_EVT) {
   static struct {
     bt_status_t status;
     RawAddress bd_addr;
     int num_properties;
     std::vector<bt_property_t> properties;
   } invoke_remote_device_properties_cb{
-      .status = BT_STATUS_NOT_READY,
-      .bd_addr = RawAddress::kEmpty,
-      .num_properties = -1,
-      .properties = {},
+          .status = BT_STATUS_NOT_READY,
+          .bd_addr = RawAddress::kEmpty,
+          .num_properties = -1,
+          .properties = {},
   };
 
-  bluetooth::core::testing::mock_event_callbacks
-      .invoke_remote_device_properties_cb =
-      [](bt_status_t status, RawAddress bd_addr, int num_properties,
-         bt_property_t* properties) {
-        invoke_remote_device_properties_cb = {
-            .status = status,
-            .bd_addr = bd_addr,
-            .num_properties = num_properties,
-            .properties = std::vector<bt_property_t>(
-                properties, properties + (size_t)num_properties),
-        };
-      };
+  bluetooth::core::testing::mock_event_callbacks.invoke_remote_device_properties_cb =
+          [](bt_status_t status, RawAddress bd_addr, int num_properties,
+             bt_property_t* properties) {
+            invoke_remote_device_properties_cb = {
+                    .status = status,
+                    .bd_addr = bd_addr,
+                    .num_properties = num_properties,
+                    .properties = std::vector<bt_property_t>(properties,
+                                                             properties + (size_t)num_properties),
+            };
+          };
 
   BD_NAME bd_name;
   bd_name_from_char_pointer(bd_name, kBdName);
 
-  bluetooth::legacy::testing::btif_on_name_read(kRawAddress, HCI_SUCCESS,
-                                                bd_name, true);
+  bluetooth::legacy::testing::btif_on_name_read(kRawAddress, HCI_SUCCESS, bd_name, true);
 
   ASSERT_EQ(BT_STATUS_SUCCESS, invoke_remote_device_properties_cb.status);
   ASSERT_EQ(kRawAddress, invoke_remote_device_properties_cb.bd_addr);
   ASSERT_EQ(1, invoke_remote_device_properties_cb.num_properties);
-  ASSERT_EQ(BT_PROPERTY_BDNAME,
-            invoke_remote_device_properties_cb.properties[0].type);
-  ASSERT_EQ((int)strlen(kBdName),
-            invoke_remote_device_properties_cb.properties[0].len);
-  ASSERT_STREQ(
-      kBdName,
-      (const char*)invoke_remote_device_properties_cb.properties[0].val);
+  ASSERT_EQ(BT_PROPERTY_BDNAME, invoke_remote_device_properties_cb.properties[0].type);
+  ASSERT_EQ((int)strlen(kBdName), invoke_remote_device_properties_cb.properties[0].len);
+  ASSERT_STREQ(kBdName, (const char*)invoke_remote_device_properties_cb.properties[0].val);
 }
 
 TEST_F(BtifDmWithStackTest, btif_dm_get_local_class_of_device__default) {
@@ -212,11 +192,11 @@ TEST_F(BtifDmWithStackTest, btif_dm_get_local_class_of_device__default) {
 std::string kClassOfDeviceText = "1,2,3";
 DEV_CLASS kClassOfDevice = {1, 2, 3};
 TEST_F(BtifDmWithStackTest, btif_dm_get_local_class_of_device__with_property) {
-  test::mock::osi_properties::osi_property_get.body =
-      [](const char* /* key */, char* value, const char* /* default_value */) {
-        std::copy(kClassOfDeviceText.begin(), kClassOfDeviceText.end(), value);
-        return kClassOfDeviceText.size();
-      };
+  test::mock::osi_properties::osi_property_get.body = [](const char* /* key */, char* value,
+                                                         const char* /* default_value */) {
+    std::copy(kClassOfDeviceText.begin(), kClassOfDeviceText.end(), value);
+    return kClassOfDeviceText.size();
+  };
 
   DEV_CLASS dev_class = btif_dm_get_local_class_of_device();
   if (dev_class != kClassOfDevice) {

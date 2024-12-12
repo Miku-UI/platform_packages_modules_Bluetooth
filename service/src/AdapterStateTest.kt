@@ -35,9 +35,9 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 @kotlinx.coroutines.ExperimentalCoroutinesApi
 class BluetoothAdapterStateTest {
+    @get:Rule val testName = TestName()
 
     lateinit var mState: BluetoothAdapterState
-    @JvmField @Rule val testName = TestName()
 
     @Before
     fun setUp() {

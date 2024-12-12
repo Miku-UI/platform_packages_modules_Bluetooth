@@ -85,10 +85,15 @@ enum EnableValue {
   ENABLE_INDICATION_VALUE = 1;
 }
 
+enum ServiceType {
+    PRIMARY = 0x00;
+    SECONDARY = 0x01;
+}
+
 // A message representing a GATT service.
 message GattService {
   uint32 handle = 1;
-  uint32 type = 2;
+  ServiceType service_type = 2;
   string uuid = 3;
   repeated GattService included_services = 4;
   repeated GattCharacteristic characteristics = 5;

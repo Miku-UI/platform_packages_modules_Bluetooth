@@ -52,37 +52,31 @@ typedef void (*connection_callback)(int conn_id, int server_if, int connected,
 
 /** Callback invoked in response to create_service */
 typedef void (*service_added_callback)(int status, int server_if,
-                                       const btgatt_db_element_t* service,
-                                       size_t service_count);
+                                       const btgatt_db_element_t* service, size_t service_count);
 
 /** Callback invoked in response to stop_service */
-typedef void (*service_stopped_callback)(int status, int server_if,
-                                         int srvc_handle);
+typedef void (*service_stopped_callback)(int status, int server_if, int srvc_handle);
 
 /** Callback triggered when a service has been deleted */
-typedef void (*service_deleted_callback)(int status, int server_if,
-                                         int srvc_handle);
+typedef void (*service_deleted_callback)(int status, int server_if, int srvc_handle);
 
 /**
  * Callback invoked when a remote device has requested to read a characteristic
  * or descriptor. The application must respond by calling send_response
  */
-typedef void (*request_read_callback)(int conn_id, int trans_id,
-                                      const RawAddress& bda, int attr_handle,
-                                      int offset, bool is_long);
+typedef void (*request_read_callback)(int conn_id, int trans_id, const RawAddress& bda,
+                                      int attr_handle, int offset, bool is_long);
 
 /**
  * Callback invoked when a remote device has requested to write to a
  * characteristic or descriptor.
  */
-typedef void (*request_write_callback)(int conn_id, int trans_id,
-                                       const RawAddress& bda, int attr_handle,
-                                       int offset, bool need_rsp, bool is_prep,
+typedef void (*request_write_callback)(int conn_id, int trans_id, const RawAddress& bda,
+                                       int attr_handle, int offset, bool need_rsp, bool is_prep,
                                        const uint8_t* value, size_t length);
 
 /** Callback invoked when a previously prepared write is to be executed */
-typedef void (*request_exec_write_callback)(int conn_id, int trans_id,
-                                            const RawAddress& bda,
+typedef void (*request_exec_write_callback)(int conn_id, int trans_id, const RawAddress& bda,
                                             int exec_write);
 
 /**
@@ -109,20 +103,17 @@ typedef void (*congestion_callback)(int conn_id, bool congested);
 typedef void (*mtu_changed_callback)(int conn_id, int mtu);
 
 /** Callback invoked when the PHY for a given connection changes */
-typedef void (*phy_updated_callback)(int conn_id, uint8_t tx_phy,
-                                     uint8_t rx_phy, uint8_t status);
+typedef void (*phy_updated_callback)(int conn_id, uint8_t tx_phy, uint8_t rx_phy, uint8_t status);
 
 /** Callback invoked when the connection parameters for a given connection
  * changes */
-typedef void (*conn_updated_callback)(int conn_id, uint16_t interval,
-                                      uint16_t latency, uint16_t timeout,
-                                      uint8_t status);
+typedef void (*conn_updated_callback)(int conn_id, uint16_t interval, uint16_t latency,
+                                      uint16_t timeout, uint8_t status);
 
 /** Callback invoked when the subrate change event for a given connection
  * is received */
-typedef void (*subrate_change_callback)(int conn_id, uint16_t subrate_factor,
-                                        uint16_t latency, uint16_t cont_num,
-                                        uint16_t timeout, uint8_t status);
+typedef void (*subrate_change_callback)(int conn_id, uint16_t subrate_factor, uint16_t latency,
+                                        uint16_t cont_num, uint16_t timeout, uint8_t status);
 typedef struct {
   register_server_callback register_server_cb;
   connection_callback connection_cb;
@@ -146,19 +137,17 @@ typedef struct {
 /** Represents the standard BT-GATT server interface. */
 typedef struct {
   /** Registers a GATT server application with the stack */
-  bt_status_t (*register_server)(const bluetooth::Uuid& uuid,
-                                 bool eatt_support);
+  bt_status_t (*register_server)(const bluetooth::Uuid& uuid, bool eatt_support);
 
   /** Unregister a server application from the stack */
   bt_status_t (*unregister_server)(int server_if);
 
   /** Create a connection to a remote peripheral */
-  bt_status_t (*connect)(int server_if, const RawAddress& bd_addr,
-                         uint8_t addr_type, bool is_direct, int transport);
+  bt_status_t (*connect)(int server_if, const RawAddress& bd_addr, uint8_t addr_type,
+                         bool is_direct, int transport);
 
   /** Disconnect an established connection or cancel a pending one */
-  bt_status_t (*disconnect)(int server_if, const RawAddress& bd_addr,
-                            int conn_id);
+  bt_status_t (*disconnect)(int server_if, const RawAddress& bd_addr, int conn_id);
 
   /** Create a new service */
   bt_status_t (*add_service)(int server_if, const btgatt_db_element_t* service,
@@ -171,20 +160,18 @@ typedef struct {
   bt_status_t (*delete_service)(int server_if, int service_handle);
 
   /** Send value indication to a remote device */
-  bt_status_t (*send_indication)(int server_if, int attribute_handle,
-                                 int conn_id, int confirm, const uint8_t* value,
-                                 size_t length);
+  bt_status_t (*send_indication)(int server_if, int attribute_handle, int conn_id, int confirm,
+                                 const uint8_t* value, size_t length);
 
   /** Send a response to a read/write operation */
   bt_status_t (*send_response)(int conn_id, int trans_id, int status,
                                const btgatt_response_t& response);
 
-  bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy,
-                                   uint8_t rx_phy, uint16_t phy_options);
+  bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy, uint8_t rx_phy,
+                                   uint16_t phy_options);
 
-  bt_status_t (*read_phy)(
-      const RawAddress& bd_addr,
-      base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
+  bt_status_t (*read_phy)(const RawAddress& bd_addr,
+                          base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
 
 } btgatt_server_interface_t;
 

@@ -154,8 +154,9 @@ public class HapClientStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mHapClientService, timeout(TIMEOUT_MS).times(1))
-                .sendBroadcast(intentArgument1.capture(), anyString());
+        verify(mHapClientService, timeout(TIMEOUT_MS))
+                .sendBroadcastWithMultiplePermissions(
+                        intentArgument1.capture(), any(String[].class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -176,7 +177,8 @@ public class HapClientStateMachineTest {
         // - two calls to broadcastConnectionState(): Disconnected -> Connecting -> Connected
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
         verify(mHapClientService, timeout(TIMEOUT_MS).times(2))
-                .sendBroadcast(intentArgument2.capture(), anyString());
+                .sendBroadcastWithMultiplePermissions(
+                        intentArgument2.capture(), any(String[].class));
         // Check that we are in Connected state
         Assert.assertThat(
                 mHapClientStateMachine.getCurrentState(),
@@ -199,8 +201,9 @@ public class HapClientStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mHapClientService, timeout(TIMEOUT_MS).times(1))
-                .sendBroadcast(intentArgument1.capture(), anyString());
+        verify(mHapClientService, timeout(TIMEOUT_MS))
+                .sendBroadcastWithMultiplePermissions(
+                        intentArgument1.capture(), any(String[].class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -212,8 +215,9 @@ public class HapClientStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mHapClientService, timeout(HapClientStateMachine.sConnectTimeoutMs * 2).times(2))
-                .sendBroadcast(intentArgument2.capture(), anyString());
+        verify(mHapClientService, timeout(HapClientStateMachine.sConnectTimeoutMs * 2L).times(2))
+                .sendBroadcastWithMultiplePermissions(
+                        intentArgument2.capture(), any(String[].class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_DISCONNECTED,
                 intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -245,8 +249,9 @@ public class HapClientStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument1 = ArgumentCaptor.forClass(Intent.class);
-        verify(mHapClientService, timeout(TIMEOUT_MS).times(1))
-                .sendBroadcast(intentArgument1.capture(), anyString());
+        verify(mHapClientService, timeout(TIMEOUT_MS))
+                .sendBroadcastWithMultiplePermissions(
+                        intentArgument1.capture(), any(String[].class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_CONNECTING,
                 intentArgument1.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -258,8 +263,9 @@ public class HapClientStateMachineTest {
 
         // Verify that one connection state broadcast is executed
         ArgumentCaptor<Intent> intentArgument2 = ArgumentCaptor.forClass(Intent.class);
-        verify(mHapClientService, timeout(HapClientStateMachine.sConnectTimeoutMs * 2).times(2))
-                .sendBroadcast(intentArgument2.capture(), anyString());
+        verify(mHapClientService, timeout(HapClientStateMachine.sConnectTimeoutMs * 2L).times(2))
+                .sendBroadcastWithMultiplePermissions(
+                        intentArgument2.capture(), any(String[].class));
         Assert.assertEquals(
                 BluetoothProfile.STATE_DISCONNECTED,
                 intentArgument2.getValue().getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
@@ -376,8 +382,8 @@ public class HapClientStateMachineTest {
         Mockito.clearInvocations(mHapClientService);
         mHapClientStateMachine.sendMessage(msg);
         // Verify that one connection state broadcast is executed
-        verify(mHapClientService, timeout(TIMEOUT_MS).times(1))
-                .sendBroadcast(any(Intent.class), anyString());
+        verify(mHapClientService, timeout(TIMEOUT_MS))
+                .sendBroadcastWithMultiplePermissions(any(Intent.class), any(String[].class));
         Assert.assertThat(mHapClientStateMachine.getCurrentState(), IsInstanceOf.instanceOf(type));
     }
 }

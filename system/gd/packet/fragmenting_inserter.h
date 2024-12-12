@@ -28,14 +28,15 @@ namespace bluetooth {
 namespace packet {
 
 class FragmentingInserter : public BitInserter {
- public:
-  FragmentingInserter(size_t mtu, std::back_insert_iterator<std::vector<std::unique_ptr<RawBuilder>>> iterator);
+public:
+  FragmentingInserter(size_t mtu,
+                      std::back_insert_iterator<std::vector<std::unique_ptr<RawBuilder>>> iterator);
 
   void insert_bits(uint8_t byte, size_t num_bits) override;
 
   void finalize();
 
- protected:
+protected:
   std::vector<uint8_t> to_construct_bit_inserter_;
   size_t mtu_;
   std::unique_ptr<RawBuilder> curr_packet_;

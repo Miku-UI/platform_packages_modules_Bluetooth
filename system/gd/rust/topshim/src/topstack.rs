@@ -2,33 +2,30 @@
 //!
 //! Helpers for dealing with the stack on top of the Bluetooth interface.
 
-use lazy_static::lazy_static;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use tokio::runtime::{Builder, Runtime};
 
-lazy_static! {
-    // Shared runtime for topshim handlers. All async tasks will get run by this
-    // runtime and this will properly serialize all spawned tasks.
-    pub static ref RUNTIME: Arc<Runtime> = Arc::new(
+// Shared runtime for topshim handlers. All async tasks will get run by this
+// runtime and this will properly serialize all spawned tasks.
+pub static RUNTIME: LazyLock<Arc<Runtime>> = LazyLock::new(|| {
+    Arc::new(
         Builder::new_multi_thread()
             .worker_threads(1)
             .max_blocking_threads(1)
             .enable_all()
             .build()
-            .unwrap()
-    );
-}
+            .unwrap(),
+    )
+});
 
 pub fn get_runtime() -> Arc<Runtime> {
     RUNTIME.clone()
 }
 
-lazy_static! {
-    static ref CB_DISPATCHER: Arc<Mutex<DispatchContainer>> =
-        Arc::new(Mutex::new(DispatchContainer { instances: HashMap::new() }));
-}
+static CB_DISPATCHER: LazyLock<Arc<Mutex<DispatchContainer>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(DispatchContainer { instances: HashMap::new() })));
 
 /// A Box-ed struct that implements a `dispatch` fn.
 ///

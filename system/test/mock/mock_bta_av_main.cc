@@ -58,23 +58,17 @@ tBTA_AV_SCB* bta_av_hndl_to_scb(uint16_t /* handle */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
-void bta_av_api_deregister(tBTA_AV_DATA* /* p_data */) {
-  inc_func_call_count(__func__);
-}
-void bta_av_conn_cback(uint8_t /* handle */, const RawAddress& /* bd_addr */,
-                       uint8_t /* event */, tAVDT_CTRL* /* p_data */,
-                       uint8_t /* scb_index */) {
+void bta_av_api_deregister(tBTA_AV_DATA* /* p_data */) { inc_func_call_count(__func__); }
+void bta_av_conn_cback(uint8_t /* handle */, const RawAddress& /* bd_addr */, uint8_t /* event */,
+                       tAVDT_CTRL* /* p_data */, uint8_t /* scb_index */) {
   inc_func_call_count(__func__);
 }
 void bta_av_dup_audio_buf(tBTA_AV_SCB* /* p_scb */, BT_HDR* /* p_buf */) {
   inc_func_call_count(__func__);
 }
-void bta_av_free_scb(tBTA_AV_SCB* /* p_scb */) {
-  inc_func_call_count(__func__);
-}
+void bta_av_free_scb(tBTA_AV_SCB* /* p_scb */) { inc_func_call_count(__func__); }
 void bta_av_restore_switch(void) { inc_func_call_count(__func__); }
-void bta_av_sm_execute(tBTA_AV_CB* /* p_cb */, uint16_t /* event */,
-                       tBTA_AV_DATA* /* p_data */) {
+void bta_av_sm_execute(tBTA_AV_CB* /* p_cb */, uint16_t /* event */, tBTA_AV_DATA* /* p_data */) {
   inc_func_call_count(__func__);
 }
 void bta_debug_av_dump(int /* fd */) { inc_func_call_count(__func__); }
@@ -82,6 +76,4 @@ void tBTA_AV_SCB::OnConnected(const RawAddress& /* peer_address */) {
   inc_func_call_count(__func__);
 }
 void tBTA_AV_SCB::OnDisconnected() { inc_func_call_count(__func__); }
-void tBTA_AV_SCB::SetAvdtpVersion(uint16_t /* avdtp_version */) {
-  inc_func_call_count(__func__);
-}
+void tBTA_AV_SCB::SetAvdtpVersion(uint16_t /* avdtp_version */) { inc_func_call_count(__func__); }

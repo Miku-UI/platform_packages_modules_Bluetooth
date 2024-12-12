@@ -84,8 +84,7 @@ ssize_t socket_write(const socket_t* socket, const void* buf, size_t count);
 // of |fd| transfers to this function and the descriptor must not be used any
 // longer. If |fd| is INVALID_FD, this function behaves the same as
 // |socket_write|.
-ssize_t socket_write_and_transfer_fd(const socket_t* socket, const void* buf,
-                                     size_t count, int fd);
+ssize_t socket_write_and_transfer_fd(const socket_t* socket, const void* buf, size_t count, int fd);
 
 // Returns the number of bytes that can be read from |socket| without blocking.
 // On error, this function returns -1. |socket| may not be NULL.
@@ -101,8 +100,8 @@ ssize_t socket_bytes_available(const socket_t* socket);
 // be called. The |context| parameter is passed, untouched, to each of the
 // callback routines. Neither |socket| nor |reactor| may be NULL. |read_cb|,
 // |write_cb|, and |context| may be NULL.
-void socket_register(socket_t* socket, reactor_t* reactor, void* context,
-                     socket_cb read_cb, socket_cb write_cb);
+void socket_register(socket_t* socket, reactor_t* reactor, void* context, socket_cb read_cb,
+                     socket_cb write_cb);
 
 // Unregisters |socket| from whichever reactor it is registered with, if any.
 // This function is idempotent.

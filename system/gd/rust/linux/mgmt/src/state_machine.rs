@@ -9,7 +9,6 @@ use libc;
 use log::{debug, error, info, warn};
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use regex::Regex;
 use std::collections::{BTreeMap, HashMap};
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
@@ -54,10 +53,7 @@ pub enum ProcessState {
 
 /// Check whether adapter is enabled by checking internal state.
 pub fn state_to_enabled(state: ProcessState) -> bool {
-    match state {
-        ProcessState::On | ProcessState::TurningOff => true,
-        _ => false,
-    }
+    matches!(state, ProcessState::On | ProcessState::TurningOff)
 }
 
 /// Device path of hci device in sysfs. This will uniquely identify a Bluetooth
@@ -73,7 +69,7 @@ pub const INVALID_HCI_INDEX: i32 = -1;
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct VirtualHciIndex(pub i32);
 impl VirtualHciIndex {
-    pub(crate) fn to_i32(&self) -> i32 {
+    pub(crate) fn to_i32(self) -> i32 {
         self.0
     }
 }
@@ -87,7 +83,7 @@ impl Display for VirtualHciIndex {
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct RealHciIndex(pub i32);
 impl RealHciIndex {
-    pub(crate) fn to_i32(&self) -> i32 {
+    pub(crate) fn to_i32(self) -> i32 {
         self.0
     }
 }
@@ -127,7 +123,7 @@ pub struct StateMachineContext {
 impl StateMachineContext {
     fn new(state_machine: StateMachineInternal) -> StateMachineContext {
         let (tx, rx) = mpsc::channel::<Message>(10);
-        StateMachineContext { tx: tx, rx: rx, state_machine: state_machine }
+        StateMachineContext { tx, rx, state_machine }
     }
 
     pub fn get_proxy(&self) -> StateMachineProxy {
@@ -214,7 +210,7 @@ impl StateMachineProxy {
         F: Fn(&AdapterState) -> Option<T>,
     {
         match self.state.lock().unwrap().get(&hci) {
-            Some(a) => call(&a),
+            Some(a) => call(a),
             None => None,
         }
     }
@@ -289,8 +285,12 @@ fn pid_inotify_async_fd() -> AsyncFd<inotify::Inotify> {
 
 /// Given an pid path, returns the adapter index for that pid path.
 fn get_hci_index_from_pid_path(path: &str) -> Option<VirtualHciIndex> {
-    let re = Regex::new(r"bluetooth([0-9]+).pid").unwrap();
-    re.captures(path)?.get(1)?.as_str().parse().ok().map(|v| VirtualHciIndex(v))
+    path.rsplit_once('/')
+        .or_else(|| Some(("", path))) // Contains no '/', so |path| is the last component.
+        .and_then(|tup| tup.1.strip_prefix("bluetooth"))
+        .and_then(|s| s.strip_suffix(".pid"))
+        .and_then(|p| p.parse::<i32>().ok())
+        .map(VirtualHciIndex)
 }
 
 fn event_name_to_string(name: Option<&std::ffi::OsStr>) -> Option<String> {
@@ -300,7 +300,7 @@ fn event_name_to_string(name: Option<&std::ffi::OsStr>) -> Option<String> {
         }
     }
 
-    return None;
+    None
 }
 
 // List existing pids and then configure inotify on pid dir.
@@ -312,7 +312,7 @@ fn configure_pid(pid_tx: mpsc::Sender<Message>) {
         // Get a list of active pid files to determine initial adapter status
         let files = config_util::list_pid_files(PID_DIR);
         for file in files {
-            let _ = pid_tx
+            pid_tx
                 .send_timeout(
                     Message::PidChange(inotify::EventMask::CREATE, Some(file)),
                     TX_SEND_TIMEOUT_DURATION,
@@ -326,14 +326,15 @@ fn configure_pid(pid_tx: mpsc::Sender<Message>) {
 
         loop {
             let r = pid_async_fd.readable_mut();
-            let mut fd_ready = r.await.unwrap();
+            let mut fd_ready =
+                r.await.expect(format!("pid file in {} never became readable", PID_DIR).as_str());
             let mut buffer: [u8; 1024] = [0; 1024];
             debug!("Found new pid inotify entries. Reading them");
             match fd_ready.try_io(|inner| inner.get_mut().read_events(&mut buffer)) {
                 Ok(Ok(events)) => {
                     for event in events {
                         debug!("got some events from pid {:?}", event.mask);
-                        let _ = pid_tx
+                        pid_tx
                             .send_timeout(
                                 Message::PidChange(event.mask, event_name_to_string(event.name)),
                                 TX_SEND_TIMEOUT_DURATION,
@@ -442,7 +443,7 @@ fn configure_hci(hci_tx: mpsc::Sender<Message>) {
                                         debug!("IndexList response: {}", hci);
                                         // We need devpath for an index or we don't use it.
                                         if let Some(d) = config_util::get_devpath_for_hci(hci) {
-                                            let _ = hci_tx
+                                            hci_tx
                                                 .send_timeout(
                                                     Message::AdapterStateChange(
                                                         AdapterStateActions::HciDevicePresence(
@@ -464,7 +465,7 @@ fn configure_hci(hci_tx: mpsc::Sender<Message>) {
                                 debug!("IndexAdded: {}", hci);
                                 // We need devpath for an index or we don't use it.
                                 if let Some(d) = config_util::get_devpath_for_hci(hci) {
-                                    let _ = hci_tx
+                                    hci_tx
                                         .send_timeout(
                                             Message::AdapterStateChange(
                                                 AdapterStateActions::HciDevicePresence(
@@ -483,7 +484,7 @@ fn configure_hci(hci_tx: mpsc::Sender<Message>) {
                                 let hci = RealHciIndex(hci.into());
                                 debug!("IndexRemoved: {}", hci);
                                 let devpath =
-                                    config_util::get_devpath_for_hci(hci).unwrap_or(String::new());
+                                    config_util::get_devpath_for_hci(hci).unwrap_or_default();
                                 // Only send presence removed if the device is removed
                                 // and not when userchannel takes exclusive access. This needs to
                                 // be delayed a bit for when the socket legitimately disappears as
@@ -496,17 +497,16 @@ fn configure_hci(hci_tx: mpsc::Sender<Message>) {
                                 tokio::spawn(async move {
                                     tokio::time::sleep(INDEX_REMOVED_DEBOUNCE_TIME).await;
                                     if !config_util::check_hci_device_exists(hci) {
-                                        let _ = txl
-                                            .send_timeout(
-                                                Message::AdapterStateChange(
-                                                    AdapterStateActions::HciDevicePresence(
-                                                        devpath, hci, false,
-                                                    ),
+                                        txl.send_timeout(
+                                            Message::AdapterStateChange(
+                                                AdapterStateActions::HciDevicePresence(
+                                                    devpath, hci, false,
                                                 ),
-                                                TX_SEND_TIMEOUT_DURATION,
-                                            )
-                                            .await
-                                            .unwrap();
+                                            ),
+                                            TX_SEND_TIMEOUT_DURATION,
+                                        )
+                                        .await
+                                        .unwrap();
                                     }
                                 });
                             }
@@ -613,7 +613,7 @@ pub async fn mainloop(
             let _expired = timer.expired().await;
             let completed = ct.lock().unwrap().expire();
             for hci in completed {
-                let _ = timeout_tx
+                timeout_tx
                     .send_timeout(Message::CommandTimeout(hci), TX_SEND_TIMEOUT_DURATION)
                     .await
                     .unwrap();
@@ -804,9 +804,9 @@ pub async fn mainloop(
             // Monitored pid directory has a change
             Message::PidChange(mask, filename) => match (mask, &filename) {
                 (inotify::EventMask::CREATE, Some(fname)) => {
-                    let path = std::path::Path::new(PID_DIR).join(&fname);
+                    let path = std::path::Path::new(PID_DIR).join(fname);
                     match (
-                        get_hci_index_from_pid_path(&fname),
+                        get_hci_index_from_pid_path(fname),
                         tokio::fs::read(path.clone()).await.ok(),
                     ) {
                         (Some(hci), Some(s)) => {
@@ -815,7 +815,7 @@ pub async fn mainloop(
                                 .parse::<i32>()
                                 .unwrap_or(0);
                             debug!("Sending bluetooth started action for {}, pid={}", hci, pid);
-                            let _ = context
+                            context
                                 .tx
                                 .send_timeout(
                                     Message::AdapterStateChange(
@@ -851,25 +851,22 @@ pub async fn mainloop(
                                     }
                                 }
                             });
-                            match context
+                            if let Some(handle) = context
                                 .state_machine
                                 .process_monitor
                                 .lock()
                                 .unwrap()
                                 .insert(fname.clone(), handle)
                             {
-                                Some(handle) => {
-                                    warn!("{}: Aborting old handler", hci);
-                                    handle.abort();
-                                }
-                                None => {}
+                                warn!("{}: Aborting old handler", hci);
+                                handle.abort();
                             }
                         }
                         _ => debug!("Invalid pid path: {}", fname),
                     }
                 }
                 (inotify::EventMask::DELETE, Some(fname)) => {
-                    if let Some(hci) = get_hci_index_from_pid_path(&fname) {
+                    if let Some(hci) = get_hci_index_from_pid_path(fname) {
                         debug!("Sending bluetooth stopped action for {}", hci);
                         context
                             .tx
@@ -961,14 +958,15 @@ pub enum Invoker {
     UpstartInvoker,
 }
 
+#[derive(Default)]
 pub struct NativeInvoker {
     process_container: Option<Child>,
     bluetooth_pid: u32,
 }
 
 impl NativeInvoker {
-    pub fn new() -> NativeInvoker {
-        NativeInvoker { process_container: None, bluetooth_pid: 0 }
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
@@ -995,18 +993,19 @@ impl ProcessManager for NativeInvoker {
     }
 }
 
+#[derive(Default)]
 pub struct UpstartInvoker {}
 
 impl UpstartInvoker {
-    pub fn new() -> UpstartInvoker {
-        UpstartInvoker {}
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
 impl ProcessManager for UpstartInvoker {
     fn start(&mut self, virtual_hci: VirtualHciIndex, real_hci: RealHciIndex) {
         if let Err(e) = Command::new("initctl")
-            .args(&[
+            .args([
                 "start",
                 "btadapterd",
                 format!("INDEX={}", virtual_hci.to_i32()).as_str(),
@@ -1020,7 +1019,7 @@ impl ProcessManager for UpstartInvoker {
 
     fn stop(&mut self, virtual_hci: VirtualHciIndex, real_hci: RealHciIndex) {
         if let Err(e) = Command::new("initctl")
-            .args(&[
+            .args([
                 "stop",
                 "btadapterd",
                 format!("INDEX={}", virtual_hci.to_i32()).as_str(),
@@ -1033,18 +1032,19 @@ impl ProcessManager for UpstartInvoker {
     }
 }
 
+#[derive(Default)]
 pub struct SystemdInvoker {}
 
 impl SystemdInvoker {
-    pub fn new() -> SystemdInvoker {
-        SystemdInvoker {}
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
 impl ProcessManager for SystemdInvoker {
     fn start(&mut self, virtual_hci: VirtualHciIndex, real_hci: RealHciIndex) {
         Command::new("systemctl")
-            .args(&[
+            .args([
                 "restart",
                 format!("btadapterd@{}_{}.service", virtual_hci.to_i32(), real_hci.to_i32())
                     .as_str(),
@@ -1055,7 +1055,7 @@ impl ProcessManager for SystemdInvoker {
 
     fn stop(&mut self, virtual_hci: VirtualHciIndex, real_hci: RealHciIndex) {
         Command::new("systemctl")
-            .args(&[
+            .args([
                 "stop",
                 format!("btadapterd@{}_{}.service", virtual_hci.to_i32(), real_hci.to_i32())
                     .as_str(),
@@ -1171,7 +1171,7 @@ impl StateMachineInternal {
             desired_adapter,
             state: Arc::new(Mutex::new(BTreeMap::new())),
             process_monitor: Arc::new(Mutex::new(HashMap::new())),
-            process_manager: process_manager,
+            process_manager,
         }
     }
 
@@ -1188,7 +1188,7 @@ impl StateMachineInternal {
             .lock()
             .unwrap()
             .get(&hci_id)
-            .and_then(|a: &AdapterState| Some(a.real_hci))
+            .map(|a: &AdapterState| a.real_hci)
             .unwrap_or(RealHciIndex(hci_id.to_i32()))
     }
 
@@ -1200,7 +1200,7 @@ impl StateMachineInternal {
 
         for (k, v) in self.state.lock().unwrap().iter() {
             if v.devpath == devpath {
-                return Some(k.clone());
+                return Some(*k);
             }
         }
 
@@ -1211,7 +1211,7 @@ impl StateMachineInternal {
     pub(crate) fn get_virtual_id_by_real_id(&self, hci: RealHciIndex) -> Option<VirtualHciIndex> {
         for (k, v) in self.state.lock().unwrap().iter() {
             if v.real_hci == hci {
-                return Some(k.clone());
+                return Some(*k);
             }
         }
 
@@ -1234,7 +1234,7 @@ impl StateMachineInternal {
             }
         });
 
-        return new_virt;
+        new_virt
     }
 
     /// Identify the virtual hci for the given real hci. We need to match both
@@ -1265,7 +1265,7 @@ impl StateMachineInternal {
                     a.real_hci = RealHciIndex(INVALID_HCI_INDEX);
                 });
 
-                return dev;
+                dev
             }
             (Some(dev), None) => {
                 // Device found by path and needs real_hci to be updated.
@@ -1273,7 +1273,7 @@ impl StateMachineInternal {
                     a.real_hci = real_hci;
                 });
 
-                return dev;
+                dev
             }
             (None, Some(real)) => {
                 // If the real index is found but no entry exists with that devpath,
@@ -1284,14 +1284,14 @@ impl StateMachineInternal {
                     });
                 }
 
-                return real;
+                real
             }
             (None, None) => {
                 // This is a brand new device. Add a new virtual device with this
                 // real id and devpath.
-                return self.get_next_virtual_id(real_hci, Some(devpath));
+                self.get_next_virtual_id(real_hci, Some(devpath))
             }
-        };
+        }
 
         // match should return on all branches above.
     }
@@ -1381,7 +1381,7 @@ impl StateMachineInternal {
 
         // Desired adapter is either current or not present|enabled so leave the previous default
         // adapter.
-        return AdapterChangeAction::DoNothing;
+        AdapterChangeAction::DoNothing
     }
 
     /// Returns the next state and an action to reset timer if we are starting bluetooth process.
@@ -1554,7 +1554,7 @@ impl StateMachineInternal {
                     );
                     self.modify_state(hci, |s: &mut AdapterState| {
                         s.state = ProcessState::TurningOn;
-                        s.restart_count = s.restart_count + 1;
+                        s.restart_count += 1;
                     });
                     self.process_manager.start(hci, self.get_real_hci_by_virtual_id(hci));
                     (ProcessState::TurningOn, CommandTimeoutAction::ResetTimer)
@@ -1624,7 +1624,7 @@ impl StateMachineInternal {
                     );
                     self.modify_state(hci, |s: &mut AdapterState| {
                         s.state = ProcessState::TurningOn;
-                        s.restart_count = s.restart_count + 1;
+                        s.restart_count += 1;
                     });
                     self.process_manager.stop(hci, self.get_real_hci_by_virtual_id(hci));
                     self.process_manager.start(hci, self.get_real_hci_by_virtual_id(hci));
@@ -1742,7 +1742,7 @@ mod tests {
                         Some(format!("Got [Start], Expected: [{:?}]", x))
                     }
                 }
-                None => Some(format!("Got [Start], Expected: None")),
+                None => Some("Got [Start], Expected: None".to_string()),
             });
         }
 
@@ -1755,7 +1755,7 @@ mod tests {
                         Some(format!("Got [Stop], Expected: [{:?}]", x))
                     }
                 }
-                None => Some(format!("Got [Stop], Expected: None")),
+                None => Some("Got [Stop], Expected: None".to_string()),
             });
         }
     }
@@ -1782,9 +1782,7 @@ mod tests {
     const ALT_ADAPTER: VirtualHciIndex = VirtualHciIndex(1);
 
     fn make_state_machine(process_manager: MockProcessManager) -> StateMachineInternal {
-        let state_machine =
-            StateMachineInternal::new(Box::new(process_manager), true, DEFAULT_ADAPTER);
-        state_machine
+        StateMachineInternal::new(Box::new(process_manager), true, DEFAULT_ADAPTER)
     }
 
     #[test]
@@ -2187,14 +2185,18 @@ mod tests {
             get_hci_index_from_pid_path("/var/run/bluetooth/bluetooth0.pid"),
             Some(VirtualHciIndex(0))
         );
+        assert_eq!(get_hci_index_from_pid_path("bluetooth0.pid"), Some(VirtualHciIndex(0)));
         assert_eq!(
             get_hci_index_from_pid_path("/var/run/bluetooth/bluetooth1.pid"),
             Some(VirtualHciIndex(1))
         );
+        assert_eq!(get_hci_index_from_pid_path("bluetooth1.pid"), Some(VirtualHciIndex(1)));
         assert_eq!(
             get_hci_index_from_pid_path("/var/run/bluetooth/bluetooth10.pid"),
             Some(VirtualHciIndex(10))
         );
+        assert_eq!(get_hci_index_from_pid_path("bluetooth10.pid"), Some(VirtualHciIndex(10)));
         assert_eq!(get_hci_index_from_pid_path("/var/run/bluetooth/garbage"), None);
+        assert_eq!(get_hci_index_from_pid_path("garbage"), None);
     }
 }

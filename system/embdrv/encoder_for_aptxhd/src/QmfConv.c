@@ -146,7 +146,7 @@ void AsmQmfConvO_HD(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr,
   local_acc0 += 0x00400000L;
   acc = (int32_t)(local_acc0 >> 23);
 
-  if ((((tmp_round0 << 8) ^ 0x40000000) == 0)) {
+  if (((tmp_round0 << 8) ^ 0x40000000) == 0) {
     acc--;
   }
 
@@ -163,7 +163,7 @@ void AsmQmfConvO_HD(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr,
 
   local_acc1 += 0x00400000L;
   acc = (int32_t)(local_acc1 >> 23);
-  if ((((tmp_round0 << 8) ^ 0x40000000) == 0)) {
+  if (((tmp_round0 << 8) ^ 0x40000000) == 0) {
     acc--;
   }
 
@@ -315,7 +315,7 @@ void AsmQmfConvI_HD(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr,
   local_acc0 += 0x00400000L;
   acc = (int32_t)(local_acc0 >> 23);
 
-  if ((((tmp_round0 << 8) ^ 0x40000000) == 0)) {
+  if (((tmp_round0 << 8) ^ 0x40000000) == 0) {
     acc--;
   }
 
@@ -332,7 +332,7 @@ void AsmQmfConvI_HD(const int32_t* p1dl_buffPtr, const int32_t* p2dl_buffPtr,
 
   local_acc1 += 0x00400000L;
   acc = (int32_t)(local_acc1 >> 23);
-  if ((((tmp_round0 << 8) ^ 0x40000000) == 0)) {
+  if (((tmp_round0 << 8) ^ 0x40000000) == 0) {
     acc--;
   }
 

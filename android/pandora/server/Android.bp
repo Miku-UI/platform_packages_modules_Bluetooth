@@ -30,8 +30,8 @@ java_library_static {
         "kotlinx_coroutines",
         "opencensus-java-api",
         "opencensus-java-contrib-grpc-metrics",
-        "pandora_experimental-grpc-java",
-        "pandora_experimental-proto-java",
+        "pandora-grpc-java",
+        "pandora-proto-java",
     ],
 }
 

@@ -22,11 +22,8 @@
 #include "main/shim/distance_measurement_manager.h"
 #include "test/common/mock_functions.h"
 
-DistanceMeasurementInterface*
-bluetooth::shim::get_distance_measurement_instance() {
+DistanceMeasurementInterface* bluetooth::shim::get_distance_measurement_instance() {
   inc_func_call_count(__func__);
   return nullptr;
 }
-void bluetooth::shim::init_distance_measurement_manager() {
-  inc_func_call_count(__func__);
-}
+void bluetooth::shim::init_distance_measurement_manager() { inc_func_call_count(__func__); }

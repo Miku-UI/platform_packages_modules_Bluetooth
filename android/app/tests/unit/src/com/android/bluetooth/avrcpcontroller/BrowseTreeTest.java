@@ -20,6 +20,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.bluetooth.avrcpcontroller.BrowseTree.BrowseNode;
@@ -100,8 +102,8 @@ public class BrowseTreeTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
     public void sameDeviceDifferentBrowseTrees_uniqueMediaIds() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
         BrowseTree browseTree1 = new BrowseTree(mTestDevice);
         BrowseTree browseTree2 = new BrowseTree(mTestDevice);
 
@@ -118,18 +120,10 @@ public class BrowseTreeTest {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
     public void findBrowseNodeByIDForDevice() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
         BrowseTree browseTree = new BrowseTree(mTestDevice);
         final String deviceId = BrowseTree.ROOT + mTestDevice.getAddress().toString();
-        assertThat(browseTree.findBrowseNodeByID(deviceId)).isEqualTo(browseTree.mRootNode);
-    }
-
-    @Test
-    public void findBrowseNodeByIDForDevice_flagEnabled() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
-        BrowseTree browseTree = new BrowseTree(mTestDevice);
-        final String deviceId = browseTree.mRootNode.getID();
         assertThat(browseTree.findBrowseNodeByID(deviceId)).isEqualTo(browseTree.mRootNode);
     }
 
@@ -149,8 +143,8 @@ public class BrowseTreeTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
     public void findBrowseNodeByIDForDevice_withRandomDeviceID_nodeIsFound() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS);
         BrowseTree browseTree = new BrowseTree(mTestDevice);
         final String deviceId = browseTree.mRootNode.getID();
         assertThat(browseTree.findBrowseNodeByID(deviceId)).isEqualTo(browseTree.mRootNode);
@@ -193,11 +187,9 @@ public class BrowseTreeTest {
     @Test
     public void notifyImageDownload() {
         BrowseTree browseTree = new BrowseTree(null);
-        String testDeviceId = BrowseTree.PLAYER_PREFIX + mTestDevice.getAddress();
 
         browseTree.onConnected(mTestDevice);
-        browseTree.indicateCoverArtUsed(TEST_NODE_ID, TEST_HANDLE);
-        browseTree.indicateCoverArtUsed(testDeviceId, TEST_HANDLE);
+        browseTree.indicateCoverArtUsed(browseTree.mRootNode.getChild(0).getID(), TEST_HANDLE);
         Set<BrowseTree.BrowseNode> parents = browseTree.notifyImageDownload(TEST_HANDLE, null);
 
         assertThat(parents.contains(browseTree.mRootNode)).isTrue();

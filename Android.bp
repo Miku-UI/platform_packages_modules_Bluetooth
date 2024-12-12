@@ -57,7 +57,7 @@ filegroup {
 //    this default contains. This also means that if you add a new option that isn't
 //    documented by the name of this default, rename it.
 //
-//  - Try avoiding adding option that would not fit "future" targets, for exemple dependencies,
+//  - Try avoiding adding option that would not fit "future" targets, for example dependencies,
 //    even if every modules of Bluetooth depends on a specific dependency it should be left out
 //    from this default to not push it for future targets that might not need it.
 cc_defaults {
@@ -72,4 +72,113 @@ cc_defaults {
     ],
     c_std: "c99",
     cpp_std: "c++20",
+}
+
+java_defaults {
+    name: "bluetooth_errorprone_rules",
+    errorprone: {
+        enabled: true,
+        javacflags: [
+            "-Xep:AlmostJavadoc:ERROR",
+            "-Xep:AlreadyChecked:ERROR",
+            "-Xep:BadImport:ERROR",
+            "-Xep:CatchAndPrintStackTrace:ERROR",
+            "-Xep:CatchFail:ERROR",
+            "-Xep:CheckReturnValue:ERROR",
+            "-Xep:ClassCanBeStatic:ERROR",
+            "-Xep:DateFormatConstant:ERROR",
+            "-Xep:DirectInvocationOnMock:ERROR",
+            "-Xep:EmptyBlockTag:ERROR",
+            "-Xep:EmptyCatch:ERROR",
+            "-Xep:EqualsGetClass:ERROR",
+            "-Xep:EqualsHashCode:ERROR",
+            "-Xep:EqualsIncompatibleType:ERROR",
+            "-Xep:FallThrough:ERROR",
+            "-Xep:Finalize:ERROR",
+            "-Xep:FutureReturnValueIgnored:ERROR",
+            "-Xep:GuardedBy:ERROR",
+            "-Xep:HidingField:ERROR",
+            "-Xep:InconsistentHashCode:ERROR",
+            "-Xep:InlineFormatString:ERROR",
+            "-Xep:InlineMeInliner:ERROR",
+            "-Xep:InvalidBlockTag:ERROR",
+            "-Xep:InvalidInlineTag:ERROR",
+            "-Xep:InvalidParam:ERROR",
+            "-Xep:JavaUtilDate:ERROR",
+            "-Xep:JdkObsolete:ERROR",
+            "-Xep:LockOnNonEnclosingClassLiteral:ERROR",
+            "-Xep:LongFloatConversion:ERROR",
+            "-Xep:LoopOverCharArray:ERROR",
+            "-Xep:MissingCasesInEnumSwitch:ERROR",
+            "-Xep:MixedMutabilityReturnType:ERROR",
+            "-Xep:MockNotUsedInProduction:ERROR",
+            "-Xep:ModifiedButNotUsed:ERROR",
+            "-Xep:ModifyCollectionInEnhancedForLoop:ERROR",
+            "-Xep:NarrowCalculation:ERROR",
+            "-Xep:NarrowingCompoundAssignment:ERROR",
+            "-Xep:NonApiType:ERROR",
+            "-Xep:NonAtomicVolatileUpdate:ERROR",
+            "-Xep:NonCanonicalType:ERROR",
+            "-Xep:NotJavadoc:ERROR",
+            "-Xep:ObjectEqualsForPrimitives:ERROR",
+            "-Xep:OperatorPrecedence:ERROR",
+            "-Xep:ReferenceEquality:ERROR",
+            "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
+            "-Xep:StaticAssignmentInConstructor:ERROR",
+            "-Xep:StaticGuardedByInstance:ERROR",
+            "-Xep:StringCaseLocaleUsage:ERROR",
+            "-Xep:StringCharset:ERROR",
+            "-Xep:SynchronizeOnNonFinalField:ERROR",
+            "-Xep:ToStringReturnsNull:ERROR",
+            "-Xep:TruthConstantAsserts:ERROR",
+            "-Xep:TruthIncompatibleType:ERROR",
+            "-Xep:UndefinedEquals:ERROR",
+            "-Xep:UnnecessaryAssignment:ERROR",
+            "-Xep:UnnecessaryAsync:ERROR",
+            "-Xep:UnnecessaryStringBuilder:ERROR",
+            "-Xep:UnrecognisedJavadocTag:ERROR",
+            "-Xep:UnusedMethod:ERROR",
+            "-Xep:UnusedNestedClass:ERROR",
+            "-Xep:UnusedVariable:ERROR",
+            "-Xep:WaitNotInLoop:ERROR",
+            "-Xep:WakelockReleasedDangerously:ERROR",
+
+            // Exclude generated files
+            "-XepExcludedPaths:.*/srcjars/.*",
+
+            // The @InlineMe annotation is not available
+            // "-Xep:InlineMeSuggester:OFF",
+        ],
+    },
+}
+
+java_defaults {
+    name: "bluetooth_framework_errorprone_rules",
+    defaults: ["bluetooth_errorprone_rules"],
+    plugins: [
+        "error_prone_android_framework",
+    ],
+    errorprone: {
+        javacflags: [
+            "-Xep:AndroidFrameworkBinderIdentity:ERROR",
+            "-Xep:AndroidFrameworkBluetoothPermission:ERROR",
+            "-Xep:AndroidFrameworkCompatChange:ERROR",
+            "-Xep:AndroidFrameworkEfficientParcelable:ERROR",
+            "-Xep:AndroidFrameworkEfficientStrings:ERROR",
+            "-Xep:AndroidFrameworkPendingIntentMutability:ERROR",
+            "-Xep:AndroidFrameworkRequiresPermission:ERROR",
+            "-Xep:AndroidFrameworkRethrowFromSystem:ERROR",
+            "-Xep:AndroidFrameworkTargetSdk:ERROR",
+            "-Xep:AndroidHideInComments:ERROR",
+
+            // After fixing this errorprone, we decided to not merge the change.
+            // It is not very readable and the benefits are minimal when looking
+            // at the size of the maps used in the Bluetooth application.
+            // See https://r.android.com/3200511
+            "-Xep:AndroidFrameworkEfficientCollections:OFF",
+
+            // Does not look pertinent in our situation
+            "-Xep:AndroidFrameworkEfficientXml:OFF",
+        ],
+    },
 }

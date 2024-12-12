@@ -28,39 +28,28 @@
 
 #include "common/message_loop_thread.h"
 
-#define BLUETOOTH_AUDIO_HAL_PROP_DISABLED \
-  "persist.bluetooth.bluetooth_audio_hal.disabled"
-
 namespace bluetooth {
 namespace audio {
 namespace hidl {
 
-using AudioCapabilities =
-    ::android::hardware::bluetooth::audio::V2_0::AudioCapabilities;
-using AudioCapabilities_2_1 =
-    ::android::hardware::bluetooth::audio::V2_1::AudioCapabilities;
-using AudioConfiguration =
-    ::android::hardware::bluetooth::audio::V2_0::AudioConfiguration;
-using AudioConfiguration_2_1 =
-    ::android::hardware::bluetooth::audio::V2_1::AudioConfiguration;
+using AudioCapabilities = ::android::hardware::bluetooth::audio::V2_0::AudioCapabilities;
+using AudioCapabilities_2_1 = ::android::hardware::bluetooth::audio::V2_1::AudioCapabilities;
+using AudioConfiguration = ::android::hardware::bluetooth::audio::V2_0::AudioConfiguration;
+using AudioConfiguration_2_1 = ::android::hardware::bluetooth::audio::V2_1::AudioConfiguration;
 using ::android::hardware::bluetooth::audio::V2_0::BitsPerSample;
 using ::android::hardware::bluetooth::audio::V2_0::ChannelMode;
 using IBluetoothAudioProvider =
-    ::android::hardware::bluetooth::audio::V2_0::IBluetoothAudioProvider;
+        ::android::hardware::bluetooth::audio::V2_0::IBluetoothAudioProvider;
 using IBluetoothAudioProvider_2_1 =
-    ::android::hardware::bluetooth::audio::V2_1::IBluetoothAudioProvider;
-using PcmParameters =
-    ::android::hardware::bluetooth::audio::V2_0::PcmParameters;
-using PcmParameters_2_1 =
-    ::android::hardware::bluetooth::audio::V2_1::PcmParameters;
+        ::android::hardware::bluetooth::audio::V2_1::IBluetoothAudioProvider;
+using PcmParameters = ::android::hardware::bluetooth::audio::V2_0::PcmParameters;
+using PcmParameters_2_1 = ::android::hardware::bluetooth::audio::V2_1::PcmParameters;
 using SampleRate = ::android::hardware::bluetooth::audio::V2_0::SampleRate;
 using SampleRate_2_1 = ::android::hardware::bluetooth::audio::V2_1::SampleRate;
 using SessionType = ::android::hardware::bluetooth::audio::V2_0::SessionType;
-using SessionType_2_1 =
-    ::android::hardware::bluetooth::audio::V2_1::SessionType;
+using SessionType_2_1 = ::android::hardware::bluetooth::audio::V2_1::SessionType;
 using ::android::hardware::bluetooth::audio::V2_0::TimeSpec;
-using BluetoothAudioStatus =
-    ::android::hardware::bluetooth::audio::V2_0::Status;
+using BluetoothAudioStatus = ::android::hardware::bluetooth::audio::V2_0::Status;
 
 enum class BluetoothAudioCtrlAck : uint8_t {
   SUCCESS_FINISHED = 0,
@@ -73,8 +62,7 @@ enum class BluetoothAudioCtrlAck : uint8_t {
 
 std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack);
 
-inline BluetoothAudioStatus BluetoothAudioCtrlAckToHalStatus(
-    const BluetoothAudioCtrlAck& ack) {
+inline BluetoothAudioStatus BluetoothAudioCtrlAckToHalStatus(const BluetoothAudioCtrlAck& ack) {
   switch (ack) {
     case BluetoothAudioCtrlAck::SUCCESS_FINISHED:
       return BluetoothAudioStatus::SUCCESS;
@@ -95,34 +83,30 @@ inline BluetoothAudioStatus BluetoothAudioCtrlAckToHalStatus(
 // audio transport, such as A2DP or Hearing Aid, to handle callbacks from Audio
 // HAL.
 class IBluetoothTransportInstance {
- public:
-  IBluetoothTransportInstance(SessionType sessionType,
-                              AudioConfiguration audioConfig)
+public:
+  IBluetoothTransportInstance(SessionType sessionType, AudioConfiguration audioConfig)
       : session_type_(sessionType),
         session_type_2_1_(SessionType_2_1::UNKNOWN),
         audio_config_(std::move(audioConfig)),
-        audio_config_2_1_({}){};
+        audio_config_2_1_({}) {}
   IBluetoothTransportInstance(SessionType_2_1 sessionType_2_1,
                               AudioConfiguration_2_1 audioConfig_2_1)
       : session_type_(SessionType::UNKNOWN),
         session_type_2_1_(sessionType_2_1),
         audio_config_({}),
-        audio_config_2_1_(std::move(audioConfig_2_1)){};
+        audio_config_2_1_(std::move(audioConfig_2_1)) {}
   virtual ~IBluetoothTransportInstance() = default;
 
   SessionType GetSessionType() const { return session_type_; }
   SessionType_2_1 GetSessionType_2_1() const { return session_type_2_1_; }
 
   AudioConfiguration GetAudioConfiguration() const { return audio_config_; }
-  AudioConfiguration_2_1 GetAudioConfiguration_2_1() const {
-    return audio_config_2_1_;
-  }
+  AudioConfiguration_2_1 GetAudioConfiguration_2_1() const { return audio_config_2_1_; }
 
   void UpdateAudioConfiguration(const AudioConfiguration& audio_config) {
     audio_config_ = audio_config;
   }
-  void UpdateAudioConfiguration_2_1(
-      const AudioConfiguration_2_1& audio_config_2_1) {
+  void UpdateAudioConfiguration_2_1(const AudioConfiguration_2_1& audio_config_2_1) {
     audio_config_2_1_ = audio_config_2_1;
   }
 
@@ -133,15 +117,14 @@ class IBluetoothTransportInstance {
   virtual void StopRequest() = 0;
 
   virtual bool GetPresentationPosition(uint64_t* remote_delay_report_ns,
-                                       uint64_t* total_bytes_readed,
-                                       timespec* data_position) = 0;
+                                       uint64_t* total_bytes_readed, timespec* data_position) = 0;
 
   virtual void MetadataChanged(const source_metadata_t& source_metadata) = 0;
 
   // Invoked when the transport is requested to reset presentation position
   virtual void ResetPresentationPosition() = 0;
 
- private:
+private:
   const SessionType session_type_;
   const SessionType_2_1 session_type_2_1_;
   AudioConfiguration audio_config_;
@@ -152,9 +135,8 @@ class IBluetoothTransportInstance {
 // audio transport, such as A2DP, Hearing Aid or LeAudio, to handle callbacks
 // from Audio HAL.
 class IBluetoothSinkTransportInstance : public IBluetoothTransportInstance {
- public:
-  IBluetoothSinkTransportInstance(SessionType sessionType,
-                                  AudioConfiguration audioConfig)
+public:
+  IBluetoothSinkTransportInstance(SessionType sessionType, AudioConfiguration audioConfig)
       : IBluetoothTransportInstance{sessionType, audioConfig} {}
   IBluetoothSinkTransportInstance(SessionType_2_1 sessionType_2_1,
                                   AudioConfiguration_2_1 audioConfig_2_1)
@@ -166,9 +148,8 @@ class IBluetoothSinkTransportInstance : public IBluetoothTransportInstance {
 };
 
 class IBluetoothSourceTransportInstance : public IBluetoothTransportInstance {
- public:
-  IBluetoothSourceTransportInstance(SessionType sessionType,
-                                    AudioConfiguration audioConfig)
+public:
+  IBluetoothSourceTransportInstance(SessionType sessionType, AudioConfiguration audioConfig)
       : IBluetoothTransportInstance{sessionType, audioConfig} {}
   IBluetoothSourceTransportInstance(SessionType_2_1 sessionType_2_1,
                                     AudioConfiguration_2_1 audioConfig_2_1)
@@ -186,20 +167,18 @@ class BluetoothAudioDeathRecipient;
 // IBluetoothAudioProvider and helps to route callbacks to
 // IBluetoothTransportInstance
 class BluetoothAudioClientInterface {
- public:
-  BluetoothAudioClientInterface(
-      android::sp<BluetoothAudioDeathRecipient> death_recipient,
-      IBluetoothTransportInstance* instance);
+public:
+  BluetoothAudioClientInterface(android::sp<BluetoothAudioDeathRecipient> death_recipient,
+                                IBluetoothTransportInstance* instance);
   virtual ~BluetoothAudioClientInterface() = default;
 
   bool IsValid() const;
 
   std::vector<AudioCapabilities> GetAudioCapabilities() const;
   std::vector<AudioCapabilities_2_1> GetAudioCapabilities_2_1() const;
-  static std::vector<AudioCapabilities> GetAudioCapabilities(
-      SessionType session_type);
+  static std::vector<AudioCapabilities> GetAudioCapabilities(SessionType session_type);
   static std::vector<AudioCapabilities_2_1> GetAudioCapabilities_2_1(
-      SessionType_2_1 session_type_2_1);
+          SessionType_2_1 session_type_2_1);
 
   void StreamStarted(const BluetoothAudioCtrlAck& ack);
 
@@ -219,11 +198,11 @@ class BluetoothAudioClientInterface {
   void FlushAudioData();
 
   static constexpr PcmParameters kInvalidPcmConfiguration = {
-      .sampleRate = SampleRate::RATE_UNKNOWN,
-      .channelMode = ChannelMode::UNKNOWN,
-      .bitsPerSample = BitsPerSample::BITS_UNKNOWN};
+          .sampleRate = SampleRate::RATE_UNKNOWN,
+          .channelMode = ChannelMode::UNKNOWN,
+          .bitsPerSample = BitsPerSample::BITS_UNKNOWN};
 
- protected:
+protected:
   mutable std::mutex internal_mutex_;
   // Helper function to connect to an IBluetoothAudioProvider
   void FetchAudioProvider();
@@ -233,12 +212,12 @@ class BluetoothAudioClientInterface {
   android::sp<IBluetoothAudioProvider> provider_;
   android::sp<IBluetoothAudioProvider_2_1> provider_2_1_;
   bool session_started_;
-  std::unique_ptr<::android::hardware::MessageQueue<
-      uint8_t, ::android::hardware::kSynchronizedReadWrite>>
-      mDataMQ;
+  std::unique_ptr<
+          ::android::hardware::MessageQueue<uint8_t, ::android::hardware::kSynchronizedReadWrite>>
+          mDataMQ;
   android::sp<BluetoothAudioDeathRecipient> death_recipient_;
 
- private:
+private:
   IBluetoothTransportInstance* transport_;
   std::vector<AudioCapabilities> capabilities_;
   std::vector<AudioCapabilities_2_1> capabilities_2_1_;
@@ -248,45 +227,38 @@ class BluetoothAudioClientInterface {
 // IBluetoothAudioProvider and helps to route callbacks to
 // IBluetoothTransportInstance
 class BluetoothAudioSinkClientInterface : public BluetoothAudioClientInterface {
- public:
+public:
   // Constructs an BluetoothAudioSinkClientInterface to communicate to
   // BluetoothAudio HAL. |sink| is the implementation for the transport, and
   // |message_loop| is the thread where callbacks are invoked.
-  BluetoothAudioSinkClientInterface(
-      IBluetoothSinkTransportInstance* sink,
-      bluetooth::common::MessageLoopThread* message_loop);
+  BluetoothAudioSinkClientInterface(IBluetoothSinkTransportInstance* sink,
+                                    bluetooth::common::MessageLoopThread* message_loop);
   virtual ~BluetoothAudioSinkClientInterface();
 
-  IBluetoothSinkTransportInstance* GetTransportInstance() const {
-    return sink_;
-  }
+  IBluetoothSinkTransportInstance* GetTransportInstance() const { return sink_; }
 
   // Read data from audio  HAL through fmq
   size_t ReadAudioData(uint8_t* p_buf, uint32_t len);
 
- private:
+private:
   IBluetoothSinkTransportInstance* sink_;
 };
 
-class BluetoothAudioSourceClientInterface
-    : public BluetoothAudioClientInterface {
- public:
+class BluetoothAudioSourceClientInterface : public BluetoothAudioClientInterface {
+public:
   // Constructs an BluetoothAudioSourceClientInterface to communicate to
   // BluetoothAudio HAL. |source| is the implementation for the transport, and
   // |message_loop| is the thread where callbacks are invoked.
-  BluetoothAudioSourceClientInterface(
-      IBluetoothSourceTransportInstance* source,
-      bluetooth::common::MessageLoopThread* message_loop);
+  BluetoothAudioSourceClientInterface(IBluetoothSourceTransportInstance* source,
+                                      bluetooth::common::MessageLoopThread* message_loop);
   virtual ~BluetoothAudioSourceClientInterface();
 
-  IBluetoothSourceTransportInstance* GetTransportInstance() const {
-    return source_;
-  }
+  IBluetoothSourceTransportInstance* GetTransportInstance() const { return source_; }
 
   // Write data to audio HAL through fmq
   size_t WriteAudioData(const uint8_t* p_buf, uint32_t len);
 
- private:
+private:
   IBluetoothSourceTransportInstance* source_;
 };
 

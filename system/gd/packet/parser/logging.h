@@ -24,20 +24,21 @@
 #include "parse_location.h"
 
 class Loggable {
- public:
+public:
   virtual ~Loggable() = default;
   virtual std::string GetDebugName() const = 0;
   virtual ParseLocation GetLocation() const = 0;
 };
 
 class LogMessage {
- public:
+public:
   LogMessage(ParseLocation loc, std::initializer_list<const Loggable*> tokens)
       : debug_(false), loc_(loc), tokens_(tokens) {
     Init();
   }
 
-  LogMessage(bool debug, std::initializer_list<const Loggable*> tokens) : debug_(debug), tokens_(tokens) {
+  LogMessage(bool debug, std::initializer_list<const Loggable*> tokens)
+      : debug_(debug), tokens_(tokens) {
     Init();
   }
 
@@ -58,7 +59,9 @@ class LogMessage {
   }
 
   ~LogMessage() {
-    if (debug_ && suppress_debug_) return;
+    if (debug_ && suppress_debug_) {
+      return;
+    }
 
     std::cerr << stream_.str() << "\n";
     for (const auto& token : tokens_) {
@@ -74,11 +77,9 @@ class LogMessage {
     }
   }
 
-  std::ostream& stream() {
-    return stream_;
-  }
+  std::ostream& stream() { return stream_; }
 
- private:
+private:
   std::ostringstream stream_;
   bool debug_;
   bool suppress_debug_{true};
@@ -87,7 +88,8 @@ class LogMessage {
 };
 
 // Error Log stream. Aborts the program after the message is printed.
-// The arguments to the macro is a list of Loggable objects that are printed when the error is printed.
+// The arguments to the macro is a list of Loggable objects that are printed when the error is
+// printed.
 #define ERROR(...) LogMessage(false, {__VA_ARGS__}).stream()
 
 // ParseLocation error log, the first argument is a location.

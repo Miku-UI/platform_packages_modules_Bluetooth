@@ -32,12 +32,12 @@
 
 namespace bluetooth::le_audio {
 namespace utils {
-types::LeAudioContextType AudioContentToLeAudioContext(
-    audio_content_type_t content_type, audio_usage_t usage);
+types::LeAudioContextType AudioContentToLeAudioContext(audio_content_type_t content_type,
+                                                       audio_usage_t usage);
 types::AudioContexts GetAudioContextsFromSourceMetadata(
-    const std::vector<struct playback_track_metadata_v7>& source_metadata);
+        const std::vector<struct playback_track_metadata_v7>& source_metadata);
 types::AudioContexts GetAudioContextsFromSinkMetadata(
-    const std::vector<struct record_track_metadata_v7>& sink_metadata);
+        const std::vector<struct record_track_metadata_v7>& sink_metadata);
 inline uint8_t GetTargetLatencyForAudioContext(types::LeAudioContextType ctx) {
   switch (ctx) {
     case types::LeAudioContextType::GAME:
@@ -59,36 +59,38 @@ inline uint8_t GetTargetLatencyForAudioContext(types::LeAudioContextType ctx) {
 }
 
 /* Helpers to get btle_audio_codec_config_t for Java */
-bluetooth::le_audio::btle_audio_codec_index_t
-translateBluetoothCodecFormatToCodecType(uint8_t codec_format);
+bluetooth::le_audio::btle_audio_codec_index_t translateBluetoothCodecFormatToCodecType(
+        uint8_t codec_format);
 
-bluetooth::le_audio::btle_audio_sample_rate_index_t
-translateToBtLeAudioCodecConfigSampleRate(uint32_t sample_rate_capa);
-bluetooth::le_audio::btle_audio_bits_per_sample_index_t
-translateToBtLeAudioCodecConfigBitPerSample(uint8_t bits_per_sample);
-bluetooth::le_audio::btle_audio_channel_count_index_t
-translateToBtLeAudioCodecConfigChannelCount(uint8_t channel_count);
-bluetooth::le_audio::btle_audio_frame_duration_index_t
-translateToBtLeAudioCodecConfigFrameDuration(int frame_duration);
+bluetooth::le_audio::btle_audio_sample_rate_index_t translateToBtLeAudioCodecConfigSampleRate(
+        uint32_t sample_rate_capa);
+bluetooth::le_audio::btle_audio_bits_per_sample_index_t translateToBtLeAudioCodecConfigBitPerSample(
+        uint8_t bits_per_sample);
+bluetooth::le_audio::btle_audio_channel_count_index_t translateToBtLeAudioCodecConfigChannelCount(
+        uint8_t channel_count);
+bluetooth::le_audio::btle_audio_frame_duration_index_t translateToBtLeAudioCodecConfigFrameDuration(
+        int frame_duration);
 void fillStreamParamsToBtLeAudioCodecConfig(
-    const std::vector<struct set_configurations::AseConfiguration>& confs,
-    bluetooth::le_audio::btle_audio_codec_config_t& out_config);
+        const std::vector<struct set_configurations::AseConfiguration>& confs,
+        bluetooth::le_audio::btle_audio_codec_config_t& out_config);
 
-std::vector<bluetooth::le_audio::btle_audio_codec_config_t>
-GetRemoteBtLeAudioCodecConfigFromPac(
-    const types::PublishedAudioCapabilities& group_pacs);
+std::vector<bluetooth::le_audio::btle_audio_codec_config_t> GetRemoteBtLeAudioCodecConfigFromPac(
+        const types::PublishedAudioCapabilities& group_pacs);
 bool IsCodecUsingLtvFormat(const types::LeAudioCodecId& codec_id);
 types::LeAudioConfigurationStrategy GetStrategyForAseConfig(
-    const std::vector<le_audio::set_configurations::AseConfiguration>& cfgs,
-    uint8_t device_cnt);
+        const std::vector<le_audio::set_configurations::AseConfiguration>& cfgs,
+        uint8_t device_cnt);
 ::bluetooth::le_audio::LeAudioCodecConfiguration
 GetAudioSessionCodecConfigFromAudioSetConfiguration(
-    const ::bluetooth::le_audio::set_configurations::AudioSetConfiguration&
-        audio_set_conf,
-    uint8_t remote_direction);
+        const ::bluetooth::le_audio::set_configurations::AudioSetConfiguration& audio_set_conf,
+        uint8_t remote_direction);
 const struct types::acs_ac_record* GetConfigurationSupportedPac(
-    const ::bluetooth::le_audio::types::PublishedAudioCapabilities& pacs,
-    const ::bluetooth::le_audio::set_configurations::CodecConfigSetting&
-        codec_config_setting);
+        const ::bluetooth::le_audio::types::PublishedAudioCapabilities& pacs,
+        const ::bluetooth::le_audio::set_configurations::CodecConfigSetting& codec_config_setting);
+bool IsAseConfigMatchedWithPreferredRequirements(
+        const std::vector<struct set_configurations::AseConfiguration>& ase_confs,
+        const std::vector<
+                CodecManager::UnicastConfigurationRequirements::DeviceDirectionRequirements>& reqs,
+        uint8_t channel_cnt_per_ase);
 }  // namespace utils
 }  // namespace bluetooth::le_audio

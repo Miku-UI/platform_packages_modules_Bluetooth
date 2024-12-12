@@ -23,20 +23,12 @@
 #include "devices.h"
 
 namespace bluetooth::le_audio {
-bool SerializeSinkPacs(const LeAudioDevice* leAudioDevice,
-                       std::vector<uint8_t>& out);
-bool DeserializeSinkPacs(LeAudioDevice* leAudioDevice,
-                         const std::vector<uint8_t>& in);
-bool SerializeSourcePacs(const LeAudioDevice* leAudioDevice,
-                         std::vector<uint8_t>& out);
-bool DeserializeSourcePacs(LeAudioDevice* leAudioDevice,
-                           const std::vector<uint8_t>& in);
-bool SerializeAses(const LeAudioDevice* leAudioDevice,
-                   std::vector<uint8_t>& out);
-bool DeserializeAses(LeAudioDevice* leAudioDevice,
-                     const std::vector<uint8_t>& in);
-bool SerializeHandles(const LeAudioDevice* leAudioDevice,
-                      std::vector<uint8_t>& out);
-bool DeserializeHandles(LeAudioDevice* leAudioDevice,
-                        const std::vector<uint8_t>& in);
+bool SerializeSinkPacs(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out);
+bool DeserializeSinkPacs(LeAudioDevice* leAudioDevice, const std::vector<uint8_t>& in);
+bool SerializeSourcePacs(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out);
+bool DeserializeSourcePacs(LeAudioDevice* leAudioDevice, const std::vector<uint8_t>& in);
+bool SerializeAses(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out);
+bool DeserializeAses(LeAudioDevice* leAudioDevice, const std::vector<uint8_t>& in);
+bool SerializeHandles(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out);
+bool DeserializeHandles(LeAudioDevice* leAudioDevice, const std::vector<uint8_t>& in);
 }  // namespace bluetooth::le_audio

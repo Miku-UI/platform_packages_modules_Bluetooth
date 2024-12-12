@@ -26,7 +26,7 @@
 namespace bluetooth::audio::asrc {
 
 class SourceAudioHalAsrc {
- public:
+public:
   // The Asynchronous Sample Rate Conversion (ASRC) is set up from the PCM
   // stream characteristics and the length, expressed in us, of the buffers.
   //
@@ -38,9 +38,9 @@ class SourceAudioHalAsrc {
   // `burst_delay_ms` helps to ensure that the synchronization with the
   // transmission intervals is done.
 
-  SourceAudioHalAsrc(bluetooth::common::MessageLoopThread* thread, int channels,
-                     int sample_rate, int bit_depth, int interval_us,
-                     int num_burst_buffers = 2, int burst_delay_ms = 500);
+  SourceAudioHalAsrc(bluetooth::common::MessageLoopThread* thread, int channels, int sample_rate,
+                     int bit_depth, int interval_us, int num_burst_buffers = 2,
+                     int burst_delay_ms = 500);
 
   ~SourceAudioHalAsrc();
 
@@ -54,7 +54,7 @@ class SourceAudioHalAsrc {
 
   std::vector<const std::vector<uint8_t>*> Run(const std::vector<uint8_t>& in);
 
- private:
+private:
   const int sample_rate_;
   const int bit_depth_;
   const int interval_us_;
@@ -85,8 +85,8 @@ class SourceAudioHalAsrc {
   } resampler_pos_;
 
   template <typename T>
-  void Resample(double, const std::vector<uint8_t>&,
-                std::vector<const std::vector<uint8_t>*>*, uint32_t*);
+  void Resample(double, const std::vector<uint8_t>&, std::vector<const std::vector<uint8_t>*>*,
+                uint32_t*);
 
   friend class SourceAudioHalAsrcTest;
 };

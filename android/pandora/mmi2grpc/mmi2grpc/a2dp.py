@@ -67,7 +67,13 @@ class A2DPProxy(ProfileProxy):
         the IUT connects to PTS to establish pairing.
         """
 
-        if "SRC" in test:
+        if "A2DP/SRC/AVP" in test or "A2DP/SNK/AVP" in test:
+            # WaitSource is blocking and cannot be invoked in these tests
+            # because Android will initiate the AVDTP connection after a
+            # timeout if the remote device is inactive.
+            self.connection = self.host.WaitConnection(address=pts_addr).connection
+
+        elif "SRC" in test:
             self.connection = self.host.WaitConnection(address=pts_addr).connection
             try:
                 if "INT" in test:

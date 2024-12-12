@@ -32,6 +32,7 @@
 
 package com.android.bluetooth.opp;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothUtils;
 import android.content.Context;
@@ -191,8 +192,9 @@ public class BluetoothOppPreference {
         Log.d(TAG, mChannels.toString());
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission")
     private String getBrEdrAddress(BluetoothDevice device) {
-        if (Flags.identityAddressNullIfUnknown()) {
+        if (Flags.identityAddressNullIfNotKnown()) {
             return Utils.getBrEdrAddress(device);
         }
         return device.getIdentityAddress();

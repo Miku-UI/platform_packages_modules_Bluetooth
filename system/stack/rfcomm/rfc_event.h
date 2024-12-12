@@ -22,13 +22,8 @@
 
 #include "macros.h"
 
-/*
- * Events that can be received by multiplexer as well as port state machines
- */
+// Events that can be received by both multiplexer or port state machines
 enum tRFC_EVENT : uint16_t {
-  /*
-   * Events that can be received by multiplexer as well as port state machines
-   */
   RFC_EVENT_SABME = 0,
   RFC_EVENT_UA = 1,
   RFC_EVENT_DM = 2,
@@ -38,13 +33,8 @@ enum tRFC_EVENT : uint16_t {
   RFC_EVENT_BAD_FRAME = 50,
 };
 
-/*
- * Multiplexer events
- */
+// Multiplexer events
 enum tRFC_MX_EVENT : uint16_t {
-  /*
-   * Multiplexer events
-   */
   RFC_MX_EVENT_SABME = RFC_EVENT_SABME,
   RFC_MX_EVENT_UA = RFC_EVENT_UA,
   RFC_MX_EVENT_DM = RFC_EVENT_DM,
@@ -62,13 +52,8 @@ enum tRFC_MX_EVENT : uint16_t {
   RFC_MX_EVENT_DISC_IND = 14,
 };
 
-/*
- * Port events
- */
+// Port events
 enum tRFC_PORT_EVENT : uint16_t {
-  /*
-   * Port events
-   */
   RFC_PORT_EVENT_SABME = RFC_EVENT_SABME,
   RFC_PORT_EVENT_UA = RFC_EVENT_UA,
   RFC_PORT_EVENT_DM = RFC_EVENT_DM,

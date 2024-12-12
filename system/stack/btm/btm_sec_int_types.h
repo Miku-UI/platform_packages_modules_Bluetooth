@@ -31,47 +31,40 @@
  * Local device configuration
  */
 typedef struct {
-  BD_NAME bd_name;          /* local Bluetooth device name */
-  bool pin_type;            /* true if PIN type is fixed */
-  uint8_t pin_code_len;     /* Bonding information */
-  PIN_CODE pin_code;        /* PIN CODE if pin type is fixed */
+  BD_NAME bd_name;      /* local Bluetooth device name */
+  bool pin_type;        /* true if PIN type is fixed */
+  uint8_t pin_code_len; /* Bonding information */
+  PIN_CODE pin_code;    /* PIN CODE if pin type is fixed */
 } tBTM_CFG;
 
 /* Pairing State */
 enum tBTM_PAIRING_STATE : uint8_t {
-  BTM_PAIR_STATE_IDLE, /* Idle                                         */
-  BTM_PAIR_STATE_GET_REM_NAME, /* Getting the remote name (to check for SM4) */
-  BTM_PAIR_STATE_WAIT_PIN_REQ, /* Started authentication, waiting for PIN req
-                                  (PIN is pre-fetched) */
+  BTM_PAIR_STATE_IDLE,                 /* Idle                                         */
+  BTM_PAIR_STATE_GET_REM_NAME,         /* Getting the remote name (to check for SM4) */
+  BTM_PAIR_STATE_WAIT_PIN_REQ,         /* Started authentication, waiting for PIN req
+                                          (PIN is pre-fetched) */
   BTM_PAIR_STATE_WAIT_LOCAL_PIN,       /* Waiting for local PIN code */
   BTM_PAIR_STATE_WAIT_NUMERIC_CONFIRM, /* Waiting user 'yes' to numeric
                                           confirmation   */
-  BTM_PAIR_STATE_KEY_ENTRY, /* Key entry state (we are a keyboard)          */
-  BTM_PAIR_STATE_WAIT_LOCAL_OOB_RSP, /* Waiting for local response to peer OOB
-                                        data  */
-  BTM_PAIR_STATE_WAIT_LOCAL_IOCAPS, /* Waiting for local IO capabilities and OOB
-                                       data */
-  BTM_PAIR_STATE_INCOMING_SSP, /* Incoming SSP (got peer IO caps when idle) */
-  BTM_PAIR_STATE_WAIT_AUTH_COMPLETE, /* All done, waiting authentication
-                                        complete    */
-  BTM_PAIR_STATE_WAIT_DISCONNECT     /* Waiting to disconnect the ACL */
+  BTM_PAIR_STATE_KEY_ENTRY,            /* Key entry state (we are a keyboard)          */
+  BTM_PAIR_STATE_WAIT_LOCAL_OOB_RSP,   /* Waiting for local response to peer OOB
+                                          data  */
+  BTM_PAIR_STATE_WAIT_LOCAL_IOCAPS,    /* Waiting for local IO capabilities and OOB
+                                          data */
+  BTM_PAIR_STATE_INCOMING_SSP,         /* Incoming SSP (got peer IO caps when idle) */
+  BTM_PAIR_STATE_WAIT_AUTH_COMPLETE,   /* All done, waiting authentication
+                                          complete    */
+  BTM_PAIR_STATE_WAIT_DISCONNECT       /* Waiting to disconnect the ACL */
 };
 
-#define BTM_PAIR_FLAGS_WE_STARTED_DD \
-  0x01 /* We want to do dedicated bonding              */
-#define BTM_PAIR_FLAGS_PEER_STARTED_DD \
-  0x02 /* Peer initiated dedicated bonding             */
-#define BTM_PAIR_FLAGS_DISC_WHEN_DONE 0x04 /* Disconnect when done     */
-#define BTM_PAIR_FLAGS_PIN_REQD \
-  0x08 /* set this bit when pin_callback is called     */
-#define BTM_PAIR_FLAGS_PRE_FETCH_PIN \
-  0x10 /* set this bit when pre-fetch pin     */
-#define BTM_PAIR_FLAGS_REJECTED_CONNECT \
-  0x20 /* set this bit when rejected incoming connection  */
-#define BTM_PAIR_FLAGS_WE_CANCEL_DD \
-  0x40 /* set this bit when cancelling a bonding procedure */
-#define BTM_PAIR_FLAGS_LE_ACTIVE \
-  0x80 /* use this bit when SMP pairing is active */
+#define BTM_PAIR_FLAGS_WE_STARTED_DD 0x01    /* We want to do dedicated bonding              */
+#define BTM_PAIR_FLAGS_PEER_STARTED_DD 0x02  /* Peer initiated dedicated bonding             */
+#define BTM_PAIR_FLAGS_DISC_WHEN_DONE 0x04   /* Disconnect when done     */
+#define BTM_PAIR_FLAGS_PIN_REQD 0x08         /* set this bit when pin_callback is called     */
+#define BTM_PAIR_FLAGS_PRE_FETCH_PIN 0x10    /* set this bit when pre-fetch pin     */
+#define BTM_PAIR_FLAGS_REJECTED_CONNECT 0x20 /* set this bit when rejected incoming connection  */
+#define BTM_PAIR_FLAGS_WE_CANCEL_DD 0x40     /* set this bit when cancelling a bonding procedure */
+#define BTM_PAIR_FLAGS_LE_ACTIVE 0x80        /* use this bit when SMP pairing is active */
 
 typedef struct {
   bool is_mux;
@@ -89,8 +82,7 @@ typedef struct {
 /* Define the Device Management control structure
  */
 typedef struct tBTM_SEC_DEVCB {
-  tBTM_CMPL_CB*
-      p_stored_link_key_cmpl_cb; /* Read/Write/Delete stored link key    */
+  tBTM_CMPL_CB* p_stored_link_key_cmpl_cb; /* Read/Write/Delete stored link key    */
 
   tBTM_BLE_LOCAL_ID_KEYS id_keys;   /* local BLE ID keys */
   Octet16 ble_encryption_key_value; /* BLE encryption key */

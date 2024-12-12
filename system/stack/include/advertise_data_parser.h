@@ -23,20 +23,18 @@
 #include <vector>
 
 // Scan Response data from Traxxas
-static constexpr std::array<uint8_t, 18> trx_quirk{
-    {0x14, 0x09, 0x54, 0xFF, 0xFF, 0x20, 0x42, 0x4C, 0x45, 0x05, 0x12, 0xFF,
-     0x00, 0xE8, 0x03, 0x02, 0x0A, 0x00}};
+static constexpr std::array<uint8_t, 18> trx_quirk{{0x14, 0x09, 0x54, 0xFF, 0xFF, 0x20, 0x42, 0x4C,
+                                                    0x45, 0x05, 0x12, 0xFF, 0x00, 0xE8, 0x03, 0x02,
+                                                    0x0A, 0x00}};
 
 class AdvertiseDataParser {
   // Return true if the packet is malformed, but should be considered valid for
   // compatibility with already existing devices
-  static bool MalformedPacketQuirk(const std::vector<uint8_t>& ad,
-                                   size_t position) {
+  static bool MalformedPacketQuirk(const std::vector<uint8_t>& ad, size_t position) {
     auto data_start = ad.begin() + position;
 
     // Traxxas - bad name length
-    if ((ad.size() - position) >= 18 &&
-        std::equal(data_start, data_start + 3, trx_quirk.begin()) &&
+    if ((ad.size() - position) >= 18 && std::equal(data_start, data_start + 3, trx_quirk.begin()) &&
         std::equal(data_start + 5, data_start + 11, trx_quirk.begin() + 5) &&
         std::equal(data_start + 12, data_start + 18, trx_quirk.begin() + 12)) {
       return true;
@@ -45,7 +43,7 @@ class AdvertiseDataParser {
     return false;
   }
 
- public:
+public:
   static void RemoveTrailingZeros(std::vector<uint8_t>& ad) {
     size_t position = 0;
 
@@ -86,7 +84,9 @@ class AdvertiseDataParser {
       // end of advertisement. If this is the case, treat the packet as valid.
       if (len == 0) {
         for (size_t i = position + 1; i < ad_len; i++) {
-          if (ad[i] != 0) return false;
+          if (ad[i] != 0) {
+            return false;
+          }
         }
         return true;
       }
@@ -94,7 +94,9 @@ class AdvertiseDataParser {
       // If the length of the current field would exceed the total data length,
       // then the data is badly formatted.
       if (position + len >= ad_len) {
-        if (MalformedPacketQuirk(ad, position)) return true;
+        if (MalformedPacketQuirk(ad, position)) {
+          return true;
+        }
 
         return false;
       }
@@ -109,15 +111,19 @@ class AdvertiseDataParser {
    * This function returns a pointer inside the |ad| array of length |ad_len|
    * where a field of |type| is located, together with its length in |p_length|
    */
-  static const uint8_t* GetFieldByType(const uint8_t* ad, size_t ad_len,
-                                       uint8_t type, uint8_t* p_length) {
+  static const uint8_t* GetFieldByType(const uint8_t* ad, size_t ad_len, uint8_t type,
+                                       uint8_t* p_length) {
     size_t position = 0;
 
     while (position != ad_len) {
       uint8_t len = ad[position];
 
-      if (len == 0) break;
-      if (position + len >= ad_len) break;
+      if (len == 0) {
+        break;
+      }
+      if (position + len >= ad_len) {
+        break;
+      }
 
       uint8_t adv_type = ad[position + 1];
 
@@ -138,8 +144,8 @@ class AdvertiseDataParser {
    * This function returns a pointer inside the |adv| where a field of |type| is
    * located, together with it' length in |p_length|
    */
-  static const uint8_t* GetFieldByType(std::vector<uint8_t> const& ad,
-                                       uint8_t type, uint8_t* p_length) {
+  static const uint8_t* GetFieldByType(std::vector<uint8_t> const& ad, uint8_t type,
+                                       uint8_t* p_length) {
     return GetFieldByType(ad.data(), ad.size(), type, p_length);
   }
 };

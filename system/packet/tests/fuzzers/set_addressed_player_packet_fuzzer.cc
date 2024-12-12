@@ -34,8 +34,7 @@ extern "C" int LLVMFuzzerTestOneInput(const char* data, size_t size) {
     for (size_t x = 0; x < size; x++) {
       short_set_addressed_player_request.push_back(data[x]);
     }
-    auto test_packet =
-        TestSetAddrPlayerPacket::Make(set_addressed_player_request);
+    auto test_packet = TestSetAddrPlayerPacket::Make(set_addressed_player_request);
 
     test_packet->GetPlayerId();
     test_packet->GetData();

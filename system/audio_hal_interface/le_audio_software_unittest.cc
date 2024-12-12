@@ -27,6 +27,7 @@
 #include "aidl/audio_ctrl_ack.h"
 #include "aidl/le_audio_software_aidl.h"
 #include "audio_hal_interface/hal_version_manager.h"
+#include "bta/le_audio/mock_codec_manager.h"
 #include "gmock/gmock.h"
 #include "hidl/le_audio_software_hidl.h"
 
@@ -37,57 +38,45 @@ using bluetooth::audio::le_audio::LeAudioClientInterface;
 using bluetooth::audio::le_audio::StreamCallbacks;
 
 extern "C" {
-struct android_namespace_t* android_get_exported_namespace(const char*) {
-  return nullptr;
-}
-void* android_load_sphal_library(const char* /*name*/, int /*flag*/) {
-  return nullptr;
-}
+struct android_namespace_t* android_get_exported_namespace(const char*) { return nullptr; }
+void* android_load_sphal_library(const char* /*name*/, int /*flag*/) { return nullptr; }
 }
 
 // MOCKS
 namespace {
 class MockHalVersionManager {
- public:
+public:
   MockHalVersionManager() = default;
   MOCK_METHOD((bluetooth::audio::BluetoothAudioHalVersion), GetHalVersion, ());
-  MOCK_METHOD((bluetooth::audio::BluetoothAudioHalTransport), GetHalTransport,
-              ());
-  MOCK_METHOD(
-      (android::sp<bluetooth::audio::IBluetoothAudioProvidersFactory_2_1>),
-      GetProvidersFactory_2_1, ());
-  MOCK_METHOD(
-      (android::sp<bluetooth::audio::IBluetoothAudioProvidersFactory_2_0>),
-      GetProvidersFactory_2_0, ());
+  MOCK_METHOD((bluetooth::audio::BluetoothAudioHalTransport), GetHalTransport, ());
+  MOCK_METHOD((android::sp<bluetooth::audio::IBluetoothAudioProvidersFactory_2_1>),
+              GetProvidersFactory_2_1, ());
+  MOCK_METHOD((android::sp<bluetooth::audio::IBluetoothAudioProvidersFactory_2_0>),
+              GetProvidersFactory_2_0, ());
 
-  static void SetInstance(MockHalVersionManager* ptr) {
-    MockHalVersionManager::instance_ptr = ptr;
-  }
+  static void SetInstance(MockHalVersionManager* ptr) { MockHalVersionManager::instance_ptr = ptr; }
 
   static MockHalVersionManager* GetInstance() { return instance_ptr; }
 
- private:
+private:
   static MockHalVersionManager* instance_ptr;
 };
 MockHalVersionManager* MockHalVersionManager::instance_ptr = nullptr;
 
 class MockBluetoothAudioClientInterfaceBidirEndpoint {
- public:
-  MOCK_METHOD((size_t), WriteAudioData,
-              (const uint8_t* /*p_buf*/, uint32_t /*len*/), ());
-  MOCK_METHOD((size_t), ReadAudioData, (uint8_t* /*p_buf*/, uint32_t /*len*/),
-              ());
+public:
+  MOCK_METHOD((size_t), WriteAudioData, (const uint8_t* /*p_buf*/, uint32_t /*len*/), ());
+  MOCK_METHOD((size_t), ReadAudioData, (uint8_t* /*p_buf*/, uint32_t /*len*/), ());
 };
 
 class MockBluetoothAudioClientInterfaceHidl {
- public:
+public:
   MockBluetoothAudioClientInterfaceBidirEndpoint endpoint;
 
   MOCK_METHOD((bool), IsValid, (), (const));
   MOCK_METHOD((void), FlushAudioData, ());
   MOCK_METHOD((bool), UpdateAudioConfig_2_1,
-              (const bluetooth::audio::hidl::
-                   AudioConfiguration_2_1& /*audio_config_2_1*/));
+              (const bluetooth::audio::hidl::AudioConfiguration_2_1& /*audio_config_2_1*/));
   MOCK_METHOD((int), StartSession_2_1, ());
   MOCK_METHOD((void), StreamStarted,
               (const bluetooth::audio::hidl::BluetoothAudioCtrlAck& /*ack*/));
@@ -95,82 +84,68 @@ class MockBluetoothAudioClientInterfaceHidl {
   MOCK_METHOD((void), StreamSuspended,
               (const bluetooth::audio::hidl::BluetoothAudioCtrlAck& /*ack*/));
 
-  static void SetInstance(MockBluetoothAudioClientInterfaceHidl* ptr) {
-    instance_ptr = ptr;
-  }
+  static void SetInstance(MockBluetoothAudioClientInterfaceHidl* ptr) { instance_ptr = ptr; }
 
-  static MockBluetoothAudioClientInterfaceHidl* GetInstance() {
-    return instance_ptr;
-  }
+  static MockBluetoothAudioClientInterfaceHidl* GetInstance() { return instance_ptr; }
 
- private:
+private:
   static MockBluetoothAudioClientInterfaceHidl* instance_ptr;
 };
-MockBluetoothAudioClientInterfaceHidl*
-    MockBluetoothAudioClientInterfaceHidl::instance_ptr = nullptr;
+MockBluetoothAudioClientInterfaceHidl* MockBluetoothAudioClientInterfaceHidl::instance_ptr =
+        nullptr;
 
 class MockBluetoothAudioClientInterfaceAidl {
- public:
+public:
   MockBluetoothAudioClientInterfaceBidirEndpoint endpoint;
 
   MOCK_METHOD((bool), IsValid, (), (const));
-  MOCK_METHOD(
-      (bool), SetAllowedLatencyModes,
-      (std::vector<bluetooth::audio::aidl::LatencyMode> /*latency_modes*/));
+  MOCK_METHOD((bool), SetAllowedLatencyModes,
+              (std::vector<bluetooth::audio::aidl::LatencyMode> /*latency_modes*/));
   MOCK_METHOD((void), FlushAudioData, ());
-  MOCK_METHOD(
-      (bool), UpdateAudioConfig,
-      (const bluetooth::audio::aidl::AudioConfiguration& /*audio_config*/));
+  MOCK_METHOD((bool), UpdateAudioConfig,
+              (const bluetooth::audio::aidl::AudioConfiguration& /*audio_config*/));
   MOCK_METHOD((int), StartSession, ());
   MOCK_METHOD((void), StreamStarted,
               (const bluetooth::audio::aidl::BluetoothAudioCtrlAck& /*ack*/));
   MOCK_METHOD((int), EndSession, ());
   MOCK_METHOD((void), StreamSuspended,
               (const bluetooth::audio::aidl::BluetoothAudioCtrlAck& /*ack*/));
-  MOCK_METHOD((std::vector<bluetooth::audio::aidl::AudioCapabilities>),
-              GetAudioCapabilities,
+  MOCK_METHOD((std::vector<bluetooth::audio::aidl::AudioCapabilities>), GetAudioCapabilities,
               (bluetooth::audio::aidl::SessionType /*session_type*/));
   MOCK_METHOD(
-      (std::vector<
-          ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-              LeAudioAseConfigurationSetting>),
-      GetLeAudioAseConfiguration,
-      ((std::optional<std::vector<std::optional<
-            ::aidl::android::hardware::bluetooth::audio::
-                IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&),
-       (std::optional<std::vector<std::optional<
-            ::aidl::android::hardware::bluetooth::audio::
-                IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&),
-       (std::vector<
-           ::aidl::android::hardware::bluetooth::audio::
-               IBluetoothAudioProvider::LeAudioConfigurationRequirement>&)));
+          (std::vector<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                               LeAudioAseConfigurationSetting>),
+          GetLeAudioAseConfiguration,
+          ((std::optional<std::vector<
+                    std::optional<::aidl::android::hardware::bluetooth::audio::
+                                          IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&),
+           (std::optional<std::vector<
+                    std::optional<::aidl::android::hardware::bluetooth::audio::
+                                          IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&),
+           (std::vector<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                                LeAudioConfigurationRequirement>&)));
   MOCK_METHOD(
-      (::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
-           LeAudioBroadcastConfigurationSetting),
-      getLeAudioBroadcastConfiguration,
-      ((const std::optional<std::vector<std::optional<
-            ::aidl::android::hardware::bluetooth::audio::
-                IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&),
-       (const ::aidl::android::hardware::bluetooth::audio::
-            IBluetoothAudioProvider::
-                LeAudioBroadcastConfigurationRequirement&)));
+          (::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                   LeAudioBroadcastConfigurationSetting),
+          getLeAudioBroadcastConfiguration,
+          ((const std::optional<std::vector<
+                    std::optional<::aidl::android::hardware::bluetooth::audio::
+                                          IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&),
+           (const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
+                    LeAudioBroadcastConfigurationRequirement&)));
 
-  static void SetInstance(MockBluetoothAudioClientInterfaceAidl* ptr) {
-    instance_ptr = ptr;
-  }
+  static void SetInstance(MockBluetoothAudioClientInterfaceAidl* ptr) { instance_ptr = ptr; }
 
-  static MockBluetoothAudioClientInterfaceAidl* GetInstance() {
-    return instance_ptr;
-  }
+  static MockBluetoothAudioClientInterfaceAidl* GetInstance() { return instance_ptr; }
 
- private:
+private:
   static MockBluetoothAudioClientInterfaceAidl* instance_ptr;
 };
-MockBluetoothAudioClientInterfaceAidl*
-    MockBluetoothAudioClientInterfaceAidl::instance_ptr = nullptr;
+MockBluetoothAudioClientInterfaceAidl* MockBluetoothAudioClientInterfaceAidl::instance_ptr =
+        nullptr;
 
 class MockStreamCallbacks {
- public:
+public:
   MOCK_METHOD((bool), OnResume, (bool));
   MOCK_METHOD((bool), OnSuspend, ());
   MOCK_METHOD((bool), OnSourceMetadataUpdate,
@@ -181,9 +156,9 @@ class MockStreamCallbacks {
 
 namespace bluetooth::audio {
 const BluetoothAudioHalVersion BluetoothAudioHalVersion::VERSION_UNAVAILABLE =
-    BluetoothAudioHalVersion();
+        BluetoothAudioHalVersion();
 const BluetoothAudioHalVersion BluetoothAudioHalVersion::VERSION_2_1 =
-    BluetoothAudioHalVersion(BluetoothAudioHalTransport::HIDL, 2, 1);
+        BluetoothAudioHalVersion(BluetoothAudioHalTransport::HIDL, 2, 1);
 
 BluetoothAudioHalTransport HalVersionManager::GetHalTransport() {
   auto instance = MockHalVersionManager::GetInstance();
@@ -202,28 +177,25 @@ BluetoothAudioHalVersion HalVersionManager::GetHalVersion() {
 }
 
 namespace hidl {
-class BluetoothAudioDeathRecipient
-    : public ::android::hardware::hidl_death_recipient {
- public:
-  BluetoothAudioDeathRecipient(
-      BluetoothAudioClientInterface* clientif,
-      bluetooth::common::MessageLoopThread* message_loop)
+class BluetoothAudioDeathRecipient : public ::android::hardware::hidl_death_recipient {
+public:
+  BluetoothAudioDeathRecipient(BluetoothAudioClientInterface* clientif,
+                               bluetooth::common::MessageLoopThread* message_loop)
       : bluetooth_audio_clientif_(clientif), message_loop_(message_loop) {}
 
-  MOCK_METHOD(
-      (void), serviceDied,
-      (uint64_t /*cookie*/,
-       const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/),
-      (override));
+  MOCK_METHOD((void), serviceDied,
+              (uint64_t /*cookie*/,
+               const ::android::wp<::android::hidl::base::V1_0::IBase>& /*who*/),
+              (override));
 
- private:
+private:
   BluetoothAudioClientInterface* bluetooth_audio_clientif_;
   bluetooth::common::MessageLoopThread* message_loop_;
 };
 
 BluetoothAudioClientInterface::BluetoothAudioClientInterface(
-    android::sp<BluetoothAudioDeathRecipient> death_recipient,
-    IBluetoothTransportInstance* instance)
+        android::sp<BluetoothAudioDeathRecipient> death_recipient,
+        IBluetoothTransportInstance* instance)
     : provider_(nullptr),
       provider_2_1_(nullptr),
       session_started_(false),
@@ -233,16 +205,12 @@ BluetoothAudioClientInterface::BluetoothAudioClientInterface(
 }
 
 BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
-    IBluetoothSinkTransportInstance* sink,
-    bluetooth::common::MessageLoopThread* message_loop)
-    : BluetoothAudioClientInterface{new BluetoothAudioDeathRecipient(
-                                        this, message_loop),
-                                    sink},
+        IBluetoothSinkTransportInstance* sink, bluetooth::common::MessageLoopThread* message_loop)
+    : BluetoothAudioClientInterface{new BluetoothAudioDeathRecipient(this, message_loop), sink},
       sink_(sink) {}
 BluetoothAudioSinkClientInterface::~BluetoothAudioSinkClientInterface() {}
 
-size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf,
-                                                        uint32_t len) {
+size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf, uint32_t len) {
   auto instance = MockBluetoothAudioClientInterfaceHidl::GetInstance();
   if (instance) {
     return instance->endpoint.ReadAudioData(p_buf, len);
@@ -251,11 +219,9 @@ size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf,
 }
 
 BluetoothAudioSourceClientInterface::BluetoothAudioSourceClientInterface(
-    IBluetoothSourceTransportInstance* source,
-    bluetooth::common::MessageLoopThread* message_loop)
-    : BluetoothAudioClientInterface{new BluetoothAudioDeathRecipient(
-                                        this, message_loop),
-                                    source},
+        IBluetoothSourceTransportInstance* source,
+        bluetooth::common::MessageLoopThread* message_loop)
+    : BluetoothAudioClientInterface{new BluetoothAudioDeathRecipient(this, message_loop), source},
       source_(source) {}
 BluetoothAudioSourceClientInterface::~BluetoothAudioSourceClientInterface() {}
 
@@ -267,8 +233,7 @@ bool BluetoothAudioClientInterface::IsValid() const {
   return false;
 }
 
-size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf,
-                                                           uint32_t len) {
+size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf, uint32_t len) {
   auto instance = MockBluetoothAudioClientInterfaceHidl::GetInstance();
   if (instance) {
     return instance->endpoint.WriteAudioData(p_buf, len);
@@ -283,8 +248,7 @@ void BluetoothAudioClientInterface::FlushAudioData() {
   }
 }
 
-bool BluetoothAudioClientInterface::UpdateAudioConfig_2_1(
-    const AudioConfiguration_2_1& cfg) {
+bool BluetoothAudioClientInterface::UpdateAudioConfig_2_1(const AudioConfiguration_2_1& cfg) {
   auto instance = MockBluetoothAudioClientInterfaceHidl::GetInstance();
   if (instance) {
     return instance->UpdateAudioConfig_2_1(cfg);
@@ -300,8 +264,7 @@ int BluetoothAudioClientInterface::StartSession_2_1() {
   return -EINVAL;
 }
 
-void BluetoothAudioClientInterface::StreamStarted(
-    const BluetoothAudioCtrlAck& ack) {
+void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioCtrlAck& ack) {
   auto instance = MockBluetoothAudioClientInterfaceHidl::GetInstance();
   if (instance) {
     instance->StreamStarted(ack);
@@ -316,8 +279,7 @@ int BluetoothAudioClientInterface::EndSession() {
   return -EINVAL;
 }
 
-void BluetoothAudioClientInterface::StreamSuspended(
-    const BluetoothAudioCtrlAck& ack) {
+void BluetoothAudioClientInterface::StreamSuspended(const BluetoothAudioCtrlAck& ack) {
   auto instance = MockBluetoothAudioClientInterfaceHidl::GetInstance();
   if (instance) {
     instance->StreamSuspended(ack);
@@ -353,8 +315,7 @@ std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack) {
 }  // namespace hidl
 
 namespace aidl {
-BluetoothAudioClientInterface::BluetoothAudioClientInterface(
-    IBluetoothTransportInstance* instance)
+BluetoothAudioClientInterface::BluetoothAudioClientInterface(IBluetoothTransportInstance* instance)
     : provider_(nullptr),
       provider_factory_(nullptr),
       session_started_(false),
@@ -363,12 +324,11 @@ BluetoothAudioClientInterface::BluetoothAudioClientInterface(
       latency_modes_({LatencyMode::FREE}) {}
 
 BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
-    IBluetoothSinkTransportInstance* sink)
+        IBluetoothSinkTransportInstance* sink)
     : BluetoothAudioClientInterface{sink}, sink_(sink) {}
 BluetoothAudioSinkClientInterface::~BluetoothAudioSinkClientInterface() {}
 
-size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf,
-                                                        uint32_t len) {
+size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf, uint32_t len) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     return instance->endpoint.ReadAudioData(p_buf, len);
@@ -377,12 +337,11 @@ size_t BluetoothAudioSinkClientInterface::ReadAudioData(uint8_t* p_buf,
 }
 
 BluetoothAudioSourceClientInterface::BluetoothAudioSourceClientInterface(
-    IBluetoothSourceTransportInstance* source)
+        IBluetoothSourceTransportInstance* source)
     : BluetoothAudioClientInterface{source}, source_(source) {}
 BluetoothAudioSourceClientInterface::~BluetoothAudioSourceClientInterface() {}
 
-size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf,
-                                                           uint32_t len) {
+size_t BluetoothAudioSourceClientInterface::WriteAudioData(const uint8_t* p_buf, uint32_t len) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     return instance->endpoint.WriteAudioData(p_buf, len);
@@ -398,8 +357,7 @@ bool BluetoothAudioClientInterface::IsValid() const {
   return false;
 }
 
-bool BluetoothAudioClientInterface::SetAllowedLatencyModes(
-    std::vector<LatencyMode> latency_modes) {
+bool BluetoothAudioClientInterface::SetAllowedLatencyModes(std::vector<LatencyMode> latency_modes) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     return instance->SetAllowedLatencyModes(latency_modes);
@@ -414,8 +372,7 @@ void BluetoothAudioClientInterface::FlushAudioData() {
   }
 }
 
-bool BluetoothAudioClientInterface::UpdateAudioConfig(
-    const AudioConfiguration& audio_config) {
+bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& audio_config) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     return instance->UpdateAudioConfig(audio_config);
@@ -431,8 +388,7 @@ int BluetoothAudioClientInterface::StartSession() {
   return -EINVAL;
 }
 
-void BluetoothAudioClientInterface::StreamStarted(
-    const BluetoothAudioCtrlAck& ack) {
+void BluetoothAudioClientInterface::StreamStarted(const BluetoothAudioCtrlAck& ack) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     instance->StreamStarted(ack);
@@ -447,16 +403,15 @@ int BluetoothAudioClientInterface::EndSession() {
   return -EINVAL;
 }
 
-void BluetoothAudioClientInterface::StreamSuspended(
-    const BluetoothAudioCtrlAck& ack) {
+void BluetoothAudioClientInterface::StreamSuspended(const BluetoothAudioCtrlAck& ack) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     return instance->StreamSuspended(ack);
   }
 }
 
-std::vector<AudioCapabilities>
-BluetoothAudioClientInterface::GetAudioCapabilities(SessionType session_type) {
+std::vector<AudioCapabilities> BluetoothAudioClientInterface::GetAudioCapabilities(
+        SessionType session_type) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     return instance->GetAudioCapabilities(session_type);
@@ -466,19 +421,17 @@ BluetoothAudioClientInterface::GetAudioCapabilities(SessionType session_type) {
 
 std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting>
 BluetoothAudioClientInterface::GetLeAudioAseConfiguration(
-    std::optional<std::vector<
-        std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-        remoteSinkAudioCapabilities,
-    std::optional<std::vector<
-        std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-        remoteSourceAudioCapabilities,
-    std::vector<IBluetoothAudioProvider::LeAudioConfigurationRequirement>&
-        requirements) {
+        std::optional<
+                std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
+                remoteSinkAudioCapabilities,
+        std::optional<
+                std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
+                remoteSourceAudioCapabilities,
+        std::vector<IBluetoothAudioProvider::LeAudioConfigurationRequirement>& requirements) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
     return instance->GetLeAudioAseConfiguration(remoteSinkAudioCapabilities,
-                                                remoteSourceAudioCapabilities,
-                                                requirements);
+                                                remoteSourceAudioCapabilities, requirements);
   }
 
   return std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting>();
@@ -486,15 +439,13 @@ BluetoothAudioClientInterface::GetLeAudioAseConfiguration(
 
 IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting
 BluetoothAudioClientInterface::getLeAudioBroadcastConfiguration(
-    const std::optional<std::vector<
-        std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
-        remoteSinkAudioCapabilities,
-    const IBluetoothAudioProvider::LeAudioBroadcastConfigurationRequirement&
-        requirement) {
+        const std::optional<
+                std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
+                remoteSinkAudioCapabilities,
+        const IBluetoothAudioProvider::LeAudioBroadcastConfigurationRequirement& requirement) {
   auto instance = MockBluetoothAudioClientInterfaceAidl::GetInstance();
   if (instance) {
-    return instance->getLeAudioBroadcastConfiguration(
-        remoteSinkAudioCapabilities, requirement);
+    return instance->getLeAudioBroadcastConfiguration(remoteSinkAudioCapabilities, requirement);
   }
 
   return IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting();
@@ -533,19 +484,8 @@ std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack) {
 }  // namespace bluetooth::audio
 
 namespace bluetooth::le_audio::broadcaster {
-std::ostream& operator<<(std::ostream& os, const BroadcastConfiguration&) {
-  return os;
-}
+std::ostream& operator<<(std::ostream& os, const BroadcastConfiguration&) { return os; }
 }  // namespace bluetooth::le_audio::broadcaster
-
-namespace server_configurable_flags {
-std::string GetServerConfigurableFlag(
-    const std::string& /* experiment_category_name */,
-    const std::string& /* experiment_flag_name */,
-    const std::string& /* default_value */) {
-  return "";
-}
-}  // namespace server_configurable_flags
 
 namespace {
 
@@ -563,7 +503,9 @@ static void init_message_loop_thread() {
   }
 
   message_loop_ = message_loop_thread.message_loop();
-  if (message_loop_ == nullptr) FAIL() << "unable to get message loop.";
+  if (message_loop_ == nullptr) {
+    FAIL() << "unable to get message loop.";
+  }
 }
 
 static void cleanup_message_loop_thread() {
@@ -572,41 +514,38 @@ static void cleanup_message_loop_thread() {
 }
 
 class LeAudioSoftwareUnicastTest : public Test {
- protected:
+protected:
   virtual void SetUp() override {
     init_message_loop_thread();
     MockHalVersionManager::SetInstance(&hal_version_manager_);
 
     unicast_sink_stream_cb_.reset(new StreamCallbacks{
-        std::bind(&MockStreamCallbacks::OnResume, &sink_stream_callbacks_,
-                  std::placeholders::_1),
-        std::bind(&MockStreamCallbacks::OnSuspend, &sink_stream_callbacks_),
-        std::bind(&MockStreamCallbacks::OnSourceMetadataUpdate,
-                  &sink_stream_callbacks_, std::placeholders::_1,
-                  std::placeholders::_2),
-        std::bind(&MockStreamCallbacks::OnSinkMetadataUpdate,
-                  &sink_stream_callbacks_, std::placeholders::_1),
+            std::bind(&MockStreamCallbacks::OnResume, &sink_stream_callbacks_,
+                      std::placeholders::_1),
+            std::bind(&MockStreamCallbacks::OnSuspend, &sink_stream_callbacks_),
+            std::bind(&MockStreamCallbacks::OnSourceMetadataUpdate, &sink_stream_callbacks_,
+                      std::placeholders::_1, std::placeholders::_2),
+            std::bind(&MockStreamCallbacks::OnSinkMetadataUpdate, &sink_stream_callbacks_,
+                      std::placeholders::_1),
     });
 
     unicast_source_stream_cb_.reset(new StreamCallbacks{
-        std::bind(&MockStreamCallbacks::OnResume, &source_stream_callbacks_,
-                  std::placeholders::_1),
-        std::bind(&MockStreamCallbacks::OnSuspend, &source_stream_callbacks_),
-        std::bind(&MockStreamCallbacks::OnSourceMetadataUpdate,
-                  &source_stream_callbacks_, std::placeholders::_1,
-                  std::placeholders::_2),
-        std::bind(&MockStreamCallbacks::OnSinkMetadataUpdate,
-                  &source_stream_callbacks_, std::placeholders::_1),
+            std::bind(&MockStreamCallbacks::OnResume, &source_stream_callbacks_,
+                      std::placeholders::_1),
+            std::bind(&MockStreamCallbacks::OnSuspend, &source_stream_callbacks_),
+            std::bind(&MockStreamCallbacks::OnSourceMetadataUpdate, &source_stream_callbacks_,
+                      std::placeholders::_1, std::placeholders::_2),
+            std::bind(&MockStreamCallbacks::OnSinkMetadataUpdate, &source_stream_callbacks_,
+                      std::placeholders::_1),
     });
 
-    sink_ = LeAudioClientInterface::Get()->GetSink(
-        *unicast_sink_stream_cb_, &message_loop_thread, is_broadcast_);
-    source_ = LeAudioClientInterface::Get()->GetSource(
-        *unicast_source_stream_cb_, &message_loop_thread);
-
+    sink_ = LeAudioClientInterface::Get()->GetSink(*unicast_sink_stream_cb_, &message_loop_thread,
+                                                   is_broadcast_);
     if (is_broadcast_) {
       ASSERT_TRUE(LeAudioClientInterface::Get()->IsBroadcastSinkAcquired());
     } else {
+      source_ = LeAudioClientInterface::Get()->GetSource(*unicast_source_stream_cb_,
+                                                         &message_loop_thread);
       ASSERT_TRUE(LeAudioClientInterface::Get()->IsSourceAcquired());
       ASSERT_TRUE(LeAudioClientInterface::Get()->IsUnicastSinkAcquired());
     }
@@ -615,10 +554,10 @@ class LeAudioSoftwareUnicastTest : public Test {
   virtual void TearDown() override {
     if (LeAudioClientInterface::Get()->IsUnicastSinkAcquired() ||
         LeAudioClientInterface::Get()->IsBroadcastSinkAcquired()) {
+      LeAudioClientInterface::Get()->ReleaseSink(sink_);
       if (is_broadcast_) {
         ASSERT_FALSE(LeAudioClientInterface::Get()->IsBroadcastSinkAcquired());
       } else {
-        LeAudioClientInterface::Get()->ReleaseSink(sink_);
         ASSERT_FALSE(LeAudioClientInterface::Get()->IsUnicastSinkAcquired());
       }
     }
@@ -651,20 +590,32 @@ class LeAudioSoftwareUnicastTest : public Test {
 };
 
 class LeAudioSoftwareUnicastTestAidl : public LeAudioSoftwareUnicastTest {
- protected:
-  virtual void SetUp() override {
-    ON_CALL(hal_version_manager_, GetHalTransport)
-        .WillByDefault(
-            Return(bluetooth::audio::BluetoothAudioHalTransport::AIDL));
+protected:
+  void SetUpMockCodecManager(bluetooth::le_audio::types::CodecLocation location) {
+    codec_manager_ = bluetooth::le_audio::CodecManager::GetInstance();
+    ASSERT_NE(codec_manager_, nullptr);
+    std::vector<bluetooth::le_audio::btle_audio_codec_config_t> mock_offloading_preference(0);
+    codec_manager_->Start(mock_offloading_preference);
+    mock_codec_manager_ = MockCodecManager::GetInstance();
+    ASSERT_NE((void*)mock_codec_manager_, (void*)codec_manager_);
+    ASSERT_NE(mock_codec_manager_, nullptr);
+    ON_CALL(*mock_codec_manager_, GetCodecLocation()).WillByDefault(Return(location));
+  }
 
-    MockBluetoothAudioClientInterfaceAidl::SetInstance(
-        &audio_client_interface_);
+  virtual void SetUp() override {
+    SetUpMockCodecManager(::bluetooth::le_audio::types::CodecLocation::ADSP);
+    ON_CALL(hal_version_manager_, GetHalTransport)
+            .WillByDefault(Return(bluetooth::audio::BluetoothAudioHalTransport::AIDL));
+
+    MockBluetoothAudioClientInterfaceAidl::SetInstance(&audio_client_interface_);
     ON_CALL(audio_client_interface_, IsValid).WillByDefault(Return(true));
 
     LeAudioSoftwareUnicastTest::SetUp();
   }
 
   MockBluetoothAudioClientInterfaceAidl audio_client_interface_;
+  bluetooth::le_audio::CodecManager* codec_manager_;
+  MockCodecManager* mock_codec_manager_;
 };
 
 TEST_F(LeAudioSoftwareUnicastTestAidl, AcquireAndRelease) {
@@ -673,14 +624,12 @@ TEST_F(LeAudioSoftwareUnicastTestAidl, AcquireAndRelease) {
 }
 
 class LeAudioSoftwareUnicastTestHidl : public LeAudioSoftwareUnicastTest {
- protected:
+protected:
   virtual void SetUp() override {
     ON_CALL(hal_version_manager_, GetHalTransport)
-        .WillByDefault(
-            Return(bluetooth::audio::BluetoothAudioHalTransport::HIDL));
+            .WillByDefault(Return(bluetooth::audio::BluetoothAudioHalTransport::HIDL));
 
-    MockBluetoothAudioClientInterfaceHidl::SetInstance(
-        &audio_client_interface_);
+    MockBluetoothAudioClientInterfaceHidl::SetInstance(&audio_client_interface_);
     ON_CALL(audio_client_interface_, IsValid).WillByDefault(Return(true));
 
     LeAudioSoftwareUnicastTest::SetUp();
@@ -693,4 +642,27 @@ TEST_F(LeAudioSoftwareUnicastTestHidl, AcquireAndRelease) {
   ASSERT_NE(nullptr, sink_);
   ASSERT_NE(nullptr, source_);
 }
+
+class LeAudioSoftwareBroadcastTestAidl : public LeAudioSoftwareUnicastTestAidl {
+protected:
+  virtual void SetUp() override {
+    is_broadcast_ = true;
+    LeAudioSoftwareUnicastTestAidl::SetUp();
+  }
+};
+
+TEST_F(LeAudioSoftwareBroadcastTestAidl, AcquireAndRelease) {
+  ASSERT_NE(nullptr, sink_);
+  ASSERT_EQ(nullptr, source_);
+  ASSERT_NE(::bluetooth::audio::aidl::le_audio::LeAudioSinkTransport::interface_broadcast_,
+            nullptr);
+  ASSERT_EQ(::bluetooth::audio::aidl::le_audio::LeAudioSinkTransport::interface_unicast_, nullptr);
+  ASSERT_EQ(::bluetooth::audio::aidl::le_audio::LeAudioSourceTransport::interface, nullptr);
+}
+
+TEST_F(LeAudioSoftwareBroadcastTestAidl, GetBroadcastConfig) {
+  ASSERT_NE(nullptr, sink_);
+  ASSERT_NE(sink_->GetBroadcastConfig({}, std::nullopt), std::nullopt);
+}
+
 }  // namespace

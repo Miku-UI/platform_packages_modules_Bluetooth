@@ -19,24 +19,19 @@
 
 static MockDeviceGroups* mock_groups = nullptr;
 
-void MockDeviceGroups::SetMockInstanceForTesting(MockDeviceGroups* groups) {
-  mock_groups = groups;
-}
+void MockDeviceGroups::SetMockInstanceForTesting(MockDeviceGroups* groups) { mock_groups = groups; }
 
-bluetooth::groups::DeviceGroups* bluetooth::groups::DeviceGroups::Get() {
-  return mock_groups;
-}
+bluetooth::groups::DeviceGroups* bluetooth::groups::DeviceGroups::Get() { return mock_groups; }
 
 void bluetooth::groups::DeviceGroups::Initialize(
-    bluetooth::groups::DeviceGroupsCallbacks* callbacks) {
+        bluetooth::groups::DeviceGroupsCallbacks* callbacks) {
   log::assert_that(mock_groups, "Mock Device Groups not set!");
   mock_groups->Initialize(callbacks);
-};
+}
 
 void bluetooth::groups::DeviceGroups::DebugDump(int) {}
 
-void bluetooth::groups::DeviceGroups::CleanUp(
-    bluetooth::groups::DeviceGroupsCallbacks* callbacks) {
+void bluetooth::groups::DeviceGroups::CleanUp(bluetooth::groups::DeviceGroupsCallbacks* callbacks) {
   log::assert_that(mock_groups, "Mock Device Groups not set!");
   mock_groups->CleanUp(callbacks);
 }

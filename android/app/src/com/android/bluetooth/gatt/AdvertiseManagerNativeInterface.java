@@ -35,7 +35,7 @@ public class AdvertiseManagerNativeInterface {
     private AdvertiseManager mManager;
 
     /** Get singleton instance. */
-    public static AdvertiseManagerNativeInterface getInstance() {
+    static AdvertiseManagerNativeInterface getInstance() {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
                 sInstance = new AdvertiseManagerNativeInterface();

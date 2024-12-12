@@ -36,17 +36,16 @@ using namespace bluetooth::test;
 using namespace std::chrono_literals;
 
 namespace {
-int do_mode([[maybe_unused]] unsigned int num_loops,
-            [[maybe_unused]] const RawAddress& bd_addr,
+int do_mode([[maybe_unused]] unsigned int num_loops, [[maybe_unused]] const RawAddress& bd_addr,
             [[maybe_unused]] std::list<std::string> options) {
   LOG_CONSOLE("Starting mode change test");
   // Requires a BR_EDR connection to work
 
   headless::messenger::Context context{
-      .stop_watch = Stopwatch("Connect_timeout"),
-      .timeout = 3s,
-      .check_point = {},
-      .callbacks = {Callback::AclStateChanged},
+          .stop_watch = Stopwatch("Connect_timeout"),
+          .timeout = 3s,
+          .check_point = {},
+          .callbacks = {Callback::AclStateChanged},
   };
 
   PowerMode power_mode;
@@ -67,13 +66,14 @@ int do_mode([[maybe_unused]] unsigned int num_loops,
             LOG_CONSOLE("Acl state changed:%s", acl->ToString().c_str());
           } break;
           default:
-            LOG_CONSOLE("WARN Received callback for unasked:%s",
-                        p->Name().c_str());
+            LOG_CONSOLE("WARN Received callback for unasked:%s", p->Name().c_str());
             break;
         }
       }
     }
-    if (acl != nullptr) break;
+    if (acl != nullptr) {
+      break;
+    }
   }
 
   if (acl->state == BT_ACL_STATE_DISCONNECTED) {
@@ -88,23 +88,20 @@ int do_mode([[maybe_unused]] unsigned int num_loops,
     pwr_command_t pwr_command;
     pwr_result_t result = client.set_typical_sniff(std::move(pwr_command));
     LOG_CONSOLE("Sniff mode command sent");
-    if (result.btm_status == BTM_CMD_STARTED) {
+    if (result.btm_status == tBTM_STATUS::BTM_CMD_STARTED) {
       // This awaits the command status callback
       power_mode_callback_t cmd_status = result.cmd_status_future.get();
-      LOG_CONSOLE("Sniff mode command complete:%s",
-                  cmd_status.ToString().c_str());
+      LOG_CONSOLE("Sniff mode command complete:%s", cmd_status.ToString().c_str());
       if (cmd_status.status == BTM_PM_STS_PENDING) {
         LOG_CONSOLE("Sniff mode command accepted; awaiting mode change event");
         power_mode_callback_t mode_event = result.mode_event_future.get();
-        LOG_CONSOLE("Sniff mode command complete:%s",
-                    mode_event.ToString().c_str());
+        LOG_CONSOLE("Sniff mode command complete:%s", mode_event.ToString().c_str());
       } else {
         client.remove_mode_event_promise();
         LOG_CONSOLE("Command failed; no mode change event forthcoming");
       }
     } else {
-      LOG_CONSOLE("Smiff mode command failed:%s",
-                  btm_status_text(result.btm_status).c_str());
+      LOG_CONSOLE("Smiff mode command failed:%s", btm_status_text(result.btm_status).c_str());
     }
   }
 
@@ -112,28 +109,24 @@ int do_mode([[maybe_unused]] unsigned int num_loops,
     pwr_command_t pwr_command;
     pwr_result_t result = client.set_active(std::move(pwr_command));
     LOG_CONSOLE("Active mode command sent");
-    if (result.btm_status == BTM_CMD_STARTED) {
+    if (result.btm_status == tBTM_STATUS::BTM_CMD_STARTED) {
       power_mode_callback_t cmd_status = result.cmd_status_future.get();
-      LOG_CONSOLE("Active mode command complete:%s",
-                  cmd_status.ToString().c_str());
+      LOG_CONSOLE("Active mode command complete:%s", cmd_status.ToString().c_str());
       if (cmd_status.status == BTM_PM_STS_PENDING) {
         LOG_CONSOLE("Active mode command accepted; awaiting mode change event");
         power_mode_callback_t mode_event = result.mode_event_future.get();
-        LOG_CONSOLE("Active mode command complete:%s",
-                    mode_event.ToString().c_str());
+        LOG_CONSOLE("Active mode command complete:%s", mode_event.ToString().c_str());
       } else {
         client.remove_mode_event_promise();
         LOG_CONSOLE("Command failed; no mode change event forthcoming");
       }
     } else {
-      LOG_CONSOLE("Active mode command failed:%s",
-                  btm_status_text(result.btm_status).c_str());
+      LOG_CONSOLE("Active mode command failed:%s", btm_status_text(result.btm_status).c_str());
     }
   }
 
   LOG_CONSOLE("Disconnecting");
-  acl_disconnect_from_handle(acl->acl_handle, HCI_SUCCESS,
-                             "BT headless disconnect");
+  acl_disconnect_from_handle(acl->acl_handle, HCI_SUCCESS, "BT headless disconnect");
   LOG_CONSOLE("Waiting to disconnect");
 
   sleep(3);
@@ -145,7 +138,6 @@ int do_mode([[maybe_unused]] unsigned int num_loops,
    //
 int bluetooth::test::headless::Mode::Run() {
   return RunOnHeadlessStack<int>([this]() {
-    return do_mode(options_.loop_, options_.device_.front(),
-                   options_.non_options_);
+    return do_mode(options_.loop_, options_.device_.front(), options_.non_options_);
   });
 }

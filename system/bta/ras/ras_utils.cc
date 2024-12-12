@@ -55,35 +55,33 @@ std::string uuid::getUuidName(const bluetooth::Uuid& uuid) {
   }
 }
 
-bool ParseControlPointCommand(ControlPointCommand* command,
-                              const uint8_t* value, uint16_t len) {
+bool ParseControlPointCommand(ControlPointCommand* command, const uint8_t* value, uint16_t len) {
+  command->opcode_ = static_cast<Opcode>(value[0]);
   // Check for minimum expected length
   switch (value[0]) {
     case (uint8_t)Opcode::ABORT_OPERATION:
-      break;
-    case (uint8_t)Opcode::PCT_FORMAT: {
-      if (len < 2) {
+      if (len != 1) {
         return false;
       }
-    } break;
+      break;
     case (uint8_t)Opcode::GET_RANGING_DATA:
     case (uint8_t)Opcode::ACK_RANGING_DATA:
-    case (uint8_t)Opcode::FILTER: {
-      if (len < 3) {
+    case (uint8_t)Opcode::FILTER:
+      if (len != 3) {
         return false;
       }
-    } break;
-    case (uint8_t)Opcode::RETRIEVE_LOST_RANGING_DATA_SEGMENTS: {
-      if (len < 5) {
+      break;
+    case (uint8_t)Opcode::RETRIEVE_LOST_RANGING_DATA_SEGMENTS:
+      if (len != 5) {
         return false;
       }
-    } break;
+      break;
     default:
       log::warn("unknown opcode 0x{:02x}", value[0]);
       return false;
   }
-  command->opcode_ = static_cast<Opcode>(value[0]);
   std::memcpy(command->parameter_, value + 1, len - 1);
+  command->isValid_ = true;
   return true;
 }
 
@@ -99,8 +97,6 @@ std::string GetOpcodeText(Opcode opcode) {
       return "ABORT_OPERATION";
     case Opcode::FILTER:
       return "FILTER";
-    case Opcode::PCT_FORMAT:
-      return "PCT_FORMAT";
     default:
       return "Unknown Opcode";
   }
@@ -114,22 +110,20 @@ std::string GetResponseOpcodeValueText(ResponseCodeValue response_code_value) {
       return "SUCCESS";
     case ResponseCodeValue::OP_CODE_NOT_SUPPORTED:
       return "OP_CODE_NOT_SUPPORTED";
-    case ResponseCodeValue::INVALID_OPERATOR:
-      return "INVALID_OPERATOR";
-    case ResponseCodeValue::OPERATOR_NOT_SUPPORTED:
-      return "OPERATOR_NOT_SUPPORTED";
-    case ResponseCodeValue::INVALID_OPERAND:
-      return "INVALID_OPERAND";
+    case ResponseCodeValue::INVALID_PARAMETER:
+      return "INVALID_PARAMETER";
+    case ResponseCodeValue::PERSISTED:
+      return "PERSISTED";
     case ResponseCodeValue::ABORT_UNSUCCESSFUL:
       return "ABORT_UNSUCCESSFUL";
     case ResponseCodeValue::PROCEDURE_NOT_COMPLETED:
       return "PROCEDURE_NOT_COMPLETED";
-    case ResponseCodeValue::OPERAND_NOT_SUPPORTED:
-      return "OPERAND_NOT_SUPPORTED";
+    case ResponseCodeValue::SERVER_BUSY:
+      return "SERVER_BUSY";
     case ResponseCodeValue::NO_RECORDS_FOUND:
       return "NO_RECORDS_FOUND";
     default:
-      return "Unknown Opcode";
+      return "Reserved for Future Use";
   }
 }
 

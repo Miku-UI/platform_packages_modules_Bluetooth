@@ -30,7 +30,7 @@
 #include "type_def.h"
 
 class ParentDef : public TypeDef {
- public:
+public:
   ParentDef(std::string name, FieldList fields);
   ParentDef(std::string name, FieldList fields, ParentDef* parent);
 
@@ -47,7 +47,8 @@ class ParentDef : public TypeDef {
 
   void SetEndianness(bool is_little_endian);
 
-  // Get the size. You scan specify without_payload to exclude payload and body fields as children override them.
+  // Get the size. You scan specify without_payload to exclude payload and body fields as children
+  // override them.
   Size GetSize(bool without_payload = false) const;
 
   // Get the offset until the field is reached, if there is no field
@@ -77,7 +78,7 @@ class ParentDef : public TypeDef {
   std::string FindConstraintField() const;
 
   std::map<const ParentDef*, const std::variant<int64_t, std::string>>
-      FindDescendantsWithConstraint(std::string constraint_name) const;
+  FindDescendantsWithConstraint(std::string constraint_name) const;
   std::vector<const ParentDef*> FindPathToDescendant(std::string descendant) const;
 
   FieldList fields_;

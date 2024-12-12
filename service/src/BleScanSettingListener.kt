@@ -27,6 +27,9 @@ import android.provider.Settings
 private const val TAG = "BleScanSettingListener"
 
 object BleScanSettingListener {
+    // Must match Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE but cannot depend on the variable
+    const val BLE_SCAN_ALWAYS_AVAILABLE = "ble_scan_always_enabled"
+
     @JvmStatic
     var isScanAllowed = false
         private set
@@ -43,7 +46,7 @@ object BleScanSettingListener {
         val notifyForDescendants = false
 
         resolver.registerContentObserver(
-            Settings.Global.getUriFor(Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE),
+            Settings.Global.getUriFor(BLE_SCAN_ALWAYS_AVAILABLE),
             notifyForDescendants,
             object : ContentObserver(Handler(looper)) {
                 override fun onChange(selfChange: Boolean) {
@@ -72,7 +75,7 @@ object BleScanSettingListener {
      */
     private fun getScanSettingValue(resolver: ContentResolver): Boolean {
         try {
-            return Settings.Global.getInt(resolver, Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE) != 0
+            return Settings.Global.getInt(resolver, BLE_SCAN_ALWAYS_AVAILABLE) != 0
         } catch (e: Settings.SettingNotFoundException) {
             Log.i(TAG, "Settings not found. Default to false")
             return false

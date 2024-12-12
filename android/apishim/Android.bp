@@ -21,9 +21,7 @@ java_defaults {
     name: "BluetoothShimsDefaults",
     libs: [
         "androidx.annotation_annotation",
-    ],
-    static_libs : [
-        "modules-utils-build_system"
+        "modules-utils-build",
     ],
     apex_available: [
         "com.android.btservices",
@@ -40,7 +38,7 @@ java_library {
         "BluetoothShimsDefaults",
     ],
     srcs: ["common/**/*.java"],
-    sdk_version: "system_current",
+    sdk_version: "module_current",
     visibility: ["//visibility:private"],
 }
 
@@ -70,10 +68,10 @@ java_library {
         "34/**/*.java",
     ],
     libs: [
-        "BluetoothShimsCommon",
         "BluetoothApi33Shims",
+        "BluetoothShimsCommon",
     ],
-    sdk_version: "module_current",
+    sdk_version: "module_34",
     visibility: ["//visibility:private"],
 }
 
@@ -83,9 +81,9 @@ java_library {
         "BluetoothShimsDefaults",
     ],
     static_libs: [
-        "BluetoothShimsCommon",
         "BluetoothApi33Shims",
         "BluetoothApi34Shims",
+        "BluetoothShimsCommon",
     ],
     visibility: [
         "//packages/modules/Bluetooth/android/app",

@@ -4,17 +4,39 @@ package pandora;
 
 option java_outer_classname = "HidProto";
 
+import "google/protobuf/empty.proto";
+
 service HID {
+  // Connect HID Host
+  rpc ConnectHost(google.protobuf.Empty) returns (google.protobuf.Empty);
+  // Disconnect HID Host
+  rpc DisconnectHost(google.protobuf.Empty) returns (google.protobuf.Empty);
+  // Virtual Cable Unplug HID Host
+  rpc VirtualCableUnplugHost(google.protobuf.Empty) returns (google.protobuf.Empty);
   // Send a SET_REPORT command, acting as a HID host, to a connected HID device
   rpc SendHostReport(SendHostReportRequest) returns (SendHostReportResponse);
+  // receive Protocol Mode Event
+  rpc OnSetProtocolMode(google.protobuf.Empty) returns (stream ProtocolModeEvent);
+  // receive Report Event
+  rpc OnSetReport(google.protobuf.Empty) returns (stream ReportEvent);
 }
-
 // Enum values match those in BluetoothHidHost.java
 enum HidReportType {
   HID_REPORT_TYPE_UNSPECIFIED = 0;
   HID_REPORT_TYPE_INPUT = 1;
   HID_REPORT_TYPE_OUTPUT = 2;
   HID_REPORT_TYPE_FEATURE = 3;
+}
+// Enum values match those in BluetoothHidHost.java
+enum ProtocolMode {
+  PROTOCOL_REPORT_MODE = 0;
+  PROTOCOL_BOOT_MODE = 1;
+  PROTOCOL_UNSUPPORTED_MODE = 255;
+}
+enum HidReportId {
+  HID_KEYBD_RPT_ID = 0;
+  HID_MOUSE_RPT_ID = 1;
+  HID_INVALID_RPT_ID = 3;
 }
 
 message SendHostReportRequest {
@@ -25,4 +47,14 @@ message SendHostReportRequest {
 
 message SendHostReportResponse {
 
+}
+
+message ProtocolModeEvent {
+  ProtocolMode protocol_mode = 1;
+}
+
+message ReportEvent {
+  HidReportType report_type = 1;
+  HidReportId report_id = 2;
+  string report_data = 3;
 }

@@ -33,10 +33,9 @@
 #define BTA_UTL_SET_COD_MAJOR_MINOR 0x01
 #define BTA_UTL_SET_COD_SERVICE_CLASS    \
   0x02 /* only set the bits in the input \
-          */
+        */
 #define BTA_UTL_CLR_COD_SERVICE_CLASS 0x04
-#define BTA_UTL_SET_COD_ALL \
-  0x08 /* take service class as the input (may clear some set bits!!) */
+#define BTA_UTL_SET_COD_ALL 0x08 /* take service class as the input (may clear some set bits!!) */
 #define BTA_UTL_INIT_COD 0x0a
 
 /*****************************************************************************

@@ -33,11 +33,11 @@ namespace packet {
 // The template parameter little_endian controls the generation of insert().
 template <bool little_endian>
 class EndianInserter {
- public:
+public:
   EndianInserter() = default;
   virtual ~EndianInserter() = default;
 
- protected:
+protected:
   // Write sizeof(T) bytes using the iterator
   template <typename T, typename std::enable_if<std::is_trivial<T>::value, int>::type = 0>
   void insert(T value, BitInserter& it) const {
@@ -52,9 +52,9 @@ class EndianInserter {
   }
 
   // Write sizeof(FixedWidthCustomType) bytes using the iterator
-  template <
-      typename T,
-      typename std::enable_if<std::is_base_of<CustomFieldFixedSizeInterface<T>, T>::value, int>::type = 0>
+  template <typename T,
+            typename std::enable_if<std::is_base_of<CustomFieldFixedSizeInterface<T>, T>::value,
+                                    int>::type = 0>
   void insert(const T& value, BitInserter& it) const {
     auto* raw_bytes = value.data();
     for (size_t i = 0; i < CustomFieldFixedSizeInterface<T>::length(); i++) {
@@ -75,11 +75,13 @@ class EndianInserter {
       if (little_endian == true) {
         it.insert_byte(static_cast<uint8_t>(static_cast<uint64_t>(value) >> (i * 8)));
       } else {
-        it.insert_byte(static_cast<uint8_t>(static_cast<uint64_t>(value) >> (((num_bits / 8) - i - 1) * 8)));
+        it.insert_byte(static_cast<uint8_t>(static_cast<uint64_t>(value) >>
+                                            (((num_bits / 8) - i - 1) * 8)));
       }
     }
     if (num_bits % 8) {
-      it.insert_bits(static_cast<uint8_t>(static_cast<uint64_t>(value) >> ((num_bits / 8) * 8)), num_bits % 8);
+      it.insert_bits(static_cast<uint8_t>(static_cast<uint64_t>(value) >> ((num_bits / 8) * 8)),
+                     num_bits % 8);
     }
   }
 
@@ -87,16 +89,16 @@ class EndianInserter {
   template <typename Enum, typename std::enable_if<std::is_enum_v<Enum>, int>::type = 0>
   inline void insert(Enum value, BitInserter& it) const {
     using enum_type = typename std::underlying_type_t<Enum>;
-    static_assert(std::is_unsigned_v<enum_type>, "Enum type is signed. Did you forget to specify the enum size?");
+    static_assert(std::is_unsigned_v<enum_type>,
+                  "Enum type is signed. Did you forget to specify the enum size?");
     insert<enum_type>(static_cast<enum_type>(value), it);
   }
 
   // Write a vector of T using the iterator
   template <typename T, typename std::enable_if<std::is_trivial<T>::value, int>::type = 0>
   void insert_vector(const std::vector<T>& vec, BitInserter& it) const {
-    static_assert(
-        std::is_trivial<T>::value,
-        "EndianInserter::insert requires a vector with elements of a fixed-size.");
+    static_assert(std::is_trivial<T>::value,
+                  "EndianInserter::insert requires a vector with elements of a fixed-size.");
     for (const auto& element : vec) {
       insert(element, it);
     }

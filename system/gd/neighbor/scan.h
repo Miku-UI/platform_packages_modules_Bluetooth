@@ -23,7 +23,7 @@ namespace bluetooth {
 namespace neighbor {
 
 class ScanModule : public bluetooth::Module {
- public:
+public:
   ScanModule();
   ScanModule(const ScanModule&) = delete;
   ScanModule& operator=(const ScanModule&) = delete;
@@ -40,15 +40,13 @@ class ScanModule : public bluetooth::Module {
 
   static const ModuleFactory Factory;
 
- protected:
+protected:
   void ListDependencies(ModuleList* list) const override;
   void Start() override;
   void Stop() override;
-  std::string ToString() const override {
-    return std::string("Scan");
-  }
+  std::string ToString() const override { return std::string("Scan"); }
 
- private:
+private:
   struct impl;
   std::unique_ptr<impl> pimpl_;
 };

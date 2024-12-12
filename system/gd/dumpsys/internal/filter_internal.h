@@ -104,7 +104,8 @@ PrivacyLevel GetPrivacyLevelAttribute(const std::string& name);
  * @return Reflection object if found, nullptr otherwise.
  */
 const reflection::Object* FindReflectionObject(
-    const flatbuffers::Vector<flatbuffers::Offset<reflection::Object>>* objects, const flatbuffers::String* name);
+        const flatbuffers::Vector<flatbuffers::Offset<reflection::Object>>* objects,
+        const flatbuffers::String* name);
 
 /**
  * Process and filter the respective data types.
@@ -115,12 +116,18 @@ const reflection::Object* FindReflectionObject(
  *
  * @return true if successfully filtered, false otherwise.
  */
-bool FilterTypeBool(const reflection::Field& field, flatbuffers::Table* table, PrivacyLevel privacy_level);
-bool FilterTypeFloat(const reflection::Field& field, flatbuffers::Table* table, PrivacyLevel privacy_level);
-bool FilterTypeInteger(const reflection::Field& field, flatbuffers::Table* table, PrivacyLevel privacy_level);
-bool FilterTypeLong(const reflection::Field& field, flatbuffers::Table* table, PrivacyLevel privacy_level);
-bool FilterTypeString(const reflection::Field& field, flatbuffers::Table* table, PrivacyLevel privacy_level);
-bool FilterTypeStruct(const reflection::Field& field, flatbuffers::Table* table, PrivacyLevel privacy_level);
+bool FilterTypeBool(const reflection::Field& field, flatbuffers::Table* table,
+                    PrivacyLevel privacy_level);
+bool FilterTypeFloat(const reflection::Field& field, flatbuffers::Table* table,
+                     PrivacyLevel privacy_level);
+bool FilterTypeInteger(const reflection::Field& field, flatbuffers::Table* table,
+                       PrivacyLevel privacy_level);
+bool FilterTypeLong(const reflection::Field& field, flatbuffers::Table* table,
+                    PrivacyLevel privacy_level);
+bool FilterTypeString(const reflection::Field& field, flatbuffers::Table* table,
+                      PrivacyLevel privacy_level);
+bool FilterTypeStruct(const reflection::Field& field, flatbuffers::Table* table,
+                      PrivacyLevel privacy_level);
 
 inline std::string FlatbufferTypeText(const flatbuffers::BaseType& type) {
   switch (type) {

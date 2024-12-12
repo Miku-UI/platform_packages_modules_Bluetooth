@@ -72,34 +72,27 @@ bool checksum_save(const std::string& checksum, const std::string& filename) {
   inc_func_call_count(__func__);
   return test::mock::osi_config::checksum_save(checksum, filename);
 }
-bool config_get_bool(const config_t& config, const std::string& section,
-                     const std::string& key, bool def_value) {
+bool config_get_bool(const config_t& config, const std::string& section, const std::string& key,
+                     bool def_value) {
   inc_func_call_count(__func__);
-  return test::mock::osi_config::config_get_bool(config, section, key,
-                                                 def_value);
+  return test::mock::osi_config::config_get_bool(config, section, key, def_value);
 }
-int config_get_int(const config_t& config, const std::string& section,
-                   const std::string& key, int def_value) {
+int config_get_int(const config_t& config, const std::string& section, const std::string& key,
+                   int def_value) {
   inc_func_call_count(__func__);
-  return test::mock::osi_config::config_get_int(config, section, key,
-                                                def_value);
+  return test::mock::osi_config::config_get_int(config, section, key, def_value);
 }
-const std::string* config_get_string(const config_t& config,
-                                     const std::string& section,
-                                     const std::string& key,
-                                     const std::string* def_value) {
+const std::string* config_get_string(const config_t& config, const std::string& section,
+                                     const std::string& key, const std::string* def_value) {
   inc_func_call_count(__func__);
-  return test::mock::osi_config::config_get_string(config, section, key,
-                                                   def_value);
+  return test::mock::osi_config::config_get_string(config, section, key, def_value);
 }
 uint64_t config_get_uint64(const config_t& config, const std::string& section,
                            const std::string& key, uint64_t def_value) {
   inc_func_call_count(__func__);
-  return test::mock::osi_config::config_get_uint64(config, section, key,
-                                                   def_value);
+  return test::mock::osi_config::config_get_uint64(config, section, key, def_value);
 }
-bool config_has_key(const config_t& config, const std::string& section,
-                    const std::string& key) {
+bool config_has_key(const config_t& config, const std::string& section, const std::string& key) {
   inc_func_call_count(__func__);
   return test::mock::osi_config::config_has_key(config, section, key);
 }
@@ -119,8 +112,7 @@ std::unique_ptr<config_t> config_new_empty(void) {
   inc_func_call_count(__func__);
   return test::mock::osi_config::config_new_empty();
 }
-bool config_remove_key(config_t* config, const std::string& section,
-                       const std::string& key) {
+bool config_remove_key(config_t* config, const std::string& section, const std::string& key) {
   inc_func_call_count(__func__);
   return test::mock::osi_config::config_remove_key(config, section, key);
 }
@@ -132,23 +124,23 @@ bool config_save(const config_t& config, const std::string& filename) {
   inc_func_call_count(__func__);
   return test::mock::osi_config::config_save(config, filename);
 }
-void config_set_bool(config_t* config, const std::string& section,
-                     const std::string& key, bool value) {
+void config_set_bool(config_t* config, const std::string& section, const std::string& key,
+                     bool value) {
   inc_func_call_count(__func__);
   test::mock::osi_config::config_set_bool(config, section, key, value);
 }
-void config_set_int(config_t* config, const std::string& section,
-                    const std::string& key, int value) {
+void config_set_int(config_t* config, const std::string& section, const std::string& key,
+                    int value) {
   inc_func_call_count(__func__);
   test::mock::osi_config::config_set_int(config, section, key, value);
 }
-void config_set_string(config_t* config, const std::string& section,
-                       const std::string& key, const std::string& value) {
+void config_set_string(config_t* config, const std::string& section, const std::string& key,
+                       const std::string& value) {
   inc_func_call_count(__func__);
   test::mock::osi_config::config_set_string(config, section, key, value);
 }
-void config_set_uint64(config_t* config, const std::string& section,
-                       const std::string& key, uint64_t value) {
+void config_set_uint64(config_t* config, const std::string& section, const std::string& key,
+                       uint64_t value) {
   inc_func_call_count(__func__);
   test::mock::osi_config::config_set_uint64(config, section, key, value);
 }

@@ -37,35 +37,29 @@
 
 /* HFP peer (AG) features*/
 #define BTA_HF_CLIENT_PEER_FEAT_3WAY 0x00000001 /* Three-way calling */
-#define BTA_HF_CLIENT_PEER_FEAT_ECNR \
-  0x00000002 /* Echo cancellation and/or noise reduction */
+#define BTA_HF_CLIENT_PEER_FEAT_ECNR 0x00000002 /* Echo cancellation and/or noise reduction */
 #define BTA_HF_CLIENT_PEER_FEAT_VREC 0x00000004 /* Voice recognition */
 #define BTA_HF_CLIENT_PEER_INBAND 0x00000008    /* In-band ring tone */
-#define BTA_HF_CLIENT_PEER_VTAG \
-  0x00000010 /* Attach a phone number to a voice tag */
-#define BTA_HF_CLIENT_PEER_REJECT \
-  0x00000020                              /* Ability to reject incoming call */
-#define BTA_HF_CLIENT_PEER_ECS 0x00000040 /* Enhanced Call Status */
-#define BTA_HF_CLIENT_PEER_ECC 0x00000080 /* Enhanced Call Control */
-#define BTA_HF_CLIENT_PEER_EXTERR 0x00000100 /* Extended error codes */
-#define BTA_HF_CLIENT_PEER_CODEC 0x00000200  /* Codec Negotiation */
-#define BTA_HF_CLIENT_PEER_HF_IND 0x00000400 /* HF Indicators */
-#define BTA_HF_CLIENT_PEER_ESCO_S4 0x00000800 /* ESCO S4 link setting */
+#define BTA_HF_CLIENT_PEER_VTAG 0x00000010      /* Attach a phone number to a voice tag */
+#define BTA_HF_CLIENT_PEER_REJECT 0x00000020    /* Ability to reject incoming call */
+#define BTA_HF_CLIENT_PEER_ECS 0x00000040       /* Enhanced Call Status */
+#define BTA_HF_CLIENT_PEER_ECC 0x00000080       /* Enhanced Call Control */
+#define BTA_HF_CLIENT_PEER_EXTERR 0x00000100    /* Extended error codes */
+#define BTA_HF_CLIENT_PEER_CODEC 0x00000200     /* Codec Negotiation */
+#define BTA_HF_CLIENT_PEER_HF_IND 0x00000400    /* HF Indicators */
+#define BTA_HF_CLIENT_PEER_ESCO_S4 0x00000800   /* ESCO S4 link setting */
 
 typedef uint16_t tBTA_HF_CLIENT_PEER_FEAT;
 
 /* HFP HF features */
-#define BTA_HF_CLIENT_FEAT_ECNR \
-  0x00000001 /* Echo cancellation and/or noise reduction */
-#define BTA_HF_CLIENT_FEAT_3WAY \
-  0x00000002 /* Call waiting and three-way calling */
-#define BTA_HF_CLIENT_FEAT_CLI \
-  0x00000004 /* Caller ID presentation capability */
-#define BTA_HF_CLIENT_FEAT_VREC 0x00000008  /* Voice recognition activation */
-#define BTA_HF_CLIENT_FEAT_VOL 0x00000010   /* Remote volume control */
-#define BTA_HF_CLIENT_FEAT_ECS 0x00000020   /* Enhanced Call Status */
-#define BTA_HF_CLIENT_FEAT_ECC 0x00000040   /* Enhanced Call Control */
-#define BTA_HF_CLIENT_FEAT_CODEC 0x00000080 /* Codec Negotiation */
+#define BTA_HF_CLIENT_FEAT_ECNR 0x00000001    /* Echo cancellation and/or noise reduction */
+#define BTA_HF_CLIENT_FEAT_3WAY 0x00000002    /* Call waiting and three-way calling */
+#define BTA_HF_CLIENT_FEAT_CLI 0x00000004     /* Caller ID presentation capability */
+#define BTA_HF_CLIENT_FEAT_VREC 0x00000008    /* Voice recognition activation */
+#define BTA_HF_CLIENT_FEAT_VOL 0x00000010     /* Remote volume control */
+#define BTA_HF_CLIENT_FEAT_ECS 0x00000020     /* Enhanced Call Status */
+#define BTA_HF_CLIENT_FEAT_ECC 0x00000040     /* Enhanced Call Control */
+#define BTA_HF_CLIENT_FEAT_CODEC 0x00000080   /* Codec Negotiation */
 #define BTA_HF_CLIENT_FEAT_HF_IND 0x00000100  /* HF Indicators */
 #define BTA_HF_CLIENT_FEAT_ESCO_S4 0x00000200 /* ESCO S4 link setting */
 #define BTA_HF_CLIENT_FEAT_SWB 0x00000400     /* SWB feature (HFP 1.9) */
@@ -75,21 +69,17 @@ typedef uint16_t tBTA_HF_CLIENT_PEER_FEAT;
 #define BTA_HF_CLIENT_FEAT_SWB_SUPPORT 0x0100 /* Supports SWB */
 
 /* HFP HF extended call handling - masks not related to any spec */
-#define BTA_HF_CLIENT_CHLD_REL \
-  0x00000001 /* 0  Release waiting call or held calls */
+#define BTA_HF_CLIENT_CHLD_REL 0x00000001 /* 0  Release waiting call or held calls */
 #define BTA_HF_CLIENT_CHLD_REL_ACC                                             \
   0x00000002 /* 1  Release active calls and accept other (waiting or held) cal \
-                */
-#define BTA_HF_CLIENT_CHLD_REL_X 0x00000004 /* 1x Release x call*/
-#define BTA_HF_CLIENT_CHLD_HOLD_ACC \
-  0x00000008 /* 2  Active calls on hold and accept other call */
-#define BTA_HF_CLIENT_CHLD_PRIV_X \
-  0x00000010 /* 2x Active multiparty call on hold except call x */
-#define BTA_HF_CLIENT_CHLD_MERGE               \
-  0x00000020 /* 3  Add held call to multiparty \
-                */
-#define BTA_HF_CLIENT_CHLD_MERGE_DETACH \
-  0x00000040 /* 4  Add held call to multiparty */
+              */
+#define BTA_HF_CLIENT_CHLD_REL_X 0x00000004    /* 1x Release x call*/
+#define BTA_HF_CLIENT_CHLD_HOLD_ACC 0x00000008 /* 2  Active calls on hold and accept other call */
+#define BTA_HF_CLIENT_CHLD_PRIV_X 0x00000010   /* 2x Active multiparty call on hold except call x */
+#define BTA_HF_CLIENT_CHLD_MERGE                                                     \
+  0x00000020                                       /* 3  Add held call to multiparty \
+                                                    */
+#define BTA_HF_CLIENT_CHLD_MERGE_DETACH 0x00000040 /* 4  Add held call to multiparty */
 
 typedef uint16_t tBTA_HF_CLIENT_CHLD_FEAT;
 
@@ -106,37 +96,34 @@ typedef uint16_t tBTA_HF_CLIENT_CHLD_FEAT;
 typedef uint8_t tBTA_HF_CLIENT_AT_RESULT_TYPE;
 
 /* HF Client callback events */
-#define BTA_HF_CLIENT_ENABLE_EVT 0     /* HF Client enabled */
-#define BTA_HF_CLIENT_REGISTER_EVT 1   /* HF Client registered */
-#define BTA_HF_CLIENT_OPEN_EVT 2       /* HF Client connection open */
-#define BTA_HF_CLIENT_CLOSE_EVT 3      /* HF Client connection closed */
-#define BTA_HF_CLIENT_CONN_EVT 4       /* Service level connection opened */
-#define BTA_HF_CLIENT_AUDIO_OPEN_EVT 5 /* Audio connection open */
-#define BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT \
-  6 /* Audio connection with mSBC codec open */
-#define BTA_HF_CLIENT_AUDIO_CLOSE_EVT 7 /* Audio connection closed */
-#define BTA_HF_CLIENT_SPK_EVT 8         /* Speaker volume changed */
-#define BTA_HF_CLIENT_MIC_EVT 9         /* Microphone volume changed */
-#define BTA_HF_CLIENT_IND_EVT 10        /* Indicator */
-#define BTA_HF_CLIENT_VOICE_REC_EVT \
-  11 /* AG changed voice recognition setting */
-#define BTA_HF_CLIENT_OPERATOR_NAME_EVT 12 /* Operator name acquired */
-#define BTA_HF_CLIENT_CLIP_EVT 13      /* Calling line identification event */
-#define BTA_HF_CLIENT_CCWA_EVT 14      /* Call waiting notification */
-#define BTA_HF_CLIENT_AT_RESULT_EVT 15 /* Call waiting notification */
-#define BTA_HF_CLIENT_CLCC_EVT 16      /* current call event */
-#define BTA_HF_CLIENT_CNUM_EVT 17      /* subscriber information event */
-#define BTA_HF_CLIENT_BTRH_EVT 18      /* bluetooth response and hold event */
-#define BTA_HF_CLIENT_BSIR_EVT                                               \
-  19                              /* in-band ring tone setting changed event \
-                                     */
-#define BTA_HF_CLIENT_BINP_EVT 20 /* binp number event */
+#define BTA_HF_CLIENT_ENABLE_EVT 0          /* HF Client enabled */
+#define BTA_HF_CLIENT_REGISTER_EVT 1        /* HF Client registered */
+#define BTA_HF_CLIENT_OPEN_EVT 2            /* HF Client connection open */
+#define BTA_HF_CLIENT_CLOSE_EVT 3           /* HF Client connection closed */
+#define BTA_HF_CLIENT_CONN_EVT 4            /* Service level connection opened */
+#define BTA_HF_CLIENT_AUDIO_OPEN_EVT 5      /* Audio connection open */
+#define BTA_HF_CLIENT_AUDIO_MSBC_OPEN_EVT 6 /* Audio connection with mSBC codec open */
+#define BTA_HF_CLIENT_AUDIO_CLOSE_EVT 7     /* Audio connection closed */
+#define BTA_HF_CLIENT_SPK_EVT 8             /* Speaker volume changed */
+#define BTA_HF_CLIENT_MIC_EVT 9             /* Microphone volume changed */
+#define BTA_HF_CLIENT_IND_EVT 10            /* Indicator */
+#define BTA_HF_CLIENT_VOICE_REC_EVT 11      /* AG changed voice recognition setting */
+#define BTA_HF_CLIENT_OPERATOR_NAME_EVT 12  /* Operator name acquired */
+#define BTA_HF_CLIENT_CLIP_EVT 13           /* Calling line identification event */
+#define BTA_HF_CLIENT_CCWA_EVT 14           /* Call waiting notification */
+#define BTA_HF_CLIENT_AT_RESULT_EVT 15      /* Call waiting notification */
+#define BTA_HF_CLIENT_CLCC_EVT 16           /* current call event */
+#define BTA_HF_CLIENT_CNUM_EVT 17           /* subscriber information event */
+#define BTA_HF_CLIENT_BTRH_EVT 18           /* bluetooth response and hold event */
+#define BTA_HF_CLIENT_BSIR_EVT                                                      \
+  19                                     /* in-band ring tone setting changed event \
+                                          */
+#define BTA_HF_CLIENT_BINP_EVT 20        /* binp number event */
 #define BTA_HF_CLIENT_RING_INDICATION 21 /* HF Client ring indication */
 
-#define BTA_HF_CLIENT_UNKNOWN_EVT 22 /* Unknown or vendor specific Event */
-#define BTA_HF_CLIENT_AUDIO_LC3_OPEN_EVT \
-  23 /* Audio connection with LC3 codec open */
-#define BTA_HF_CLIENT_DISABLE_EVT 30     /* HF Client disabled */
+#define BTA_HF_CLIENT_UNKNOWN_EVT 22        /* Unknown or vendor specific Event */
+#define BTA_HF_CLIENT_AUDIO_LC3_OPEN_EVT 23 /* Audio connection with LC3 codec open */
+#define BTA_HF_CLIENT_DISABLE_EVT 30        /* HF Client disabled */
 
 typedef uint8_t tBTA_HF_CLIENT_EVT;
 
@@ -281,8 +268,7 @@ typedef union {
 typedef uint32_t tBTA_HF_CLIENT_FEAT;
 
 /* HF Client callback */
-typedef void(tBTA_HF_CLIENT_CBACK)(tBTA_HF_CLIENT_EVT event,
-                                   tBTA_HF_CLIENT* p_data);
+typedef void(tBTA_HF_CLIENT_CBACK)(tBTA_HF_CLIENT_EVT event, tBTA_HF_CLIENT* p_data);
 
 /*****************************************************************************
  *  External Function Declarations
@@ -301,8 +287,7 @@ typedef void(tBTA_HF_CLIENT_CBACK)(tBTA_HF_CLIENT_EVT event,
  * Returns          BTA_SUCCESS if OK, BTA_FAILURE otherwise.
  *
  ******************************************************************************/
-tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback,
-                               tBTA_HF_CLIENT_FEAT features,
+tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback, tBTA_HF_CLIENT_FEAT features,
                                const char* p_service_name);
 
 /*******************************************************************************
@@ -382,8 +367,8 @@ void BTA_HfClientAudioClose(uint16_t handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at,
-                        uint32_t val1, uint32_t val2, const char* str);
+void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at, uint32_t val1,
+                        uint32_t val2, const char* str);
 
 /*******************************************************************************
  *

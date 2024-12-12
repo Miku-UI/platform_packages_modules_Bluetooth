@@ -29,21 +29,20 @@ namespace sdp {
 
 // A helper class that helps extract data element objects from SDP packets.
 class DataElementReader {
- public:
+public:
   // If the DataElement contains monostate, that means parsing has failed.
   using DataElement =
-      std::variant<std::monostate, bool, int8_t, int16_t, int32_t, int64_t,
-                   uint8_t, uint16_t, uint32_t, uint64_t, Octet16, Uuid,
-                   std::string, DataElementReader>;
+          std::variant<std::monostate, bool, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t,
+                       uint32_t, uint64_t, Octet16, Uuid, std::string, DataElementReader>;
 
-  DataElementReader(Iterator begin, Iterator end) : it_(begin), end_(end){};
+  DataElementReader(Iterator begin, Iterator end) : it_(begin), end_(end) {}
 
   // Get the next Data Element in the data. If reading fails for any reason,
   // the DataElementReader becomes invalid and will continuously fail to read
   // from that point onward.
   DataElement ReadNext();
 
- private:
+private:
   // Extraction Helpers
   DataElement ParseFail();
   template <class IntegerType>

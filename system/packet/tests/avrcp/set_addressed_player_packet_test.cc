@@ -26,8 +26,7 @@ namespace avrcp {
 using TestSetAddrPlayerPacket = TestPacketType<SetAddressedPlayerRequest>;
 
 TEST(SetAddressedPlayerResponseBuilderTest, builderTest) {
-  auto builder =
-      SetAddressedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR);
+  auto builder = SetAddressedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR);
   ASSERT_EQ(builder->size(), set_addressed_player_response.size());
 
   auto test_packet = TestSetAddrPlayerPacket::Make();
@@ -36,15 +35,13 @@ TEST(SetAddressedPlayerResponseBuilderTest, builderTest) {
 }
 
 TEST(SetAddressedPlayerRequestTest, getterTest) {
-  auto test_packet =
-      TestSetAddrPlayerPacket::Make(set_addressed_player_request);
+  auto test_packet = TestSetAddrPlayerPacket::Make(set_addressed_player_request);
 
   ASSERT_EQ(test_packet->GetPlayerId(), 0x0000u);
 }
 
 TEST(SetAddressedPlayerRequestTest, validTest) {
-  auto test_packet =
-      TestSetAddrPlayerPacket::Make(set_addressed_player_request);
+  auto test_packet = TestSetAddrPlayerPacket::Make(set_addressed_player_request);
   ASSERT_TRUE(test_packet->IsValid());
 }
 

@@ -15,6 +15,7 @@
  */
 
 #include "fields/checksum_field.h"
+
 #include "util.h"
 
 const std::string ChecksumField::kFieldType = "ChecksumField";
@@ -22,29 +23,19 @@ const std::string ChecksumField::kFieldType = "ChecksumField";
 ChecksumField::ChecksumField(std::string name, std::string type_name, int size, ParseLocation loc)
     : ScalarField(name, size, loc), type_name_(type_name) {}
 
-const std::string& ChecksumField::GetFieldType() const {
-  return ChecksumField::kFieldType;
-}
+const std::string& ChecksumField::GetFieldType() const { return ChecksumField::kFieldType; }
 
-std::string ChecksumField::GetDataType() const {
-  return type_name_;
-}
+std::string ChecksumField::GetDataType() const { return type_name_; }
 
 void ChecksumField::GenExtractor(std::ostream&, int, bool) const {}
 
-std::string ChecksumField::GetGetterFunctionName() const {
-  return "";
-}
+std::string ChecksumField::GetGetterFunctionName() const { return ""; }
 
 void ChecksumField::GenGetter(std::ostream&, Size, Size) const {}
 
-bool ChecksumField::GenBuilderParameter(std::ostream&) const {
-  return false;
-}
+bool ChecksumField::GenBuilderParameter(std::ostream&) const { return false; }
 
-bool ChecksumField::HasParameterValidator() const {
-  return false;
-}
+bool ChecksumField::HasParameterValidator() const { return false; }
 
 void ChecksumField::GenParameterValidator(std::ostream&) const {
   // Do nothing.
@@ -52,7 +43,8 @@ void ChecksumField::GenParameterValidator(std::ostream&) const {
 
 void ChecksumField::GenInserter(std::ostream& s) const {
   s << "packet::ByteObserver observer = i.UnregisterObserver();";
-  s << "insert(static_cast<" << util::GetTypeForSize(GetSize().bits()) << ">(observer.GetValue()), i);";
+  s << "insert(static_cast<" << util::GetTypeForSize(GetSize().bits())
+    << ">(observer.GetValue()), i);";
 }
 
 void ChecksumField::GenValidator(std::ostream&) const {

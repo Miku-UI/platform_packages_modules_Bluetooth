@@ -644,6 +644,7 @@ pub fn dbus_propmap(attr: TokenStream, item: TokenStream) -> TokenStream {
                 #field_ident.as_static_inner(0).unwrap(),
                 format!("{}.{}", #struct_str, #field_str),
             )?;
+            #[allow(non_camel_case_types)]
             type #field_type_name = #field_type;
             let #field_ident = #field_type_name::from_dbus(
                 #field_ident,
@@ -1100,7 +1101,7 @@ pub fn generate_dbus_arg(_item: TokenStream) -> TokenStream {
                     ))));
                 }
                 let arg = match (*any.downcast_ref::<<Self as DBusArg>::DBusType>().unwrap()).try_clone() {
-                    Ok(foo) => foo,
+                    Ok(arg) => arg,
                     Err(_) => return Err(Box::new(DBusArgError::new(format!("{} cannot clone file.", name)))),
                 };
 

@@ -26,9 +26,9 @@
 
 #include "avct_api.h"
 #include "internal_include/bt_target.h"
-#include "l2c_api.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
 /*****************************************************************************
@@ -86,17 +86,17 @@ typedef struct {
 
 /* browse control block type */
 typedef struct {
-  uint16_t peer_mtu;  /* peer l2c mtu */
-  uint16_t ch_result; /* L2CAP connection result value */
-  uint16_t ch_lcid;   /* L2CAP channel LCID */
-  uint8_t allocated;  /* 0, not allocated. index+1, otherwise. */
-  uint8_t state;      /* The state machine state */
-  uint8_t ch_state;   /* L2CAP channel state */
+  uint16_t peer_mtu;      /* peer l2c mtu */
+  uint16_t ch_result;     /* L2CAP connection result value */
+  uint16_t ch_lcid;       /* L2CAP channel LCID */
+  uint8_t allocated;      /* 0, not allocated. index+1, otherwise. */
+  uint8_t state;          /* The state machine state */
+  uint8_t ch_state;       /* L2CAP channel state */
   uint16_t conflict_lcid; /* L2CAP channel LCID */
-  BT_HDR* p_tx_msg; /* Message to be sent - in case the browsing channel is not
-                       open when MsgReg is called */
-  uint8_t ch_close; /* CCB index+1, if CCB initiated channel close */
-  RawAddress peer_addr; /* BD address of peer */
+  BT_HDR* p_tx_msg;       /* Message to be sent - in case the browsing channel is not
+                             open when MsgReg is called */
+  uint8_t ch_close;       /* CCB index+1, if CCB initiated channel close */
+  RawAddress peer_addr;   /* BD address of peer */
 } tAVCT_BCB;
 
 #define AVCT_ALOC_LCB 0x01
@@ -196,14 +196,12 @@ extern const uint8_t avct_lcb_pkt_type_len[];
 
 /* CCB function declarations */
 tAVCT_CCB* avct_ccb_alloc(tAVCT_CC* p_cc);
-void avct_ccb_dealloc(tAVCT_CCB* p_ccb, uint8_t event, uint16_t result,
-                      const RawAddress* bd_addr);
+void avct_ccb_dealloc(tAVCT_CCB* p_ccb, uint8_t event, uint16_t result, const RawAddress* bd_addr);
 uint8_t avct_ccb_to_idx(tAVCT_CCB* p_ccb);
 tAVCT_CCB* avct_ccb_by_idx(uint8_t idx);
 
-extern bool avct_msg_ind_for_src_sink_coexist(tAVCT_LCB* p_lcb,
-                                              tAVCT_LCB_EVT* p_data,
-                                              uint8_t label, uint8_t cr_ipid);
+extern bool avct_msg_ind_for_src_sink_coexist(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data,
+                                              uint8_t label, uint8_t cr_ipid, uint16_t pid);
 
 /*****************************************************************************
  * global data

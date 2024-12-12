@@ -30,12 +30,12 @@ typedef struct {
 } StopWatchLog;
 
 class StopWatchLegacy {
- public:
+public:
   static void DumpStopWatchLog(void);
   StopWatchLegacy(std::string text);
   ~StopWatchLegacy();
 
- private:
+private:
   std::string text_;
   std::chrono::system_clock::time_point timestamp_;
   std::chrono::high_resolution_clock::time_point start_timestamp_;

@@ -23,30 +23,27 @@
 namespace bluetooth {
 namespace avrcp {
 
-class ListPlayerApplicationSettingValuesResponseBuilder
-    : public VendorPacketBuilder {
- public:
+class ListPlayerApplicationSettingValuesResponseBuilder : public VendorPacketBuilder {
+public:
   virtual ~ListPlayerApplicationSettingValuesResponseBuilder() = default;
 
-  static std::unique_ptr<ListPlayerApplicationSettingValuesResponseBuilder>
-  MakeBuilder(std::vector<uint8_t> values);
+  static std::unique_ptr<ListPlayerApplicationSettingValuesResponseBuilder> MakeBuilder(
+          std::vector<uint8_t> values);
 
   virtual size_t size() const override;
-  virtual bool Serialize(
-      const std::shared_ptr<::bluetooth::Packet>& pkt) override;
+  virtual bool Serialize(const std::shared_ptr<::bluetooth::Packet>& pkt) override;
 
- protected:
+protected:
   std::vector<uint8_t> values_;
 
   ListPlayerApplicationSettingValuesResponseBuilder(std::vector<uint8_t> values)
-      : VendorPacketBuilder(CType::STABLE,
-                            CommandPdu::LIST_PLAYER_APPLICATION_SETTING_VALUES,
+      : VendorPacketBuilder(CType::STABLE, CommandPdu::LIST_PLAYER_APPLICATION_SETTING_VALUES,
                             PacketType::SINGLE),
-        values_(std::move(values)){};
+        values_(std::move(values)) {}
 };
 
 class ListPlayerApplicationSettingValuesRequest : public VendorPacket {
- public:
+public:
   virtual ~ListPlayerApplicationSettingValuesRequest() = default;
 
   /**
@@ -64,16 +61,14 @@ class ListPlayerApplicationSettingValuesRequest : public VendorPacket {
    *   ListPlayerApplicationSettingValuesRequest:
    *     PlayerAttribute attribute;
    */
-  static constexpr size_t kMinSize() {
-    return VendorPacket::kMinSize() + sizeof(uint8_t);
-  }
+  static constexpr size_t kMinSize() { return VendorPacket::kMinSize() + sizeof(uint8_t); }
 
   PlayerAttribute GetRequestedAttribute() const;
 
   virtual bool IsValid() const override;
   virtual std::string ToString() const override;
 
- protected:
+protected:
   using VendorPacket::VendorPacket;
 };
 

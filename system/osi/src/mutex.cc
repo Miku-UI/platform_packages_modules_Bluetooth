@@ -18,9 +18,9 @@
 
 #define LOG_TAG "bt_osi_mutex"
 
-#include <mutex>
-
 #include "osi/include/mutex.h"
+
+#include <mutex>
 
 static std::recursive_mutex global_mutex;
 

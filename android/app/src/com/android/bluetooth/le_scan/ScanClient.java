@@ -70,10 +70,9 @@ public class ScanClient {
         if (this == obj) {
             return true;
         }
-        if (obj == null || getClass() != obj.getClass()) {
+        if (!(obj instanceof ScanClient other)) {
             return false;
         }
-        ScanClient other = (ScanClient) obj;
         return scannerId == other.scannerId;
     }
 

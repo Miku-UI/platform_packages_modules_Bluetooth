@@ -28,8 +28,7 @@
 #include <aaudio/AAudio.h>
 #include <aaudio/AAudioTesting.h>
 
-aaudio_allowed_capture_policy_t AAudioStream_getAllowedCapturePolicy(
-    AAudioStream* stream) {
+aaudio_allowed_capture_policy_t AAudioStream_getAllowedCapturePolicy(AAudioStream* stream) {
   inc_func_call_count(__func__);
   return 0;
 }
@@ -49,8 +48,7 @@ aaudio_input_preset_t AAudioStream_getInputPreset(AAudioStream* stream) {
   inc_func_call_count(__func__);
   return 0;
 }
-aaudio_performance_mode_t AAudioStream_getPerformanceMode(
-    AAudioStream* stream) {
+aaudio_performance_mode_t AAudioStream_getPerformanceMode(AAudioStream* stream) {
   inc_func_call_count(__func__);
   return 0;
 }
@@ -71,15 +69,12 @@ aaudio_result_t AAudioStream_close(AAudioStream* stream) {
   inc_func_call_count(__func__);
   return 0;
 }
-aaudio_result_t AAudioStream_getTimestamp(AAudioStream* stream,
-                                          clockid_t clockid,
-                                          int64_t* framePosition,
-                                          int64_t* timeNanoseconds) {
+aaudio_result_t AAudioStream_getTimestamp(AAudioStream* stream, clockid_t clockid,
+                                          int64_t* framePosition, int64_t* timeNanoseconds) {
   inc_func_call_count(__func__);
   return 0;
 }
-aaudio_result_t AAudioStream_read(AAudioStream* stream, void* buffer,
-                                  int32_t numFrames,
+aaudio_result_t AAudioStream_read(AAudioStream* stream, void* buffer, int32_t numFrames,
                                   int64_t timeoutNanoseconds) {
   inc_func_call_count(__func__);
   return 0;
@@ -104,19 +99,18 @@ aaudio_result_t AAudioStream_requestStop(AAudioStream* stream) {
   inc_func_call_count(__func__);
   return 0;
 }
-aaudio_result_t AAudioStream_setBufferSizeInFrames(AAudioStream* stream,
-                                                   int32_t requestedFrames) {
+aaudio_result_t AAudioStream_setBufferSizeInFrames(AAudioStream* stream, int32_t requestedFrames) {
   inc_func_call_count(__func__);
   return 0;
 }
-aaudio_result_t AAudioStream_waitForStateChange(
-    AAudioStream* stream, aaudio_stream_state_t inputState,
-    aaudio_stream_state_t* nextState, int64_t timeoutNanoseconds) {
+aaudio_result_t AAudioStream_waitForStateChange(AAudioStream* stream,
+                                                aaudio_stream_state_t inputState,
+                                                aaudio_stream_state_t* nextState,
+                                                int64_t timeoutNanoseconds) {
   inc_func_call_count(__func__);
   return 0;
 }
-aaudio_result_t AAudioStream_write(AAudioStream* stream, const void* buffer,
-                                   int32_t numFrames,
+aaudio_result_t AAudioStream_write(AAudioStream* stream, const void* buffer, int32_t numFrames,
                                    int64_t timeoutNanoseconds) {
   inc_func_call_count(__func__);
   return 0;
@@ -205,18 +199,16 @@ int64_t AAudioStream_getFramesWritten(AAudioStream* stream) {
   inc_func_call_count(__func__);
   return 0;
 }
-void AAudioStreamBuilder_setAllowedCapturePolicy(
-    AAudioStreamBuilder* builder, aaudio_allowed_capture_policy_t policy) {
+void AAudioStreamBuilder_setAllowedCapturePolicy(AAudioStreamBuilder* builder,
+                                                 aaudio_allowed_capture_policy_t policy) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setBufferCapacityInFrames(AAudioStreamBuilder* builder,
-                                                   int32_t frames) {
+void AAudioStreamBuilder_setBufferCapacityInFrames(AAudioStreamBuilder* builder, int32_t frames) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setChannelCount(AAudioStreamBuilder* builder,
-                                         int32_t channelCount) {
+void AAudioStreamBuilder_setChannelCount(AAudioStreamBuilder* builder, int32_t channelCount) {
   inc_func_call_count(__func__);
   return;
 }
@@ -226,34 +218,28 @@ void AAudioStreamBuilder_setContentType(AAudioStreamBuilder* builder,
   return;
 }
 void AAudioStreamBuilder_setDataCallback(AAudioStreamBuilder* builder,
-                                         AAudioStream_dataCallback callback,
-                                         void* userData) {
+                                         AAudioStream_dataCallback callback, void* userData) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setDeviceId(AAudioStreamBuilder* builder,
-                                     int32_t deviceId) {
+void AAudioStreamBuilder_setDeviceId(AAudioStreamBuilder* builder, int32_t deviceId) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setDirection(AAudioStreamBuilder* builder,
-                                      aaudio_direction_t direction) {
+void AAudioStreamBuilder_setDirection(AAudioStreamBuilder* builder, aaudio_direction_t direction) {
   inc_func_call_count(__func__);
   return;
 }
 void AAudioStreamBuilder_setErrorCallback(AAudioStreamBuilder* builder,
-                                          AAudioStream_errorCallback callback,
-                                          void* userData) {
+                                          AAudioStream_errorCallback callback, void* userData) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setFormat(AAudioStreamBuilder* builder,
-                                   aaudio_format_t format) {
+void AAudioStreamBuilder_setFormat(AAudioStreamBuilder* builder, aaudio_format_t format) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setFramesPerDataCallback(AAudioStreamBuilder* builder,
-                                                  int32_t frames) {
+void AAudioStreamBuilder_setFramesPerDataCallback(AAudioStreamBuilder* builder, int32_t frames) {
   inc_func_call_count(__func__);
   return;
 }
@@ -267,23 +253,19 @@ void AAudioStreamBuilder_setPerformanceMode(AAudioStreamBuilder* builder,
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setPrivacySensitive(AAudioStreamBuilder* builder,
-                                             bool privacySensitive) {
+void AAudioStreamBuilder_setPrivacySensitive(AAudioStreamBuilder* builder, bool privacySensitive) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setSampleRate(AAudioStreamBuilder* builder,
-                                       int32_t sampleRate) {
+void AAudioStreamBuilder_setSampleRate(AAudioStreamBuilder* builder, int32_t sampleRate) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setSamplesPerFrame(AAudioStreamBuilder* builder,
-                                            int32_t samplesPerFrame) {
+void AAudioStreamBuilder_setSamplesPerFrame(AAudioStreamBuilder* builder, int32_t samplesPerFrame) {
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setSessionId(AAudioStreamBuilder* builder,
-                                      aaudio_session_id_t sessionId) {
+void AAudioStreamBuilder_setSessionId(AAudioStreamBuilder* builder, aaudio_session_id_t sessionId) {
   inc_func_call_count(__func__);
   return;
 }
@@ -292,8 +274,7 @@ void AAudioStreamBuilder_setSharingMode(AAudioStreamBuilder* builder,
   inc_func_call_count(__func__);
   return;
 }
-void AAudioStreamBuilder_setUsage(AAudioStreamBuilder* builder,
-                                  aaudio_usage_t usage) {
+void AAudioStreamBuilder_setUsage(AAudioStreamBuilder* builder, aaudio_usage_t usage) {
   inc_func_call_count(__func__);
   return;
 }

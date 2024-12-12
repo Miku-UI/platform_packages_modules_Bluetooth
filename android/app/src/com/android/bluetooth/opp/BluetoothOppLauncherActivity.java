@@ -34,6 +34,7 @@ package com.android.bluetooth.opp;
 
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothDevicePicker;
 import android.bluetooth.BluetoothProfile;
@@ -327,6 +328,7 @@ public class BluetoothOppLauncherActivity extends Activity {
     }
 
     @VisibleForTesting
+    @SuppressLint("AndroidFrameworkEfficientStrings") // Bluetooth min sdk 33 prevent StringBuilder
     Uri createFileForSharedContent(Context context, CharSequence shareContent) {
         if (shareContent == null) {
             return null;
@@ -341,6 +343,7 @@ public class BluetoothOppLauncherActivity extends Activity {
             /*
              * Convert the plain text to HTML
              */
+            // Not using StringBuilder since Matcher.appendReplacement & appendTail require API 34
             StringBuffer sb =
                     new StringBuffer(
                             "<html><head><meta http-equiv=\"Content-Type\""
@@ -390,7 +393,7 @@ public class BluetoothOppLauncherActivity extends Activity {
                     link = "tel:" + matchStr;
                 }
                 if (link != null) {
-                    String href = String.format("<a href=\"%s\">%s</a>", link, matchStr);
+                    String href = "<a href=\"" + link + "\">" + matchStr + "</a>";
                     m.appendReplacement(sb, href);
                 }
             }
@@ -413,8 +416,7 @@ public class BluetoothOppLauncherActivity extends Activity {
                     BluetoothProtoEnums.BLUETOOTH_OPP_LAUNCHER_ACTIVITY,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                     6);
-            Log.e(TAG, "FileNotFoundException: " + e.toString());
-            e.printStackTrace();
+            Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
         } catch (IOException e) {
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.OPP,
@@ -440,7 +442,7 @@ public class BluetoothOppLauncherActivity extends Activity {
                         BluetoothProtoEnums.BLUETOOTH_OPP_LAUNCHER_ACTIVITY,
                         BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
                         9);
-                e.printStackTrace();
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
         return fileUri;

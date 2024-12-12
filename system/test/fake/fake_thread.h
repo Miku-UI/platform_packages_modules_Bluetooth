@@ -36,7 +36,7 @@ class semaphore_t {
   std::condition_variable condition_;
   unsigned long count_ = 0;  // Initialized as locked.
 
- public:
+public:
   std::mutex mutex_;
   void notify() {
     std::lock_guard<decltype(mutex_)> lock(mutex_);
@@ -46,8 +46,9 @@ class semaphore_t {
 
   void wait() {
     std::unique_lock<decltype(mutex_)> lock(mutex_);
-    while (!count_)  // Handle spurious wake-ups.
+    while (!count_) {  // Handle spurious wake-ups.
       condition_.wait(lock);
+    }
     --count_;
   }
 
@@ -74,12 +75,12 @@ struct thread_t {
     QUIESCE,
   };
 
- private:
+private:
   State is_running_{State::STOPPED};
   mutable std::mutex is_running_lock_;
   semaphore_t thread_finish_semaphore;
 
- public:
+public:
   std::queue<work_item> work_queue;
   semaphore_t work_queue_semaphore;
 
