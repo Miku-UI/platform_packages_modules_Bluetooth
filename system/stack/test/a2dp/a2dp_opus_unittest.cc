@@ -133,11 +133,11 @@ protected:
 
 TEST_F(A2dpOpusTest, a2dp_source_read_underflow) {
   promise = {};
-  auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
+  auto read_cb = +[](uint8_t* /*p_buf*/, uint32_t /*len*/) -> uint32_t {
     // underflow
     return 0;
   };
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     promise.set_value();
     osi_free(p_buf);
     return false;
@@ -154,11 +154,11 @@ TEST_F(A2dpOpusTest, a2dp_source_read_underflow) {
 
 TEST_F(A2dpOpusTest, a2dp_enqueue_cb_is_invoked) {
   promise = {};
-  auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
+  auto read_cb = +[](uint8_t* /*p_buf*/, uint32_t len) -> uint32_t {
     log::assert_that(GetReadSize() == len, "assert failed: GetReadSize() == len");
     return len;
   };
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     static bool first_invocation = true;
     if (first_invocation) {
       promise.set_value();
@@ -177,7 +177,7 @@ TEST_F(A2dpOpusTest, a2dp_enqueue_cb_is_invoked) {
 }
 
 TEST_F(A2dpOpusTest, decoded_data_cb_not_invoked_when_empty_packet) {
-  auto data_cb = +[](uint8_t* p_buf, uint32_t len) { FAIL(); };
+  auto data_cb = +[](uint8_t* /*p_buf*/, uint32_t /*len*/) { FAIL(); };
   InitializeDecoder(data_cb);
   std::vector<uint8_t> data;
   BT_HDR* packet = AllocateL2capPacket(data);
@@ -187,7 +187,7 @@ TEST_F(A2dpOpusTest, decoded_data_cb_not_invoked_when_empty_packet) {
 
 TEST_F(A2dpOpusTest, decoded_data_cb_invoked) {
   promise = {};
-  auto data_cb = +[](uint8_t* p_buf, uint32_t len) {};
+  auto data_cb = +[](uint8_t* /*p_buf*/, uint32_t /*len*/) {};
   InitializeDecoder(data_cb);
 
   auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
@@ -196,7 +196,7 @@ TEST_F(A2dpOpusTest, decoded_data_cb_invoked) {
     counter += len;
     return len;
   };
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t /*len*/) -> bool {
     static bool first_invocation = true;
     if (first_invocation) {
       packet = reinterpret_cast<BT_HDR*>(osi_malloc(sizeof(*p_buf) + p_buf->len + 1));

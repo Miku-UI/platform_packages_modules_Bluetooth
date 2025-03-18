@@ -21,7 +21,7 @@
 #include "btif/include/btif_common.h"  // do_in_jni_thread
 #include "btif/include/btif_hh.h"      // DumpsysHid
 #include "main/shim/dumpsys.h"
-#include "stack/gatt/connection_manager.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"  // PAN_Dumpsys
 #include "test/headless/log.h"

@@ -186,7 +186,6 @@ typedef struct SBC_ENC_PARAMS_TAG {
   uint16_t FrameHeader;
   uint8_t Format; /* Default to be SBC_FORMAT_GENERAL for SBC if not assigned.
                     Assigning to SBC_FORMAT_MSBC for mSBC */
-
 } SBC_ENC_PARAMS;
 
 #ifdef __cplusplus

@@ -28,6 +28,8 @@
 
 #define LOG_TAG "bt_btif_sdp"
 
+#include "btif/include/btif_sdp.h"
+
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_sdp.h>

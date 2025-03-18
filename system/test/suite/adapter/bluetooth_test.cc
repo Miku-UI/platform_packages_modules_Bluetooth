@@ -40,7 +40,7 @@ void AdapterStateChangedCallback(bt_state_t new_state) {
   semaphore_post(instance->adapter_state_changed_callback_sem_);
 }
 
-void AdapterPropertiesCallback(bt_status_t status, int num_properties,
+void AdapterPropertiesCallback(bt_status_t /*status*/, int num_properties,
                                bt_property_t* new_properties) {
   property_free_array(instance->last_changed_properties_, instance->properties_changed_count_);
   instance->last_changed_properties_ = property_copy_array(new_properties, num_properties);
@@ -48,7 +48,7 @@ void AdapterPropertiesCallback(bt_status_t status, int num_properties,
   semaphore_post(instance->adapter_properties_callback_sem_);
 }
 
-void RemoteDevicePropertiesCallback(bt_status_t status, RawAddress* remote_bd_addr,
+void RemoteDevicePropertiesCallback(bt_status_t /*status*/, RawAddress* remote_bd_addr,
                                     int num_properties, bt_property_t* properties) {
   instance->curr_remote_device_ = *remote_bd_addr;
   property_free_array(instance->remote_device_last_changed_properties_,
@@ -86,7 +86,7 @@ void BluetoothTest::SetUp() {
   remove("/data/misc/bluedroid/bt_config.conf.encrypted-checksum");
 
   instance = this;
-  int status = bluetoothInterface.init(&callbacks, false, false, 0, nullptr, false, nullptr);
+  int status = bluetoothInterface.init(&callbacks, false, false, 0, false);
   ASSERT_EQ(status, BT_STATUS_SUCCESS);
 }
 
@@ -96,8 +96,8 @@ void BluetoothTest::TearDown() {
 }
 
 void BluetoothTest::ClearSemaphore(btsemaphore& sem) {
-  while (sem.try_wait())
-    ;
+  while (sem.try_wait()) {
+  }
 }
 
 const bt_interface_t* BluetoothTest::bt_interface() { return &bluetoothInterface; }

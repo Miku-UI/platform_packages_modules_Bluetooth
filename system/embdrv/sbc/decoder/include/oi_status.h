@@ -408,7 +408,7 @@ typedef enum {
   OI_SECMGR_DISCONNECTED_FAIL = 1408,     /**< SECMGR: l2cap access denied - disconnected */
   OI_SECMGR_ACCESS_PENDING = 1409,        /**< SECMGR: l2cap access request is still pending  */
   OI_SECMGR_PIN_CODE_TOO_SHORT = 1410,    /**< SECMGR: Higher-layer process gave us
-                                             a pin code that is too short */
+                                             a pin code that is too small */
   OI_SECMGR_UNKNOWN_ENCRYPT_VALUE = 1411, /**< SECMGR: got EncryptionChange
                                              event, unknown encryption enable
                                              value */
@@ -684,7 +684,6 @@ typedef enum {
                              status. (Only to be used for special cases
                              involving OI_SLOG_ERROR() and OI_SLOG_WARNING().)
                              */
-
 } OI_STATUS;
 
 /* Remember to update the #define below when new reserved blocks are added to

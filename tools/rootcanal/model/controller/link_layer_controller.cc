@@ -132,7 +132,7 @@ bool LinkLayerController::FilterAcceptListBusy() {
   //    command is pending.
   if (initiator_.IsEnabled() &&
       initiator_.initiator_filter_policy ==
-              bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST) {
+              bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST_WITH_PEER_ADDRESS) {
     return true;
   }
 
@@ -522,7 +522,7 @@ void LinkLayerController::IncomingLlPhyReq(model::packets::LinkLayerPacketView i
     // Notify the host when the phy selection has changed
     // (responder in this case).
     if ((phy_c_to_p != connection.GetTxPhy() || phy_p_to_c != connection.GetRxPhy()) &&
-        IsLeEventUnmasked(SubeventCode::PHY_UPDATE_COMPLETE)) {
+        IsLeEventUnmasked(SubeventCode::LE_PHY_UPDATE_COMPLETE)) {
       send_event_(bluetooth::hci::LePhyUpdateCompleteBuilder::Create(
               ErrorCode::SUCCESS, connection_handle, phy_c_to_p, phy_p_to_c));
     }
@@ -569,7 +569,7 @@ void LinkLayerController::IncomingLlPhyRsp(model::packets::LinkLayerPacketView i
 
   // Always notify the host, even if the phy selection has not changed
   // (initiator in this case).
-  if (IsLeEventUnmasked(SubeventCode::PHY_UPDATE_COMPLETE)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_PHY_UPDATE_COMPLETE)) {
     send_event_(bluetooth::hci::LePhyUpdateCompleteBuilder::Create(
             ErrorCode::SUCCESS, connection_handle, phy_c_to_p, phy_p_to_c));
   }
@@ -600,7 +600,7 @@ void LinkLayerController::IncomingLlPhyUpdateInd(model::packets::LinkLayerPacket
   // Update local state, and notify the host.
   // The notification is sent only when the local host is initiator
   // of the Phy update procedure or the phy selection has changed.
-  if (IsLeEventUnmasked(SubeventCode::PHY_UPDATE_COMPLETE) &&
+  if (IsLeEventUnmasked(SubeventCode::LE_PHY_UPDATE_COMPLETE) &&
       (tx_phy != connection.GetTxPhy() || rx_phy != connection.GetRxPhy() ||
        connection.InitiatedPhyUpdate())) {
     send_event_(bluetooth::hci::LePhyUpdateCompleteBuilder::Create(
@@ -1126,9 +1126,9 @@ ErrorCode LinkLayerController::LePeriodicAdvertisingCreateSyncCancel() {
   // successful, the Controller sends an HCI_LE_Periodic_Advertising_Sync_-
   // Established event to the Host with the error code Operation Cancelled
   // by Host (0x44).
-  if (IsLeEventUnmasked(SubeventCode::PERIODIC_ADVERTISING_SYNC_ESTABLISHED)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_PERIODIC_ADVERTISING_SYNC_ESTABLISHED_V1)) {
     ScheduleTask(0ms, [this] {
-      send_event_(bluetooth::hci::LePeriodicAdvertisingSyncEstablishedBuilder::Create(
+      send_event_(bluetooth::hci::LePeriodicAdvertisingSyncEstablishedV1Builder::Create(
               ErrorCode::OPERATION_CANCELLED_BY_HOST, 0, 0, AddressType::PUBLIC_DEVICE_ADDRESS,
               Address::kEmpty, bluetooth::hci::SecondaryPhyType::NO_PACKETS, 0,
               bluetooth::hci::ClockAccuracy::PPM_500));
@@ -1625,13 +1625,13 @@ ErrorCode LinkLayerController::LeCreateConnectionCancel() {
   // Connection Complete or an HCI_LE_Enhanced_Connection_Complete event
   // shall be generated. In either case, the event shall be sent with the error
   // code Unknown Connection Identifier (0x02).
-  if (IsLeEventUnmasked(SubeventCode::ENHANCED_CONNECTION_COMPLETE)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_ENHANCED_CONNECTION_COMPLETE_V1)) {
     ScheduleTask(0ms, [this] {
-      send_event_(bluetooth::hci::LeEnhancedConnectionCompleteBuilder::Create(
+      send_event_(bluetooth::hci::LeEnhancedConnectionCompleteV1Builder::Create(
               ErrorCode::UNKNOWN_CONNECTION, 0, Role::CENTRAL, AddressType::PUBLIC_DEVICE_ADDRESS,
               Address(), Address(), Address(), 0, 0, 0, bluetooth::hci::ClockAccuracy::PPM_500));
     });
-  } else if (IsLeEventUnmasked(SubeventCode::CONNECTION_COMPLETE)) {
+  } else if (IsLeEventUnmasked(SubeventCode::LE_CONNECTION_COMPLETE)) {
     ScheduleTask(0ms, [this] {
       send_event_(bluetooth::hci::LeConnectionCompleteBuilder::Create(
               ErrorCode::UNKNOWN_CONNECTION, 0, Role::CENTRAL, AddressType::PUBLIC_DEVICE_ADDRESS,
@@ -2049,7 +2049,7 @@ ErrorCode LinkLayerController::SendLeCommandToRemoteByAddress(OpCode opcode,
                                                               const Address& own_address,
                                                               const Address& peer_address) {
   switch (opcode) {
-    case (OpCode::LE_READ_REMOTE_FEATURES):
+    case (OpCode::LE_READ_REMOTE_FEATURES_PAGE_0):
       SendLeLinkLayerPacket(
               model::packets::LeReadRemoteFeaturesBuilder::Create(own_address, peer_address));
       break;
@@ -2105,7 +2105,7 @@ ErrorCode LinkLayerController::SendCommandToRemoteByHandle(OpCode opcode, pdl::p
   }
 
   switch (opcode) {
-    case (OpCode::LE_READ_REMOTE_FEATURES):
+    case (OpCode::LE_READ_REMOTE_FEATURES_PAGE_0):
       return SendLeCommandToRemoteByAddress(opcode, connections_.GetOwnAddress(handle).GetAddress(),
                                             connections_.GetAddress(handle).GetAddress());
     default:
@@ -2849,7 +2849,7 @@ void LinkLayerController::ScanIncomingLeLegacyAdvertisingPdu(
   // Legacy scanning, directed advertising.
   if (LegacyAdvertising() && should_send_advertising_report &&
       should_send_directed_advertising_report &&
-      IsLeEventUnmasked(SubeventCode::DIRECTED_ADVERTISING_REPORT)) {
+      IsLeEventUnmasked(SubeventCode::LE_DIRECTED_ADVERTISING_REPORT)) {
     bluetooth::hci::LeDirectedAdvertisingResponse response;
     response.event_type_ = bluetooth::hci::DirectAdvertisingEventType::ADV_DIRECT_IND;
     response.address_type_ = static_cast<bluetooth::hci::DirectAdvertisingAddressType>(
@@ -2865,7 +2865,7 @@ void LinkLayerController::ScanIncomingLeLegacyAdvertisingPdu(
   // Legacy scanning, un-directed advertising.
   if (LegacyAdvertising() && should_send_advertising_report &&
       !should_send_directed_advertising_report &&
-      IsLeEventUnmasked(SubeventCode::ADVERTISING_REPORT)) {
+      IsLeEventUnmasked(SubeventCode::LE_ADVERTISING_REPORT)) {
     bluetooth::hci::LeAdvertisingResponse response;
     response.address_type_ = resolved_advertising_address.GetAddressType();
     response.address_ = resolved_advertising_address.GetAddress();
@@ -2892,7 +2892,7 @@ void LinkLayerController::ScanIncomingLeLegacyAdvertisingPdu(
 
   // Extended scanning.
   if (ExtendedAdvertising() && should_send_advertising_report &&
-      IsLeEventUnmasked(SubeventCode::EXTENDED_ADVERTISING_REPORT)) {
+      IsLeEventUnmasked(SubeventCode::LE_EXTENDED_ADVERTISING_REPORT)) {
     bluetooth::hci::LeExtendedAdvertisingResponse response;
     response.connectable_ = connectable_advertising;
     response.scannable_ = scannable_advertising;
@@ -3061,7 +3061,7 @@ void LinkLayerController::ConnectIncomingLeLegacyAdvertisingPdu(
         return;
       }
       break;
-    case bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST:
+    case bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST_WITH_PEER_ADDRESS:
       if (!LeFilterAcceptListContainsDevice(resolved_advertising_address)) {
         DEBUG(id_,
               "Legacy advertising ignored by initiator because the "
@@ -3070,6 +3070,12 @@ void LinkLayerController::ConnectIncomingLeLegacyAdvertisingPdu(
         return;
       }
       break;
+    case bluetooth::hci::InitiatorFilterPolicy::USE_DECISION_PDUS:
+    case bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST_WITH_DECISION_PDUS:
+      DEBUG(id_,
+            "Legacy advertising ignored by initiated because the "
+            "initiator filter policy is unsupported");
+      return;
   }
 
   // When an initiator receives a directed connectable advertising event that
@@ -3295,7 +3301,7 @@ void LinkLayerController::ScanIncomingLeExtendedAdvertisingPdu(
   }
 
   if (should_send_advertising_report &&
-      IsLeEventUnmasked(SubeventCode::EXTENDED_ADVERTISING_REPORT)) {
+      IsLeEventUnmasked(SubeventCode::LE_EXTENDED_ADVERTISING_REPORT)) {
     bluetooth::hci::LeExtendedAdvertisingResponse response;
     response.connectable_ = connectable_advertising;
     response.scannable_ = scannable_advertising;
@@ -3476,7 +3482,7 @@ void LinkLayerController::ConnectIncomingLeExtendedAdvertisingPdu(
         return;
       }
       break;
-    case bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST:
+    case bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST_WITH_PEER_ADDRESS:
       if (!LeFilterAcceptListContainsDevice(resolved_advertising_address)) {
         DEBUG(id_,
               "Extended advertising ignored by initiator because the "
@@ -3485,6 +3491,12 @@ void LinkLayerController::ConnectIncomingLeExtendedAdvertisingPdu(
         return;
       }
       break;
+    case bluetooth::hci::InitiatorFilterPolicy::USE_DECISION_PDUS:
+    case bluetooth::hci::InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST_WITH_DECISION_PDUS:
+      DEBUG(id_,
+            "Extended advertising ignored by initiator because the "
+            "initiator filter policy is not supported");
+      return;
   }
 
   // When an initiator receives a directed connectable advertising event that
@@ -3654,8 +3666,8 @@ void LinkLayerController::IncomingLePeriodicAdvertisingPdu(
     }
 
     // Notify of the new Synchronized train.
-    if (IsLeEventUnmasked(SubeventCode::PERIODIC_ADVERTISING_SYNC_ESTABLISHED)) {
-      send_event_(bluetooth::hci::LePeriodicAdvertisingSyncEstablishedBuilder::Create(
+    if (IsLeEventUnmasked(SubeventCode::LE_PERIODIC_ADVERTISING_SYNC_ESTABLISHED_V1)) {
+      send_event_(bluetooth::hci::LePeriodicAdvertisingSyncEstablishedV1Builder::Create(
               ErrorCode::SUCCESS, sync_handle, advertising_sid,
               resolved_advertiser_address.GetAddressType(),
               resolved_advertiser_address.GetAddress(), bluetooth::hci::SecondaryPhyType::LE_1M,
@@ -3696,7 +3708,7 @@ void LinkLayerController::IncomingLePeriodicAdvertisingPdu(
     // and refresh the timeout for sync termination. The periodic
     // advertising event might need to be fragmented to fit the maximum
     // size of an HCI event.
-    if (IsLeEventUnmasked(SubeventCode::PERIODIC_ADVERTISING_REPORT)) {
+    if (IsLeEventUnmasked(SubeventCode::LE_PERIODIC_ADVERTISING_REPORT_V1)) {
       // Each extended advertising report can only pass 229 bytes of
       // advertising data (255 - 8 = size of report fields).
       std::vector<uint8_t> advertising_data = pdu.GetAdvertisingData();
@@ -3712,7 +3724,7 @@ void LinkLayerController::IncomingLePeriodicAdvertisingPdu(
         std::vector<uint8_t> fragment_data(advertising_data.begin() + offset,
                                            advertising_data.begin() + offset + fragment_size);
         offset += fragment_size;
-        send_event_(bluetooth::hci::LePeriodicAdvertisingReportBuilder::Create(
+        send_event_(bluetooth::hci::LePeriodicAdvertisingReportV1Builder::Create(
                 sync.sync_handle, pdu.GetTxPower(), rssi,
                 bluetooth::hci::CteType::NO_CONSTANT_TONE_EXTENSION, data_status, fragment_data));
       } while (offset < advertising_data.size());
@@ -4001,7 +4013,7 @@ uint16_t LinkLayerController::HandleLeConnection(
     return kReservedHandle;
   }
 
-  if (IsLeEventUnmasked(SubeventCode::ENHANCED_CONNECTION_COMPLETE)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_ENHANCED_CONNECTION_COMPLETE_V1)) {
     AddressWithType peer_resolved_address = connections_.GetResolvedAddress(handle);
     Address peer_resolvable_private_address;
     Address connection_address = address.GetAddress();
@@ -4016,12 +4028,12 @@ uint16_t LinkLayerController::HandleLeConnection(
       local_resolved_address = Address::kEmpty;
     }
 
-    send_event_(bluetooth::hci::LeEnhancedConnectionCompleteBuilder::Create(
+    send_event_(bluetooth::hci::LeEnhancedConnectionCompleteV1Builder::Create(
             ErrorCode::SUCCESS, handle, role, peer_address_type, connection_address,
             local_resolved_address, peer_resolvable_private_address, connection_interval,
             connection_latency, supervision_timeout,
             static_cast<bluetooth::hci::ClockAccuracy>(0x00)));
-  } else if (IsLeEventUnmasked(SubeventCode::CONNECTION_COMPLETE)) {
+  } else if (IsLeEventUnmasked(SubeventCode::LE_CONNECTION_COMPLETE)) {
     send_event_(bluetooth::hci::LeConnectionCompleteBuilder::Create(
             ErrorCode::SUCCESS, handle, role, address.GetAddressType(), address.GetAddress(),
             connection_interval, connection_latency, supervision_timeout,
@@ -4037,7 +4049,7 @@ uint16_t LinkLayerController::HandleLeConnection(
   // an HCI_LE_Channel_Selection_Algorithm event if the connection is created
   // using the LE_Extended_Create_Connection command (see Section 7.7.8.66).
   if (send_le_channel_selection_algorithm_event &&
-      IsLeEventUnmasked(SubeventCode::CHANNEL_SELECTION_ALGORITHM)) {
+      IsLeEventUnmasked(SubeventCode::LE_CHANNEL_SELECTION_ALGORITHM)) {
     // The selection channel algorithm probably will have no impact
     // on emulation.
     send_event_(bluetooth::hci::LeChannelSelectionAlgorithmBuilder::Create(
@@ -4269,7 +4281,7 @@ bool LinkLayerController::ProcessIncomingExtendedConnectRequest(
   // event with the Status parameter set to 0x00. The Controller should not send
   // any other events in between these two events
 
-  if (IsLeEventUnmasked(SubeventCode::ADVERTISING_SET_TERMINATED)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_ADVERTISING_SET_TERMINATED)) {
     send_event_(bluetooth::hci::LeAdvertisingSetTerminatedBuilder::Create(
             ErrorCode::SUCCESS, advertiser.advertising_handle, connection_handle,
             advertiser.num_completed_extended_advertising_events));
@@ -4328,7 +4340,7 @@ void LinkLayerController::IncomingLeConnectionParameterRequest(
     return;
   }
 
-  if (IsLeEventUnmasked(SubeventCode::REMOTE_CONNECTION_PARAMETER_REQUEST)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_REMOTE_CONNECTION_PARAMETER_REQUEST)) {
     send_event_(bluetooth::hci::LeRemoteConnectionParameterRequestBuilder::Create(
             handle, request.GetIntervalMin(), request.GetIntervalMax(), request.GetLatency(),
             request.GetTimeout()));
@@ -4352,7 +4364,7 @@ void LinkLayerController::IncomingLeConnectionParameterUpdate(
     INFO(id_, "@{}: Unknown connection @{}", incoming.GetDestinationAddress(), peer);
     return;
   }
-  if (IsLeEventUnmasked(SubeventCode::CONNECTION_UPDATE_COMPLETE)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_CONNECTION_UPDATE_COMPLETE)) {
     send_event_(bluetooth::hci::LeConnectionUpdateCompleteBuilder::Create(
             static_cast<ErrorCode>(update.GetStatus()), handle, update.GetInterval(),
             update.GetLatency(), update.GetTimeout()));
@@ -4446,7 +4458,7 @@ void LinkLayerController::IncomingLeReadRemoteFeaturesResponse(
     status = static_cast<ErrorCode>(response.GetStatus());
   }
   if (IsEventUnmasked(EventCode::LE_META_EVENT)) {
-    send_event_(bluetooth::hci::LeReadRemoteFeaturesCompleteBuilder::Create(
+    send_event_(bluetooth::hci::LeReadRemoteFeaturesPage0CompleteBuilder::Create(
             status, handle, response.GetFeatures()));
   }
 }
@@ -4668,7 +4680,7 @@ void LinkLayerController::IncomingLeScanResponsePacket(model::packets::LinkLayer
   }
 
   if (LegacyAdvertising() && should_send_advertising_report &&
-      IsLeEventUnmasked(SubeventCode::ADVERTISING_REPORT)) {
+      IsLeEventUnmasked(SubeventCode::LE_ADVERTISING_REPORT)) {
     bluetooth::hci::LeAdvertisingResponse response;
     response.event_type_ = bluetooth::hci::AdvertisingEventType::SCAN_RESPONSE;
     response.address_ = resolved_advertising_address.GetAddress();
@@ -4679,7 +4691,7 @@ void LinkLayerController::IncomingLeScanResponsePacket(model::packets::LinkLayer
   }
 
   if (ExtendedAdvertising() && should_send_advertising_report &&
-      IsLeEventUnmasked(SubeventCode::EXTENDED_ADVERTISING_REPORT)) {
+      IsLeEventUnmasked(SubeventCode::LE_EXTENDED_ADVERTISING_REPORT)) {
     bluetooth::hci::LeExtendedAdvertisingResponse response;
     response.address_ = resolved_advertising_address.GetAddress();
     response.address_type_ = static_cast<bluetooth::hci::DirectAdvertisingAddressType>(
@@ -4741,7 +4753,7 @@ void LinkLayerController::LeScanning() {
     scanner_.scan_enable = false;
     scanner_.pending_scan_request = {};
     scanner_.history.clear();
-    if (IsLeEventUnmasked(SubeventCode::SCAN_TIMEOUT)) {
+    if (IsLeEventUnmasked(SubeventCode::LE_SCAN_TIMEOUT)) {
       send_event_(bluetooth::hci::LeScanTimeoutBuilder::Create());
     }
   }
@@ -4779,7 +4791,7 @@ void LinkLayerController::LeSynchronization() {
       INFO(id_, "Periodic advertising sync with handle 0x{:x} lost", sync.sync_handle);
       removed_sync_handles.push_back(sync.sync_handle);
     }
-    if (IsLeEventUnmasked(SubeventCode::PERIODIC_ADVERTISING_SYNC_LOST)) {
+    if (IsLeEventUnmasked(SubeventCode::LE_PERIODIC_ADVERTISING_SYNC_LOST)) {
       send_event_(bluetooth::hci::LePeriodicAdvertisingSyncLostBuilder::Create(sync.sync_handle));
     }
   }
@@ -5525,7 +5537,7 @@ void LinkLayerController::LeConnectionUpdateComplete(uint16_t handle, uint16_t i
           connections_.GetAddress(handle).GetAddress(), static_cast<uint8_t>(ErrorCode::SUCCESS),
           interval, latency, supervision_timeout));
 
-  if (IsLeEventUnmasked(SubeventCode::CONNECTION_UPDATE_COMPLETE)) {
+  if (IsLeEventUnmasked(SubeventCode::LE_CONNECTION_UPDATE_COMPLETE)) {
     send_event_(bluetooth::hci::LeConnectionUpdateCompleteBuilder::Create(
             status, handle, interval, latency, supervision_timeout));
   }
@@ -5548,7 +5560,7 @@ ErrorCode LinkLayerController::LeConnectionUpdate(uint16_t handle, uint16_t inte
             connections_.GetAddress(handle).GetAddress(), static_cast<uint8_t>(ErrorCode::SUCCESS),
             interval_max, latency, supervision_timeout));
 
-    if (IsLeEventUnmasked(SubeventCode::CONNECTION_UPDATE_COMPLETE)) {
+    if (IsLeEventUnmasked(SubeventCode::LE_CONNECTION_UPDATE_COMPLETE)) {
       send_event_(bluetooth::hci::LeConnectionUpdateCompleteBuilder::Create(
               ErrorCode::SUCCESS, handle, interval_max, latency, supervision_timeout));
     }

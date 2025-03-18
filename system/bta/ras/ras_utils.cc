@@ -16,15 +16,12 @@
 
 #include <base/functional/bind.h>
 
-#include <unordered_map>
+#include <cstdint>
+#include <cstring>
+#include <string>
 
-#include "bta/include/bta_gatt_api.h"
-#include "bta/include/bta_ras_api.h"
+#include "bluetooth/log.h"
 #include "bta/ras/ras_types.h"
-#include "os/log.h"
-#include "stack/include/bt_types.h"
-#include "stack/include/btm_ble_addr.h"
-#include "stack/include/gap_api.h"
 #include "types/bluetooth/uuid.h"
 
 using namespace bluetooth;

@@ -76,7 +76,7 @@ public class RequestTest {
     @Before
     public void setUp() throws IOException {
         mFakeMapObexServer = new FakeMapObexServer();
-        mFakeClientSession = new ClientSession(mFakeMapObexServer.mClientObexTransport);
+        mFakeClientSession = mFakeMapObexServer.getClientSession();
         mFakeClientSession.connect(new HeaderSet());
     }
 
@@ -182,7 +182,7 @@ public class RequestTest {
 
         @Override
         @SuppressWarnings("JavaUtilDate")
-        public int onGetValidator(final Operation op) {
+        public int onGet(final Operation op) {
             OutputStream outputStream;
             HeaderSet replyHeaders = new HeaderSet();
             BluetoothMapAppParams outAppParams = new BluetoothMapAppParams();
@@ -223,7 +223,7 @@ public class RequestTest {
         }
 
         @Override
-        public int onPutValidator(final Operation op) {
+        public int onPut(final Operation op) {
             try {
                 HeaderSet request = op.getReceivedHeader();
                 String type = (String) request.getHeader(HeaderSet.TYPE);
@@ -263,7 +263,7 @@ public class RequestTest {
         }
 
         @Override
-        public int onSetPathValidator(
+        public int onSetPath(
                 final HeaderSet request,
                 HeaderSet reply,
                 final boolean backup,

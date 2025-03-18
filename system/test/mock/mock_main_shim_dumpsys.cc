@@ -30,5 +30,3 @@ void bluetooth::shim::Dump(int /* fd */, const char** /* args */) { inc_func_cal
 void bluetooth::shim::UnregisterDumpsysFunction(const void* /* token */) {
   inc_func_call_count(__func__);
 }
-
-void bluetooth::shim::Dumpsys::Dump(int /* fd */, const char** /* args */) {}

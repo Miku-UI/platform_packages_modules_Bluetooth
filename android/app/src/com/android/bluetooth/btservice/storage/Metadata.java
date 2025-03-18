@@ -28,13 +28,11 @@ import androidx.room.Embedded;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
-import com.android.internal.annotations.VisibleForTesting;
-
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity(tableName = "metadata")
-@VisibleForTesting
+
 public class Metadata {
     @PrimaryKey @NonNull private String address;
 
@@ -73,6 +71,9 @@ public class Metadata {
     /** This is used to indicate whether device's active audio policy */
     public int active_audio_device_policy;
 
+    /** This is used to indicate whether device's microphone prefer to use during calls */
+    public boolean is_preferred_microphone_for_calls;
+
     Metadata(String address) {
         this(address, false, false);
     }
@@ -91,6 +92,7 @@ public class Metadata {
         preferred_output_only_profile = 0;
         preferred_duplex_profile = 0;
         active_audio_device_policy = BluetoothDevice.ACTIVE_AUDIO_DEVICE_POLICY_DEFAULT;
+        is_preferred_microphone_for_calls = true;
     }
 
     static final class Builder {
@@ -117,7 +119,6 @@ public class Metadata {
         }
     }
 
-    @VisibleForTesting
     public String getAddress() {
         return address;
     }
@@ -205,7 +206,6 @@ public class Metadata {
         }
     }
 
-    @VisibleForTesting
     public int getProfileConnectionPolicy(int profile) {
         switch (profile) {
             case BluetoothProfile.A2DP:
@@ -345,7 +345,6 @@ public class Metadata {
         }
     }
 
-    @VisibleForTesting
     public byte[] getCustomizedMeta(int key) {
         byte[] value = null;
         switch (key) {
@@ -470,6 +469,8 @@ public class Metadata {
                 .append(publicMetadata)
                 .append("), hfp client audio policy(")
                 .append(audioPolicyMetadata)
+                .append("), is_preferred_microphone_for_calls(")
+                .append(is_preferred_microphone_for_calls)
                 .append(")}");
 
         return builder.toString();

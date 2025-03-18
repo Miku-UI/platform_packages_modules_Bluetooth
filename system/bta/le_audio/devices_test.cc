@@ -32,11 +32,15 @@
 #include "le_audio_types.h"
 #include "mock_codec_manager.h"
 #include "mock_csis_client.h"
-#include "os/log.h"
 #include "stack/btm/btm_int_types.h"
 #include "test/mock/mock_main_shim_entry.h"
 
-tACL_CONN* btm_bda_to_acl(const RawAddress& bda, tBT_TRANSPORT transport) { return nullptr; }
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
+tACL_CONN* btm_bda_to_acl(const RawAddress& /*bda*/, tBT_TRANSPORT /*transport*/) {
+  return nullptr;
+}
 
 namespace bluetooth {
 namespace le_audio {
@@ -520,12 +524,12 @@ protected:
     MockCsisClient::SetMockInstanceForTesting(&mock_csis_client_module_);
     ON_CALL(mock_csis_client_module_, Get()).WillByDefault(Return(&mock_csis_client_module_));
     ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
-    ON_CALL(mock_csis_client_module_, GetDeviceList(_)).WillByDefault(Invoke([this](int group_id) {
-      return addresses_;
-    }));
-    ON_CALL(mock_csis_client_module_, GetDesiredSize(_)).WillByDefault(Invoke([this](int group_id) {
-      return desired_group_size_ > 0 ? desired_group_size_ : (int)(addresses_.size());
-    }));
+    ON_CALL(mock_csis_client_module_, GetDeviceList(_))
+            .WillByDefault(Invoke([this](int /*group_id*/) { return addresses_; }));
+    ON_CALL(mock_csis_client_module_, GetDesiredSize(_))
+            .WillByDefault(Invoke([this](int /*group_id*/) {
+              return desired_group_size_ > 0 ? desired_group_size_ : (int)(addresses_.size());
+            }));
     SetUpMockCodecManager(codec_location);
   }
 
@@ -1076,9 +1080,9 @@ protected:
     }
 
     if (success_expected) {
-      ASSERT_TRUE(num_of_matching_configurations > 0);
+      ASSERT_GT(num_of_matching_configurations, 0);
     } else {
-      ASSERT_TRUE(num_of_matching_configurations == 0);
+      ASSERT_EQ(0, num_of_matching_configurations);
     }
   }
 

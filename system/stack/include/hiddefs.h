@@ -181,9 +181,9 @@ typedef struct sdp_info {
   tSDP_DISC_REC* p_sdp_layer_rec;
 } tHID_DEV_SDP_INFO;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHID_STATUS> : enum_formatter<tHID_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

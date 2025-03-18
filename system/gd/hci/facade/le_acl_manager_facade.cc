@@ -36,11 +36,11 @@ using ::grpc::ServerContext;
 
 using ::bluetooth::packet::RawBuilder;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<blueberry::facade::BluetoothAddressTypeEnum>
     : enum_formatter<blueberry::facade::BluetoothAddressTypeEnum> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth {
 namespace hci {

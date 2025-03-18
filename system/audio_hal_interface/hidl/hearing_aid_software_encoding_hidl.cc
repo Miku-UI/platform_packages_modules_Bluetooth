@@ -22,15 +22,14 @@
 
 #include "audio_hearing_aid_hw/include/audio_hearing_aid_hw.h"
 #include "client_interface_hidl.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<audio_usage_t> : enum_formatter<audio_usage_t> {};
 template <>
 struct formatter<audio_content_type_t> : enum_formatter<audio_content_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 

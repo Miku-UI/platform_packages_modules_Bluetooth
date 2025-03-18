@@ -20,12 +20,19 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include "audio_hal_client.h"
 #include "audio_hal_interface/le_audio_software.h"
 #include "bta/le_audio/codec_manager.h"
-#include "common/time_util.h"
-#include "os/log.h"
-#include "osi/include/wakelock.h"
+#include "bta_le_audio_api.h"
+#include "hardware/bluetooth.h"
+#include "le_audio/le_audio_types.h"
 #include "stack/include/main_thread.h"
 
 namespace bluetooth::le_audio {
@@ -122,7 +129,7 @@ void SinkImpl::Release() {
   }
 }
 
-bool SinkImpl::OnResumeReq(bool start_media_task) {
+bool SinkImpl::OnResumeReq(bool /*start_media_task*/) {
   if (audioSinkCallbacks_ == nullptr) {
     log::error("audioSinkCallbacks_ not set");
     return false;
@@ -319,7 +326,7 @@ std::unique_ptr<LeAudioSinkAudioHalClient> LeAudioSinkAudioHalClient::AcquireUni
   return std::move(impl);
 }
 
-void LeAudioSinkAudioHalClient::DebugDump(int fd) {
+void LeAudioSinkAudioHalClient::DebugDump(int /*fd*/) {
   /* TODO: Add some statistic for LeAudioSink Audio HAL interface */
 }
 }  // namespace bluetooth::le_audio

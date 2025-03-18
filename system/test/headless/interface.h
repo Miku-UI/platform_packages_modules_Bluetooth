@@ -21,7 +21,6 @@
 #include <deque>
 #include <string>
 
-#include "gd/os/log.h"
 #include "include/hardware/bluetooth.h"
 #include "macros.h"
 #include "test/headless/log.h"
@@ -66,7 +65,7 @@ protected:
 private:
   const char* name_;
   const Callback callback_type_;
-  const long long timestamp_ms_;
+  const uint64_t timestamp_ms_;
 };
 
 struct callback_params_t : public callback_data_t {
@@ -99,7 +98,8 @@ protected:
       : callback_params_t(name, callback_type) {
     for (int i = 0; i < num_properties; i++) {
       log::debug("Processing property {}/{} {} type:{} val:{}", i, num_properties,
-                 fmt::ptr(&properties[i]), properties[i].type, fmt::ptr(properties[i].val));
+                 std::format_ptr(&properties[i]), properties[i].type,
+                 std::format_ptr(properties[i].val));
       property_queue_.push_back(bluetooth::test::headless::property_factory(properties[i]));
     }
   }
@@ -133,7 +133,7 @@ struct acl_state_changed_params_t : public callback_params_t {
   uint16_t acl_handle;
 
   std::string ToString() const override {
-    return fmt::format(
+    return std::format(
             "status:{} remote_bd_addr:{} state:{} transport:{} reason:{}"
             " direction:{} handle:{}",
             bt_status_text(status), remote_bd_addr.ToString(),
@@ -154,7 +154,7 @@ struct discovery_state_changed_params_t : public callback_params_t {
 
   bt_discovery_state_t state;
   std::string ToString() const override {
-    return fmt::format("state:{}", bt_discovery_state_text(state));
+    return std::format("state:{}", bt_discovery_state_text(state));
   }
 };
 
@@ -169,7 +169,7 @@ struct adapter_properties_params_t : public callback_params_with_properties_t {
   bt_status_t status;
 
   std::string ToString() const override {
-    return fmt::format("status:{} num_properties:{}", bt_status_text(status), num_properties());
+    return std::format("status:{} num_properties:{}", bt_status_text(status), num_properties());
   }
 };
 
@@ -188,7 +188,7 @@ struct remote_device_properties_params_t : public callback_params_with_propertie
   RawAddress bd_addr;
 
   std::string ToString() const override {
-    return fmt::format("status:{} bd_addr:{} num_properties:{}", bt_status_text(status),
+    return std::format("status:{} bd_addr:{} num_properties:{}", bt_status_text(status),
                        bd_addr.ToString(), num_properties());
   }
 };
@@ -202,7 +202,7 @@ struct device_found_params_t : public callback_params_with_properties_t {
   virtual ~device_found_params_t() {}
 
   std::string ToString() const override {
-    return fmt::format("num_properties:{}", num_properties());
+    return std::format("num_properties:{}", num_properties());
   }
 };
 

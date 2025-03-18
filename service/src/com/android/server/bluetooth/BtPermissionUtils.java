@@ -77,7 +77,7 @@ class BtPermissionUtils {
      *
      * <p>Should be used in situations where the app op should not be noted.
      */
-    @SuppressLint("AndroidFrameworkRequiresPermission")
+    @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforces the permission
     @RequiresPermission(BLUETOOTH_CONNECT)
     static boolean checkConnectPermissionForDataDelivery(
             Context ctx,
@@ -109,6 +109,7 @@ class BtPermissionUtils {
      *
      * <p>Return the error description if this caller is not allowed to toggle Bluetooth
      */
+    @RequiresPermission(BLUETOOTH_CONNECT)
     String callerCanToggle(
             Context ctx,
             AttributionSource source,
@@ -168,6 +169,7 @@ class BtPermissionUtils {
         return callingAppId == mSystemUiUid;
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // Permission is not enforced, only checked
     private static boolean isPrivileged(Context ctx, int pid, int uid) {
         return (ctx.checkPermission(BLUETOOTH_PRIVILEGED, pid, uid) == PERMISSION_GRANTED)
                 || (ctx.getPackageManager().checkSignatures(uid, SYSTEM_UID) == SIGNATURE_MATCH);
@@ -209,7 +211,7 @@ class BtPermissionUtils {
         }
         UserHandle deviceOwnerUser = null;
         ComponentName deviceOwnerComponent = null;
-        long ident = Binder.clearCallingIdentity();
+        final long ident = Binder.clearCallingIdentity();
         try {
             deviceOwnerUser = devicePolicyManager.getDeviceOwnerUser();
             deviceOwnerComponent = devicePolicyManager.getDeviceOwnerComponentOnAnyUser();
@@ -227,7 +229,7 @@ class BtPermissionUtils {
     }
 
     private static boolean isSystem(Context ctx, String packageName, int uid) {
-        long ident = Binder.clearCallingIdentity();
+        final long ident = Binder.clearCallingIdentity();
         try {
             ApplicationInfo info =
                     ctx.getPackageManager()

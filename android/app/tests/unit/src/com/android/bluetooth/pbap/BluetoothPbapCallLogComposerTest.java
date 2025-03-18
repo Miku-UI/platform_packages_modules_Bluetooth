@@ -87,6 +87,7 @@ public class BluetoothPbapCallLogComposerTest {
     @After
     public void tearDown() throws Exception {
         BluetoothMethodProxy.setInstanceForTesting(null);
+        mComposer.close();
     }
 
     @Test
@@ -165,18 +166,10 @@ public class BluetoothPbapCallLogComposerTest {
     }
 
     @Test
-    public void testTerminate() {
+    public void testClose() {
         mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER);
 
-        mComposer.terminate();
-        verify(mMockCursor).close();
-    }
-
-    @Test
-    public void testFinalize() {
-        mComposer.init(CALL_LOG_URI, SELECTION, SELECTION_ARGS, SORT_ORDER);
-
-        mComposer.finalize();
+        mComposer.close();
         verify(mMockCursor).close();
     }
 

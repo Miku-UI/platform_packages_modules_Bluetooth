@@ -78,8 +78,6 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -118,25 +116,7 @@ public final class Utils {
     /** Thread pool to handle background and outgoing blocking task */
     public static final ExecutorService BackgroundExecutor = Executors.newSingleThreadExecutor();
 
-    /*
-     * Special character
-     *
-     * (See "What is a phone number?" doc)
-     * 'p' --- GSM pause character, same as comma
-     * 'n' --- GSM wild character
-     * 'w' --- GSM wait character
-     */
-    public static final char PAUSE = ',';
-    public static final char WAIT = ';';
     public static final String PAIRING_UI_PROPERTY = "bluetooth.pairing_ui_package.name";
-
-    private static boolean isPause(char c) {
-        return c == 'p' || c == 'P';
-    }
-
-    private static boolean isToneWait(char c) {
-        return c == 'w' || c == 'W';
-    }
 
     /**
      * Check if dual mode audio is enabled. This is set via the system property
@@ -322,12 +302,6 @@ public final class Utils {
         return byteArrayToLong(valueBuf, 0);
     }
 
-    public static short byteArrayToShort(byte[] valueBuf) {
-        ByteBuffer converter = ByteBuffer.wrap(valueBuf);
-        converter.order(ByteOrder.nativeOrder());
-        return converter.getShort();
-    }
-
     public static int byteArrayToInt(byte[] valueBuf, int offset) {
         ByteBuffer converter = ByteBuffer.wrap(valueBuf);
         converter.order(ByteOrder.nativeOrder());
@@ -420,66 +394,6 @@ public final class Utils {
             offset += BD_UUID_LEN;
         }
         return puuids;
-    }
-
-    public static String debugGetAdapterStateString(int state) {
-        switch (state) {
-            case BluetoothAdapter.STATE_OFF:
-                return "STATE_OFF";
-            case BluetoothAdapter.STATE_ON:
-                return "STATE_ON";
-            case BluetoothAdapter.STATE_TURNING_ON:
-                return "STATE_TURNING_ON";
-            case BluetoothAdapter.STATE_TURNING_OFF:
-                return "STATE_TURNING_OFF";
-            default:
-                return "UNKNOWN";
-        }
-    }
-
-    public static String ellipsize(String s) {
-        // Only ellipsize release builds
-        if (!Build.TYPE.equals("user")) {
-            return s;
-        }
-        if (s == null) {
-            return null;
-        }
-        if (s.length() < 3) {
-            return s;
-        }
-        return s.charAt(0) + "⋯" + s.charAt(s.length() - 1);
-    }
-
-    public static void copyStream(InputStream is, OutputStream os, int bufferSize)
-            throws IOException {
-        if (is != null && os != null) {
-            byte[] buffer = new byte[bufferSize];
-            int bytesRead = 0;
-            while ((bytesRead = is.read(buffer)) >= 0) {
-                os.write(buffer, 0, bytesRead);
-            }
-        }
-    }
-
-    public static void safeCloseStream(InputStream is) {
-        if (is != null) {
-            try {
-                is.close();
-            } catch (Throwable t) {
-                Log.d(TAG, "Error closing stream", t);
-            }
-        }
-    }
-
-    public static void safeCloseStream(OutputStream os) {
-        if (os != null) {
-            try {
-                os.close();
-            } catch (Throwable t) {
-                Log.d(TAG, "Error closing stream", t);
-            }
-        }
     }
 
     static int sSystemUiUid = USER_HANDLE_NULL.getIdentifier();
@@ -650,7 +564,7 @@ public final class Utils {
         }
 
         final String msg =
-                "Need " + permission + " permission for " + attributionSource + ": " + message;
+                "Need " + permission + " permission for " + currentAttribution + ": " + message;
         if (result == PERMISSION_HARD_DENIED) {
             throw new SecurityException(msg);
         } else {
@@ -1162,10 +1076,10 @@ public final class Utils {
         for (int i = 0; i < len; i++) {
             char c = phoneNumber.charAt(i);
 
-            if (isPause(c)) {
-                c = PAUSE;
-            } else if (isToneWait(c)) {
-                c = WAIT;
+            if (c == 'p' || c == 'P') {
+                c = ',';
+            } else if (c == 'w' || c == 'W') {
+                c = ';';
             }
             ret.append(c);
         }
@@ -1370,5 +1284,18 @@ public final class Utils {
      */
     public static @NonNull String formatSimple(@NonNull String format, Object... args) {
         return android.bluetooth.BluetoothUtils.formatSimple(format, args);
+    }
+
+    public interface TimeProvider {
+        long elapsedRealtime();
+    }
+
+    public static final TimeProvider sSystemClock = new SystemClockTimeProvider();
+
+    private static final class SystemClockTimeProvider implements TimeProvider {
+        @Override
+        public long elapsedRealtime() {
+            return android.os.SystemClock.elapsedRealtime();
+        }
     }
 }

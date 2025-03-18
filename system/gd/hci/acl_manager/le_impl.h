@@ -41,6 +41,7 @@
 #include "os/alarm.h"
 #include "os/handler.h"
 #include "os/system_properties.h"
+#include "stack/include/stack_metrics_logging.h"
 
 namespace bluetooth {
 namespace hci {
@@ -141,7 +142,7 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
     le_address_manager_ = new LeAddressManager(
             common::Bind(&le_impl::enqueue_command, common::Unretained(this)), handler_,
             controller->GetMacAddress(), controller->GetLeFilterAcceptListSize(),
-            controller->GetLeResolvingListSize());
+            controller->GetLeResolvingListSize(), controller_);
   }
 
   ~le_impl() {
@@ -298,7 +299,6 @@ private:
       }
       return false;
     }
-
   } connections;
 
 public:
@@ -326,6 +326,11 @@ public:
     log::debug("{} --> {}", connectability_state_machine_text(connectability_state_),
                connectability_state_machine_text(state));
     connectability_state_ = state;
+    if (com::android::bluetooth::flags::le_impl_ack_pause_disarmed()) {
+      if (state == ConnectabilityState::DISARMED && pause_connection) {
+        le_address_manager_->AckPause(this);
+      }
+    }
   }
 
   // connection canceled by LeAddressManager.OnPause(), will auto reconnect by
@@ -334,7 +339,9 @@ public:
     log::assert_that(pause_connection, "Connection must be paused to ack the le address manager");
     arm_on_resume_ = true;
     set_connectability_state(ConnectabilityState::DISARMED);
-    le_address_manager_->AckPause(this);
+    if (!com::android::bluetooth::flags::le_impl_ack_pause_disarmed()) {
+      le_address_manager_->AckPause(this);
+    }
   }
 
   void on_common_le_connection_complete(AddressWithType address_with_type) {
@@ -397,6 +404,8 @@ public:
       log::fatal("Bad subevent code:{:02x}", packet.GetSubeventCode());
       return;
     }
+
+    log_le_connection_status(address, true /* is_connect */, status);
 
     const bool in_filter_accept_list = is_device_in_accept_list(remote_address);
 
@@ -554,6 +563,7 @@ public:
       arm_on_resume_ = true;
       add_device_to_accept_list(remote_address);
     }
+    log_le_connection_status(remote_address.GetAddress(), false /* is_connect */, reason);
   }
 
   void on_le_connection_update_complete(LeMetaEventView view) {
@@ -691,6 +701,7 @@ public:
   }
 
   void add_device_to_accept_list(AddressWithType address_with_type) {
+    log_le_device_in_accept_list(address_with_type.GetAddress(), true /* is_add */);
     if (connections.alreadyConnected(address_with_type)) {
       log::info("Device already connected, return");
       return;
@@ -713,6 +724,7 @@ public:
   }
 
   void remove_device_from_accept_list(AddressWithType address_with_type) {
+    log_le_device_in_accept_list(address_with_type.GetAddress(), false /* is_add */);
     if (accept_list.find(address_with_type) == accept_list.end()) {
       log::warn("Device not in acceptlist and cannot be removed: {}", address_with_type);
       return;
@@ -849,6 +861,12 @@ public:
     AddressWithType address_with_type = connection_peer_address_with_type_;
     if (initiator_filter_policy == InitiatorFilterPolicy::USE_FILTER_ACCEPT_LIST) {
       address_with_type = AddressWithType();
+    }
+
+    if (controller_->IsRpaGenerationSupported() &&
+        own_address_type != OwnAddressType::PUBLIC_DEVICE_ADDRESS) {
+      log::info("Support RPA offload, set own address type RESOLVABLE_OR_RANDOM_ADDRESS");
+      own_address_type = OwnAddressType::RESOLVABLE_OR_RANDOM_ADDRESS;
     }
 
     if (controller_->IsSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION)) {

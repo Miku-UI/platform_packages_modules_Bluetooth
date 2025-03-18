@@ -37,11 +37,14 @@ static std::recursive_mutex stopwatch_log_mutex;
 void StopWatchLegacy::RecordLog(StopWatchLog log) {
   std::unique_lock<std::recursive_mutex> lock(stopwatch_log_mutex, std::defer_lock);
   if (!lock.try_lock()) {
-    log::info("try_lock fail. log content: {}, took {} us", log.message,
-              static_cast<size_t>(std::chrono::duration_cast<std::chrono::microseconds>(
-                                          stopwatch_logs[current_buffer_index].end_timestamp -
-                                          stopwatch_logs[current_buffer_index].start_timestamp)
-                                          .count()));
+    log::info(
+            "try_lock fail. log content: {}, took {} us", log.message,
+            static_cast<size_t>(
+                    std::chrono::duration_cast<std::chrono::microseconds>(
+                            stopwatch_logs[current_buffer_index % LOG_BUFFER_LENGTH].end_timestamp -
+                            stopwatch_logs[current_buffer_index % LOG_BUFFER_LENGTH]
+                                    .start_timestamp)
+                            .count()));
     return;
   }
   if (current_buffer_index >= LOG_BUFFER_LENGTH) {

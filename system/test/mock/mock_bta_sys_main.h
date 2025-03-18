@@ -34,16 +34,6 @@ namespace test {
 namespace mock {
 namespace bta_sys_main {
 
-// Shared state between mocked functions and tests
-// Name: BTA_sys_signal_hw_error
-// Params:
-// Return: void
-struct BTA_sys_signal_hw_error {
-  std::function<void()> body{[]() {}};
-  void operator()() { body(); }
-};
-extern struct BTA_sys_signal_hw_error BTA_sys_signal_hw_error;
-
 // Name: bta_sys_deregister
 // Params: uint8_t id
 // Return: void

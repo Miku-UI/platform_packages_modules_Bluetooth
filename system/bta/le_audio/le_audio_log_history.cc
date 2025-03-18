@@ -18,16 +18,18 @@
 
 #include <bluetooth/log.h>
 
-#include <cstdint>
+#include <cstddef>
+#include <cstdio>
+#include <ctime>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "common/circular_buffer.h"
 #include "common/strings.h"
 #include "main/shim/dumpsys.h"
-#include "os/log.h"
-#include "osi/include/osi.h"
-#include "osi/include/properties.h"
+#include "os/logging/log_adapter.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth;
 

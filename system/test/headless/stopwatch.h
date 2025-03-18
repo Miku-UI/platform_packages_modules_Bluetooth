@@ -40,7 +40,7 @@ public:
   std::string ToString() { return ToString(""); }
 
   std::string ToString(const std::string& comment) {
-    return fmt::format("{}: {} ms {}", name_, static_cast<unsigned long>(LapMs()), comment);
+    return std::format("{}: {} ms {}", name_, LapMs(), comment);
   }
 
 private:

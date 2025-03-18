@@ -197,10 +197,10 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
         browserConnCb.onConnected();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_SUCCESS), eq(wrapper));
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -211,7 +211,7 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
         browserConnCb.onConnectionSuspended();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_CONN_ERROR), eq(wrapper));
         // Twice because our mConnCb is wrapped when using the plain connect() call and disconnect
@@ -228,10 +228,10 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
         browserConnCb.onConnectionFailed();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_CONN_ERROR), eq(wrapper));
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -245,11 +245,11 @@ public class BrowserPlayerWrapperTest {
         verify(mMockBrowser).testInit(any(), any(), mBrowserConnCb.capture(), any());
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
 
         browserConnCb.onConnected();
         verify(mConnCb).run(eq(BrowsedPlayerWrapper.STATUS_CONN_ERROR), eq(wrapper));
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -284,7 +284,7 @@ public class BrowserPlayerWrapperTest {
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
         wrapper.playItem("test_item");
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
 
         MediaController mockController = mock(MediaController.class);
         MediaController.TransportControls mockTransport =
@@ -310,7 +310,7 @@ public class BrowserPlayerWrapperTest {
         // Once we're told we're playing, make sure we disconnect
         builder.setState(PlaybackState.STATE_PLAYING, 0, 1);
         controllerCb.onPlaybackStateChanged(builder.build());
-        verify(mMockBrowser, times(1)).disconnect();
+        verify(mMockBrowser).disconnect();
     }
 
     @Test
@@ -321,7 +321,7 @@ public class BrowserPlayerWrapperTest {
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
 
         wrapper.playItem("test_item");
-        verify(mMockBrowser, times(1)).connect();
+        verify(mMockBrowser).connect();
 
         MediaController mockController = mock(MediaController.class);
         MediaController.TransportControls mockTransport =

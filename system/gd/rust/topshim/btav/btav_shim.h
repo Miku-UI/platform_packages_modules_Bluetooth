@@ -67,7 +67,7 @@ public:
   uint32_t disconnect(RawAddress addr);
 
   // interface for Audio server
-  void set_volume(int8_t volume);
+  void set_volume(RawAddress addr, int8_t volume);
 
   void set_playback_status(const ::rust::String& status);
   void set_position(int64_t position_us);

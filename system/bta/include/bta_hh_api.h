@@ -318,7 +318,6 @@ typedef struct {
     BT_HDR* p_rpt_data;            /* GET_RPT_EVT   : report data  */
     uint8_t idle_rate;             /* GET_IDLE_EVT  : idle rate    */
   } rsp_data;
-
 } tBTA_HH_HSDATA;
 
 /* union of data associated with HD callback */
@@ -562,8 +561,8 @@ void BTA_HhRemoveDev(uint8_t dev_handle);
  ******************************************************************************/
 void BTA_HhDump(int fd);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_HH_STATUS> : enum_formatter<tBTA_HH_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 #endif /* BTA_HH_API_H */

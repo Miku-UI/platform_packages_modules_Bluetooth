@@ -40,7 +40,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-using base::StringPrintf;
 using bluetooth::Uuid;
 using namespace bluetooth;
 
@@ -189,8 +188,8 @@ static tGATT_PROFILE_CLCB* gatt_profile_find_clcb_by_bd_addr(const RawAddress& b
  *                  block.
  *
  ******************************************************************************/
-tGATT_PROFILE_CLCB* gatt_profile_clcb_alloc(tCONN_ID conn_id, const RawAddress& bda,
-                                            tBT_TRANSPORT tranport) {
+static tGATT_PROFILE_CLCB* gatt_profile_clcb_alloc(tCONN_ID conn_id, const RawAddress& bda,
+                                                   tBT_TRANSPORT tranport) {
   uint8_t i_clcb = 0;
   tGATT_PROFILE_CLCB* p_clcb = NULL;
 
@@ -221,13 +220,13 @@ tGATT_PROFILE_CLCB* gatt_profile_clcb_alloc(tCONN_ID conn_id, const RawAddress& 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_profile_clcb_dealloc(tGATT_PROFILE_CLCB* p_clcb) {
+static void gatt_profile_clcb_dealloc(tGATT_PROFILE_CLCB* p_clcb) {
   memset(p_clcb, 0, sizeof(tGATT_PROFILE_CLCB));
 }
 
 /** GAP Attributes Database Request callback */
-tGATT_STATUS read_attr_value(tCONN_ID conn_id, uint16_t handle, tGATT_VALUE* p_value,
-                             bool is_long) {
+static tGATT_STATUS read_attr_value(tCONN_ID conn_id, uint16_t handle, tGATT_VALUE* p_value,
+                                    bool is_long) {
   uint8_t* p = p_value->value;
 
   if (handle == gatt_cb.handle_sr_supported_feat) {
@@ -268,8 +267,8 @@ tGATT_STATUS read_attr_value(tCONN_ID conn_id, uint16_t handle, tGATT_VALUE* p_v
 }
 
 /** GAP Attributes Database Read/Read Blob Request process */
-tGATT_STATUS proc_read_req(tCONN_ID conn_id, tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
-                           tGATTS_RSP* p_rsp) {
+static tGATT_STATUS proc_read_req(tCONN_ID conn_id, tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data,
+                                  tGATTS_RSP* p_rsp) {
   if (p_data->is_long) {
     p_rsp->attr_value.offset = p_data->offset;
   }
@@ -280,7 +279,7 @@ tGATT_STATUS proc_read_req(tCONN_ID conn_id, tGATTS_REQ_TYPE, tGATT_READ_REQ* p_
 }
 
 /** GAP ATT server process a write request */
-tGATT_STATUS proc_write_req(tCONN_ID conn_id, tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
+static tGATT_STATUS proc_write_req(tCONN_ID conn_id, tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
   uint16_t handle = p_data->handle;
 
   /* GATT_UUID_SERVER_SUP_FEAT*/

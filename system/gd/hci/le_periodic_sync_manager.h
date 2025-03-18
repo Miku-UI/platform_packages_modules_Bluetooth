@@ -339,10 +339,8 @@ public:
                                         address_with_type, (uint16_t)event_view.GetAdvertiserPhy(),
                                         event_view.GetPeriodicAdvertisingInterval());
 
-      if (com::android::bluetooth::flags::leaudio_broadcast_feature_support()) {
-        if (event_view.GetStatus() != ErrorCode::SUCCESS) {
-          periodic_syncs_.erase(periodic_sync);
-        }
+      if (event_view.GetStatus() != ErrorCode::SUCCESS) {
+        periodic_syncs_.erase(periodic_sync);
       }
     } else {
       log::debug("[PSync]: Wrong sync state={}", (uint8_t)(periodic_sync->sync_state));

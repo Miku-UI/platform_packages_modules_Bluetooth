@@ -32,7 +32,6 @@
 #include <vector>
 
 #include "common/type_helper.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace common {

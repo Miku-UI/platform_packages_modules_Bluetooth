@@ -49,9 +49,9 @@ public:
     // Set event mask to receive (extended) Advertising Reports
     controller_.SetEventMask(to_mask(EventCode::LE_META_EVENT));
 
-    controller_.SetLeEventMask(to_mask(SubeventCode::ADVERTISING_REPORT) |
-                               to_mask(SubeventCode::EXTENDED_ADVERTISING_REPORT) |
-                               to_mask(SubeventCode::DIRECTED_ADVERTISING_REPORT));
+    controller_.SetLeEventMask(to_mask(SubeventCode::LE_ADVERTISING_REPORT) |
+                               to_mask(SubeventCode::LE_EXTENDED_ADVERTISING_REPORT) |
+                               to_mask(SubeventCode::LE_DIRECTED_ADVERTISING_REPORT));
   }
 
   void StartScan(FilterDuplicates filter_duplicates) {

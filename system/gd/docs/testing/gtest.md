@@ -134,7 +134,6 @@ Note: All paths are relative to
 #include "l2cap/internal/channel_impl.h"
 #include "l2cap/l2cap_packets.h"
 #include "os/handler.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace l2cap {

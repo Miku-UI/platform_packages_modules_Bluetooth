@@ -26,8 +26,16 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_dm_api.h"
+#include "bta_hf_client_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "osi/include/alarm.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/port_api.h"
 #include "stack/include/sdp_status.h"
@@ -300,9 +308,8 @@ void bta_hf_client_rfc_close(tBTA_HF_CLIENT_DATA* p_data) {
     bta_hf_client_sco_shutdown(client_cb);
 
     bta_sys_sco_unuse(BTA_ID_HS, 1, client_cb->peer_addr);
-  }
-  /* else close port and deallocate scb */
-  else {
+  } else {
+    /* else close port and deallocate scb */
     tBTA_HF_CLIENT evt;
     memset(&evt, 0, sizeof(evt));
     evt.reg.bd_addr = client_cb->peer_addr;

@@ -83,9 +83,6 @@ cc_test {
         "libchrome",
         "libgmock",
     ],
-    cflags: [
-        "-Wno-unused-parameter",
-    ],
     target: {
         android: {
             static_libs: [

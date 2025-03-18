@@ -43,6 +43,7 @@
 #include "bta/include/bta_sec_api.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_config.h"
+#include "btif/include/btif_dm.h"
 #include "btif/include/btif_gatt.h"
 #include "btif/include/btif_gatt_util.h"
 #include "hci/controller_interface.h"
@@ -67,9 +68,6 @@ using bluetooth::Uuid;
 
 using namespace bluetooth;
 using std::vector;
-
-bool btif_get_address_type(const RawAddress& bda, tBLE_ADDR_TYPE* p_addr_type);
-bool btif_get_device_type(const RawAddress& bda, int* p_device_type);
 
 static bt_status_t btif_gattc_test_command_impl(int command, const btgatt_test_params_t* params);
 extern const btgatt_callbacks_t* bt_gatt_callbacks;
@@ -334,24 +332,30 @@ void btif_gattc_open_impl(int client_if, RawAddress address, tBLE_ADDR_TYPE addr
 
   // Determine transport
   if (transport == BT_TRANSPORT_AUTO) {
-    switch (device_type) {
-      case BT_DEVICE_TYPE_BREDR:
-        transport = BT_TRANSPORT_BR_EDR;
-        break;
+    if (com::android::bluetooth::flags::default_gatt_transport()) {
+      // Prefer LE transport when LE is supported
+      transport = (device_type == BT_DEVICE_TYPE_BREDR) ? BT_TRANSPORT_BR_EDR : BT_TRANSPORT_LE;
+    } else {
+      switch (device_type) {
+        case BT_DEVICE_TYPE_BREDR:
+          transport = BT_TRANSPORT_BR_EDR;
+          break;
 
-      case BT_DEVICE_TYPE_BLE:
-        transport = BT_TRANSPORT_LE;
-        break;
+        case BT_DEVICE_TYPE_BLE:
+          transport = BT_TRANSPORT_LE;
+          break;
 
-      case BT_DEVICE_TYPE_DUMO:
-        transport = (addr_type == BLE_ADDR_RANDOM) ? BT_TRANSPORT_LE : BT_TRANSPORT_BR_EDR;
-        break;
+        case BT_DEVICE_TYPE_DUMO:
+          transport = (addr_type == BLE_ADDR_RANDOM) ? BT_TRANSPORT_LE : BT_TRANSPORT_BR_EDR;
+          break;
 
-      default:
-        log::error("Unknown device type {}", DeviceTypeText(device_type));
-        // transport must not be AUTO for finding control blocks. Use LE for backward compatibility.
-        transport = BT_TRANSPORT_LE;
-        break;
+        default:
+          log::error("Unknown device type {}", DeviceTypeText(device_type));
+          // transport must not be AUTO for finding control blocks. Use LE for backward
+          // compatibility.
+          transport = BT_TRANSPORT_LE;
+          break;
+      }
     }
   }
 

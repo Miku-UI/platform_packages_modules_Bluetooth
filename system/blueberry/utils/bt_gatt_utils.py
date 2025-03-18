@@ -31,7 +31,6 @@ from blueberry.utils.bt_gatt_constants import GattPhyMask
 from blueberry.utils.bt_gatt_constants import GattServiceType
 from blueberry.utils.bt_gatt_constants import GattTransport
 from blueberry.utils.bt_test_utils import BtTestUtilsError
-from blueberry.utils.bt_test_utils import get_mac_address_of_generic_advertisement
 from mobly.controllers.android_device import AndroidDevice
 from mobly.controllers.android_device_lib.event_dispatcher import EventDispatcher
 from mobly.controllers.android_device_lib.sl4a_client import Sl4aClient
@@ -112,27 +111,6 @@ def wait_for_gatt_disconnect_event(central: AndroidDevice, gatt_callback):
         raise GattTestUtilsError("GATT connection state change expected {}, found {}".format(
             expected_event, found_state))
     return
-
-
-def orchestrate_gatt_connection(central: AndroidDevice,
-                                peripheral: AndroidDevice,
-                                transport=GattTransport.TRANSPORT_LE,
-                                mac_address=None,
-                                autoconnect=False,
-                                opportunistic=False):
-    adv_callback = None
-    if mac_address is None:
-        if transport == GattTransport.TRANSPORT_LE:
-            try:
-                mac_address, adv_callback, scan_callback = (get_mac_address_of_generic_advertisement(
-                    central, peripheral))
-            except BtTestUtilsError as err:
-                raise GattTestUtilsError("Error in getting mac address: {}".format(err))
-        else:
-            mac_address = peripheral.sl4a.bluetoothGetLocalAddress()
-            adv_callback = None
-    bluetooth_gatt, gatt_callback = setup_gatt_connection(central, mac_address, autoconnect, transport, opportunistic)
-    return bluetooth_gatt, gatt_callback, adv_callback
 
 
 def run_continuous_write_descriptor(cen_droid: Sl4aClient,

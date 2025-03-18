@@ -17,6 +17,7 @@
 #include "hci/acl_manager/classic_acl_connection.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "hci/address.h"
 #include "hci/event_checkers.h"
@@ -377,6 +378,14 @@ void ClassicAclConnection::RegisterCallbacks(ConnectionManagementCallbacks* call
 }
 
 bool ClassicAclConnection::Disconnect(DisconnectReason reason) {
+  if (com::android::bluetooth::flags::dont_send_hci_disconnect_repeatedly()) {
+    if (is_disconnecting_) {
+      log::info("Already disconnecting {}", address_);
+      return true;
+    }
+  }
+
+  is_disconnecting_ = true;
   acl_connection_interface_->EnqueueCommand(
           DisconnectBuilder::Create(handle_, reason),
           pimpl_->tracker.client_handler_->BindOnce(check_status<DisconnectStatusView>));

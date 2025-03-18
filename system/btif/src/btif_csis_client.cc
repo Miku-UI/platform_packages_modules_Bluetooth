@@ -18,18 +18,23 @@
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
-#include <hardware/bluetooth.h>
 #include <hardware/bt_csis.h>
+
+#include <atomic>
+#include <memory>
 
 #include "bind_helpers.h"
 #include "bta_csis_api.h"
 #include "btif_common.h"
 #include "btif_profile_storage.h"
 #include "stack/include/main_thread.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using base::Bind;
-using base::Owned;
-using base::Passed;
 using base::Unretained;
 using bluetooth::csis::ConnectionState;
 using bluetooth::csis::CsisClientCallbacks;

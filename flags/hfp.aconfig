@@ -40,26 +40,6 @@ flag {
 }
 
 flag {
-    name: "reset_after_collision"
-    namespace: "bluetooth"
-    description: "Reset p_scb when collision occurred and rfcomm is not opened yet"
-    bug: "332324315"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "sink_audio_policy_handover"
-    namespace: "bluetooth"
-    description: "If sink audio policy makes device active for call, then resume past active device"
-    bug: "333562819"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "fix_hfp_qual_1_9"
     namespace: "bluetooth"
     description: "Fix multiple issues in CVSD fallback logics, which are blocking PTS HFP Qualification 1.9"

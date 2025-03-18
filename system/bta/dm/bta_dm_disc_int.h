@@ -131,10 +131,10 @@ void bta_dm_sdp_callback(const RawAddress& bd_addr, tSDP_STATUS sdp_status);
 void bta_dm_sdp_received_di(const RawAddress& bd_addr, tSDP_DI_GET_RECORD& di_record);
 #endif
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_DISC_EVT> : enum_formatter<tBTA_DM_DISC_EVT> {};
 template <>
 struct formatter<tBTA_DM_SERVICE_DISCOVERY_STATE>
     : enum_formatter<tBTA_DM_SERVICE_DISCOVERY_STATE> {};
-}  // namespace fmt
+}  // namespace std

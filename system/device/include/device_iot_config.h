@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <cstdint>
 #include <string>
 
 #include "device_iot_conf_defs.h"

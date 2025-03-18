@@ -163,11 +163,11 @@ public class BluetoothGattCharacteristic implements Parcelable {
     protected int mKeySize = 16;
 
     /**
-     * Write type for this characteristic. See WRITE_TYPE_* constants.
+     * Write type for this characteristic.
      *
      * @hide
      */
-    protected int mWriteType;
+    protected @WriteType int mWriteType;
 
     /**
      * Back-reference to the service this characteristic belongs to.
@@ -392,7 +392,7 @@ public class BluetoothGattCharacteristic implements Parcelable {
      *
      * @return Write type for this characteristic
      */
-    public int getWriteType() {
+    public @WriteType int getWriteType() {
         return mWriteType;
     }
 
@@ -403,10 +403,9 @@ public class BluetoothGattCharacteristic implements Parcelable {
      * BluetoothGatt#writeCharacteristic(BluetoothGattCharacteristic, byte[], int)} function write
      * this characteristic.
      *
-     * @param writeType The write type to for this characteristic. Can be one of: {@link
-     *     #WRITE_TYPE_DEFAULT}, {@link #WRITE_TYPE_NO_RESPONSE} or {@link #WRITE_TYPE_SIGNED}.
+     * @param writeType The write type to for this characteristic.
      */
-    public void setWriteType(int writeType) {
+    public void setWriteType(@WriteType int writeType) {
         mWriteType = writeType;
     }
 

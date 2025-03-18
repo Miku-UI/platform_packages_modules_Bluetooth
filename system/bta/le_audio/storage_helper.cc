@@ -20,11 +20,20 @@
 
 #include <bluetooth/log.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <tuple>
+#include <vector>
+
 #include "client_parser.h"
-#include "common/strings.h"
+#include "devices.h"
 #include "le_audio_types.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::le_audio::types::hdl_pair;
 

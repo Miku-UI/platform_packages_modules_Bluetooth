@@ -278,7 +278,7 @@ tGATT_SEC_ACTION gatt_get_sec_act(tGATT_TCB* p_tcb) {
  * This routine determine the security action based on auth_request and current
  * link status. Returns tGATT_SEC_ACTION (security action)
  */
-tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB* p_clcb) {
+static tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB* p_clcb) {
   tGATT_SEC_ACTION act = GATT_SEC_OK;
   tGATT_TCB* p_tcb = p_clcb->p_tcb;
   tGATT_AUTH_REQ auth_req = p_clcb->auth_req;

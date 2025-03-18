@@ -36,10 +36,13 @@
 #include "stack/include/bt_uuid16.h"
 #include "test/common/mock_functions.h"
 
-bool gatt_cl_read_sirk_req(const RawAddress& peer_bda,
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
+bool gatt_cl_read_sirk_req(const RawAddress& /*peer_bda*/,
                            base::OnceCallback<void(tGATT_STATUS status, const RawAddress&,
                                                    uint8_t sirk_type, Octet16& sirk)>
-                                   cb) {
+                           /*cb*/) {
   return true;
 }
 
@@ -416,7 +419,7 @@ protected:
     // default action for WriteDescriptor function call
     ON_CALL(gatt_queue, WriteDescriptor(_, _, _, _, _, _))
             .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                     tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                     tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                      void* cb_data) -> void {
               if (cb) {
                 cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
@@ -478,8 +481,8 @@ protected:
     EXPECT_CALL(*callbacks, OnDeviceAvailable(address, _, _, _, _)).Times(AtLeast(1));
 
     EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, true))
-            .WillOnce(Invoke([this, conn_id](tGATT_IF client_if, const RawAddress& remote_bda,
-                                             bool is_direct, bool opportunistic) {
+            .WillOnce(Invoke([this, conn_id](tGATT_IF /*client_if*/, const RawAddress& remote_bda,
+                                             bool /*is_direct*/, bool /*opportunistic*/) {
               InjectConnectedEvent(remote_bda, conn_id);
               GetSearchCompleteEvent(conn_id);
             }));
@@ -557,7 +560,7 @@ protected:
 
     auto WriteDescriptorCbGenerator = [](tGATT_STATUS status, uint16_t ccc_handle) {
       return [status, ccc_handle](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                  tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                  tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                   void* cb_data) -> void {
         if (cb) {
           if (ccc_handle) {
@@ -627,7 +630,7 @@ protected:
   const RawAddress test_address2 = GetTestAddress(1);
 };
 
-TEST_F(CsisClientTest, test_get_uninitialized) { ASSERT_DEATH(CsisClient::Get(), ""); }
+TEST_F(CsisClientTest, test_get_uninitialized) { ASSERT_EQ(CsisClient::Get(), nullptr); }
 
 TEST_F(CsisClientTest, test_initialize) {
   CsisClient::Initialize(callbacks.get(), base::DoNothing());
@@ -820,7 +823,8 @@ TEST_F(CsisClientCallbackTest, test_on_group_lock_changed_group_not_found) {
   CsisClient::Get()->LockGroup(
           2, true,
           base::BindOnce(
-                  [](bool* callback_called, int group_id, bool locked, CsisGroupLockStatus status) {
+                  [](bool* callback_called, int group_id, bool /*locked*/,
+                     CsisGroupLockStatus status) {
                     if ((group_id == 2) && (status == CsisGroupLockStatus::FAILED_INVALID_GROUP)) {
                       *callback_called = true;
                     }
@@ -837,8 +841,7 @@ TEST_F(CsisClientTest, test_get_group_id) {
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _, _, _, _));
   InjectConnectedEvent(test_address, 1);
   GetSearchCompleteEvent(1);
-  int group_id = CsisClient::Get()->GetGroupId(test_address);
-  ASSERT_TRUE(group_id == 1);
+  ASSERT_EQ(1, CsisClient::Get()->GetGroupId(test_address));
   TestAppUnregister();
 }
 
@@ -1197,7 +1200,7 @@ TEST_F(CsisMultiClientTest, test_lock_multiple_instances) {
   EXPECT_CALL(*csis_lock_callback_mock, CsisGroupLockCb(1, true, CsisGroupLockStatus::SUCCESS));
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
           .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                   tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                   tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                    void* cb_data) -> void {
             if (cb) {
               cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
@@ -1223,7 +1226,7 @@ TEST_F(CsisMultiClientTest, test_unlock_multiple_instances) {
 
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
           .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                   tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                   tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                    void* cb_data) -> void {
             if (cb) {
               cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
@@ -1255,7 +1258,7 @@ TEST_F(CsisMultiClientTest, test_disconnect_locked_multiple_instances) {
   EXPECT_CALL(*csis_lock_callback_mock, CsisGroupLockCb(1, true, CsisGroupLockStatus::SUCCESS));
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
           .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                   tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                   tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                    void* cb_data) -> void {
             if (cb) {
               cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
@@ -1397,19 +1400,19 @@ TEST_F(CsisClientTest, test_database_out_of_sync) {
 
   // Simulated database changed on the remote side.
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-          .WillByDefault(
-                  Invoke([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
-                    auto* svc = gatt::FindService(services_map[conn_id], handle);
-                    if (svc == nullptr) {
-                      return;
-                    }
+          .WillByDefault(Invoke([this](uint16_t conn_id, uint16_t handle,
+                                       std::vector<uint8_t> value, tGATT_WRITE_TYPE /*write_type*/,
+                                       GATT_WRITE_OP_CB cb, void* cb_data) {
+            auto* svc = gatt::FindService(services_map[conn_id], handle);
+            if (svc == nullptr) {
+              return;
+            }
 
-                    tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
-                    if (cb) {
-                      cb(conn_id, status, handle, value.size(), value.data(), cb_data);
-                    }
-                  }));
+            tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
+            if (cb) {
+              cb(conn_id, status, handle, value.size(), value.data(), cb_data);
+            }
+          }));
 
   ON_CALL(gatt_interface, ServiceSearchRequest(_, _)).WillByDefault(Return());
   EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _));

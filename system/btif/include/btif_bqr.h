@@ -88,6 +88,8 @@ static constexpr uint32_t kQualityEventMaskLeAudioChoppy = 0x1 << 6;
 static constexpr uint32_t kQualityEventMaskConnectFail = 0x1 << 7;
 static constexpr uint32_t kQualityEventMaskAdvRFStatsEvent = 0x1 << 8;
 static constexpr uint32_t kQualityEventMaskAdvRFStatsMonitor = 0x1 << 9;
+static constexpr uint32_t kQualityEventMaskHealthMonitorStatsEvent = 0x1 << 10;
+static constexpr uint32_t kQualityEventMaskControllerHealthMonitor = 0x1 << 11;
 static constexpr uint32_t kQualityEventMaskVendorSpecificQuality = 0x1 << 15;
 static constexpr uint32_t kQualityEventMaskLmpMessageTrace = 0x1 << 16;
 static constexpr uint32_t kQualityEventMaskBtSchedulingTrace = 0x1 << 17;
@@ -99,6 +101,7 @@ static constexpr uint32_t kQualityEventMaskAll =
         kQualityEventMaskRootInflammation | kQualityEventMaskEnergyMonitoring |
         kQualityEventMaskLeAudioChoppy | kQualityEventMaskConnectFail |
         kQualityEventMaskAdvRFStatsEvent | kQualityEventMaskAdvRFStatsMonitor |
+        kQualityEventMaskHealthMonitorStatsEvent | kQualityEventMaskControllerHealthMonitor |
         kQualityEventMaskVendorSpecificQuality | kQualityEventMaskLmpMessageTrace |
         kQualityEventMaskBtSchedulingTrace | kQualityEventMaskControllerDbgInfo |
         kQualityEventMaskVendorSpecificTrace;
@@ -132,6 +135,7 @@ static constexpr uint8_t kLogDumpParamTotalLen = 3;
 static constexpr uint8_t kVersion5_0ParamsTotalLen = 7;
 // Added in BQR V6.0
 static constexpr uint8_t kVersion6_0ParamsTotalLen = 6;
+
 // Warning criteria of the RSSI value.
 static constexpr int8_t kCriWarnRssi = -80;
 // Warning criteria of the unused AFH channel count.
@@ -167,14 +171,6 @@ static constexpr const char* kpBtSchedulingTraceLastLogPath =
 // for sco choppy. Value format is a2dp_choppy_threshold,sco_choppy_threshold
 static constexpr const char* kpPropertyChoppyThreshold = "persist.bluetooth.bqr.choppy_threshold";
 
-// File Descriptor of LMP/LL message trace log
-static int LmpLlMessageTraceLogFd = INVALID_FD;
-// File Descriptor of Bluetooth Multi-profile/Coex scheduling trace log
-static int BtSchedulingTraceLogFd = INVALID_FD;
-// Counter of LMP/LL message trace
-static uint16_t LmpLlMessageTraceCounter = 0;
-// Counter of Bluetooth Multi-profile/Coex scheduling trace
-static uint16_t BtSchedulingTraceCounter = 0;
 // The version supports ISO packets start from v1.01(257)
 static constexpr uint16_t kBqrIsoVersion = 0x101;
 // The version supports vendor quality and trace log starting v1.02(258)
@@ -184,7 +180,7 @@ static constexpr uint16_t kBqrVndLogVersion = 0x102;
 static constexpr uint16_t kBqrVersion5_0 = 0x103;
 // The REPORT_ACTION_QUERY and BQR_Report_interval starting v1.04(260)
 static constexpr uint16_t kBqrVersion6_0 = 0x104;
-
+static constexpr uint16_t kBqrVersion7_0 = 0x105;
 // Action definition
 //
 // Action to Add, Delete or Clear the reporting of quality event(s).
@@ -204,8 +200,10 @@ enum BqrQualityReportId : uint8_t {
   QUALITY_REPORT_ID_A2DP_AUDIO_CHOPPY = 0x03,
   QUALITY_REPORT_ID_SCO_VOICE_CHOPPY = 0x04,
   QUALITY_REPORT_ID_ROOT_INFLAMMATION = 0x05,
+  QUALITY_REPORT_ID_ENERGY_MONITOR = 0x06,
   QUALITY_REPORT_ID_LE_AUDIO_CHOPPY = 0x07,
   QUALITY_REPORT_ID_CONNECT_FAIL = 0x08,
+  QUALITY_REPORT_ID_RF_STATS = 0x09,
   QUALITY_REPORT_ID_VENDOR_SPECIFIC_QUALITY = 0x10,
   QUALITY_REPORT_ID_LMP_LL_MESSAGE_TRACE = 0x11,
   QUALITY_REPORT_ID_BT_SCHEDULING_TRACE = 0x12,
@@ -334,6 +332,112 @@ typedef struct {
   const uint8_t* vendor_specific_parameter;
 } BqrLinkQualityEvent;
 
+// Energy Monitor BQR event
+typedef struct {
+  // Quality report ID.
+  uint8_t quality_report_id;
+  // Average current consumption of all activities consumed by the controller (mA)
+  uint16_t avg_current_consume;
+  // Total time in the idle (low power states, sleep) state. (ms)
+  uint32_t idle_total_time;
+  // Indicates how many times the controller enters the idle state.
+  uint32_t idle_state_enter_count;
+  // Total time in the active (inquiring, paging, ACL/SCO/eSCO/BIS/CIS traffic, processing any task)
+  // state. (ms)
+  uint32_t active_total_time;
+  // Indicates how many times the controller enters the active states.
+  uint32_t active_state_enter_count;
+  // Total time in the BR/EDR specific Tx(Transmitting for ACL/SCO/eSCO traffic)state (ms)
+  uint32_t bredr_tx_total_time;
+  // Indicates how many times the controller enters the BR/EDR specific Tx state.
+  uint32_t bredr_tx_state_enter_count;
+  // Average Tx power level of all the BR/EDR link(s) (dBm)
+  uint8_t bredr_tx_avg_power_lv;
+  // Total time in the BR/EDR specific Rx (Receiving from ACL/SCO/eSCO traffic) state. (ms)
+  uint32_t bredr_rx_total_time;
+  // Indicates how many times the controller enters the BR/EDR specific Rx state. (ms)
+  uint32_t bredr_rx_state_enter_count;
+  // Total time in the LE specific Tx (Transmitting for either ACL/BIS/CIS or LE advertising
+  // traffic) state (ms)
+  uint32_t le_tx_total_time;
+  // Indicates how many times the controller enters theLE specific Tx state.
+  uint32_t le_tx_state_enter_count;
+  // Average Tx power level of all the LE link(s) (dBm)
+  uint8_t le_tx_avg_power_lv;
+  // Total time in the LE specific Rx (Receiving from either ACL/BIS/CIS or LE scanning traffic)
+  // state. (ms)
+  uint32_t le_rx_total_time;
+  // Indicates how many times the controller enters the LE specific Rx state
+  uint32_t le_rx_state_enter_count;
+  // The total time duration to collect power related information (ms)
+  uint32_t tm_period;
+  // The time duration of RX active in one chain
+  uint32_t rx_active_one_chain_time;
+  // The time duration of RX active in two chain
+  uint32_t rx_active_two_chain_time;
+  // The time duration of internal TX active in one chain
+  uint32_t tx_ipa_active_one_chain_time;
+  // The time duration of internal TX active in two chain
+  uint32_t tx_ipa_active_two_chain_time;
+  // The time duration of external TX active in one chain
+  uint32_t tx_epa_active_one_chain_time;
+  // The time duration of external TX active in two chain
+  uint32_t tx_epa_active_two_chain_time;
+} __attribute__((__packed__)) BqrEnergyMonitorEvent;
+
+static constexpr uint8_t kEnergyMonitorParamTotalLen = sizeof(BqrEnergyMonitorEvent);
+
+// RF Stats BQR event
+typedef struct {
+  // Quality report ID.
+  uint8_t quality_report_id;
+  // Extension for Further usage = 0x01 for BQRv6
+  uint8_t ext_info;
+  // time period (ms)
+  uint32_t tm_period;
+  // Packet counter of iPA BF
+  uint32_t tx_pw_ipa_bf;
+  // Packet counter of ePA BF
+  uint32_t tx_pw_epa_bf;
+  // Packet counter of iPA Div
+  uint32_t tx_pw_ipa_div;
+  // Packet counter of ePA Div
+  uint32_t tx_pw_epa_div;
+  // Packet counter of RSSI chain > -50 dBm
+  uint32_t rssi_ch_50;
+  // Packet counter of RSSI chain between  -50 dBm ~ >-55 dBm
+  uint32_t rssi_ch_50_55;
+  // Packet counter of RSSI chain between  -55 dBm ~ >-60 dBm
+  uint32_t rssi_ch_55_60;
+  // Packet counter of RSSI chain between  -60 dBm ~ >-65 dBm
+  uint32_t rssi_ch_60_65;
+  // Packet counter of RSSI chain between  -65 dBm ~ >-70 dBm
+  uint32_t rssi_ch_65_70;
+  // Packet counter of RSSI chain between  -70 dBm ~ >-75 dBm
+  uint32_t rssi_ch_70_75;
+  // Packet counter of RSSI chain between  -75 dBm ~ >-80 dBm
+  uint32_t rssi_ch_75_80;
+  // Packet counter of RSSI chain between  -80 dBm ~ >-85 dBm
+  uint32_t rssi_ch_80_85;
+  // Packet counter of RSSI chain between  -85 dBm ~ >-90 dBm
+  uint32_t rssi_ch_85_90;
+  // Packet counter of RSSI chain  < -90 dBm
+  uint32_t rssi_ch_90;
+  // Packet counter of RSSI delta < 2 dBm
+  uint32_t rssi_delta_2_down;
+  // Packet counter of  RSSI delta between 2 dBm ~ 5 dBm
+  uint32_t rssi_delta_2_5;
+  // Packet counter of  RSSI delta between 5 dBm ~ 8 dB
+  uint32_t rssi_delta_5_8;
+  // Packet counter of  RSSI delta between 8 dBm ~ 11 dBm
+  uint32_t rssi_delta_8_11;
+  // Packet counter of RSSI delta > 11 dBm
+  uint32_t rssi_delta_11_up;
+} __attribute__((__packed__)) BqrRFStatsEvent;
+
+// Total length of all parameters of the RF Stats event
+static constexpr uint8_t kRFStatsParamTotalLen = sizeof(BqrRFStatsEvent);
+
 // Log dump related BQR event
 typedef struct {
   // Quality report ID.
@@ -352,6 +456,20 @@ public:
   // @param length Total length of all parameters contained in the sub-event.
   // @param p_param_buf A pointer to the parameters contained in the sub-event.
   void ParseBqrLinkQualityEvt(uint8_t length, const uint8_t* p_param_buf);
+  // Parse the Energy Monitor BQR event.
+  //
+  // @param length Total length of all parameters contained in the sub-event.
+  // @param p_param_buf A pointer to the parameters contained in the sub-event.
+  //
+  // @return true if the event was parsed successfully, false otherwise.
+  bool ParseBqrEnergyMonitorEvt(uint8_t length, const uint8_t* p_param_buf);
+  // Parse the RF Stats BQR event.
+  //
+  // @param length Total length of all parameters contained in the sub-event.
+  // @param p_param_buf A pointer to the parameters contained in the sub-event.
+  //
+  // @return true if the event was parsed successfully, false otherwise.
+  bool ParseBqrRFStatsEvt(uint8_t length, const uint8_t* p_param_buf);
   // Write the LMP/LL message trace to the log file.
   //
   // @param fd The File Descriptor of the log file.
@@ -376,6 +494,10 @@ public:
   virtual ~BqrVseSubEvt() = default;
   // Link Quality related BQR event
   BqrLinkQualityEvent bqr_link_quality_event_ = {};
+  // Energy Monitor BQR event
+  BqrEnergyMonitorEvent bqr_energy_monitor_event_ = {};
+  // RF Stats BQR event
+  BqrRFStatsEvent bqr_rf_stats_event_ = {};
   // Log Dump related BQR event
   BqrLogDumpEvent bqr_log_dump_event_ = {};
   // Local wall clock timestamp of receiving BQR VSE sub-event
@@ -402,13 +524,16 @@ void DisableBtQualityReport();
 // @param fd The file descriptor to use for dumping information.
 void DebugDump(int fd);
 
+// Configure the file descriptor for the LMP/LL message trace log.
+void SetLmpLlMessageTraceLogFd(int fd);
+
 }  // namespace bqr
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::bqr::BqrReportAction>
     : enum_formatter<bluetooth::bqr::BqrReportAction> {};
 template <>
 struct formatter<bluetooth::bqr::BqrVseSubEvt> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std

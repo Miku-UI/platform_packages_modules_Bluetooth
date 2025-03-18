@@ -24,8 +24,13 @@
  ******************************************************************************/
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
+#include "bta_hd_api.h"
+#include "bta_sys.h"
+#include "hiddefs.h"
 #include "internal_include/bt_target.h"
 #if defined(BTA_HD_INCLUDED) && (BTA_HD_INCLUDED == TRUE)
 

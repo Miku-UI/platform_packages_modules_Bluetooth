@@ -33,7 +33,6 @@
 //       may need attention to prune from (or add to ) the inclusion set.
 #include "bta/av/bta_av_int.h"
 #include "btif/include/btif_av.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"

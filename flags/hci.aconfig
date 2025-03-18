@@ -2,18 +2,18 @@ package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
 
 flag {
-    name: "unified_connection_manager"
-    namespace: "bluetooth"
-    description: "Manage connections centrally and remove the ACL shim layer"
-    bug: "349469413"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "encryption_change_v2"
     namespace: "bluetooth"
     description: "Enable encryption change V2 event"
     bug: "366018699"
+}
+
+flag {
+    name: "dont_send_hci_disconnect_repeatedly"
+    namespace: "bluetooth"
+    description: "Prevent BT from sending repeated HCI disconnect command"
+    bug: "381175628"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

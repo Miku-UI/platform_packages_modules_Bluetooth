@@ -44,13 +44,17 @@
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/btm_sec_int_types.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_controller_interface.h"
+#include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
@@ -60,9 +64,7 @@
 using namespace bluetooth;
 
 namespace {
-
 constexpr char kBtmLogTag[] = "L2CAP";
-
 }
 
 extern tBTM_CB btm_cb;
@@ -775,11 +777,21 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
       p_ccb->p_rcb = p_rcb;
       p_ccb->remote_cid = rcid;
 
-      p_ccb->local_conn_cfg.mtu = L2CAP_SDU_LENGTH_LE_MAX;
-      p_ccb->local_conn_cfg.mps =
-              bluetooth::shim::GetController()->GetLeBufferSize().le_data_packet_length_;
-      p_ccb->local_conn_cfg.credits = L2CA_LeCreditDefault();
-      p_ccb->remote_credit_count = L2CA_LeCreditDefault();
+      if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3349377
+        p_ccb->local_conn_cfg.mtu = p_rcb->coc_cfg.mtu;
+        p_ccb->local_conn_cfg.mps = p_rcb->coc_cfg.mps;
+      } else {
+        p_ccb->local_conn_cfg.mtu = L2CAP_SDU_LENGTH_LE_MAX;
+        p_ccb->local_conn_cfg.mps =
+                bluetooth::shim::GetController()->GetLeBufferSize().le_data_packet_length_;
+      }
+      if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3349376
+        p_ccb->local_conn_cfg.credits = p_rcb->coc_cfg.credits;
+        p_ccb->remote_credit_count = p_rcb->coc_cfg.credits;
+      } else {
+        p_ccb->local_conn_cfg.credits = L2CA_LeCreditDefault();
+        p_ccb->remote_credit_count = L2CA_LeCreditDefault();
+      }
 
       p_ccb->peer_conn_cfg.mtu = mtu;
       p_ccb->peer_conn_cfg.mps = mps;
@@ -920,10 +932,10 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
   }
 }
 
-/** This function is to initate a direct connection. Returns true if connection
+/** This function is to initiate a direct connection. Returns true if connection
  * initiated, false otherwise. */
 bool l2cble_create_conn(tL2C_LCB* p_lcb) {
-  if (!acl_create_le_connection(p_lcb->remote_bd_addr)) {
+  if (!connection_manager::create_le_connection(CONN_MGR_ID_L2CAP, p_lcb->remote_bd_addr)) {
     return false;
   }
 
@@ -1275,8 +1287,8 @@ void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
  * Returns          void
  *
  ******************************************************************************/
-void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_data */,
-                     tBTM_STATUS btm_status) {
+static void l2cble_sec_comp(RawAddress bda, tBT_TRANSPORT transport, void* /* p_ref_data */,
+                            tBTM_STATUS btm_status) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
   tL2CAP_SEC_DATA* p_buf = NULL;
   uint8_t sec_act;

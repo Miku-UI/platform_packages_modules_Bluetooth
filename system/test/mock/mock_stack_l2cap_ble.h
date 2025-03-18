@@ -227,20 +227,6 @@ struct l2cble_send_peer_disc_req {
   void operator()(tL2C_CCB* p_ccb) { body(p_ccb); }
 };
 extern struct l2cble_send_peer_disc_req l2cble_send_peer_disc_req;
-// Name: l2cble_sec_comp
-// Params: const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-// tBTM_STATUS status Returns: void
-struct l2cble_sec_comp {
-  std::function<void(const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-                     tBTM_STATUS status)>
-          body{[](const RawAddress* /* bda */, tBT_TRANSPORT /* transport */,
-                  void* /* p_ref_data */, tBTM_STATUS /* status */) {}};
-  void operator()(const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-                  tBTM_STATUS status) {
-    body(bda, transport, p_ref_data, status);
-  }
-};
-extern struct l2cble_sec_comp l2cble_sec_comp;
 // Name: l2ble_sec_access_req
 // Params: const RawAddress& bd_addr, uint16_t psm, bool is_originator,
 // tL2CAP_SEC_CBACK* p_callback, void* p_ref_data Returns: tL2CAP_LE_RESULT_CODE

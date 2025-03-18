@@ -28,12 +28,16 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avdt_api.h"
+#include "avdt_defs.h"
 #include "avdt_int.h"
 #include "avdtc_api.h"
 #include "internal_include/bt_target.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
@@ -81,7 +85,7 @@ static void avdt_ccb_clear_ccb(AvdtpCcb* p_ccb) {
  *
  ******************************************************************************/
 void avdt_ccb_chan_open(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* /* p_data */) {
-  avdt_ad_open_req(AVDT_CHAN_SIG, p_ccb, NULL, AVDT_INT);
+  avdt_ad_open_req(AVDT_CHAN_SIG, p_ccb, NULL, tAVDT_ROLE::AVDT_INT);
 }
 
 /*******************************************************************************
@@ -659,7 +663,6 @@ void avdt_ccb_clear_cmds(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* /* p_data */) {
 
     /* set up next message */
     p_ccb->p_curr_cmd = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->cmd_q);
-
   } while (p_ccb->p_curr_cmd != NULL);
 
   /* send a CC_CLOSE_EVT any active scbs associated with this ccb */
@@ -830,9 +833,8 @@ void avdt_ccb_snd_msg(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* /* p_data */) {
     /* are we sending a fragmented message? continue sending fragment */
     if (p_ccb->p_curr_msg != NULL) {
       avdt_msg_send(p_ccb, NULL);
-    }
-    /* do we have responses to send?  send them */
-    else if (!fixed_queue_is_empty(p_ccb->rsp_q)) {
+    } else if (!fixed_queue_is_empty(p_ccb->rsp_q)) {
+      /* do we have responses to send?  send them */
       while ((p_msg = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->rsp_q)) != NULL) {
         if (avdt_msg_send(p_ccb, p_msg)) {
           /* break out if congested */
@@ -1024,7 +1026,7 @@ void avdt_ccb_ll_opened(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* p_data) {
   tAVDT_CTRL avdt_ctrl;
 
   log::verbose("peer {} BtaAvScbIndex={} p_ccb={}", p_ccb->peer_addr, p_ccb->BtaAvScbIndex(),
-               fmt::ptr(p_ccb));
+               std::format_ptr(p_ccb));
   p_ccb->ll_opened = true;
 
   if (!p_ccb->p_conn_cback) {

@@ -92,11 +92,6 @@ public class DistanceMeasurementNativeInterface {
         mDistanceMeasurementManager.onDistanceMeasurementStarted(address, method);
     }
 
-    void onDistanceMeasurementStartFail(String address, int reason, int method) {
-        mDistanceMeasurementManager.onDistanceMeasurementStartFail(
-                address, convertErrorCode(reason), method);
-    }
-
     void onDistanceMeasurementStopped(String address, int reason, int method) {
         mDistanceMeasurementManager.onDistanceMeasurementStopped(
                 address, convertErrorCode(reason), method);
@@ -110,6 +105,8 @@ public class DistanceMeasurementNativeInterface {
             int errorAzimuthAngle,
             int altitudeAngle,
             int errorAltitudeAngle,
+            long elapsedRealtimeNanos,
+            int confidenceLevel,
             int method) {
         mDistanceMeasurementManager.onDistanceMeasurementResult(
                 address,
@@ -119,6 +116,8 @@ public class DistanceMeasurementNativeInterface {
                 errorAzimuthAngle,
                 altitudeAngle,
                 errorAltitudeAngle,
+                elapsedRealtimeNanos,
+                confidenceLevel,
                 method);
     }
 

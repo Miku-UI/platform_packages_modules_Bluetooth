@@ -98,6 +98,19 @@ public class ScanNativeInterface {
 
     private native void gattClientScanFilterEnableNative(int clientIf, boolean enable);
 
+    /************************** MSFT scan related native methods *****************************/
+    private native boolean gattClientIsMsftSupportedNative();
+
+    private native void gattClientMsftAdvMonitorAddNative(
+            MsftAdvMonitor.Monitor msft_adv_monitor,
+            MsftAdvMonitor.Pattern[] msft_adv_monitor_patterns,
+            MsftAdvMonitor.Address msft_adv_monitor_address,
+            int filter_index);
+
+    private native void gattClientMsftAdvMonitorRemoveNative(int filter_index, int monitor_handle);
+
+    private native void gattClientMsftAdvMonitorEnableNative(boolean enable);
+
     /************************** Batch related native methods *********************************/
     private native void gattClientConfigBatchScanStorageNative(
             int clientIf,
@@ -167,6 +180,36 @@ public class ScanNativeInterface {
     /** Enable/disable BLE scan filter */
     public void gattClientScanFilterEnable(int clientIf, boolean enable) {
         gattClientScanFilterEnableNative(clientIf, enable);
+    }
+
+    /** Check if MSFT HCI extension is supported */
+    public boolean gattClientIsMsftSupported() {
+        return gattClientIsMsftSupportedNative();
+    }
+
+    /** Add a MSFT Advertisement Monitor */
+    public void gattClientMsftAdvMonitorAdd(
+            MsftAdvMonitor.Monitor msft_adv_monitor,
+            MsftAdvMonitor.Pattern[] msft_adv_monitor_patterns,
+            MsftAdvMonitor.Address msft_adv_monitor_address,
+            int filter_index) {
+        gattClientMsftAdvMonitorAddNative(
+                msft_adv_monitor,
+                msft_adv_monitor_patterns,
+                msft_adv_monitor_address,
+                filter_index);
+    }
+
+    /** Remove a MSFT Advertisement Monitor */
+    public void gattClientMsftAdvMonitorRemove(int filter_index) {
+        int monitor_handle = mScanHelper.msftMonitorHandleFromFilterIndex(filter_index);
+        if (monitor_handle < 0) return;
+        gattClientMsftAdvMonitorRemoveNative(filter_index, monitor_handle);
+    }
+
+    /** Enable a MSFT Advertisement Monitor */
+    public void gattClientMsftAdvMonitorEnable(boolean enable) {
+        gattClientMsftAdvMonitorEnableNative(enable);
     }
 
     /** Configure BLE batch scan storage */
@@ -370,5 +413,29 @@ public class ScanNativeInterface {
             return;
         }
         mScanHelper.onScanParamSetupCompleted(status, scannerId);
+    }
+
+    void onMsftAdvMonitorAdd(int filter_index, int monitor_handle, int status) {
+        if (mScanHelper == null) {
+            Log.e(TAG, "Scan helper is null!");
+            return;
+        }
+        mScanHelper.onMsftAdvMonitorAdd(filter_index, monitor_handle, status);
+    }
+
+    void onMsftAdvMonitorRemove(int filter_index, int status) {
+        if (mScanHelper == null) {
+            Log.e(TAG, "Scan helper is null!");
+            return;
+        }
+        mScanHelper.onMsftAdvMonitorRemove(filter_index, status);
+    }
+
+    void onMsftAdvMonitorEnable(int status) {
+        if (mScanHelper == null) {
+            Log.e(TAG, "Scan helper is null!");
+            return;
+        }
+        mScanHelper.onMsftAdvMonitorEnable(status);
     }
 }

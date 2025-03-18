@@ -27,8 +27,6 @@
 #include <optional>
 #include <thread>
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace common {
 

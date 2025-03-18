@@ -20,7 +20,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "test/headless/get_options.h"
 #include "test/headless/headless.h"
 #include "test/headless/interface.h"

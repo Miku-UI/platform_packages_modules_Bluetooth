@@ -21,7 +21,6 @@
 
 #include <string>
 
-#include "os/log.h"
 #include "src/profiles/csis.rs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -101,19 +100,18 @@ public:
   DBusCsisClientCallbacks() {}
 
   void OnConnectionState(const RawAddress& addr, csis::ConnectionState state) override {
-    log::info("addr={}, state={}", ADDRESS_TO_LOGGABLE_CSTR(addr), static_cast<uint8_t>(state));
+    log::info("addr={}, state={}", addr, static_cast<uint8_t>(state));
     topshim::rust::internal::connection_state_cb(addr, state);
   }
 
   void OnDeviceAvailable(const RawAddress& addr, int group_id, int group_size, int rank,
                          const bluetooth::Uuid& uuid) override {
-    log::info("addr={}, group_id={}, group_size={}, rank={}", ADDRESS_TO_LOGGABLE_CSTR(addr),
-              group_id, group_size, rank);
+    log::info("addr={}, group_id={}, group_size={}, rank={}", addr, group_id, group_size, rank);
     topshim::rust::internal::device_available_cb(addr, group_id, group_size, rank, uuid);
   }
 
   void OnSetMemberAvailable(const RawAddress& addr, int group_id) {
-    log::info("addr={}, group_id={}", ADDRESS_TO_LOGGABLE_CSTR(addr), group_id);
+    log::info("addr={}, group_id={}", addr, group_id);
     topshim::rust::internal::set_member_available_cb(addr, group_id);
   }
 

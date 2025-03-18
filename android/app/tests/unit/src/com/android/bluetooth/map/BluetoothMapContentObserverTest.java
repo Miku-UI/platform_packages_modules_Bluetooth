@@ -2156,9 +2156,7 @@ public class BluetoothMapContentObserverTest {
         // This mock sets type to MMS
         doReturn(4)
                 .when(mIntent)
-                .getIntExtra(
-                        BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_MSG_TYPE,
-                        TYPE.NONE.ordinal());
+                .getIntExtra(eq(BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_MSG_TYPE), anyInt());
 
         mObserver.actionMessageSentDisconnected(mContext, mIntent, 1);
 
@@ -2177,9 +2175,7 @@ public class BluetoothMapContentObserverTest {
         // This mock sets type to Email
         doReturn(1)
                 .when(mIntent)
-                .getIntExtra(
-                        BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_MSG_TYPE,
-                        TYPE.NONE.ordinal());
+                .getIntExtra(eq(BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_MSG_TYPE), anyInt());
         clearInvocations(mContext);
 
         mObserver.actionMessageSentDisconnected(mContext, mIntent, Activity.RESULT_FIRST_USER);

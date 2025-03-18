@@ -16,6 +16,6 @@
 
 #include "stack/include/a2dp_vendor_ldac.h"
 
-int A2DP_VendorGetTrackSampleRateLdac(const uint8_t* p_codec_info) { return 0; }
-int A2DP_VendorGetTrackBitsPerSampleLdac(const uint8_t* p_codec_info) { return 0; }
-int A2DP_VendorGetChannelModeCodeLdac(const uint8_t* p_codec_info) { return 0; }
+int A2DP_VendorGetTrackSampleRateLdac(const uint8_t* /*p_codec_info*/) { return 0; }
+int A2DP_VendorGetTrackBitsPerSampleLdac(const uint8_t* /*p_codec_info*/) { return 0; }
+int A2DP_VendorGetChannelModeCodeLdac(const uint8_t* /*p_codec_info*/) { return 0; }

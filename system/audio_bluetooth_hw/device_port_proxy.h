@@ -101,16 +101,16 @@ public:
   /***
    * Set the current BluetoothStreamState
    ***/
-  virtual void SetState(BluetoothStreamState state) {}
+  virtual void SetState(BluetoothStreamState /*state*/) {}
 
   virtual bool IsA2dp() const { return false; }
 
   virtual bool IsLeAudio() const { return false; }
 
-  virtual bool GetPreferredDataIntervalUs(size_t* interval_us) const { return false; }
+  virtual bool GetPreferredDataIntervalUs(size_t* /*interval_us*/) const { return false; }
 
-  virtual size_t WriteData(const void* buffer, size_t bytes) const { return 0; }
-  virtual size_t ReadData(void* buffer, size_t bytes) const { return 0; }
+  virtual size_t WriteData(const void* /*buffer*/, size_t /*bytes*/) const { return 0; }
+  virtual size_t ReadData(void* /*buffer*/, size_t /*bytes*/) const { return 0; }
 };
 
 namespace aidl {

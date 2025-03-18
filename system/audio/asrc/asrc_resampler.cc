@@ -162,8 +162,8 @@ class SourceAudioHalAsrc::ClockRecovery : public bluetooth::hal::ReadClockHandle
     log::info(
             "Deviation: {:6} us ({:3.0f} ppm) | Output Fs: {:5.2f} Hz  drift: {:2} "
             "us",
-            state.stream_time - state.local_time, state.butter_drift, output_stats.sample_rate,
-            output_stats.drift_us);
+            static_cast<int32_t>(state.stream_time - state.local_time), state.butter_drift,
+            output_stats.sample_rate, output_stats.drift_us);
   }
 
 public:

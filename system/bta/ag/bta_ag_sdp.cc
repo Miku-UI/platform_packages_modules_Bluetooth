@@ -27,21 +27,33 @@
 #include <base/location.h>
 #include <bluetooth/log.h>
 
+#include <cstdint>
+#include <cstring>
+
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_hfp_api.h"
 #include "bta/include/bta_rfcomm_scn.h"
+#include "bta_ag_api.h"
+#include "bta_api.h"
+#include "bta_sys.h"
 #include "btif/include/btif_config.h"
+#include "btm_api_types.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
+#include "sdp_callback.h"
+#include "sdp_status.h"
+#include "sdpdefs.h"
 #include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/sdp_api.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "storage/config_keys.h"
 #include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -466,17 +478,15 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     attr_list[3] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 4;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_HF_HANDSFREE);
-  }
-  /* HFP acceptor; get features */
-  else if (service & BTA_HFP_SERVICE_MASK && p_scb->role == BTA_AG_ACP) {
+  } else if (service & BTA_HFP_SERVICE_MASK && p_scb->role == BTA_AG_ACP) {
+    /* HFP acceptor; get features */
     attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
     attr_list[1] = ATTR_ID_BT_PROFILE_DESC_LIST;
     attr_list[2] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 3;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_HF_HANDSFREE);
-  }
-  /* HSP initiator; get proto list */
-  else if (service & BTA_HSP_SERVICE_MASK && p_scb->role == BTA_AG_INT) {
+  } else if (service & BTA_HSP_SERVICE_MASK && p_scb->role == BTA_AG_INT) {
+    /* HSP initiator; get proto list */
     attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
     attr_list[1] = ATTR_ID_PROTOCOL_DESC_LIST;
     attr_list[2] = ATTR_ID_BT_PROFILE_DESC_LIST;
@@ -542,6 +552,6 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_free_db(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
+void bta_ag_free_db(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /*data*/) {
   osi_free_and_reset((void**)&p_scb->p_disc_db);
 }

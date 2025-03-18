@@ -46,7 +46,7 @@ using namespace bluetooth;
 
 namespace {
 
-bool bta_ag_hdl_event(const BT_HDR_RIGID* p_msg) { return true; }
+bool bta_ag_hdl_event(const BT_HDR_RIGID* /*p_msg*/) { return true; }
 void BTA_AgDisable() { bta_sys_deregister(BTA_ID_AG); }
 
 const tBTA_SYS_REG bta_ag_reg = {bta_ag_hdl_event, BTA_AgDisable};
@@ -72,7 +72,7 @@ protected:
 
     bta_sys_register(BTA_ID_AG, &bta_ag_reg);
 
-    bta_ag_cb.p_cback = [](tBTA_AG_EVT event, tBTA_AG* p_data) {};
+    bta_ag_cb.p_cback = [](tBTA_AG_EVT /*event*/, tBTA_AG* /*p_data*/) {};
     RawAddress::FromString("00:11:22:33:44:55", addr);
     test::mock::device_esco_parameters::esco_parameters_for_codec.body =
             [this](esco_codec_t codec) {
@@ -145,7 +145,7 @@ TEST_F(BtaAgActTest, set_codec_q0_success) {
   tBTA_AG_SCB* p_scb = &bta_ag_cb.scb[0];
   const tBTA_AG_DATA data = {.api_setcodec.codec = BTA_AG_SCO_APTX_SWB_SETTINGS_Q0};
 
-  bta_ag_cb.p_cback = [](tBTA_AG_EVT event, tBTA_AG* p_data) {
+  bta_ag_cb.p_cback = [](tBTA_AG_EVT /*event*/, tBTA_AG* p_data) {
     tBTA_AG_VAL* val = (tBTA_AG_VAL*)p_data;
     ASSERT_EQ(val->num, BTA_AG_SCO_APTX_SWB_SETTINGS_Q0);
     ASSERT_EQ(val->hdr.status, BTA_AG_SUCCESS);
@@ -165,7 +165,7 @@ TEST_F(BtaAgActTest, set_codec_q1_fail_unsupported) {
 
   ASSERT_TRUE(enable_aptx_voice_property(true));
 
-  bta_ag_cb.p_cback = [](tBTA_AG_EVT event, tBTA_AG* p_data) {
+  bta_ag_cb.p_cback = [](tBTA_AG_EVT /*event*/, tBTA_AG* p_data) {
     tBTA_AG_VAL* val = (tBTA_AG_VAL*)p_data;
     ASSERT_EQ(val->num, BTA_AG_SCO_APTX_SWB_SETTINGS_Q1);
     ASSERT_EQ(val->hdr.status, BTA_AG_FAIL_RESOURCES);
@@ -280,7 +280,8 @@ TEST_F(BtaAgCmdTest, at_hfp_cback__qcs_ev_codec_q0_enabled) {
 
 TEST_F(BtaAgCmdTest, handle_swb_at_event__qcs_ev_codec_q1_fallback_to_q0) {
   reset_mock_btm_client_interface();
-  mock_btm_client_interface.sco.BTM_SetEScoMode = [](enh_esco_params_t* p_params) -> tBTM_STATUS {
+  mock_btm_client_interface.sco.BTM_SetEScoMode =
+          [](enh_esco_params_t* /*p_params*/) -> tBTM_STATUS {
     inc_func_call_count("BTM_SetEScoMode");
     return tBTM_STATUS::BTM_SUCCESS;
   };
@@ -327,7 +328,7 @@ protected:
   void SetUp() override {
     BtaAgTest::SetUp();
     reset_mock_btm_client_interface();
-    mock_btm_client_interface.peer.BTM_ReadRemoteFeatures = [](const RawAddress& addr) {
+    mock_btm_client_interface.peer.BTM_ReadRemoteFeatures = [](const RawAddress& /*addr*/) {
       inc_func_call_count("BTM_ReadRemoteFeatures");
       return data;
     };

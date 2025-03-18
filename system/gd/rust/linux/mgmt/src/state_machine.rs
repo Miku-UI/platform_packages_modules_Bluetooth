@@ -174,8 +174,9 @@ pub struct StateMachineProxy {
 const TX_SEND_TIMEOUT_DURATION: Duration = Duration::from_secs(3);
 
 /// Duration to use for timeouts when starting/stopping adapters.
-/// Some adapters take a while to load firmware so use a sufficiently long timeout here.
-const COMMAND_TIMEOUT_DURATION: Duration = Duration::from_secs(7);
+/// GD start timeout is set for 12 seconds. This timeout needs to be longer than that otherwise
+/// Floss could crash.
+const COMMAND_TIMEOUT_DURATION: Duration = Duration::from_secs(15);
 
 impl StateMachineProxy {
     pub fn start_bluetooth(&self, hci: VirtualHciIndex) {
@@ -945,6 +946,9 @@ pub trait ProcessManager {
 
     /// Stop the adapter process.
     ///
+    /// This should block the thread until the btadapterd process is completely stopped,
+    /// that is, another btadapterd process with the same index is ready to be |start|.
+    ///
     /// # Args
     /// * `virtual_hci` - Virtual index of adapter used for apis.
     /// * `real_hci` - Real index of the adapter on the system.
@@ -960,8 +964,7 @@ pub enum Invoker {
 
 #[derive(Default)]
 pub struct NativeInvoker {
-    process_container: Option<Child>,
-    bluetooth_pid: u32,
+    process_container: HashMap<VirtualHciIndex, Child>,
 }
 
 impl NativeInvoker {
@@ -972,23 +975,28 @@ impl NativeInvoker {
 
 impl ProcessManager for NativeInvoker {
     fn start(&mut self, virtual_hci: VirtualHciIndex, real_hci: RealHciIndex) {
-        let new_process = Command::new("/usr/bin/btadapterd")
+        if self.process_container.contains_key(&virtual_hci) {
+            return;
+        }
+        match Command::new("/usr/bin/btadapterd")
             .arg(format!("INDEX={} HCI={}", virtual_hci.to_i32(), real_hci.to_i32()))
             .stdout(Stdio::piped())
             .spawn()
-            .expect("cannot open");
-        self.bluetooth_pid = new_process.id();
-        self.process_container = Some(new_process);
+        {
+            Ok(p) => {
+                self.process_container.insert(virtual_hci, p);
+            }
+            Err(e) => error!("Failed to start btadapterd: {}", e),
+        }
     }
-    fn stop(&mut self, _virtual_hci: VirtualHciIndex, _real_hci: RealHciIndex) {
-        match self.process_container {
-            Some(ref mut _p) => {
-                signal::kill(Pid::from_raw(self.bluetooth_pid as i32), Signal::SIGTERM).unwrap();
-                self.process_container = None;
+    fn stop(&mut self, virtual_hci: VirtualHciIndex, _real_hci: RealHciIndex) {
+        if let Some(mut p) = self.process_container.remove(&virtual_hci) {
+            if let Err(e) = signal::kill(Pid::from_raw(p.id() as i32), Signal::SIGTERM) {
+                warn!("Failed to send signal, process could have exited: {}", e);
             }
-            None => {
-                warn!("Process doesn't exist");
-            }
+            let _ = p.wait();
+        } else {
+            warn!("Process doesn't exist");
         }
     }
 }
@@ -1017,14 +1025,14 @@ impl ProcessManager for UpstartInvoker {
         }
     }
 
-    fn stop(&mut self, virtual_hci: VirtualHciIndex, real_hci: RealHciIndex) {
+    fn stop(&mut self, virtual_hci: VirtualHciIndex, _real_hci: RealHciIndex) {
+        // Currently in the upstart script, only INDEX is used for identifying the instance. Thus,
+        // intentionally NOT passing HCI to upstart, to avoid the following confusing situation:
+        //   1. UpstartInvoker: start btadapterd INDEX=0 HCI=0
+        //   2. Kernel: The HCI0 crashed, and became HCI1
+        //   3. UpstartInvoker: stop btadapterd INDEX=0 HCI=1  <---- This is confusing
         if let Err(e) = Command::new("initctl")
-            .args([
-                "stop",
-                "btadapterd",
-                format!("INDEX={}", virtual_hci.to_i32()).as_str(),
-                format!("HCI={}", real_hci.to_i32()).as_str(),
-            ])
+            .args(["stop", "btadapterd", format!("INDEX={}", virtual_hci.to_i32()).as_str()])
             .output()
         {
             error!("Failed to stop btadapterd: {}", e);
@@ -1054,6 +1062,9 @@ impl ProcessManager for SystemdInvoker {
     }
 
     fn stop(&mut self, virtual_hci: VirtualHciIndex, real_hci: RealHciIndex) {
+        // FIXME(b/307625503): If the real index changed (could be caused by FW crash or USB issues)
+        // then this function would be broken. Need a re-design of the virtual/real index management
+        // that is compatible other invokers.
         Command::new("systemctl")
             .args([
                 "stop",
@@ -1529,11 +1540,30 @@ impl StateMachineInternal {
                 let restart_count =
                     self.get_state(hci, |a: &AdapterState| Some(a.restart_count)).unwrap_or(0);
 
-                // If we've restarted a number of times, attempt to use the reset mechanism instead
-                // of retrying a start.
-                if restart_count >= RESET_ON_RESTART_COUNT {
+                // This is an unexpectedly stop, which means the ProcessManager might not yet be
+                // ready to restart the same instance. Explicitly call stop to make sure we can move
+                // on to the next step.
+                warn!(
+                    "{} stopped unexpectedly, first wait for the process to completely exit.",
+                    hci
+                );
+                self.process_manager.stop(hci, self.get_real_hci_by_virtual_id(hci));
+
+                if !present {
+                    // If the index doesn't present, we have nothing to do - We can't even trigger
+                    // the hardware reset because the sysfs reset entry would disappear as well.
+                    // After the index presents, we shall try restarting.
+                    warn!("{} exited. After {} restarts, index disappeared.", hci, restart_count);
+                    self.modify_state(hci, |s: &mut AdapterState| {
+                        s.state = ProcessState::Off;
+                        s.restart_count = 0;
+                    });
+                    (ProcessState::Off, CommandTimeoutAction::CancelTimer)
+                } else if restart_count >= RESET_ON_RESTART_COUNT {
+                    // If we've restarted a number of times, attempt to use the reset mechanism
+                    // instead of retrying a start.
                     warn!(
-                        "{} stopped unexpectedly. After {} restarts, trying a reset recovery.",
+                        "{} exited. After {} restarts, trying a reset recovery.",
                         hci, restart_count
                     );
                     // Reset the restart count since we're attempting a reset now.
@@ -1547,11 +1577,7 @@ impl StateMachineInternal {
                     self.reset_hci(real_hci);
                     (ProcessState::Off, CommandTimeoutAction::CancelTimer)
                 } else {
-                    warn!(
-                        "{} stopped unexpectedly, try restarting (attempt #{})",
-                        hci,
-                        restart_count + 1
-                    );
+                    warn!("{} exited. Try restarting (attempt #{})", hci, restart_count + 1);
                     self.modify_state(hci, |s: &mut AdapterState| {
                         s.state = ProcessState::TurningOn;
                         s.restart_count += 1;
@@ -1598,12 +1624,30 @@ impl StateMachineInternal {
                 let restart_count =
                     self.get_state(hci, |a: &AdapterState| Some(a.restart_count)).unwrap_or(0);
 
-                // If we've restarted a number of times, attempt to use the reset mechanism instead
-                // of retrying a start.
-                if restart_count >= RESET_ON_RESTART_COUNT {
+                // Explicitly call stop to make sure the ProcessManager is ready to restart the
+                // same instance.
+                warn!(
+                    "{} timed out while starting, first wait for the process to completely exit.",
+                    hci
+                );
+                self.process_manager.stop(hci, self.get_real_hci_by_virtual_id(hci));
+
+                if !present {
+                    // If the index doesn't present, we have nothing to do - We can't even trigger
+                    // the hardware reset because the sysfs reset entry would disappear as well.
+                    // After the index presents, we shall try restarting.
+                    warn!("{} exited. After {} restarts, index disappeared.", hci, restart_count);
+                    self.modify_state(hci, |s: &mut AdapterState| {
+                        s.state = ProcessState::Off;
+                        s.restart_count = 0;
+                    });
+                    StateMachineTimeoutActions::Noop
+                } else if restart_count >= RESET_ON_RESTART_COUNT {
+                    // If we've restarted a number of times, attempt to use the reset mechanism
+                    // instead of retrying a start.
                     warn!(
-                        "{} timed out while starting (present={}). After {} restarts, trying a reset recovery.",
-                        hci, present, restart_count
+                        "{} exited. After {} restarts, trying a reset recovery.",
+                        hci, restart_count
                     );
                     // Reset the restart count since we're attempting a reset now.
                     self.modify_state(hci, |s: &mut AdapterState| {
@@ -1616,17 +1660,11 @@ impl StateMachineInternal {
                     self.reset_hci(real_hci);
                     StateMachineTimeoutActions::Noop
                 } else {
-                    warn!(
-                        "{} timed out while starting (present={}), try restarting (attempt #{})",
-                        hci,
-                        present,
-                        restart_count + 1
-                    );
+                    warn!("{} exited. Try restarting (attempt #{})", hci, restart_count + 1);
                     self.modify_state(hci, |s: &mut AdapterState| {
                         s.state = ProcessState::TurningOn;
                         s.restart_count += 1;
                     });
-                    self.process_manager.stop(hci, self.get_real_hci_by_virtual_id(hci));
                     self.process_manager.start(hci, self.get_real_hci_by_virtual_id(hci));
                     StateMachineTimeoutActions::RetryStart
                 }
@@ -1919,7 +1957,8 @@ mod tests {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let mut process_manager = MockProcessManager::new();
             process_manager.expect_start();
-            // Expect to start again
+            // Expect to wait for stopped and start again
+            process_manager.expect_stop();
             process_manager.expect_start();
             let mut state_machine = make_state_machine(process_manager);
             state_machine.action_on_hci_presence_changed(DEFAULT_ADAPTER, true);
@@ -1933,12 +1972,12 @@ mod tests {
             assert_eq!(state_machine.get_process_state(DEFAULT_ADAPTER), ProcessState::TurningOn);
         });
 
-        // Stopped with no presence should restart if config enabled.
+        // Stopped with no presence should not restart even if config enabled.
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let mut process_manager = MockProcessManager::new();
             process_manager.expect_start();
-            // Expect to start again.
-            process_manager.expect_start();
+            // Expect to wait for stopped
+            process_manager.expect_stop();
             let mut state_machine = make_state_machine(process_manager);
             state_machine.action_on_hci_presence_changed(DEFAULT_ADAPTER, true);
             state_machine.set_config_enabled(DEFAULT_ADAPTER, true);
@@ -1947,9 +1986,9 @@ mod tests {
             state_machine.action_on_hci_presence_changed(DEFAULT_ADAPTER, false);
             assert_eq!(
                 state_machine.action_on_bluetooth_stopped(DEFAULT_ADAPTER),
-                (ProcessState::TurningOn, CommandTimeoutAction::ResetTimer)
+                (ProcessState::Off, CommandTimeoutAction::CancelTimer)
             );
-            assert_eq!(state_machine.get_process_state(DEFAULT_ADAPTER), ProcessState::TurningOn);
+            assert_eq!(state_machine.get_process_state(DEFAULT_ADAPTER), ProcessState::Off);
         });
 
         // If floss was disabled and we see stopped, we shouldn't restart.
@@ -2083,7 +2122,6 @@ mod tests {
             let mut process_manager = MockProcessManager::new();
             process_manager.expect_start();
             process_manager.expect_stop();
-            process_manager.expect_start();
             let mut state_machine = make_state_machine(process_manager);
             state_machine.action_on_hci_presence_changed(DEFAULT_ADAPTER, true);
             state_machine.set_config_enabled(DEFAULT_ADAPTER, true);
@@ -2092,9 +2130,9 @@ mod tests {
             state_machine.action_on_hci_presence_changed(DEFAULT_ADAPTER, false);
             assert_eq!(
                 state_machine.action_on_command_timeout(DEFAULT_ADAPTER),
-                StateMachineTimeoutActions::RetryStart
+                StateMachineTimeoutActions::Noop
             );
-            assert_eq!(state_machine.get_process_state(DEFAULT_ADAPTER), ProcessState::TurningOn);
+            assert_eq!(state_machine.get_process_state(DEFAULT_ADAPTER), ProcessState::Off);
         });
     }
 

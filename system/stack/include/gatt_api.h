@@ -279,7 +279,6 @@ typedef enum : uint16_t {
   GATT_CONN_TERMINATED_POWER_OFF = HCI_ERR_REMOTE_POWER_OFF,
 
   BTA_GATT_CONN_NONE = 0x0101, /* 0x0101 no connection to cancel  */
-
 } tGATT_DISCONN_REASON;
 
 inline std::string gatt_disconnection_reason_text(const tGATT_DISCONN_REASON& reason) {
@@ -502,7 +501,6 @@ typedef union {
   tGATT_VALUE attr_value; /* READ, HANDLE_VALUE_IND, PREPARE_WRITE */
                           /* READ_BLOB, READ_BY_TYPE */
   uint16_t handle;        /* WRITE, WRITE_BLOB */
-
 } tGATTS_RSP;
 
 #define GATT_PREP_WRITE_CANCEL 0x00
@@ -1272,6 +1270,10 @@ void gatt_init(void);
 // Frees resources used by the GATT profile.
 void gatt_free(void);
 
+void gatt_consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
+void gatt_notify_conn_update(const RawAddress& remote, uint16_t interval, uint16_t latency,
+                             uint16_t timeout, tHCI_STATUS status);
+
 // Link encryption complete notification for all encryption process
 // initiated outside GATT.
 void gatt_notify_enc_cmpl(const RawAddress& bd_addr);
@@ -1283,7 +1285,9 @@ void gatt_reset_bgdev_list(bool after_reset);
 // Initialize GATTS list of bonded device service change updates.
 void gatt_load_bonded(void);
 
-namespace fmt {
+void gatt_tcb_dump(int fd);
+
+namespace std {
 template <>
 struct formatter<GattStatus> : enum_formatter<GattStatus> {};
 template <>
@@ -1294,6 +1298,6 @@ template <>
 struct formatter<tGATT_OP_CODE> : enum_formatter<tGATT_OP_CODE> {};
 template <>
 struct formatter<tGATT_DISC_TYPE> : enum_formatter<tGATT_DISC_TYPE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* GATT_API_H */

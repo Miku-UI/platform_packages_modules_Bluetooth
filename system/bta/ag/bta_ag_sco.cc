@@ -26,15 +26,28 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <unordered_map>
 
 #include "audio_hal_interface/hfp_client_interface.h"
 #include "bta/ag/bta_ag_int.h"
-#include "bta_ag_swb_aptx.h"
+#include "bta/include/bta_ag_swb_aptx.h"
+#include "bta_ag_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
 #include "btm_status.h"
+#include "device/include/esco_parameters.h"
+#include "hardware/bt_hf.h"
 #include "hci/controller_interface.h"
+#include "hci/hci_packets.h"
+#include "hci_error_code.h"
+#include "hcidefs.h"
+#include "internal/btm_api.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
+#include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sco.h"
@@ -63,9 +76,12 @@ using namespace bluetooth;
               HCI_AIR_CODING_FORMAT_TRANSPNT))
 
 static bool sco_allowed = true;
+static bool hfp_software_datapath_enabled = false;
 static RawAddress active_device_addr = {};
 static std::unique_ptr<HfpInterface> hfp_client_interface;
 static std::unique_ptr<HfpInterface::Offload> hfp_offload_interface;
+static std::unique_ptr<HfpInterface::Encode> hfp_encode_interface;
+static std::unique_ptr<HfpInterface::Decode> hfp_decode_interface;
 static std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config> sco_config_map;
 static std::unordered_map<tBTA_AG_UUID_CODEC, esco_coding_format_t> codec_coding_format_map{
         {tBTA_AG_UUID_CODEC::UUID_CODEC_LC3, ESCO_CODING_FORMAT_LC3},
@@ -124,6 +140,22 @@ static const char* bta_ag_sco_state_str(uint8_t state) {
   }
 }
 
+static int codec_uuid_to_sample_rate(tBTA_AG_UUID_CODEC codec) {
+  int sample_rate;
+  switch (codec) {
+    case tBTA_AG_UUID_CODEC::UUID_CODEC_LC3:
+      sample_rate = 32000;
+      break;
+    case tBTA_AG_UUID_CODEC::UUID_CODEC_MSBC:
+      sample_rate = 16000;
+      break;
+    case tBTA_AG_UUID_CODEC::UUID_CODEC_CVSD:
+    default:
+      sample_rate = 8000;
+  }
+  return sample_rate;
+}
+
 /**
  * Check if bd_addr is the current active device.
  *
@@ -155,9 +187,8 @@ static void bta_ag_sco_conn_cback(uint16_t sco_idx) {
   /* match callback to scb; first check current sco scb */
   if (bta_ag_cb.sco.p_curr_scb != nullptr && bta_ag_cb.sco.p_curr_scb->in_use) {
     handle = bta_ag_scb_to_idx(bta_ag_cb.sco.p_curr_scb);
-  }
-  /* then check for scb connected to this peer */
-  else {
+  } else {
+    /* then check for scb connected to this peer */
     /* Check if SLC is up */
     handle = bta_ag_idx_by_bdaddr(BTM_ReadScoBdAddr(sco_idx));
     p_scb = bta_ag_scb_by_idx(handle);
@@ -282,7 +313,14 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
       } else {
         log::error("eSCO/SCO failed to open, no more fall back");
         if (bta_ag_is_sco_managed_by_audio()) {
-          hfp_offload_interface->CancelStreamingRequest();
+          if (hfp_software_datapath_enabled) {
+            if (hfp_encode_interface) {
+              hfp_encode_interface->CancelStreamingRequest();
+              hfp_decode_interface->CancelStreamingRequest();
+            }
+          } else {
+            hfp_offload_interface->CancelStreamingRequest();
+          }
         }
       }
     }
@@ -690,7 +728,7 @@ void bta_ag_codec_negotiate(tBTA_AG_SCB* p_scb) {
       log::verbose("Sending +QCS, sco_codec={}, is_aptx_swb_codec={}", p_scb->sco_codec,
                    p_scb->is_aptx_swb_codec);
       /* Send +QCS to the peer */
-      bta_ag_send_qcs(p_scb, NULL);
+      bta_ag_send_qcs(p_scb);
     } else {
       if (aptx_voice) {
         p_scb->sco_codec = BTM_SCO_CODEC_MSBC;
@@ -1361,6 +1399,40 @@ void bta_ag_sco_shutdown(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
 
 /*******************************************************************************
  *
+ * Function         bta_ag_sco_write
+ *
+ * Description      Writes bytes to decoder interface
+ *
+ *
+ * Returns          Number of bytes written
+ *
+ ******************************************************************************/
+size_t bta_ag_sco_write(const uint8_t* p_buf, uint32_t len) {
+  if (hfp_software_datapath_enabled && hfp_decode_interface) {
+    return hfp_decode_interface->Write(p_buf, len);
+  }
+  return 0;
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_ag_sco_read
+ *
+ * Description      Reads bytes from encoder interface
+ *
+ *
+ * Returns          Number of bytes read
+ *
+ ******************************************************************************/
+size_t bta_ag_sco_read(uint8_t* p_buf, uint32_t len) {
+  if (hfp_software_datapath_enabled && hfp_encode_interface) {
+    return hfp_encode_interface->Read(p_buf, len);
+  }
+  return 0;
+}
+
+/*******************************************************************************
+ *
  * Function         bta_ag_sco_conn_open
  *
  * Description
@@ -1382,16 +1454,33 @@ void bta_ag_sco_conn_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
       is_controller_codec = sco_config_map[p_scb->inuse_codec].useControllerCodec;
     }
 
-    hfp::offload_config config{
-            .sco_codec = p_scb->inuse_codec,
-            .connection_handle = p_scb->conn_handle,
-            .is_controller_codec = is_controller_codec,
-            .is_nrec = p_scb->nrec_enabled,
-    };
-    hfp_offload_interface->UpdateAudioConfigToHal(config);
+    if (hfp_software_datapath_enabled) {
+      if (hfp_encode_interface) {
+        int sample_rate = codec_uuid_to_sample_rate(p_scb->inuse_codec);
+        hfp::pcm_config config{.sample_rate_hz = sample_rate};
+        hfp_encode_interface->UpdateAudioConfigToHal(config);
+        hfp_decode_interface->UpdateAudioConfigToHal(config);
+      }
+    } else {
+      hfp::offload_config config{
+              .sco_codec = p_scb->inuse_codec,
+              .connection_handle = p_scb->conn_handle,
+              .is_controller_codec = is_controller_codec,
+              .is_nrec = p_scb->nrec_enabled,
+      };
+
+      hfp_offload_interface->UpdateAudioConfigToHal(config);
+    }
 
     // ConfirmStreamingRequest before sends callback to java layer
-    hfp_offload_interface->ConfirmStreamingRequest();
+    if (hfp_software_datapath_enabled) {
+      if (hfp_encode_interface) {
+        hfp_encode_interface->ConfirmStreamingRequest();
+        hfp_decode_interface->ConfirmStreamingRequest();
+      }
+    } else {
+      hfp_offload_interface->ConfirmStreamingRequest();
+    }
   }
 
   /* call app callback */
@@ -1478,7 +1567,7 @@ void bta_ag_sco_conn_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_ag_sco_conn_rsp(tBTA_AG_SCB* p_scb, tBTM_ESCO_CONN_REQ_EVT_DATA* p_data) {
+void bta_ag_sco_conn_rsp(tBTA_AG_SCB* p_scb, tBTM_ESCO_CONN_REQ_EVT_DATA* /*p_data*/) {
   bta_ag_cb.sco.is_local = false;
 
   log::verbose("eSCO {}, state {}",
@@ -1549,8 +1638,17 @@ bool bta_ag_is_sco_managed_by_audio() {
 }
 
 void bta_ag_stream_suspended() {
-  if (bta_ag_is_sco_managed_by_audio() && hfp_offload_interface) {
-    hfp_offload_interface->CancelStreamingRequest();
+  if (bta_ag_is_sco_managed_by_audio()) {
+    if (hfp_software_datapath_enabled) {
+      if (hfp_encode_interface) {
+        hfp_encode_interface->CancelStreamingRequest();
+        hfp_decode_interface->CancelStreamingRequest();
+      }
+    } else {
+      if (hfp_offload_interface) {
+        hfp_offload_interface->CancelStreamingRequest();
+      }
+    }
   }
 }
 
@@ -1559,8 +1657,15 @@ const RawAddress& bta_ag_get_active_device() { return active_device_addr; }
 void bta_clear_active_device() {
   log::debug("Set bta active device to null, current active device:{}", active_device_addr);
   if (bta_ag_is_sco_managed_by_audio()) {
-    if (hfp_offload_interface && !active_device_addr.IsEmpty()) {
-      hfp_offload_interface->StopSession();
+    if (hfp_software_datapath_enabled) {
+      if (hfp_encode_interface && !active_device_addr.IsEmpty()) {
+        hfp_encode_interface->StopSession();
+        hfp_decode_interface->StopSession();
+      }
+    } else {
+      if (hfp_offload_interface && !active_device_addr.IsEmpty()) {
+        hfp_offload_interface->StopSession();
+      }
     }
   }
   active_device_addr = RawAddress::kEmpty;
@@ -1574,26 +1679,49 @@ void bta_ag_api_set_active_device(const RawAddress& new_active_device) {
   }
 
   if (bta_ag_is_sco_managed_by_audio()) {
+    // Initialize and start HFP software data path
     if (!hfp_client_interface) {
       hfp_client_interface = std::unique_ptr<HfpInterface>(HfpInterface::Get());
       if (!hfp_client_interface) {
         log::error("could not acquire audio source interface");
       }
     }
+    hfp_software_datapath_enabled =
+            osi_property_get_bool("bluetooth.hfp.software_datapath.enabled", false);
 
-    if (hfp_client_interface && !hfp_offload_interface) {
-      hfp_offload_interface = std::unique_ptr<HfpInterface::Offload>(
-              hfp_client_interface->GetOffload(get_main_thread()));
-      if (!hfp_offload_interface) {
-        log::warn("could not get offload interface");
+    // Initialize and start HFP software datapath if enabled
+    if (hfp_software_datapath_enabled) {
+      if (hfp_client_interface && !hfp_encode_interface && !hfp_decode_interface) {
+        hfp_encode_interface = std::unique_ptr<HfpInterface::Encode>(
+                hfp_client_interface->GetEncode(get_main_thread()));
+        hfp_decode_interface = std::unique_ptr<HfpInterface::Decode>(
+                hfp_client_interface->GetDecode(get_main_thread()));
+        if (!hfp_encode_interface || !hfp_decode_interface) {
+          log::warn("could not get HFP SW interface");
+        }
       }
-    }
 
-    if (hfp_offload_interface) {
-      sco_config_map = hfp_offload_interface->GetHfpScoConfig();
-      // start audio session if there was no previous active device
-      if (active_device_addr.IsEmpty()) {
-        hfp_offload_interface->StartSession();
+      if (hfp_encode_interface && hfp_decode_interface) {
+        if (active_device_addr.IsEmpty()) {
+          hfp_encode_interface->StartSession();
+          hfp_decode_interface->StartSession();
+        }
+      }
+    } else {  // Initialize and start HFP offloading
+      if (hfp_client_interface && !hfp_offload_interface) {
+        hfp_offload_interface = std::unique_ptr<HfpInterface::Offload>(
+                hfp_client_interface->GetOffload(get_main_thread()));
+        if (!hfp_offload_interface) {
+          log::warn("could not get offload interface");
+        }
+      }
+
+      if (hfp_offload_interface) {
+        sco_config_map = hfp_offload_interface->GetHfpScoConfig();
+        // start audio session if there was no previous active device
+        if (active_device_addr.IsEmpty()) {
+          hfp_offload_interface->StartSession();
+        }
       }
     }
   }

@@ -18,31 +18,28 @@ package com.android.bluetooth.pbapclient;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import android.accounts.Account;
 import android.content.Context;
-import android.database.MatrixCursor;
+import android.provider.CallLog;
 import android.provider.ContactsContract;
+import android.test.mock.MockContentResolver;
+import android.util.SparseArray;
 
 import androidx.test.filters.SmallTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.vcard.VCardConstants;
 import com.android.vcard.VCardEntry;
 import com.android.vcard.VCardProperty;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Spy;
+import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -54,39 +51,38 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 public class CallLogPullRequestTest {
 
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
     private final Account mAccount = mock(Account.class);
     private final HashMap<String, Integer> mCallCounter = new HashMap<>();
 
-    private Context mTargetContext;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Spy private BluetoothMethodProxy mMapMethodProxy = BluetoothMethodProxy.getInstance();
+    @Mock private Context mMockContext;
+    private MockContentResolver mMockContentResolver;
+    private FakeContactsProvider mFakeContactsProvider;
 
     @Before
     public void setUp() {
-        BluetoothMethodProxy.setInstanceForTesting(mMapMethodProxy);
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        BluetoothMethodProxy.setInstanceForTesting(null);
+        mMockContentResolver = new MockContentResolver();
+        mFakeContactsProvider = new FakeContactsProvider();
+        mMockContentResolver.addProvider(ContactsContract.AUTHORITY, mFakeContactsProvider);
+        mMockContentResolver.addProvider(CallLog.AUTHORITY, mFakeContactsProvider);
+        doReturn(mMockContentResolver).when(mMockContext).getContentResolver();
     }
 
     @Test
     public void testToString() {
-        final String path = PbapClientConnectionHandler.ICH_PATH;
+        final String path = PbapPhonebook.ICH_PATH;
         final CallLogPullRequest request =
-                new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
+                new CallLogPullRequest(mMockContext, path, mCallCounter, mAccount);
 
         assertThat(request.toString()).isNotEmpty();
     }
 
     @Test
     public void onPullComplete_whenResultsAreNull() {
-        final String path = PbapClientConnectionHandler.ICH_PATH;
+        final String path = PbapPhonebook.ICH_PATH;
         final CallLogPullRequest request =
-                new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
+                new CallLogPullRequest(mMockContext, path, mCallCounter, mAccount);
         request.setResults(null);
 
         request.onPullComplete();
@@ -99,7 +95,7 @@ public class CallLogPullRequestTest {
     public void onPullComplete_whenPathIsInvalid() {
         final String invalidPath = "invalidPath";
         final CallLogPullRequest request =
-                new CallLogPullRequest(mTargetContext, invalidPath, mCallCounter, mAccount);
+                new CallLogPullRequest(mMockContext, invalidPath, mCallCounter, mAccount);
         List<VCardEntry> results = new ArrayList<>();
         request.setResults(results);
 
@@ -111,9 +107,9 @@ public class CallLogPullRequestTest {
 
     @Test
     public void onPullComplete_whenResultsAreEmpty() {
-        final String path = PbapClientConnectionHandler.ICH_PATH;
+        final String path = PbapPhonebook.ICH_PATH;
         final CallLogPullRequest request =
-                new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
+                new CallLogPullRequest(mMockContext, path, mCallCounter, mAccount);
         List<VCardEntry> results = new ArrayList<>();
         request.setResults(results);
 
@@ -125,9 +121,9 @@ public class CallLogPullRequestTest {
 
     @Test
     public void onPullComplete_whenThereIsNoPhoneProperty() {
-        final String path = PbapClientConnectionHandler.MCH_PATH;
+        final String path = PbapPhonebook.MCH_PATH;
         final CallLogPullRequest request =
-                new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
+                new CallLogPullRequest(mMockContext, path, mCallCounter, mAccount);
 
         // Add some property which is NOT a phone number
         VCardProperty property = new VCardProperty();
@@ -149,9 +145,9 @@ public class CallLogPullRequestTest {
 
     @Test
     public void onPullComplete_success() {
-        final String path = PbapClientConnectionHandler.OCH_PATH;
+        final String path = PbapPhonebook.OCH_PATH;
         final CallLogPullRequest request =
-                new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
+                new CallLogPullRequest(mMockContext, path, mCallCounter, mAccount);
         List<VCardEntry> results = new ArrayList<>();
 
         final String phoneNum = "tel:0123456789";
@@ -178,22 +174,28 @@ public class CallLogPullRequestTest {
 
     @Test
     public void updateTimesContacted_cursorIsClosed() {
-        final String path = PbapClientConnectionHandler.OCH_PATH;
+        final String path = PbapPhonebook.OCH_PATH;
         final CallLogPullRequest request =
-                new CallLogPullRequest(mTargetContext, path, mCallCounter, mAccount);
-        mCallCounter.put("key", 1);
+                new CallLogPullRequest(mMockContext, path, mCallCounter, mAccount);
 
-        MatrixCursor cursor =
-                new MatrixCursor(new String[] {ContactsContract.PhoneLookup.CONTACT_ID});
-        cursor.addRow(new Object[] {"contact_id"});
-        doReturn(cursor)
-                .when(mMapMethodProxy)
-                .contentResolverQuery(any(), any(), eq(null), eq(null), eq(null));
-        assertThat(cursor.isClosed()).isFalse();
+        String accountName = "AA:BB:CC:DD:EE:FF";
+        mFakeContactsProvider.addAccount(Utils.ACCOUNT_TYPE, accountName);
+        mFakeContactsProvider.addContact(
+                Utils.ACCOUNT_TYPE,
+                accountName,
+                false,
+                PbapPhonebook.LOCAL_PHONEBOOK_PATH,
+                "555-123-4567");
+        mCallCounter.put("555-123-4567", 1);
 
         request.updateTimesContacted();
 
-        assertThat(cursor.isClosed()).isTrue();
+        SparseArray<FakeContactsProvider.FakeRawContact> rawContacts =
+                mFakeContactsProvider.getRawContacts();
+        assertThat(rawContacts.size()).isEqualTo(1);
+        FakeContactsProvider.FakeRawContact contact = rawContacts.valueAt(0);
+        assertThat(contact).isNotNull();
+        assertThat(contact.getTimesContacted()).isEqualTo(1);
     }
 
     private VCardProperty createProperty(String name, String value) {

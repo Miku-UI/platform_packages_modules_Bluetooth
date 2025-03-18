@@ -37,3 +37,6 @@ walkdir = "2.2"
 [lib]
 path = "lib.rs"
 crate-type = ["rlib"]
+
+[features]
+serde = []

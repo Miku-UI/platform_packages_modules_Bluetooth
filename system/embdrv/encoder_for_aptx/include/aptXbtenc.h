@@ -50,7 +50,7 @@ APTXBTENCEXPORT const char* aptxbtenc_version(void);
  * (0=little endian. Big endian otherwise)
  * The function returns 1 if an error occurred during the initialisation.
  * The function returns 0 if no error occurred during the initialisation. */
-APTXBTENCEXPORT int aptxbtenc_init(void* _state, short endian);
+APTXBTENCEXPORT int aptxbtenc_init(void* _state, int16_t endian);
 
 /* aptxbtenc_setsync_mode is used to initialise the sync mode in the encoder
  * state structure. _state should be a pointer to the encoder structure (stereo,

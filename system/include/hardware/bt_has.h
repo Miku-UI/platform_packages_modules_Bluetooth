@@ -26,6 +26,7 @@ namespace bluetooth {
 namespace has {
 
 /** Connection State */
+// Must be kept in sync with BluetoothProfile.java
 enum class ConnectionState : uint8_t {
   DISCONNECTED = 0,
   CONNECTING,

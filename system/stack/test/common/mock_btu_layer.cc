@@ -18,4 +18,7 @@
 
 #include "common/message_loop_thread.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }

@@ -30,11 +30,21 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+#include <mutex>
+#include <sstream>
+#include <string>
+
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
+#include "a2dp_sbc_constants.h"
 #include "a2dp_sbc_decoder.h"
 #include "a2dp_sbc_encoder.h"
+#include "avdt_api.h"
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"
+#include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 
 #define A2DP_SBC_MAX_BITPOOL 53

@@ -173,6 +173,14 @@ impl ContextMap {
             .collect()
     }
 
+    fn get_connected_applications_from_address(&self, address: &RawAddress) -> Vec<Uuid> {
+        self.get_client_ids_from_address(address)
+            .into_iter()
+            .filter_map(|id| self.get_by_client_id(id))
+            .map(|client| client.uuid)
+            .collect()
+    }
+
     fn get_callback_from_callback_id(
         &mut self,
         callback_id: u32,
@@ -1306,6 +1314,10 @@ pub struct ScanFilter {
 }
 
 pub enum GattActions {
+    /// Used when we need to invoke an update in this layer e.g. when there's no active connection,
+    /// where LibBluetooth accepts the conn_parameter_update call but won't send out a callback.
+    /// Params: client_id, address, interval, latency, timeout, status
+    InvokeConnectionUpdated(i32, RawAddress, i32, i32, i32, GattStatus),
     /// This disconnects all server and client connections to the device.
     /// Params: remote_device
     Disconnect(BluetoothDevice),
@@ -1335,6 +1347,7 @@ enum ControllerScanType {
 /// Implementation of the GATT API (IBluetoothGatt).
 pub struct BluetoothGatt {
     gatt: Arc<Mutex<Gatt>>,
+    tx: Sender<Message>,
 
     context_map: ContextMap,
     server_context_map: ServerContextMap,
@@ -1370,6 +1383,7 @@ impl BluetoothGatt {
     pub fn new(intf: Arc<Mutex<BluetoothInterface>>, tx: Sender<Message>) -> BluetoothGatt {
         BluetoothGatt {
             gatt: Arc::new(Mutex::new(Gatt::new(&intf.lock().unwrap()))),
+            tx: tx.clone(),
             context_map: ContextMap::new(tx.clone()),
             server_context_map: ServerContextMap::new(tx.clone()),
             reliable_queue: HashSet::new(),
@@ -1387,24 +1401,24 @@ impl BluetoothGatt {
         }
     }
 
-    pub fn init_profiles(&mut self, tx: Sender<Message>, api_tx: Sender<APIMessage>) {
+    pub fn init_profiles(&mut self, api_tx: Sender<APIMessage>) {
         let gatt_client_callbacks_dispatcher = GattClientCallbacksDispatcher {
-            dispatch: make_message_dispatcher(tx.clone(), Message::GattClient),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::GattClient),
         };
         let gatt_server_callbacks_dispatcher = GattServerCallbacksDispatcher {
-            dispatch: make_message_dispatcher(tx.clone(), Message::GattServer),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::GattServer),
         };
         let gatt_scanner_callbacks_dispatcher = GattScannerCallbacksDispatcher {
-            dispatch: make_message_dispatcher(tx.clone(), Message::LeScanner),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::LeScanner),
         };
         let gatt_scanner_inband_callbacks_dispatcher = GattScannerInbandCallbacksDispatcher {
-            dispatch: make_message_dispatcher(tx.clone(), Message::LeScannerInband),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::LeScannerInband),
         };
         let gatt_adv_inband_callbacks_dispatcher = GattAdvInbandCallbacksDispatcher {
-            dispatch: make_message_dispatcher(tx.clone(), Message::LeAdvInband),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::LeAdvInband),
         };
         let gatt_adv_callbacks_dispatcher = GattAdvCallbacksDispatcher {
-            dispatch: make_message_dispatcher(tx.clone(), Message::LeAdv),
+            dispatch: make_message_dispatcher(self.tx.clone(), Message::LeAdv),
         };
 
         self.gatt.lock().unwrap().initialize(
@@ -1820,6 +1834,20 @@ impl BluetoothGatt {
 
     pub fn handle_action(&mut self, action: GattActions) {
         match action {
+            GattActions::InvokeConnectionUpdated(
+                client_id,
+                addr,
+                interval,
+                latency,
+                timeout,
+                status,
+            ) => {
+                if let Some(client) = self.context_map.get_by_client_id(client_id) {
+                    if let Some(cb) = self.context_map.get_callback_from_callback_id(client.cbid) {
+                        cb.on_connection_updated(addr, interval, latency, timeout, status);
+                    }
+                }
+            }
             GattActions::Disconnect(device) => {
                 for client_id in self.context_map.get_client_ids_from_address(&device.address) {
                     if let Some(conn_id) =
@@ -1851,6 +1879,10 @@ impl BluetoothGatt {
 
     pub fn handle_adv_action(&mut self, action: AdvertiserActions) {
         self.adv_manager.get_impl().handle_action(action);
+    }
+
+    pub(crate) fn get_connected_applications(&self, device_address: &RawAddress) -> Vec<Uuid> {
+        self.context_map.get_connected_applications_from_address(device_address)
     }
 }
 
@@ -2474,7 +2506,7 @@ impl IBluetoothGatt for BluetoothGatt {
 
     fn connection_parameter_update(
         &self,
-        _client_id: i32,
+        client_id: i32,
         addr: RawAddress,
         min_interval: i32,
         max_interval: i32,
@@ -2492,6 +2524,23 @@ impl IBluetoothGatt for BluetoothGatt {
             min_ce_len,
             max_ce_len,
         );
+        // If there's no connection for this client, LibBluetooth would not propagate a callback.
+        // Thus make up a success callback here.
+        if self.context_map.get_conn_id_from_address(client_id, &addr).is_none() {
+            let tx = self.tx.clone();
+            tokio::spawn(async move {
+                let _ = tx
+                    .send(Message::GattActions(GattActions::InvokeConnectionUpdated(
+                        client_id,
+                        addr,
+                        max_interval,
+                        latency,
+                        timeout,
+                        GattStatus::Success,
+                    )))
+                    .await;
+            });
+        }
     }
 
     fn client_set_preferred_phy(
@@ -2828,6 +2877,11 @@ impl BtifGattClientCallbacks for BluetoothGatt {
                 }
             }
         }
+
+        let tx = self.tx.clone();
+        tokio::spawn(async move {
+            let _ = tx.send(Message::ProfileDisconnected(addr)).await;
+        });
     }
 
     fn search_complete_cb(&mut self, conn_id: i32, _status: GattStatus) {

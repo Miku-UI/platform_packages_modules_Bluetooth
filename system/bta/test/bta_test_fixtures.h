@@ -67,17 +67,18 @@ protected:
     bluetooth::testing::stack::rnr::set_interface(&mock_stack_rnr_interface_);
 
     test::mock::stack_gatt_api::GATT_Register.body =
-            [](const bluetooth::Uuid& p_app_uuid128, const std::string name, tGATT_CBACK* p_cb_info,
-               bool eatt_support) -> tGATT_IF { return kGattRegisteredIf; };
+            [](const bluetooth::Uuid& /*p_app_uuid128*/, const std::string /*name*/,
+               tGATT_CBACK* /*p_cb_info*/,
+               bool /*eatt_support*/) -> tGATT_IF { return kGattRegisteredIf; };
     mock_btm_client_interface.eir.BTM_GetEirSupportedServices =
-            [](uint32_t* p_eir_uuid, uint8_t** p, uint8_t max_num_uuid16,
-               uint8_t* p_num_uuid16) -> uint8_t { return 0; };
+            [](uint32_t* /*p_eir_uuid*/, uint8_t** /*p*/, uint8_t /*max_num_uuid16*/,
+               uint8_t* /*p_num_uuid16*/) -> uint8_t { return 0; };
     mock_btm_client_interface.eir.BTM_WriteEIR = [](BT_HDR* p_buf) -> tBTM_STATUS {
       osi_free(p_buf);
       return tBTM_STATUS::BTM_SUCCESS;
     };
     mock_btm_client_interface.security.BTM_SecRegister =
-            [](const tBTM_APPL_INFO* p_cb_info) -> bool { return true; };
+            [](const tBTM_APPL_INFO* /*p_cb_info*/) -> bool { return true; };
   }
 
   void TearDown() override {

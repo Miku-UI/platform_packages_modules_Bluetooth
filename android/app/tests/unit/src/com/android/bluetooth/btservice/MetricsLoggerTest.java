@@ -15,8 +15,6 @@
  */
 package com.android.bluetooth.btservice;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doReturn;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -87,7 +85,8 @@ public class MetricsLoggerTest {
     private TestableMetricsLogger mTestableMetricsLogger;
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock private AdapterService mMockAdapterService;
+    @Mock private AdapterService mAdapterService;
+    @Mock private RemoteDevices mRemoteDevices;
 
     private static class TestableMetricsLogger extends MetricsLogger {
         public HashMap<Integer, Long> mTestableCounters = new HashMap<>();
@@ -113,11 +112,9 @@ public class MetricsLoggerTest {
 
     @Before
     public void setUp() {
-        // Dump metrics to clean up internal states
         MetricsLogger.dumpProto(BluetoothLog.newBuilder());
         mTestableMetricsLogger = new TestableMetricsLogger();
-        mTestableMetricsLogger.init(mMockAdapterService);
-        doReturn(null).when(mMockAdapterService).registerReceiver(any(), any());
+        mTestableMetricsLogger.init(mAdapterService, mRemoteDevices);
     }
 
     @After
@@ -231,13 +228,13 @@ public class MetricsLoggerTest {
         Assert.assertFalse(mTestableMetricsLogger.cacheCount(1, 1));
         mTestableMetricsLogger.drainBufferedCounters();
         Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(1));
-        Assert.assertFalse(mTestableMetricsLogger.close());
     }
 
     @Test
     public void testAddAndSendCountersDoubleInit() {
         Assert.assertTrue(mTestableMetricsLogger.isInitialized());
-        Assert.assertFalse(mTestableMetricsLogger.init(mMockAdapterService));
+        // sending a null adapterService will crash in case the double init no longer works
+        mTestableMetricsLogger.init(null, mRemoteDevices);
     }
 
     @Test
@@ -249,7 +246,7 @@ public class MetricsLoggerTest {
             Assert.assertEquals(
                     deviceName,
                     sha256,
-                    mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName, true));
+                    mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName));
         }
     }
 
@@ -273,9 +270,31 @@ public class MetricsLoggerTest {
     }
 
     @Test
+    public void testGetAllowlistedDeviceNameHashForMedicalDevice() {
+        String deviceName = "Sam's rphonak hearing aid";
+        String expectMedicalDeviceSha256 = MetricsLogger.getSha256String("rphonakhearingaid");
+
+        String actualMedicalDeviceSha256 =
+                mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, true);
+
+        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+    }
+
+    @Test
+    public void testGetAllowlistedDeviceNameHashForMedicalDeviceIdentifiedLogging() {
+        String deviceName = "Sam's rphonak hearing aid";
+        String expectMedicalDeviceSha256 = "";
+
+        String actualMedicalDeviceSha256 =
+                mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, false);
+
+        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+    }
+
+    @Test
     public void uploadEmptyDeviceName() {
         initTestingBloomfilter();
-        Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, "", true));
+        Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, ""));
     }
 
     private void initTestingBloomfilter() {

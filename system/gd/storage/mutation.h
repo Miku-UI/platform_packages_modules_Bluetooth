@@ -17,7 +17,6 @@
 
 #include <queue>
 
-#include "os/log.h"
 #include "storage/config_cache.h"
 #include "storage/mutation_entry.h"
 

@@ -26,29 +26,29 @@ namespace bttest {
 
 static GattTest* instance = nullptr;
 
-void RegisterClientCallback(int status, int clientIf, const bluetooth::Uuid& app_uuid) {
+void RegisterClientCallback(int status, int clientIf, const bluetooth::Uuid& /*app_uuid*/) {
   instance->status_ = status;
   instance->client_interface_id_ = clientIf;
   semaphore_post(instance->register_client_callback_sem_);
 }
 
-void ScanResultCallback(uint16_t ble_evt_type, uint8_t addr_type, RawAddress* bda,
-                        uint8_t ble_primary_phy, uint8_t ble_secondary_phy,
-                        uint8_t ble_advertising_sid, int8_t ble_tx_power, int8_t rssi,
-                        uint16_t ble_periodic_adv_int, std::vector<uint8_t> adv_data,
-                        RawAddress* original_bda) {
+void ScanResultCallback(uint16_t /*ble_evt_type*/, uint8_t /*addr_type*/, RawAddress* /*bda*/,
+                        uint8_t /*ble_primary_phy*/, uint8_t /*ble_secondary_phy*/,
+                        uint8_t /*ble_advertising_sid*/, int8_t /*ble_tx_power*/, int8_t /*rssi*/,
+                        uint16_t /*ble_periodic_adv_int*/, std::vector<uint8_t> /*adv_data*/,
+                        RawAddress* /*original_bda*/) {
   semaphore_post(instance->scan_result_callback_sem_);
 }
 
 // GATT server callbacks
-void RegisterServerCallback(int status, int server_if, const bluetooth::Uuid& uuid) {
+void RegisterServerCallback(int status, int server_if, const bluetooth::Uuid& /*uuid*/) {
   instance->status_ = status;
   instance->server_interface_id_ = server_if;
   semaphore_post(instance->register_server_callback_sem_);
 }
 
 void ServiceAddedCallback(int status, int server_if, const btgatt_db_element_t* service,
-                          size_t service_count) {
+                          size_t /*service_count*/) {
   instance->status_ = status;
   instance->server_interface_id_ = server_if;
   instance->service_handle_ = service[0].attribute_handle;

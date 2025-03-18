@@ -4,6 +4,7 @@ import grpc
 import grpc.aio
 import logging
 import struct
+import sys
 
 from bumble.device import Device
 from google.protobuf import empty_pb2  # pytype: disable=pyi-error
@@ -653,7 +654,9 @@ def on_set_report_cb(report_id: int, report_type: int, report_size: int, data: b
     report.report_type = report_type
     report.report_id = report_id
     report.report_data = str(data.hex())
-    hid_report_queue.put_nowait(report)
+
+    if hid_report_queue:
+        hid_report_queue.put_nowait(report)
 
     if report_type == Message.ReportType.FEATURE_REPORT:
         retValue.status = hid_device.GetSetReturn.ERR_INVALID_PARAMETER
@@ -674,7 +677,7 @@ def on_set_report_cb(report_id: int, report_type: int, report_size: int, data: b
 
 def on_get_protocol_cb():
     retValue = hid_device.GetSetStatus()
-    retValue.data = protocol_mode.to_bytes(length=1)
+    retValue.data = protocol_mode.to_bytes(length=1, byteorder=sys.byteorder)
     retValue.status = hid_device.GetSetReturn.SUCCESS
     return retValue
 
@@ -701,7 +704,7 @@ def on_virtual_cable_unplug_cb():
 
 
 hid_protoMode_queue = None
-
+hid_report_queue = None
 
 # This class implements the Hid Pandora interface.
 class HIDService(HIDServicer):

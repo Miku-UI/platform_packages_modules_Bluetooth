@@ -57,6 +57,9 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth::testing {
 void set_hal_cbacks(bt_callbacks_t* callbacks);
 }  // namespace bluetooth::testing
@@ -149,7 +152,8 @@ void bond_state_changed_callback(bt_status_t /* status */, RawAddress* /* remote
 void address_consolidate_callback(RawAddress* /* main_bd_addr */,
                                   RawAddress* /* secondary_bd_addr */) {}
 void le_address_associate_callback(RawAddress* /* main_bd_addr */,
-                                   RawAddress* /* secondary_bd_addr */) {}
+                                   RawAddress* /* secondary_bd_addr */,
+                                   uint8_t /* identity_address_type */) {}
 void acl_state_changed_callback(bt_status_t /* status */, RawAddress* /* remote_bd_addr */,
                                 bt_acl_state_t /* state */, int /* transport_link_type */,
                                 bt_hci_error_code_t /* hci_reason */,
@@ -288,42 +292,6 @@ TEST_F(BtifCoreTest, test_post_on_bt_jni_simple3) {
   post_on_bt_jni(closure);
   ASSERT_EQ(std::future_status::ready, future.wait_for(timeout_time));
   ASSERT_EQ(val, future.get());
-}
-
-extern const char* dump_av_sm_event_name(int event);
-TEST_F(BtifUtilsTest, dump_av_sm_event_name) {
-  std::vector<std::pair<int, std::string>> events = {
-          std::make_pair(BTA_AV_ENABLE_EVT, "BTA_AV_ENABLE_EVT"),
-          std::make_pair(BTA_AV_REGISTER_EVT, "BTA_AV_REGISTER_EVT"),
-          std::make_pair(BTA_AV_OPEN_EVT, "BTA_AV_OPEN_EVT"),
-          std::make_pair(BTA_AV_CLOSE_EVT, "BTA_AV_CLOSE_EVT"),
-          std::make_pair(BTA_AV_START_EVT, "BTA_AV_START_EVT"),
-          std::make_pair(BTA_AV_STOP_EVT, "BTA_AV_STOP_EVT"),
-          std::make_pair(BTA_AV_PROTECT_REQ_EVT, "BTA_AV_PROTECT_REQ_EVT"),
-          std::make_pair(BTA_AV_PROTECT_RSP_EVT, "BTA_AV_PROTECT_RSP_EVT"),
-          std::make_pair(BTA_AV_RC_OPEN_EVT, "BTA_AV_RC_OPEN_EVT"),
-          std::make_pair(BTA_AV_RC_CLOSE_EVT, "BTA_AV_RC_CLOSE_EVT"),
-          std::make_pair(BTA_AV_RC_BROWSE_OPEN_EVT, "BTA_AV_RC_BROWSE_OPEN_EVT"),
-          std::make_pair(BTA_AV_RC_BROWSE_CLOSE_EVT, "BTA_AV_RC_BROWSE_CLOSE_EVT"),
-          std::make_pair(BTA_AV_REMOTE_CMD_EVT, "BTA_AV_REMOTE_CMD_EVT"),
-          std::make_pair(BTA_AV_REMOTE_RSP_EVT, "BTA_AV_REMOTE_RSP_EVT"),
-          std::make_pair(BTA_AV_VENDOR_CMD_EVT, "BTA_AV_VENDOR_CMD_EVT"),
-          std::make_pair(BTA_AV_VENDOR_RSP_EVT, "BTA_AV_VENDOR_RSP_EVT"),
-          std::make_pair(BTA_AV_RECONFIG_EVT, "BTA_AV_RECONFIG_EVT"),
-          std::make_pair(BTA_AV_SUSPEND_EVT, "BTA_AV_SUSPEND_EVT"),
-          std::make_pair(BTA_AV_PENDING_EVT, "BTA_AV_PENDING_EVT"),
-          std::make_pair(BTA_AV_META_MSG_EVT, "BTA_AV_META_MSG_EVT"),
-          std::make_pair(BTA_AV_REJECT_EVT, "BTA_AV_REJECT_EVT"),
-          std::make_pair(BTA_AV_RC_FEAT_EVT, "BTA_AV_RC_FEAT_EVT"),
-          std::make_pair(BTA_AV_RC_PSM_EVT, "BTA_AV_RC_PSM_EVT"),
-          std::make_pair(BTA_AV_OFFLOAD_START_RSP_EVT, "BTA_AV_OFFLOAD_START_RSP_EVT"),
-  };
-  for (const auto& event : events) {
-    ASSERT_EQ(event.second, dump_av_sm_event_name(event.first));
-  }
-  std::ostringstream oss;
-  oss << "UNKNOWN_EVENT";
-  ASSERT_EQ(oss.str(), dump_av_sm_event_name(std::numeric_limits<int>::max()));
 }
 
 TEST_F(BtifUtilsTest, dump_dm_search_event) {
@@ -921,10 +889,6 @@ TEST_F(BtifCoreVseWithSocketTest, debug_dump_empty) {
   EXPECT_EQ(std::future_status::ready, reading_done.wait_for(std::chrono::seconds(1)));
 }
 
-namespace bluetooth::bqr::testing {
-void set_lmp_trace_log_fd(int fd);
-}
-
 TEST_F(BtifCoreVseWithSocketTest, send_lmp_ll_msg) {
   auto payload = std::make_unique<RawBuilder>();
   payload->AddOctets({'d', 'a', 't', 'a'});
@@ -937,7 +901,7 @@ TEST_F(BtifCoreVseWithSocketTest, send_lmp_ll_msg) {
   auto reading_done = reading_promise->get_future();
 
   static int write_fd = write_fd_;
-  do_in_main_thread(BindOnce([]() { bluetooth::bqr::testing::set_lmp_trace_log_fd(write_fd); }));
+  do_in_main_thread(BindOnce([]() { bluetooth::bqr::SetLmpLlMessageTraceLogFd(write_fd); }));
   vse_callback_(view);
 
   do_in_main_thread(BindOnce(
@@ -1058,9 +1022,14 @@ TEST_F(BtifCoreSocketTest, CreateRfcommServerSocket) {
   static constexpr int kAppUid = 3;
   const Uuid server_uuid = Uuid::From16Bit(UUID_SERVCLASS_SERIAL_PORT);
   int socket_number = 0;
+  btsock_data_path_t data_path = BTSOCK_DATA_PATH_NO_OFFLOAD;
+  uint64_t hub_id = 0;
+  uint64_t endpoint_id = 0;
+  int max_rx_packet_size = 0;
   ASSERT_EQ(BT_STATUS_SUCCESS,
-            btif_sock_get_interface()->listen(BTSOCK_RFCOMM, "TestService", &server_uuid,
-                                              kChannelOne, &socket_number, kFlags, kAppUid));
+            btif_sock_get_interface()->listen(
+                    BTSOCK_RFCOMM, "TestService", &server_uuid, kChannelOne, &socket_number, kFlags,
+                    kAppUid, data_path, "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
 }
 
 TEST_F(BtifCoreSocketTest, CreateTwoRfcommServerSockets) {
@@ -1069,9 +1038,14 @@ TEST_F(BtifCoreSocketTest, CreateTwoRfcommServerSockets) {
   static constexpr int kAppUid = 3;
   const Uuid server_uuid = Uuid::From16Bit(UUID_SERVCLASS_SERIAL_PORT);
   int socket_number = 0;
+  btsock_data_path_t data_path = BTSOCK_DATA_PATH_NO_OFFLOAD;
+  uint64_t hub_id = 0;
+  uint64_t endpoint_id = 0;
+  int max_rx_packet_size = 0;
   ASSERT_EQ(BT_STATUS_SUCCESS,
-            btif_sock_get_interface()->listen(BTSOCK_RFCOMM, "TestService", &server_uuid,
-                                              kChannelOne, &socket_number, kFlags, kAppUid));
+            btif_sock_get_interface()->listen(
+                    BTSOCK_RFCOMM, "TestService", &server_uuid, kChannelOne, &socket_number, kFlags,
+                    kAppUid, data_path, "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
   static constexpr int kChannelTwo = 2;
   static constexpr int kFlagsTwo = 4;
   static constexpr int kAppUidTwo = 6;
@@ -1079,7 +1053,8 @@ TEST_F(BtifCoreSocketTest, CreateTwoRfcommServerSockets) {
   int socket_number_two = 1;
   ASSERT_EQ(BT_STATUS_SUCCESS, btif_sock_get_interface()->listen(
                                        BTSOCK_RFCOMM, "ServiceTwo", &server_uuid_two, kChannelTwo,
-                                       &socket_number_two, kFlagsTwo, kAppUidTwo));
+                                       &socket_number_two, kFlagsTwo, kAppUidTwo, data_path,
+                                       "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
 }
 
 TEST_F(BtifCoreSocketTest, CreateManyRfcommServerSockets) {
@@ -1095,9 +1070,14 @@ TEST_F(BtifCoreSocketTest, CreateManyRfcommServerSockets) {
     server_uuid_str[1] = (i / 100) % 10 + '0';
     server_uuid_str[0] = (i / 1000) % 10 + '0';
     Uuid server_uuid = Uuid::FromString(server_uuid_str);
+    btsock_data_path_t data_path = BTSOCK_DATA_PATH_NO_OFFLOAD;
+    uint64_t hub_id = 0;
+    uint64_t endpoint_id = 0;
+    int max_rx_packet_size = 0;
     ASSERT_EQ(BT_STATUS_SUCCESS,
-              btif_sock_get_interface()->listen(BTSOCK_RFCOMM, "TestService", &server_uuid, channel,
-                                                &socket_number, flags, app_uuid));
+              btif_sock_get_interface()->listen(
+                      BTSOCK_RFCOMM, "TestService", &server_uuid, channel, &socket_number, flags,
+                      app_uuid, data_path, "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
     ASSERT_EQ(0, close(socket_number));
   }
 }

@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"اکنون بلوتوث روشن شود؟"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"لغو"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"روشن کردن"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"انتقال فایل"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"فایل ورودی پذیرفته شود؟"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"نپذیرفتن"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"پذیرفتن"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"‏<xliff:g id="SENDER">%1$s</xliff:g> آماده ارسال فایل است: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"اشتراک بلوتوث: در حال دریافت <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_received" msgid="2330252358543000567">"اشتراک بلوتوث: <xliff:g id="FILE">%1$s</xliff:g> دریافت شد"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"اشتراک بلوتوث: فایل <xliff:g id="FILE">%1$s</xliff:g>دریافت نشد"</string>
     <string name="notification_sending" msgid="8269912843286868700">"اشتراک بلوتوث: در حال ارسال <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_sent" msgid="2685202778935769332">"اشتراک بلوتوث:<xliff:g id="FILE">%1$s</xliff:g> ارسال شد"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"100% کامل شد"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"اشتراک بلوتوث: فایل <xliff:g id="FILE">%1$s</xliff:g> ارسال نشد"</string>
     <string name="download_title" msgid="6449408649671518102">"انتقال فایل"</string>
     <string name="download_line1" msgid="6449220145685308846">"از: \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"لطفاً منتظر بمانید…"</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"روشن کردن بلوتوث…"</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"فایل دریافت می‌شود: پیشرفت دریافت را در پانل اعلان‌ها بررسی کنید."</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"فایل را نمی‌توان دریافت کرد."</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"دریافت فایل از \"<xliff:g id="SENDER">%1$s</xliff:g>\" متوقف شد"</string>
     <string name="bt_toast_4" msgid="480365991944956695">"ارسال فایل به \"<xliff:g id="RECIPIENT">%1$s</xliff:g>\""</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"ارسال <xliff:g id="NUMBER">%1$s</xliff:g> فایل به \"<xliff:g id="RECIPIENT">%2$s</xliff:g>\""</string>
@@ -118,7 +114,6 @@
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"پاک کردن"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"درحال پخش"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"نماد برنامه"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"بلوتوث صوتی متصل شد"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ارتباط بلوتوث صوتی قطع شد"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"بلوتوث‌ صوتی"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"فایل‌های بزرگ‌تر از ۴ گیگابایت نمی‌توانند منتقل شوند"</string>

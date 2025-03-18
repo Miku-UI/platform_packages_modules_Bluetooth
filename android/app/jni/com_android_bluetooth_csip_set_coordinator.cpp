@@ -15,14 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define LOG_TAG "BluetoothCsipSetCoordinatorJni"
-#include <string.h>
 
+#define LOG_TAG "BluetoothCsipSetCoordinatorJni"
+
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
+
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_csis.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
+using bluetooth::Uuid;
 using bluetooth::csis::ConnectionState;
 using bluetooth::csis::CsisClientCallbacks;
 using bluetooth::csis::CsisClientInterface;
@@ -39,8 +52,6 @@ static std::shared_timed_mutex interface_mutex;
 
 static jobject mCallbacksObj = nullptr;
 static std::shared_timed_mutex callbacks_mutex;
-
-using bluetooth::Uuid;
 
 #define UUID_PARAMS(uuid) uuid_lsb(uuid), uuid_msb(uuid)
 

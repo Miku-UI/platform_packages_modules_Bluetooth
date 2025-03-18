@@ -18,15 +18,23 @@
 
 #include <bluetooth/log.h>
 
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "audio_hal_client/audio_hal_client.h"
 #include "common/strings.h"
+#include "hardware/bt_le_audio.h"
+#include "le_audio/codec_manager.h"
 #include "le_audio_types.h"
-#include "os/log.h"
 
 using bluetooth::common::ToString;
 using bluetooth::le_audio::types::AudioContexts;
 using bluetooth::le_audio::types::LeAudioContextType;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<audio_usage_t> : enum_formatter<audio_usage_t> {};
 template <>
@@ -35,7 +43,7 @@ template <>
 struct formatter<audio_source_t> : enum_formatter<audio_source_t> {};
 template <>
 struct formatter<audio_devices_t> : enum_formatter<audio_devices_t> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth::le_audio {
 namespace utils {
@@ -65,7 +73,7 @@ LeAudioContextType AudioContentToLeAudioContext(audio_content_type_t content_typ
         return LeAudioContextType::RINGTONE;
       }
 
-      return LeAudioContextType::MEDIA;
+      return LeAudioContextType::SOUNDEFFECTS;
     case AUDIO_USAGE_GAME:
       return LeAudioContextType::GAME;
     case AUDIO_USAGE_NOTIFICATION:
@@ -334,7 +342,8 @@ void fillStreamParamsToBtLeAudioCodecConfig(
 
   out_config.sample_rate =
           translateToBtLeAudioCodecConfigSampleRate(config.GetSamplingFrequencyHz());
-  out_config.bits_per_sample = translateToBtLeAudioCodecConfigBitPerSample(16);
+  out_config.bits_per_sample =
+          translateToBtLeAudioCodecConfigBitPerSample(config.GetBitsPerSample());
   out_config.frame_duration =
           translateToBtLeAudioCodecConfigFrameDuration(config.GetDataIntervalUs());
   out_config.octets_per_frame = config.GetOctetsPerFrame();
@@ -575,7 +584,7 @@ static bool IsCodecConfigSettingSupported(
     return false;
   }
 
-  log::debug(": Settings for format: 0x{:#02x} ", codec_id.coding_format);
+  log::debug("Verifying coding format: {:#02x} ", codec_id.coding_format);
 
   if (utils::IsCodecUsingLtvFormat(codec_id)) {
     log::assert_that(!pac.codec_spec_caps.IsEmpty(),

@@ -61,7 +61,7 @@ BluetoothAudioCtrlAckToHalStatus(const BluetoothAudioCtrlAck& ack) {
 }  // namespace audio
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::audio::aidl::BluetoothAudioCtrlAck> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std

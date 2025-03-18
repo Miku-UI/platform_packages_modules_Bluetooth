@@ -21,8 +21,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace audio {
 namespace hidl {

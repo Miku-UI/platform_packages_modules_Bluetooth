@@ -21,8 +21,14 @@
 #include <bluetooth/log.h>
 #include <opus.h>
 
-#include "a2dp_vendor_opus.h"
-#include "os/log.h"
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+#include "a2dp_codec_api.h"
+#include "a2dp_vendor_opus_constants.h"
+#include "bt_hdr.h"
+#include "opus_defines.h"
 #include "osi/include/allocator.h"
 
 using namespace bluetooth;

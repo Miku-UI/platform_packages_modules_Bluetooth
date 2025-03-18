@@ -28,11 +28,22 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <ios>
+#include <mutex>
+#include <sstream>
+#include <string>
+
+#include "a2dp_aac_constants.h"
 #include "a2dp_aac_decoder.h"
 #include "a2dp_aac_encoder.h"
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
+#include "avdt_api.h"
+#include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
-#include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_hdr.h"
 
@@ -593,36 +604,36 @@ std::string A2DP_CodecInfoStringAac(const uint8_t* p_codec_info) {
 
   // Object type
   field.clear();
-  AppendField(&field, (aac_cie.objectType == 0), "NONE");
-  AppendField(&field, (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG2_LC), "(MPEG-2 AAC LC)");
-  AppendField(&field, (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LC), "(MPEG-4 AAC LC)");
-  AppendField(&field, (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LTP), "(MPEG-4 AAC LTP)");
-  AppendField(&field, (aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_SCALABLE),
+  AppendField(&field, aac_cie.objectType == 0, "NONE");
+  AppendField(&field, aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG2_LC, "(MPEG-2 AAC LC)");
+  AppendField(&field, aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LC, "(MPEG-4 AAC LC)");
+  AppendField(&field, aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_LTP, "(MPEG-4 AAC LTP)");
+  AppendField(&field, aac_cie.objectType & A2DP_AAC_OBJECT_TYPE_MPEG4_SCALABLE,
               "(MPEG-4 AAC Scalable)");
   res << "\tobjectType: " << field << " (" << loghex(aac_cie.objectType) << ")\n";
 
   // Sample frequency
   field.clear();
-  AppendField(&field, (aac_cie.sampleRate == 0), "NONE");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_8000), "8000");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_11025), "11025");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_12000), "12000");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_16000), "16000");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_22050), "22050");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_24000), "24000");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_32000), "32000");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100), "44100");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000), "48000");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_64000), "64000");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_88200), "88200");
-  AppendField(&field, (aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_96000), "96000");
+  AppendField(&field, aac_cie.sampleRate == 0, "NONE");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_8000, "8000");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_11025, "11025");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_12000, "12000");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_16000, "16000");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_22050, "22050");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_24000, "24000");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_32000, "32000");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100, "44100");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_48000, "48000");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_64000, "64000");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_88200, "88200");
+  AppendField(&field, aac_cie.sampleRate & A2DP_AAC_SAMPLING_FREQ_96000, "96000");
   res << "\tsamp_freq: " << field << " (" << loghex(aac_cie.sampleRate) << ")\n";
 
   // Channel mode
   field.clear();
-  AppendField(&field, (aac_cie.channelMode == 0), "NONE");
-  AppendField(&field, (aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_MONO), "Mono");
-  AppendField(&field, (aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_STEREO), "Stereo");
+  AppendField(&field, aac_cie.channelMode == 0, "NONE");
+  AppendField(&field, aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_MONO, "Mono");
+  AppendField(&field, aac_cie.channelMode == A2DP_AAC_CHANNEL_MODE_STEREO, "Stereo");
   res << "\tch_mode: " << field << " (" << loghex(aac_cie.channelMode) << ")\n";
 
   // Variable bit rate support
@@ -635,8 +646,7 @@ std::string A2DP_CodecInfoStringAac(const uint8_t* p_codec_info) {
   return res.str();
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
-    const uint8_t* p_codec_info) {
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(const uint8_t* p_codec_info) {
   if (!A2DP_IsCodecValidAac(p_codec_info)) {
     return NULL;
   }
@@ -644,8 +654,7 @@ const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceAac(
   return &a2dp_encoder_interface_aac;
 }
 
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(
-    const uint8_t* p_codec_info) {
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceAac(const uint8_t* p_codec_info) {
   if (!A2DP_IsCodecValidAac(p_codec_info)) {
     return NULL;
   }

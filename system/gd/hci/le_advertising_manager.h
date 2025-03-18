@@ -60,7 +60,7 @@ public:
   bool discoverable = false;
   bool scannable = false;
   bool directed = false;
-  bool high_duty_directed_connectable = false;
+  bool high_duty_cycle = false;
   bool legacy_pdus = false;
   bool anonymous = false;
   bool include_tx_power = false;
@@ -185,8 +185,8 @@ private:
 }  // namespace hci
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::hci::AdvertiserAddressType>
     : enum_formatter<bluetooth::hci::AdvertiserAddressType> {};
-}  // namespace fmt
+}  // namespace std

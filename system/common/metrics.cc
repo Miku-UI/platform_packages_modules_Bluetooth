@@ -42,7 +42,7 @@
 #include "osi/include/osi.h"
 #include "types/raw_address.h"
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<android::bluetooth::DirectionEnum>
     : enum_formatter<android::bluetooth::DirectionEnum> {};
@@ -58,7 +58,7 @@ struct formatter<android::bluetooth::AddressTypeEnum>
 template <>
 struct formatter<android::bluetooth::DeviceInfoSrcEnum>
     : enum_formatter<android::bluetooth::DeviceInfoSrcEnum> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace bluetooth {
 namespace common {

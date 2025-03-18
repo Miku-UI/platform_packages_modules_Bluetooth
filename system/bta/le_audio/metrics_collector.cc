@@ -18,10 +18,17 @@
 
 #include <bluetooth/log.h>
 
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "common/metrics.h"
+#include "hardware/bt_le_audio.h"
+#include "le_audio_types.h"
+#include "types/raw_address.h"
 
 namespace bluetooth::le_audio {
 

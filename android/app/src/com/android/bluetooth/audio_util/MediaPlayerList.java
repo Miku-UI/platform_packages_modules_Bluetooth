@@ -959,24 +959,35 @@ public class MediaPlayerList {
             return;
         }
 
-        if (playerId == mActivePlayerId) {
-            Log.w(TAG, getActivePlayer().getPackageName() + " is already the active player");
+        int previousActivePlayerId = mActivePlayerId;
+        MediaPlayerWrapper previousPlayer = getActivePlayer();
+
+        if (playerId == previousActivePlayerId) {
+            if (previousPlayer != null) {
+                Log.w(TAG, previousPlayer.getPackageName() + " is already the active player");
+            }
             return;
         }
 
-        if (mActivePlayerId != NO_ACTIVE_PLAYER) getActivePlayer().unregisterCallback();
+        if (previousActivePlayerId != NO_ACTIVE_PLAYER && previousPlayer != null) {
+            previousPlayer.unregisterCallback();
+        }
 
         mActivePlayerId = playerId;
-        getActivePlayer().registerCallback(mMediaPlayerCallback);
+
+        MediaPlayerWrapper player = getActivePlayer();
+        if (player == null) return;
+
+        player.registerCallback(mMediaPlayerCallback);
         mActivePlayerLogger.logd(
-                TAG, "setActivePlayer(): setting player to " + getActivePlayer().getPackageName());
+                TAG, "setActivePlayer(): setting player to " + player.getPackageName());
 
         if (mPlayerSettingsListener != null) {
-            mPlayerSettingsListener.onActivePlayerChanged(getActivePlayer());
+            mPlayerSettingsListener.onActivePlayerChanged(player);
         }
 
         // Ensure that metadata is synced on the new player
-        if (!getActivePlayer().isMetadataSynced()) {
+        if (!player.isMetadataSynced()) {
             Log.w(TAG, "setActivePlayer(): Metadata not synced on new player");
             return;
         }
@@ -994,7 +1005,7 @@ public class MediaPlayerList {
             }
         }
 
-        MediaData data = getActivePlayer().getCurrentMediaData();
+        MediaData data = player.getCurrentMediaData();
         if (mAudioPlaybackIsActive) {
             data.state = mCurrMediaData.state;
             Log.d(TAG, "setActivePlayer mAudioPlaybackIsActive=true, state=" + data.state);

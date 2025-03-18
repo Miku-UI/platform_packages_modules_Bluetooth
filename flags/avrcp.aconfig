@@ -50,3 +50,10 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "avrcp_16_default"
+    namespace: "bluetooth"
+    description: "Set AVRCP 1.6 as default AVRCP version"
+    bug: "374271695"
+}

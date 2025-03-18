@@ -13,16 +13,15 @@
 # limitations under the License.
 """Rfcomm proxy module."""
 
-from mmi2grpc._helpers import assert_description
-from mmi2grpc._proxy import ProfileProxy
-
-from pandora_experimental.rfcomm_grpc import RFCOMM
-from pandora.host_grpc import Host
-
-import sys
-import threading
 import os
 import socket
+import sys
+import threading
+
+from mmi2grpc._helpers import assert_description
+from mmi2grpc._proxy import ProfileProxy
+from pandora.host_grpc import Host
+from pandora_experimental.rfcomm_grpc import RFCOMM
 
 
 class RFCOMMProxy(ProfileProxy):

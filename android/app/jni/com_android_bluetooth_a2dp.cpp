@@ -16,13 +16,24 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
+
+#include <cerrno>
+#include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <shared_mutex>
+#include <vector>
 
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_util.h"
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_av.h"
+#include "types/raw_address.h"
 
 namespace android {
 static jmethodID method_onConnectionStateChanged;

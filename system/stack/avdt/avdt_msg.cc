@@ -29,15 +29,20 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avdt_api.h"
+#include "avdt_defs.h"
 #include "avdt_int.h"
 #include "avdtc_api.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 
@@ -1065,10 +1070,9 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
       pkt_type = AVDT_PKT_TYPE_SINGLE;
       hdr_len = AVDT_LEN_TYPE_SINGLE;
       p_buf = p_ccb->p_curr_msg;
-    }
-    /* if message isn't being fragmented and it doesn't fit in mtu */
-    else if ((p_ccb->p_curr_msg->offset == AVDT_MSG_OFFSET) &&
-             (p_ccb->p_curr_msg->len > p_tbl->peer_mtu - AVDT_LEN_TYPE_SINGLE)) {
+    } else if ((p_ccb->p_curr_msg->offset == AVDT_MSG_OFFSET) &&
+               /* if message isn't being fragmented and it doesn't fit in mtu */
+               (p_ccb->p_curr_msg->len > p_tbl->peer_mtu - AVDT_LEN_TYPE_SINGLE)) {
       pkt_type = AVDT_PKT_TYPE_START;
       hdr_len = AVDT_LEN_TYPE_START;
       nosp = (p_ccb->p_curr_msg->len + AVDT_LEN_TYPE_START - p_tbl->peer_mtu) /
@@ -1083,10 +1087,9 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
       p_buf->len = p_tbl->peer_mtu - hdr_len;
       memcpy((uint8_t*)(p_buf + 1) + p_buf->offset,
              (uint8_t*)(p_ccb->p_curr_msg + 1) + p_ccb->p_curr_msg->offset, p_buf->len);
-    }
-    /* if message is being fragmented and remaining bytes don't fit in mtu */
-    else if ((p_ccb->p_curr_msg->offset > AVDT_MSG_OFFSET) &&
-             (p_ccb->p_curr_msg->len > (p_tbl->peer_mtu - AVDT_LEN_TYPE_CONT))) {
+    } else if ((p_ccb->p_curr_msg->offset > AVDT_MSG_OFFSET) &&
+               /* if message is being fragmented and remaining bytes don't fit in mtu */
+               (p_ccb->p_curr_msg->len > (p_tbl->peer_mtu - AVDT_LEN_TYPE_CONT))) {
       pkt_type = AVDT_PKT_TYPE_CONT;
       hdr_len = AVDT_LEN_TYPE_CONT;
 
@@ -1098,9 +1101,8 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
       p_buf->len = p_tbl->peer_mtu - hdr_len;
       memcpy((uint8_t*)(p_buf + 1) + p_buf->offset,
              (uint8_t*)(p_ccb->p_curr_msg + 1) + p_ccb->p_curr_msg->offset, p_buf->len);
-    }
-    /* if message is being fragmented and remaining bytes do fit in mtu */
-    else {
+    } else {
+      /* if message is being fragmented and remaining bytes do fit in mtu */
       pkt_type = AVDT_PKT_TYPE_END;
       hdr_len = AVDT_LEN_TYPE_END;
       p_buf = p_ccb->p_curr_msg;
@@ -1173,7 +1175,7 @@ bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
  *                  available.
  *
  ******************************************************************************/
-BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
+static BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
   uint8_t* p;
   uint8_t pkt_type;
   BT_HDR* p_ret;
@@ -1194,9 +1196,8 @@ BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
     osi_free(p_buf);
     log::warn("Bad length during reassembly");
     p_ret = NULL;
-  }
-  /* single packet */
-  else if (pkt_type == AVDT_PKT_TYPE_SINGLE) {
+  } else if (pkt_type == AVDT_PKT_TYPE_SINGLE) {
+    /* single packet */
     /* if reassembly in progress drop message and process new single */
     if (p_ccb->p_rx_msg != NULL) {
       log::warn("Got single during reassembly");
@@ -1205,9 +1206,8 @@ BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
     osi_free_and_reset((void**)&p_ccb->p_rx_msg);
 
     p_ret = p_buf;
-  }
-  /* start packet */
-  else if (pkt_type == AVDT_PKT_TYPE_START) {
+  } else if (pkt_type == AVDT_PKT_TYPE_START) {
+    /* start packet */
     /* if reassembly in progress drop message and process new single */
     if (p_ccb->p_rx_msg != NULL) {
       log::warn("Got start during reassembly");
@@ -1244,9 +1244,8 @@ BT_HDR* avdt_msg_asmbl(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
     p_ccb->p_rx_msg->len -= 1;
 
     p_ret = NULL;
-  }
-  /* continue or end */
-  else {
+  } else {
+    /* continue or end */
     /* if no reassembly in progress drop message */
     if (p_ccb->p_rx_msg == NULL) {
       osi_free(p_buf);
@@ -1330,9 +1329,8 @@ void avdt_msg_send_cmd(AvdtpCcb* p_ccb, void* p_scb, uint8_t sig_id, tAVDT_MSG* 
     /* for start and suspend, p_scb points to array of handles */
     if ((sig_id == AVDT_SIG_START) || (sig_id == AVDT_SIG_SUSPEND)) {
       memcpy(p, (uint8_t*)p_scb, p_buf->len);
-    }
-    /* for all others, p_scb points to scb as usual */
-    else {
+    } else {
+      /* for all others, p_scb points to scb as usual */
       *p = avdt_scb_to_hdl((AvdtpScb*)p_scb);
     }
   }
@@ -1524,9 +1522,8 @@ void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
   if (msg_type == AVDT_MSG_TYPE_GRJ) {
     log::warn("Dropping msg msg_type={}", msg_type);
     ok = false;
-  }
-  /* check for general reject */
-  else if ((msg_type == AVDT_MSG_TYPE_REJ) && (p_buf->len == AVDT_LEN_GEN_REJ)) {
+  } else if ((msg_type == AVDT_MSG_TYPE_REJ) && (p_buf->len == AVDT_LEN_GEN_REJ)) {
+    /* check for general reject */
     gen_rej = true;
     if (p_ccb->p_curr_cmd != NULL) {
       msg.hdr.sig_id = sig = (uint8_t)p_ccb->p_curr_cmd->event;
@@ -1546,6 +1543,15 @@ void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
       /* send a general reject */
       if (msg_type == AVDT_MSG_TYPE_CMD) {
         avdt_msg_send_grej(p_ccb, sig, &msg);
+      }
+    }
+
+    /* validate reject/response against cached sig */
+    if (com::android::bluetooth::flags::btsec_avdt_msg_ind_type_confusion()) {
+      if (((msg_type == AVDT_MSG_TYPE_RSP) || (msg_type == AVDT_MSG_TYPE_REJ)) &&
+          (p_ccb->p_curr_cmd == nullptr || p_ccb->p_curr_cmd->event != sig)) {
+        log::warn("Dropping msg with mismatched sig; sig={}", sig);
+        ok = false;
       }
     }
   }
@@ -1634,9 +1640,8 @@ void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) {
       tAVDT_CCB_EVT avdt_ccb_evt;
       avdt_ccb_evt.msg = msg;
       avdt_ccb_event(p_ccb, (uint8_t)(evt & ~AVDT_CCB_MKR), &avdt_ccb_evt);
-    }
-    /* if it's a scb event */
-    else {
+    } else {
+      /* if it's a scb event */
       /* Scb events always have a single seid.  For cmd, get seid from
       ** message.  For rej and rsp, get seid from p_curr_cmd.
       */

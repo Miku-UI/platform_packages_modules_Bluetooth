@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"Να γίνει τώρα ενεργοποίηση του Bluetooth;"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"Ακύρωση"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"Ενεργοποίηση"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"Μεταφορά αρχείου"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"Αποδοχή εισερχόμενου αρχείου;"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"Απόρριψη"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"Αποδοχή"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"Ο χρήστης <xliff:g id="SENDER">%1$s</xliff:g> είναι έτοιμος να στείλει ένα αρχείο: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"Μοιραστείτε μέσω Bluetooth: Λήψη του <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_received" msgid="2330252358543000567">"Μοιραστείτε μέσω Bluetooth: Ελήφθη το <xliff:g id="FILE">%1$s</xliff:g>"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"Μοιραστείτε μέσω Bluetooth: Το αρχείο <xliff:g id="FILE">%1$s</xliff:g> δεν ελήφθη"</string>
     <string name="notification_sending" msgid="8269912843286868700">"Μοιραστείτε με Bluetooth: Αποστολή του <xliff:g id="FILE">%1$s</xliff:g>"</string>
     <string name="notification_sent" msgid="2685202778935769332">"Μοιραστείτε με Bluetooth: <xliff:g id="FILE">%1$s</xliff:g>"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"Ολοκληρώθηκε το 100%"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"Μοιραστείτε μέσω Bluetooth: Το αρχείο <xliff:g id="FILE">%1$s</xliff:g> δεν εστάλη"</string>
     <string name="download_title" msgid="6449408649671518102">"Μεταφορά αρχείου"</string>
     <string name="download_line1" msgid="6449220145685308846">"Από: \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"Περιμένετε..."</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"Ενεργοποίηση Bluetooth…"</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"Θα γίνει λήψη του αρχείου. Ελέγξτε την πρόοδο στο πλαίσιο \"Ειδοποιήσεις\"."</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"Δεν είναι δυνατή η παραλαβή του αρχείου."</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"Διακόπηκε η λήψη του αρχείου από τον αποστολέα \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
     <string name="bt_toast_4" msgid="480365991944956695">"Γίνεται αποστολή του αρχείου στον παραλήπτη \"<xliff:g id="RECIPIENT">%1$s</xliff:g>\""</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"Αποστολή <xliff:g id="NUMBER">%1$s</xliff:g> αρχείων στον παραλήπτη \"<xliff:g id="RECIPIENT">%2$s</xliff:g>\""</string>
@@ -118,7 +114,6 @@
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Διαγραφή"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Ακούγεται τώρα"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Εικονίδιο εφαρμογής"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"Ο ήχος Bluetooth συνδέθηκε"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Ο ήχος Bluetooth αποσυνδέθηκε"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Ήχος Bluetooth"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Δεν είναι δυνατή η μεταφορά αρχείων που ξεπερνούν τα 4 GB"</string>

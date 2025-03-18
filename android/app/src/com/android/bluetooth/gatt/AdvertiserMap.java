@@ -18,6 +18,7 @@ package com.android.bluetooth.gatt;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
 import android.content.Context;
 import android.os.Binder;
 import android.util.Log;
@@ -45,7 +46,7 @@ class AdvertiserMap {
             EvictingQueue.create(ADVERTISE_STATE_MAX_SIZE);
 
     /** Add an entry to the stats map if it doesn't already exist. */
-    void addAppAdvertiseStats(int id, Context context) {
+    void addAppAdvertiseStats(int id, Context context, AttributionSource attrSource) {
         int appUid = Binder.getCallingUid();
         String appName = context.getPackageManager().getNameForUid(appUid);
         if (appName == null) {
@@ -55,7 +56,7 @@ class AdvertiserMap {
 
         synchronized (this) {
             if (!mAppAdvertiseStats.containsKey(id)) {
-                addAppAdvertiseStats(id, new AppAdvertiseStats(appUid, id, appName));
+                addAppAdvertiseStats(id, new AppAdvertiseStats(appUid, id, appName, attrSource));
             }
         }
     }

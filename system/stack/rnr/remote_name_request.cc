@@ -27,13 +27,12 @@
 #include "stack/btm/security_device_record.h"
 #include "stack/include/btm_client_interface.h"
 
-extern tBTM_CB btm_cb;
 using namespace bluetooth;
+
+extern tBTM_CB btm_cb;
 
 tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb);
 bool btm_ble_cancel_remote_name(const RawAddress& remote_bda);
-void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t length,
-                                   char* p_name);
 
 bool BTM_SecAddRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback) {
   int i;
@@ -77,7 +76,7 @@ bool BTM_IsRemoteNameKnown(const RawAddress& bd_addr, tBT_TRANSPORT /* transport
  * Returns          void
  *
  ******************************************************************************/
-void btm_inq_rmt_name_failed_cancelled(void) {
+static void btm_inq_rmt_name_failed_cancelled(void) {
   log::error("remname_active={}", btm_cb.rnr.remname_active);
 
   if (btm_cb.rnr.remname_active) {
@@ -120,8 +119,8 @@ static uint16_t get_clock_offset_from_storage(const RawAddress& remote_bda) {
                  : 0;
 }
 
-tBTM_STATUS btm_initiate_rem_name(const RawAddress& remote_bda, uint64_t timeout_ms,
-                                  tBTM_NAME_CMPL_CB* p_cb) {
+static tBTM_STATUS btm_initiate_rem_name(const RawAddress& remote_bda, uint64_t timeout_ms,
+                                         tBTM_NAME_CMPL_CB* p_cb) {
   /*** Make sure the device is ready ***/
   if (!get_btm_client_interface().local.BTM_IsDeviceUp()) {
     return tBTM_STATUS::BTM_WRONG_MODE;

@@ -68,6 +68,7 @@ class Server(context: Context) {
                         BluetoothProfile.OPP to ::Opp,
                         BluetoothProfile.MAP to ::Map,
                         BluetoothProfile.LE_AUDIO to ::LeAudio,
+                        BluetoothProfile.VOLUME_CONTROL to ::Vcp,
                     )
                     .filter { bluetoothAdapter.isEnabled }
                     .filter { bluetoothAdapter.getSupportedProfiles().contains(it.key) == true }

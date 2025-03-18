@@ -17,11 +17,6 @@ import wave
 from queue import Empty
 from typing import Optional
 
-from blueberry.tests.gd_sl4a.lib.ble_lib import generate_ble_advertise_objects
-from blueberry.tests.gd_sl4a.lib.bt_constants import adv_succ
-from blueberry.tests.gd_sl4a.lib.bt_constants import ble_advertise_settings_modes
-from blueberry.tests.gd_sl4a.lib.bt_constants import ble_advertise_settings_tx_powers
-from blueberry.tests.gd_sl4a.lib.bt_constants import bt_default_timeout
 from mobly.controllers.android_device import AndroidDevice
 
 
@@ -204,71 +199,3 @@ def write_record_file(file_name, audio_params, frames):
     wf.setframerate(audio_params['sample_rate'])
     wf.writeframes(frames)
     wf.close()
-
-
-def get_mac_address_of_generic_advertisement(scan_device, adv_device, adv_addr_type=None):
-    """Start generic advertisement and get it's mac address by LE scanning.
-
-    Args:
-        scan_ad: The Android device to use as the scanner.
-        adv_device: The Android device to use as the advertiser.
-        adv_addr_type: The address type for the advertiser (refer to AdvertiseSettings.java)
-
-    Returns:
-        mac_address: The mac address of the advertisement.
-        advertise_callback: The advertise callback id of the active
-            advertisement.
-    """
-    adv_device.sl4a.bleSetAdvertiseDataIncludeDeviceName(True)
-    adv_device.sl4a.bleSetAdvertiseSettingsAdvertiseMode(ble_advertise_settings_modes['low_latency'])
-    adv_device.sl4a.bleSetAdvertiseSettingsIsConnectable(True)
-    adv_device.sl4a.bleSetAdvertiseSettingsTxPowerLevel(ble_advertise_settings_tx_powers['high'])
-
-    if adv_addr_type is not None:
-        adv_device.sl4a.bleSetAdvertiseSettingsOwnAddressType(adv_addr_type)
-
-    advertise_callback, advertise_data, advertise_settings = (generate_ble_advertise_objects(adv_device.sl4a))
-    adv_device.sl4a.bleStartBleAdvertising(advertise_callback, advertise_data, advertise_settings)
-    try:
-        adv_device.ed.pop_event(adv_succ.format(advertise_callback), bt_default_timeout)
-    except Empty as err:
-        raise BtTestUtilsError("Advertiser did not start successfully {}".format(err))
-    filter_list = scan_device.sl4a.bleGenFilterList()
-    scan_settings = scan_device.sl4a.bleBuildScanSetting()
-    scan_callback = scan_device.sl4a.bleGenScanCallback()
-    scan_device.sl4a.bleSetScanFilterDeviceName(adv_device.sl4a.bluetoothGetLocalName())
-    scan_device.sl4a.bleBuildScanFilter(filter_list)
-    scan_device.sl4a.bleStartBleScan(filter_list, scan_settings, scan_callback)
-    try:
-        event = scan_device.sl4a.ed.pop_event("BleScan{}onScanResults".format(scan_callback), bt_default_timeout)
-    except Empty as err:
-        raise BtTestUtilsError("Scanner did not find advertisement {}".format(err))
-    mac_address = event['data']['Result']['deviceInfo']['address']
-    return mac_address, advertise_callback, scan_callback
-
-
-def clear_bonded_devices(ad: AndroidDevice):
-    """Clear bonded devices from the input Android device.
-
-    Args:
-        ad: the Android device performing the connection.
-    Returns:
-        True if clearing bonded devices was successful, false if unsuccessful.
-    """
-    bonded_device_list = ad.sl4a.bluetoothGetBondedDevices()
-    while bonded_device_list:
-        device_address = bonded_device_list[0]['address']
-        if not ad.sl4a.bluetoothUnbond(device_address):
-            ad.log.error("Failed to unbond {} from {}".format(device_address, ad.serial))
-            return False
-        ad.log.info("Successfully unbonded {} from {}".format(device_address, ad.serial))
-        #TODO: wait for BOND_STATE_CHANGED intent instead of waiting
-        time.sleep(1)
-
-        # If device was first connected using LE transport, after bonding it is
-        # accessible through it's LE address, and through it classic address.
-        # Unbonding it will unbond two devices representing different
-        # "addresses". Attempt to unbond such already unbonded devices will
-        # result in bluetoothUnbond returning false.
-        bonded_device_list = ad.sl4a.bluetoothGetBondedDevices()
-    return True

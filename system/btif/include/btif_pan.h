@@ -24,13 +24,11 @@
  *
  ******************************************************************************/
 
-#ifndef BTIF_PAN_H
-#define BTIF_PAN_H
+#pragma once
 
-#include <hardware/bt_pan.h>
+#include "hardware/bluetooth.h"
+#include "hardware/bt_pan.h"
 
-btpan_interface_t* btif_pan_interface();
+const btpan_interface_t* btif_pan_get_interface();
 void btif_pan_init();
 void btif_pan_cleanup();
-
-#endif

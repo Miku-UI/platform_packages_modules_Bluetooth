@@ -260,11 +260,11 @@ void bta_sys_cust_eir_register(tBTA_SYS_CUST_EIR_CBACK* p_cback);
 void bta_sys_add_cust_uuid(const tBTA_CUSTOM_UUID& curr);
 void bta_sys_remove_cust_uuid(const tBTA_CUSTOM_UUID& curr);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_SYS_ID> : enum_formatter<tBTA_SYS_ID> {};
 template <>
 struct formatter<tBTA_SYS_CONN_STATUS> : enum_formatter<tBTA_SYS_CONN_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_SYS_H */

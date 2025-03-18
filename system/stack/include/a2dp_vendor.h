@@ -100,30 +100,6 @@ const char* A2DP_VendorCodecName(const uint8_t* p_codec_info);
 // If the codec type is not recognized, the return value is false.
 bool A2DP_VendorCodecTypeEquals(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
 
-// Checks whether two A2DP vendor-specific codecs |p_codec_info_a| and
-// |p_codec_info_b| are exactly the same.
-// Returns true if the two codecs are exactly the same, otherwise false.
-// If the codec type is not recognized, the return value is false.
-bool A2DP_VendorCodecEquals(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b);
-
-// Gets the track sample rate value for the A2DP vendor-specific codec.
-// |p_codec_info| is a pointer to the vendor-specific codec_info to decode.
-// Returns the track sample rate on success, or -1 if |p_codec_info|
-// contains invalid codec information.
-int A2DP_VendorGetTrackSampleRate(const uint8_t* p_codec_info);
-
-// Gets the track bits per sample value for the A2DP vendor-specific codec.
-// |p_codec_info| is a pointer to the vendor-specific codec_info to decode.
-// Returns the track sample rate on success, or -1 if |p_codec_info|
-// contains invalid codec information.
-int A2DP_VendorGetTrackBitsPerSample(const uint8_t* p_codec_info);
-
-// Gets the channel count for the A2DP vendor-specific codec.
-// |p_codec_info| is a pointer to the vendor-specific codec_info to decode.
-// Returns the channel count on success, or -1 if |p_codec_info|
-// contains invalid codec information.
-int A2DP_VendorGetTrackChannelCount(const uint8_t* p_codec_info);
-
 // Gets the bitrate for the A2DP vendor-specific codec.
 // |p_codec_info| is a pointer to the vendor-specific codec_info to decode.
 // Returns the channel count on success, or -1 if |p_codec_info|
@@ -136,14 +112,6 @@ int A2DP_VendorGetBitRate(const uint8_t* p_codec_info);
 // Returns the channel type on success, or -1 if |p_codec_info|
 // contains invalid codec information.
 int A2DP_VendorGetSinkTrackChannelType(const uint8_t* p_codec_info);
-
-// Gets the A2DP codec-specific audio data timestamp from an audio packet.
-// |p_codec_info| contains the codec information.
-// |p_data| contains the audio data.
-// The timestamp is stored in |p_timestamp|.
-// Returns true on success, otherwise false.
-bool A2DP_VendorGetPacketTimestamp(const uint8_t* p_codec_info, const uint8_t* p_data,
-                                   uint32_t* p_timestamp);
 
 // Builds A2DP vendor-specific codec header for audio data.
 // |p_codec_info| contains the codec information.

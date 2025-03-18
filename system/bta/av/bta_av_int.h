@@ -37,6 +37,7 @@
 #include "macros.h"
 #include "osi/include/list.h"
 #include "stack/include/a2dp_constants.h"
+#include "stack/include/avct_api.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hci_error_code.h"
@@ -63,8 +64,7 @@ enum {
   /* these events are handled by the AV stream state machine */
   BTA_AV_API_OPEN_EVT,
   BTA_AV_API_CLOSE_EVT,
-  BTA_AV_AP_START_EVT, /* the following 2 events must be in the same order as
-                          the *API_*EVT */
+  BTA_AV_AP_START_EVT,
   BTA_AV_AP_STOP_EVT,
   BTA_AV_API_RECONFIG_EVT,
   BTA_AV_API_PROTECT_REQ_EVT,
@@ -116,9 +116,6 @@ enum {
   BTA_AV_DEREG_COMP_EVT,
   BTA_AV_AVDT_RPT_CONN_EVT,
   BTA_AV_API_PEER_SEP_EVT,
-  BTA_AV_API_START_EVT, /* the following 2 events must be in the same order as
-                           the *AP_*EVT */
-  BTA_AV_API_STOP_EVT,
   BTA_AV_API_SET_LATENCY_EVT,
 };
 
@@ -132,10 +129,6 @@ enum {
 /* events that do not go through state machine */
 #define BTA_AV_FIRST_NSM_EVT BTA_AV_API_ENABLE_EVT
 #define BTA_AV_LAST_NSM_EVT BTA_AV_API_SET_LATENCY_EVT
-
-/* API events passed to both SSMs (by bta_av_api_to_ssm) */
-#define BTA_AV_FIRST_A2S_API_EVT BTA_AV_API_START_EVT
-#define BTA_AV_FIRST_A2S_SSM_EVT BTA_AV_AP_START_EVT
 
 #define BTA_AV_LAST_EVT BTA_AV_API_SET_LATENCY_EVT
 
@@ -262,13 +255,13 @@ typedef struct {
   bool is_low_latency;
 } tBTA_AV_API_SET_LATENCY;
 
-/* data type for BTA_AV_API_START_EVT and bta_av_do_start */
+/* data type for BTA_AV_AP_START_EVT from API and bta_av_do_start */
 typedef struct {
   BT_HDR_RIGID hdr;
   bool use_latency_mode;
 } tBTA_AV_DO_START;
 
-/* data type for BTA_AV_API_STOP_EVT */
+/* data type for BTA_AV_AP_STOP_EVT from API*/
 typedef struct {
   BT_HDR_RIGID hdr;
   bool suspend;
@@ -526,13 +519,13 @@ public:
   bool use_rc;                    /* true if AVRCP is allowed */
   bool started;                   /* true if stream started */
   bool use_rtp_header_marker_bit; /* true if the encoded data packets have RTP
-                                   * headers, and the Marker bit in the header
+                                   * headers, with the Marker bit in the header
                                    * is set according to RFC 6416 */
   uint8_t co_started;             /* non-zero, if stream started from call-out perspective */
   bool recfg_sup;                 /* true if the first attempt to reconfigure the stream was
-                                     successful, else False if command fails */
-  bool suspend_sup;               /* true if Suspend stream is supported, else false if
-                                     suspend command fails */
+                                     successful, false if command fails */
+  bool suspend_sup;               /* true if Suspend stream is supported, false if suspend command
+                                     fails */
   bool deregistering;             /* true if deregistering */
   bool sco_suspend;               /* true if SUSPEND is issued automatically for SCO */
   uint8_t coll_mask;              /* Mask to check incoming and outgoing collision */
@@ -708,7 +701,7 @@ bool bta_av_chk_start(tBTA_AV_SCB* p_scb);
 void bta_av_restore_switch(void);
 void bta_av_conn_cback(uint8_t handle, const RawAddress& bd_addr, uint8_t event, tAVDT_CTRL* p_data,
                        uint8_t scb_index);
-uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl, uint8_t lidx);
+uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, tAVCT_ROLE role, uint8_t shdl, uint8_t lidx);
 void bta_av_stream_chg(tBTA_AV_SCB* p_scb, bool started);
 bool bta_av_is_scb_opening(tBTA_AV_SCB* p_scb);
 bool bta_av_is_scb_incoming(tBTA_AV_SCB* p_scb);
@@ -814,9 +807,9 @@ void bta_av_vendor_offload_stop(void);
 void bta_av_st_rc_timer(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data);
 void bta_av_api_set_peer_sep(tBTA_AV_DATA* p_data);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_AV_RS_RES> : enum_formatter<tBTA_AV_RS_RES> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_AV_INT_H */

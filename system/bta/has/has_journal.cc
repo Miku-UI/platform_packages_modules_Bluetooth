@@ -17,6 +17,12 @@
 
 #include "has_journal.h"
 
+#include <cstdint>
+#include <cstdio>
+#include <ctime>
+#include <ostream>
+
+#include "has_ctp.h"
 #include "internal_include/bt_trace.h"
 
 namespace bluetooth::le_audio {

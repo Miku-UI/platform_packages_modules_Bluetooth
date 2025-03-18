@@ -16,46 +16,36 @@
 
 package com.android.pandora
 
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothServerSocket
+import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
+import com.google.protobuf.Any
 import com.google.protobuf.ByteString
 import io.grpc.stub.StreamObserver
 import java.io.Closeable
 import java.io.IOException
-import java.io.InputStream
-import java.io.OutputStream
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.withContext
-import pandora.HostProto.Connection
-import pandora.L2CAPGrpc.L2CAPImplBase
-import pandora.L2capProto.AcceptL2CAPChannelRequest
-import pandora.L2capProto.AcceptL2CAPChannelResponse
-import pandora.L2capProto.CreateLECreditBasedChannelRequest
-import pandora.L2capProto.CreateLECreditBasedChannelResponse
-import pandora.L2capProto.ListenL2CAPChannelRequest
-import pandora.L2capProto.ListenL2CAPChannelResponse
-import pandora.L2capProto.ReceiveDataRequest
-import pandora.L2capProto.ReceiveDataResponse
-import pandora.L2capProto.SendDataRequest
-import pandora.L2capProto.SendDataResponse
+import kotlinx.coroutines.flow.flow
+import pandora.l2cap.L2CAPGrpc.L2CAPImplBase
+import pandora.l2cap.L2CAPProto.*
 
 @kotlinx.coroutines.ExperimentalCoroutinesApi
 class L2cap(val context: Context) : L2CAPImplBase(), Closeable {
     private val TAG = "PandoraL2cap"
     private val scope: CoroutineScope
     private val BLUETOOTH_SERVER_SOCKET_TIMEOUT: Int = 10000
+    private val channelIdCounter = AtomicLong(1)
     private val BUFFER_SIZE = 512
 
     private val bluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter = bluetoothManager.adapter
-    private var connectionInStreamMap: HashMap<Connection, InputStream> = hashMapOf()
-    private var connectionOutStreamMap: HashMap<Connection, OutputStream> = hashMapOf()
-    private var connectionServerSocketMap: HashMap<Connection, BluetoothServerSocket> = hashMapOf()
+    private val channels: HashMap<Long, BluetoothSocket> = hashMapOf()
 
     init {
         // Init the CoroutineScope
@@ -67,127 +57,157 @@ class L2cap(val context: Context) : L2CAPImplBase(), Closeable {
         scope.cancel()
     }
 
-    suspend fun receive(inStream: InputStream): ByteArray {
-        return withContext(Dispatchers.IO) {
-            val buf = ByteArray(BUFFER_SIZE)
-            inStream.read(buf, 0, BUFFER_SIZE) // blocking
-            Log.i(TAG, "receive: $buf")
-            buf
-        }
-    }
-
-    /** Open a BluetoothServerSocket to accept connections */
-    override fun listenL2CAPChannel(
-        request: ListenL2CAPChannelRequest,
-        responseObserver: StreamObserver<ListenL2CAPChannelResponse>,
+    override fun connect(
+        request: ConnectRequest,
+        responseObserver: StreamObserver<ConnectResponse>,
     ) {
         grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "listenL2CAPChannel: secure=${request.secure}")
-            val connection = request.connection
-            val bluetoothServerSocket =
-                if (request.secure) {
-                    bluetoothAdapter.listenUsingL2capChannel()
-                } else {
-                    bluetoothAdapter.listenUsingInsecureL2capChannel()
-                }
-            connectionServerSocketMap[connection] = bluetoothServerSocket
-            ListenL2CAPChannelResponse.newBuilder().build()
-        }
-    }
-
-    override fun acceptL2CAPChannel(
-        request: AcceptL2CAPChannelRequest,
-        responseObserver: StreamObserver<AcceptL2CAPChannelResponse>,
-    ) {
-        grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "acceptL2CAPChannel")
-
-            val connection = request.connection
-            val bluetoothServerSocket = connectionServerSocketMap[connection]
-            try {
-                val bluetoothSocket =
-                    bluetoothServerSocket!!.accept(BLUETOOTH_SERVER_SOCKET_TIMEOUT)
-                connectionInStreamMap[connection] = bluetoothSocket.getInputStream()!!
-                connectionOutStreamMap[connection] = bluetoothSocket.getOutputStream()!!
-            } catch (e: IOException) {
-                Log.e(TAG, "bluetoothServerSocket not accepted", e)
-                throw e
-            }
-
-            AcceptL2CAPChannelResponse.newBuilder().build()
-        }
-    }
-
-    /** Set device to send LE based connection request */
-    override fun createLECreditBasedChannel(
-        request: CreateLECreditBasedChannelRequest,
-        responseObserver: StreamObserver<CreateLECreditBasedChannelResponse>,
-    ) {
-        // Creates a gRPC coroutine in a given coroutine scope which executes a given suspended
-        // function
-        // returning a gRPC response and sends it on a given gRPC stream observer.
-        grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "createLECreditBasedChannel: secure=${request.secure}, psm=${request.psm}")
-            val connection = request.connection
             val device = request.connection.toBluetoothDevice(bluetoothAdapter)
-            val psm = request.psm
+
+            val psm =
+                when {
+                    request.hasBasic() -> request.basic.psm
+                    request.hasLeCreditBased() -> request.leCreditBased.spsm
+                    request.hasEnhancedCreditBased() -> request.enhancedCreditBased.spsm
+                    else -> throw RuntimeException("unreachable")
+                }
+            Log.i(TAG, "connect: $device psm: $psm")
+
+            val bluetoothSocket = device.createInsecureL2capChannel(psm)
+            bluetoothSocket.connect()
+            val channelId = getNewChannelId()
+            channels.put(channelId, bluetoothSocket)
+
+            Log.d(TAG, "connect: channelId=$channelId")
+            ConnectResponse.newBuilder().setChannel(craftChannel(channelId)).build()
+        }
+    }
+
+    override fun waitConnection(
+        request: WaitConnectionRequest,
+        responseObserver: StreamObserver<WaitConnectionResponse>,
+    ) {
+        grpcUnary(scope, responseObserver) {
+            val device: BluetoothDevice? =
+                try {
+                    request.connection.toBluetoothDevice(bluetoothAdapter)
+                } catch (e: Exception) {
+                    Log.w(TAG, e)
+                    null
+                }
+
+            Log.i(TAG, "waitConnection: $device")
+
+            val psm =
+                when {
+                    request.hasBasic() -> request.basic.psm
+                    request.hasLeCreditBased() -> request.leCreditBased.spsm
+                    request.hasEnhancedCreditBased() -> request.enhancedCreditBased.spsm
+                    else -> throw RuntimeException("unreachable")
+                }
+
+            var bluetoothSocket: BluetoothSocket?
+
+            while (true) {
+                val bluetoothServerSocket =
+                    if (psm == 0) {
+                        bluetoothAdapter.listenUsingInsecureL2capChannel()
+                    } else {
+                        bluetoothAdapter.listenUsingInsecureL2capOn(psm)
+                    }
+                bluetoothSocket = bluetoothServerSocket.accept()
+                bluetoothServerSocket.close()
+                if (device != null && !bluetoothSocket.getRemoteDevice().equals(device)) continue
+                break
+            }
+
+            val channelId = getNewChannelId()
+            channels.put(channelId, bluetoothSocket!!)
+
+            Log.d(TAG, "waitConnection: channelId=$channelId")
+            WaitConnectionResponse.newBuilder().setChannel(craftChannel(channelId)).build()
+        }
+    }
+
+    override fun disconnect(
+        request: DisconnectRequest,
+        responseObserver: StreamObserver<DisconnectResponse>,
+    ) {
+        grpcUnary(scope, responseObserver) {
+            val channel = request.channel
+            val bluetoothSocket = channel.toBluetoothSocket(channels)
+            Log.i(TAG, "disconnect: ${channel.id()} ")
 
             try {
-                val bluetoothSocket =
-                    if (request.secure) {
-                        device.createL2capChannel(psm)
-                    } else {
-                        device.createInsecureL2capChannel(psm)
-                    }
-                bluetoothSocket.connect()
-                connectionInStreamMap[connection] = bluetoothSocket.getInputStream()!!
-                connectionOutStreamMap[connection] = bluetoothSocket.getOutputStream()!!
+                bluetoothSocket.close()
+                DisconnectResponse.getDefaultInstance()
             } catch (e: IOException) {
-                Log.d(TAG, "bluetoothSocket not connected: $e")
-                throw e
-            }
+                Log.e(TAG, "disconnect: exception while closing the socket: $e")
 
-            // Response sent to client
-            CreateLECreditBasedChannelResponse.newBuilder().build()
+                DisconnectResponse.newBuilder()
+                    .setErrorValue(CommandRejectReason.COMMAND_NOT_UNDERSTOOD_VALUE)
+                    .build()
+            } finally {
+                channels.remove(channel.id())
+            }
         }
     }
 
-    /** send data packet */
-    override fun sendData(
-        request: SendDataRequest,
-        responseObserver: StreamObserver<SendDataResponse>,
+    override fun waitDisconnection(
+        request: WaitDisconnectionRequest,
+        responseObserver: StreamObserver<WaitDisconnectionResponse>,
     ) {
         grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "sendDataPacket: data=${request.data}")
-            val buffer = request.data!!.toByteArray()
-            val connection = request.connection
-            val outputStream = connectionOutStreamMap[connection]!!
+            Log.i(TAG, "waitDisconnection: ${request.channel.id()}")
+            val bluetoothSocket = request.channel.toBluetoothSocket(channels)
 
-            withContext(Dispatchers.IO) {
-                try {
-                    outputStream.write(buffer)
-                    outputStream.flush()
-                } catch (e: IOException) {
-                    Log.e(TAG, "Exception during writing to sendDataPacket output stream", e)
-                }
-            }
+            while (bluetoothSocket.isConnected()) Thread.sleep(100)
 
-            // Response sent to client
-            SendDataResponse.newBuilder().build()
+            WaitDisconnectionResponse.getDefaultInstance()
         }
     }
 
-    override fun receiveData(
-        request: ReceiveDataRequest,
-        responseObserver: StreamObserver<ReceiveDataResponse>,
-    ) {
+    override fun send(request: SendRequest, responseObserver: StreamObserver<SendResponse>) {
         grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "receiveData")
-            val connection = request.connection
-            val inputStream = connectionInStreamMap[connection]!!
-            val buf = receive(inputStream)
+            Log.i(TAG, "send")
+            val bluetoothSocket = request.channel.toBluetoothSocket(channels)
+            val outputStream = bluetoothSocket.outputStream
 
-            ReceiveDataResponse.newBuilder().setData(ByteString.copyFrom(buf)).build()
+            outputStream.write(request.data.toByteArray())
+            outputStream.flush()
+
+            SendResponse.newBuilder().build()
         }
     }
+
+    override fun receive(
+        request: ReceiveRequest,
+        responseObserver: StreamObserver<ReceiveResponse>,
+    ) {
+        Log.i(TAG, "receive")
+        val bluetoothSocket = request.channel.toBluetoothSocket(channels)
+        val inputStream = bluetoothSocket.inputStream
+        grpcServerStream(scope, responseObserver) {
+            flow {
+                val buffer = ByteArray(BUFFER_SIZE)
+                inputStream.read(buffer, 0, BUFFER_SIZE)
+                val data = ByteString.copyFrom(buffer)
+                val response = ReceiveResponse.newBuilder().setData(data).build()
+                emit(response)
+            }
+        }
+    }
+
+    fun getNewChannelId(): Long = channelIdCounter.getAndIncrement()
+
+    fun craftChannel(id: Long): Channel {
+        val cookie = Any.newBuilder().setValue(ByteString.copyFromUtf8(id.toString())).build()
+        val channel = Channel.newBuilder().setCookie(cookie).build()
+        return channel
+    }
+
+    fun Channel.id(): Long = this.cookie.value.toStringUtf8().toLong()
+
+    fun Channel.toBluetoothSocket(channels: HashMap<Long, BluetoothSocket>): BluetoothSocket =
+        channels.get(this.id())!!
 }

@@ -27,11 +27,16 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avct_api.h"
+#include "avrc_defs.h"
 #include "avrc_int.h"
+#include "avrcp.sysprop.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_config.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/properties.h"
@@ -82,6 +87,8 @@ static const uint8_t avrc_ctrl_event_map[] = {
 /* Flags definitions for AVRC_MsgReq */
 #define AVRC_MSG_MASK_IS_VENDOR_CMD 0x01
 #define AVRC_MSG_MASK_IS_CONTINUATION_RSP 0x02
+
+static void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask);
 
 /******************************************************************************
  *
@@ -154,7 +161,7 @@ void avrc_flush_cmd_q(uint8_t handle) {
  * Returns          Nothing.
  *
  *****************************************************************************/
-void avrc_process_timeout(void* data) {
+static void avrc_process_timeout(void* data) {
   tAVRC_PARAM* param = (tAVRC_PARAM*)data;
 
   log::verbose("AVRC: command timeout (handle=0x{:02x}, label=0x{:02x})", param->handle,
@@ -192,7 +199,7 @@ void avrc_send_next_vendor_cmd(uint8_t handle) {
     p_next_cmd->layer_specific &= 0xFF;             /* AVCT_DATA_CTRL or AVCT_DATA_BROWSE */
 
     log::verbose("AVRC: Dequeuing command 0x{} (handle=0x{:02x}, label=0x{:02x})",
-                 fmt::ptr(p_next_cmd), handle, next_label);
+                 std::format_ptr(p_next_cmd), handle, next_label);
 
     /* Send the message */
     if ((AVCT_MsgReq(handle, next_label, AVCT_CMD, p_next_cmd)) == AVCT_SUCCESS) {
@@ -217,14 +224,19 @@ void avrc_send_next_vendor_cmd(uint8_t handle) {
  * Returns          Nothing.
  *
  *****************************************************************************/
-void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
+static void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask) {
+  if (!avrc_cb.ccb_int[handle].tle) {
+    log::warn("Unable to start response timer handle=0x{:02x} label=0x{:02x} msg_mask:0x{:02x}",
+              handle, label, msg_mask);
+    return;
+  }
+
   tAVRC_PARAM* param = static_cast<tAVRC_PARAM*>(osi_malloc(sizeof(tAVRC_PARAM)));
   param->handle = handle;
   param->label = label;
   param->msg_mask = msg_mask;
 
-  log::verbose("AVRC: starting timer (handle=0x{:02x}, label=0x{:02x})", handle, label);
-
+  log::verbose("AVRC: starting timer (handle=0x{:02x} label=0x{:02x})", handle, label);
   alarm_set_on_mloop(avrc_cb.ccb_int[handle].tle, AVRC_CMD_TOUT_MS, avrc_process_timeout, param);
 }
 
@@ -380,9 +392,8 @@ static BT_HDR* avrc_proc_vendor_command(uint8_t handle, uint8_t label, BT_HDR* p
     log::error("commands must be in single packet pdu:0x{:x}", *p_data);
     /* use the current GKI buffer to send the reject */
     status = AVRC_STS_BAD_CMD;
-  }
-  /* check if there are fragments waiting to be sent */
-  else if (avrc_cb.fcb[handle].frag_enabled) {
+  } else if (avrc_cb.fcb[handle].frag_enabled) {
+    /* check if there are fragments waiting to be sent */
     p_fcb = &avrc_cb.fcb[handle];
     if (p_msg->company_id == AVRC_CO_METADATA) {
       switch (*p_data) {
@@ -1060,16 +1071,15 @@ uint16_t AVRC_GetProfileVersion() {
  *
  *****************************************************************************/
 uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb, const RawAddress& peer_addr) {
-  uint16_t status;
-  tAVCT_CC cc;
+  tAVCT_CC cc = {
+          .p_ctrl_cback = avrc_ctrl_cback,         /* Control callback */
+          .p_msg_cback = avrc_msg_cback,           /* Message callback */
+          .pid = UUID_SERVCLASS_AV_REMOTE_CONTROL, /* Profile ID */
+          .role = p_ccb->conn,                     /* Initiator/acceptor role */
+          .control = p_ccb->control,               /* Control role (Control/Target) */
+  };
 
-  cc.p_ctrl_cback = avrc_ctrl_cback;         /* Control callback */
-  cc.p_msg_cback = avrc_msg_cback;           /* Message callback */
-  cc.pid = UUID_SERVCLASS_AV_REMOTE_CONTROL; /* Profile ID */
-  cc.role = p_ccb->conn;                     /* Initiator/acceptor role */
-  cc.control = p_ccb->control;               /* Control role (Control/Target) */
-
-  status = AVCT_CreateConn(p_handle, &cc, peer_addr);
+  uint16_t status = AVCT_CreateConn(p_handle, &cc, peer_addr);
   if (status == AVCT_SUCCESS) {
     avrc_cb.ccb[*p_handle] = *p_ccb;
     memset(&avrc_cb.ccb_int[*p_handle], 0, sizeof(tAVRC_CONN_INT_CB));
@@ -1078,7 +1088,8 @@ uint16_t AVRC_Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb, const RawAddress& pe
     avrc_cb.ccb_int[*p_handle].tle = alarm_new("avrcp.commandTimer");
     avrc_cb.ccb_int[*p_handle].cmd_q = fixed_queue_new(SIZE_MAX);
   }
-  log::verbose("role: {}, control:{} status:{}, handle:{}", cc.role, cc.control, status, *p_handle);
+  log::verbose("role: {}, control:0x{:x} status:{}, handle:{}", avct_role_text(cc.role), cc.control,
+               status, *p_handle);
 
   return status;
 }
@@ -1121,7 +1132,7 @@ uint16_t AVRC_Close(uint8_t handle) {
  *                  the connection.
  *
  *****************************************************************************/
-uint16_t AVRC_OpenBrowse(uint8_t handle, uint8_t conn_role) {
+uint16_t AVRC_OpenBrowse(uint8_t handle, tAVCT_ROLE conn_role) {
   return AVCT_CreateBrowse(handle, conn_role);
 }
 
@@ -1298,8 +1309,8 @@ uint16_t AVRC_MsgReq(uint8_t handle, uint8_t label, uint8_t ctype, BT_HDR* p_pkt
      * command
      * is received (exception is continuation request command
      * must sent that to get additional response frags) */
-    log::verbose("AVRC: Enqueuing command 0x{} (handle=0x{:02x}, label=0x{:02x})", fmt::ptr(p_pkt),
-                 handle, label);
+    log::verbose("AVRC: Enqueuing command 0x{} (handle=0x{:02x}, label=0x{:02x})",
+                 std::format_ptr(p_pkt), handle, label);
 
     /* label in BT_HDR (will need this later when the command is dequeued) */
     p_pkt->layer_specific = (label << 8) | (p_pkt->layer_specific & 0xFF);

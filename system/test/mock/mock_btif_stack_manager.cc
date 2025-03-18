@@ -22,6 +22,9 @@
 #include "osi/include/future.h"
 #include "test/common/core_interface.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 static future_t* hack_future;
 
 future_t* stack_manager_get_hack_future() { return hack_future; }

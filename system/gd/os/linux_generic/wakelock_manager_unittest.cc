@@ -24,20 +24,14 @@
 #include <unordered_map>
 
 #include "common/bind.h"
-#include "flatbuffers/flatbuffers.h"
 #include "os/handler.h"
 #include "os/thread.h"
-#include "wakelock_manager_generated.h"
 
 namespace testing {
 
-using bluetooth::os::FinishWakelockManagerDataBuffer;
-using bluetooth::os::GetWakelockManagerData;
 using bluetooth::os::Handler;
 using bluetooth::os::Thread;
 using bluetooth::os::WakelockManager;
-using bluetooth::os::WakelockManagerData;
-using bluetooth::os::WakelockManagerDataBuilder;
 
 class TestOsCallouts : public WakelockManager::OsCallouts {
 public:
@@ -165,28 +159,8 @@ TEST_F(WakelockManagerTest, test_with_os_callouts_in_a_loop_and_dump) {
     ASSERT_THAT(os_callouts.GetNetAcquiredCount(WakelockManager::kBtWakelockId), Optional(Eq(0)));
   }
 
-  {
-    flatbuffers::FlatBufferBuilder builder(1024);
-    auto offset = WakelockManager::Get().GetDumpsysData(&builder);
-    FinishWakelockManagerDataBuffer(builder, offset);
-    auto data = GetWakelockManagerData(builder.GetBufferPointer());
-
-    ASSERT_EQ(data->acquired_count(), 1000);
-    ASSERT_EQ(data->released_count(), 1000);
-  }
-
   WakelockManager::Get().CleanUp();
   SyncHandler();
-
-  {
-    flatbuffers::FlatBufferBuilder builder(1024);
-    auto offset = WakelockManager::Get().GetDumpsysData(&builder);
-    FinishWakelockManagerDataBuffer(builder, offset);
-    auto data = GetWakelockManagerData(builder.GetBufferPointer());
-
-    ASSERT_EQ(data->acquired_count(), 0);
-    ASSERT_EQ(data->released_count(), 0);
-  }
 }
 
 }  // namespace testing

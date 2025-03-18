@@ -18,11 +18,13 @@
 #define ANDROID_INCLUDE_BT_HEARING_AID_H
 
 #include <hardware/bluetooth.h>
-#include <raw_address.h>
+
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace hearing_aid {
 
+// Must be kept in sync with BluetoothProfile.java
 enum class ConnectionState { DISCONNECTED = 0, CONNECTING, CONNECTED, DISCONNECTING };
 
 class HearingAidCallbacks {

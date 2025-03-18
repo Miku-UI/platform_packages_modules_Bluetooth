@@ -30,10 +30,6 @@ bool gatt_security_check_start(tGATT_CLCB* /* p_clcb */) {
   inc_func_call_count(__func__);
   return false;
 }
-tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB* /* p_clcb */) {
-  inc_func_call_count(__func__);
-  return GATT_SEC_NONE;
-}
 tGATT_SEC_ACTION gatt_get_sec_act(tGATT_TCB* /* p_tcb */) {
   inc_func_call_count(__func__);
   return GATT_SEC_NONE;

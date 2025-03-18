@@ -131,8 +131,11 @@ void bluetooth::shim::ACL_IgnoreAllLeConnections() {
 
 void bluetooth::shim::ACL_ReadConnectionAddress(uint16_t handle, RawAddress& conn_addr,
                                                 tBLE_ADDR_TYPE* p_addr_type, bool ota_address) {
-  auto local_address =
-          Stack::GetInstance()->GetAcl()->GetConnectionLocalAddress(handle, ota_address);
+  std::promise<bluetooth::hci::AddressWithType> promise;
+  auto future = promise.get_future();
+  Stack::GetInstance()->GetAcl()->GetConnectionLocalAddress(handle, ota_address,
+                                                            std::move(promise));
+  auto local_address = future.get();
 
   conn_addr = ToRawAddress(local_address.GetAddress());
   *p_addr_type = static_cast<tBLE_ADDR_TYPE>(local_address.GetAddressType());
@@ -140,15 +143,20 @@ void bluetooth::shim::ACL_ReadConnectionAddress(uint16_t handle, RawAddress& con
 
 void bluetooth::shim::ACL_ReadPeerConnectionAddress(uint16_t handle, RawAddress& conn_addr,
                                                     tBLE_ADDR_TYPE* p_addr_type, bool ota_address) {
-  auto remote_ota_address =
-          Stack::GetInstance()->GetAcl()->GetConnectionPeerAddress(handle, ota_address);
+  std::promise<bluetooth::hci::AddressWithType> promise;
+  auto future = promise.get_future();
+  Stack::GetInstance()->GetAcl()->GetConnectionPeerAddress(handle, ota_address, std::move(promise));
+  auto remote_ota_address = future.get();
 
   conn_addr = ToRawAddress(remote_ota_address.GetAddress());
   *p_addr_type = static_cast<tBLE_ADDR_TYPE>(remote_ota_address.GetAddressType());
 }
 
 std::optional<uint8_t> bluetooth::shim::ACL_GetAdvertisingSetConnectedTo(const RawAddress& addr) {
-  return Stack::GetInstance()->GetAcl()->GetAdvertisingSetConnectedTo(addr);
+  std::promise<std::optional<uint8_t>> promise;
+  auto future = promise.get_future();
+  Stack::GetInstance()->GetAcl()->GetAdvertisingSetConnectedTo(addr, std::move(promise));
+  return future.get();
 }
 
 void bluetooth::shim::ACL_AddToAddressResolution(const tBLE_BD_ADDR& legacy_address_with_type,

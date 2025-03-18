@@ -38,7 +38,7 @@
  * Define port settings structure send from the application in the
  * set settings request, or to the application in the set settings indication.
  */
-typedef struct {
+struct PortSettings {
 #define PORT_BAUD_RATE_9600 0x03
 
   uint8_t baud_rate;
@@ -70,8 +70,7 @@ typedef struct {
 
 #define PORT_XOFF_DC3 0x13
   uint8_t xoff_char;
-
-} tPORT_STATE;
+};
 
 /*
  * Define the callback function prototypes.  Parameters are specific
@@ -180,10 +179,10 @@ inline std::string port_result_text(const tPORT_RESULT& result) {
   RETURN_UNKNOWN_TYPE_STRING(tPORT_RESULT, result);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPORT_RESULT> : enum_formatter<tPORT_RESULT> {};
-}  // namespace fmt
+}  // namespace std
 
 typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle);
 
@@ -350,28 +349,28 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
  * Function         PORT_SetState
  *
  * Description      This function configures connection according to the
- *                  specifications in the tPORT_STATE structure.
+ *                  specifications in the PortSettings structure.
  *
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
- *                  p_settings - Pointer to a tPORT_STATE structure containing
+ *                  p_settings - Pointer to a PortSettings structure containing
  *                               configuration information for the connection.
  *
  ******************************************************************************/
-[[nodiscard]] int PORT_SetState(uint16_t handle, tPORT_STATE* p_settings);
+[[nodiscard]] int PORT_SetSettings(uint16_t handle, PortSettings* p_settings);
 
 /*******************************************************************************
  *
- * Function         PORT_GetState
+ * Function         PORT_GetSettings
  *
- * Description      This function is called to fill tPORT_STATE structure
+ * Description      This function is called to fill PortSettings structure
  *                  with the current control settings for the port
  *
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
- *                  p_settings - Pointer to a tPORT_STATE structure in which
+ *                  p_settings - Pointer to a PortSettings structure in which
  *                               configuration information is returned.
  *
  ******************************************************************************/
-[[nodiscard]] int PORT_GetState(uint16_t handle, tPORT_STATE* p_settings);
+[[nodiscard]] int PORT_GetSettings(uint16_t handle, PortSettings* p_settings);
 
 /*******************************************************************************
  *

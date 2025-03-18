@@ -24,7 +24,6 @@
 #include <vector>
 
 #include "bta_gatt_queue.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/eatt/eatt.h"
 

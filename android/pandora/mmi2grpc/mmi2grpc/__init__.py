@@ -15,17 +15,19 @@
 
 __version__ = "0.0.1"
 
+import sys
+import time
 from threading import Thread
 from typing import List
-import time
-import sys
 
 import grpc
-
+from mmi2grpc._helpers import format_proxy
+from mmi2grpc._modem import Modem
+from mmi2grpc._rootcanal import RootCanal
 from mmi2grpc.a2dp import A2DPProxy
 from mmi2grpc.avrcp import AVRCPProxy
-from mmi2grpc.gatt import GATTProxy
 from mmi2grpc.gap import GAPProxy
+from mmi2grpc.gatt import GATTProxy
 from mmi2grpc.hap import HAPProxy
 from mmi2grpc.hfp import HFPProxy
 from mmi2grpc.hid import HIDProxy
@@ -39,10 +41,6 @@ from mmi2grpc.rfcomm import RFCOMMProxy
 from mmi2grpc.sdp import SDPProxy
 from mmi2grpc.sm import SMProxy
 from mmi2grpc.vcp import VCPProxy
-from mmi2grpc._helpers import format_proxy
-from mmi2grpc._rootcanal import RootCanal
-from mmi2grpc._modem import Modem
-
 from pandora.host_grpc import Host
 
 PANDORA_SERVER_PORT = 8999

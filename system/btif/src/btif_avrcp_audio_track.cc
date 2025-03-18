@@ -25,14 +25,15 @@
 
 #include <aaudio/AAudio.h>
 #include <bluetooth/log.h>
-#include <utils/StrongPointer.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <thread>
 
-#include "internal_include/bt_target.h"
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-using namespace android;
 using namespace bluetooth;
 
 typedef struct {
@@ -77,7 +78,7 @@ void BtifAvrcpAudioErrorHandle() {
 
   trackHolder->stream = stream;
 
-  if (trackHolder != NULL && trackHolder->stream != NULL) {
+  if (trackHolder != nullptr && trackHolder->stream != NULL) {
     log::debug("AAudio Error handle: restart A2dp Sink AudioTrack");
     AAudioStream_requestStart(trackHolder->stream);
   }

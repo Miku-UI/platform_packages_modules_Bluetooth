@@ -24,7 +24,7 @@ namespace bluetooth::le_audio {
 
 struct CodecInterface::Impl : public MockCodecInterface {
 public:
-  Impl(const types::LeAudioCodecId& codec_id) { output_channel_data_.resize(1); }
+  Impl(const types::LeAudioCodecId& /*codec_id*/) { output_channel_data_.resize(1); }
   ~Impl() = default;
 
   std::vector<int16_t>& GetDecodedSamples() { return output_channel_data_; }

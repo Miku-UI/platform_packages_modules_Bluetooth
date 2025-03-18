@@ -36,6 +36,9 @@
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
 #endif
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;

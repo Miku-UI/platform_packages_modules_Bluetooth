@@ -10,6 +10,9 @@ package {
 cc_library_static {
     name: "libbt-sbc-encoder",
     defaults: ["fluoride_defaults"],
+    cflags: [
+        "-Wno-missing-prototypes",
+    ],
     srcs: [
         "srce/sbc_analysis.c",
         "srce/sbc_dct.c",

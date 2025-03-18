@@ -16,8 +16,7 @@
  *
  ******************************************************************************/
 
-#ifndef BTIF_DM_H
-#define BTIF_DM_H
+#pragma once
 
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_sec_api.h"
@@ -25,6 +24,7 @@
 #include "hci/le_rand_callback.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bte_appl.h"
+#include "stack/include/acl_api_types.h"
 #include "types/raw_address.h"
 
 /*******************************************************************************
@@ -97,13 +97,12 @@ bool btif_dm_proc_rmt_oob(const RawAddress& bd_addr, Octet16* p_c, Octet16* p_r)
 void btif_dm_generate_local_oob_data(tBT_TRANSPORT transport);
 
 void btif_check_device_in_inquiry_db(const RawAddress& address);
+bool btif_get_address_type(const RawAddress& bda, tBLE_ADDR_TYPE* p_addr_type);
+bool btif_get_device_type(const RawAddress& bda, int* p_device_type);
 
 void btif_dm_clear_event_filter();
-
 void btif_dm_clear_event_mask();
-
 void btif_dm_clear_filter_accept_list();
-
 void btif_dm_disconnect_all_acls();
 
 void btif_dm_le_rand(bluetooth::hci::LeRandCallback callback);
@@ -116,8 +115,16 @@ void btif_dm_set_event_filter_inquiry_result_all_devices();
 void btif_dm_metadata_changed(const RawAddress& remote_bd_addr, int key,
                               std::vector<uint8_t> value);
 
+void btif_dm_hh_open_failed(RawAddress* bdaddr);
+
 /*callout for reading SMP properties from Text file*/
 bool btif_dm_get_smp_config(tBTE_APPL_CFG* p_cfg);
+
+void btif_dm_enable_service(tBTA_SERVICE_ID service_id, bool enable);
+
+void BTIF_dm_disable();
+void BTIF_dm_enable();
+void BTIF_dm_report_inquiry_status_change(tBTM_INQUIRY_STATE inquiry_state);
 
 typedef struct {
   bool is_penc_key_rcvd;
@@ -148,4 +155,11 @@ bool check_cod_hid(const RawAddress& bd_addr);
 bool check_cod_hid_major(const RawAddress& bd_addr, uint32_t cod);
 bool is_device_le_audio_capable(const RawAddress bd_addr);
 bool is_le_audio_capable_during_service_discovery(const RawAddress& bd_addr);
-#endif
+
+namespace bluetooth::legacy::testing {
+void bta_energy_info_cb(tBTM_BLE_TX_TIME_MS tx_time, tBTM_BLE_RX_TIME_MS rx_time,
+                        tBTM_BLE_IDLE_TIME_MS idle_time, tBTM_BLE_ENERGY_USED energy_used,
+                        tBTM_CONTRL_STATE ctrl_state, tBTA_STATUS status);
+void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, const BD_NAME bd_name,
+                       bool during_device_search);
+}  // namespace bluetooth::legacy::testing

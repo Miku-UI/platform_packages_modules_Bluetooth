@@ -16,10 +16,16 @@
 
 #define LOG_TAG "BluetoothPanServiceJni"
 
-#include <string.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/scoped_local_ref.h>
+
+#include <cstring>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_pan.h"
+#include "types/raw_address.h"
 
 namespace android {
 

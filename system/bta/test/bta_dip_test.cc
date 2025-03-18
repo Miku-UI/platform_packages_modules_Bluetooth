@@ -42,7 +42,9 @@ static tSDP_DISC_ATTR g_attr_vendor_product_version;
 static tSDP_DISC_ATTR g_attr_vendor_product_primary_record;
 static tSDP_DISC_REC g_rec;
 
-static void sdp_dm_cback(tBTA_SDP_EVT event, tBTA_SDP* p_data, void* user_data) { return; }
+static void sdp_dm_cback(tBTA_SDP_EVT /*event*/, tBTA_SDP* /*p_data*/, void* /*user_data*/) {
+  return;
+}
 
 class BtaDipTest : public ::testing::Test {
 protected:

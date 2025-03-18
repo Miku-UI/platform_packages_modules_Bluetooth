@@ -164,7 +164,7 @@ static const std::vector<std::function<void(FuzzedDataProvider*)>> sdp_operation
         },
 
         // ::SDP_CreateRecord
-        [](FuzzedDataProvider* fdp) -> void {
+        [](FuzzedDataProvider* /*fdp*/) -> void {
           uint32_t handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
           if (handle) {
             sdp_record_handles.push_back(handle);

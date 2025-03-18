@@ -47,6 +47,9 @@
 #include "stack/include/rnr_interface.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 namespace {
@@ -134,10 +137,8 @@ static void bta_dm_search_cancel() {
     BTM_CancelInquiry();
     bta_dm_search_cancel_notify();
     bta_dm_search_cmpl();
-  }
-  /* If no Service Search going on then issue cancel remote name in case it is
-     active */
-  else if (!bta_dm_search_cb.name_discover_done) {
+  } else if (!bta_dm_search_cb.name_discover_done) {
+    /* If no Service Search going on then issue cancel remote name in case it is active */
     if (get_stack_rnr_interface().BTM_CancelRemoteDeviceName() != tBTM_STATUS::BTM_CMD_STARTED) {
       log::warn("Unable to cancel RNR");
     }
@@ -339,11 +340,12 @@ static void bta_dm_inq_cmpl() {
 }
 
 static void bta_dm_remote_name_cmpl(const tBTA_DM_REMOTE_NAME& remote_name_msg) {
-  BTM_LogHistory(kBtmLogTag, remote_name_msg.bd_addr, "Remote name completed",
-                 base::StringPrintf("status:%s state:%s name:\"%s\"",
-                                    hci_status_code_text(remote_name_msg.hci_status).c_str(),
-                                    bta_dm_state_text(bta_dm_search_get_state()).c_str(),
-                                    PRIVATE_NAME(remote_name_msg.bd_name)));
+  BTM_LogHistory(
+          kBtmLogTag, remote_name_msg.bd_addr, "Remote name completed",
+          base::StringPrintf("status:%s state:%s name:\"%s\"",
+                             hci_status_code_text(remote_name_msg.hci_status).c_str(),
+                             bta_dm_state_text(bta_dm_search_get_state()).c_str(),
+                             PRIVATE_NAME(reinterpret_cast<char const*>(remote_name_msg.bd_name))));
 
   tBTM_INQ_INFO* p_btm_inq_info =
           get_btm_client_interface().db.BTM_InqDbRead(remote_name_msg.bd_addr);
@@ -488,8 +490,9 @@ static void bta_dm_discover_name(const RawAddress& remote_bd_addr) {
   bta_dm_search_cb.peer_bdaddr = remote_bd_addr;
 
   log::verbose("name_discover_done = {} p_btm_inq_info 0x{} state = {}, transport={}",
-               bta_dm_search_cb.name_discover_done, fmt::ptr(bta_dm_search_cb.p_btm_inq_info),
-               bta_dm_search_get_state(), transport);
+               bta_dm_search_cb.name_discover_done,
+               std::format_ptr(bta_dm_search_cb.p_btm_inq_info), bta_dm_search_get_state(),
+               transport);
 
   if (bta_dm_search_cb.p_btm_inq_info) {
     log::verbose("appl_knows_rem_name {}", bta_dm_search_cb.p_btm_inq_info->appl_knows_rem_name);
@@ -746,7 +749,7 @@ constexpr size_t kSearchStateHistorySize = 50;
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr unsigned MillisPerSecond = 1000;
-std::string EpochMillisToString(long long time_ms) {
+std::string EpochMillisToString(uint64_t time_ms) {
   time_t time_sec = time_ms / MillisPerSecond;
   struct tm tm;
   localtime_r(&time_sec, &tm);

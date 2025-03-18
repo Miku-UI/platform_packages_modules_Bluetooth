@@ -83,6 +83,7 @@ public:
 
 private:
   AclConnectionInterface* acl_connection_interface_;
+  bool is_disconnecting_ = false;
 
 protected:
   Address address_;

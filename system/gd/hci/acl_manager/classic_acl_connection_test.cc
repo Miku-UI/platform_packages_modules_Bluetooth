@@ -33,7 +33,6 @@
 #include "hci/address.h"
 #include "hci/hci_packets.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/thread.h"
 
 using namespace bluetooth;
@@ -141,6 +140,13 @@ private:
       prom->set_value();
       delete prom;
     }
+  }
+
+  void EnqueueCommand(
+          std::unique_ptr<hci::AclCommandBuilder> /* command */,
+          common::ContextualOnceCallback<
+                  void(hci::CommandStatusOrCompleteView)> /* on_status_or_complete */) override {
+    FAIL();
   }
 
 public:
@@ -277,33 +283,31 @@ TEST_F(ClassicAclConnectionTest, simple) {
 
 class ClassicAclConnectionWithCallbacksTest : public ClassicAclConnectionTest {
 protected:
-  void SetUp() override {
-    ClassicAclConnectionTest::SetUp();
+  void SetUpConnection() {
     connection_ = std::make_unique<ClassicAclConnection>(queue_, &acl_connection_interface_,
                                                          kConnectionHandle, address_);
     connection_->RegisterCallbacks(&callbacks_, handler_);
-    is_callbacks_registered_ = true;
     connection_management_callbacks_ = connection_->GetEventCallbacks(
             [this](uint16_t /* hci_handle */) { is_callbacks_invalidated_ = true; });
     is_callbacks_invalidated_ = false;
   }
 
-  void TearDown() override {
+  void CleanConnection() {
     connection_.reset();
     ASSERT_TRUE(is_callbacks_invalidated_);
-    ClassicAclConnectionTest::TearDown();
   }
 
 protected:
   std::unique_ptr<ClassicAclConnection> connection_;
   ConnectionManagementCallbacks* connection_management_callbacks_;
-  bool is_callbacks_registered_{false};
   bool is_callbacks_invalidated_{false};
 };
 
 TEST_F(ClassicAclConnectionWithCallbacksTest, Disconnect) {
   for (const auto& reason : disconnect_reason_vector) {
+    SetUpConnection();
     ASSERT_TRUE(connection_->Disconnect(reason));
+    CleanConnection();
   }
 
   for (const auto& reason : disconnect_reason_vector) {
@@ -318,7 +322,9 @@ TEST_F(ClassicAclConnectionWithCallbacksTest, Disconnect) {
 
 TEST_F(ClassicAclConnectionWithCallbacksTest, OnDisconnection) {
   for (const auto& error_code : error_code_vector) {
+    SetUpConnection();
     connection_management_callbacks_->OnDisconnection(error_code);
+    CleanConnection();
   }
 
   sync_handler();

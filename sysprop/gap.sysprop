@@ -1,0 +1,12 @@
+module: "android.sysprop.bluetooth.Gap"
+owner: Platform
+
+prop {
+    api_name: "min_key_size"
+    type: Integer
+    scope: Internal
+    access: Readonly
+    prop_name: "bluetooth.gap.min_key_size"
+}
+
+

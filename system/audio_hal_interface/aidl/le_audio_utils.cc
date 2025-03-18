@@ -78,7 +78,7 @@ namespace aidl {
   return codec;
 }
 
-std::vector<::aidl::android::hardware::bluetooth::audio::CodecSpecificCapabilitiesLtv>
+static std::vector<::aidl::android::hardware::bluetooth::audio::CodecSpecificCapabilitiesLtv>
 GetAidlCodecCapabilitiesFromStack(const ::bluetooth::le_audio::types::LeAudioLtvMap& in) {
   std::vector<::aidl::android::hardware::bluetooth::audio::CodecSpecificCapabilitiesLtv> ltvs;
   auto stack_caps = in.GetAsCoreCodecCapabilities();
@@ -406,7 +406,7 @@ GetStackBroadcastConfigurationFromAidlFormat(
   return std::move(cfg);
 }
 
-::bluetooth::le_audio::set_configurations::QosConfigSetting GetStackQosConfigSettingFromAidl(
+static ::bluetooth::le_audio::set_configurations::QosConfigSetting GetStackQosConfigSettingFromAidl(
         const std::optional<::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                                     LeAudioAseQosConfiguration>& aidl_qos,
         ::aidl::android::hardware::bluetooth::audio::LeAudioAseConfiguration::TargetLatency
@@ -423,7 +423,7 @@ GetStackBroadcastConfigurationFromAidlFormat(
   return config;
 }
 
-::bluetooth::le_audio::set_configurations::CodecConfigSetting GetCodecConfigSettingFromAidl(
+static ::bluetooth::le_audio::set_configurations::CodecConfigSetting GetCodecConfigSettingFromAidl(
         const std::optional<::aidl::android::hardware::bluetooth::audio::LeAudioAseConfiguration>&
                 ase_config) {
   auto stack_config = ::bluetooth::le_audio::set_configurations::CodecConfigSetting();
@@ -493,7 +493,7 @@ GetStackBroadcastConfigurationFromAidlFormat(
 
 // The number of source entries is the total count of ASEs within the group to
 // be configured
-::bluetooth::le_audio::set_configurations::AseConfiguration GetStackAseConfigurationFromAidl(
+static ::bluetooth::le_audio::set_configurations::AseConfiguration GetStackAseConfigurationFromAidl(
         const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                 LeAudioAseConfigurationSetting::AseDirectionConfiguration& source) {
   auto stack_qos = GetStackQosConfigSettingFromAidl(source.qosConfiguration,
@@ -507,7 +507,75 @@ GetStackBroadcastConfigurationFromAidlFormat(
   return config;
 }
 
-::bluetooth::le_audio::set_configurations::AudioSetConfiguration GetStackConfigSettingFromAidl(
+static std::string GenerateNameForConfig(
+        const ::bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) {
+  auto namegen = [](const std::vector<::bluetooth::le_audio::set_configurations::AseConfiguration>&
+                            configs,
+                    const char* dir_str) {
+    std::stringstream cfg_str;
+    if (configs.size() > 0) {
+      auto current_config = configs.begin();
+      while (current_config != configs.end()) {
+        uint8_t cfg_multiplier = 1;
+        auto last_equal_config = current_config;
+        auto current_codec = current_config->codec;
+        while (++last_equal_config != configs.end()) {
+          // For the purpose of name generation, ignore the audio channel allocation
+          auto current_codec_no_channels = current_codec;
+          auto last_codec_no_channels = last_equal_config->codec;
+          current_codec_no_channels.params.Add(
+                  le_audio::codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation, (uint32_t)0);
+          last_codec_no_channels.params.Add(
+                  le_audio::codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation, (uint32_t)0);
+
+          if (current_codec_no_channels != last_codec_no_channels) {
+            break;
+          }
+          ++cfg_multiplier;
+          current_config = last_equal_config;
+        }
+
+        // Channel configuration
+        cfg_str << +cfg_multiplier << "-" << +current_codec.GetChannelCountPerIsoStream() << "chan";
+        cfg_str << "-" << dir_str << "Ase-";
+        // Codec Id
+        cfg_str << "CodecId_" << +current_codec.id.coding_format << "_"
+                << +current_codec.id.vendor_company_id << "_" << +current_codec.id.vendor_codec_id
+                << "-";
+        // Codec parameters
+        cfg_str << current_codec.GetSamplingFrequencyHz() << "hz";
+        if (current_codec.id.coding_format ==
+            ::bluetooth::le_audio::types::kLeAudioCodingFormatLC3) {
+          cfg_str << "_" << current_codec.GetOctetsPerFrame() << "oct";
+          cfg_str << "_" << current_codec.GetDataIntervalUs() << "us";
+        }
+        // QoS
+        cfg_str << "-TargetLatency_" << +current_config->qos.target_latency;
+
+        if (last_equal_config == configs.end()) {
+          break;
+        }
+
+        // Check if there are some different configs left
+        ++current_config;
+      }
+    }
+    return cfg_str.str();
+  };
+
+  std::stringstream name;
+  name << "AIDL";
+  if (!config.confs.sink.empty()) {
+    name << "-" << namegen(config.confs.sink, "Sink");
+  }
+  if (!config.confs.source.empty()) {
+    name << "-" << namegen(config.confs.source, "Source");
+  }
+  return name.str();
+}
+
+static ::bluetooth::le_audio::set_configurations::AudioSetConfiguration
+GetStackConfigSettingFromAidl(
         ::bluetooth::le_audio::types::LeAudioContextType ctx_type,
         const ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider::
                 LeAudioAseConfigurationSetting& aidl_ase_config) {
@@ -539,6 +607,7 @@ GetStackBroadcastConfigurationFromAidlFormat(
     }
   }
 
+  cig_config.name = GenerateNameForConfig(cig_config);
   return cig_config;
 }
 

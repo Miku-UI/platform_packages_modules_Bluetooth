@@ -28,12 +28,21 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+#include <mutex>
+#include <sstream>
+#include <string>
+
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
+#include "a2dp_vendor_ldac_constants.h"
 #include "a2dp_vendor_ldac_decoder.h"
 #include "a2dp_vendor_ldac_encoder.h"
+#include "avdt_api.h"
 #include "btif/include/btif_av_co.h"
+#include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
-#include "os/log.h"
-#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;

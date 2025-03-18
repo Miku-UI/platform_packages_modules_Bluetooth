@@ -28,3 +28,12 @@ flag {
     }
 }
 
+flag {
+    name: "opp_set_insets_for_edge_to_edge"
+    namespace: "bluetooth"
+    description: "Set proper insets in BluetoothOppTransferHistory to adapt to edge-to-edge."
+    bug: "378813445"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

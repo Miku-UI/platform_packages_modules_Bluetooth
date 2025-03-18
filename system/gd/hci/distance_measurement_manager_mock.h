@@ -32,12 +32,11 @@ namespace testing {
 
 class MockDistanceMeasurementCallbacks : public DistanceMeasurementCallbacks {
   MOCK_METHOD(void, OnDistanceMeasurementStarted, (Address, DistanceMeasurementMethod));
-  MOCK_METHOD(void, OnDistanceMeasurementStartFail,
-              (Address, DistanceMeasurementErrorCode, DistanceMeasurementMethod));
   MOCK_METHOD(void, OnDistanceMeasurementStopped,
               (Address, DistanceMeasurementErrorCode, DistanceMeasurementMethod));
   MOCK_METHOD(void, OnDistanceMeasurementResult,
-              (Address, uint32_t, uint32_t, int, int, int, int, DistanceMeasurementMethod));
+              (Address, uint32_t, uint32_t, int, int, int, int, uint64_t, int8_t,
+               DistanceMeasurementMethod));
 };
 
 class MockDistanceMeasurementManager : public DistanceMeasurementManager {

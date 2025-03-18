@@ -22,6 +22,9 @@
 
 #include <thread>
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace testing {
 
 using bluetooth::common::MetricIdManager;

@@ -5,8 +5,8 @@
 
 # Inherit from a recent Debian version. The slim version is a smaller variant
 # meant for containers.
-# This digest is taken from the tag debian:bookworm-slim (if you want to update)
-FROM debian@sha256:b66f66d473ef3128436ba2812198edcae86c268eb530dff44ff6ae26f9a2ee30
+# This digest is taken from the tag debian:trixie-slim (if you want to update)
+FROM debian@sha256:711e115ddeee4722199c82fb5aa189693f473a14999180ae6112ab2da5664ce5
 
 # First install all required apt packages.
 RUN apt-get update && \
@@ -37,20 +37,21 @@ RUN apt-get update && \
     libgtest-dev \
     libgmock-dev \
     liblc3-dev \
-    liblz4-tool \
-    libncurses5 \
+    libncurses6 \
     libnss3-dev \
     libprotobuf-dev \
-    libre2-9 \
+    libre2-11 \
     libre2-dev \
     libssl-dev \
     libtinyxml2-dev \
     libx11-dev \
     libxml2-utils \
+    lz4 \
     ninja-build \
     openssl \
     protobuf-compiler \
     python3 \
+    python3-six \
     unzip \
     x11proto-core-dev \
     xsltproc \
@@ -77,7 +78,7 @@ RUN cargo install --git https://android.googlesource.com/platform/build --rev 8f
 # Rename llvm packages. By default, they are named 11vm-ar-13, etc. which won't
 # work properly with the build.
 ADD llvm-rename.sh /tmp
-RUN /tmp/llvm-rename.sh 14
+RUN /tmp/llvm-rename.sh 16
 
 # At this point, the base container is ready. Now we need to build and install
 # both libchrome and modp-b64. If you ran this via `docker-build-image.py`, this

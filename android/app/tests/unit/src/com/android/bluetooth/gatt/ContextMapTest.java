@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doReturn;
 import android.bluetooth.IBluetoothGattCallback;
 import android.content.pm.PackageManager;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
@@ -172,9 +173,19 @@ public class ContextMapTest {
 
     private ContextMap<IBluetoothGattCallback> getMapWithAppAndConnection() {
         ContextMap<IBluetoothGattCallback> contextMap = new ContextMap<>();
-        App app = contextMap.add(RANDOM_UUID1, mMockCallback, mAdapterService);
+        App app =
+                contextMap.add(
+                        RANDOM_UUID1,
+                        mMockCallback,
+                        mAdapterService,
+                        InstrumentationRegistry.getTargetContext().getAttributionSource());
         app.id = APP_ID1;
-        app = contextMap.add(RANDOM_UUID2, mMockCallback, mAdapterService);
+        app =
+                contextMap.add(
+                        RANDOM_UUID2,
+                        mMockCallback,
+                        mAdapterService,
+                        InstrumentationRegistry.getTargetContext().getAttributionSource());
         app.id = APP_ID2;
 
         contextMap.addConnection(APP_ID1, CONN_ID1, ADDRESS1);

@@ -182,7 +182,6 @@ static constexpr int device_info_allow_list_usb[][2] = {
         {12994, 1},
         /* Fuji Yusoki Kogyo Co., Ltd. */
         {44580, 34328},
-
 };
 
 enum Transport {

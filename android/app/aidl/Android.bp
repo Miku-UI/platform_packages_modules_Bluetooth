@@ -12,6 +12,7 @@ filegroup {
     name: "Bluetooth-binder-aidl",
     srcs: [
         ":framework-bluetooth-updatable-exported-aidl-sources",
+        "android/bluetooth/IAudioInputCallback.aidl",
         "android/bluetooth/IBluetooth.aidl",
         "android/bluetooth/IBluetoothA2dp.aidl",
         "android/bluetooth/IBluetoothA2dpSink.aidl",
@@ -27,6 +28,7 @@ filegroup {
         "android/bluetooth/IBluetoothGattServerCallback.aidl",
         "android/bluetooth/IBluetoothHapClient.aidl",
         "android/bluetooth/IBluetoothHapClientCallback.aidl",
+        "android/bluetooth/IBluetoothHciVendorSpecificCallback.aidl",
         "android/bluetooth/IBluetoothHeadset.aidl",
         "android/bluetooth/IBluetoothHeadsetClient.aidl",
         "android/bluetooth/IBluetoothHearingAid.aidl",

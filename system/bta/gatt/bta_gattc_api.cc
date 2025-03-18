@@ -34,7 +34,6 @@
 #include "bta/gatt/bta_gattc_int.h"
 #include "gd/hci/uuid.h"
 #include "gd/os/rand.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"

@@ -80,6 +80,7 @@ public class BluetoothPbapSimVcardManagerTest {
 
     @After
     public void tearDown() {
+        mManager.close();
         BluetoothMethodProxy.setInstanceForTesting(null);
     }
 
@@ -145,9 +146,9 @@ public class BluetoothPbapSimVcardManagerTest {
     }
 
     @Test
-    public void testTerminate() {
+    public void testClose() {
         Cursor cursor = initManager();
-        mManager.terminate();
+        mManager.close();
 
         verify(cursor).close();
     }

@@ -40,6 +40,7 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_security_interface.h"
 #include "stack/l2cap/l2c_int.h"
@@ -133,10 +134,9 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
       uint64_t timeout_ms = L2CAP_LINK_STARTUP_TOUT * 1000;
       alarm_set_on_mloop(p_lcb->l2c_lcb_timer, timeout_ms, l2c_lcb_timer_timeout, p_lcb);
     }
-  }
-  /* Max number of acl connections.                          */
-  /* If there's an lcb disconnecting set this one to holding */
-  else if ((ci.hci_status == HCI_ERR_MAX_NUM_OF_CONNECTIONS) && l2cu_lcb_disconnecting()) {
+  } else if ((ci.hci_status == HCI_ERR_MAX_NUM_OF_CONNECTIONS) && l2cu_lcb_disconnecting()) {
+    /* Max number of acl connections.                          */
+    /* If there's an lcb disconnecting set this one to holding */
     log::warn("Delaying connection as reached max number of links:{}",
               HCI_ERR_MAX_NUM_OF_CONNECTIONS);
     p_lcb->link_state = LST_CONNECT_HOLDING;
@@ -615,16 +615,14 @@ void l2c_link_adjust_allocation(void) {
   if (num_lowpri_links > low_quota) {
     l2cb.round_robin_quota = low_quota;
     qq = qq_remainder = 1;
-  }
-  /* If each low priority link can have at least one buffer */
-  else if (num_lowpri_links > 0) {
+  } else if (num_lowpri_links > 0) {
+    /* If each low priority link can have at least one buffer */
     l2cb.round_robin_quota = 0;
     l2cb.round_robin_unacked = 0;
     qq = low_quota / num_lowpri_links;
     qq_remainder = low_quota % num_lowpri_links;
-  }
-  /* If no low priority link */
-  else {
+  } else {
+    /* If no low priority link */
     l2cb.round_robin_quota = 0;
     l2cb.round_robin_unacked = 0;
     qq = qq_remainder = 1;
@@ -923,9 +921,8 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf
         /* If only doing one write, break out */
         log::debug("single_write is true, skipping");
         break;
-      }
-      /* If nothing on the link queue, check the channel queue */
-      else {
+      } else {
+        /* If nothing on the link queue, check the channel queue */
         tL2C_TX_COMPLETE_CB_INFO cbi = {};
         log::debug("Check next buffer");
         p_buf = l2cu_get_next_buffer_to_send(p_lcb, &cbi);
@@ -1148,45 +1145,6 @@ void l2c_packets_completed(uint16_t handle, uint16_t num_sent) {
   }
 }
 
-/*******************************************************************************
- *
- * Function         l2c_link_segments_xmitted
- *
- * Description      This function is called from the HCI Interface when an ACL
- *                  data packet segment is transmitted.
- *
- * Returns          void
- *
- ******************************************************************************/
-void l2c_link_segments_xmitted(BT_HDR* p_msg) {
-  uint8_t* p = (uint8_t*)(p_msg + 1) + p_msg->offset;
-
-  /* Extract the handle */
-  uint16_t handle{HCI_INVALID_HANDLE};
-  STREAM_TO_UINT16(handle, p);
-  handle = HCID_GET_HANDLE(handle);
-
-  /* Find the LCB based on the handle */
-  tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
-  if (p_lcb == nullptr) {
-    log::warn("Received segment complete for unknown connection handle:{}", handle);
-    osi_free(p_msg);
-    return;
-  }
-
-  if (p_lcb->link_state != LST_CONNECTED) {
-    log::info("Received segment complete for unconnected connection handle:{}:", handle);
-    osi_free(p_msg);
-    return;
-  }
-
-  /* Enqueue the buffer to the head of the transmit queue, and see */
-  /* if we can transmit anything more.                             */
-  list_prepend(p_lcb->link_xmit_data_q, p_msg);
-
-  l2c_link_check_send_pkts(p_lcb, 0, NULL);
-}
-
 tBTM_STATUS l2cu_ConnectAclForSecurity(const RawAddress& bd_addr) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_BR_EDR);
   if (p_lcb && (p_lcb->link_state == LST_CONNECTED || p_lcb->link_state == LST_CONNECTING)) {
@@ -1219,7 +1177,7 @@ void l2cble_update_sec_act(const RawAddress& bd_addr, uint16_t sec_act) {
  * Returns          pointer to CCB or NULL
  *
  ******************************************************************************/
-tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
+static tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
   tL2C_CCB* p_serve_ccb = NULL;
   tL2C_CCB* p_ccb;
 
@@ -1237,9 +1195,6 @@ tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
         log::error("p_serve_ccb is NULL, rr_pri={}", p_lcb->rr_pri);
         return NULL;
       }
-
-      log::verbose("RR scan pri={}, lcid=0x{:04x}, q_cout={}", p_ccb->ccb_priority,
-                   p_ccb->local_cid, fixed_queue_length(p_ccb->xmit_hold_q));
 
       /* store the next serving channel */
       /* this channel is the last channel of its priority group */
@@ -1320,7 +1275,7 @@ tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* p_lcb) {
  * Returns          pointer to buffer or NULL
  *
  ******************************************************************************/
-BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb, tL2C_TX_COMPLETE_CB_INFO* p_cbi) {
+static BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb, tL2C_TX_COMPLETE_CB_INFO* p_cbi) {
   tL2C_CCB* p_ccb;
   BT_HDR* p_buf;
 

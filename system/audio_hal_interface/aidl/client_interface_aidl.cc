@@ -127,50 +127,6 @@ BluetoothAudioClientInterface::GetProviderInfo(
   return provider_info;
 }
 
-std::optional<A2dpConfiguration> BluetoothAudioClientInterface::GetA2dpConfiguration(
-        std::vector<A2dpRemoteCapabilities> const& remote_capabilities,
-        A2dpConfigurationHint const& hint) const {
-  if (!is_aidl_available()) {
-    return std::nullopt;
-  }
-
-  if (provider_ == nullptr) {
-    log::error("can't get a2dp configuration from unknown provider");
-    return std::nullopt;
-  }
-
-  std::optional<A2dpConfiguration> configuration = std::nullopt;
-  auto aidl_retval = provider_->getA2dpConfiguration(remote_capabilities, hint, &configuration);
-
-  if (!aidl_retval.isOk()) {
-    log::error("getA2dpConfiguration failure: {}", aidl_retval.getDescription());
-    return std::nullopt;
-  }
-
-  return configuration;
-}
-
-std::optional<A2dpStatus> BluetoothAudioClientInterface::ParseA2dpConfiguration(
-        const CodecId& codec_id, const std::vector<uint8_t>& configuration,
-        CodecParameters* codec_parameters) const {
-  A2dpStatus a2dp_status;
-
-  if (provider_ == nullptr) {
-    log::error("can not parse A2DP configuration because of unknown provider");
-    return std::nullopt;
-  }
-
-  auto aidl_retval = provider_->parseA2dpConfiguration(codec_id, configuration, codec_parameters,
-                                                       &a2dp_status);
-
-  if (!aidl_retval.isOk()) {
-    log::error("parseA2dpConfiguration failure: {}", aidl_retval.getDescription());
-    return std::nullopt;
-  }
-
-  return std::make_optional(a2dp_status);
-}
-
 void BluetoothAudioClientInterface::FetchAudioProvider() {
   if (!is_aidl_available()) {
     log::error("aidl is not supported on this platform.");
@@ -208,7 +164,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
               toString(transport_->GetSessionType()), capabilities_.size());
 
     aidl_retval = provider_factory->openProvider(transport_->GetSessionType(), &provider_);
-    if (!aidl_retval.isOk()) {
+    if (!aidl_retval.isOk() || provider_ == nullptr) {
       log::error("BluetoothAudioHal::openProvider failure: {}, retry number {}",
                  aidl_retval.getDescription(), retry_no + 1);
     } else {
@@ -226,7 +182,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
   }
 
   log::info("IBluetoothAudioProvidersFactory::openProvider() returned {}{}",
-            fmt::ptr(provider_.get()), (provider_->isRemote() ? " (remote)" : " (local)"));
+            std::format_ptr(provider_.get()), (provider_->isRemote() ? " (remote)" : " (local)"));
 }
 
 BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
@@ -264,6 +220,7 @@ void BluetoothAudioClientInterface::binderDiedCallbackAidl(void* ptr) {
 }
 
 bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& audio_config) {
+  std::lock_guard<std::mutex> guard(internal_mutex_);
   bool is_software_session =
           (transport_->GetSessionType() == SessionType::A2DP_SOFTWARE_ENCODING_DATAPATH ||
            transport_->GetSessionType() == SessionType::HEARING_AID_SOFTWARE_ENCODING_DATAPATH ||
@@ -647,6 +604,7 @@ BluetoothAudioClientInterface::GetLeAudioAseConfiguration(
                 std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
                 remoteSourceAudioCapabilities,
         std::vector<IBluetoothAudioProvider::LeAudioConfigurationRequirement>& requirements) {
+  std::lock_guard<std::mutex> guard(internal_mutex_);
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   std::vector<IBluetoothAudioProvider::LeAudioAseConfigurationSetting> configurations;
@@ -714,6 +672,7 @@ BluetoothAudioClientInterface::getLeAudioBroadcastConfiguration(
                 std::vector<std::optional<IBluetoothAudioProvider::LeAudioDeviceCapabilities>>>&
                 remoteSinkAudioCapabilities,
         const IBluetoothAudioProvider::LeAudioBroadcastConfigurationRequirement& requirement) {
+  std::lock_guard<std::mutex> guard(internal_mutex_);
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   IBluetoothAudioProvider::LeAudioBroadcastConfigurationSetting setting;

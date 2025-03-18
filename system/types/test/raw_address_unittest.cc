@@ -16,7 +16,7 @@
  *
  ******************************************************************************/
 
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 #include <gtest/gtest.h>
 

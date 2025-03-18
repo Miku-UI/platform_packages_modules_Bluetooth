@@ -33,6 +33,7 @@ android_test {
         "libprotobuf-java-nano",
         "mockito-target-extended-minus-junit4",
         "platform-compat-test-rules",
+        "platform-parametric-runner-lib",
         "platform-test-annotations",
 
         // Linking source to test the working copy, not the on-device copy.

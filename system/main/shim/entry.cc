@@ -24,10 +24,9 @@
 #include "hci/hci_layer.h"
 #include "hci/le_advertising_manager.h"
 #include "hci/le_scanning_manager.h"
-#if TARGET_FLOSS
 #include "hci/msft.h"
-#endif
 #include "hci/remote_name_request.h"
+#include "lpp/lpp_offload_manager.h"
 #include "main/shim/stack.h"
 #include "metrics/counter_metrics.h"
 #include "os/handler.h"
@@ -69,6 +68,10 @@ hal::SnoopLogger* GetSnoopLogger() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hal::SnoopLogger>();
 }
 
+lpp::LppOffloadInterface* GetLppOffloadManager() {
+  return Stack::GetInstance()->GetStackManager()->GetInstance<lpp::LppOffloadManager>();
+}
+
 storage::StorageModule* GetStorage() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<storage::StorageModule>();
 }
@@ -81,11 +84,9 @@ metrics::CounterMetrics* GetCounterMetrics() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<metrics::CounterMetrics>();
 }
 
-#if TARGET_FLOSS
 hci::MsftExtensionManager* GetMsftExtensionManager() {
   return Stack::GetInstance()->GetStackManager()->GetInstance<hci::MsftExtensionManager>();
 }
-#endif
 
 }  // namespace shim
 }  // namespace bluetooth

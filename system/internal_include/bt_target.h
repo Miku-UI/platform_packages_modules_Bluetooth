@@ -311,7 +311,10 @@
 #endif
 
 /* Used for conformance testing ONLY:  When TRUE lets scriptwrapper overwrite
- * info response */
+ * info response.
+ * For testcases L2CAP/FOC/BV-{04,05}-C set property bluetooth.pts.l2cap.foc.bv.test to 4 and
+ * 5 respectively
+ */
 #ifndef L2CAP_CONFORMANCE_TESTING
 #define L2CAP_CONFORMANCE_TESTING FALSE
 #endif
@@ -348,11 +351,6 @@
 #ifndef GATT_MAX_APPS
 #define GATT_MAX_APPS 32 /* note: 2 apps used internally GATT and GAP */
 #endif
-
-/* connection manager doesn't generate it's own IDs. Instead, all GATT clients
- * use their gatt_if to identify against conection manager. When stack tries to
- * create l2cap connection, it will use this fixed ID. */
-#define CONN_MGR_ID_L2CAP (GATT_MAX_APPS + 10)
 
 /* This value is used for static allocation of resources. The actual maximum at
  * runtime is controlled by a system property. */

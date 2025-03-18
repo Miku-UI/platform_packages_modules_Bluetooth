@@ -3352,6 +3352,7 @@ public class BluetoothMapContentObserver {
         return handle;
     }
 
+    @SuppressWarnings("EnumOrdinal") // remove entire usage of internal intent
     public long sendMmsMessage(
             String folder,
             String[] toAddress,
@@ -4090,6 +4091,7 @@ public class BluetoothMapContentObserver {
         }
     }
 
+    @SuppressWarnings("EnumOrdinal") // remove entire usage of internal intent
     public static void actionMessageSentDisconnected(Context context, Intent intent, int result) {
         TYPE type =
                 TYPE.fromOrdinal(
@@ -4277,6 +4279,7 @@ public class BluetoothMapContentObserver {
         }
     }
 
+    @SuppressWarnings("EnumOrdinal") // remove entire usage of internal intent
     public boolean handleSmsSendIntent(Context context, Intent intent) {
         TYPE type =
                 TYPE.fromOrdinal(

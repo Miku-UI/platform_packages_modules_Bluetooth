@@ -52,7 +52,7 @@
 typedef struct eth_hdr {
   RawAddress h_dest;
   RawAddress h_src;
-  short h_proto;
+  int16_t h_proto;
 } tETH_HDR;
 
 typedef struct {

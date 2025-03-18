@@ -154,8 +154,7 @@ tSDP_PROTOCOL_ELEM generateArbitrarySdpProtocolElements(FuzzedDataProvider* fdp)
   // Set our protocol element values
   p_elem.protocol_uuid = fdp->ConsumeIntegral<uint16_t>();
   p_elem.num_params = fdp->ConsumeIntegralInRange<uint16_t>(0, SDP_MAX_PROTOCOL_PARAMS);
-  uint16_t num_loops =
-          std::min(p_elem.num_params, static_cast<unsigned short>(SDP_MAX_PROTOCOL_PARAMS));
+  uint16_t num_loops = std::min(p_elem.num_params, static_cast<uint16_t>(SDP_MAX_PROTOCOL_PARAMS));
   // Regardless of number set above, fill out the entire allocated array
   for (uint16_t i = 0; i < num_loops; i++) {
     p_elem.params[i] = fdp->ConsumeIntegral<uint16_t>();
@@ -171,8 +170,7 @@ std::shared_ptr<tSDP_PROTO_LIST_ELEM> generateArbitrarySdpProtocolElementList(
 
   // Populate our element list
   p_elem_list->num_elems = fdp->ConsumeIntegralInRange<uint16_t>(0, SDP_MAX_LIST_ELEMS);
-  uint16_t num_loops =
-          std::min(p_elem_list->num_elems, static_cast<unsigned short>(SDP_MAX_LIST_ELEMS));
+  uint16_t num_loops = std::min(p_elem_list->num_elems, static_cast<uint16_t>(SDP_MAX_LIST_ELEMS));
   for (uint16_t i = 0; i < num_loops; i++) {
     p_elem_list->list_elem[i] = generateArbitrarySdpProtocolElements(fdp);
   }
@@ -265,7 +263,8 @@ SDP_Sequence_Helper generateArbitrarySdpElemSequence(FuzzedDataProvider* fdp) {
 }
 
 // Define our callback functions we'll be using within our functions
-void sdp_disc_cmpl_cb(const RawAddress& bd_addr, tSDP_STATUS result) {}
-void sdp_disc_cmpl_cb2(std::vector<uint8_t> data, const RawAddress& bd_addr, tSDP_STATUS result) {}
+void sdp_disc_cmpl_cb(const RawAddress& /*bd_addr*/, tSDP_STATUS /*result*/) {}
+void sdp_disc_cmpl_cb2(std::vector<uint8_t> /*data*/, const RawAddress& /*bd_addr*/,
+                       tSDP_STATUS /*result*/) {}
 
 #endif  // FUZZER_SDP_HELPERS_H_

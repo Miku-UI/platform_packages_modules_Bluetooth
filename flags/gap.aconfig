@@ -30,35 +30,6 @@ flag {
 }
 
 flag {
-    name: "le_scan_fix_remote_exception"
-    namespace: "bluetooth"
-    description: "Fix handling remote exception for LE scanners"
-    bug: "320402249"
-}
-
-flag {
-    name: "enumerate_gatt_errors"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Enumerate GATT error situations"
-    bug: "320574336"
-}
-
-flag {
-    name: "gatt_fix_device_busy"
-    namespace: "bluetooth"
-    description: "Fix device busy bug in BluetoothGatt"
-    bug: "322580271"
-}
-
-flag {
-    name: "gatt_cleanup_restricted_handles"
-    namespace: "bluetooth"
-    description: "Cleans up restricted handles when disconnected"
-    bug: "323110155"
-}
-
-flag {
     name: "phy_to_native"
     namespace: "bluetooth"
     description: "Expose advertising PHY settings to native layer"
@@ -251,4 +222,82 @@ flag {
     namespace: "bluetooth"
     description: "Support MSFT HCI extension for LE Scanning. go/bt-msft-aosp-dd"
     bug: "365787977"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_impl_ack_pause_disarmed"
+    namespace: "bluetooth"
+    description: "Let le_impl AckPause when disarmed to prevent stuck in pausing state"
+    bug: "357024179"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gatt_clear_cache_on_factory_reset"
+    namespace: "bluetooth"
+    description: "Clear GATT cache/hash on factory reset"
+    bug: "373284699"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_scan_remove_non_oneway_binder_calls"
+    namespace: "bluetooth"
+    description: "Remove non-oneway binder calls from BluetoothLeScanner.startScan"
+    bug: "375558872"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "initial_conn_params_p1"
+    namespace: "bluetooth"
+    description: "Use aggressive connection parameters when <2 connections exist. go/initial-connection-parameter-optimization"
+    bug: "378595485"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "rpa_offload_to_bt_controller"
+    namespace: "bluetooth"
+    description: "Offload LE RPA rotation to BT controller. go/rpa-offload-to-bt-controller"
+    bug: "378398874"
+}
+
+flag {
+    name: "directed_advertising_api"
+    namespace: "bluetooth"
+    is_exported: true
+    description: "Add new API for directed advertising"
+    bug: "378230500"
+}
+
+flag {
+    name: "gatt_queue_cleanup_connected"
+    namespace: "bluetooth"
+    description: "Cleans up BtaGattQueue when connected"
+    bug: "379007400"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "drop_acl_fragment_on_disconnect"
+    namespace: "bluetooth"
+    description: "Drop pending ACL packet fragments for disconnected connection"
+    bug: "376379859"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

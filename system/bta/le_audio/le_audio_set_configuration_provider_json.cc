@@ -16,28 +16,34 @@
  */
 
 #include <bluetooth/log.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <map>
+#include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "audio_hal_client/audio_hal_client.h"
 #include "audio_set_configurations_generated.h"
 #include "audio_set_scenarios_generated.h"
 #include "btm_iso_api_types.h"
+#include "flatbuffers/buffer.h"
 #include "flatbuffers/idl.h"
 #include "flatbuffers/util.h"
+#include "flatbuffers/vector.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
-#include "os/log.h"
-#include "osi/include/osi.h"
-#include "osi/include/properties.h"
 
 using bluetooth::le_audio::set_configurations::AseConfiguration;
 using bluetooth::le_audio::set_configurations::AudioSetConfiguration;
 using bluetooth::le_audio::set_configurations::AudioSetConfigurations;
 using bluetooth::le_audio::set_configurations::CodecConfigSetting;
-using bluetooth::le_audio::set_configurations::LeAudioCodecIdLc3;
 using bluetooth::le_audio::set_configurations::QosConfigSetting;
 using bluetooth::le_audio::types::LeAudioContextType;
 
@@ -104,21 +110,14 @@ struct AudioSetConfigurationProviderJson {
           ::bluetooth::le_audio::types::LeAudioContextType context_type) {
     switch (context_type) {
       case types::LeAudioContextType::ALERTS:
-        FALLTHROUGH_INTENDED;
       case types::LeAudioContextType::INSTRUCTIONAL:
-        FALLTHROUGH_INTENDED;
       case types::LeAudioContextType::NOTIFICATIONS:
-        FALLTHROUGH_INTENDED;
       case types::LeAudioContextType::EMERGENCYALARM:
-        FALLTHROUGH_INTENDED;
       case types::LeAudioContextType::UNSPECIFIED:
-        FALLTHROUGH_INTENDED;
       case types::LeAudioContextType::SOUNDEFFECTS:
-        FALLTHROUGH_INTENDED;
       case types::LeAudioContextType::MEDIA:
         return "Media";
       case types::LeAudioContextType::RINGTONE:
-        FALLTHROUGH_INTENDED;
       case types::LeAudioContextType::CONVERSATIONAL:
         return "Conversational";
       case types::LeAudioContextType::LIVE:

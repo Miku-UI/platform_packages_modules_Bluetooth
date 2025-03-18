@@ -65,7 +65,11 @@ private:
       return;
     }
 
-    if (uses_command_status(commandPacket.GetOpCode())) {
+    if (uses_command_status_or_complete(commandPacket.GetOpCode())) {
+      interface->EnqueueCommand(
+              TBUILDER::FromView(commandPacket),
+              GetHandler()->BindOnce([](CommandStatusOrCompleteView /* status */) {}));
+    } else if (uses_command_status(commandPacket.GetOpCode())) {
       interface->EnqueueCommand(TBUILDER::FromView(commandPacket),
                                 GetHandler()->BindOnce([](CommandStatusView /* status */) {}));
     } else {

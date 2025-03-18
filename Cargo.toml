@@ -16,7 +16,6 @@
 [workspace]
 
 default-members = [
-  "system/gd/rust/shim",
   "system/gd/rust/topshim",
   "system/gd/rust/linux/mgmt",
   "system/gd/rust/linux/service",
@@ -26,7 +25,6 @@ default-members = [
 ]
 
 members = [
-  "system/gd/rust/shim",
   "system/gd/rust/topshim",
   "system/gd/rust/linux/mgmt",
   "system/gd/rust/linux/service",

@@ -25,12 +25,12 @@ cc_fuzz {
         "libbluetooth_log",
         "libbt-common",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
         "libosi",
     ],
     cflags: [
         "-Wno-unused-function",
-        "-Wno-unused-parameter",
     ],
     header_libs: ["libbluetooth_headers"],
     fuzz_config: {

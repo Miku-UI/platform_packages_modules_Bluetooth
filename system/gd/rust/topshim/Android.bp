@@ -39,13 +39,9 @@ rust_library_host_rlib {
 
 cc_library_static {
     name: "libbt_topshim_cxx",
-    defaults: [
-        "gd_ffi_defaults",
-    ],
     srcs: [
         "btav/btav_shim.cc",
         "btav_sink/btav_sink_shim.cc",
-        "btif/btif_shim.cc",
         "controller/controller_shim.cc",
         "csis/csis_shim.cc",
         "gatt/gatt_ble_advertiser_shim.cc",
@@ -56,9 +52,7 @@ cc_library_static {
         "vc/vc_shim.cc",
     ],
     generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
         "cxx-bridge-header",
-        "libbt_init_flags_bridge_header",
         "libbt_topshim_bridge_header",
     ],
     generated_sources: ["libbt_topshim_bridge_code"],
@@ -67,15 +61,26 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/gd/rust/topshim",
         "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     host_supported: true,
     static_libs: [
+        "aics",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libchrome",
         "libflatbuffers-cpp",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
+    shared_libs: [
+        "libbinder",
+    ],
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
 }
 
 gensrcs {
@@ -83,7 +88,6 @@ gensrcs {
     tools: ["cxxbridge"],
     cmd: "$(location cxxbridge) $(in) --header > $(out)",
     srcs: [
-        "src/btif.rs",
         "src/controller.rs",
         "src/profiles/a2dp.rs",
         "src/profiles/avrcp.rs",
@@ -102,7 +106,6 @@ gensrcs {
     tools: ["cxxbridge"],
     cmd: "$(location cxxbridge) $(in) > $(out)",
     srcs: [
-        "src/btif.rs",
         "src/controller.rs",
         "src/profiles/a2dp.rs",
         "src/profiles/avrcp.rs",

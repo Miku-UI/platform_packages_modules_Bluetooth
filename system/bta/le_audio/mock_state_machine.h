@@ -41,7 +41,8 @@ public:
                bluetooth::le_audio::types::LeAudioContextType context_type,
                const bluetooth::le_audio::types::BidirectionalPair<
                        bluetooth::le_audio::types::AudioContexts>& metadata_context_types,
-               bluetooth::le_audio::types::BidirectionalPair<std::vector<uint8_t>> ccid_lists),
+               bluetooth::le_audio::types::BidirectionalPair<std::vector<uint8_t>> ccid_lists,
+               bool configure_qos),
               (override));
   MOCK_METHOD((void), StopStream, (bluetooth::le_audio::LeAudioDeviceGroup * group), (override));
   MOCK_METHOD((void), ProcessGattNotifEvent,

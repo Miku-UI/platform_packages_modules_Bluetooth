@@ -34,7 +34,6 @@ import android.content.pm.PackageManager;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.btservice.AudioRoutingManager;
 import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
@@ -57,17 +56,12 @@ public class A2dpServiceBinderTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Mock private A2dpService mA2dpService;
-    @Mock private AudioRoutingManager mAudioRoutingManager;
     @Mock private PackageManager mPackageManager;
 
     private A2dpService.BluetoothA2dpBinder mBinder;
 
     @Before
     public void setUp() throws Exception {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(true);
-        doReturn(future).when(mAudioRoutingManager).activateDeviceProfile(any(), anyInt());
-        doReturn(mAudioRoutingManager).when(mA2dpService).getActiveDeviceManager();
         doReturn(mPackageManager).when(mA2dpService).getPackageManager();
         ApplicationInfo appInfo = new ApplicationInfo();
         appInfo.targetSdkVersion = android.os.Build.VERSION_CODES.CUR_DEVELOPMENT;
@@ -115,24 +109,12 @@ public class A2dpServiceBinderTest {
 
     @Test
     public void setActiveDevice() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-
         mBinder.setActiveDevice(sDevice, sSource);
         verify(mA2dpService).setActiveDevice(sDevice);
     }
 
     @Test
-    public void setActiveDeviceWithAudioRouting() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-
-        mBinder.setActiveDevice(sDevice, sSource);
-        verify(mAudioRoutingManager).activateDeviceProfile(sDevice, BluetoothProfile.A2DP);
-    }
-
-    @Test
     public void setActiveDevice_withNull_callsRemoveActiveDevice() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-
         mBinder.setActiveDevice(null, sSource);
         verify(mA2dpService).removeActiveDevice(false);
     }

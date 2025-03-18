@@ -18,8 +18,6 @@
 
 #include "os/metrics.h"
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace os {
 

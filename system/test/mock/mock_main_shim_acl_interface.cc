@@ -16,6 +16,9 @@
 
 #include "main/shim/acl_interface.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth {
 namespace shim {
 namespace legacy {

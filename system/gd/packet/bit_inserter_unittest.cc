@@ -20,8 +20,6 @@
 
 #include <memory>
 
-#include "os/log.h"
-
 using bluetooth::packet::BitInserter;
 using std::vector;
 

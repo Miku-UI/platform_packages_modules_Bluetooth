@@ -8,11 +8,9 @@ use std::slice::Iter;
 use crate::engine::{Rule, RuleGroup, Signal};
 use crate::parser::{Packet, PacketChild};
 use hcidoc_packets::hci::{
-    Acl, AclCommandChild, Address, AuthenticatedPayloadTimeoutExpired, CommandChild,
-    ConnectionManagementCommandChild, DisconnectReason, Enable, ErrorCode, EventChild,
-    InitiatorFilterPolicy, LeConnectionManagementCommandChild, LeMetaEventChild,
-    LeSecurityCommandChild, NumberOfCompletedPackets, OpCode, ScoConnectionCommandChild,
-    SecurityCommandChild,
+    Acl, Address, AuthenticatedPayloadTimeoutExpired, CommandChild, DisconnectReason, Enable,
+    ErrorCode, EventChild, InitiatorFilterPolicy, LeMetaEventChild, NumberOfCompletedPackets,
+    OpCode,
 };
 
 enum ConnectionSignal {
@@ -626,100 +624,77 @@ impl Rule for OddDisconnectionsRule {
     fn process(&mut self, packet: &Packet) {
         match &packet.inner {
             PacketChild::HciCommand(cmd) => match cmd.specialize() {
-                CommandChild::AclCommand(aclpkt) => match aclpkt.specialize() {
-                    AclCommandChild::ConnectionManagementCommand(conn) => match conn.specialize() {
-                        ConnectionManagementCommandChild::CreateConnection(cc) => {
-                            self.process_classic_connection(cc.get_bd_addr(), packet);
-                        }
-                        ConnectionManagementCommandChild::AcceptConnectionRequest(ac) => {
-                            self.process_classic_connection(ac.get_bd_addr(), packet);
-                        }
-                        ConnectionManagementCommandChild::ReadRemoteSupportedFeatures(rrsf) => {
-                            self.process_remote_feat_cmd(
-                                PendingRemoteFeature::Supported,
-                                &rrsf.get_connection_handle(),
-                                packet,
-                            );
-                        }
-                        ConnectionManagementCommandChild::ReadRemoteExtendedFeatures(rref) => {
-                            self.process_remote_feat_cmd(
-                                PendingRemoteFeature::Extended,
-                                &rref.get_connection_handle(),
-                                packet,
-                            );
-                        }
-                        // End ConnectionManagementCommand.specialize()
-                        _ => {}
-                    },
-                    AclCommandChild::ScoConnectionCommand(sco_con) => match sco_con.specialize() {
-                        ScoConnectionCommandChild::SetupSynchronousConnection(ssc) => {
-                            let address =
-                                self.convert_sco_handle_to_address(ssc.get_connection_handle());
-                            self.process_sync_connection(address, packet);
-                        }
-                        ScoConnectionCommandChild::EnhancedSetupSynchronousConnection(esc) => {
-                            let address =
-                                self.convert_sco_handle_to_address(esc.get_connection_handle());
-                            self.process_sync_connection(address, packet);
-                        }
-                        ScoConnectionCommandChild::AcceptSynchronousConnection(asc) => {
-                            self.process_sync_connection(asc.get_bd_addr(), packet);
-                        }
-                        ScoConnectionCommandChild::EnhancedAcceptSynchronousConnection(easc) => {
-                            self.process_sync_connection(easc.get_bd_addr(), packet);
-                        }
-                        // End ScoConnectionCommand.specialize()
-                        _ => {}
-                    },
-                    AclCommandChild::LeConnectionManagementCommand(le_conn) => match le_conn
-                        .specialize()
-                    {
-                        LeConnectionManagementCommandChild::LeCreateConnection(lcc) => {
-                            self.process_le_create_connection(
-                                lcc.get_peer_address(),
-                                lcc.get_initiator_filter_policy(),
-                                packet,
-                            );
-                        }
-                        LeConnectionManagementCommandChild::LeExtendedCreateConnection(lecc) => {
-                            self.process_le_create_connection(
-                                lecc.get_peer_address(),
-                                lecc.get_initiator_filter_policy(),
-                                packet,
-                            );
-                        }
-                        LeConnectionManagementCommandChild::LeAddDeviceToFilterAcceptList(laac) => {
-                            self.process_add_accept_list(laac.get_address(), packet);
-                        }
-                        LeConnectionManagementCommandChild::LeRemoveDeviceFromFilterAcceptList(
-                            lrac,
-                        ) => {
-                            self.process_remove_accept_list(lrac.get_address(), packet);
-                        }
-                        LeConnectionManagementCommandChild::LeClearFilterAcceptList(_lcac) => {
-                            self.process_clear_accept_list(packet);
-                        }
-                        LeConnectionManagementCommandChild::LeReadRemoteFeatures(lrrf) => {
-                            self.process_remote_feat_cmd(
-                                PendingRemoteFeature::Le,
-                                &lrrf.get_connection_handle(),
-                                packet,
-                            );
-                        }
-                        // End LeConnectionManagementCommand.specialize()
-                        _ => {}
-                    },
-                    AclCommandChild::Disconnect(dc_conn) => {
-                        self.process_disconnect_cmd(
-                            dc_conn.get_reason(),
-                            dc_conn.get_connection_handle(),
-                            packet,
-                        );
-                    }
-
-                    // End AclCommand.specialize()
-                    _ => (),
-                },
+                CommandChild::CreateConnection(cc) => {
+                    self.process_classic_connection(cc.get_bd_addr(), packet);
+                }
+                CommandChild::AcceptConnectionRequest(ac) => {
+                    self.process_classic_connection(ac.get_bd_addr(), packet);
+                }
+                CommandChild::ReadRemoteSupportedFeatures(rrsf) => {
+                    self.process_remote_feat_cmd(
+                        PendingRemoteFeature::Supported,
+                        &rrsf.get_connection_handle(),
+                        packet,
+                    );
+                }
+                CommandChild::ReadRemoteExtendedFeatures(rref) => {
+                    self.process_remote_feat_cmd(
+                        PendingRemoteFeature::Extended,
+                        &rref.get_connection_handle(),
+                        packet,
+                    );
+                }
+                CommandChild::SetupSynchronousConnection(ssc) => {
+                    let address = self.convert_sco_handle_to_address(ssc.get_connection_handle());
+                    self.process_sync_connection(address, packet);
+                }
+                CommandChild::EnhancedSetupSynchronousConnection(esc) => {
+                    let address = self.convert_sco_handle_to_address(esc.get_connection_handle());
+                    self.process_sync_connection(address, packet);
+                }
+                CommandChild::AcceptSynchronousConnection(asc) => {
+                    self.process_sync_connection(asc.get_bd_addr(), packet);
+                }
+                CommandChild::EnhancedAcceptSynchronousConnection(easc) => {
+                    self.process_sync_connection(easc.get_bd_addr(), packet);
+                }
+                CommandChild::LeCreateConnection(lcc) => {
+                    self.process_le_create_connection(
+                        lcc.get_peer_address(),
+                        lcc.get_initiator_filter_policy(),
+                        packet,
+                    );
+                }
+                CommandChild::LeExtendedCreateConnection(lecc) => {
+                    self.process_le_create_connection(
+                        lecc.get_peer_address(),
+                        lecc.get_initiator_filter_policy(),
+                        packet,
+                    );
+                }
+                CommandChild::LeAddDeviceToFilterAcceptList(laac) => {
+                    self.process_add_accept_list(laac.get_address(), packet);
+                }
+                CommandChild::LeRemoveDeviceFromFilterAcceptList(lrac) => {
+                    self.process_remove_accept_list(lrac.get_address(), packet);
+                }
+                CommandChild::LeClearFilterAcceptList(_lcac) => {
+                    self.process_clear_accept_list(packet);
+                }
+                CommandChild::LeReadRemoteFeatures(lrrf) => {
+                    self.process_remote_feat_cmd(
+                        PendingRemoteFeature::Le,
+                        &lrrf.get_connection_handle(),
+                        packet,
+                    );
+                }
+                CommandChild::Disconnect(dc_conn) => {
+                    self.process_disconnect_cmd(
+                        dc_conn.get_reason(),
+                        dc_conn.get_connection_handle(),
+                        packet,
+                    );
+                }
                 CommandChild::Reset(_) => {
                     self.process_reset();
                 }
@@ -754,6 +729,7 @@ impl Rule for OddDisconnectionsRule {
                 EventChild::NumberOfCompletedPackets(nocp) => {
                     self.process_nocp(&nocp, packet);
                 }
+
                 EventChild::AuthenticatedPayloadTimeoutExpired(apte) => {
                     self.process_apte(&apte, packet);
                 }
@@ -1008,44 +984,26 @@ impl Rule for LinkKeyMismatchRule {
             },
 
             PacketChild::HciCommand(cmd) => match cmd.specialize() {
-                CommandChild::AclCommand(cmd) => match cmd.specialize() {
-                    // Have an arm for Disconnect since sometimes we don't receive disconnect
-                    // event when powering off. However, no need to actually match the reason
-                    // since we just clean the handle in both cases.
-                    AclCommandChild::Disconnect(cmd) => {
-                        self.process_handle_auth(
-                            ErrorCode::Success,
-                            cmd.get_connection_handle(),
-                            &packet,
-                        );
-                        self.handles.remove(&cmd.get_connection_handle());
-                    }
-
-                    // CommandChild::AclCommand(cmd).specialize()
-                    _ => {}
-                },
-
-                CommandChild::SecurityCommand(cmd) => match cmd.specialize() {
-                    SecurityCommandChild::LinkKeyRequestReply(cmd) => {
-                        self.process_reply_link_key(cmd.get_bd_addr(), true);
-                    }
-                    SecurityCommandChild::LinkKeyRequestNegativeReply(cmd) => {
-                        self.process_reply_link_key(cmd.get_bd_addr(), false);
-                    }
-
-                    // CommandChild::SecurityCommand(cmd).specialize()
-                    _ => {}
-                },
-
-                CommandChild::LeSecurityCommand(cmd) => match cmd.specialize() {
-                    LeSecurityCommandChild::LeStartEncryption(cmd) => {
-                        self.pending_le_encrypt.insert(cmd.get_connection_handle());
-                    }
-
-                    // CommandChild::LeSecurityCommand(cmd).specialize()
-                    _ => {}
-                },
-
+                // Have an arm for Disconnect since sometimes we don't receive disconnect
+                // event when powering off. However, no need to actually match the reason
+                // since we just clean the handle in both cases.
+                CommandChild::Disconnect(cmd) => {
+                    self.process_handle_auth(
+                        ErrorCode::Success,
+                        cmd.get_connection_handle(),
+                        &packet,
+                    );
+                    self.handles.remove(&cmd.get_connection_handle());
+                }
+                CommandChild::LinkKeyRequestReply(cmd) => {
+                    self.process_reply_link_key(cmd.get_bd_addr(), true);
+                }
+                CommandChild::LinkKeyRequestNegativeReply(cmd) => {
+                    self.process_reply_link_key(cmd.get_bd_addr(), false);
+                }
+                CommandChild::LeStartEncryption(cmd) => {
+                    self.pending_le_encrypt.insert(cmd.get_connection_handle());
+                }
                 CommandChild::Reset(_) => {
                     self.process_reset();
                 }

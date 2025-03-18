@@ -27,9 +27,9 @@ struct list_node_t {
   void* data;
 };
 
-void cb(void* data) {}
+void cb(void* /*data*/) {}
 // Pass a ptr to FuzzedDataProvider in context
-bool list_iter_cb_impl(void* data, void* context) {
+bool list_iter_cb_impl(void* /*data*/, void* context) {
   FuzzedDataProvider* dataProvider = reinterpret_cast<FuzzedDataProvider*>(context);
   return dataProvider->ConsumeBool();
 }

@@ -22,6 +22,7 @@ cc_fuzz {
     static_libs: [
         "libbluetooth_log",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
 }

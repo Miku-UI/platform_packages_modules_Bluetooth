@@ -14,8 +14,7 @@
 #  limitations under the License.
 #
 
-import("//bt/system/gd/dumpsys/bundler/bundler.gni")
-import("//common-mk/flatbuffer.gni")
+import("//bt/system/bta/bundler.gni")
 
 static_library("bta") {
   sources = [
@@ -64,6 +63,8 @@ static_library("bta") {
     "gatt/database.cc",
     "gatt/database_builder.cc",
     "groups/groups.cc",
+    "gmap/gmap_client.cc",
+    "gmap/gmap_server.cc",
     "has/has_client.cc",
     "has/has_ctp.cc",
     "has/has_preset.cc",
@@ -143,6 +144,7 @@ static_library("bta") {
     "//bt/system/include",
     "//bt/system/linux_include",
     "//bt/system/bta",
+    "//bt/system/bta/aics/include",
     "//bt/system/gd",
     "//bt/system/stack/include",
     "//bt/system/stack/btm",
@@ -171,8 +173,8 @@ static_library("bta") {
     "//bt/system/bta:install_audio_set_configurations_json",
     "//bt/system/bta:install_audio_set_scenarios_bfbs",
     "//bt/system/bta:install_audio_set_configurations_bfbs",
+    "//bt/system/bta/aics:aics",
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 
   libs = [

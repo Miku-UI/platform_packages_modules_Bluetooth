@@ -20,27 +20,37 @@
 #include <bind_helpers.h>
 #include <bluetooth/log.h>
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <functional>
 #include <iostream>
+#include <iterator>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "bta/le_audio/broadcaster/broadcaster_types.h"
-#include "bta/le_audio/codec_manager.h"
 #include "bta/le_audio/le_audio_types.h"
+#include "btm_api_types.h"
+#include "btm_iso_api_types.h"
 #include "common/strings.h"
+#include "hardware/ble_advertiser.h"
+#include "hardware/bt_le_audio.h"
 #include "hci/le_advertising_manager.h"
-#include "os/log.h"
-#include "osi/include/properties.h"
+#include "hcidefs.h"
+#include "main/shim/le_advertising_manager.h"
 #include "stack/include/btm_iso_api.h"
+#include "types/raw_address.h"
 
 using bluetooth::common::ToString;
 using bluetooth::hci::IsoManager;
 using bluetooth::hci::iso_manager::big_create_cmpl_evt;
 using bluetooth::hci::iso_manager::big_terminate_cmpl_evt;
-
-using bluetooth::le_audio::CodecManager;
-using bluetooth::le_audio::types::CodecLocation;
 
 using namespace bluetooth::le_audio::broadcaster;
 using namespace bluetooth;
@@ -422,8 +432,8 @@ private:
 
   void TerminateBig() {
     log::info("disabling={}", GetState() == BroadcastStateMachine::State::DISABLING);
-    /* Terminate with reason: Connection Terminated By Local Host */
-    IsoManager::GetInstance()->TerminateBig(GetAdvertisingSid(), 0x16);
+    /* Terminate with reason: Remote User Terminated Connection */
+    IsoManager::GetInstance()->TerminateBig(GetAdvertisingSid(), 0x13);
   }
 
   void OnSetupIsoDataPath(uint8_t status, uint16_t conn_hdl) override {

@@ -11,7 +11,6 @@ use std::{pin::Pin, rc::Rc, thread};
 use cxx::UniquePtr;
 
 use crate::{
-    connection::{LeAclManagerImpl, LeAclManagerShim},
     gatt::ffi::{AttTransportImpl, GattCallbacksImpl},
     GlobalModuleRegistry, MainThreadTxMessage, GLOBAL_MODULE_REGISTRY,
 };
@@ -20,14 +19,12 @@ use self::ffi::{future_ready, Future, GattServerCallbacks};
 
 fn start(
     gatt_server_callbacks: UniquePtr<GattServerCallbacks>,
-    le_acl_manager: UniquePtr<LeAclManagerShim>,
     on_started: Pin<&'static mut Future>,
 ) {
     thread::spawn(move || {
         GlobalModuleRegistry::start(
             Rc::new(GattCallbacksImpl(gatt_server_callbacks)),
             Rc::new(AttTransportImpl()),
-            LeAclManagerImpl(le_acl_manager),
             || {
                 future_ready(on_started);
             },

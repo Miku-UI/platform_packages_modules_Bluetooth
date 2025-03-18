@@ -1,0 +1,15 @@
+Remove `-Xclang-only=` as that's not supported in the Debian LLVM
+toolchain. Since clang is specified in the ../rules file, we don't need
+to worry about the compatibility with other compilers.
+
+--- a/libchrome/BUILD.gn
++++ b/libchrome/BUILD.gn
+@@ -82,7 +82,7 @@ config("libchrome_config") {
+     "-Wno-narrowing",
+     "-Wno-unreachable-code-return",
+     "-Wno-unused-local-typedefs",
+-    "-Xclang-only=-Wno-char-subscripts",
++    "-Wno-char-subscripts",
+   ]
+ 
+   # Address sanitizer + coverage builds do not support -z,defs.

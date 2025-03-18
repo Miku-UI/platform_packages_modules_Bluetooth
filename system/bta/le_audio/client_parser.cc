@@ -23,17 +23,20 @@
 
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
-#include <endian.h>
-#include <hardware/bt_common_types.h>
 #include <hardware/bt_gatt_types.h>
 
+#include <bitset>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <numeric>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "internal_include/bt_trace.h"
 #include "le_audio_types.h"
 #include "le_audio_utils.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 
 using bluetooth::le_audio::types::acs_ac_record;

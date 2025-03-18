@@ -27,9 +27,9 @@
 #include "fuzzers/common/commonFuzzHelpers.h"
 #include "fuzzers/sdp/sdpFuzzFunctions.h"
 #include "osi/include/allocator.h"
-#include "raw_address.h"
 #include "stack/a2dp/a2dp_int.h"
 #include "stack/include/bt_uuid16.h"
+#include "types/raw_address.h"
 
 #define MAX_STR_LEN 4096
 

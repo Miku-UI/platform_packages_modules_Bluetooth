@@ -97,28 +97,6 @@ struct acl_send_data_packet_br_edr {
   void operator()(const RawAddress& bd_addr, BT_HDR* p_buf) { return body(bd_addr, p_buf); }
 };
 extern struct acl_send_data_packet_br_edr acl_send_data_packet_br_edr;
-// Name: acl_create_le_connection
-// Params: const RawAddress& bd_addr
-// Returns: bool
-struct acl_create_le_connection {
-  std::function<bool(const RawAddress& bd_addr)> body{
-          [](const RawAddress& /* bd_addr */) { return false; }};
-  bool operator()(const RawAddress& bd_addr) { return body(bd_addr); }
-};
-extern struct acl_create_le_connection acl_create_le_connection;
-// Name: acl_create_le_connection_with_id
-// Params: uint8_t id, const RawAddress& bd_addr
-// Returns: bool
-struct acl_create_le_connection_with_id {
-  std::function<bool(uint8_t id, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type)> body{
-          [](uint8_t /* id */, const RawAddress& /* bd_addr */, tBLE_ADDR_TYPE /* addr_type */) {
-            return false;
-          }};
-  bool operator()(uint8_t id, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type) {
-    return body(id, bd_addr, addr_type);
-  }
-};
-extern struct acl_create_le_connection_with_id acl_create_le_connection_with_id;
 // Name: acl_is_role_switch_allowed
 // Params:
 // Returns: bool
@@ -243,17 +221,6 @@ struct acl_set_peer_le_features_from_handle {
   bool operator()(uint16_t hci_handle, const uint8_t* p) { return body(hci_handle, p); }
 };
 extern struct acl_set_peer_le_features_from_handle acl_set_peer_le_features_from_handle;
-// Name: acl_get_connection_from_address
-// Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
-// Returns: tACL_CONN*
-struct acl_get_connection_from_address {
-  std::function<tACL_CONN*(const RawAddress& bd_addr, tBT_TRANSPORT transport)> body{
-          [](const RawAddress& /* bd_addr */, tBT_TRANSPORT /* transport */) { return nullptr; }};
-  tACL_CONN* operator()(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-    return body(bd_addr, transport);
-  }
-};
-extern struct acl_get_connection_from_address acl_get_connection_from_address;
 // Name: btm_acl_for_bda
 // Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
 // Returns: tACL_CONN*
@@ -265,14 +232,6 @@ struct btm_acl_for_bda {
   }
 };
 extern struct btm_acl_for_bda btm_acl_for_bda;
-// Name: acl_get_connection_from_handle
-// Params: uint16_t handle
-// Returns: tACL_CONN*
-struct acl_get_connection_from_handle {
-  std::function<tACL_CONN*(uint16_t handle)> body{[](uint16_t /* handle */) { return nullptr; }};
-  tACL_CONN* operator()(uint16_t handle) { return body(handle); }
-};
-extern struct acl_get_connection_from_handle acl_get_connection_from_handle;
 // Name: BTM_ReadFailedContactCounter
 // Params: const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb
 // Returns: tBTM_STATUS
@@ -600,27 +559,6 @@ struct btm_acl_role_changed {
   }
 };
 extern struct btm_acl_role_changed btm_acl_role_changed;
-// Name: btm_acl_update_conn_addr
-// Params: uint16_t handle, const RawAddress& address
-// Returns: void
-struct btm_acl_update_conn_addr {
-  std::function<void(uint16_t handle, const RawAddress& address)> body{
-          [](uint16_t /* handle */, const RawAddress& /* address */) { ; }};
-  void operator()(uint16_t handle, const RawAddress& address) { body(handle, address); }
-};
-extern struct btm_acl_update_conn_addr btm_acl_update_conn_addr;
-// Name: btm_ble_refresh_local_resolvable_private_addr
-// Params:  const RawAddress& pseudo_addr, const RawAddress& local_rpa
-// Returns: void
-struct btm_ble_refresh_local_resolvable_private_addr {
-  std::function<void(const RawAddress& pseudo_addr, const RawAddress& local_rpa)> body{
-          [](const RawAddress& /* pseudo_addr */, const RawAddress& /* local_rpa */) { ; }};
-  void operator()(const RawAddress& pseudo_addr, const RawAddress& local_rpa) {
-    body(pseudo_addr, local_rpa);
-  }
-};
-extern struct btm_ble_refresh_local_resolvable_private_addr
-        btm_ble_refresh_local_resolvable_private_addr;
 // Name: btm_cont_rswitch_from_handle
 // Params: uint16_t hci_handle
 // Returns: void
@@ -638,29 +576,6 @@ struct btm_establish_continue_from_address {
   void operator()(const RawAddress& bda, tBT_TRANSPORT transport) { body(bda, transport); }
 };
 extern struct btm_establish_continue_from_address btm_establish_continue_from_address;
-// Name: btm_process_remote_ext_features
-// Params: tACL_CONN* p_acl_cb, uint8_t max_page_number
-// Returns: void
-struct btm_process_remote_ext_features {
-  std::function<void(tACL_CONN* p_acl_cb, uint8_t max_page_number)> body{
-          [](tACL_CONN* /* p_acl_cb */, uint8_t /* max_page_number */) { ; }};
-  void operator()(tACL_CONN* p_acl_cb, uint8_t max_page_number) { body(p_acl_cb, max_page_number); }
-};
-extern struct btm_process_remote_ext_features btm_process_remote_ext_features;
-// Name: btm_process_remote_version_complete
-// Params: uint8_t status, uint16_t handle, uint8_t lmp_version, uint16_t
-// manufacturer, uint16_t lmp_subversion Returns: void
-struct btm_process_remote_version_complete {
-  std::function<void(uint8_t status, uint16_t handle, uint8_t lmp_version, uint16_t manufacturer,
-                     uint16_t lmp_subversion)>
-          body{[](uint8_t /* status */, uint16_t /* handle */, uint8_t /* lmp_version */,
-                  uint16_t /* manufacturer */, uint16_t /* lmp_subversion */) { ; }};
-  void operator()(uint8_t status, uint16_t handle, uint8_t lmp_version, uint16_t manufacturer,
-                  uint16_t lmp_subversion) {
-    body(status, handle, lmp_version, manufacturer, lmp_subversion);
-  }
-};
-extern struct btm_process_remote_version_complete btm_process_remote_version_complete;
 // Name: btm_read_automatic_flush_timeout_complete
 // Params: uint8_t* p
 // Returns: void
@@ -677,23 +592,6 @@ struct btm_read_failed_contact_counter_complete {
   void operator()(uint8_t* p) { body(p); }
 };
 extern struct btm_read_failed_contact_counter_complete btm_read_failed_contact_counter_complete;
-// Name: btm_read_failed_contact_counter_timeout
-// Params: void* data
-// Returns: void
-struct btm_read_failed_contact_counter_timeout {
-  std::function<void(void* data)> body{[](void* /* data */) { ; }};
-  void operator()(void* data) { body(data); }
-};
-extern struct btm_read_failed_contact_counter_timeout btm_read_failed_contact_counter_timeout;
-// Name: btm_read_remote_ext_features
-// Params: uint16_t handle, uint8_t page_number
-// Returns: void
-struct btm_read_remote_ext_features {
-  std::function<void(uint16_t handle, uint8_t page_number)> body{
-          [](uint16_t /* handle */, uint8_t /* page_number */) { ; }};
-  void operator()(uint16_t handle, uint8_t page_number) { body(handle, page_number); }
-};
-extern struct btm_read_remote_ext_features btm_read_remote_ext_features;
 // Name: btm_read_remote_ext_features_complete
 // Params: uint16_t handle, uint8_t page_num, uint8_t max_page, uint8_t*
 // features Returns: void
@@ -747,14 +645,6 @@ struct btm_read_rssi_complete {
   void operator()(uint8_t* p, uint16_t evt_len) { body(p, evt_len); }
 };
 extern struct btm_read_rssi_complete btm_read_rssi_complete;
-// Name: btm_read_rssi_timeout
-// Params: void* data
-// Returns: void
-struct btm_read_rssi_timeout {
-  std::function<void(void* data)> body{[](void* /* data */) { ; }};
-  void operator()(void* data) { body(data); }
-};
-extern struct btm_read_rssi_timeout btm_read_rssi_timeout;
 // Name: btm_read_tx_power_complete
 // Params: uint8_t* p, bool is_ble
 // Returns: void
@@ -764,14 +654,6 @@ struct btm_read_tx_power_complete {
   void operator()(uint8_t* p, uint16_t evt_len, bool is_ble) { body(p, evt_len, is_ble); }
 };
 extern struct btm_read_tx_power_complete btm_read_tx_power_complete;
-// Name: btm_read_tx_power_timeout
-// Params: void* data
-// Returns: void
-struct btm_read_tx_power_timeout {
-  std::function<void(void* data)> body{[](void* /* data */) { ; }};
-  void operator()(void* data) { body(data); }
-};
-extern struct btm_read_tx_power_timeout btm_read_tx_power_timeout;
 // Name: btm_rejectlist_role_change_device
 // Params: const RawAddress& bd_addr, uint8_t hci_status
 // Returns: void
@@ -781,15 +663,6 @@ struct btm_rejectlist_role_change_device {
   void operator()(const RawAddress& bd_addr, uint8_t hci_status) { body(bd_addr, hci_status); }
 };
 extern struct btm_rejectlist_role_change_device btm_rejectlist_role_change_device;
-// Name: btm_set_link_policy
-// Params: tACL_CONN* conn, tLINK_POLICY policy
-// Returns: void
-struct btm_set_link_policy {
-  std::function<void(tACL_CONN* conn, tLINK_POLICY policy)> body{
-          [](tACL_CONN* /* conn */, tLINK_POLICY /* policy */) { ; }};
-  void operator()(tACL_CONN* conn, tLINK_POLICY policy) { body(conn, policy); }
-};
-extern struct btm_set_link_policy btm_set_link_policy;
 // Name: btm_set_packet_types_from_address
 // Params: const RawAddress& bd_addr, uint16_t pkt_types
 // Returns: void
@@ -799,15 +672,6 @@ struct btm_set_packet_types_from_address {
   void operator()(const RawAddress& bd_addr, uint16_t pkt_types) { body(bd_addr, pkt_types); }
 };
 extern struct btm_set_packet_types_from_address btm_set_packet_types_from_address;
-// Name: hci_btm_set_link_supervision_timeout
-// Params: tACL_CONN& link, uint16_t timeout
-// Returns: void
-struct hci_btm_set_link_supervision_timeout {
-  std::function<void(tACL_CONN& link, uint16_t timeout)> body{
-          [](tACL_CONN& /* link */, uint16_t /* timeout */) { ; }};
-  void operator()(tACL_CONN& link, uint16_t timeout) { body(link, timeout); }
-};
-extern struct hci_btm_set_link_supervision_timeout hci_btm_set_link_supervision_timeout;
 // Name: on_acl_br_edr_connected
 // Params: const RawAddress& bda, uint16_t handle, uint8_t enc_mode, bool
 // locally_initiated Returns: void

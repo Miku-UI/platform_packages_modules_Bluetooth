@@ -90,9 +90,9 @@ typedef struct {
   tBTA_DM_SEARCH_CBACK* p_csis_scan_cback;
 } tBTA_DM_SEARCH_CB;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_DEV_SEARCH_EVT> : enum_formatter<tBTA_DM_DEV_SEARCH_EVT> {};
 template <>
 struct formatter<tBTA_DM_DEVICE_SEARCH_STATE> : enum_formatter<tBTA_DM_DEVICE_SEARCH_STATE> {};
-}  // namespace fmt
+}  // namespace std

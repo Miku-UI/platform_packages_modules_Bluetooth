@@ -422,9 +422,9 @@ void PAN_Init(void);
 
 void PAN_Dumpsys(int fd);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPAN_RESULT> : enum_formatter<tPAN_RESULT> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* PAN_API_H */

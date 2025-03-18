@@ -357,10 +357,12 @@ private:
   void parse_parameter(bluetooth::hci::AdvertisingConfig& config, ::AdvertiseParameters params) {
     config.connectable = params.advertising_event_properties & 0x01;
     config.scannable = params.advertising_event_properties & 0x02;
-    config.discoverable = params.advertising_event_properties & 0x04;
+    config.directed = params.advertising_event_properties & 0x04;
+    config.high_duty_cycle = params.advertising_event_properties & 0x08;
     config.legacy_pdus = params.advertising_event_properties & 0x10;
     config.anonymous = params.advertising_event_properties & 0x20;
     config.include_tx_power = params.advertising_event_properties & 0x40;
+    config.discoverable = params.discoverable;
     config.interval_min = params.min_interval;
     config.interval_max = params.max_interval;
     config.channel_map = params.channel_map;
@@ -370,6 +372,7 @@ private:
             static_cast<bluetooth::hci::SecondaryPhyType>(params.secondary_advertising_phy);
     config.enable_scan_request_notifications =
             static_cast<bluetooth::hci::Enable>(params.scan_request_notification_enable);
+    config.peer_address = bluetooth::ToGdAddress(params.peer_address);
     // Matching the ADDRESS_TYPE_* enums from Java
     switch (params.own_address_type) {
       case -1:
@@ -387,6 +390,18 @@ private:
       default:
         log::error("Received unexpected address type: {}", params.own_address_type);
         config.requested_advertiser_address_type = AdvertiserAddressType::RESOLVABLE_RANDOM;
+    }
+    switch (params.peer_address_type) {
+      case 0:
+        config.peer_address_type =
+                bluetooth::hci::PeerAddressType::PUBLIC_DEVICE_OR_IDENTITY_ADDRESS;
+        break;
+      case 1:
+        config.peer_address_type =
+                bluetooth::hci::PeerAddressType::RANDOM_DEVICE_OR_IDENTITY_ADDRESS;
+        break;
+      default:
+        log::error("Received unexpected peer address type: {}", params.peer_address_type);
     }
   }
 

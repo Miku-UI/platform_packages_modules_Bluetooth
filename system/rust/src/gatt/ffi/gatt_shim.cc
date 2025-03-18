@@ -26,7 +26,6 @@
 #include "include/hardware/bt_common_types.h"
 #include "include/hardware/bt_gatt_client.h"
 #include "include/hardware/bt_gatt_server.h"
-#include "os/log.h"
 #include "rust/cxx.h"
 #include "stack/include/gatt_api.h"
 #include "types/bluetooth/uuid.h"

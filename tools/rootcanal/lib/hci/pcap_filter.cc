@@ -97,9 +97,9 @@ std::vector<uint8_t> PcapFilter::FilterHciEvent(std::vector<uint8_t> const& pack
       auto le_meta_event = LeMetaEventView::Create(event);
       ASSERT(le_meta_event.IsValid());
       switch (le_meta_event.GetSubeventCode()) {
-        case SubeventCode::ADVERTISING_REPORT:
+        case SubeventCode::LE_ADVERTISING_REPORT:
           return FilterLeAdvertisingReport(le_meta_event);
-        case SubeventCode::EXTENDED_ADVERTISING_REPORT:
+        case SubeventCode::LE_EXTENDED_ADVERTISING_REPORT:
           return FilterLeExtendedAdvertisingReport(le_meta_event);
         default:
           break;

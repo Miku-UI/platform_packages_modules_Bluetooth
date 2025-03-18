@@ -20,7 +20,6 @@
 
 #include "common/bind.h"
 #include "common/callback.h"
-#include "os/log.h"
 #include "os/reactor.h"
 
 namespace bluetooth {

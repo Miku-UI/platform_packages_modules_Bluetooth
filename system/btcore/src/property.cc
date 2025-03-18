@@ -205,7 +205,7 @@ static bt_property_t* property_new_(void* val, size_t len, bt_property_type_t ty
 
   property->val = osi_calloc(len + 1);
   if (type == BT_PROPERTY_BDNAME) {
-    strlcpy((char*)property->val, (const char*)val, len);
+    osi_strlcpy((char*)property->val, (const char*)val, len);
   } else {
     memcpy(property->val, val, len);
   }

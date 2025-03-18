@@ -107,7 +107,7 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_connect_test) {
 
   // Connect to snoop logger socket
   RUN_NO_INTR(ret = connect(socket_fd, (struct sockaddr*)&addr, sizeof(addr)));
-  ASSERT_TRUE(ret == 0);
+  ASSERT_EQ(0, ret);
 
   sls.Stop();
 
@@ -134,11 +134,11 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_connect_disconnect_test) {
 
   // Connect to snoop logger socket
   RUN_NO_INTR(ret = connect(socket_fd, (struct sockaddr*)&addr, sizeof(addr)));
-  ASSERT_TRUE(ret == 0);
+  ASSERT_EQ(0, ret);
 
   // Close snoop logger socket
   RUN_NO_INTR(ret = close(socket_fd));
-  ASSERT_TRUE(ret == 0);
+  ASSERT_EQ(0, ret);
 
   sls.Stop();
 
@@ -180,7 +180,7 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_send_before_connect_test) {
 
   // Connect to snoop logger socket
   RUN_NO_INTR(ret = connect(socket_fd, (struct sockaddr*)&addr, sizeof(addr)));
-  ASSERT_TRUE(ret == 0);
+  ASSERT_EQ(0, ret);
 
   char recv_buf1[sizeof(SnoopLoggerCommon::FileHeaderType)];
   char recv_buf2[sizeof(test_data)];
@@ -217,7 +217,7 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_recv_file_header_test) {
 
   // Connect to snoop logger socket
   RUN_NO_INTR(ret = connect(socket_fd, (struct sockaddr*)&addr, sizeof(addr)));
-  ASSERT_TRUE(ret == 0);
+  ASSERT_EQ(0, ret);
 
   char recv_buf[sizeof(SnoopLoggerCommon::FileHeaderType)];
   int bytes_read = -1;
@@ -232,7 +232,7 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_recv_file_header_test) {
   bytes_read = a.get();
 
   ASSERT_EQ(bytes_read, static_cast<int>(sizeof(SnoopLoggerCommon::FileHeaderType)));
-  ASSERT_TRUE(std::memcmp(recv_buf, &SnoopLoggerCommon::kBtSnoopFileHeader, bytes_read) == 0);
+  ASSERT_EQ(0, std::memcmp(recv_buf, &SnoopLoggerCommon::kBtSnoopFileHeader, bytes_read));
   close(socket_fd);
 }
 
@@ -255,7 +255,7 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_send_recv_test) {
 
   // Connect to snoop logger socket
   RUN_NO_INTR(ret = connect(socket_fd, (struct sockaddr*)&addr, sizeof(addr)));
-  ASSERT_TRUE(ret == 0);
+  ASSERT_EQ(0, ret);
 
   char test_data[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                       0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0f};
@@ -275,11 +275,10 @@ TEST_F(SnoopLoggerSocketThreadModuleTest, socket_send_recv_test) {
   a.wait();
   bytes_read = a.get();
 
-  ASSERT_TRUE(std::memcmp(recv_buf1, &SnoopLoggerCommon::kBtSnoopFileHeader, sizeof(recv_buf1)) ==
-              0);
+  ASSERT_EQ(0, std::memcmp(recv_buf1, &SnoopLoggerCommon::kBtSnoopFileHeader, sizeof(recv_buf1)));
 
   ASSERT_EQ(bytes_read, static_cast<int>(sizeof(test_data)));
-  ASSERT_TRUE(std::memcmp(recv_buf2, test_data, bytes_read) == 0);
+  ASSERT_EQ(0, std::memcmp(recv_buf2, test_data, bytes_read));
   close(socket_fd);
 }
 

@@ -202,19 +202,19 @@ TEST_F(ListTest, test_list_foreach_partial) {
   list_node_t* rc = list_foreach(list, list_callback_find_int, &find);
   EXPECT_TRUE(rc != NULL);
   int* rc_val = (int*)list_node(rc);
-  EXPECT_TRUE(*rc_val == 4);
+  EXPECT_EQ(4, *rc_val);
 
   find = 1;
   rc = list_foreach(list, list_callback_find_int, &find);
   EXPECT_TRUE(rc != NULL);
   rc_val = (int*)list_node(rc);
-  EXPECT_TRUE(*rc_val == 1);
+  EXPECT_EQ(1, *rc_val);
 
   find = 5;
   rc = list_foreach(list, list_callback_find_int, &find);
   EXPECT_TRUE(rc != NULL);
   rc_val = (int*)list_node(rc);
-  EXPECT_TRUE(*rc_val == 5);
+  EXPECT_EQ(5, *rc_val);
 
   find = 0;
   rc = list_foreach(list, list_callback_find_int, &find);

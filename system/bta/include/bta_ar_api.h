@@ -74,20 +74,6 @@ void bta_ar_dereg_avdt();
 
 /*******************************************************************************
  *
- * Function         bta_ar_avdt_conn
- *
- * Description      This function is called to let ar know that some AVDTP
- *                  profile is connected for this sys_id.
- *                  If the other sys modules started a timer for PENDING_EVT,
- *                  the timer can be stopped now.
- *
- * Returns          void
- *
- ******************************************************************************/
-void bta_ar_avdt_conn(tBTA_SYS_ID sys_id, const RawAddress& bd_addr, uint8_t scb_index);
-
-/*******************************************************************************
- *
  * Function         bta_ar_reg_avct
  *
  * Description      This function is called to register to AVCTP.

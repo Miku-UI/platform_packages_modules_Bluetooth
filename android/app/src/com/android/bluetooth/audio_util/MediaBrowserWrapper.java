@@ -189,8 +189,7 @@ class MediaBrowserWrapper {
                                     + mediaId
                                     + ": adding callback and subscribing.");
                     mSubscribedIds.put(mediaId, new ArrayList<>(Arrays.asList(callback)));
-                    mWrappedBrowser.subscribe(
-                            mediaId, new BrowserSubscriptionCallback(mLooper, mediaId));
+                    mWrappedBrowser.subscribe(mediaId, new BrowserSubscriptionCallback(mediaId));
                 });
     }
 
@@ -319,7 +318,7 @@ class MediaBrowserWrapper {
         private final Runnable mTimeoutRunnable;
         private boolean mCallbacksExecuted = false;
 
-        public BrowserSubscriptionCallback(Looper looper, String mediaId) {
+        BrowserSubscriptionCallback(String mediaId) {
             mTimeoutRunnable =
                     () -> {
                         executeCallbacks(mediaId, new ArrayList<>());

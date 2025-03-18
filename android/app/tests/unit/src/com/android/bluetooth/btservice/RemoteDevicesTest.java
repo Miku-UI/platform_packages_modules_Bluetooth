@@ -17,6 +17,8 @@ import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Message;
 import android.os.TestLooperManager;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -25,6 +27,7 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.bas.BatteryService;
 import com.android.bluetooth.btservice.RemoteDevices.DeviceProperties;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetHalConstants;
 
 import org.junit.After;
@@ -55,6 +58,7 @@ public class RemoteDevicesTest {
 
     private Context mTargetContext;
     private BluetoothManager mBluetoothManager;
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
@@ -78,8 +82,8 @@ public class RemoteDevicesTest {
                 .thenReturn(Context.BLUETOOTH_SERVICE);
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
-        verify(mAdapterService, times(1)).getSystemService(Context.BLUETOOTH_SERVICE);
-        verify(mAdapterService, times(1)).getSystemService(BluetoothManager.class);
+        verify(mAdapterService).getSystemService(Context.BLUETOOTH_SERVICE);
+        verify(mAdapterService).getSystemService(BluetoothManager.class);
     }
 
     @After
@@ -758,6 +762,18 @@ public class RemoteDevicesTest {
                 RemoteDevices.batteryChargeIndicatorToPercentge(batteryLevel),
                 mIntentArgument);
         Assert.assertEquals(BLUETOOTH_CONNECT, mStringArgument.getValue());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_ADD_DEVICE_PROPERTIES)
+    public void testMultipleAddDeviceProperties() {
+        // Verify that device property is null initially
+        Assert.assertNull(mRemoteDevices.getDeviceProperties(mDevice1));
+        DeviceProperties prop1 =
+                mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
+        DeviceProperties prop2 =
+                mRemoteDevices.addDeviceProperties(Utils.getBytesFromAddress(TEST_BT_ADDR_1));
+        Assert.assertEquals(prop2, prop1);
     }
 
     @Test

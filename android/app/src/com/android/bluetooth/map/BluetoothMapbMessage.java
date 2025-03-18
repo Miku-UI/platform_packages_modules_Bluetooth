@@ -32,11 +32,15 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 10
 public abstract class BluetoothMapbMessage {
 
-    protected static final String TAG = "BluetoothMapbMessage";
+    protected static final String TAG = BluetoothMapbMessage.class.getSimpleName();
+
+    private static final Pattern UNESCAPE_COLON = Pattern.compile("[^\\\\]:");
+    protected static final Pattern COLON = Pattern.compile(":");
 
     private String mVersionString = "VERSION:1.0";
 
@@ -263,34 +267,34 @@ public abstract class BluetoothMapbMessage {
             while (!line.contains("END:VCARD")) {
                 line = line.trim();
                 if (line.startsWith("N:")) {
-                    parts = line.split("[^\\\\]:"); // Split on "un-escaped" ':'
+                    parts = UNESCAPE_COLON.split(line);
                     if (parts.length == 2) {
                         name = parts[1];
                     } else {
                         name = "";
                     }
                 } else if (line.startsWith("FN:")) {
-                    parts = line.split("[^\\\\]:"); // Split on "un-escaped" ':'
+                    parts = UNESCAPE_COLON.split(line);
                     if (parts.length == 2) {
                         formattedName = parts[1];
                     } else {
                         formattedName = "";
                     }
                 } else if (line.startsWith("TEL:")) {
-                    parts = line.split("[^\\\\]:"); // Split on "un-escaped" ':'
+                    parts = UNESCAPE_COLON.split(line);
                     if (parts.length == 2) {
-                        String[] subParts = parts[1].split("[^\\\\];");
+                        String[] subParts = UNESCAPE_COLON.split(parts[1]);
                         if (phoneNumbers == null) {
-                            phoneNumbers = new ArrayList<String>(1);
+                            phoneNumbers = new ArrayList<>(1);
                         }
                         // only keep actual phone number
                         phoneNumbers.add(subParts[subParts.length - 1]);
                     }
                     // Empty phone number - ignore
                 } else if (line.startsWith("EMAIL:")) {
-                    parts = line.split("[^\\\\]:"); // Split on "un-escaped" :
+                    parts = UNESCAPE_COLON.split(line);
                     if (parts.length == 2) {
-                        String[] subParts = parts[1].split("[^\\\\];");
+                        String[] subParts = UNESCAPE_COLON.split(parts[1]);
                         if (emailAddresses == null) {
                             emailAddresses = new ArrayList<String>(1);
                         }
@@ -299,9 +303,9 @@ public abstract class BluetoothMapbMessage {
                     }
                     // Empty email address entry - ignore
                 } else if (line.startsWith("X-BT-UCI:")) {
-                    parts = line.split("[^\\\\]:"); // Split on "un-escaped" :
+                    parts = UNESCAPE_COLON.split(line);
                     if (parts.length == 2) {
-                        String[] subParts = parts[1].split("[^\\\\];");
+                        String[] subParts = UNESCAPE_COLON.split(parts[1]);
                         if (btUcis == null) {
                             btUcis = new ArrayList<String>(1);
                         }
@@ -309,9 +313,9 @@ public abstract class BluetoothMapbMessage {
                     }
                     // Empty UCIentry - ignore
                 } else if (line.startsWith("X-BT-UID:")) {
-                    parts = line.split("[^\\\\]:"); // Split on "un-escaped" :
+                    parts = UNESCAPE_COLON.split(line);
                     if (parts.length == 2) {
-                        String[] subParts = parts[1].split("[^\\\\];");
+                        String[] subParts = UNESCAPE_COLON.split(parts[1]);
                         if (btUids == null) {
                             btUids = new ArrayList<String>(1);
                         }
@@ -514,7 +518,7 @@ public abstract class BluetoothMapbMessage {
         // Parse the properties - which end with either a VCARD or a BENV
         while (!line.contains("BEGIN:VCARD") && !line.contains("BEGIN:BENV")) {
             if (line.contains("STATUS")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     if (arg[1].trim().equals("READ")) {
                         status = true;
@@ -528,7 +532,7 @@ public abstract class BluetoothMapbMessage {
                 }
             }
             if (line.contains("EXTENDEDDATA")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     String value = arg[1].trim();
                     // FIXME what should we do with this
@@ -536,7 +540,7 @@ public abstract class BluetoothMapbMessage {
                 }
             }
             if (line.contains("TYPE")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     String value = arg[1].trim();
                     /* Will throw IllegalArgumentException if value is wrong */
@@ -569,7 +573,7 @@ public abstract class BluetoothMapbMessage {
                 }
             }
             if (line.contains("FOLDER")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     folder = arg[1].trim();
                 }
@@ -652,7 +656,7 @@ public abstract class BluetoothMapbMessage {
         parseMsgInit();
         while (!line.contains("END:")) {
             if (line.contains("PARTID:")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     try {
                         Long unusedId = Long.parseLong(arg[1].trim());
@@ -669,7 +673,7 @@ public abstract class BluetoothMapbMessage {
                     throw new IllegalArgumentException("Missing value for 'PARTID': " + line);
                 }
             } else if (line.contains("ENCODING:")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     mEncoding = arg[1].trim();
                     // If needed validation will be done when the value is used
@@ -677,7 +681,7 @@ public abstract class BluetoothMapbMessage {
                     throw new IllegalArgumentException("Missing value for 'ENCODING': " + line);
                 }
             } else if (line.contains("CHARSET:")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     mCharset = arg[1].trim();
                     // If needed validation will be done when the value is used
@@ -685,7 +689,7 @@ public abstract class BluetoothMapbMessage {
                     throw new IllegalArgumentException("Missing value for 'CHARSET': " + line);
                 }
             } else if (line.contains("LANGUAGE:")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     String unusedLanguage = arg[1].trim();
                     // If needed validation will be done when the value is used
@@ -693,7 +697,7 @@ public abstract class BluetoothMapbMessage {
                     throw new IllegalArgumentException("Missing value for 'LANGUAGE': " + line);
                 }
             } else if (line.contains("LENGTH:")) {
-                String[] arg = line.split(":");
+                String[] arg = COLON.split(line);
                 if (arg != null && arg.length == 2) {
                     try {
                         mBMsgLength = Integer.parseInt(arg[1].trim());

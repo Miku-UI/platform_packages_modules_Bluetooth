@@ -23,5 +23,4 @@ cc_fuzz {
         "libbluetooth_log",
         "libosi",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }

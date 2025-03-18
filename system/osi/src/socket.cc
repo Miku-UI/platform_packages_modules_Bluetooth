@@ -28,7 +28,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "osi/include/reactor.h"

@@ -34,6 +34,7 @@ java_library {
     sdk_version: "test_current",
     visibility: [
         "//cts/tests/tests/bluetooth",
+        "//cts/tests/tests/car",
         "//packages/modules/Bluetooth/framework/tests/bumble",
 
         // TODO: b/339938196 -- remove export for other modules and test
@@ -42,6 +43,7 @@ java_library {
         "//packages/modules/Connectivity/nearby/tests/cts/fastpair",
         "//packages/modules/Permission/tests/cts/permission",
         "//packages/modules/Permission/tests/cts/permissionui",
+        "//packages/modules/Uwb/ranging/tests/cts/tests",
         "//test/cts-root/tests/bluetooth",
     ],
 }

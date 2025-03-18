@@ -71,9 +71,14 @@ public class InitiatorViewModel extends AndroidViewModel {
         return mDistanceMeasurementInitiator.getDistanceMeasurementMethods();
     }
 
-    void toggleCsStartStop(String distanceMeasurementMethodName) {
+    List<String> getMeasurementFreqs() {
+        return mDistanceMeasurementInitiator.getMeasurementFreqs();
+    }
+
+    void toggleCsStartStop(String distanceMeasurementMethodName, String freq) {
         if (!mCsStarted.getValue()) {
-            mDistanceMeasurementInitiator.startDistanceMeasurement(distanceMeasurementMethodName);
+            mDistanceMeasurementInitiator.startDistanceMeasurement(
+                    distanceMeasurementMethodName, freq);
         } else {
             mDistanceMeasurementInitiator.stopDistanceMeasurement();
         }

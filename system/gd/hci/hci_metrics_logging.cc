@@ -912,7 +912,6 @@ void log_classic_pairing_command_status(std::unique_ptr<CommandView>& command_vi
       log::assert_that(user_confirmation_request_reply.IsValid(),
                        "assert failed: user_confirmation_request_reply.IsValid()");
       address = user_confirmation_request_reply.GetBdAddr();
-      bluetooth::metrics::LogUserConfirmationRequestResponse(address, true);
       break;
     }
     case OpCode::USER_CONFIRMATION_REQUEST_NEGATIVE_REPLY: {
@@ -921,7 +920,6 @@ void log_classic_pairing_command_status(std::unique_ptr<CommandView>& command_vi
       log::assert_that(user_confirmation_request_negative_reply.IsValid(),
                        "assert failed: user_confirmation_request_negative_reply.IsValid()");
       address = user_confirmation_request_negative_reply.GetBdAddr();
-      bluetooth::metrics::LogUserConfirmationRequestResponse(address, false);
       break;
     }
     case OpCode::USER_PASSKEY_REQUEST_REPLY: {
@@ -930,7 +928,6 @@ void log_classic_pairing_command_status(std::unique_ptr<CommandView>& command_vi
       log::assert_that(user_passkey_request_reply.IsValid(),
                        "assert failed: user_passkey_request_reply.IsValid()");
       address = user_passkey_request_reply.GetBdAddr();
-      bluetooth::metrics::LogUserConfirmationRequestResponse(address, true);
       break;
     }
     case OpCode::USER_PASSKEY_REQUEST_NEGATIVE_REPLY: {
@@ -939,7 +936,6 @@ void log_classic_pairing_command_status(std::unique_ptr<CommandView>& command_vi
       log::assert_that(user_passkey_request_negative_reply.IsValid(),
                        "assert failed: user_passkey_request_negative_reply.IsValid()");
       address = user_passkey_request_negative_reply.GetBdAddr();
-      bluetooth::metrics::LogUserConfirmationRequestResponse(address, false);
       break;
     }
     case OpCode::REMOTE_OOB_DATA_REQUEST_REPLY: {

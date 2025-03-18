@@ -27,7 +27,6 @@
 
 #include "common/message_loop_thread.h"
 #include "include/hardware/bluetooth.h"
-#include "os/log.h"
 
 using bluetooth::common::MessageLoopThread;
 using namespace bluetooth;

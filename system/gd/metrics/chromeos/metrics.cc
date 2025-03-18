@@ -24,7 +24,6 @@
 #include "metrics/chromeos/metrics_allowlist.h"
 #include "metrics/chromeos/metrics_event.h"
 #include "metrics/utils.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace metrics {

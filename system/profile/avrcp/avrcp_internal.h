@@ -16,11 +16,9 @@
 
 #pragma once
 
-#include "avrcp_config.h"
 #include "stack/include/a2dp_api.h"
 #include "stack/include/avrc_api.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -48,7 +46,7 @@ public:
 
   virtual uint16_t Open(uint8_t* p_handle, tAVRC_CONN_CB* p_ccb, const RawAddress& bd_addr) = 0;
 
-  virtual uint16_t OpenBrowse(uint8_t handle, uint8_t conn_role) = 0;
+  virtual uint16_t OpenBrowse(uint8_t handle, tAVCT_ROLE conn_role) = 0;
 
   virtual uint16_t GetPeerMtu(uint8_t handle) = 0;
 

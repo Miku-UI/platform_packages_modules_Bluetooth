@@ -84,7 +84,12 @@ public class BluetoothPbapActivityTest {
         if (mActivityScenario != null) {
             // Workaround for b/159805732. Without this, test hangs for 45 seconds.
             Thread.sleep(1_000);
-            mActivityScenario.close();
+            try {
+                mActivityScenario.close();
+            } catch (Exception e) {
+                // Ignore exception: Sometimes the state does not reach "DESTROYED",
+                // however this should not affect our test.
+            }
         }
         enableActivity(false);
         BluetoothMethodProxy.setInstanceForTesting(null);

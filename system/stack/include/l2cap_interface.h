@@ -916,6 +916,23 @@ public:
    **
    *******************************************************************************/
   virtual bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id, bool is_local_cid) = 0;
+
+  /*******************************************************************************
+   **
+   ** Function         L2CA_GetAclHandle
+   **
+   ** Description      Given a local channel identifier, |lcid|, this function
+   **                  returns the handle of the corresponding ACL connection, |acl_handle|. If
+   **                  |lcid| is not known or is invalid, this function returns false and does not
+   **                  modify the value pointed at by |acl_handle|.
+   **
+   ** Parameters:      lcid: Local CID
+   **                  acl_handle: Pointer to ACL handle must NOT be nullptr
+   **
+   ** Returns          true if acl_handle lookup was successful
+   **
+   ******************************************************************************/
+  virtual bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) = 0;
 };
 
 Interface& get_interface();

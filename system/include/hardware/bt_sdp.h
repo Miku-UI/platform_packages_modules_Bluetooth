@@ -16,10 +16,9 @@
 
 #pragma once
 
-#include <bluetooth/uuid.h>
-#include <raw_address.h>
-
 #include "bluetooth.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 #define SDP_OPP_SUPPORTED_FORMATS_MAX_LENGTH 15
 
@@ -179,9 +178,9 @@ __END_DECLS
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth_sdp_types> : enum_formatter<bluetooth_sdp_types> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

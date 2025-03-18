@@ -26,7 +26,6 @@
 #include "common/bind.h"
 #include "common/callback.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/queue.h"
 
 namespace bluetooth {

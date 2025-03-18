@@ -28,7 +28,6 @@
 
 #include "bta/gatt/bta_gattc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 
 using base::StringPrintf;
@@ -127,7 +126,6 @@ static const uint8_t bta_gattc_st_idle[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_DISCOVER_CMPL_EVT      */ {BTA_GATTC_IGNORE, BTA_GATTC_IDLE_ST},
         /* BTA_GATTC_OP_CMPL_EVT            */ {BTA_GATTC_IGNORE, BTA_GATTC_IDLE_ST},
         /* BTA_GATTC_INT_DISCONN_EVT       */ {BTA_GATTC_IGNORE, BTA_GATTC_IDLE_ST},
-
 };
 
 /* state table for wait for open state */
@@ -154,7 +152,6 @@ static const uint8_t bta_gattc_st_w4_conn[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_DISCOVER_CMPL_EVT       */ {BTA_GATTC_IGNORE, BTA_GATTC_W4_CONN_ST},
         /* BTA_GATTC_OP_CMPL_EVT            */ {BTA_GATTC_IGNORE, BTA_GATTC_W4_CONN_ST},
         /* BTA_GATTC_INT_DISCONN_EVT      */ {BTA_GATTC_OPEN_FAIL, BTA_GATTC_IDLE_ST},
-
 };
 
 /* state table for open state */
@@ -182,7 +179,6 @@ static const uint8_t bta_gattc_st_connected[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_OP_CMPL_EVT            */ {BTA_GATTC_OP_CMPL, BTA_GATTC_CONN_ST},
 
         /* BTA_GATTC_INT_DISCONN_EVT        */ {BTA_GATTC_CLOSE, BTA_GATTC_IDLE_ST},
-
 };
 
 /* state table for discover state */
@@ -210,7 +206,6 @@ static const uint8_t bta_gattc_st_discover[][BTA_GATTC_NUM_COLS] = {
         /* BTA_GATTC_OP_CMPL_EVT            */
         {BTA_GATTC_OP_CMPL_DURING_DISCOVERY, BTA_GATTC_DISCOVER_ST},
         /* BTA_GATTC_INT_DISCONN_EVT        */ {BTA_GATTC_CLOSE, BTA_GATTC_IDLE_ST},
-
 };
 
 /* type for state table */

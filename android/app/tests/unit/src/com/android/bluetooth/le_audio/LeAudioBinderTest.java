@@ -42,7 +42,6 @@ import androidx.test.InstrumentationRegistry;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.AudioRoutingManager;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
@@ -68,7 +67,6 @@ public class LeAudioBinderTest {
     @Mock private AdapterService mAdapterService;
     @Mock private LeAudioNativeInterface mNativeInterface;
     @Mock private DatabaseManager mDatabaseManager;
-    @Mock private AudioRoutingManager mAudioRoutingManager;
 
     private LeAudioService.BluetoothLeAudioBinder mBinder;
     private BluetoothAdapter mAdapter;
@@ -81,11 +79,6 @@ public class LeAudioBinderTest {
         TestUtils.setAdapterService(mAdapterService);
         doReturn(false).when(mAdapterService).isQuietModeEnabled();
         doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        doReturn(mAudioRoutingManager).when(mAdapterService).getActiveDeviceManager();
-
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        future.complete(true);
-        doReturn(future).when(mAudioRoutingManager).activateDeviceProfile(any(), anyInt());
 
         mLeAudioService =
                 spy(
@@ -161,26 +154,16 @@ public class LeAudioBinderTest {
         BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
         AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mSetFlagsRule.disableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
         mBinder.setActiveDevice(device, source);
         verify(mLeAudioService).setActiveDevice(device);
-
-        mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-        mBinder.setActiveDevice(device, source);
-        verify(mAudioRoutingManager).activateDeviceProfile(device, BluetoothProfile.LE_AUDIO);
     }
 
     @Test
     public void setActiveDevice_withNullDevice_callsRemoveActiveDevice() {
         AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mSetFlagsRule.disableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
         mBinder.setActiveDevice(null, source);
         verify(mLeAudioService).removeActiveDevice(true);
-
-        mSetFlagsRule.enableFlags(Flags.FLAG_AUDIO_ROUTING_CENTRALIZATION);
-        mBinder.setActiveDevice(null, source);
-        verify(mAudioRoutingManager).activateDeviceProfile(null, BluetoothProfile.LE_AUDIO);
     }
 
     @Test

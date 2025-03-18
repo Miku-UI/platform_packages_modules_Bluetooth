@@ -10,3 +10,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "ignore_unrelated_cancel_bond"
+    namespace: "bluetooth"
+    description: "Accept the cancelBond request only for the currently pairing device"
+    bug: "366150975"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

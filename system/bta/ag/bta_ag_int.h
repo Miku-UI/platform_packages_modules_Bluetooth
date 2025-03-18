@@ -34,6 +34,7 @@
 #include "bta/include/bta_api.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
+#include "os/logging/log_adapter.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/sdp_status.h"
@@ -445,6 +446,8 @@ void bta_ag_result(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
 void bta_ag_setcodec(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
 void bta_ag_send_ring(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
 void bta_ag_handle_collision(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data);
+size_t bta_ag_sco_write(const uint8_t* p_buf, uint32_t len);
+size_t bta_ag_sco_read(uint8_t* p_buf, uint32_t len);
 
 /* Internal utility functions */
 void bta_ag_sco_codec_nego(tBTA_AG_SCB* p_scb, bool result);
@@ -456,8 +459,8 @@ void bta_ag_set_sco_offload_enabled(bool value);
 void bta_ag_set_sco_allowed(bool value);
 const RawAddress& bta_ag_get_active_device();
 void bta_clear_active_device();
-void bta_ag_send_qac(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
-void bta_ag_send_qcs(tBTA_AG_SCB* p_scb, tBTA_AG_DATA* p_data);
+void bta_ag_send_qac(tBTA_AG_SCB* p_scb);
+void bta_ag_send_qcs(tBTA_AG_SCB* p_scb);
 /**
  * Check if SCO is managed by Audio is enabled. This is set via the system property
  * bluetooth.sco.managed_by_audio.
@@ -473,11 +476,11 @@ bool bta_ag_is_sco_managed_by_audio();
  */
 void bta_ag_stream_suspended();
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
 template <>
 struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_AG_INT_H */

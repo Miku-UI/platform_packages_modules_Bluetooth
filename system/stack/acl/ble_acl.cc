@@ -25,10 +25,12 @@
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/gatt/connection_manager.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/ble_acl_interface.h"
 #include "stack/include/btm_ble_addr.h"
 #include "stack/include/btm_ble_privacy.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "types/raw_address.h"
 
@@ -49,9 +51,7 @@ static bool acl_ble_common_connection(const tBLE_BD_ADDR& address_with_type, uin
   }
 
   // Inform any applications that a connection has completed.
-  if (!com::android::bluetooth::flags::unified_connection_manager()) {
-    connection_manager::on_connection_complete(address_with_type.bda);
-  }
+  connection_manager::on_connection_complete(address_with_type.bda);
 
   // Allocate or update the security device record for this device
   btm_ble_connected(address_with_type.bda, handle, HCI_ENCRYPT_MODE_DISABLED, role,
@@ -108,9 +108,7 @@ void acl_ble_enhanced_connection_complete_from_shim(
         uint16_t conn_interval, uint16_t conn_latency, uint16_t conn_timeout,
         const RawAddress& local_rpa, const RawAddress& peer_rpa, tBLE_ADDR_TYPE peer_addr_type,
         bool can_read_discoverable_characteristics) {
-  if (!com::android::bluetooth::flags::unified_connection_manager()) {
-    connection_manager::on_connection_complete(address_with_type.bda);
-  }
+  connection_manager::on_connection_complete(address_with_type.bda);
 
   tBLE_BD_ADDR resolved_address_with_type;
   const bool is_in_security_db =
@@ -136,9 +134,7 @@ void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type, uint16_t /* 
     btm_ble_clear_topology_mask(BTM_BLE_STATE_INIT_BIT);
     tBLE_BD_ADDR resolved_address_with_type;
     maybe_resolve_received_address(address_with_type, &resolved_address_with_type);
-    if (!com::android::bluetooth::flags::unified_connection_manager()) {
-      connection_manager::on_connection_timed_out_from_shim(resolved_address_with_type.bda);
-    }
+    connection_manager::on_connection_timed_out_from_shim(resolved_address_with_type.bda);
     log::warn("LE connection fail peer:{} bd_addr:{} hci_status:{}", address_with_type,
               resolved_address_with_type.bda, hci_status_code_text(status));
   } else {
@@ -147,8 +143,6 @@ void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type, uint16_t /* 
   btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, &address_with_type.bda, status);
 }
 
-void gatt_notify_conn_update(const RawAddress& remote, uint16_t interval, uint16_t latency,
-                             uint16_t timeout, tHCI_STATUS status);
 void acl_ble_update_event_received(tHCI_STATUS status, uint16_t handle, uint16_t interval,
                                    uint16_t latency, uint16_t timeout) {
   l2cble_process_conn_update_evt(handle, status, interval, latency, timeout);

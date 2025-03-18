@@ -17,6 +17,7 @@
 #include "storage/storage_module.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <chrono>
 #include <ctime>
@@ -176,11 +177,11 @@ void StorageModule::Start() {
           [this] { this->CallOn(this, &StorageModule::SaveDelayed); });
 
   // Cleanup temporary pairings if we have left guest mode
-  if (!is_restricted_mode_) {
-    config->RemoveSectionWithProperty("Restricted");
+  if (!com::android::bluetooth::flags::guest_mode_bond() && !is_restricted_mode_) {
+    pimpl_->cache_.RemoveSectionWithProperty("Restricted");
   }
 
-  config->FixDeviceTypeInconsistencies();
+  pimpl_->cache_.FixDeviceTypeInconsistencies();
   if (bluetooth::os::ParameterProvider::GetBtKeystoreInterface() != nullptr) {
     bluetooth::os::ParameterProvider::GetBtKeystoreInterface()
             ->ConvertEncryptOrDecryptKeyIfNeeded();

@@ -33,6 +33,9 @@
 #include "stack/include/security_client_callbacks.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 /* Global BTM control block structure

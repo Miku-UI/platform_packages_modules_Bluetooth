@@ -29,7 +29,11 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <optional>
 #include <vector>
@@ -37,19 +41,21 @@
 #include "audio_hal_interface/a2dp_encoding.h"
 #include "bta/include/bta_av_api.h"
 #include "bta/include/bta_av_ci.h"
+#include "bta/include/bta_av_co.h"
 #include "btif/include/bta_av_co_peer.h"
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
+#include "btif/include/btif_av_co.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "include/hardware/bt_av.h"
-#include "internal_include/bt_trace.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/a2dp_codec_api.h"
 #include "stack/include/a2dp_constants.h"
 #include "stack/include/a2dp_ext.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "types/raw_address.h"
 
@@ -89,7 +95,7 @@ void BtaAvCo::Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities
 
   // Reset the control block
   Reset();
-  peer_cache_->Init(codec_priorities, supported_codecs);
+  peer_cache_->Init(codec_priorities);
 
   // Gather the supported codecs from the first peer context;
   // all contexes should be identical.
@@ -97,7 +103,7 @@ void BtaAvCo::Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities
   for (auto* codec_config : peer_cache_->peers_[0].GetCodecs()->orderedSourceCodecs()) {
     auto& codec_info = supported_codecs->emplace_back();
     codec_info.codec_type = codec_config->codecIndex();
-    codec_info.codec_id = codec_config->codecId();
+    codec_info.codec_id = static_cast<uint64_t>(codec_config->codecId());
     codec_info.codec_name = codec_config->name();
   }
 }

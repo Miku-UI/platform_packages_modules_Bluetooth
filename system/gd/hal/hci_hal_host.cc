@@ -34,10 +34,9 @@
 
 #include "hal/hci_hal.h"
 #include "hal/link_clocker.h"
-#include "hal/mgmt.h"
 #include "hal/snoop_logger.h"
 #include "metrics/counter_metrics.h"
-#include "os/log.h"
+#include "os/mgmt.h"
 #include "os/reactor.h"
 #include "os/thread.h"
 
@@ -149,7 +148,7 @@ int waitHciDev(int hci_interface) {
       if (n < 0) {
         bluetooth::log::error("Error reading control channel: {}", strerror(errno));
         break;
-      } else if (n == 0) { // unlikely to happen, just a safeguard.
+      } else if (n == 0) {  // unlikely to happen, just a safeguard.
         bluetooth::log::error("Error reading control channel: EOF");
         break;
       }
@@ -313,7 +312,9 @@ public:
     write_to_fd(packet);
   }
 
-  uint16_t getMsftOpcode() override { return Mgmt().get_vs_opcode(MGMT_VS_OPCODE_MSFT); }
+  uint16_t getMsftOpcode() override {
+    return os::Management::getInstance().getVendorSpecificCode(MGMT_VS_OPCODE_MSFT);
+  }
 
   void markControllerBroken() override {
     std::lock_guard<std::mutex> lock(api_mutex_);
@@ -339,6 +340,7 @@ protected:
     // We don't want to crash when the chipset is broken.
     if (sock_fd_ == INVALID_FD) {
       log::error("Failed to connect to HCI socket. Aborting HAL initialization process.");
+      controller_broken_ = true;
       kill(getpid(), SIGTERM);
       return;
     }

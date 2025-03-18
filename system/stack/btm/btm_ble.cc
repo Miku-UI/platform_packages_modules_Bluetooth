@@ -42,6 +42,9 @@
 #include "stack/include/gatt_api.h"
 #include "stack/include/hcimsgs.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;

@@ -32,24 +32,24 @@
 
 #include "hardware/bt_gatt_types.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/acl_api.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "rust/src/connection/ffi/connection_shim.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/eatt/eatt.h"
-#include "stack/gatt/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
-
-uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr);
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -104,7 +104,7 @@ uint16_t gatt_get_local_mtu(void) {
   return ATT_MTU_DEFAULT;
 }
 
-uint16_t gatt_get_max_phy_channel() {
+static uint16_t gatt_get_max_phy_channel() {
   static const uint16_t MAX_PHY_CHANNEL =
           std::min(std::max(osi_property_get_int32(
                                     "bluetooth.core.le.max_number_of_concurrent_connections", 0),
@@ -122,7 +122,7 @@ uint16_t gatt_get_max_phy_channel() {
  * Returns       None
  *
  ******************************************************************************/
-void gatt_free_pending_ind(tGATT_TCB* p_tcb) {
+static void gatt_free_pending_ind(tGATT_TCB* p_tcb) {
   log::verbose("");
 
   if (p_tcb->pending_ind_q == NULL) {
@@ -373,28 +373,6 @@ tGATTS_SRV_CHG* gatt_is_bda_in_the_srv_chg_clt_list(const RawAddress& bda) {
 
 /*******************************************************************************
  *
- * Function         gatt_is_bda_connected
- *
- * Description
- *
- * Returns          GATT_INDEX_INVALID if not found. Otherwise index to the tcb.
- *
- ******************************************************************************/
-bool gatt_is_bda_connected(const RawAddress& bda) {
-  uint8_t i = 0;
-  bool connected = false;
-
-  for (i = 0; i < gatt_get_max_phy_channel(); i++) {
-    if (gatt_cb.tcb[i].in_use && gatt_cb.tcb[i].peer_bda == bda) {
-      connected = true;
-      break;
-    }
-  }
-  return connected;
-}
-
-/*******************************************************************************
- *
  * Function         gatt_find_i_tcb_by_addr
  *
  * Description      Search for an empty tcb entry, and return the index.
@@ -402,7 +380,7 @@ bool gatt_is_bda_connected(const RawAddress& bda) {
  * Returns          GATT_INDEX_INVALID if not found. Otherwise index to the tcb.
  *
  ******************************************************************************/
-uint8_t gatt_find_i_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport) {
+static uint8_t gatt_find_i_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport) {
   uint8_t i = 0;
 
   for (; i < gatt_get_max_phy_channel(); i++) {
@@ -789,8 +767,6 @@ void gatt_rsp_timeout(void* data) {
     gatt_disconnect(p_clcb->p_tcb);
   }
 }
-
-void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb);
 
 /*******************************************************************************
  *
@@ -1278,8 +1254,8 @@ void gatt_clcb_invalidate(tGATT_TCB* p_tcb, const tGATT_CLCB* p_clcb) {
   if (!p_tcb->pending_enc_clcb.empty()) {
     for (size_t i = 0; i < p_tcb->pending_enc_clcb.size(); i++) {
       if (p_tcb->pending_enc_clcb.at(i) == p_clcb) {
-        log::warn("Removing clcb ({}) for conn id=0x{:04x} from pending_enc_clcb", fmt::ptr(p_clcb),
-                  p_clcb->conn_id);
+        log::warn("Removing clcb ({}) for conn id=0x{:04x} from pending_enc_clcb",
+                  std::format_ptr(p_clcb), p_clcb->conn_id);
         p_tcb->pending_enc_clcb.at(i) = NULL;
         break;
       }
@@ -1311,14 +1287,14 @@ void gatt_clcb_invalidate(tGATT_TCB* p_tcb, const tGATT_CLCB* p_clcb) {
   if (iter->to_send) {
     /* If command was not send, just remove the entire element */
     cl_cmd_q_p->erase(iter);
-    log::warn("Removing scheduled clcb ({}) for conn_id=0x{:04x}", fmt::ptr(p_clcb),
+    log::warn("Removing scheduled clcb ({}) for conn_id=0x{:04x}", std::format_ptr(p_clcb),
               p_clcb->conn_id);
   } else {
     /* If command has been sent, just invalidate p_clcb pointer for proper
      * response handling */
     iter->p_clcb = NULL;
     log::warn("Invalidating clcb ({}) for already sent request on conn_id=0x{:04x}",
-              fmt::ptr(p_clcb), p_clcb->conn_id);
+              std::format_ptr(p_clcb), p_clcb->conn_id);
   }
 }
 /*******************************************************************************
@@ -1525,7 +1501,6 @@ tGATT_READ_MULTI* gatt_sr_get_read_multi(tGATT_TCB& tcb, uint16_t cid) {
  ******************************************************************************/
 void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if, bool is_inc,
                               bool is_reset_first) {
-  uint8_t idx = ((uint8_t)gatt_if) - 1;
   tGATT_SR_CMD* sr_cmd_p;
 
   if (cid == tcb.att_lcid) {
@@ -1545,9 +1520,9 @@ void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if, bo
 
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     if (is_inc) {
-      sr_cmd_p->cback_cnt_map[idx]++;
+      sr_cmd_p->cback_cnt_map[gatt_if]++;
     } else {
-      auto cback_cnt_it = sr_cmd_p->cback_cnt_map.find(idx);
+      auto cback_cnt_it = sr_cmd_p->cback_cnt_map.find(gatt_if);
       if (cback_cnt_it != sr_cmd_p->cback_cnt_map.end()) {
         if ((--cback_cnt_it->second) <= 0) {
           sr_cmd_p->cback_cnt_map.erase(cback_cnt_it);
@@ -1555,6 +1530,8 @@ void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if, bo
       }
     }
   } else {
+    uint8_t idx = ((uint8_t)gatt_if) - 1;
+
     if (is_inc) {
       sr_cmd_p->cback_cnt[idx]++;
     } else {
@@ -1656,26 +1633,21 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
     gatt_disconnect(p_tcb);
   }
 
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().stop_direct_connection(
-            gatt_if, bluetooth::connection::ResolveRawAddress(bda));
-  } else {
-    if (!connection_manager::direct_connect_remove(gatt_if, bda)) {
-      if (!connection_manager::is_background_connection(bda)) {
-        if (!com::android::bluetooth::flags::gatt_fix_multiple_direct_connect() ||
-            p_tcb->app_hold_link.empty()) {
-          BTM_AcceptlistRemove(bda);
-        }
-        log::info(
-                "Gatt connection manager has no background record but  removed "
-                "filter acceptlist gatt_if:{} peer:{}",
-                gatt_if, bda);
-      } else {
-        log::info(
-                "Gatt connection manager maintains a background record preserving "
-                "filter acceptlist gatt_if:{} peer:{}",
-                gatt_if, bda);
+  if (!connection_manager::direct_connect_remove(gatt_if, bda)) {
+    if (!connection_manager::is_background_connection(bda)) {
+      if (!com::android::bluetooth::flags::gatt_fix_multiple_direct_connect() ||
+          p_tcb->app_hold_link.empty()) {
+        bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bda));
       }
+      log::info(
+              "Gatt connection manager has no background record but  removed "
+              "filter acceptlist gatt_if:{} peer:{}",
+              gatt_if, bda);
+    } else {
+      log::info(
+              "Gatt connection manager maintains a background record preserving "
+              "filter acceptlist gatt_if:{} peer:{}",
+              gatt_if, bda);
     }
   }
 
@@ -1780,11 +1752,13 @@ bool gatt_is_outstanding_msg_in_att_send_queue(const tGATT_TCB& tcb) {
  ******************************************************************************/
 void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
   tGATT_CL_COMPLETE cb_data;
-  tGATT_CMPL_CBACK* p_cmpl_cb = (p_clcb->p_reg) ? p_clcb->p_reg->app_cb.p_cmpl_cb : NULL;
+  tGATT_REG* p_reg = gatt_get_regcb(gatt_get_gatt_if(p_clcb->conn_id));
+  tGATT_CMPL_CBACK* p_cmpl_cb =
+          ((p_clcb->p_reg == p_reg) && p_reg) ? p_reg->app_cb.p_cmpl_cb : NULL;
+  tGATT_DISC_CMPL_CB* p_disc_cmpl_cb =
+          ((p_clcb->p_reg == p_reg) && p_reg) ? p_clcb->p_reg->app_cb.p_disc_cmpl_cb : NULL;
   tGATTC_OPTYPE op = p_clcb->operation;
   tGATT_DISC_TYPE disc_type = GATT_DISC_MAX;
-  tGATT_DISC_CMPL_CB* p_disc_cmpl_cb =
-          (p_clcb->p_reg) ? p_clcb->p_reg->app_cb.p_disc_cmpl_cb : NULL;
   tCONN_ID conn_id;
   uint8_t operation;
 
@@ -1841,7 +1815,7 @@ void gatt_end_operation(tGATT_CLCB* p_clcb, tGATT_STATUS status, void* p_data) {
     (*p_cmpl_cb)(conn_id, op, status, &cb_data);
   } else {
     log::warn("not sent out op={} p_disc_cmpl_cb:{} p_cmpl_cb:{}", operation,
-              fmt::ptr(p_disc_cmpl_cb), fmt::ptr(p_cmpl_cb));
+              std::format_ptr(p_disc_cmpl_cb), std::format_ptr(p_cmpl_cb));
   }
 }
 
@@ -1974,23 +1948,16 @@ bool gatt_auto_connect_dev_remove(tGATT_IF gatt_if, const RawAddress& bd_addr) {
   if (p_tcb) {
     gatt_update_app_use_link_flag(gatt_if, p_tcb, false, false);
   }
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().remove_background_connection(
-            gatt_if, bluetooth::connection::ResolveRawAddress(bd_addr));
-    // TODO(aryarahul): handle failure case
-    return true;
-  } else {
-    return connection_manager::background_connect_remove(gatt_if, bd_addr);
-  }
+  return connection_manager::background_connect_remove(gatt_if, bd_addr);
 }
 
 tCONN_ID gatt_create_conn_id(tTCB_IDX tcb_idx, tGATT_IF gatt_if) {
   return (tcb_idx << 8) | gatt_if;
 }
 
-tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id) { return (uint8_t)(conn_id >> 8); }
+tTCB_IDX gatt_get_tcb_idx(tCONN_ID conn_id) { return static_cast<tTCB_IDX>(conn_id >> 8); }
 
-tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id) { return (tGATT_IF)conn_id; }
+tGATT_IF gatt_get_gatt_if(tCONN_ID conn_id) { return static_cast<tGATT_IF>(conn_id); }
 
 uint16_t gatt_get_mtu_pref(const tGATT_REG* p_reg, const RawAddress& bda) {
   auto mtu_pref = p_reg->mtu_prefs.find(bda);

@@ -21,6 +21,8 @@
 
 #include <cstdint>
 
+#include "hci/address.h"
+#include "hci/hci_packets.h"
 #include "types/raw_address.h"
 
 void log_classic_pairing_event(const RawAddress& address, uint16_t handle, uint32_t hci_cmd,
@@ -53,3 +55,12 @@ void log_hfp_audio_packet_loss_stats(const RawAddress& address, int num_decoded_
 
 void log_mmc_transcode_rtt_stats(int maximum_rtt, double mean_rtt, int num_requests,
                                  int codec_type);
+
+void log_le_pairing_fail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing);
+
+void log_le_connection_status(bluetooth::hci::Address address, bool is_connect,
+                              bluetooth::hci::ErrorCode reason);
+
+void log_le_device_in_accept_list(bluetooth::hci::Address address, bool is_add);
+
+void log_le_connection_lifecycle(bluetooth::hci::Address address, bool is_connect, bool is_direct);

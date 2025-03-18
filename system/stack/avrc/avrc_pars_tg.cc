@@ -18,10 +18,11 @@
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avrc_api.h"
 #include "avrc_defs.h"
 #include "avrc_int.h"
-#include "os/log.h"
 #include "stack/include/bt_types.h"
 
 using namespace bluetooth;

@@ -22,14 +22,14 @@
 
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/l2cap_acl_interface.h"
+#include "stack/include/l2cap_controller_interface.h"
+#include "stack/include/l2cap_hci_link_interface.h"
+#include "stack/include/l2cap_security_interface.h"
 #include "stack/l2cap/l2c_int.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
-BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* /* p_lcb */) {
-  inc_func_call_count(__func__);
-  return nullptr;
-}
 bool l2c_link_hci_disc_comp(uint16_t /* handle */, tHCI_REASON /* reason */) {
   inc_func_call_count(__func__);
   return false;
@@ -37,10 +37,6 @@ bool l2c_link_hci_disc_comp(uint16_t /* handle */, tHCI_REASON /* reason */) {
 tBTM_STATUS l2cu_ConnectAclForSecurity(const RawAddress& /* bd_addr */) {
   inc_func_call_count(__func__);
   return tBTM_STATUS::BTM_SUCCESS;
-}
-tL2C_CCB* l2cu_get_next_channel_in_rr(tL2C_LCB* /* p_lcb */) {
-  inc_func_call_count(__func__);
-  return nullptr;
 }
 void l2c_OnHciModeChangeSendPendingPackets(RawAddress /* remote */) {
   inc_func_call_count(__func__);
@@ -61,12 +57,11 @@ void l2c_link_role_changed(const RawAddress* /* bd_addr */, tHCI_ROLE /* new_rol
                            tHCI_STATUS /* hci_status */) {
   inc_func_call_count(__func__);
 }
-void l2c_link_sec_comp(const RawAddress* /* p_bda */, tBT_TRANSPORT /* transport */,
-                       void* /* p_ref_data */, uint8_t /* status */) {
+void l2c_link_sec_comp(const RawAddress /* bda */, tBT_TRANSPORT /* transport */,
+                       void* /* p_ref_data */, tBTM_STATUS /* status */) {
   inc_func_call_count(__func__);
 }
 
-void l2c_link_segments_xmitted(BT_HDR* /* p_msg */) { inc_func_call_count(__func__); }
 void l2c_link_timeout(tL2C_LCB* /* p_lcb */) { inc_func_call_count(__func__); }
 void l2c_packets_completed(uint16_t /* handle */, uint16_t /* num_sent */) {
   inc_func_call_count(__func__);

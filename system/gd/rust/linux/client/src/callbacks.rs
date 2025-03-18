@@ -377,6 +377,14 @@ impl IBluetoothConnectionCallback for BtConnectionCallback {
             remote_device.name
         );
     }
+
+    fn on_device_connection_failed(&mut self, remote_device: BluetoothDevice, status: BtStatus) {
+        print_info!(
+            "Connection to [{}] failed, status = {:?}",
+            remote_device.address.to_string(),
+            status
+        );
+    }
 }
 
 impl RPCProxy for BtConnectionCallback {
@@ -1393,6 +1401,10 @@ impl IBluetoothQACallback for QACallback {
 
     fn on_send_hid_data_completed(&mut self, status: BtStatus) {
         print_info!("Send HID data: {:?}", status);
+    }
+
+    fn on_send_hid_virtual_unplug_completed(&mut self, status: BtStatus) {
+        print_info!("Send HID virtual unplug: {:?}", status);
     }
 }
 

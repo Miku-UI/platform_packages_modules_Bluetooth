@@ -34,7 +34,7 @@ using work_item = std::pair<thread_func, thread_data>;
 
 class semaphore_t {
   std::condition_variable condition_;
-  unsigned long count_ = 0;  // Initialized as locked.
+  uint64_t count_ = 0;  // Initialized as locked.
 
 public:
   std::mutex mutex_;

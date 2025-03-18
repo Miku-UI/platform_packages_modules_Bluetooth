@@ -100,7 +100,7 @@ typedef struct tBTM_SEC_DEVCB {
 
 typedef uint8_t tBTM_SEC_ACTION;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTM_PAIRING_STATE> : enum_formatter<tBTM_PAIRING_STATE> {};
-}  // namespace fmt
+}  // namespace std

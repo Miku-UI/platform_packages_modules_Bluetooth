@@ -19,7 +19,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/btm_sec_cb.h"

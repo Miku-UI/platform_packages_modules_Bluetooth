@@ -293,14 +293,23 @@ typedef uint16_t tBTA_AG_PEER_CODEC;
 #define BTA_AG_AT_MAX_LEN 256
 #endif
 
-// Define hfp offload config structure
 namespace hfp {
 
+// Define hfp offload config structure
 struct offload_config {
   tBTA_AG_UUID_CODEC sco_codec;
   int32_t connection_handle;
   bool is_controller_codec;
   bool is_nrec;
+};
+
+// Define hfp pcm config structure
+struct pcm_config {
+  int sample_rate_hz;
+  // The below fields are always fixed
+  // int channel_mode = ChannelMode::MONO;
+  // uint8_t bits_per_sample = 16;
+  // int data_interval_us = 7500;
 };
 
 struct sco_config {
@@ -638,9 +647,9 @@ void BTA_AgSetScoAllowed(bool value);
 
 void BTA_AgSetActiveDevice(const RawAddress& active_device_addr);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_AG_RES> : enum_formatter<tBTA_AG_RES> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_AG_API_H */

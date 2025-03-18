@@ -78,9 +78,9 @@ typedef struct hid_conn {
 
 #define HIDD_SEC_CHN 3
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHID_CONN_STATE> : enum_formatter<tHID_CONN_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

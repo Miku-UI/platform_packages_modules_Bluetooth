@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#if TARGET_FLOSS
 #include "hci/msft.h"
 
 #include <bluetooth/log.h>
@@ -358,4 +357,3 @@ void MsftExtensionManager::SetScanningCallback(ScanningCallback* callbacks) {
 
 }  // namespace hci
 }  // namespace bluetooth
-#endif

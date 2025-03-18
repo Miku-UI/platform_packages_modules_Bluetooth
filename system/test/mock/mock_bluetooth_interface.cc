@@ -15,11 +15,15 @@
  */
 
 #include <cstdint>
+#include <future>
 
 #include "btif/include/stack_manager_t.h"
 #include "hardware/bluetooth.h"
 #include "stack/include/bt_octets.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 void invoke_adapter_state_changed_cb(bt_state_t /* state */) {}
 void invoke_adapter_properties_cb(bt_status_t /* status */, int /* num_properties */,
@@ -41,7 +45,8 @@ void invoke_bond_state_changed_cb(bt_status_t /* status */, RawAddress /* bd_add
 void invoke_address_consolidate_cb(RawAddress /* main_bd_addr */,
                                    RawAddress /* secondary_bd_addr */) {}
 void invoke_le_address_associate_cb(RawAddress /* main_bd_addr */,
-                                    RawAddress /* secondary_bd_addr */) {}
+                                    RawAddress /* secondary_bd_addr */,
+                                    uint8_t /* identity_address_type */) {}
 void invoke_acl_state_changed_cb(bt_status_t /* status */, RawAddress /* bd_addr */,
                                  bt_acl_state_t /* state */, int /* transport_link_type */,
                                  bt_hci_error_code_t /* hci_reason */,
@@ -57,6 +62,7 @@ void invoke_link_quality_report_cb(uint64_t /* timestamp */, int /* report_id */
                                    int /* packets_not_receive_count */,
                                    int /* negative_acknowledgement_count */) {}
 void invoke_key_missing_cb(const RawAddress /* bd_addr */) {}
+void invoke_encryption_change_cb(bt_encryption_change_evt /* bd_addr */) {}
 
 static void init_stack(bluetooth::core::CoreInterface* /* interface */) {}
 
@@ -68,7 +74,7 @@ static void shut_down_stack_async(ProfileStopCallback /* stopProfiles */) {}
 
 static void clean_up_stack(ProfileStopCallback /* stopProfiles */) {}
 
-static void start_up_rust_module_async() {}
+static void start_up_rust_module_async(std::promise<void> /* promise */) {}
 
 static void shut_down_rust_module_async() {}
 

@@ -29,6 +29,10 @@
 
 #include <hardware/bt_sdp.h>
 
-btsdp_interface_t* btif_sdp_get_interface();
+const btsdp_interface_t* btif_sdp_get_interface();
+bt_status_t btif_sdp_execute_service(bool b_enable);
+
+bt_status_t sdp_server_init();
+void sdp_server_cleanup();
 
 #endif

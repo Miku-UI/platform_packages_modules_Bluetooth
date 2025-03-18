@@ -30,6 +30,7 @@ public:
     advertising_sid_ = ++instance_counter_;
 
     ON_CALL(*this, Initialize).WillByDefault([this]() {
+      SetState(State::CONFIGURED);
       this->cb->OnStateMachineCreateStatus(this->cfg.broadcast_id, result_);
       return result_;
     });
@@ -37,7 +38,7 @@ public:
     ON_CALL(*this, ProcessMessage)
             .WillByDefault(
                     [this](bluetooth::le_audio::broadcaster::BroadcastStateMachine::Message event,
-                           const void* data) {
+                           const void* /*data*/) {
                       const void* sent_data = nullptr;
                       switch (event) {
                         case Message::START:

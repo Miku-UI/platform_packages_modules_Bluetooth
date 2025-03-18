@@ -22,18 +22,11 @@ import android.bluetooth.BluetoothDevice;
  * Stack event sent via a callback from JNI to Java, or generated internally by the Hearing Aid
  * State Machine.
  */
-public class HearingAidStackEvent {
+class HearingAidStackEvent {
     // Event types for STACK_EVENT message (coming from native)
     private static final int EVENT_TYPE_NONE = 0;
     public static final int EVENT_TYPE_CONNECTION_STATE_CHANGED = 1;
     public static final int EVENT_TYPE_DEVICE_AVAILABLE = 2;
-
-    // Do not modify without updating the HAL bt_hearing_aid.h files.
-    // Match up with enum class ConnectionState of bt_hearing_aid.h.
-    static final int CONNECTION_STATE_DISCONNECTED = 0;
-    static final int CONNECTION_STATE_CONNECTING = 1;
-    static final int CONNECTION_STATE_CONNECTED = 2;
-    static final int CONNECTION_STATE_DISCONNECTING = 3;
 
     public int type;
     public BluetoothDevice device;

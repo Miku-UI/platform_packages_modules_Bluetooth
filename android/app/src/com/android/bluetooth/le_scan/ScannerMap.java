@@ -15,9 +15,12 @@
  */
 package com.android.bluetooth.le_scan;
 
+import static com.android.bluetooth.Utils.sSystemClock;
+import static com.android.bluetooth.util.AttributionSourceUtil.getLastAttributionTag;
+
 import android.annotation.Nullable;
 import android.bluetooth.le.IScannerCallback;
-import android.content.Context;
+import android.content.AttributionSource;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.IInterface;
@@ -25,6 +28,8 @@ import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.WorkSource;
 import android.util.Log;
+
+import com.android.bluetooth.btservice.AdapterService;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -47,28 +52,31 @@ public class ScannerMap {
     /** Add an entry to the application context list with a callback. */
     ScannerApp add(
             UUID uuid,
+            AttributionSource attributionSource,
             WorkSource workSource,
             IScannerCallback callback,
-            Context context,
+            AdapterService adapterService,
             TransitionalScanHelper scanHelper) {
-        return add(uuid, workSource, callback, null, context, scanHelper);
+        return add(uuid, attributionSource, workSource, callback, null, adapterService, scanHelper);
     }
 
     /** Add an entry to the application context list with a pending intent. */
     ScannerApp add(
             UUID uuid,
+            AttributionSource attributionSource,
             TransitionalScanHelper.PendingIntentInfo piInfo,
-            Context context,
+            AdapterService adapterService,
             TransitionalScanHelper scanHelper) {
-        return add(uuid, null, null, piInfo, context, scanHelper);
+        return add(uuid, attributionSource, null, null, piInfo, adapterService, scanHelper);
     }
 
     private ScannerApp add(
             UUID uuid,
+            AttributionSource attributionSource,
             @Nullable WorkSource workSource,
             @Nullable IScannerCallback callback,
             @Nullable TransitionalScanHelper.PendingIntentInfo piInfo,
-            Context context,
+            AdapterService adapterService,
             TransitionalScanHelper scanHelper) {
         int appUid;
         String appName = null;
@@ -77,7 +85,7 @@ public class ScannerMap {
             appName = piInfo.callingPackage;
         } else {
             appUid = Binder.getCallingUid();
-            appName = context.getPackageManager().getNameForUid(appUid);
+            appName = adapterService.getPackageManager().getNameForUid(appUid);
         }
         if (appName == null) {
             // Assign an app name if one isn't found
@@ -85,10 +93,19 @@ public class ScannerMap {
         }
         AppScanStats appScanStats = mAppScanStatsMap.get(appUid);
         if (appScanStats == null) {
-            appScanStats = new AppScanStats(appName, workSource, this, context, scanHelper);
+            appScanStats =
+                    new AppScanStats(
+                            appName, workSource, this, adapterService, scanHelper, sSystemClock);
             mAppScanStatsMap.put(appUid, appScanStats);
         }
-        ScannerApp app = new ScannerApp(uuid, callback, piInfo, appName, appScanStats);
+        ScannerApp app =
+                new ScannerApp(
+                        uuid,
+                        getLastAttributionTag(attributionSource),
+                        callback,
+                        piInfo,
+                        appName,
+                        appScanStats);
         mApps.add(app);
         appScanStats.isRegistered = true;
         return app;
@@ -147,13 +164,9 @@ public class ScannerMap {
         return app;
     }
 
-    /** Get an application context by the calling Apps name. */
-    ScannerApp getByName(String name) {
-        ScannerApp app = getAppByPredicate(entry -> entry.mName.equals(name));
-        if (app == null) {
-            Log.e(TAG, "Context not found for name " + name);
-        }
-        return app;
+    /** Get application contexts by the calling app's name. */
+    List<ScannerApp> getByName(String name) {
+        return mApps.stream().filter(app -> app.mName.equals(name)).toList();
     }
 
     /** Get an application context by the pending intent info object. */
@@ -187,7 +200,15 @@ public class ScannerMap {
     /** Logs all apps for debugging. */
     public void dumpApps(StringBuilder sb, BiConsumer<StringBuilder, String> bf) {
         for (ScannerApp entry : mApps) {
-            bf.accept(sb, "    app_if: " + entry.mId + ", appName: " + entry.mName);
+            bf.accept(
+                    sb,
+                    "    app_if: "
+                            + entry.mId
+                            + ", appName: "
+                            + entry.mName
+                            + (entry.mAttributionTag == null
+                                    ? ""
+                                    : ", tag: " + entry.mAttributionTag));
         }
     }
 
@@ -203,6 +224,9 @@ public class ScannerMap {
 
         /** The package name of the application */
         final String mName;
+
+        /** The last attribution tag in the attribution source chain */
+        @Nullable final String mAttributionTag;
 
         /** Application callbacks */
         @Nullable IScannerCallback mCallback;
@@ -238,11 +262,13 @@ public class ScannerMap {
         /** Creates a new app context. */
         ScannerApp(
                 UUID uuid,
+                @Nullable String attributionTag,
                 @Nullable IScannerCallback callback,
                 @Nullable TransitionalScanHelper.PendingIntentInfo info,
                 String name,
                 AppScanStats appScanStats) {
             this.mUuid = uuid;
+            this.mAttributionTag = attributionTag;
             this.mCallback = callback;
             this.mName = name;
             this.mInfo = info;

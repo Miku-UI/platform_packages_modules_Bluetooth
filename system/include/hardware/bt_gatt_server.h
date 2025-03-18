@@ -17,10 +17,10 @@
 #ifndef ANDROID_INCLUDE_BT_GATT_SERVER_H
 #define ANDROID_INCLUDE_BT_GATT_SERVER_H
 
-#include <raw_address.h>
 #include <stdint.h>
 
 #include "bt_gatt_types.h"
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -172,7 +172,6 @@ typedef struct {
 
   bt_status_t (*read_phy)(const RawAddress& bd_addr,
                           base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
-
 } btgatt_server_interface_t;
 
 __END_DECLS

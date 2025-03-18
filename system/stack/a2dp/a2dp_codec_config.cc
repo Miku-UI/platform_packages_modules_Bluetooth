@@ -21,12 +21,31 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <stdio.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <ios>
+#include <mutex>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "a2dp_aac.h"
 #include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
 #include "a2dp_ext.h"
 #include "a2dp_sbc.h"
 #include "a2dp_vendor.h"
+#include "a2dp_vendor_aptx_constants.h"
+#include "a2dp_vendor_aptx_hd_constants.h"
+#include "a2dp_vendor_ldac_constants.h"
+#include "avdt_api.h"
+#include "device/include/device_iot_conf_defs.h"
+#include "hardware/bt_av.h"
 
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
 #include "a2dp_vendor_aptx.h"
@@ -37,21 +56,56 @@
 
 #include "audio_hal_interface/a2dp_encoding.h"
 #include "bta/av/bta_av_int.h"
-#include "device/include/device_iot_config.h"
-#include "internal_include/bt_trace.h"
 #include "osi/include/properties.h"
 #include "stack/include/bt_hdr.h"
 
 /* The Media Type offset within the codec info byte array */
 #define A2DP_MEDIA_TYPE_OFFSET 1
 
+namespace bluetooth::a2dp {
+
+std::optional<CodecId> ParseCodecId(uint8_t const media_codec_capabilities[]) {
+  uint8_t length_of_service_capability = media_codec_capabilities[0];
+  // The Media Codec Capabilities contain the Media Codec Type and
+  // Media Type on 16-bits.
+  if (length_of_service_capability < 2) {
+    return {};
+  }
+  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(media_codec_capabilities);
+  switch (codec_type) {
+    case A2DP_MEDIA_CT_SBC:
+      return CodecId::SBC;
+    case A2DP_MEDIA_CT_AAC:
+      return CodecId::AAC;
+    case A2DP_MEDIA_CT_NON_A2DP: {
+      // The Vendor Codec Specific Information Elements contain
+      // a 32-bit Vendor ID and 16-bit Vendor Specific Codec ID.
+      if (length_of_service_capability < 8) {
+        return {};
+      }
+      uint32_t vendor_id = A2DP_VendorCodecGetVendorId(media_codec_capabilities);
+      uint16_t codec_id = A2DP_VendorCodecGetCodecId(media_codec_capabilities);
+      // The lower 16 bits of the 32-bit Vendor ID shall contain a valid,
+      // nonreserved 16-bit Company ID as defined in Bluetooth Assigned Numbers.
+      // The upper 16 bits of the 32-bit Vendor ID shall be set to zero.
+      if (vendor_id > UINT16_MAX) {
+        return {};
+      }
+      return static_cast<CodecId>(VendorCodecId(static_cast<uint16_t>(vendor_id), codec_id));
+    }
+    default:
+      return {};
+  }
+}
+
+}  // namespace bluetooth::a2dp
+
+using namespace bluetooth;
+
 // Initializes the codec config.
 // |codec_config| is the codec config to initialize.
 // |codec_index| and |codec_priority| are the codec type and priority to use
 // for the initialization.
-
-using namespace bluetooth;
-
 static void init_btav_a2dp_codec_config(btav_a2dp_codec_config_t* codec_config,
                                         btav_a2dp_codec_index_t codec_index,
                                         btav_a2dp_codec_priority_t codec_priority) {
@@ -60,7 +114,7 @@ static void init_btav_a2dp_codec_config(btav_a2dp_codec_config_t* codec_config,
   codec_config->codec_priority = codec_priority;
 }
 
-A2dpCodecConfig::A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, tA2DP_CODEC_ID codec_id,
+A2dpCodecConfig::A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, a2dp::CodecId codec_id,
                                  const std::string& name, btav_a2dp_codec_priority_t codec_priority)
     : codec_index_(codec_index),
       codec_id_(codec_id),
@@ -1219,87 +1273,123 @@ bool A2DP_CodecTypeEquals(const uint8_t* p_codec_info_a, const uint8_t* p_codec_
 }
 
 bool A2DP_CodecEquals(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b) {
-  tA2DP_CODEC_TYPE codec_type_a = A2DP_GetCodecType(p_codec_info_a);
-  tA2DP_CODEC_TYPE codec_type_b = A2DP_GetCodecType(p_codec_info_b);
+  auto codec_id_a = bluetooth::a2dp::ParseCodecId(p_codec_info_a);
+  auto codec_id_b = bluetooth::a2dp::ParseCodecId(p_codec_info_b);
 
-  if (codec_type_a != codec_type_b) {
+  if (!codec_id_a.has_value() || !codec_id_b.has_value() || codec_id_a != codec_id_b) {
     return false;
   }
 
-  switch (codec_type_a) {
-    case A2DP_MEDIA_CT_SBC:
+  switch (codec_id_a.value()) {
+    case bluetooth::a2dp::CodecId::SBC:
       return A2DP_CodecEqualsSbc(p_codec_info_a, p_codec_info_b);
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
-    case A2DP_MEDIA_CT_AAC:
+    case bluetooth::a2dp::CodecId::AAC:
       return A2DP_CodecEqualsAac(p_codec_info_a, p_codec_info_b);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorCodecEquals(p_codec_info_a, p_codec_info_b);
+    case bluetooth::a2dp::CodecId::APTX:
+      return A2DP_VendorCodecEqualsAptx(p_codec_info_a, p_codec_info_b);
+    case bluetooth::a2dp::CodecId::APTX_HD:
+      return A2DP_VendorCodecEqualsAptxHd(p_codec_info_a, p_codec_info_b);
+    case bluetooth::a2dp::CodecId::LDAC:
+      return A2DP_VendorCodecEqualsLdac(p_codec_info_a, p_codec_info_b);
+    case bluetooth::a2dp::CodecId::OPUS:
+      return A2DP_VendorCodecEqualsOpus(p_codec_info_a, p_codec_info_b);
 #endif
     default:
       break;
   }
 
-  log::error("unsupported codec type 0x{:x}", codec_type_a);
+  log::error("unsupported codec id 0x{:x}", codec_id_a.value());
   return false;
 }
 
 int A2DP_GetTrackSampleRate(const uint8_t* p_codec_info) {
-  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+  auto codec_id = bluetooth::a2dp::ParseCodecId(p_codec_info);
 
-  switch (codec_type) {
-    case A2DP_MEDIA_CT_SBC:
+  if (!codec_id.has_value()) {
+    return -1;
+  }
+
+  switch (codec_id.value()) {
+    case bluetooth::a2dp::CodecId::SBC:
       return A2DP_GetTrackSampleRateSbc(p_codec_info);
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
-    case A2DP_MEDIA_CT_AAC:
+    case bluetooth::a2dp::CodecId::AAC:
       return A2DP_GetTrackSampleRateAac(p_codec_info);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetTrackSampleRate(p_codec_info);
+    case bluetooth::a2dp::CodecId::APTX:
+      return A2DP_VendorGetTrackSampleRateAptx(p_codec_info);
+    case bluetooth::a2dp::CodecId::APTX_HD:
+      return A2DP_VendorGetTrackSampleRateAptxHd(p_codec_info);
+    case bluetooth::a2dp::CodecId::LDAC:
+      return A2DP_VendorGetTrackSampleRateLdac(p_codec_info);
+    case bluetooth::a2dp::CodecId::OPUS:
+      return A2DP_VendorGetTrackSampleRateOpus(p_codec_info);
 #endif
     default:
       break;
   }
 
-  log::error("unsupported codec type 0x{:x}", codec_type);
+  log::error("unsupported codec id 0x{:x}", codec_id.value());
   return -1;
 }
 
 int A2DP_GetTrackBitsPerSample(const uint8_t* p_codec_info) {
-  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+  auto codec_id = bluetooth::a2dp::ParseCodecId(p_codec_info);
 
-  switch (codec_type) {
-    case A2DP_MEDIA_CT_SBC:
+  if (!codec_id.has_value()) {
+    return -1;
+  }
+
+  switch (codec_id.value()) {
+    case bluetooth::a2dp::CodecId::SBC:
       return A2DP_GetTrackBitsPerSampleSbc(p_codec_info);
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
-    case A2DP_MEDIA_CT_AAC:
+    case bluetooth::a2dp::CodecId::AAC:
       return A2DP_GetTrackBitsPerSampleAac(p_codec_info);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetTrackBitsPerSample(p_codec_info);
+    case bluetooth::a2dp::CodecId::APTX:
+      return A2DP_VendorGetTrackBitsPerSampleAptx(p_codec_info);
+    case bluetooth::a2dp::CodecId::APTX_HD:
+      return A2DP_VendorGetTrackBitsPerSampleAptxHd(p_codec_info);
+    case bluetooth::a2dp::CodecId::LDAC:
+      return A2DP_VendorGetTrackBitsPerSampleLdac(p_codec_info);
+    case bluetooth::a2dp::CodecId::OPUS:
+      return A2DP_VendorGetTrackBitsPerSampleOpus(p_codec_info);
 #endif
     default:
       break;
   }
 
-  log::error("unsupported codec type 0x{:x}", codec_type);
+  log::error("unsupported codec id 0x{:x}", codec_id.value());
   return -1;
 }
 
 int A2DP_GetTrackChannelCount(const uint8_t* p_codec_info) {
-  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+  auto codec_id = bluetooth::a2dp::ParseCodecId(p_codec_info);
 
-  switch (codec_type) {
-    case A2DP_MEDIA_CT_SBC:
+  if (!codec_id.has_value()) {
+    return -1;
+  }
+
+  switch (codec_id.value()) {
+    case bluetooth::a2dp::CodecId::SBC:
       return A2DP_GetTrackChannelCountSbc(p_codec_info);
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
-    case A2DP_MEDIA_CT_AAC:
+    case bluetooth::a2dp::CodecId::AAC:
       return A2DP_GetTrackChannelCountAac(p_codec_info);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetTrackChannelCount(p_codec_info);
+    case bluetooth::a2dp::CodecId::APTX:
+      return A2DP_VendorGetTrackChannelCountAptx(p_codec_info);
+    case bluetooth::a2dp::CodecId::APTX_HD:
+      return A2DP_VendorGetTrackChannelCountAptxHd(p_codec_info);
+    case bluetooth::a2dp::CodecId::LDAC:
+      return A2DP_VendorGetTrackChannelCountLdac(p_codec_info);
+    case bluetooth::a2dp::CodecId::OPUS:
+      return A2DP_VendorGetTrackChannelCountOpus(p_codec_info);
 #endif
     default:
       break;
   }
 
-  log::error("unsupported codec type 0x{:x}", codec_type);
+  log::error("unsupported codec id 0x{:x}", codec_id.value());
   return -1;
 }
 
@@ -1325,22 +1415,32 @@ int A2DP_GetSinkTrackChannelType(const uint8_t* p_codec_info) {
 
 bool A2DP_GetPacketTimestamp(const uint8_t* p_codec_info, const uint8_t* p_data,
                              uint32_t* p_timestamp) {
-  tA2DP_CODEC_TYPE codec_type = A2DP_GetCodecType(p_codec_info);
+  auto codec_id = bluetooth::a2dp::ParseCodecId(p_codec_info);
 
-  switch (codec_type) {
-    case A2DP_MEDIA_CT_SBC:
+  if (!codec_id.has_value()) {
+    return false;
+  }
+
+  switch (codec_id.value()) {
+    case bluetooth::a2dp::CodecId::SBC:
       return A2DP_GetPacketTimestampSbc(p_codec_info, p_data, p_timestamp);
 #if !defined(EXCLUDE_NONSTANDARD_CODECS)
-    case A2DP_MEDIA_CT_AAC:
+    case bluetooth::a2dp::CodecId::AAC:
       return A2DP_GetPacketTimestampAac(p_codec_info, p_data, p_timestamp);
-    case A2DP_MEDIA_CT_NON_A2DP:
-      return A2DP_VendorGetPacketTimestamp(p_codec_info, p_data, p_timestamp);
+    case bluetooth::a2dp::CodecId::APTX:
+      return A2DP_VendorGetPacketTimestampAptx(p_codec_info, p_data, p_timestamp);
+    case bluetooth::a2dp::CodecId::APTX_HD:
+      return A2DP_VendorGetPacketTimestampAptxHd(p_codec_info, p_data, p_timestamp);
+    case bluetooth::a2dp::CodecId::LDAC:
+      return A2DP_VendorGetPacketTimestampLdac(p_codec_info, p_data, p_timestamp);
+    case bluetooth::a2dp::CodecId::OPUS:
+      return A2DP_VendorGetPacketTimestampOpus(p_codec_info, p_data, p_timestamp);
 #endif
     default:
       break;
   }
 
-  log::error("unsupported codec type 0x{:x}", codec_type);
+  log::error("unsupported codec id 0x{:x}", codec_id.value());
   return false;
 }
 
@@ -1565,10 +1665,27 @@ std::string A2DP_CodecInfoString(const uint8_t* p_codec_info) {
       break;
   }
 
-  return fmt::format("Unsupported codec type: {:x}", codec_type);
+  return std::format("Unsupported codec type: {:x}", codec_type);
 }
 
 int A2DP_GetEecoderEffectiveFrameSize(const uint8_t* p_codec_info) {
   const tA2DP_ENCODER_INTERFACE* a2dp_encoder_interface = A2DP_GetEncoderInterface(p_codec_info);
   return a2dp_encoder_interface ? a2dp_encoder_interface->get_effective_frame_size() : 0;
+}
+
+uint32_t A2DP_VendorCodecGetVendorId(const uint8_t* p_codec_info) {
+  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_VENDOR_ID_START_IDX];
+
+  uint32_t vendor_id = (p[0] & 0x000000ff) | ((p[1] << 8) & 0x0000ff00) |
+                       ((p[2] << 16) & 0x00ff0000) | ((p[3] << 24) & 0xff000000);
+
+  return vendor_id;
+}
+
+uint16_t A2DP_VendorCodecGetCodecId(const uint8_t* p_codec_info) {
+  const uint8_t* p = &p_codec_info[A2DP_VENDOR_CODEC_CODEC_ID_START_IDX];
+
+  uint16_t codec_id = (p[0] & 0x00ff) | ((p[1] << 8) & 0xff00);
+
+  return codec_id;
 }

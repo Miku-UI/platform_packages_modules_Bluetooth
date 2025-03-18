@@ -21,10 +21,13 @@
  *  Interface to AVRCP optional commands
  *
  ******************************************************************************/
-#include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avct_api.h"
 #include "avrc_api.h"
+#include "avrc_defs.h"
 #include "avrc_int.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"

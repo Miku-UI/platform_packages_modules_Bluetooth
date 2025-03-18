@@ -16,15 +16,21 @@
  */
 
 #include <bluetooth/log.h>
-#include <hardware/bluetooth.h>
 #include <hardware/bt_le_audio.h>
 
+#include <atomic>
+#include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "bta_le_audio_api.h"
 #include "btif_common.h"
 #include "btif_profile_storage.h"
 #include "stack/include/main_thread.h"
+#include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using base::Bind;
 using base::Unretained;

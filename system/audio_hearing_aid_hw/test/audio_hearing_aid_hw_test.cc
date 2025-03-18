@@ -111,13 +111,13 @@ TEST_F(AudioA2dpHwTest, test_compute_buffer_size) {
         }
 
         uint32_t sample_rate = codec_sample_rate2value(codec_sample_rate);
-        EXPECT_TRUE(sample_rate != 0);
+        EXPECT_NE(0u, sample_rate);
 
         uint32_t bits_per_sample = codec_bits_per_sample2value(codec_bits_per_sample);
-        EXPECT_TRUE(bits_per_sample != 0);
+        EXPECT_NE(0u, bits_per_sample);
 
         uint32_t number_of_channels = codec_channel_mode2value(codec_channel_mode);
-        EXPECT_TRUE(number_of_channels != 0);
+        EXPECT_NE(0u, number_of_channels);
 
         const uint64_t time_period_ms = 20;  // TODO: Must be a parameter
         size_t expected_buffer_size = (time_period_ms * AUDIO_STREAM_OUTPUT_BUFFER_PERIODS *

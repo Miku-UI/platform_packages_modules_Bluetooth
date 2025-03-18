@@ -49,6 +49,7 @@ public final class AbstractionLayer {
     static final int BT_PROPERTY_REMOTE_ASHA_CAPABILITY = 0X15;
     static final int BT_PROPERTY_REMOTE_ASHA_TRUNCATED_HISYNCID = 0X16;
     static final int BT_PROPERTY_REMOTE_MODEL_NUM = 0x17;
+    static final int BT_PROPERTY_LPP_OFFLOAD_FEATURES = 0x1B;
 
     public static final int BT_DEVICE_TYPE_BREDR = 0x01;
     public static final int BT_DEVICE_TYPE_BLE = 0x02;

@@ -10,3 +10,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "snoop_logger_tracing"
+    namespace: "bluetooth"
+    description: "Add snoop logger tracing"
+    bug: "369428038"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

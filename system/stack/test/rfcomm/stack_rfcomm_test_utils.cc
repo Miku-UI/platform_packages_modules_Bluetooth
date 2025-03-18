@@ -25,6 +25,9 @@
 #include "stack/rfcomm/rfc_int.h"
 #include "stack_test_packet_utils.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace bluetooth {
 namespace rfcomm {
 

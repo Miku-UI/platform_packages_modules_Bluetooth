@@ -100,9 +100,8 @@ int utl_strucmp(const char* p_s, const char* p_t) {
   /* if p_t hit null first, no match */
   if (*p_t == 0 && *p_s != 0) {
     return 1;
-  }
-  /* else p_s hit null first, count as match */
-  else {
+  } else {
+    /* else p_s hit null first, count as match */
     return 0;
   }
 }

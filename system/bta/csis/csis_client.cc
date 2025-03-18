@@ -19,12 +19,24 @@
 #include <base/functional/callback.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bt_csis.h>
 #include <hardware/bt_gatt_types.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <list>
+#include <map>
+#include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "advertise_data_parser.h"
@@ -33,16 +45,21 @@
 #include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
 #include "bta_groups.h"
-#include "bta_le_audio_uuids.h"
 #include "bta_sec_api.h"
 #include "btif/include/btif_storage.h"
+#include "btm_ble_api_types.h"
+#include "btm_sec_api_types.h"
 #include "crypto_toolbox/crypto_toolbox.h"
 #include "csis_types.h"
 #include "gap_api.h"
+#include "gatt/database.h"
 #include "gatt_api.h"
+#include "gattdefs.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "main/shim/le_scanning_manager.h"
+#include "neighbor_inquiry.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/osi.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_sec.h"
@@ -51,6 +68,9 @@
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 using base::Closure;
 using bluetooth::Uuid;
@@ -201,7 +221,9 @@ public:
     AssignCsisGroup(address, group_id, false, Uuid::kEmpty);
   }
 
-  void OnGroupRemovedCb(const bluetooth::Uuid& uuid, int group_id) { RemoveCsisGroup(group_id); }
+  void OnGroupRemovedCb(const bluetooth::Uuid& /*uuid*/, int group_id) {
+    RemoveCsisGroup(group_id);
+  }
 
   void OnGroupMemberRemovedCb(const RawAddress& address, int group_id) {
     log::debug("{}, group_id: {}", address, group_id);
@@ -336,7 +358,8 @@ public:
     NotifyGroupStatus(group_id, false, status, std::move(cb));
   }
 
-  void OnGattCsisWriteLockRsp(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, void* data) {
+  void OnGattCsisWriteLockRsp(tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/,
+                              void* data) {
     auto device = FindDeviceByConnId(conn_id);
     if (device == nullptr) {
       log::error("Device not there for conn_id: 0x{:04x}", conn_id);
@@ -433,8 +456,8 @@ public:
 
     BtaGattQueue::WriteCharacteristic(
             device->conn_id, csis_instance->svc_data.lock_handle.val_hdl, value, GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnGattCsisWriteLockRsp(conn_id, status, handle, data);
               }
@@ -913,7 +936,7 @@ private:
     }
   }
 
-  void OnGattWriteCcc(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, void* user_data) {
+  void OnGattWriteCcc(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, void* /*user_data*/) {
     auto device = FindDeviceByConnId(conn_id);
     if (device == nullptr) {
       log::info("unknown conn_id= 0x{:04x}", conn_id);
@@ -991,7 +1014,7 @@ private:
     csis_group->SetTargetLockState(CsisLockState::CSIS_STATE_UNSET);
   }
 
-  void OnCsisLockNotifications(std::shared_ptr<CsisDevice>& device,
+  void OnCsisLockNotifications(std::shared_ptr<CsisDevice>& /*device*/,
                                std::shared_ptr<CsisInstance>& csis_instance, uint16_t len,
                                const uint8_t* value) {
     if (len != 1) {
@@ -1896,7 +1919,9 @@ private:
 
     device->connecting_actively = false;
     device->conn_id = evt.conn_id;
-
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(evt.conn_id);
+    }
     /* Verify bond */
     if (BTM_SecIsSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
@@ -2144,8 +2169,8 @@ private:
     UINT16_TO_STREAM(value_ptr, GATT_CHAR_CLIENT_CONFIG_NOTIFICATION);
     BtaGattQueue::WriteDescriptor(
             conn_id, ccc_handle, std::move(value), GATT_WRITE,
-            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* user_data) {
+            [](tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* user_data) {
               if (instance) {
                 instance->OnGattWriteCcc(conn_id, status, handle, user_data);
               }
@@ -2153,7 +2178,8 @@ private:
             nullptr);
   }
 
-  void DisableGattNotification(tCONN_ID conn_id, const RawAddress& address, uint16_t value_handle) {
+  void DisableGattNotification(tCONN_ID /*conn_id*/, const RawAddress& address,
+                               uint16_t value_handle) {
     if (value_handle != GAP_INVALID_HANDLE) {
       tGATT_STATUS register_status =
               BTA_GATTC_DeregisterForNotifications(gatt_if_, address, value_handle);
@@ -2327,7 +2353,9 @@ void CsisClient::Initialize(bluetooth::csis::CsisClientCallbacks* callbacks, Clo
 bool CsisClient::IsCsisClientRunning() { return instance; }
 
 CsisClient* CsisClient::Get(void) {
-  log::assert_that(instance != nullptr, "assert failed: instance != nullptr");
+  if (instance == nullptr) {
+    log::error("instance not available");
+  }
   return instance;
 }
 

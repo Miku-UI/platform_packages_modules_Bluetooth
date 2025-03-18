@@ -1,2 +1,10 @@
 package: "com.android.bluetooth.flags"
 container: "com.android.btservices"
+
+flag {
+    name: "hci_vendor_specific_extension"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Vendor-specific Commands/Events extension"
+    bug: "360925496"
+}

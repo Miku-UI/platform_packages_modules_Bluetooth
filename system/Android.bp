@@ -307,10 +307,12 @@ cc_genrule {
         ":BlueberryFacadeAndCertGeneratedStub_py",
         ":bluetooth_cert_test_host_deps-zip",
         ":bluetooth_cert_test_sources-zip",
-        ":bluetooth_cert_test_target_deps-zip",
         ":gd_hci_packets_python3_gen-zip",
         ":gd_smp_packets_python3_gen-zip",
         ":llvm-tools-zip",
+    ],
+    device_first_srcs: [
+        ":bluetooth_cert_test_target_deps-zip",
     ],
     out: ["bluetooth_cert_tests.zip"],
     cmd: "$(location merge_zips) $(genDir)/temp.zip $(in) && " +

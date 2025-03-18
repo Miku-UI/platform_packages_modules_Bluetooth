@@ -12,13 +12,6 @@ flag {
 }
 
 flag {
-    name: "cleanup_le_only_device_type"
-    namespace: "bluetooth"
-    description: "Cleanup the duplicate bond records only if the device type is LE-only"
-    bug: "333949759"
-}
-
-flag {
     name: "pairing_on_unknown_transport"
     namespace: "bluetooth"
     description: "Allow pairing on transport not known to be supported by the remote device"
@@ -119,16 +112,6 @@ flag {
 }
 
 flag {
-    name: "use_encrypt_req_for_av"
-    namespace: "bluetooth"
-    description: "Use encrypted link for AVDTP and AVCTP channel"
-    bug: "357662929"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "donot_queue_dup_rnr"
     namespace: "bluetooth"
     description: "Avoid queueing second RNR as part of ssp process"
@@ -173,6 +156,86 @@ flag {
     namespace: "bluetooth"
     description: "save peer csrk after ltk generated so that right security level is marked as part of peer csrk"
     bug: "365567905"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "wait_for_lea_disc_on_le_acl_stat"
+    namespace: "bluetooth"
+    description: "Check for LE ACL status before waiting on LEA discovery"
+    bug: "369687005"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "trigger_sec_proc_on_inc_access_req"
+    namespace: "bluetooth"
+    description: "Trigger security procedure as acceptor as needed"
+    bug: "376278485"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "smp_state_machine_stuck_after_disconnection_fix"
+    namespace: "bluetooth"
+    description: "Fix state machine stuck after pairing device disconnection"
+    bug: "376306092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "prevent_service_connections_on_remove_bond"
+    namespace: "bluetooth"
+    description: "Disable service connections on remove bond"
+    bug: "378736590"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_update_sec_flags_on_csrk_save"
+    namespace: "bluetooth"
+    description: "Updating sec flags while saving csrk info can cause setting securith level wrongly as security level might have not determined at that time"
+    bug: "379109304"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_auth_req_when_collision_timer_active"
+    namespace: "bluetooth"
+    description: "Ignore authentication request when collision timer is still active"
+    bug: "380328715"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "remove_device_in_main_thread"
+    namespace: "bluetooth"
+    description: "Device must be removed in main thread"
+    bug: "381275933"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "identity_retention_on_restart"
+    namespace: "bluetooth"
+    description: "Retain identity address on BT restart"
+    bug: "383879096"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -22,6 +22,8 @@ service HAP {
   rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
   // Set active preset by index
   rpc SetActivePreset(SetActivePresetRequest) returns (google.protobuf.Empty);
+  // Get active preset record
+  rpc GetActivePresetRecord(GetActivePresetRecordRequest) returns (GetActivePresetRecordResponse);
   // Set next preset
   rpc SetNextPreset(SetNextPresetRequest) returns (google.protobuf.Empty);
   // Set next preset
@@ -64,6 +66,16 @@ message SetActivePresetRequest {
     Connection connection = 1;
     // Preset index
     uint32 index = 2;
+}
+
+message GetActivePresetRecordRequest {
+    // Connection crafted by grpc server
+    Connection connection = 1;
+}
+
+message GetActivePresetRecordResponse {
+    // Received Preset Record
+    PresetRecord preset_record = 1;
 }
 
 // Request of the `SetNextPreset` method.

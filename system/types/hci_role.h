@@ -53,9 +53,9 @@ const auto RoleText = hci_role_text;  // LEGACY
 
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHCI_ROLE> : enum_formatter<tHCI_ROLE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

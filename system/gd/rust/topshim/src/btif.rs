@@ -435,7 +435,7 @@ impl ToString for BtVendorProductInfo {
             match self.vendor_id_src {
                 1 => "bluetooth",
                 2 => "usb",
-                default => "unknown",
+                _ => "unknown",
             },
             self.vendor_id,
             self.product_id,
@@ -928,20 +928,6 @@ impl From<SupportedProfiles> for Vec<u8> {
     }
 }
 
-#[cxx::bridge(namespace = bluetooth::topshim::rust)]
-mod ffi {
-    unsafe extern "C++" {
-        include!("btif/btif_shim.h");
-
-        // For converting init flags from Vec<String> to const char **
-        type InitFlags;
-
-        // Convert flgas into an InitFlags object
-        fn ConvertFlags(flags: Vec<String>) -> UniquePtr<InitFlags>;
-        fn GetFlagsPtr(self: &InitFlags) -> *mut *const c_char;
-    }
-}
-
 /// Generate impl cxx::ExternType for RawAddress and Uuid.
 ///
 /// To make use of RawAddress and Uuid in cxx::bridge C++ blocks,
@@ -1056,7 +1042,7 @@ pub enum BaseCallbacks {
     SspRequest(RawAddress, BtSspVariant, u32),
     BondState(BtStatus, RawAddress, BtBondState, i32),
     AddressConsolidate(RawAddress, RawAddress),
-    LeAddressAssociate(RawAddress, RawAddress),
+    LeAddressAssociate(RawAddress, RawAddress, u8),
     AclState(
         BtStatus,
         RawAddress,
@@ -1077,6 +1063,7 @@ pub enum BaseCallbacks {
     GenerateLocalOobData(u8, Box<OobData>), // Box OobData as its size is much bigger than others
     LeRandCallback(u64),
     // key_missing_cb
+    // encryption_change_cb
 }
 
 pub struct BaseCallbacksDispatcher {
@@ -1122,7 +1109,7 @@ cb_variant!(BaseCb, address_consolidate_cb -> BaseCallbacks::AddressConsolidate,
 });
 
 cb_variant!(BaseCb, le_address_associate_cb -> BaseCallbacks::LeAddressAssociate,
-*mut RawAddress, *mut RawAddress, {
+*mut RawAddress, *mut RawAddress, u8, {
     let _0 = unsafe { *(_0 as *const RawAddress) };
     let _1 = unsafe { *(_1 as *const RawAddress) };
 });
@@ -1228,18 +1215,8 @@ impl BluetoothInterface {
     /// # Arguments
     ///
     /// * `callbacks` - Dispatcher struct that accepts [`BaseCallbacks`]
-    /// * `init_flags` - List of flags sent to libbluetooth for init.
     /// * `hci_index` - Index of the hci adapter in use
-    pub fn initialize(
-        &mut self,
-        callbacks: BaseCallbacksDispatcher,
-        init_flags: Vec<String>,
-        hci_index: i32,
-    ) -> bool {
-        // Init flags need to be converted from string to null terminated bytes
-        let converted: cxx::UniquePtr<ffi::InitFlags> = ffi::ConvertFlags(init_flags);
-        let flags = (*converted).GetFlagsPtr();
-
+    pub fn initialize(&mut self, callbacks: BaseCallbacksDispatcher, hci_index: i32) -> bool {
         if get_dispatchers().lock().unwrap().set::<BaseCb>(Arc::new(Mutex::new(callbacks))) {
             panic!("Tried to set dispatcher for BaseCallbacks but it already existed");
         }
@@ -1269,6 +1246,7 @@ impl BluetoothInterface {
             switch_codec_cb: None,
             le_rand_cb: Some(le_rand_cb),
             key_missing_cb: None,
+            encryption_change_cb: None,
         });
 
         let cb_ptr = LTCheckedPtrMut::from(&mut callbacks);
@@ -1284,9 +1262,7 @@ impl BluetoothInterface {
             guest_mode,
             is_common_criteria_mode,
             config_compare_result,
-            flags,
-            is_atv,
-            std::ptr::null()
+            is_atv
         );
 
         self.is_init = init == 0;

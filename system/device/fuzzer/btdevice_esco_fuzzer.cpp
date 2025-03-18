@@ -19,9 +19,12 @@
 #include <string>
 
 #include "btcore/include/module.h"
-#include "esco_parameters.h"
-#include "interop.h"
-#include "interop_config.h"
+#include "device/include/esco_parameters.h"
+#include "device/include/interop.h"
+#include "device/include/interop_config.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace std;
 constexpr size_t kNumAddressOctets = 6;

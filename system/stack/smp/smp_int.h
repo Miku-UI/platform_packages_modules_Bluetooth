@@ -489,6 +489,10 @@ void smp_start_nonce_generation(tSMP_CB* p_cb);
 bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb);
 bool smp_calculate_long_term_key_from_link_key(tSMP_CB* p_cb);
 
+Octet16 smp_gen_p1_4_confirm(tSMP_CB* p_cb, tBLE_ADDR_TYPE remote_bd_addr_type);
+Octet16 smp_gen_p2_4_confirm(tSMP_CB* p_cb, const RawAddress& remote_bda);
+tSMP_STATUS smp_calculate_confirm(tSMP_CB* p_cb, const Octet16& rand, Octet16* output);
+
 void print128(const Octet16& x, const char* key_name);
 void smp_xor_128(Octet16* a, const Octet16& b);
 
@@ -498,13 +502,13 @@ void smp_save_local_oob_data(tSMP_CB* p_cb);
 void smp_clear_local_oob_data();
 bool smp_has_local_oob_data();
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tSMP_EVENT> : enum_formatter<tSMP_EVENT> {};
 template <>
 struct formatter<tSMP_OPCODE> : enum_formatter<tSMP_OPCODE> {};
 template <>
 struct formatter<tSMP_ASSO_MODEL> : enum_formatter<tSMP_ASSO_MODEL> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* SMP_INT_H */

@@ -484,6 +484,13 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockStackConnMgr",
+    srcs: [
+        "mock/mock_stack_connection_manager.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockStackEatt",
     srcs: [
         "mock/mock_stack_eatt*.cc",
@@ -550,13 +557,6 @@ filegroup {
 filegroup {
     name: "TestCommonSyncMainHandler",
     srcs: ["common/sync_main_handler.cc"],
-}
-
-filegroup {
-    name: "TestCommonInitFlags",
-    srcs: [
-        "common/init_flags.cc",
-    ],
 }
 
 filegroup {

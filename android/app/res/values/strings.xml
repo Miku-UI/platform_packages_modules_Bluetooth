@@ -70,8 +70,6 @@
     <string name="bt_enable_ok">Turn on</string>
 
     <!-- Bluetooth File Transfer Acceptance Dialog -->
-    <!--Title -->
-    <string name="incoming_file_confirm_title">File transfer</string>
     <!--content -->
     <string name="incoming_file_confirm_content">Accept incoming file? </string>
     <!-- Label for a cancel button. -->
@@ -92,16 +90,12 @@
     <string name="notification_receiving">Bluetooth share: Receiving <xliff:g id="file">%1$s</xliff:g></string>
     <!-- label for the notification item of received file -->
     <string name="notification_received">Bluetooth share: Received <xliff:g id="file">%1$s</xliff:g></string>
-    <!-- label for the notification item of failed receiving file -->
-    <string name="notification_received_fail">Bluetooth share: File <xliff:g id="file">%1$s</xliff:g> not received</string>
 
     <!-- Outbound File Transfer Progress Notification item -->
     <!-- label for the notification item of sending file -->
     <string name="notification_sending">Bluetooth share: Sending <xliff:g id="file">%1$s</xliff:g></string>
     <!-- label for the notification item of sent file -->
     <string name="notification_sent">Bluetooth share: Sent <xliff:g id="file">%1$s</xliff:g></string>
-    <!-- label for the notification item of sent file -status -->
-    <string name="notification_sent_complete">100% complete</string>
     <!-- label for the notification item of failed sending file -->
     <string name="notification_sent_fail">Bluetooth share: File <xliff:g id="file">%1$s</xliff:g> not sent</string>
 
@@ -116,7 +110,7 @@
     <string name="download_line3">File size: <xliff:g id="size">%1$s</xliff:g></string>
     <!--Line 4 -->
     <string name="download_line4" />
-    <string name="download_line5">Receiving file\u2026</string>
+    <string name="download_line5">Receiving file&#8230;</string>
     <!-- Label for a cancel button. -->
     <string name="download_cancel">Stop</string>
     <!-- Label for a hide button.-->
@@ -147,7 +141,7 @@
     <!-- Bluetooth Upload Progress Dialog -->
     <string name="upload_line1">To: \u0022<xliff:g id="recipient">%1$s</xliff:g>\u0022</string>
     <string name="upload_line3">File type: <xliff:g id="type">%1$s</xliff:g> (<xliff:g id="size">%2$s</xliff:g>)</string>
-    <string name="upload_line5">Sending file\u2026</string>
+    <string name="upload_line5">Sending file&#8230;</string>
 
     <!-- Bluetooth Successful Upload Progress Dialog -->
     <!--Line 4 -->
@@ -169,12 +163,11 @@
     <string name="not_exist_file_desc">The file doesn\'t exist. \n</string>
 
     <!-- Bluetooth  Enabling progress dialog -->
-    <string name="enabling_progress_title">Please wait\u2026</string>
-    <string name="enabling_progress_content">Turning on Bluetooth\u2026</string>
+    <string name="enabling_progress_title">Please wait&#8230;</string>
+    <string name="enabling_progress_content">Turning on Bluetooth&#8230;</string>
 
     <!-- Bluetooth Toast Message -->
     <string name="bt_toast_1">The file will be received. Check progress in the Notifications panel.</string>
-    <string name="bt_toast_2">The file can\'t be received.</string>
     <string name="bt_toast_3">Stopped receiving file from \u0022<xliff:g id="sender">%1$s</xliff:g>\u0022</string>
     <string name="bt_toast_4">Sending file to \u0022<xliff:g id="recipient">%1$s</xliff:g>\u0022</string>
     <string name="bt_toast_5">Sending <xliff:g id="number">%1$s</xliff:g> files to \u0022<xliff:g id="recipient">%2$s</xliff:g>\u0022</string>
@@ -239,7 +232,6 @@
 
     <string name="bluetooth_a2dp_sink_queue_name">Now Playing</string>
     <string name="bluetooth_map_settings_app_icon">Application Icon</string>
-    <string name="bluetooth_connected">Bluetooth audio connected</string>
     <string name="bluetooth_disconnected">Bluetooth audio disconnected"</string>
     <string name="a2dp_sink_mbs_label">Bluetooth Audio</string>
     <string name="bluetooth_opp_file_limit_exceeded">Files bigger than 4GB cannot be transferred</string>

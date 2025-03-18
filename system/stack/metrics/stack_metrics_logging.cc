@@ -77,3 +77,20 @@ void log_mmc_transcode_rtt_stats(int maximum_rtt, double mean_rtt, int num_reque
                                  int codec_type) {
   bluetooth::shim::LogMetricMmcTranscodeRttStats(maximum_rtt, mean_rtt, num_requests, codec_type);
 }
+
+void log_le_pairing_fail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+  bluetooth::shim::LogMetricLePairingFail(raw_address, failure_reason, is_outgoing);
+}
+
+void log_le_connection_status(bluetooth::hci::Address address, bool is_connect,
+                              bluetooth::hci::ErrorCode reason) {
+  bluetooth::shim::LogMetricLeConnectionStatus(address, is_connect, reason);
+}
+
+void log_le_device_in_accept_list(bluetooth::hci::Address address, bool is_add) {
+  bluetooth::shim::LogMetricLeDeviceInAcceptList(address, is_add);
+}
+
+void log_le_connection_lifecycle(bluetooth::hci::Address address, bool is_connect, bool is_direct) {
+  bluetooth::shim::LogMetricLeConnectionLifecycle(address, is_connect, is_direct);
+}

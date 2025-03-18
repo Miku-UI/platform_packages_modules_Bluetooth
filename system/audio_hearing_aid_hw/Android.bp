@@ -15,7 +15,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/types",
     ],
 }
 
@@ -59,6 +58,7 @@ cc_test {
     static_libs: [
         "audio.hearing_aid.default",
         "libbluetooth_log",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     min_sdk_version: "29",

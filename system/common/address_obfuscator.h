@@ -22,7 +22,7 @@
 #include <string>
 
 #include "hci/octets.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace common {

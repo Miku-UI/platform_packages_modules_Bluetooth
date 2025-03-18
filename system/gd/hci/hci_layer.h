@@ -58,6 +58,10 @@ public:
   void EnqueueCommand(std::unique_ptr<CommandBuilder> command,
                       common::ContextualOnceCallback<void(CommandStatusView)> on_status) override;
 
+  void EnqueueCommand(std::unique_ptr<CommandBuilder> command,
+                      common::ContextualOnceCallback<void(CommandStatusOrCompleteView)>
+                              on_status_or_complete) override;
+
   virtual common::BidiQueueEnd<AclBuilder, AclView>* GetAclQueueEnd();
 
   virtual common::BidiQueueEnd<ScoBuilder, ScoView>* GetScoQueueEnd();
@@ -79,6 +83,11 @@ public:
           VseSubeventCode event, common::ContextualCallback<void(VendorSpecificEventView)> handler);
 
   virtual void UnregisterVendorSpecificEventHandler(VseSubeventCode event);
+
+  virtual void RegisterDefaultVendorSpecificEventHandler(
+          common::ContextualCallback<void(VendorSpecificEventView)> handler);
+
+  virtual void UnregisterDefaultVendorSpecificEventHandler();
 
   virtual void RegisterForDisconnects(
           common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect);

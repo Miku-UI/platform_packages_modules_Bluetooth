@@ -1,0 +1,32 @@
+cc_library_headers {
+    name: "aics_headers",
+    export_include_dirs: ["include"],
+    host_supported: true,
+    vendor_available: true, // remove when https://r.android.com/3302734 is merged
+    visibility: ["//packages/modules/Bluetooth:__subpackages__"],
+    apex_available: ["com.android.btservices"],
+    min_sdk_version: "33",
+}
+
+cc_library {
+    name: "aics",
+    defaults: ["fluoride_defaults"],
+    srcs: [
+        "aics.cc",
+    ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
+    shared_libs: [
+        "libbase",
+        "libbinder",
+        "libbluetooth_log",
+        "liblog",
+    ],
+    header_libs: ["aics_headers"],
+    export_header_lib_headers: ["aics_headers"],
+    host_supported: true,
+    visibility: ["//packages/modules/Bluetooth:__subpackages__"],
+    apex_available: ["com.android.btservices"],
+    min_sdk_version: "33",
+}

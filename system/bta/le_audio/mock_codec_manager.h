@@ -80,7 +80,7 @@ public:
               (const std::vector<uint16_t>& conn_handle,
                std::function<void(const ::bluetooth::le_audio::broadcast_offload_config& config)>
                        update_receiver));
-  MOCK_METHOD((void), UpdateCisConfiguration,
+  MOCK_METHOD((bool), UpdateCisConfiguration,
               (const std::vector<struct bluetooth::le_audio::types::cis>& cises,
                const bluetooth::le_audio::stream_parameters& stream_params, uint8_t direction),
               (const));

@@ -30,7 +30,6 @@
 
 #include <mutex>
 
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
 

@@ -15,18 +15,20 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+
 #define LOG_TAG "avrcp"
 
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avct_api.h"
 #include "avrc_api.h"
 #include "avrc_defs.h"
 #include "avrc_int.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "osi/include/osi.h"
 #include "stack/avct/avct_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -64,7 +66,7 @@ static tAVRC_STS avrc_bld_get_capability_rsp(tAVRC_GET_CAPS_RSP* p_rsp, BT_HDR* 
   tAVRC_STS status = AVRC_STS_NO_ERROR;
 
   if (!(AVRC_IS_VALID_CAP_ID(p_rsp->capability_id))) {
-    log::error("bad parameter. p_rsp: {}", fmt::ptr(p_rsp));
+    log::error("bad parameter. p_rsp: {}", std::format_ptr(p_rsp));
     status = AVRC_STS_BAD_PARAM;
     return status;
   }
@@ -706,7 +708,7 @@ static tAVRC_STS avrc_bld_set_absolute_volume_rsp(uint8_t abs_vol, BT_HDR* p_pkt
  *                  Otherwise, the error code.
  *
  ******************************************************************************/
-tAVRC_STS avrc_bld_group_navigation_rsp(uint16_t navi_id, BT_HDR* p_pkt) {
+static tAVRC_STS avrc_bld_group_navigation_rsp(uint16_t navi_id, BT_HDR* p_pkt) {
   if (!AVRC_IS_VALID_GROUP(navi_id)) {
     log::error("bad navigation op id: {}", navi_id);
     return AVRC_STS_BAD_PARAM;
@@ -1357,8 +1359,8 @@ tAVRC_STS AVRC_BldResponse(uint8_t handle, tAVRC_RESPONSE* p_rsp, BT_HDR** pp_pk
   uint16_t peer_mtu;
 
   if (!p_rsp || !pp_pkt) {
-    log::verbose("Invalid parameters passed. p_rsp={}, pp_pkt={}", fmt::ptr(p_rsp),
-                 fmt::ptr(pp_pkt));
+    log::verbose("Invalid parameters passed. p_rsp={}, pp_pkt={}", std::format_ptr(p_rsp),
+                 std::format_ptr(pp_pkt));
     return AVRC_STS_BAD_PARAM;
   }
 

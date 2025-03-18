@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.a2dp;
 
+import static android.bluetooth.BluetoothProfile.getConnectionStateName;
+
 import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothDevice;
 
@@ -30,12 +32,6 @@ public class A2dpStackEvent {
     public static final int EVENT_TYPE_AUDIO_STATE_CHANGED = 2;
     public static final int EVENT_TYPE_CODEC_CONFIG_CHANGED = 3;
 
-    // Do not modify without updating the HAL bt_av.h files.
-    // Match up with btav_connection_state_t enum of bt_av.h
-    static final int CONNECTION_STATE_DISCONNECTED = 0;
-    static final int CONNECTION_STATE_CONNECTING = 1;
-    static final int CONNECTION_STATE_CONNECTED = 2;
-    static final int CONNECTION_STATE_DISCONNECTING = 3;
     // Match up with btav_audio_state_t enum of bt_av.h
     static final int AUDIO_STATE_REMOTE_SUSPEND = 0;
     static final int AUDIO_STATE_STOPPED = 1;
@@ -82,19 +78,7 @@ public class A2dpStackEvent {
     private static String eventTypeValueIntToString(int type, int value) {
         switch (type) {
             case EVENT_TYPE_CONNECTION_STATE_CHANGED:
-                switch (value) {
-                    case CONNECTION_STATE_DISCONNECTED:
-                        return "DISCONNECTED";
-                    case CONNECTION_STATE_CONNECTING:
-                        return "CONNECTING";
-                    case CONNECTION_STATE_CONNECTED:
-                        return "CONNECTED";
-                    case CONNECTION_STATE_DISCONNECTING:
-                        return "DISCONNECTING";
-                    default:
-                        break;
-                }
-                break;
+                return getConnectionStateName(value);
             case EVENT_TYPE_AUDIO_STATE_CHANGED:
                 switch (value) {
                     case AUDIO_STATE_REMOTE_SUSPEND:

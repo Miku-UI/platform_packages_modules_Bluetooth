@@ -32,16 +32,6 @@ flag {
 }
 
 flag {
-    name: "a2dp_async_allow_low_latency"
-    namespace: "bluetooth"
-    description: "Make allow_low_latency run on main thread"
-    bug : "339368380"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "a2dp_ignore_started_when_responder"
     namespace: "bluetooth"
     description: "Ignore the event BTA_AV_START_EVT when source and responder"
@@ -156,4 +146,42 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "a2dp_source_threading_fix"
+    namespace: "bluetooth"
+    description: "Schedule A2DP source setup operations to bt_main_thread to prevent races"
+    bug: "374166531"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_clear_pending_start_on_session_restart"
+    namespace: "bluetooth"
+    description: "Clear the kPendingStart flag when the audio session is restarted for codec reconfiguration"
+    bug: "378524655"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "avdt_handle_suspend_cfm_bad_state"
+    namespace: "bluetooth"
+    description: "Close connection on AVDTP Suspend Confirmation with BAD STATE error"
+    bug: "377830155"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a2dp_lhdc_api"
+    namespace: "bluetooth"
+    description: "API change for LHDC codec support"
+    is_exported: true
+    bug: "380118954"
 }

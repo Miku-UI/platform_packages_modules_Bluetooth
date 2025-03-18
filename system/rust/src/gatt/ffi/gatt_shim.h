@@ -58,8 +58,8 @@ private:
 }  // namespace gatt
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::gatt::AttributeBackingType>
     : enum_formatter<bluetooth::gatt::AttributeBackingType> {};
-}  // namespace fmt
+}  // namespace std

@@ -16,6 +16,7 @@
 
 #include "hci/acl_manager/round_robin_scheduler.h"
 
+#include <com_android_bluetooth_flags.h>
 #include <gtest/gtest.h>
 
 #include "common/bidi_queue.h"
@@ -23,7 +24,6 @@
 #include "hci/controller.h"
 #include "hci/hci_packets.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "packet/raw_builder.h"
 
 using ::bluetooth::common::BidiQueue;
@@ -419,6 +419,59 @@ TEST_F(RoundRobinSchedulerTest, receive_le_credit_when_next_fragment_is_classic)
 
   round_robin_scheduler_->Unregister(handle);
   round_robin_scheduler_->Unregister(le_handle);
+}
+
+TEST_F(RoundRobinSchedulerTest, unregister_reclaim_credits) {
+  com::android::bluetooth::flags::provider_->drop_acl_fragment_on_disconnect(true);
+
+  uint16_t handle = 0x01;
+  auto connection_queue = std::make_shared<AclConnection::Queue>(20);
+  auto new_connection_queue = std::make_shared<AclConnection::Queue>(20);
+
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   connection_queue);
+
+  ASSERT_NO_FATAL_FAILURE(SetPacketFuture(controller_->max_acl_packet_credits_));
+
+  AclConnection::QueueUpEnd* queue_up_end = connection_queue->GetUpEnd();
+
+  std::vector<uint8_t> huge_packet(2000);
+  std::vector<uint8_t> packet = {0x01, 0x02, 0x03};
+  std::vector<uint8_t> new_packet = {0x04, 0x05, 0x06};
+
+  // Make acl_packet_credits_ = 0 and remain 1 acl fragment in fragments_to_send_
+  for (uint16_t i = 0; i < controller_->max_acl_packet_credits_ - 1; i++) {
+    EnqueueAclUpEnd(queue_up_end, packet);
+  }
+  EnqueueAclUpEnd(queue_up_end, huge_packet);
+
+  packet_future_->wait();
+  ASSERT_EQ(round_robin_scheduler_->GetCredits(), 0);
+
+  // Credits should be reclaimed
+  round_robin_scheduler_->Unregister(handle);
+  ASSERT_EQ(round_robin_scheduler_->GetCredits(), controller_->max_acl_packet_credits_);
+
+  while (!sent_acl_packets_.empty()) {
+    sent_acl_packets_.pop();
+  }
+
+  round_robin_scheduler_->Register(RoundRobinScheduler::ConnectionType::CLASSIC, handle,
+                                   new_connection_queue);
+  ASSERT_NO_FATAL_FAILURE(SetPacketFuture(controller_->max_acl_packet_credits_));
+
+  AclConnection::QueueUpEnd* new_queue_up_end = new_connection_queue->GetUpEnd();
+  for (uint16_t i = 0; i < controller_->max_acl_packet_credits_; i++) {
+    EnqueueAclUpEnd(new_queue_up_end, new_packet);
+  }
+
+  packet_future_->wait();
+
+  // Pending fragments shouldn't be sent
+  for (uint16_t i = 0; i < controller_->max_acl_packet_credits_; i++) {
+    VerifyPacket(handle, new_packet);
+  }
+  round_robin_scheduler_->Unregister(handle);
 }
 
 }  // namespace

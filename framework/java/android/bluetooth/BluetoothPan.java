@@ -20,6 +20,7 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.TETHER_PRIVILEGED;
 import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -552,13 +553,13 @@ public final class BluetoothPan implements BluetoothProfile {
                         @Override
                         @RequiresNoPermission
                         public void onAvailable(String iface) {
-                            executor.execute(() -> callback.onAvailable(iface));
+                            executeFromBinder(executor, () -> callback.onAvailable(iface));
                         }
 
                         @Override
                         @RequiresNoPermission
                         public void onUnavailable() {
-                            executor.execute(() -> callback.onUnavailable());
+                            executeFromBinder(executor, () -> callback.onUnavailable());
                         }
                     };
             try {

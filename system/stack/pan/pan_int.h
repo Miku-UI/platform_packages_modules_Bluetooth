@@ -74,7 +74,6 @@ typedef struct {
     size_t errors{0};
     size_t drops{0};
   } write, read;
-
 } tPAN_CONN;
 
 /*  The main PAN control block
@@ -129,9 +128,9 @@ void pan_dump_status(void);
 
 /******************************************************************************/
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tPAN_STATE> : enum_formatter<tPAN_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

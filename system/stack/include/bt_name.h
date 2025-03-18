@@ -28,8 +28,8 @@ inline constexpr BD_NAME kBtmBdNameEmpty = {};
 constexpr size_t kBdNameLength = static_cast<size_t>(BD_NAME_LEN);
 
 inline size_t bd_name_copy(BD_NAME bd_name_dest, const BD_NAME bd_name_src) {
-  return strlcpy(reinterpret_cast<char*>(bd_name_dest), reinterpret_cast<const char*>(bd_name_src),
-                 kBdNameLength + 1);
+  return osi_strlcpy(reinterpret_cast<char*>(bd_name_dest),
+                     reinterpret_cast<const char*>(bd_name_src), kBdNameLength + 1);
 }
 inline void bd_name_clear(BD_NAME bd_name) { *bd_name = {0}; }
 inline bool bd_name_is_empty(const BD_NAME bd_name) { return bd_name[0] == '\0'; }
@@ -40,7 +40,8 @@ inline void bd_name_from_char_pointer(BD_NAME bd_name_dest, const char* bd_name_
     return;
   }
 
-  size_t src_len = strlcpy(reinterpret_cast<char*>(bd_name_dest), bd_name_char, sizeof(BD_NAME));
+  size_t src_len =
+          osi_strlcpy(reinterpret_cast<char*>(bd_name_dest), bd_name_char, sizeof(BD_NAME));
   if (src_len < sizeof(BD_NAME) - 1) {
     /* Zero the remaining destination memory */
     memset(bd_name_dest + src_len, 0, sizeof(BD_NAME) - src_len);

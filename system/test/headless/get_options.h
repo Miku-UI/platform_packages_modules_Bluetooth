@@ -43,8 +43,8 @@ public:
 
   std::list<RawAddress> device_;
   std::list<bluetooth::Uuid> uuid_;
-  unsigned long loop_{1};
-  unsigned long msec_{0};
+  uint64_t loop_{1};
+  uint64_t msec_{0};
 
   bool close_stderr_{true};
   bool clear_logcat_{false};

@@ -27,7 +27,6 @@ source_set("libcodec_server_a2dp_aac") {
     "//bt/system/stack/include",
   ]
   deps = [
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
     "//bt/system/stack/mmc/proto:mmc_config_proto",
   ]
   sources = [ "a2dp_aac_mmc_encoder.cc" ]

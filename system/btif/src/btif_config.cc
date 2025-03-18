@@ -37,8 +37,8 @@
 #include "common/metric_id_allocator.h"
 #include "main/shim/config.h"
 #include "main/shim/shim.h"
-#include "raw_address.h"
 #include "storage/config_keys.h"
+#include "types/raw_address.h"
 
 #define TEMPORARY_SECTION_CAPACITY 10000
 
@@ -312,6 +312,12 @@ void btif_config_remove_device(const std::string& section) {
   log::assert_that(bluetooth::shim::is_gd_stack_started_up(),
                    "assert failed: bluetooth::shim::is_gd_stack_started_up()");
   bluetooth::shim::BtifConfigInterface::RemoveSection(section);
+}
+
+void btif_config_remove_device_with_key(const std::string& key) {
+  log::assert_that(bluetooth::shim::is_gd_stack_started_up(),
+                   "assert failed: bluetooth::shim::is_gd_stack_started_up()");
+  bluetooth::shim::BtifConfigInterface::RemoveSectionWithProperty(key);
 }
 
 bool btif_config_clear(void) {

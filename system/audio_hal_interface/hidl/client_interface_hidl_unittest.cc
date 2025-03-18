@@ -377,7 +377,7 @@ struct CodecOffloadingPreference {
   std::vector<btav_a2dp_codec_config_t> preference_;
 };
 
-std::vector<CodecOffloadingPreference> CodecOffloadingPreferenceGenerator(
+static std::vector<CodecOffloadingPreference> CodecOffloadingPreferenceGenerator(
         btav_a2dp_codec_index_t target_codec_index) {
   std::vector<CodecOffloadingPreference> codec_offloading_preferences = {
           {.is_target_codec_included_ = false,
@@ -399,7 +399,7 @@ std::vector<CodecOffloadingPreference> CodecOffloadingPreferenceGenerator(
   return codec_offloading_preferences;
 }
 
-std::vector<CodecConfiguration> SbcCodecConfigurationsGenerator() {
+static std::vector<CodecConfiguration> SbcCodecConfigurationsGenerator() {
   std::vector<CodecConfiguration> sbc_codec_configs;
   CodecConfiguration codec_config = {};
   SbcBlockLength block_lengths[4] = {SbcBlockLength::BLOCKS_4, SbcBlockLength::BLOCKS_8,
@@ -475,7 +475,7 @@ TEST_F(BluetoothAudioClientInterfaceTest, StartAndEndA2dpOffloadSbcSession) {
   }
 }
 
-std::vector<CodecConfiguration> AacCodecConfigurationsGenerator() {
+static std::vector<CodecConfiguration> AacCodecConfigurationsGenerator() {
   std::vector<CodecConfiguration> aac_codec_configs;
   CodecConfiguration codec_config = {};
   AacObjectType object_types[4] = {AacObjectType::MPEG2_LC, AacObjectType::MPEG4_LC,
@@ -543,7 +543,7 @@ TEST_F(BluetoothAudioClientInterfaceTest, StartAndEndA2dpOffloadAacSession) {
   }
 }
 
-std::vector<CodecConfiguration> LdacCodecConfigurationsGenerator() {
+static std::vector<CodecConfiguration> LdacCodecConfigurationsGenerator() {
   std::vector<CodecConfiguration> ldac_codec_configs;
   CodecConfiguration codec_config = {};
   LdacQualityIndex quality_indexes[4] = {
@@ -609,7 +609,7 @@ TEST_F(BluetoothAudioClientInterfaceTest, StartAndEndA2dpOffloadLdacSession) {
   }
 }
 
-std::vector<CodecConfiguration> AptxCodecConfigurationsGenerator(CodecType codec_type) {
+static std::vector<CodecConfiguration> AptxCodecConfigurationsGenerator(CodecType codec_type) {
   std::vector<CodecConfiguration> aptx_codec_configs;
   if (codec_type != CodecType::APTX && codec_type != CodecType::APTX_HD) {
     return aptx_codec_configs;

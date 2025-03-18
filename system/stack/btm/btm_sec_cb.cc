@@ -25,7 +25,6 @@
 
 #include "internal_include/bt_trace.h"
 #include "internal_include/stack_config.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/list.h"
@@ -231,9 +230,8 @@ bool tBTM_SEC_CB::AddService(bool is_originator, const char* p_name, uint8_t ser
         record_allocated = true;
         break;
       }
-    }
-    /* Mark the first available service record */
-    else if (!record_allocated) {
+    } else if (!record_allocated) {
+      /* Mark the first available service record */
       *p_srec = {};
       record_allocated = true;
       first_unused_record = index;
@@ -258,7 +256,7 @@ bool tBTM_SEC_CB::AddService(bool is_originator, const char* p_name, uint8_t ser
 
   if (is_originator) {
     p_srec->orig_mx_chan_id = mx_chan_id;
-    strlcpy((char*)p_srec->orig_service_name, p_name, BT_MAX_SERVICE_NAME_LEN + 1);
+    osi_strlcpy((char*)p_srec->orig_service_name, p_name, BT_MAX_SERVICE_NAME_LEN + 1);
     /* clear out the old setting, just in case it exists */
     {
       p_srec->security_flags &=
@@ -287,7 +285,7 @@ bool tBTM_SEC_CB::AddService(bool is_originator, const char* p_name, uint8_t ser
     p_out_serv = p_srec;
   } else {
     p_srec->term_mx_chan_id = mx_chan_id;
-    strlcpy((char*)p_srec->term_service_name, p_name, BT_MAX_SERVICE_NAME_LEN + 1);
+    osi_strlcpy((char*)p_srec->term_service_name, p_name, BT_MAX_SERVICE_NAME_LEN + 1);
     /* clear out the old setting, just in case it exists */
     {
       p_srec->security_flags &= ~(BTM_SEC_IN_ENCRYPT | BTM_SEC_IN_AUTHENTICATE | BTM_SEC_IN_MITM |

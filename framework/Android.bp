@@ -10,6 +10,7 @@ filegroup {
         "java/**/*.java",
     ],
     path: "java",
+    visibility: ["//packages/modules/Bluetooth/framework/tests/unit"],
 }
 
 // defaults shared between `framework-bluetooth` & `framework-bluetooth-pre-jarjar`
@@ -19,6 +20,7 @@ java_defaults {
     name: "framework-bluetooth-defaults",
     static_libs: [
         "PlatformProperties",
+        "bluetooth_constants_java",
         "bluetooth_flags_java_lib",
         "modules-utils-build",
         "modules-utils-expresslog",
@@ -49,6 +51,7 @@ java_library {
     sdk_version: "module_current",
     libs: ["framework-annotations-lib"],
     installable: false,
+    visibility: ["//packages/modules/Bluetooth:__subpackages__"],
 }
 
 // post-jarjar version of framework-bluetooth
@@ -85,13 +88,49 @@ java_sdk_library {
 
     permitted_packages: [
         "android.bluetooth",
-        "com.android.bluetooth.flags",
         "com.android.bluetooth.jarjar",
     ],
-    plugins: [
-        "error_prone_android_framework",
+    aconfig_declarations: [
+        "bluetooth_aconfig_flags",
     ],
     lint: {
+        error_checks: [
+            "Autofill",
+            "DefaultLocale",
+            "DuplicateDefinition",
+            "ExtraText",
+            "ExtraTranslation",
+            "FlaggedApi",
+            "GestureBackNavigation",
+            "GetterSetterNullability",
+            "GuardedLogInvocation",
+            "HandlerLeak",
+            "InflateParams",
+            "LabelFor",
+            "MissingClass",
+            "MonochromeLauncherIcon",
+            "NewApi",
+            "ObsoleteSdkInt",
+            "Recycle",
+            "RtlHardcoded",
+            "RtlSymmetry",
+            "ScrollViewSize",
+            "SetTextI18n",
+            "SimpleDateFormat",
+            "StaticFieldLeak",
+            "StringFormatCount",
+            "StringFormatInvalid",
+            "SupportAnnotationUsage",
+            "TextFields",
+            "TypographyEllipsis",
+            "UseSparseArrays",
+            "UseValueOf",
+            "VectorPath",
+            "VisibleForTests",
+            "Wakelock",
+            "WakelockTimeout",
+            "WrongConstant",
+        ],
         strict_updatability_linting: true,
         baseline_filename: "lint-baseline.xml",
     },
@@ -110,7 +149,7 @@ java_defaults {
         // if sdk_version="" this gets automatically included, but here we need to add manually.
         "framework-res",
     ],
-    defaults_visibility: ["//visibility:public"],
+    defaults_visibility: ["//packages/modules/Bluetooth:__subpackages__"],
 }
 
 filegroup {

@@ -18,7 +18,11 @@
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
-/** stack/gatt/connection_manager.cc */
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+/** stack/connection_manager/connection_manager.cc */
 namespace connection_manager {
 bool background_connect_remove(uint8_t app_id, const RawAddress& address) { return false; }
 bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool connection_timeout) {
@@ -59,9 +63,3 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint
   return 0x0000;
 }
 void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {}
-
-/** stack/l2cap/l2c_ble.cc */
-void l2cble_set_fixed_channel_tx_data_length(const RawAddress& remote_bda, uint16_t fix_cid,
-                                             uint16_t tx_mtu) {}
-void L2CA_SetLeFixedChannelTxDataLength(const RawAddress& remote_bda, uint16_t fix_cid,
-                                        uint16_t tx_mtu) {}

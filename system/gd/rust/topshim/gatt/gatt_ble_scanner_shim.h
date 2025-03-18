@@ -160,11 +160,9 @@ private:
                                   uint8_t btm_status);
   void OnFilterConfigCallback(uint8_t filt_index, uint8_t filt_type, uint8_t avbl_space,
                               uint8_t action, uint8_t btm_status);
-#if TARGET_FLOSS
   void OnMsftAdvMonitorAddCallback(uint8_t monitor_handle, uint8_t status);
   void OnMsftAdvMonitorRemoveCallback(uint8_t status);
   void OnMsftAdvMonitorEnableCallback(uint8_t status);
-#endif
 
   BleScannerInterface* scanner_intf_;
 };

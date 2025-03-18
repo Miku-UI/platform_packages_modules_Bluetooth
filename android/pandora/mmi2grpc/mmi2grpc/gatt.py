@@ -20,38 +20,19 @@ from threading import Thread
 from mmi2grpc._helpers import assert_description, match_description
 from mmi2grpc._proxy import ProfileProxy
 from mmi2grpc._rootcanal import Dongle
-
-from pandora_experimental.gatt_grpc import GATT
 from pandora.host_grpc import Host
 from pandora.host_pb2 import PUBLIC, RANDOM
 from pandora.security_grpc import Security, SecurityStorage
 from pandora.security_pb2 import PairingEventAnswer
-from pandora_experimental.gatt_pb2 import (
-    INVALID_HANDLE,
-    READ_NOT_PERMITTED,
-    UNKNOWN_ERROR,
-    INSUFFICIENT_AUTHENTICATION,
-    ATTRIBUTE_NOT_FOUND,
-    APPLICATION_ERROR,
-    INVALID_ATTRIBUTE_LENGTH,
-    WRITE_NOT_PERMITTED,
-    PERMISSION_NONE,
-    PROPERTY_READ,
-    PROPERTY_WRITE,
-    PERMISSION_READ,
-    PERMISSION_WRITE,
-    PERMISSION_READ_ENCRYPTED,
-    PERMISSION_READ_ENCRYPTED_MITM,
-    PERMISSION_WRITE_ENCRYPTED,
-    PERMISSION_WRITE_ENCRYPTED_MITM,
-    ENABLE_NOTIFICATION_VALUE,
-    ENABLE_INDICATION_VALUE,
-)
-from pandora_experimental.gatt_pb2 import GattServiceParams
-from pandora_experimental.gatt_pb2 import GattCharacteristicParams
-from pandora_experimental.gatt_pb2 import GattDescriptorParams
-from pandora_experimental.gatt_pb2 import ReadCharacteristicResponse
-from pandora_experimental.gatt_pb2 import ReadCharacteristicsFromUuidResponse
+from pandora_experimental.gatt_grpc import GATT
+from pandora_experimental.gatt_pb2 import (APPLICATION_ERROR, ATTRIBUTE_NOT_FOUND, ENABLE_INDICATION_VALUE,
+                                           ENABLE_NOTIFICATION_VALUE, INSUFFICIENT_AUTHENTICATION,
+                                           INVALID_ATTRIBUTE_LENGTH, INVALID_HANDLE, PERMISSION_NONE, PERMISSION_READ,
+                                           PERMISSION_READ_ENCRYPTED, PERMISSION_READ_ENCRYPTED_MITM, PERMISSION_WRITE,
+                                           PERMISSION_WRITE_ENCRYPTED, PERMISSION_WRITE_ENCRYPTED_MITM, PROPERTY_READ,
+                                           PROPERTY_WRITE, READ_NOT_PERMITTED, UNKNOWN_ERROR, WRITE_NOT_PERMITTED,
+                                           GattCharacteristicParams, GattDescriptorParams, GattServiceParams,
+                                           ReadCharacteristicResponse, ReadCharacteristicsFromUuidResponse)
 
 # Tests that need GATT cache cleared before discovering services.
 NEEDS_CACHE_CLEARED = {

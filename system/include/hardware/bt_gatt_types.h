@@ -17,10 +17,11 @@
 #ifndef ANDROID_INCLUDE_BT_GATT_TYPES_H
 #define ANDROID_INCLUDE_BT_GATT_TYPES_H
 
-#include <bluetooth/uuid.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
+
+#include "types/bluetooth/uuid.h"
 
 __BEGIN_DECLS
 

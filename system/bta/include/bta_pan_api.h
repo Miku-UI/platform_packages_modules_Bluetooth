@@ -68,7 +68,6 @@ typedef struct {
 typedef struct {
   RawAddress bd_addr; /* BD address of peer device. */
   uint16_t handle;    /* Handle associated with this connection. */
-
 } tBTA_PAN_OPENING;
 
 /* Event associated with BTA_PAN_OPEN_EVT */
@@ -78,7 +77,6 @@ typedef struct {
   tBTA_PAN_STATUS status;   /* status of open event */
   tBTA_PAN_ROLE local_role; /* Local device PAN role for the connection */
   tBTA_PAN_ROLE peer_role;  /* Peer device PAN role for the connection */
-
 } tBTA_PAN_OPEN;
 
 /* Event associated with BTA_PAN_CLOSE_EVT */

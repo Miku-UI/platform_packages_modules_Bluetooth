@@ -16,7 +16,7 @@ java_test_host {
         "tradefed",
     ],
 
-    data: [
+    device_common_data: [
         ":BluetoothMetricsTestApp",
     ],
 

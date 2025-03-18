@@ -281,7 +281,7 @@ static int out_standby(struct audio_stream* stream) {
   return retval;
 }
 
-static int out_dump(const struct audio_stream* stream, int fd) {
+static int out_dump(const struct audio_stream* stream, int /*fd*/) {
   const auto* out = reinterpret_cast<const BluetoothStreamOut*>(stream);
   LOG(VERBOSE) << __func__ << ": state=" << out->bluetooth_output_->GetState();
   return 0;
@@ -691,7 +691,7 @@ static void out_update_source_metadata_v7(struct audio_stream_out* stream,
   }
 }
 
-int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t handle,
+int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t /*handle*/,
                             audio_devices_t devices, audio_output_flags_t flags,
                             struct audio_config* config, struct audio_stream_out** stream_out,
                             const char* address __unused) {
@@ -775,6 +775,7 @@ int adev_open_output_stream(struct audio_hw_device* dev, audio_io_handle_t handl
 
   out->frames_rendered_ = 0;
   out->frames_presented_ = 0;
+  out->last_write_time_us_ = 0;
 
   BluetoothStreamOut* out_ptr = out.release();
   {
@@ -811,8 +812,8 @@ void adev_close_output_stream(struct audio_hw_device* dev, struct audio_stream_o
   delete out;
 }
 
-size_t adev_get_input_buffer_size(const struct audio_hw_device* dev,
-                                  const struct audio_config* config) {
+size_t adev_get_input_buffer_size(const struct audio_hw_device* /*dev*/,
+                                  const struct audio_config* /*config*/) {
   /* TODO: Adjust this value */
   LOG(VERBOSE) << __func__;
   return 320;
@@ -931,7 +932,7 @@ static int in_standby(struct audio_stream* stream) {
   return retval;
 }
 
-static int in_dump(const struct audio_stream* stream, int fd) {
+static int in_dump(const struct audio_stream* stream, int /*fd*/) {
   const auto* in = reinterpret_cast<const BluetoothStreamIn*>(stream);
   LOG(VERBOSE) << __func__ << ": state=" << in->bluetooth_input_->GetState();
 
@@ -1004,7 +1005,7 @@ static int in_remove_audio_effect(const struct audio_stream* stream, effect_hand
   return 0;
 }
 
-static int in_set_gain(struct audio_stream_in* stream, float gain) {
+static int in_set_gain(struct audio_stream_in* stream, float /*gain*/) {
   const auto* in = reinterpret_cast<const BluetoothStreamIn*>(stream);
   LOG(VERBOSE) << __func__ << ": NOT HANDLED! state=" << in->bluetooth_input_->GetState();
 
@@ -1104,8 +1105,8 @@ static int in_stop(const struct audio_stream_in* stream) {
   return 0;
 }
 
-static int in_create_mmap_buffer(const struct audio_stream_in* stream, int32_t min_size_frames,
-                                 struct audio_mmap_buffer_info* info) {
+static int in_create_mmap_buffer(const struct audio_stream_in* stream, int32_t /*min_size_frames*/,
+                                 struct audio_mmap_buffer_info* /*info*/) {
   const auto* in = reinterpret_cast<const BluetoothStreamIn*>(stream);
   LOG(VERBOSE) << __func__ << ": NOT HANDLED! state=" << in->bluetooth_input_->GetState();
 
@@ -1113,7 +1114,7 @@ static int in_create_mmap_buffer(const struct audio_stream_in* stream, int32_t m
 }
 
 static int in_get_mmap_position(const struct audio_stream_in* stream,
-                                struct audio_mmap_position* position) {
+                                struct audio_mmap_position* /*position*/) {
   const auto* in = reinterpret_cast<const BluetoothStreamIn*>(stream);
   LOG(VERBOSE) << __func__ << ": NOT HANDLED! state=" << in->bluetooth_input_->GetState();
 
@@ -1121,8 +1122,8 @@ static int in_get_mmap_position(const struct audio_stream_in* stream,
 }
 
 static int in_get_active_microphones(const struct audio_stream_in* stream,
-                                     struct audio_microphone_characteristic_t* mic_array,
-                                     size_t* mic_count) {
+                                     struct audio_microphone_characteristic_t* /*mic_array*/,
+                                     size_t* /*mic_count*/) {
   const auto* in = reinterpret_cast<const BluetoothStreamIn*>(stream);
   LOG(VERBOSE) << __func__ << ": NOT HANDLED! state=" << in->bluetooth_input_->GetState();
 
@@ -1130,14 +1131,14 @@ static int in_get_active_microphones(const struct audio_stream_in* stream,
 }
 
 static int in_set_microphone_direction(const struct audio_stream_in* stream,
-                                       audio_microphone_direction_t direction) {
+                                       audio_microphone_direction_t /*direction*/) {
   const auto* in = reinterpret_cast<const BluetoothStreamIn*>(stream);
   LOG(VERBOSE) << __func__ << ": NOT HANDLED! state=" << in->bluetooth_input_->GetState();
 
   return -ENOSYS;
 }
 
-static int in_set_microphone_field_dimension(const struct audio_stream_in* stream, float zoom) {
+static int in_set_microphone_field_dimension(const struct audio_stream_in* stream, float /*zoom*/) {
   const auto* in = reinterpret_cast<const BluetoothStreamIn*>(stream);
   LOG(VERBOSE) << __func__ << ": NOT HANDLED! state=" << in->bluetooth_input_->GetState();
 
@@ -1164,7 +1165,7 @@ static void in_update_sink_metadata_v7(struct audio_stream_in* stream,
           ->UpdateSinkMetadata(sink_metadata);
 }
 
-int adev_open_input_stream(struct audio_hw_device* dev, audio_io_handle_t handle,
+int adev_open_input_stream(struct audio_hw_device* /*dev*/, audio_io_handle_t /*handle*/,
                            audio_devices_t devices, struct audio_config* config,
                            struct audio_stream_in** stream_in, audio_input_flags_t flags __unused,
                            const char* address __unused, audio_source_t source __unused) {
@@ -1246,7 +1247,7 @@ int adev_open_input_stream(struct audio_hw_device* dev, audio_io_handle_t handle
   return 0;
 }
 
-void adev_close_input_stream(struct audio_hw_device* dev, struct audio_stream_in* stream) {
+void adev_close_input_stream(struct audio_hw_device* /*dev*/, struct audio_stream_in* stream) {
   auto* in = reinterpret_cast<BluetoothStreamIn*>(stream);
 
   if (in->bluetooth_input_->GetState() != BluetoothStreamState::DISABLED) {

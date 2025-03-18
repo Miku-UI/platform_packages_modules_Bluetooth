@@ -25,16 +25,19 @@
 #include <pthread.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "a2dp_vendor_ldac.h"
-#include "os/log.h"
+#include "a2dp_vendor_ldac_constants.h"
+#include "avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<LDACBT_SMPL_FMT_T> : enum_formatter<LDACBT_SMPL_FMT_T> {};
-}  // namespace fmt
+}  // namespace std
 
 //
 // Decoder for LDAC Source Codec

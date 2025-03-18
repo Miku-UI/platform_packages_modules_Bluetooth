@@ -23,8 +23,6 @@
 #include <mutex>
 #include <string>
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace os {
 

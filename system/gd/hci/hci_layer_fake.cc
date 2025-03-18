@@ -102,6 +102,13 @@ void HciLayerFake::EnqueueCommand(
   }
 }
 
+void HciLayerFake::EnqueueCommand(
+        std::unique_ptr<CommandBuilder> /* command */,
+        common::ContextualOnceCallback<
+                void(CommandStatusOrCompleteView)> /* on_status_or_complete */) {
+  FAIL();
+}
+
 CommandView HciLayerFake::GetCommand() {
   EXPECT_EQ(command_future_.wait_for(std::chrono::milliseconds(1000)), std::future_status::ready);
 

@@ -38,6 +38,9 @@
 #include "stack/include/sdp_status.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 extern bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
 extern bool btif_av_peer_is_connected_source(const RawAddress& peer_address);
 extern bool btif_av_both_enable(void);
@@ -135,7 +138,7 @@ bool ConnectionHandler::ConnectDevice(const RawAddress& bdaddr) {
   }
 
   auto connection_lambda = [](ConnectionHandler* instance_, const RawAddress& bdaddr,
-                              tSDP_STATUS status, uint16_t version, uint16_t features) {
+                              tSDP_STATUS status, uint16_t /*version*/, uint16_t features) {
     log::info("SDP Completed features=0x{:x}", features);
     if (status != tSDP_STATUS::SDP_SUCCESS || !(features & BTA_AV_FEAT_RCCT)) {
       log::error(
@@ -230,14 +233,14 @@ bool ConnectionHandler::AvrcpConnect(bool initiator, const RawAddress& bdaddr) {
   }
   open_cb.msg_cback = base::Bind(&ConnectionHandler::MessageCb, weak_ptr_factory_.GetWeakPtr());
   open_cb.company_id = AVRC_CO_GOOGLE;
-  open_cb.conn = initiator ? AVRC_CONN_INT : AVRC_CONN_ACP;  // 0 if initiator, 1 if acceptor
+  open_cb.conn = initiator ? AVCT_ROLE_INITIATOR : AVCT_ROLE_ACCEPTOR;
   // TODO (apanicke): We shouldn't need RCCT to do absolute volume. The current
   // AVRC_API requires it though.
   open_cb.control = BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT | BTA_AV_FEAT_METADATA | AVRC_CT_PASSIVE;
 
   uint8_t handle = 0;
   uint16_t status = avrc_->Open(&handle, &open_cb, bdaddr);
-  log::info("handle=0x{:x} status= 0x{:x}", handle, status);
+  log::info("handle=0x{:x} status=0x{:x}", handle, status);
   return status == AVRC_SUCCESS;
 }
 
@@ -263,7 +266,7 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
       bool supports_browsing = feature_iter->second & BTA_AV_FEAT_BROWSE;
 
       if (supports_browsing) {
-        avrc_->OpenBrowse(handle, AVCT_INT);
+        avrc_->OpenBrowse(handle, AVCT_ROLE_INITIATOR);
       }
 
       // TODO (apanicke): Implement a system to cache SDP entries. For most
@@ -292,7 +295,6 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
           instance_->vol_->DeviceConnected(newDevice->GetAddress());
         }
       }
-
     } break;
 
     case AVRC_CLOSE_IND_EVT: {
@@ -368,8 +370,8 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
       connection_cb_.Run(newDevice);
 
       log::info("Performing SDP on connected device. address={}", *peer_addr);
-      auto sdp_lambda = [](ConnectionHandler* instance_, uint8_t handle, tSDP_STATUS status,
-                           uint16_t version, uint16_t features) {
+      auto sdp_lambda = [](ConnectionHandler* instance_, uint8_t handle, tSDP_STATUS /*status*/,
+                           uint16_t /*version*/, uint16_t features) {
         if (instance_->device_map_.find(handle) == instance_->device_map_.end()) {
           log::warn("No device found for handle: 0x{:x}", handle);
           return;
@@ -392,7 +394,7 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
       };
 
       if (SdpLookup(*peer_addr, base::Bind(sdp_lambda, this, handle), false)) {
-        avrc_->OpenBrowse(handle, AVCT_ACP);
+        avrc_->OpenBrowse(handle, AVCT_ROLE_ACCEPTOR);
       } else {
         // SDP search failed, this could be due to a collision between outgoing
         // and incoming connection. In any case, we need to reject the current
@@ -635,7 +637,7 @@ void ConnectionHandler::RegisterVolChanged(const RawAddress& bdaddr) {
 
 bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
   if (device_map_.find(handle) == device_map_.end()) {
-    log::warn("No device found for handle: {}", loghex(handle));
+    log::warn("No device found for handle: 0x{:x}", handle);
     return false;
   }
   auto device = device_map_[handle];
@@ -649,10 +651,11 @@ bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
                                               weak_ptr_factory_.GetWeakPtr(), handle));
 }
 
-void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found, tA2DP_Service* p_service,
-                                             const RawAddress& peer_address) {
+void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
+                                             tA2DP_Service* /*p_service*/,
+                                             const RawAddress& /*peer_address*/) {
   if (device_map_.find(handle) == device_map_.end()) {
-    log::warn("No device found for handle: {}", loghex(handle));
+    log::warn("No device found for handle: 0x{:x}", handle);
     return;
   }
   auto device = device_map_[handle];

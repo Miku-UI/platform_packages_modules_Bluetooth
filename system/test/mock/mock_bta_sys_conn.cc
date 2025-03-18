@@ -26,6 +26,9 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void bta_sys_app_close(tBTA_SYS_ID /* id */, uint8_t /* app_id */,
                        const RawAddress& /* peer_addr */) {
   inc_func_call_count(__func__);

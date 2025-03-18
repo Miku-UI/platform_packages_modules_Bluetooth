@@ -16,15 +16,23 @@
 
 #define LOG_TAG "BluetoothHeadsetServiceJni"
 
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
+
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <shared_mutex>
 
-#include "btif/include/btif_hf.h"
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bluetooth_headset_callbacks.h"
 #include "hardware/bluetooth_headset_interface.h"
 #include "hardware/bt_hf.h"
-#include "os/log.h"
+#include "types/raw_address.h"
 
 namespace android {
 
@@ -948,22 +956,22 @@ static jboolean enableSwbNative(JNIEnv* env, jobject /* object */, jint swbCodec
                                 jbyteArray address) {
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);
   if (!sBluetoothHfpInterface) {
-    ALOGW("%s: sBluetoothHfpInterface is null", __func__);
+    log::warn("sBluetoothHfpInterface is null");
     return JNI_FALSE;
   }
   jbyte* addr = env->GetByteArrayElements(address, NULL);
   if (!addr) {
-    ALOGE("%s: failed to get device address", __func__);
+    log::error("failed to get device address");
     jniThrowIOException(env, EINVAL);
     return JNI_FALSE;
   }
   bt_status_t ret = sBluetoothHfpInterface->EnableSwb(
           (bluetooth::headset::bthf_swb_codec_t)swbCodec, (bool)enable, (RawAddress*)addr);
   if (ret != BT_STATUS_SUCCESS) {
-    ALOGE("%s: Failed to %s", __func__, (enable ? "enable" : "disable"));
+    log::error("Failed to {}", (enable ? "enable" : "disable"));
     return JNI_FALSE;
   }
-  ALOGV("%s: Successfully %s", __func__, (enable ? "enabled" : "disabled"));
+  log::verbose("Successfully {}", (enable ? "enabled" : "disabled"));
   return JNI_TRUE;
 }
 

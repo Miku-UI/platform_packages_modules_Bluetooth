@@ -118,7 +118,7 @@ typedef enum {
 }  // namespace headset
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::headset::bthf_connection_state_t>
     : enum_formatter<bluetooth::headset::bthf_connection_state_t> {};
@@ -149,4 +149,4 @@ struct formatter<bluetooth::headset::bthf_swb_codec_t>
 template <>
 struct formatter<bluetooth::headset::bthf_swb_config_t>
     : enum_formatter<bluetooth::headset::bthf_swb_config_t> {};
-}  // namespace fmt
+}  // namespace std

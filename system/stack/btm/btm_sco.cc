@@ -63,6 +63,9 @@
 #include "stack/include/stack_metrics_logging.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 extern tBTM_CB btm_cb;
 
 /* Default to allow enhanced connections where supported. */
@@ -445,8 +448,7 @@ static void btm_route_sco_data(bluetooth::hci::ScoView valid_packet) {
           log::info(
                   "Requested to read {} bytes of {} data but got {} bytes of PCM "
                   "data from audio server: WriteOffset:{} ReadOffset:{}",
-                  (unsigned long)to_read, codec, (unsigned long)read,
-                  (unsigned long)btm_pcm_buf_write_offset, (unsigned long)btm_pcm_buf_read_offset);
+                  to_read, codec, read, btm_pcm_buf_write_offset, btm_pcm_buf_read_offset);
           if (read == 0) {
             break;
           }
@@ -482,11 +484,8 @@ static void btm_route_sco_data(bluetooth::hci::ScoView valid_packet) {
         incr_btm_pcm_buf_offset(btm_pcm_buf_read_offset, btm_pcm_buf_read_mirror, rc);
 
         if (!rc) {
-          log::debug(
-                  "Failed to encode {} data starting at ReadOffset:{} to "
-                  "WriteOffset:{}",
-                  codec, (unsigned long)btm_pcm_buf_read_offset,
-                  (unsigned long)btm_pcm_buf_write_offset);
+          log::debug("Failed to encode {} data starting at ReadOffset:{} to WriteOffset:{}", codec,
+                     btm_pcm_buf_read_offset, btm_pcm_buf_write_offset);
         }
       }
 
@@ -509,9 +508,8 @@ static void btm_route_sco_data(bluetooth::hci::ScoView valid_packet) {
       read = bluetooth::audio::sco::read(
               btm_pcm_buf, written < BTM_SCO_DATA_SIZE_MAX ? written : BTM_SCO_DATA_SIZE_MAX);
       if (read == 0) {
-        log::info(
-                "Failed to read {} bytes of PCM data from audio server",
-                (unsigned long)(written < BTM_SCO_DATA_SIZE_MAX ? written : BTM_SCO_DATA_SIZE_MAX));
+        log::info("Failed to read {} bytes of PCM data from audio server",
+                  written < BTM_SCO_DATA_SIZE_MAX ? written : BTM_SCO_DATA_SIZE_MAX);
         break;
       }
       written -= read;
@@ -531,8 +529,7 @@ void btm_send_sco_packet(std::vector<uint8_t> data) {
   if (active_sco == nullptr || data.empty()) {
     return;
   }
-  log::assert_that(data.size() <= BTM_SCO_DATA_SIZE_MAX, "Invalid SCO data size: {}",
-                   (unsigned long)data.size());
+  log::assert_that(data.size() <= BTM_SCO_DATA_SIZE_MAX, "Invalid SCO data size: {}", data.size());
 
   uint16_t handle_with_flags = active_sco->hci_handle;
   uint16_t handle = HCID_GET_HANDLE(handle_with_flags);

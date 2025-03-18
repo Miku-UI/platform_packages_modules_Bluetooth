@@ -27,7 +27,10 @@
 #include "test/mock/mock_device_esco_parameters.h"
 #include "test/mock/mock_main_shim_entry.h"
 
-bool btm_peer_supports_esco_ev3(const RawAddress& remote_bda) { return true; }
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
+bool btm_peer_supports_esco_ev3(const RawAddress& /*remote_bda*/) { return true; }
 tBTM_CB btm_cb;
 LeAudioClient* LeAudioClient::Get() { return nullptr; }
 bool LeAudioClient::IsLeAudioClientInStreaming() { return false; }

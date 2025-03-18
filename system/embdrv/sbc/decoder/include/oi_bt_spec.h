@@ -140,7 +140,6 @@ typedef enum {
   OI_LINK_KEY_TYPE_UNAUTHENTICATED = 4, /* Unauthenticated */
   OI_LINK_KEY_TYPE_AUTHENTICATED = 5,   /* Authenticated */
   OI_LINK_KEY_TYPE_CHANGED_COMBO = 6    /* Changed */
-
 } OI_BT_LINK_KEY_TYPE;
 
 /* Number of bytes allocated for a PIN (personal indentification number) */

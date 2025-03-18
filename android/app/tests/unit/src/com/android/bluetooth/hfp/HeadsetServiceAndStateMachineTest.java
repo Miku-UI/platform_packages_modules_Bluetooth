@@ -1286,7 +1286,7 @@ public class HeadsetServiceAndStateMachineTest {
 
         // Check that AptX SWB disabled, LC3 SWB disabled
         verifySetParametersToAudioSystemInvocation(false, true, false);
-        verify(mNativeInterface, times(1)).connectAudio(eq(device));
+        verify(mNativeInterface).connectAudio(eq(device));
         verify(mNativeInterface).sendBsir(eq(device), eq(true));
         verify(mNativeInterface, times(2))
                 .enableSwb(
@@ -1370,7 +1370,7 @@ public class HeadsetServiceAndStateMachineTest {
 
         // Check that AptX SWB enabled, LC3 SWB disabled
         verifySetParametersToAudioSystemInvocation(false, true, true);
-        verify(mNativeInterface, times(1)).connectAudio(eq(device));
+        verify(mNativeInterface).connectAudio(eq(device));
         verify(mNativeInterface).sendBsir(eq(device), eq(true));
         verify(mNativeInterface, times(2))
                 .enableSwb(
@@ -1770,7 +1770,6 @@ public class HeadsetServiceAndStateMachineTest {
         HeadsetCallState headsetCallState =
                 new HeadsetCallState(
                         0, 0, HeadsetHalConstants.CALL_STATE_INCOMING, TEST_PHONE_NUMBER, 128, "");
-        mTestLooper.startAutoDispatch(); // Require as this is waiting unconditionally
         mHeadsetService.phoneStateChanged(
                 headsetCallState.mNumActive,
                 headsetCallState.mNumHeld,
@@ -1779,10 +1778,9 @@ public class HeadsetServiceAndStateMachineTest {
                 headsetCallState.mType,
                 headsetCallState.mName,
                 false);
-        mTestLooper.stopAutoDispatch();
         mTestLooper.dispatchAll();
         // HeadsetStateMachine completes processing CALL_STATE_CHANGED message
-        verify(mNativeInterface, times(1)).phoneStateChange(device, headsetCallState);
+        verify(mNativeInterface).phoneStateChange(device, headsetCallState);
 
         Utils.setIsScoManagedByAudioEnabled(false);
     }

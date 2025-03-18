@@ -159,7 +159,6 @@ tAVRC_STS avrc_pars_pass_thru(tAVRC_MSG_PASS* p_msg, uint16_t* p_vendor_unique_i
 uint8_t avrc_opcode_from_pdu(uint8_t pdu);
 bool avrc_is_valid_opcode(uint8_t opcode);
 void avrc_flush_cmd_q(uint8_t handle);
-void avrc_start_cmd_timer(uint8_t handle, uint8_t label, uint8_t msg_mask);
 void avrc_send_next_vendor_cmd(uint8_t handle);
 
 #endif /* AVRC_INT_H */

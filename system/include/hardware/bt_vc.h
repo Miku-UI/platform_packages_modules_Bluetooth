@@ -17,15 +17,18 @@
 
 #pragma once
 
+#include <aics/api.h>
 #include <hardware/bluetooth.h>
-#include <raw_address.h>
 
 #include <string>
 #include <variant>
 
+#include "types/raw_address.h"
+
 namespace bluetooth {
 namespace vc {
 
+// Must be kept in sync with BluetoothProfile.java
 enum class ConnectionState { DISCONNECTED = 0, CONNECTING, CONNECTED, DISCONNECTING };
 
 /* Audio input types */
@@ -72,7 +75,12 @@ public:
 
   /* Callbacks for Audio Input Stream (AIS) - Extended Audio Inputs */
   virtual void OnExtAudioInStateChanged(const RawAddress& address, uint8_t ext_input_id,
-                                        int8_t gain_val, uint8_t gain_mode_auto, bool mute) = 0;
+                                        int8_t gain_setting, bluetooth::aics::Mute mute,
+                                        bluetooth::aics::GainMode gain_mode) = 0;
+  virtual void OnExtAudioInSetGainSettingFailed(const RawAddress& address,
+                                                uint8_t ext_input_id) = 0;
+  virtual void OnExtAudioInSetMuteFailed(const RawAddress& address, uint8_t ext_input_id) = 0;
+  virtual void OnExtAudioInSetGainModeFailed(const RawAddress& address, uint8_t ext_input_id) = 0;
 
   virtual void OnExtAudioInStatusChanged(const RawAddress& address, uint8_t ext_input_id,
                                          VolumeInputStatus status) = 0;
@@ -80,11 +88,12 @@ public:
   virtual void OnExtAudioInTypeChanged(const RawAddress& address, uint8_t ext_input_id,
                                        VolumeInputType type) = 0;
 
-  virtual void OnExtAudioInGainPropsChanged(const RawAddress& address, uint8_t ext_input_id,
-                                            uint8_t unit, int8_t min, int8_t max) = 0;
+  virtual void OnExtAudioInGainSettingPropertiesChanged(const RawAddress& address,
+                                                        uint8_t ext_input_id, uint8_t unit,
+                                                        int8_t min, int8_t max) = 0;
 
   virtual void OnExtAudioInDescriptionChanged(const RawAddress& address, uint8_t ext_input_id,
-                                              std::string descr) = 0;
+                                              std::string description, bool is_writable) = 0;
 };
 
 class VolumeControlInterface {
@@ -128,24 +137,24 @@ public:
   virtual void GetExtAudioInType(const RawAddress& address, uint8_t ext_input_id) = 0;
   virtual void GetExtAudioInGainProps(const RawAddress& address, uint8_t ext_input_id) = 0;
   virtual void GetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id) = 0;
-  virtual void SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
+  virtual bool SetExtAudioInDescription(const RawAddress& address, uint8_t ext_input_id,
                                         std::string descr) = 0;
-  virtual void SetExtAudioInGainValue(const RawAddress& address, uint8_t ext_input_id,
-                                      int8_t value) = 0;
-  virtual void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
-                                     bool automatic) = 0;
-  virtual void SetExtAudioInGainMute(const RawAddress& address, uint8_t ext_input_id,
-                                     bool mute) = 0;
+  virtual bool SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
+                                        int8_t gain_setting) = 0;
+  virtual bool SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
+                                     bluetooth::aics::GainMode gain_mode) = 0;
+  virtual bool SetExtAudioInMute(const RawAddress& address, uint8_t ext_input_id,
+                                 bluetooth::aics::Mute mute) = 0;
 };
 
 } /* namespace vc */
 } /* namespace bluetooth */
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::vc::VolumeInputType> : enum_formatter<bluetooth::vc::VolumeInputType> {
 };
 template <>
 struct formatter<bluetooth::vc::VolumeInputStatus>
     : enum_formatter<bluetooth::vc::VolumeInputStatus> {};
-}  // namespace fmt
+}  // namespace std

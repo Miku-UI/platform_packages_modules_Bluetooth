@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
@@ -80,19 +79,7 @@ public class BrowseNodeTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
-    public void constructor_withBluetoothDevice() {
-        BrowseNode browseNode = mBrowseTree.new BrowseNode(mTestDevice);
-
-        assertThat(browseNode.getID()).isNotNull();
-        assertThat(browseNode.getDevice()).isEqualTo(mTestDevice);
-        assertThat(browseNode.isPlayer()).isFalse();
-        assertThat(browseNode.isBrowsable()).isTrue();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
-    public void constructor_withBluetoothDevice_withRandomUuid() {
+    public void constructor_withBluetoothDevice_createsRandomUuid() {
         BrowseNode browseNode1 = mBrowseTree.new BrowseNode(mTestDevice);
 
         assertThat(browseNode1.getID()).isNotNull();

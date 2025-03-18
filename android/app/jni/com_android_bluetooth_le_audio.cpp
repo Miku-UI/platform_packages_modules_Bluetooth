@@ -16,14 +16,32 @@
 
 #define LOG_TAG "BluetoothLeAudioServiceJni"
 
-#include <hardware/bluetooth.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/scoped_local_ref.h>
 
+#include <algorithm>
 #include <array>
+#include <cctype>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <map>
+#include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_le_audio.h"
+#include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::le_audio::BroadcastId;
 using bluetooth::le_audio::BroadcastState;
@@ -688,7 +706,7 @@ static void setUnicastMonitorModeNative(JNIEnv* /* env */, jobject /* object */,
   sLeAudioClientInterface->SetUnicastMonitorMode(direction, enable);
 }
 
-static void sendAudioProfilePreferencesNative(JNIEnv* /* env */, jint groupId,
+static void sendAudioProfilePreferencesNative(JNIEnv* /* env */, jobject /* object */, jint groupId,
                                               jboolean isOutputPreferenceLeAudio,
                                               jboolean isDuplexPreferenceLeAudio) {
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);

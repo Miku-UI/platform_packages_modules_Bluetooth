@@ -22,7 +22,6 @@
 #include <iterator>
 
 #include "os/files.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace testing {

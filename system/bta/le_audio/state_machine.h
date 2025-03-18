@@ -57,8 +57,8 @@ public:
   virtual bool ConfigureStream(
           LeAudioDeviceGroup* group, types::LeAudioContextType context_type,
           const types::BidirectionalPair<types::AudioContexts>& metadata_context_types,
-          types::BidirectionalPair<std::vector<uint8_t>> ccid_lists = {.sink = {},
-                                                                       .source = {}}) = 0;
+          types::BidirectionalPair<std::vector<uint8_t>> ccid_lists = {.sink = {}, .source = {}},
+          bool configure_qos = false) = 0;
   virtual void StopStream(LeAudioDeviceGroup* group) = 0;
   virtual void ProcessGattCtpNotification(LeAudioDeviceGroup* group, uint8_t* value,
                                           uint16_t len) = 0;

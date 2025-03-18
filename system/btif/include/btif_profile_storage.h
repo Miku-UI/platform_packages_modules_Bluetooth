@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include <bluetooth/uuid.h>
 #include <hardware/bluetooth.h>
 
 #include <vector>
 
 #include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 /*******************************************************************************

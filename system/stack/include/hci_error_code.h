@@ -18,6 +18,7 @@
 
 #include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <hardware/bluetooth.h>
 
 #include <cstdint>
 #include <string>
@@ -68,8 +69,9 @@ typedef enum : uint8_t {
   HCI_ERR_ADVERTISING_TIMEOUT = 0x3C,        // stack/btm/btm_ble
   HCI_ERR_CONN_FAILED_ESTABLISHMENT = 0x3E,  // GATT_CONN_FAIL_ESTABLISH
   HCI_ERR_LIMIT_REACHED = 0x43,              // stack/btm/btm_ble_multi_adv.cc
+  HCI_ERR_CANCELLED_BY_LOCAL_HOST = 0x44,    // stack/btm/btm_iso_impl.h
 
-  _HCI_ERR_MAX_ERR = 0x43,
+  _HCI_ERR_MAX_ERR = 0x44,
   HCI_ERR_UNDEFINED = 0xff,
 } tHCI_ERROR_CODE;
 
@@ -117,8 +119,98 @@ inline std::string hci_error_code_text(const tHCI_ERROR_CODE& error_code) {
     CASE_RETURN_TEXT(HCI_ERR_ADVERTISING_TIMEOUT);
     CASE_RETURN_TEXT(HCI_ERR_CONN_FAILED_ESTABLISHMENT);
     CASE_RETURN_TEXT(HCI_ERR_LIMIT_REACHED);
+    CASE_RETURN_TEXT(HCI_ERR_CANCELLED_BY_LOCAL_HOST);
     default:
       return base::StringPrintf("UNKNOWN[0x%02hx]", error_code);
+  }
+}
+
+inline bt_status_t hci_error_to_bt_status(const tHCI_ERROR_CODE& error_code) {
+  switch (error_code) {
+    case HCI_SUCCESS: /* 0x00 */
+      return BT_STATUS_SUCCESS;
+    case HCI_ERR_ILLEGAL_COMMAND: /* 0x01 */
+      return BT_STATUS_UNSUPPORTED;
+    case HCI_ERR_NO_CONNECTION: /* 0x02 */
+      return BT_STATUS_NOT_READY;
+    case HCI_ERR_HW_FAILURE: /* 0x03 */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_PAGE_TIMEOUT: /* 0x04 */
+      return BT_STATUS_TIMEOUT;
+    case HCI_ERR_AUTH_FAILURE: /* 0x05 */
+      return BT_STATUS_AUTH_FAILURE;
+    case HCI_ERR_KEY_MISSING: /* 0x06 */
+      return BT_STATUS_AUTH_FAILURE;
+    case HCI_ERR_MEMORY_FULL: /* 0x07 */
+      return BT_STATUS_NOMEM;
+    case HCI_ERR_CONNECTION_TOUT: /* 0x08 */
+      return BT_STATUS_TIMEOUT;
+    case HCI_ERR_MAX_NUM_OF_CONNECTIONS: /* 0x09 */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_MAX_NUM_OF_SCOS: /* 0x0A */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_CONNECTION_EXISTS: /* 0x0B */
+      return BT_STATUS_BUSY;
+    case HCI_ERR_COMMAND_DISALLOWED: /* 0x0C */
+      return BT_STATUS_UNSUPPORTED;
+    case HCI_ERR_HOST_REJECT_RESOURCES: /* 0x0D */
+      return BT_STATUS_BUSY;
+    case HCI_ERR_HOST_REJECT_SECURITY: /* 0x0E */
+      return BT_STATUS_AUTH_REJECTED;
+    case HCI_ERR_HOST_REJECT_DEVICE: /* 0x0F */
+      return BT_STATUS_AUTH_REJECTED;
+    case HCI_ERR_HOST_TIMEOUT: /* 0x10 */
+      return BT_STATUS_TIMEOUT;
+    case HCI_ERR_ILLEGAL_PARAMETER_FMT: /* 0x12 */
+      return BT_STATUS_PARM_INVALID;
+    case HCI_ERR_PEER_USER: /* 0x13 */
+      return BT_STATUS_RMT_DEV_DOWN;
+    case HCI_ERR_REMOTE_LOW_RESOURCE: /* 0x14 */
+      return BT_STATUS_RMT_DEV_DOWN;
+    case HCI_ERR_REMOTE_POWER_OFF: /* 0x15 */
+      return BT_STATUS_RMT_DEV_DOWN;
+    case HCI_ERR_CONN_CAUSE_LOCAL_HOST: /* 0x16 */
+      return BT_STATUS_DONE;
+    case HCI_ERR_REPEATED_ATTEMPTS: /* 0x17 */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_PAIRING_NOT_ALLOWED: /* 0x18 */
+      return BT_STATUS_AUTH_REJECTED;
+    case HCI_ERR_UNSUPPORTED_REM_FEATURE: /* 0x1A */
+      return BT_STATUS_UNSUPPORTED;
+    case HCI_ERR_UNSPECIFIED: /* 0x1F */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_LMP_RESPONSE_TIMEOUT: /* 0x22 */
+      return BT_STATUS_TIMEOUT;
+    case HCI_ERR_LMP_ERR_TRANS_COLLISION: /* 0x23 */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_ENCRY_MODE_NOT_ACCEPTABLE: /* 0x25 */
+      return BT_STATUS_AUTH_REJECTED;
+    case HCI_ERR_UNIT_KEY_USED: /* 0x26 */
+      return BT_STATUS_AUTH_FAILURE;
+    case HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED: /* 0x29 */
+      return BT_STATUS_UNSUPPORTED;
+    case HCI_ERR_DIFF_TRANSACTION_COLLISION: /* 0x2A */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_INSUFFCIENT_SECURITY: /* 0x2F */
+      return BT_STATUS_AUTH_REJECTED;
+    case HCI_ERR_ROLE_SWITCH_PENDING: /* 0x32 */
+      return BT_STATUS_BUSY;
+    case HCI_ERR_ROLE_SWITCH_FAILED: /* 0x35 */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_HOST_BUSY_PAIRING: /* 0x38 */
+      return BT_STATUS_BUSY;
+    case HCI_ERR_UNACCEPT_CONN_INTERVAL: /* 0x3B */
+      return BT_STATUS_PARM_INVALID;
+    case HCI_ERR_ADVERTISING_TIMEOUT: /* 0x3C */
+      return BT_STATUS_TIMEOUT;
+    case HCI_ERR_CONN_FAILED_ESTABLISHMENT: /* 0x3E */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_LIMIT_REACHED: /* 0x43 */
+      return BT_STATUS_FAIL;
+    case HCI_ERR_CANCELLED_BY_LOCAL_HOST: /* 0x44 */
+      return BT_STATUS_DONE;
+    default:
+      return BT_STATUS_FAIL;
   }
 }
 
@@ -155,7 +247,7 @@ inline tHCI_REASON to_hci_reason_code(const uint8_t& reason_code) {
   return static_cast<tHCI_REASON>(reason_code);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tHCI_ERROR_CODE> : enum_formatter<tHCI_ERROR_CODE> {};
-}  // namespace fmt
+}  // namespace std

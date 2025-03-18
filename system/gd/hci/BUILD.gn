@@ -43,6 +43,7 @@ source_set("BluetoothHciSources") {
   deps = [
     "//bt/flags:bluetooth_flags_c_lib",
     "//bt/system/gd:gd_default_deps",
+    "//bt/sysprop:libcom.android.sysprop.bluetooth",
   ]
 
   configs += [

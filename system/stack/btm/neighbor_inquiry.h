@@ -180,7 +180,7 @@ typedef struct {
   tHCI_STATUS hci_status;
   uint8_t num_resp; /* Number of results from the current inquiry */
   unsigned resp_type[kMaxNumberInquiryResults];
-  long long start_time_ms;
+  uint64_t start_time_ms;
 } tBTM_INQUIRY_CMPL;
 
 inline std::string btm_inquiry_cmpl_status_text(const tBTM_INQUIRY_CMPL::STATUS& status) {
@@ -235,7 +235,7 @@ struct tBTM_INQUIRY_VAR_ST {
 bool btm_inq_find_bdaddr(const RawAddress& p_bda);
 tINQ_DB_ENT* btm_inq_db_find(const RawAddress& p_bda);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTM_INQUIRY_CMPL::STATUS> : enum_formatter<tBTM_INQUIRY_CMPL::STATUS> {};
-}  // namespace fmt
+}  // namespace std

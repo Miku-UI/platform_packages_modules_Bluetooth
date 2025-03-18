@@ -16,6 +16,7 @@
 
 #include "hci/controller.h"
 
+#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -24,11 +25,9 @@
 #include <string>
 #include <utility>
 
-#include "dumpsys_data_generated.h"
 #include "hci/controller_interface.h"
 #include "hci/event_checkers.h"
 #include "hci/hci_layer.h"
-#include "hci_controller_generated.h"
 #include "os/metrics.h"
 #include "os/system_properties.h"
 #include "stack/include/hcidefs.h"
@@ -39,11 +38,16 @@
 namespace bluetooth {
 namespace hci {
 
-constexpr uint8_t kMinEncryptionKeySize = 7;  // #define MIN_ENCRYPTION_KEY_SIZE 7
+constexpr int kMinEncryptionKeySize = 7;
+constexpr int kMinEncryptionKeySizeDefault = kMinEncryptionKeySize;
+constexpr int kMaxEncryptionKeySize = 16;
 
 constexpr bool kDefaultVendorCapabilitiesEnabled = true;
+constexpr bool kDefaultRpaOffload = false;
+
 static const std::string kPropertyVendorCapabilitiesEnabled =
         "bluetooth.core.le.vendor_capabilities.enabled";
+static const std::string kPropertyRpaOffload = "bluetooth.core.le.rpa_offload";
 
 using os::Handler;
 
@@ -107,8 +111,13 @@ struct Controller::impl {
             handler->BindOnceOn(this, &Controller::impl::read_buffer_size_complete_handler));
 
     if (is_supported(OpCode::SET_MIN_ENCRYPTION_KEY_SIZE)) {
+      uint8_t min_key_size =
+              (uint8_t)std::min(std::max(android::sysprop::bluetooth::Gap::min_key_size().value_or(
+                                                 kMinEncryptionKeySizeDefault),
+                                         kMinEncryptionKeySize),
+                                kMaxEncryptionKeySize);
       hci_->EnqueueCommand(
-              SetMinEncryptionKeySizeBuilder::Create(kMinEncryptionKeySize),
+              SetMinEncryptionKeySizeBuilder::Create(min_key_size),
               handler->BindOnceOn(this, &Controller::impl::set_min_encryption_key_size_handler));
     }
 
@@ -860,9 +869,6 @@ struct Controller::impl {
     return supported;                                                             \
   }
 
-  void Dump(std::promise<flatbuffers::Offset<ControllerData>> promise,
-            flatbuffers::FlatBufferBuilder* fb_builder) const;
-
   bool is_supported(OpCode op_code) {
     switch (op_code) {
       OP_CODE_MAPPING(INQUIRY)
@@ -1088,6 +1094,7 @@ struct Controller::impl {
       OP_CODE_MAPPING(LE_READ_LOCAL_RESOLVABLE_ADDRESS)
       OP_CODE_MAPPING(LE_SET_ADDRESS_RESOLUTION_ENABLE)
       OP_CODE_MAPPING(LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT)
+      OP_CODE_MAPPING(LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2)
       OP_CODE_MAPPING(LE_READ_MAXIMUM_DATA_LENGTH)
       OP_CODE_MAPPING(LE_READ_PHY)
       OP_CODE_MAPPING(LE_SET_DEFAULT_PHY)
@@ -1227,6 +1234,9 @@ struct Controller::impl {
     return false;
   }
 #undef OP_CODE_MAPPING
+
+  template <typename OutputT>
+  void dump(OutputT&& out) const;
 
   Controller& module_;
 
@@ -1536,6 +1546,15 @@ uint64_t Controller::MaskLeEventMask(HciVersion version, uint64_t mask) {
   }
 }
 
+bool Controller::IsRpaGenerationSupported(void) const {
+  static const bool rpa_supported =
+          com::android::bluetooth::flags::rpa_offload_to_bt_controller() &&
+          os::GetSystemPropertyBool(kPropertyRpaOffload, kDefaultRpaOffload) &&
+          IsSupported(OpCode::LE_SET_RESOLVABLE_PRIVATE_ADDRESS_TIMEOUT_V2);
+
+  return rpa_supported;
+}
+
 const ModuleFactory Controller::Factory = ModuleFactory([]() { return new Controller(); });
 
 void Controller::ListDependencies(ModuleList* list) const {
@@ -1551,44 +1570,102 @@ void Controller::Stop() { impl_->Stop(); }
 
 std::string Controller::ToString() const { return "Controller"; }
 
-void Controller::impl::Dump(std::promise<flatbuffers::Offset<ControllerData>> promise,
-                            flatbuffers::FlatBufferBuilder* fb_builder) const {
-  ASSERT(fb_builder != nullptr);
-  auto title = fb_builder->CreateString("----- Hci Controller Dumpsys -----");
+template <typename OutputT>
+void Controller::impl::dump(OutputT&& out) const {
+  std::format_to(out, "\nHCI Controller Dumpsys:\n");
 
-  auto local_version_information_data = CreateLocalVersionInformationData(
-          *fb_builder,
-          fb_builder->CreateString(HciVersionText(local_version_information_.hci_version_)),
-          local_version_information_.hci_revision_,
-          fb_builder->CreateString(LmpVersionText(local_version_information_.lmp_version_)),
-          local_version_information_.manufacturer_name_,
-          local_version_information_.lmp_subversion_);
+  std::format_to(out,
+                 "    local_version_information:\n"
+                 "        hci_version: {}\n"
+                 "        hci_revision: 0x{:x}\n"
+                 "        lmp_version: {}\n"
+                 "        lmp_subversion: 0x{:x}\n"
+                 "        manufacturer_name: {}\n",
+                 HciVersionText(local_version_information_.hci_version_),
+                 local_version_information_.hci_revision_,
+                 LmpVersionText(local_version_information_.lmp_version_),
+                 local_version_information_.lmp_subversion_,
+                 local_version_information_.manufacturer_name_);
 
-  auto acl_buffer_size_data = BufferSizeData(acl_buffer_length_, acl_buffers_);
+  std::format_to(out,
+                 "    buffer_size:\n"
+                 "        acl_data_packet_length: {}\n"
+                 "        total_num_acl_data_packets: {}\n"
+                 "        sco_data_packet_length: {}\n"
+                 "        total_num_sco_data_packets: {}\n",
+                 acl_buffer_length_, acl_buffers_, sco_buffer_length_, sco_buffers_);
 
-  auto sco_buffer_size_data = BufferSizeData(sco_buffer_length_, sco_buffers_);
+  std::format_to(out,
+                 "    le_buffer_size:\n"
+                 "        le_acl_data_packet_length: {}\n"
+                 "        total_num_le_acl_data_packets: {}\n"
+                 "        iso_data_packet_length: {}\n"
+                 "        total_num_iso_data_packets: {}\n",
+                 le_buffer_size_.le_data_packet_length_, le_buffer_size_.total_num_le_packets_,
+                 iso_buffer_size_.le_data_packet_length_, iso_buffer_size_.total_num_le_packets_);
 
-  auto le_buffer_size_data = BufferSizeData(le_buffer_size_.le_data_packet_length_,
-                                            le_buffer_size_.total_num_le_packets_);
+  std::format_to(out,
+                 "    le_maximum_data_length:\n"
+                 "        supported_max_tx_octets: {}\n"
+                 "        supported_max_tx_time: {}\n"
+                 "        supported_max_rx_octets: {}\n"
+                 "        supported_max_rx_time: {}\n",
+                 le_maximum_data_length_.supported_max_tx_octets_,
+                 le_maximum_data_length_.supported_max_tx_time_,
+                 le_maximum_data_length_.supported_max_rx_octets_,
+                 le_maximum_data_length_.supported_max_rx_time_);
 
-  auto iso_buffer_size_data = BufferSizeData(iso_buffer_size_.le_data_packet_length_,
-                                             iso_buffer_size_.total_num_le_packets_);
+  std::format_to(out,
+                 "    le_accept_list_size: {}\n"
+                 "    le_resolving_list_size: {}\n"
+                 "    le_maximum_advertising_data_length: {}\n"
+                 "    le_suggested_default_data_length: {}\n"
+                 "    le_number_supported_advertising_sets: {}\n"
+                 "    le_periodic_advertiser_list_size: {}\n"
+                 "    le_supported_states: 0x{:016x}\n",
+                 le_accept_list_size_, le_resolving_list_size_, le_maximum_advertising_data_length_,
+                 le_suggested_default_data_length_, le_number_supported_advertising_sets_,
+                 le_periodic_advertiser_list_size_, le_supported_states_);
 
-  auto le_maximum_data_length_data =
-          LeMaximumDataLengthData(le_maximum_data_length_.supported_max_tx_octets_,
-                                  le_maximum_data_length_.supported_max_tx_time_,
-                                  le_maximum_data_length_.supported_max_rx_octets_,
-                                  le_maximum_data_length_.supported_max_rx_time_);
+  std::format_to(out,
+                 "    local_supported_features:\n"
+                 "        page0: 0x{:016x}\n"
+                 "        page1: 0x{:016x}\n"
+                 "        page2: 0x{:016x}\n"
+                 "    le_local_supported_features:\n"
+                 "        page0: 0x{:016x}\n",
+                 extended_lmp_features_array_[0], extended_lmp_features_array_[1],
+                 extended_lmp_features_array_[2], le_local_supported_features_);
 
-  std::vector<LocalSupportedCommandsData> local_supported_commands_vector;
-  for (uint8_t index = 0; index < local_supported_commands_.size(); index++) {
-    local_supported_commands_vector.push_back(
-            LocalSupportedCommandsData(index, local_supported_commands_[index]));
+  std::format_to(out, "    local_supported_commands: [");
+  for (size_t i = 0; i < local_supported_commands_.size(); i++) {
+    if ((i % 8) == 0) {
+      std::format_to(out, "\n       ");
+    }
+    std::format_to(out, " 0x{:02x},", local_supported_commands_[i]);
   }
-  auto local_supported_commands_data =
-          fb_builder->CreateVectorOfStructs(local_supported_commands_vector);
+  std::format_to(out, "\n    ]\n");
 
-  auto vendor_capabilities_data = VendorCapabilitiesData(
+  std::format_to(
+          out,
+          "    vendor_capabilities:\n"
+          "        is_supported: {}\n"
+          "        max_adv_instances: {}\n"
+          "        offloaded_resolution_of_private_addresses: {}\n"
+          "        total_scan_result_storage: {}\n"
+          "        max_irk_list_size: {}\n"
+          "        filtering_support: {}\n"
+          "        max_filter: {}\n"
+          "        activity_energy_info_support: {}\n"
+          "        version_supported: {}\n"
+          "        total_num_of_advt_tracked: {}\n"
+          "        extended_scan_support: {}\n"
+          "        debug_logging_supported: {}\n"
+          "        le_address_generation_offloading_support: {}\n"
+          "        a2dp_source_offload_capability_mask: {}\n"
+          "        bluetooth_quality_report_support: {}\n"
+          "        dynamic_audio_buffer_support: {}\n"
+          "        a2dp_offload_v2_support: {}\n",
           vendor_capabilities_.is_supported_, vendor_capabilities_.max_advt_instances_,
           vendor_capabilities_.offloaded_resolution_of_private_address_,
           vendor_capabilities_.total_scan_results_storage_, vendor_capabilities_.max_irk_list_sz_,
@@ -1599,52 +1676,15 @@ void Controller::impl::Dump(std::promise<flatbuffers::Offset<ControllerData>> pr
           vendor_capabilities_.debug_logging_supported_,
           vendor_capabilities_.le_address_generation_offloading_support_,
           vendor_capabilities_.a2dp_source_offload_capability_mask_,
-          vendor_capabilities_.bluetooth_quality_report_support_);
-
-  auto extended_lmp_features_vector = fb_builder->CreateVector(extended_lmp_features_array_);
-
-  // Create the root table
-  ControllerDataBuilder builder(*fb_builder);
-
-  builder.add_title(title);
-  builder.add_local_version_information(local_version_information_data);
-
-  builder.add_acl_buffer_size(&acl_buffer_size_data);
-  builder.add_sco_buffer_size(&sco_buffer_size_data);
-  builder.add_iso_buffer_size(&iso_buffer_size_data);
-  builder.add_le_buffer_size(&le_buffer_size_data);
-
-  builder.add_le_accept_list_size(le_accept_list_size_);
-  builder.add_le_resolving_list_size(le_resolving_list_size_);
-
-  builder.add_le_maximum_data_length(&le_maximum_data_length_data);
-  builder.add_le_maximum_advertising_data_length(le_maximum_advertising_data_length_);
-  builder.add_le_suggested_default_data_length(le_suggested_default_data_length_);
-  builder.add_le_number_supported_advertising_sets(le_number_supported_advertising_sets_);
-  builder.add_le_periodic_advertiser_list_size(le_periodic_advertiser_list_size_);
-
-  builder.add_local_supported_commands(local_supported_commands_data);
-  builder.add_extended_lmp_features_array(extended_lmp_features_vector);
-  builder.add_le_local_supported_features(le_local_supported_features_);
-  builder.add_le_supported_states(le_supported_states_);
-  builder.add_vendor_capabilities(&vendor_capabilities_data);
-
-  flatbuffers::Offset<ControllerData> dumpsys_data = builder.Finish();
-  promise.set_value(dumpsys_data);
+          vendor_capabilities_.bluetooth_quality_report_support_,
+          vendor_capabilities_.dynamic_audio_buffer_support_,
+          vendor_capabilities_.a2dp_offload_v2_support_);
 }
 
-DumpsysDataFinisher Controller::GetDumpsysData(flatbuffers::FlatBufferBuilder* fb_builder) const {
-  ASSERT(fb_builder != nullptr);
-
-  std::promise<flatbuffers::Offset<ControllerData>> promise;
-  auto future = promise.get_future();
-  impl_->Dump(std::move(promise), fb_builder);
-
-  auto dumpsys_data = future.get();
-
-  return [dumpsys_data](DumpsysDataBuilder* dumpsys_builder) {
-    dumpsys_builder->add_hci_controller_dumpsys_data(dumpsys_data);
-  };
+void Controller::Dump(int fd) const {
+  std::string out;
+  impl_->dump(std::back_inserter(out));
+  dprintf(fd, "%s", out.c_str());
 }
 
 }  // namespace hci

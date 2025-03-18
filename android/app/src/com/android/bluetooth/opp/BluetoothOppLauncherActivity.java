@@ -34,6 +34,9 @@ package com.android.bluetooth.opp;
 
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
+import static java.util.function.Predicate.not;
+import static java.util.stream.Collectors.toList;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothDevicePicker;
@@ -42,25 +45,32 @@ import android.bluetooth.BluetoothProtoEnums;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.Patterns;
 import android.widget.Toast;
 
+import androidx.annotation.RequiresApi;
+
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
+import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.modules.utils.build.SdkLevel;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -124,6 +134,16 @@ public class BluetoothOppLauncherActivity extends Activity {
                 // Browser, share one link goes to this case;
                 if (stream != null && type != null) {
                     Log.v(TAG, "Get ACTION_SEND intent: Uri = " + stream + "; mimetype = " + type);
+                    if (Flags.oppCheckContentUriPermissions() && SdkLevel.isAtLeastV()) {
+                        if (!checkCallerAndSelfContentUriPermission(stream)) {
+                            finish();
+                            return;
+                        } else {
+                            Log.v(TAG, "Sender has permissions to access Uri = " + stream);
+                        }
+                    } else {
+                        Log.v(TAG, "Did not check sender permissions to Uri = " + stream);
+                    }
                     // Save type/stream, will be used when adding transfer
                     // session to DB.
                     Thread t =
@@ -191,6 +211,7 @@ public class BluetoothOppLauncherActivity extends Activity {
             } else if (action.equals(Intent.ACTION_SEND_MULTIPLE)) {
                 final String mimeType = intent.getType();
                 final ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+                final List<Uri> permittedUris;
                 if (mimeType != null && uris != null) {
                     Log.v(
                             TAG,
@@ -198,6 +219,37 @@ public class BluetoothOppLauncherActivity extends Activity {
                                     + uris
                                     + "\n Type= "
                                     + mimeType);
+                    if (Flags.oppCheckContentUriPermissions() && SdkLevel.isAtLeastV()) {
+                        permittedUris =
+                                uris.stream()
+                                        .filter(this::checkCallerAndSelfContentUriPermission)
+                                        .collect(toList());
+                        if (permittedUris.isEmpty()) {
+                            Log.w(TAG, "Sender has no permissions to access any uris in " + uris);
+                            finish();
+                            return;
+                        } else if (!permittedUris.equals(uris)) {
+                            List<Uri> blockedUris =
+                                    uris.stream()
+                                            .filter(not(permittedUris::contains))
+                                            .collect(toList());
+                            Log.w(
+                                    TAG,
+                                    "Sender has partial permissions to uris. "
+                                            + "Permitted uris: "
+                                            + permittedUris
+                                            + ", "
+                                            + "Blocked uris: "
+                                            + blockedUris
+                                            + ". "
+                                            + "Proceeding only with permitted uris.");
+                        } else {
+                            Log.v(TAG, "Sender has permissions to all uris in " + uris);
+                        }
+                    } else {
+                        permittedUris = uris;
+                        Log.v(TAG, "Did not check sender permissions to uris in " + uris);
+                    }
                     Thread t =
                             new Thread(
                                     new Runnable() {
@@ -208,7 +260,7 @@ public class BluetoothOppLauncherActivity extends Activity {
                                                                 BluetoothOppLauncherActivity.this)
                                                         .saveSendingFileInfo(
                                                                 mimeType,
-                                                                uris,
+                                                                permittedUris,
                                                                 false /* isHandover */,
                                                                 true /* fromExternal */);
                                                 // Done getting file info..Launch device picker
@@ -289,6 +341,33 @@ public class BluetoothOppLauncherActivity extends Activity {
             Log.v(TAG, "Launching " + BluetoothDevicePicker.ACTION_LAUNCH);
             startActivity(in1);
         }
+    }
+
+    /**
+     * Checks whether the sender (and Bluetooth) have permissions to access the given content uri.
+     * The result does not differentiate the sender vs. Bluetooth's lack of permissions.
+     *
+     * @param uri A uri with a <tt>content</tt> scheme.
+     * @return true if both the sender and Bluetooth have permissions, false otherwise.
+     */
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    private boolean checkCallerAndSelfContentUriPermission(Uri uri) {
+        boolean hasPermission = false;
+        try {
+            hasPermission =
+                    BluetoothMethodProxy.getInstance()
+                                    .componentCallerCheckContentUriPermission(
+                                            getInitialCaller(),
+                                            uri,
+                                            Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            == PackageManager.PERMISSION_GRANTED;
+        } catch (SecurityException e) {
+            Log.w(TAG, "Bluetooth does not have permissions to Uri = " + uri, e);
+        }
+        if (!hasPermission) {
+            Log.w(TAG, "Sender does not have permissions to Uri = " + uri);
+        }
+        return hasPermission;
     }
 
     /* Returns true if Bluetooth is allowed given current airplane mode settings. */

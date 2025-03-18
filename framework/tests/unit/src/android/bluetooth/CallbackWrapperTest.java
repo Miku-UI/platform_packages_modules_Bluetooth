@@ -22,8 +22,6 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.os.Handler;
-import android.os.HandlerExecutor;
 import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
@@ -72,7 +70,7 @@ public class CallbackWrapperTest {
     @Before
     public void setUp() {
         mLooper = new TestLooper();
-        mExecutor = new HandlerExecutor(new Handler(mLooper.getLooper()));
+        mExecutor = mLooper.getNewExecutor();
         mCallbackExecutorMap = new HashMap();
         mCallbackWrapper =
                 new CallbackWrapper(mRegisterConsumer, mUnregisterConsumer, mCallbackExecutorMap);

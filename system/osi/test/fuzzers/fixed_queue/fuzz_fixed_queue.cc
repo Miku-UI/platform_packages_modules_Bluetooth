@@ -29,8 +29,8 @@
 static future_t* received_message_future = nullptr;
 
 // Empty callback function
-void fqFreeCb(void* data) {}
-void fqCb(fixed_queue_t* queue, void* data) {
+void fqFreeCb(void* /*data*/) {}
+void fqCb(fixed_queue_t* queue, void* /*data*/) {
   void* msg = fixed_queue_try_dequeue(queue);
   future_ready(received_message_future, msg);
 }
@@ -72,7 +72,7 @@ void createNewFuture() {
 }
 
 void callArbitraryFunction(fixed_queue_t* fixed_queue, std::vector<void*>* live_buffer_vector,
-                           std::vector<thread_t*>* live_thread_vector,
+                           std::vector<thread_t*>* /*live_thread_vector*/,
                            FuzzedDataProvider* dataProvider) {
   void* buf_ptr = nullptr;
   size_t index = 0;

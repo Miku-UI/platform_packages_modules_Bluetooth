@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "bluetooth/uuid.h"
+#include "types/bluetooth/uuid.h"
 
 namespace ras {
 static const uint16_t kFeatureSize = 0x04;
@@ -24,13 +24,13 @@ static const uint16_t kRingingCounterSize = 0x02;
 static const uint16_t kCccValueSize = 0x02;
 
 namespace uuid {
-static const uint16_t kRangingService16Bit = 0x7F7D;
-static const uint16_t kRasFeaturesCharacteristic16bit = 0x7F7C;
-static const uint16_t kRasRealTimeRangingDataCharacteristic16bit = 0x7F7B;
-static const uint16_t kRasOnDemandDataCharacteristic16bit = 0x7F7A;
-static const uint16_t kRasControlPointCharacteristic16bit = 0x7F79;
-static const uint16_t kRasRangingDataReadyCharacteristic16bit = 0x7F78;
-static const uint16_t kRasRangingDataOverWrittenCharacteristic16bit = 0x7F77;
+static const uint16_t kRangingService16Bit = 0x185B;
+static const uint16_t kRasFeaturesCharacteristic16bit = 0x2C14;
+static const uint16_t kRasRealTimeRangingDataCharacteristic16bit = 0x2C15;
+static const uint16_t kRasOnDemandDataCharacteristic16bit = 0x2C16;
+static const uint16_t kRasControlPointCharacteristic16bit = 0x2C17;
+static const uint16_t kRasRangingDataReadyCharacteristic16bit = 0x2C18;
+static const uint16_t kRasRangingDataOverWrittenCharacteristic16bit = 0x2C19;
 static const uint16_t kClientCharacteristicConfiguration16bit = 0x2902;
 
 static const bluetooth::Uuid kRangingService = bluetooth::Uuid::From16Bit(kRangingService16Bit);

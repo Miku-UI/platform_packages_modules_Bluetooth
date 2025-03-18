@@ -126,3 +126,17 @@ filegroup {
         "system_properties_common.cc",
     ],
 }
+
+filegroup {
+    name: "BluetoothOsSources_mgmt",
+    srcs: [
+        "mgmt_stub.cc",
+    ],
+}
+
+filegroup {
+    name: "BluetoothOsSources_mgmt_linux",
+    srcs: [
+        "linux_generic/mgmt.cc",
+    ],
+}

@@ -249,9 +249,6 @@ public class TbsGatt {
                         AdapterService.getAdapterService(),
                         "AdapterService shouldn't be null when creating TbsGatt");
 
-        mAdapterService.registerBluetoothStateCallback(
-                mContext.getMainExecutor(), mBluetoothStateChangeCallback);
-
         mBearerProviderNameCharacteristic =
                 new GattCharacteristic(
                         UUID_BEARER_PROVIDER_NAME,
@@ -377,9 +374,15 @@ public class TbsGatt {
         mEventLogger =
                 new BluetoothEventLogger(
                         LOG_NB_EVENTS, TAG + " instance (CCID= " + ccid + ") event log");
-        mEventLogger.add("Initializing");
+        if (!mBluetoothGattServer.addService(gattService)) {
+            mEventLogger.add("Initialization failed");
+            return false;
+        }
 
-        return mBluetoothGattServer.addService(gattService);
+        mEventLogger.add("Initialized");
+        mAdapterService.registerBluetoothStateCallback(
+                mContext.getMainExecutor(), mBluetoothStateChangeCallback);
+        return true;
     }
 
     public void cleanup() {
@@ -1033,6 +1036,7 @@ public class TbsGatt {
         return mTbsService.getDeviceAuthorization(device);
     }
 
+    @SuppressWarnings("EnumOrdinal")
     private void onRejectedAuthorizationGattOperation(BluetoothDevice device, GattOpContext op) {
         UUID charUuid =
                 (op.mCharacteristic != null
@@ -1099,7 +1103,7 @@ public class TbsGatt {
         boolean allowToReadRealValue = false;
         byte[] buffer = null;
 
-        /* Allow only some informations to be disclosed at this stage. */
+        /* Allow only some information to be disclosed at this stage. */
         if (charUuid.equals(UUID_BEARER_PROVIDER_NAME)) {
             ByteBuffer bb = ByteBuffer.allocate(0).order(ByteOrder.LITTLE_ENDIAN);
             bb.put("".getBytes());

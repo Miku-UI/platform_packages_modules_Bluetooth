@@ -922,7 +922,8 @@ struct eatt_impl {
   }
 
   void upper_tester_connect(const RawAddress& bd_addr, eatt_device* eatt_dev, uint8_t role) {
-    log::info("L2CAP Upper tester enabled, {} ({}), role: {}({})", bd_addr, fmt::ptr(eatt_dev),
+    log::info("L2CAP Upper tester enabled, {} ({}), role: {}({})", bd_addr,
+              std::format_ptr(eatt_dev),
               role == HCI_ROLE_CENTRAL ? "HCI_ROLE_CENTRAL" : "HCI_ROLE_PERIPHERAL", role);
 
     auto num_of_chan = stack_config_get_interface()->get_pts_l2cap_ecoc_initial_chan_cnt();

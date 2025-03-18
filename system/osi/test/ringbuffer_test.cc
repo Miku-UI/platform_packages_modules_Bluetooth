@@ -25,7 +25,7 @@ TEST(RingbufferTest, test_insert_basic) {
   EXPECT_EQ((size_t)10, ringbuffer_size(rb));  // Ensure size doesn't change
   EXPECT_EQ((size_t)6, ringbuffer_available(rb));
   EXPECT_EQ((size_t)10, peeked);
-  ASSERT_TRUE(0 == memcmp(buffer, peek, peeked));
+  ASSERT_EQ(0, memcmp(buffer, peek, peeked));
 
   ringbuffer_free(rb);
 }
@@ -52,7 +52,7 @@ TEST(RingbufferTest, test_insert_full) {
   EXPECT_EQ((size_t)0, ringbuffer_available(rb));
   EXPECT_EQ((size_t)5, ringbuffer_size(rb));
 
-  ASSERT_TRUE(0 == memcmp(aa, peek, peeked));
+  ASSERT_EQ(0, memcmp(aa, peek, peeked));
 
   ringbuffer_free(rb);
 }
@@ -80,7 +80,7 @@ TEST(RingbufferTest, test_multi_insert_delete) {
   uint8_t peek[16] = {0};
   size_t peeked = ringbuffer_peek(rb, 0, peek, 16);
   EXPECT_EQ((size_t)13, peeked);
-  ASSERT_TRUE(0 == memcmp(content, peek, peeked));
+  ASSERT_EQ(0, memcmp(content, peek, peeked));
 
   // Delete some bytes
 
@@ -98,7 +98,7 @@ TEST(RingbufferTest, test_multi_insert_delete) {
   uint8_t content2[] = {0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xCC, 0xCC};
   peeked = ringbuffer_peek(rb, 0, peek, 7);
   EXPECT_EQ((size_t)7, peeked);
-  ASSERT_TRUE(0 == memcmp(content2, peek, peeked));
+  ASSERT_EQ(0, memcmp(content2, peek, peeked));
 
   // Pop buffer
 
@@ -106,7 +106,7 @@ TEST(RingbufferTest, test_multi_insert_delete) {
   size_t popped = ringbuffer_pop(rb, peek, 7);
   EXPECT_EQ((size_t)7, popped);
   EXPECT_EQ((size_t)9, ringbuffer_available(rb));
-  ASSERT_TRUE(0 == memcmp(content2, peek, peeked));
+  ASSERT_EQ(0, memcmp(content2, peek, peeked));
 
   // Add more again to check head motion
 
@@ -133,7 +133,7 @@ TEST(RingbufferTest, test_multi_insert_delete) {
   EXPECT_EQ(added, popped);
   EXPECT_EQ((size_t)16, ringbuffer_available(rb));
   EXPECT_EQ((size_t)0, ringbuffer_size(rb));
-  ASSERT_TRUE(0 == memcmp(ae, peek, popped));
+  ASSERT_EQ(0, memcmp(ae, peek, popped));
 
   ringbuffer_free(rb);
 }

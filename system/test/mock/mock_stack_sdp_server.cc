@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "stack/sdp/sdpint.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 

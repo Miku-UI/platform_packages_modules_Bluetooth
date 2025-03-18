@@ -28,7 +28,6 @@
 #include "hci/remote_name_request.h"
 #include "module.h"
 #include "os/handler.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace neighbor {

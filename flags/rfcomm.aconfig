@@ -27,3 +27,23 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "allow_free_last_scn"
+    namespace: "bluetooth"
+    description: "Allow SCN 30 to be freed"
+    bug: "372923869"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "rfcomm_cancel_ongoing_sdp_on_close"
+    namespace: "bluetooth"
+    description: "Make sure the ongoing SDP is cleaned up when the socket is closed"
+    bug: "370916753"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

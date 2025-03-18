@@ -20,6 +20,7 @@
 
 #include "osi/include/alarm.h"
 
+#include <android_bluetooth_sysprop.h>
 #include <base/cancelable_callback.h>
 #include <bluetooth/log.h>
 #include <fcntl.h>
@@ -32,7 +33,6 @@
 
 #include <mutex>
 
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/list.h"
@@ -313,6 +313,13 @@ static bool lazy_initialize(void) {
   bool timer_initialized = false;
   bool wakeup_timer_initialized = false;
 
+  // some platforms are not wired up to be woken up by the controller.
+  // on those platforms, if we go to sleep with a timer armed, it will
+  // continue counting during sleep. to prevent unwanted timer fires on
+  // those platforms, use CLOCK_MONOTONIC and don't count up during sleep.
+  bool wakeup_supported = android::sysprop::bluetooth::hardware::wakeup_supported().value_or(true);
+  clockid_t alarm_clockid = wakeup_supported ? CLOCK_BOOTTIME_ALARM : CLOCK_MONOTONIC;
+
   std::lock_guard<std::mutex> lock(alarms_mutex);
 
   alarms = list_new(NULL);
@@ -326,7 +333,7 @@ static bool lazy_initialize(void) {
   }
   timer_initialized = true;
 
-  if (!timer_create_internal(CLOCK_BOOTTIME_ALARM, &wakeup_timer)) {
+  if (!timer_create_internal(alarm_clockid, &wakeup_timer)) {
     if (!timer_create_internal(CLOCK_BOOTTIME, &wakeup_timer)) {
       goto error;
     }

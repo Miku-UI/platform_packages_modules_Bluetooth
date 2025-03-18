@@ -21,11 +21,15 @@
 #include <bluetooth/log.h>
 #include <lc3.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <vector>
 
-#include "os/log.h"
+#include "audio_hal_client/audio_hal_client.h"
+#include "le_audio/le_audio_types.h"
 
 namespace bluetooth::le_audio {
 
@@ -82,8 +86,14 @@ struct CodecInterface::Impl {
               (pcm_config_->bits_per_sample == 24) ? LC3_PCM_FORMAT_S24 : LC3_PCM_FORMAT_S16;
 
       // Prepare the decoded output buffer
-      output_channel_samples_ =
+      auto num_samples =
               lc3_frame_samples(bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+      if (num_samples == -1) {
+        log::error("Could not determine the sample count for data_interval: {}, sample_rate: {}",
+                   bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+        return CodecInterface::Status::STATUS_ERR_CODEC_NOT_READY;
+      }
+      output_channel_samples_ = num_samples;
       adjustOutputBufferSizeIfNeeded(&output_channel_data_);
 
       // Prepare the decoder
@@ -187,7 +197,14 @@ struct CodecInterface::Impl {
     }
 
     if (codec_id_.coding_format == types::kLeAudioCodingFormatLC3) {
-      return lc3_frame_samples(bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+      auto num_samples =
+              lc3_frame_samples(bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+      if (num_samples == -1) {
+        log::error("Could not determine the sample count for data_interval: {}, sample_rate: {}",
+                   bt_codec_config_.data_interval_us, pcm_config_->sample_rate);
+        return 0;
+      }
+      return num_samples;
     }
 
     log::error("Invalid codec ID: [{}:{}:{}]", codec_id_.coding_format, codec_id_.vendor_company_id,
@@ -208,6 +225,7 @@ struct CodecInterface::Impl {
 private:
   inline void adjustOutputBufferSizeIfNeeded(std::vector<int16_t>* out_buffer) {
     if (out_buffer->size() < output_channel_samples_) {
+      log::debug("Changing buffer size to {}", output_channel_samples_);
       out_buffer->resize(output_channel_samples_);
     }
   }

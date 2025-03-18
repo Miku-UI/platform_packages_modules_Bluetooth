@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doReturn;
 
 import android.app.PendingIntent;
 import android.bluetooth.le.IScannerCallback;
+import android.content.AttributionSource;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Binder;
@@ -62,6 +63,8 @@ public class ScannerMapTest {
     @Mock private PackageManager mMockPackageManager;
     @Mock private TransitionalScanHelper mMockTransitionalScanHelper;
     @Mock private IScannerCallback mMockScannerCallback;
+    private final AttributionSource mAttributionSource =
+            InstrumentationRegistry.getTargetContext().getAttributionSource();
 
     @Spy private BluetoothMethodProxy mMapMethodProxy = BluetoothMethodProxy.getInstance();
 
@@ -94,7 +97,12 @@ public class ScannerMapTest {
                         PendingIntent.FLAG_IMMUTABLE);
         UUID uuid = UUID.randomUUID();
         ScannerMap.ScannerApp app =
-                scannerMap.add(uuid, info, mAdapterService, mMockTransitionalScanHelper);
+                scannerMap.add(
+                        uuid,
+                        mAttributionSource,
+                        info,
+                        mAdapterService,
+                        mMockTransitionalScanHelper);
         app.mId = SCANNER_ID;
 
         ScannerMap.ScannerApp scannerMapById = scannerMap.getById(SCANNER_ID);
@@ -103,7 +111,7 @@ public class ScannerMapTest {
         ScannerMap.ScannerApp scannerMapByUuid = scannerMap.getByUuid(uuid);
         assertThat(scannerMapByUuid.mName).isEqualTo(APP_NAME);
 
-        ScannerMap.ScannerApp scannerMapByName = scannerMap.getByName(APP_NAME);
+        ScannerMap.ScannerApp scannerMapByName = scannerMap.getByName(APP_NAME).get(0);
         assertThat(scannerMapByName.mName).isEqualTo(APP_NAME);
 
         ScannerMap.ScannerApp scannerMapByPii = scannerMap.getByPendingIntentInfo(info);
@@ -120,6 +128,7 @@ public class ScannerMapTest {
         ScannerMap.ScannerApp app =
                 scannerMap.add(
                         uuid,
+                        mAttributionSource,
                         null,
                         mMockScannerCallback,
                         mAdapterService,
@@ -134,7 +143,7 @@ public class ScannerMapTest {
         ScannerMap.ScannerApp scannerMapByUuid = scannerMap.getByUuid(uuid);
         assertThat(scannerMapByUuid.mName).isEqualTo(APP_NAME);
 
-        ScannerMap.ScannerApp scannerMapByName = scannerMap.getByName(APP_NAME);
+        ScannerMap.ScannerApp scannerMapByName = scannerMap.getByName(APP_NAME).get(0);
         assertThat(scannerMapByName.mName).isEqualTo(APP_NAME);
 
         assertThat(scannerMap.getAppScanStatsById(SCANNER_ID)).isNotNull();
@@ -148,6 +157,7 @@ public class ScannerMapTest {
         ScannerMap.ScannerApp app =
                 scannerMap.add(
                         uuid,
+                        mAttributionSource,
                         null,
                         mMockScannerCallback,
                         mAdapterService,
@@ -167,6 +177,7 @@ public class ScannerMapTest {
         ScannerMap scannerMap = new ScannerMap();
         scannerMap.add(
                 UUID.randomUUID(),
+                mAttributionSource,
                 null,
                 mMockScannerCallback,
                 mAdapterService,

@@ -19,8 +19,10 @@
 #include <base/functional/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <log/log.h>
 #include <osi/include/alarm.h>
 #include <sys/socket.h>
 
@@ -42,7 +44,10 @@
 #include "test/common/mock_functions.h"
 #include "types/bt_transport.h"
 
-bool gatt_profile_get_eatt_support(const RawAddress& addr) { return true; }
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
+bool gatt_profile_get_eatt_support(const RawAddress& /*addr*/) { return true; }
 void osi_property_set_bool(const char* key, bool value);
 
 namespace bluetooth {
@@ -66,6 +71,7 @@ using ::bluetooth::le_audio::has::HasPreset;
 
 using ::testing::_;
 using ::testing::AnyNumber;
+using ::testing::AtLeast;
 using ::testing::DoAll;
 using ::testing::DoDefault;
 using ::testing::Invoke;
@@ -289,8 +295,8 @@ protected:
             WriteCharacteristic(conn_id, HasDbBuilder::kPresetsCtpValHdl, _, GATT_WRITE, _, _))
             .WillByDefault(Invoke([this, address](uint16_t conn_id, uint16_t handle,
                                                   std::vector<uint8_t> value,
-                                                  tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
-                                                  void* cb_data) {
+                                                  tGATT_WRITE_TYPE /*write_type*/,
+                                                  GATT_WRITE_OP_CB cb, void* cb_data) {
               auto pp = value.data();
               auto len = value.size();
               uint8_t op, index, num_of_indices;
@@ -619,6 +625,7 @@ protected:
   }
 
   void SetUp(void) override {
+    __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
     reset_mock_function_count_map();
     bluetooth::manager::SetMockBtmInterface(&btm_interface);
     bluetooth::storage::SetMockBtifStorageInterface(&btif_storage_interface_);
@@ -631,9 +638,9 @@ protected:
     ON_CALL(btm_interface, IsLinkKeyKnown(_, _)).WillByDefault(DoAll(Return(true)));
 
     ON_CALL(btm_interface, SetEncryption(_, _, _, _, _))
-            .WillByDefault(Invoke([this](const RawAddress& bd_addr, tBT_TRANSPORT transport,
-                                         tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
-                                         tBTM_BLE_SEC_ACT sec_act) -> tBTM_STATUS {
+            .WillByDefault(Invoke([this](const RawAddress& bd_addr, tBT_TRANSPORT /*transport*/,
+                                         tBTM_SEC_CALLBACK* /*p_callback*/, void* /*p_ref_data*/,
+                                         tBTM_BLE_SEC_ACT /*sec_act*/) -> tBTM_STATUS {
               InjectEncryptionEvent(bd_addr);
               return tBTM_STATUS::BTM_SUCCESS;
             }));
@@ -692,7 +699,7 @@ protected:
     /* default action for WriteDescriptor function call */
     ON_CALL(gatt_queue, WriteDescriptor(_, _, _, _, _, _))
             .WillByDefault(Invoke([](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                     tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb,
+                                     tGATT_WRITE_TYPE /*write_type*/, GATT_WRITE_OP_CB cb,
                                      void* cb_data) -> void {
               if (cb) {
                 cb(conn_id, GATT_SUCCESS, handle, value.size(), value.data(), cb_data);
@@ -701,8 +708,8 @@ protected:
 
     /* by default connect only direct connection requests */
     ON_CALL(gatt_interface, Open(_, _, _, _))
-            .WillByDefault(Invoke([&](tGATT_IF client_if, const RawAddress& remote_bda,
-                                      tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
+            .WillByDefault(Invoke([&](tGATT_IF /*client_if*/, const RawAddress& remote_bda,
+                                      tBTM_BLE_CONN_TYPE connection_type, bool /*opportunistic*/) {
               if (connection_type == BTM_BLE_DIRECT_CONNECTION) {
                 InjectConnectedEvent(remote_bda, GetTestConnId(remote_bda));
               }
@@ -1126,6 +1133,7 @@ class HasClientTest : public HasClientTestBase {
     TestAppRegister();
   }
   void TearDown(void) override {
+    com::android::bluetooth::flags::provider_->reset_flags();
     TestAppUnregister();
     HasClientTestBase::TearDown();
   }
@@ -1188,7 +1196,20 @@ TEST_F(HasClientTest, test_connect_after_remove) {
   Mock::VerifyAndClearExpectations(&callbacks);
 }
 
+TEST_F(HasClientTest,
+       test_disconnect_non_connected_without_hap_connect_only_requested_device_flag) {
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(false);
+  const RawAddress test_address = GetTestAddress(1);
+
+  /* Override the default action to prevent us sendind the connected event */
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _))
+          .WillOnce(Return());
+  HasClient::Get()->Connect(test_address);
+  TestDisconnect(test_address, GATT_INVALID_CONN_ID);
+}
+
 TEST_F(HasClientTest, test_disconnect_non_connected) {
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(true);
   const RawAddress test_address = GetTestAddress(1);
 
   /* Override the default action to prevent us sendind the connected event */
@@ -1210,7 +1231,9 @@ TEST_F(HasClientTest, test_has_connected) {
   TestConnect(test_address);
 }
 
-TEST_F(HasClientTest, test_disconnect_connected) {
+TEST_F(HasClientTest, test_disconnect_connected_without_hap_connect_only_requested_device_flag) {
+  /* TODO: this test shall be removed b/370405555 */
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(false);
   const RawAddress test_address = GetTestAddress(1);
   /* Minimal possible HA device (only feature flags) */
   SetSampleDatabaseHasNoPresetChange(test_address,
@@ -1220,7 +1243,22 @@ TEST_F(HasClientTest, test_disconnect_connected) {
   TestConnect(test_address);
 
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
-  EXPECT_CALL(gatt_queue, Clean(1)).Times(1);
+  EXPECT_CALL(gatt_queue, Clean(1)).Times(AtLeast(1));
+  TestDisconnect(test_address, 1);
+}
+
+TEST_F(HasClientTest, test_disconnect_connected) {
+  com::android::bluetooth::flags::provider_->hap_connect_only_requested_device(true);
+  const RawAddress test_address = GetTestAddress(1);
+  /* Minimal possible HA device (only feature flags) */
+  SetSampleDatabaseHasNoPresetChange(test_address,
+                                     bluetooth::has::kFeatureBitHearingAidTypeBinaural);
+
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
+  TestConnect(test_address);
+
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
+  EXPECT_CALL(gatt_queue, Clean(1)).Times(AtLeast(1));
   TestDisconnect(test_address, 1);
 }
 
@@ -1507,7 +1545,7 @@ TEST_F(HasClientTest, test_discovery_basic_has_no_opt_ntf) {
 
   /* Verify presets */
   uint16_t conn_id = GetTestConnId(test_address);
-  ASSERT_NE(preset_details.size(), 0u);
+  ASSERT_NE(0u, preset_details.size());
   ASSERT_EQ(current_peer_presets_.at(conn_id).size(), preset_details.size());
 
   for (auto const& preset : current_peer_presets_.at(conn_id)) {
@@ -1561,6 +1599,41 @@ TEST_F(HasClientTest, test_discovery_has_broken_no_active_preset_ntf) {
   EXPECT_CALL(*callbacks, OnDeviceAvailable(test_address, _)).Times(0);
   EXPECT_CALL(*callbacks, OnFeaturesUpdate(test_address, _)).Times(0);
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
+
+  TestConnect(test_address);
+}
+
+TEST_F(HasClientTest, test_cp_not_usable_read_all_presets) {
+  osi_property_set_bool("persist.bluetooth.has.always_use_preset_cache", false);
+
+  const RawAddress test_address = GetTestAddress(1);
+  std::set<HasPreset, HasPreset::ComparatorDesc> has_presets = {{
+          HasPreset(1, HasPreset::kPropertyAvailable, "Universal"),
+          HasPreset(2, HasPreset::kPropertyAvailable | HasPreset::kPropertyWritable, "Preset2"),
+  }};
+
+  SetSampleDatabaseHasPresetsNtf(test_address,
+                                 bluetooth::has::kFeatureBitHearingAidTypeBanded |
+                                         bluetooth::has::kFeatureBitWritablePresets |
+                                         bluetooth::has::kFeatureBitDynamicPresets,
+                                 has_presets);
+
+  ON_CALL(gatt_queue, ReadCharacteristic(_, HasDbBuilder::kActivePresetIndexValHdl, _, _))
+          .WillByDefault(Invoke([&](uint16_t conn_id, uint16_t handle, GATT_READ_OP_CB cb,
+                                    void* cb_data) -> void {
+            std::vector<uint8_t> value;
+
+            tGATT_STATUS status = GATT_ERROR;
+            if (cb) {
+              cb(conn_id, status, handle, value.size(), value.data(), cb_data);
+            }
+          }));
+
+  EXPECT_CALL(*callbacks,
+              OnDeviceAvailable(test_address, bluetooth::has::kFeatureBitHearingAidTypeBanded |
+                                                      bluetooth::has::kFeatureBitWritablePresets |
+                                                      bluetooth::has::kFeatureBitDynamicPresets));
+  EXPECT_CALL(gatt_queue, Clean(1)).Times(AtLeast(1));
 
   TestConnect(test_address);
 }
@@ -1699,7 +1772,7 @@ TEST_F(HasClientTest, test_duplicate_presets) {
   TestConnect(test_address);
 
   /* Verify presets - expect 1, no duplicates */
-  ASSERT_EQ(preset_details.size(), 1u);
+  ASSERT_EQ(1u, preset_details.size());
   auto preset = std::find_if(preset_details.begin(), preset_details.end(),
                              [](auto const& preset_info) { return preset_info.preset_index == 5; });
   ASSERT_TRUE(preset != preset_details.end());
@@ -1836,7 +1909,7 @@ TEST_F(HasClientTest, test_preset_group_set_name) {
           .Times(1);
 
   HasClient::Get()->SetPresetName(not_synced_group, 55, "new preset name");
-  ASSERT_EQ(preset_details.size(), 1u);
+  ASSERT_EQ(1u, preset_details.size());
   ASSERT_EQ(preset_details[0].preset_name, "new preset name");
   ASSERT_EQ(preset_details[0].preset_index, 55);
 }
@@ -2161,7 +2234,7 @@ TEST_F(HasClientTest, test_select_preset_valid) {
   EXPECT_CALL(*callbacks, OnActivePresetSelected(_, _)).WillOnce(SaveArg<1>(&active_preset_index));
   TestConnect(test_address);
 
-  ASSERT_TRUE(preset_details.size() > 1);
+  ASSERT_GT(preset_details.size(), 1u);
   ASSERT_EQ(preset_details.front().preset_index, active_preset_index);
 
   uint8_t new_active_preset_index = 0;
@@ -2231,7 +2304,7 @@ TEST_F(HasClientTest, test_select_preset_not_available) {
   EXPECT_CALL(*callbacks, OnActivePresetSelected(_, _)).WillOnce(SaveArg<1>(&active_preset_index));
   TestConnect(test_address);
 
-  ASSERT_TRUE(preset_details.size() > 1);
+  ASSERT_GT(preset_details.size(), 1u);
   ASSERT_EQ(preset_details.front().preset_index, active_preset_index);
 
   EXPECT_CALL(*callbacks, OnActivePresetSelectError(std::variant<RawAddress, int>(test_address),
@@ -2307,8 +2380,8 @@ TEST_F(HasClientTest, test_select_group_preset_not_available) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(group_id))
           .WillByDefault(Return(std::vector<RawAddress>({{test_address1, test_address2}})));
 
-  ASSERT_TRUE(preset_details1.size() > 1);
-  ASSERT_TRUE(preset_details2.size() > 1);
+  ASSERT_GT(preset_details1.size(), 1u);
+  ASSERT_GT(preset_details2.size(), 1u);
   ASSERT_EQ(preset_details1.front().preset_index, active_preset_index1);
   ASSERT_EQ(preset_details2.front().preset_index, active_preset_index2);
 
@@ -2393,8 +2466,8 @@ TEST_F(HasClientTest, test_select_group_preset_not_available_binaural) {
   ON_CALL(mock_csis_client_module_, GetDeviceList(group_id))
           .WillByDefault(Return(std::vector<RawAddress>({{test_address1, test_address2}})));
 
-  ASSERT_TRUE(preset_details1.size() > 1);
-  ASSERT_TRUE(preset_details2.size() > 1);
+  ASSERT_GT(preset_details1.size(), 1u);
+  ASSERT_GT(preset_details2.size(), 1u);
   ASSERT_EQ(preset_details1.front().preset_index, active_preset_index1);
   ASSERT_EQ(preset_details2.front().preset_index, active_preset_index2);
 
@@ -2481,8 +2554,8 @@ TEST_F(HasClientTest, test_select_group_preset_not_available_binaural_independen
   ON_CALL(mock_csis_client_module_, GetDeviceList(group_id))
           .WillByDefault(Return(std::vector<RawAddress>({{test_address1, test_address2}})));
 
-  ASSERT_TRUE(preset_details1.size() > 1);
-  ASSERT_TRUE(preset_details2.size() > 1);
+  ASSERT_GT(preset_details1.size(), 1u);
+  ASSERT_GT(preset_details2.size(), 1u);
   ASSERT_EQ(preset_details1.front().preset_index, active_preset_index1);
   ASSERT_EQ(preset_details2.front().preset_index, active_preset_index2);
 
@@ -2617,7 +2690,7 @@ TEST_F(HasClientTest, test_select_preset_invalid) {
   EXPECT_CALL(*callbacks, OnActivePresetSelected(_, _)).WillOnce(SaveArg<1>(&active_preset_index));
   TestConnect(test_address);
 
-  ASSERT_TRUE(preset_details.size() > 1);
+  ASSERT_GT(preset_details.size(), 1u);
   ASSERT_EQ(preset_details.front().preset_index, active_preset_index);
 
   /* Inject preset deletion of index 2 */
@@ -2657,7 +2730,7 @@ TEST_F(HasClientTest, test_select_preset_next) {
   EXPECT_CALL(*callbacks, OnActivePresetSelected(_, _)).WillOnce(SaveArg<1>(&active_preset_index));
   TestConnect(test_address);
 
-  ASSERT_TRUE(preset_details.size() > 1);
+  ASSERT_GT(preset_details.size(), 1u);
   ASSERT_EQ(1, active_preset_index);
 
   /* Verify active preset change */
@@ -2790,7 +2863,7 @@ TEST_F(HasClientTest, test_select_preset_prev) {
   TestConnect(test_address);
 
   HasClient::Get()->SelectActivePreset(test_address, 2);
-  ASSERT_TRUE(preset_details.size() > 1);
+  ASSERT_GT(preset_details.size(), 1u);
   ASSERT_EQ(2, active_preset_index);
 
   /* Verify active preset change */
@@ -3020,19 +3093,19 @@ TEST_F(HasClientTest, test_connect_database_out_of_sync) {
   TestConnect(test_address);
 
   ON_CALL(gatt_queue, WriteCharacteristic(_, _, _, _, _, _))
-          .WillByDefault(
-                  Invoke([this](uint16_t conn_id, uint16_t handle, std::vector<uint8_t> value,
-                                tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data) {
-                    auto* svc = gatt::FindService(services_map[conn_id], handle);
-                    if (svc == nullptr) {
-                      return;
-                    }
+          .WillByDefault(Invoke([this](uint16_t conn_id, uint16_t handle,
+                                       std::vector<uint8_t> value, tGATT_WRITE_TYPE /*write_type*/,
+                                       GATT_WRITE_OP_CB cb, void* cb_data) {
+            auto* svc = gatt::FindService(services_map[conn_id], handle);
+            if (svc == nullptr) {
+              return;
+            }
 
-                    tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
-                    if (cb) {
-                      cb(conn_id, status, handle, value.size(), value.data(), cb_data);
-                    }
-                  }));
+            tGATT_STATUS status = GATT_DATABASE_OUT_OF_SYNC;
+            if (cb) {
+              cb(conn_id, status, handle, value.size(), value.data(), cb_data);
+            }
+          }));
 
   ON_CALL(gatt_interface, ServiceSearchRequest(_, _)).WillByDefault(Return());
   EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _));

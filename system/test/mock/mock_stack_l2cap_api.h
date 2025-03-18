@@ -39,17 +39,6 @@
 namespace test {
 namespace mock {
 namespace stack_l2cap_api {
-
-// Shared state between mocked functions and tests
-// Name: l2c_get_transport_from_fixed_cid
-// Params: uint16_t fixed_cid
-// Returns: tBT_TRANSPORT
-struct l2c_get_transport_from_fixed_cid {
-  std::function<tBT_TRANSPORT(uint16_t fixed_cid)> body{
-          [](uint16_t /* fixed_cid */) { return BT_TRANSPORT_AUTO; }};
-  tBT_TRANSPORT operator()(uint16_t fixed_cid) { return body(fixed_cid); }
-};
-extern struct l2c_get_transport_from_fixed_cid l2c_get_transport_from_fixed_cid;
 // Name: L2CA_RegisterWithSecurity
 // Params: uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
 // tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
@@ -467,6 +456,16 @@ struct L2CA_LeCreditThreshold {
   uint16_t operator()() { return body(); }
 };
 extern struct L2CA_LeCreditThreshold L2CA_LeCreditThreshold;
+
+// Name: L2CA_GetAclHandle
+// Params: uint16_t lcid, uint16_t* acl_handle
+// Returns: bool
+struct L2CA_GetAclHandle {
+  std::function<bool(uint16_t lcid, uint16_t* acl_handle)> body{
+          [](uint16_t /* lcid */, uint16_t* /* acl_handle */) { return false; }};
+  bool operator()(uint16_t lcid, uint16_t* acl_handle) { return body(lcid, acl_handle); }
+};
+extern struct L2CA_GetAclHandle L2CA_GetAclHandle;
 
 }  // namespace stack_l2cap_api
 }  // namespace mock

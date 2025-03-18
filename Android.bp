@@ -66,12 +66,39 @@ cc_defaults {
         "-Wall",
         "-Werror",
         "-Wextra",
+        "-Wmissing-prototypes",
         // Override global.go that demote the error to a warning
         "-Werror=format",
         "-Werror=reorder-init-list",
     ],
     c_std: "c99",
     cpp_std: "c++20",
+}
+
+// List of tidy checks that are enabled for cc targets.
+// Note that the goal is not to enable all checks, many of them will
+// appear as noise especially in the modernize-* range.
+bluetooth_tidy_checks = [
+    "-*",
+    "misc-*",
+
+    // This check implements detection of local variables which could be declared
+    // as const but are not.
+    "-misc-const-correctness",
+
+    // Finds classes that contain non-static data members in addition to user-declared
+    // non-static member functions and diagnose all data members declared with a
+    // non-public access specifier.
+    "-misc-non-private-member-variables-in-classes",
+]
+
+// This default tidy checks that will be run against all the cc targets
+// developed by the Bluetooth team.
+cc_defaults {
+    name: "bluetooth_tidy",
+    tidy: true,
+    tidy_checks: bluetooth_tidy_checks,
+    tidy_checks_as_errors: bluetooth_tidy_checks,
 }
 
 java_defaults {
@@ -90,6 +117,7 @@ java_defaults {
             "-Xep:DirectInvocationOnMock:ERROR",
             "-Xep:EmptyBlockTag:ERROR",
             "-Xep:EmptyCatch:ERROR",
+            "-Xep:EnumOrdinal:ERROR",
             "-Xep:EqualsGetClass:ERROR",
             "-Xep:EqualsHashCode:ERROR",
             "-Xep:EqualsIncompatibleType:ERROR",
@@ -120,10 +148,13 @@ java_defaults {
             "-Xep:NonAtomicVolatileUpdate:ERROR",
             "-Xep:NonCanonicalType:ERROR",
             "-Xep:NotJavadoc:ERROR",
+            "-Xep:NullablePrimitive:ERROR",
+            "-Xep:NullableVoid:ERROR",
             "-Xep:ObjectEqualsForPrimitives:ERROR",
             "-Xep:OperatorPrecedence:ERROR",
             "-Xep:ReferenceEquality:ERROR",
             "-Xep:ReturnAtTheEndOfVoidFunction:ERROR",
+            "-Xep:ReturnFromVoid:ERROR",
             "-Xep:StaticAssignmentInConstructor:ERROR",
             "-Xep:StaticGuardedByInstance:ERROR",
             "-Xep:StringCaseLocaleUsage:ERROR",
@@ -140,14 +171,17 @@ java_defaults {
             "-Xep:UnusedMethod:ERROR",
             "-Xep:UnusedNestedClass:ERROR",
             "-Xep:UnusedVariable:ERROR",
+            "-Xep:VariableNameSameAsType:ERROR",
             "-Xep:WaitNotInLoop:ERROR",
             "-Xep:WakelockReleasedDangerously:ERROR",
 
             // Exclude generated files
             "-XepExcludedPaths:.*/srcjars/.*",
 
-            // The @InlineMe annotation is not available
-            // "-Xep:InlineMeSuggester:OFF",
+            // The @InlineMe annotation could be made available, but it would
+            // apply on external facing API. This is not desired.
+            // For more context, see https://r.android.com/3303475
+            "-Xep:InlineMeSuggester:OFF",
         ],
     },
 }
@@ -155,10 +189,9 @@ java_defaults {
 java_defaults {
     name: "bluetooth_framework_errorprone_rules",
     defaults: ["bluetooth_errorprone_rules"],
-    plugins: [
-        "error_prone_android_framework",
-    ],
     errorprone: {
+        extra_check_modules: ["error_prone_android_framework"],
+
         javacflags: [
             "-Xep:AndroidFrameworkBinderIdentity:ERROR",
             "-Xep:AndroidFrameworkBluetoothPermission:ERROR",

@@ -20,7 +20,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -182,7 +181,7 @@ public class AvrcpBipObexServerTest {
     public void testConnectWithValidUuidHeader() throws Exception {
         mRequest.setHeader(HeaderSet.TARGET, BLUETOOTH_UUID_AVRCP_COVER_ART);
         int responseCode = mAvrcpBipObexServer.onConnect(mRequest, mReply);
-        verify(mCallback, times(1)).onConnected();
+        verify(mCallback).onConnected();
         assertThat(responseCode).isEqualTo(ResponseCodes.OBEX_HTTP_OK);
     }
 
@@ -199,14 +198,14 @@ public class AvrcpBipObexServerTest {
     @Test
     public void testDisonnect() {
         mAvrcpBipObexServer.onDisconnect(mRequest, mReply);
-        verify(mCallback, times(1)).onDisconnected();
+        verify(mCallback).onDisconnected();
     }
 
     /** Make sure onClose notifies the callbacks in the proper way */
     @Test
     public void testOnClose() {
         mAvrcpBipObexServer.onClose();
-        verify(mCallback, times(1)).onClose();
+        verify(mCallback).onClose();
     }
 
     /** Make sure onGet handles null headers gracefully */

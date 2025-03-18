@@ -16,8 +16,6 @@
 
 #include "storage/mutation_entry.h"
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace storage {
 

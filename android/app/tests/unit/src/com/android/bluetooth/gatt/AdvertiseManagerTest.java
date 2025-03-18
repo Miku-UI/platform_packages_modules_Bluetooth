@@ -28,6 +28,7 @@ import android.bluetooth.le.IAdvertisingSetCallback;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
 import android.os.IBinder;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -91,7 +92,8 @@ public class AdvertiseManagerTest {
                 duration,
                 maxExtAdvEvents,
                 0,
-                mCallback);
+                mCallback,
+                InstrumentationRegistry.getTargetContext().getAttributionSource());
 
         mAdvertiserId = AdvertiseManager.sTempRegistrationId;
     }

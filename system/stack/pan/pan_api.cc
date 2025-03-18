@@ -32,11 +32,12 @@
 
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bnep_api.h"
 #include "stack/include/bt_hdr.h"

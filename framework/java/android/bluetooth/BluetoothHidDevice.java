@@ -18,6 +18,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
@@ -368,78 +369,44 @@ public final class BluetoothHidDevice implements BluetoothProfile {
         @Override
         public void onAppStatusChanged(BluetoothDevice pluggedDevice, boolean registered) {
             Attributable.setAttributionSource(pluggedDevice, mAttributionSource);
-            final long token = clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onAppStatusChanged(pluggedDevice, registered));
-            } finally {
-                restoreCallingIdentity(token);
-            }
+            executeFromBinder(
+                    mExecutor, () -> mCallback.onAppStatusChanged(pluggedDevice, registered));
         }
 
         @Override
         public void onConnectionStateChanged(BluetoothDevice device, int state) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            final long token = clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onConnectionStateChanged(device, state));
-            } finally {
-                restoreCallingIdentity(token);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onConnectionStateChanged(device, state));
         }
 
         @Override
         public void onGetReport(BluetoothDevice device, byte type, byte id, int bufferSize) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            final long token = clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onGetReport(device, type, id, bufferSize));
-            } finally {
-                restoreCallingIdentity(token);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onGetReport(device, type, id, bufferSize));
         }
 
         @Override
         public void onSetReport(BluetoothDevice device, byte type, byte id, byte[] data) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            final long token = clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onSetReport(device, type, id, data));
-            } finally {
-                restoreCallingIdentity(token);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onSetReport(device, type, id, data));
         }
 
         @Override
         public void onSetProtocol(BluetoothDevice device, byte protocol) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            final long token = clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onSetProtocol(device, protocol));
-            } finally {
-                restoreCallingIdentity(token);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onSetProtocol(device, protocol));
         }
 
         @Override
         public void onInterruptData(BluetoothDevice device, byte reportId, byte[] data) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            final long token = clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onInterruptData(device, reportId, data));
-            } finally {
-                restoreCallingIdentity(token);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onInterruptData(device, reportId, data));
         }
 
         @Override
         public void onVirtualCableUnplug(BluetoothDevice device) {
             Attributable.setAttributionSource(device, mAttributionSource);
-            final long token = clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onVirtualCableUnplug(device));
-            } finally {
-                restoreCallingIdentity(token);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onVirtualCableUnplug(device));
         }
     }
 

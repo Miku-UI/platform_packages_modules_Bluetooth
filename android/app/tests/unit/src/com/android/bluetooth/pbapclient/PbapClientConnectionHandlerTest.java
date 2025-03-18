@@ -18,29 +18,23 @@ package com.android.bluetooth.pbapclient;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.SdpPseRecord;
 import android.content.ContentResolver;
-import android.content.Context;
-import android.content.ContextWrapper;
+import android.content.res.Resources;
 import android.os.HandlerThread;
 import android.os.Looper;
 
 import androidx.test.filters.SmallTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
 
 import org.junit.After;
 import org.junit.Before;
@@ -58,40 +52,33 @@ public class PbapClientConnectionHandlerTest {
     private static final String TAG = "ConnHandlerTest";
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
 
+    // Normal supported features for our client
+    private static final int SUPPORTED_FEATURES =
+            PbapSdpRecord.FEATURE_DOWNLOADING | PbapSdpRecord.FEATURE_DEFAULT_IMAGE_FORMAT;
+
     private HandlerThread mThread;
     private Looper mLooper;
-    private Context mTargetContext;
     private BluetoothDevice mRemoteDevice;
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
-    @Mock private AdapterService mAdapterService;
-
-    @Mock private DatabaseManager mDatabaseManager;
-
     private BluetoothAdapter mAdapter;
 
-    private PbapClientService mService;
+    @Mock private PbapClientService mService;
 
-    @Mock private PbapClientStateMachine mStateMachine;
+    @Mock private Resources mMockResources;
+
+    @Mock private ContentResolver mMockContentResolver;
+
+    @Mock private PbapClientStateMachineOld mStateMachine;
 
     private PbapClientConnectionHandler mHandler;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext =
-                spy(
-                        new ContextWrapper(
-                                InstrumentationRegistry.getInstrumentation().getTargetContext()));
-
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-
-        TestUtils.setAdapterService(mAdapterService);
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        mService = new PbapClientService(mTargetContext);
-        mService.start();
 
         mAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -100,23 +87,23 @@ public class PbapClientConnectionHandlerTest {
         mLooper = mThread.getLooper();
         mRemoteDevice = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS);
 
-        when(mStateMachine.getContext()).thenReturn(mTargetContext);
+        doReturn(mService).when(mStateMachine).getContext();
+        doReturn(mMockContentResolver).when(mService).getContentResolver();
+        doReturn(mMockResources).when(mService).getResources();
+        doReturn("com.android.bluetooth.pbapclient").when(mMockResources).getString(anyInt());
 
         mHandler =
                 new PbapClientConnectionHandler.Builder()
                         .setLooper(mLooper)
+                        .setLocalSupportedFeatures(SUPPORTED_FEATURES)
                         .setClientSM(mStateMachine)
-                        .setContext(mTargetContext)
+                        .setService(mService)
                         .setRemoteDevice(mRemoteDevice)
                         .build();
     }
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
-        mService = PbapClientService.getPbapClientService();
-        assertThat(mService).isNull();
-        TestUtils.clearAdapterService(mAdapterService);
         mLooper.quit();
     }
 
@@ -127,7 +114,7 @@ public class PbapClientConnectionHandlerTest {
 
     @Test
     public void connectSocket_whenBluetoothIsNotEnabled_returnsFalse_withInvalidL2capPsm() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
+        PbapSdpRecord record = mock(PbapSdpRecord.class);
         mHandler.setPseRecord(record);
 
         when(record.getL2capPsm()).thenReturn(PbapClientConnectionHandler.L2CAP_INVALID_PSM);
@@ -136,7 +123,7 @@ public class PbapClientConnectionHandlerTest {
 
     @Test
     public void connectSocket_whenBluetoothIsNotEnabled_returnsFalse_withValidL2capPsm() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
+        PbapSdpRecord record = mock(PbapSdpRecord.class);
         mHandler.setPseRecord(record);
 
         when(record.getL2capPsm()).thenReturn(1); // Valid PSM ranges 1 to 30;
@@ -152,7 +139,7 @@ public class PbapClientConnectionHandlerTest {
 
     @Test
     public void abort() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
+        PbapSdpRecord record = mock(PbapSdpRecord.class);
         when(record.getL2capPsm()).thenReturn(1); // Valid PSM ranges 1 to 30;
         mHandler.setPseRecord(record);
         mHandler.connectSocket(); // Workaround for setting mSocket as non-null value
@@ -166,37 +153,17 @@ public class PbapClientConnectionHandlerTest {
 
     @Test
     public void removeCallLog_doesNotCrash() {
-        ContentResolver res = mock(ContentResolver.class);
-        when(mTargetContext.getContentResolver()).thenReturn(res);
         mHandler.removeCallLog();
 
         // Also test when content resolver is null.
-        when(mTargetContext.getContentResolver()).thenReturn(null);
+        when(mService.getContentResolver()).thenReturn(null);
         mHandler.removeCallLog();
-    }
-
-    @Test
-    public void isRepositorySupported_withoutSettingPseRecord_returnsFalse() {
-        mHandler.setPseRecord(null);
-        final int mask = 0x11;
-
-        assertThat(mHandler.isRepositorySupported(mask)).isFalse();
-    }
-
-    @Test
-    public void isRepositorySupported_withSettingPseRecord() {
-        SdpPseRecord record = mock(SdpPseRecord.class);
-        when(record.getSupportedRepositories()).thenReturn(1);
-        mHandler.setPseRecord(record);
-        final int mask = 0x11;
-
-        assertThat(mHandler.isRepositorySupported(mask)).isTrue();
     }
 
     @Test
     public void createAndDisconnectWithoutAddingAccount_doesNotCrash() {
         mHandler.obtainMessage(PbapClientConnectionHandler.MSG_DISCONNECT).sendToTarget();
         TestUtils.waitForLooperToFinishScheduledTask(mHandler.getLooper());
-        verify(mStateMachine, times(1)).sendMessage(PbapClientStateMachine.MSG_CONNECTION_CLOSED);
+        verify(mStateMachine).sendMessage(PbapClientStateMachineOld.MSG_CONNECTION_CLOSED);
     }
 }

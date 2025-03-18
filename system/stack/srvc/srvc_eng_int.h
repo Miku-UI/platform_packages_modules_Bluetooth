@@ -43,7 +43,6 @@ typedef struct {
   uint8_t cur_srvc_id;
 
   tDIS_VALUE dis_value;
-
 } tSRVC_CLCB;
 
 /* service engine control block */
@@ -51,7 +50,6 @@ typedef struct {
   tSRVC_CLCB clcb[SRVC_MAX_APPS]; /* connection link*/
   tGATT_IF gatt_if;
   bool enabled;
-
 } tSRVC_ENG_CB;
 
 /* Global GATT data */

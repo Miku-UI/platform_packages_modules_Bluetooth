@@ -23,7 +23,6 @@
 #include <sstream>
 #include <string>
 
-#include "os/log.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 

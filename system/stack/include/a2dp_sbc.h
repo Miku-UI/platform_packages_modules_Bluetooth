@@ -34,7 +34,7 @@ class A2dpCodecConfigSbcBase : public A2dpCodecConfig {
 protected:
   A2dpCodecConfigSbcBase(btav_a2dp_codec_index_t codec_index, const std::string& name,
                          btav_a2dp_codec_priority_t codec_priority, bool is_source)
-      : A2dpCodecConfig(codec_index, A2DP_CODEC_ID_SBC, name, codec_priority),
+      : A2dpCodecConfig(codec_index, bluetooth::a2dp::CodecId::SBC, name, codec_priority),
         is_source_(is_source) {}
   tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
                               uint8_t* p_result_codec_config) override;

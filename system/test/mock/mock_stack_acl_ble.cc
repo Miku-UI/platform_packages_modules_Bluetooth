@@ -21,6 +21,7 @@
 
 #include <cstdint>
 
+#include "stack/include/ble_acl_interface.h"
 #include "stack/include/hci_error_code.h"
 #include "test/common/mock_functions.h"
 #include "types/ble_address_with_type.h"

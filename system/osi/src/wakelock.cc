@@ -34,7 +34,6 @@
 #include <string>
 
 #include "common/metrics.h"
-#include "os/log.h"
 #include "osi/include/osi.h"
 
 using bluetooth::common::BluetoothMetricsLogger;

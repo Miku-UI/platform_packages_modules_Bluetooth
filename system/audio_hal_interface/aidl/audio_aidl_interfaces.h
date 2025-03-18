@@ -28,11 +28,6 @@
 #include <aidl/android/hardware/bluetooth/audio/BnBluetoothAudioPort.h>
 #include <aidl/android/hardware/bluetooth/audio/IBluetoothAudioProvider.h>
 
-#include <aidl/android/hardware/bluetooth/audio/AacCapabilities.h>
-#include <aidl/android/hardware/bluetooth/audio/AacConfiguration.h>
-#include <aidl/android/hardware/bluetooth/audio/AacObjectType.h>
-#include <aidl/android/hardware/bluetooth/audio/AptxCapabilities.h>
-#include <aidl/android/hardware/bluetooth/audio/AptxConfiguration.h>
 #include <aidl/android/hardware/bluetooth/audio/AudioCapabilities.h>
 #include <aidl/android/hardware/bluetooth/audio/AudioConfiguration.h>
 #include <aidl/android/hardware/bluetooth/audio/AudioLocation.h>
@@ -47,10 +42,6 @@
 #include <aidl/android/hardware/bluetooth/audio/LatencyMode.h>
 #include <aidl/android/hardware/bluetooth/audio/Lc3Capabilities.h>
 #include <aidl/android/hardware/bluetooth/audio/Lc3Configuration.h>
-#include <aidl/android/hardware/bluetooth/audio/LdacCapabilities.h>
-#include <aidl/android/hardware/bluetooth/audio/LdacChannelMode.h>
-#include <aidl/android/hardware/bluetooth/audio/LdacConfiguration.h>
-#include <aidl/android/hardware/bluetooth/audio/LdacQualityIndex.h>
 #include <aidl/android/hardware/bluetooth/audio/LeAudioBroadcastConfiguration.h>
 #include <aidl/android/hardware/bluetooth/audio/LeAudioCodecCapabilitiesSetting.h>
 #include <aidl/android/hardware/bluetooth/audio/LeAudioCodecConfiguration.h>
@@ -58,10 +49,6 @@
 #include <aidl/android/hardware/bluetooth/audio/PcmCapabilities.h>
 #include <aidl/android/hardware/bluetooth/audio/PcmConfiguration.h>
 #include <aidl/android/hardware/bluetooth/audio/PresentationPosition.h>
-#include <aidl/android/hardware/bluetooth/audio/SbcAllocMethod.h>
-#include <aidl/android/hardware/bluetooth/audio/SbcCapabilities.h>
-#include <aidl/android/hardware/bluetooth/audio/SbcChannelMode.h>
-#include <aidl/android/hardware/bluetooth/audio/SbcConfiguration.h>
 #include <aidl/android/hardware/bluetooth/audio/SessionType.h>
 
 

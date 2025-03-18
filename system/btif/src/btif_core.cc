@@ -39,6 +39,7 @@
 
 #include <cstdint>
 
+#include "btif/include/btif_api.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_config.h"
 #include "btif/include/btif_dm.h"
@@ -52,6 +53,7 @@
 #include "device/include/device_iot_config.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "lpp/lpp_offload_interface.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "osi/include/allocator.h"
@@ -105,12 +107,6 @@ static uint8_t btif_dut_mode = 0;
 
 static base::AtExitManager* exit_manager;
 static uid_set_t* uid_set;
-
-/*******************************************************************************
- *  Externs
- ******************************************************************************/
-void btif_dm_enable_service(tBTA_SERVICE_ID service_id, bool enable);
-void btif_dm_load_local_oob(void);
 
 /*******************************************************************************
  *
@@ -384,7 +380,7 @@ static bt_status_t btif_in_get_remote_device_properties(RawAddress* bd_addr) {
 }
 
 static void btif_core_storage_adapter_write(bt_property_t* prop) {
-  log::verbose("type: {}, len {}, {}", prop->type, prop->len, fmt::ptr(prop->val));
+  log::verbose("type: {}, len {}, {}", prop->type, prop->len, std::format_ptr(prop->val));
   bt_status_t status = btif_storage_set_adapter_property(prop);
   GetInterfaceToProfiles()->events->invoke_adapter_properties_cb(status, 1, prop);
 }
@@ -515,6 +511,14 @@ void btif_get_adapter_property(bt_property_type_t type) {
         log::verbose("Don't support Dynamic Audio Buffer");
       }
     }
+  } else if (prop.type == BT_PROPERTY_LPP_OFFLOAD_FEATURES) {
+    bt_lpp_offload_features_t lpp_offload_features;
+    hal::SocketCapabilities socket_offload_capabilities =
+            bluetooth::shim::GetLppOffloadManager()->GetSocketCapabilities();
+    lpp_offload_features.number_of_supported_offloaded_le_coc_sockets =
+            socket_offload_capabilities.le_coc_capabilities.number_of_supported_sockets;
+    prop.len = sizeof(bt_lpp_offload_features_t);
+    memcpy(prop.val, &lpp_offload_features, prop.len);
   } else {
     status = btif_storage_get_adapter_property(&prop);
   }
@@ -555,7 +559,7 @@ void btif_set_scan_mode(bt_scan_mode_t mode) {
 
 void btif_set_adapter_property(bt_property_t* property) {
   log::verbose("btif_set_adapter_property type: {}, len {}, {}", property->type, property->len,
-               fmt::ptr(property->val));
+               std::format_ptr(property->val));
 
   switch (property->type) {
     case BT_PROPERTY_BDNAME: {

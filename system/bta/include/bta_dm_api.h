@@ -21,12 +21,11 @@
  *  This is the interface file for device mananger functions.
  *
  ******************************************************************************/
-#ifndef BTA_DM_API_H
-#define BTA_DM_API_H
+
+#pragma once
 
 #include "types/raw_address.h"
 
 // Brings connection to active mode
 void bta_dm_pm_active(const RawAddress& peer_addr);
-
-#endif /* BTA_DM_API_H */
+bool bta_dm_check_if_only_hd_connected(const RawAddress& peer_addr);

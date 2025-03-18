@@ -1,6 +1,6 @@
 //! Suspend/Resume API.
 
-use crate::bluetooth::{Bluetooth, BluetoothDevice, BtifBluetoothCallbacks, DelayedActions};
+use crate::bluetooth::{AdapterActions, Bluetooth, BluetoothDevice, BtifBluetoothCallbacks};
 use crate::bluetooth_media::BluetoothMedia;
 use crate::callbacks::Callbacks;
 use crate::{BluetoothGatt, Message, RPCProxy};
@@ -337,9 +337,7 @@ impl ISuspend for Suspend {
                 // Queue up connections.
                 for device in reconnect_list {
                     let _unused: Option<()> = txl
-                        .send(Message::DelayedAdapterActions(DelayedActions::ConnectAllProfiles(
-                            device,
-                        )))
+                        .send(Message::AdapterActions(AdapterActions::ConnectAllProfiles(device)))
                         .await
                         .ok();
                 }

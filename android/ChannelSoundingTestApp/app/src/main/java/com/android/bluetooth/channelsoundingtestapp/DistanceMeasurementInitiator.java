@@ -38,6 +38,34 @@ import java.util.concurrent.Executors;
 
 class DistanceMeasurementInitiator {
 
+    enum Freq {
+        HIGH(DistanceMeasurementParams.REPORT_FREQUENCY_HIGH),
+        MEDIUM(DistanceMeasurementParams.REPORT_FREQUENCY_MEDIUM),
+        LOW(DistanceMeasurementParams.REPORT_FREQUENCY_LOW);
+        private final int freq;
+
+        Freq(int freq) {
+            this.freq = freq;
+        }
+
+        int getFreq() {
+            return freq;
+        }
+
+        @Override
+        public String toString() {
+            return name();
+        }
+
+        public static Freq fromName(String name) {
+            try {
+                return Freq.valueOf(name);
+            } catch (IllegalArgumentException e) {
+                return MEDIUM;
+            }
+        }
+    }
+
     private static final int DISTANCE_MEASUREMENT_DURATION_SEC = 3600;
     private static final List<Pair<Integer, String>> mDistanceMeasurementMethodMapping =
             List.of(
@@ -119,8 +147,12 @@ class DistanceMeasurementInitiator {
         return methods;
     }
 
+    List<String> getMeasurementFreqs() {
+        return List.of(Freq.MEDIUM.toString(), Freq.HIGH.toString(), Freq.LOW.toString());
+    }
+
     @SuppressLint("MissingPermission") // permissions are checked upfront
-    void startDistanceMeasurement(String distanceMeasurementMethodName) {
+    void startDistanceMeasurement(String distanceMeasurementMethodName, String selectedFreq) {
 
         if (mTargetDevice == null) {
             printLog("do Gatt connect first");
@@ -132,7 +164,7 @@ class DistanceMeasurementInitiator {
         DistanceMeasurementParams params =
                 new DistanceMeasurementParams.Builder(mTargetDevice)
                         .setDurationSeconds(DISTANCE_MEASUREMENT_DURATION_SEC)
-                        .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
+                        .setFrequency(Freq.fromName(selectedFreq).getFreq())
                         .setMethodId(getDistanceMeasurementMethodId(distanceMeasurementMethodName))
                         .build();
         DistanceMeasurementManager distanceMeasurementManager =

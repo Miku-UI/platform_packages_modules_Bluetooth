@@ -140,7 +140,7 @@ bool BluetoothAudioPortAidl::SetUp(audio_devices_t devices) {
 
   state_ = BluetoothStreamState::STANDBY;
 
-  auto control_result_cb = [port = this](uint16_t cookie, bool start_resp,
+  auto control_result_cb = [port = this](uint16_t cookie, bool /*start_resp*/,
                                          const BluetoothAudioStatus& status) {
     if (!port->in_use()) {
       LOG(ERROR) << "control_result_cb: BluetoothAudioPortAidl is not in use";

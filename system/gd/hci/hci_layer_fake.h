@@ -40,6 +40,10 @@ public:
           std::unique_ptr<CommandBuilder> command,
           common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override;
 
+  void EnqueueCommand(std::unique_ptr<CommandBuilder> command,
+                      common::ContextualOnceCallback<void(CommandStatusOrCompleteView)>
+                              on_status_or_complete) override;
+
   CommandView GetCommand();
 
   CommandView GetCommand(OpCode op_code);

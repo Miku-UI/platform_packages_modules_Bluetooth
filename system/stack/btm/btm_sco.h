@@ -25,9 +25,9 @@
 #include "device/include/esco_parameters.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "raw_address.h"
 #include "stack/btm/sco_pkt_status.h"
 #include "stack/include/btm_api_types.h"
+#include "types/raw_address.h"
 
 #define BTM_MSBC_CODE_SIZE 240
 #define BTM_LC3_CODE_SIZE 480
@@ -255,7 +255,6 @@ public:
 
   bool is_orig;      /* true if the originator       */
   bool rem_bd_known; /* true if remote BD addr known */
-
 } tSCO_CONN;
 
 /* SCO Management control block */

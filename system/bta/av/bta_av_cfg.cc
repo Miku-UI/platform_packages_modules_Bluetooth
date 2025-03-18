@@ -23,12 +23,12 @@
  *
  ******************************************************************************/
 
-#include <bluetooth/log.h>
-
+#include <cstddef>
 #include <cstdint>
 
+#include "avrc_defs.h"
+#include "bta/av/bta_av_int.h"
 #include "bta/include/bta_av_api.h"
-#include "internal_include/bt_target.h"
 #include "stack/include/avrc_api.h"
 
 #ifndef BTA_AV_RC_COMP_ID
@@ -94,7 +94,7 @@ const uint8_t bta_av_meta_caps_evt_ids[] = {
   (sizeof(bta_av_meta_caps_evt_ids) / sizeof(bta_av_meta_caps_evt_ids[0]))
 #endif /* BTA_AV_NUM_RC_EVT_IDS */
 
-const uint8_t* get_bta_avk_meta_caps_evt_ids() {
+static const uint8_t* get_bta_avk_meta_caps_evt_ids() {
   if (avrcp_absolute_volume_is_enabled()) {
     static const uint8_t bta_avk_meta_caps_evt_ids[] = {
             AVRC_EVT_VOLUME_CHANGE,

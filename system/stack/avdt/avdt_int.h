@@ -41,10 +41,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
 
-#ifndef AVDT_DEBUG
-#define AVDT_DEBUG FALSE
-#endif
-
 /*****************************************************************************
  * constants
  ****************************************************************************/
@@ -310,23 +306,14 @@ enum {
 /* 2 channels(1 media, 1 report) for each SEP and one for signalling */
 #define AVDT_NUM_RT_TBL (AVDT_NUM_SEPS * AVDT_CHAN_NUM_TYPES + 1)
 
-/* Adaptation layer number of transport channel table entries - moved to target.h
-#define AVDT_NUM_TC_TBL     (AVDT_NUM_SEPS + AVDT_NUM_LINKS) */
-
-/* Configuration flags. AvdtpTransportChannel.cfg_flags */
-#define AVDT_L2C_CFG_CONN_INT (1 << 2)
-#define AVDT_L2C_CFG_CONN_ACP (1 << 3)
-
 /* "states" used in transport channel table */
 enum tTRANSPORT_CHANNEL_STATE : uint8_t {
-  AVDT_AD_ST_UNUSED = 0,  /* Unused - unallocated */
-  AVDT_AD_ST_IDLE = 1,    /* No connection */
-  AVDT_AD_ST_ACP = 2,     /* Waiting to accept a connection */
-  AVDT_AD_ST_CONN = 4,    /* Waiting for connection confirm */
-  AVDT_AD_ST_CFG = 5,     /* Waiting for configuration complete */
-  AVDT_AD_ST_OPEN = 6,    /* Channel opened */
-  AVDT_AD_ST_SEC_INT = 7, /* Security process as INT */
-  AVDT_AD_ST_SEC_ACP = 8, /* Security process as ACP */
+  AVDT_AD_ST_UNUSED = 0, /* Unused - unallocated */
+  AVDT_AD_ST_IDLE = 1,   /* No connection */
+  AVDT_AD_ST_ACP = 2,    /* Waiting to accept a connection */
+  AVDT_AD_ST_CONN = 4,   /* Waiting for connection confirm */
+  AVDT_AD_ST_CFG = 5,    /* Waiting for configuration complete */
+  AVDT_AD_ST_OPEN = 6,   /* Channel opened */
 };
 
 inline std::string tc_state_text(uint8_t state) {
@@ -338,8 +325,6 @@ inline std::string tc_state_text(uint8_t state) {
     CASE_RETURN_TEXT(AVDT_AD_ST_CONN);
     CASE_RETURN_TEXT(AVDT_AD_ST_CFG);
     CASE_RETURN_TEXT(AVDT_AD_ST_OPEN);
-    CASE_RETURN_TEXT(AVDT_AD_ST_SEC_INT);
-    CASE_RETURN_TEXT(AVDT_AD_ST_SEC_ACP);
     default:
       RETURN_UNKNOWN_TYPE_STRING(tTRANSPORT_CHANNEL_STATE, state_);
   }
@@ -356,12 +341,12 @@ inline std::string tc_type_text(uint8_t type) {
   }
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tTRANSPORT_CHANNEL_STATE> : enum_formatter<tTRANSPORT_CHANNEL_STATE> {};
 template <>
 struct formatter<tTRANSPORT_CHANNEL_TYPE> : enum_formatter<tTRANSPORT_CHANNEL_TYPE> {};
-}  // namespace fmt
+}  // namespace std
 
 /*****************************************************************************
  * data types
@@ -681,7 +666,13 @@ private:
 class AvdtpTransportChannel {
 public:
   AvdtpTransportChannel()
-      : peer_mtu(0), my_mtu(0), lcid(0), tcid(0), ccb_idx(0), state(0), cfg_flags(0) {}
+      : peer_mtu(0),
+        my_mtu(0),
+        lcid(0),
+        tcid(0),
+        ccb_idx(0),
+        state(0),
+        role(tAVDT_ROLE::AVDT_UNKNOWN) {}
 
   void Reset() {
     peer_mtu = 0;
@@ -690,7 +681,7 @@ public:
     tcid = 0;
     ccb_idx = 0;
     state = 0;
-    cfg_flags = 0;
+    role = tAVDT_ROLE::AVDT_UNKNOWN;
   }
 
   uint16_t peer_mtu;  // L2CAP MTU of the peer device
@@ -699,7 +690,7 @@ public:
   uint8_t tcid;       // Transport channel ID
   uint8_t ccb_idx;    // Channel control block for with this transport channel
   uint8_t state;      // Transport channel state
-  uint8_t cfg_flags;  // L2CAP configuration flags
+  tAVDT_ROLE role;    // Role for the establishment of the AVDTP signaling channel
 };
 
 /**
@@ -884,6 +875,7 @@ void avdt_scb_hdl_open_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_open_rej(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_open_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_pkt(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
+void avdt_scb_hdl_pkt_no_frag(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_drop_pkt(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_reconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 void avdt_scb_hdl_reconfig_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
@@ -955,7 +947,7 @@ void avdt_ad_tc_cong_ind(AvdtpTransportChannel* p_tbl, bool is_congested);
 void avdt_ad_tc_data_ind(AvdtpTransportChannel* p_tbl, BT_HDR* p_buf);
 AvdtpTransportChannel* avdt_ad_tc_tbl_by_type(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb);
 tL2CAP_DW_RESULT avdt_ad_write_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, BT_HDR* p_buf);
-void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, uint8_t role);
+void avdt_ad_open_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb, tAVDT_ROLE role);
 void avdt_ad_close_req(uint8_t type, AvdtpCcb* p_ccb, AvdtpScb* p_scb);
 
 void avdt_ccb_idle_ccb_timer_timeout(void* data);

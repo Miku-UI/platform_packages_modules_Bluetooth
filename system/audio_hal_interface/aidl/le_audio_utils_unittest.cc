@@ -918,6 +918,9 @@ TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackUnicastConfigurationFrom
   ASSERT_EQ(stack_config->confs.sink.size(), 2ul);
   ASSERT_EQ(stack_config->confs.source.size(), 2ul);
   ASSERT_EQ(*stack_config, expected_stack_config);
+  ASSERT_EQ(stack_config->name,
+            "AIDL-2-1chan-SinkAse-CodecId_6_0_0-48000hz_120oct_7500us-TargetLatency_2-"
+            "2-1chan-SourceAse-CodecId_6_0_0-24000hz_80oct_7500us-TargetLatency_1");
 }
 
 TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackUnicastConfigurationFromAidlFormatMonoLoc) {
@@ -931,6 +934,9 @@ TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackUnicastConfigurationFrom
   ASSERT_EQ(stack_config->confs.sink.size(), 2ul);
   ASSERT_EQ(stack_config->confs.source.size(), 1ul);
   ASSERT_EQ(*stack_config, expected_stack_config);
+  ASSERT_EQ(stack_config->name,
+            "AIDL-2-1chan-SinkAse-CodecId_6_0_0-48000hz_120oct_7500us-TargetLatency_2-"
+            "1-1chan-SourceAse-CodecId_6_0_0-24000hz_80oct_7500us-TargetLatency_1");
 }
 
 TEST(BluetoothAudioClientInterfaceAidlTest, testGetStackBisConfigFromAidlFormat) {

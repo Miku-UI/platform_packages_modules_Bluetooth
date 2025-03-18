@@ -16,9 +16,12 @@
 
 package com.android.bluetooth.map;
 
+import static android.content.pm.PackageManager.FEATURE_TELEPHONY_MESSAGING;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.telephony.SmsManager;
 
 import androidx.test.InstrumentationRegistry;
@@ -50,7 +53,11 @@ public class BluetoothMapbMessageSmsTest {
     @Before
     public void setUp() throws Exception {
         // Do not run test if sms is not supported
+        PackageManager packageManager =
+                InstrumentationRegistry.getTargetContext().getPackageManager();
+        Assume.assumeTrue(packageManager.isPackageAvailable(FEATURE_TELEPHONY_MESSAGING));
         Assume.assumeTrue(mSmsManager.isImsSmsSupported());
+
         mTargetContext = InstrumentationRegistry.getTargetContext();
         TEST_SMS_BODY_PDUS =
                 BluetoothMapSmsPdu.getSubmitPdus(mTargetContext, TEST_MESSAGE, TEST_ADDRESS);

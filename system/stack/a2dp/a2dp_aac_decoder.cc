@@ -21,7 +21,13 @@
 #include <aacdecoder_lib.h>
 #include <bluetooth/log.h>
 
-#include "os/log.h"
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+#include "FDK_audio.h"
+#include "a2dp_codec_api.h"
+#include "machine_type.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 

@@ -300,12 +300,12 @@ static void expect_packet_reassembled_iso(uint16_t event, BT_HDR* packet, const 
   STREAM_TO_UINT16(length, data);
   if (iso_has_ts) {
     STREAM_TO_UINT32(timestamp, data);
-    ASSERT_TRUE((packet->layer_specific & BT_ISO_HDR_CONTAINS_TS) != 0);
+    ASSERT_NE(0, (packet->layer_specific & BT_ISO_HDR_CONTAINS_TS));
     ASSERT_EQ(timestamp, expected_timestamp);
     ASSERT_EQ(is_complete ? test_iso_handle_complete_with_ts : test_iso_handle_start_with_ts,
               handle);
   } else {
-    ASSERT_TRUE((packet->layer_specific & BT_ISO_HDR_CONTAINS_TS) == 0);
+    ASSERT_EQ(0, (packet->layer_specific & BT_ISO_HDR_CONTAINS_TS));
     ASSERT_EQ(is_complete ? test_iso_handle_complete_without_ts : test_iso_handle_start_without_ts,
               handle);
     hdr_size -= 4;

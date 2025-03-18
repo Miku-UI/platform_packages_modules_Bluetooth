@@ -210,7 +210,6 @@ if ($COMPILE_SCREEN_ENABLED) {
 sub reject_include_list {
     my @incs = ();
     foreach (@_) {
-      next if (/init_flags/);
       push(@incs, $_);
     }
     return @incs;
@@ -239,7 +238,6 @@ sub compilation_screen {
     ## Verious external or generated header not needed for mocks
     foreach((
             "test/mock/mock.h",
-            "src/init_flags.rs.h",
             "src/message_loop_thread.rs.h",
             "android/hardware/bluetooth/audio/2.2/IBluetoothAudioProvidersFactory.h",
             "android/hardware/bluetooth/audio/2.2/types.h",

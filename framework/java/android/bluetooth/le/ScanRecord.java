@@ -50,6 +50,7 @@ public final class ScanRecord {
     @IntDef(
             prefix = "DATA_TYPE_",
             value = {
+                DATA_TYPE_NONE,
                 DATA_TYPE_FLAGS,
                 DATA_TYPE_SERVICE_UUIDS_16_BIT_PARTIAL,
                 DATA_TYPE_SERVICE_UUIDS_16_BIT_COMPLETE,

@@ -106,6 +106,7 @@ public:
   MOCK_METHOD(uint16_t, L2CA_LeCreditThreshold, ());
 
   MOCK_METHOD(void, L2CA_Consolidate, (const RawAddress& identity_addr, const RawAddress& rpa));
+  MOCK_METHOD(bool, L2CA_GetAclHandle, (uint16_t lcid, uint16_t* acl_handle));
 
   // Disconnect methods an active connection for both BR/EDR and BLE
   MOCK_METHOD(bool, L2CA_DisconnectReq, (uint16_t cid));

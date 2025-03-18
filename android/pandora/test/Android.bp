@@ -39,8 +39,10 @@ python_test_host {
         unit_test: false,
     },
     data: [
-        ":PandoraServer",
         "config.yml",
+    ],
+    device_common_data: [
+        ":PandoraServer",
     ],
 }
 
@@ -68,8 +70,10 @@ python_test_host {
         unit_test: false,
     },
     data: [
-        ":PandoraServer",
         "config.yml",
+    ],
+    device_common_data: [
+        ":PandoraServer",
     ],
 }
 

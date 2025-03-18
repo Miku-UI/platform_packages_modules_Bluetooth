@@ -68,8 +68,8 @@ uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr);
 tBTM_STATUS btm_ble_start_sec_check(const RawAddress& bd_addr, uint16_t psm, bool is_originator,
                                     tBTM_SEC_CALLBACK* p_callback, void* p_ref_data);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTM_BLE_SEC_REQ_ACT>
     : string_formatter<tBTM_BLE_SEC_REQ_ACT, &btm_ble_sec_req_act_text> {};
-}  // namespace fmt
+}  // namespace std

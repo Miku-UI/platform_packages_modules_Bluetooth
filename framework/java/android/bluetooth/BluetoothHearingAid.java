@@ -100,8 +100,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
          * @hide
          */
         @SystemApi
-        @DeviceMode
-        public int getDeviceMode() {
+        public @DeviceMode int getDeviceMode() {
             if (VDBG) Log.v(TAG, "getDeviceMode()");
             return (mCapability >> 1) & 1;
         }
@@ -117,8 +116,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
          * @hide
          */
         @SystemApi
-        @DeviceSide
-        public int getDeviceSide() {
+        public @DeviceSide int getDeviceSide() {
             if (VDBG) Log.v(TAG, "getDeviceSide()");
             return mCapability & 1;
         }
@@ -693,8 +691,7 @@ public final class BluetoothHearingAid implements BluetoothProfile {
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
-    @DeviceSide
-    public int getDeviceSide(@NonNull BluetoothDevice device) {
+    public @DeviceSide int getDeviceSide(@NonNull BluetoothDevice device) {
         if (VDBG) Log.v(TAG, "getDeviceSide(" + device + ")");
         verifyDeviceNotNull(device, "getDeviceSide");
         final IBluetoothHearingAid service = getService();

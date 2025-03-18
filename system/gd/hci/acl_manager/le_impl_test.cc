@@ -387,7 +387,6 @@ protected:
 
     CommandView cancel_connection = CommandView::Create(
             PacketView<packet::kLittleEndian>(std::make_shared<std::vector<uint8_t>>()));
-    ;
 
     if (!com::android::bluetooth::flags::
                 improve_create_connection_for_already_connecting_device()) {
@@ -1604,6 +1603,59 @@ TEST_F(LeImplTest, direct_connection_after_direct_connection_with_improvement) {
   com::android::bluetooth::flags::provider_
           ->improve_create_connection_for_already_connecting_device(true);
   test_direct_connect_after_direct_connect();
+}
+
+TEST_F(LeImplTest, direct_connection_cancel_but_connected) {
+  com::android::bluetooth::flags::provider_->le_impl_ack_pause_disarmed(true);
+
+  set_random_device_address_policy();
+  controller_->AddSupported(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+
+  hci::AddressWithType address({0x21, 0x22, 0x23, 0x24, 0x25, 0x26},
+                               AddressType::PUBLIC_DEVICE_ADDRESS);
+
+  // Create first direct connection
+  le_impl_->create_le_connection(address, true, /* is_direct */ true);
+  hci_layer_->GetCommand(OpCode::LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST);
+  hci_layer_->IncomingEvent(
+          LeAddDeviceToFilterAcceptListCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+  hci_layer_->GetCommand(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+  hci_layer_->IncomingEvent(
+          LeExtendedCreateConnectionStatusBuilder::Create(ErrorCode::SUCCESS, 0x01));
+  sync_handler();
+  ASSERT_EQ(ConnectabilityState::ARMED, le_impl_->connectability_state_);
+
+  // Cancel the connection
+  le_impl_->cancel_connect(address);
+  hci_layer_->GetCommand(OpCode::LE_CREATE_CONNECTION_CANCEL);
+  hci_layer_->IncomingEvent(
+          LeCreateConnectionCancelCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+
+  // According to the spec, UNKNOWN_CONNECTION should be reported but some controller could
+  // report SUCCESS when there is a race between cancel and connect.
+  hci_layer_->IncomingLeMetaEvent(LeEnhancedConnectionCompleteBuilder::Create(
+          ErrorCode::SUCCESS, kHciHandle, Role::CENTRAL, AddressType::PUBLIC_DEVICE_ADDRESS,
+          remote_address_, local_rpa_, remote_rpa_, 0x0024, 0x0000, 0x0011, ClockAccuracy::PPM_30));
+  sync_handler();
+  ASSERT_EQ(ConnectabilityState::DISARMED, le_impl_->connectability_state_);
+  ASSERT_TRUE(le_impl_->accept_list.empty());
+
+  // Disconnect and reconnect
+  le_impl_->on_le_disconnect(kHciHandle, ErrorCode::REMOTE_USER_TERMINATED_CONNECTION);
+  sync_handler();
+
+  le_impl_->create_le_connection(address, true, /* is_direct */ true);
+  ASSERT_TRUE(le_impl_->accept_list.contains(address));
+  sync_handler();
+
+  le_impl_->OnPause();
+  hci_layer_->GetCommand(OpCode::LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST);
+  hci_layer_->IncomingEvent(
+          LeAddDeviceToFilterAcceptListCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
+  hci_layer_->GetCommand(OpCode::LE_EXTENDED_CREATE_CONNECTION);
+  hci_layer_->IncomingEvent(
+          LeExtendedCreateConnectionStatusBuilder::Create(ErrorCode::SUCCESS, 0x01));
+  sync_handler();
 }
 
 }  // namespace acl_manager

@@ -11,6 +11,8 @@ sysprop_library {
         "ble.sysprop",
         "bta.sysprop",
         "device_id.sysprop",
+        "gap.sysprop",
+        "hardware.sysprop",
         "hfp.sysprop",
     ],
     property_owner: "Platform",

@@ -27,20 +27,26 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_hf_client_api.h"
 #include "bta/include/bta_rfcomm_scn.h"
 #include "bta/sys/bta_sys.h"
+#include "bta_hfp_api.h"
+#include "common/bind.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
+#include "sdp_status.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
@@ -337,9 +343,8 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
     attr_list[3] = ATTR_ID_SUPPORTED_FEATURES;
     num_attr = 4;
     uuid_list[0] = Uuid::From16Bit(UUID_SERVCLASS_AG_HANDSFREE);
-  }
-  /* acceptor; get features */
-  else {
+  } else {
+    /* acceptor; get features */
     attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
     attr_list[1] = ATTR_ID_BT_PROFILE_DESC_LIST;
     attr_list[2] = ATTR_ID_SUPPORTED_FEATURES;

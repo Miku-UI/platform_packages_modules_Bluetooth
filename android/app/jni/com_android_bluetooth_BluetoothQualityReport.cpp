@@ -16,14 +16,21 @@
 
 #define LOG_TAG "BluetoothQualityReportJni"
 
-#include <string.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/scoped_local_ref.h>
 
+#include <cstdint>
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
+#include <vector>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_bqr.h"
+#include "types/raw_address.h"
 
-using bluetooth::bqr::BluetoothQualityReportCallbacks;
 using bluetooth::bqr::BluetoothQualityReportInterface;
 
 namespace android {

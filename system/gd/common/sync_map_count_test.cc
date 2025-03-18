@@ -23,8 +23,6 @@
 #include <cstring>
 #include <vector>
 
-#include "os/log.h"
-
 namespace testing {
 
 const char* data[] = {

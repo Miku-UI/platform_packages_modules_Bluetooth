@@ -20,19 +20,22 @@
 
 #include <cstdint>
 #include <functional>
-#include <optional>
 #include <vector>
 
 #include "osi/include/allocator.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avrc_api.h"
+#include "stack/include/bt_psm_types.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
 #include "test/mock/mock_stack_acl.h"
 #include "test/mock/mock_stack_btm_dev.h"
 #include "test/mock/mock_stack_l2cap_api.h"
-#include "test/mock/mock_stack_l2cap_ble.h"
 #include "types/bluetooth/uuid.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -77,11 +80,11 @@ public:
             [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
                tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
                uint16_t sec_level) {
-              log::assert_that(psm == AVCT_PSM || psm == AVCT_BR_PSM,
-                               "assert failed: psm == AVCT_PSM || psm == AVCT_BR_PSM");
-              if (psm == AVCT_PSM) {
+              log::assert_that(psm == BT_PSM_AVCTP || psm == BT_PSM_AVCTP_BROWSE,
+                               "assert failed: psm == BT_PSM_AVCTP || psm == BT_PSM_AVCTP_BROWSE");
+              if (psm == BT_PSM_AVDTP) {
                 avct_appl = p_cb_info;
-              } else if (psm == AVCT_BR_PSM) {
+              } else if (psm == BT_PSM_AVCTP_BROWSE) {
                 avct_br_appl = p_cb_info;
               }
               return psm;
@@ -182,7 +185,7 @@ static void Fuzz(const uint8_t* data, size_t size) {
   tAVRC_CONN_CB ccb = {
           .ctrl_cback = base::Bind(ctrl_cb),
           .msg_cback = base::Bind(msg_cb),
-          .conn = (uint8_t)(is_initiator ? AVCT_INT : AVCT_ACP),
+          .conn = (is_initiator ? AVCT_ROLE_INITIATOR : AVCT_ROLE_ACCEPTOR),
           .control = (uint8_t)(is_controller ? AVCT_CONTROL : AVCT_TARGET),
   };
 

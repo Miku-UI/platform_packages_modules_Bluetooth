@@ -35,6 +35,7 @@
 #include "internal_include/stack_config.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "metrics/bluetooth_event.h"
 #include "osi/include/allocator.h"
 #include "p_256_ecc_pp.h"
 #include "smp_int.h"
@@ -319,6 +320,7 @@ void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t*
   uint8_t failure_reason = 0;
   if (raw_cmd == SMP_OPCODE_PAIRING_FAILED && buf_len >= 1) {
     STREAM_TO_UINT8(failure_reason, p_buf);
+    log_le_pairing_fail(bd_addr, failure_reason, is_outgoing);
   }
   if (smp_cb.is_pair_cancel) {
     failure_reason = SMP_USER_CANCELLED;  // Tracking pairing cancellations
@@ -338,7 +340,7 @@ void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t*
  * Description      Send message to L2CAP.
  *
  ******************************************************************************/
-bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
+static bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) {
   tL2CAP_DW_RESULT l2cap_ret;
   uint16_t fixed_cid = L2CAP_SMP_CID;
 

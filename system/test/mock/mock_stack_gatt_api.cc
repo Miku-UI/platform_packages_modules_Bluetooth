@@ -63,8 +63,6 @@ struct GATT_GetConnectionInfor GATT_GetConnectionInfor;
 struct GATT_Register GATT_Register;
 struct GATT_SetIdleTimeout GATT_SetIdleTimeout;
 struct GATT_StartIf GATT_StartIf;
-// struct gatt_add_an_item_to_list gatt_add_an_item_to_list;
-struct is_active_service is_active_service;
 
 }  // namespace stack_gatt_api
 }  // namespace mock
@@ -96,9 +94,6 @@ tGATT_STATUS GATT_Disconnect::return_value = GATT_SUCCESS;
 bool GATT_GetConnIdIfConnected::return_value = false;
 bool GATT_GetConnectionInfor::return_value = false;
 tGATT_IF GATT_Register::return_value = 0;
-// tGATT_HDL_LIST_ELEM gatt_add_an_item_to_list::return_value = { .svc_db = {},
-// .asgn_range = {}};
-bool is_active_service::return_value = false;
 
 }  // namespace stack_gatt_api
 }  // namespace mock
@@ -226,14 +221,6 @@ void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRAN
 void GATT_StartIf(tGATT_IF gatt_if) {
   inc_func_call_count(__func__);
   test::mock::stack_gatt_api::GATT_StartIf(gatt_if);
-}
-// tGATT_HDL_LIST_ELEM& gatt_add_an_item_to_list(uint16_t s_handle) {
-//   inc_func_call_count(__func__);
-//   return test::mock::stack_gatt_api::gatt_add_an_item_to_list(s_handle);
-// }
-bool is_active_service(const Uuid& app_uuid128, Uuid* p_svc_uuid, uint16_t start_handle) {
-  inc_func_call_count(__func__);
-  return test::mock::stack_gatt_api::is_active_service(app_uuid128, p_svc_uuid, start_handle);
 }
 // Mocked functions complete
 //

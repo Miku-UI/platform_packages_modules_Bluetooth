@@ -44,7 +44,7 @@ enum class UGGFeatureBitMask : uint8_t {
 }  // namespace gmap
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::gmap::RolesBitMask> : enum_formatter<bluetooth::gmap::RolesBitMask> {};
 template <>
@@ -53,4 +53,4 @@ struct formatter<bluetooth::gmap::UGTFeatureBitMask>
 template <>
 struct formatter<bluetooth::gmap::UGGFeatureBitMask>
     : enum_formatter<bluetooth::gmap::UGGFeatureBitMask> {};
-}  // namespace fmt
+}  // namespace std

@@ -26,10 +26,12 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/bta_sec_api.h"
+#include "bta_sys.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/port_api.h"
@@ -244,9 +246,8 @@ void bta_hf_client_rfc_do_open(tBTA_HF_CLIENT_DATA* p_data) {
                                           BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT) == PORT_SUCCESS) {
     bta_hf_client_setup_port(client_cb->conn_handle);
     log::verbose("bta_hf_client_rfc_do_open : conn_handle = {}", client_cb->conn_handle);
-  }
-  /* RFCOMM create connection failed; send ourselves RFCOMM close event */
-  else {
+  } else {
+    /* RFCOMM create connection failed; send ourselves RFCOMM close event */
     bta_hf_client_sm_execute(BTA_HF_CLIENT_RFC_CLOSE_EVT, p_data);
   }
 }

@@ -18,8 +18,8 @@ cc_fuzz {
         "libbase",
         "libbluetooth_log",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "liblog",
         "libosi",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }

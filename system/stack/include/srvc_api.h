@@ -59,7 +59,6 @@ typedef struct {
   uint16_t product_id;
   uint16_t product_version;
   uint8_t vendor_id_src;
-
 } tDIS_PNP_ID;
 
 typedef union {
@@ -106,7 +105,6 @@ typedef struct {
   tBA_LEVEL_DESCR ba_level_descr;
   tBT_TRANSPORT transport;
   tBA_CBACK* p_cback;
-
 } tBA_REG_INFO;
 
 typedef union {

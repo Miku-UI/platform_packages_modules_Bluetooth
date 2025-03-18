@@ -16,13 +16,22 @@
  */
 
 #include <bluetooth/log.h>
+#include <stdio.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <functional>
 #include <limits>
+#include <list>
 #include <map>
 #include <mutex>
+#include <ostream>
+#include <sstream>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "bta_groups.h"
 #include "btif/include/btif_profile_storage.h"

@@ -22,18 +22,18 @@ int get_default_hf_client_features() {
           DEFAULT_BTIF_HF_CLIENT_FEATURES);
 }
 
-tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* p_cback, tBTA_HF_CLIENT_FEAT features,
-                               const char* p_service_name) {
+tBTA_STATUS BTA_HfClientEnable(tBTA_HF_CLIENT_CBACK* /*p_cback*/, tBTA_HF_CLIENT_FEAT features,
+                               const char* /*p_service_name*/) {
   gFeatures = features;
   return BTA_SUCCESS;
 }
 void BTA_HfClientDisable(void) {}
-bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event, char* p_params,
-                                  int param_len, tBTIF_COPY_CBACK* p_copy_cback) {
+bt_status_t btif_transfer_context(tBTIF_CBACK* /*p_cback*/, uint16_t /*event*/, char* /*p_params*/,
+                                  int /*param_len*/, tBTIF_COPY_CBACK* /*p_copy_cback*/) {
   return BT_STATUS_SUCCESS;
 }
 void btif_queue_advance() {}
-std::string dump_hf_client_event(uint16_t event) { return "UNKNOWN MSG ID"; }
+std::string dump_hf_client_event(uint16_t /*event*/) { return "UNKNOWN MSG ID"; }
 
 class BtifHfClientTest : public ::testing::Test {
 protected:

@@ -17,9 +17,9 @@ Facilitates the implementation of a new profile proxy or a PTS MMI.
 """
 
 import functools
+import re
 import textwrap
 import unittest
-import re
 
 DOCSTRING_WIDTH = 80 - 8  # 80 cols - 8 indentation spaces
 

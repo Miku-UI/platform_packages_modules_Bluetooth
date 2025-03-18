@@ -26,12 +26,12 @@
 
 static bool is_wake_lock_acquired = false;
 
-static int acquire_wake_lock_cb(const char* lock_name) {
+static int acquire_wake_lock_cb(const char* /*lock_name*/) {
   is_wake_lock_acquired = true;
   return BT_STATUS_SUCCESS;
 }
 
-static int release_wake_lock_cb(const char* lock_name) {
+static int release_wake_lock_cb(const char* /*lock_name*/) {
   is_wake_lock_acquired = false;
   return BT_STATUS_SUCCESS;
 }

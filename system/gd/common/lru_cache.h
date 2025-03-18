@@ -27,7 +27,6 @@
 #include <unordered_map>
 
 #include "common/list_map.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace common {

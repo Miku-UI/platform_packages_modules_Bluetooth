@@ -147,6 +147,7 @@ private:
   virtual bool check_connection_parameters(uint16_t conn_interval_min, uint16_t conn_interval_max,
                                            uint16_t expected_conn_latency,
                                            uint16_t expected_supervision_timeout);
+  bool is_disconnecting_ = false;
   struct impl;
   struct impl* pimpl_ = nullptr;
 };

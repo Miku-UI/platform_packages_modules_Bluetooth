@@ -22,15 +22,14 @@
 
 #include "audio_hearing_aid_hw/include/audio_hearing_aid_hw.h"
 #include "client_interface_aidl.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<audio_usage_t> : enum_formatter<audio_usage_t> {};
 template <>
 struct formatter<audio_content_type_t> : enum_formatter<audio_content_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 
@@ -55,7 +54,7 @@ public:
         total_bytes_read_(0),
         data_position_({}) {}
 
-  BluetoothAudioCtrlAck StartRequest(bool is_low_latency) override {
+  BluetoothAudioCtrlAck StartRequest(bool /*is_low_latency*/) override {
     log::info("");
     if (stream_cb_.on_resume_(true)) {
       return BluetoothAudioCtrlAck::SUCCESS_FINISHED;
@@ -83,7 +82,7 @@ public:
     }
   }
 
-  void SetLatencyMode(LatencyMode latency_mode) override {}
+  void SetLatencyMode(LatencyMode /*latency_mode*/) override {}
 
   bool GetPresentationPosition(uint64_t* remote_delay_report_ns, uint64_t* total_bytes_read,
                                timespec* data_position) override {

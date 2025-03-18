@@ -23,7 +23,6 @@
 #include <cstring>
 
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "storage/storage_module.h"
 
 using ::bluetooth::shim::GetStorage;
@@ -135,6 +134,10 @@ bool BtifConfigInterface::RemoveProperty(const std::string& section, const std::
 
 void BtifConfigInterface::RemoveSection(const std::string& section) {
   GetStorage()->RemoveSection(section);
+}
+
+void BtifConfigInterface::RemoveSectionWithProperty(const std::string& property) {
+  GetStorage()->RemoveSectionWithProperty(property);
 }
 
 std::vector<std::string> BtifConfigInterface::GetPersistentDevices() {

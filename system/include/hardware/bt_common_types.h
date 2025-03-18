@@ -23,12 +23,11 @@
 #ifndef ANDROID_INCLUDE_BT_COMMON_TYPES_H
 #define ANDROID_INCLUDE_BT_COMMON_TYPES_H
 
-#include <bluetooth/uuid.h>
-#include <raw_address.h>
-
 #include <vector>
 
 #include "bluetooth.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 typedef struct {
   uint8_t client_if;
@@ -151,10 +150,10 @@ struct MsftAdvMonitor {
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bt_gatt_db_attribute_type_t> : enum_formatter<bt_gatt_db_attribute_type_t> {};
-}  // namespace fmt
+}  // namespace std
 #endif  // __has_include(<bluetooth/log.h>)
 
 #endif /* ANDROID_INCLUDE_BT_COMMON_TYPES_H */

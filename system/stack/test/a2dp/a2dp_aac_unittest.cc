@@ -142,9 +142,9 @@ protected:
 TEST_F(A2dpAacTest, a2dp_source_read_underflow) {
   static int enqueue_cb_invoked = 0;
 
-  auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t { return 0; };
+  auto read_cb = +[](uint8_t* /*p_buf*/, uint32_t /*len*/) -> uint32_t { return 0; };
 
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     enqueue_cb_invoked += 1;
     osi_free(p_buf);
     return false;
@@ -161,9 +161,9 @@ TEST_F(A2dpAacTest, a2dp_source_read_underflow) {
 TEST_F(A2dpAacTest, a2dp_enqueue_cb_is_invoked) {
   static int enqueue_cb_invoked = 0;
 
-  auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t { return len; };
+  auto read_cb = +[](uint8_t* /*p_buf*/, uint32_t len) -> uint32_t { return len; };
 
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     enqueue_cb_invoked += 1;
     osi_free(p_buf);
     return false;
@@ -178,7 +178,7 @@ TEST_F(A2dpAacTest, a2dp_enqueue_cb_is_invoked) {
 }
 
 TEST_F(A2dpAacTest, decoded_data_cb_not_invoked_when_empty_packet) {
-  auto data_cb = +[](uint8_t* p_buf, uint32_t len) { FAIL(); };
+  auto data_cb = +[](uint8_t* /*p_buf*/, uint32_t /*len*/) { FAIL(); };
   InitializeDecoder(data_cb);
   std::vector<uint8_t> data;
   BT_HDR* packet = AllocateL2capPacket(data);
@@ -190,7 +190,7 @@ TEST_F(A2dpAacTest, decoded_data_cb_invoked) {
   static int data_cb_invoked = 0;
   static int enqueue_cb_invoked = 0;
 
-  auto data_cb = +[](uint8_t* p_buf, uint32_t len) { data_cb_invoked += 1; };
+  auto data_cb = +[](uint8_t* /*p_buf*/, uint32_t /*len*/) { data_cb_invoked += 1; };
 
   InitializeDecoder(data_cb);
 
@@ -201,7 +201,7 @@ TEST_F(A2dpAacTest, decoded_data_cb_invoked) {
     return len;
   };
 
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     enqueue_cb_invoked += 1;
     packet = p_buf;
     return false;
@@ -234,11 +234,11 @@ TEST_F(A2dpAacTest, sink_supports_aac) {
 }
 
 TEST_F(A2dpAacTest, effective_mtu_when_peer_supports_3mbps) {
-  auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
+  auto read_cb = +[](uint8_t* /*p_buf*/, uint32_t len) -> uint32_t {
     log::assert_that(kAacReadSize == len, "assert failed: kAacReadSize == len");
     return len;
   };
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     osi_free(p_buf);
     return false;
   };
@@ -247,11 +247,11 @@ TEST_F(A2dpAacTest, effective_mtu_when_peer_supports_3mbps) {
 }
 
 TEST_F(A2dpAacTest, effective_mtu_when_peer_does_not_support_3mbps) {
-  auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t {
+  auto read_cb = +[](uint8_t* /*p_buf*/, uint32_t len) -> uint32_t {
     log::assert_that(kAacReadSize == len, "assert failed: kAacReadSize == len");
     return len;
   };
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* p_buf, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     osi_free(p_buf);
     return false;
   };

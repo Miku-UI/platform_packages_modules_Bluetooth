@@ -20,7 +20,6 @@
 #include <bluetooth/log.h>
 
 #include "common/bind.h"
-#include "os/log.h"
 #include "os/metrics.h"
 
 namespace bluetooth {

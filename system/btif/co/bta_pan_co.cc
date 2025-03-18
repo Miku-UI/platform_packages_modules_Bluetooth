@@ -26,19 +26,15 @@
  ******************************************************************************/
 #include "bta_pan_co.h"
 
-#include <hardware/bluetooth.h>
-#include <hardware/bt_pan.h>
-#include <string.h>
+#include <bluetooth/log.h>
 
-#include "bta_api.h"
-#include "bta_pan_api.h"
+#include <cstdint>
+#include <cstring>
+
+#include "bta/include/bta_pan_api.h"
 #include "bta_pan_ci.h"
 #include "btif_pan_internal.h"
-#include "btif_sock_thread.h"
-#include "btif_util.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
-#include "pan_api.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
@@ -126,7 +122,7 @@ void bta_pan_co_tx_path(uint16_t handle, uint8_t app_id) {
     log::error("cannot find pan connection");
     return;
   } else if (conn->state != PAN_STATE_OPEN) {
-    log::error("conn is not opened, conn:{}, conn->state:{}", fmt::ptr(conn), conn->state);
+    log::error("conn is not opened, conn:{}, conn->state:{}", std::format_ptr(conn), conn->state);
     return;
   }
 
@@ -143,7 +139,6 @@ void bta_pan_co_tx_path(uint16_t handle, uint8_t app_id) {
                      p_buf->len, ext, forward);
       osi_free(p_buf);
     }
-
   } while (p_buf != NULL);
 }
 

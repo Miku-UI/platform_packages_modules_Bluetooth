@@ -32,9 +32,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "hid_conn.h"
 #include "hidd_int.h"
 #include "hiddefs.h"
-#include "os/log.h"
+#include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
@@ -42,6 +45,7 @@
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/include/stack_metrics_logging.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;

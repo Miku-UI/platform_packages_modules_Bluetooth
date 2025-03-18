@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <base/strings/stringprintf.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <sys/socket.h>
@@ -70,7 +69,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithName) {
   static bool callback_sent = false;
 
   static tBTA_DM_SP_CFM_REQ cfm_req{};
-  bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
+  bta_dm_sec_enable([](tBTA_DM_SEC_EVT /*event*/, tBTA_DM_SEC* p_data) {
     callback_sent = true;
     cfm_req = p_data->cfm_req;
   });
@@ -119,7 +118,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRSuccess) {
           .WillOnce(Return(tBTM_STATUS::BTM_CMD_STARTED));
 
   static tBTA_DM_SP_CFM_REQ cfm_req{};
-  bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
+  bta_dm_sec_enable([](tBTA_DM_SEC_EVT /*event*/, tBTA_DM_SEC* p_data) {
     callback_sent = true;
     cfm_req = p_data->cfm_req;
   });
@@ -156,7 +155,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRFail) {
           .WillOnce(Return(tBTM_STATUS::BTM_SUCCESS));
 
   static tBTA_DM_SP_CFM_REQ cfm_req{};
-  bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
+  bta_dm_sec_enable([](tBTA_DM_SEC_EVT /*event*/, tBTA_DM_SEC* p_data) {
     callback_sent = true;
     cfm_req = p_data->cfm_req;
   });
@@ -202,7 +201,7 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_KEY_NOTIF_EVT) {
           .WillByDefault(Return(tBTM_STATUS::BTM_CMD_STARTED));
 
   static tBTA_DM_SP_KEY_NOTIF key_notif{};
-  bta_dm_sec_enable([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
+  bta_dm_sec_enable([](tBTA_DM_SEC_EVT /*event*/, tBTA_DM_SEC* p_data) {
     callback_sent = true;
     key_notif = p_data->key_notif;
   });

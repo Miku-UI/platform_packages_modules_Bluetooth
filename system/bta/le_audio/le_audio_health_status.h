@@ -159,11 +159,11 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 }  // namespace bluetooth::le_audio
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::LeAudioHealthDeviceStatType>
     : enum_formatter<bluetooth::le_audio::LeAudioHealthDeviceStatType> {};
 template <>
 struct formatter<bluetooth::le_audio::LeAudioHealthGroupStatType>
     : enum_formatter<bluetooth::le_audio::LeAudioHealthGroupStatType> {};
-}  // namespace fmt
+}  // namespace std

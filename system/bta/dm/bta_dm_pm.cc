@@ -39,13 +39,15 @@
 #include "hci/controller_interface.h"
 #include "main/shim/dumpsys.h"
 #include "main/shim/entry.h"
-#include "os/log.h"
 #include "osi/include/properties.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -391,9 +393,8 @@ static void bta_dm_sniff_cback(uint8_t id, uint8_t app_id, const RawAddress& pee
   /* first check if the first preference is ok */
   if (!(failed_pm & p_act0->power_mode)) {
     timeout_ms = p_act0->timeout;
-  }
-  /* if first preference has already failed, try second preference */
-  else if (!(failed_pm & p_act1->power_mode)) {
+  } else if (!(failed_pm & p_act1->power_mode)) {
+    /* if first preference has already failed, try second preference */
     timeout_ms = p_act1->timeout;
   }
 
@@ -647,9 +648,8 @@ static void bta_dm_pm_set_mode(const RawAddress& peer_addr, tBTA_DM_PM_ACTION pm
             timeout_ms = p_act0->timeout;
           }
         }
-      }
-      /* if first preference has already failed, try second preference */
-      else if (!(failed_pm & p_act1->power_mode)) {
+      } else if (!(failed_pm & p_act1->power_mode)) {
+        /* if first preference has already failed, try second preference */
         pref_modes |= p_act1->power_mode;
 
         if (p_act1->power_mode > pm_action) {

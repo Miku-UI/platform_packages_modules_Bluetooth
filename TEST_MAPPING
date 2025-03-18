@@ -56,7 +56,7 @@
       "name": "net_test_device_iot_config"
     },
     {
-      "name": "net_test_gatt_conn_multiplexing"
+      "name": "net_test_conn_multiplexing"
     },
     {
       "name": "net_test_hci"
@@ -106,9 +106,6 @@
     },
     {
       "name": "bluetooth_test_common"
-    },
-    {
-      "name": "bluetooth_test_sdp"
     },
     {
       "name": "bluetooth_vc_test"
@@ -251,7 +248,7 @@
       "name": "net_test_device_iot_config"
     },
     {
-      "name": "net_test_gatt_conn_multiplexing"
+      "name": "net_test_conn_multiplexing"
     },
     {
       "name": "net_test_stack"
@@ -271,9 +268,6 @@
     },
     {
       "name": "bluetooth_test_common"
-    },
-    {
-      "name": "bluetooth_test_sdp"
     },
     {
       "name": "bluetooth_vc_test"
@@ -314,10 +308,10 @@
       "name": "bluetooth-test-audio-hal-a2dp-provider-info"
     },
     {
-      "name": "bluetooth_test_gdx_unit"
+      "name": "net_test_bta_jv"
     },
     {
-      "name": "net_test_bta_jv"
+      "name": "net_test_stack_avctp"
     },
     {
       "name": "asrc_resampler_test"

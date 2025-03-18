@@ -36,22 +36,25 @@
 #include "btm_sec_api.h"
 #include "btm_sec_cb.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/acl_api.h"
 #include "main/shim/dumpsys.h"
 #include "osi/include/allocator.h"
-#include "rust/src/connection/ffi/connection_shim.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_interface.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
-void gatt_consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
 
 namespace {
 
@@ -87,9 +90,9 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
   if (!p_dev_rec) {
     p_dev_rec = btm_sec_allocate_dev_rec();
     log::info(
-            "Caching new record from config file device: {}, dev_class: 0x{:02x}, "
+            "Caching new record from config file device: {}, dev_class: {:02x}:{:02x}:{:02x}, "
             "link_key_type: 0x{:x}",
-            bd_addr, fmt::join(dev_class, ""), key_type);
+            bd_addr, dev_class[0], dev_class[1], dev_class[2], key_type);
 
     p_dev_rec->bd_addr = bd_addr;
     p_dev_rec->hci_handle =
@@ -106,9 +109,9 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
     }
   } else {
     log::info(
-            "Caching existing record from config file device: {}, dev_class: "
-            "0x{:02x}, link_key_type: 0x{:x}",
-            bd_addr, fmt::join(dev_class, ""), key_type);
+            "Caching existing record from config file device: {},"
+            " dev_class: {:02x}:{:02x}:{:02x}, link_key_type: 0x{:x}",
+            bd_addr, dev_class[0], dev_class[1], dev_class[2], key_type);
 
     /* "Bump" timestamp for existing record */
     p_dev_rec->timestamp = btm_sec_cb.dev_rec_count++;
@@ -148,9 +151,6 @@ void BTM_SecAddDevice(const RawAddress& bd_addr, DEV_CLASS dev_class, LinkKey li
   p_dev_rec->device_type |= BT_DEVICE_TYPE_BREDR;
 }
 
-/** Removes the device from acceptlist */
-void BTM_AcceptlistRemove(const RawAddress& address);
-
 /** Free resources associated with the device associated with |bd_addr| address.
  *
  * *** WARNING ***
@@ -181,12 +181,7 @@ bool BTM_SecDeleteDevice(const RawAddress& bd_addr) {
   RawAddress bda = p_dev_rec->bd_addr;
 
   log::info("Remove device {} from filter accept list before delete record", bd_addr);
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().stop_all_connections_to_device(
-            bluetooth::connection::ResolveRawAddress(p_dev_rec->bd_addr));
-  } else {
-    BTM_AcceptlistRemove(p_dev_rec->bd_addr);
-  }
+  bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bda));
 
   const auto device_type = p_dev_rec->device_type;
   const auto bond_type = p_dev_rec->sec_rec.bond_type;
@@ -348,7 +343,7 @@ tBTM_SEC_DEV_REC* btm_find_dev_by_handle(uint16_t handle) {
   return NULL;
 }
 
-static bool is_address_equal(void* data, void* context) {
+static bool is_not_same_identity_or_pseudo_address(void* data, void* context) {
   tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(data);
   const RawAddress* bd_addr = ((RawAddress*)context);
 
@@ -360,12 +355,18 @@ static bool is_address_equal(void* data, void* context) {
     return false;
   }
 
+  return true;
+}
+
+static bool is_rpa_unresolvable(void* data, void* context) {
+  tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(data);
+  const RawAddress* bd_addr = ((RawAddress*)context);
+
   if (btm_ble_addr_resolvable(*bd_addr, p_dev_rec)) {
     return false;
   }
   return true;
 }
-
 /*******************************************************************************
  *
  * Function         btm_find_dev
@@ -381,12 +382,19 @@ tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr) {
     return nullptr;
   }
 
-  list_node_t* n = list_foreach(btm_sec_cb.sec_dev_rec, is_address_equal, (void*)&bd_addr);
-  if (n) {
+  // Find by matching identity address or pseudo address.
+  list_node_t* n = list_foreach(btm_sec_cb.sec_dev_rec, is_not_same_identity_or_pseudo_address,
+                                (void*)&bd_addr);
+  // If not found by matching identity address or pseudo address, find by RPA
+  if (n == nullptr) {
+    n = list_foreach(btm_sec_cb.sec_dev_rec, is_rpa_unresolvable, (void*)&bd_addr);
+  }
+
+  if (n != nullptr) {
     return static_cast<tBTM_SEC_DEV_REC*>(list_node(n));
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static bool has_lenc_and_address_is_equal(void* data, void* context) {
@@ -395,7 +403,7 @@ static bool has_lenc_and_address_is_equal(void* data, void* context) {
     return true;
   }
 
-  return is_address_equal(data, context);
+  return is_not_same_identity_or_pseudo_address(data, context);
 }
 
 /*******************************************************************************

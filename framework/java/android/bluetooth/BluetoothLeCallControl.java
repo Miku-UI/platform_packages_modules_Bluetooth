@@ -19,6 +19,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -29,7 +30,6 @@ import android.annotation.SuppressLint;
 import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.content.AttributionSource;
 import android.content.Context;
-import android.os.Binder;
 import android.os.IBinder;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
@@ -306,52 +306,29 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
 
         @Override
         public void onAcceptCall(int requestId, ParcelUuid uuid) {
-            final long identityToken = Binder.clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onAcceptCall(requestId, uuid.getUuid()));
-            } finally {
-                Binder.restoreCallingIdentity(identityToken);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onAcceptCall(requestId, uuid.getUuid()));
         }
 
         @Override
         public void onTerminateCall(int requestId, ParcelUuid uuid) {
-            final long identityToken = Binder.clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onTerminateCall(requestId, uuid.getUuid()));
-            } finally {
-                Binder.restoreCallingIdentity(identityToken);
-            }
+            executeFromBinder(
+                    mExecutor, () -> mCallback.onTerminateCall(requestId, uuid.getUuid()));
         }
 
         @Override
         public void onHoldCall(int requestId, ParcelUuid uuid) {
-            final long identityToken = Binder.clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onHoldCall(requestId, uuid.getUuid()));
-            } finally {
-                Binder.restoreCallingIdentity(identityToken);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onHoldCall(requestId, uuid.getUuid()));
         }
 
         @Override
         public void onUnholdCall(int requestId, ParcelUuid uuid) {
-            final long identityToken = Binder.clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onUnholdCall(requestId, uuid.getUuid()));
-            } finally {
-                Binder.restoreCallingIdentity(identityToken);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onUnholdCall(requestId, uuid.getUuid()));
         }
 
         @Override
         public void onPlaceCall(int requestId, ParcelUuid uuid, String uri) {
-            final long identityToken = Binder.clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onPlaceCall(requestId, uuid.getUuid(), uri));
-            } finally {
-                Binder.restoreCallingIdentity(identityToken);
-            }
+            executeFromBinder(
+                    mExecutor, () -> mCallback.onPlaceCall(requestId, uuid.getUuid(), uri));
         }
 
         @Override
@@ -361,12 +338,7 @@ public final class BluetoothLeCallControl implements BluetoothProfile {
                 uuids.add(parcelUuid.getUuid());
             }
 
-            final long identityToken = Binder.clearCallingIdentity();
-            try {
-                mExecutor.execute(() -> mCallback.onJoinCalls(requestId, uuids));
-            } finally {
-                Binder.restoreCallingIdentity(identityToken);
-            }
+            executeFromBinder(mExecutor, () -> mCallback.onJoinCalls(requestId, uuids));
         }
     }
     ;

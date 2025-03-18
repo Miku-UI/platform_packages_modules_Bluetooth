@@ -16,9 +16,12 @@
 
 #include "common/audit_log.h"
 
+#ifdef __ANDROID__
+#include <log/log_event_list.h>
+#endif  // __ANDROID__
+
 #include "common/strings.h"
 #include "hci/hci_packets.h"
-#include "os/log.h"
 
 namespace {
 #if defined(__ANDROID__) && !defined(FUZZ_TARGET)

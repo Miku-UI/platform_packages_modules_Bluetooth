@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
@@ -53,77 +54,83 @@ TestMutables test_state_;
 }  // namespace
 
 namespace connection_manager {
-bool background_connect_remove(uint8_t app_id, const RawAddress& address) { return false; }
-bool direct_connect_remove(uint8_t app_id, const RawAddress& address, bool connection_timeout) {
+bool background_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/) { return false; }
+bool direct_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/,
+                           bool /*connection_timeout*/) {
   return false;
 }
-bool is_background_connection(const RawAddress& address) { return false; }
+bool is_background_connection(const RawAddress& /*address*/) { return false; }
 
 }  // namespace connection_manager
 
-BT_HDR* attp_build_sr_msg(tGATT_TCB& tcb, uint8_t op_code, tGATT_SR_MSG* p_msg,
-                          uint16_t payload_size) {
+BT_HDR* attp_build_sr_msg(tGATT_TCB& /*tcb*/, uint8_t op_code, tGATT_SR_MSG* /*p_msg*/,
+                          uint16_t /*payload_size*/) {
   test_state_.attp_build_sr_msg.op_code_ = op_code;
   return nullptr;
 }
-tGATT_STATUS attp_send_cl_confirmation_msg(tGATT_TCB& tcb, uint16_t cid) { return GATT_SUCCESS; }
-tGATT_STATUS attp_send_cl_msg(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
-                              tGATT_CL_MSG* p_msg) {
+tGATT_STATUS attp_send_cl_confirmation_msg(tGATT_TCB& /*tcb*/, uint16_t /*cid*/) {
   return GATT_SUCCESS;
 }
-tGATT_STATUS attp_send_sr_msg(tGATT_TCB& tcb, uint16_t cid, BT_HDR* p_msg) { return GATT_SUCCESS; }
+tGATT_STATUS attp_send_cl_msg(tGATT_TCB& /*tcb*/, tGATT_CLCB* /*p_clcb*/, uint8_t /*op_code*/,
+                              tGATT_CL_MSG* /*p_msg*/) {
+  return GATT_SUCCESS;
+}
+tGATT_STATUS attp_send_sr_msg(tGATT_TCB& /*tcb*/, uint16_t /*cid*/, BT_HDR* /*p_msg*/) {
+  return GATT_SUCCESS;
+}
 
-void gatt_act_discovery(tGATT_CLCB* p_clcb) {}
-bool gatt_disconnect(tGATT_TCB* p_tcb) { return false; }
-void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport) {}
-tGATT_CH_STATE gatt_get_ch_state(tGATT_TCB* p_tcb) { return GATT_CH_CLOSE; }
-tGATT_STATUS gatts_db_read_attr_value_by_type(tGATT_TCB& tcb, uint16_t cid, tGATT_SVC_DB* p_db,
-                                              uint8_t op_code, BT_HDR* p_rsp, uint16_t s_handle,
-                                              uint16_t e_handle, const Uuid& type, uint16_t* p_len,
-                                              tGATT_SEC_FLAG sec_flag, uint8_t key_size,
-                                              uint32_t trans_id, uint16_t* p_cur_handle) {
+void gatt_act_discovery(tGATT_CLCB* /*p_clcb*/) {}
+bool gatt_disconnect(tGATT_TCB* /*p_tcb*/) { return false; }
+void gatt_cancel_connect(const RawAddress& /*bd_addr*/, tBT_TRANSPORT /*transport*/) {}
+tGATT_CH_STATE gatt_get_ch_state(tGATT_TCB* /*p_tcb*/) { return GATT_CH_CLOSE; }
+tGATT_STATUS gatts_db_read_attr_value_by_type(tGATT_TCB& /*tcb*/, uint16_t /*cid*/,
+                                              tGATT_SVC_DB* /*p_db*/, uint8_t /*op_code*/,
+                                              BT_HDR* /*p_rsp*/, uint16_t /*s_handle*/,
+                                              uint16_t /*e_handle*/, const Uuid& /*type*/,
+                                              uint16_t* /*p_len*/, tGATT_SEC_FLAG /*sec_flag*/,
+                                              uint8_t /*key_size*/, uint32_t /*trans_id*/,
+                                              uint16_t* /*p_cur_handle*/) {
   return GATT_SUCCESS;
 }
-void gatt_set_ch_state(tGATT_TCB* p_tcb, tGATT_CH_STATE ch_state) {}
-Uuid* gatts_get_service_uuid(tGATT_SVC_DB* p_db) { return nullptr; }
-tGATT_STATUS GATTS_HandleValueIndication(uint16_t conn_id, uint16_t attr_handle, uint16_t val_len,
-                                         uint8_t* p_val) {
+void gatt_set_ch_state(tGATT_TCB* /*p_tcb*/, tGATT_CH_STATE /*ch_state*/) {}
+Uuid* gatts_get_service_uuid(tGATT_SVC_DB* /*p_db*/) { return nullptr; }
+tGATT_STATUS GATTS_HandleValueIndication(uint16_t /*conn_id*/, uint16_t /*attr_handle*/,
+                                         uint16_t /*val_len*/, uint8_t* /*p_val*/) {
   return GATT_SUCCESS;
 }
-tGATT_STATUS gatts_read_attr_perm_check(tGATT_SVC_DB* p_db, bool is_long, uint16_t handle,
-                                        tGATT_SEC_FLAG sec_flag, uint8_t key_size) {
+tGATT_STATUS gatts_read_attr_perm_check(tGATT_SVC_DB* /*p_db*/, bool /*is_long*/,
+                                        uint16_t /*handle*/, tGATT_SEC_FLAG /*sec_flag*/,
+                                        uint8_t /*key_size*/) {
   return GATT_SUCCESS;
 }
-tGATT_STATUS gatts_read_attr_value_by_handle(tGATT_TCB& tcb, uint16_t cid, tGATT_SVC_DB* p_db,
-                                             uint8_t op_code, uint16_t handle, uint16_t offset,
-                                             uint8_t* p_value, uint16_t* p_len, uint16_t mtu,
-                                             tGATT_SEC_FLAG sec_flag, uint8_t key_size,
-                                             uint32_t trans_id) {
+tGATT_STATUS gatts_read_attr_value_by_handle(tGATT_TCB& /*tcb*/, uint16_t /*cid*/,
+                                             tGATT_SVC_DB* /*p_db*/, uint8_t /*op_code*/,
+                                             uint16_t /*handle*/, uint16_t /*offset*/,
+                                             uint8_t* /*p_value*/, uint16_t* /*p_len*/,
+                                             uint16_t /*mtu*/, tGATT_SEC_FLAG /*sec_flag*/,
+                                             uint8_t /*key_size*/, uint32_t /*trans_id*/) {
   return GATT_SUCCESS;
 }
-tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* p_db, uint8_t op_code, uint16_t handle,
-                                         uint16_t offset, uint8_t* p_data, uint16_t len,
-                                         tGATT_SEC_FLAG sec_flag, uint8_t key_size) {
+tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* /*p_db*/, uint8_t /*op_code*/,
+                                         uint16_t /*handle*/, uint16_t /*offset*/,
+                                         uint8_t* /*p_data*/, uint16_t /*len*/,
+                                         tGATT_SEC_FLAG /*sec_flag*/, uint8_t /*key_size*/) {
   test_state_.gatts_write_attr_perm_check.access_count_++;
   return test_state_.gatts_write_attr_perm_check.return_status_;
 }
-void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb, bool is_add,
-                                   bool check_acl_link) {}
+void gatt_update_app_use_link_flag(tGATT_IF /*gatt_if*/, tGATT_TCB* /*p_tcb*/, bool /*is_add*/,
+                                   bool /*check_acl_link*/) {}
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
-void l2cble_set_fixed_channel_tx_data_length(const RawAddress& remote_bda, uint16_t fix_cid,
-                                             uint16_t tx_mtu) {}
-void L2CA_SetLeFixedChannelTxDataLength(const RawAddress& remote_bda, uint16_t fix_cid,
-                                        uint16_t tx_mtu) {}
-void ApplicationRequestCallback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                                tGATTS_DATA* p_data) {
+static void ApplicationRequestCallback(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+                                       tGATTS_DATA* p_data) {
   test_state_.application_request_callback.conn_id_ = conn_id;
   test_state_.application_request_callback.trans_id_ = trans_id;
   test_state_.application_request_callback.type_ = type;
   test_state_.application_request_callback.data_ = *p_data;
 }
 
-bool gatt_sr_is_cl_change_aware(tGATT_TCB& tcb) { return false; }
-void gatt_sr_init_cl_status(tGATT_TCB& p_tcb) {}
+bool gatt_sr_is_cl_change_aware(tGATT_TCB& /*tcb*/) { return false; }
+void gatt_sr_init_cl_status(tGATT_TCB& /*p_tcb*/) {}
 void gatt_sr_update_cl_status(tGATT_TCB& p_tcb, bool chg_aware) {
   p_tcb.is_robust_cache_change_aware = chg_aware;
 }

@@ -1,0 +1,10 @@
+module: "android.sysprop.bluetooth.hardware"
+owner: Platform
+
+prop {
+    api_name: "wakeup_supported"
+    type: Boolean
+    scope: Internal
+    access: Readonly
+    prop_name: "bluetooth.hardware.wakeup_supported"
+}

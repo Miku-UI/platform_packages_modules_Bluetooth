@@ -43,6 +43,20 @@ filegroup {
 }
 
 filegroup {
+    name: "BluetoothHalSources_socket_android",
+    srcs: [
+        "socket_hal_android.cc",
+    ],
+}
+
+filegroup {
+    name: "BluetoothHalSources_socket_host",
+    srcs: [
+        "socket_hal_host.cc",
+    ],
+}
+
+filegroup {
     name: "BluetoothHalSources_hci_android_hidl",
     srcs: [
         "hci_backend_aidl.cc",

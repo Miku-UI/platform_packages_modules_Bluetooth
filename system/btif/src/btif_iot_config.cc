@@ -18,11 +18,21 @@
 
 #include <bluetooth/log.h>
 
+#include <cstdint>
+#include <cstring>
+
+#include "bt_name.h"
 #include "bta_sec_api.h"
 #include "btif_storage.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
+#include "hardware/bluetooth.h"
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
+#include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

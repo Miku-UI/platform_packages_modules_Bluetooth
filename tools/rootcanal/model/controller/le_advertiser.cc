@@ -1199,7 +1199,7 @@ uint16_t ExtendedAdvertiser::GetMaxAdvertisingDataLength(
     max_advertising_data_length -= 6;                         // AdvA
     max_advertising_data_length -= 2;                         // ADI
     max_advertising_data_length -= 6 * properties.directed_;  // TargetA
-    max_advertising_data_length -= 1 * properties.tx_power_;  // TxPower
+    max_advertising_data_length -= 1 * properties.include_tx_power_;  // TxPower
     // TODO(pedantic): configure the ACAD field in order to leave the least
     // amount of AdvData space to the user (191).
   }
@@ -1252,7 +1252,7 @@ uint16_t ExtendedAdvertiser::GetRawAdvertisingEventProperties(
   if (properties.anonymous_) {
     mask |= 0x20;
   }
-  if (properties.tx_power_) {
+  if (properties.include_tx_power_) {
     mask |= 0x40;
   }
   return mask;
@@ -1584,13 +1584,13 @@ void LinkLayerController::LeAdvertising() {
     // is unmasked.
 #if 0
     if (IsLeEventUnmasked(SubeventCode::ENHANCED_CONNECTION_COMPLETE)) {
-      send_event_(bluetooth::hci::LeEnhancedConnectionCompleteBuilder::Create(
+      send_event_(bluetooth::hci::LeEnhancedConnectionCompleteV1Builder::Create(
           ErrorCode::ADVERTISING_TIMEOUT, 0, Role::CENTRAL,
           AddressType::PUBLIC_DEVICE_ADDRESS, Address(), Address(), Address(),
           0, 0, 0, ClockAccuracy::PPM_500));
     } else
 #endif
-    if (IsLeEventUnmasked(SubeventCode::CONNECTION_COMPLETE)) {
+    if (IsLeEventUnmasked(SubeventCode::LE_CONNECTION_COMPLETE)) {
       send_event_(bluetooth::hci::LeConnectionCompleteBuilder::Create(
               ErrorCode::ADVERTISING_TIMEOUT, 0, Role::CENTRAL, AddressType::PUBLIC_DEVICE_ADDRESS,
               Address(), 0, 0, 0, ClockAccuracy::PPM_500));
@@ -1662,19 +1662,19 @@ void LinkLayerController::LeAdvertising() {
       // HCI_LE_Enhanced_Connection_Complete event (see Section 7.7.65.10)
       // is unmasked.
       if (high_duty_cycle_connectable_directed_advertising &&
-          IsLeEventUnmasked(SubeventCode::ENHANCED_CONNECTION_COMPLETE)) {
-        send_event_(bluetooth::hci::LeEnhancedConnectionCompleteBuilder::Create(
+          IsLeEventUnmasked(SubeventCode::LE_ENHANCED_CONNECTION_COMPLETE_V1)) {
+        send_event_(bluetooth::hci::LeEnhancedConnectionCompleteV1Builder::Create(
                 ErrorCode::ADVERTISING_TIMEOUT, 0, Role::CENTRAL,
                 AddressType::PUBLIC_DEVICE_ADDRESS, Address(), Address(), Address(), 0, 0, 0,
                 ClockAccuracy::PPM_500));
       } else if (high_duty_cycle_connectable_directed_advertising &&
-                 IsLeEventUnmasked(SubeventCode::CONNECTION_COMPLETE)) {
+                 IsLeEventUnmasked(SubeventCode::LE_CONNECTION_COMPLETE)) {
         send_event_(bluetooth::hci::LeConnectionCompleteBuilder::Create(
                 ErrorCode::ADVERTISING_TIMEOUT, 0, Role::CENTRAL,
                 AddressType::PUBLIC_DEVICE_ADDRESS, Address(), 0, 0, 0, ClockAccuracy::PPM_500));
       }
 
-      if (IsLeEventUnmasked(SubeventCode::ADVERTISING_SET_TERMINATED)) {
+      if (IsLeEventUnmasked(SubeventCode::LE_ADVERTISING_SET_TERMINATED)) {
         // The parameter Num_Completed_Extended_Advertising_Events is set
         // only when Max_Extended_Advertising_Events was configured as
         // non-zero in the advertising parameters.
@@ -1698,7 +1698,7 @@ void LinkLayerController::LeAdvertising() {
       INFO(id_, "Max Extended Advertising count reached");
       advertiser.Disable();
 
-      if (IsLeEventUnmasked(SubeventCode::ADVERTISING_SET_TERMINATED)) {
+      if (IsLeEventUnmasked(SubeventCode::LE_ADVERTISING_SET_TERMINATED)) {
         send_event_(bluetooth::hci::LeAdvertisingSetTerminatedBuilder::Create(
                 ErrorCode::ADVERTISING_TIMEOUT, advertiser.advertising_handle, 0,
                 advertiser.num_completed_extended_advertising_events));

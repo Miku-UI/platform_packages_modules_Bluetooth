@@ -464,16 +464,6 @@ struct btif_debug_av_dump {
 };
 extern struct btif_debug_av_dump btif_debug_av_dump;
 
-// Name: dump_av_sm_event_name
-// Params: int event
-// Return: const char*
-struct dump_av_sm_event_name {
-  static const char* return_value;
-  std::function<const char*(int event)> body{[](int /* event */) { return return_value; }};
-  const char* operator()(int event) { return body(event); }
-};
-extern struct dump_av_sm_event_name dump_av_sm_event_name;
-
 }  // namespace btif_av
 }  // namespace mock
 }  // namespace test

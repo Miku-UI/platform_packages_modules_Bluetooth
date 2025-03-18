@@ -27,7 +27,6 @@
 #include "common/callback.h"
 #include "os/handler.h"
 #include "os/linux_generic/reactive_semaphore.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace os {

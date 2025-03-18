@@ -26,11 +26,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
-BT_HDR* l2cu_build_header(tL2C_LCB* /* p_lcb */, uint16_t /* len */, uint8_t /* cmd */,
-                          uint8_t /* signal_id */) {
-  inc_func_call_count(__func__);
-  return nullptr;
-}
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool l2c_is_cmd_rejected(uint8_t /* cmd_code */, uint8_t /* signal_id */, tL2C_LCB* /* p_lcb */) {
   inc_func_call_count(__func__);
   return false;
@@ -110,15 +108,10 @@ tL2C_RCB* l2cu_find_rcb_by_psm(uint16_t /* psm */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
-uint8_t l2cu_get_num_hi_priority(void) {
-  inc_func_call_count(__func__);
-  return 0;
-}
 uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* /* p_ccb */, tL2CAP_CFG_INFO* /* p_cfg */) {
   inc_func_call_count(__func__);
   return 0;
 }
-void l2cu_adj_id(tL2C_LCB* /* p_lcb */) { inc_func_call_count(__func__); }
 void l2cu_adjust_out_mps(tL2C_CCB* /* p_ccb */) { inc_func_call_count(__func__); }
 void l2cu_change_pri_ccb(tL2C_CCB* /* p_ccb */, tL2CAP_CHNL_PRIORITY /* priority */) {
   inc_func_call_count(__func__);

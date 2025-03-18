@@ -58,6 +58,7 @@ void acl_packets_completed(uint16_t handle, uint16_t num_packets);
 void acl_process_supported_features(uint16_t handle, uint64_t features);
 void acl_process_extended_features(uint16_t handle, uint8_t current_page_number,
                                    uint8_t max_page_number, uint64_t features);
+void btm_pm_reset();
 void btm_pm_on_mode_change(tHCI_STATUS status, uint16_t handle, tHCI_MODE current_mode,
                            uint16_t interval);
 void btm_pm_on_sniff_subrating(tHCI_STATUS status, uint16_t handle,

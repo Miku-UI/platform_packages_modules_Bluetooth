@@ -26,6 +26,9 @@
 #include "test/mock/mock_stack_btm_interface.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static bluetooth::manager::MockBtmInterface* btm_interface = nullptr;
@@ -83,7 +86,7 @@ tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr) {
   return btm_interface->FindDevice(bd_addr);
 }
 
-void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string comment) {
+void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string /*comment*/) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->AclDisconnectFromHandle(handle, reason);
 }

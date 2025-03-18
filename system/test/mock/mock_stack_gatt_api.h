@@ -398,33 +398,6 @@ struct GATT_StartIf {
 };
 extern struct GATT_StartIf GATT_StartIf;
 
-// // Name: gatt_add_an_item_to_list
-// // Params: uint16_t s_handle
-// // Return: tGATT_HDL_LIST_ELEM&
-// struct gatt_add_an_item_to_list {
-//   static tGATT_HDL_LIST_ELEM return_value;
-//   std::function<tGATT_HDL_LIST_ELEM&(uint16_t s_handle)> body{
-//       [](uint16_t s_handle) { return return_value; }};
-//   tGATT_HDL_LIST_ELEM& operator()(uint16_t s_handle) { return body(s_handle);
-//   };
-// };
-// extern struct gatt_add_an_item_to_list gatt_add_an_item_to_list;
-
-// Name: is_active_service
-// Params: const Uuid& app_uuid128, Uuid* p_svc_uuid, uint16_t start_handle
-// Return: bool
-struct is_active_service {
-  static bool return_value;
-  std::function<bool(const Uuid& app_uuid128, Uuid* p_svc_uuid, uint16_t start_handle)> body{
-          [](const Uuid& /* app_uuid128 */, Uuid* /* p_svc_uuid */, uint16_t /* start_handle */) {
-            return return_value;
-          }};
-  bool operator()(const Uuid& app_uuid128, Uuid* p_svc_uuid, uint16_t start_handle) {
-    return body(app_uuid128, p_svc_uuid, start_handle);
-  }
-};
-extern struct is_active_service is_active_service;
-
 }  // namespace stack_gatt_api
 }  // namespace mock
 }  // namespace test

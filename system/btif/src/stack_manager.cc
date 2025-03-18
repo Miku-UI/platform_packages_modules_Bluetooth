@@ -99,6 +99,9 @@ static_assert(BTA_HH_INCLUDED,
               "  Host interface device profile is always enabled in the bluetooth stack"
               "*** Conditional Compilation Directive error");
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 void BTA_dm_on_hw_on();
 void BTA_dm_on_hw_off();
 
@@ -122,7 +125,7 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
                                  ProfileStopCallback stopProfiles);
 static void event_shut_down_stack(ProfileStopCallback stopProfiles);
 static void event_clean_up_stack(std::promise<void> promise, ProfileStopCallback stopProfiles);
-static void event_start_up_rust_module();
+static void event_start_up_rust_module(std::promise<void> promise);
 static void event_shut_down_rust_module();
 
 static void event_signal_stack_up(void* context);
@@ -180,8 +183,9 @@ static void clean_up_stack(ProfileStopCallback stopProfiles) {
   }
 }
 
-static void start_up_rust_module_async() {
-  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_start_up_rust_module));
+static void start_up_rust_module_async(std::promise<void> promise) {
+  management_thread.DoInThread(FROM_HERE,
+                               base::BindOnce(event_start_up_rust_module, std::move(promise)));
 }
 
 static void shut_down_rust_module_async() {
@@ -388,9 +392,10 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
   info("finished");
 }
 
-static void event_start_up_rust_module() {
+static void event_start_up_rust_module(std::promise<void> promise) {
   info("is bringing up the Rust module");
   module_start_up(get_local_module(RUST_MODULE));
+  promise.set_value();
   info("finished");
 }
 
@@ -427,9 +432,10 @@ static void event_clean_up_stack(std::promise<void> promise, ProfileStopCallback
   module_clean_up(get_local_module(BTIF_CONFIG_MODULE));
   module_clean_up(get_local_module(DEVICE_IOT_CONFIG_MODULE));
 
-  module_clean_up(get_local_module(OSI_MODULE));
   info("Gd shim module disabled");
   module_shut_down(get_local_module(GD_SHIM_MODULE));
+
+  module_clean_up(get_local_module(OSI_MODULE));
 
   main_thread_shut_down();
 

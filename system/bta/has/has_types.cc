@@ -17,6 +17,8 @@
 
 #include "has_types.h"
 
+#include <ostream>
+
 namespace bluetooth::le_audio {
 namespace has {
 

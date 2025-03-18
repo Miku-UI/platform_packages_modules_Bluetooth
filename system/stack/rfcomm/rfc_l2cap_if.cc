@@ -268,13 +268,13 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
   /* If the frame did not pass validation just ignore it */
   if (event == RFC_EVENT_BAD_FRAME) {
     log::warn("Bad RFCOMM frame from lcid=0x{:x}, bd_addr={}, p_mcb={}", lcid, p_mcb->bd_addr,
-              fmt::ptr(p_mcb));
+              std::format_ptr(p_mcb));
     osi_free(p_buf);
     return;
   }
 
   if (rfc_cb.rfc.rx_frame.dlci == RFCOMM_MX_DLCI) {
-    log::verbose("handle multiplexer event {}, p_mcb={}", event, fmt::ptr(p_mcb));
+    log::verbose("handle multiplexer event {}, p_mcb={}", event, std::format_ptr(p_mcb));
     /* Take special care of the Multiplexer Control Messages */
     if (event == RFC_EVENT_UIH) {
       rfc_process_mx_message(p_mcb, p_buf);
@@ -293,11 +293,11 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
     /* If this is a SABME on new port, check if any app is waiting for it */
     if (event != RFC_EVENT_SABME) {
       log::warn("no for none-SABME event, lcid=0x{:x}, bd_addr={}, p_mcb={}", lcid, p_mcb->bd_addr,
-                fmt::ptr(p_mcb));
+                std::format_ptr(p_mcb));
       if ((p_mcb->is_initiator && !rfc_cb.rfc.rx_frame.cr) ||
           (!p_mcb->is_initiator && rfc_cb.rfc.rx_frame.cr)) {
         log::error("Disconnecting RFCOMM, lcid=0x{:x}, bd_addr={}, p_mcb={}", lcid, p_mcb->bd_addr,
-                   fmt::ptr(p_mcb));
+                   std::format_ptr(p_mcb));
         rfc_send_dm(p_mcb, rfc_cb.rfc.rx_frame.dlci, rfc_cb.rfc.rx_frame.pf);
       }
       osi_free(p_buf);
@@ -309,13 +309,14 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
       log::error(
               "Disconnecting RFCOMM, no port for dlci {}, lcid=0x{:x}, bd_addr={}, "
               "p_mcb={}",
-              rfc_cb.rfc.rx_frame.dlci, lcid, p_mcb->bd_addr, fmt::ptr(p_mcb));
+              rfc_cb.rfc.rx_frame.dlci, lcid, p_mcb->bd_addr, std::format_ptr(p_mcb));
       rfc_send_dm(p_mcb, rfc_cb.rfc.rx_frame.dlci, true);
       osi_free(p_buf);
       return;
     }
     log::verbose("port_handles[dlci={}]:{}->{}, p_mcb={}", rfc_cb.rfc.rx_frame.dlci,
-                 p_mcb->port_handles[rfc_cb.rfc.rx_frame.dlci], p_port->handle, fmt::ptr(p_mcb));
+                 p_mcb->port_handles[rfc_cb.rfc.rx_frame.dlci], p_port->handle,
+                 std::format_ptr(p_mcb));
     p_mcb->port_handles[rfc_cb.rfc.rx_frame.dlci] = p_port->handle;
     p_port->rfc.p_mcb = p_mcb;
   }

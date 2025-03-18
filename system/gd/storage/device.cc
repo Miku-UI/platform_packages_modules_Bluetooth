@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <limits>
 
-#include "os/log.h"
 #include "storage/classic_device.h"
 #include "storage/config_cache_helper.h"
 #include "storage/le_device.h"

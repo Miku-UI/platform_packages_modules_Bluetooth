@@ -149,6 +149,7 @@ public:
   MOCK_METHOD(std::vector<uint8_t>, GetLocalSupportedBrEdrCodecIds, (), (const));
   MOCK_METHOD(VendorCapabilities, GetVendorCapabilities, (), (const));
   MOCK_METHOD(bool, IsSupported, (OpCode op_code), (const));
+  MOCK_METHOD(bool, IsRpaGenerationSupported, (), (const));
 
   MOCK_METHOD(uint32_t, GetDabSupportedCodecs, (), (const));
   MOCK_METHOD((const std::array<DynamicAudioBufferCodecCapability, 32>&), GetDabCodecCapabilities,

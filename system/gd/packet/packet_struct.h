@@ -22,7 +22,6 @@
 #include <memory>
 #include <vector>
 
-#include "os/log.h"
 #include "packet/base_struct.h"
 #include "packet/bit_inserter.h"
 #include "packet/endian_inserter.h"

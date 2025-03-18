@@ -31,6 +31,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.OobData;
 import android.bluetooth.PandoraDevice;
+import android.bluetooth.StreamObserverSpliterator;
 import android.bluetooth.Utils;
 import android.bluetooth.cts.EnableBluetoothRule;
 import android.content.BroadcastReceiver;
@@ -47,6 +48,8 @@ import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 
+import io.grpc.Deadline;
+
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
 import org.junit.After;
@@ -61,23 +64,36 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.stubbing.Answer;
 
 import pandora.HostProto.AdvertiseRequest;
+import pandora.HostProto.ConnectLERequest;
+import pandora.HostProto.ConnectLEResponse;
 import pandora.HostProto.OwnAddressType;
+import pandora.HostProto.ScanRequest;
+import pandora.HostProto.ScanningResponse;
 import pandora.OobProto.OobDataRequest;
 import pandora.OobProto.OobDataResponse;
+import pandora.SecurityProto.LESecurityLevel;
+import pandora.SecurityProto.SecureRequest;
+import pandora.SecurityProto.SecureResponse;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public class OobPairingTest {
     private static final String TAG = OobPairingTest.class.getSimpleName();
     private static final Duration INTENT_TIMEOUT = Duration.ofSeconds(10);
+    private static final String CF_NAME = "Cuttlefish";
+
     private BluetoothDevice mDevice;
     private final Context mContext =
             InstrumentationRegistry.getInstrumentation().getTargetContext();
     private final BluetoothAdapter mAdapter =
             mContext.getSystemService(BluetoothManager.class).getAdapter();
     private OobDataResponse mRemoteOobData;
+    private boolean mRemoteInitiator = false;
+    private static final int TIMEOUT_ADVERTISING_MS = 1000;
 
     private static final int HASH_START_POSITION = 0;
     private static final int HASH_END_POSITION = 16;
@@ -162,6 +178,44 @@ public class OobPairingTest {
         mBumble.hostBlocking().advertise(request);
     }
 
+    private void initiatePairingFromRemote() {
+        ByteString deviceAddr;
+        StreamObserverSpliterator<ScanningResponse> scanningResponseObserver =
+                new StreamObserverSpliterator<>();
+        Deadline deadline = Deadline.after(TIMEOUT_ADVERTISING_MS, TimeUnit.MILLISECONDS);
+        mBumble.host()
+                .withDeadline(deadline)
+                .scan(ScanRequest.newBuilder().build(), scanningResponseObserver);
+        Iterator<ScanningResponse> scanningResponseIterator = scanningResponseObserver.iterator();
+
+        while (true) {
+            if (scanningResponseIterator.hasNext()) {
+                ScanningResponse scanningResponse = scanningResponseIterator.next();
+                // select first available device
+                deviceAddr = scanningResponse.getRandom();
+                break;
+            }
+        }
+
+        ConnectLEResponse leConn =
+                mBumble.hostBlocking()
+                        .connectLE(
+                                ConnectLERequest.newBuilder()
+                                        .setOwnAddressType(OwnAddressType.RANDOM)
+                                        .setRandom(deviceAddr)
+                                        .build());
+        // Start pairing from Bumble
+        StreamObserverSpliterator<SecureResponse> responseObserver =
+                new StreamObserverSpliterator<>();
+        mBumble.security()
+                .secure(
+                        SecureRequest.newBuilder()
+                                .setConnection(leConn.getConnection())
+                                .setLe(LESecurityLevel.LE_LEVEL4)
+                                .build(),
+                        responseObserver);
+    }
+
     private final OobDataCallback mGenerateOobDataCallback =
             new OobDataCallback() {
                 @Override
@@ -182,7 +236,11 @@ public class OobPairingTest {
                                     .build();
                     mRemoteOobData = mBumble.oobBlocking().shareOobData(localOobData);
                     OobData p256 = buildOobData();
-                    mDevice.createBondOutOfBand(BluetoothDevice.TRANSPORT_LE, null, p256);
+                    if (mRemoteInitiator) {
+                        initiatePairingFromRemote();
+                    } else {
+                        mDevice.createBondOutOfBand(BluetoothDevice.TRANSPORT_LE, null, p256);
+                    }
                 }
             };
 
@@ -218,7 +276,7 @@ public class OobPairingTest {
      * <ol>
      *   <li>1. Android gets OOB Data from Bumble.
      *   <li>2. Android creates bond with remote OOB data
-     *   <li>5. Android verifies bonded intent
+     *   <li>3. Android verifies bonded intent
      * </ol>
      */
     @Test
@@ -247,7 +305,7 @@ public class OobPairingTest {
      * <ol>
      *   <li>1. Android gets OOB Data from Bumble.
      *   <li>2. Android creates bond with remote OOB data
-     *   <li>5. Android verifies bonded intent
+     *   <li>3. Android verifies bonded intent
      * </ol>
      */
     @Test
@@ -264,6 +322,39 @@ public class OobPairingTest {
                 hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
                 hasExtra(BluetoothDevice.EXTRA_DEVICE, mDevice),
                 hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
+    }
+
+    /**
+     * Test OOB pairing: Configuration: Initiator: Remote, Local OOB: yes , Remote OOB: No, Secure
+     * Connections: Yes
+     *
+     * <ol>
+     *   <li>1. Android generates OOB Data and share with Bumble.
+     *   <li>2. Bumble creates bond
+     *   <li>3. Android verifies bonded intent
+     * </ol>
+     */
+    @Test
+    public void createBondByRemoteDevicWithLocalOob() throws Exception {
+
+        mRemoteInitiator = true;
+        String deviceName = mAdapter.getName();
+        // set adapter name for verification
+        mAdapter.setName(CF_NAME);
+
+        mAdapter.generateLocalOobData(
+                BluetoothDevice.TRANSPORT_LE, mContext.getMainExecutor(), mGenerateOobDataCallback);
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDING));
+        verifyIntentReceived(
+                hasAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED),
+                hasExtra(BluetoothDevice.EXTRA_DEVICE, mDevice),
+                hasExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_BONDED));
+        mRemoteInitiator = false;
+        // revert adapter name
+        mAdapter.setName(deviceName);
     }
 
     @SafeVarargs

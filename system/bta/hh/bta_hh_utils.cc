@@ -20,17 +20,22 @@
 #include <bluetooth/log.h>
 #include <string.h>  // memset
 
+#include <cstdint>
 #include <cstring>
 
+#include "bt_name.h"
 #include "bta/hh/bta_hh_int.h"
+#include "bta_hh_api.h"
 #include "btif/include/btif_storage.h"
 #include "device/include/interop.h"
+#include "hiddefs.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/sdp_api.h"
+#include "types/ble_address_with_type.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;

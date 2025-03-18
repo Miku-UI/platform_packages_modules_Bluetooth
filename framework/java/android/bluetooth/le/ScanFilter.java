@@ -79,7 +79,7 @@ public final class ScanFilter implements Parcelable {
     @Nullable private final byte[] mManufacturerData;
     @Nullable private final byte[] mManufacturerDataMask;
 
-    private int mAdvertisingDataType = ScanRecord.DATA_TYPE_NONE;
+    private @AdvertisingDataType int mAdvertisingDataType = ScanRecord.DATA_TYPE_NONE;
     @Nullable private final byte[] mAdvertisingData;
     @Nullable private final byte[] mAdvertisingDataMask;
 
@@ -103,7 +103,7 @@ public final class ScanFilter implements Parcelable {
             byte[] manufacturerDataMask,
             @AddressType int addressType,
             @Nullable byte[] irk,
-            int advertisingDataType,
+            @AdvertisingDataType int advertisingDataType,
             @Nullable byte[] advertisingData,
             @Nullable byte[] advertisingDataMask,
             @Nullable TransportBlockFilter transportBlockFilter) {
@@ -303,11 +303,9 @@ public final class ScanFilter implements Parcelable {
                     // Advertising data type
                     int advertisingDataType = in.readInt();
                     if (in.readInt() == 1) {
-                        byte[] advertisingData = null;
-                        byte[] advertisingDataMask = null;
-
                         int advertisingDataLength = in.readInt();
-                        advertisingData = new byte[advertisingDataLength];
+                        byte[] advertisingData = new byte[advertisingDataLength];
+                        byte[] advertisingDataMask = null;
                         in.readByteArray(advertisingData);
                         if (in.readInt() == 1) {
                             int advertisingDataMaskLength = in.readInt();
@@ -420,8 +418,7 @@ public final class ScanFilter implements Parcelable {
      * if the type is not set. The values of advertising data type are defined in the Bluetooth
      * Generic Access Profile (https://www.bluetooth.com/specifications/assigned-numbers/)
      */
-    @AdvertisingDataType
-    public int getAdvertisingDataType() {
+    public @AdvertisingDataType int getAdvertisingDataType() {
         return mAdvertisingDataType;
     }
 

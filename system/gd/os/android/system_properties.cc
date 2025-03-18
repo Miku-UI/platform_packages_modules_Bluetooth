@@ -23,7 +23,6 @@
 #include <cctype>
 
 #include "common/strings.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace os {

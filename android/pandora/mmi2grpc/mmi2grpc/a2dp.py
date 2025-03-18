@@ -17,12 +17,11 @@ import time
 from typing import Optional
 
 from grpc import RpcError
-
 from mmi2grpc._audio import AudioSignal
 from mmi2grpc._helpers import assert_description, match_description
 from mmi2grpc._proxy import ProfileProxy
 from pandora.a2dp_grpc import A2DP
-from pandora.a2dp_pb2 import Sink, Source, PlaybackAudioRequest
+from pandora.a2dp_pb2 import PlaybackAudioRequest, Sink, Source
 from pandora.host_grpc import Host
 from pandora.host_pb2 import Connection
 

@@ -20,16 +20,21 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+
+#include "a2dp_codec_api.h"
 #include "embdrv/sbc/decoder/include/oi_codec_sbc.h"
+#include "embdrv/sbc/decoder/include/oi_cpu_dep.h"
 #include "embdrv/sbc/decoder/include/oi_status.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<OI_STATUS> : enum_formatter<OI_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 typedef struct {
   OI_CODEC_SBC_DECODER_CONTEXT decoder_context;

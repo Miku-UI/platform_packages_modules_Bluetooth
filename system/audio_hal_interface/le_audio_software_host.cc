@@ -191,8 +191,6 @@ OffloadCapabilities get_offload_capabilities() {
           std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0)};
 }
 
-int GetAidlInterfaceVersion() { return 0; }
-
 void LeAudioClientInterface::Sink::Cleanup() {
   log::info("");
 
@@ -307,10 +305,10 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
 }
 
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
-        const ::le_audio::offload_config& offload_config) {}
+        const ::le_audio::offload_config& /*offload_config*/) {}
 
 void LeAudioClientInterface::Sink::UpdateBroadcastAudioConfigToHal(
-        ::le_audio::broadcast_offload_config const& config) {}
+        ::le_audio::broadcast_offload_config const& /*config*/) {}
 
 void LeAudioClientInterface::Sink::SuspendedForReconfiguration() {
   log::info("");
@@ -331,16 +329,17 @@ size_t LeAudioClientInterface::Sink::Read(uint8_t* p_buf, uint32_t len) {
 
 std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
 LeAudioClientInterface::Sink::GetUnicastConfig(
-        const ::bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements& requirements)
-        const {
+        const ::bluetooth::le_audio::CodecManager::
+                UnicastConfigurationRequirements& /*requirements*/) const {
   return std::nullopt;
 }
 
 std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
 LeAudioClientInterface::Sink::GetBroadcastConfig(
-        const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
-                subgroup_quality,
-        const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs) const {
+        const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType,
+                                    uint8_t>>& /*subgroup_quality*/,
+        const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& /*pacs*/)
+        const {
   return std::nullopt;
 }
 
@@ -458,7 +457,7 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
 }
 
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
-        const ::le_audio::offload_config& offload_config) {}
+        const ::le_audio::offload_config& /*offload_config*/) {}
 
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {
   log::info("");
@@ -473,7 +472,7 @@ size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf, uint32_t len)
 }
 
 LeAudioClientInterface::Sink* LeAudioClientInterface::GetSink(
-        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop,
+        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* /*message_loop*/,
         bool is_broadcasting_session_type) {
   if (is_broadcasting_session_type && !LeAudioHalVerifier::SupportsLeAudioBroadcast()) {
     log::warn("No support for broadcasting Le Audio");
@@ -519,7 +518,7 @@ bool LeAudioClientInterface::ReleaseSink(LeAudioClientInterface::Sink* sink) {
 }
 
 LeAudioClientInterface::Source* LeAudioClientInterface::GetSource(
-        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop) {
+        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* /*message_loop*/) {
   if (source_ == nullptr) {
     source_ = new Source();
   } else {
@@ -569,7 +568,7 @@ LeAudioClientInterface* LeAudioClientInterface::Get() {
   return LeAudioClientInterface::interface;
 }
 
-void LeAudioClientInterface::SetAllowedDsaModes(DsaModes dsa_modes) { return; }
+void LeAudioClientInterface::SetAllowedDsaModes(DsaModes /*dsa_modes*/) { return; }
 
 }  // namespace le_audio
 }  // namespace audio

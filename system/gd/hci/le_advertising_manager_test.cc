@@ -88,9 +88,9 @@ class TestLeAddressManager : public LeAddressManager {
 public:
   TestLeAddressManager(common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
                        os::Handler* handler, Address public_address, uint8_t accept_list_size,
-                       uint8_t resolving_list_size)
+                       uint8_t resolving_list_size, Controller* controller)
       : LeAddressManager(enqueue_command, handler, public_address, accept_list_size,
-                         resolving_list_size) {
+                         resolving_list_size, controller) {
     address_policy_ = AddressPolicy::USE_STATIC_ADDRESS;
     minimum_rotation_time_ = 0ms;
     maximum_rotation_time_ = 100ms;
@@ -140,9 +140,10 @@ protected:
     thread_ = new os::Thread("thread", os::Thread::Priority::NORMAL);
     handler_ = new os::Handler(thread_);
     Address address({0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
+    test_controller_ = new TestController;
     test_le_address_manager_ = new TestLeAddressManager(
             common::Bind(&TestAclManager::enqueue_command, common::Unretained(this)), handler_,
-            address, 0x3F, 0x3F);
+            address, 0x3F, 0x3F, test_controller_);
   }
 
   void Stop() override {
@@ -160,6 +161,7 @@ protected:
 
   os::Thread* thread_;
   os::Handler* handler_;
+  TestController* test_controller_ = nullptr;
   TestLeAddressManager* test_le_address_manager_;
 };
 

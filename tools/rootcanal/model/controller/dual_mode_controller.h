@@ -394,7 +394,7 @@ public:
   void LeReadBufferSizeV2(CommandView command);
 
   // 7.8.3
-  void LeReadLocalSupportedFeatures(CommandView command);
+  void LeReadLocalSupportedFeaturesPage0(CommandView command);
 
   // 7.8.4
   void LeSetRandomAddress(CommandView command);
@@ -424,7 +424,7 @@ public:
   void LeConnectionUpdate(CommandView command);
 
   // 7.8.21
-  void LeReadRemoteFeatures(CommandView command);
+  void LeReadRemoteFeaturesPage0(CommandView command);
 
   // 7.8.22
   void LeEncrypt(CommandView command);
@@ -450,6 +450,9 @@ public:
   void LeReadSuggestedDefaultDataLength(CommandView command);
   void LeWriteSuggestedDefaultDataLength(CommandView command);
 
+  // 7.8.36
+  void LeReadLocalP256PublicKey(CommandView command);
+
   // 7.8.38 - 7.8.41
   void LeAddDeviceToResolvingList(CommandView command);
   void LeRemoveDeviceFromResolvingList(CommandView command);
@@ -474,7 +477,7 @@ public:
 
   // 7.8.52 - 7.8.60
   void LeSetAdvertisingSetRandomAddress(CommandView command);
-  void LeSetExtendedAdvertisingParameters(CommandView command);
+  void LeSetExtendedAdvertisingParametersV1(CommandView command);
   void LeSetExtendedAdvertisingData(CommandView command);
   void LeSetExtendedScanResponseData(CommandView command);
   void LeSetExtendedAdvertisingEnable(CommandView command);
@@ -484,7 +487,7 @@ public:
   void LeClearAdvertisingSets(CommandView command);
 
   // 7.8.61 - 7.8.63
-  void LeSetPeriodicAdvertisingParameters(CommandView command);
+  void LeSetPeriodicAdvertisingParametersV1(CommandView command);
   void LeSetPeriodicAdvertisingData(CommandView command);
   void LeSetPeriodicAdvertisingEnable(CommandView command);
 
@@ -504,7 +507,7 @@ public:
   void LeSetExtendedScanEnable(CommandView command);
 
   // 7.8.66
-  void LeExtendedCreateConnection(CommandView command);
+  void LeExtendedCreateConnectionV1(CommandView command);
 
   // 7.8.77
   void LeSetPrivacyMode(CommandView command);
@@ -513,7 +516,7 @@ public:
   void LeRequestPeerSca(CommandView command);
 
   // 7.8.115
-  void LeSetHostFeature(CommandView command);
+  void LeSetHostFeatureV1(CommandView command);
 
   // Vendor-specific Commands
   void LeGetVendorCapabilities(CommandView command);

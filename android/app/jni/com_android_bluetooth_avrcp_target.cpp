@@ -18,14 +18,27 @@
 
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
-#include <include/hardware/avrcp/avrcp.h>
+#include <bluetooth/log.h>
+#include <jni.h>
 
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
 #include <map>
 #include <mutex>
 #include <shared_mutex>
+#include <string>
+#include <utility>
 #include <vector>
 
-#include "./com_android_bluetooth.h"
+#include "com_android_bluetooth.h"
+#include "hardware/avrcp/avrcp.h"
+#include "hardware/avrcp/avrcp_common.h"
+#include "hardware/bluetooth.h"
+#include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::avrcp::Attribute;
 using bluetooth::avrcp::AttributeEntry;

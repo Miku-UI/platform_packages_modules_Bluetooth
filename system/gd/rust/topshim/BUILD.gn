@@ -22,7 +22,6 @@ config("rust_topshim_config") {
 
 cxxbridge_header("btif_bridge_header") {
   sources = [
-    "src/btif.rs",
     "src/controller.rs",
     "src/metrics.rs",
     "src/profiles/a2dp.rs",
@@ -39,7 +38,6 @@ cxxbridge_header("btif_bridge_header") {
 
 cxxbridge_cc("btif_bridge_code") {
   sources = [
-    "src/btif.rs",
     "src/controller.rs",
     "src/metrics.rs",
     "src/profiles/a2dp.rs",
@@ -52,9 +50,11 @@ cxxbridge_cc("btif_bridge_code") {
   ]
   deps = [
     ":btif_bridge_header",
+    "//bt/system/bta/aics:aics",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",
   ]
   configs = [
+    "//bt/system/bta/aics:aics_defaults",
     "//bt/system/gd:gd_defaults",
     "//bt/system/log:log_defaults",
   ]
@@ -64,7 +64,6 @@ source_set("btif_cxx_bridge_code") {
   sources = [
     "btav/btav_shim.cc",
     "btav_sink/btav_sink_shim.cc",
-    "btif/btif_shim.cc",
     "controller/controller_shim.cc",
     "csis/csis_shim.cc",
     "gatt/gatt_ble_advertiser_shim.cc",
@@ -84,6 +83,9 @@ source_set("btif_cxx_bridge_code") {
   configs += [
     "//bt/system/gd:gd_defaults",
     "//bt/system/log:log_defaults",
+  ]
+  include_dirs = [
+    "//bt/system/bta/aics/include",
   ]
 }
 

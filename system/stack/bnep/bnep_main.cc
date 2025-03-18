@@ -22,23 +22,28 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bluetooth"
-
 #include <bluetooth/log.h>
 #include <string.h>
+
+#include <cstdint>
 
 #include "bnep_api.h"
 #include "bnep_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "l2cdefs.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -295,10 +300,12 @@ static void bnep_congestion_ind(uint16_t l2cap_cid, bool is_congested) {
         break;
       }
 
+      uint16_t len = p_buf->len;
+
       if (stack::l2cap::get_interface().L2CA_DataWrite(l2cap_cid, p_buf) !=
           tL2CAP_DW_RESULT::SUCCESS) {
         log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_bcb->rem_bda, l2cap_cid,
-                  p_buf->len);
+                  len);
       }
     }
   }

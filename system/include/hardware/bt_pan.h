@@ -17,7 +17,9 @@
 #pragma once
 
 #include <bluetooth/log.h>
-#include <raw_address.h>
+
+#include "hardware/bluetooth.h"
+#include "types/raw_address.h"
 
 #define BTPAN_ROLE_NONE 0
 #define BTPAN_ROLE_PANNAP 1
@@ -79,13 +81,12 @@ typedef struct {
    * Cleanup the pan interface
    */
   void (*cleanup)(void);
-
 } btpan_interface_t;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<btpan_connection_state_t> : enum_formatter<btpan_connection_state_t> {};
 
 template <>
 struct formatter<btpan_control_state_t> : enum_formatter<btpan_control_state_t> {};
-}  // namespace fmt
+}  // namespace std

@@ -69,6 +69,9 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::testing::_;
 
 using namespace bluetooth;
@@ -120,36 +123,39 @@ bluetooth::common::TimestamperInMilliseconds timestamper_in_milliseconds;
 
 void mock_on_send_data_upwards(BT_HDR*) {}
 
-void mock_on_packets_completed(uint16_t handle, uint16_t num_packets) {}
+void mock_on_packets_completed(uint16_t /*handle*/, uint16_t /*num_packets*/) {}
 
-void mock_connection_classic_on_connected(const RawAddress& bda, uint16_t handle, uint8_t enc_mode,
-                                          bool locally_initiated) {}
+void mock_connection_classic_on_connected(const RawAddress& /*bda*/, uint16_t /*handle*/,
+                                          uint8_t /*enc_mode*/, bool /*locally_initiated*/) {}
 
-void mock_connection_classic_on_failed(const RawAddress& bda, tHCI_STATUS status,
-                                       bool locally_initiated) {}
+void mock_connection_classic_on_failed(const RawAddress& /*bda*/, tHCI_STATUS /*status*/,
+                                       bool /*locally_initiated*/) {}
 
-void mock_connection_classic_on_disconnected(tHCI_STATUS status, uint16_t handle,
-                                             tHCI_STATUS reason) {
+void mock_connection_classic_on_disconnected(tHCI_STATUS /*status*/, uint16_t handle,
+                                             tHCI_STATUS /*reason*/) {
   ASSERT_TRUE(mock_function_handle_promise_map.find(__func__) !=
               mock_function_handle_promise_map.end());
   mock_function_handle_promise_map[__func__].set_value(handle);
 }
-void mock_connection_le_on_connected(const tBLE_BD_ADDR& address_with_type, uint16_t handle,
-                                     tHCI_ROLE role, uint16_t conn_interval, uint16_t conn_latency,
-                                     uint16_t conn_timeout, const RawAddress& local_rpa,
-                                     const RawAddress& peer_rpa, tBLE_ADDR_TYPE peer_addr_type,
-                                     bool can_read_discoverable_characteristics) {}
-void mock_connection_le_on_failed(const tBLE_BD_ADDR& address_with_type, uint16_t handle,
-                                  bool enhanced, tHCI_STATUS status) {}
+void mock_connection_le_on_connected(const tBLE_BD_ADDR& /*address_with_type*/, uint16_t /*handle*/,
+                                     tHCI_ROLE /*role*/, uint16_t /*conn_interval*/,
+                                     uint16_t /*conn_latency*/, uint16_t /*conn_timeout*/,
+                                     const RawAddress& /*local_rpa*/,
+                                     const RawAddress& /*peer_rpa*/,
+                                     tBLE_ADDR_TYPE /*peer_addr_type*/,
+                                     bool /*can_read_discoverable_characteristics*/) {}
+void mock_connection_le_on_failed(const tBLE_BD_ADDR& /*address_with_type*/, uint16_t /*handle*/,
+                                  bool /*enhanced*/, tHCI_STATUS /*status*/) {}
 static std::promise<uint16_t> mock_connection_le_on_disconnected_promise;
-void mock_connection_le_on_disconnected(tHCI_STATUS status, uint16_t handle, tHCI_STATUS reason) {
+void mock_connection_le_on_disconnected(tHCI_STATUS /*status*/, uint16_t handle,
+                                        tHCI_STATUS /*reason*/) {
   mock_connection_le_on_disconnected_promise.set_value(handle);
 }
 
-void mock_link_classic_on_read_remote_extended_features_complete(uint16_t handle,
-                                                                 uint8_t current_page_number,
-                                                                 uint8_t max_page_number,
-                                                                 uint64_t features) {}
+void mock_link_classic_on_read_remote_extended_features_complete(uint16_t /*handle*/,
+                                                                 uint8_t /*current_page_number*/,
+                                                                 uint8_t /*max_page_number*/,
+                                                                 uint64_t /*features*/) {}
 
 shim::acl_interface_t acl_interface{
         .on_send_data_upwards = mock_on_send_data_upwards,
@@ -208,7 +214,7 @@ template <typename T>
 class MockEnQueue : public os::IQueueEnqueue<T> {
   using EnqueueCallback = base::Callback<std::unique_ptr<T>()>;
 
-  void RegisterEnqueue(os::Handler* handler, EnqueueCallback callback) override {}
+  void RegisterEnqueue(os::Handler* /*handler*/, EnqueueCallback /*callback*/) override {}
   void UnregisterEnqueue() override {}
 };
 
@@ -216,7 +222,7 @@ template <typename T>
 class MockDeQueue : public os::IQueueDequeue<T> {
   using DequeueCallback = base::Callback<void()>;
 
-  void RegisterDequeue(os::Handler* handler, DequeueCallback callback) override {}
+  void RegisterDequeue(os::Handler* /*handler*/, DequeueCallback /*callback*/) override {}
   void UnregisterDequeue() override {}
   std::unique_ptr<T> TryDequeue() override { return nullptr; }
 };
@@ -255,7 +261,7 @@ public:
     return true;
   }
 
-  bool Disconnect(hci::DisconnectReason reason) override {
+  bool Disconnect(hci::DisconnectReason /*reason*/) override {
     disconnect_cnt_++;
     disconnect_promise_.set_value(handle_);
     return true;
@@ -296,7 +302,7 @@ public:
   bool ReadRemoteVersionInformation() override { return true; }
   bool LeReadRemoteFeatures() override { return true; }
 
-  void Disconnect(hci::DisconnectReason reason) override {
+  void Disconnect(hci::DisconnectReason /*reason*/) override {
     disconnect_cnt_++;
     disconnect_promise_.set_value(handle_);
   }
@@ -543,24 +549,27 @@ TEST_F(MainShimTest, BleScannerInterfaceImpl_nop) {
 class TestScanningCallbacks : public ::ScanningCallbacks {
 public:
   ~TestScanningCallbacks() {}
-  void OnScannerRegistered(const bluetooth::Uuid app_uuid, uint8_t scannerId,
-                           uint8_t status) override {}
-  void OnSetScannerParameterComplete(uint8_t scannerId, uint8_t status) override {}
-  void OnScanResult(uint16_t event_type, uint8_t addr_type, RawAddress bda, uint8_t primary_phy,
-                    uint8_t secondary_phy, uint8_t advertising_sid, int8_t tx_power, int8_t rssi,
-                    uint16_t periodic_adv_int, std::vector<uint8_t> adv_data) override {}
-  void OnTrackAdvFoundLost(AdvertisingTrackInfo advertising_track_info) override {}
-  void OnBatchScanReports(int client_if, int status, int report_format, int num_records,
-                          std::vector<uint8_t> data) override {}
-  void OnBatchScanThresholdCrossed(int client_if) override {}
-  void OnPeriodicSyncStarted(int reg_id, uint8_t status, uint16_t sync_handle,
-                             uint8_t advertising_sid, uint8_t address_type, RawAddress address,
-                             uint8_t phy, uint16_t interval) override {}
-  void OnPeriodicSyncReport(uint16_t sync_handle, int8_t tx_power, int8_t rssi, uint8_t status,
-                            std::vector<uint8_t> data) override {}
-  void OnPeriodicSyncLost(uint16_t sync_handle) override {}
-  void OnPeriodicSyncTransferred(int pa_source, uint8_t status, RawAddress address) override {}
-  void OnBigInfoReport(uint16_t sync_handle, bool encrypted) override {}
+  void OnScannerRegistered(const bluetooth::Uuid /*app_uuid*/, uint8_t /*scannerId*/,
+                           uint8_t /*status*/) override {}
+  void OnSetScannerParameterComplete(uint8_t /*scannerId*/, uint8_t /*status*/) override {}
+  void OnScanResult(uint16_t /*event_type*/, uint8_t /*addr_type*/, RawAddress /*bda*/,
+                    uint8_t /*primary_phy*/, uint8_t /*secondary_phy*/, uint8_t /*advertising_sid*/,
+                    int8_t /*tx_power*/, int8_t /*rssi*/, uint16_t /*periodic_adv_int*/,
+                    std::vector<uint8_t> /*adv_data*/) override {}
+  void OnTrackAdvFoundLost(AdvertisingTrackInfo /*advertising_track_info*/) override {}
+  void OnBatchScanReports(int /*client_if*/, int /*status*/, int /*report_format*/,
+                          int /*num_records*/, std::vector<uint8_t> /*data*/) override {}
+  void OnBatchScanThresholdCrossed(int /*client_if*/) override {}
+  void OnPeriodicSyncStarted(int /*reg_id*/, uint8_t /*status*/, uint16_t /*sync_handle*/,
+                             uint8_t /*advertising_sid*/, uint8_t /*address_type*/,
+                             RawAddress /*address*/, uint8_t /*phy*/,
+                             uint16_t /*interval*/) override {}
+  void OnPeriodicSyncReport(uint16_t /*sync_handle*/, int8_t /*tx_power*/, int8_t /*rssi*/,
+                            uint8_t /*status*/, std::vector<uint8_t> /*data*/) override {}
+  void OnPeriodicSyncLost(uint16_t /*sync_handle*/) override {}
+  void OnPeriodicSyncTransferred(int /*pa_source*/, uint8_t /*status*/,
+                                 RawAddress /*address*/) override {}
+  void OnBigInfoReport(uint16_t /*sync_handle*/, bool /*encrypted*/) override {}
 };
 
 TEST_F(MainShimTest, DISABLED_BleScannerInterfaceImpl_OnScanResult) {
@@ -643,7 +652,7 @@ TEST_F(MainShimTestWithClassicConnection, nop) {}
 TEST_F(MainShimTestWithClassicConnection, read_extended_feature) {
   int read_remote_extended_feature_call_count = 0;
   raw_connection_->read_remote_extended_features_function_ =
-          [&read_remote_extended_feature_call_count](uint8_t page_number) {
+          [&read_remote_extended_feature_call_count](uint8_t /*page_number*/) {
             read_remote_extended_feature_call_count++;
           };
 
@@ -717,7 +726,7 @@ TEST_F(MainShimTest, DumpsysNeighbor) {
           .hci_status = HCI_SUCCESS,
           .num_resp = 45,
           .resp_type = {20, 30, 40},
-          .start_time_ms = 0,
+          .start_time_ms = 1,
   });
 
   btm_cb.neighbor.inquiry_history_->Push({
@@ -725,7 +734,7 @@ TEST_F(MainShimTest, DumpsysNeighbor) {
           .hci_status = HCI_SUCCESS,
           .num_resp = 123,
           .resp_type = {50, 60, 70},
-          .start_time_ms = -1,
+          .start_time_ms = 0,
   });
 
   DumpsysNeighbor(STDOUT_FILENO);

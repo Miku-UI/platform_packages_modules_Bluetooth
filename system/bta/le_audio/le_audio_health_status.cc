@@ -17,14 +17,22 @@
 #include "le_audio_health_status.h"
 
 #include <bluetooth/log.h>
+#include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <sstream>
+#include <utility>
 #include <vector>
 
 #include "bta/include/bta_groups.h"
 #include "common/strings.h"
+#include "device_groups.h"
+#include "devices.h"
+#include "hardware/bt_le_audio.h"
 #include "main/shim/metrics_api.h"
-#include "os/log.h"
-#include "osi/include/properties.h"
+#include "os/logging/log_adapter.h"
+#include "types/raw_address.h"
 
 using bluetooth::common::ToString;
 using bluetooth::groups::kGroupUnknown;

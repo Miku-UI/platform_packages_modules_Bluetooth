@@ -21,18 +21,25 @@
  *  AVRCP SDP related functions
  *
  ******************************************************************************/
+
 #define LOG_TAG "avrcp"
 
 #include <bluetooth/log.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "avct_api.h"
 #include "avrc_api.h"
+#include "avrc_defs.h"
 #include "avrc_int.h"
-#include "os/log.h"
+#include "sdp_status.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
@@ -65,16 +72,19 @@ static uint16_t a2dp_attr_list_sdp[] = {
  * Returns          Nothing.
  *
  *****************************************************************************/
-static void avrc_sdp_cback(const RawAddress& /* bd_addr */, tSDP_STATUS status) {
-  log::verbose("status: {}", status);
+static void avrc_sdp_cback(const RawAddress& bd_addr, tSDP_STATUS status) {
+  log::verbose("peer:{} status: {}", bd_addr, status);
 
   /* reset service_uuid, so can start another find service */
   avrc_cb.service_uuid = 0;
 
   /* return info from sdp record in app callback function */
-  avrc_cb.find_cback.Run(status);
-
-  return;
+  if (!avrc_cb.find_cback.is_null()) {
+    avrc_cb.find_cback.Run(status);
+  } else {
+    log::warn("Received SDP callback with NULL callback peer:{} status:{}", bd_addr,
+              sdp_status_text(status));
+  }
 }
 
 /******************************************************************************
@@ -247,7 +257,7 @@ uint16_t AVRC_AddRecord(uint16_t service_uuid, const char* p_service_name,
   tSDP_PROTOCOL_ELEM avrc_proto_desc_list[AVRC_NUM_PROTO_ELEMS];
   avrc_proto_desc_list[0].num_params = 1;
   avrc_proto_desc_list[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
-  avrc_proto_desc_list[0].params[0] = AVCT_PSM;
+  avrc_proto_desc_list[0].params[0] = BT_PSM_AVCTP;
   avrc_proto_desc_list[0].params[1] = 0;
   for (index = 1; index < AVRC_NUM_PROTO_ELEMS; index++) {
     avrc_proto_desc_list[index].num_params = 1;
@@ -271,7 +281,7 @@ uint16_t AVRC_AddRecord(uint16_t service_uuid, const char* p_service_name,
       avrc_add_proto_desc_lists[i].num_elems = 2;
       avrc_add_proto_desc_lists[i].list_elem[0].num_params = 1;
       avrc_add_proto_desc_lists[i].list_elem[0].protocol_uuid = UUID_PROTOCOL_L2CAP;
-      avrc_add_proto_desc_lists[i].list_elem[0].params[0] = AVCT_BR_PSM;
+      avrc_add_proto_desc_lists[i].list_elem[0].params[0] = BT_PSM_AVCTP_BROWSE;
       avrc_add_proto_desc_lists[i].list_elem[0].params[1] = 0;
       avrc_add_proto_desc_lists[i].list_elem[1].num_params = 1;
       avrc_add_proto_desc_lists[i].list_elem[1].protocol_uuid = UUID_PROTOCOL_AVCTP;

@@ -36,7 +36,17 @@
 #include "test/mock/mock_stack_btm_dev.h"
 #include "test/mock/mock_stack_l2cap_api.h"
 #include "test/mock/mock_stack_l2cap_ble.h"
+#include "test/mock/mock_stack_l2cap_interface.h"
 #include "test/rfcomm/stack_rfcomm_test_utils.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+using ::testing::_;
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::Unused;
 
 namespace bluetooth {
 namespace hal {
@@ -71,30 +81,34 @@ void port_event_cback(uint32_t code, uint16_t port_handle) {
 }
 
 class FakeBtStack {
+  NiceMock<bluetooth::testing::stack::l2cap::Mock> mock_l2cap_interface;
 public:
-  FakeBtStack() {
-    test::mock::stack_l2cap_api::L2CA_DataWrite.body = [](uint16_t lcid, BT_HDR* hdr) {
-      osi_free(hdr);
-      return tL2CAP_DW_RESULT::SUCCESS;
-    };
-    test::mock::stack_l2cap_api::L2CA_ConnectReq.body =
-            [](uint16_t psm, const RawAddress& raw_address) { return kDummyCID; };
+  NiceMock<bluetooth::rfcomm::MockRfcommCallback> mock_rfcomm_callback;
 
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq.body = [](uint16_t) { return true; };
-    test::mock::stack_l2cap_api::L2CA_Register.body =
-            [](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
-               tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
-               uint16_t sec_level) {
-              appl_info = p_cb_info;
-              return psm;
-            };
+  FakeBtStack() {
+    ON_CALL(mock_l2cap_interface, L2CA_DataWrite)
+        .WillByDefault([](Unused, BT_HDR* hdr) {
+          osi_free(hdr);
+          return tL2CAP_DW_RESULT::SUCCESS;
+        });
+    ON_CALL(mock_l2cap_interface, L2CA_ConnectReq)
+        .WillByDefault([](Unused, Unused) { return kDummyCID; });
+    ON_CALL(mock_l2cap_interface, L2CA_DisconnectReq)
+        .WillByDefault([](Unused) { return true; });
+    ON_CALL(mock_l2cap_interface, L2CA_Register)
+      .WillByDefault([](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, Unused, Unused,
+          Unused, Unused, Unused) {
+        appl_info = p_cb_info;
+        return psm;
+      });
+    bluetooth::testing::stack::l2cap::set_interface(&mock_l2cap_interface);
+
+    rfcomm_callback = &mock_rfcomm_callback;
   }
 
   ~FakeBtStack() {
-    test::mock::stack_l2cap_api::L2CA_DataWrite = {};
-    test::mock::stack_l2cap_api::L2CA_ConnectReq = {};
-    test::mock::stack_l2cap_api::L2CA_DisconnectReq = {};
-    test::mock::stack_l2cap_api::L2CA_Register = {};
+    rfcomm_callback = nullptr;
+    bluetooth::testing::stack::l2cap::reset_interface();
   }
 };
 
@@ -102,15 +116,6 @@ class Fakes {
 public:
   test::fake::FakeOsi fake_osi;
   FakeBtStack fake_stack;
-};
-
-class Mocks {
-public:
-  ::testing::NiceMock<bluetooth::rfcomm::MockRfcommCallback> mock_rfcomm_callback;
-
-  Mocks() { rfcomm_callback = &mock_rfcomm_callback; }
-
-  ~Mocks() { rfcomm_callback = nullptr; }
 };
 
 }  // namespace
@@ -208,7 +213,6 @@ static void FuzzAsClient(FuzzedDataProvider* fdp) {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto fakes = std::make_unique<Fakes>();
-  auto mocks = std::make_unique<Mocks>();
 
   FuzzedDataProvider fdp(data, size);
 

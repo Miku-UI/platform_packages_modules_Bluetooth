@@ -125,7 +125,7 @@ if (use.test) {
       "//bt/system/test/common/mock_functions.cc",
     ]
     include_dirs = [
-      "//bt/system/types",
+      "//bt/system",
     ]
     configs += [
       ":target_defaults",
@@ -154,7 +154,7 @@ if (use.test) {
       "//bt/system/test/common/mock_functions.cc",
     ]
     include_dirs = [
-      "//bt/system/types",
+      "//bt/system",
     ]
     configs += [
       ":target_defaults",

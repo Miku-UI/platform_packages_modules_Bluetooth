@@ -29,6 +29,9 @@
 #include "test/headless/headless.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 std::promise<tBTM_REMOTE_DEV_NAME> promise_;
 
 void RemoteNameCallback(const tBTM_REMOTE_DEV_NAME* data) { promise_.set_value(*data); }

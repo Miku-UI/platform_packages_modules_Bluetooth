@@ -55,8 +55,8 @@ static_library("osi") {
 
   deps = [
     "//bt/flags:bluetooth_flags_c_lib",
+    "//bt/sysprop:libcom.android.sysprop.bluetooth",
     "//bt/system/common",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 
   configs += [
@@ -93,6 +93,7 @@ if (use.test) {
     ]
 
     deps = [
+      "//bt/sysprop:libcom.android.sysprop.bluetooth",
       "//bt/system/osi",
     ]
 

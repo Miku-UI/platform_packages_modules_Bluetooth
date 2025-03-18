@@ -23,10 +23,13 @@
  ******************************************************************************/
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/pan/bta_pan_int.h"
-#include "internal_include/bt_target.h"
+#include "bta_pan_api.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
@@ -56,7 +59,6 @@ typedef void (*tBTA_PAN_ACTION)(tBTA_PAN_SCB* p_scb, tBTA_PAN_DATA* p_data);
 const tBTA_PAN_ACTION bta_pan_action[] = {
         bta_pan_api_close, bta_pan_tx_path,   bta_pan_rx_path,    bta_pan_tx_flow,
         bta_pan_write_buf, bta_pan_conn_open, bta_pan_conn_close, bta_pan_free_buf,
-
 };
 
 /* state table information */
@@ -75,8 +77,7 @@ const uint8_t bta_pan_st_idle[][BTA_PAN_NUM_COLS] = {
         /* PAN_CONN_OPEN */ {BTA_PAN_CONN_OPEN, BTA_PAN_OPEN_ST},
         /* PAN_CONN_CLOSE */ {BTA_PAN_CONN_OPEN, BTA_PAN_IDLE_ST},
         /* FLOW_ENABLE */ {BTA_PAN_IGNORE, BTA_PAN_IDLE_ST},
-        /* BNEP_DATA */ {BTA_PAN_IGNORE, BTA_PAN_IDLE_ST}
-
+        /* BNEP_DATA */ {BTA_PAN_IGNORE, BTA_PAN_IDLE_ST},
 };
 
 /* state table for open state */
@@ -90,7 +91,8 @@ const uint8_t bta_pan_st_open[][BTA_PAN_NUM_COLS] = {
         /* PAN_CONN_OPEN */ {BTA_PAN_IGNORE, BTA_PAN_OPEN_ST},
         /* PAN_CONN_CLOSE */ {BTA_PAN_CONN_CLOSE, BTA_PAN_IDLE_ST},
         /* FLOW_ENABLE */ {BTA_PAN_RX_PATH, BTA_PAN_OPEN_ST},
-        /* BNEP_DATA */ {BTA_PAN_TX_PATH, BTA_PAN_OPEN_ST}};
+        /* BNEP_DATA */ {BTA_PAN_TX_PATH, BTA_PAN_OPEN_ST},
+};
 
 /* state table for closing state */
 const uint8_t bta_pan_st_closing[][BTA_PAN_NUM_COLS] = {
@@ -103,7 +105,8 @@ const uint8_t bta_pan_st_closing[][BTA_PAN_NUM_COLS] = {
         /* PAN_CONN_OPEN */ {BTA_PAN_IGNORE, BTA_PAN_CLOSING_ST},
         /* PAN_CONN_CLOSE */ {BTA_PAN_CONN_CLOSE, BTA_PAN_IDLE_ST},
         /* FLOW_ENABLE */ {BTA_PAN_RX_PATH, BTA_PAN_CLOSING_ST},
-        /* BNEP_DATA */ {BTA_PAN_TX_PATH, BTA_PAN_CLOSING_ST}};
+        /* BNEP_DATA */ {BTA_PAN_TX_PATH, BTA_PAN_CLOSING_ST},
+};
 
 /* type for state table */
 typedef const uint8_t (*tBTA_PAN_ST_TBL)[BTA_PAN_NUM_COLS];
@@ -158,7 +161,7 @@ tBTA_PAN_SCB* bta_pan_scb_alloc(void) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event, tBTA_PAN_DATA* p_data) {
+static void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event, tBTA_PAN_DATA* p_data) {
   tBTA_PAN_ST_TBL state_table;
   uint8_t action;
   int i;
@@ -194,7 +197,7 @@ void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event, tBTA_PAN_DATA* p_da
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_api_enable(tBTA_PAN_DATA* p_data) {
+static void bta_pan_api_enable(tBTA_PAN_DATA* p_data) {
   /* initialize control block */
   memset(&bta_pan_cb, 0, sizeof(bta_pan_cb));
 
@@ -213,7 +216,7 @@ void bta_pan_api_enable(tBTA_PAN_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_api_disable(tBTA_PAN_DATA* /* p_data */) { bta_pan_disable(); }
+static void bta_pan_api_disable(tBTA_PAN_DATA* /* p_data */) { bta_pan_disable(); }
 
 /*******************************************************************************
  *
@@ -225,7 +228,7 @@ void bta_pan_api_disable(tBTA_PAN_DATA* /* p_data */) { bta_pan_disable(); }
  * Returns          void
  *
  ******************************************************************************/
-void bta_pan_api_open(tBTA_PAN_DATA* p_data) {
+static void bta_pan_api_open(tBTA_PAN_DATA* p_data) {
   tBTA_PAN_SCB* p_scb;
   tBTA_PAN bta_pan;
 

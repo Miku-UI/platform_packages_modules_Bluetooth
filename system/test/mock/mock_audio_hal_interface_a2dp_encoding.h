@@ -34,7 +34,7 @@
 #include "audio_hal_interface/a2dp_encoding.h"
 
 // Original usings
-using bluetooth::audio::a2dp::BluetoothAudioStatus;
+using bluetooth::audio::a2dp::Status;
 using bluetooth::audio::a2dp::provider::a2dp_configuration;
 using bluetooth::audio::a2dp::provider::a2dp_remote_capabilities;
 
@@ -46,20 +46,20 @@ namespace audio_hal_interface_a2dp_encoding {
 
 // Shared state between mocked functions and tests
 // Name: ack_stream_started
-// Params: BluetoothAudioStatus
+// Params: Status
 // Return: void
 struct ack_stream_started {
-  std::function<void(BluetoothAudioStatus status)> body{[](BluetoothAudioStatus /* status */) {}};
-  void operator()(BluetoothAudioStatus status) { body(status); }
+  std::function<void(Status status)> body{[](Status /* status */) {}};
+  void operator()(Status status) { body(status); }
 };
 extern struct ack_stream_started ack_stream_started;
 
 // Name: ack_stream_suspended
-// Params: BluetoothAudioStatus
+// Params: Status
 // Return: void
 struct ack_stream_suspended {
-  std::function<void(BluetoothAudioStatus status)> body{[](BluetoothAudioStatus /* status */) {}};
-  void operator()(BluetoothAudioStatus status) { body(status); }
+  std::function<void(Status status)> body{[](Status /* status */) {}};
+  void operator()(Status status) { body(status); }
 };
 extern struct ack_stream_suspended ack_stream_suspended;
 
@@ -86,17 +86,17 @@ struct codec_index_str {
 extern struct codec_index_str codec_index_str;
 
 // Name: codec_info
-// Params: btav_a2dp_codec_index_t codec_index, uint64_t *codec_id, uint8_t*
+// Params: btav_a2dp_codec_index_t codec_index, CodecId *codec_id, uint8_t*
 // codec_info, btav_a2dp_codec_config_t* codec_config Return: bool
 struct codec_info {
   static bool return_value;
-  std::function<bool(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
-                     btav_a2dp_codec_config_t* codec_config)>
-          body{[](btav_a2dp_codec_index_t /* codec_index */, uint64_t* /* codec_id */,
-                  uint8_t* /* codec_info */,
+  std::function<bool(btav_a2dp_codec_index_t codec_index, bluetooth::a2dp::CodecId* codec_id,
+                     uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config)>
+          body{[](btav_a2dp_codec_index_t /* codec_index */,
+                  bluetooth::a2dp::CodecId* /* codec_id */, uint8_t* /* codec_info */,
                   btav_a2dp_codec_config_t* /* codec_config */) { return return_value; }};
-  bool operator()(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
-                  btav_a2dp_codec_config_t* codec_config) {
+  bool operator()(btav_a2dp_codec_index_t codec_index, bluetooth::a2dp::CodecId* codec_id,
+                  uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config) {
     return body(codec_index, codec_id, codec_info, codec_config);
   }
 };
@@ -136,9 +136,15 @@ extern struct get_a2dp_configuration get_a2dp_configuration;
 // Return: bool
 struct init {
   static bool return_value;
-  std::function<bool(bluetooth::common::MessageLoopThread* message_loop)> body{
-          [](bluetooth::common::MessageLoopThread* /* message_loop */) { return return_value; }};
-  bool operator()(bluetooth::common::MessageLoopThread* message_loop) { return body(message_loop); }
+  std::function<bool(bluetooth::common::MessageLoopThread* message_loop,
+                     bluetooth::audio::a2dp::StreamCallbacks const*, bool)>
+          body{[](bluetooth::common::MessageLoopThread* /* message_loop */,
+                  bluetooth::audio::a2dp::StreamCallbacks const* /* audio_port */,
+                  bool /* offload_enabled */) { return return_value; }};
+  bool operator()(bluetooth::common::MessageLoopThread* message_loop,
+                  bluetooth::audio::a2dp::StreamCallbacks const* audio_port, bool offload_enabled) {
+    return body(message_loop, audio_port, offload_enabled);
+  }
 };
 extern struct init init;
 
@@ -226,9 +232,14 @@ extern struct set_remote_delay set_remote_delay;
 // Return: bool
 struct setup_codec {
   static bool return_value;
-  std::function<bool(A2dpCodecConfig* a2dp_config)> body{
-          [](A2dpCodecConfig* /* a2dp_config */) { return return_value; }};
-  bool operator()(A2dpCodecConfig* a2dp_config) { return body(a2dp_config); }
+  std::function<bool(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                     int preferred_encoding_interval_us)>
+          body{[](A2dpCodecConfig* /* a2dp_config */, uint16_t /* peer_mtu */,
+                  int /* preferred_encoding_interval_us */) { return return_value; }};
+  bool operator()(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
+                  int preferred_encoding_interval_us) {
+    return body(a2dp_config, peer_mtu, preferred_encoding_interval_us);
+  }
 };
 extern struct setup_codec setup_codec;
 

@@ -7,12 +7,13 @@ aconfig_declarations {
     name: "bluetooth_aconfig_flags",
     package: "com.android.bluetooth.flags",
     container: "com.android.btservices",
+    visibility: ["//packages/modules/Bluetooth/framework"],
     // LINT.IfChange
     srcs: [
         "a2dp.aconfig",
         "active_device_manager.aconfig",
+        "adapter.aconfig",
         "asha.aconfig",
-        "audio_routing.aconfig",
         "avrcp.aconfig",
         "avrcp_controller.aconfig",
         "bta_dm.aconfig",
@@ -23,6 +24,7 @@ aconfig_declarations {
         "dis.aconfig",
         "framework.aconfig",
         "gap.aconfig",
+        "gatt.aconfig",
         "hal.aconfig",
         "hap.aconfig",
         "hci.aconfig",
@@ -38,6 +40,7 @@ aconfig_declarations {
         "metric.aconfig",
         "opp.aconfig",
         "pairing.aconfig",
+        "pbapclient.aconfig",
         "ranging.aconfig",
         "rfcomm.aconfig",
         "rnr.aconfig",
@@ -57,17 +60,8 @@ aconfig_declarations {
 java_aconfig_library {
     name: "bluetooth_flags_java_lib",
     aconfig_declarations: "bluetooth_aconfig_flags",
-    visibility: [
-        "//cts/tests/tests/bluetooth:__subpackages__",
-        "//packages/modules/Bluetooth/android/app",
-        "//packages/modules/Bluetooth/framework",
-        "//packages/modules/Bluetooth/framework/tests/bumble",
-        "//packages/modules/Bluetooth/framework/tests/util",
-        "//packages/modules/Bluetooth/service:__subpackages__",
-    ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    visibility: ["//packages/modules/Bluetooth:__subpackages__"],
+    apex_available: ["com.android.btservices"],
     libs: ["framework-configinfrastructure.stubs.module_lib"],
     sdk_version: "module_current",
     min_sdk_version: "Tiramisu",
@@ -80,7 +74,9 @@ java_aconfig_library {
     min_sdk_version: "VanillaIceCream",
     mode: "exported",
     visibility: [
+        "//cts/tests/tests/bluetooth:__subpackages__",
         "//frameworks/base",
+        "//frameworks/base/packages/SettingsLib",
     ],
 }
 
@@ -88,12 +84,8 @@ cc_aconfig_library {
     name: "bluetooth_flags_c_lib",
     aconfig_declarations: "bluetooth_aconfig_flags",
     host_supported: true,
-    visibility: [
-        "//packages/modules/Bluetooth:__subpackages__",
-    ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    visibility: ["//packages/modules/Bluetooth:__subpackages__"],
+    apex_available: ["com.android.btservices"],
     min_sdk_version: "Tiramisu",
 }
 
@@ -102,9 +94,7 @@ cc_aconfig_library {
     aconfig_declarations: "bluetooth_aconfig_flags",
     mode: "test",
     host_supported: true,
-    visibility: [
-        "//packages/modules/Bluetooth/system:__subpackages__",
-    ],
+    visibility: ["//packages/modules/Bluetooth/system:__subpackages__"],
     min_sdk_version: "Tiramisu",
 }
 
@@ -113,11 +103,7 @@ rust_aconfig_library {
     host_supported: true,
     crate_name: "bluetooth_aconfig_flags_rust",
     aconfig_declarations: "bluetooth_aconfig_flags",
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.btservices"],
     min_sdk_version: "Tiramisu",
-    visibility: [
-        "//packages/modules/Bluetooth/system:__subpackages__",
-    ],
+    visibility: ["//packages/modules/Bluetooth/system:__subpackages__"],
 }

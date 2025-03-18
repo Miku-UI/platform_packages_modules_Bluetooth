@@ -35,7 +35,7 @@ enum : unsigned {
   properties.high_duty_cycle_ = (mask & HIGH_DUTY_CYCLE) != 0;
   properties.legacy_ = (mask & LEGACY) != 0;
   properties.anonymous_ = (mask & ANONYMOUS) != 0;
-  properties.tx_power_ = (mask & TX_POWER) != 0;
+  properties.include_tx_power_ = (mask & TX_POWER) != 0;
   return properties;
 }
 

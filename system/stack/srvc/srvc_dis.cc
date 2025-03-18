@@ -23,7 +23,6 @@
 
 #include "gatt_api.h"
 #include "hardware/bt_gatt_types.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "srvc_dis_int.h"
@@ -65,31 +64,6 @@ static tDIS_ATTR_MASK dis_uuid_to_attr(uint16_t uuid) {
     default:
       return 0;
   };
-}
-
-/*******************************************************************************
- *   dis_valid_handle_range
- *
- *   validate a handle to be a DIS attribute handle or not.
- ******************************************************************************/
-bool dis_valid_handle_range(uint16_t /* handle */) { return false; }
-/*******************************************************************************
- *   dis_write_attr_value
- *
- *   Process write DIS attribute request.
- ******************************************************************************/
-uint8_t dis_write_attr_value(tGATT_WRITE_REQ* /* p_data */, tGATT_STATUS* p_status) {
-  *p_status = GATT_WRITE_NOT_PERMIT;
-  return SRVC_ACT_RSP;
-}
-/*******************************************************************************
- *   DIS Attributes Database Server Request callback
- ******************************************************************************/
-uint8_t dis_read_attr_value(uint8_t /* clcb_idx */, uint16_t /* handle */,
-                            tGATT_VALUE* /* p_value */, bool /* is_long */,
-                            tGATT_STATUS* p_status) {
-  *p_status = GATT_NOT_FOUND;
-  return SRVC_ACT_RSP;
 }
 
 /*******************************************************************************
@@ -143,7 +117,7 @@ static void dis_gatt_c_read_dis_value_cmpl(tCONN_ID conn_id) {
  * Returns          void
  *
  ******************************************************************************/
-bool dis_gatt_c_read_dis_req(tCONN_ID conn_id) {
+static bool dis_gatt_c_read_dis_req(tCONN_ID conn_id) {
   tGATT_READ_PARAM param;
 
   memset(&param, 0, sizeof(tGATT_READ_PARAM));

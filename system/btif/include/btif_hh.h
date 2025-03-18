@@ -94,7 +94,8 @@ typedef struct {
   fixed_queue_t* set_rpt_id_queue;
 #endif  // ENABLE_UHID_SET_REPORT
   fixed_queue_t* input_queue;  // to store the inputs before uhid is ready.
-  alarm_t* ready_timer;
+  alarm_t* delayed_ready_timer;  // to delay marking a device as ready, give input chance to listen.
+  alarm_t* ready_disconn_timer;  // to disconnect device if still not ready after some time.
 } btif_hh_uhid_t;
 
 /* Control block to maintain properties of devices */
@@ -141,10 +142,13 @@ typedef struct {
 
 extern btif_hh_cb_t btif_hh_cb;
 
+const bthh_interface_t* btif_hh_get_interface();
+bt_status_t btif_hh_execute_service(bool b_enable);
 btif_hh_device_t* btif_hh_find_connected_dev_by_handle(uint8_t handle);
 btif_hh_device_t* btif_hh_find_dev_by_handle(uint8_t handle);
 btif_hh_device_t* btif_hh_find_empty_dev(void);
 bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec);
+bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec);
 void btif_hh_remove_device(const tAclLinkSpec& link_spec);
 void btif_hh_setreport(btif_hh_uhid_t* p_uhid, bthh_report_type_t r_type, uint16_t size,
                        uint8_t* report);
@@ -157,11 +161,21 @@ void btif_hh_load_bonded_dev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK at
                              uint8_t sub_class, uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info,
                              bool reconnect_allowed);
 
+int bta_hh_co_write(int fd, uint8_t* rpt, uint16_t len);
+void bta_hh_co_close(btif_hh_device_t* p_dev);
+void bta_hh_co_send_hid_info(btif_hh_device_t* p_dev, const char* dev_name, uint16_t vendor_id,
+                             uint16_t product_id, uint16_t version, uint8_t ctry_code,
+                             uint16_t dscp_len, uint8_t* p_dscp);
+
 void DumpsysHid(int fd);
 
-namespace fmt {
+namespace bluetooth::legacy::testing {
+void bte_hh_evt(tBTA_HH_EVT event, tBTA_HH* p_data);
+}  // namespace bluetooth::legacy::testing
+
+namespace std {
 template <>
 struct formatter<BTIF_HH_STATUS> : enum_formatter<BTIF_HH_STATUS> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

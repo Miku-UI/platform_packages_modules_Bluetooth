@@ -22,6 +22,7 @@ java_defaults {
 
     static_libs: [
         "PlatformProperties",
+        "android.media.audio-aconfig-exported-java",
         "androidx.media_media",
         "androidx.room_room-migration",
         "androidx.room_room-runtime",
@@ -30,6 +31,7 @@ java_defaults {
         "androidx.test.ext.truth",
         "androidx.test.rules",
         "androidx.test.uiautomator_uiautomator",
+        "bluetooth_flags_java_lib",
         "com.android.sysprop.bluetooth",
         "flag-junit",
         "framework-bluetooth-pre-jarjar",
@@ -41,6 +43,7 @@ java_defaults {
         "truth",
     ],
 
+    jarjar_rules: ":bluetooth-jarjar-rules",
     asset_dirs: ["src/com/android/bluetooth/btservice/storage/schemas"],
 
     // Include all test java files.

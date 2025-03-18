@@ -31,12 +31,15 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace {
 TimestampedStringCircularBuffer gatt_history_{50};
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr unsigned MillisPerSecond = 1000;
-std::string EpochMillisToString(long long time_ms) {
+std::string EpochMillisToString(uint64_t time_ms) {
   time_t time_sec = time_ms / MillisPerSecond;
   struct tm tm;
   localtime_r(&time_sec, &tm);
@@ -51,7 +54,7 @@ gatt_interface_t default_gatt_interface = {
                 [](tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct) {
                   gatt_history_.Push(base::StringPrintf(
                           "%-32s bd_addr:%s client_if:%hu is_direct:%c", "GATTC_CancelOpen",
-                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if,
+                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), static_cast<uint16_t>(client_if),
                           (is_direct) ? 'T' : 'F'));
                   BTA_GATTC_CancelOpen(client_if, remote_bda, is_direct);
                 },
@@ -98,8 +101,8 @@ gatt_interface_t default_gatt_interface = {
                    tBTM_BLE_CONN_TYPE connection_type, bool opportunistic, uint16_t preferred_mtu) {
                   gatt_history_.Push(base::StringPrintf(
                           "%-32s bd_addr:%s client_if:%hu type:0x%x opportunistic:%c", "GATTC_Open",
-                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), client_if, connection_type,
-                          (opportunistic) ? 'T' : 'F'));
+                          ADDRESS_TO_LOGGABLE_CSTR(remote_bda), static_cast<uint16_t>(client_if),
+                          connection_type, (opportunistic) ? 'T' : 'F'));
                   BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type,
                                  BT_TRANSPORT_LE, opportunistic, LE_PHY_1M, preferred_mtu);
                 },

@@ -73,8 +73,8 @@ private:
 
 }  // namespace bluetooth::le_audio
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::CodecInterface::Status>
     : enum_formatter<bluetooth::le_audio::CodecInterface::Status> {};
-}  // namespace fmt
+}  // namespace std

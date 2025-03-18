@@ -16,14 +16,18 @@
 
 #define LOG_TAG "BluetoothKeystoreServiceJni"
 
-#include <string.h>
+#include <bluetooth/log.h>
+#include <jni.h>
 
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
+#include <string>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_keystore.h"
 
-using bluetooth::bluetooth_keystore::BluetoothKeystoreCallbacks;
 using bluetooth::bluetooth_keystore::BluetoothKeystoreInterface;
 
 namespace android {

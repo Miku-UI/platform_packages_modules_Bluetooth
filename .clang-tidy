@@ -1,0 +1,20 @@
+---
+CheckOptions:
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: "(\
+        fmt/.*|\
+        bits/.*.h|\
+        asm-generic/.*.h|\
+        sys/poll.h|\
+        sys/endian.h|\
+        sys/ioctl.h|\
+        arpa/inet.h|\
+        linux/time.h|\
+        linux/if.h|\
+        linux/sockios.h|\
+        netinet/in.h|\
+        osi/include/compat.h|\
+        android_bluetooth_sysprop.h|\
+        hfp.sysprop.h|\
+        enums.pb.h|\
+        __chrono/duration.h)"

@@ -65,7 +65,7 @@ mod inner {
 
     #[namespace = "bluetooth"]
     extern "C++" {
-        include!("bluetooth/uuid.h");
+        include!("types/bluetooth/uuid.h");
         type Uuid = crate::core::uuid::Uuid;
     }
 
@@ -75,17 +75,10 @@ mod inner {
         type GattServerCallbacks = crate::gatt::GattServerCallbacks;
     }
 
-    #[namespace = "bluetooth::connection"]
-    unsafe extern "C++" {
-        include!("src/connection/ffi/connection_shim.h");
-        type LeAclManagerShim = crate::connection::LeAclManagerShim;
-    }
-
     #[namespace = "bluetooth::rust_shim"]
     extern "Rust" {
         fn start(
             gatt_server_callbacks: UniquePtr<GattServerCallbacks>,
-            le_acl_manager: UniquePtr<LeAclManagerShim>,
             on_started: Pin<&'static mut Future>,
         );
 

@@ -37,9 +37,12 @@ pub trait IBluetoothQA {
     /// Sets HID report to the peer.
     /// Result will be returned in the callback |OnSetHIDReportComplete|
     fn set_hid_report(&self, addr: RawAddress, report_type: BthhReportType, report: String);
-    /// Snd HID data report to the peer.
+    /// Sends HID data report to the peer.
     /// Result will be returned in the callback |OnSendHIDDataComplete|
     fn send_hid_data(&self, addr: RawAddress, data: String);
+    /// Sends HID virtual unplug to the peer.
+    /// Result will be returned in the callback |OnSendHIDVirtualUnplugComplete|
+    fn send_hid_virtual_unplug(&self, addr: RawAddress);
 }
 
 pub trait IBluetoothQACallback: RPCProxy {
@@ -50,6 +53,7 @@ pub trait IBluetoothQACallback: RPCProxy {
     fn on_get_hid_report_completed(&mut self, status: BtStatus);
     fn on_set_hid_report_completed(&mut self, status: BtStatus);
     fn on_send_hid_data_completed(&mut self, status: BtStatus);
+    fn on_send_hid_virtual_unplug_completed(&mut self, status: BtStatus);
 }
 
 pub struct BluetoothQA {
@@ -97,6 +101,11 @@ impl BluetoothQA {
     pub fn on_send_hid_data_completed(&mut self, status: BtStatus) {
         self.callbacks.for_all_callbacks(|cb: &mut Box<dyn IBluetoothQACallback + Send>| {
             cb.on_send_hid_data_completed(status);
+        });
+    }
+    pub fn on_send_hid_virtual_unplug_completed(&mut self, status: BtStatus) {
+        self.callbacks.for_all_callbacks(|cb: &mut Box<dyn IBluetoothQACallback + Send>| {
+            cb.on_send_hid_virtual_unplug_completed(status);
         });
     }
 }
@@ -164,6 +173,12 @@ impl IBluetoothQA for BluetoothQA {
         let txl = self.tx.clone();
         tokio::spawn(async move {
             let _ = txl.send(Message::QaSendHidData(addr, data)).await;
+        });
+    }
+    fn send_hid_virtual_unplug(&self, addr: RawAddress) {
+        let txl = self.tx.clone();
+        tokio::spawn(async move {
+            let _ = txl.send(Message::QaSendHidVirtualUnplug(addr)).await;
         });
     }
 }

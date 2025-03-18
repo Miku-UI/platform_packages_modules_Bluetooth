@@ -22,7 +22,6 @@
 #include <metrics/structured_events.h>
 
 #include "metrics/utils.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace os {
@@ -55,9 +54,8 @@ void LogMetricA2dpAudioOverrunEvent(const Address& address, uint64_t encoding_in
 
   addr_string = address.ToString();
 
-  log::debug("A2dpAudioOverrun: {}, {}, {}, {}, {}, {}", boot_id, address,
-             (long long unsigned)encoding_interval_millis, num_dropped_buffers,
-             num_dropped_encoded_bytes, num_dropped_encoded_bytes);
+  log::debug("A2dpAudioOverrun: {}, {}, {}, {}, {}, {}", boot_id, address, encoding_interval_millis,
+             num_dropped_buffers, num_dropped_encoded_bytes, num_dropped_encoded_bytes);
 
   ::metrics::structured::events::bluetooth::BluetoothA2dpAudioOverrun()
           .SetBootId(boot_id)
@@ -163,10 +161,9 @@ void LogMetricA2dpSessionMetricsEvent(const hci::Address& address, int64_t audio
   addr_string = address.ToString();
 
   log::debug("A2dpSessionMetrics: {}, {}, {}, {}, {}, {}, {}, {}, {}, {:f}, {}, {}, {}", boot_id,
-             address, (long long int)audio_duration_ms, media_timer_min_ms, media_timer_max_ms,
-             media_timer_avg_ms, total_scheduling_count, buffer_overruns_max_count,
-             buffer_overruns_total, buffer_underruns_average, buffer_underruns_count, codec_index,
-             is_a2dp_offload);
+             address, audio_duration_ms, media_timer_min_ms, media_timer_max_ms, media_timer_avg_ms,
+             total_scheduling_count, buffer_overruns_max_count, buffer_overruns_total,
+             buffer_underruns_average, buffer_underruns_count, codec_index, is_a2dp_offload);
 
   ::metrics::structured::events::bluetooth::BluetoothA2dpSession()
           .SetBootId(boot_id)

@@ -246,7 +246,7 @@ void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
     }
 
     case GATT_WRITE: {
-      if (attr.len <= (payload_size - GATT_HDR_SIZE)) {
+      if ((attr.len + GATT_HDR_SIZE) <= payload_size) {
         p_clcb->s_handle = attr.handle;
 
         tGATT_STATUS rt = gatt_send_write_msg(tcb, p_clcb, GATT_REQ_WRITE, attr.handle, attr.len, 0,
@@ -274,6 +274,7 @@ void gatt_act_write(tGATT_CLCB* p_clcb, uint8_t sec_act) {
       return;
   }
 }
+
 /*******************************************************************************
  *
  * Function         gatt_send_queue_write_cancel
@@ -296,6 +297,7 @@ void gatt_send_queue_write_cancel(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, tGATT_EXEC
     gatt_end_operation(p_clcb, rt, NULL);
   }
 }
+
 /*******************************************************************************
  *
  * Function         gatt_check_write_long_terminate
@@ -305,7 +307,8 @@ void gatt_send_queue_write_cancel(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, tGATT_EXEC
  * Returns          true: write long is terminated; false keep sending.
  *
  ******************************************************************************/
-bool gatt_check_write_long_terminate(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, tGATT_VALUE* p_rsp_value) {
+static bool gatt_check_write_long_terminate(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
+                                            tGATT_VALUE* p_rsp_value) {
   tGATT_VALUE* p_attr = (tGATT_VALUE*)p_clcb->p_attr_buf;
   bool terminate = false;
   tGATT_EXEC_FLAG flag = GATT_PREP_WRITE_EXEC;
@@ -343,7 +346,14 @@ void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
   uint16_t to_send = p_attr->len - p_attr->offset;
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, p_clcb->cid);
-  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) { /* 2 = uint16_t offset bytes  */
+
+  if (payload_size <= GATT_WRITE_LONG_HDR_SIZE) {
+    log::error("too small mtu size {}, possibly due to disconnection", payload_size);
+    gatt_end_operation(p_clcb, GATT_ERROR, NULL);
+    return;
+  }
+
+  if (to_send > (payload_size - GATT_WRITE_LONG_HDR_SIZE)) {
     to_send = payload_size - GATT_WRITE_LONG_HDR_SIZE;
   }
 
@@ -379,8 +389,8 @@ void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_find_type_value_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint16_t len,
-                                      uint8_t* p_data) {
+static void gatt_process_find_type_value_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint16_t len,
+                                             uint8_t* p_data) {
   tGATT_DISC_RES result;
   uint8_t* p = p_data;
 
@@ -424,8 +434,8 @@ void gatt_process_find_type_value_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t /* op_code */,
-                                uint16_t len, uint8_t* p_data) {
+static void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb,
+                                       uint8_t /* op_code */, uint16_t len, uint8_t* p_data) {
   tGATT_DISC_RES result;
   uint8_t *p = p_data, uuid_len = 0, type;
 
@@ -471,6 +481,7 @@ void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_
   /* initiate another request */
   gatt_act_discovery(p_clcb);
 }
+
 /*******************************************************************************
  *
  * Function         gatt_proc_disc_error_rsp
@@ -481,8 +492,8 @@ void gatt_process_read_info_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_
  * Returns          void.
  *
  ******************************************************************************/
-void gatt_proc_disc_error_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t opcode,
-                              uint16_t /* handle */, uint8_t reason) {
+static void gatt_proc_disc_error_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t opcode,
+                                     uint16_t /* handle */, uint8_t reason) {
   tGATT_STATUS status = (tGATT_STATUS)reason;
 
   log::verbose("reason: {:02x} cmd_code {:04x}", reason, opcode);
@@ -515,8 +526,8 @@ void gatt_proc_disc_error_rsp(tGATT_TCB& /* tcb */, tGATT_CLCB* p_clcb, uint8_t 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */, uint16_t len,
-                            uint8_t* p_data) {
+static void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */,
+                                   uint16_t len, uint8_t* p_data) {
   uint8_t opcode, *p = p_data;
   uint8_t reason;
   uint16_t handle;
@@ -559,6 +570,7 @@ void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_co
     }
   }
 }
+
 /*******************************************************************************
  *
  * Function         gatt_process_prep_write_rsp
@@ -569,8 +581,8 @@ void gatt_process_error_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_co
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
+                                        uint16_t len, uint8_t* p_data) {
   uint8_t* p = p_data;
 
   tGATT_VALUE value = {
@@ -620,8 +632,8 @@ void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                               uint8_t* p_data) {
+static void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                      uint8_t* p_data) {
   tGATT_VALUE value = {};
   tGATT_REG* p_reg;
   tCONN_ID conn_id;
@@ -805,8 +817,8 @@ void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, ui
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
-                                   uint16_t len, uint8_t* p_data) {
+static void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t op_code,
+                                          uint16_t len, uint8_t* p_data) {
   tGATT_DISC_RES result;
   tGATT_DISC_VALUE record_value;
   uint8_t *p = p_data, value_len, handle_len = 2;
@@ -872,10 +884,9 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t o
           break;
         }
       }
-    }
-    /* discover included service */
-    else if (p_clcb->operation == GATTC_OPTYPE_DISCOVERY &&
-             p_clcb->op_subtype == GATT_DISC_INC_SRVC) {
+    } else if (p_clcb->operation == GATTC_OPTYPE_DISCOVERY &&
+               p_clcb->op_subtype == GATT_DISC_INC_SRVC) {
+      /* discover included service */
       if (value_len < 4) {
         log::error("Illegal Response length, must be at least 4.");
         gatt_end_operation(p_clcb, GATT_INVALID_PDU, NULL);
@@ -908,9 +919,8 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t o
         gatt_end_operation(p_clcb, GATT_INVALID_PDU, (void*)p);
         return;
       }
-    }
-    /* read by type */
-    else if (p_clcb->operation == GATTC_OPTYPE_READ && p_clcb->op_subtype == GATT_READ_BY_TYPE) {
+    } else if (p_clcb->operation == GATTC_OPTYPE_READ && p_clcb->op_subtype == GATT_READ_BY_TYPE) {
+      /* read by type */
       p_clcb->counter = len - 2;
       p_clcb->s_handle = handle;
 
@@ -1017,8 +1027,8 @@ void gatt_process_read_by_type_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t o
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */, uint16_t len,
-                           uint8_t* p_data) {
+static void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_code */,
+                                  uint16_t len, uint8_t* p_data) {
   uint16_t offset = p_clcb->counter;
   uint8_t* p = p_data;
 
@@ -1065,7 +1075,7 @@ void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_cod
         }
       } else /* exception, should not happen */
       {
-        log::error("attr offset = {} p_attr_buf = {}", offset, fmt::ptr(p_clcb->p_attr_buf));
+        log::error("attr offset = {} p_attr_buf = {}", offset, std::format_ptr(p_clcb->p_attr_buf));
         gatt_end_operation(p_clcb, GATT_NO_RESOURCES, (void*)p_clcb->p_attr_buf);
       }
     }
@@ -1100,7 +1110,10 @@ void gatt_process_read_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t /* op_cod
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_handle_rsp(tGATT_CLCB* p_clcb) { gatt_end_operation(p_clcb, GATT_SUCCESS, NULL); }
+static void gatt_process_handle_rsp(tGATT_CLCB* p_clcb) {
+  gatt_end_operation(p_clcb, GATT_SUCCESS, NULL);
+}
+
 /*******************************************************************************
  *
  * Function         gatt_process_mtu_rsp
@@ -1111,7 +1124,8 @@ void gatt_process_handle_rsp(tGATT_CLCB* p_clcb) { gatt_end_operation(p_clcb, GA
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len, uint8_t* p_data) {
+static void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len,
+                                 uint8_t* p_data) {
   uint16_t mtu;
   tGATT_STATUS status = GATT_SUCCESS;
 
@@ -1163,7 +1177,7 @@ void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t len, uint
  * Returns          response code.
  *
  ******************************************************************************/
-uint8_t gatt_cmd_to_rsp_code(uint8_t cmd_code) {
+static uint8_t gatt_cmd_to_rsp_code(uint8_t cmd_code) {
   uint8_t rsp_code = 0;
 
   if (cmd_code > 1 && cmd_code != GATT_CMD_WRITE) {

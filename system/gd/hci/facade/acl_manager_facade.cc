@@ -528,15 +528,14 @@ public:
               lmp_version, manufacturer_name, sub_version);
     }
     void OnReadRemoteSupportedFeaturesComplete(uint64_t features) override {
-      log::info("OnReadRemoteSupportedFeaturesComplete features:0x{:x}",
-                static_cast<unsigned long>(features));
+      log::info("OnReadRemoteSupportedFeaturesComplete features:0x{:x}", features);
     }
     void OnReadRemoteExtendedFeaturesComplete(uint8_t page_number, uint8_t max_page_number,
                                               uint64_t features) override {
       log::info(
               "OnReadRemoteExtendedFeaturesComplete page_number:{} max_page_number:{} "
               "features:0x{:x}",
-              page_number, max_page_number, static_cast<unsigned long>(features));
+              page_number, max_page_number, features);
     }
 
     uint16_t handle_;

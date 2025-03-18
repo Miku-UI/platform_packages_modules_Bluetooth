@@ -61,7 +61,7 @@ static void rfc_port_sm_disc_wait_ua(tPORT* p_port, tRFC_PORT_EVENT event, void*
 
 static void rfc_port_uplink_data(tPORT* p_port, BT_HDR* p_buf);
 
-static void rfc_set_port_state(tPORT_STATE* port_pars, MX_FRAME* p_frame);
+static void rfc_set_port_settings(PortSettings* port_settings, MX_FRAME* p_frame);
 
 /*******************************************************************************
  *
@@ -642,7 +642,8 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
     if (p_mcb->state != RFC_MX_STATE_DISC_WAIT_UA) {
       PORT_ParNegInd(p_mcb, dlci, p_frame->u.pn.mtu, p_frame->u.pn.conv_layer, p_frame->u.pn.k);
     } else {
-      log::warn("MX PN while disconnecting, bd_addr={}, p_mcb={}", p_mcb->bd_addr, fmt::ptr(p_mcb));
+      log::warn("MX PN while disconnecting, bd_addr={}, p_mcb={}", p_mcb->bd_addr,
+                std::format_ptr(p_mcb));
       rfc_send_dm(p_mcb, dlci, false);
     }
 
@@ -651,7 +652,7 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
   /* If we are not awaiting response just ignore it */
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   if ((p_port == nullptr) || !(p_port->rfc.expected_rsp & RFC_RSP_PN)) {
-    log::warn(": Ignore unwanted response, p_mcb={}, bd_addr={}, dlci={}", fmt::ptr(p_mcb),
+    log::warn(": Ignore unwanted response, p_mcb={}, bd_addr={}, dlci={}", std::format_ptr(p_mcb),
               p_mcb->bd_addr, dlci);
     return;
   }
@@ -672,33 +673,32 @@ void rfc_process_pn(tRFC_MCB* p_mcb, bool is_command, MX_FRAME* p_frame) {
  *
  ******************************************************************************/
 void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request, MX_FRAME* p_frame) {
-  tPORT_STATE port_pars;
+  PortSettings port_settings = {};
   tPORT* p_port;
 
   p_port = port_find_mcb_dlci_port(p_mcb, p_frame->dlci);
   if (p_port == nullptr) {
     /* This is the first command on the port */
     if (is_command) {
-      memset(&port_pars, 0, sizeof(tPORT_STATE));
-      rfc_set_port_state(&port_pars, p_frame);
+      rfc_set_port_settings(&port_settings, p_frame);
 
-      PORT_PortNegInd(p_mcb, p_frame->dlci, &port_pars, p_frame->u.rpn.param_mask);
+      PORT_PortNegInd(p_mcb, p_frame->dlci, &port_settings, p_frame->u.rpn.param_mask);
     }
     return;
   }
 
   if (is_command && is_request) {
     /* This is the special situation when peer just request local pars */
-    rfc_send_rpn(p_mcb, p_frame->dlci, false, &p_port->peer_port_pars, 0);
+    rfc_send_rpn(p_mcb, p_frame->dlci, false, &p_port->peer_port_settings, 0);
     return;
   }
 
-  port_pars = p_port->peer_port_pars;
+  port_settings = p_port->peer_port_settings;
 
-  rfc_set_port_state(&port_pars, p_frame);
+  rfc_set_port_settings(&port_settings, p_frame);
 
   if (is_command) {
-    PORT_PortNegInd(p_mcb, p_frame->dlci, &port_pars, p_frame->u.rpn.param_mask);
+    PORT_PortNegInd(p_mcb, p_frame->dlci, &port_settings, p_frame->u.rpn.param_mask);
     return;
   }
 
@@ -715,18 +715,18 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request, MX_FRAME
   if (p_port->rfc.expected_rsp & RFC_RSP_RPN_REPLY) {
     p_port->rfc.expected_rsp &= ~RFC_RSP_RPN_REPLY;
 
-    p_port->peer_port_pars = port_pars;
+    p_port->peer_port_settings = port_settings;
 
-    if ((port_pars.fc_type == (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) ||
-        (port_pars.fc_type == (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT))) {
+    if ((port_settings.fc_type == (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) ||
+        (port_settings.fc_type == (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT))) {
       /* This is satisfactory port parameters.  Set mask as it was Ok */
       p_frame->u.rpn.param_mask = RFCOMM_RPN_PM_MASK;
     } else {
       /* Current peer parameters are not good, try to fix them */
-      p_port->peer_port_pars.fc_type = (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT);
+      p_port->peer_port_settings.fc_type = (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT);
 
       p_port->rfc.expected_rsp |= RFC_RSP_RPN;
-      rfc_send_rpn(p_mcb, p_frame->dlci, true, &p_port->peer_port_pars,
+      rfc_send_rpn(p_mcb, p_frame->dlci, true, &p_port->peer_port_settings,
                    RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT);
       rfc_port_timer_start(p_port, RFC_T2_TIMEOUT);
       return;
@@ -740,29 +740,29 @@ void rfc_process_rpn(tRFC_MCB* p_mcb, bool is_command, bool is_request, MX_FRAME
        (RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT)) ||
       ((p_frame->u.rpn.param_mask & (RFCOMM_RPN_PM_RTC_ON_INPUT | RFCOMM_RPN_PM_RTC_ON_OUTPUT)) ==
        (RFCOMM_RPN_PM_RTC_ON_INPUT | RFCOMM_RPN_PM_RTC_ON_OUTPUT))) {
-    PORT_PortNegCnf(p_mcb, p_port->dlci, &port_pars, RFCOMM_SUCCESS);
+    PORT_PortNegCnf(p_mcb, p_port->dlci, &port_settings, RFCOMM_SUCCESS);
     return;
   }
 
   /* If we were proposing RTR flow control try RTC flow control */
   /* If we were proposing RTC flow control try no flow control */
   /* otherwise drop the connection */
-  if (p_port->peer_port_pars.fc_type == (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) {
+  if (p_port->peer_port_settings.fc_type == (RFCOMM_FC_RTR_ON_INPUT | RFCOMM_FC_RTR_ON_OUTPUT)) {
     /* Current peer parameters are not good, try to fix them */
-    p_port->peer_port_pars.fc_type = (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT);
+    p_port->peer_port_settings.fc_type = (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT);
 
     p_port->rfc.expected_rsp |= RFC_RSP_RPN;
 
-    rfc_send_rpn(p_mcb, p_frame->dlci, true, &p_port->peer_port_pars,
+    rfc_send_rpn(p_mcb, p_frame->dlci, true, &p_port->peer_port_settings,
                  RFCOMM_RPN_PM_RTC_ON_INPUT | RFCOMM_RPN_PM_RTC_ON_OUTPUT);
     rfc_port_timer_start(p_port, RFC_T2_TIMEOUT);
     return;
   }
 
   /* Other side does not support flow control */
-  if (p_port->peer_port_pars.fc_type == (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT)) {
-    p_port->peer_port_pars.fc_type = RFCOMM_FC_OFF;
-    PORT_PortNegCnf(p_mcb, p_port->dlci, &port_pars, RFCOMM_SUCCESS);
+  if (p_port->peer_port_settings.fc_type == (RFCOMM_FC_RTC_ON_INPUT | RFCOMM_FC_RTC_ON_OUTPUT)) {
+    p_port->peer_port_settings.fc_type = RFCOMM_FC_OFF;
+    PORT_PortNegCnf(p_mcb, p_port->dlci, &port_settings, RFCOMM_SUCCESS);
   }
 }
 
@@ -947,39 +947,39 @@ void rfc_process_l2cap_congestion(tRFC_MCB* p_mcb, bool is_congested) {
 
 /*******************************************************************************
  *
- * Function         rfc_set_port_pars
+ * Function         rfc_set_port_settings
  *
- * Description      This function sets the tPORT_STATE structure given a
+ * Description      This function sets the PortSettings structure given a
  *                  p_frame.
  *
  ******************************************************************************/
 
-void rfc_set_port_state(tPORT_STATE* port_pars, MX_FRAME* p_frame) {
+void rfc_set_port_settings(PortSettings* port_settings, MX_FRAME* p_frame) {
   if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_BIT_RATE) {
-    port_pars->baud_rate = p_frame->u.rpn.baud_rate;
+    port_settings->baud_rate = p_frame->u.rpn.baud_rate;
   }
   if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_DATA_BITS) {
-    port_pars->byte_size = p_frame->u.rpn.byte_size;
+    port_settings->byte_size = p_frame->u.rpn.byte_size;
   }
   if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_STOP_BITS) {
-    port_pars->stop_bits = p_frame->u.rpn.stop_bits;
+    port_settings->stop_bits = p_frame->u.rpn.stop_bits;
   }
   if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_PARITY) {
-    port_pars->parity = p_frame->u.rpn.parity;
+    port_settings->parity = p_frame->u.rpn.parity;
   }
   if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_PARITY_TYPE) {
-    port_pars->parity_type = p_frame->u.rpn.parity_type;
+    port_settings->parity_type = p_frame->u.rpn.parity_type;
   }
   if (p_frame->u.rpn.param_mask &
       (RFCOMM_RPN_PM_XONXOFF_ON_INPUT | RFCOMM_RPN_PM_XONXOFF_ON_OUTPUT |
        RFCOMM_RPN_PM_RTR_ON_INPUT | RFCOMM_RPN_PM_RTR_ON_OUTPUT | RFCOMM_RPN_PM_RTC_ON_INPUT |
        RFCOMM_RPN_PM_RTC_ON_OUTPUT)) {
-    port_pars->fc_type = p_frame->u.rpn.fc_type;
+    port_settings->fc_type = p_frame->u.rpn.fc_type;
   }
   if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_XON_CHAR) {
-    port_pars->xon_char = p_frame->u.rpn.xon_char;
+    port_settings->xon_char = p_frame->u.rpn.xon_char;
   }
   if (p_frame->u.rpn.param_mask & RFCOMM_RPN_PM_XOFF_CHAR) {
-    port_pars->xoff_char = p_frame->u.rpn.xoff_char;
+    port_settings->xoff_char = p_frame->u.rpn.xoff_char;
   }
 }

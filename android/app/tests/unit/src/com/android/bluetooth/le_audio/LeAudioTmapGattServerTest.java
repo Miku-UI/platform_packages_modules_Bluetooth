@@ -25,7 +25,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -74,8 +73,8 @@ public class LeAudioTmapGattServerTest {
         ArgumentCaptor<BluetoothGattService> captor =
                 ArgumentCaptor.forClass(BluetoothGattService.class);
         mServer.start(TEST_ROLE_MASK);
-        verify(mGattServerProxy, times(1)).open(any());
-        verify(mGattServerProxy, times(1)).addService(captor.capture());
+        verify(mGattServerProxy).open(any());
+        verify(mGattServerProxy).addService(captor.capture());
 
         // verify primary service with TMAP UUID
         BluetoothGattService service = captor.getValue();
@@ -96,7 +95,7 @@ public class LeAudioTmapGattServerTest {
 
         // verify stop triggers stop method call
         mServer.stop();
-        verify(mGattServerProxy, times(1)).close();
+        verify(mGattServerProxy).close();
     }
 
     @Test

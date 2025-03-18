@@ -34,19 +34,39 @@
 #include <cstring>
 #include <vector>
 
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
+#include "a2dp_sbc_constants.h"
+#include "audio_hal_interface/a2dp_encoding.h"
+#include "avdt_api.h"
+#include "avrc_api.h"
+#include "avrc_defs.h"
+#include "bt_name.h"
 #include "bta/av/bta_av_int.h"
-#include "bta/include/bta_ar_api.h"
 #include "bta/include/bta_av_co.h"
+#include "bta_av_api.h"
+#include "bta_sys.h"
 #include "btif/avrcp/avrcp_service.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_config.h"
 #include "btif/include/btif_storage.h"
+#include "btm_api_types.h"
+#include "common/message_loop_thread.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
+#include "hardware/bt_av.h"
+#include "hci_error_code.h"
+#include "hcidefs.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/list.h"
 #include "osi/include/properties.h"
+#include "sdpdefs.h"
 #include "stack/include/a2dp_ext.h"
 #include "stack/include/a2dp_sbc.h"
 #include "stack/include/acl_api.h"
@@ -58,6 +78,7 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/l2cap_interface.h"
 #include "storage/config_keys.h"
+#include "types/bt_transport.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
@@ -346,7 +367,7 @@ void bta_av_proc_stream_evt(uint8_t handle, const RawAddress& bd_addr, uint8_t e
   uint16_t sec_len = 0;
 
   log::verbose("peer_address: {} avdt_handle: {} event=0x{:x} scb_index={} p_scb={}", bd_addr,
-               handle, event, scb_index, fmt::ptr(p_scb));
+               handle, event, scb_index, std::format_ptr(p_scb));
 
   if (p_data) {
     if (event == AVDT_SECURITY_IND_EVT) {
@@ -440,7 +461,8 @@ void bta_av_proc_stream_evt(uint8_t handle, const RawAddress& bd_addr, uint8_t e
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t time_stamp, uint8_t m_pt) {
+void bta_av_sink_data_cback(uint8_t handle, BT_HDR* p_pkt, uint32_t /*time_stamp*/,
+                            uint8_t /*m_pt*/) {
   int index = 0;
   tBTA_AV_SCB* p_scb;
   log::verbose(
@@ -1226,7 +1248,6 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
         }
       }
     }
-    bta_ar_avdt_conn(BTA_ID_AV, open.bd_addr, p_scb->hdi);
     if (p_scb->seps[p_scb->sep_idx].tsep == AVDT_TSEP_SRC) {
       open.starting = false;
       open.sep = AVDT_TSEP_SNK;
@@ -1766,9 +1787,11 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     err_code = AVDT_ERR_UNSUP_CFG;
   }
 
-  // The error code must be set by the caller, otherwise
-  // AVDT_ConfigRsp will interpret the event as RSP instead of REJ.
-  log::assert_that(err_code != 0, "err_code != 0");
+  // The error code might not be set when the configuration is rejected
+  // based on the current AVDTP state.
+  if (err_code == AVDT_SUCCESS) {
+    err_code = AVDT_ERR_UNSUP_CFG;
+  }
 
   AVDT_ConfigRsp(avdt_handle, p_scb->avdt_label, err_code, 0);
 
@@ -1915,7 +1938,7 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   BT_HDR* p_buf;
 
   log::info("peer {} bta_handle:0x{:x} audio_open_cnt:{}, p_data {} start:{}", p_scb->PeerAddress(),
-            p_scb->hndl, bta_av_cb.audio_open_cnt, fmt::ptr(p_data), start);
+            p_scb->hndl, bta_av_cb.audio_open_cnt, std::format_ptr(p_data), start);
 
   bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
   BTM_unblock_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
@@ -2532,7 +2555,9 @@ void bta_av_suspend_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 
   suspend_rsp.status = BTA_AV_SUCCESS;
-  if (err_code && (err_code != AVDT_ERR_BAD_STATE)) {
+  bool handle_bad_state = (err_code != AVDT_ERR_BAD_STATE) ||
+                          com::android::bluetooth::flags::avdt_handle_suspend_cfm_bad_state();
+  if (err_code && handle_bad_state) {
     suspend_rsp.status = BTA_AV_FAIL;
 
     log::error("suspend failed, closing connection");
@@ -2712,7 +2737,7 @@ void bta_av_rcfg_connect(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_rcfg_discntd(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+void bta_av_rcfg_discntd(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /*p_data*/) {
   log::error("num_recfg={} conn_lcb=0x{:x} peer_addr={}", p_scb->num_recfg, bta_av_cb.conn_lcb,
              p_scb->PeerAddress());
 
@@ -3010,7 +3035,7 @@ void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 }
 
-void offload_vendor_callback(tBTM_VSC_CMPL* param) {
+static void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   tBTA_AV value{0};
   uint8_t sub_opcode = 0;
   if (param->param_len) {
@@ -3048,7 +3073,7 @@ void offload_vendor_callback(tBTM_VSC_CMPL* param) {
   }
 }
 
-void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
+static void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_start) {
   uint8_t param[sizeof(tBT_A2DP_OFFLOAD)];
   log::verbose("");
 
@@ -3079,7 +3104,7 @@ void bta_av_vendor_offload_start(tBTA_AV_SCB* p_scb, tBT_A2DP_OFFLOAD* offload_s
                                                               param, offload_vendor_callback);
 }
 
-void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
+static void bta_av_vendor_offload_start_v2(tBTA_AV_SCB* p_scb, A2dpCodecConfigExt* offload_codec) {
   log::verbose("");
 
   uint16_t connection_handle = get_btm_client_interface().peer.BTM_GetHCIConnHandle(
@@ -3174,7 +3199,7 @@ void bta_av_vendor_offload_stop() {
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /*p_data*/) {
   tBTA_AV_STATUS status = BTA_AV_FAIL_RESOURCES;
 
   tBT_A2DP_OFFLOAD offload_start;

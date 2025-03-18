@@ -579,7 +579,7 @@ TEST_F(StackA2dpTest, test_a2dp_codec_equals) {
   // Test two identical Opus codecs
   memset(codec_info_opus_test, 0xAB, sizeof(codec_info_opus_test));
   memcpy(codec_info_opus_test, codec_info_opus, sizeof(codec_info_opus));
-  ASSERT_TRUE(A2DP_VendorCodecEquals(codec_info_opus, codec_info_opus_test));
+  ASSERT_TRUE(A2DP_CodecEquals(codec_info_opus, codec_info_opus_test));
 
   // Test two identical non-A2DP codecs that are not recognized
   memset(codec_info_non_a2dp_test, 0xAB, sizeof(codec_info_non_a2dp_test));
@@ -627,14 +627,14 @@ TEST_F(StackA2dpTest, test_a2dp_codec_equals) {
 TEST_F(StackA2dpTest, test_a2dp_get_track_sample_rate) {
   EXPECT_EQ(A2DP_GetTrackSampleRate(codec_info_sbc), 44100);
   EXPECT_EQ(A2DP_GetTrackSampleRate(codec_info_aac), 44100);
-  ASSERT_EQ(A2DP_VendorGetTrackSampleRate(codec_info_opus), 48000);
+  ASSERT_EQ(A2DP_GetTrackSampleRate(codec_info_opus), 48000);
   EXPECT_EQ(A2DP_GetTrackSampleRate(codec_info_non_a2dp), -1);
 }
 
 TEST_F(StackA2dpTest, test_a2dp_get_track_channel_count) {
   EXPECT_EQ(A2DP_GetTrackChannelCount(codec_info_sbc), 2);
   EXPECT_EQ(A2DP_GetTrackChannelCount(codec_info_aac), 2);
-  ASSERT_EQ(A2DP_VendorGetTrackChannelCount(codec_info_opus), 2);
+  ASSERT_EQ(A2DP_GetTrackChannelCount(codec_info_opus), 2);
   EXPECT_EQ(A2DP_GetTrackChannelCount(codec_info_non_a2dp), -1);
 }
 
@@ -687,7 +687,7 @@ TEST_F(StackA2dpTest, test_a2dp_get_max_bitpool_sbc) {
 TEST_F(StackA2dpTest, test_a2dp_get_sink_track_channel_type) {
   EXPECT_EQ(A2DP_GetSinkTrackChannelType(codec_info_sbc), 3);
   EXPECT_EQ(A2DP_GetSinkTrackChannelType(codec_info_aac), 3);
-  ASSERT_EQ(A2DP_VendorGetSinkTrackChannelType(codec_info_opus), 2);
+  ASSERT_EQ(A2DP_GetSinkTrackChannelType(codec_info_opus), 2);
   EXPECT_EQ(A2DP_GetSinkTrackChannelType(codec_info_non_a2dp), -1);
 }
 
@@ -735,7 +735,7 @@ TEST_F(StackA2dpTest, test_a2dp_get_packet_timestamp) {
   memset(a2dp_data, 0xAB, sizeof(a2dp_data));
   *p_ts = 0x12345678;
   timestamp = 0xFFFFFFFF;
-  ASSERT_TRUE(A2DP_VendorGetPacketTimestamp(codec_info_opus, a2dp_data, &timestamp));
+  ASSERT_TRUE(A2DP_GetPacketTimestamp(codec_info_opus, a2dp_data, &timestamp));
   ASSERT_EQ(timestamp, static_cast<uint32_t>(0x12345678));
 
   memset(a2dp_data, 0xAB, sizeof(a2dp_data));
@@ -781,14 +781,14 @@ TEST_F(StackA2dpTest, test_a2dp_adjust_codec) {
   memset(codec_info_sbc_test, 0xAB, sizeof(codec_info_sbc_test));
   memcpy(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc));
   EXPECT_TRUE(A2DP_AdjustCodec(codec_info_sbc_test));
-  EXPECT_TRUE(memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)) == 0);
+  EXPECT_EQ(0, memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)));
 
   // Test updating a valid SBC codec that needs adjustment
   memset(codec_info_sbc_test, 0xAB, sizeof(codec_info_sbc_test));
   memcpy(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc));
   codec_info_sbc_test[6] = 54;  // A2DP_SBC_MAX_BITPOOL + 1
   EXPECT_TRUE(A2DP_AdjustCodec(codec_info_sbc_test));
-  EXPECT_TRUE(memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)) == 0);
+  EXPECT_EQ(0, memcmp(codec_info_sbc_test, codec_info_sbc, sizeof(codec_info_sbc)));
 
   // Test updating an invalid SBC codec
   memset(codec_info_sbc_test, 0xAB, sizeof(codec_info_sbc_test));
@@ -800,7 +800,7 @@ TEST_F(StackA2dpTest, test_a2dp_adjust_codec) {
   memset(codec_info_aac_test, 0xAB, sizeof(codec_info_aac_test));
   memcpy(codec_info_aac_test, codec_info_aac, sizeof(codec_info_aac));
   EXPECT_TRUE(A2DP_AdjustCodec(codec_info_aac_test));
-  EXPECT_TRUE(memcmp(codec_info_aac_test, codec_info_aac, sizeof(codec_info_aac)) == 0);
+  EXPECT_EQ(0, memcmp(codec_info_aac_test, codec_info_aac, sizeof(codec_info_aac)));
 
   // Test updating a non-A2DP codec that is not recognized
   memset(codec_info_non_a2dp_test, 0xAB, sizeof(codec_info_non_a2dp_test));
@@ -818,10 +818,9 @@ TEST_F(StackA2dpTest, test_a2dp_source_codec_index) {
   EXPECT_EQ(A2DP_SourceCodecIndex(codec_info_aac_capability), BTAV_A2DP_CODEC_INDEX_SOURCE_AAC);
   EXPECT_EQ(A2DP_SourceCodecIndex(codec_info_aac_sink_capability),
             BTAV_A2DP_CODEC_INDEX_SOURCE_AAC);
-  ASSERT_EQ(A2DP_VendorSourceCodecIndex(codec_info_opus), BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
-  ASSERT_EQ(A2DP_VendorSourceCodecIndex(codec_info_opus_capability),
-            BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
-  ASSERT_EQ(A2DP_VendorSourceCodecIndex(codec_info_opus_sink_capability),
+  ASSERT_EQ(A2DP_SourceCodecIndex(codec_info_opus), BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
+  ASSERT_EQ(A2DP_SourceCodecIndex(codec_info_opus_capability), BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
+  ASSERT_EQ(A2DP_SourceCodecIndex(codec_info_opus_sink_capability),
             BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS);
   EXPECT_EQ(A2DP_SourceCodecIndex(codec_info_non_a2dp), BTAV_A2DP_CODEC_INDEX_MAX);
 }

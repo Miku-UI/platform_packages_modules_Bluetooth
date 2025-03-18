@@ -104,7 +104,7 @@ public:
   void Stop(void);
   virtual types::CodecLocation GetCodecLocation(void) const;
   virtual bool IsDualBiDirSwbSupported(void) const;
-  virtual void UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
+  virtual bool UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
                                       const stream_parameters& stream_params, uint8_t direction);
   virtual void ClearCisConfiguration(uint8_t direction);
   virtual bool IsUsingCodecExtensibility() const;
@@ -145,8 +145,8 @@ std::ostream& operator<<(std::ostream& os,
                          const CodecManager::UnicastConfigurationRequirements& req);
 }  // namespace bluetooth::le_audio
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements>
     : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std

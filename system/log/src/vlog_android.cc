@@ -25,8 +25,8 @@ static constexpr std::string_view kAndroidRepoLocation = "packages/modules/Bluet
 
 static constexpr size_t kBufferSize = 1024;
 
-void vlog(Level level, char const* tag, source_location location, fmt::string_view fmt,
-          fmt::format_args vargs) {
+void vlog(Level level, char const* tag, source_location location, std::string_view fmt,
+          std::format_args vargs) {
   // Check if log is enabled.
   if (!__android_log_is_loggable(level, "bluetooth", ANDROID_LOG_INFO)) {
     return;
@@ -44,9 +44,9 @@ void vlog(Level level, char const* tag, source_location location, fmt::string_vi
   // In order to have consistent logs we include it manually in the log
   // message.
   truncating_buffer<kBufferSize> buffer;
-  fmt::format_to(std::back_insert_iterator(buffer), "{}:{} {}: ", file_name, location.line,
+  std::format_to(std::back_insert_iterator(buffer), "{}:{} {}: ", file_name, location.line,
                  location.function_name);
-  fmt::vformat_to(std::back_insert_iterator(buffer), fmt, vargs);
+  std::vformat_to(std::back_insert_iterator(buffer), fmt, vargs);
 
   // Send message to liblog.
   struct __android_log_message message = {

@@ -61,7 +61,7 @@ public:
 private:
   std::mutex mMutex;
   std::condition_variable mCondition;
-  unsigned long mCount = 0;
+  uint64_t mCount = 0;
 };
 void semaphore_wait(btsemaphore& s);
 void semaphore_post(btsemaphore& s);

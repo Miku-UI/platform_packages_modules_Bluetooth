@@ -26,8 +26,62 @@
 #include <cstdint>
 #include <vector>
 
+#include "bta/include/bta_av_api.h"
 #include "include/hardware/bt_av.h"
 #include "types/raw_address.h"
+
+/** Callback for connection state change.
+ *  state will have one of the values from btav_connection_state_t
+ */
+typedef void (*btav_connection_state_callback)(const RawAddress& bd_addr,
+                                               btav_connection_state_t state,
+                                               const btav_error_t& error);
+
+/** Callback for audiopath state change.
+ *  state will have one of the values from btav_audio_state_t
+ */
+typedef void (*btav_audio_state_callback)(const RawAddress& bd_addr, btav_audio_state_t state);
+
+/** Callback for audio configuration change.
+ *  Used only for the A2DP Source interface.
+ */
+typedef void (*btav_audio_source_config_callback)(
+        const RawAddress& bd_addr, btav_a2dp_codec_config_t codec_config,
+        std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities,
+        std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities);
+
+/** Callback for audio configuration change.
+ *  Used only for the A2DP Sink interface.
+ *  sample_rate: sample rate in Hz
+ *  channel_count: number of channels (1 for mono, 2 for stereo)
+ */
+typedef void (*btav_audio_sink_config_callback)(const RawAddress& bd_addr, uint32_t sample_rate,
+                                                uint8_t channel_count);
+
+/** Callback for querying whether the mandatory codec is more preferred.
+ *  Used only for the A2DP Source interface.
+ *  Return true if optional codecs are not preferred.
+ */
+typedef bool (*btav_mandatory_codec_preferred_callback)(const RawAddress& bd_addr);
+
+/** BT-AV A2DP Source callback structure. */
+typedef struct {
+  /** set to sizeof(btav_source_callbacks_t) */
+  size_t size;
+  btav_connection_state_callback connection_state_cb;
+  btav_audio_state_callback audio_state_cb;
+  btav_audio_source_config_callback audio_config_cb;
+  btav_mandatory_codec_preferred_callback mandatory_codec_preferred_cb;
+} btav_source_callbacks_t;
+
+/** BT-AV A2DP Sink callback structure. */
+typedef struct {
+  /** set to sizeof(btav_sink_callbacks_t) */
+  size_t size;
+  btav_connection_state_callback connection_state_cb;
+  btav_audio_state_callback audio_state_cb;
+  btav_audio_sink_config_callback audio_config_cb;
+} btav_sink_callbacks_t;
 
 /* Interface methods for the A2DP source stack. */
 
@@ -288,13 +342,12 @@ void btif_av_connect_sink_delayed(uint8_t handle, const RawAddress& peer_address
 /**
  * Check whether A2DP Source is enabled.
  */
-bool btif_av_is_source_enabled(void);
 bool btif_av_both_enable(void);
 bool btif_av_src_sink_coexist_enabled(void);
-bool btif_av_is_sink_enabled(void);
 bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
 bool btif_av_peer_is_connected_source(const RawAddress& peer_address);
 bool btif_av_peer_is_sink(const RawAddress& peer_address);
 bool btif_av_peer_is_source(const RawAddress& peer_address);
+const RawAddress& btif_av_find_by_handle(tBTA_AV_HNDL bta_handle);
 
 #endif /* BTIF_AV_H */

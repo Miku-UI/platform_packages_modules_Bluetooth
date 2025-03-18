@@ -160,12 +160,13 @@ void CodecManager::Stop() {
   mock_codec_manager_pimpl_ = nullptr;
 }
 
-void CodecManager::UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
+bool CodecManager::UpdateCisConfiguration(const std::vector<struct types::cis>& cises,
                                           const stream_parameters& stream_params,
                                           uint8_t direction) {
   if (pimpl_) {
     return pimpl_->UpdateCisConfiguration(cises, stream_params, direction);
   }
+  return false;
 }
 
 void CodecManager::ClearCisConfiguration(uint8_t direction) {

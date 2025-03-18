@@ -32,9 +32,13 @@
 
 #include <cstdint>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include "bta/ag/bta_ag_int.h"
+#include "bta_api.h"
+#include "bta_api_data_types.h"
+#include "bta_sys.h"
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
 

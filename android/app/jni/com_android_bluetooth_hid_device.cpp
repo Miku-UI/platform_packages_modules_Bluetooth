@@ -16,10 +16,18 @@
 
 #define LOG_TAG "BluetoothHidDeviceServiceJni"
 
-#include <string.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/scoped_local_ref.h>
+
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_hd.h"
+#include "types/raw_address.h"
 
 namespace android {
 

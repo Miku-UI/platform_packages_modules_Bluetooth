@@ -16,6 +16,8 @@
 
 #include "get_current_player_application_setting_value.h"
 
+#include "internal_include/bt_trace.h"
+
 namespace bluetooth {
 namespace avrcp {
 

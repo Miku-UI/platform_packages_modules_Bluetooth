@@ -38,6 +38,9 @@
 #include "stack/include/gatt_api.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static void bta_gatts_nv_save_cback(bool is_saved, tGATTS_HNDL_RANGE* p_hndl_range);
@@ -84,7 +87,7 @@ tGATT_APPL_INFO bta_gatts_nv_cback = {bta_gatts_nv_save_cback, bta_gatts_nv_srv_
  * Returns          none.
  *
  ******************************************************************************/
-static void bta_gatts_nv_save_cback(bool is_add, tGATTS_HNDL_RANGE* p_hndl_range) {}
+static void bta_gatts_nv_save_cback(bool /*is_add*/, tGATTS_HNDL_RANGE* /*p_hndl_range*/) {}
 
 /*******************************************************************************
  *
@@ -97,8 +100,8 @@ static void bta_gatts_nv_save_cback(bool is_add, tGATTS_HNDL_RANGE* p_hndl_range
  * Returns          none.
  *
  ******************************************************************************/
-static bool bta_gatts_nv_srv_chg_cback(tGATTS_SRV_CHG_CMD cmd, tGATTS_SRV_CHG_REQ* p_req,
-                                       tGATTS_SRV_CHG_RSP* p_rsp) {
+static bool bta_gatts_nv_srv_chg_cback(tGATTS_SRV_CHG_CMD /*cmd*/, tGATTS_SRV_CHG_REQ* /*p_req*/,
+                                       tGATTS_SRV_CHG_RSP* /*p_rsp*/) {
   return false;
 }
 
@@ -282,7 +285,7 @@ void bta_gatts_deregister(tBTA_GATTS_CB* p_cb, tBTA_GATTS_DATA* p_msg) {
  * Returns          none.
  *
  ******************************************************************************/
-void bta_gatts_delete_service(tBTA_GATTS_SRVC_CB* p_srvc_cb, tBTA_GATTS_DATA* p_msg) {
+void bta_gatts_delete_service(tBTA_GATTS_SRVC_CB* p_srvc_cb, tBTA_GATTS_DATA* /*p_msg*/) {
   tBTA_GATTS_RCB* p_rcb = &bta_gatts_cb.rcb[p_srvc_cb->rcb_idx];
   tBTA_GATTS cb_data;
 

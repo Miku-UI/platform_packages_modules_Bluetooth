@@ -27,11 +27,8 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-using base::StringPrintf;
 using namespace bluetooth;
 
-static void srvc_eng_s_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                                     tGATTS_DATA* p_data);
 static void srvc_eng_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tCONN_ID conn_id,
                                    bool connected, tGATT_DISCONN_REASON reason,
                                    tBT_TRANSPORT transport);
@@ -43,7 +40,7 @@ static tGATT_CBACK srvc_gatt_cback = {
         .p_cmpl_cb = srvc_eng_c_cmpl_cback,
         .p_disc_res_cb = nullptr,
         .p_disc_cmpl_cb = nullptr,
-        .p_req_cb = srvc_eng_s_request_cback,
+        .p_req_cb = nullptr,
         .p_enc_cmpl_cb = nullptr,
         .p_congestion_cb = nullptr,
         .p_phy_update_cb = nullptr,
@@ -105,27 +102,6 @@ tSRVC_CLCB* srvc_eng_find_clcb_by_conn_id(tCONN_ID conn_id) {
 }
 /*******************************************************************************
  *
- * Function         srvc_eng_find_clcb_by_conn_id
- *
- * Description      The function searches all LCBs with macthing connection ID.
- *
- * Returns          Pointer to the found link conenction control block.
- *
- ******************************************************************************/
-static uint8_t srvc_eng_find_clcb_idx_by_conn_id(tCONN_ID conn_id) {
-  uint8_t i_clcb;
-  tSRVC_CLCB* p_clcb = NULL;
-
-  for (i_clcb = 0, p_clcb = srvc_eng_cb.clcb; i_clcb < SRVC_MAX_APPS; i_clcb++, p_clcb++) {
-    if (p_clcb->in_use && p_clcb->connected && p_clcb->conn_id == conn_id) {
-      return i_clcb;
-    }
-  }
-
-  return SRVC_MAX_APPS;
-}
-/*******************************************************************************
- *
  * Function         srvc_eng_clcb_alloc
  *
  * Description      Allocate a GATT profile connection link control block
@@ -174,105 +150,6 @@ static bool srvc_eng_clcb_dealloc(tCONN_ID conn_id) {
     }
   }
   return false;
-}
-/*******************************************************************************
- *   Service Engine Server Attributes Database Read/Read Blob Request process
- ******************************************************************************/
-static uint8_t srvc_eng_process_read_req(uint8_t clcb_idx, tGATT_READ_REQ* p_data,
-                                         tGATTS_RSP* p_rsp, tGATT_STATUS* p_status) {
-  tGATT_STATUS status = GATT_NOT_FOUND;
-  uint8_t act = SRVC_ACT_RSP;
-
-  if (p_data->is_long) {
-    p_rsp->attr_value.offset = p_data->offset;
-  }
-
-  p_rsp->attr_value.handle = p_data->handle;
-
-  if (dis_valid_handle_range(p_data->handle)) {
-    act = dis_read_attr_value(clcb_idx, p_data->handle, &p_rsp->attr_value, p_data->is_long,
-                              p_status);
-  } else {
-    *p_status = status;
-  }
-  return act;
-}
-/*******************************************************************************
- *   Service Engine Server Attributes Database write Request process
- ******************************************************************************/
-static uint8_t srvc_eng_process_write_req(uint8_t /* clcb_idx */, tGATT_WRITE_REQ* p_data,
-                                          tGATTS_RSP* /* p_rsp */, tGATT_STATUS* p_status) {
-  uint8_t act = SRVC_ACT_RSP;
-
-  if (dis_valid_handle_range(p_data->handle)) {
-    act = dis_write_attr_value(p_data, p_status);
-  } else {
-    *p_status = GATT_NOT_FOUND;
-  }
-
-  return act;
-}
-
-/*******************************************************************************
- *
- * Function         srvc_eng_s_request_cback
- *
- * Description      GATT DIS attribute access request callback.
- *
- * Returns          void.
- *
- ******************************************************************************/
-static void srvc_eng_s_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                                     tGATTS_DATA* p_data) {
-  tGATT_STATUS status = GATT_INVALID_PDU;
-  tGATTS_RSP rsp_msg;
-  uint8_t act = SRVC_ACT_IGNORE;
-  uint8_t clcb_idx = srvc_eng_find_clcb_idx_by_conn_id(conn_id);
-  if (clcb_idx == SRVC_MAX_APPS) {
-    log::error("Can't find clcb, id:{}", conn_id);
-    return;
-  }
-
-  log::verbose("srvc_eng_s_request_cback : recv type (0x{:02x})", type);
-
-  memset(&rsp_msg, 0, sizeof(tGATTS_RSP));
-
-  srvc_eng_cb.clcb[clcb_idx].trans_id = trans_id;
-
-  switch (type) {
-    case GATTS_REQ_TYPE_READ_CHARACTERISTIC:
-    case GATTS_REQ_TYPE_READ_DESCRIPTOR:
-      act = srvc_eng_process_read_req(clcb_idx, &p_data->read_req, &rsp_msg, &status);
-      break;
-
-    case GATTS_REQ_TYPE_WRITE_CHARACTERISTIC:
-    case GATTS_REQ_TYPE_WRITE_DESCRIPTOR:
-      act = srvc_eng_process_write_req(clcb_idx, &p_data->write_req, &rsp_msg, &status);
-      if (!p_data->write_req.need_rsp) {
-        act = SRVC_ACT_IGNORE;
-      }
-      break;
-
-    case GATTS_REQ_TYPE_WRITE_EXEC:
-      log::verbose("Ignore GATT_REQ_EXEC_WRITE/WRITE_CMD");
-      break;
-
-    case GATTS_REQ_TYPE_MTU:
-      log::verbose("Get MTU exchange new mtu size: {}", p_data->mtu);
-      break;
-
-    default:
-      log::verbose("Unknown/unexpected LE GAP ATT request: 0x{:02x}", type);
-      break;
-  }
-
-  srvc_eng_cb.clcb[clcb_idx].trans_id = 0;
-
-  if (act == SRVC_ACT_RSP) {
-    if (GATTS_SendRsp(conn_id, trans_id, status, &rsp_msg) != GATT_SUCCESS) {
-      log::warn("Unable to send GATT server respond conn_id:{}", conn_id);
-    }
-  }
 }
 
 /*******************************************************************************
@@ -381,7 +258,7 @@ void srvc_eng_release_channel(tCONN_ID conn_id) {
  ******************************************************************************/
 tGATT_STATUS srvc_eng_init(void) {
   if (srvc_eng_cb.enabled) {
-    log::error("DIS already initialized");
+    log::verbose("DIS already initialized");
   } else {
     memset(&srvc_eng_cb, 0, sizeof(tSRVC_ENG_CB));
 

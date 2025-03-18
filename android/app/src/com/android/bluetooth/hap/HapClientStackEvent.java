@@ -17,6 +17,8 @@
 
 package com.android.bluetooth.hap;
 
+import static android.bluetooth.BluetoothProfile.getConnectionStateName;
+
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.IBluetoothHapClient;
 
@@ -39,12 +41,6 @@ public class HapClientStackEvent {
     public static final int EVENT_TYPE_ON_PRESET_INFO = 6;
     public static final int EVENT_TYPE_ON_PRESET_NAME_SET_ERROR = 7;
     public static final int EVENT_TYPE_ON_PRESET_INFO_ERROR = 8;
-
-    // Connection state values as defined in bt_has.h
-    static final int CONNECTION_STATE_DISCONNECTED = 0;
-    static final int CONNECTION_STATE_CONNECTING = 1;
-    static final int CONNECTION_STATE_CONNECTED = 2;
-    static final int CONNECTION_STATE_DISCONNECTING = 3;
 
     // Possible operation results
     /* WARNING: Matches status codes defined in bta_has.h */
@@ -117,7 +113,7 @@ public class HapClientStackEvent {
     private String eventTypeValueInt1ToString(int type, int value) {
         switch (type) {
             case EVENT_TYPE_CONNECTION_STATE_CHANGED:
-                return "{state: " + connectionStateValueToString(value) + "}";
+                return "{state: " + getConnectionStateName(value) + "}";
             case EVENT_TYPE_DEVICE_AVAILABLE:
                 return "{features: " + featuresToString(value) + "}";
             case EVENT_TYPE_DEVICE_FEATURES:
@@ -178,21 +174,6 @@ public class HapClientStackEvent {
                 return "{groupId: " + value + "}";
             default:
                 return "{unused: " + value + "}";
-        }
-    }
-
-    private String connectionStateValueToString(int value) {
-        switch (value) {
-            case CONNECTION_STATE_DISCONNECTED:
-                return "CONNECTION_STATE_DISCONNECTED";
-            case CONNECTION_STATE_CONNECTING:
-                return "CONNECTION_STATE_CONNECTING";
-            case CONNECTION_STATE_CONNECTED:
-                return "CONNECTION_STATE_CONNECTED";
-            case CONNECTION_STATE_DISCONNECTING:
-                return "CONNECTION_STATE_DISCONNECTING";
-            default:
-                return "CONNECTION_STATE_UNKNOWN!";
         }
     }
 

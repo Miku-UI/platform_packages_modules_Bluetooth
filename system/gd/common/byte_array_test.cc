@@ -18,8 +18,6 @@
 
 #include <gtest/gtest.h>
 
-#include "os/log.h"
-
 using bluetooth::common::ByteArray;
 
 namespace {

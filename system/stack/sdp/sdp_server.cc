@@ -160,7 +160,7 @@ bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr,
  * Returns          void
  *
  *****************************************************************************/
-void hfp_fallback(bool& is_hfp_fallback, const tSDP_ATTRIBUTE* p_attr) {
+static void hfp_fallback(bool& is_hfp_fallback, const tSDP_ATTRIBUTE* p_attr) {
   /* Update HFP version back to 1.6 */
   p_attr->value_ptr[PROFILE_VERSION_POSITION] = HFP_PROFILE_MINOR_VERSION_6;
   log::verbose("Restore HFP version to 1.6");
@@ -300,7 +300,7 @@ static void process_service_search(tCONN_CB* p_ccb, uint16_t trans_num, uint16_t
   if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
       tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
-              p_ccb->connection_id, p_buf->len);
+              p_ccb->connection_id, p_rsp - p_rsp_start);
   }
 }
 
@@ -564,7 +564,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
   if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
       tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
-              p_ccb->connection_id, p_buf->len);
+              p_ccb->connection_id, p_rsp - p_rsp_start);
   }
 }
 
@@ -921,7 +921,7 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
   if (stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf) !=
       tL2CAP_DW_RESULT::SUCCESS) {
     log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_ccb->device_address,
-              p_ccb->connection_id, p_buf->len);
+              p_ccb->connection_id, p_rsp - p_rsp_start);
   }
 }
 

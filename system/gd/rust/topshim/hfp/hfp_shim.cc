@@ -22,7 +22,6 @@
 #include "common/strings.h"
 #include "device/include/interop.h"
 #include "include/hardware/bt_hf.h"
-#include "os/log.h"
 #include "src/profiles/hfp.rs.h"
 #include "types/raw_address.h"
 
@@ -272,8 +271,8 @@ public:
                          double packet_loss_ratio, uint64_t begin_ts, uint64_t end_ts,
                          const char* pkt_status_in_hex, const char* pkt_status_in_binary) override {
     log::warn("DebugDumpCallback {} {} {} {:f} {} {} {} {}", active, codec_id,
-              total_num_decoded_frames, packet_loss_ratio, (unsigned long long)begin_ts,
-              (unsigned long long)end_ts, pkt_status_in_hex, pkt_status_in_binary);
+              total_num_decoded_frames, packet_loss_ratio, begin_ts, end_ts, pkt_status_in_hex,
+              pkt_status_in_binary);
     topshim::rust::internal::debug_dump_cb(active, codec_id, total_num_decoded_frames,
                                            packet_loss_ratio, begin_ts, end_ts, pkt_status_in_hex,
                                            pkt_status_in_binary);

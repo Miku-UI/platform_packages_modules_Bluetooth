@@ -20,9 +20,9 @@ use crate::callbacks::{
 };
 use crate::command_handler::{CommandHandler, SocketSchedule};
 use crate::dbus_iface::{
-    BatteryManagerDBus, BluetoothAdminDBus, BluetoothDBus, BluetoothGattDBus, BluetoothManagerDBus,
-    BluetoothMediaDBus, BluetoothQADBus, BluetoothQALegacyDBus, BluetoothSocketManagerDBus,
-    BluetoothTelephonyDBus, SuspendDBus,
+    BatteryManagerDBus, BluetoothAdminDBus, BluetoothDBus, BluetoothGattDBus, BluetoothLoggingDBus,
+    BluetoothManagerDBus, BluetoothMediaDBus, BluetoothQADBus, BluetoothQALegacyDBus,
+    BluetoothSocketManagerDBus, BluetoothTelephonyDBus, SuspendDBus,
 };
 use crate::editor::AsyncEditor;
 use bt_topshim::{btif::RawAddress, topstack};
@@ -113,6 +113,9 @@ pub(crate) struct ClientContext {
     /// Proxy for battery manager interface.
     pub(crate) battery_manager_dbus: Option<BatteryManagerDBus>,
 
+    /// Proxy for logging interface.
+    pub(crate) logging_dbus: Option<BluetoothLoggingDBus>,
+
     /// Channel to send actions to take in the foreground
     fg: mpsc::Sender<ForegroundActions>,
 
@@ -146,6 +149,9 @@ pub(crate) struct ClientContext {
     /// Is btclient running in restricted mode?
     is_restricted: bool,
 
+    /// Is btclient running in interactive mode?
+    is_interactive: bool,
+
     /// Data of GATT client preference.
     gatt_client_context: GattClientContext,
 
@@ -174,6 +180,7 @@ impl ClientContext {
         dbus_crossroads: Arc<Mutex<Crossroads>>,
         tx: mpsc::Sender<ForegroundActions>,
         is_restricted: bool,
+        is_interactive: bool,
         client_commands_with_callbacks: Vec<String>,
     ) -> ClientContext {
         // Manager interface is almost always available but adapter interface
@@ -201,6 +208,7 @@ impl ClientContext {
             telephony_dbus: None,
             media_dbus: None,
             battery_manager_dbus: None,
+            logging_dbus: None,
             fg: tx,
             dbus_connection,
             dbus_crossroads,
@@ -212,6 +220,7 @@ impl ClientContext {
             socket_manager_callback_id: None,
             qa_callback_id: None,
             is_restricted,
+            is_interactive,
             gatt_client_context: GattClientContext::new(),
             gatt_server_context: GattServerContext::new(),
             socket_test_schedule: None,
@@ -269,13 +278,23 @@ impl ClientContext {
 
         self.battery_manager_dbus = Some(BatteryManagerDBus::new(conn.clone(), idx));
 
+        self.logging_dbus = Some(BluetoothLoggingDBus::new(conn.clone(), idx));
+
         // Trigger callback registration in the foreground
         let fg = self.fg.clone();
+        let is_interactive = self.is_interactive;
         tokio::spawn(async move {
             let adapter = format!("adapter{}", idx);
+
             // Floss won't export the interface until it is ready to be used.
             // Wait 1 second before registering the callbacks.
-            sleep(Duration::from_millis(1000)).await;
+            // Only introduce such delay on interactive mode. This is because we expect the user to
+            // ensure the adapter interface is ready when they issue the command in non-interactive
+            // mode. Otherwise, there will always have 1 second delay and in most of the case it is
+            // not needed.
+            if is_interactive {
+                sleep(Duration::from_millis(1000)).await;
+            }
             let _ = fg.send(ForegroundActions::RegisterAdapterCallback(adapter)).await;
         });
     }
@@ -364,6 +383,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get_matches();
     let command = value_t!(matches, "command", String).ok();
     let is_restricted = matches.is_present("restricted");
+    let is_interactive = command.is_none();
     let timeout_secs = value_t!(matches, "timeout", u64);
 
     topstack::get_runtime().block_on(async move {
@@ -408,6 +428,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cr.clone(),
             tx.clone(),
             is_restricted,
+            is_interactive,
             client_commands_with_callbacks,
         )));
 
@@ -449,7 +470,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let handler = CommandHandler::new(context.clone());
-        if command.is_some() {
+        if !is_interactive {
             // Timeout applies only to non-interactive commands.
             if let Ok(timeout_secs) = timeout_secs {
                 let timeout_duration = Duration::from_secs(timeout_secs);

@@ -55,7 +55,7 @@ public:
 private:
   std::mutex mMutex;
   std::condition_variable mCondition;
-  unsigned long mCount = 0;
+  uint64_t mCount = 0;
 };
 static btsemaphore semaphore;
 static int cb_counter;
@@ -63,7 +63,7 @@ static MessageLoopThread* thread = new MessageLoopThread("fake main thread");
 
 bluetooth::common::MessageLoopThread* get_main_thread() { return thread; }
 
-static void cb(void* data) {
+static void cb(void* /*data*/) {
   ++cb_counter;
   semaphore.post();
 }

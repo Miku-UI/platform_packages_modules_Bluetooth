@@ -27,7 +27,6 @@ source_set("BluetoothOsSources_chromeos") {
   ]
   deps = [
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 }
 
@@ -46,7 +45,6 @@ source_set("BluetoothOsSources_linux") {
   ]
   deps = [
     "//bt/system:libbt-platform-protos-lite",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
   ]
 }
 
@@ -55,6 +53,7 @@ source_set("BluetoothOsSources_linux_generic") {
     "handler.cc",
     "linux_generic/alarm.cc",
     "linux_generic/files.cc",
+    "linux_generic/mgmt.cc",
     "linux_generic/reactive_semaphore.cc",
     "linux_generic/reactor.cc",
     "linux_generic/repeating_alarm.cc",

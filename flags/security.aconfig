@@ -44,3 +44,74 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "btsec_avdt_msg_ind_type_confusion"
+  namespace: "bluetooth"
+  description: "Properly check current state and sig value of avdt rej/rsp messages before parsing"
+  bug: "358212054"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "btsec_cycle_irks"
+  namespace: "bluetooth"
+  description: "Change the IRK per BT spec when all devices are unbonded"
+  bug: "372714979"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "btsec_le_oob_pairing"
+  namespace: "bluetooth"
+  description: "Drop connection if a peer claims it has OOB data but no local OOB data is stored"
+  bug: "374376990"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+
+flag {
+  name: "opp_check_content_uri_permissions"
+  namespace: "bluetooth"
+  description: "Check that the launching application for OPP has read access to the given content URI, on Android V+"
+  bug: "375466974"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "sec_disconnect_on_le_key_missing"
+  namespace: "bluetooth"
+  description: "Disconnect LE link when keys are missing during encryption"
+  bug: "376680866"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+    name: "guard_bonded_device_properties"
+    namespace: "bluetooth"
+    description: "Don't update device properties for bonded devices from the device discovery results"
+    bug: "376928594"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "disconnect_on_encryption_failure"
+    namespace: "bluetooth"
+    description: "Disconnect ACL link when encryption fails"
+    bug: "378764380"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

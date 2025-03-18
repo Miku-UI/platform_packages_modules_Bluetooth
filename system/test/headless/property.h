@@ -99,7 +99,7 @@ struct void_t : public bt_property_t {
 
 public:
   virtual std::string ToString() const override {
-    return fmt::format("Unimplemented property type:{} name:{}", type, bt_property_type_text(type));
+    return std::format("Unimplemented property type:{} name:{}", type, bt_property_type_text(type));
   }
 };
 
@@ -119,7 +119,7 @@ public:
   }
 
   virtual std::string ToString() const override {
-    return fmt::format("Number of uuids:{}", get_uuids().size());
+    return std::format("Number of uuids:{}", get_uuids().size());
   }
 
 private:
@@ -136,7 +136,7 @@ struct name_t : public bt_property_t {
     return std::string(s);
   }
 
-  virtual std::string ToString() const override { return fmt::format("Name:{}", get_name()); }
+  virtual std::string ToString() const override { return std::format("Name:{}", get_name()); }
 };
 
 struct bdaddr_t : public bt_property_t {
@@ -153,7 +153,7 @@ struct bdaddr_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return fmt::format("bd_addr:{}", get_addr().ToString());
+    return std::format("bd_addr:{}", get_addr().ToString());
   }
 };
 
@@ -168,7 +168,7 @@ struct class_of_device_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return fmt::format("cod:0x{:04x}", get_class_of_device());
+    return std::format("cod:0x{:04x}", get_class_of_device());
   }
 };
 
@@ -183,7 +183,7 @@ struct type_of_device_t : public bt_property_t {
   }
 
   virtual std::string ToString() const override {
-    return fmt::format("tod:0x{:04x}", get_type_of_device());
+    return std::format("tod:0x{:04x}", get_type_of_device());
   }
 };
 

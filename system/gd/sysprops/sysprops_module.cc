@@ -19,7 +19,6 @@
 #include <filesystem>
 
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/parameter_provider.h"
 #include "os/system_properties.h"
 #include "storage/legacy_config_file.h"

@@ -133,6 +133,8 @@ public:
   void L2CA_SetMediaStreamChannel(uint16_t local_media_cid, bool status) override;
   [[nodiscard]] bool L2CA_isMediaChannel(uint16_t handle, uint16_t channel_id,
                                          bool is_local_cid) override;
+
+  [[nodiscard]] bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) override;
 };
 
 }  // namespace l2cap

@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "gap_api.h"
+#include "gap_int.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
@@ -54,7 +55,9 @@ typedef struct {
 
   uint8_t service_id;     /* Used by BTM */
   uint16_t gap_handle;    /* GAP handle */
-  uint16_t connection_id; /* L2CAP CID */
+  uint16_t local_cid;     /* Local L2CAP CID */
+  uint16_t remote_cid;    /* Remote L2CAP CID */
+  uint16_t acl_handle;    /* ACL handle */
   bool rem_addr_specified;
   uint8_t chan_mode_mask; /* Supported channel modes (FCR) */
   RawAddress rem_dev_address;
@@ -114,7 +117,7 @@ static void gap_checks_con_flags(tGAP_CCB* p_ccb);
  * Returns          void
  *
  ******************************************************************************/
-void gap_conn_init(void) {
+static void gap_conn_init(void) {
   memset(&conn, 0, sizeof(tGAP_CONN));
   conn.reg_info.pL2CA_ConnectInd_Cb = gap_connect_ind;
   conn.reg_info.pL2CA_ConnectCfm_Cb = gap_connect_cfm;
@@ -210,7 +213,12 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id, bool is
 
   /* Configure L2CAP COC, if transport is LE */
   if (transport == BT_TRANSPORT_LE) {
-    p_ccb->local_coc_cfg.credits = L2CA_LeCreditDefault();
+    if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3349376
+      p_ccb->local_coc_cfg.credits =
+              (p_ccb->cfg.init_credit_present) ? p_ccb->cfg.init_credit : L2CA_LeCreditDefault();
+    } else {
+      p_ccb->local_coc_cfg.credits = L2CA_LeCreditDefault();
+    }
     p_ccb->local_coc_cfg.mtu = p_cfg->mtu;
 
     uint16_t max_mps = bluetooth::shim::GetController()->GetLeBufferSize().le_data_packet_length_;
@@ -283,7 +291,7 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id, bool is
       cid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(p_ccb->psm, *p_rem_bda,
                                                                       security);
       if (cid != 0) {
-        p_ccb->connection_id = cid;
+        p_ccb->local_cid = cid;
         return p_ccb->gap_handle;
       }
       log::warn("Unable to initiate connection peer:{} psm:{} transport:{}", *p_rem_bda, p_ccb->psm,
@@ -294,7 +302,7 @@ uint16_t GAP_ConnOpen(const char* /* p_serv_name */, uint8_t service_id, bool is
       cid = stack::l2cap::get_interface().L2CA_ConnectLECocReq(p_ccb->psm, *p_rem_bda,
                                                                &p_ccb->local_coc_cfg, security);
       if (cid != 0) {
-        p_ccb->connection_id = cid;
+        p_ccb->local_cid = cid;
         return p_ccb->gap_handle;
       }
       log::warn("Unable to initiate connection peer:{} psm:{} transport:{}", *p_rem_bda, p_ccb->psm,
@@ -328,14 +336,14 @@ uint16_t GAP_ConnClose(uint16_t gap_handle) {
   /* Check if we have a connection ID */
   if (p_ccb->con_state != GAP_CCB_STATE_LISTENING) {
     if (p_ccb->transport == BT_TRANSPORT_LE) {
-      if (!stack::l2cap::get_interface().L2CA_DisconnectLECocReq(p_ccb->connection_id)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectLECocReq(p_ccb->local_cid)) {
         log::warn("Unable to request L2CAP disconnect le_coc peer:{} cid:{}",
-                  p_ccb->rem_dev_address, p_ccb->connection_id);
+                  p_ccb->rem_dev_address, p_ccb->local_cid);
       }
     } else {
-      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_ccb->connection_id)) {
+      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_ccb->local_cid)) {
         log::warn("Unable to request L2CAP disconnect peer:{} cid:{}", p_ccb->rem_dev_address,
-                  p_ccb->connection_id);
+                  p_ccb->local_cid);
       }
     }
   }
@@ -450,9 +458,9 @@ static bool gap_try_write_queued_data(tGAP_CCB* p_ccb) {
   while ((p_buf = (BT_HDR*)fixed_queue_try_dequeue(p_ccb->tx_queue)) != NULL) {
     tL2CAP_DW_RESULT status;
     if (p_ccb->transport == BT_TRANSPORT_LE) {
-      status = stack::l2cap::get_interface().L2CA_LECocDataWrite(p_ccb->connection_id, p_buf);
+      status = stack::l2cap::get_interface().L2CA_LECocDataWrite(p_ccb->local_cid, p_buf);
     } else {
-      status = stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->connection_id, p_buf);
+      status = stack::l2cap::get_interface().L2CA_DataWrite(p_ccb->local_cid, p_buf);
     }
 
     if (status == tL2CAP_DW_RESULT::CONGESTED) {
@@ -575,7 +583,67 @@ uint16_t GAP_ConnGetL2CAPCid(uint16_t gap_handle) {
     return 0;
   }
 
-  return p_ccb->connection_id;
+  return p_ccb->local_cid;
+}
+
+/*******************************************************************************
+ *
+ * Function         GAP_GetLeChannelInfo
+ *
+ * Description      This function is called to get LE L2CAP channel information
+ *                  by the gap handle. All OUT parameters must NOT be nullptr.
+ *
+ * Parameters:      handle        - Handle of the port returned in the Open
+ *                  remote_mtu    - OUT remote L2CAP MTU
+ *                  local_mps     - OUT local L2CAP COC MPS
+ *                  remote_mps    - OUT remote L2CAP COC MPS
+ *                  local_credit  - OUT local L2CAP COC credit
+ *                  remote_credit - OUT remote L2CAP COC credit
+ *                  local_cid     - OUT local L2CAP CID
+ *                  remote_cid    - OUT remote L2CAP CID
+ *                  acl_handle    - OUT ACL handle
+ *
+ * Returns          true if request accepted
+ *
+ ******************************************************************************/
+bool GAP_GetLeChannelInfo(uint16_t gap_handle, uint16_t* remote_mtu, uint16_t* local_mps,
+                          uint16_t* remote_mps, uint16_t* local_credit, uint16_t* remote_credit,
+                          uint16_t* local_cid, uint16_t* remote_cid, uint16_t* acl_handle) {
+  tGAP_CCB* p_ccb = gap_find_ccb_by_handle(gap_handle);
+  if (p_ccb == NULL || p_ccb->transport != BT_TRANSPORT_LE ||
+      p_ccb->con_state != GAP_CCB_STATE_CONNECTED) {
+    return false;
+  }
+
+  *remote_mtu = p_ccb->peer_coc_cfg.mtu;
+  *local_mps = p_ccb->local_coc_cfg.mps;
+  *remote_mps = p_ccb->peer_coc_cfg.mps;
+  *local_credit = p_ccb->local_coc_cfg.credits;
+  *remote_credit = p_ccb->peer_coc_cfg.credits;
+  *local_cid = p_ccb->local_cid;
+  *remote_cid = p_ccb->remote_cid;
+  *acl_handle = p_ccb->acl_handle;
+  return true;
+}
+
+/*******************************************************************************
+ *
+ * Function         GAP_IsTransportLe
+ *
+ * Description      This function returns if the transport is LE by the gap handle.
+ *
+ * Parameters:      handle        - Handle of the port returned in the Open
+ *
+ * Returns          true if transport is LE, else false
+ *
+ ******************************************************************************/
+bool GAP_IsTransportLe(uint16_t gap_handle) {
+  tGAP_CCB* p_ccb = gap_find_ccb_by_handle(gap_handle);
+  if (p_ccb == NULL || p_ccb->transport != BT_TRANSPORT_LE ||
+      p_ccb->con_state != GAP_CCB_STATE_CONNECTED) {
+    return false;
+  }
+  return true;
 }
 
 /*******************************************************************************
@@ -648,7 +716,7 @@ static void gap_connect_ind(const RawAddress& bd_addr, uint16_t l2cap_cid, uint1
 
   /* Save the BD Address and Channel ID. */
   p_ccb->rem_dev_address = bd_addr;
-  p_ccb->connection_id = l2cap_cid;
+  p_ccb->local_cid = l2cap_cid;
 
   if (p_ccb->transport == BT_TRANSPORT_LE) {
     /* get the remote coc configuration */
@@ -682,11 +750,15 @@ static void gap_checks_con_flags(tGAP_CCB* p_ccb) {
     tGAP_CB_DATA cb_data;
     uint16_t l2cap_remote_cid;
     if (com::android::bluetooth::flags::bt_socket_api_l2cap_cid() &&
-        stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_ccb->connection_id,
+        stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_ccb->local_cid,
                                                               &l2cap_remote_cid)) {
-      cb_data.l2cap_cids.local_cid = p_ccb->connection_id;
+      cb_data.l2cap_cids.local_cid = p_ccb->local_cid;
       cb_data.l2cap_cids.remote_cid = l2cap_remote_cid;
       cb_data_ptr = &cb_data;
+    }
+    if (com::android::bluetooth::flags::socket_settings_api()) {  // Added with aosp/3367197
+      stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_ccb->local_cid, &p_ccb->remote_cid);
+      stack::l2cap::get_interface().L2CA_GetAclHandle(p_ccb->local_cid, &p_ccb->acl_handle);
     }
     p_ccb->con_state = GAP_CCB_STATE_CONNECTED;
 
@@ -925,7 +997,7 @@ static void gap_congestion_ind(uint16_t lcid, bool is_congested) {
  * Function         gap_find_ccb_by_cid
  *
  * Description      This function searches the CCB table for an entry with the
- *                  passed CID.
+ *                  passed local CID.
  *
  * Returns          the CCB address, or NULL if not found.
  *
@@ -936,7 +1008,7 @@ static tGAP_CCB* gap_find_ccb_by_cid(uint16_t cid) {
 
   /* Look through each connection control block */
   for (xx = 0, p_ccb = conn.ccb_pool; xx < GAP_MAX_CONNECTIONS; xx++, p_ccb++) {
-    if ((p_ccb->con_state != GAP_CCB_STATE_IDLE) && (p_ccb->connection_id == cid)) {
+    if ((p_ccb->con_state != GAP_CCB_STATE_IDLE) && (p_ccb->local_cid == cid)) {
       return p_ccb;
     }
   }
@@ -1046,8 +1118,6 @@ static void gap_release_ccb(tGAP_CCB* p_ccb) {
     stack::l2cap::get_interface().L2CA_DeregisterLECoc(p_ccb->psm);
   }
 }
-
-void gap_attr_db_init(void);
 
 /*
  * This routine should not be called except once per stack invocation.

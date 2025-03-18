@@ -59,6 +59,7 @@ static_library("btif") {
     "src/btif_le_audio_broadcaster.cc",
     "src/btif_has_client.cc",
     "src/btif_hearing_aid.cc",
+    "src/btif_hci_vs.cc",
     "src/btif_hf.cc",
     "src/btif_hf_client.cc",
     "src/btif_hh.cc",
@@ -74,6 +75,7 @@ static_library("btif") {
     "src/btif_sdp.cc",
     "src/btif_sdp_server.cc",
     "src/btif_sock.cc",
+    "src/btif_sock_hal.cc",
     "src/btif_sock_l2cap.cc",
     "src/btif_sock_logging.cc",
     "src/btif_sock_rfc.cc",
@@ -93,9 +95,9 @@ static_library("btif") {
     "//bt/system/bta/dm",
     "//bt/system/linux_include",
     "//bt/system/audio_hearing_aid_hw/include",
+    "//bt/system/bta/aics/include",
     "//bt/system/bta/include",
     "//bt/system/bta/sys",
-    "//bt/system/device/include",
     "//bt/system/embdrv/sbc/encoder/include",
     "//bt/system/embdrv/sbc/decoder/include",
     "//bt/system/gd",
@@ -113,9 +115,8 @@ static_library("btif") {
     "//bt/sysprop:libcom.android.sysprop.bluetooth",
     "//bt/system:libbt-platform-protos-lite",
     "//bt/system/common",
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
     "//bt/system/profile/avrcp:profile_avrcp",
-    "//bt/system/gd:libbluetooth-gdx",
+    "//bt/system/bta/aics:aics",
   ]
 
   configs += [

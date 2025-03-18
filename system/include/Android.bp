@@ -35,11 +35,13 @@ cc_library_headers {
         "//vendor:__subpackages__",
     ],
     header_libs: [
+        "aics_headers",
         "avrcp_headers",
         "libbluetooth-types-header",
         "libbtcore_headers",
     ],
     export_header_lib_headers: [
+        "aics_headers",
         "avrcp_headers",
         "libbluetooth-types-header",
         "libbtcore_headers",

@@ -26,10 +26,16 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <string>
 
 #include "bta/include/bta_pan_co.h"
 #include "bta/pan/bta_pan_int.h"
+#include "bta_api.h"
+#include "bta_pan_api.h"
+#include "bta_sys.h"
 #include "internal_include/bt_target.h"  // PAN_INCLUDED
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
@@ -41,7 +47,6 @@
 using namespace bluetooth;
 
 #if (PAN_INCLUDED == TRUE)
-void bta_pan_sm_execute(tBTA_PAN_SCB* p_scb, uint16_t event, tBTA_PAN_DATA* p_data);
 
 /* RX and TX data flow mask */
 #define BTA_PAN_RX_MASK 0x0F
@@ -349,9 +354,8 @@ void bta_pan_set_role(tBTA_PAN_DATA* p_data) {
     } else {
       bta_sys_remove_uuid(UUID_SERVCLASS_PANU);
     }
-  }
-  /* if status is not success clear everything */
-  else {
+  } else {
+    /* if status is not success clear everything */
     PAN_SetRole(0, std::string(), std::string());
     bta_sys_remove_uuid(UUID_SERVCLASS_NAP);
     bta_sys_remove_uuid(UUID_SERVCLASS_GN);
@@ -548,9 +552,8 @@ void bta_pan_rx_path(tBTA_PAN_SCB* p_scb, tBTA_PAN_DATA* /* p_data */) {
       /* call application callout function for rx path */
       bta_pan_co_rx_path(p_scb->handle, p_scb->app_id);
     }
-  }
-  /* else data path configured for rx push */
-  else {
+  } else {
+    /* else data path configured for rx push */
   }
 }
 

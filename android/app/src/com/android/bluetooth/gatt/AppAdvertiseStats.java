@@ -15,12 +15,16 @@
  */
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.util.AttributionSourceUtil.getLastAttributionTag;
+
+import android.annotation.Nullable;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetCallback;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
 import android.os.ParcelUuid;
 import android.util.SparseArray;
 
@@ -82,6 +86,7 @@ class AppAdvertiseStats {
 
     private int mAppUid;
     @VisibleForTesting String mAppName;
+    @Nullable private String mAttributionTag;
     private int mId;
     private boolean mAdvertisingEnabled = false;
     private boolean mPeriodicAdvertisingEnabled = false;
@@ -93,17 +98,18 @@ class AppAdvertiseStats {
     private boolean mAnonymous = false;
     private boolean mConnectable = false;
     private boolean mScannable = false;
-    private AppAdvertiserData mAdvertisingData = null;
-    private AppAdvertiserData mScanResponseData = null;
-    private AppAdvertiserData mPeriodicAdvertisingData = null;
+    @Nullable private AppAdvertiserData mAdvertisingData = null;
+    @Nullable private AppAdvertiserData mScanResponseData = null;
+    @Nullable private AppAdvertiserData mPeriodicAdvertisingData = null;
     private boolean mPeriodicIncludeTxPower = false;
     private int mPeriodicInterval = 0;
     public ArrayList<AppAdvertiserRecord> mAdvertiserRecords = new ArrayList<AppAdvertiserRecord>();
 
-    AppAdvertiseStats(int appUid, int id, String name) {
+    AppAdvertiseStats(int appUid, int id, String name, AttributionSource attrSource) {
         this.mAppUid = appUid;
         this.mId = id;
         this.mAppName = name;
+        this.mAttributionTag = getLastAttributionTag(attrSource);
     }
 
     void recordAdvertiseStart(
@@ -553,6 +559,10 @@ class AppAdvertiseStats {
         Instant currentTime = Instant.now();
 
         sb.append("\n    ").append(stats.mAppName);
+        if (stats.mAttributionTag != null) {
+            sb.append("\n     Tag                                                : ")
+                    .append(stats.mAttributionTag);
+        }
         sb.append("\n     Advertising ID                                     : ").append(stats.mId);
         for (int i = 0; i < stats.mAdvertiserRecords.size(); i++) {
             AppAdvertiserRecord record = stats.mAdvertiserRecords.get(i);

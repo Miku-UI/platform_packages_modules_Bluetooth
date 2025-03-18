@@ -32,11 +32,6 @@ static_library("btcore") {
     "//bt/system:target_defaults",
     "//bt/system/log:log_defaults",
   ]
-
-  deps = [
-    "//bt/system/gd/rust/shim:init_flags_bridge_header",
-    "//bt/system/gd/rust/shim:libbluetooth_rust_interop",
-  ]
 }
 
 if (use.test) {

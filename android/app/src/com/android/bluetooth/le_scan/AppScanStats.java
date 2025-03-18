@@ -16,17 +16,19 @@
 
 package com.android.bluetooth.le_scan;
 
+import static java.util.Objects.requireNonNull;
+
+import android.annotation.Nullable;
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanSettings;
-import android.content.Context;
 import android.os.BatteryStatsManager;
 import android.os.Binder;
-import android.os.SystemClock;
 import android.os.WorkSource;
 
 import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.BluetoothStatsLog;
+import com.android.bluetooth.Utils.TimeProvider;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.flags.Flags;
@@ -70,6 +72,7 @@ public class AppScanStats {
     BatteryStatsManager mBatteryStatsManager;
 
     private final AdapterService mAdapterService;
+    private final TimeProvider mTimeProvider;
 
     private static Object sLock = new Object();
 
@@ -104,6 +107,7 @@ public class AppScanStats {
         public int scanMode;
         public int scanCallbackType;
         public StringBuilder filterString;
+        @Nullable public String attributionTag;
 
         LastScan(
                 long timestamp,
@@ -112,7 +116,8 @@ public class AppScanStats {
                 boolean isCallbackScan,
                 int scannerId,
                 int scanMode,
-                int scanCallbackType) {
+                int scanCallbackType,
+                @Nullable String attributionTag) {
             this.duration = 0;
             this.timestamp = timestamp;
             this.reportDelayMillis = reportDelayMillis;
@@ -126,6 +131,7 @@ public class AppScanStats {
             this.isAutoBatchScan = false;
             this.scanMode = scanMode;
             this.scanCallbackType = scanCallbackType;
+            this.attributionTag = attributionTag;
             this.results = 0;
             this.scannerId = scannerId;
             this.suspendDuration = 0;
@@ -135,7 +141,7 @@ public class AppScanStats {
         }
     }
 
-    public String appName;
+    String mAppName;
     private WorkSource mWorkSource; // Used for BatteryStatsManager
     private final WorkSourceUtil mWorkSourceUtil; // Used for BluetoothStatsLog
     private int mScansStarted = 0;
@@ -166,20 +172,22 @@ public class AppScanStats {
             String name,
             WorkSource source,
             ScannerMap map,
-            Context context,
-            TransitionalScanHelper scanHelper) {
-        appName = name;
+            AdapterService adapterService,
+            TransitionalScanHelper scanHelper,
+            TimeProvider timeProvider) {
+        mAdapterService = requireNonNull(adapterService);
+        mTimeProvider = requireNonNull(timeProvider);
+        mAppName = name;
         mScannerMap = map;
         mScanHelper = scanHelper;
-        mBatteryStatsManager = context.getSystemService(BatteryStatsManager.class);
+        mBatteryStatsManager = adapterService.getSystemService(BatteryStatsManager.class);
 
         if (source == null) {
             // Bill the caller if the work source isn't passed through
-            source = new WorkSource(Binder.getCallingUid(), appName);
+            source = new WorkSource(Binder.getCallingUid(), mAppName);
         }
         mWorkSource = source;
         mWorkSourceUtil = new WorkSourceUtil(source);
-        mAdapterService = Objects.requireNonNull(AdapterService.getAdapterService());
     }
 
     public synchronized void addResult(int scannerId) {
@@ -239,13 +247,14 @@ public class AppScanStats {
             List<ScanFilter> filters,
             boolean isFilterScan,
             boolean isCallbackScan,
-            int scannerId) {
+            int scannerId,
+            @Nullable String attributionTag) {
         LastScan existingScan = getScanFromScannerId(scannerId);
         if (existingScan != null) {
             return;
         }
         this.mScansStarted++;
-        startTime = SystemClock.elapsedRealtime();
+        startTime = mTimeProvider.elapsedRealtime();
 
         LastScan scan =
                 new LastScan(
@@ -255,7 +264,8 @@ public class AppScanStats {
                         isCallbackScan,
                         scannerId,
                         settings.getScanMode(),
-                        settings.getCallbackType());
+                        settings.getCallbackType(),
+                        attributionTag);
         if (settings != null) {
             scan.isOpportunisticScan = scan.scanMode == ScanSettings.SCAN_MODE_OPPORTUNISTIC;
             scan.isBackgroundScan =
@@ -298,7 +308,7 @@ public class AppScanStats {
                                 BluetoothMetricsProto.ScanEvent.ScanTechnologyType
                                         .SCAN_TECH_TYPE_LE)
                         .setEventTimeMillis(System.currentTimeMillis())
-                        .setInitiator(truncateAppName(appName))
+                        .setInitiator(truncateAppName(mAppName))
                         .build();
         mScanHelper.addScanEvent(scanEvent);
 
@@ -327,7 +337,7 @@ public class AppScanStats {
             return;
         }
         this.mScansStopped++;
-        stopTime = SystemClock.elapsedRealtime();
+        stopTime = mTimeProvider.elapsedRealtime();
         long scanDuration = stopTime - scan.timestamp;
         scan.duration = scanDuration;
         if (scan.isSuspended) {
@@ -349,7 +359,7 @@ public class AppScanStats {
                                 BluetoothMetricsProto.ScanEvent.ScanTechnologyType
                                         .SCAN_TECH_TYPE_LE)
                         .setEventTimeMillis(System.currentTimeMillis())
-                        .setInitiator(truncateAppName(appName))
+                        .setInitiator(truncateAppName(mAppName))
                         .setNumberResults(scan.results)
                         .build();
         mScanHelper.addScanEvent(scanEvent);
@@ -576,12 +586,17 @@ public class AppScanStats {
     }
 
     static boolean recordScanRadioStart(
-            int scanMode, int scannerId, AppScanStats stats, int scanWindowMs, int scanIntervalMs) {
+            int scanMode,
+            int scannerId,
+            AppScanStats stats,
+            int scanWindowMs,
+            int scanIntervalMs,
+            TimeProvider timeProvider) {
         synchronized (sLock) {
             if (sIsRadioStarted) {
                 return false;
             }
-            sRadioStartTime = SystemClock.elapsedRealtime();
+            sRadioStartTime = timeProvider.elapsedRealtime();
             sRadioScanWorkSourceUtil = stats.mWorkSourceUtil;
             sRadioScanType = convertScanType(stats.getScanFromScannerId(scannerId));
             sRadioScanMode = scanMode;
@@ -592,12 +607,12 @@ public class AppScanStats {
         return true;
     }
 
-    static boolean recordScanRadioStop() {
+    static boolean recordScanRadioStop(TimeProvider timeProvider) {
         synchronized (sLock) {
             if (!sIsRadioStarted) {
                 return false;
             }
-            recordScanRadioDurationMetrics();
+            recordScanRadioDurationMetrics(timeProvider);
             if (!Flags.bleScanAdvMetricsRedesign()) {
                 sRadioStartTime = 0;
                 sIsRadioStarted = false;
@@ -607,12 +622,12 @@ public class AppScanStats {
     }
 
     @GuardedBy("sLock")
-    private static void recordScanRadioDurationMetrics() {
+    private static void recordScanRadioDurationMetrics(TimeProvider timeProvider) {
         if (!sIsRadioStarted) {
             return;
         }
         MetricsLogger logger = MetricsLogger.getInstance();
-        long currentTime = SystemClock.elapsedRealtime();
+        long currentTime = timeProvider.elapsedRealtime();
         long radioScanDuration = currentTime - sRadioStartTime;
         double scanWeight = getScanWeight(sRadioScanMode) * 0.01;
         long weightedDuration = (long) (radioScanDuration * scanWeight);
@@ -740,14 +755,14 @@ public class AppScanStats {
         }
     }
 
-    static void setScreenState(boolean isScreenOn) {
+    static void setScreenState(boolean isScreenOn, TimeProvider timeProvider) {
         synchronized (sLock) {
             if (sIsScreenOn == isScreenOn) {
                 return;
             }
             if (sIsRadioStarted) {
-                recordScanRadioDurationMetrics();
-                sRadioStartTime = SystemClock.elapsedRealtime();
+                recordScanRadioDurationMetrics(timeProvider);
+                sRadioStartTime = timeProvider.elapsedRealtime();
             }
             recordScreenOnOffMetrics(isScreenOn);
             sIsScreenOn = isScreenOn;
@@ -759,7 +774,7 @@ public class AppScanStats {
         if (scan == null || scan.isSuspended) {
             return;
         }
-        scan.suspendStartTime = SystemClock.elapsedRealtime();
+        scan.suspendStartTime = mTimeProvider.elapsedRealtime();
         scan.isSuspended = true;
     }
 
@@ -769,7 +784,7 @@ public class AppScanStats {
             return;
         }
         scan.isSuspended = false;
-        stopTime = SystemClock.elapsedRealtime();
+        stopTime = mTimeProvider.elapsedRealtime();
         long suspendDuration = stopTime - scan.suspendStartTime;
         scan.suspendDuration += suspendDuration;
         mTotalSuspendTime += suspendDuration;
@@ -809,7 +824,7 @@ public class AppScanStats {
             return false;
         }
 
-        return (SystemClock.elapsedRealtime() - mLastScans.get(0).timestamp)
+        return (mTimeProvider.elapsedRealtime() - mLastScans.get(0).timestamp)
                 < mAdapterService.getScanQuotaWindowMillis();
     }
 
@@ -817,7 +832,7 @@ public class AppScanStats {
         if (!isScanning()) {
             return false;
         }
-        return (SystemClock.elapsedRealtime() - mScanStartTime)
+        return (mTimeProvider.elapsedRealtime() - mScanStartTime)
                 >= mAdapterService.getScanTimeoutMillis();
     }
 
@@ -826,7 +841,7 @@ public class AppScanStats {
             return false;
         }
         LastScan lastScan = mLastScans.get(mLastScans.size() - 1);
-        return ((SystemClock.elapsedRealtime() - lastScan.duration - lastScan.timestamp)
+        return ((mTimeProvider.elapsedRealtime() - lastScan.duration - lastScan.timestamp)
                 < LARGE_SCAN_TIME_GAP_MS);
     }
 
@@ -941,7 +956,7 @@ public class AppScanStats {
     @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public synchronized void dumpToString(StringBuilder sb) {
         long currentTime = System.currentTimeMillis();
-        long currTime = SystemClock.elapsedRealtime();
+        long currTime = mTimeProvider.elapsedRealtime();
         long scanDuration = 0;
         long suspendDuration = 0;
         long activeDuration = 0;
@@ -1000,7 +1015,7 @@ public class AppScanStats {
                                 + ambientDiscoveryScanTime * AMBIENT_DISCOVERY_WEIGHT)
                         / 100;
 
-        sb.append("  ").append(appName);
+        sb.append("  ").append(mAppName);
         if (isRegistered) {
             sb.append(" (Registered)");
         }
@@ -1065,6 +1080,9 @@ public class AppScanStats {
                 }
                 sb.append(scan.results).append(" results");
                 sb.append(" (").append(scan.scannerId).append(") ");
+                if (scan.attributionTag != null) {
+                    sb.append(" [").append(scan.attributionTag).append("] ");
+                }
                 if (scan.isCallbackScan) {
                     sb.append("CB ");
                 } else {
@@ -1153,10 +1171,15 @@ public class AppScanStats {
             }
         }
 
-        ScannerMap.ScannerApp appEntry = mScannerMap.getByName(appName);
-        if (appEntry != null && isRegistered) {
-            sb.append("\n  Application ID                     : ").append(appEntry.mId);
-            sb.append("\n  UUID                               : ").append(appEntry.mUuid);
+        if (isRegistered) {
+            List<ScannerMap.ScannerApp> appEntries = mScannerMap.getByName(mAppName);
+            for (ScannerMap.ScannerApp appEntry : appEntries) {
+                sb.append("\n  Application ID: ").append(appEntry.mId);
+                sb.append(", UUID: ").append(appEntry.mUuid);
+                if (appEntry.mAttributionTag != null) {
+                    sb.append(", Tag: ").append(appEntry.mAttributionTag);
+                }
+            }
         }
         sb.append("\n\n");
     }

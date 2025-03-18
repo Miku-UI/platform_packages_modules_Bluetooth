@@ -33,7 +33,8 @@
 
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/sys/bta_sys.h"
-#include "internal_include/bt_trace.h"
+#include "bta_api_data_types.h"
+#include "hardware/bluetooth.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"
@@ -185,7 +186,7 @@ void BTA_HfClientSendAT(uint16_t handle, tBTA_HF_CLIENT_AT_CMD_TYPE at, uint32_t
   p_buf->uint32_val2 = val2;
 
   if (str) {
-    strlcpy(p_buf->str, str, BTA_HF_CLIENT_NUMBER_LEN + 1);
+    osi_strlcpy(p_buf->str, str, BTA_HF_CLIENT_NUMBER_LEN + 1);
     p_buf->str[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
   } else {
     p_buf->str[0] = '\0';

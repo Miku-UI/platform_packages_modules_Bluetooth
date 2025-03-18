@@ -10,24 +10,24 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.ś
+# limitations under the License.
 
-import threading
-import uuid
-import string
 import random
+import string
+import threading
 import time
+import uuid
 
 from mmi2grpc._audio import AudioSignal
 from mmi2grpc._helpers import assert_description, match_description
-from mmi2grpc._rootcanal import Dongle
 from mmi2grpc._proxy import ProfileProxy
+from mmi2grpc._rootcanal import Dongle
 from pandora.host_grpc import Host
 from pandora.host_pb2 import RANDOM
 from pandora.security_grpc import Security
 from pandora.security_pb2 import LE_LEVEL3, PairingEventAnswer
-from pandora_experimental.hap_grpc import HAP
 from pandora_experimental.gatt_grpc import GATT
+from pandora_experimental.hap_grpc import HAP
 from pandora_experimental.hap_pb2 import HaPlaybackAudioRequest
 
 BASE_UUID = uuid.UUID("00000000-0000-1000-8000-00805F9B34FB")
@@ -40,8 +40,10 @@ CCCD_UUID = 0x2902
 AUDIO_SIGNAL_AMPLITUDE = 0.8
 AUDIO_SIGNAL_SAMPLING_RATE = 44100
 
+
 def short_uuid(full: uuid.UUID) -> int:
     return (uuid.UUID(full).int - BASE_UUID.int) >> 96
+
 
 class HAPProxy(ProfileProxy):
 
@@ -88,7 +90,7 @@ class HAPProxy(ProfileProxy):
 
         # This MMI can be called multiple times, wait only for the first time
         if not self.preset_list:
-        # Android reads all presets after device is paired. Wait for initial preset record before sending next request.
+            # Android reads all presets after device is paired. Wait for initial preset record before sending next request.
             self.preset_list = self.hap.WaitPresetChanged().preset_record_list
             assert self.preset_list
 
@@ -214,11 +216,11 @@ class HAPProxy(ProfileProxy):
 
     @assert_description
     def IUT_CONFIRM_READY_TO_RECEIVE_PRESET_CHANGED(self, test: str, **kwargs):
-      """
+        """
       Please click OK when IUT is ready to receive Preset Changed message.
       """
 
-      return "OK"
+        return "OK"
 
     @match_description
     def IUT_ORDER_WRITE_SET_ACTIVE_PRESET_INDEX(self, test: str, index: str, **kwargs):

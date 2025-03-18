@@ -30,6 +30,9 @@
 #include "tests/packet_test_helper.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool btif_av_src_sink_coexist_enabled(void) { return true; }
 
 namespace bluetooth {
@@ -741,7 +744,7 @@ TEST_F(AvrcpDeviceTest, getTotalNumberOfItemsVFSTest) {
   EXPECT_CALL(interface, GetFolderItems(_, "", _)).Times(1).WillOnce(InvokeCb<2>(vfs_list));
 
   auto expected_response =
-          GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0, vfs_list.size());
+          GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS, 0, 0);
   EXPECT_CALL(response_cb, Call(1, true, matchPacket(std::move(expected_response)))).Times(1);
 
   SendBrowseMessage(1, TestBrowsePacket::Make(get_total_number_of_items_request_vfs));
@@ -760,8 +763,8 @@ TEST_F(AvrcpDeviceTest, getTotalNumberOfItemsNowPlayingTest) {
   EXPECT_CALL(interface, GetNowPlayingList(_))
           .WillRepeatedly(InvokeCb<0>("test_id1", now_playing_list));
 
-  auto expected_response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(
-          Status::NO_ERROR, 0, now_playing_list.size());
+  auto expected_response =
+          GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS, 0, 0);
   EXPECT_CALL(response_cb, Call(1, true, matchPacket(std::move(expected_response)))).Times(1);
 
   SendBrowseMessage(1, TestBrowsePacket::Make(get_total_number_of_items_request_now_playing));

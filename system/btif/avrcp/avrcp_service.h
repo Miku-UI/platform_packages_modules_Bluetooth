@@ -24,7 +24,7 @@
 #include "osi/include/properties.h"
 #include "profile/avrcp/avrcp_sdp_service.h"
 #include "profile/avrcp/connection_handler.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace avrcp {
@@ -70,7 +70,6 @@ public:
   // Functions inherited from MediaCallbacks in order to receive updates
   void SendMediaUpdate(bool track_changed, bool play_state, bool queue) override;
   void SendFolderUpdate(bool available_players, bool addressed_player, bool queue) override;
-  void SendActiveDeviceChanged(const RawAddress& address) override;
 
   void SendPlayerSettingsChanged(std::vector<PlayerAttribute> attributes,
                                  std::vector<uint8_t> values) override;

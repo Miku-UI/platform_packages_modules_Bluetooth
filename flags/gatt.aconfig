@@ -1,0 +1,12 @@
+package: "com.android.bluetooth.flags"
+container: "com.android.btservices"
+
+flag {
+    name: "default_gatt_transport"
+    namespace: "bluetooth"
+    description: "Use LE as the default transport for GATT connections"
+    bug: "376276742"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

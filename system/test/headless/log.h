@@ -25,7 +25,7 @@
 
 #include "build_timestamp.h"  // generated
 
-long long GetTimestampMs();
+uint64_t GetTimestampMs();
 
 // Internal to headless below
 
@@ -54,8 +54,7 @@ constexpr char _main[7 + 1] = "  MAIN ";
     _prev = _now;                                                                                  \
     auto _now_us = std::chrono::time_point_cast<std::chrono::microseconds>(_now);                  \
     auto _now_t = std::chrono::system_clock::to_time_t(_now);                                      \
-    /* YYYY-MM-DD_HH:MM:SS.ssssss is 26 byte long, plus 1 for null terminator                      \
-     */                                                                                            \
+    /* YYYY-MM-DD_HH:MM:SS.ssssss is 26 byte, plus 1 for null terminator */                        \
     char _buf[26 + 1];                                                                             \
     auto l = std::strftime(_buf, sizeof(_buf), "%Y-%m-%d %H:%M:%S", std::localtime(&_now_t));      \
     snprintf(_buf + l, sizeof(_buf) - l, ".%06u",                                                  \

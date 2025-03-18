@@ -31,8 +31,6 @@ mod utils;
 // This is fine for now since bt_shim doesn't export anything
 #[allow(unused)]
 use bluetooth_core_rs_for_facade::*;
-#[allow(unused)]
-use bt_shim::*;
 
 fn main() {
     // SAFETY: There is no signal handler installed before this.

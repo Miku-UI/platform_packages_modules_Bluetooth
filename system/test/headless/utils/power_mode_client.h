@@ -66,7 +66,7 @@ struct power_mode_callback_t {
   tHCI_STATUS hci_status;
 
   std::string ToString() const {
-    return fmt::format("bd_addr:{} pm_status:{} value:{} hci_status:{}", bd_addr.ToString(),
+    return std::format("bd_addr:{} pm_status:{} value:{} hci_status:{}", bd_addr.ToString(),
                        power_mode_status_text(status), value, hci_status_code_text(hci_status));
   }
 };
@@ -114,7 +114,6 @@ private:
   mutable std::mutex mutex;
   std::unordered_map<RawAddress, std::deque<std::promise<power_mode_callback_t>>> promises_map_;
   size_t cnt = 0;
-
 } queue_;
 
 }  // namespace

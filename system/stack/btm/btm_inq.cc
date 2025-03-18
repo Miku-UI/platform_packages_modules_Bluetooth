@@ -35,7 +35,7 @@
 
 #include <mutex>
 
-#include "btif/include/btif_acl.h"
+#include "btif/include/btif_dm.h"
 #include "common/time_util.h"
 #include "hci/controller_interface.h"
 #include "hci/event_checkers.h"
@@ -84,6 +84,9 @@
   ((((uint32_t*)(p))[(((uint32_t)(service)) / BTM_EIR_ARRAY_BITS)] &  \
     ((uint32_t)1 << (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))) >> \
    (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace {
 constexpr char kBtmLogTag[] = "SCAN";
@@ -559,13 +562,13 @@ void BTM_CancelInquiry(void) {
 
   const auto duration_ms = timestamper_in_milliseconds.GetTimestamp() -
                            btm_cb.neighbor.classic_inquiry.start_time_ms;
-  BTM_LogHistory(
-          kBtmLogTag, RawAddress::kEmpty, "Classic inquiry canceled",
-          base::StringPrintf("duration_s:%6.3f results:%lu std:%u rssi:%u ext:%u",
-                             duration_ms / 1000.0, btm_cb.neighbor.classic_inquiry.results,
-                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_STANDARD],
-                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_WITH_RSSI],
-                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_EXTENDED]));
+  BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Classic inquiry canceled",
+                 base::StringPrintf(
+                         "duration_s:%6.3f results:%lu std:%u rssi:%u ext:%u", duration_ms / 1000.0,
+                         (unsigned long)btm_cb.neighbor.classic_inquiry.results,
+                         btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_STANDARD],
+                         btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_WITH_RSSI],
+                         btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_EXTENDED]));
   btm_cb.neighbor.classic_inquiry = {};
 
   /* Only cancel if not in periodic mode, otherwise the caller should call
@@ -1692,7 +1695,7 @@ void btm_process_inq_complete(tHCI_STATUS status, uint8_t mode) {
                              "duration_s:%6.3f results:%lu inq_active:0x%02x std:%u rssi:%u "
                              "ext:%u status:%s",
                              (end_time_ms - btm_cb.neighbor.classic_inquiry.start_time_ms) / 1000.0,
-                             btm_cb.neighbor.classic_inquiry.results, inq_active,
+                             (unsigned long)btm_cb.neighbor.classic_inquiry.results, inq_active,
                              btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_STANDARD],
                              btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_WITH_RSSI],
                              btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_EXTENDED],

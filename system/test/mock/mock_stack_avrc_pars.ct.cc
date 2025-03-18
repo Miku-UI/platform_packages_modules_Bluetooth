@@ -33,8 +33,3 @@ tAVRC_STS AVRC_ParsResponse(tAVRC_MSG* /* p_msg */, tAVRC_RESPONSE* /* p_result 
   inc_func_call_count(__func__);
   return 0;
 }
-tAVRC_STS avrc_parse_notification_rsp(uint8_t* /* p_stream */, uint16_t /* len */,
-                                      tAVRC_REG_NOTIF_RSP* /* p_rsp */) {
-  inc_func_call_count(__func__);
-  return 0;
-}

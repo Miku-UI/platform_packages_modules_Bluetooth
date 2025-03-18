@@ -30,6 +30,9 @@
 #include "osi/include/fixed_queue.h"
 #include "osi/include/thread.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::benchmark::State;
 using bluetooth::common::MessageLoopThread;
 

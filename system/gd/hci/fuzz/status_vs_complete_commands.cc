@@ -45,6 +45,11 @@ bool uses_command_status(OpCode code) {
   return commands_that_use_status.find(code) != commands_that_use_status.end();
 }
 
+bool uses_command_status_or_complete(OpCode code) {
+  bool is_vendor_specific = (static_cast<int>(code) >> 10) == 0x3f;
+  return is_vendor_specific;
+}
+
 }  // namespace fuzz
 }  // namespace hci
 }  // namespace bluetooth

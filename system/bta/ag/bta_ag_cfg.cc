@@ -25,8 +25,8 @@
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_ag_api.h"
+#include "btm_api_types.h"
 #include "device/include/esco_parameters.h"
-#include "internal_include/bt_target.h"
 
 /* Set the CIND to match HFP 1.5 */
 #define BTA_AG_CIND_INFO                                                       \

@@ -17,6 +17,9 @@
 
 #include "mock_btm_api_layer.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 static bluetooth::manager::MockBtmApiInterface* btm_api_interface = nullptr;
 
 void bluetooth::manager::SetMockBtmApiInterface(MockBtmApiInterface* mock_btm_api_interface) {

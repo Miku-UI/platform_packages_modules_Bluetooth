@@ -20,7 +20,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "smp_int.h"
 #include "types/hci_role.h"
 

@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 
 #include "le_audio_types.h"

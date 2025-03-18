@@ -38,6 +38,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.ParcelUuid;
+import android.os.Parcelable;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
@@ -115,10 +116,32 @@ public class ServiceDiscoveryTest {
                             Intent intent = inv.getArgument(1);
                             String action = intent.getAction();
                             if (BluetoothDevice.ACTION_UUID.equals(action)) {
-                                ParcelUuid[] uuids =
+                                BluetoothDevice device =
+                                        intent.getParcelableExtra(
+                                                BluetoothDevice.EXTRA_DEVICE,
+                                                BluetoothDevice.class);
+                                Parcelable[] uuidsRaw =
                                         intent.getParcelableArrayExtra(
                                                 BluetoothDevice.EXTRA_UUID, ParcelUuid.class);
-                                Log.d(TAG, "onReceive(): UUID=" + Arrays.toString(uuids));
+                                if (uuidsRaw == null) {
+                                    Log.e(TAG, "onReceive(): device " + device + " null uuid list");
+                                } else if (uuidsRaw.length == 0) {
+                                    Log.e(
+                                            TAG,
+                                            "onReceive(): device "
+                                                    + device
+                                                    + " 0 length uuid list");
+                                } else {
+                                    ParcelUuid[] uuids =
+                                            Arrays.copyOf(
+                                                    uuidsRaw, uuidsRaw.length, ParcelUuid[].class);
+                                    Log.d(
+                                            TAG,
+                                            "onReceive(): device "
+                                                    + device
+                                                    + ", UUID="
+                                                    + Arrays.toString(uuids));
+                                }
                             }
                             return null;
                         })

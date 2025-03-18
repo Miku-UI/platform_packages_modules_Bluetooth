@@ -27,7 +27,6 @@ static_library("audio_hal_interface") {
     "//bt/system/bta/include",
     "//bt/system/btif/include",
     "//bt/system/stack/include",
-    "//bt/system/gd/rust/shim",
   ]
 
   configs += [

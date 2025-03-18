@@ -575,8 +575,4 @@ extern struct read_phy_cb read_phy_cb;
 }  // namespace mock
 }  // namespace test
 
-std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress /* address */) {
-  return std::nullopt;
-}
-
 // END mockcify generation

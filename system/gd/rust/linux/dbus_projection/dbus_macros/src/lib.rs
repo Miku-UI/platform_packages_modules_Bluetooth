@@ -125,16 +125,21 @@ pub fn generate_dbus_exporter(attr: TokenStream, item: TokenStream) -> TokenStre
 
     for item in ast.items {
         if let ImplItem::Method(method) = item {
-            if method.attrs.len() != 1 {
+            // Find the #[dbus_method] attribute
+            let mut dbus_method_attr = None;
+            for attr in &method.attrs {
+                if attr.path.get_ident().unwrap().to_string().eq("dbus_method") {
+                    dbus_method_attr = Some(attr);
+                    break;
+                }
+            }
+
+            // Skip the method is not marked with #[dbus_method].
+            if dbus_method_attr.is_none() {
                 continue;
             }
 
-            let attr = &method.attrs[0];
-            if !attr.path.get_ident().unwrap().to_string().eq("dbus_method") {
-                continue;
-            }
-
-            let meta_list = match attr.parse_meta().unwrap() {
+            let meta_list = match dbus_method_attr.unwrap().parse_meta().unwrap() {
                 Meta::List(meta_list) => meta_list,
                 _ => continue,
             };
@@ -333,9 +338,17 @@ pub fn generate_dbus_interface_client(attr: TokenStream, item: TokenStream) -> T
     // Iterate on every methods of a trait impl
     for item in ast.items {
         if let ImplItem::Method(method) = item {
-            // If the method is not marked with #[dbus_method], just copy the
-            // original method body.
-            if method.attrs.len() != 1 {
+            // Find the #[dbus_method] attribute
+            let mut dbus_method_attr = None;
+            for attr in &method.attrs {
+                if attr.path.get_ident().unwrap().to_string().eq("dbus_method") {
+                    dbus_method_attr = Some(attr);
+                    break;
+                }
+            }
+
+            // If the method is not marked with #[dbus_method], just copy the original method body.
+            if dbus_method_attr.is_none() {
                 methods = quote! {
                     #methods
 
@@ -344,15 +357,9 @@ pub fn generate_dbus_interface_client(attr: TokenStream, item: TokenStream) -> T
                 continue;
             }
 
-            let attr = &method.attrs[0];
-            if !attr.path.get_ident().unwrap().to_string().eq("dbus_method") {
-                continue;
-            }
-
-            let sig = &method.sig;
-
             // For RPC-friendly method, copy the original signature but add public, async, and wrap
             // the return with Result.
+            let sig = &method.sig;
             let mut rpc_sig = sig.clone();
             rpc_sig.asyncness = Some(<syn::Token![async]>::default());
             rpc_sig.output = match rpc_sig.output {
@@ -367,11 +374,12 @@ pub fn generate_dbus_interface_client(attr: TokenStream, item: TokenStream) -> T
                 pub #rpc_sig
             };
 
-            let dbus_method_name = if let Meta::List(meta_list) = attr.parse_meta().unwrap() {
-                Some(meta_list.nested[0].clone())
-            } else {
-                None
-            };
+            let dbus_method_name =
+                if let Meta::List(meta_list) = dbus_method_attr.unwrap().parse_meta().unwrap() {
+                    Some(meta_list.nested[0].clone())
+                } else {
+                    None
+                };
 
             if dbus_method_name.is_none() {
                 continue;
@@ -769,9 +777,17 @@ pub fn dbus_proxy_obj(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     for item in ast.items {
         if let ImplItem::Method(method) = item {
-            // If the method is not marked with #[dbus_method], just copy the
-            // original method body.
-            if method.attrs.len() != 1 {
+            // Find the #[dbus_method] attribute
+            let mut dbus_method_attr = None;
+            for attr in &method.attrs {
+                if attr.path.get_ident().unwrap().to_string().eq("dbus_method") {
+                    dbus_method_attr = Some(attr);
+                    break;
+                }
+            }
+
+            // If the method is not marked with #[dbus_method], just copy the original method body.
+            if dbus_method_attr.is_none() {
                 method_impls = quote! {
                     #method_impls
                     #method
@@ -779,12 +795,7 @@ pub fn dbus_proxy_obj(attr: TokenStream, item: TokenStream) -> TokenStream {
                 continue;
             }
 
-            let attr = &method.attrs[0];
-            if !attr.path.get_ident().unwrap().to_string().eq("dbus_method") {
-                continue;
-            }
-
-            let meta_list = match attr.parse_meta().unwrap() {
+            let meta_list = match dbus_method_attr.unwrap().parse_meta().unwrap() {
                 Meta::List(meta_list) => meta_list,
                 _ => continue,
             };

@@ -70,7 +70,6 @@ enum {
   BNEP_IGNORE_CMD,            /* To ignore the rcvd command */
   BNEP_TX_FLOW_ON,            /* tx data flow enabled */
   BNEP_TX_FLOW_OFF            /* tx data flow disabled */
-
 };
 typedef uint8_t tBNEP_RESULT;
 
@@ -171,7 +170,6 @@ typedef struct {
   tBNEP_TX_DATA_FLOW_CB* p_tx_data_flow_cb; /* data flow callback */
   tBNEP_FILTER_IND_CB* p_filter_ind_cb;     /* To indicate that peer set protocol filters */
   tBNEP_MFILTER_IND_CB* p_mfilter_ind_cb;   /* To indicate that peer set mcast filters */
-
 } tBNEP_REGISTER;
 
 /*****************************************************************************

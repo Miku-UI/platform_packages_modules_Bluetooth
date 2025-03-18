@@ -99,8 +99,9 @@ public class BondStateMachineTest {
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
         mRemoteDevices.reset();
         when(mAdapterService.getResources()).thenReturn(mTargetContext.getResources());
-        mAdapterProperties = new AdapterProperties(mAdapterService);
-        mAdapterProperties.init(mRemoteDevices);
+        mAdapterProperties =
+                new AdapterProperties(mAdapterService, mRemoteDevices, mHandlerThread.getLooper());
+        mAdapterProperties.init();
         mBondStateMachine =
                 BondStateMachine.make(mAdapterService, mAdapterProperties, mRemoteDevices);
     }
@@ -139,8 +140,8 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(removeBondMsg2);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
 
-        verify(mNativeInterface, times(1)).removeBond(eq(TEST_BT_ADDR_BYTES));
-        verify(mNativeInterface, times(1)).removeBond(eq(TEST_BT_ADDR_BYTES_2));
+        verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES));
+        verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES_2));
 
         mBondStateMachine.bondStateChangeCallback(
                 AbstractionLayer.BT_STATUS_SUCCESS, TEST_BT_ADDR_BYTES, BOND_NONE, 0);
@@ -158,10 +159,10 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(createBondMsg2);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
 
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES), eq(BluetoothDevice.ADDRESS_TYPE_PUBLIC), anyInt());
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES_2),
                         eq(BluetoothDevice.ADDRESS_TYPE_PUBLIC),
@@ -193,10 +194,10 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(createBondMsg2);
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
 
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES), eq(BluetoothDevice.ADDRESS_TYPE_PUBLIC), anyInt());
-        verify(mNativeInterface, times(1))
+        verify(mNativeInterface)
                 .createBond(
                         eq(TEST_BT_ADDR_BYTES_2),
                         eq(BluetoothDevice.ADDRESS_TYPE_RANDOM),

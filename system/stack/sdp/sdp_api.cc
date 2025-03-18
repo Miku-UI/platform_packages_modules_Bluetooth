@@ -81,7 +81,7 @@ bool SDP_InitDiscoveryDb(tSDP_DISCOVERY_DB* p_db, uint32_t len, uint16_t num_uui
   if (p_db == NULL || (sizeof(tSDP_DISCOVERY_DB) > len) || num_attr > SDP_MAX_ATTR_FILTERS ||
       num_uuid > SDP_MAX_UUID_FILTERS) {
     log::error("SDP_InitDiscoveryDb Illegal param: p_db {}, len {}, num_uuid {}, num_attr {}",
-               fmt::ptr(p_db), len, num_uuid, num_attr);
+               std::format_ptr(p_db), len, num_uuid, num_attr);
 
     return false;
   }
@@ -1124,7 +1124,7 @@ void SDP_DumpConnectionControlBlock(int fd, const tCONN_CB& conn_cb) {
   if (conn_cb.device_address == RawAddress::kEmpty) {
     return;
   }
-  LOG_DUMPSYS(fd, "peer:%s discovery_state:%s", fmt::format("{}", conn_cb.device_address).c_str(),
+  LOG_DUMPSYS(fd, "peer:%s discovery_state:%s", std::format("{}", conn_cb.device_address).c_str(),
               sdp_disc_wait_text(conn_cb.disc_state).c_str());
   LOG_DUMPSYS(fd, "  connection_state:%s connection_flags:0x%02x mtu:%hu l2cap_cid:%hu",
               sdp_state_text(conn_cb.con_state).c_str(), conn_cb.con_flags, conn_cb.rem_mtu_size,

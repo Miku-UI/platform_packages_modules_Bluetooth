@@ -83,7 +83,6 @@ class HeadsetSystemInterface {
      *
      * @return audio manager for setting audio parameters
      */
-    @VisibleForTesting
     public AudioManager getAudioManager() {
         return mAudioManager;
     }

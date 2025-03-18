@@ -113,15 +113,15 @@ inline void STREAM_TO_BDADDR(RawAddress& a, const uint8_t*& p) {
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<RawAddress> : formatter<std::string> {
   template <class Context>
   typename Context::iterator format(const RawAddress& address, Context& ctx) const {
     std::string repr = address.ToRedactedStringForLogging();
-    return fmt::formatter<std::string>::format(repr, ctx);
+    return std::formatter<std::string>::format(repr, ctx);
   }
 };
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

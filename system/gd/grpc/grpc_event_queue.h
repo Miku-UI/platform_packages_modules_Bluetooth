@@ -25,7 +25,6 @@
 
 #include "blueberry/facade/common.pb.h"
 #include "common/blocking_queue.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace grpc {

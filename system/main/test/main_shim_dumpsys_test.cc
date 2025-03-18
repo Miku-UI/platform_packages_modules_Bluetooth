@@ -30,14 +30,6 @@
 using namespace bluetooth;
 using namespace testing;
 
-namespace {
-
-constexpr char kTrue[] = "1";
-constexpr char kFalse[] = "0";
-constexpr char kReadOnlyDebuggableProperty[] = "ro.debuggable";
-
-}  // namespace
-
 class MainShimDumpsysTest : public testing::Test {
 public:
 protected:
@@ -55,18 +47,7 @@ protected:
   os::Handler* handler_{nullptr};
 };
 
-TEST_F(MainShimDumpsysTest, dumpsys_developer) {
-  ASSERT_TRUE(os::SetSystemProperty(kReadOnlyDebuggableProperty, kTrue));
-
-  std::promise<void> promise;
-  auto future = promise.get_future();
-  stack_manager_.GetInstance<shim::Dumpsys>()->Dump(STDOUT_FILENO, nullptr, std::move(promise));
-  future.get();
-}
-
-TEST_F(MainShimDumpsysTest, dumpsys_user) {
-  ASSERT_TRUE(os::SetSystemProperty(kReadOnlyDebuggableProperty, kFalse));
-
+TEST_F(MainShimDumpsysTest, dumpsys) {
   std::promise<void> promise;
   auto future = promise.get_future();
   stack_manager_.GetInstance<shim::Dumpsys>()->Dump(STDOUT_FILENO, nullptr, std::move(promise));

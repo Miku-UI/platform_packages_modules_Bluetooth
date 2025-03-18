@@ -66,9 +66,10 @@ void RFCOMM_ParameterNegotiationResponse(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t
 
 void RFCOMM_FlowReq(tRFC_MCB* p_mcb, uint8_t dlci, bool state);
 
-void RFCOMM_PortParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars);
-void RFCOMM_PortParameterNegotiationResponse(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars,
-                                             uint16_t param_mask);
+void RFCOMM_PortParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci,
+                                            PortSettings* p_settings);
+void RFCOMM_PortParameterNegotiationResponse(tRFC_MCB* p_mcb, uint8_t dlci,
+                                             PortSettings* p_settings, uint16_t param_mask);
 
 void RFCOMM_ControlReq(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars);
 void RFCOMM_ControlRsp(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars);
@@ -249,7 +250,7 @@ void rfc_send_pn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, uint16_t mtu, u
 void rfc_send_test(tRFC_MCB* p_rfc_mcb, bool is_command, BT_HDR* p_buf);
 void rfc_send_msc(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_CTRL* p_pars);
 void rfc_send_rls(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, uint8_t status);
-void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_STATE* p_pars,
+void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, PortSettings* p_settings,
                   uint16_t mask);
 void rfc_send_fcon(tRFC_MCB* p_mcb, bool is_command);
 void rfc_send_fcoff(tRFC_MCB* p_mcb, bool is_command);
@@ -279,8 +280,8 @@ void PORT_ParNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uin
 
 void PORT_FlowInd(tRFC_MCB* p_mcb, uint8_t dlci, bool fc);
 
-void PORT_PortNegInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars, uint16_t param_mask);
-void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_STATE* p_pars, uint16_t result);
+void PORT_PortNegInd(tRFC_MCB* p_mcb, uint8_t dlci, PortSettings* p_settings, uint16_t param_mask);
+void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, PortSettings* p_settings, uint16_t result);
 
 void PORT_ControlInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars);
 void PORT_ControlCnf(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars);

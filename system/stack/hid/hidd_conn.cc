@@ -27,10 +27,16 @@
 #include <bluetooth/log.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/include/bta_sec_api.h"
+#include "hid_conn.h"
+#include "hidd_api.h"
+#include "hiddefs.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
 #include "stack/hid/hidd_int.h"
 #include "stack/include/bt_hdr.h"
@@ -38,6 +44,7 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/stack_metrics_logging.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
@@ -88,10 +95,10 @@ static void hidd_check_config_done() {
 
     // send outstanding data on intr
     if (hd_cb.pending_data) {
+      uint16_t len = hd_cb.pending_data->len;
       if (stack::l2cap::get_interface().L2CA_DataWrite(p_hcon->intr_cid, hd_cb.pending_data) !=
           tL2CAP_DW_RESULT::SUCCESS) {
-        log::warn("Unable to write L2CAP data cid:{} len:{}", p_hcon->intr_cid,
-                  hd_cb.pending_data->len);
+        log::warn("Unable to write L2CAP data cid:{} len:{}", p_hcon->intr_cid, len);
       }
       hd_cb.pending_data = NULL;
     }

@@ -19,6 +19,7 @@
 #include "bta/include/bta_sec_api.h"
 #include "hci/address.h"
 #include "hci/hci_packets.h"
+#include "os/metrics.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "types/raw_address.h"
@@ -31,6 +32,9 @@ void LogIncomingAclStartEvent(const hci::Address& address);
 void LogAclCompletionEvent(const hci::Address& address, hci::ErrorCode reason,
                            bool is_locally_initiated);
 
+void LogLeAclCompletionEvent(const hci::Address& address, hci::ErrorCode reason,
+                             bool is_locally_initiated);
+
 void LogRemoteNameRequestCompletion(const RawAddress& raw_address, tHCI_STATUS hci_status);
 
 void LogAclDisconnectionEvent(const hci::Address& address, hci::ErrorCode reason,
@@ -38,11 +42,13 @@ void LogAclDisconnectionEvent(const hci::Address& address, hci::ErrorCode reason
 
 void LogAclAfterRemoteNameRequest(const RawAddress& raw_address, tBTM_STATUS status);
 
-void LogUserConfirmationRequestResponse(const hci::Address& address, bool positive);
-
 void LogAuthenticationComplete(const RawAddress& raw_address, tHCI_STATUS hci_status);
 
 void LogSDPComplete(const RawAddress& raw_address, tBTA_STATUS status);
+
+void LogLePairingFail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing);
+
+android::bluetooth::State MapErrorCodeToState(hci::ErrorCode reason);
 
 }  // namespace metrics
 }  // namespace bluetooth

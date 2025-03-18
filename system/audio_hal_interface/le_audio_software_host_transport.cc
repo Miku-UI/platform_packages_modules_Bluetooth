@@ -267,7 +267,8 @@ bool LeAudioSourceTransport::GetPresentationPosition(uint64_t* remote_delay_repo
                                              data_position);
 }
 
-void LeAudioSourceTransport::SourceMetadataChanged(const source_metadata_v7_t& source_metadata) {}
+void LeAudioSourceTransport::SourceMetadataChanged(
+        const source_metadata_v7_t& /*source_metadata*/) {}
 
 void LeAudioSourceTransport::SinkMetadataChanged(const sink_metadata_v7_t& sink_metadata) {
   transport_->SinkMetadataChanged(sink_metadata);

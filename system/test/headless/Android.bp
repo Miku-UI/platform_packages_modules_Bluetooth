@@ -35,9 +35,6 @@ cc_binary {
         "latest_android_media_audio_common_types_ndk_static",
     ],
     cflags: [
-        "-Wall",
-        "-Werror",
-        "-Wextra",
         "-Wno-date-time",
     ],
     generated_headers: [
@@ -74,6 +71,7 @@ cc_binary {
         "packages/modules/Bluetooth/system/stack/include",
     ],
     static_libs: [
+        "aics",
         "android.hardware.audio.common@5.0",
         "android.hardware.common-V2-ndk",
         "android.hardware.common.fmq-V1-ndk",
@@ -84,14 +82,11 @@ cc_binary {
         "lib-bt-packets-base",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
-        "libbluetooth_rust_interop",
         "libbt-audio-asrc",
         "libbt-audio-hal-interface",
         "libbt-bta",
@@ -110,6 +105,7 @@ cc_binary {
         "libbtif",
         "libbtif-core",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libevent",
         "libflags_rust_cpp_bridge",
         "libflatbuffers-cpp",
@@ -124,9 +120,13 @@ cc_binary {
         "libudrv-uipc",
         "libz",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libPlatformProperties",
         "libaconfig_storage_read_api_cc",
+        "libbinder",
         "libcrypto",
         "libcutils", // property_get_bool
         "libhidlbase",

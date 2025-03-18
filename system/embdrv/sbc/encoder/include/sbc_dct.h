@@ -30,8 +30,7 @@
 #if (SBC_ARM_ASM_OPT == TRUE)
 #define SBC_MULT_32_16_SIMPLIFIED(s16In2, s32In1, s32OutLow) \
   {                                                          \
-    __asm {																				\
-    MUL s32OutLow,(int32_t)s16In2, (s32In1>>15) }       \
+    __asm { MUL s32OutLow, (int32_t)s16In2, (s32In1>>15) }       \
   }
 #else
 #if (SBC_DSP_OPT == TRUE)

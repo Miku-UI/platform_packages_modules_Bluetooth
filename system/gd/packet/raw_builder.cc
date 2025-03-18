@@ -19,8 +19,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "os/log.h"
-
 namespace bluetooth {
 namespace packet {
 

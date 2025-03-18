@@ -49,8 +49,8 @@ dependencies {
     // Framework Bluetooth
     implementation(files("$out/packages/modules/Bluetooth/framework/framework-bluetooth-pre-jarjar/android_common/turbine-combined/framework-bluetooth-pre-jarjar.jar"))
     // Pandora APIs
-    implementation(files("$out/packages/modules/Bluetooth/pandora/interfaces/pandora_experimental-grpc-java/android_common/combined/pandora_experimental-grpc-java.jar"))
-    implementation(files("$out/packages/modules/Bluetooth/pandora/interfaces/pandora_experimental-proto-java/android_common/combined/pandora_experimental-proto-java.jar"))
+    implementation(files("$out/packages/modules/Bluetooth/pandora/interfaces/pandora-grpc-java/android_common/combined/pandora-grpc-java.jar"))
+    implementation(files("$out/packages/modules/Bluetooth/pandora/interfaces/pandora-proto-java/android_common/combined/pandora-proto-java.jar"))
     // Junit
     implementation(files("$out/external/junit/junit/android_common/turbine-combined/junit.jar"))
     // Truth
@@ -65,8 +65,8 @@ dependencies {
     implementation(files("$out/cts/common/device-side/util-axt/compatibility-device-util-axt/android_common/combined/compatibility-device-util-axt.jar"))
     // Test Parameter Injector
     implementation(files("$out/external/TestParameterInjector/TestParameterInjector/android_common/combined/TestParameterInjector.jar"))
-    // TruthJava8
-    implementation(files("$out/external/truth/truth-java8-extension/android_common/combined/truth-java8-extension.jar"))
+    // Truth
+    implementation(files("$out/external/truth/truth/android_common/combined/truth.jar"))
     // OkHttp
     implementation(files("$out/external/grpc-grpc-java/grpc-java-okhttp-client-lite/android_common/combined/grpc-java-okhttp-client-lite.jar"))
     // Mockito

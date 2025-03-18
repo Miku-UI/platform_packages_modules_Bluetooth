@@ -285,10 +285,8 @@ static uint8_t btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action, uint8_
         (BTM_BLE_PF_ADDR_FILTER == cond_type &&
          (BTM_BLE_SCAN_COND_DELETE == action || BTM_BLE_SCAN_COND_CLEAR == action))) {
       btm_ble_dealloc_addr_filter_counter(p_bd_addr, cond_type);
-    }
-    /* if not feature selection, update new addition/reduction of the filter
-       counter */
-    else if (cond_type != BTM_BLE_PF_TYPE_ALL) {
+    } else if (cond_type != BTM_BLE_PF_TYPE_ALL) {
+      /* if not feature selection, update new addition/reduction of the filter counter */
       p_counter = p_addr_filter->pf_counter;
       if (num_available > 0) {
         p_counter[cond_type] += 1;

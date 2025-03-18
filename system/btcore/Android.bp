@@ -57,7 +57,6 @@ cc_library_static {
     },
     static_libs: [
         "libbluetooth_log",
-        "libbt_shim_bridge",
     ],
 }
 
@@ -71,7 +70,6 @@ cc_library_static {
     min_sdk_version: "Tiramisu",
     static_libs: [
         "libbluetooth_log",
-        "libbt_shim_bridge",
     ],
 }
 
@@ -112,6 +110,7 @@ cc_test {
         "libbluetooth_log",
         "libbtcore",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     host_supported: true,

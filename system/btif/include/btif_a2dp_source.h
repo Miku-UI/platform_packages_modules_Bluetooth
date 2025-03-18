@@ -34,11 +34,6 @@
 // module.
 bool btif_a2dp_source_init(void);
 
-// Startup the A2DP Source module.
-// This function should be called by the BTIF state machine after
-// btif_a2dp_source_init() to prepare to start streaming.
-bool btif_a2dp_source_startup(void);
-
 // Start the A2DP Source session.
 // This function should be called by the BTIF state machine after
 // btif_a2dp_source_startup() to start the streaming session for |peer_address|.
@@ -61,6 +56,9 @@ bool btif_a2dp_source_restart_session(const RawAddress& old_peer_address,
 // streaming session for |peer_address|.
 bool btif_a2dp_source_end_session(const RawAddress& peer_address);
 
+// Update allowed low latency modes for the active session.
+void btif_a2dp_source_allow_low_latency_audio(bool allowed);
+
 // Shutdown the A2DP Source module.
 // This function should be called by the BTIF state machine to stop streaming.
 void btif_a2dp_source_shutdown(std::promise<void>);
@@ -69,14 +67,6 @@ void btif_a2dp_source_shutdown(std::promise<void>);
 // This function should be called by the BTIF state machine during graceful
 // cleanup.
 void btif_a2dp_source_cleanup(void);
-
-// Check whether the A2DP Source media task is running.
-// Returns true if the A2DP Source media task is running, otherwise false.
-bool btif_a2dp_source_media_task_is_running(void);
-
-// Check whether the A2DP Source media task is shutting down.
-// Returns true if the A2DP Source media task is shutting down.
-bool btif_a2dp_source_media_task_is_shutting_down(void);
 
 // Return true if the A2DP Source module is streaming.
 bool btif_a2dp_source_is_streaming(void);

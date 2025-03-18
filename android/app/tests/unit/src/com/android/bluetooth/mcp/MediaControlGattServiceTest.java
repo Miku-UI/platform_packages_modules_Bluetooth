@@ -34,7 +34,6 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
 
 import org.junit.After;
@@ -1037,18 +1036,14 @@ public class MediaControlGattServiceTest {
 
     @Test
     public void testMediaControlPointeRequest_OpcodePlayCallLeAudioServiceSetActiveDevice() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LEAUDIO_BROADCAST_FEATURE_SUPPORT);
         initAllFeaturesGattService();
         prepareConnectedDevice();
         mMcpService.updateSupportedOpcodesChar(Request.SupportedOpcodes.PLAY, true);
         verifyMediaControlPointRequest(Request.Opcodes.PLAY, null, BluetoothGatt.GATT_SUCCESS, 1);
-        if (!Flags.leaudioBroadcastFeatureSupport()) {
-            verify(mMockLeAudioService).setActiveDevice(any(BluetoothDevice.class));
-        } else {
-            final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
-            when(mMockLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
-            verify(mMockMcsCallbacks, times(1)).onMediaControlRequest(any(Request.class));
-        }
+
+        final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
+        when(mMockLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
+        verify(mMockMcsCallbacks).onMediaControlRequest(any(Request.class));
     }
 
     @Test
@@ -1077,7 +1072,7 @@ public class MediaControlGattServiceTest {
         mMcpService.mServerCallback.onCharacteristicWriteRequest(
                 mCurrentDevice, 1, characteristic, false, true, 0, bb.array());
 
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(eq(mCurrentDevice), eq(characteristic), eq(false));
     }
 
@@ -1114,12 +1109,12 @@ public class MediaControlGattServiceTest {
                 characteristic, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE.clone());
 
         mMcpService.updateSupportedOpcodesChar(opcodes_supported, true);
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(eq(mCurrentDevice), eq(characteristic), eq(false));
 
         // Verify if there will be no new notification triggered when nothing changes
         mMcpService.updateSupportedOpcodesChar(opcodes_supported, true);
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(eq(mCurrentDevice), eq(characteristic), eq(false));
 
         opcodes_supported = 0;
@@ -1146,14 +1141,14 @@ public class MediaControlGattServiceTest {
         bb.put((byte) playing_order.getValue());
         mMcpService.mServerCallback.onCharacteristicWriteRequest(
                 mCurrentDevice, 1, characteristic, false, true, 0, bb.array());
-        verify(mMockMcsCallbacks, times(1)).onPlayingOrderSetRequest(anyInt());
+        verify(mMockMcsCallbacks).onPlayingOrderSetRequest(anyInt());
 
         // Not supported playing order should be ignored
         playing_order = PlayingOrder.SHUFFLE_ONCE;
         bb.put(0, (byte) playing_order.getValue());
         mMcpService.mServerCallback.onCharacteristicWriteRequest(
                 mCurrentDevice, 1, characteristic, false, true, 0, bb.array());
-        verify(mMockMcsCallbacks, times(1)).onPlayingOrderSetRequest(anyInt());
+        verify(mMockMcsCallbacks).onPlayingOrderSetRequest(anyInt());
 
         playing_order = PlayingOrder.NEWEST_ONCE;
         bb.put(0, (byte) playing_order.getValue());
@@ -1230,7 +1225,7 @@ public class MediaControlGattServiceTest {
                 .notifyCharacteristicChanged(eq(mCurrentDevice), eq(characteristic2), eq(false));
         verify(mMockGattServer, times(0))
                 .notifyCharacteristicChanged(eq(mCurrentDevice), eq(characteristic3), eq(false));
-        verify(mMockGattServer, times(1))
+        verify(mMockGattServer)
                 .notifyCharacteristicChanged(eq(mCurrentDevice), eq(characteristic), eq(false));
     }
 

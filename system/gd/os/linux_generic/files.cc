@@ -28,8 +28,6 @@
 #include <streambuf>
 #include <string>
 
-#include "os/log.h"
-
 namespace {
 
 void HandleError(const std::string& temp_path, int* dir_fd, FILE** fp) {

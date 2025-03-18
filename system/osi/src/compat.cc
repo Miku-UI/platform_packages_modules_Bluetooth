@@ -54,17 +54,14 @@ pid_t gettid(void) throw() { return syscall(SYS_gettid); }
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#endif /* __GLIBC__ */
 
-/*
- * Glibc added strlcpy() starting with 2.38, so skip it if glibc >= 2.38.
- */
-#if !(__GLIBC_PREREQ(2, 38))
 /*
  * Copy src to string dst of size siz.  At most siz-1 characters
  * will be copied.  Always NUL terminates (unless siz == 0).
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
-size_t strlcpy(char* dst, const char* src, size_t siz) {
+size_t osi_strlcpy(char* dst, const char* src, size_t siz) {
   char* d = dst;
   const char* s = src;
   size_t n = siz;
@@ -89,5 +86,3 @@ size_t strlcpy(char* dst, const char* src, size_t siz) {
 
   return s - src - 1; /* count does not include NUL */
 }
-#endif /* !(__GLIBC_PREREQ(2, 38)) */
-#endif /* __GLIBC__ */

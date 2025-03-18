@@ -539,5 +539,4 @@ TEST(GattDatabaseTest, serialized_hash_test) {
 
   EXPECT_EQ(db_from_disk.Hash(), db_from_serialized.Hash());
 }
-
 }  // namespace gatt

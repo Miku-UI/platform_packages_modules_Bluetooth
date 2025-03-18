@@ -217,7 +217,7 @@ inline std::ostream& operator<<(std::ostream& os, const bluetooth::common::Messa
 }  // namespace common
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::common::MessageLoopThread> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std

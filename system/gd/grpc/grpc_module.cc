@@ -18,8 +18,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
-
 using ::grpc::Server;
 using ::grpc::ServerBuilder;
 

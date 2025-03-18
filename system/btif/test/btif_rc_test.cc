@@ -29,6 +29,7 @@
 #include "common/message_loop_thread.h"
 #include "device/include/interop.h"
 #include "include/hardware/bt_rc.h"
+#include "stack/include/main_thread.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_osi_allocator.h"
@@ -40,20 +41,24 @@ namespace avrcp {
 int VolChanged = 0;
 AvrcpService* AvrcpService::instance_ = nullptr;
 
-void AvrcpService::SendMediaUpdate(bool track_changed, bool play_state, bool queue) {}
-void AvrcpService::SendFolderUpdate(bool available_players, bool addressed_players, bool uids) {}
-void AvrcpService::SendActiveDeviceChanged(const RawAddress& address) {}
-void AvrcpService::SendPlayerSettingsChanged(std::vector<PlayerAttribute> attributes,
-                                             std::vector<uint8_t> values) {}
-void AvrcpService::ServiceInterfaceImpl::Init(MediaInterface* media_interface,
-                                              VolumeInterface* volume_interface,
-                                              PlayerSettingsInterface* player_settings_interface) {}
-void AvrcpService::ServiceInterfaceImpl::RegisterBipServer(int psm) {}
+void AvrcpService::SendMediaUpdate(bool /*track_changed*/, bool /*play_state*/, bool /*queue*/) {}
+void AvrcpService::SendFolderUpdate(bool /*available_players*/, bool /*addressed_players*/,
+                                    bool /*uids*/) {}
+void AvrcpService::SendPlayerSettingsChanged(std::vector<PlayerAttribute> /*attributes*/,
+                                             std::vector<uint8_t> /*values*/) {}
+void AvrcpService::ServiceInterfaceImpl::Init(
+        MediaInterface* /*media_interface*/, VolumeInterface* /*volume_interface*/,
+        PlayerSettingsInterface* /*player_settings_interface*/) {}
+void AvrcpService::ServiceInterfaceImpl::RegisterBipServer(int /*psm*/) {}
 void AvrcpService::ServiceInterfaceImpl::UnregisterBipServer() {}
-bool AvrcpService::ServiceInterfaceImpl::ConnectDevice(const RawAddress& bdaddr) { return true; }
-bool AvrcpService::ServiceInterfaceImpl::DisconnectDevice(const RawAddress& bdaddr) { return true; }
-void AvrcpService::ServiceInterfaceImpl::SetBipClientStatus(const RawAddress& bdaddr,
-                                                            bool connected) {}
+bool AvrcpService::ServiceInterfaceImpl::ConnectDevice(const RawAddress& /*bdaddr*/) {
+  return true;
+}
+bool AvrcpService::ServiceInterfaceImpl::DisconnectDevice(const RawAddress& /*bdaddr*/) {
+  return true;
+}
+void AvrcpService::ServiceInterfaceImpl::SetBipClientStatus(const RawAddress& /*bdaddr*/,
+                                                            bool /*connected*/) {}
 bool AvrcpService::ServiceInterfaceImpl::Cleanup() { return true; }
 
 AvrcpService* AvrcpService::Get() {
@@ -62,7 +67,7 @@ AvrcpService* AvrcpService::Get() {
   return instance_;
 }
 
-void AvrcpService::RegisterVolChanged(const RawAddress& bdaddr) { VolChanged++; }
+void AvrcpService::RegisterVolChanged(const RawAddress& /*bdaddr*/) { VolChanged++; }
 }  // namespace avrcp
 }  // namespace bluetooth
 
@@ -71,24 +76,25 @@ const RawAddress kDeviceAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
 const uint8_t kRcHandle = 123;
 }  // namespace
 
-void btif_av_clear_remote_suspend_flag(const A2dpType local_a2dp_type) {}
-bool btif_av_is_connected(const A2dpType local_a2dp_type) { return true; }
+void btif_av_clear_remote_suspend_flag(const A2dpType /*local_a2dp_type*/) {}
+bool btif_av_is_connected(const A2dpType /*local_a2dp_type*/) { return true; }
 bool btif_av_is_sink_enabled(void) { return true; }
 RawAddress btif_av_sink_active_peer(void) { return RawAddress(); }
 RawAddress btif_av_source_active_peer(void) { return RawAddress(); }
-bool btif_av_stream_started_ready(const A2dpType local_a2dp_type) { return false; }
-bt_status_t btif_transfer_context(tBTIF_CBACK* p_cback, uint16_t event, char* p_params,
-                                  int param_len, tBTIF_COPY_CBACK* p_copy_cback) {
+bool btif_av_stream_started_ready(const A2dpType /*local_a2dp_type*/) { return false; }
+bt_status_t btif_transfer_context(tBTIF_CBACK* /*p_cback*/, uint16_t /*event*/, char* /*p_params*/,
+                                  int /*param_len*/, tBTIF_COPY_CBACK* /*p_copy_cback*/) {
   return BT_STATUS_SUCCESS;
 }
 bool btif_av_src_sink_coexist_enabled() { return true; }
-bool btif_av_is_connected_addr(const RawAddress& peer_address, const A2dpType local_a2dp_type) {
+bool btif_av_is_connected_addr(const RawAddress& /*peer_address*/,
+                               const A2dpType /*local_a2dp_type*/) {
   return true;
 }
-bool btif_av_peer_is_connected_sink(const RawAddress& peer_address) { return false; }
-bool btif_av_peer_is_connected_source(const RawAddress& peer_address) { return true; }
-bool btif_av_peer_is_sink(const RawAddress& peer_address) { return false; }
-bool btif_av_peer_is_source(const RawAddress& peer_address) { return true; }
+bool btif_av_peer_is_connected_sink(const RawAddress& /*peer_address*/) { return false; }
+bool btif_av_peer_is_connected_source(const RawAddress& /*peer_address*/) { return true; }
+bool btif_av_peer_is_sink(const RawAddress& /*peer_address*/) { return false; }
+bool btif_av_peer_is_source(const RawAddress& /*peer_address*/) { return true; }
 bool btif_av_both_enable(void) { return true; }
 
 static bluetooth::common::MessageLoopThread jni_thread("bt_jni_thread");
@@ -100,7 +106,9 @@ bt_status_t do_in_jni_thread(base::OnceClosure task) {
   return BT_STATUS_SUCCESS;
 }
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
-bool interop_match_addr(const interop_feature_t feature, const RawAddress* addr) { return false; }
+bool interop_match_addr(const interop_feature_t /*feature*/, const RawAddress* /*addr*/) {
+  return false;
+}
 
 /**
  * Test class to test selected functionality in hci/src/hci_layer.cc
@@ -213,7 +221,7 @@ protected:
 
   void TearDown() override {
     jni_thread.ShutDown();
-    bt_rc_ctrl_callbacks->getrcfeatures_cb = [](const RawAddress& bd_addr, int features) {};
+    bt_rc_ctrl_callbacks->getrcfeatures_cb = [](const RawAddress& /*bd_addr*/, int /*features*/) {};
     btrc_ctrl_callbacks = default_btrc_ctrl_callbacks;
     BtifRcTest::TearDown();
   }
@@ -258,8 +266,8 @@ protected:
 
   void TearDown() override {
     jni_thread.ShutDown();
-    bt_rc_ctrl_callbacks->connection_state_cb = [](bool rc_state, bool bt_state,
-                                                   const RawAddress& bd_addr) {};
+    bt_rc_ctrl_callbacks->connection_state_cb = [](bool /*rc_state*/, bool /*bt_state*/,
+                                                   const RawAddress& /*bd_addr*/) {};
     BtifRcTest::TearDown();
   }
 };
@@ -307,8 +315,8 @@ protected:
 
   void TearDown() override {
     jni_thread.ShutDown();
-    bt_rc_ctrl_callbacks->connection_state_cb = [](bool rc_state, bool bt_state,
-                                                   const RawAddress& bd_addr) {};
+    bt_rc_ctrl_callbacks->connection_state_cb = [](bool /*rc_state*/, bool /*bt_state*/,
+                                                   const RawAddress& /*bd_addr*/) {};
     BtifRcTest::TearDown();
   }
   std::future<rc_connection_state_cb_t> g_btrc_connection_state_future;
@@ -395,16 +403,16 @@ protected:
     BtifRcTest::SetUp();
     init_ctrl(&btrc_ctrl_callbacks);
     jni_thread.StartUp();
-    btrc_ctrl_callbacks.track_changed_cb = [](const RawAddress& bd_addr, uint8_t num_attr,
-                                              btrc_element_attr_val_t* p_attrs) {
+    btrc_ctrl_callbacks.track_changed_cb = [](const RawAddress& bd_addr, uint8_t /*num_attr*/,
+                                              btrc_element_attr_val_t* /*p_attrs*/) {
       btif_rc_cb.rc_multi_cb[0].rc_addr = bd_addr;
     };
   }
 
   void TearDown() override {
     jni_thread.ShutDown();
-    btrc_ctrl_callbacks.track_changed_cb = [](const RawAddress& bd_addr, uint8_t num_attr,
-                                              btrc_element_attr_val_t* p_attrs) {};
+    btrc_ctrl_callbacks.track_changed_cb = [](const RawAddress& /*bd_addr*/, uint8_t /*num_attr*/,
+                                              btrc_element_attr_val_t* /*p_attrs*/) {};
     BtifRcTest::TearDown();
   }
 };

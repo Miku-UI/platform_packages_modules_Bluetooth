@@ -45,10 +45,6 @@ module_t rust_module;
 
 const tBTA_AG_RES_DATA tBTA_AG_RES_DATA::kEmpty = {};
 
-const bthh_interface_t* btif_hh_get_interface();
-bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec);
-bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec);
-
 namespace bluetooth {
 namespace legacy {
 namespace testing {

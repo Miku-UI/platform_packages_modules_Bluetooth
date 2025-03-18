@@ -58,6 +58,7 @@ cc_test {
         "libbase",
         "libbluetooth-types",
         "libbluetooth_log",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi", // strlcpy
     ],
     test_suites: ["general-tests"],

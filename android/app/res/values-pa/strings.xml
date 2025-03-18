@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"ਕੀ ਹੁਣ Bluetooth ਚਾਲੂ ਕਰਨੀ ਹੈ?"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"ਰੱਦ ਕਰੋ"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"ਚਾਲੂ ਕਰੋ"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"ਫਾਈਲ ਟ੍ਰਾਂਸਫਰ"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"ਕੀ ਇਨਕਮਿੰਗ ਫ਼ਾਈਲ ਸਵੀਕਾਰ ਕਰਨੀ ਹੈ?"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"ਅਸਵੀਕਾਰ ਕਰੋ"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"ਸਵੀਕਾਰ ਕਰੋ"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g> ਫ਼ਾਈਲ ਭੇਜਣ ਲਈ ਤਿਆਰ ਹੈ: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"Bluetooth ਸ਼ੇਅਰ: <xliff:g id="FILE">%1$s</xliff:g> ਪ੍ਰਾਪਤ ਕਰ ਰਿਹਾ ਹੈ"</string>
     <string name="notification_received" msgid="2330252358543000567">"Bluetooth ਸ਼ੇਅਰ: <xliff:g id="FILE">%1$s</xliff:g> ਪ੍ਰਾਪਤ ਕੀਤੀ"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"Bluetooth ਸ਼ੇਅਰ: ਫਾਈਲ <xliff:g id="FILE">%1$s</xliff:g> ਪ੍ਰਾਪਤ ਨਹੀਂ ਕੀਤੀ"</string>
     <string name="notification_sending" msgid="8269912843286868700">"ਬਲੂਟੁੱਥ ਸਾਂਝਾਕਰਨ: <xliff:g id="FILE">%1$s</xliff:g> ਨੂੰ ਭੇਜਿਆ ਜਾ ਰਿਹਾ ਹੈ"</string>
     <string name="notification_sent" msgid="2685202778935769332">"Bluetooth ਸ਼ੇਅਰ: <xliff:g id="FILE">%1$s</xliff:g> ਭੇਜੀ ਗਈ"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"100% ਪੂਰਾ"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"Bluetooth ਸ਼ੇਅਰ: ਫਾਈਲ <xliff:g id="FILE">%1$s</xliff:g> ਨਹੀਂ ਭੇਜੀ ਗਈ"</string>
     <string name="download_title" msgid="6449408649671518102">"ਫਾਈਲ ਟ੍ਰਾਂਸਫਰ"</string>
     <string name="download_line1" msgid="6449220145685308846">"ਇਨ੍ਹਾਂ ਵੱਲੋਂ: \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"ਕਿਰਪਾ ਕਰਕੇ ਠਹਿਰੋ..."</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"Bluetooth ਚਾਲੂ ਕਰ ਰਿਹਾ ਹੈ…"</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"ਫ਼ਾਈਲ ਪ੍ਰਾਪਤ ਕੀਤੀ ਜਾਵੇਗੀ। ਸੂਚਨਾਵਾਂ ਪੈਨਲ ਵਿੱਚ ਪ੍ਰਗਤੀ ਦੀ ਜਾਂਚ ਕਰੋ।"</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"ਫਾਈਲ ਪ੍ਰਾਪਤ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕਦੀ।"</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"\"<xliff:g id="SENDER">%1$s</xliff:g>\" ਤੋਂ ਫਾਈਲ ਪ੍ਰਾਪਤ ਕਰਨਾ ਰੋਕਿਆ ਗਿਆ"</string>
     <string name="bt_toast_4" msgid="480365991944956695">"\"<xliff:g id="RECIPIENT">%1$s</xliff:g>\" ਨੂੰ ਫਾਈਲ ਭੇਜ ਰਿਹਾ ਹੈ"</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"\"<xliff:g id="RECIPIENT">%2$s</xliff:g>\" ਨੂੰ <xliff:g id="NUMBER">%1$s</xliff:g> ਫ਼ਾਈਲਾਂ ਭੇਜੀਆਂ ਜਾ ਰਹੀਆਂ ਹਨ"</string>
@@ -118,7 +114,6 @@
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ਕਲੀਅਰ ਕਰੋ"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ਐਪਲੀਕੇਸ਼ਨ ਪ੍ਰਤੀਕ"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"ਬਲੂਟੁੱਥ  ਆਡੀਓ  ਕਨੈਕਟ ਕੀਤੀ ਗਈ"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ਬਲੂਟੁੱਥ  ਆਡੀਓ  ਡਿਸਕਨੈਕਟ ਕੀਤੀ ਗਈ"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ਬਲੂਟੁੱਥ  ਆਡੀਓ"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"4GB ਤੋਂ ਜ਼ਿਆਦਾ ਵੱਡੀਆਂ ਫ਼ਾਈਲਾਂ ਨੂੰ ਟ੍ਰਾਂਸਫ਼ਰ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ"</string>
@@ -129,7 +124,7 @@
     <string name="bluetooth_stays_on_message" msgid="3669663452593157737">"ਤੁਹਾਡਾ ਡੀਵਾਈਸ ਹਵਾਈ-ਜਹਾਜ਼ ਮੋਡ ਵਿੱਚ ਬਲੂਟੁੱਥ ਨੂੰ ਚਾਲੂ ਰੱਖਣਾ ਯਾਦ ਰੱਖਦਾ ਹੈ। ਜੇ ਤੁਸੀਂ ਇਸਨੂੰ ਚਾਲੂ ਨਹੀਂ ਰੱਖਣਾ ਚਾਹੁੰਦੇ, ਤਾਂ ਬਲੂਟੁੱਥ ਨੂੰ ਬੰਦ ਕਰੋ।"</string>
     <string name="bluetooth_and_wifi_stays_on_title" msgid="5821932798860821244">"ਵਾਈ-ਫਾਈ ਅਤੇ ਬਲੂਟੁੱਥ ਚਾਲੂ ਰਹਿੰਦੇ ਹਨ"</string>
     <string name="bluetooth_and_wifi_stays_on_message" msgid="7848565203843882558">"ਤੁਹਾਡਾ ਡੀਵਾਈਸ ਹਵਾਈ-ਜਹਾਜ਼ ਮੋਡ ਵਿੱਚ ਵਾਈ-ਫਾਈ ਅਤੇ ਬਲੂਟੁੱਥ ਨੂੰ ਚਾਲੂ ਰੱਖਣਾ ਯਾਦ ਰੱਖਦਾ ਹੈ। ਜੇ ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਨੂੰ ਚਾਲੂ ਨਹੀਂ ਰੱਖਣਾ ਚਾਹੁੰਦੇ, ਤਾਂ ਵਾਈ-ਫਾਈ ਅਤੇ ਬਲੂਟੁੱਥ ਨੂੰ ਬੰਦ ਕਰੋ।"</string>
-    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"ਬਲੂਟੁੱਥ ਨੂੰ ਚਾਲੂ ਕੀਤਾ ਗਿਆ"</string>
+    <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"ਬਲੂਟੁੱਥ ਨੂੰ ਵਾਪਸ ਚਾਲੂ ਕੀਤਾ ਗਿਆ"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"ਤੁਸੀਂ ਕਿਸੇ ਵੇਲੇ ਵੀ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਸਨੂੰ ਬਦਲ ਸਕਦੇ ਹੋ"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"ਬਲੂਟੁੱਥ ਨੂੰ ਸਵੈਚਲਿਤ ਤੌਰ \'ਤੇ ਚਾਲੂ ਕਰਨ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬਦਲ ਦਿੱਤਾ ਗਿਆ ਹੈ"</string>
 </resources>

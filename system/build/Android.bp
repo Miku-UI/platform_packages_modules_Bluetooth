@@ -11,6 +11,7 @@ cc_defaults {
     name: "fluoride_defaults",
     defaults: [
         "bluetooth_cflags",
+        "bluetooth_tidy",
     ],
     cflags: [
         "-DEXPORT_SYMBOL=__attribute__((visibility(\"default\")))",

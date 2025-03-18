@@ -43,9 +43,6 @@ void btm_ble_connected(const RawAddress& bda, uint16_t handle, uint8_t enc_mode,
                        bool can_read_discoverable_characteristics);
 void btm_ble_connection_established(const RawAddress& bda);
 
-/* acceptlist function */
-void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy);
-
 /* background connection function */
 void btm_ble_update_mode_operation(uint8_t link_role, const RawAddress* bda, tHCI_STATUS status);
 /* BLE address management */

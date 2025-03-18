@@ -57,9 +57,12 @@ public:
                           std::unique_ptr<hci::acl_manager::LeAclConnection>) override;
   void OnLeConnectFail(hci::AddressWithType, hci::ErrorCode reason) override;
   void OnLeLinkDisconnected(uint16_t handle, hci::ErrorCode reason);
-  bluetooth::hci::AddressWithType GetConnectionLocalAddress(uint16_t handle, bool ota_address);
-  bluetooth::hci::AddressWithType GetConnectionPeerAddress(uint16_t handle, bool ota_address);
-  std::optional<uint8_t> GetAdvertisingSetConnectedTo(const RawAddress& remote_bda);
+  void GetConnectionLocalAddress(uint16_t handle, bool ota_address,
+                                 std::promise<bluetooth::hci::AddressWithType> promise);
+  void GetConnectionPeerAddress(uint16_t handle, bool ota_address,
+                                std::promise<bluetooth::hci::AddressWithType> promise);
+  void GetAdvertisingSetConnectedTo(const RawAddress& remote_bda,
+                                    std::promise<std::optional<uint8_t>> promise);
 
   // LinkConnectionInterface
   void CreateClassicConnection(const hci::Address& address) override;

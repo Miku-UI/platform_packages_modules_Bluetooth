@@ -28,12 +28,15 @@
 #include <map>
 #include <mutex>
 
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
 #include "stack/include/acl_api_types.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_status.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

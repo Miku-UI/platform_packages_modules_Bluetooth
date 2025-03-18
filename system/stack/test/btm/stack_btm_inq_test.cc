@@ -36,6 +36,9 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 extern tBTM_CB btm_cb;
 
 using bluetooth::common::ContextualCallback;

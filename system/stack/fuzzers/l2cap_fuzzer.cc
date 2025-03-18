@@ -36,10 +36,14 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cap_module.h"
 #include "stack/include/l2cdefs.h"
+#include "stack/l2cap/l2c_int.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_stack_acl.h"
 #include "test/mock/mock_stack_btm_devctl.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 using testing::Return;
@@ -70,8 +74,8 @@ bluetooth::common::PostableContext* get_main() { return nullptr; }
 
 namespace bluetooth {
 namespace os {
-uint32_t GetSystemPropertyUint32Base(const std::string& property, uint32_t default_value,
-                                     int base) {
+uint32_t GetSystemPropertyUint32Base(const std::string& /*property*/, uint32_t default_value,
+                                     int /*base*/) {
   return default_value;
 }
 }  // namespace os
@@ -81,7 +85,7 @@ class SnoopLogger;
 
 const std::string SnoopLogger::kBtSnoopLogModeFiltered = "filtered";
 
-std::string SnoopLogger::GetBtSnoopMode() { return "filtered"; }
+std::string SnoopLogger::GetCurrentSnoopMode() { return "filtered"; }
 void SnoopLogger::AcceptlistL2capChannel(uint16_t, uint16_t, uint16_t) {}
 void SnoopLogger::AddA2dpMediaChannel(uint16_t, uint16_t, uint16_t) {}
 void SnoopLogger::AddRfcommL2capChannel(uint16_t, uint16_t, uint16_t) {}
@@ -92,20 +96,24 @@ void SnoopLogger::SetL2capChannelOpen(uint16_t, uint16_t, uint16_t, uint16_t, bo
 }  // namespace hal
 }  // namespace bluetooth
 
+namespace connection_manager {
+bool create_le_connection(uint8_t /* id */, const RawAddress& /* bd_addr */,
+                          tBLE_ADDR_TYPE /* addr_type */) {
+  return true;
+}
+}  // namespace connection_manager
+
 namespace {
 
 class FakeBtStack {
 public:
   FakeBtStack() {
-    test::mock::stack_acl::acl_create_le_connection.body = [](const RawAddress& bd_addr) {
-      return true;
-    };
-    test::mock::stack_acl::acl_send_data_packet_br_edr.body = [](const RawAddress& bd_addr,
+    test::mock::stack_acl::acl_send_data_packet_br_edr.body = [](const RawAddress& /*bd_addr*/,
                                                                  BT_HDR* hdr) {
       ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
       osi_free(hdr);
     };
-    test::mock::stack_acl::acl_send_data_packet_ble.body = [](const RawAddress& bd_addr,
+    test::mock::stack_acl::acl_send_data_packet_ble.body = [](const RawAddress& /*bd_addr*/,
                                                               BT_HDR* hdr) {
       ConsumeData((const uint8_t*)hdr, hdr->offset + hdr->len);
       osi_free(hdr);
@@ -128,7 +136,6 @@ public:
   }
 
   ~FakeBtStack() {
-    test::mock::stack_acl::acl_create_le_connection = {};
     test::mock::stack_acl::acl_send_data_packet_br_edr = {};
     test::mock::stack_acl::acl_send_data_packet_ble = {};
     bluetooth::hci::testing::mock_controller_ = nullptr;
@@ -154,8 +161,6 @@ constexpr uint16_t kSmpBrHndl = 0x0222;
 
 constexpr uint16_t kNumClassicAclBuffer = 100;
 constexpr uint16_t kNumLeAclBuffer = 100;
-
-void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 
 static void Fuzz(const uint8_t* data, size_t size) {
   memset(&btm_cb, 0, sizeof(btm_cb));

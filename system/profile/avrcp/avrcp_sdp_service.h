@@ -19,6 +19,7 @@
 #include <bluetooth/log.h>
 
 #include <cstdint>
+#include <memory>
 
 #include "avrcp_sdp_records.h"
 

@@ -54,8 +54,6 @@
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
-#include "rust/src/connection/ffi/connection_shim.h"
-#include "rust/src/core/ffi/types.h"
 #include "stack/acl/acl.h"
 #include "stack/acl/peer_packet_types.h"
 #include "stack/btm/btm_ble_int.h"
@@ -75,9 +73,11 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcimsgs.h"
+#include "stack/include/inq_hci_link_interface.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/main_thread.h"
+#include "stack/l2cap/l2c_int.h"
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
@@ -94,9 +94,6 @@ using bluetooth::legacy::hci::GetInterface;
 
 void BTM_update_version_info(const RawAddress& bd_addr,
                              const remote_version_info& remote_version_info);
-
-static void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* address_with_type);
-void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddress& p_bda);
 
 void BTM_db_reset(void);
 
@@ -190,7 +187,7 @@ void NotifyAclFeaturesReadComplete(tACL_CONN& p_acl, uint8_t max_page_number) {
   btm_process_remote_ext_features(&p_acl, max_page_number);
   btm_set_link_policy(&p_acl, btm_cb.acl_cb_.DefaultLinkPolicy());
   int32_t flush_timeout = osi_property_get_int32(PROPERTY_AUTO_FLUSH_TIMEOUT, 0);
-  if (flush_timeout != 0) {
+  if (bluetooth::shim::GetController()->SupportsNonFlushablePb() && flush_timeout != 0) {
     acl_write_automatic_flush_timeout(p_acl.remote_addr, static_cast<uint16_t>(flush_timeout));
   }
   BTA_dm_notify_remote_features_complete(p_acl.remote_addr);
@@ -211,27 +208,6 @@ void StackAclBtmAcl::hci_start_role_switch_to_central(tACL_CONN& p_acl) {
   GetInterface().StartRoleSwitch(p_acl.remote_addr, static_cast<uint8_t>(HCI_ROLE_CENTRAL));
   p_acl.set_switch_role_in_progress();
   p_acl.rs_disc_pending = BTM_SEC_RS_PENDING;
-}
-
-void hci_btm_set_link_supervision_timeout(tACL_CONN& link, uint16_t timeout) {
-  if (link.link_role != HCI_ROLE_CENTRAL) {
-    /* Only send if current role is Central; 2.0 spec requires this */
-    log::warn("Can only set link supervision timeout if central role:{}", RoleText(link.link_role));
-    return;
-  }
-
-  if (!bluetooth::shim::GetController()->IsSupported(
-              bluetooth::hci::OpCode::WRITE_LINK_SUPERVISION_TIMEOUT)) {
-    log::warn(
-            "UNSUPPORTED by controller write link supervision timeout:{:.2f}ms "
-            "bd_addr:{}",
-            supervision_timeout_to_seconds(timeout), link.RemoteAddress());
-    return;
-  }
-  log::debug("Setting link supervision timeout:{:.2f}s peer:{}", double(timeout) * 0.01,
-             link.RemoteAddress());
-  link.link_super_tout = timeout;
-  btsnd_hcic_write_link_super_tout(link.Handle(), timeout);
 }
 
 /* 3 seconds timeout waiting for responses */
@@ -303,10 +279,6 @@ tACL_CONN* StackAclBtmAcl::btm_bda_to_acl(const RawAddress& bda, tBT_TRANSPORT t
   return nullptr;
 }
 
-tACL_CONN* acl_get_connection_from_address(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  return internal_.btm_bda_to_acl(bd_addr, transport);
-}
-
 void StackAclBtmAcl::btm_acl_consolidate(const RawAddress& identity_addr, const RawAddress& rpa) {
   tACL_CONN* p_acl = &btm_cb.acl_cb_.acl_db[0];
   for (uint8_t index = 0; index < MAX_L2CAP_LINKS; index++, p_acl++) {
@@ -357,7 +329,7 @@ tACL_CONN* StackAclBtmAcl::acl_get_connection_from_handle(uint16_t hci_handle) {
   return &btm_cb.acl_cb_.acl_db[index];
 }
 
-tACL_CONN* acl_get_connection_from_handle(uint16_t handle) {
+static tACL_CONN* acl_get_connection_from_handle(uint16_t handle) {
   return internal_.acl_get_connection_from_handle(handle);
 }
 
@@ -595,9 +567,8 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr) {
       return tBTM_STATUS::BTM_WRONG_MODE;
     }
     p_acl->set_switch_role_changing();
-  }
-  /* some devices do not support switch while encryption is on */
-  else {
+  } else {
+    /* some devices do not support switch while encryption is on */
     if (p_acl->is_encrypted && !IsEprAvailable(*p_acl)) {
       /* bypass turning off encryption if change link key is already doing it */
       p_acl->set_encryption_off();
@@ -658,9 +629,8 @@ void btm_acl_encrypt_change(uint16_t handle, uint8_t /* status */, uint8_t encr_
       p->set_switch_role_switching();
     }
     internal_.hci_start_role_switch_to_central(*p);
-  }
-  /* Finished enabling Encryption after role switch */
-  else if (p->is_switch_role_encryption_on()) {
+  } else if (p->is_switch_role_encryption_on()) {
+    /* Finished enabling Encryption after role switch */
     p->reset_switch_role();
     p->set_encryption_idle();
     NotifyAclRoleSwitchComplete(btm_cb.acl_cb_.switch_role_ref_data.remote_bd_addr,
@@ -804,8 +774,9 @@ static void maybe_chain_more_commands_after_read_remote_version_complete(uint8_t
   btm_iot_save_remote_versions(p_acl_cb);
 }
 
-void btm_process_remote_version_complete(uint8_t status, uint16_t handle, uint8_t lmp_version,
-                                         uint16_t manufacturer, uint16_t lmp_subversion) {
+static void btm_process_remote_version_complete(uint8_t status, uint16_t handle,
+                                                uint8_t lmp_version, uint16_t manufacturer,
+                                                uint16_t lmp_subversion) {
   tACL_CONN* p_acl_cb = internal_.acl_get_connection_from_handle(handle);
   if (p_acl_cb == nullptr) {
     log::warn("Received remote version complete for unknown acl");
@@ -2003,16 +1974,14 @@ void btm_cont_rswitch_from_handle(uint16_t hci_handle) {
    change of link key or role switch */
   if (p->is_switch_role_mode_change()) {
     /* Must turn off Encryption first if necessary */
-    /* Some devices do not support switch or change of link key while encryption
-     * is on */
+    /* Some devices do not support switch or change of link key while encryption is on */
     if (p->is_encrypted && !IsEprAvailable(*p)) {
       p->set_encryption_off();
       if (p->is_switch_role_mode_change()) {
         p->set_switch_role_encryption_off();
       }
-    } else /* Encryption not used or EPR supported, continue with switch
-              and/or change of link key */
-    {
+    } else {
+      /* Encryption not used or EPR supported, continue with switch and/or change of link key */
       if (p->is_switch_role_mode_change()) {
         internal_.hci_start_role_switch_to_central(*p);
       }
@@ -2377,7 +2346,7 @@ void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string
 // 7.1.6 Disconnect command
 // Only a subset of reasons are valid and will be accepted
 // by the controller
-bool is_disconnect_reason_valid(const tHCI_REASON& reason) {
+static bool is_disconnect_reason_valid(const tHCI_REASON& reason) {
   switch (reason) {
     case HCI_ERR_AUTH_FAILURE:
     case HCI_ERR_PEER_USER:
@@ -2459,44 +2428,6 @@ void acl_write_automatic_flush_timeout(const RawAddress& bd_addr, uint16_t flush
   flush_timeout_in_ticks &= HCI_MAX_AUTOMATIC_FLUSH_TIMEOUT;
   p_acl->flush_timeout_in_ticks = flush_timeout_in_ticks;
   btsnd_hcic_write_auto_flush_tout(p_acl->hci_handle, flush_timeout_in_ticks);
-}
-
-bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr,
-                                      tBLE_ADDR_TYPE addr_type) {
-  tBLE_BD_ADDR address_with_type{
-          .type = addr_type,
-          .bda = bd_addr,
-  };
-
-  find_in_device_record(bd_addr, &address_with_type);
-
-  log::debug("Creating le direct connection to:{} type:{} (initial type: {})", address_with_type,
-             AddressTypeText(address_with_type.type), AddressTypeText(addr_type));
-
-  if (address_with_type.type == BLE_ADDR_ANONYMOUS) {
-    log::warn(
-            "Creating le direct connection to:{}, address type 'anonymous' is "
-            "invalid",
-            address_with_type);
-    return false;
-  }
-
-  if (com::android::bluetooth::flags::unified_connection_manager()) {
-    bluetooth::connection::GetConnectionManager().start_direct_connection(
-            id, bluetooth::core::ToRustAddress(address_with_type));
-  } else {
-    bluetooth::shim::ACL_AcceptLeConnectionFrom(address_with_type,
-                                                /* is_direct */ true);
-  }
-  return true;
-}
-
-bool acl_create_le_connection_with_id(uint8_t id, const RawAddress& bd_addr) {
-  return acl_create_le_connection_with_id(id, bd_addr, BLE_ADDR_PUBLIC);
-}
-
-bool acl_create_le_connection(const RawAddress& bd_addr) {
-  return acl_create_le_connection_with_id(CONN_MGR_ID_L2CAP, bd_addr);
 }
 
 void acl_rcv_acl_data(BT_HDR* p_msg) {
@@ -2593,24 +2524,6 @@ tACL_CONN* btm_acl_for_bda(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
     return nullptr;
   }
   return p_acl;
-}
-
-void find_in_device_record(const RawAddress& bd_addr, tBLE_BD_ADDR* address_with_type) {
-  const tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == nullptr) {
-    return;
-  }
-
-  if (p_dev_rec->device_type & BT_DEVICE_TYPE_BLE) {
-    if (p_dev_rec->ble.identity_address_with_type.bda.IsEmpty()) {
-      *address_with_type = {.type = p_dev_rec->ble.AddressType(), .bda = bd_addr};
-      return;
-    }
-    *address_with_type = p_dev_rec->ble.identity_address_with_type;
-    return;
-  }
-  *address_with_type = {.type = BLE_ADDR_PUBLIC, .bda = bd_addr};
-  return;
 }
 
 /*******************************************************************************

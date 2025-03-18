@@ -21,15 +21,43 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-
+        <TextView
+            android:id="@+id/dm_method_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text= "Method"
+            app:layout_constraintBottom_toTopOf="@id/btn_cs"
+            app:layout_constraintEnd_toStartOf="@id/spinner_dm_method"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/init_ble_connection_container"
+            />
         <Spinner
             android:id="@+id/spinner_dm_method"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:padding="10dp"
-            app:layout_constraintEnd_toStartOf="@id/btn_cs"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/freq_label"
+            app:layout_constraintStart_toEndOf="@id/dm_method_label"
+            app:layout_constraintTop_toBottomOf="@id/init_ble_connection_container" />
+        <TextView
+            android:id="@+id/freq_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text= "Freq"
+            app:layout_constraintBottom_toTopOf="@id/btn_cs"
+            app:layout_constraintEnd_toStartOf="@id/spinner_freq"
+            app:layout_constraintStart_toEndOf="@id/spinner_dm_method"
+            app:layout_constraintTop_toBottomOf="@id/init_ble_connection_container"
+            />
+        <Spinner
+            android:id="@+id/spinner_freq"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:padding="10dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/freq_label"
             app:layout_constraintTop_toBottomOf="@id/init_ble_connection_container" />
         <Button
             android:id="@+id/btn_cs"
@@ -40,8 +68,8 @@
             android:padding="10dp"
             android:text="Start Distance Measurement"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/spinner_dm_method"
-            app:layout_constraintTop_toBottomOf="@id/init_ble_connection_container" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/spinner_dm_method" />
         <TextView
             android:id="@+id/text_log"
             android:layout_width="match_parent"

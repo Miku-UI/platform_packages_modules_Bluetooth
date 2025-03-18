@@ -127,7 +127,10 @@ public class TbsCall {
     }
 
     public String getSafeUri() {
-        return Uri.parse(mUri).toSafeString();
+        if (mUri != null) {
+            return Uri.parse(mUri).toSafeString();
+        }
+        return null;
     }
 
     public int getFlags() {

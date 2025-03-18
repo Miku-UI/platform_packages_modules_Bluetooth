@@ -357,7 +357,13 @@ public final class BluetoothGattServer implements BluetoothProfile {
                 @Override
                 public void onMtuChanged(String address, int mtu) {
                     if (DBG) {
-                        Log.d(TAG, "onMtuChanged() - " + "device=" + address + ", mtu=" + mtu);
+                        Log.d(
+                                TAG,
+                                "onMtuChanged() - "
+                                        + "device="
+                                        + BluetoothUtils.toAnonymizedAddress(address)
+                                        + ", mtu="
+                                        + mtu);
                     }
 
                     BluetoothDevice device = mAdapter.getRemoteDevice(address);

@@ -13,15 +13,15 @@
 # limitations under the License.
 """SDP proxy module."""
 
-from mmi2grpc._helpers import assert_description, match_description
-from mmi2grpc._proxy import ProfileProxy
-
-import sys
-import unittest
-import threading
 import os
 import socket
+import sys
+import threading
+import unittest
 from itertools import filterfalse
+
+from mmi2grpc._helpers import assert_description, match_description
+from mmi2grpc._proxy import ProfileProxy
 
 # As per Bluetooth Assigned Numbers
 UUID_TO_SERVICE_NAME = {

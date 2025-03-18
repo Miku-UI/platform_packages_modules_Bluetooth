@@ -148,6 +148,7 @@ void bta_jv_get_channel_id(tBTA_JV_CONN_TYPE type, int32_t channel, uint32_t l2c
 void bta_jv_free_scn(tBTA_JV_CONN_TYPE type, uint16_t scn);
 void bta_jv_start_discovery(const RawAddress& bd_addr, uint16_t num_uuid,
                             bluetooth::Uuid* uuid_list, uint32_t rfcomm_slot_id);
+void bta_jv_cancel_discovery(uint32_t rfcomm_slot_id);
 void bta_jv_create_record(uint32_t rfcomm_slot_id);
 void bta_jv_delete_record(uint32_t handle);
 void bta_jv_l2cap_connect(tBTA_JV_CONN_TYPE type, tBTA_SEC sec_mask, uint16_t remote_psm,

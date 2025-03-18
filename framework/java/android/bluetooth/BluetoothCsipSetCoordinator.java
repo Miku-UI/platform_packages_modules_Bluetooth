@@ -19,6 +19,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.IntDef;
@@ -105,7 +106,8 @@ public final class BluetoothCsipSetCoordinator implements BluetoothProfile, Auto
         @Override
         @RequiresNoPermission
         public void onGroupLockSet(int groupId, int opStatus, boolean isLocked) {
-            mExecutor.execute(() -> mCallback.onGroupLockSet(groupId, opStatus, isLocked));
+            executeFromBinder(
+                    mExecutor, () -> mCallback.onGroupLockSet(groupId, opStatus, isLocked));
         }
     }
     ;

@@ -6,7 +6,6 @@ build = "build.rs"
 
 [dependencies]
 bt_topshim = { path = "../../topshim" }
-bt_shim = { path = "../../shim" }
 btstack = { path = "../stack" }
 clap = "2.33.3"
 dbus_projection = { path = "../dbus_projection" }

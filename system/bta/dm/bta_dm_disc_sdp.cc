@@ -44,6 +44,9 @@
 #include "stack/include/srvc_api.h"
 #endif
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -214,7 +217,6 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
       } else { /* regular one service per search or PNP search */
         break;
       }
-
     } while (sdp_state->service_index <= BTA_MAX_SERVICE_ID);
 
     log::verbose("services_found = {:04x}", sdp_state->services_found);
@@ -262,7 +264,7 @@ void bta_dm_sdp_result(tSDP_STATUS sdp_result, tBTA_DM_SDP_STATE* sdp_state) {
     // Copy the raw_data to the discovery result structure
     if (p_sdp_db != NULL && p_sdp_db->raw_used != 0 && p_sdp_db->raw_data != NULL) {
       log::verbose("raw_data used = 0x{:x} raw_data_ptr = 0x{}", p_sdp_db->raw_used,
-                   fmt::ptr(p_sdp_db->raw_data));
+                   std::format_ptr(p_sdp_db->raw_data));
 
       p_sdp_db->raw_data = NULL;  // no need to free this - it is a global assigned.
       p_sdp_db->raw_used = 0;

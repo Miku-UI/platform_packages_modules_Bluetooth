@@ -20,7 +20,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "smp_int.h"
 #include "stack/include/btm_log_history.h"
 
@@ -330,7 +329,8 @@ static const uint8_t smp_all_table[][SMP_SM_NUM_COLS] = {
         /* AUTH_CMPL */
         {SMP_SEND_PAIR_FAIL, SMP_PAIRING_CMPL, SMP_STATE_IDLE},
         /* L2C_DISC */
-        {SMP_PAIR_TERMINATE, SMP_SM_NO_ACTION, SMP_STATE_IDLE}};
+        {SMP_PAIR_TERMINATE, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
+};
 
 static const uint8_t smp_central_idle_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action               Next State */
@@ -343,8 +343,7 @@ static const uint8_t smp_central_idle_table[][SMP_SM_NUM_COLS] = {
         /* AUTH_CMPL */
         {SMP_PAIRING_CMPL, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
         /* CR_LOC_SC_OOB_DATA */
-        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA}
-
+        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
 };
 
 static const uint8_t smp_central_wait_for_app_response_table[][SMP_SM_NUM_COLS] = {
@@ -374,7 +373,8 @@ static const uint8_t smp_central_wait_for_app_response_table[][SMP_SM_NUM_COLS] 
         /* KEYPR_NOTIF */
         {SMP_SEND_KEYPRESS_NOTIFICATION, SMP_SM_NO_ACTION, SMP_STATE_WAIT_APP_RSP},
         /* SC_OOB_DATA */
-        {SMP_USE_OOB_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH}};
+        {SMP_USE_OOB_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH},
+};
 
 static const uint8_t smp_central_pair_request_response_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action            Next State */
@@ -387,18 +387,21 @@ static const uint8_t smp_central_pair_request_response_table[][SMP_SM_NUM_COLS] 
         /* KEY_READY */
         {SMP_GENERATE_CONFIRM, SMP_SM_NO_ACTION, SMP_STATE_WAIT_CONFIRM}
         /* PUBL_KEY_EXCH_REQ */,
-        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH}};
+        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_PUBLIC_KEY_EXCH},
+};
 
 static const uint8_t smp_central_wait_for_confirm_table[][SMP_SM_NUM_COLS] = {
         /* Event                Action            Next State */
         /* KEY_READY*/
         /* CONFIRM ready */
-        {SMP_SEND_CONFIRM, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM}};
+        {SMP_SEND_CONFIRM, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM},
+};
 
 static const uint8_t smp_central_confirm_table[][SMP_SM_NUM_COLS] = {
         /* Event            Action         Next State */
         /* CONFIRM */
-        {SMP_PROC_CONFIRM, SMP_SEND_RAND, SMP_STATE_RAND}};
+        {SMP_PROC_CONFIRM, SMP_SEND_RAND, SMP_STATE_RAND},
+};
 
 static const uint8_t smp_central_rand_table[][SMP_SM_NUM_COLS] = {
         /*               Event                  Action Next State */
@@ -407,7 +410,8 @@ static const uint8_t smp_central_rand_table[][SMP_SM_NUM_COLS] = {
         /* KEY_READY */
         {SMP_PROC_COMPARE, SMP_SM_NO_ACTION, SMP_STATE_RAND}, /* Compare ready */
         /* ENC_REQ */
-        {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING}};
+        {SMP_GENERATE_STK, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+};
 
 static const uint8_t smp_central_public_key_exchange_table[][SMP_SM_NUM_COLS] = {
         /* Event                        Action              Next State */
@@ -494,7 +498,8 @@ static const uint8_t smp_central_enc_pending_table[][SMP_SM_NUM_COLS] = {
         /* ENCRYPTED */
         {SMP_CHECK_AUTH_REQ, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
         /* BOND_REQ */
-        {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING}};
+        {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+};
 
 static const uint8_t smp_central_bond_pending_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
@@ -520,7 +525,8 @@ static const uint8_t smp_central_create_local_sec_conn_oob_data[][SMP_SM_NUM_COL
         /* LOC_PUBL_KEY_CRTD */
         {SMP_SET_LOCAL_OOB_KEYS, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
         /* HAVE_LOC_NONCE */
-        {SMP_SET_LOCAL_OOB_RAND_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_IDLE}};
+        {SMP_SET_LOCAL_OOB_RAND_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
+};
 
 /************ SMP Peripheral FSM State/Event Indirection Table **************/
 static const uint8_t smp_peripheral_entry_map[][SMP_STATE_MAX] = {
@@ -622,7 +628,8 @@ static const uint8_t smp_peripheral_idle_table[][SMP_SM_NUM_COLS] = {
         /* PAIR_REQ */
         {SMP_PROC_PAIR_CMD, SMP_SEND_APP_CBACK, SMP_STATE_WAIT_APP_RSP},
         /* CR_LOC_SC_OOB_DATA */
-        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA}};
+        {SMP_CREATE_PRIVATE_KEY, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
+};
 
 static const uint8_t smp_peripheral_wait_for_app_response_table[][SMP_SM_NUM_COLS] = {
         /* Event                   Action                 Next State */
@@ -685,7 +692,8 @@ static const uint8_t smp_peripheral_wait_confirm_table[][SMP_SM_NUM_COLS] = {
         /* CONFIRM */
         {SMP_PROC_CONFIRM, SMP_SEND_CONFIRM, SMP_STATE_CONFIRM},
         /* KEY_READY*/
-        {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_WAIT_CONFIRM}};
+        {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_WAIT_CONFIRM},
+};
 
 static const uint8_t smp_peripheral_confirm_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
@@ -694,14 +702,16 @@ static const uint8_t smp_peripheral_confirm_table[][SMP_SM_NUM_COLS] = {
 
         /* TK/Confirm ready */
         /* KEY_READY*/
-        {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM}};
+        {SMP_PROC_SL_KEY, SMP_SM_NO_ACTION, SMP_STATE_CONFIRM},
+};
 
 static const uint8_t smp_peripheral_rand_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
         /* KEY_READY */
         {SMP_PROC_COMPARE, SMP_SM_NO_ACTION, SMP_STATE_RAND}, /* compare match */
         /* RAND */
-        {SMP_SEND_RAND, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING}};
+        {SMP_SEND_RAND, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
+};
 
 static const uint8_t smp_peripheral_public_key_exch_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
@@ -804,7 +814,8 @@ static const uint8_t smp_peripheral_enc_pending_table[][SMP_SM_NUM_COLS] = {
         /* ENCRYPTED */
         {SMP_CHECK_AUTH_REQ, SMP_SM_NO_ACTION, SMP_STATE_ENCRYPTION_PENDING},
         /* BOND_REQ */
-        {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING}};
+        {SMP_KEY_DISTRIBUTE, SMP_SM_NO_ACTION, SMP_STATE_BOND_PENDING},
+};
 
 static const uint8_t smp_peripheral_bond_pending_table[][SMP_SM_NUM_COLS] = {
         /* Event                  Action                 Next State */
@@ -833,7 +844,8 @@ static const uint8_t smp_peripheral_create_local_sec_conn_oob_data[][SMP_SM_NUM_
         /* LOC_PUBL_KEY_CRTD */
         {SMP_SET_LOCAL_OOB_KEYS, SMP_SM_NO_ACTION, SMP_STATE_CREATE_LOCAL_SEC_CONN_OOB_DATA},
         /* HAVE_LOC_NONCE */
-        {SMP_SET_LOCAL_OOB_RAND_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_IDLE}};
+        {SMP_SET_LOCAL_OOB_RAND_COMMITMENT, SMP_SM_NO_ACTION, SMP_STATE_IDLE},
+};
 
 static const tSMP_SM_TBL smp_state_table[][2] = {
         /* SMP_STATE_IDLE */

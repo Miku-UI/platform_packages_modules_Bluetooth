@@ -1,0 +1,70 @@
+// Copyright (C) 2024 The Android Open Source Project
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package pandora.vcp;
+
+import "pandora/host.proto";
+option java_outer_classname = "VcpProto";
+import "google/protobuf/empty.proto";
+
+service VCP {
+  // set absolute volume on remote device
+  rpc SetDeviceVolume(SetDeviceVolumeRequest) returns (google.protobuf.Empty);
+  // set volume offset on remote device
+  rpc SetVolumeOffset(SetVolumeOffsetRequest) returns (google.protobuf.Empty);
+  // Wait for device to be connected.
+  rpc WaitConnect(WaitConnectRequest) returns (google.protobuf.Empty);
+
+  // TODO: AICS interfaces could be made a bit more generic by first fetching
+  // what are the available instances and using them like the Connection object
+  // is used.
+
+  rpc SetGainSetting(SetGainSettingRequest) returns (google.protobuf.Empty);
+  rpc SetMute(SetMuteRequest) returns (google.protobuf.Empty);
+  rpc SetGainMode(SetGainModeRequest) returns (google.protobuf.Empty);
+}
+
+// Request of the `SetDeviceVolume` method
+message SetDeviceVolumeRequest{
+  // Connection crafted by grpc server
+  Connection connection = 1;
+  // Volume value to be set
+  int32 volume = 2;
+}
+
+// Request of the `SetVolumeOffset` method
+message SetVolumeOffsetRequest{
+  // Connection crafted by grpc server
+  Connection connection = 1;
+  // Volume offset value to be set
+  int32 offset = 2;
+}
+
+message WaitConnectRequest {
+  Connection connection = 1;
+}
+
+message SetGainSettingRequest {
+  Connection connection = 1;
+  int32 gainSetting = 2;
+}
+message SetMuteRequest {
+  Connection connection = 1;
+  // See Mute.aidl for valid values
+  int32 mute = 2;
+}
+message SetGainModeRequest {
+  Connection connection = 1;
+  // See GainMode.aidl for valid values
+  int32 gainMode = 2;
+}

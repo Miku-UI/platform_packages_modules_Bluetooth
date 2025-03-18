@@ -33,7 +33,6 @@
 
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/log.h"
 #include "stack/include/bt_hdr.h"
 #include "types/raw_address.h"
 
@@ -117,9 +116,27 @@ inline const std::string peer_stream_endpoint_text(int type) {
   }
 }
 
-/* initiator/acceptor role for adaptation */
-#define AVDT_INT 0 /* initiator */
-#define AVDT_ACP 1 /* acceptor */
+/* API function return value result codes. */
+enum class tAVDT_ROLE : uint8_t {
+  AVDT_INT = 0,     /* Initiator */
+  AVDT_ACP = 1,     /* Acceptor */
+  AVDT_UNKNOWN = 2, /* Unknown */
+};
+
+inline std::string avdt_role_text(const tAVDT_ROLE& role) {
+  switch (role) {
+    CASE_RETURN_TEXT(tAVDT_ROLE::AVDT_INT);
+    CASE_RETURN_TEXT(tAVDT_ROLE::AVDT_ACP);
+    CASE_RETURN_TEXT(tAVDT_ROLE::AVDT_UNKNOWN);
+    default:
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(role));
+  }
+}
+
+namespace std {
+template <>
+struct formatter<tAVDT_ROLE> : enum_formatter<tAVDT_ROLE> {};
+}  // namespace std
 
 /* Media Type of the stream endpoint */
 /* The value does not include the reserved 4-bit LSBs field */

@@ -32,18 +32,15 @@ namespace rust {
 namespace internal {
 static A2dpSinkIntf* g_a2dp_sink_if;
 
-static A2dpError to_rust_error(const btav_error_t& error) {
+static void connection_state_cb(const RawAddress& addr, btav_connection_state_t state,
+                                const btav_error_t& error) {
+  // CAUTION: The error_msg field is a reference and could refer to a rvalue on the stack.
+  //          DO NOT make this conversion into a helper function.
   A2dpError a2dp_error = {
           .status = error.status,
           .error_code = error.error_code,
           .error_msg = error.error_msg.value_or(""),
   };
-  return a2dp_error;
-}
-
-static void connection_state_cb(const RawAddress& addr, btav_connection_state_t state,
-                                const btav_error_t& error) {
-  A2dpError a2dp_error = to_rust_error(error);
   rusty::sink_connection_state_callback(addr, state, a2dp_error);
 }
 static void audio_state_cb(const RawAddress& addr, btav_audio_state_t state) {

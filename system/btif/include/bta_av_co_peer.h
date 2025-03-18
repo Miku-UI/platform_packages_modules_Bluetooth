@@ -134,10 +134,8 @@ public:
   /**
    * Inits the cache with the appropriate data.
    * @param codec_priorities codec priorities.
-   * @param supported_codecs supported codecs by the stack.
    */
-  void Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities,
-            std::vector<btav_a2dp_codec_info_t>* supported_codecs);
+  void Init(const std::vector<btav_a2dp_codec_config_t>& codec_priorities);
 
   /**
    * Resets the cache and the peer data.

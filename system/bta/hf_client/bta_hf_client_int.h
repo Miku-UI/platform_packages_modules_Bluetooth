@@ -149,7 +149,6 @@ typedef union {
   tBTA_HF_CLIENT_DISC_RESULT disc_result;
   tBTA_HF_CLIENT_RFC rfc;
   tBTA_HF_CLIENT_DATA_VAL val;
-
 } tBTA_HF_CLIENT_DATA;
 
 /* First handle for the control block */

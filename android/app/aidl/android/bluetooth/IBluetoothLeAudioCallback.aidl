@@ -32,4 +32,5 @@ oneway interface IBluetoothLeAudioCallback {
     void onGroupNodeRemoved(in BluetoothDevice device, int groupId);
     void onGroupStatusChanged(int groupId, int groupStatus);
     void onGroupStreamStatusChanged(int groupId, int groupStreamStatus);
+    void onBroadcastToUnicastFallbackGroupChanged(in int groupId);
 }

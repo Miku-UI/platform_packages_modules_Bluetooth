@@ -21,6 +21,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <format>
 #include <utility>
 #include <vector>
 
@@ -46,7 +47,7 @@ TEST_F(BtaApiTest, bta_status_text) {
   for (const auto& status : statuses) {
     ASSERT_STREQ(status.second.c_str(), bta_status_text(status.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%d]", std::numeric_limits<uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           bta_status_text(static_cast<tBTA_STATUS>(std::numeric_limits<uint8_t>::max())).c_str());

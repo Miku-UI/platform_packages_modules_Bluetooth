@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include "hci/controller.h"
 #include "hci/hci_layer_fake.h"
 #include "hci/octets.h"
 #include "packet/raw_builder.h"
@@ -33,6 +34,39 @@ namespace {
 using packet::kLittleEndian;
 using packet::PacketView;
 using packet::RawBuilder;
+
+class TestController : public Controller {
+public:
+  bool IsSupported(OpCode op_code) const override { return supported_opcodes_.count(op_code) == 1; }
+
+  void AddSupported(OpCode op_code) { supported_opcodes_.insert(op_code); }
+
+  uint8_t GetLeNumberOfSupportedAdverisingSets() const override { return num_advertisers_; }
+
+  uint16_t GetLeMaximumAdvertisingDataLength() const override { return 0x0672; }
+
+  bool SupportsBlePeriodicAdvertising() const override { return true; }
+
+  bool SupportsBleExtendedAdvertising() const override { return support_ble_extended_advertising_; }
+
+  void SetBleExtendedAdvertisingSupport(bool support) {
+    support_ble_extended_advertising_ = support;
+  }
+
+  VendorCapabilities GetVendorCapabilities() const override { return vendor_capabilities_; }
+
+  uint8_t num_advertisers_{0};
+  VendorCapabilities vendor_capabilities_;
+
+protected:
+  void Start() override {}
+  void Stop() override {}
+  void ListDependencies(ModuleList* /* list */) const {}
+
+private:
+  std::set<OpCode> supported_opcodes_{};
+  bool support_ble_extended_advertising_ = false;
+};
 
 class RotatorClient : public LeAddressManagerCallback {
 public:
@@ -76,9 +110,10 @@ public:
     handler_ = new Handler(thread_);
     hci_layer_ = new HciLayerFake();
     Address address({0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
+    controller_ = new TestController;
     le_address_manager_ = new LeAddressManager(
             common::Bind(&LeAddressManagerTest::enqueue_command, common::Unretained(this)),
-            handler_, address, 0x3F, 0x3F);
+            handler_, address, 0x3F, 0x3F, controller_);
     AllocateClients(1);
   }
 
@@ -115,6 +150,7 @@ public:
   Thread* thread_;
   Handler* handler_;
   HciLayerFake* hci_layer_ = nullptr;
+  TestController* controller_ = nullptr;
   LeAddressManager* le_address_manager_;
   std::vector<std::unique_ptr<RotatorClient>> clients;
 };
@@ -194,10 +230,11 @@ public:
     handler_ = new Handler(thread_);
     hci_layer_ = new HciLayerFake();
     Address address({0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
+    controller_ = new TestController;
     le_address_manager_ = new LeAddressManager(
             common::Bind(&LeAddressManagerWithSingleClientTest::enqueue_command,
                          common::Unretained(this)),
-            handler_, address, 0x3F, 0x3F);
+            handler_, address, 0x3F, 0x3F, controller_);
     AllocateClients(1);
 
     Octet16 irk = {0xec, 0x02, 0x34, 0xa3, 0x57, 0xc8, 0xad, 0x05,

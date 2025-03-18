@@ -89,8 +89,8 @@ public class ScanClient {
                 .append(scanModeApp)
                 .append(" scanModeUsed ")
                 .append(settings.getScanMode());
-        if (stats != null && stats.appName != null) {
-            sb.append(" [appScanStats ").append(stats.appName).append("]");
+        if (stats != null && stats.mAppName != null) {
+            sb.append(" [appScanStats ").append(stats.mAppName).append("]");
         }
         sb.append("]");
         return sb.toString();

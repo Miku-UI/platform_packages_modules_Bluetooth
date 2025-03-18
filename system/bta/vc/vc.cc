@@ -15,15 +15,22 @@
  * limitations under the License.
  */
 
+#include <aics/api.h>
 #include <base/functional/bind.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <bluetooth/log.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_vc.h>
+#include <stdio.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <list>
 #include <mutex>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "bta/include/bta_csis_api.h"
@@ -32,17 +39,21 @@
 #include "bta/include/bta_vc_api.h"
 #include "bta/le_audio/le_audio_types.h"
 #include "bta/vc/devices.h"
-#include "internal_include/bt_trace.h"
-#include "os/log.h"
+#include "bta_groups.h"
+#include "btm_ble_api_types.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "osi/include/alarm.h"
 #include "osi/include/osi.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_status.h"
 #include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
+#include "vc/types.h"
 
 using base::Closure;
-using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
 using bluetooth::vc::ConnectionState;
 using bluetooth::vc::VolumeInputStatus;
@@ -195,7 +206,7 @@ public:
     /* Make sure to remove device from background connect.
      * It will be added back if needed, when device got disconnected
      */
-    BTA_GATTC_CancelOpen(gatt_if_, address, false);
+    BTA_GATTC_CancelOpen(gatt_if_, address, true);
 
     if (device->IsEncryptionEnabled()) {
       OnEncryptionComplete(address, tBTM_STATUS::BTM_SUCCESS);
@@ -311,7 +322,7 @@ public:
   }
 
   void OnCharacteristicValueChanged(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                    uint16_t len, uint8_t* value, void* data,
+                                    uint16_t len, uint8_t* value, void* /*data*/,
                                     bool is_notification) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(conn_id);
     if (!device) {
@@ -522,7 +533,7 @@ public:
     StartQueueOperation();
   }
 
-  void OnVolumeControlFlagsChanged(VolumeControlDevice* device, uint16_t len, uint8_t* value) {
+  void OnVolumeControlFlagsChanged(VolumeControlDevice* device, uint16_t /*len*/, uint8_t* value) {
     device->flags = *value;
 
     bluetooth::log::info("{}, flags {:#x}", device->address, device->flags);
@@ -581,24 +592,36 @@ public:
     }
 
     uint8_t* pp = value;
-    STREAM_TO_INT8(input->gain_value, pp);
-    STREAM_TO_UINT8(input->mute, pp);
-    STREAM_TO_UINT8(input->mode, pp);
+    STREAM_TO_INT8(input->gain_setting, pp);
+    uint8_t mute;
+    STREAM_TO_UINT8(mute, pp);
+    if (!bluetooth::aics::isValidAudioInputMuteValue(mute)) {
+      bluetooth::log::error("{} Invalid mute value: {:#x}", device->address, mute);
+      return;
+    }
+    input->mute = bluetooth::aics::parseMuteField(mute);
+
+    uint8_t gain_mode;
+    STREAM_TO_UINT8(gain_mode, pp);
+    if (!bluetooth::aics::isValidAudioInputGainModeValue(gain_mode)) {
+      bluetooth::log::error("{} Invalid GainMode value: {:#x}", device->address, gain_mode);
+      return;
+    }
+    input->gain_mode = bluetooth::aics::parseGainModeField(gain_mode);
     STREAM_TO_UINT8(input->change_counter, pp);
 
     bluetooth::log::verbose("{}, data:{}", device->address, base::HexEncode(value, len));
     bluetooth::log::info(
-            "{} id={:#x}gain_value {:#x}, mute: {:#x}, mode: {:#x}, "
-            "change_counter: {}",
-            device->address, input->id, input->gain_value, input->mute, input->mode,
+            "{} id={:#x}gain_setting {:#x}, mute: {:#x}, mode: {:#x}, change_counter: {}",
+            device->address, input->id, input->gain_setting, input->mute, input->gain_mode,
             input->change_counter);
 
     if (!device->device_ready) {
       return;
     }
 
-    callbacks_->OnExtAudioInStateChanged(device->address, input->id, input->gain_value, input->mode,
-                                         input->mute);
+    callbacks_->OnExtAudioInStateChanged(device->address, input->id, input->gain_setting,
+                                         input->mute, input->gain_mode);
   }
 
   void OnExtAudioInTypeChanged(VolumeControlDevice* device, VolumeAudioInput* input, uint16_t len,
@@ -665,10 +688,12 @@ public:
       return;
     }
 
-    callbacks_->OnExtAudioInDescriptionChanged(device->address, input->id, input->description);
+    callbacks_->OnExtAudioInDescriptionChanged(device->address, input->id, input->description,
+                                               input->description_writable);
   }
 
-  void OnExtAudioInCPWrite(uint16_t connection_id, tGATT_STATUS status, uint16_t handle) {
+  void OnExtAudioInCPWrite(uint16_t connection_id, tGATT_STATUS status, uint16_t handle,
+                           uint8_t opcode, uint8_t id) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
       bluetooth::log::info("Skipping unknown device disconnect, connection_id={:#x}",
@@ -678,6 +703,25 @@ public:
 
     bluetooth::log::info("{}, Input Control Point write response handle {:#x}, status {:#x}",
                          device->address, handle, status);
+    if (status == GATT_SUCCESS) {
+      return;
+    }
+
+    switch (opcode) {
+      case kVolumeInputControlPointOpcodeSetGain:
+        callbacks_->OnExtAudioInSetGainSettingFailed(device->address, id);
+        break;
+      case kVolumeInputControlPointOpcodeMute:
+      case kVolumeInputControlPointOpcodeUnmute:
+        callbacks_->OnExtAudioInSetMuteFailed(device->address, id);
+        break;
+      case kVolumeInputControlPointOpcodeSetAutoGainMode:
+      case kVolumeInputControlPointOpcodeSetManualGainMode:
+        callbacks_->OnExtAudioInSetGainModeFailed(device->address, id);
+        break;
+      default:
+        bluetooth::log::error("{} Not a valid opcode", opcode);
+    }
   }
 
   void OnExtAudioInGainSettingChanged(VolumeControlDevice* device, VolumeAudioInput* input,
@@ -701,8 +745,9 @@ public:
       return;
     }
 
-    callbacks_->OnExtAudioInGainPropsChanged(device->address, input->id, input->gain_settings.unit,
-                                             input->gain_settings.min, input->gain_settings.max);
+    callbacks_->OnExtAudioInGainSettingPropertiesChanged(
+            device->address, input->id, input->gain_settings.unit, input->gain_settings.min,
+            input->gain_settings.max);
   }
 
   void OnExtAudioOutCPWrite(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle,
@@ -740,8 +785,8 @@ public:
     callbacks_->OnExtAudioOutDescriptionChanged(device->address, offset->id, offset->description);
   }
 
-  void OnGattWriteCcc(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                      const uint8_t* value, void* /*data*/) {
+  void OnGattWriteCcc(tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle,
+                      uint16_t /*len*/, const uint8_t* /*value*/, void* /*data*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
       bluetooth::log::error("unknown connection_id={:#x}", connection_id);
@@ -803,14 +848,14 @@ public:
     bluetooth::log::info("{}", address);
 
     /* Removes all registrations for connection. */
-    BTA_GATTC_CancelOpen(gatt_if_, address, false);
+    BTA_GATTC_CancelOpen(gatt_if_, address, true);
 
     Disconnect(address);
     volume_control_devices_.Remove(address);
   }
 
   void OnGattDisconnected(tCONN_ID connection_id, tGATT_IF /*client_if*/, RawAddress remote_bda,
-                          tGATT_DISCONN_REASON reason) {
+                          tGATT_DISCONN_REASON /*reason*/) {
     VolumeControlDevice* device = volume_control_devices_.FindByConnId(connection_id);
     if (!device) {
       bluetooth::log::error("Skipping unknown device disconnect, connection_id={:#x}",
@@ -831,9 +876,7 @@ public:
     bool notify = device->IsReady() || device->connecting_actively;
     device_cleanup_helper(device, notify);
 
-    if (reason != GATT_CONN_TERMINATE_LOCAL_HOST && device->connecting_actively) {
-      StartOpportunisticConnect(remote_bda);
-    }
+    StartOpportunisticConnect(remote_bda);
   }
 
   void RemoveDeviceFromOperationList(const RawAddress& addr) {
@@ -1285,26 +1328,90 @@ public:
     device->SetExtAudioInDescription(ext_input_id, descr);
   }
 
-  void SetExtAudioInGainValue(const RawAddress& address, uint8_t ext_input_id,
-                              int8_t value) override {
-    std::vector<uint8_t> arg({(uint8_t)value});
-    ext_audio_in_control_point_helper(address, ext_input_id, kVolumeInputControlPointOpcodeSetGain,
-                                      &arg);
+  void SetExtAudioInGainSetting(const RawAddress& address, uint8_t ext_input_id,
+                                int8_t gain_setting) override {
+    std::vector<uint8_t> arg({(uint8_t)gain_setting});
+    bluetooth::log::info("{}, input_id={:#x}", address, ext_input_id);
+
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      callbacks_->OnExtAudioInSetGainSettingFailed(address, ext_input_id);
+      return;
+    }
+
+    if (!device->ExtAudioInControlPointOperation(
+                ext_input_id, kVolumeInputControlPointOpcodeSetGain, &arg,
+                [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+                   const uint8_t* /*value*/, void* data) {
+                  if (instance) {
+                    instance->OnExtAudioInCPWrite(connection_id, status, handle,
+                                                  kVolumeInputControlPointOpcodeSetGain,
+                                                  PTR_TO_INT(data));
+                  }
+                },
+                INT_TO_PTR(ext_input_id))) {
+      callbacks_->OnExtAudioInSetGainSettingFailed(address, ext_input_id);
+    }
   }
 
   void SetExtAudioInGainMode(const RawAddress& address, uint8_t ext_input_id,
-                             bool automatic) override {
-    ext_audio_in_control_point_helper(address, ext_input_id,
-                                      automatic ? kVolumeInputControlPointOpcodeSetAutoGainMode
-                                                : kVolumeInputControlPointOpcodeSetManualGainMode,
-                                      nullptr);
+                             bluetooth::aics::GainMode gain_mode) override {
+    bluetooth::log::info("{}, input_id={:#x} gain_mode={:#x}", address, ext_input_id, gain_mode);
+
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      callbacks_->OnExtAudioInSetGainModeFailed(address, ext_input_id);
+      return;
+    }
+
+    if (!device->ExtAudioInControlPointOperation(
+                ext_input_id,
+                gain_mode == bluetooth::aics::GainMode::AUTOMATIC
+                        ? kVolumeInputControlPointOpcodeSetAutoGainMode
+                        : kVolumeInputControlPointOpcodeSetManualGainMode,
+                nullptr,
+                [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+                   const uint8_t* /*value*/, void* data) {
+                  if (instance) {
+                    instance->OnExtAudioInCPWrite(connection_id, status, handle,
+                                                  kVolumeInputControlPointOpcodeSetAutoGainMode,
+                                                  PTR_TO_INT(data));
+                  }
+                },
+                INT_TO_PTR(ext_input_id))) {
+      callbacks_->OnExtAudioInSetGainModeFailed(address, ext_input_id);
+    }
   }
 
-  void SetExtAudioInGainMute(const RawAddress& address, uint8_t ext_input_id, bool mute) override {
-    ext_audio_in_control_point_helper(
-            address, ext_input_id,
-            mute ? kVolumeInputControlPointOpcodeMute : kVolumeInputControlPointOpcodeUnmute,
-            nullptr);
+  void SetExtAudioInMute(const RawAddress& address, uint8_t ext_input_id,
+                         bluetooth::aics::Mute mute) override {
+    bluetooth::log::info("{}, input_id={:#x}, mute={:#x}", address, ext_input_id, mute);
+
+    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
+    if (!device) {
+      bluetooth::log::error("{}, no such device!", address);
+      callbacks_->OnExtAudioInSetMuteFailed(address, ext_input_id);
+      return;
+    }
+
+    if (!device->ExtAudioInControlPointOperation(
+                ext_input_id,
+                mute == bluetooth::aics::Mute::MUTED ? kVolumeInputControlPointOpcodeMute
+                                                     : kVolumeInputControlPointOpcodeUnmute,
+                nullptr,
+                [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+                   const uint8_t* /*value*/, void* data) {
+                  if (instance) {
+                    instance->OnExtAudioInCPWrite(connection_id, status, handle,
+                                                  kVolumeInputControlPointOpcodeMute,
+                                                  PTR_TO_INT(data));
+                  }
+                },
+                INT_TO_PTR(ext_input_id))) {
+      callbacks_->OnExtAudioInSetMuteFailed(address, ext_input_id);
+    }
   }
 
   void CleanUp() {
@@ -1364,34 +1471,13 @@ private:
                                     const std::vector<uint8_t>* arg, int operation_id = -1) {
     volume_control_devices_.ControlPointOperation(
             devices, opcode, arg,
-            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnWriteControlResponse(connection_id, status, handle, data);
               }
             },
             INT_TO_PTR(operation_id));
-  }
-
-  void ext_audio_in_control_point_helper(const RawAddress& address, uint8_t ext_input_id,
-                                         uint8_t opcode, const std::vector<uint8_t>* arg) {
-    bluetooth::log::info("{}, input_id={:#x}, opcode {:#x}", address, ext_input_id, opcode);
-
-    VolumeControlDevice* device = volume_control_devices_.FindByAddress(address);
-    if (!device) {
-      bluetooth::log::error("{}, no such device!", address);
-      return;
-    }
-
-    device->ExtAudioInControlPointOperation(
-            ext_input_id, opcode, arg,
-            [](uint16_t connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
-              if (instance) {
-                instance->OnExtAudioInCPWrite(connection_id, status, handle);
-              }
-            },
-            nullptr);
   }
 
   void ext_audio_out_control_point_helper(const RawAddress& address, uint8_t ext_output_id,
@@ -1404,8 +1490,8 @@ private:
     }
     device->ExtAudioOutControlPointOperation(
             ext_output_id, opcode, arg,
-            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-               const uint8_t* value, void* data) {
+            [](tCONN_ID connection_id, tGATT_STATUS status, uint16_t handle, uint16_t /*len*/,
+               const uint8_t* /*value*/, void* data) {
               if (instance) {
                 instance->OnExtAudioOutCPWrite(connection_id, status, handle, data);
               }
@@ -1504,7 +1590,7 @@ private:
 
       if (position + len >= total_len) {
         bluetooth::log::warn(
-                "Multi read was too long, value truncated conn_id: {:#x} handle: {:#x}, possition: "
+                "Multi read was too long, value truncated conn_id: {:#x} handle: {:#x}, position: "
                 "{:#x}, len: {:#x}, total_len: {:#x}, data: {}",
                 conn_id, hdl, position, len, total_len, base::HexEncode(value, total_len));
         break;

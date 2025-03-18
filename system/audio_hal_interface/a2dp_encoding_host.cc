@@ -27,7 +27,6 @@
 #include "btif/include/btif_a2dp_source.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_hf.h"
-#include "os/log.h"
 #include "stack/include/avdt_api.h"
 #include "types/raw_address.h"
 #include "udrv/include/uipc.h"
@@ -49,12 +48,12 @@ typedef enum {
   A2DP_CTRL_GET_PRESENTATION_POSITION,
 } tA2DP_CTRL_CMD;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tUIPC_EVENT> : enum_formatter<tUIPC_EVENT> {};
 template <>
 struct formatter<tA2DP_CTRL_CMD> : enum_formatter<tA2DP_CTRL_CMD> {};
-}  // namespace fmt
+}  // namespace std
 
 namespace {
 
@@ -216,8 +215,8 @@ void set_remote_delay(uint16_t delay_report) { remote_delay_report_ = delay_repo
 
 // Inform audio server about offloading codec; not used for now
 bool update_codec_offloading_capabilities(
-        const std::vector<btav_a2dp_codec_config_t>& framework_preference,
-        bool supports_a2dp_hw_offload_v2) {
+        const std::vector<btav_a2dp_codec_config_t>& /*framework_preference*/,
+        bool /*supports_a2dp_hw_offload_v2*/) {
   return false;
 }
 
@@ -227,12 +226,21 @@ bool is_hal_enabled() { return true; }
 // Check if new bluetooth_audio is running with offloading encoders
 bool is_hal_offloading() { return false; }
 
+static StreamCallbacks null_stream_callbacks_;
+static StreamCallbacks const* stream_callbacks_ = &null_stream_callbacks_;
+
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop) {
+bool init(bluetooth::common::MessageLoopThread* /*message_loop*/,
+          StreamCallbacks const* strean_callbacks, bool /*offload_enabled*/) {
+  if (a2dp_uipc != nullptr) {
+    log::warn("Re-init-ing UIPC that is already running");
+    cleanup();
+  }
   a2dp_uipc = UIPC_Init();
   total_bytes_read_ = 0;
   data_position_ = {};
   remote_delay_report_ = 0;
+  stream_callbacks_ = strean_callbacks;
 
   return true;
 }
@@ -240,6 +248,7 @@ bool init(bluetooth::common::MessageLoopThread* message_loop) {
 // Clean up BluetoothAudio HAL
 void cleanup() {
   end_session();
+  stream_callbacks_ = &null_stream_callbacks_;
 
   if (a2dp_uipc != nullptr) {
     UIPC_Close(*a2dp_uipc, UIPC_CH_ID_ALL);
@@ -267,14 +276,14 @@ void end_session() {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
 }
 
-void set_audio_low_latency_mode_allowed(bool allowed) {}
+void set_audio_low_latency_mode_allowed(bool /*allowed*/) {}
 
-void ack_stream_started(BluetoothAudioStatus /*ack*/) {
+void ack_stream_started(Status /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }
 
-void ack_stream_suspended(BluetoothAudioStatus /*ack*/) {
+void ack_stream_suspended(Status /*ack*/) {
   a2dp_pending_cmd_ = A2DP_CTRL_CMD_NONE;
   // TODO: Notify server
 }
@@ -299,12 +308,12 @@ bool is_opus_supported() { return true; }
 namespace provider {
 
 // Lookup the codec info in the list of supported offloaded sink codecs.
-std::optional<btav_a2dp_codec_index_t> sink_codec_index(const uint8_t* p_codec_info) {
+std::optional<btav_a2dp_codec_index_t> sink_codec_index(const uint8_t* /*p_codec_info*/) {
   return std::nullopt;
 }
 
 // Lookup the codec info in the list of supported offloaded source codecs.
-std::optional<btav_a2dp_codec_index_t> source_codec_index(const uint8_t* p_codec_info) {
+std::optional<btav_a2dp_codec_index_t> source_codec_index(const uint8_t* /*p_codec_info*/) {
   return std::nullopt;
 }
 
@@ -314,17 +323,17 @@ std::optional<btav_a2dp_codec_index_t> source_codec_index(const uint8_t* p_codec
 // BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MIN..BTAV_A2DP_CODEC_INDEX_SOURCE_EXT_MAX.
 // Returns nullopt if the codec_index is not assigned or codec extensibility
 // is not supported or enabled.
-std::optional<const char*> codec_index_str(btav_a2dp_codec_index_t codec_index) {
+std::optional<const char*> codec_index_str(btav_a2dp_codec_index_t /*codec_index*/) {
   return std::nullopt;
 }
 
 // Return true if the codec is supported for the session type
 // A2DP_HARDWARE_ENCODING_DATAPATH or A2DP_HARDWARE_DECODING_DATAPATH.
-bool supports_codec(btav_a2dp_codec_index_t codec_index) { return false; }
+bool supports_codec(btav_a2dp_codec_index_t /*codec_index*/) { return false; }
 
 // Return the A2DP capabilities for the selected codec.
-bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
-                btav_a2dp_codec_config_t* codec_config) {
+bool codec_info(btav_a2dp_codec_index_t /*codec_index*/, bluetooth::a2dp::CodecId* /*codec_id*/,
+                uint8_t* /*codec_info*/, btav_a2dp_codec_config_t* /*codec_config*/) {
   return false;
 }
 
@@ -332,8 +341,8 @@ bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t
 // The HAL is expected to pick the best audio configuration based on the
 // discovered remote SEPs.
 std::optional<a2dp_configuration> get_a2dp_configuration(
-        RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
-        btav_a2dp_codec_config_t const& user_preferences) {
+        RawAddress /*peer_address*/, std::vector<a2dp_remote_capabilities> const& /*remote_seps*/,
+        btav_a2dp_codec_config_t const& /*user_preferences*/) {
   return std::nullopt;
 }
 
@@ -344,10 +353,10 @@ std::optional<a2dp_configuration> get_a2dp_configuration(
 // In case any of these checks fails, the corresponding A2DP
 // status is returned. If the configuration is valid and supported,
 // A2DP_OK is returned.
-tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
-                                      const uint8_t* codec_info,
-                                      btav_a2dp_codec_config_t* codec_parameters,
-                                      std::vector<uint8_t>* vendor_specific_parameters) {
+tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t /*codec_index*/,
+                                      const uint8_t* /*codec_info*/,
+                                      btav_a2dp_codec_config_t* /*codec_parameters*/,
+                                      std::vector<uint8_t>* /*vendor_specific_parameters*/) {
   return A2DP_FAIL;
 }
 

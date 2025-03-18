@@ -18,7 +18,7 @@
 
 #include <vector>
 
-#include "aidl/a2dp_encoding_aidl.h"
+#include "aidl/a2dp/a2dp_encoding_aidl.h"
 #include "hal_version_manager.h"
 #include "hidl/a2dp_encoding_hidl.h"
 
@@ -53,11 +53,12 @@ bool is_hal_offloading() {
 }
 
 // Initialize BluetoothAudio HAL: openProvider
-bool init(bluetooth::common::MessageLoopThread* message_loop) {
+bool init(bluetooth::common::MessageLoopThread* message_loop,
+          bluetooth::audio::a2dp::StreamCallbacks const* stream_callbacks, bool offload_enabled) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
-    return hidl::a2dp::init(message_loop);
+    return hidl::a2dp::init(message_loop, stream_callbacks, offload_enabled);
   }
-  return aidl::a2dp::init(message_loop);
+  return aidl::a2dp::init(message_loop, stream_callbacks, offload_enabled);
 }
 
 // Clean up BluetoothAudio HAL
@@ -98,7 +99,7 @@ void end_session() {
   }
 }
 
-void ack_stream_started(BluetoothAudioStatus status) {
+void ack_stream_started(Status status) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::a2dp::ack_stream_started(status);
     return;
@@ -106,7 +107,7 @@ void ack_stream_started(BluetoothAudioStatus status) {
   return aidl::a2dp::ack_stream_started(status);
 }
 
-void ack_stream_suspended(BluetoothAudioStatus status) {
+void ack_stream_suspended(Status status) {
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
     hidl::a2dp::ack_stream_suspended(status);
     return;
@@ -184,8 +185,8 @@ bool supports_codec(btav_a2dp_codec_index_t codec_index) {
 }
 
 // Return the A2DP capabilities for the selected codec.
-bool codec_info(btav_a2dp_codec_index_t codec_index, uint64_t* codec_id, uint8_t* codec_info,
-                btav_a2dp_codec_config_t* codec_config) {
+bool codec_info(btav_a2dp_codec_index_t codec_index, bluetooth::a2dp::CodecId* codec_id,
+                uint8_t* codec_info, btav_a2dp_codec_config_t* codec_config) {
   return (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL)
                  ? aidl::a2dp::provider::codec_info(codec_index, codec_id, codec_info, codec_config)
                  : false;

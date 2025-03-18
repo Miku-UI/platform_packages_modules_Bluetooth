@@ -147,10 +147,28 @@ impl Drop for UInputDev {
 }
 
 impl UInputDev {
+    fn floor_char_boundary(str: &String, upper_bound: usize) -> usize {
+        // Some string operation can only be done at UTF8 boundary, e.g. truncate.
+        // It is guaranteed that there would be at least one such boundary in every 4 bytes,
+        // therefore we can just brute force it.
+        // This can be replaced with str::floor_char_boundary() once that function is available.
+        if str.len() < upper_bound {
+            return str.len();
+        }
+
+        for i in (0..upper_bound + 1).rev() {
+            if str.is_char_boundary(i) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
     #[allow(temporary_cstring_as_ptr)]
     fn init(&mut self, mut name: String, addr: String) -> Result<(), String> {
         // Truncate the device name if over the max size allowed.
-        name.truncate(UINPUT_MAX_NAME_SIZE - UINPUT_SUFFIX_SIZE);
+        let new_len = Self::floor_char_boundary(&name, UINPUT_MAX_NAME_SIZE - UINPUT_SUFFIX_SIZE);
+        name.truncate(new_len);
         name.push_str(UINPUT_SUFFIX);
         for (i, ch) in name.chars().enumerate() {
             self.device.name[i] = ch as libc::c_char;

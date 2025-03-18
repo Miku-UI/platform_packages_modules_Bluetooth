@@ -36,7 +36,7 @@
  */
 std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>> a2dp_codec_info_operations = {
         // A2DP_InitDefaultCodec
-        [](FuzzedDataProvider* fdp, uint8_t*) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t*) -> void {
           // Allocate space for a new codec & add it to our tracking vector
           uint8_t* codec_info = new uint8_t[AVDT_CODEC_SIZE];
           a2dp_codec_info_vect.push_back(codec_info);
@@ -58,25 +58,27 @@ std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>> a2dp_codec_info_
         },
 
         // A2DP_GetCodecType
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void { A2DP_GetCodecType(codec_info); },
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
+          A2DP_GetCodecType(codec_info);
+        },
 
         // A2DP_IsSourceCodecValid
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_IsSourceCodecValid(codec_info);
         },
 
         // A2DP_IsPeerSourceCodecValid
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_IsPeerSourceCodecValid(codec_info);
         },
 
         // A2DP_IsPeerSinkCodecValid
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_IsPeerSinkCodecValid(codec_info);
         },
 
         // A2DP_IsSinkCodecSupported
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_IsSinkCodecSupported(codec_info);
         },
 
@@ -86,10 +88,14 @@ std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>> a2dp_codec_info_
         },
 
         // A2DP_GetMediaType
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void { A2DP_GetMediaType(codec_info); },
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
+          A2DP_GetMediaType(codec_info);
+        },
 
         // A2DP_CodecName
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void { A2DP_CodecName(codec_info); },
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
+          A2DP_CodecName(codec_info);
+        },
 
         // A2DP_CodecTypeEquals
         [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
@@ -108,22 +114,22 @@ std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>> a2dp_codec_info_
         },
 
         // A2DP_GetTrackSampleRate
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_GetTrackSampleRate(codec_info);
         },
 
         // A2DP_GetTrackBitsPerSample
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_GetTrackBitsPerSample(codec_info);
         },
 
         // A2DP_GetTrackChannelCount
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_GetTrackChannelCount(codec_info);
         },
 
         // A2DP_GetSinkTrackChannelType
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_GetSinkTrackChannelType(codec_info);
         },
 
@@ -152,25 +158,27 @@ std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>> a2dp_codec_info_
         },
 
         // A2DP_GetEncoderInterface
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_GetEncoderInterface(codec_info);
         },
 
         // A2DP_GetDecoderInterface
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_GetDecoderInterface(codec_info);
         },
 
         // A2DP_AdjustCodec
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void { A2DP_AdjustCodec(codec_info); },
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
+          A2DP_AdjustCodec(codec_info);
+        },
 
         // A2DP_SourceCodecIndex
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_SourceCodecIndex(codec_info);
         },
 
         // A2DP_SinkCodecIndex
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_SinkCodecIndex(codec_info);
         },
 
@@ -186,12 +194,12 @@ std::vector<std::function<void(FuzzedDataProvider*, uint8_t*)>> a2dp_codec_info_
         },
 
         // A2DP_GetEecoderEffectiveFrameSize
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_GetEecoderEffectiveFrameSize(codec_info);
         },
 
         // A2DP_CodecInfoString
-        [](FuzzedDataProvider* fdp, uint8_t* codec_info) -> void {
+        [](FuzzedDataProvider* /*fdp*/, uint8_t* codec_info) -> void {
           A2DP_CodecInfoString(codec_info);
         }};
 

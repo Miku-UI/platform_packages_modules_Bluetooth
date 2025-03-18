@@ -32,6 +32,9 @@
 
 #define BTM_COD_MAJOR_AUDIO_TEST 0x04
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace testing {
 
 using bluetooth::common::A2dpSessionMetrics;

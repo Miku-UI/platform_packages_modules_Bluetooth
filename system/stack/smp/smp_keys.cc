@@ -81,19 +81,16 @@ static bool is_oob_data_empty(tSMP_LOC_OOB_DATA* data) {
 
 bool smp_has_local_oob_data() { return !is_oob_data_empty(&saved_local_oob_data); }
 
-void smp_debug_print_nbyte_little_endian(uint8_t* /* p */, const char* /* key_name */,
-                                         uint8_t /* len */) {}
+static void smp_debug_print_nbyte_little_endian(uint8_t* /* p */, const char* /* key_name */,
+                                                uint8_t /* len */) {}
 
-inline void smp_debug_print_nbyte_little_endian(const Octet16& p, const char* key_name,
+static void smp_debug_print_nbyte_little_endian(const Octet16& p, const char* key_name,
                                                 uint8_t len) {
   smp_debug_print_nbyte_little_endian(const_cast<uint8_t*>(p.data()), key_name, len);
 }
 
-void smp_debug_print_nbyte_big_endian(uint8_t* /* p */, const char* /* key_name */,
-                                      uint8_t /* len */) {}
-
 /** This function is called to process a passkey. */
-void smp_proc_passkey(tSMP_CB* p_cb, uint64_t rand) {
+static void smp_proc_passkey(tSMP_CB* p_cb, uint64_t rand) {
   uint8_t* tt = p_cb->tk.data();
   uint32_t passkey = static_cast<uint32_t>(rand & SMP_PASSKEY_MASK);
 
@@ -173,7 +170,7 @@ void smp_generate_stk(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
 /**
  * This function is called to calculate CSRK
  */
-void smp_compute_csrk(uint16_t div, tSMP_CB* p_cb) {
+static void smp_compute_csrk(uint16_t div, tSMP_CB* p_cb) {
   Octet16 buffer{}; /* for (r || DIV)  r=1*/
   uint16_t r = 1;
   uint8_t* p = buffer.data();
@@ -213,10 +210,10 @@ void smp_generate_csrk(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
 }
 
 /*******************************************************************************
- * Function         smp_concatenate_peer - LSB first
+ * Function         smp_concatenate_local - LSB first
  *                  add pairing command sent from local device into p1.
  ******************************************************************************/
-void smp_concatenate_local(tSMP_CB* p_cb, uint8_t** p_data, uint8_t op_code) {
+static void smp_concatenate_local(tSMP_CB* p_cb, uint8_t** p_data, uint8_t op_code) {
   uint8_t* p = *p_data;
 
   log::verbose("addr:{}", p_cb->pairing_bda);
@@ -235,7 +232,7 @@ void smp_concatenate_local(tSMP_CB* p_cb, uint8_t** p_data, uint8_t op_code) {
  * Function         smp_concatenate_peer - LSB first
  *                  add pairing command received from peer device into p1.
  ******************************************************************************/
-void smp_concatenate_peer(tSMP_CB* p_cb, uint8_t** p_data, uint8_t op_code) {
+static void smp_concatenate_peer(tSMP_CB* p_cb, uint8_t** p_data, uint8_t op_code) {
   uint8_t* p = *p_data;
 
   log::verbose("addr:{}", p_cb->pairing_bda);

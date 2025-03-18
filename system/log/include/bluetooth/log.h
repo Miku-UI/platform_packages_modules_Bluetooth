@@ -16,9 +16,10 @@
 
 #pragma once
 
-#include <fmt/core.h>
-#include <fmt/format.h>
-#include <fmt/std.h>
+#include <atomic>
+#include <format>
+#include <sstream>
+#include <string_view>
 
 #ifndef LOG_TAG
 #define LOG_TAG "bluetooth"
@@ -53,8 +54,8 @@ struct source_location {
 
 /// Write a single log line.
 /// The implementation of this function is dependent on the backend.
-void vlog(Level level, char const* tag, source_location location, fmt::string_view fmt,
-          fmt::format_args vargs);
+void vlog(Level level, char const* tag, source_location location, std::string_view fmt,
+          std::format_args vargs);
 
 /// Capture invalid parameter values that would cause runtime
 /// formatting errors.
@@ -85,16 +86,15 @@ char*& format_replace(char*& arg) {
 
 template <Level level, typename... T>
 struct log {
-  log(fmt::format_string<T...> fmt, T&&... args, source_location location = source_location()) {
-    vlog(level, LOG_TAG, location, static_cast<fmt::string_view>(fmt),
-         fmt::make_format_args(format_replace(args)...));
+  log(std::format_string<T...> fmt, T&&... args, source_location location = source_location()) {
+    vlog(level, LOG_TAG, location, fmt.get(), std::make_format_args(format_replace(args)...));
   }
 };
 
 #if (__cplusplus >= 202002L && defined(__GNUC__) && !defined(__clang__))
 
 template <int level, typename... T>
-log(fmt::format_string<T...>, T&&...) -> log<level, T...>;
+log(std::format_string<T...>, T&&...) -> log<level, T...>;
 
 #endif
 
@@ -139,61 +139,60 @@ struct verbose : log_internal::log<log_internal::kVerbose, T...> {
 };
 
 template <typename... T>
-error(fmt::format_string<T...>, T&&...) -> error<T...>;
+error(std::format_string<T...>, T&&...) -> error<T...>;
 template <typename... T>
-warn(fmt::format_string<T...>, T&&...) -> warn<T...>;
+warn(std::format_string<T...>, T&&...) -> warn<T...>;
 template <typename... T>
-info(fmt::format_string<T...>, T&&...) -> info<T...>;
+info(std::format_string<T...>, T&&...) -> info<T...>;
 template <typename... T>
-debug(fmt::format_string<T...>, T&&...) -> debug<T...>;
+debug(std::format_string<T...>, T&&...) -> debug<T...>;
 template <typename... T>
-verbose(fmt::format_string<T...>, T&&...) -> verbose<T...>;
+verbose(std::format_string<T...>, T&&...) -> verbose<T...>;
 
 #endif  // GCC / C++20
 
 [[noreturn]] [[maybe_unused]] static void fatal(
-        fmt::format_string<> fmt,
+        std::format_string<> fmt,
         log_internal::source_location location = log_internal::source_location()) {
-  vlog(log_internal::kFatal, LOG_TAG, location, static_cast<fmt::string_view>(fmt),
-       fmt::make_format_args());
+  vlog(log_internal::kFatal, LOG_TAG, location, fmt.get(), std::make_format_args());
   std::abort();  // Enforce [[noreturn]]
 }
 
 template <typename T0>
 [[noreturn]] [[maybe_unused]] static void fatal(
-        fmt::format_string<T0> fmt, T0&& arg0,
+        std::format_string<T0> fmt, T0&& arg0,
         log_internal::source_location location = log_internal::source_location()) {
-  vlog(log_internal::kFatal, LOG_TAG, location, static_cast<fmt::string_view>(fmt),
-       fmt::make_format_args(log_internal::format_replace(arg0)));
+  vlog(log_internal::kFatal, LOG_TAG, location, fmt.get(),
+       std::make_format_args(log_internal::format_replace(arg0)));
   std::abort();  // Enforce [[noreturn]]
 }
 
 template <typename T0, typename T1>
 [[noreturn]] [[maybe_unused]] static void fatal(
-        fmt::format_string<T0, T1> fmt, T0&& arg0, T1&& arg1,
+        std::format_string<T0, T1> fmt, T0&& arg0, T1&& arg1,
         log_internal::source_location location = log_internal::source_location()) {
-  vlog(log_internal::kFatal, LOG_TAG, location, static_cast<fmt::string_view>(fmt),
-       fmt::make_format_args(log_internal::format_replace(arg0),
+  vlog(log_internal::kFatal, LOG_TAG, location, fmt.get(),
+       std::make_format_args(log_internal::format_replace(arg0),
                              log_internal::format_replace(arg1)));
   std::abort();  // Enforce [[noreturn]]
 }
 
 template <typename T0, typename T1, typename T2>
 [[noreturn]] [[maybe_unused]] static void fatal(
-        fmt::format_string<T0, T1, T2> fmt, T0&& arg0, T1&& arg1, T2&& arg2,
+        std::format_string<T0, T1, T2> fmt, T0&& arg0, T1&& arg1, T2&& arg2,
         log_internal::source_location location = log_internal::source_location()) {
-  vlog(log_internal::kFatal, LOG_TAG, location, static_cast<fmt::string_view>(fmt),
-       fmt::make_format_args(log_internal::format_replace(arg0), log_internal::format_replace(arg1),
+  vlog(log_internal::kFatal, LOG_TAG, location, fmt.get(),
+       std::make_format_args(log_internal::format_replace(arg0), log_internal::format_replace(arg1),
                              log_internal::format_replace(arg2)));
   std::abort();  // Enforce [[noreturn]]
 }
 
 template <typename T0, typename T1, typename T2, typename T3>
 [[noreturn]] [[maybe_unused]] static void fatal(
-        fmt::format_string<T0, T1, T2, T3> fmt, T0&& arg0, T1&& arg1, T2&& arg2, T3&& arg3,
+        std::format_string<T0, T1, T2, T3> fmt, T0&& arg0, T1&& arg1, T2&& arg2, T3&& arg3,
         log_internal::source_location location = log_internal::source_location()) {
-  vlog(log_internal::kFatal, LOG_TAG, location, static_cast<fmt::string_view>(fmt),
-       fmt::make_format_args(log_internal::format_replace(arg0), log_internal::format_replace(arg1),
+  vlog(log_internal::kFatal, LOG_TAG, location, fmt.get(),
+       std::make_format_args(log_internal::format_replace(arg0), log_internal::format_replace(arg1),
                              log_internal::format_replace(arg2),
                              log_internal::format_replace(arg3)));
   std::abort();  // Enforce [[noreturn]]
@@ -201,21 +200,63 @@ template <typename T0, typename T1, typename T2, typename T3>
 
 template <typename... T>
 struct assert_that {
-  assert_that(bool cond, fmt::format_string<T...> fmt, T&&... args,
+  assert_that(bool cond, std::format_string<T...> fmt, T&&... args,
               log_internal::source_location location = log_internal::source_location()) {
     if (!cond) {
-      vlog(log_internal::kFatal, LOG_TAG, location, static_cast<fmt::string_view>(fmt),
-           fmt::make_format_args(log_internal::format_replace(args)...));
+      vlog(log_internal::kFatal, LOG_TAG, location, fmt.get(),
+           std::make_format_args(log_internal::format_replace(args)...));
     }
   }
 };
 
 template <typename... T>
-assert_that(bool, fmt::format_string<T...>, T&&...) -> assert_that<T...>;
+assert_that(bool, std::format_string<T...>, T&&...) -> assert_that<T...>;
 
 }  // namespace bluetooth::log
 
-namespace fmt {
+namespace std {
+
+/// Helper to format a pointer value as the memory address.
+/// Use this helper as `std::format("{}", std::format_ptr(value));`.
+template <typename T>
+const void* format_ptr(T* ptr) {
+  return reinterpret_cast<const void*>(ptr);
+}
+
+/// Derive formatter for std::atomic<T> types where T is formattable.
+/// The formatter uses the default memory order `std::memory_order_seq_cst`
+/// for reading the value.
+template <typename T, typename CharT>
+struct formatter<std::atomic<T>, CharT> : formatter<T, CharT> {
+  template <typename Context>
+  auto format(const std::atomic<T>& v, Context& ctx) const -> decltype(ctx.out()) {
+    return formatter<T, CharT>::format(v.load(), ctx);
+  }
+};
+
+/// Default formatter implementation for formatting
+/// types overloading the ostream `operator<<`.
+///
+/// Enable this formatter in the code by declaring:
+/// ```
+/// template<>
+/// struct std::formatter<T> : ostream_formatter {};
+/// ```
+template <typename CharT>
+struct basic_ostream_formatter : formatter<basic_string_view<CharT>, CharT> {
+  void set_debug_format() = delete;
+
+  template <typename T, typename Context>
+  auto format(const T& value, Context& ctx) const -> decltype(ctx.out()) {
+    auto&& output = std::basic_stringstream<CharT>();
+    output.imbue(std::locale::classic());  // The default is always unlocalized.
+    output << value;
+    output.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+    return formatter<basic_string_view<CharT>, CharT>::format(output.str(), ctx);
+  }
+};
+
+using ostream_formatter = basic_ostream_formatter<char>;
 
 /// Default formatter implementation for formatting
 /// enum class values to the underlying type.
@@ -223,13 +264,13 @@ namespace fmt {
 /// Enable this formatter in the code by declaring:
 /// ```
 /// template<>
-/// struct fmt::formatter<EnumT> : enum_formatter<EnumT> {};
+/// struct std::formatter<EnumT> : enum_formatter<EnumT> {};
 /// ```
 template <typename EnumT, class CharT = char>
-struct enum_formatter : fmt::formatter<std::underlying_type_t<EnumT>, CharT> {
+struct enum_formatter : std::formatter<std::underlying_type_t<EnumT>, CharT> {
   template <class Context>
   typename Context::iterator format(EnumT value, Context& ctx) const {
-    return fmt::formatter<std::underlying_type_t<EnumT>, CharT>::format(
+    return std::formatter<std::underlying_type_t<EnumT>, CharT>::format(
             static_cast<std::underlying_type_t<EnumT>>(value), ctx);
   }
 };
@@ -241,14 +282,14 @@ struct enum_formatter : fmt::formatter<std::underlying_type_t<EnumT>, CharT> {
 /// Enable this formatter in the code by declaring:
 /// ```
 /// template<>
-/// struct fmt::formatter<T> : string_formatter<T, &T_to_str> {};
+/// struct std::formatter<T> : string_formatter<T, &T_to_str> {};
 /// ```
 template <typename T, std::string (*F)(const T&), class CharT = char>
-struct string_formatter : fmt::formatter<std::string> {
+struct string_formatter : std::formatter<std::string> {
   template <class Context>
   typename Context::iterator format(const T& value, Context& ctx) const {
-    return fmt::formatter<std::string>::format(F(value), ctx);
+    return std::formatter<std::string>::format(F(value), ctx);
   }
 };
 
-}  // namespace fmt
+}  // namespace std

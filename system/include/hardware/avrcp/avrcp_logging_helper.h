@@ -25,7 +25,6 @@
 #include <type_traits>
 
 #include "avrcp_common.h"
-#include "internal_include/bt_trace.h"
 #include "macros.h"
 
 namespace bluetooth {
@@ -42,7 +41,7 @@ inline std::string CTypeText(const CType& type) {
     CASE_RETURN_TEXT(CType::CHANGED);
     CASE_RETURN_TEXT(CType::INTERIM);
     default:
-      return "Unknown CType: " + loghex((uint8_t)type);
+      return std::format("Unknown CType: 0x{:x}", (uint8_t)type);
   }
 }
 
@@ -57,7 +56,7 @@ inline std::string OpcodeText(const Opcode& opcode) {
     CASE_RETURN_TEXT(Opcode::SUBUNIT_INFO);
     CASE_RETURN_TEXT(Opcode::PASS_THROUGH);
     default:
-      return "Unknown Opcode: " + loghex((uint8_t)opcode);
+      return std::format("Unknown Opcode: 0x{:x}", (uint8_t)opcode);
   }
 }
 
@@ -79,7 +78,7 @@ inline std::string CommandPduText(const CommandPdu& pdu) {
     CASE_RETURN_TEXT(CommandPdu::SET_ADDRESSED_PLAYER);
     CASE_RETURN_TEXT(CommandPdu::PLAY_ITEM);
     default:
-      return "Unknown Command PDU: " + loghex((uint8_t)pdu);
+      return std::format("Unknown Command PDU: 0x{:x}", (uint8_t)pdu);
   }
 }
 
@@ -91,7 +90,7 @@ inline std::string PacketTypeText(const PacketType& type) {
   switch (type) {
     CASE_RETURN_TEXT(PacketType::SINGLE);
     default:
-      return "Unknown Packet Type: " + loghex((uint8_t)type);
+      return std::format("Unknown Packet Type: 0x{:x}", (uint8_t)type);
   }
 }
 
@@ -104,7 +103,7 @@ inline std::string CapabilityText(const Capability& cap) {
     CASE_RETURN_TEXT(Capability::COMPANY_ID);
     CASE_RETURN_TEXT(Capability::EVENTS_SUPPORTED);
     default:
-      return "Unknown Capability: " + loghex((uint8_t)cap);
+      return std::format("Unknown Capability: 0x{:x}", (uint8_t)cap);
   }
 }
 
@@ -124,7 +123,7 @@ inline std::string EventText(const Event& event) {
     CASE_RETURN_TEXT(Event::UIDS_CHANGED);
     CASE_RETURN_TEXT(Event::VOLUME_CHANGED);
     default:
-      return "Unknown Event: " + loghex((uint8_t)event);
+      return std::format("Unknown Event: 0x{:x}", (uint8_t)event);
   }
 }
 
@@ -143,7 +142,7 @@ inline std::string AttributeText(const Attribute& attr) {
     CASE_RETURN_TEXT(Attribute::PLAYING_TIME);
     CASE_RETURN_TEXT(Attribute::DEFAULT_COVER_ART);
     default:
-      return "Unknown Attribute Value: " + loghex((uint32_t)attr);
+      return std::format("Unknown Attribute Value: 0x{:x}", (uint32_t)attr);
   }
 }
 
@@ -177,7 +176,7 @@ inline std::string StatusText(const Status& status) {
     CASE_RETURN_TEXT(Status::NO_AVAILABLE_PLAYERS);
     CASE_RETURN_TEXT(Status::ADDRESSED_PLAYER_CHANGED);
     default:
-      return "Unknown Status: " + loghex((uint8_t)status);
+      return std::format("Unknown Status: 0x{:x}", (uint8_t)status);
   }
 }
 
@@ -192,7 +191,7 @@ inline std::string BrowsePduText(const BrowsePdu& pdu) {
     CASE_RETURN_TEXT(BrowsePdu::CHANGE_PATH);
     CASE_RETURN_TEXT(BrowsePdu::GET_ITEM_ATTRIBUTES);
     default:
-      return "Unknown Browse PDU: " + loghex((uint8_t)pdu);
+      return std::format("Unknown Browse PDU: 0x{:x}", (uint8_t)pdu);
   }
 }
 
@@ -207,7 +206,7 @@ inline std::string ScopeText(const Scope& scope) {
     CASE_RETURN_TEXT(Scope::SEARCH);
     CASE_RETURN_TEXT(Scope::NOW_PLAYING);
     default:
-      return "Unknown Scope: " + loghex((uint8_t)scope);
+      return std::format("Unknown Scope: 0x{:x}", (uint8_t)scope);
   }
 }
 
@@ -218,7 +217,7 @@ inline std::string DirectionText(const Direction& dir) {
     CASE_RETURN_TEXT(Direction::UP);
     CASE_RETURN_TEXT(Direction::DOWN);
     default:
-      return "Unknown Direction: " + loghex((uint8_t)dir);
+      return std::format("Unknown Direction: 0x{:x}", (uint8_t)dir);
   }
 }
 
@@ -231,7 +230,7 @@ inline std::string KeyStateText(const KeyState& state) {
     CASE_RETURN_TEXT(KeyState::PUSHED);
     CASE_RETURN_TEXT(KeyState::RELEASED);
     default:
-      return "Unknown KeyState: " + loghex((uint8_t)state);
+      return std::format("Unknown KeyState: 0x{:x}", (uint8_t)state);
   }
 }
 
@@ -246,7 +245,7 @@ inline std::string PlayerAttributeText(const PlayerAttribute& attr) {
     CASE_RETURN_TEXT(PlayerAttribute::SHUFFLE);
     CASE_RETURN_TEXT(PlayerAttribute::SCAN);
   }
-  return "Unknown Player Attribute: " + loghex((uint8_t)attr);
+  return std::format("Unknown Player Attribute: 0x{:x}", (uint8_t)attr);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const PlayerAttribute& attr) {
@@ -260,7 +259,7 @@ inline std::string PlayerRepeatValueText(const PlayerRepeatValue& val) {
     CASE_RETURN_TEXT(PlayerRepeatValue::ALL);
     CASE_RETURN_TEXT(PlayerRepeatValue::GROUP);
   }
-  return "Unknown Player Repeat Value: " + loghex((uint8_t)val);
+  return std::format("Unknown Player Repeat Value: 0x{:x}", (uint8_t)val);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const PlayerRepeatValue& val) {
@@ -273,7 +272,7 @@ inline std::string PlayerShuffleValueText(const PlayerShuffleValue& val) {
     CASE_RETURN_TEXT(PlayerShuffleValue::ALL);
     CASE_RETURN_TEXT(PlayerShuffleValue::GROUP);
   }
-  return "Unknown Player Shuffle Value: " + loghex((uint8_t)val);
+  return std::format("Unknown Player Shuffle Value: 0x{:x}", (uint8_t)val);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const PlayerShuffleValue& val) {
@@ -283,7 +282,7 @@ inline std::ostream& operator<<(std::ostream& os, const PlayerShuffleValue& val)
 }  // namespace avrcp
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::avrcp::CType> : ostream_formatter {};
 template <>
@@ -314,4 +313,4 @@ template <>
 struct formatter<bluetooth::avrcp::PlayerRepeatValue> : ostream_formatter {};
 template <>
 struct formatter<bluetooth::avrcp::PlayerShuffleValue> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std

@@ -21,6 +21,7 @@
 #include "osi/include/alarm.h"
 
 struct fake_osi_alarm_set_on_mloop {
+  alarm_t* alarm;
   uint64_t interval_ms{0};
   alarm_callback_t cb{};
   void* data{nullptr};

@@ -23,6 +23,7 @@
 #include <queue>
 
 #include "gap_api.h"
+#include "gap_int.h"
 #include "gatt_api.h"
 #include "hardware/bt_gatt_types.h"
 #include "stack/include/bt_types.h"
@@ -58,10 +59,10 @@ typedef struct {
   tGAP_BLE_ATTR_VALUE attr_value;
 } tGAP_ATTR;
 
-void server_attr_request_cback(tCONN_ID, uint32_t, tGATTS_REQ_TYPE, tGATTS_DATA*);
-void client_connect_cback(tGATT_IF, const RawAddress&, tCONN_ID, bool, tGATT_DISCONN_REASON,
-                          tBT_TRANSPORT);
-void client_cmpl_cback(tCONN_ID, tGATTC_OPTYPE, tGATT_STATUS, tGATT_CL_COMPLETE*);
+static void server_attr_request_cback(tCONN_ID, uint32_t, tGATTS_REQ_TYPE, tGATTS_DATA*);
+static void client_connect_cback(tGATT_IF, const RawAddress&, tCONN_ID, bool, tGATT_DISCONN_REASON,
+                                 tBT_TRANSPORT);
+static void client_cmpl_cback(tCONN_ID, tGATTC_OPTYPE, tGATT_STATUS, tGATT_CL_COMPLETE*);
 
 tGATT_CBACK gap_cback = {
         .p_conn_cb = client_connect_cback,
@@ -85,7 +86,7 @@ std::array<tGAP_ATTR, GAP_MAX_CHAR_NUM> gatt_attr;
 tGATT_IF gatt_if;
 
 /** returns LCB with matching bd address, or nullptr */
-tGAP_CLCB* find_clcb_by_bd_addr(const RawAddress& bda) {
+static tGAP_CLCB* find_clcb_by_bd_addr(const RawAddress& bda) {
   for (auto& cb : gap_clcbs) {
     if (cb.bda == bda) {
       return &cb;
@@ -96,7 +97,7 @@ tGAP_CLCB* find_clcb_by_bd_addr(const RawAddress& bda) {
 }
 
 /** returns LCB with matching connection ID, or nullptr if not found  */
-tGAP_CLCB* ble_find_clcb_by_conn_id(tCONN_ID conn_id) {
+static tGAP_CLCB* ble_find_clcb_by_conn_id(tCONN_ID conn_id) {
   for (auto& cb : gap_clcbs) {
     if (cb.connected && cb.conn_id == conn_id) {
       return &cb;
@@ -107,7 +108,7 @@ tGAP_CLCB* ble_find_clcb_by_conn_id(tCONN_ID conn_id) {
 }
 
 /** allocates a GAP connection link control block */
-tGAP_CLCB* clcb_alloc(const RawAddress& bda) {
+static tGAP_CLCB* clcb_alloc(const RawAddress& bda) {
   gap_clcbs.emplace_back();
   tGAP_CLCB& cb = gap_clcbs.back();
   cb.bda = bda;
@@ -115,7 +116,7 @@ tGAP_CLCB* clcb_alloc(const RawAddress& bda) {
 }
 
 /** The function clean up the pending request queue in GAP */
-void clcb_dealloc(tGAP_CLCB& clcb) {
+static void clcb_dealloc(tGAP_CLCB& clcb) {
   // put last element into place of current element, and remove last one - just
   // fast remove.
   for (auto it = gap_clcbs.begin(); it != gap_clcbs.end(); it++) {
@@ -129,7 +130,7 @@ void clcb_dealloc(tGAP_CLCB& clcb) {
 }
 
 /** GAP Attributes Database Request callback */
-tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value, bool is_long) {
+static tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value, bool is_long) {
   uint8_t* p = p_value->value;
   uint16_t offset = p_value->offset;
   uint8_t* p_dev_name = NULL;
@@ -188,7 +189,7 @@ tGATT_STATUS read_attr_value(uint16_t handle, tGATT_VALUE* p_value, bool is_long
 }
 
 /** GAP Attributes Database Read/Read Blob Request process */
-tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data, tGATTS_RSP* p_rsp) {
+static tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data, tGATTS_RSP* p_rsp) {
   if (p_data->is_long) {
     p_rsp->attr_value.offset = p_data->offset;
   }
@@ -199,7 +200,7 @@ tGATT_STATUS proc_read(tGATTS_REQ_TYPE, tGATT_READ_REQ* p_data, tGATTS_RSP* p_rs
 }
 
 /** GAP ATT server process a write request */
-tGATT_STATUS proc_write_req(tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
+static tGATT_STATUS proc_write_req(tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
   for (const auto& db_addr : gatt_attr) {
     if (p_data->handle == db_addr.handle) {
       return GATT_WRITE_NOT_PERMIT;
@@ -210,8 +211,8 @@ tGATT_STATUS proc_write_req(tGATTS_REQ_TYPE, tGATT_WRITE_REQ* p_data) {
 }
 
 /** GAP ATT server attribute access request callback */
-void server_attr_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                               tGATTS_DATA* p_data) {
+static void server_attr_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
+                                      tGATTS_DATA* p_data) {
   tGATT_STATUS status = GATT_INVALID_PDU;
   bool ignore = false;
 
@@ -259,7 +260,7 @@ void server_attr_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_T
  * Utility function to send a read request for GAP characteristics.
  * Returns true if read started, else false if GAP is busy.
  */
-bool send_cl_read_request(tGAP_CLCB& clcb) {
+static bool send_cl_read_request(tGAP_CLCB& clcb) {
   if (!clcb.requests.size() || clcb.cl_op_uuid != 0) {
     return false;
   }
@@ -285,7 +286,7 @@ bool send_cl_read_request(tGAP_CLCB& clcb) {
 }
 
 /** GAP client operation complete callback */
-void cl_op_cmpl(tGAP_CLCB& clcb, bool status, uint16_t len, uint8_t* p_name) {
+static void cl_op_cmpl(tGAP_CLCB& clcb, bool status, uint16_t len, uint8_t* p_name) {
   tGAP_BLE_CMPL_CBACK* p_cback = clcb.p_cback;
   uint16_t op = clcb.cl_op_uuid;
 
@@ -308,8 +309,8 @@ void cl_op_cmpl(tGAP_CLCB& clcb, bool status, uint16_t len, uint8_t* p_name) {
 }
 
 /** Client connection callback */
-void client_connect_cback(tGATT_IF, const RawAddress& bda, tCONN_ID conn_id, bool connected,
-                          tGATT_DISCONN_REASON /* reason */, tBT_TRANSPORT) {
+static void client_connect_cback(tGATT_IF, const RawAddress& bda, tCONN_ID conn_id, bool connected,
+                                 tGATT_DISCONN_REASON /* reason */, tBT_TRANSPORT) {
   tGAP_CLCB* p_clcb = find_clcb_by_bd_addr(bda);
   if (p_clcb == NULL) {
     log::info("No active GAP service found for peer:{} callback:{}", bda,
@@ -333,8 +334,8 @@ void client_connect_cback(tGATT_IF, const RawAddress& bda, tCONN_ID conn_id, boo
 }
 
 /** Client operation complete callback */
-void client_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
-                       tGATT_CL_COMPLETE* p_data) {
+static void client_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
+                              tGATT_CL_COMPLETE* p_data) {
   tGAP_CLCB* p_clcb = ble_find_clcb_by_conn_id(conn_id);
   uint16_t op_type;
   uint16_t min, max, latency, tout;
@@ -393,8 +394,8 @@ void client_cmpl_cback(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
   }
 }
 
-bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
-                             tGAP_BLE_CMPL_CBACK* p_cback) {
+static bool accept_client_operation(const RawAddress& peer_bda, uint16_t uuid,
+                                    tGAP_BLE_CMPL_CBACK* p_cback) {
   if (p_cback == NULL && uuid != GATT_UUID_GAP_PREF_CONN_PARAM) {
     return false;
   }

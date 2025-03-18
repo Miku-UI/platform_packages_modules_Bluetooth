@@ -45,13 +45,6 @@ Module* Module::GetDependency(const ModuleFactory* module) const {
   log::fatal("Module was not listed as a dependency in ListDependencies");
 }
 
-bluetooth::DumpsysDataFinisher EmptyDumpsysDataFinisher =
-        [](bluetooth::DumpsysDataBuilder* /* dumpsys_data_builder */) {};
-
-DumpsysDataFinisher Module::GetDumpsysData(flatbuffers::FlatBufferBuilder* /* builder */) const {
-  return EmptyDumpsysDataFinisher;
-}
-
 Module* ModuleRegistry::Get(const ModuleFactory* module) const {
   auto instance = started_modules_.find(module);
   log::assert_that(instance != started_modules_.end(),

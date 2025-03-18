@@ -29,7 +29,7 @@ static bool is_fd_readable(int fd) {
   FD_SET(fd, &rfds);
   // Only the enqueue_fd should be readable
   int result = select(FD_SETSIZE, &rfds, NULL, NULL, &tv);
-  EXPECT_TRUE(result >= 0);
+  EXPECT_GE(result, 0);
 
   return FD_ISSET(fd, &rfds);
 }
@@ -41,7 +41,7 @@ static void fixed_queue_ready(fixed_queue_t* queue, void* /* context */) {
   future_ready(received_message_future, msg);
 }
 
-static void test_queue_entry_free_cb(void* data) {
+static void test_queue_entry_free_cb(void* /*data*/) {
   // Don't free the data, because we are testing only whether the callback
   // is called.
   test_queue_entry_free_counter++;
@@ -114,7 +114,7 @@ TEST_F(FixedQueueTest, test_fixed_queue_flush) {
   fixed_queue_try_enqueue(queue, (void*)DUMMY_DATA_STRING3);
   EXPECT_FALSE(fixed_queue_is_empty(queue));
   fixed_queue_flush(queue, test_queue_entry_free_cb);
-  EXPECT_TRUE(test_queue_entry_free_counter == 3);
+  EXPECT_EQ(3, test_queue_entry_free_counter);
   EXPECT_TRUE(fixed_queue_is_empty(queue));
   fixed_queue_free(queue, osi_free);
 }
@@ -292,10 +292,10 @@ TEST_F(FixedQueueTest, test_fixed_queue_get_enqueue_dequeue_fd) {
   // Test validity of enqueue and dequeue file descriptors
   int enqueue_fd = fixed_queue_get_enqueue_fd(queue);
   int dequeue_fd = fixed_queue_get_dequeue_fd(queue);
-  EXPECT_TRUE(enqueue_fd >= 0);
-  EXPECT_TRUE(dequeue_fd >= 0);
-  EXPECT_TRUE(enqueue_fd < FD_SETSIZE);
-  EXPECT_TRUE(dequeue_fd < FD_SETSIZE);
+  EXPECT_GE(enqueue_fd, 0);
+  EXPECT_GE(dequeue_fd, 0);
+  EXPECT_LT(enqueue_fd, FD_SETSIZE);
+  EXPECT_LT(dequeue_fd, FD_SETSIZE);
 
   // Test the file descriptors of an empty queue
   // Only the enqueue_fd should be readable

@@ -30,12 +30,14 @@
 
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace bta_sys_main {
 
 // Function state capture and return values, if needed
-struct BTA_sys_signal_hw_error BTA_sys_signal_hw_error;
 struct bta_sys_deregister bta_sys_deregister;
 struct bta_sys_disable bta_sys_disable;
 struct bta_sys_init bta_sys_init;
@@ -50,10 +52,6 @@ struct bta_sys_start_timer bta_sys_start_timer;
 }  // namespace test
 
 // Mocked functions, if any
-void BTA_sys_signal_hw_error() {
-  inc_func_call_count(__func__);
-  test::mock::bta_sys_main::BTA_sys_signal_hw_error();
-}
 void bta_sys_deregister(uint8_t id) {
   inc_func_call_count(__func__);
   test::mock::bta_sys_main::bta_sys_deregister(id);

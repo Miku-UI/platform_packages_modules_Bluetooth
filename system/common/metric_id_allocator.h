@@ -24,7 +24,7 @@
 #include <unordered_set>
 
 #include "lru.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 

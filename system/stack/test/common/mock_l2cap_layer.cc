@@ -23,17 +23,20 @@
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 static bluetooth::l2cap::MockL2capInterface* l2cap_interface = nullptr;
 
 void bluetooth::l2cap::SetMockInterface(MockL2capInterface* mock_l2cap_interface) {
   l2cap_interface = mock_l2cap_interface;
 }
 
-tL2C_CCB* l2cu_find_ccb_by_cid(tL2C_LCB* p_lcb, uint16_t local_cid) { return nullptr; }
+tL2C_CCB* l2cu_find_ccb_by_cid(tL2C_LCB* /*p_lcb*/, uint16_t /*local_cid*/) { return nullptr; }
 
 uint16_t L2CA_Register(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, bool enable_snoop,
-                       tL2CAP_ERTM_INFO* p_ertm_info, uint16_t my_mtu, uint16_t required_remote_mtu,
-                       uint16_t sec_level) {
+                       tL2CAP_ERTM_INFO* p_ertm_info, uint16_t /*my_mtu*/,
+                       uint16_t /*required_remote_mtu*/, uint16_t /*sec_level*/) {
   bluetooth::log::verbose("psm={}, enable_snoop={}", psm, enable_snoop);
   return l2cap_interface->Register(psm, p_cb_info, enable_snoop, p_ertm_info);
 }
@@ -59,7 +62,7 @@ tL2CAP_DW_RESULT L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
 }
 
 uint16_t L2CA_RegisterLECoc(uint16_t psm, const tL2CAP_APPL_INFO& cb_info, uint16_t sec_level,
-                            tL2CAP_LE_CFG_INFO cfg) {
+                            tL2CAP_LE_CFG_INFO /*cfg*/) {
   return l2cap_interface->RegisterLECoc(psm, cb_info, sec_level);
 }
 

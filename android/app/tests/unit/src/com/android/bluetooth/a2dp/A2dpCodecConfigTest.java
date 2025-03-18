@@ -755,8 +755,7 @@ public class A2dpCodecConfigTest {
                 getDefaultCodecConfigByType(
                         BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC,
                         BluetoothCodecConfig.CODEC_PRIORITY_DEFAULT));
-        verify(mA2dpNativeInterface, times(1))
-                .setCodecConfigPreference(mTestDevice, codecConfigsArray);
+        verify(mA2dpNativeInterface).setCodecConfigPreference(mTestDevice, codecConfigsArray);
 
         // shouldn't invoke to native when current codec is already an optional
         for (int codecType : sOptionalCodecTypes) {
@@ -764,8 +763,7 @@ public class A2dpCodecConfigTest {
                     mTestDevice,
                     getDefaultCodecConfigByType(
                             codecType, BluetoothCodecConfig.CODEC_PRIORITY_DEFAULT));
-            verify(mA2dpNativeInterface, times(1))
-                    .setCodecConfigPreference(mTestDevice, codecConfigsArray);
+            verify(mA2dpNativeInterface).setCodecConfigPreference(mTestDevice, codecConfigsArray);
         }
     }
 

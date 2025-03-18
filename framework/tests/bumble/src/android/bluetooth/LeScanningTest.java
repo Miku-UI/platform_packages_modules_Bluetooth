@@ -85,7 +85,8 @@ public class LeScanningTest {
     @Rule(order = 2)
     public final EnableBluetoothRule mEnableBluetoothRule = new EnableBluetoothRule(false, true);
 
-    private final Context mContext = ApplicationProvider.getApplicationContext();
+    private final Context mContext =
+            ApplicationProvider.getApplicationContext().createAttributionContext(TAG);
     private final BluetoothManager mBluetoothManager =
             mContext.getSystemService(BluetoothManager.class);
     private final BluetoothAdapter mBluetoothAdapter = mBluetoothManager.getAdapter();
@@ -354,6 +355,7 @@ public class LeScanningTest {
     }
 
     @Test
+    @VirtualOnly
     public void startBleScan_withServiceData() {
         advertiseWithBumbleWithServiceData();
 

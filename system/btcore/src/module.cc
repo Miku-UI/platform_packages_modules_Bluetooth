@@ -28,7 +28,6 @@
 #include <unordered_map>
 
 #include "common/message_loop_thread.h"
-#include "os/log.h"
 
 using bluetooth::common::MessageLoopThread;
 using namespace bluetooth;

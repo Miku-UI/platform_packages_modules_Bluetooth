@@ -28,6 +28,8 @@
 // Original included files, if any
 // #include <frameworks/proto_logging/stats/enums/bluetooth/le/enums.pb.h>
 
+#include "hci/address.h"
+#include "hci/hci_packets.h"
 #include "os/metrics.h"
 #include "types/raw_address.h"
 
@@ -215,6 +217,20 @@ struct LogMetricSmpPairingEvent {
   }
 };
 extern struct LogMetricSmpPairingEvent LogMetricSmpPairingEvent;
+
+// Name: LogMetricLePairingFail
+// Params: const RawAddress& raw_address, uint8_t failure_reason, bool
+// is_outgoing
+// void
+struct LogMetricLePairingFail {
+  std::function<void(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing)> body{
+          [](const RawAddress& /* raw address */, uint8_t /* failure reason */,
+             bool /* is_outgoing */) {}};
+  void operator()(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+    body(raw_address, failure_reason, is_outgoing);
+  }
+};
+extern struct LogMetricLePairingFail LogMetricLePairingFail;
 // Name: LogMetricClassicPairingEvent
 // Params: const RawAddress& raw_address, uint16_t handle, uint32_t hci_cmd,
 // uint16_t hci_event, uint16_t cmd_status, uint16_t reason_code, int64_t
@@ -298,6 +314,42 @@ struct LogMetricManufacturerInfo {
   }
 };
 extern struct LogMetricManufacturerInfo LogMetricManufacturerInfo;
+// Name: LogMetricLeConnectionStatus
+// Params: bluetooth::hci::Address address, bool is_connect, bluetooth::hci::ErrorCode reason
+// Returns: void
+struct LogMetricLeConnectionStatus {
+  std::function<void(bluetooth::hci::Address address, bool is_connect,
+                     bluetooth::hci::ErrorCode reason)>
+          body{[](bluetooth::hci::Address /* address */, bool /* is_connect */,
+                  bluetooth::hci::ErrorCode /* reason */) {}};
+  void operator()(bluetooth::hci::Address address, bool is_connect,
+                  bluetooth::hci::ErrorCode reason) {
+    body(address, is_connect, reason);
+  }
+};
+extern struct LogMetricLeConnectionStatus LogMetricLeConnectionStatus;
+// Name: LogMetricLeDeviceInAcceptList
+// Params: bluetooth::hci::Address address, bool is_add
+// Returns: void
+struct LogMetricLeDeviceInAcceptList {
+  std::function<void(bluetooth::hci::Address address, bool is_add)> body{
+          [](bluetooth::hci::Address /* address */, bool /* is_add */) {}};
+  void operator()(bluetooth::hci::Address address, bool is_add) { body(address, is_add); }
+};
+extern struct LogMetricLeDeviceInAcceptList LogMetricLeDeviceInAcceptList;
+
+// Name: LogMetricLeConnectionLifecycle
+// Params: bluetooth::hci::Address address, bool is_connect, bool is_direct
+// Returns: void
+struct LogMetricLeConnectionLifecycle {
+  std::function<void(bluetooth::hci::Address address, bool is_connect, bool is_direct)> body{
+          [](bluetooth::hci::Address /* address */, bool /* is_connect */, bool /* is_direct */) {
+          }};
+  void operator()(bluetooth::hci::Address address, bool is_connect, bool is_direct) {
+    body(address, is_connect, is_direct);
+  }
+};
+extern struct LogMetricLeConnectionLifecycle LogMetricLeConnectionLifecycle;
 
 }  // namespace main_shim_metrics_api
 }  // namespace mock

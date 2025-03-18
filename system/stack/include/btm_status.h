@@ -98,7 +98,7 @@ inline std::string btm_status_text(const tBTM_STATUS& status) {
   }
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTM_STATUS> : enum_formatter<tBTM_STATUS> {};
-}  // namespace fmt
+}  // namespace std

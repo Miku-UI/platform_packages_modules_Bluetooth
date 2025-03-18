@@ -26,7 +26,6 @@
 #include "hci/hci_layer.h"
 #include "os/fuzz/dev_null_queue.h"
 #include "os/fuzz/fuzz_inject_queue.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace hci {
@@ -43,6 +42,11 @@ public:
   void EnqueueCommand(
           std::unique_ptr<T> /* command */,
           common::ContextualOnceCallback<void(hci::CommandStatusView)> /* on_status */) override {}
+
+  void EnqueueCommand(
+          std::unique_ptr<T> /* command */,
+          common::ContextualOnceCallback<
+                  void(hci::CommandStatusOrCompleteView)> /* on_status_or_complete */) override {}
 };
 
 class FuzzHciLayer : public HciLayer {

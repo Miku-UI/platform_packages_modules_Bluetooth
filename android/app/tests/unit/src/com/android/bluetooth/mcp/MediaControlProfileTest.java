@@ -112,8 +112,7 @@ public class MediaControlProfileTest {
                 .when(mMockPackageManager)
                 .getApplicationInfo(anyString(), anyInt());
 
-        MediaControlProfile.setsMediaPlayerListForTesting(mMockMediaPlayerList);
-        mMediaControlProfile = new MediaControlProfile(mMockMcpService);
+        mMediaControlProfile = new MediaControlProfile(mMockMcpService, mMockMediaPlayerList);
 
         // this is equivalent of what usually happens inside init class
         mMediaControlProfile.injectGattServiceForTesting(packageName, mMockGMcsService);

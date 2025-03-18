@@ -19,7 +19,10 @@ filegroup {
         "raw_builder.cc",
         "view.cc",
     ],
-    visibility: ["//visibility:public"],
+    visibility: [
+        "//hardware/interfaces/bluetooth/aidl/vts",
+        "//packages/modules/Bluetooth/system:__subpackages__",
+    ],
 }
 
 filegroup {

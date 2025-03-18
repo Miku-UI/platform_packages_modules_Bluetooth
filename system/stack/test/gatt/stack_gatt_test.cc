@@ -68,20 +68,23 @@ size_t actual_sizeof_tGATT_REG() {
          sizeof(uint8_t) + sizeof(bool);
 }
 
-void tGATT_DISC_RES_CB(uint16_t conn_id, tGATT_DISC_TYPE disc_type, tGATT_DISC_RES* p_data) {}
-void tGATT_DISC_CMPL_CB(uint16_t conn_id, tGATT_DISC_TYPE disc_type, tGATT_STATUS status) {}
-void tGATT_CMPL_CBACK(uint16_t conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
-                      tGATT_CL_COMPLETE* p_data) {}
-void tGATT_CONN_CBACK(tGATT_IF gatt_if, const RawAddress& bda, uint16_t conn_id, bool connected,
-                      tGATT_DISCONN_REASON reason, tBT_TRANSPORT transport) {}
-void tGATT_REQ_CBACK(uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                     tGATTS_DATA* p_data) {}
-void tGATT_CONGESTION_CBACK(uint16_t conn_id, bool congested) {}
-void tGATT_ENC_CMPL_CB(tGATT_IF gatt_if, const RawAddress& bda) {}
-void tGATT_PHY_UPDATE_CB(tGATT_IF gatt_if, uint16_t conn_id, uint8_t tx_phy, uint8_t rx_phy,
-                         tGATT_STATUS status) {}
-void tGATT_CONN_UPDATE_CB(tGATT_IF gatt_if, uint16_t conn_id, uint16_t interval, uint16_t latency,
-                          uint16_t timeout, tGATT_STATUS status) {}
+void tGATT_DISC_RES_CB(uint16_t /*conn_id*/, tGATT_DISC_TYPE /*disc_type*/,
+                       tGATT_DISC_RES* /*p_data*/) {}
+void tGATT_DISC_CMPL_CB(uint16_t /*conn_id*/, tGATT_DISC_TYPE /*disc_type*/,
+                        tGATT_STATUS /*status*/) {}
+void tGATT_CMPL_CBACK(uint16_t /*conn_id*/, tGATTC_OPTYPE /*op*/, tGATT_STATUS /*status*/,
+                      tGATT_CL_COMPLETE* /*p_data*/) {}
+void tGATT_CONN_CBACK(tGATT_IF /*gatt_if*/, const RawAddress& /*bda*/, uint16_t /*conn_id*/,
+                      bool /*connected*/, tGATT_DISCONN_REASON /*reason*/,
+                      tBT_TRANSPORT /*transport*/) {}
+void tGATT_REQ_CBACK(uint16_t /*conn_id*/, uint32_t /*trans_id*/, tGATTS_REQ_TYPE /*type*/,
+                     tGATTS_DATA* /*p_data*/) {}
+void tGATT_CONGESTION_CBACK(uint16_t /*conn_id*/, bool /*congested*/) {}
+void tGATT_ENC_CMPL_CB(tGATT_IF /*gatt_if*/, const RawAddress& /*bda*/) {}
+void tGATT_PHY_UPDATE_CB(tGATT_IF /*gatt_if*/, uint16_t /*conn_id*/, uint8_t /*tx_phy*/,
+                         uint8_t /*rx_phy*/, tGATT_STATUS /*status*/) {}
+void tGATT_CONN_UPDATE_CB(tGATT_IF /*gatt_if*/, uint16_t /*conn_id*/, uint16_t /*interval*/,
+                          uint16_t /*latency*/, uint16_t /*timeout*/, tGATT_STATUS /*status*/) {}
 
 tGATT_CBACK gatt_callbacks = {
         .p_conn_cb = tGATT_CONN_CBACK,
@@ -165,8 +168,7 @@ TEST_F(StackGattTest, GATT_Register_Deregister) {
   gatt_free();
 }
 
-TEST_F_WITH_FLAGS(StackGattTest, gatt_status_text,
-                  REQUIRES_FLAGS_ENABLED(ACONFIG_FLAG(TEST_BT, enumerate_gatt_errors))) {
+TEST_F(StackGattTest, gatt_status_text) {
   std::vector<std::pair<tGATT_STATUS, std::string>> statuses = {
           std::make_pair(GATT_SUCCESS, "GATT_SUCCESS"),  // Also GATT_ENCRYPED_MITM
           std::make_pair(GATT_INVALID_HANDLE, "GATT_INVALID_HANDLE"),

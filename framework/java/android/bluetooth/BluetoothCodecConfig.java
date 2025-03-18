@@ -780,7 +780,7 @@ public final class BluetoothCodecConfig implements Parcelable {
         return sameAudioFeedingParameters(
                 new BluetoothCodecConfig(
                         mCodecType, /* priority */
-                        0,
+                        CODEC_PRIORITY_DEFAULT,
                         sampleRate,
                         bitsPerSample,
                         channelMode,

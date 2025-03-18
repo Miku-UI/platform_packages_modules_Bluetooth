@@ -31,8 +31,8 @@ import java.lang.annotation.Retention;
 /**
  * Thrown when an error occurs during a Bluetooth Socket related exception.
  *
- * <p>This is currently only intended to be thrown for a failure during {@link
- * BluetoothSocket#connect()} operation.
+ * <p>This is currently intended to be thrown for a failure during {@link BluetoothSocket}
+ * operations.
  */
 public class BluetoothSocketException extends IOException {
 
@@ -70,8 +70,8 @@ public class BluetoothSocketException extends IOException {
     public static final int UNSPECIFIED = 0;
 
     /**
-     * Error code during connect when socket connection fails for unknown reason during L2CAP
-     * connection.
+     * Error code returned by {@link BluetoothSocket} during a L2CAP-related socket operation that
+     * failed for an unknown reason.
      */
     public static final int L2CAP_UNKNOWN = 1;
 
@@ -141,13 +141,22 @@ public class BluetoothSocketException extends IOException {
     /** Error code during connect when L2CAP connection timeout. */
     public static final int L2CAP_TIMEOUT = 14;
 
-    /** Error code during connect when Bluetooth is off and socket connection is triggered. */
+    /**
+     * Error code returned by {@link BluetoothSocket} during a socket operation that failed because
+     * Bluetooth is turned off.
+     */
     public static final int BLUETOOTH_OFF_FAILURE = 15;
 
-    /** Error code during connect when socket manager is not available. */
+    /**
+     * Error code returned by {@link BluetoothSocket} during a socket operation that failed because
+     * socket manager is not available.
+     */
     public static final int SOCKET_MANAGER_FAILURE = 16;
 
-    /** Error code during connect when socket is closed. */
+    /**
+     * Error code returned by {@link BluetoothSocket} during a socket operation that failed because
+     * the socket has been closed.
+     */
     public static final int SOCKET_CLOSED = 17;
 
     /** Error code during connect for generic socket connection failures. */

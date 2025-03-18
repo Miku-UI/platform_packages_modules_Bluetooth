@@ -32,7 +32,6 @@
 #include "btcore/include/module.h"
 #include "btif/include/btif_common.h"
 #include "device/include/device_iot_config.h"
-#include "os/log.h"
 #include "osi/include/alarm.h"
 #include "osi/include/config.h"
 #include "osi/include/future.h"

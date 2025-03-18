@@ -26,7 +26,6 @@
 #include "hci/acl_manager/acl_connection.h"
 #include "hci/address_with_type.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "packet/packet_view.h"
 
 namespace bluetooth {

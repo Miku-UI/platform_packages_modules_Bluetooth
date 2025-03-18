@@ -74,8 +74,14 @@ public:
   static std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config> GetHfpScoConfig(
           SessionType sessionType);
 
+  bool IsStreamActive();
+
+  void SetStreamActive(bool active);
+
 private:
   tHFP_CTRL_CMD hfp_pending_cmd_;
+
+  bool is_stream_active;
 };
 
 // Source transport implementation
@@ -107,6 +113,8 @@ public:
   uint8_t GetPendingCmd() const;
 
   void ResetPendingCmd();
+
+  bool IsStreamActive();
 
   static inline HfpDecodingTransport* instance_ = nullptr;
   static inline BluetoothAudioSourceClientInterface* software_hal_interface = nullptr;
@@ -146,6 +154,8 @@ public:
 
   void ResetPendingCmd();
 
+  bool IsStreamActive();
+
   static inline HfpEncodingTransport* instance_ = nullptr;
   static inline BluetoothAudioSinkClientInterface* software_hal_interface = nullptr;
   static inline BluetoothAudioSinkClientInterface* offloading_hal_interface = nullptr;
@@ -160,8 +170,8 @@ private:
 }  // namespace audio
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::audio::aidl::hfp::tHFP_CTRL_CMD>
     : enum_formatter<bluetooth::audio::aidl::hfp::tHFP_CTRL_CMD> {};
-}  // namespace fmt
+}  // namespace std

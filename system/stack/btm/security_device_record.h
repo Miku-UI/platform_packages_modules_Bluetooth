@@ -26,7 +26,7 @@
 
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/log.h"
+#include "os/logging/log_adapter.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
@@ -41,7 +41,6 @@ typedef struct {
   uint16_t max_conn_int;
   uint16_t peripheral_latency;
   uint16_t supervision_tout;
-
 } tBTM_LE_CONN_PRAMS;
 
 /* The MSB of the clock offset field indicates whether the offset is valid. */
@@ -61,8 +60,8 @@ typedef struct {
   (BTM_SEC_IN_AUTHENTICATE | BTM_SEC_IN_ENCRYPT | BTM_SEC_IN_MITM | BTM_SEC_MODE4_LEVEL4)
 typedef struct {
   uint32_t mx_proto_id;     /* Service runs over this multiplexer protocol */
-  uint32_t orig_mx_chan_id; /* Channel on the multiplexer protocol    */
-  uint32_t term_mx_chan_id; /* Channel on the multiplexer protocol    */
+  uint32_t orig_mx_chan_id; /* Channel on the multiplexer protocol */
+  uint32_t term_mx_chan_id; /* Channel on the multiplexer protocol */
   uint16_t psm;             /* L2CAP PSM value */
   uint16_t security_flags;  /* Bitmap of required security features */
   uint8_t service_id;       /* Passed in authorization callback */
@@ -74,15 +73,15 @@ typedef struct {
 typedef struct {
   Octet16 irk;   /* peer diverified identity root */
   Octet16 pltk;  /* peer long term key */
-  Octet16 pcsrk; /* peer SRK peer device used to secured sign local data  */
+  Octet16 pcsrk; /* peer SRK peer device used to secured sign local data */
 
   Octet16 lltk;  /* local long term key */
-  Octet16 lcsrk; /* local SRK peer device used to secured sign local data  */
+  Octet16 lcsrk; /* local SRK peer device used to secured sign local data */
 
   BT_OCTET8 rand;               /* random vector for LTK generation */
   uint16_t ediv;                /* LTK diversifier of this peripheral device */
-  uint16_t div;                 /* local DIV  to generate local LTK=d1(ER,DIV,0) and
-                                   CSRK=d1(ER,DIV,1)  */
+  uint16_t div;                 /* local DIV to generate local LTK=d1(ER, DIV, 0) and
+                                   CSRK=d1(ER, DIV, 1) */
   uint8_t sec_level;            /* local pairing security level */
   uint8_t key_size;             /* key size of the LTK delivered to peer device */
   uint8_t srk_sec_level;        /* security property of peer SRK for this device */
@@ -104,8 +103,7 @@ enum tBLE_RAND_ADDR_TYPE : uint8_t {
 
 class tBTM_BLE_ADDR_INFO {
 public:
-  RawAddress pseudo_addr; /* LE pseudo address of the device if different from
-                          device address  */
+  RawAddress pseudo_addr; /* LE pseudo address of the device if different from device address */
 public:
   tBLE_ADDR_TYPE AddressType() const { return ble_addr_type_; }
   void SetAddressType(tBLE_ADDR_TYPE ble_addr_type) {
@@ -202,12 +200,12 @@ struct tBTM_SEC_REC {
   tSECURITY_STATE classic_link; /* Operating state of Classic link */
   tSECURITY_STATE le_link;      /* Operating state of LE link */
 
-  tHCI_STATUS sec_status; /* Status in encryption change event  */
-  uint16_t sec_flags;     /* Current device security state      */
+  tHCI_STATUS sec_status; /* Status in encryption change event */
+  uint16_t sec_flags;     /* Current device security state */
 
   uint8_t pin_code_length; /* Length of the pin_code used for pairing */
   uint32_t required_security_flags_for_pairing;
-  uint16_t security_required; /* Security required for connection   */
+  uint16_t security_required; /* Security required for connection */
   // security callback and its argument
   tBTM_SEC_CALLBACK* p_callback;
   void* p_ref_data;
@@ -222,9 +220,9 @@ struct tBTM_SEC_REC {
                                    ** for SM over BR/EDR. */
 
   // BREDR Link Key Info
-  LinkKey link_key;      /* Device link key                    */
-  uint8_t link_key_type; /* Type of key used in pairing        */
-  uint8_t enc_key_size;  /* current link encryption key size   */
+  LinkKey link_key;      /* Device link key */
+  uint8_t link_key_type; /* Type of key used in pairing */
+  uint8_t enc_key_size;  /* current link encryption key size */
 
   // LE Link Key Info
   tBTM_SEC_BLE_KEYS ble_keys;
@@ -338,8 +336,8 @@ public:
             "sec_prop:%s",
             ADDRESS_TO_LOGGABLE_CSTR(bd_addr), DeviceTypeText(device_type).c_str(),
             dev_class_text(dev_class).c_str(), remote_version_info.ToString().c_str(), sm4,
-            (remote_supports_secure_connections) ? 'T' : 'F', PRIVATE_NAME(sec_bd_name),
-            sec_rec.ToString().c_str());
+            (remote_supports_secure_connections) ? 'T' : 'F',
+            PRIVATE_NAME(reinterpret_cast<char const*>(sec_bd_name)), sec_rec.ToString().c_str());
   }
 
 public:
@@ -347,16 +345,15 @@ public:
   tBTM_BLE_ADDR_INFO ble;
   BD_NAME sec_bd_name; /* User friendly name of the device. (may be
                                truncated to save space in dev_rec table) */
-  DEV_CLASS dev_class; /* DEV_CLASS of the device            */
+  DEV_CLASS dev_class; /* DEV_CLASS of the device */
   tBT_DEVICE_TYPE device_type;
 
-  uint32_t timestamp;      /* Timestamp of the last connection   */
+  uint32_t timestamp;      /* Timestamp of the last connection */
   uint16_t hci_handle;     /* Handle to BR/EDR ACL connection when exists */
   uint16_t ble_hci_handle; /* use in DUMO connection */
 
-  uint16_t suggested_tx_octets; /* Recently suggested tx octets for data length
-                                   extension */
-  uint16_t clock_offset;        /* Latest known clock offset          */
+  uint16_t suggested_tx_octets; /* Recently suggested tx octets for data length extension */
+  uint16_t clock_offset;        /* Latest known clock offset */
 
   // whether the peer device can read GAP characteristics only visible in
   // "discoverable" mode
@@ -375,7 +372,7 @@ public:
 
   tREMOTE_VERSION_INFO remote_version_info;
 
-  bool role_central;  /* true if current mode is central (BLE)    */
+  bool role_central;  /* true if current mode is central (BLE) */
   bool is_originator; /* true if device is originating ACL connection */
 
   // BLE connection parameters
@@ -384,9 +381,9 @@ public:
   tBTM_SEC_REC sec_rec;
 };
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tSECURITY_STATE> : string_formatter<tSECURITY_STATE, &security_state_text> {};
 template <>
 struct formatter<tBLE_RAND_ADDR_TYPE> : enum_formatter<tBLE_RAND_ADDR_TYPE> {};
-}  // namespace fmt
+}  // namespace std

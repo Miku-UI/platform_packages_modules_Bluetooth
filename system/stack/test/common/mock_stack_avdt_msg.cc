@@ -25,9 +25,12 @@
  * Need to consider more sophisticated existing methods.
  */
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 static std::vector<uint8_t> _rsp_sig_ids{};
 
-void avdt_msg_send_rsp(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
+void avdt_msg_send_rsp(AvdtpCcb* /*p_ccb*/, uint8_t sig_id, tAVDT_MSG* /*p_params*/) {
   inc_func_call_count(__func__);
   _rsp_sig_ids.push_back(sig_id);
 }
@@ -38,15 +41,16 @@ void mock_avdt_msg_send_rsp_clear_history(void) { _rsp_sig_ids.clear(); }
 
 uint8_t mock_avdt_msg_send_rsp_get_sig_id_at(size_t nth) { return _rsp_sig_ids[nth]; }
 
-void avdt_msg_ind(AvdtpCcb* p_ccb, BT_HDR* p_buf) { inc_func_call_count(__func__); }
+void avdt_msg_ind(AvdtpCcb* /*p_ccb*/, BT_HDR* /*p_buf*/) { inc_func_call_count(__func__); }
 
-void avdt_msg_send_rej(AvdtpCcb* p_ccb, uint8_t sig_id, tAVDT_MSG* p_params) {
+void avdt_msg_send_rej(AvdtpCcb* /*p_ccb*/, uint8_t /*sig_id*/, tAVDT_MSG* /*p_params*/) {
   inc_func_call_count(__func__);
 }
 
 static std::vector<uint8_t> _cmd_sig_ids{};
 
-void avdt_msg_send_cmd(AvdtpCcb* p_ccb, void* p_scb, uint8_t sig_id, tAVDT_MSG* p_params) {
+void avdt_msg_send_cmd(AvdtpCcb* /*p_ccb*/, void* /*p_scb*/, uint8_t sig_id,
+                       tAVDT_MSG* /*p_params*/) {
   inc_func_call_count(__func__);
   _cmd_sig_ids.push_back(sig_id);
 }
@@ -57,7 +61,7 @@ void mock_avdt_msg_send_cmd_clear_history(void) { _cmd_sig_ids.clear(); }
 
 uint8_t mock_avdt_msg_send_cmd_get_sig_id_at(size_t nth) { return _cmd_sig_ids[nth]; }
 
-bool avdt_msg_send(AvdtpCcb* p_ccb, BT_HDR* p_msg) {
+bool avdt_msg_send(AvdtpCcb* /*p_ccb*/, BT_HDR* /*p_msg*/) {
   inc_func_call_count(__func__);
   return true;
 }

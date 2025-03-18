@@ -44,11 +44,15 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
     /** @hide */
     @IntDef(
             prefix = "SOURCE_CODEC_TYPE_",
-            value = {SOURCE_CODEC_TYPE_LC3, SOURCE_CODEC_TYPE_INVALID})
+            value = {SOURCE_CODEC_TYPE_LC3, SOURCE_CODEC_TYPE_OPUS, SOURCE_CODEC_TYPE_INVALID})
     @Retention(RetentionPolicy.SOURCE)
     public @interface SourceCodecType {};
 
     public static final int SOURCE_CODEC_TYPE_LC3 = 0;
+
+    @FlaggedApi(Flags.FLAG_LEAUDIO_ADD_OPUS_CODEC_TYPE)
+    public static final int SOURCE_CODEC_TYPE_OPUS = 1;
+
     public static final int SOURCE_CODEC_TYPE_INVALID = 1000 * 1000;
 
     /** @hide */
@@ -394,6 +398,11 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
             case SOURCE_CODEC_TYPE_INVALID:
                 return "INVALID CODEC";
             default:
+                if (Flags.leaudioAddOpusCodecType()) {
+                    if (mCodecType == SOURCE_CODEC_TYPE_OPUS) {
+                        return "Opus";
+                    }
+                }
                 break;
         }
         return "UNKNOWN CODEC(" + mCodecType + ")";

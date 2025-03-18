@@ -59,5 +59,4 @@ typedef struct {
      so when their values come later, we know which value in sequence match
      certain indicator */
   int indicator_lookup[BTA_HF_CLIENT_AT_INDICATOR_COUNT];
-
 } tBTA_HF_CLIENT_AT_CB;

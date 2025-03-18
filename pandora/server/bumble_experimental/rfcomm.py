@@ -17,10 +17,13 @@ from typing import Dict, Optional
 
 from bumble import core
 from bumble.device import Device
+from bumble.hci import Address
 from bumble.rfcomm import (
-    Server,
-    make_service_sdp_records,
+    Client,
     DLC,
+    make_service_sdp_records,
+    find_rfcomm_channel_with_uuid,
+    Server,
 )
 from bumble.pandora import utils
 import grpc
@@ -30,6 +33,8 @@ from pandora_experimental.rfcomm_pb2 import (
     AcceptConnectionResponse,
     ConnectionRequest,
     ConnectionResponse,
+    DisconnectionRequest,
+    DisconnectionResponse,
     RfcommConnection,
     RxRequest,
     RxResponse,
@@ -59,9 +64,12 @@ class RFCOMMService(RFCOMMServicer):
 
     class Connection:
 
-        def __init__(self, dlc):
+        client: Optional[Client]
+
+        def __init__(self, dlc, client=None):
             self.dlc = dlc
             self.data_queue = asyncio.Queue()
+            self.client = client
 
     class ServerPort:
 
@@ -82,6 +90,27 @@ class RFCOMMService(RFCOMMServicer):
                 self.wait_dlc.set_result(dlc)
             else:
                 self.saved_dlc = dlc
+
+    @utils.rpc
+    async def ConnectToServer(self, request: ConnectionRequest, context: grpc.ServicerContext) -> ConnectionResponse:
+        logging.info(f"ConnectToServer")
+        address = Address(address=bytes(reversed(request.address)), address_type=Address.PUBLIC_DEVICE_ADDRESS)
+        acl_connection = self.device.find_connection_by_bd_addr(address, transport=0)  # BR/EDR
+        if acl_connection is None:
+            acl_connection = await self.device.connect(address, transport=0)  # BR/EDR transport
+
+        channel = await find_rfcomm_channel_with_uuid(acl_connection, request.uuid)
+
+        client = Client(acl_connection)
+        mux = await client.start()
+        assert mux is not None
+
+        dlc = await mux.open_dlc(channel)
+        id = self.next_conn_id
+        self.next_conn_id += 1
+        self.connections[id] = self.Connection(dlc=dlc, client=client)
+        self.connections[id].dlc.sink = self.connections[id].data_queue.put_nowait
+        return ConnectionResponse(connection=RfcommConnection(id=id))
 
     @utils.rpc
     async def StartServer(self, request: StartServerRequest, context: grpc.ServicerContext) -> StartServerResponse:
@@ -119,10 +148,20 @@ class RFCOMMService(RFCOMMServicer):
         return AcceptConnectionResponse(connection=RfcommConnection(id=id))
 
     @utils.rpc
+    async def Disconnect(self, request: DisconnectionRequest, context: grpc.ServicerContext) -> DisconnectionResponse:
+        logging.info(f"Disconnect")
+        rfcomm_connection = self.connections[request.connection.id]
+        assert rfcomm_connection is not None
+        if rfcomm_connection.client is not None:
+            await rfcomm_connection.client.shutdown()
+        del rfcomm_connection
+        return DisconnectionResponse()
+
+    @utils.rpc
     async def StopServer(self, request: StopServerRequest, context: grpc.ServicerContext) -> StopServerResponse:
         logging.info(f"StopServer")
         assert self.server_ports[request.server.id] is not None
-        self.server_ports[request.server.id] = None
+        del self.server_ports[request.server.id]
 
         return StopServerResponse()
 

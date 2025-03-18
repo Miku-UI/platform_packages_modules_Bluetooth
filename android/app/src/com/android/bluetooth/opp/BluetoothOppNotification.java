@@ -141,7 +141,7 @@ class BluetoothOppNotification {
 
     private final HashMap<String, NotificationItem> mNotifications = new HashMap<>();
 
-    private NotificationUpdateThread mUpdateNotificationThread;
+    @VisibleForTesting NotificationUpdateThread mUpdateNotificationThread;
 
     private int mPendingUpdate = 0;
 

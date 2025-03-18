@@ -24,7 +24,6 @@
 
 #include "common/strings.h"
 #include "os/files.h"
-#include "os/log.h"
 #include "storage/device.h"
 
 namespace bluetooth {

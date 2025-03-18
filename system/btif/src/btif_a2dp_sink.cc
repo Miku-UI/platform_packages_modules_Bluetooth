@@ -26,15 +26,23 @@
 #include <com_android_bluetooth_flags.h>
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <future>
 #include <mutex>
 #include <string>
+#include <utility>
 
+#include "a2dp_api.h"
+#include "a2dp_codec_api.h"
+#include "avdt_api.h"
+#include "bta_av_api.h"
 #include "btif/include/btif_av.h"
 #include "btif/include/btif_av_co.h"
 #include "btif/include/btif_avrcp_audio_track.h"
 #include "btif/include/btif_util.h"  // CASE_RETURN_STR
 #include "common/message_loop_thread.h"
-#include "hardware/bt_av.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
@@ -222,7 +230,8 @@ static void btif_a2dp_sink_startup_delayed() {
   // Nothing to do
 }
 
-static void btif_a2dp_sink_on_decode_complete(uint8_t* data, uint32_t len) {
+static void btif_a2dp_sink_on_decode_complete([[maybe_unused]] uint8_t* data,
+                                              [[maybe_unused]] uint32_t len) {
 #ifdef __ANDROID__
   BtifAvrcpAudioTrackWriteData(btif_a2dp_sink_cb.audio_track, reinterpret_cast<void*>(data), len);
 #endif

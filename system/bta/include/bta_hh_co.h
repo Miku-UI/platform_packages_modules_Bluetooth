@@ -41,7 +41,7 @@ typedef struct {
 
 typedef enum : uint8_t {
   BTA_HH_UHID_INBOUND_INPUT_EVT,
-  BTA_HH_UHID_INBOUND_OPEN_TIMEOUT_EVT,
+  BTA_HH_UHID_INBOUND_READY_EVT,
   BTA_HH_UHID_INBOUND_CLOSE_EVT,
   BTA_HH_UHID_INBOUND_DSCP_EVT,
   BTA_HH_UHID_INBOUND_GET_REPORT_EVT,
@@ -53,7 +53,7 @@ typedef struct {
   union {
     uhid_event uhid;
   };
-} tBTA_HH_TO_UHID_EVT;
+} __attribute__((__packed__)) tBTA_HH_TO_UHID_EVT;
 
 /*******************************************************************************
  *

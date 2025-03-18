@@ -15,8 +15,8 @@
 Copied from tools/rootcanal/scripts/test_channel.py
 """
 
-import socket
 import enum
+import socket
 from time import sleep
 
 

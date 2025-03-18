@@ -26,13 +26,21 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
+#include "bta_av_api.h"
+
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+#include "avdt_api.h"
+#include "avrc_defs.h"
 #include "bta/av/bta_av_int.h"
+#include "bta_api.h"
+#include "bta_sys.h"
 #include "btif/include/btif_av.h"
 #include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"
@@ -111,7 +119,7 @@ void BTA_AvRegister(tBTA_AV_CHNL chnl, const char* p_service_name, uint8_t app_i
   p_buf->hdr.layer_specific = chnl;
   p_buf->hdr.event = BTA_AV_API_REGISTER_EVT;
   if (p_service_name) {
-    strlcpy(p_buf->p_service_name, p_service_name, BTA_SERVICE_NAME_LEN);
+    osi_strlcpy(p_buf->p_service_name, p_service_name, BTA_SERVICE_NAME_LEN);
   } else {
     p_buf->p_service_name[0] = 0;
   }
@@ -231,7 +239,7 @@ void BTA_AvStart(tBTA_AV_HNDL handle, bool use_latency_mode) {
             use_latency_mode);
 
   tBTA_AV_DO_START* p_buf = (tBTA_AV_DO_START*)osi_malloc(sizeof(tBTA_AV_DO_START));
-  p_buf->hdr.event = BTA_AV_API_START_EVT;
+  p_buf->hdr.event = BTA_AV_AP_START_EVT;
   p_buf->hdr.layer_specific = handle;
   p_buf->use_latency_mode = use_latency_mode;
 
@@ -274,7 +282,7 @@ void BTA_AvStop(tBTA_AV_HNDL handle, bool suspend) {
 
   tBTA_AV_API_STOP* p_buf = (tBTA_AV_API_STOP*)osi_malloc(sizeof(tBTA_AV_API_STOP));
 
-  p_buf->hdr.event = BTA_AV_API_STOP_EVT;
+  p_buf->hdr.event = BTA_AV_AP_STOP_EVT;
   p_buf->hdr.layer_specific = handle;
   p_buf->flush = true;
   p_buf->suspend = suspend;

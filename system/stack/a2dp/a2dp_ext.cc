@@ -20,16 +20,23 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <vector>
+
 #include "a2dp_codec_api.h"
+#include "a2dp_constants.h"
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "hardware/bt_av.h"
 
 using namespace bluetooth;
 
-static tA2DP_CODEC_ID codec_id(btav_a2dp_codec_index_t codec_index) {
-  uint64_t id = 0;
+static a2dp::CodecId codec_id(btav_a2dp_codec_index_t codec_index) {
+  bluetooth::a2dp::CodecId id;
   auto result = ::bluetooth::audio::a2dp::provider::codec_info(codec_index, &id, nullptr, nullptr);
   log::assert_that(result, "provider::codec_info unexpectdly failed");
-  return static_cast<tA2DP_CODEC_ID>(id);
+  return id;
 }
 
 A2dpCodecConfigExt::A2dpCodecConfigExt(btav_a2dp_codec_index_t codec_index, bool is_source)

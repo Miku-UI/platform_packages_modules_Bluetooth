@@ -25,6 +25,13 @@
 
 #define LOG_TAG "bluetooth"
 
+#include "bta_hd_api.h"
+
+#include <cstdint>
+#include <cstring>
+
+#include "bta_sys.h"
+
 // BTA_HD_INCLUDED
 #include "internal_include/bt_target.h"
 #if defined(BTA_HD_INCLUDED) && (BTA_HD_INCLUDED == TRUE)
@@ -32,7 +39,6 @@
 #include <bluetooth/log.h>
 
 #include "bta/hd/bta_hd_int.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"
@@ -105,19 +111,19 @@ void BTA_HdRegisterApp(tBTA_HD_APP_INFO* p_app_info, tBTA_HD_QOS_INFO* p_in_qos,
   p_buf->hdr.event = BTA_HD_API_REGISTER_APP_EVT;
 
   if (p_app_info->p_name) {
-    strlcpy(p_buf->name, p_app_info->p_name, BTA_HD_APP_NAME_LEN);
+    osi_strlcpy(p_buf->name, p_app_info->p_name, BTA_HD_APP_NAME_LEN);
   } else {
     p_buf->name[0] = '\0';
   }
 
   if (p_app_info->p_description) {
-    strlcpy(p_buf->description, p_app_info->p_description, BTA_HD_APP_DESCRIPTION_LEN);
+    osi_strlcpy(p_buf->description, p_app_info->p_description, BTA_HD_APP_DESCRIPTION_LEN);
   } else {
     p_buf->description[0] = '\0';
   }
 
   if (p_app_info->p_provider) {
-    strlcpy(p_buf->provider, p_app_info->p_provider, BTA_HD_APP_PROVIDER_LEN);
+    osi_strlcpy(p_buf->provider, p_app_info->p_provider, BTA_HD_APP_PROVIDER_LEN);
   } else {
     p_buf->provider[0] = '\0';
   }

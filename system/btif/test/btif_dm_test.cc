@@ -41,22 +41,9 @@ const RawAddress kRawAddress = {{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}};
 constexpr char kBdName[] = {'k', 'B', 'd', 'N', 'a', 'm', 'e', '\0'};
 }  // namespace
 
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-
+namespace bluetooth::legacy::testing {
 void set_interface_to_profiles(bluetooth::core::CoreInterface* interfaceToProfiles);
-
-void bta_energy_info_cb(tBTM_BLE_TX_TIME_MS tx_time, tBTM_BLE_RX_TIME_MS rx_time,
-                        tBTM_BLE_IDLE_TIME_MS idle_time, tBTM_BLE_ENERGY_USED energy_used,
-                        tBTM_CONTRL_STATE ctrl_state, tBTA_STATUS status);
-
-void btif_on_name_read(RawAddress bd_addr, tHCI_ERROR_CODE hci_status, const BD_NAME bd_name,
-                       bool during_device_search);
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth
+}  // namespace bluetooth::legacy::testing
 
 namespace {
 constexpr tBTM_BLE_TX_TIME_MS tx_time = 0x12345678;

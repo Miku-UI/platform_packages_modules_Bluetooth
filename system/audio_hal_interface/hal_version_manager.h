@@ -127,5 +127,8 @@ private:
   BluetoothAudioHalTransport hal_transport_;
 };
 
+// Return the supported AIDL version.
+BluetoothAudioHalVersion GetAidlInterfaceVersion();
+
 }  // namespace audio
 }  // namespace bluetooth

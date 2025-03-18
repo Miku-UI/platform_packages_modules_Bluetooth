@@ -101,7 +101,6 @@ typedef struct {
 typedef struct {
   BT_HDR_RIGID hdr; /* Event header */
   tPAN_RESULT result;
-
 } tBTA_PAN_CONN;
 
 /* pan data param */
@@ -112,7 +111,6 @@ typedef struct {
   uint16_t protocol;
   bool ext;
   bool forward;
-
 } tBTA_PAN_DATA_PARAMS;
 
 /* union of all data types */
@@ -139,7 +137,6 @@ typedef struct {
   tBTA_PAN_ROLE local_role;  /* local role */
   tBTA_PAN_ROLE peer_role;   /* peer role */
   uint8_t app_id;            /* application id for the connection */
-
 } tBTA_PAN_SCB;
 
 /* main control block */
@@ -149,7 +146,6 @@ typedef struct {
   uint8_t app_id[3];                  /* application id for PAN roles */
   uint8_t flow_mask;                  /* Data flow mask */
   uint8_t q_level;                    /* queue level set by application for TX data */
-
 } tBTA_PAN_CB;
 
 /*****************************************************************************

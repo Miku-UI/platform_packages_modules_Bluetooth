@@ -34,7 +34,6 @@ cc_library_static {
     header_libs: ["libbluetooth_headers"],
     static_libs: [
         "libbluetooth_log",
-        "libbt_shim_bridge",
     ],
 }
 
@@ -67,6 +66,7 @@ cc_test {
         "libbluetooth_log",
         "libbt-hci",
         "libchrome",
+        "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
     ],
     sanitize: {

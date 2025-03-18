@@ -59,7 +59,7 @@ private:
 class HeadlessRun : public HeadlessStack {
 protected:
   const bluetooth::test::headless::GetOpt& options_;
-  unsigned long loop_{0};
+  uint64_t loop_{0};
 
   HeadlessRun(const bluetooth::test::headless::GetOpt& options) : options_(options) {}
 

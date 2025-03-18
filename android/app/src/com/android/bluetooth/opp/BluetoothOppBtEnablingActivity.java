@@ -152,9 +152,9 @@ public class BluetoothOppBtEnablingActivity extends AlertActivity {
             };
 
     private void cancelSendingProgress() {
-        BluetoothOppManager mOppManager = BluetoothOppManager.getInstance(this);
-        if (mOppManager.mSendingFlag) {
-            mOppManager.mSendingFlag = false;
+        BluetoothOppManager oppManager = BluetoothOppManager.getInstance(this);
+        if (oppManager != null && oppManager.mSendingFlag) {
+            oppManager.mSendingFlag = false;
         }
         finish();
     }

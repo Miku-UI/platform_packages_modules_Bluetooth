@@ -81,6 +81,14 @@ class BluetoothQACallbacks:
         """
         pass
 
+    def on_send_hid_virtual_unplug_completed(self, status):
+        """Called when send hid virtual unplug completed.
+
+        Args:
+            status: BtStatus.
+        """
+        pass
+
 
 class FlossQAClient(BluetoothQACallbacks):
     """Handles method calls to and callbacks from the QA interface."""
@@ -187,6 +195,15 @@ class FlossQAClient(BluetoothQACallbacks):
             for observer in self.observers.values():
                 observer.on_send_hid_data_completed(status)
 
+        def OnSendHIDVirtualUnplugComplete(self, status):
+            """Handles send HID virtual unplug complete callback.
+
+            Args:
+                status: BtStatus.
+            """
+            for observer in self.observers.values():
+                observer.on_send_hid_virtual_unplug_completed(status)
+
     def __init__(self, bus, hci):
         """Constructs the client.
 
@@ -268,6 +285,15 @@ class FlossQAClient(BluetoothQACallbacks):
             status: BtStatus.
         """
         logging.debug('on_send_hid_data_completed: status: %s', status)
+
+    @utils.glib_callback()
+    def on_send_hid_data_completed(self, status):
+        """Handles send HID virtual unplug completed callback.
+
+        Args:
+            status: BtStatus.
+        """
+        logging.debug('on_send_hid_virtual_unplug_completed: status: %s', status)
 
     @utils.glib_call(False)
     def has_proxy(self):

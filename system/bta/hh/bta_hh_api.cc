@@ -24,17 +24,22 @@
 
 #define LOG_TAG "bt_bta_hh"
 
+#include "bta_hh_api.h"
+
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/sys/bta_sys.h"
-#include "os/log.h"
+#include "hiddefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
-#include "types/raw_address.h"
+#include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
 
 using namespace bluetooth;
 

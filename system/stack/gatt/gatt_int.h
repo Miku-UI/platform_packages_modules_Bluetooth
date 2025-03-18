@@ -34,6 +34,7 @@
 #include "gatt_api.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"
@@ -415,7 +416,7 @@ typedef struct {
   fixed_queue_t* srv_chg_clt_q; /* service change clients queue */
   tGATT_REG cl_rcb[GATT_MAX_APPS];
 
-  tGATT_IF next_gatt_if; /* potential next gatt if, should be greater than 0 */
+  tGATT_IF last_gatt_if; /* last used gatt_if, used to find the next gatt_if easily */
   std::unordered_map<tGATT_IF, std::unique_ptr<tGATT_REG>> cl_rcb_map;
 
   /* list of connection link control blocks.
@@ -467,7 +468,7 @@ namespace {
 constexpr char kTimeFormatString[] = "%Y-%m-%d %H:%M:%S";
 
 constexpr unsigned MillisPerSecond = 1000;
-inline std::string EpochMillisToString(long long time_ms) {
+inline std::string EpochMillisToString(uint64_t time_ms) {
   time_t time_sec = time_ms / MillisPerSecond;
   struct tm tm;
   localtime_r(&time_sec, &tm);
@@ -498,10 +499,6 @@ bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT
                       int8_t initiating_phys);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                       tBT_TRANSPORT transport, int8_t initiating_phys);
-bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb, tBT_TRANSPORT transport,
-                  uint8_t initiating_phys, tGATT_IF gatt_if);
-bool gatt_connect(const RawAddress& rem_bda, tGATT_TCB* p_tcb, tBLE_ADDR_TYPE addr_type,
-                  tBT_TRANSPORT transport, uint8_t initiating_phys, tGATT_IF gatt_if);
 void gatt_data_process(tGATT_TCB& p_tcb, uint16_t cid, BT_HDR* p_buf);
 void gatt_update_app_use_link_flag(tGATT_IF gatt_if, tGATT_TCB* p_tcb, bool is_add,
                                    bool check_acl_link);
@@ -691,13 +688,23 @@ tGATT_STATUS gatts_write_attr_perm_check(tGATT_SVC_DB* p_db, uint8_t op_code, ui
 tGATT_STATUS gatts_read_attr_perm_check(tGATT_SVC_DB* p_db, bool is_long, uint16_t handle,
                                         tGATT_SEC_FLAG sec_flag, uint8_t key_size);
 bluetooth::Uuid* gatts_get_service_uuid(tGATT_SVC_DB* p_db);
+void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb);
 
 /* gatt_sr_hash.cc */
 Octet16 gatts_calculate_database_hash(std::list<tGATT_SRV_LIST_ELEM>* lst_ptr);
 
-namespace fmt {
+namespace bluetooth {
+namespace legacy {
+namespace testing {
+BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code, uint16_t handle,
+                             uint16_t offset, uint16_t len, uint8_t* p_data);
+}  // namespace testing
+}  // namespace legacy
+}  // namespace bluetooth
+
+namespace std {
 template <>
 struct formatter<tGATT_CH_STATE> : enum_formatter<tGATT_CH_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

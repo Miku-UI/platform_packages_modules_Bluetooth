@@ -287,7 +287,7 @@ TEST_F(StackL2capTest, bt_psm_text) {
           {BT_PSM_UPNP, "BT_PSM_UPNP"},
           {BT_PSM_AVCTP, "BT_PSM_AVCTP"},
           {BT_PSM_AVDTP, "BT_PSM_AVDTP"},
-          {BT_PSM_AVCTP_13, "BT_PSM_AVCTP_13"},
+          {BT_PSM_AVCTP_BROWSE, "BT_PSM_AVCTP_BROWSE"},
           {BT_PSM_UDI_CP, "BT_PSM_UDI_CP"},
           {BT_PSM_ATT, "BT_PSM_ATT"},
           {BT_PSM_EATT, "BT_PSM_EATT"},

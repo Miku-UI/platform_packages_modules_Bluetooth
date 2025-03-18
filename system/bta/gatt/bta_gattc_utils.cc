@@ -39,6 +39,9 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static uint8_t ble_acceptlist_size() {
@@ -142,7 +145,7 @@ tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_cif(uint8_t client_if, const RawAddress&
 tBTA_GATTC_CLCB* bta_gattc_find_clcb_by_conn_id(tCONN_ID conn_id) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
-      if (p_clcb->bta_conn_id == conn_id) {
+      if (p_clcb->in_use && p_clcb->bta_conn_id == conn_id) {
         return p_clcb.get();
       }
     }
@@ -172,6 +175,7 @@ tBTA_GATTC_CLCB* bta_gattc_clcb_alloc(tGATT_IF client_if, const RawAddress& remo
   tBTA_GATTC_CLCB* p_clcb = NULL;
 
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+    bta_gattc_cleanup_clcb();
     auto [p_clcb_i, b] = bta_gattc_cb.clcb_set.emplace(std::make_unique<tBTA_GATTC_CLCB>());
     p_clcb = p_clcb_i->get();
 
@@ -316,26 +320,46 @@ void bta_gattc_clcb_dealloc(tBTA_GATTC_CLCB* p_clcb) {
 
   /* Clear p_clcb. Some of the fields are already reset e.g. p_q_cmd_queue and
    * p_q_cmd. */
+  p_clcb->bta_conn_id = 0;
+  p_clcb->bda = {};
+  p_clcb->transport = BT_TRANSPORT_AUTO;
+  p_clcb->p_rcb = NULL;
+  p_clcb->p_srcb = NULL;
+  p_clcb->request_during_discovery = 0;
+  p_clcb->auto_update = 0;
+  p_clcb->disc_active = 0;
+  p_clcb->in_use = 0;
+  p_clcb->state = BTA_GATTC_IDLE_ST;
+  p_clcb->status = GATT_SUCCESS;
+  // in bta_gattc_sm_execute(), p_clcb is accessed again so we dealloc clcb later.
+  // it will be claned up when the client is deregistered or a new clcb is allocated.
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    for (auto& p_clcb_i : bta_gattc_cb.clcb_set) {
-      if (p_clcb_i.get() == p_clcb) {
-        bta_gattc_cb.clcb_set.erase(p_clcb_i);
-        break;
-      }
-    }
-  } else {
-    p_clcb->bta_conn_id = 0;
-    p_clcb->bda = {};
-    p_clcb->transport = BT_TRANSPORT_AUTO;
-    p_clcb->p_rcb = NULL;
-    p_clcb->p_srcb = NULL;
-    p_clcb->request_during_discovery = 0;
-    p_clcb->auto_update = 0;
-    p_clcb->disc_active = 0;
-    p_clcb->in_use = 0;
-    p_clcb->state = BTA_GATTC_IDLE_ST;
-    p_clcb->status = GATT_SUCCESS;
+    bta_gattc_cb.clcb_pending_dealloc.insert(p_clcb);
   }
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_gattc_cleanup_clcb
+ *
+ * Description      cleans up resources from deallocated clcb
+ *
+ * Returns          none
+ *
+ ******************************************************************************/
+void bta_gattc_cleanup_clcb() {
+  if (bta_gattc_cb.clcb_pending_dealloc.empty()) {
+    return;
+  }
+  auto it = bta_gattc_cb.clcb_set.begin();
+  while (it != bta_gattc_cb.clcb_set.end()) {
+    if (bta_gattc_cb.clcb_pending_dealloc.contains(it->get())) {
+      it = bta_gattc_cb.clcb_set.erase(it);
+    } else {
+      it++;
+    }
+  }
+  bta_gattc_cb.clcb_pending_dealloc.clear();
 }
 
 /*******************************************************************************
@@ -491,7 +515,7 @@ void bta_gattc_continue(tBTA_GATTC_CLCB* p_clcb) {
         /* Handled, free command below and continue with a p_q_cmd_queue */
         break;
       case MTU_EXCHANGE_IN_PROGRESS:
-        log::warn("Waiting p_clcb {}", fmt::ptr(p_clcb));
+        log::warn("Waiting p_clcb {}", std::format_ptr(p_clcb));
         return;
       case MTU_EXCHANGE_NOT_DONE_YET:
         p_clcb->p_q_cmd_queue.pop_front();
@@ -574,7 +598,7 @@ bool bta_gattc_check_notif_registry(tBTA_GATTC_RCB* p_clreg, tBTA_GATTC_SERV* p_
  * Returns          None.
  *
  ******************************************************************************/
-void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* p_srcb, tCONN_ID conn_id,
+void bta_gattc_clear_notif_registration(tBTA_GATTC_SERV* /*p_srcb*/, tCONN_ID conn_id,
                                         uint16_t start_handle, uint16_t end_handle) {
   RawAddress remote_bda;
   tGATT_IF gatt_if;
@@ -667,9 +691,12 @@ bool bta_gattc_mark_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda_ptr
         p_bg_tck->in_use = true;
         p_bg_tck->remote_bda = remote_bda_ptr;
 
-        p_cif_mask = &p_bg_tck->cif_mask;
-
-        *p_cif_mask = ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1));
+        if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+          p_bg_tck->cif_set = {client_if};
+        } else {
+          p_cif_mask = &p_bg_tck->cif_mask;
+          *p_cif_mask = ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1));
+        }
         return true;
       }
     }
@@ -695,9 +722,15 @@ bool bta_gattc_check_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda, u
   for (i = 0; i < ble_acceptlist_size() && !is_bg_conn; i++, p_bg_tck++) {
     if (p_bg_tck->in_use &&
         (p_bg_tck->remote_bda == remote_bda || p_bg_tck->remote_bda.IsEmpty())) {
-      if (((p_bg_tck->cif_mask & ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1))) != 0) &&
-          role == HCI_ROLE_CENTRAL) {
-        is_bg_conn = true;
+      if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
+        if (p_bg_tck->cif_set.contains(client_if) && role == HCI_ROLE_CENTRAL) {
+          is_bg_conn = true;
+        }
+      } else {
+        if (((p_bg_tck->cif_mask & ((tBTA_GATTC_CIF_MASK)1 << (client_if - 1))) != 0) &&
+            role == HCI_ROLE_CENTRAL) {
+          is_bg_conn = true;
+        }
       }
     }
   }
@@ -936,6 +969,9 @@ void bta_gatt_client_dump(int fd) {
   if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
     stream << " ->clcb (dynamic)\n";
     for (auto& p_clcb : bta_gattc_cb.clcb_set) {
+      if (!p_clcb->in_use) {
+        continue;
+      }
       entry_count++;
       stream << "  conn_id: " << loghex(p_clcb->bta_conn_id)
              << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_clcb->bda)
@@ -971,7 +1007,6 @@ void bta_gatt_client_dump(int fd) {
     stream << "  server_address: " << ADDRESS_TO_LOGGABLE_STR(p_known_server->server_bda)
            << "  mtu: " << p_known_server->mtu
            << "  blocked_conn_id: " << loghex(p_known_server->blocked_conn_id)
-           << "  pending_discovery: " << p_known_server->pending_discovery.ToString()
            << "  num_clcb: " << +p_known_server->num_clcb
            << "  state: " << bta_server_state_text(p_known_server->state)
            << "  connected: " << p_known_server->connected

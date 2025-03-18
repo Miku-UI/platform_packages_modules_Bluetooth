@@ -271,7 +271,7 @@ using ::bluetooth::packet::RawBuilder;
     namespace_prefix += "::";
   }
 
-  out_file << "#if __has_include(<bluetooth/log.h>)" << std::endl << "namespace fmt {" << std::endl;
+  out_file << "#if __has_include(<bluetooth/log.h>)" << std::endl << "namespace std {" << std::endl;
   for (const auto& e : decls.type_defs_queue_) {
     if (e.second->GetDefinitionType() == TypeDef::Type::ENUM) {
       const auto* enum_def = static_cast<const EnumDef*>(e.second);
@@ -281,7 +281,7 @@ using ::bluetooth::packet::RawBuilder;
                << std::endl;
     }
   }
-  out_file << "} // namespace fmt" << std::endl
+  out_file << "} // namespace std" << std::endl
            << "#endif // __has_include(<bluetooth/log.h>)" << std::endl;
 
   out_file.close();

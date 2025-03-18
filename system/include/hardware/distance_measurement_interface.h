@@ -17,7 +17,9 @@
 #ifndef ANDROID_INCLUDE_DISTANCE_MEASUREMENT_INTERFACE_H
 #define ANDROID_INCLUDE_DISTANCE_MEASUREMENT_INTERFACE_H
 
-#include <raw_address.h>
+#include <stdint.h>
+
+#include "types/raw_address.h"
 
 /**
  * Distance measurement callbacks related callbacks invoked from from the
@@ -27,13 +29,12 @@ class DistanceMeasurementCallbacks {
 public:
   virtual ~DistanceMeasurementCallbacks() = default;
   virtual void OnDistanceMeasurementStarted(RawAddress address, uint8_t method) = 0;
-  virtual void OnDistanceMeasurementStartFail(RawAddress address, uint8_t reason,
-                                              uint8_t method) = 0;
   virtual void OnDistanceMeasurementStopped(RawAddress address, uint8_t reason, uint8_t method) = 0;
   virtual void OnDistanceMeasurementResult(RawAddress address, uint32_t centimeter,
                                            uint32_t error_centimeter, int azimuth_angle,
                                            int error_azimuth_angle, int altitude_angle,
-                                           int error_altitude_angle, uint8_t method) = 0;
+                                           int error_altitude_angle, uint64_t elapsedRealtimeNanos,
+                                           int8_t confidence_level, uint8_t method) = 0;
 };
 
 class DistanceMeasurementInterface {

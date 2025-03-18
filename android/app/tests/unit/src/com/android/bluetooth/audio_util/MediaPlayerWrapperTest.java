@@ -265,7 +265,7 @@ public class MediaPlayerWrapperTest {
         controllerCallbacks.onMetadataChanged(mTestMetadata.build());
 
         // Assert that the metadata was updated and playback state wasn't
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals(
                 "Returned Metadata isn't equal to given Metadata",
@@ -332,7 +332,7 @@ public class MediaPlayerWrapperTest {
         controllerCallbacks.onPlaybackStateChanged(mTestState.build());
 
         // Assert that both metadata and playback state are there.
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals(
                 "Returned PlaybackState isn't equal to given PlaybackState",
@@ -371,7 +371,7 @@ public class MediaPlayerWrapperTest {
         controllerCallbacks.onMetadataChanged(null);
 
         // Assert that the metadata returned by getMetadata() is used instead of null
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals(
                 "Returned metadata is incorrect",
@@ -402,7 +402,7 @@ public class MediaPlayerWrapperTest {
 
         // Assert that the metadata returned by getPlaybackState() is used instead of null
 
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals(
                 "Returned PlaybackState is incorrect",
@@ -428,7 +428,7 @@ public class MediaPlayerWrapperTest {
         controllerCallbacks.onQueueChanged(null);
 
         // Assert that both metadata and playback state are there.
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals("Returned Queue isn't null", data.queue.size(), 0);
     }
@@ -509,7 +509,7 @@ public class MediaPlayerWrapperTest {
         controllerCallbacks.onPlaybackStateChanged(mTestState.build());
 
         // Assert that both metadata and only the first playback state is there.
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals(
                 "Returned PlaybackState isn't equal to given PlaybackState",
@@ -625,7 +625,7 @@ public class MediaPlayerWrapperTest {
         controllerCallbacks.onQueueChanged(getQueueFromDescriptions(mTestQueue));
 
         // Assert that the callback was called with the updated data
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         verify(mFailHandler, never()).onTerribleFailure(any(), any(), anyBoolean());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals(
@@ -676,7 +676,7 @@ public class MediaPlayerWrapperTest {
         verify(mFailHandler).onTerribleFailure(any(), any(), anyBoolean());
 
         // Assert that the callback was called with the mismatch data
-        verify(mTestCbs, times(1)).mediaUpdatedCallback(mMediaUpdateData.capture());
+        verify(mTestCbs).mediaUpdatedCallback(mMediaUpdateData.capture());
         MediaData data = mMediaUpdateData.getValue();
         Assert.assertEquals(
                 "Returned Metadata isn't equal to given Metadata",

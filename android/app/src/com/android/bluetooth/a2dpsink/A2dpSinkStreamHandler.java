@@ -70,9 +70,10 @@ public class A2dpSinkStreamHandler extends Handler {
     private static final int STATE_FOCUS_GRANTED = 1;
 
     // Private variables.
-    private A2dpSinkService mA2dpSinkService;
-    private A2dpSinkNativeInterface mNativeInterface;
-    private AudioManager mAudioManager;
+    private final A2dpSinkService mA2dpSinkService;
+    private final A2dpSinkNativeInterface mNativeInterface;
+    private final AudioManager mAudioManager;
+
     // Keep track if the remote device is providing audio
     private boolean mStreamAvailable = false;
     // Keep track of the relevant audio focus (None, Transient, Gain)

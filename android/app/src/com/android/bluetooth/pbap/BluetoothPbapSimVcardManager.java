@@ -49,7 +49,7 @@ import java.util.List;
 
 /** VCard composer especially for Call Log used in Bluetooth. */
 // Next tag value for ContentProfileErrorReportUtils.report(): 6
-public class BluetoothPbapSimVcardManager {
+public class BluetoothPbapSimVcardManager implements AutoCloseable {
     private static final String TAG = "PbapSIMvCardComposer";
 
     @VisibleForTesting
@@ -90,7 +90,6 @@ public class BluetoothPbapSimVcardManager {
     private final Context mContext;
     private ContentResolver mContentResolver;
     private Cursor mCursor;
-    private boolean mTerminateIsCalled;
     private String mErrorReason = NO_ERROR;
 
     public BluetoothPbapSimVcardManager(final Context context) {
@@ -194,7 +193,9 @@ public class BluetoothPbapSimVcardManager {
         return builder.toString();
     }
 
-    public void terminate() {
+    /** Closes the manager, releasing all of its resources. */
+    @Override
+    public void close() {
         if (mCursor != null) {
             try {
                 mCursor.close();
@@ -207,16 +208,6 @@ public class BluetoothPbapSimVcardManager {
                 Log.e(TAG, "SQLiteException on Cursor#close(): " + e.getMessage());
             }
             mCursor = null;
-        }
-
-        mTerminateIsCalled = true;
-    }
-
-    @Override
-    @SuppressWarnings("Finalize") // TODO: b/366307571 remove override
-    public void finalize() {
-        if (!mTerminateIsCalled) {
-            terminate();
         }
     }
 
@@ -411,10 +402,8 @@ public class BluetoothPbapSimVcardManager {
                     2);
             return ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
         }
-        BluetoothPbapSimVcardManager composer = null;
         HandlerForStringBuffer buffer = null;
-        try {
-            composer = new BluetoothPbapSimVcardManager(context);
+        try (BluetoothPbapSimVcardManager composer = new BluetoothPbapSimVcardManager(context)) {
             buffer = new HandlerForStringBuffer(op, ownerVCard);
 
             if (!composer.init(SIM_URI, null, null, null) || !buffer.init()) {
@@ -446,9 +435,6 @@ public class BluetoothPbapSimVcardManager {
                 buffer.writeVCard(vcard);
             }
         } finally {
-            if (composer != null) {
-                composer.terminate();
-            }
             if (buffer != null) {
                 buffer.terminate();
             }
@@ -473,10 +459,8 @@ public class BluetoothPbapSimVcardManager {
             return ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
         }
         Log.v(TAG, "composeAndSendSIMPhonebookOneVcard orderByWhat " + orderByWhat);
-        BluetoothPbapSimVcardManager composer = null;
         HandlerForStringBuffer buffer = null;
-        try {
-            composer = new BluetoothPbapSimVcardManager(context);
+        try (BluetoothPbapSimVcardManager composer = new BluetoothPbapSimVcardManager(context)) {
             buffer = new HandlerForStringBuffer(op, ownerVCard);
             if (!composer.init(SIM_URI, null, null, null) || !buffer.init()) {
                 return ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
@@ -502,9 +486,6 @@ public class BluetoothPbapSimVcardManager {
             }
             buffer.writeVCard(vcard);
         } finally {
-            if (composer != null) {
-                composer.terminate();
-            }
             if (buffer != null) {
                 buffer.terminate();
             }

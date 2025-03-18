@@ -50,7 +50,8 @@ EventCallbacks mock_event_callbacks = {
         .invoke_address_consolidate_cb = [](RawAddress /* main_bd_addr */,
                                             RawAddress /* secondary_bd_addr */) {},
         .invoke_le_address_associate_cb = [](RawAddress /* main_bd_addr */,
-                                             RawAddress /* secondary_bd_addr */) {},
+                                             RawAddress /* secondary_bd_addr */,
+                                             uint8_t /* identity_address_type */) {},
         .invoke_acl_state_changed_cb =
                 [](bt_status_t /* status */, RawAddress /* bd_addr */, bt_acl_state_t /* state */,
                    int /* transport_link_type */, bt_hci_error_code_t /* hci_reason */,
@@ -64,6 +65,7 @@ EventCallbacks mock_event_callbacks = {
                    int /* retransmission_count */, int /* packets_not_receive_count */,
                    int /* negative_acknowledgement_count */) {},
         .invoke_key_missing_cb = [](RawAddress /* bd_addr */) {},
+        .invoke_encryption_change_cb = [](bt_encryption_change_evt /* encryption_change */) {},
 };
 
 // This interface lets us query for configuration properties of the stack that

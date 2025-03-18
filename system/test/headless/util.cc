@@ -19,6 +19,9 @@
 #include "include/hardware/bluetooth.h"
 #include "osi/include/properties.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool is_android_running() {
 #ifdef __ANDROID__
   char value[PROPERTY_VALUE_MAX];

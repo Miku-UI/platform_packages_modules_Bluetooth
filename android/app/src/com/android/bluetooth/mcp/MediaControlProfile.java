@@ -87,12 +87,6 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
 
     private MediaPlayerWrapper mLastActivePlayer = null;
 
-    static MediaPlayerList sMediaPlayerListForTesting = null;
-
-    static void setsMediaPlayerListForTesting(MediaPlayerList mediaPlayerList) {
-        sMediaPlayerListForTesting = mediaPlayerList;
-    }
-
     // Same base feature set as the player item features defined in `avrcp/get_foder_items.cc`
     private static final long BASE_PLAYER_ACTION_SET =
             PlaybackState.ACTION_PLAY
@@ -281,16 +275,16 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
     }
 
     public MediaControlProfile(@NonNull McpService mcpService) {
+        this(mcpService, new MediaPlayerList(Looper.myLooper(), mcpService));
+    }
+
+    public MediaControlProfile(@NonNull McpService mcpService, MediaPlayerList mediaPlayerList) {
         Log.v(TAG, "Creating Generic Media Control Service");
 
         mMcpService = requireNonNull(mcpService);
         mContext = mcpService;
 
-        if (sMediaPlayerListForTesting != null) {
-            mMediaPlayerList = sMediaPlayerListForTesting;
-        } else {
-            mMediaPlayerList = new MediaPlayerList(Looper.myLooper(), mContext);
-        }
+        mMediaPlayerList = requireNonNull(mediaPlayerList);
     }
 
     @Override

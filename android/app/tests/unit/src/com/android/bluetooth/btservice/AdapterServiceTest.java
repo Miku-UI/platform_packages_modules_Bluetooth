@@ -30,6 +30,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.AppOpsManager;
 import android.app.admin.DevicePolicyManager;
@@ -101,6 +102,9 @@ import platform.test.runner.parameterized.Parameters;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -151,6 +155,7 @@ public class AdapterServiceTest {
     private @Mock AdapterNativeInterface mNativeInterface;
     private @Mock BluetoothKeystoreNativeInterface mKeystoreNativeInterface;
     private @Mock BluetoothQualityReportNativeInterface mQualityNativeInterface;
+    private @Mock BluetoothHciVendorSpecificNativeInterface mHciVendorSpecificNativeInterface;
     private @Mock SdpManagerNativeInterface mSdpNativeInterface;
     private @Mock AdvertiseManagerNativeInterface mAdvertiseNativeInterface;
     private @Mock DistanceMeasurementNativeInterface mDistanceNativeInterface;
@@ -222,6 +227,7 @@ public class AdapterServiceTest {
         AdapterNativeInterface.setInstance(mNativeInterface);
         BluetoothKeystoreNativeInterface.setInstance(mKeystoreNativeInterface);
         BluetoothQualityReportNativeInterface.setInstance(mQualityNativeInterface);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(mHciVendorSpecificNativeInterface);
         SdpManagerNativeInterface.setInstance(mSdpNativeInterface);
         AdvertiseManagerNativeInterface.setInstance(mAdvertiseNativeInterface);
         DistanceMeasurementNativeInterface.setInstance(mDistanceNativeInterface);
@@ -272,6 +278,8 @@ public class AdapterServiceTest {
         mockGetSystemService(Context.ALARM_SERVICE, AlarmManager.class);
         mockGetSystemService(Context.APP_OPS_SERVICE, AppOpsManager.class);
         mockGetSystemService(Context.AUDIO_SERVICE, AudioManager.class);
+        mockGetSystemService(Context.ACTIVITY_SERVICE, ActivityManager.class);
+
         DevicePolicyManager dpm =
                 mockGetSystemService(Context.DEVICE_POLICY_SERVICE, DevicePolicyManager.class);
         doReturn(false).when(dpm).isCommonCriteriaModeEnabled(any());
@@ -322,13 +330,10 @@ public class AdapterServiceTest {
         when(mMockService.getName()).thenReturn("Service1");
         when(mMockService2.getName()).thenReturn("Service2");
 
-        when(mMockMetricsLogger.init(any())).thenReturn(true);
-        when(mMockMetricsLogger.close()).thenReturn(true);
-
         configureEnabledProfiles();
         Config.init(mMockContext);
 
-        mAdapterService.setMetricsLogger(mMockMetricsLogger);
+        MetricsLogger.setInstanceForTesting(mMockMetricsLogger);
 
         // Attach a context to the service for permission checks.
         mAdapterService.attach(mMockContext, null, null, null, mApplication, null);
@@ -346,18 +351,19 @@ public class AdapterServiceTest {
         // Restores the foregroundUserId to the ID prior to the test setup
         Utils.setForegroundUserId(mForegroundUserId);
 
-        assertThat(mLooper.nextMessage()).isNull();
         mAdapterService.cleanup();
         mAdapterService.unregisterRemoteCallback(mIBluetoothCallback);
         AdapterNativeInterface.setInstance(null);
         BluetoothKeystoreNativeInterface.setInstance(null);
         BluetoothQualityReportNativeInterface.setInstance(null);
+        BluetoothHciVendorSpecificNativeInterface.setInstance(null);
         SdpManagerNativeInterface.setInstance(null);
         AdvertiseManagerNativeInterface.setInstance(null);
         DistanceMeasurementNativeInterface.setInstance(null);
         GattNativeInterface.setInstance(null);
         PeriodicScanNativeInterface.setInstance(null);
         ScanNativeInterface.setInstance(null);
+        MetricsLogger.setInstanceForTesting(null);
     }
 
     private void syncHandler(int... what) {
@@ -410,9 +416,7 @@ public class AdapterServiceTest {
             IBluetoothCallback callback,
             AdapterNativeInterface nativeInterface) {
         adapter.offToBleOn(false);
-        if (Flags.fastBindToApp()) {
-            TestUtils.syncHandler(looper, 0); // when fastBindToApp is enable init need to be run
-        }
+        TestUtils.syncHandler(looper, 0); // `init` need to be run first
         TestUtils.syncHandler(looper, AdapterState.BLE_TURN_ON);
         verifyStateChange(callback, STATE_OFF, STATE_BLE_TURNING_ON);
 
@@ -566,6 +570,7 @@ public class AdapterServiceTest {
     @Test
     public void testEnable() {
         doEnable(false);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     @Test
@@ -579,6 +584,7 @@ public class AdapterServiceTest {
 
         verify(mNativeInterface).setScanMode(eq(halExpectedScanMode));
         assertThat(mAdapterService.getScanMode()).isEqualTo(expectedScanMode);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /** Test: Turn Bluetooth on/off. Check whether the AdapterService gets started and stopped. */
@@ -586,6 +592,7 @@ public class AdapterServiceTest {
     public void testEnableDisable() {
         doEnable(false);
         doDisable(false);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /**
@@ -612,6 +619,7 @@ public class AdapterServiceTest {
         Config.init(mockContext);
         doEnable(true);
         doDisable(true);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /** Test: Don't start GATT Check whether the AdapterService quits gracefully */
@@ -621,9 +629,7 @@ public class AdapterServiceTest {
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
 
         mAdapterService.offToBleOn(false);
-        if (Flags.fastBindToApp()) {
-            syncHandler(0); // when fastBindToApp is enable init need to be run
-        }
+        syncHandler(0); // `init` need to be run first
         syncHandler(AdapterState.BLE_TURN_ON);
         verifyStateChange(STATE_OFF, STATE_BLE_TURNING_ON);
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
@@ -645,6 +651,7 @@ public class AdapterServiceTest {
 
         verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /** Test: Don't stop GATT Check whether the AdapterService quits gracefully */
@@ -678,6 +685,7 @@ public class AdapterServiceTest {
         verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
 
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     @Test
@@ -690,6 +698,7 @@ public class AdapterServiceTest {
 
         dropNextMessage(MESSAGE_PROFILE_SERVICE_REGISTERED);
         dropNextMessage(MESSAGE_PROFILE_SERVICE_STATE_CHANGED);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     @Test
@@ -699,6 +708,7 @@ public class AdapterServiceTest {
 
         assertThat(mAdapterService.getBluetoothGatt()).isNull();
         assertThat(mAdapterService.getBluetoothScan()).isNotNull();
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     @Test
@@ -740,6 +750,7 @@ public class AdapterServiceTest {
 
         assertThat(mAdapterService.getBluetoothScan()).isNull();
         assertThat(mAdapterService.getBluetoothGatt()).isNull();
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     @Test
@@ -807,6 +818,7 @@ public class AdapterServiceTest {
         assertThat(mAdapterService.getState()).isEqualTo(STATE_BLE_ON);
 
         mAdapterService.unregisterRemoteCallback(callback);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /** Test: Don't start a classic profile Check whether the AdapterService quits gracefully */
@@ -850,6 +862,7 @@ public class AdapterServiceTest {
 
         // Ensure GATT is still running
         assertThat(mAdapterService.getBluetoothGatt()).isNotNull();
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /** Test: Don't stop a classic profile Check whether the AdapterService quits gracefully */
@@ -884,6 +897,7 @@ public class AdapterServiceTest {
         verifyStateChange(STATE_BLE_TURNING_OFF, STATE_OFF);
 
         assertThat(mAdapterService.getState()).isEqualTo(STATE_OFF);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /** Test: Toggle snoop logging setting Check whether the AdapterService restarts fully */
@@ -932,6 +946,7 @@ public class AdapterServiceTest {
 
         // Restore earlier setting
         BluetoothProperties.snoop_log_mode(snoopSetting);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     /**
@@ -942,6 +957,7 @@ public class AdapterServiceTest {
     @Test
     public void testObfuscateBluetoothAddress_NullAddress() {
         assertThat(mAdapterService.obfuscateAddress(null)).isEmpty();
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     @Test
@@ -962,6 +978,38 @@ public class AdapterServiceTest {
         // Verify we can get correct identity address
         identityAddress = mAdapterService.getIdentityAddress(TEST_BT_ADDR_1);
         assertThat(identityAddress).isEqualTo(TEST_BT_ADDR_2);
+        assertThat(mLooper.nextMessage()).isNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_IDENTITY_ADDRESS_TYPE_API)
+    public void testIdentityAddressType() {
+        RemoteDevices remoteDevices = mAdapterService.getRemoteDevices();
+        remoteDevices.addDeviceProperties(Utils.getBytesFromAddress((TEST_BT_ADDR_1)));
+
+        int identityAddressTypePublic = 0x00; // Should map to BluetoothDevice.ADDRESS_TYPE_PUBLIC
+        int identityAddressTypeRandom = 0x01; // Should map to BluetoothDevice.ADDRESS_TYPE_RANDOM
+
+        remoteDevices.leAddressAssociateCallback(
+                Utils.getBytesFromAddress(TEST_BT_ADDR_1),
+                Utils.getBytesFromAddress(TEST_BT_ADDR_2),
+                identityAddressTypePublic);
+
+        BluetoothDevice.BluetoothAddress bluetoothAddress =
+                mAdapterService.getIdentityAddressWithType(TEST_BT_ADDR_1);
+        assertThat(bluetoothAddress.getAddress()).isEqualTo(TEST_BT_ADDR_2);
+        assertThat(bluetoothAddress.getAddressType())
+                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_PUBLIC);
+
+        remoteDevices.leAddressAssociateCallback(
+                Utils.getBytesFromAddress(TEST_BT_ADDR_1),
+                Utils.getBytesFromAddress(TEST_BT_ADDR_2),
+                identityAddressTypeRandom);
+
+        bluetoothAddress = mAdapterService.getIdentityAddressWithType(TEST_BT_ADDR_1);
+        assertThat(bluetoothAddress.getAddress()).isEqualTo(TEST_BT_ADDR_2);
+        assertThat(bluetoothAddress.getAddressType())
+                .isEqualTo(BluetoothDevice.ADDRESS_TYPE_RANDOM);
     }
 
     @Test
@@ -971,6 +1019,7 @@ public class AdapterServiceTest {
 
         assertThat(mAdapterService.getByteIdentityAddress(device)).isNull();
         assertThat(mAdapterService.getIdentityAddress(device.getAddress())).isNull();
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     public static byte[] getMetricsSalt(Map<String, Map<String, String>> adapterConfig) {
@@ -1020,6 +1069,7 @@ public class AdapterServiceTest {
     @Test
     public void testGetMetricId_NullAddress() {
         assertThat(mAdapterService.getMetricId(null)).isEqualTo(0);
+        assertThat(mLooper.nextMessage()).isNull();
     }
 
     @Test
@@ -1032,5 +1082,44 @@ public class AdapterServiceTest {
         doReturn(new byte[0]).when(mNativeInterface).dumpMetrics();
         mAdapterService.dump(fd, writer, new String[] {"--proto-bin"});
         mAdapterService.dump(fd, writer, new String[] {"random", "arguments"});
+        assertThat(mLooper.nextMessage()).isNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_GATT_CLEAR_CACHE_ON_FACTORY_RESET)
+    public void testClearStorage() throws Exception {
+        // clearStorage should remove all files under /data/misc/bluetooth/ && /data/misc/bluedroid/
+        final Path testCachePath = Paths.get("/data/misc/bluetooth/gatt_cache_a475b9a23d72");
+        final Path testHashPath =
+                Paths.get("/data/misc/bluetooth/gatt_hash_400D017CB2563A6FB62A2DC4C2AEFD6F");
+        final Path randomFileUnderBluedroidPath =
+                Paths.get("/data/misc/bluedroid/random_test_file.txt");
+        final Path randomFileUnderBluetoothPath =
+                Paths.get("/data/misc/bluetooth/random_test_file.txt");
+
+        try {
+            Files.createFile(testCachePath);
+            Files.createFile(testHashPath);
+            Files.createFile(randomFileUnderBluedroidPath);
+            Files.createFile(randomFileUnderBluetoothPath);
+
+            assertThat(Files.exists(testCachePath)).isTrue();
+            assertThat(Files.exists(testHashPath)).isTrue();
+            assertThat(Files.exists(randomFileUnderBluedroidPath)).isTrue();
+            assertThat(Files.exists(randomFileUnderBluetoothPath)).isTrue();
+
+            mAdapterService.clearStorage();
+
+            assertThat(Files.exists(testCachePath)).isFalse();
+            assertThat(Files.exists(testHashPath)).isFalse();
+            assertThat(Files.exists(randomFileUnderBluedroidPath)).isFalse();
+            assertThat(Files.exists(randomFileUnderBluetoothPath)).isFalse();
+        } finally {
+            Files.deleteIfExists(testCachePath);
+            Files.deleteIfExists(testHashPath);
+            Files.deleteIfExists(randomFileUnderBluedroidPath);
+            Files.deleteIfExists(randomFileUnderBluetoothPath);
+        }
+        assertThat(mLooper.nextMessage()).isNull();
     }
 }

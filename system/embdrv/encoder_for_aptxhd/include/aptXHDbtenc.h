@@ -24,6 +24,8 @@
 #ifndef APTXHDBTENC_H
 #define APTXHDBTENC_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -48,7 +50,7 @@ APTXHDBTENCEXPORT const char* aptxhdbtenc_version(void);
  * (0=little endian. Big endian otherwise)
  * The function returns 1 if an error occurred during the initialisation.
  * The function returns 0 if no error occurred during the initialisation. */
-APTXHDBTENCEXPORT int aptxhdbtenc_init(void* _state, short endian);
+APTXHDBTENCEXPORT int aptxhdbtenc_init(void* _state, int16_t endian);
 
 /* StereoEncode will take 8 audio samples (24-bit per sample)
  * and generate two 24-bit codeword with autosync inserted.

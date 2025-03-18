@@ -19,16 +19,19 @@
 #include "a2dp_vendor_aptx_hd_encoder.h"
 
 #include <bluetooth/log.h>
-#include <dlfcn.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 
+#include <cstdint>
+
+#include "a2dp_codec_api.h"
 #include "a2dp_vendor.h"
 #include "a2dp_vendor_aptx_hd.h"
 #include "aptXHDbtenc.h"
+#include "avdt_api.h"
 #include "common/time_util.h"
 #include "internal_include/bt_target.h"
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 

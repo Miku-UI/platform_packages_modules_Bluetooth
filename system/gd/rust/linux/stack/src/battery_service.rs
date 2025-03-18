@@ -2,7 +2,6 @@ use crate::battery_manager::{Battery, BatterySet};
 use crate::battery_provider_manager::{
     BatteryProviderManager, IBatteryProviderCallback, IBatteryProviderManager,
 };
-use crate::bluetooth::BluetoothDevice;
 use crate::bluetooth_gatt::{
     BluetoothGatt, BluetoothGattService, IBluetoothGatt, IBluetoothGattCallback,
 };
@@ -10,9 +9,9 @@ use crate::callbacks::Callbacks;
 use crate::Message;
 use crate::RPCProxy;
 use crate::{uuid, APIMessage, BluetoothAPI};
-use bt_topshim::btif::{BtAclState, BtBondState, BtTransport, DisplayAddress, RawAddress, Uuid};
+use bt_topshim::btif::{BtTransport, DisplayAddress, RawAddress, Uuid};
 use bt_topshim::profiles::gatt::{GattStatus, LePhy};
-use log::debug;
+use log::{debug, info};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::iter;
@@ -22,6 +21,10 @@ use tokio::sync::mpsc::Sender;
 /// The UUID corresponding to the BatteryLevel characteristic defined by the BatteryService
 /// specification.
 pub const CHARACTERISTIC_BATTERY_LEVEL: &str = "00002A1-9000-0100-0800-000805F9B34FB";
+
+/// The app UUID BAS provides when connecting as a GATT client. Chosen at random.
+/// TODO(b/233101174): make dynamic or decide on a static UUID
+pub const BATTERY_SERVICE_GATT_CLIENT_APP_ID: &str = "e4d2acffcfaa42198f494606b7412117";
 
 /// Represents the Floss BatteryService implementation.
 pub struct BatteryService {
@@ -55,10 +58,6 @@ pub enum BatteryServiceActions {
     OnCharacteristicRead(RawAddress, GattStatus, i32, Vec<u8>),
     /// Params: addr, handle, value
     OnNotify(RawAddress, i32, Vec<u8>),
-    /// Params: remote_device, transport
-    Connect(BluetoothDevice, BtAclState, BtBondState, BtTransport),
-    /// Params: remote_device
-    Disconnect(BluetoothDevice),
 }
 
 /// API for Floss implementation of the Bluetooth Battery Service (BAS). BAS is built on GATT and
@@ -127,8 +126,7 @@ impl BatteryService {
     pub fn init(&self) {
         debug!("Registering GATT client for BatteryService");
         self.gatt.lock().unwrap().register_client(
-            // TODO(b/233101174): make dynamic or decide on a static UUID
-            String::from("e4d2acffcfaa42198f494606b7412117"),
+            String::from(BATTERY_SERVICE_GATT_CLIENT_APP_ID),
             Box::new(GattCallback::new(self.tx.clone(), self.api_tx.clone())),
             false,
         );
@@ -144,6 +142,13 @@ impl BatteryService {
 
             BatteryServiceActions::OnClientConnectionState(status, _client_id, connected, addr) => {
                 if !connected || status != GattStatus::Success {
+                    info!(
+                        "BAS: Dropping {} due to GATT state changed: connected={}, status={:?}",
+                        DisplayAddress(&addr),
+                        connected,
+                        status
+                    );
+                    self.drop_device(addr);
                     return;
                 }
                 let client_id = match self.client_id {
@@ -157,8 +162,8 @@ impl BatteryService {
 
             BatteryServiceActions::OnSearchComplete(addr, services, status) => {
                 if status != GattStatus::Success {
-                    debug!(
-                        "GATT service discovery for {} failed with status {:?}",
+                    info!(
+                        "BAS: Service discovery for {} failed: status={:?}",
                         DisplayAddress(&addr),
                         status
                     );
@@ -176,10 +181,16 @@ impl BatteryService {
                                 )
                             });
                         }
+                        info!(
+                            "BAS: Failed to get handle from {}: status={:?}",
+                            DisplayAddress(&addr),
+                            status
+                        );
                         self.drop_device(addr);
                         return;
                     }
                 };
+                info!("BAS: Found handle from {}", DisplayAddress(&addr));
                 let client_id = match self.client_id {
                     Some(id) => id,
                     None => {
@@ -221,21 +232,6 @@ impl BatteryService {
                     callback.on_battery_info_updated(addr, battery_info.clone());
                 });
             }
-
-            BatteryServiceActions::Connect(device, acl_state, bond_state, transport) => {
-                if transport != BtTransport::Le
-                    || acl_state != BtAclState::Connected
-                    || bond_state != BtBondState::Bonded
-                {
-                    return;
-                }
-
-                self.init_device(device.address, transport);
-            }
-
-            BatteryServiceActions::Disconnect(device) => {
-                self.drop_device(device.address);
-            }
         }
     }
 
@@ -258,23 +254,22 @@ impl BatteryService {
         battery_set.clone()
     }
 
-    fn init_device(&self, remote_address: RawAddress, transport: BtTransport) {
+    pub(crate) fn init_device(&self, remote_address: RawAddress) {
         let client_id = match self.client_id {
             Some(id) => id,
             None => return,
         };
-        debug!("Attempting GATT connection to {}", DisplayAddress(&remote_address));
         self.gatt.lock().unwrap().client_connect(
             client_id,
             remote_address,
             false,
-            transport,
+            BtTransport::Le,
             false,
             LePhy::Phy1m,
         );
     }
 
-    fn drop_device(&mut self, remote_address: RawAddress) {
+    pub(crate) fn drop_device(&mut self, remote_address: RawAddress) {
         if self.handles.contains_key(&remote_address) {
             // Let BatteryProviderManager know that BAS no longer has a battery for this device.
             self.battery_provider_manager.lock().unwrap().remove_battery_info(
@@ -354,6 +349,7 @@ impl BatteryService {
 }
 
 /// Status enum for relaying the state of BAS or a particular device.
+#[derive(Debug)]
 pub enum BatteryServiceStatus {
     /// Device does not report support for BAS.
     BatteryServiceNotSupported,

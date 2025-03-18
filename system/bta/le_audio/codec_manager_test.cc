@@ -30,6 +30,9 @@
 #include "test/mock/mock_legacy_hci_interface.h"
 #include "test/mock/mock_main_shim_entry.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::testing::_;
 using ::testing::Mock;
 using ::testing::NiceMock;
@@ -129,7 +132,7 @@ std::unique_ptr<LeAudioSourceAudioHalClient> LeAudioSourceAudioHalClient::Acquir
   return std::move(owned_mock_broadcast_le_audio_source_hal_client_);
 }
 
-void LeAudioSourceAudioHalClient::DebugDump(int fd) {}
+void LeAudioSourceAudioHalClient::DebugDump(int /*fd*/) {}
 
 class MockLeAudioSinkHalClient;
 MockLeAudioSinkHalClient* mock_le_audio_sink_hal_client_;
@@ -262,14 +265,23 @@ void set_mock_offload_capabilities(const std::vector<AudioSetConfiguration>& cap
 }
 
 static constexpr char kPropLeAudioOffloadSupported[] = "ro.bluetooth.leaudio_offload.supported";
+static constexpr char kPropLeAudioCodecExtensibility[] =
+        "bluetooth.core.le_audio.codec_extension_aidl.enabled";
 static constexpr char kPropLeAudioOffloadDisabled[] = "persist.bluetooth.leaudio_offload.disabled";
 static constexpr char kPropLeAudioBidirSwbSupported[] =
         "bluetooth.leaudio.dual_bidirection_swb.supported";
+
+RawAddress GetTestAddress(uint8_t index) {
+  EXPECT_LT(index, UINT8_MAX);
+  RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, index}};
+  return result;
+}
 
 class CodecManagerTestBase : public Test {
 public:
   virtual void SetUp() override {
     __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
+    com::android::bluetooth::flags::provider_->reset_flags();
     set_mock_offload_capabilities(offload_capabilities_none);
 
     bluetooth::legacy::hci::testing::SetMock(legacy_hci_mock_);
@@ -503,13 +515,144 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
   }
 }
 
+TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
+  com::android::bluetooth::flags::provider_->leaudio_mono_location_errata(true);
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
+  codec_manager->Start(offloading_preference);
+
+  // Current CIS configuration for two earbuds
+  std::vector<struct types::cis> cises{
+          {
+                  .id = 0x00,
+                  .type = types::CisType::CIS_TYPE_BIDIRECTIONAL,
+                  .conn_handle = 96,
+                  .addr = RawAddress::kEmpty,  // Disconnected
+          },
+          {
+                  .id = 0x01,
+                  .type = types::CisType::CIS_TYPE_BIDIRECTIONAL,
+                  .conn_handle = 97,
+                  .addr = GetTestAddress(1),
+          },
+  };
+
+  // Stream parameters
+  types::BidirectionalPair<stream_parameters> stream_params{
+          .sink =
+                  {
+                          .sample_frequency_hz = 16000,
+                          .frame_duration_us = 10000,
+                          .octets_per_codec_frame = 40,
+                          .audio_channel_allocation = codec_spec_conf::kLeAudioLocationMonoAudio,
+                          .codec_frames_blocks_per_sdu = 1,
+                          .num_of_channels = 1,
+                          .num_of_devices = 1,
+                          .stream_locations =
+                                  {
+                                          std::pair<uint16_t, uint32_t>{
+                                                  97 /*conn_handle*/,
+                                                  codec_spec_conf::kLeAudioLocationMonoAudio},
+                                  },
+                  },
+          .source =
+                  {
+                          .sample_frequency_hz = 16000,
+                          .frame_duration_us = 10000,
+                          .octets_per_codec_frame = 40,
+                          .audio_channel_allocation = codec_spec_conf::kLeAudioLocationMonoAudio,
+                          .codec_frames_blocks_per_sdu = 1,
+                          .num_of_channels = 1,
+                          .num_of_devices = 1,
+                          {
+                                  std::pair<uint16_t, uint32_t>{
+                                          97 /*conn_handle*/,
+                                          codec_spec_conf::kLeAudioLocationMonoAudio},
+                          },
+                  },
+  };
+
+  ASSERT_TRUE(
+          codec_manager->UpdateCisConfiguration(cises, stream_params.sink, kLeAudioDirectionSink));
+  ASSERT_TRUE(codec_manager->UpdateCisConfiguration(cises, stream_params.source,
+                                                    kLeAudioDirectionSource));
+
+  // Verify the offloader config content
+  types::BidirectionalPair<std::optional<offload_config>> out_offload_configs;
+  codec_manager->UpdateActiveAudioConfig(
+          stream_params, {.sink = 44, .source = 44},
+          [&out_offload_configs](const offload_config& config, uint8_t direction) {
+            out_offload_configs.get(direction) = config;
+          });
+
+  // Expect the same configuration for sink and source
+  ASSERT_TRUE(out_offload_configs.sink.has_value());
+  ASSERT_TRUE(out_offload_configs.source.has_value());
+  for (auto direction : {bluetooth::le_audio::types::kLeAudioDirectionSink,
+                         bluetooth::le_audio::types::kLeAudioDirectionSource}) {
+    uint32_t allocation = 0;
+    auto& config = out_offload_configs.get(direction).value();
+    ASSERT_EQ(2lu, config.stream_map.size());
+    for (const auto& info : config.stream_map) {
+      if (info.stream_handle == 96) {
+        ASSERT_EQ(codec_spec_conf::kLeAudioLocationMonoAudio, info.audio_channel_allocation);
+        // The disconnected should be inactive
+        ASSERT_FALSE(info.is_stream_active);
+
+      } else if (info.stream_handle == 97) {
+        ASSERT_EQ(codec_spec_conf::kLeAudioLocationMonoAudio, info.audio_channel_allocation);
+        // The connected should be active
+        ASSERT_TRUE(info.is_stream_active);
+
+      } else {
+        ASSERT_EQ(97, info.stream_handle);
+      }
+      allocation |= info.audio_channel_allocation;
+    }
+
+    ASSERT_EQ(16, config.bits_per_sample);
+    ASSERT_EQ(16000u, config.sampling_rate);
+    ASSERT_EQ(10000u, config.frame_duration);
+    ASSERT_EQ(40u, config.octets_per_frame);
+    ASSERT_EQ(1, config.blocks_per_sdu);
+    ASSERT_EQ(44, config.peer_delay_ms);
+    ASSERT_EQ(codec_spec_conf::kLeAudioLocationMonoAudio, allocation);
+  }
+
+  // Clear the CIS configuration map (no active CISes).
+  codec_manager->ClearCisConfiguration(kLeAudioDirectionSink);
+  codec_manager->ClearCisConfiguration(kLeAudioDirectionSource);
+  out_offload_configs.sink = std::nullopt;
+  out_offload_configs.source = std::nullopt;
+  codec_manager->UpdateActiveAudioConfig(
+          stream_params, {.sink = 44, .source = 44},
+          [&out_offload_configs](const offload_config& config, uint8_t direction) {
+            out_offload_configs.get(direction) = config;
+          });
+
+  // Expect sink & source configurations with empty CIS channel allocation map.
+  ASSERT_TRUE(out_offload_configs.sink.has_value());
+  ASSERT_TRUE(out_offload_configs.source.has_value());
+  for (auto direction : {bluetooth::le_audio::types::kLeAudioDirectionSink,
+                         bluetooth::le_audio::types::kLeAudioDirectionSource}) {
+    auto& config = out_offload_configs.get(direction).value();
+    ASSERT_EQ(0lu, config.stream_map.size());
+    ASSERT_EQ(16, config.bits_per_sample);
+    ASSERT_EQ(16000u, config.sampling_rate);
+    ASSERT_EQ(10000u, config.frame_duration);
+    ASSERT_EQ(40u, config.octets_per_frame);
+    ASSERT_EQ(1, config.blocks_per_sdu);
+    ASSERT_EQ(44, config.peer_delay_ms);
+  }
+}
+
 TEST_F(CodecManagerTestAdsp, test_capabilities_none) {
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
   codec_manager->Start(offloading_preference);
 
   bool has_null_config = false;
-  auto match_first_config = [&](const CodecManager::UnicastConfigurationRequirements& requirements,
-                                const set_configurations::AudioSetConfigurations* confs)
+  auto match_first_config =
+          [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
+              const set_configurations::AudioSetConfigurations* confs)
           -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
     // Don't expect the matcher being called on nullptr
     if (confs == nullptr) {
@@ -556,7 +699,7 @@ TEST_F(CodecManagerTestAdsp, test_capabilities) {
     size_t available_configs_size = 0;
     auto match_first_config =
             [&available_configs_size](
-                    const CodecManager::UnicastConfigurationRequirements& requirements,
+                    const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
                     const set_configurations::AudioSetConfigurations* confs)
             -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
       if (confs && confs->size()) {
@@ -682,6 +825,10 @@ public:
     // Allow for bidir SWB configurations
     osi_property_set_bool(kPropLeAudioBidirSwbSupported, true);
 
+    // Codec extensibility disabled by default
+    com::android::bluetooth::flags::provider_->leaudio_multicodec_aidl_support(false);
+    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
+
     CodecManagerTestBase::SetUp();
   }
 };
@@ -695,6 +842,10 @@ public:
 
     // Do not allow for bidir SWB configurations
     osi_property_set_bool(kPropLeAudioBidirSwbSupported, false);
+
+    // Codec extensibility disabled by default
+    com::android::bluetooth::flags::provider_->leaudio_multicodec_aidl_support(false);
+    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
 
     CodecManagerTestBase::SetUp();
   }
@@ -987,7 +1138,7 @@ TEST_F(CodecManagerTestHost, test_dual_bidir_swb_supported) {
     bool got_null_cfgs_container = false;
     auto ptr = codec_manager->GetCodecConfig(
             {.audio_context_type = context},
-            [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
                 const set_configurations::AudioSetConfigurations* confs)
                     -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
               if (confs == nullptr) {
@@ -1037,7 +1188,7 @@ TEST_F(CodecManagerTestAdsp, test_dual_bidir_swb_supported) {
     bool got_null_cfgs_container = false;
     auto ptr = codec_manager->GetCodecConfig(
             {.audio_context_type = context},
-            [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
                 const set_configurations::AudioSetConfigurations* confs)
                     -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
               if (confs == nullptr) {
@@ -1069,7 +1220,7 @@ TEST_F(CodecManagerTestHostNoSwb, test_dual_bidir_swb_not_supported) {
     bool got_null_cfgs_container = false;
     auto ptr = codec_manager->GetCodecConfig(
             {.audio_context_type = context},
-            [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
                 const set_configurations::AudioSetConfigurations* confs)
                     -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
               if (confs == nullptr) {
@@ -1118,7 +1269,7 @@ TEST_F(CodecManagerTestAdspNoSwb, test_dual_bidir_swb_not_supported) {
     bool got_null_cfgs_container = false;
     auto ptr = codec_manager->GetCodecConfig(
             {.audio_context_type = context},
-            [&](const CodecManager::UnicastConfigurationRequirements& requirements,
+            [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
                 const set_configurations::AudioSetConfigurations* confs)
                     -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
               if (confs == nullptr) {
@@ -1146,11 +1297,36 @@ TEST_F(CodecManagerTestHost, test_dont_update_broadcast_offloader) {
 
   bool was_called = false;
   codec_manager->UpdateBroadcastConnHandle(
-          {0x0001, 0x0002},
-          [&](const bluetooth::le_audio::broadcast_offload_config& config) { was_called = true; });
+          {0x0001, 0x0002}, [&](const bluetooth::le_audio::broadcast_offload_config& /*config*/) {
+            was_called = true;
+          });
 
   // Expect no call for HOST encoding
   ASSERT_FALSE(was_called);
+}
+
+TEST_F(CodecManagerTestHost, test_dont_call_hal_for_config) {
+  com::android::bluetooth::flags::provider_->leaudio_multicodec_aidl_support(true);
+  osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
+
+  // Set the offloader capabilities
+  std::vector<AudioSetConfiguration> offload_capabilities;
+  set_mock_offload_capabilities(offload_capabilities);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {};
+  codec_manager->Start(offloading_preference);
+  codec_manager->UpdateActiveUnicastAudioHalClient(mock_le_audio_source_hal_client_,
+                                                   mock_le_audio_sink_hal_client_, true);
+
+  EXPECT_CALL(*mock_le_audio_source_hal_client_, GetUnicastConfig(_)).Times(0);
+  codec_manager->GetCodecConfig(
+          {.audio_context_type = types::LeAudioContextType::MEDIA},
+          [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
+              const set_configurations::AudioSetConfigurations* /*confs*/)
+                  -> std::unique_ptr<set_configurations::AudioSetConfiguration> {
+            // In this case the chosen configuration doesn't matter - select none
+            return nullptr;
+          });
 }
 
 }  // namespace bluetooth::le_audio

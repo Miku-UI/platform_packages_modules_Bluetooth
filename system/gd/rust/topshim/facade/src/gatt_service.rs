@@ -104,6 +104,9 @@ impl GattServiceImpl {
             secondary_advertising_phy: 0,
             scan_request_notification_enable: 0,
             own_address_type: 0,
+            peer_address: self.create_raw_address(),
+            peer_address_type: 0,
+            discoverable: false,
         }
     }
 

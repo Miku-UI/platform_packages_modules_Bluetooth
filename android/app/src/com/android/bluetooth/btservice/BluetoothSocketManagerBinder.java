@@ -20,6 +20,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.bluetooth.BluetoothSocketSettings;
 import android.bluetooth.IBluetoothSocketManager;
 import android.content.AttributionSource;
 import android.os.Binder;
@@ -86,7 +87,85 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
                                 Utils.uuidToByteArray(uuid),
                                 port,
                                 flag,
-                                Binder.getCallingUid()));
+                                Binder.getCallingUid(),
+                                0,
+                                "",
+                                0,
+                                0,
+                                0));
+    }
+
+    @Override
+    public ParcelFileDescriptor connectSocketwithOffload(
+            BluetoothDevice device,
+            int type,
+            ParcelUuid uuid,
+            int port,
+            int flag,
+            int dataPath,
+            String socketName,
+            long hubId,
+            long endpointId,
+            int maximumPacketSize) {
+
+        enforceActiveUser();
+
+        if (!Utils.checkConnectPermissionForPreflight(mService)) {
+            return null;
+        }
+
+        if (dataPath != BluetoothSocketSettings.DATA_PATH_NO_OFFLOAD) {
+            mService.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            if (type != BluetoothSocket.TYPE_LE || !mService.isLeCocSocketOffloadSupported()) {
+                throw new IllegalStateException("Unsupported socket type for offload " + type);
+            }
+        }
+
+        String brEdrAddress =
+                Flags.identityAddressNullIfNotKnown()
+                        ? Utils.getBrEdrAddress(device)
+                        : mService.getIdentityAddress(device.getAddress());
+
+        Log.i(
+                TAG,
+                "connectSocketwithOffload: device="
+                        + device
+                        + ", type="
+                        + type
+                        + ", uuid="
+                        + uuid
+                        + ", port="
+                        + port
+                        + ", from "
+                        + Utils.getUidPidString()
+                        + ", dataPath="
+                        + dataPath
+                        + ", socketName="
+                        + socketName
+                        + ", hubId="
+                        + hubId
+                        + ", endpointId="
+                        + endpointId
+                        + ", maximumPacketSize="
+                        + maximumPacketSize);
+
+        return marshalFd(
+                mService.getNative()
+                        .connectSocket(
+                                Utils.getBytesFromAddress(
+                                        type == BluetoothSocket.TYPE_L2CAP_LE
+                                                ? device.getAddress()
+                                                : brEdrAddress),
+                                type,
+                                Utils.uuidToByteArray(uuid),
+                                port,
+                                flag,
+                                Binder.getCallingUid(),
+                                dataPath,
+                                socketName,
+                                hubId,
+                                endpointId,
+                                maximumPacketSize));
     }
 
     @Override
@@ -120,7 +199,77 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
                                 Utils.uuidToByteArray(uuid),
                                 port,
                                 flag,
-                                Binder.getCallingUid()));
+                                Binder.getCallingUid(),
+                                0,
+                                "",
+                                0,
+                                0,
+                                0));
+    }
+
+    @Override
+    public ParcelFileDescriptor createSocketChannelWithOffload(
+            int type,
+            String serviceName,
+            ParcelUuid uuid,
+            int port,
+            int flag,
+            int dataPath,
+            String socketName,
+            long hubId,
+            long endpointId,
+            int maximumPacketSize) {
+
+        enforceActiveUser();
+
+        if (!Utils.checkConnectPermissionForPreflight(mService)) {
+            return null;
+        }
+
+        if (dataPath != BluetoothSocketSettings.DATA_PATH_NO_OFFLOAD) {
+            mService.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
+            if (type != BluetoothSocket.TYPE_LE || !mService.isLeCocSocketOffloadSupported()) {
+                throw new IllegalStateException("Unsupported socket type for offload " + type);
+            }
+        }
+
+        Log.i(
+                TAG,
+                "createSocketChannelWithOffload: type="
+                        + type
+                        + ", serviceName="
+                        + serviceName
+                        + ", uuid="
+                        + uuid
+                        + ", port="
+                        + port
+                        + ", from "
+                        + Utils.getUidPidString()
+                        + ", dataPath="
+                        + dataPath
+                        + ", socketName="
+                        + socketName
+                        + ", hubId="
+                        + hubId
+                        + ", endpointId="
+                        + endpointId
+                        + ", maximumPacketSize="
+                        + maximumPacketSize);
+
+        return marshalFd(
+                mService.getNative()
+                        .createSocketChannel(
+                                type,
+                                serviceName,
+                                Utils.uuidToByteArray(uuid),
+                                port,
+                                flag,
+                                Binder.getCallingUid(),
+                                dataPath,
+                                socketName,
+                                hubId,
+                                endpointId,
+                                maximumPacketSize));
     }
 
     @Override

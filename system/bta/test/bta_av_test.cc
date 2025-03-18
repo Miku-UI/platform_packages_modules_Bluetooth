@@ -24,6 +24,9 @@
 #include "test/mock/mock_osi_alarm.h"
 #include "test/mock/mock_stack_acl.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace std::chrono_literals;
 
 bool btif_av_both_enable(void) { return true; }
@@ -33,7 +36,7 @@ const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
 }  // namespace
 
 struct alarm_t {
-  alarm_t(const char* name) {}
+  alarm_t(const char* /*name*/) {}
   int any_value;
 };
 

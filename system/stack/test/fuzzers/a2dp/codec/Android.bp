@@ -24,7 +24,6 @@ cc_fuzz {
     srcs: [
         "fuzz_a2dp_codec.cc",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_fuzz {
@@ -34,7 +33,6 @@ cc_fuzz {
     srcs: [
         "fuzz_a2dp_codec_info.cc",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }
 
 cc_fuzz {
@@ -44,5 +42,4 @@ cc_fuzz {
     srcs: [
         "fuzz_a2dp_codec_config.cc",
     ],
-    cflags: ["-Wno-unused-parameter"],
 }

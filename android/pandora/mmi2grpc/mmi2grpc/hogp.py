@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import threading
-import textwrap
-import uuid
 import re
 import sys
+import textwrap
+import threading
+import uuid
 
 from mmi2grpc._helpers import assert_description, match_description
 from mmi2grpc._proxy import ProfileProxy
 from mmi2grpc._rootcanal import Dongle
-
 from pandora.host_grpc import Host
 from pandora.host_pb2 import RANDOM
 from pandora.security_grpc import Security

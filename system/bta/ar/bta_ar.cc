@@ -25,11 +25,19 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <memory>
 
+#include "avdt_api.h"
+#include "avrc_defs.h"
+#include "avrcp_sdp_records.h"
 #include "bta/ar/bta_ar_int.h"
+#include "bta/include/bta_ar_api.h"
 #include "bta/sys/bta_sys.h"
 #include "profile/avrcp/avrcp_sdp_service.h"
+#include "sdpdefs.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avrc_api.h"
 #include "stack/include/bt_types.h"
@@ -144,20 +152,6 @@ void bta_ar_dereg_avdt() {
     AVDT_Deregister();
   }
 }
-
-/*******************************************************************************
- *
- * Function         bta_ar_avdt_conn
- *
- * Description      This function is called to let ar know that some AVDTP
- *                  profile is connected for this sys_id.
- *                  If the other sys modules started a timer for PENDING_EVT,
- *                  the timer can be stopped now.
- *
- * Returns          void
- *
- ******************************************************************************/
-void bta_ar_avdt_conn(tBTA_SYS_ID sys_id, const RawAddress& bd_addr, uint8_t scb_index) {}
 
 /*******************************************************************************
  *

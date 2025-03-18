@@ -282,7 +282,7 @@ public:
   static void DebugDump(int fd);
 };
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<connection_update_status_t> : enum_formatter<connection_update_status_t> {};
-}  // namespace fmt
+}  // namespace std

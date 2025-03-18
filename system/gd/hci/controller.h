@@ -36,6 +36,8 @@ public:
   Controller(const Controller&) = delete;
   Controller& operator=(const Controller&) = delete;
 
+  void Dump(int fd) const override;
+
   virtual ~Controller();
 
   virtual void RegisterCompletedAclPacketsCallback(CompletedAclPacketsCallback cb) override;
@@ -215,6 +217,8 @@ public:
 
   static uint64_t MaskLeEventMask(HciVersion version, uint64_t mask);
 
+  virtual bool IsRpaGenerationSupported(void) const override;
+
 protected:
   void ListDependencies(ModuleList* list) const override;
 
@@ -223,9 +227,6 @@ protected:
   void Stop() override;
 
   std::string ToString() const override;
-
-  DumpsysDataFinisher GetDumpsysData(
-          flatbuffers::FlatBufferBuilder* builder) const override;  // Module
 
 private:
   virtual uint64_t GetLocalFeatures(uint8_t page_number) const;

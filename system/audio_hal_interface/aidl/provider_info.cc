@@ -30,7 +30,7 @@ using ::aidl::android::hardware::bluetooth::audio::CodecId;
 using ::aidl::android::hardware::bluetooth::audio::CodecInfo;
 using ::aidl::android::hardware::bluetooth::audio::SessionType;
 
-::hfp::sco_config recordHfpCodecInfo(CodecInfo codecInfo) {
+static ::hfp::sco_config recordHfpCodecInfo(CodecInfo codecInfo) {
   auto hfp_transport = codecInfo.transport.get<CodecInfo::Transport::hfp>();
   ::hfp::sco_config config{
           .inputDataPath = hfp_transport.inputDataPath,

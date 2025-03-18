@@ -23,13 +23,17 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_hfp_api.h"
+#include "bta_ag_api.h"
+#include "bta_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
 #include "osi/include/alarm.h"
@@ -487,7 +491,7 @@ void bta_ag_api_register(tBTA_SERVICE_MASK services, tBTA_AG_FEAT features,
     data.api_register.app_id = app_id;
     for (int i = 0; i < BTA_AG_NUM_IDX; i++) {
       if (!service_names[i].empty()) {
-        strlcpy(data.api_register.p_name[i], service_names[i].c_str(), BTA_SERVICE_NAME_LEN);
+        osi_strlcpy(data.api_register.p_name[i], service_names[i].c_str(), BTA_SERVICE_NAME_LEN);
       } else {
         data.api_register.p_name[i][0] = 0;
       }

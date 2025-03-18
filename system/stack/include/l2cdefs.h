@@ -487,6 +487,7 @@ inline std::string l2cap_cfg_result_text(const tL2CAP_CFG_RESULT& result) {
  */
 #define L2CAP_SDU_LENGTH_MAX (8080 + 26 - (L2CAP_MIN_OFFSET + 6))
 constexpr uint16_t L2CAP_SDU_LENGTH_LE_MAX = 0xffff;
+constexpr uint16_t L2CAP_SDU_LENGTH_LE_MIN = 23;
 
 /* SAR bits in the control word
  */
@@ -545,11 +546,11 @@ constexpr uint16_t L2CAP_SDU_LENGTH_LE_MAX = 0xffff;
 /* Mask for sequence numbers (range 0 - 63) */
 #define L2CAP_FCR_SEQ_MODULO 0x3F
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tL2CAP_CONN> : enum_formatter<tL2CAP_CONN> {};
 template <>
 struct formatter<tL2CAP_CID_FIXED> : enum_formatter<tL2CAP_CID_FIXED> {};
 template <>
 struct formatter<tL2CAP_LE_RESULT_CODE> : enum_formatter<tL2CAP_LE_RESULT_CODE> {};
-}  // namespace fmt
+}  // namespace std

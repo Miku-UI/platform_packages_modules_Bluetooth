@@ -430,6 +430,16 @@ struct bta_dm_remote_key_missing {
 };
 extern struct bta_dm_remote_key_missing bta_dm_remote_key_missing;
 
+// Name: bta_dm_on_encryption_change
+// Params: bt_encryption_change_evt encryption_change
+// Return: void
+struct bta_dm_on_encryption_change {
+  std::function<void(bt_encryption_change_evt encryption_change)> body{
+          [](bt_encryption_change_evt /* encryption_change */) {}};
+  void operator()(bt_encryption_change_evt encryption_change) { body(encryption_change); }
+};
+extern struct bta_dm_on_encryption_change bta_dm_on_encryption_change;
+
 // Name: bta_dm_rm_cback
 // Params: tBTA_SYS_CONN_STATUS status, uint8_t id, uint8_t app_id, const
 // RawAddress& peer_addr Return: void

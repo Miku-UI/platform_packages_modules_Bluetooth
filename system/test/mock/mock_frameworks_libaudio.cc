@@ -28,6 +28,8 @@
 #include <aaudio/AAudio.h>
 #include <aaudio/AAudioTesting.h>
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 aaudio_allowed_capture_policy_t AAudioStream_getAllowedCapturePolicy(AAudioStream* stream) {
   inc_func_call_count(__func__);
   return 0;

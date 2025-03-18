@@ -25,6 +25,8 @@
 
 #include "a2dp_sbc_up_sample.h"
 
+#include <cstdint>
+
 typedef int(tA2DP_SBC_ACT)(void* p_src, void* p_dst, uint32_t src_samples, uint32_t dst_samples,
                            uint32_t* p_ret);
 
@@ -234,7 +236,6 @@ int a2dp_sbc_up_sample_16m(void* p_src, void* p_dst, uint32_t src_samples, uint3
       a2dp_sbc_ups_cb.cur_pos -= src_sps;
       dst_samples--;
       dst_samples--;
-
     } while (a2dp_sbc_ups_cb.cur_pos > 0 && dst_samples);
 
     a2dp_sbc_ups_cb.cur_pos += dst_sps;
@@ -362,7 +363,6 @@ int a2dp_sbc_up_sample_8m(void* p_src, void* p_dst, uint32_t src_samples, uint32
 
       a2dp_sbc_ups_cb.cur_pos -= src_sps;
       dst_samples -= 4;
-
     } while (a2dp_sbc_ups_cb.cur_pos > 0 && dst_samples);
 
     a2dp_sbc_ups_cb.cur_pos += dst_sps;

@@ -37,28 +37,6 @@ public final class HapClientStackEventTest {
         eventStr = event.toString();
         assertThat(eventStr).contains("EVENT_TYPE_UNKNOWN");
 
-        event = new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
-        event.valueInt1 = -1;
-        eventStr = event.toString();
-        assertThat(eventStr).contains("EVENT_TYPE_CONNECTION_STATE_CHANGED");
-        assertThat(eventStr).contains("CONNECTION_STATE_UNKNOWN");
-
-        event.valueInt1 = HapClientStackEvent.CONNECTION_STATE_DISCONNECTED;
-        eventStr = event.toString();
-        assertThat(eventStr).contains("CONNECTION_STATE_DISCONNECTED");
-
-        event.valueInt1 = HapClientStackEvent.CONNECTION_STATE_CONNECTING;
-        eventStr = event.toString();
-        assertThat(eventStr).contains("CONNECTION_STATE_CONNECTING");
-
-        event.valueInt1 = HapClientStackEvent.CONNECTION_STATE_CONNECTED;
-        eventStr = event.toString();
-        assertThat(eventStr).contains("CONNECTION_STATE_CONNECTED");
-
-        event.valueInt1 = HapClientStackEvent.CONNECTION_STATE_DISCONNECTING;
-        eventStr = event.toString();
-        assertThat(eventStr).contains("CONNECTION_STATE_DISCONNECTING");
-
         event = new HapClientStackEvent(HapClientStackEvent.EVENT_TYPE_DEVICE_AVAILABLE);
         eventStr = event.toString();
         assertThat(eventStr).contains("EVENT_TYPE_DEVICE_AVAILABLE");

@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.le_scan;
 
+import static java.util.Objects.requireNonNull;
+
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.IBluetoothScan;
@@ -25,7 +27,6 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.AttributionSource;
-import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -34,6 +35,8 @@ import android.os.Message;
 import android.os.WorkSource;
 import android.text.format.DateUtils;
 import android.util.Log;
+
+import com.android.bluetooth.btservice.AdapterService;
 
 import libcore.util.HexEncoding;
 
@@ -63,9 +66,10 @@ public class ScanController {
                 "0201061AFF4C000215426C7565436861726D426561636F6E730EFE1355C509168020691E0EFE13551109426C7565436861726D5F31363936383500000000",
             };
 
-    public ScanController(Context ctx) {
-        mTransitionalScanHelper = new TransitionalScanHelper(ctx, () -> mTestModeEnabled);
-        mMainLooper = ctx.getMainLooper();
+    public ScanController(AdapterService adapterService) {
+        mTransitionalScanHelper =
+                new TransitionalScanHelper(requireNonNull(adapterService), () -> mTestModeEnabled);
+        mMainLooper = adapterService.getMainLooper();
         mBinder = new BluetoothScanBinder(this);
         mIsAvailable = true;
         HandlerThread thread = new HandlerThread("BluetoothScanManager");

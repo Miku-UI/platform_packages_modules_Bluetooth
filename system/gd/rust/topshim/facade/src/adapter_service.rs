@@ -91,11 +91,10 @@ impl AdapterServiceImpl {
     /// Create a new instance of the root facade service
     pub fn create(rt: Arc<Runtime>, btif_intf: Arc<Mutex<BluetoothInterface>>) -> grpcio::Service {
         let (event_tx, rx) = mpsc::channel(10);
-        btif_intf.lock().unwrap().initialize(
-            get_bt_dispatcher(btif_intf.clone(), event_tx.clone()),
-            vec!["INIT_gd_hci=true".to_string()],
-            0,
-        );
+        btif_intf
+            .lock()
+            .unwrap()
+            .initialize(get_bt_dispatcher(btif_intf.clone(), event_tx.clone()), 0);
         create_adapter_service(Self {
             rt,
             btif_intf,

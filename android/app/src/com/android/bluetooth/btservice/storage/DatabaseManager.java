@@ -244,7 +244,7 @@ public class DatabaseManager {
             Metadata data = mMetadataCache.get(address);
             byte[] oldValue = data.getCustomizedMeta(key);
             if (oldValue != null && Arrays.equals(oldValue, newValue)) {
-                Log.v(TAG, "setCustomMeta: metadata not changed.");
+                Log.d(TAG, "setCustomMeta: metadata not changed.");
                 return true;
             }
             logManufacturerInfo(device, key, newValue);
@@ -253,7 +253,7 @@ public class DatabaseManager {
 
             updateDatabase(data);
         }
-        mAdapterService.metadataChanged(address, key, newValue);
+        mAdapterService.onMetadataChanged(device, key, newValue);
         return true;
     }
 
@@ -349,7 +349,6 @@ public class DatabaseManager {
      *     BluetoothProfile.CONNECTION_POLICY_FORBIDDEN}, {@link
      *     BluetoothProfile.CONNECTION_POLICY_ALLOWED}
      */
-    @VisibleForTesting
     public boolean setProfileConnectionPolicy(
             BluetoothDevice device, int profile, int newConnectionPolicy) {
         if (device == null) {
@@ -1093,6 +1092,56 @@ public class DatabaseManager {
     }
 
     /**
+     * Sets the preferred microphone for calls enable status for this device. See {@link
+     * BluetoothDevice#setMicrophonePreferredForCalls()} for more details.
+     *
+     * @param device is the remote device for which we set the preferred microphone for calls enable
+     *     status
+     * @param enabled {@code true} to enable the preferred microphone for calls
+     * @return whether the preferred microphone for call enable status was set properly
+     */
+    public int setMicrophonePreferredForCalls(BluetoothDevice device, boolean enabled) {
+        synchronized (mMetadataCache) {
+            String address = device.getAddress();
+
+            if (!mMetadataCache.containsKey(address)) {
+                Log.e(TAG, "device is not bonded");
+                return BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED;
+            }
+
+            Metadata metadata = mMetadataCache.get(address);
+            Log.i(TAG, "setMicrophoneForCallEnabled(" + device + ", " + enabled + ")");
+            metadata.is_preferred_microphone_for_calls = enabled;
+
+            updateDatabase(metadata);
+        }
+        return BluetoothStatusCodes.SUCCESS;
+    }
+
+    /**
+     * Gets the preferred microphone for calls enable status for this device. See {@link
+     * BluetoothDevice#isMicrophonePreferredForCalls()} for more details.
+     *
+     * @param device is the remote device for which we get the preferred microphone for calls enable
+     *     status
+     * @return {@code true} if the preferred microphone is enabled for calls
+     */
+    public boolean isMicrophonePreferredForCalls(BluetoothDevice device) {
+        synchronized (mMetadataCache) {
+            String address = device.getAddress();
+
+            if (!mMetadataCache.containsKey(address)) {
+                Log.e(TAG, "device is not bonded");
+                return true;
+            }
+
+            Metadata metadata = mMetadataCache.get(address);
+
+            return metadata.is_preferred_microphone_for_calls;
+        }
+    }
+
+    /**
      * Get the {@link Looper} for the handler thread. This is used in testing and helper objects
      *
      * @return {@link Looper} for the handler thread
@@ -1198,13 +1247,12 @@ public class DatabaseManager {
                                 && !Arrays.asList(bondedDevices).stream()
                                         .anyMatch(device -> address.equals(device.getAddress()))) {
                             List<Integer> list = metadata.getChangedCustomizedMeta();
+                            BluetoothDevice device =
+                                    BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address);
                             for (int key : list) {
-                                mAdapterService.metadataChanged(address, key, null);
+                                mAdapterService.onMetadataChanged(device, key, null);
                             }
-                            Log.i(
-                                    TAG,
-                                    "remove unpaired device from database "
-                                            + metadata.getAnonymizedAddress());
+                            Log.i(TAG, "remove unpaired device from database " + device);
                             deleteDatabase(mMetadataCache.get(address));
                         }
                     });

@@ -26,3 +26,39 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "bt_offload_socket_api"
+    namespace: "bluetooth"
+    description: "New socket API to create offload socket"
+    bug: "367419086"
+    is_exported: true
+}
+
+flag {
+    name: "set_max_data_length_for_lecoc"
+    namespace: "bluetooth"
+    description: "set le data length to max on le coc connection to achieve better data rate"
+    bug: "373726267"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "socket_settings_api"
+    namespace: "bluetooth"
+    description: "Adds new socket settings interface which allows creation of encryption only socket"
+    bug: "374358112"
+    is_exported: true
+}
+
+flag {
+    name: "avoid_l2c_processing_while_stack_shutdown"
+    namespace: "bluetooth"
+    description: "Avoid l2cap processing while stack is shutdown"
+    bug: "379731768"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

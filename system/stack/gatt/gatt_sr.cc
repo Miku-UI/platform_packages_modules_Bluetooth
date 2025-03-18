@@ -104,7 +104,7 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint
  * Returns          true if empty, false if there is pending command.
  *
  ******************************************************************************/
-bool gatt_sr_cmd_empty(tGATT_TCB& tcb, uint16_t cid) {
+static bool gatt_sr_cmd_empty(tGATT_TCB& tcb, uint16_t cid) {
   if (cid == tcb.att_lcid) {
     return tcb.sr_cmd.op_code == 0;
   }
@@ -145,7 +145,7 @@ void gatt_dequeue_sr_cmd(tGATT_TCB& tcb, uint16_t cid) {
   /* Double check in case any buffers are queued */
   log::verbose("gatt_dequeue_sr_cmd cid: 0x{:x}", cid);
   if (p_cmd->p_rsp_msg) {
-    log::error("free tcb.sr_cmd.p_rsp_msg = {}", fmt::ptr(p_cmd->p_rsp_msg));
+    log::error("free tcb.sr_cmd.p_rsp_msg = {}", std::format_ptr(p_cmd->p_rsp_msg));
   }
   osi_free_and_reset((void**)&p_cmd->p_rsp_msg);
 
@@ -373,9 +373,9 @@ tGATT_STATUS gatt_sr_process_app_rsp(tGATT_TCB& tcb, tGATT_IF gatt_if, uint32_t 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
-  uint8_t *p = p_data, flag, i = 0;
+static void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
+  uint8_t *p = p_data, flag;
   uint32_t trans_id = 0;
   tGATT_IF gatt_if;
   tCONN_ID conn_id;
@@ -410,7 +410,7 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
     if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
       auto prep_cnt_it = tcb.prep_cnt_map.begin();
       while (prep_cnt_it != tcb.prep_cnt_map.end()) {
-        gatt_if = i;
+        gatt_if = prep_cnt_it->first;
         conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_if);
         tGATTS_DATA gatts_data;
         gatts_data.exec_write = flag;
@@ -418,7 +418,7 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
         prep_cnt_it = tcb.prep_cnt_map.erase(prep_cnt_it);
       }
     } else {
-      for (i = 0; i < GATT_MAX_APPS; i++) {
+      for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
         if (tcb.prep_cnt[i]) {
           gatt_if = (tGATT_IF)(i + 1);
           conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_if);
@@ -445,8 +445,8 @@ void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, 
  * Returns          void
  *
  ******************************************************************************/
-void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
   uint32_t trans_id;
   uint16_t handle = 0, ll = len;
   uint8_t* p = p_data;
@@ -734,8 +734,8 @@ static tGATT_STATUS gatts_validate_packet_format(uint8_t op_code, uint16_t& len,
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                       uint8_t* p_data) {
+static void gatts_process_primary_service_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code,
+                                              uint16_t len, uint8_t* p_data) {
   uint16_t s_hdl = 0, e_hdl = 0;
   Uuid uuid = Uuid::kEmpty;
 
@@ -1169,8 +1169,8 @@ static void gatts_process_read_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST_
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_attribute_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
-                                 uint8_t* p_data) {
+static void gatts_process_attribute_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
+                                        uint8_t* p_data) {
   uint16_t handle = 0;
   uint8_t* p = p_data;
   tGATT_STATUS status = GATT_INVALID_HANDLE;
@@ -1316,7 +1316,7 @@ static bool gatts_proc_ind_ack(tGATT_TCB& tcb, uint16_t ack_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
+static void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code) {
   uint16_t handle;
 
   if (!gatt_tcb_find_indicate_handle(tcb, cid, &handle)) {

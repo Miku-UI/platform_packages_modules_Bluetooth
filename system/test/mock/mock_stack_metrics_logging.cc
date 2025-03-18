@@ -35,6 +35,9 @@
 // Mocked compile conditionals, if any
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_metrics_logging {
@@ -43,11 +46,15 @@ namespace stack_metrics_logging {
 struct log_classic_pairing_event log_classic_pairing_event;
 struct log_link_layer_connection_event log_link_layer_connection_event;
 struct log_smp_pairing_event log_smp_pairing_event;
+struct log_le_pairing_fail log_le_pairing_fail;
 struct log_sdp_attribute log_sdp_attribute;
 struct log_manufacturer_info log_manufacturer_info;
 struct log_counter_metrics log_counter_metrics;
 struct log_hfp_audio_packet_loss_stats log_hfp_audio_packet_loss_stats;
 struct log_mmc_transcode_rtt_stats log_mmc_transcode_rtt_stats;
+struct log_le_connection_status log_le_connection_status;
+struct log_le_device_in_accept_list log_le_device_in_accept_list;
+struct log_le_connection_lifecycle log_le_connection_lifecycle;
 
 }  // namespace stack_metrics_logging
 }  // namespace mock
@@ -77,6 +84,12 @@ void log_smp_pairing_event(const RawAddress& address, uint16_t smp_cmd,
   test::mock::stack_metrics_logging::log_smp_pairing_event(address, smp_cmd, direction,
                                                            smp_fail_reason);
 }
+
+void log_le_pairing_fail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing) {
+  inc_func_call_count(__func__);
+  test::mock::stack_metrics_logging::log_le_pairing_fail(raw_address, failure_reason, is_outgoing);
+}
+
 void log_sdp_attribute(const RawAddress& address, uint16_t protocol_uuid, uint16_t attribute_id,
                        size_t attribute_size, const char* attribute_value) {
   inc_func_call_count(__func__);
@@ -122,5 +135,21 @@ void log_mmc_transcode_rtt_stats(int maximum_rtt, double mean_rtt, int num_reque
   inc_func_call_count(__func__);
   test::mock::stack_metrics_logging::log_mmc_transcode_rtt_stats(maximum_rtt, mean_rtt,
                                                                  num_requests, codec_type);
+}
+
+void log_le_connection_status(bluetooth::hci::Address address, bool is_connect,
+                              bluetooth::hci::ErrorCode reason) {
+  inc_func_call_count(__func__);
+  test::mock::stack_metrics_logging::log_le_connection_status(address, is_connect, reason);
+}
+
+void log_le_device_in_accept_list(bluetooth::hci::Address address, bool is_add) {
+  inc_func_call_count(__func__);
+  test::mock::stack_metrics_logging::log_le_device_in_accept_list(address, is_add);
+}
+
+void log_le_connection_lifecycle(bluetooth::hci::Address address, bool is_connect, bool is_direct) {
+  inc_func_call_count(__func__);
+  test::mock::stack_metrics_logging::log_le_connection_lifecycle(address, is_connect, is_direct);
 }
 // END mockcify generation

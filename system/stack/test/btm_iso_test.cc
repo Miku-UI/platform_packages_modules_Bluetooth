@@ -32,6 +32,9 @@
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_main_shim_hci_layer.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using bluetooth::hci::IsoManager;
 using testing::_;
 using testing::AnyNumber;
@@ -932,7 +935,7 @@ TEST_F(IsoManagerDeathTest, ConnectSameCisTwice) {
   IsoManager::GetInstance()->EstablishCis(params);
 
   ASSERT_EXIT(IsoManager::GetInstance()->IsoManager::GetInstance()->EstablishCis(params),
-              ::testing::KilledBySignal(SIGABRT), "already connected or connecting");
+              ::testing::KilledBySignal(SIGABRT), "already connected/connecting/cancelled");
 }
 
 TEST_F(IsoManagerDeathTest, EstablishCisInvalidResponsePacket) {
@@ -1131,6 +1134,172 @@ TEST_F(IsoManagerTest, EstablishCisLateArrivingCallback) {
   uint8_t* p = buf.data();
   UINT8_TO_STREAM(p, 0x01);  // status
   std::move(iso_cb).Run(buf.data(), buf.size());
+}
+
+TEST_F(IsoManagerTest, CancelPendingCreateCis_EstablishedThenDisconnected) {
+  /**
+   * Verify the HCI Disconnect command will cancel pending CIS creation.
+   * As the Core is not strict about event order, in this scenario HCI CIS Established event comes
+   * before HCI Disconnection Complete event.
+   *
+   * Scenario:
+   * 1. Issue the HCI LE Create CIS command.
+   * 2. Issue HCI Disconnect command with CIS connection handle parameter before the HCI CIS
+   *    Established event is received.
+   * 3. Verify the kIsoEventCisEstablishCmpl event is generated once HCI CIS Established event is
+   *    received with Operation Cancelled By Local Host error.
+   * 4. Verify the kIsoEventCisDisconnected event is generated once HCI Disconnection Complete event
+   *    is received.
+   */
+
+  IsoManager::GetInstance()->CreateCig(volatile_test_cig_create_cmpl_evt_.cig_id,
+                                       kDefaultCigParams);
+  ON_CALL(hcic_interface_, CreateCis)
+          .WillByDefault([](uint8_t, const EXT_CIS_CREATE_CFG*,
+                            base::OnceCallback<void(uint8_t*, uint16_t)> /* cb */) {
+            /* We override default mock. Nothing to do here */
+          });
+
+  ON_CALL(hcic_interface_, Disconnect).WillByDefault([](uint16_t, uint8_t) {
+    /* We override default mock. Nothing to do here */
+  });
+
+  EXPECT_CALL(*cig_callbacks_,
+              OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisEstablishCmpl, _))
+          .Times(kDefaultCigParams.cis_cfgs.size())
+          .WillRepeatedly([this](uint8_t /* type */, void* data) {
+            auto* event = static_cast<bluetooth::hci::iso_manager::cis_establish_cmpl_evt*>(data);
+            ASSERT_EQ(event->status, HCI_ERR_CANCELLED_BY_LOCAL_HOST);
+            ASSERT_EQ(event->cig_id, volatile_test_cig_create_cmpl_evt_.cig_id);
+            ASSERT_TRUE(std::find(volatile_test_cig_create_cmpl_evt_.conn_handles.begin(),
+                                  volatile_test_cig_create_cmpl_evt_.conn_handles.end(),
+                                  event->cis_conn_hdl) !=
+                        volatile_test_cig_create_cmpl_evt_.conn_handles.end());
+          });
+
+  EXPECT_CALL(*cig_callbacks_, OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisDisconnected, _))
+          .Times(kDefaultCigParams.cis_cfgs.size())
+          .WillRepeatedly([this](uint8_t /* type */, void* data) {
+            auto* event = static_cast<bluetooth::hci::iso_manager::cis_disconnected_evt*>(data);
+            ASSERT_EQ(event->reason, HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+            ASSERT_EQ(event->cig_id, volatile_test_cig_create_cmpl_evt_.cig_id);
+            ASSERT_TRUE(std::find(volatile_test_cig_create_cmpl_evt_.conn_handles.begin(),
+                                  volatile_test_cig_create_cmpl_evt_.conn_handles.end(),
+                                  event->cis_conn_hdl) !=
+                        volatile_test_cig_create_cmpl_evt_.conn_handles.end());
+          });
+
+  EXPECT_CALL(hcic_interface_, CreateCis).Times(1);
+
+  // Establish all CISes before setting up their data paths
+  bluetooth::hci::iso_manager::cis_establish_params params;
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    params.conn_pairs.push_back({handle, 1});
+  }
+  IsoManager::GetInstance()->EstablishCis(params);
+
+  EXPECT_CALL(hcic_interface_, Disconnect).Times(kDefaultCigParams.cis_cfgs.size());
+
+  /* Cancel pending HCI LE Create CIS command */
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    IsoManager::GetInstance()->DisconnectCis(handle, HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+  }
+
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    std::vector<uint8_t> buf(28, 0);
+    uint8_t* p = buf.data();
+    UINT8_TO_STREAM(p, HCI_ERR_CANCELLED_BY_LOCAL_HOST);
+    UINT16_TO_STREAM(p, handle);
+
+    /* inject HCI LE CIS Established event */
+    IsoManager::GetInstance()->HandleHciEvent(HCI_BLE_CIS_EST_EVT, buf.data(), buf.size());
+
+    /* followed by HCI Disconnection Complete event */
+    IsoManager::GetInstance()->HandleDisconnect(handle, HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+  }
+}
+
+TEST_F(IsoManagerTest, CancelPendingCreateCis_DisconnectedThenEstablished) {
+  /**
+   * Verify the HCI Disconnect command will cancel pending CIS creation.
+   * As the Core is not strict about event order, in this scenario HCI Disconnection Complete event
+   * comes before HCI CIS Established event.
+   *
+   * Scenario:
+   * 1. Issue the HCI LE Create CIS command.
+   * 2. Issue HCI Disconnect command with CIS connection handle parameter before the HCI CIS
+   *    Established event is received.
+   * 3. Verify the kIsoEventCisEstablishCmpl event is generated once HCI CIS Established event is
+   *    received with Operation Cancelled By Local Host error.
+   * 4. Verify the kIsoEventCisDisconnected event is generated once HCI Disconnection Complete event
+   *    is received.
+   */
+
+  IsoManager::GetInstance()->CreateCig(volatile_test_cig_create_cmpl_evt_.cig_id,
+                                       kDefaultCigParams);
+  ON_CALL(hcic_interface_, CreateCis)
+          .WillByDefault([](uint8_t, const EXT_CIS_CREATE_CFG*,
+                            base::OnceCallback<void(uint8_t*, uint16_t)> /* cb */) {
+            /* We override default mock. Nothing to do here */
+          });
+
+  ON_CALL(hcic_interface_, Disconnect).WillByDefault([](uint16_t, uint8_t) {
+    /* We override default mock. Nothing to do here */
+  });
+
+  EXPECT_CALL(*cig_callbacks_,
+              OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisEstablishCmpl, _))
+          .Times(kDefaultCigParams.cis_cfgs.size())
+          .WillRepeatedly([this](uint8_t /* type */, void* data) {
+            auto* event = static_cast<bluetooth::hci::iso_manager::cis_establish_cmpl_evt*>(data);
+            ASSERT_EQ(event->status, HCI_ERR_CANCELLED_BY_LOCAL_HOST);
+            ASSERT_EQ(event->cig_id, volatile_test_cig_create_cmpl_evt_.cig_id);
+            ASSERT_TRUE(std::find(volatile_test_cig_create_cmpl_evt_.conn_handles.begin(),
+                                  volatile_test_cig_create_cmpl_evt_.conn_handles.end(),
+                                  event->cis_conn_hdl) !=
+                        volatile_test_cig_create_cmpl_evt_.conn_handles.end());
+          });
+
+  EXPECT_CALL(*cig_callbacks_, OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisDisconnected, _))
+          .Times(kDefaultCigParams.cis_cfgs.size())
+          .WillRepeatedly([this](uint8_t /* type */, void* data) {
+            auto* event = static_cast<bluetooth::hci::iso_manager::cis_disconnected_evt*>(data);
+            ASSERT_EQ(event->reason, HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+            ASSERT_EQ(event->cig_id, volatile_test_cig_create_cmpl_evt_.cig_id);
+            ASSERT_TRUE(std::find(volatile_test_cig_create_cmpl_evt_.conn_handles.begin(),
+                                  volatile_test_cig_create_cmpl_evt_.conn_handles.end(),
+                                  event->cis_conn_hdl) !=
+                        volatile_test_cig_create_cmpl_evt_.conn_handles.end());
+          });
+
+  EXPECT_CALL(hcic_interface_, CreateCis).Times(1);
+
+  // Establish all CISes before setting up their data paths
+  bluetooth::hci::iso_manager::cis_establish_params params;
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    params.conn_pairs.push_back({handle, 1});
+  }
+  IsoManager::GetInstance()->EstablishCis(params);
+
+  EXPECT_CALL(hcic_interface_, Disconnect).Times(kDefaultCigParams.cis_cfgs.size());
+
+  /* Cancel pending HCI LE Create CIS command */
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    IsoManager::GetInstance()->DisconnectCis(handle, HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+  }
+
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    /* inject HCI Disconnection Complete event */
+    IsoManager::GetInstance()->HandleDisconnect(handle, HCI_ERR_CONN_CAUSE_LOCAL_HOST);
+
+    std::vector<uint8_t> buf(28, 0);
+    uint8_t* p = buf.data();
+    UINT8_TO_STREAM(p, HCI_ERR_CANCELLED_BY_LOCAL_HOST);
+    UINT16_TO_STREAM(p, handle);
+
+    /* followed by inject HCI LE CIS Established event */
+    IsoManager::GetInstance()->HandleHciEvent(HCI_BLE_CIS_EST_EVT, buf.data(), buf.size());
+  }
 }
 
 TEST_F(IsoManagerTest, ReconnectCisValid) {
@@ -1913,6 +2082,84 @@ TEST_F(IsoManagerTest, SendIsoDataCigValid) {
       std::vector<uint8_t> data_vec(data_len, 0);
       IsoManager::GetInstance()->SendIsoData(handle, data_vec.data(), data_vec.size());
     }
+  }
+}
+
+TEST_F(IsoManagerTest, SendReceiveIsoDataSequenceNumberCheck) {
+  IsoManager::GetInstance()->CreateCig(volatile_test_cig_create_cmpl_evt_.cig_id,
+                                       kDefaultCigParams);
+
+  bluetooth::hci::iso_manager::cis_establish_params params;
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    params.conn_pairs.push_back({handle, 1});
+  }
+  IsoManager::GetInstance()->EstablishCis(params);
+
+  for (auto& handle : volatile_test_cig_create_cmpl_evt_.conn_handles) {
+    bluetooth::hci::iso_manager::iso_data_path_params path_params = kDefaultIsoDataPathParams;
+    path_params.data_path_dir = bluetooth::hci::iso_manager::kIsoDataPathDirectionOut;
+    IsoManager::GetInstance()->SetupIsoDataPath(handle, path_params);
+
+    constexpr uint8_t data_len = 108;
+    uint16_t seq_num = 0xFFFF;
+
+    EXPECT_CALL(iso_interface_, HciSend)
+            .WillRepeatedly([handle, data_len, &seq_num](BT_HDR* p_msg) {
+              uint8_t* p = p_msg->data;
+              uint16_t msg_handle;
+              uint16_t iso_load_len;
+
+              ASSERT_NE(p_msg, nullptr);
+              ASSERT_EQ(p_msg->len,
+                        data_len + ((p_msg->layer_specific & BT_ISO_HDR_CONTAINS_TS) ? 12 : 8));
+
+              // Verify packet internals
+              STREAM_TO_UINT16(msg_handle, p);
+              ASSERT_EQ(msg_handle, handle);
+
+              STREAM_TO_UINT16(iso_load_len, p);
+              ASSERT_EQ(iso_load_len,
+                        data_len + ((p_msg->layer_specific & BT_ISO_HDR_CONTAINS_TS) ? 8 : 4));
+
+              if (p_msg->layer_specific & BT_ISO_HDR_CONTAINS_TS) {
+                STREAM_SKIP_UINT16(p);  // skip ts LSB halfword
+                STREAM_SKIP_UINT16(p);  // skip ts MSB halfword
+              }
+              // store the seq_nb
+              STREAM_TO_UINT16(seq_num, p);
+
+              uint16_t msg_data_len;
+              STREAM_TO_UINT16(msg_data_len, p);
+              ASSERT_EQ(msg_data_len, data_len);
+            })
+            .RetiresOnSaturation();
+
+    // Send Iso data and verify the sequence number
+    std::vector<uint8_t> data_vec(data_len, 0);
+    IsoManager::GetInstance()->SendIsoData(handle, data_vec.data(), data_vec.size());
+    IsoManager::GetInstance()->SendIsoData(handle, data_vec.data(), data_vec.size());
+    ASSERT_NE(0xFFFF, seq_num);
+
+    // Check the receiving iso packet
+    // EXPECT_CALL(*cig_callbacks_, OnCisEvent).Times(1);
+    EXPECT_CALL(*cig_callbacks_,
+                OnCisEvent(bluetooth::hci::iso_manager::kIsoEventCisDataAvailable, _))
+            .WillOnce([](uint8_t /*evt_code*/, void* event) {
+              bluetooth::hci::iso_manager::cis_data_evt* cis_data_evt =
+                      static_cast<bluetooth::hci::iso_manager::cis_data_evt*>(event);
+              // Make sure no event lost is reported due to seq_nb being shared between two
+              // directions
+              ASSERT_EQ(cis_data_evt->evt_lost, 0);
+            });
+
+    std::vector<uint8_t> dummy_msg(18);
+    uint8_t* p = dummy_msg.data();
+    UINT16_TO_STREAM(p, BT_EVT_TO_BTU_HCI_ISO);
+    UINT16_TO_STREAM(p, 10);  // .len
+    UINT16_TO_STREAM(p, 0);   // .offset
+    UINT16_TO_STREAM(p, 0);   // .layer_specific
+    UINT16_TO_STREAM(p, handle);
+    IsoManager::GetInstance()->HandleIsoData(dummy_msg.data());
   }
 }
 

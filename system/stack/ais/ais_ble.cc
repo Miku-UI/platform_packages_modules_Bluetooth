@@ -101,7 +101,7 @@ void ais_request_cback(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type
  * Returns          void.
  *
  ******************************************************************************/
-void ais_attr_db_init(void) {
+static void ais_attr_db_init(void) {
   if (!com::android::bluetooth::flags::android_os_identifier()) {
     return;
   }

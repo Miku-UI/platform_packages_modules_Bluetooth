@@ -107,6 +107,10 @@ public class BluetoothOppServiceTest {
         BluetoothOppService service = mService;
         if (service != null) {
             service.mUpdateThread = null;
+            Thread updateNotificationThread = service.mNotifier.mUpdateNotificationThread;
+            if (updateNotificationThread != null) {
+                updateNotificationThread.join();
+            }
         }
 
         BluetoothMethodProxy.setInstanceForTesting(null);

@@ -36,6 +36,7 @@ private:
     virtual void StartSession() = 0;
     virtual void StopSession() = 0;
     virtual void UpdateAudioConfigToHal(const ::hfp::offload_config& config) = 0;
+    virtual void UpdateAudioConfigToHal(const ::hfp::pcm_config& config) = 0;
     virtual void ConfirmStreamingRequest() = 0;
     virtual void CancelStreamingRequest() = 0;
   };
@@ -50,6 +51,7 @@ public:
     void StartSession() override;
     void StopSession() override;
     void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
+    void UpdateAudioConfigToHal(const ::hfp::pcm_config& config) override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
     size_t Write(const uint8_t* p_buf, uint32_t len);
@@ -63,6 +65,7 @@ public:
     void StartSession() override;
     void StopSession() override;
     void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
+    void UpdateAudioConfigToHal(const ::hfp::pcm_config& config) override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
     size_t Read(uint8_t* p_buf, uint32_t len);
@@ -76,6 +79,7 @@ public:
     void StartSession() override;
     void StopSession() override;
     void UpdateAudioConfigToHal(const ::hfp::offload_config& config) override;
+    void UpdateAudioConfigToHal(const ::hfp::pcm_config& config) override;
     void ConfirmStreamingRequest() override;
     void CancelStreamingRequest() override;
     std::unordered_map<tBTA_AG_UUID_CODEC, ::hfp::sco_config> GetHfpScoConfig();

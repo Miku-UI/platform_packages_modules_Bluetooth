@@ -31,6 +31,9 @@
 #include "hardware/bluetooth.h"
 #include "osi/include/wakelock.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::AtLeast;
@@ -163,22 +166,24 @@ LeAudioClientInterface::Source* LeAudioClientInterface::GetSource(
   return interface_mock->GetSource(stream_cb, message_loop);
 }
 
-bool LeAudioClientInterface::ReleaseSink(LeAudioClientInterface::Sink* sink) { return true; }
-bool LeAudioClientInterface::ReleaseSource(LeAudioClientInterface::Source* source) { return true; }
+bool LeAudioClientInterface::ReleaseSink(LeAudioClientInterface::Sink* /*sink*/) { return true; }
+bool LeAudioClientInterface::ReleaseSource(LeAudioClientInterface::Source* /*source*/) {
+  return true;
+}
 
-void LeAudioClientInterface::SetAllowedDsaModes(DsaModes dsa_modes) { return; }
+void LeAudioClientInterface::SetAllowedDsaModes(DsaModes /*dsa_modes*/) { return; }
 
 void LeAudioClientInterface::Sink::Cleanup() {}
-void LeAudioClientInterface::Sink::SetPcmParameters(const PcmParameters& params) {}
-void LeAudioClientInterface::Sink::SetRemoteDelay(uint16_t delay_report_ms) {}
+void LeAudioClientInterface::Sink::SetPcmParameters(const PcmParameters& /*params*/) {}
+void LeAudioClientInterface::Sink::SetRemoteDelay(uint16_t /*delay_report_ms*/) {}
 void LeAudioClientInterface::Sink::StartSession() {}
 void LeAudioClientInterface::Sink::StopSession() {}
 void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {}
 void LeAudioClientInterface::Sink::CancelStreamingRequest() {}
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
-        const ::bluetooth::le_audio::offload_config& config) {}
+        const ::bluetooth::le_audio::offload_config& /*config*/) {}
 void LeAudioClientInterface::Sink::UpdateBroadcastAudioConfigToHal(
-        const ::bluetooth::le_audio::broadcast_offload_config& config) {}
+        const ::bluetooth::le_audio::broadcast_offload_config& /*config*/) {}
 std::optional<::le_audio::broadcaster::BroadcastConfiguration>
 LeAudioClientInterface::Sink::GetBroadcastConfig(
         const std::vector<std::pair<::le_audio::types::LeAudioContextType, uint8_t>>& quality,
@@ -195,14 +200,14 @@ void LeAudioClientInterface::Sink::SuspendedForReconfiguration() {}
 void LeAudioClientInterface::Sink::ReconfigurationComplete() {}
 
 void LeAudioClientInterface::Source::Cleanup() {}
-void LeAudioClientInterface::Source::SetPcmParameters(const PcmParameters& params) {}
-void LeAudioClientInterface::Source::SetRemoteDelay(uint16_t delay_report_ms) {}
+void LeAudioClientInterface::Source::SetPcmParameters(const PcmParameters& /*params*/) {}
+void LeAudioClientInterface::Source::SetRemoteDelay(uint16_t /*delay_report_ms*/) {}
 void LeAudioClientInterface::Source::StartSession() {}
 void LeAudioClientInterface::Source::StopSession() {}
 void LeAudioClientInterface::Source::ConfirmStreamingRequest() {}
 void LeAudioClientInterface::Source::CancelStreamingRequest() {}
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
-        const ::bluetooth::le_audio::offload_config& config) {}
+        const ::bluetooth::le_audio::offload_config& /*config*/) {}
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {}
 void LeAudioClientInterface::Source::ReconfigurationComplete() {}
 

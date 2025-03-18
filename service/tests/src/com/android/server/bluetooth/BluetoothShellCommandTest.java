@@ -29,6 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.os.Binder;
 import android.os.RemoteException;
@@ -53,6 +54,7 @@ import java.io.PrintWriter;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
+@SuppressLint("AndroidFrameworkRequiresPermission")
 public class BluetoothShellCommandTest {
     @Rule public final Expect expect = Expect.create();
 

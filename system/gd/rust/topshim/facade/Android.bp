@@ -21,7 +21,6 @@ rust_defaults {
     rustlibs: [
         "libbluetooth_core_rs_for_facade",
         "libbt_common",
-        "libbt_shim",
         "libbt_topshim",
         "libbt_topshim_facade_protobuf",
         "libclap",
@@ -33,13 +32,12 @@ rust_defaults {
         "libtokio",
     ],
     static_libs: [
+        "aics",
         "avrcp-target-service",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
-        "libbluetooth-dumpsys",
-        "libbluetooth-gdx",
         "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd", // Gabeldorsche
@@ -56,7 +54,6 @@ rust_defaults {
         "libbt-sbc-encoder",
         "libbt-stack",
         "libbt-stack-core",
-        "libbt_shim_bridge",
         "libbt_topshim_cxx",
         "libbtcore",
         "libbtdevice",
@@ -75,6 +72,7 @@ rust_defaults {
     ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
+        "libbinder",
         "libcrypto",
         "libcutils",
         "libgrpc++",

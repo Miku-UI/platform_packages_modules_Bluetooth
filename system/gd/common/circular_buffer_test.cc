@@ -22,13 +22,11 @@
 #include <limits>
 #include <string>
 
-#include "os/log.h"
-
 namespace testing {
 
-long long timestamp_{0};
+uint64_t timestamp_{0};
 struct TestTimestamper : public bluetooth::common::Timestamper {
-  virtual long long GetTimestamp() const override { return timestamp_++; }
+  virtual uint64_t GetTimestamp() const override { return timestamp_++; }
 };
 
 TEST(CircularBufferTest, simple) {
@@ -77,7 +75,7 @@ TEST(CircularBufferTest, test_timestamps) {
   buffer.Push(std::string("Three"));
 
   auto vec = buffer.Pull();
-  long long timestamp = 0;
+  uint64_t timestamp = 0;
   for (auto v : vec) {
     ASSERT_EQ(timestamp, v.timestamp);
     timestamp++;

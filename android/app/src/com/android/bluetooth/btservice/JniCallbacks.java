@@ -21,9 +21,10 @@ import android.bluetooth.UidTraffic;
 
 class JniCallbacks {
 
+    private final AdapterProperties mAdapterProperties;
+    private final AdapterService mAdapterService;
+
     private RemoteDevices mRemoteDevices;
-    private AdapterProperties mAdapterProperties;
-    private AdapterService mAdapterService;
     private BondStateMachine mBondStateMachine;
 
     JniCallbacks(AdapterService adapterService, AdapterProperties adapterProperties) {
@@ -38,8 +39,6 @@ class JniCallbacks {
 
     void cleanup() {
         mRemoteDevices = null;
-        mAdapterProperties = null;
-        mAdapterService = null;
         mBondStateMachine = null;
     }
 
@@ -72,8 +71,10 @@ class JniCallbacks {
         mRemoteDevices.addressConsolidateCallback(mainAddress, secondaryAddress);
     }
 
-    void leAddressAssociateCallback(byte[] mainAddress, byte[] secondaryAddress) {
-        mRemoteDevices.leAddressAssociateCallback(mainAddress, secondaryAddress);
+    void leAddressAssociateCallback(
+            byte[] mainAddress, byte[] secondaryAddress, int identityAddressTypeFromNative) {
+        mRemoteDevices.leAddressAssociateCallback(
+                mainAddress, secondaryAddress, identityAddressTypeFromNative);
     }
 
     void aclStateChangeCallback(
@@ -89,6 +90,17 @@ class JniCallbacks {
 
     void keyMissingCallback(byte[] address) {
         mRemoteDevices.keyMissingCallback(address);
+    }
+
+    void encryptionChangeCallback(
+            byte[] address,
+            int status,
+            boolean encryptionEnable,
+            int transport,
+            boolean secureConnection,
+            int keySize) {
+        mRemoteDevices.encryptionChangeCallback(
+                address, status, encryptionEnable, transport, secureConnection, keySize);
     }
 
     void stateChangeCallback(int status) {

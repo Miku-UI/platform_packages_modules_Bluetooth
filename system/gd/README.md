@@ -7,7 +7,6 @@ Please see this [informative video we've prepared](https://www.youtube.com/watch
 Guidelines for developing the Gabeldorsche (GD) stack
 
 *   [Architecture](./docs/architecture/architecture.md)
-*   [Style Guide](./docs/architecture/style_guide.md)
 
 ### Testing
 

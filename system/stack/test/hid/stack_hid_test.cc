@@ -23,6 +23,9 @@
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_stack_l2cap_interface.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
 tHCI_REASON btm_get_acl_disc_reason_code(void) { return HCI_SUCCESS; }
 

@@ -21,6 +21,7 @@ import android.bluetooth.BluetoothAssignedNumbers
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothDevice.ADDRESS_TYPE_PUBLIC
 import android.bluetooth.BluetoothDevice.BOND_BONDED
+import android.bluetooth.BluetoothDevice.BOND_NONE
 import android.bluetooth.BluetoothDevice.TRANSPORT_BREDR
 import android.bluetooth.BluetoothDevice.TRANSPORT_LE
 import android.bluetooth.BluetoothManager
@@ -166,6 +167,15 @@ class Host(
             // remove bond for each device to avoid auto connection if remote resets faster
             for (device in bluetoothAdapter.bondedDevices) {
                 device.removeBond()
+                Log.i(TAG, "wait for remove bond to complete : device=$device")
+                flow
+                    .filter { it.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED }
+                    .filter { it.getBluetoothDeviceExtra() == device }
+                    .map {
+                        it.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothAdapter.ERROR)
+                    }
+                    .filter { it == BOND_NONE }
+                    .first()
             }
 
             val stateFlow =

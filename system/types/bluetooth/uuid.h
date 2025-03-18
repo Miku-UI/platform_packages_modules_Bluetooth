@@ -150,9 +150,9 @@ struct hash<bluetooth::Uuid> {
 
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::Uuid> : ostream_formatter {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

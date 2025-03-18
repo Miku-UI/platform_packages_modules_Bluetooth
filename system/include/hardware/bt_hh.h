@@ -18,13 +18,13 @@
 #define ANDROID_INCLUDE_BT_HH_H
 
 #include <base/strings/stringprintf.h>
-#include <ble_address_with_type.h>
-#include <raw_address.h>
 #include <stdint.h>
 
 #include <string>
 
 #include "macros.h"
+#include "types/ble_address_with_type.h"
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -161,7 +161,6 @@ typedef struct {
   bthh_get_report_callback get_report_cb;
   bthh_virtual_unplug_callback virtual_unplug_cb;
   bthh_handshake_callback handshake_cb;
-
 } bthh_callbacks_t;
 
 /** Represents the standard BT-HH interface. */
@@ -227,21 +226,20 @@ typedef struct {
 
   /** Configure which profiles can be enabled. Affected after re-init */
   void (*configure_enabled_profiles)(bool enable_hidp, bool enable_hogp);
-
 } bthh_interface_t;
 __END_DECLS
 
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bthh_connection_state_t> : enum_formatter<bthh_connection_state_t> {};
 template <>
 struct formatter<bthh_protocol_mode_t> : enum_formatter<bthh_protocol_mode_t> {};
 template <>
 struct formatter<bthh_report_type_t> : enum_formatter<bthh_report_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)
 

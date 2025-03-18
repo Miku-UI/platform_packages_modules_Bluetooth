@@ -33,6 +33,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 void DumpsysL2cap(int /* fd */) { inc_func_call_count(__func__); }
@@ -85,20 +88,21 @@ void bluetooth::shim::Acl::OnClassicLinkDisconnected(HciHandle /* handle */,
   inc_func_call_count(__func__);
 }
 
-bluetooth::hci::AddressWithType shim::Acl::GetConnectionLocalAddress(uint16_t /* handle */,
-                                                                     bool /* ota_address */) {
+void shim::Acl::GetConnectionLocalAddress(
+        uint16_t /* handle */, bool /* ota_address */,
+        std::promise<bluetooth::hci::AddressWithType> /* promise */) {
   inc_func_call_count(__func__);
-  return hci::AddressWithType();
-}
-bluetooth::hci::AddressWithType shim::Acl::GetConnectionPeerAddress(uint16_t /* handle */,
-                                                                    bool /* ota_address */) {
-  inc_func_call_count(__func__);
-  return hci::AddressWithType();
 }
 
-std::optional<uint8_t> shim::Acl::GetAdvertisingSetConnectedTo(const RawAddress& /* remote_bda */) {
+void shim::Acl::GetConnectionPeerAddress(
+        uint16_t /* handle */, bool /* ota_address */,
+        std::promise<bluetooth::hci::AddressWithType> /* promise */) {
   inc_func_call_count(__func__);
-  return std::nullopt;
+}
+
+void shim::Acl::GetAdvertisingSetConnectedTo(
+        const RawAddress& /* remote_bda */, std::promise<std::optional<uint8_t>> /* promise */) {
+  inc_func_call_count(__func__);
 }
 
 void shim::Acl::OnLeLinkDisconnected(HciHandle /* handle */, hci::ErrorCode /* reason */) {

@@ -28,7 +28,6 @@
 
 #include "bta/gatt/bta_gattc_int.h"
 #include "gatt/database.h"
-#include "os/log.h"
 #include "stack/include/gattdefs.h"
 #include "types/bluetooth/uuid.h"
 
@@ -415,8 +414,8 @@ static void bta_gattc_hash_remove_least_recently_used_if_possible() {
 
     struct stat buf;
     int result = lstat(tmp, &buf);
-    log::debug("name={}, result={}, linknum={}, mtime={}", dp->d_name, result,
-               (unsigned long)buf.st_nlink, (unsigned long)buf.st_mtime);
+    log::debug("name={}, result={}, linknum={}, mtime={}", dp->d_name, result, buf.st_nlink,
+               buf.st_mtime);
 
     // if hard link count of the file is 1, it means no trusted device links to
     // the inode. It is safe to be a candidate to be removed
@@ -435,7 +434,7 @@ static void bta_gattc_hash_remove_least_recently_used_if_possible() {
   }
   log::debug("<-----------End Local Hash Cache------------>");
 
-  // if the number of hash files exceeds the limit, remove the cadidate item.
+  // if the number of hash files exceeds the limit, remove the candidate item.
   if (count > GATT_HASH_MAX_SIZE && !candidate_item.empty()) {
     unlink(candidate_item.c_str());
     log::debug("delete hash file (size), name={}", candidate_item);

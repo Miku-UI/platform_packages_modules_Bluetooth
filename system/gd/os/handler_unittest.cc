@@ -22,7 +22,6 @@
 #include "common/bind.h"
 #include "common/callback.h"
 #include "gtest/gtest.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace os {

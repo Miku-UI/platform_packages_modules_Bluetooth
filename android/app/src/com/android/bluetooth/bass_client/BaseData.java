@@ -141,26 +141,36 @@ class BaseData {
         levelOne.print();
         log("levelOne subgroups" + levelOne.numSubGroups);
         for (int i = 0; i < (int) levelOne.numSubGroups; i++) {
-            Pair<BaseInformation, Integer> pair1 = parseLevelTwo(serviceData, i, offset);
-            BaseInformation node2 = pair1.first;
-            if (node2 == null) {
+            if (offset >= serviceData.length) {
                 Log.e(TAG, "Error: parsing Level 2");
                 return null;
             }
+
+            Pair<BaseInformation, Integer> pair1 = parseLevelTwo(serviceData, i, offset);
+            if (pair1 == null) {
+                Log.e(TAG, "Error: parsing Level 2");
+                return null;
+            }
+            BaseInformation node2 = pair1.first;
             numOfBISIndices += node2.numSubGroups;
             levelTwo.add(node2);
             node2.print();
             offset = pair1.second;
             for (int k = 0; k < node2.numSubGroups; k++) {
-                Pair<BaseInformation, Integer> pair2 = parseLevelThree(serviceData, offset);
-                BaseInformation node3 = pair2.first;
-                offset = pair2.second;
-                if (node3 == null) {
+                if (offset >= serviceData.length) {
                     Log.e(TAG, "Error: parsing Level 3");
                     return null;
                 }
+
+                Pair<BaseInformation, Integer> pair2 = parseLevelThree(serviceData, offset);
+                if (pair2 == null) {
+                    Log.e(TAG, "Error: parsing Level 3");
+                    return null;
+                }
+                BaseInformation node3 = pair2.first;
                 levelThree.add(node3);
                 node3.print();
+                offset = pair2.second;
             }
         }
         consolidateBaseofLevelTwo(levelTwo, levelThree);
@@ -173,17 +183,52 @@ class BaseData {
         BaseInformation node = new BaseInformation();
         node.level = METADATA_LEVEL2;
         node.subGroupId = groupIndex;
+        int bufferLengthLeft = (serviceData.length - offset);
+
+        // Min. length expected is: codecID (5) + numBis (1) + codecSpecCfgLen (1) + metadataLen (1)
+        final int minNodeBufferLen = METADATA_CODEC_LENGTH + 3;
+        if (bufferLengthLeft < minNodeBufferLen) {
+            Log.e(TAG, "Error: Invalid Lvl2 buffer length.");
+            return null;
+        }
+
         node.numSubGroups = serviceData[offset++]; // NumBis
         System.arraycopy(serviceData, offset, node.codecId, 0, METADATA_CODEC_LENGTH);
         offset += METADATA_CODEC_LENGTH;
-        node.codecConfigLength = serviceData[offset++] & 0xff;
-        if (node.codecConfigLength != 0) {
+
+        // Declared codec specific data length
+        int declaredLength = serviceData[offset++] & 0xff;
+
+        bufferLengthLeft = (serviceData.length - offset);
+        if (declaredLength < 0 || declaredLength > bufferLengthLeft) {
+            Log.e(TAG, "Error: Invalid codec config length or codec config truncated.");
+            return null;
+        }
+
+        if (declaredLength != 0) {
+            node.codecConfigLength = declaredLength;
             node.codecConfigInfo = new byte[node.codecConfigLength];
             System.arraycopy(serviceData, offset, node.codecConfigInfo, 0, node.codecConfigLength);
             offset += node.codecConfigLength;
         }
-        node.metaDataLength = serviceData[offset++] & 0xff;
-        if (node.metaDataLength != 0) {
+
+        // Verify the buffer size left
+        bufferLengthLeft = (serviceData.length - offset);
+        if (bufferLengthLeft < 1) {
+            Log.e(TAG, "Error: Invalid Lvl2 buffer length.");
+            return null;
+        }
+
+        // Declared metadata length
+        declaredLength = serviceData[offset++] & 0xff;
+        --bufferLengthLeft;
+        if (declaredLength < 0 || declaredLength > bufferLengthLeft) {
+            Log.e(TAG, "Error: Invalid metadata length or metadata truncated.");
+            return null;
+        }
+
+        if (declaredLength != 0) {
+            node.metaDataLength = declaredLength;
             node.metaData = new byte[node.metaDataLength];
             System.arraycopy(serviceData, offset, node.metaData, 0, node.metaDataLength);
             offset += node.metaDataLength;
@@ -195,9 +240,27 @@ class BaseData {
         log("Parsing Level 3");
         BaseInformation node = new BaseInformation();
         node.level = METADATA_LEVEL3;
+        int bufferLengthLeft = (serviceData.length - offset);
+
+        // Min. length expected is: bisIdx (1) + codecSpecCfgLen (1)
+        final int minNodeBufferLen = 2;
+        if (bufferLengthLeft < minNodeBufferLen) {
+            Log.e(TAG, "Error: Invalid Lvl2 buffer length.");
+            return null;
+        }
         node.index = serviceData[offset++];
-        node.codecConfigLength = serviceData[offset++] & 0xff;
-        if (node.codecConfigLength != 0) {
+
+        // Verify the buffer size left
+        int declaredLength = serviceData[offset++] & 0xff;
+
+        bufferLengthLeft = (serviceData.length - offset);
+        if (declaredLength < 0 || declaredLength > bufferLengthLeft) {
+            Log.e(TAG, "Error: Invalid metadata length or metadata truncated.");
+            return null;
+        }
+
+        if (declaredLength != 0) {
+            node.codecConfigLength = declaredLength;
             node.codecConfigInfo = new byte[node.codecConfigLength];
             System.arraycopy(serviceData, offset, node.codecConfigInfo, 0, node.codecConfigLength);
             offset += node.codecConfigLength;

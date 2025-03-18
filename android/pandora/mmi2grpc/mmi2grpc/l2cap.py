@@ -12,25 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 import sys
+from typing import Dict, Optional
 
-from mmi2grpc._helpers import assert_description
-from mmi2grpc._helpers import match_description
+from mmi2grpc._helpers import assert_description, match_description
 from mmi2grpc._proxy import ProfileProxy
 from mmi2grpc._rootcanal import Dongle
-
 from pandora.host_grpc import Host
 from pandora.host_pb2 import PUBLIC, RANDOM, Connection
-from pandora.security_pb2 import PairingEventAnswer
+from pandora.l2cap_grpc import L2CAP
+from pandora.l2cap_pb2 import CreditBasedChannelRequest
 from pandora.security_grpc import Security
-from pandora_experimental.l2cap_grpc import L2CAP
-
-from typing import Optional
+from pandora.security_pb2 import PairingEventAnswer
 
 
 class L2CAPProxy(ProfileProxy):
-    test_status_map = {}  # record test status and pass them between MMI
+    test_status_map: Dict[str, str] = {}  # record test status and pass them between MMI
     LE_DATA_PACKET_LARGE = "data: LE_DATA_PACKET_LARGE"
     LE_DATA_PACKET1 = "data: LE_PACKET1"
     connection: Optional[Connection] = None
@@ -44,6 +41,7 @@ class L2CAPProxy(ProfileProxy):
 
         self.connection = None
         self.pairing_events = None
+        self.channel = None
 
     def test_started(self, test: str, **kwargs):
         self.rootcanal.select_pts_dongle(Dongle.CSR_RCK_PTS_DONGLE)
@@ -63,16 +61,12 @@ class L2CAPProxy(ProfileProxy):
         tests_target_to_fail = [
             'L2CAP/LE/CFC/BV-01-C',
             'L2CAP/LE/CFC/BV-04-C',
-            'L2CAP/LE/CFC/BV-10-C',
-            'L2CAP/LE/CFC/BV-11-C',
-            'L2CAP/LE/CFC/BV-12-C',
             'L2CAP/LE/CFC/BV-14-C',
             'L2CAP/LE/CFC/BV-16-C',
             'L2CAP/LE/CFC/BV-18-C',
             'L2CAP/LE/CFC/BV-19-C',
             "L2CAP/LE/CFC/BV-21-C",
         ]
-        tests_require_secure_connection = []
 
         # This MMI is called twice in 'L2CAP/LE/CFC/BV-04-C'
         # We are not sure whether the lower tester’s BluetoothServerSocket
@@ -97,10 +91,13 @@ class L2CAPProxy(ProfileProxy):
         if test == 'L2CAP/LE/CFC/BV-12-C':
             psm = 0xF3  # default TSPX_psm_authorization_required value
 
-        secure_connection = test in tests_require_secure_connection
-
         try:
-            self.l2cap.CreateLECreditBasedChannel(connection=self.connection, psm=psm, secure=secure_connection)
+            connect_response = self.l2cap.Connect(connection=self.connection,
+                                                  le_credit_based=CreditBasedChannelRequest(spsm=psm))
+            if connect_response.HasField('channel'):
+                self.channel = connect_response.channel
+            else:
+                raise Exception(connect_response.error)
         except Exception as e:
             if test in tests_target_to_fail:
                 self.test_status_map[test] = 'OK'
@@ -117,11 +114,13 @@ class L2CAPProxy(ProfileProxy):
         """
         Place the IUT into LE connectable mode.
         """
+
         self.advertise = self.host.Advertise(
             legacy=True,
             connectable=True,
             own_address_type=PUBLIC,
         )
+
         # not strictly necessary, but can save time on waiting connection
         tests_to_open_bluetooth_server_socket = [
             "L2CAP/COS/CFC/BV-01-C",
@@ -129,31 +128,19 @@ class L2CAPProxy(ProfileProxy):
             "L2CAP/COS/CFC/BV-03-C",
             "L2CAP/COS/CFC/BV-04-C",
             "L2CAP/LE/CFC/BV-03-C",
-            "L2CAP/LE/CFC/BV-05-C",
             "L2CAP/LE/CFC/BV-06-C",
             "L2CAP/LE/CFC/BV-09-C",
-            "L2CAP/LE/CFC/BV-13-C",
             "L2CAP/LE/CFC/BV-20-C",
             "L2CAP/LE/CFC/BI-01-C",
         ]
-        tests_require_secure_connection = [
-            "L2CAP/LE/CFC/BV-13-C",
-        ]
-        tests_connection_target_to_failed = [
-            "L2CAP/LE/CFC/BV-05-C",
-        ]
 
         if test in tests_to_open_bluetooth_server_socket:
-            secure_connection = test in tests_require_secure_connection
-            self.l2cap.ListenL2CAPChannel(connection=self.connection, secure=secure_connection)
-            try:
-                self.l2cap.AcceptL2CAPChannel(connection=self.connection)
-            except Exception as e:
-                if test in tests_connection_target_to_failed:
-                    self.test_status_map[test] = 'OK'
-                    print(test, 'connection targets to fail', file=sys.stderr)
-                else:
-                    raise e
+            wait_connection_response = self.l2cap.WaitConnection(le_credit_based=CreditBasedChannelRequest(spsm=0))
+            if wait_connection_response.HasField('channel'):
+                self.channel = wait_connection_response.channel
+            else:
+                raise Exception(wait_connection_response.error)
+
         return "OK"
 
     @assert_description
@@ -171,7 +158,8 @@ class L2CAPProxy(ProfileProxy):
         # all data frames arrived
         # it seemed like when the time gap between the 1st frame and 2nd frame
         # larger than 100ms this problem will occur
-        self.l2cap.SendData(connection=self.connection, data=bytes(self.LE_DATA_PACKET_LARGE, "utf-8"))
+        assert self.channel
+        self.l2cap.Send(channel=self.channel, data=bytes(self.LE_DATA_PACKET_LARGE, "utf-8"))
         return "OK"
 
     @match_description
@@ -198,8 +186,9 @@ class L2CAPProxy(ProfileProxy):
         Upper Tester command IUT to send at least 4 frames of LE data packets to
         the PTS.
         """
-        self.l2cap.SendData(
-            connection=self.connection,
+        assert self.channel
+        self.l2cap.Send(
+            channel=self.channel,
             data=b"this is a large data package with at least 4 frames: MMI_UPPER_TESTER_SEND_LE_DATA_PACKET_LARGE")
         return "OK"
 
@@ -208,8 +197,9 @@ class L2CAPProxy(ProfileProxy):
         """
         IUT continue to send LE data packet(s) to the PTS.
         """
-        self.l2cap.SendData(
-            connection=self.connection,
+        assert self.channel
+        self.l2cap.Send(
+            channel=self.channel,
             data=b"this is a large data package with at least 4 frames: MMI_UPPER_TESTER_SEND_LE_DATA_PACKET_LARGE")
         return "OK"
 
@@ -232,7 +222,8 @@ class L2CAPProxy(ProfileProxy):
         """
         Please confirm the Upper Tester receive data
         """
-        data = self.l2cap.ReceiveData(connection=self.connection)
+        assert self.channel
+        data = next(self.l2cap.Receive(channel=self.channel)).data
         assert data, "data received should not be empty"
         return "OK"
 
@@ -504,7 +495,8 @@ class L2CAPProxy(ProfileProxy):
          Description : The Implementation Under Test(IUT)
         should send none segmantation LE frame of LE data to the PTS.
         """
-        self.l2cap.SendData(connection=self.connection, data=bytes(self.LE_DATA_PACKET1, "utf-8"))
+        assert self.channel
+        self.l2cap.Send(channel=self.channel, data=bytes(self.LE_DATA_PACKET1, "utf-8"))
         return "OK"
 
     @assert_description

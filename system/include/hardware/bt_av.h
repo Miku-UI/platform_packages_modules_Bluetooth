@@ -19,14 +19,16 @@
 
 #include <bluetooth/log.h>
 #include <hardware/bluetooth.h>
-#include <raw_address.h>
 
 #include <optional>
+#include <sstream>
 #include <vector>
+
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
-/* Bluetooth AV connection states */
+// Must be kept in sync with BluetoothProfile.java
 typedef enum {
   BTAV_CONNECTION_STATE_DISCONNECTED = 0,
   BTAV_CONNECTION_STATE_CONNECTING,
@@ -272,59 +274,6 @@ typedef struct {
   std::optional<std::string> error_msg;
 } btav_error_t;
 
-/** Callback for connection state change.
- *  state will have one of the values from btav_connection_state_t
- */
-typedef void (*btav_connection_state_callback)(const RawAddress& bd_addr,
-                                               btav_connection_state_t state,
-                                               const btav_error_t& error);
-
-/** Callback for audiopath state change.
- *  state will have one of the values from btav_audio_state_t
- */
-typedef void (*btav_audio_state_callback)(const RawAddress& bd_addr, btav_audio_state_t state);
-
-/** Callback for audio configuration change.
- *  Used only for the A2DP Source interface.
- */
-typedef void (*btav_audio_source_config_callback)(
-        const RawAddress& bd_addr, btav_a2dp_codec_config_t codec_config,
-        std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities,
-        std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities);
-
-/** Callback for audio configuration change.
- *  Used only for the A2DP Sink interface.
- *  sample_rate: sample rate in Hz
- *  channel_count: number of channels (1 for mono, 2 for stereo)
- */
-typedef void (*btav_audio_sink_config_callback)(const RawAddress& bd_addr, uint32_t sample_rate,
-                                                uint8_t channel_count);
-
-/** Callback for querying whether the mandatory codec is more preferred.
- *  Used only for the A2DP Source interface.
- *  Return true if optional codecs are not preferred.
- */
-typedef bool (*btav_mandatory_codec_preferred_callback)(const RawAddress& bd_addr);
-
-/** BT-AV A2DP Source callback structure. */
-typedef struct {
-  /** set to sizeof(btav_source_callbacks_t) */
-  size_t size;
-  btav_connection_state_callback connection_state_cb;
-  btav_audio_state_callback audio_state_cb;
-  btav_audio_source_config_callback audio_config_cb;
-  btav_mandatory_codec_preferred_callback mandatory_codec_preferred_cb;
-} btav_source_callbacks_t;
-
-/** BT-AV A2DP Sink callback structure. */
-typedef struct {
-  /** set to sizeof(btav_sink_callbacks_t) */
-  size_t size;
-  btav_connection_state_callback connection_state_cb;
-  btav_audio_state_callback audio_state_cb;
-  btav_audio_sink_config_callback audio_config_cb;
-} btav_sink_callbacks_t;
-
 /**
  * NOTE:
  *
@@ -338,7 +287,7 @@ typedef struct {
 
 __END_DECLS
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<btav_connection_state_t> : enum_formatter<btav_connection_state_t> {};
 template <>
@@ -358,6 +307,6 @@ struct formatter<btav_a2dp_codec_channel_mode_t> : enum_formatter<btav_a2dp_code
 template <>
 struct formatter<btav_a2dp_scmst_enable_status_t>
     : enum_formatter<btav_a2dp_scmst_enable_status_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* ANDROID_INCLUDE_BT_AV_H */

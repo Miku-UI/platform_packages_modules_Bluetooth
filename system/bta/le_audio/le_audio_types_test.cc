@@ -22,6 +22,8 @@
 
 #include <vector>
 
+#include "le_audio_utils.h"
+
 namespace bluetooth::le_audio {
 namespace types {
 
@@ -820,6 +822,22 @@ TEST(CodecSpecTest, test_channel_count_transition) {
                     codec_spec_conf::SingleChannelCountCapability2Config(
                             codec_spec_caps::kLeAudioCodecChannelCountEightChannel)),
             codec_spec_caps::kLeAudioCodecChannelCountEightChannel);
+}
+
+TEST(CodecConfigTest, test_lc3_bits_per_sample) {
+  set_configurations::CodecConfigSetting lc3_codec_config = {
+          .id = {.coding_format = types::kLeAudioCodingFormatLC3},
+  };
+  ASSERT_EQ(utils::translateToBtLeAudioCodecConfigBitPerSample(lc3_codec_config.GetBitsPerSample()),
+            LE_AUDIO_BITS_PER_SAMPLE_INDEX_16);
+}
+
+TEST(CodecConfigTest, test_invalid_codec_bits_per_sample) {
+  set_configurations::CodecConfigSetting invalid_codec_config = {
+          .id = {.coding_format = types::kLeAudioCodingFormatVendorSpecific}};
+  ASSERT_EQ(utils::translateToBtLeAudioCodecConfigBitPerSample(
+                    invalid_codec_config.GetBitsPerSample()),
+            LE_AUDIO_BITS_PER_SAMPLE_INDEX_NONE);
 }
 
 }  // namespace types

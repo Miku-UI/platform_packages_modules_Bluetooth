@@ -33,7 +33,7 @@ import java.util.List;
 /** MetadataDatabase is a Room database stores Bluetooth persistence data */
 @Database(
         entities = {Metadata.class},
-        version = 120)
+        version = 121)
 public abstract class MetadataDatabase extends RoomDatabase {
     /** The metadata database file name */
     public static final String DATABASE_NAME = "bluetooth_db";
@@ -70,6 +70,7 @@ public abstract class MetadataDatabase extends RoomDatabase {
                 .addMigrations(MIGRATION_117_118)
                 .addMigrations(MIGRATION_118_119)
                 .addMigrations(MIGRATION_119_120)
+                .addMigrations(MIGRATION_120_121)
                 .allowMainThreadQueries()
                 .build();
     }
@@ -666,6 +667,28 @@ public abstract class MetadataDatabase extends RoomDatabase {
                         Cursor cursor = database.query("SELECT * FROM metadata");
                         if (cursor == null
                                 || cursor.getColumnIndex("active_audio_device_policy") == -1) {
+                            throw ex;
+                        }
+                    }
+                }
+            };
+
+    @VisibleForTesting
+    static final Migration MIGRATION_120_121 =
+            new Migration(120, 121) {
+                @Override
+                public void migrate(SupportSQLiteDatabase database) {
+                    try {
+                        database.execSQL(
+                                "ALTER TABLE metadata ADD COLUMN"
+                                        + " `is_preferred_microphone_for_calls` INTEGER NOT NULL"
+                                        + " DEFAULT 1");
+                    } catch (SQLException ex) {
+                        // Check if user has new schema, but is just missing the version update
+                        Cursor cursor = database.query("SELECT * FROM metadata");
+                        if (cursor == null
+                                || cursor.getColumnIndex("is_preferred_microphone_for_calls")
+                                        == -1) {
                             throw ex;
                         }
                     }

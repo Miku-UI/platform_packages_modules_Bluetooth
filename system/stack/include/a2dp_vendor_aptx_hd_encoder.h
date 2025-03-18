@@ -60,7 +60,7 @@ int a2dp_vendor_aptx_hd_get_effective_frame_size();
 // |timestamp_us| is the current timestamp (in microseconds).
 void a2dp_vendor_aptx_hd_send_frames(uint64_t timestamp_us);
 
-typedef int (*tAPTX_HD_ENCODER_INIT)(void* state, short endian);
+typedef int (*tAPTX_HD_ENCODER_INIT)(void* state, int16_t endian);
 
 typedef int (*tAPTX_HD_ENCODER_ENCODE_STEREO)(void* state, void* pcmL, void* pcmR, void* buffer);
 

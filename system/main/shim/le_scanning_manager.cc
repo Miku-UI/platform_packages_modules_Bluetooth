@@ -21,14 +21,13 @@
 #include <base/functional/bind.h>
 #include <base/threading/thread.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 
 #include "btif/include/btif_common.h"
 #include "hci/address.h"
 #include "hci/le_scanning_manager.h"
-#if TARGET_FLOSS
 #include "hci/msft.h"
-#endif
 #include "include/hardware/ble_scanner.h"
 #include "main/shim/ble_scanner_interface_impl.h"
 #include "main/shim/entry.h"
@@ -39,6 +38,7 @@
 #include "stack/include/advertise_data_parser.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/btm_log_history.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
 #include "storage/device.h"
 #include "storage/le_device.h"
@@ -133,11 +133,9 @@ void BleScannerInterfaceImpl::Init() {
   log::info("init BleScannerInterfaceImpl");
   bluetooth::shim::GetScanning()->RegisterScanningCallback(this);
 
-#if TARGET_FLOSS
   if (bluetooth::shim::GetMsftExtensionManager()) {
     bluetooth::shim::GetMsftExtensionManager()->SetScanningCallback(this);
   }
-#endif
 }
 
 /** Registers a scanner with the stack */
@@ -166,12 +164,12 @@ void BleScannerInterfaceImpl::Scan(bool start) {
     btm_cb.ble_ctr_cb.set_ble_observe_active();
   } else if (!start && btm_cb.ble_ctr_cb.is_ble_observe_active()) {
     // stopped
-    const unsigned long long duration_timestamp =
+    const uint64_t duration_timestamp =
             timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_scan.start_time_ms;
     BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le scan stopped",
                    base::StringPrintf("duration_s:%6.3f results:%-3lu",
                                       (double)duration_timestamp / 1000.0,
-                                      btm_cb.neighbor.le_scan.results));
+                                      (unsigned long)btm_cb.neighbor.le_scan.results));
     btm_cb.ble_ctr_cb.reset_ble_observe();
     btm_cb.neighbor.le_scan = {};
   } else {
@@ -251,7 +249,6 @@ void BleScannerInterfaceImpl::ScanFilterEnable(bool enable, EnableCallback cb) {
   do_in_jni_thread(base::BindOnce(cb, action, btm_status_value(tBTM_STATUS::BTM_SUCCESS)));
 }
 
-#if TARGET_FLOSS
 /** Is MSFT Extension supported? */
 bool BleScannerInterfaceImpl::IsMsftSupported() {
   log::info("in shim layer");
@@ -292,13 +289,13 @@ void BleScannerInterfaceImpl::MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEn
 void BleScannerInterfaceImpl::OnMsftAdvMonitorAdd(uint8_t monitor_handle,
                                                   bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Add.Run(monitor_handle, (uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Add, monitor_handle, (uint8_t)status));
 }
 
 /** Callback of removing MSFT filter */
 void BleScannerInterfaceImpl::OnMsftAdvMonitorRemove(bluetooth::hci::ErrorCode status) {
   log::info("in shim layer");
-  msft_callbacks_.Remove.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Remove, (uint8_t)status));
 }
 
 /** Callback of enabling / disabling MSFT scan filter */
@@ -312,9 +309,8 @@ void BleScannerInterfaceImpl::OnMsftAdvMonitorEnable(bool enable,
                    : bluetooth::hci::LeScanningFilterPolicy::ACCEPT_ALL);
   }
 
-  msft_callbacks_.Enable.Run((uint8_t)status);
+  do_in_jni_thread(base::BindOnce(msft_callbacks_.Enable, (uint8_t)status));
 }
-#endif
 
 /** Sets the LE scan interval and window in units of N*0.625 msec */
 void BleScannerInterfaceImpl::SetScanParameters(int scanner_id, uint8_t scan_type,
@@ -473,9 +469,13 @@ void BleScannerInterfaceImpl::OnScanResult(uint16_t event_type, uint8_t address_
     btm_ble_process_adv_addr(raw_address, &ble_addr_type);
   }
 
-  do_in_jni_thread(base::BindOnce(&BleScannerInterfaceImpl::handle_remote_properties,
-                                  base::Unretained(this), raw_address, ble_addr_type,
-                                  advertising_data));
+  // Do not update device properties of already bonded devices.
+  if (!com::android::bluetooth::flags::guard_bonded_device_properties() ||
+      !btm_sec_is_a_bonded_dev(raw_address)) {
+    do_in_jni_thread(base::BindOnce(&BleScannerInterfaceImpl::handle_remote_properties,
+                                    base::Unretained(this), raw_address, ble_addr_type,
+                                    advertising_data));
+  }
 
   do_in_jni_thread(base::BindOnce(
           &ScanningCallbacks::OnScanResult, base::Unretained(scanning_callbacks_), event_type,

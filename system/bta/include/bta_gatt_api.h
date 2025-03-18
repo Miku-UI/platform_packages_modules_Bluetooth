@@ -1044,9 +1044,9 @@ void BTA_GATTS_Close(tCONN_ID conn_id);
 // Adds bonded device for GATT server tracking service changes
 void BTA_GATTS_InitBonded(void);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_GATTC_EVT> : enum_formatter<tBTA_GATTC_EVT> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif /* BTA_GATT_API_H */

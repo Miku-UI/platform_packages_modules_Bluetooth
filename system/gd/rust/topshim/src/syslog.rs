@@ -4,12 +4,12 @@
 //! to filter out logs before they go to syslog. This module provides Rust apis
 //! to tune log levels for syslog.
 
-use num_derive::ToPrimitive;
+use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::cast::ToPrimitive;
 use std::ffi::CString;
 use std::os::raw::c_char;
 
-#[derive(ToPrimitive)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 /// Android framework log priority levels.
 /// They are defined in system/logging/liblog/include/android/log.h by
@@ -21,6 +21,24 @@ pub enum Level {
     Warn = 5,
     Error = 6,
     Fatal = 7,
+}
+
+impl From<Level> for i32 {
+    fn from(item: Level) -> Self {
+        item.to_i32().unwrap_or(4)
+    }
+}
+
+impl From<Level> for u8 {
+    fn from(item: Level) -> Self {
+        item.to_u8().unwrap_or(4)
+    }
+}
+
+impl Default for Level {
+    fn default() -> Self {
+        Level::Info
+    }
 }
 
 // Defined in syslog linkage. See |vlog_syslog.cc|.

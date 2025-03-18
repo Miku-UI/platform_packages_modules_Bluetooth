@@ -195,7 +195,7 @@ public:
   }
 
 private:
-  void wholeEntry(size_t f, AttributeEntry&& entry) {
+  void wholeEntry(size_t /*f*/, AttributeEntry&& entry) {
     _control_set.insert(entry);
     _order_control.push_back(entry);
     if (_builder->size() != expected_size()) {

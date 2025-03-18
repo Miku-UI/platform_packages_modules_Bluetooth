@@ -24,10 +24,10 @@
 #include "audio_hal_client/audio_hal_client.h"
 #include "bta_groups.h"
 #include "gatt_api.h"
+#include "gmap_client.h"
 #include "le_audio_types.h"
-#include "os/log.h"
 #include "osi/include/alarm.h"
-#include "raw_address.h"
+#include "types/raw_address.h"
 
 namespace bluetooth::le_audio {
 
@@ -109,13 +109,14 @@ public:
   bool allowlist_flag_;
   bool acl_asymmetric_;
   bool acl_phy_update_done_;
+  std::unique_ptr<GmapClient> gmap_client_;
 
   alarm_t* link_quality_timer;
   uint16_t link_quality_timer_data;
 
-  LeAudioDevice(const RawAddress& address_, DeviceConnectState state,
+  LeAudioDevice(const RawAddress& address, DeviceConnectState state,
                 int group_id = bluetooth::groups::kGroupUnknown)
-      : address_(address_),
+      : address_(address),
         connection_state_(state),
         known_service_handles_(false),
         notify_connected_after_read_(false),
@@ -220,7 +221,7 @@ public:
 
   void PrintDebugState(void);
   void DumpPacsDebugState(std::stringstream& stream);
-  void Dump(int fd);
+  void Dump(std::stringstream& stream);
 
   void DisconnectAcl(void);
   std::vector<uint8_t> GetMetadata(types::AudioContexts context_type,
@@ -270,7 +271,7 @@ public:
                                        tBTM_BLE_CONN_TYPE reconnection_mode,
                                        bool current_dev_autoconnect_flag);
   size_t Size(void) const;
-  void Dump(int fd, int group_id) const;
+  void Dump(std::stringstream& stream, int group_id) const;
   void Cleanup(tGATT_IF client_if);
 
 private:

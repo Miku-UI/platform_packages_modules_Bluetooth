@@ -65,12 +65,6 @@
 /* If conflict, allow the other side to succeed  */
 #define AVRC_CT_PASSIVE 4
 
-/* Connection role */
-/* initiator */
-#define AVRC_CONN_INT AVCT_INT
-/* Acceptor  */
-#define AVRC_CONN_ACP AVCT_ACP
-
 /* AVRC CTRL events */
 /* AVRC_OPEN_IND_EVT event is sent when the connection is successfully opened.
  * This eventis sent in response to an AVRC_Open(). */
@@ -201,7 +195,7 @@ typedef struct {
                             * attribute filter
                             * to be ATTR_ID_SERVICE_CLASS_ID_LIST,
                             * ATTR_ID_BT_PROFILE_DESC_LIST,
-                            * ATTR_ID_SUPPORTED_FEATURES, ATTR_ID_SERVICE_NAME and
+                            * ATTR_ID_SUPPORTED_FEATURES, ATTR_ID_SERVICE_NAME,
                             * ATTR_ID_PROVIDER_NAME.
                             * If not NULL, the input is taken as the filter. */
 } tAVRC_SDP_DB_PARAMS;
@@ -229,7 +223,7 @@ typedef struct {
   tAVRC_CTRL_CBACK ctrl_cback; /* application control callback */
   tAVRC_MSG_CBACK msg_cback;   /* application message callback */
   uint32_t company_id;         /* the company ID  */
-  uint8_t conn;                /* Connection role (Initiator/acceptor) */
+  tAVCT_ROLE conn;             /* Connection role (Initiator/acceptor) */
   uint8_t control;             /* Control role (Control/Target) */
 } tAVRC_CONN_CB;
 
@@ -460,7 +454,7 @@ uint16_t AVRC_Close(uint8_t handle);
  *                  the connection.
  *
  *****************************************************************************/
-uint16_t AVRC_OpenBrowse(uint8_t handle, uint8_t conn_role);
+uint16_t AVRC_OpenBrowse(uint8_t handle, tAVCT_ROLE conn_role);
 
 /******************************************************************************
  *

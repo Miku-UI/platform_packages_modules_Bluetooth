@@ -18,6 +18,7 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothUtils.executeFromBinder;
 
 import static java.util.Objects.requireNonNull;
 
@@ -78,7 +79,8 @@ public class CallbackWrapper<T, S> {
     public void forEach(Consumer<T> consumer) {
         synchronized (mCallbackExecutorMap) {
             mCallbackExecutorMap.forEach(
-                    (callback, executor) -> executor.execute(() -> consumer.accept(callback)));
+                    (callback, executor) ->
+                            executeFromBinder(executor, () -> consumer.accept(callback)));
         }
     }
 

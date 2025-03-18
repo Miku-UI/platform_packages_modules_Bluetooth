@@ -32,6 +32,7 @@
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/l2cap/l2c_int.h"
+#include "stack/rnr/remote_name_request.h"
 #include "stack/test/btm/btm_test_fixtures.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_legacy_hci_interface.h"
@@ -47,10 +48,10 @@ extern tBTM_CB btm_cb;
 
 tL2C_CB l2cb;
 
-void btm_inq_remote_name_timer_timeout(void*) {}
-
 const std::string kSmpOptions("mock smp options");
 const std::string kBroadcastAudioConfigOptions("mock broadcast audio config options");
+
+void btm_inq_remote_name_timer_timeout(void*) {}
 
 namespace {
 
@@ -272,27 +273,6 @@ TEST_F(StackBtmTest, sco_state_text) {
   ASSERT_STREQ(oss.str().c_str(),
                sco_state_text(static_cast<tSCO_STATE>(std::numeric_limits<std::uint16_t>::max()))
                        .c_str());
-}
-
-bool is_disconnect_reason_valid(const tHCI_REASON& reason);
-TEST_F(StackBtmWithInitFreeTest, is_disconnect_reason_valid) {
-  std::set<tHCI_REASON> valid_reason_set{
-          HCI_ERR_AUTH_FAILURE,
-          HCI_ERR_PEER_USER,
-          HCI_ERR_REMOTE_LOW_RESOURCE,
-          HCI_ERR_REMOTE_POWER_OFF,
-          HCI_ERR_UNSUPPORTED_REM_FEATURE,
-          HCI_ERR_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED,
-          HCI_ERR_UNACCEPT_CONN_INTERVAL,
-  };
-  for (unsigned u = 0; u < 256; u++) {
-    const tHCI_REASON reason = static_cast<tHCI_REASON>(u);
-    if (valid_reason_set.count(reason)) {
-      ASSERT_TRUE(is_disconnect_reason_valid(reason));
-    } else {
-      ASSERT_FALSE(is_disconnect_reason_valid(reason));
-    }
-  }
 }
 
 TEST_F(StackBtmWithInitFreeTest, Init) { ASSERT_FALSE(btm_cb.rnr.remname_active); }

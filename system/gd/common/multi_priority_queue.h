@@ -43,6 +43,12 @@ public:
 
   [[nodiscard]] size_t size() const { return next_to_dequeue_.size(); }
 
+  // Swaps the contents with the given instance.
+  void swap(MultiPriorityQueue& that) {
+    queues_.swap(that.queues_);
+    next_to_dequeue_.swap(that.next_to_dequeue_);
+  }
+
   // Push the item with specified priority
   void push(const T& t, int priority = 0) {
     queues_[priority].push(t);

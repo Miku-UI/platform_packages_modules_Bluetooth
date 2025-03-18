@@ -36,12 +36,15 @@
 #include "packet/avrcp/set_player_application_setting_value.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 extern bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
 extern bool btif_av_both_enable(void);
 extern bool btif_av_src_sink_coexist_enabled(void);
 
 template <>
-struct fmt::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
+struct std::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
 
 namespace bluetooth {
 namespace avrcp {
@@ -151,6 +154,7 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
         // TODO (apanicke): Add a retry mechanism if the response has a
         // different volume than the one we set. For now, we don't care
         // about the response to this message.
+        active_labels_.erase(label);
         break;
       default:
         log::warn("{}: Unhandled Response: pdu={}", address_, pkt->GetCommandPdu());
@@ -600,7 +604,8 @@ void Device::TrackChangedNotificationResponse(uint8_t label, bool interim, std::
   // PTS BV-04-C and BV-5-C assume browsing not supported
   if (stack_config_get_interface()->get_pts_avrcp_test()) {
     log::warn("{}: pts test mode", address_);
-    uint64_t uid = curr_song_id.empty() ? 0xffffffffffffffff : 0;
+    uint64_t uid =
+            (curr_song_id.empty() || curr_song_id == "Not Provided") ? 0xffffffffffffffff : 0;
     auto response = RegisterNotificationResponseBuilder::MakeTrackChangedBuilder(interim, uid);
     send_message_cb_.Run(label, false, std::move(response));
     return;
@@ -722,6 +727,7 @@ void Device::AddressedPlayerNotificationResponse(uint8_t label, bool interim,
   if (curr_browsed_player_id_ == -1) {
     curr_browsed_player_id_ = curr_player;
   }
+  curr_addressed_player_id_ = curr_player;
 
   auto response = RegisterNotificationResponseBuilder::MakeAddressedPlayerBuilder(
           interim, curr_player, 0x0000);
@@ -777,7 +783,6 @@ void Device::GetElementAttributesResponse(uint8_t label,
       }
     }
   } else {  // zero attributes requested which means all attributes requested
-
     if (!com::android::bluetooth::flags::get_all_element_attributes_empty()) {
       for (const auto& attribute : info.attributes) {
         response->AddAttributeEntry(attribute);
@@ -933,6 +938,8 @@ void Device::HandleSetAddressedPlayer(uint8_t label, std::shared_ptr<SetAddresse
     send_message(label, false, std::move(response));
     return;
   }
+
+  curr_addressed_player_id_ = curr_player;
 
   auto response = SetAddressedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR);
   send_message(label, false, std::move(response));
@@ -1111,7 +1118,7 @@ void Device::HandleGetTotalNumberOfItems(uint8_t label,
   }
 }
 
-void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t curr_player,
+void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t /*curr_player*/,
                                                        std::vector<MediaPlayerInfo> list) {
   log::verbose("num_items={}", list.size());
 
@@ -1123,14 +1130,28 @@ void Device::GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t c
 void Device::GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListItem> list) {
   log::verbose("num_items={}", list.size());
 
+  if (curr_browsed_player_id_ == -1) {
+    auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS,
+                                                                      0x0000, 0);
+    send_message(label, true, std::move(response));
+    return;
+  }
+
   auto builder =
           GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, list.size());
   send_message(label, true, std::move(builder));
 }
 
-void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string curr_song_id,
+void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string /*curr_song_id*/,
                                                      std::vector<SongInfo> list) {
   log::verbose("num_items={}", list.size());
+
+  if (curr_addressed_player_id_ == -1) {
+    auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS,
+                                                                      0x0000, 0);
+    send_message(label, true, std::move(response));
+    return;
+  }
 
   auto builder =
           GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, list.size());
@@ -1176,7 +1197,7 @@ void Device::HandleChangePath(uint8_t label, std::shared_ptr<ChangePathRequest> 
           base::Bind(&Device::ChangePathResponse, weak_ptr_factory_.GetWeakPtr(), label, pkt));
 }
 
-void Device::ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> pkt,
+void Device::ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> /*pkt*/,
                                 std::vector<ListItem> list) {
   // TODO (apanicke): Reconstruct the VFS ID's here. Right now it gets
   // reconstructed in GetFolderItemsVFS
@@ -1344,6 +1365,7 @@ void Device::GetMediaPlayerListResponse(uint8_t label, std::shared_ptr<GetFolder
     auto no_items_rsp = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
             Status::RANGE_OUT_OF_BOUNDS, 0x0000, browse_mtu_);
     send_message(label, true, std::move(no_items_rsp));
+    return;
   }
 
   auto builder = GetFolderItemsResponseBuilder::MakePlayerListBuilder(Status::NO_ERROR, 0x0000,
@@ -1554,7 +1576,7 @@ void Device::SendMediaUpdate(bool metadata, bool play_status, bool queue) {
   }
 }
 
-void Device::SendFolderUpdate(bool available_players, bool addressed_player, bool uids) {
+void Device::SendFolderUpdate(bool available_players, bool addressed_player, bool /*uids*/) {
   log::assert_that(media_interface_ != nullptr, "assert failed: media_interface_ != nullptr");
   log::verbose("");
 
@@ -1661,7 +1683,7 @@ void Device::PlayerSettingChangedNotificationResponse(uint8_t label, bool interi
 }
 
 void Device::HandleNowPlayingNotificationResponse(uint8_t label, bool interim,
-                                                  std::string curr_song_id,
+                                                  std::string /*curr_song_id*/,
                                                   std::vector<SongInfo> song_list) {
   if (interim) {
     now_playing_changed_ = Notification(true, label);
@@ -1752,7 +1774,7 @@ static std::string volumeToStr(int8_t volume) {
 
 std::ostream& operator<<(std::ostream& out, const Device& d) {
   // TODO: whether this should be turned into LOGGABLE STRING?
-  out << "  " << ADDRESS_TO_LOGGABLE_STR(d.address_);
+  out << "  " << d.address_.ToRedactedStringForLogging();
   if (d.IsActive()) {
     out << " <Active>";
   }

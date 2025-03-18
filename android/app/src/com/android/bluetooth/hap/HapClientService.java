@@ -19,6 +19,8 @@ package com.android.bluetooth.hap;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElseGet;
@@ -48,7 +50,6 @@ import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -76,8 +77,9 @@ public class HapClientService extends ProfileService {
     private final AdapterService mAdapterService;
     private final DatabaseManager mDatabaseManager;
     private final Handler mHandler;
+    private final Looper mStateMachinesLooper;
     private final HandlerThread mStateMachinesThread;
-    private final HapClientNativeInterface mHapClientNativeInterface;
+    private final HapClientNativeInterface mNativeInterface;
 
     @VisibleForTesting
     @GuardedBy("mCallbacks")
@@ -114,14 +116,17 @@ public class HapClientService extends ProfileService {
     }
 
     public HapClientService(AdapterService adapterService) {
-        this(adapterService, null);
+        this(adapterService, null, null);
     }
 
     @VisibleForTesting
-    HapClientService(AdapterService adapterService, HapClientNativeInterface nativeInterface) {
+    HapClientService(
+            AdapterService adapterService,
+            Looper looper,
+            HapClientNativeInterface nativeInterface) {
         super(adapterService);
         mAdapterService = requireNonNull(adapterService);
-        mHapClientNativeInterface =
+        mNativeInterface =
                 requireNonNullElseGet(
                         nativeInterface,
                         () ->
@@ -129,14 +134,19 @@ public class HapClientService extends ProfileService {
                                         new HapClientNativeCallback(adapterService, this)));
         mDatabaseManager = requireNonNull(mAdapterService.getDatabase());
 
-        // Start handler thread for state machines
-        mHandler = new Handler(Looper.getMainLooper());
-        mStateMachines.clear();
-        mStateMachinesThread = new HandlerThread("HapClientService.StateMachines");
-        mStateMachinesThread.start();
+        if (looper == null) {
+            mHandler = new Handler(requireNonNull(Looper.getMainLooper()));
+            mStateMachinesThread = new HandlerThread("HapClientService.StateMachines");
+            mStateMachinesThread.start();
+            mStateMachinesLooper = mStateMachinesThread.getLooper();
+        } else {
+            mHandler = new Handler(looper);
+            mStateMachinesThread = null;
+            mStateMachinesLooper = looper;
+        }
 
         // Initialize native interface
-        mHapClientNativeInterface.init();
+        mNativeInterface.init();
 
         // Mark service as started
         setHapClient(this);
@@ -162,23 +172,24 @@ public class HapClientService extends ProfileService {
         synchronized (mStateMachines) {
             for (HapClientStateMachine sm : mStateMachines.values()) {
                 sm.doQuit();
-                sm.cleanup();
             }
             mStateMachines.clear();
         }
 
-        try {
-            mStateMachinesThread.quitSafely();
-            mStateMachinesThread.join(SM_THREAD_JOIN_TIMEOUT_MS);
-        } catch (InterruptedException e) {
-            // Do not rethrow as we are shutting down anyway
+        if (mStateMachinesThread != null) {
+            try {
+                mStateMachinesThread.quitSafely();
+                mStateMachinesThread.join(SM_THREAD_JOIN_TIMEOUT_MS);
+            } catch (InterruptedException e) {
+                // Do not rethrow as we are shutting down anyway
+            }
         }
 
         // Unregister Handler and stop all queued messages.
         mHandler.removeCallbacksAndMessages(null);
 
         // Cleanup GATT interface
-        mHapClientNativeInterface.cleanup();
+        mNativeInterface.cleanup();
 
         // Cleanup the internals
         mDeviceCurrentPresetMap.clear();
@@ -233,7 +244,6 @@ public class HapClientService extends ProfileService {
             }
             Log.i(TAG, "removeStateMachine: removing state machine for device: " + device);
             sm.doQuit();
-            sm.cleanup();
             mStateMachines.remove(device);
         }
     }
@@ -269,7 +279,10 @@ public class HapClientService extends ProfileService {
         }
     }
 
-    List<BluetoothDevice> getConnectedDevices() {
+    /**
+     * @return A list of connected {@link BluetoothDevice}.
+     */
+    public List<BluetoothDevice> getConnectedDevices() {
         synchronized (mStateMachines) {
             List<BluetoothDevice> devices = new ArrayList<>();
             for (HapClientStateMachine sm : mStateMachines.values()) {
@@ -385,12 +398,10 @@ public class HapClientService extends ProfileService {
                 removeStateMachine(device);
             }
         }
-        if (!Flags.audioRoutingCentralization()) {
-            ActiveDeviceManager adManager = mAdapterService.getActiveDeviceManager();
-            if (adManager != null) {
-                adManager.profileConnectionStateChanged(
-                        BluetoothProfile.HAP_CLIENT, device, fromState, toState);
-            }
+        ActiveDeviceManager adManager = mAdapterService.getActiveDeviceManager();
+        if (adManager != null) {
+            adManager.profileConnectionStateChanged(
+                    BluetoothProfile.HAP_CLIENT, device, fromState, toState);
         }
     }
 
@@ -423,7 +434,7 @@ public class HapClientService extends ProfileService {
             if (smConnect == null) {
                 Log.e(TAG, "Cannot connect to " + device + " : no state machine");
             }
-            smConnect.sendMessage(HapClientStateMachine.CONNECT);
+            smConnect.sendMessage(HapClientStateMachine.MESSAGE_CONNECT);
         }
 
         return true;
@@ -444,7 +455,7 @@ public class HapClientService extends ProfileService {
         synchronized (mStateMachines) {
             HapClientStateMachine sm = mStateMachines.get(device);
             if (sm != null) {
-                sm.sendMessage(HapClientStateMachine.DISCONNECT);
+                sm.sendMessage(HapClientStateMachine.MESSAGE_DISCONNECT);
             }
         }
 
@@ -470,12 +481,7 @@ public class HapClientService extends ProfileService {
                 return null;
             }
             Log.d(TAG, "Creating a new state machine for " + device);
-            sm =
-                    HapClientStateMachine.make(
-                            device,
-                            this,
-                            mHapClientNativeInterface,
-                            mStateMachinesThread.getLooper());
+            sm = new HapClientStateMachine(this, device, mNativeInterface, mStateMachinesLooper);
             mStateMachines.put(device, sm);
             return sm;
         }
@@ -542,7 +548,7 @@ public class HapClientService extends ProfileService {
             return;
         }
 
-        mHapClientNativeInterface.selectActivePreset(device, presetIndex);
+        mNativeInterface.selectActivePreset(device, presetIndex);
     }
 
     @VisibleForTesting
@@ -558,23 +564,23 @@ public class HapClientService extends ProfileService {
             return;
         }
 
-        mHapClientNativeInterface.groupSelectActivePreset(groupId, presetIndex);
+        mNativeInterface.groupSelectActivePreset(groupId, presetIndex);
     }
 
     void switchToNextPreset(BluetoothDevice device) {
-        mHapClientNativeInterface.nextActivePreset(device);
+        mNativeInterface.nextActivePreset(device);
     }
 
     void switchToNextPresetForGroup(int groupId) {
-        mHapClientNativeInterface.groupNextActivePreset(groupId);
+        mNativeInterface.groupNextActivePreset(groupId);
     }
 
     void switchToPreviousPreset(BluetoothDevice device) {
-        mHapClientNativeInterface.previousActivePreset(device);
+        mNativeInterface.previousActivePreset(device);
     }
 
     void switchToPreviousPresetForGroup(int groupId) {
-        mHapClientNativeInterface.groupPreviousActivePreset(groupId);
+        mNativeInterface.groupPreviousActivePreset(groupId);
     }
 
     BluetoothHapPresetInfo getPresetInfo(BluetoothDevice device, int presetIndex) {
@@ -585,7 +591,7 @@ public class HapClientService extends ProfileService {
             /* We want native to be called for PTS testing even we have all
              * the data in the cache here
              */
-            mHapClientNativeInterface.getPresetInfo(device, presetIndex);
+            mNativeInterface.getPresetInfo(device, presetIndex);
         }
         List<BluetoothHapPresetInfo> current_presets = mPresetsMap.get(device);
         if (current_presets != null) {
@@ -614,20 +620,19 @@ public class HapClientService extends ProfileService {
     }
 
     private int stackEventPresetInfoReasonToProfileStatus(int statusCode) {
-        switch (statusCode) {
-            case HapClientStackEvent.PRESET_INFO_REASON_ALL_PRESET_INFO:
-                return BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST;
-            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_INFO_UPDATE:
-                return BluetoothStatusCodes.REASON_REMOTE_REQUEST;
-            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_DELETED:
-                return BluetoothStatusCodes.REASON_REMOTE_REQUEST;
-            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_AVAILABILITY_CHANGED:
-                return BluetoothStatusCodes.REASON_REMOTE_REQUEST;
-            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_INFO_REQUEST_RESPONSE:
-                return BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST;
-            default:
-                return BluetoothStatusCodes.ERROR_UNKNOWN;
-        }
+        return switch (statusCode) {
+            case HapClientStackEvent.PRESET_INFO_REASON_ALL_PRESET_INFO ->
+                    BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST;
+            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_INFO_UPDATE ->
+                    BluetoothStatusCodes.REASON_REMOTE_REQUEST;
+            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_DELETED ->
+                    BluetoothStatusCodes.REASON_REMOTE_REQUEST;
+            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_AVAILABILITY_CHANGED ->
+                    BluetoothStatusCodes.REASON_REMOTE_REQUEST;
+            case HapClientStackEvent.PRESET_INFO_REASON_PRESET_INFO_REQUEST_RESPONSE ->
+                    BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST;
+            default -> BluetoothStatusCodes.ERROR_UNKNOWN;
+        };
     }
 
     private void notifyPresetInfoChanged(BluetoothDevice device, int infoReason) {
@@ -643,24 +648,23 @@ public class HapClientService extends ProfileService {
     }
 
     private int stackEventStatusToProfileStatus(int statusCode) {
-        switch (statusCode) {
-            case HapClientStackEvent.STATUS_SET_NAME_NOT_ALLOWED:
-                return BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED;
-            case HapClientStackEvent.STATUS_OPERATION_NOT_SUPPORTED:
-                return BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED;
-            case HapClientStackEvent.STATUS_OPERATION_NOT_POSSIBLE:
-                return BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED;
-            case HapClientStackEvent.STATUS_INVALID_PRESET_NAME_LENGTH:
-                return BluetoothStatusCodes.ERROR_HAP_PRESET_NAME_TOO_LONG;
-            case HapClientStackEvent.STATUS_INVALID_PRESET_INDEX:
-                return BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX;
-            case HapClientStackEvent.STATUS_GROUP_OPERATION_NOT_SUPPORTED:
-                return BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED;
-            case HapClientStackEvent.STATUS_PROCEDURE_ALREADY_IN_PROGRESS:
-                return BluetoothStatusCodes.ERROR_UNKNOWN;
-            default:
-                return BluetoothStatusCodes.ERROR_UNKNOWN;
-        }
+        return switch (statusCode) {
+            case HapClientStackEvent.STATUS_SET_NAME_NOT_ALLOWED ->
+                    BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED;
+            case HapClientStackEvent.STATUS_OPERATION_NOT_SUPPORTED ->
+                    BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED;
+            case HapClientStackEvent.STATUS_OPERATION_NOT_POSSIBLE ->
+                    BluetoothStatusCodes.ERROR_REMOTE_OPERATION_REJECTED;
+            case HapClientStackEvent.STATUS_INVALID_PRESET_NAME_LENGTH ->
+                    BluetoothStatusCodes.ERROR_HAP_PRESET_NAME_TOO_LONG;
+            case HapClientStackEvent.STATUS_INVALID_PRESET_INDEX ->
+                    BluetoothStatusCodes.ERROR_HAP_INVALID_PRESET_INDEX;
+            case HapClientStackEvent.STATUS_GROUP_OPERATION_NOT_SUPPORTED ->
+                    BluetoothStatusCodes.ERROR_REMOTE_OPERATION_NOT_SUPPORTED;
+            case HapClientStackEvent.STATUS_PROCEDURE_ALREADY_IN_PROGRESS ->
+                    BluetoothStatusCodes.ERROR_UNKNOWN;
+            default -> BluetoothStatusCodes.ERROR_UNKNOWN;
+        };
     }
 
     private boolean isPresetIndexValid(BluetoothDevice device, int presetIndex) {
@@ -717,7 +721,7 @@ public class HapClientService extends ProfileService {
         // WARNING: We should check cache if preset exists and is writable, but then we would still
         //          need a way to trigger this action with an invalid index or on a non-writable
         //          preset for tests purpose.
-        mHapClientNativeInterface.setPresetName(device, presetIndex, name);
+        mNativeInterface.setPresetName(device, presetIndex, name);
     }
 
     @VisibleForTesting
@@ -733,7 +737,7 @@ public class HapClientService extends ProfileService {
             return;
         }
 
-        mHapClientNativeInterface.groupSetPresetName(groupId, presetIndex, name);
+        mNativeInterface.groupSetPresetName(groupId, presetIndex, name);
     }
 
     @Override
@@ -912,8 +916,7 @@ public class HapClientService extends ProfileService {
             if (sm == null) {
                 if (stackEvent.type == HapClientStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED) {
                     switch (stackEvent.valueInt1) {
-                        case HapClientStackEvent.CONNECTION_STATE_CONNECTED,
-                                HapClientStackEvent.CONNECTION_STATE_CONNECTING -> {
+                        case STATE_CONNECTED, STATE_CONNECTING -> {
                             sm = getOrCreateStateMachine(device);
                         }
                         default -> {}
@@ -924,7 +927,7 @@ public class HapClientService extends ProfileService {
                 Log.e(TAG, "Cannot process stack event: no state machine: " + stackEvent);
                 return;
             }
-            sm.sendMessage(HapClientStateMachine.STACK_EVENT, stackEvent);
+            sm.sendMessage(HapClientStateMachine.MESSAGE_STACK_EVENT, stackEvent);
         }
     }
 

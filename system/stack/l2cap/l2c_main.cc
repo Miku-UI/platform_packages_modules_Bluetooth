@@ -26,6 +26,7 @@
 
 #include <bluetooth/log.h>
 #include <string.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "hal/snoop_logger.h"
 #include "internal_include/bt_target.h"
@@ -35,12 +36,15 @@
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/hcimsgs.h"  // HCID_GET_
+#include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_module.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
 
 using namespace bluetooth;
+bool is_l2c_cleanup_inprogress;
 
 /******************************************************************************/
 /*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
@@ -219,6 +223,14 @@ void l2c_rcv_acl_data(BT_HDR* p_msg) {
  ******************************************************************************/
 static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
   tL2C_RCB* p_rcb;
+
+  /* if l2c free was already called that indicates stack being shutdown, donot process
+   * any command*/
+  if (com::android::bluetooth::flags::avoid_l2c_processing_while_stack_shutdown() &&
+      is_l2c_cleanup_inprogress) {
+    log::warn("Do not process any events when stack is being shutdown");
+    return;
+  }
 
   /* if l2cap command received in CID 1 on top of an LE link, ignore this
    * command */
@@ -870,9 +882,10 @@ void l2c_init(void) {
 
   l2cb.l2c_ble_fixed_chnls_mask =
           L2CAP_FIXED_CHNL_ATT_BIT | L2CAP_FIXED_CHNL_BLE_SIG_BIT | L2CAP_FIXED_CHNL_SMP_BIT;
+  is_l2c_cleanup_inprogress = false;
 }
 
-void l2c_free(void) {}
+void l2c_free(void) { is_l2c_cleanup_inprogress = true; }
 
 void l2c_ccb_timer_timeout(void* data) {
   tL2C_CCB* p_ccb = (tL2C_CCB*)data;

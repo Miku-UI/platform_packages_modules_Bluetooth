@@ -21,6 +21,7 @@
 #include <iostream>
 #include <vector>
 
+#include "internal_include/bt_trace.h"
 #include "packet/avrcp/avrcp_packet.h"
 #include "stack/include/bt_hdr.h"
 

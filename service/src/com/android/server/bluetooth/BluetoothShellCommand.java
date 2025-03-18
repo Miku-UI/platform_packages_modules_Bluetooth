@@ -18,6 +18,7 @@ package com.android.server.bluetooth;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.content.AttributionSource;
 import android.os.Binder;
@@ -29,6 +30,7 @@ import com.android.modules.utils.BasicShellCommandHandler;
 
 import java.io.PrintWriter;
 
+@SuppressLint("AndroidFrameworkRequiresPermission")
 class BluetoothShellCommand extends BasicShellCommandHandler {
     private static final String TAG = BluetoothShellCommand.class.getSimpleName();
 

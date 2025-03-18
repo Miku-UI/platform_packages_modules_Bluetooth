@@ -19,167 +19,185 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
 
-import android.platform.test.annotations.EnableFlags;
+import android.bluetooth.AudioInputControl.AudioInputStatus;
+import android.bluetooth.AudioInputControl.AudioInputType;
+import android.bluetooth.AudioInputControl.GainMode;
+import android.bluetooth.AudioInputControl.Mute;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import androidx.test.filters.MediumTest;
+import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.TestUtils;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
-@MediumTest
+@SmallTest
 @RunWith(AndroidJUnit4.class)
 public class VolumeControlInputDescriptorTest {
-
+    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
+    @Mock private VolumeControlNativeInterface mNativeInterface;
+
+    private static final int NUMBER_OF_INPUT = 3;
+    private static final int NUMBER_OF_FIELD_IN_STRUCT = 9;
+    private static final int VALID_ID = 1;
+    private static final int INVALID_ID = NUMBER_OF_INPUT;
+    private static final int INVALID_ID2 = -1;
+
+    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 0x42);
+
+    private VolumeControlInputDescriptor mDescriptor;
+
     @Before
-    public void setUp() throws Exception {
-        // placeholder
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        // placeholder
+    public void setUp() {
+        mDescriptor = new VolumeControlInputDescriptor(mNativeInterface, mDevice, NUMBER_OF_INPUT);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_ADD_AICS_SUPPORT)
-    public void testVolumeControlInputDescriptorInvalidIdOperations() throws Exception {
-        VolumeControlInputDescriptor descriptor = new VolumeControlInputDescriptor();
+    public void dump_noCrash() {
+        StringBuilder sb = new StringBuilder();
 
-        int invalidId = 1;
-        int testGainValue = 100;
-        int testGainMode = 1;
-        boolean testGainMute = true;
-        String testDesc = "testDescription";
-        int testType = VolumeControlInputDescriptor.AUDIO_INPUT_TYPE_AMBIENT;
-        int testGainSettingsMax = 100;
-        int testGainSettingsMin = 0;
-        int testGainSettingsUnit = 1;
-
-        // Test adding all props using invalid ID
-        assertThat(descriptor.isActive(invalidId)).isFalse();
-        assertThat(descriptor.setActive(invalidId, true)).isFalse();
-        assertThat(descriptor.setDescription(invalidId, testDesc)).isFalse();
-        assertThat(descriptor.getDescription(invalidId)).isNull();
-        assertThat(descriptor.setType(invalidId, testType)).isFalse();
-        assertThat(descriptor.getType(invalidId))
-                .isEqualTo(VolumeControlInputDescriptor.AUDIO_INPUT_TYPE_UNSPECIFIED);
-
-        assertThat(descriptor.getGain(invalidId)).isEqualTo(0);
-        assertThat(descriptor.isMuted(invalidId)).isFalse();
-        assertThat(
-                        descriptor.setPropSettings(
-                                invalidId,
-                                testGainSettingsUnit,
-                                testGainSettingsMin,
-                                testGainSettingsMax))
-                .isFalse();
-        assertThat(descriptor.setState(invalidId, testGainValue, testGainMode, testGainMute))
-                .isFalse();
+        mDescriptor.dump(sb);
+        int nLines = NUMBER_OF_INPUT * (NUMBER_OF_FIELD_IN_STRUCT + 1); // +1 for the id
+        assertThat(sb.toString()).containsMatch("(        .*\n){" + nLines + "}");
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_ADD_AICS_SUPPORT)
-    public void testVolumeControlInputDescriptorMultipleInstanceAdded() throws Exception {
-
-        VolumeControlInputDescriptor descriptor = new VolumeControlInputDescriptor();
-
-        int validId = 10;
-
-        // Verify that adding descriptor works increase descriptor size
-        assertThat(descriptor.size()).isEqualTo(0);
-        descriptor.add(validId);
-        assertThat(descriptor.size()).isEqualTo(1);
-
-        // Check if adding same id will not increase descriptor count.
-        descriptor.add(validId);
-        assertThat(descriptor.size()).isEqualTo(1);
+    public void setFoo_withAllValidId_valuesAreUpdated() {
+        for (int i = 0; i < NUMBER_OF_INPUT; i++) {
+            assertThat(mDescriptor.getStatus(i))
+                    .isEqualTo(bluetooth.constants.aics.AudioInputStatus.INACTIVE);
+            mDescriptor.onStatusChanged(i, bluetooth.constants.aics.AudioInputStatus.ACTIVE);
+            assertThat(mDescriptor.getStatus(i))
+                    .isEqualTo(bluetooth.constants.aics.AudioInputStatus.ACTIVE);
+        }
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_ADD_AICS_SUPPORT)
-    public void testVolumeControlInputDescriptorInstanceRemoveAndClear() throws Exception {
-
-        VolumeControlInputDescriptor descriptor = new VolumeControlInputDescriptor();
-
-        int id_1 = 10;
-        int id_2 = 20;
-        int invalidId = 1;
-
-        // Verify that adding descriptor works increase descriptor size
-        assertThat(descriptor.size()).isEqualTo(0);
-        descriptor.add(id_1);
-        assertThat(descriptor.size()).isEqualTo(1);
-        descriptor.add(id_2);
-
-        // Remove valid id
-        descriptor.remove(id_1);
-        assertThat(descriptor.size()).isEqualTo(1);
-
-        // Remove invalid id not change number of descriptors
-        descriptor.remove(invalidId);
-        assertThat(descriptor.size()).isEqualTo(1);
-
-        // Check clear API
-        descriptor.clear();
-        assertThat(descriptor.size()).isEqualTo(0);
+    public void getStatus_whenNeverSet_defaultToInactive() {
+        assertThat(mDescriptor.getStatus(VALID_ID))
+                .isEqualTo(bluetooth.constants.aics.AudioInputStatus.INACTIVE);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_LEAUDIO_ADD_AICS_SUPPORT)
-    public void testVolumeControlInputDescriptorAllValidApiCalls() throws Exception {
+    public void setStatus_withValidId_valueIsUpdated() {
+        @AudioInputStatus int status = bluetooth.constants.aics.AudioInputStatus.ACTIVE;
+        mDescriptor.onStatusChanged(VALID_ID, status);
 
-        VolumeControlInputDescriptor descriptor = new VolumeControlInputDescriptor();
+        assertThat(mDescriptor.getStatus(VALID_ID)).isEqualTo(status);
+    }
 
-        int validId = 10;
-        int testGainValue = 100;
-        int testGainMode = 1;
-        boolean testGainMute = true;
-        String defaultDesc = "";
-        String testDesc = "testDescription";
-        int testType = VolumeControlInputDescriptor.AUDIO_INPUT_TYPE_AMBIENT;
-        int testGainSettingsMax = 100;
-        int testGainSettingsMin = 0;
-        int testGainSettingsUnit = 1;
+    @Test
+    public void setStatus_withInvalidId_valueIsNotUpdated() {
+        @AudioInputStatus int status = bluetooth.constants.aics.AudioInputStatus.ACTIVE;
+        mDescriptor.onStatusChanged(INVALID_ID, status);
 
-        descriptor.add(validId);
+        assertThat(mDescriptor.getStatus(INVALID_ID)).isNotEqualTo(status);
+    }
 
-        // Active state
-        assertThat(descriptor.isActive(validId)).isFalse();
-        assertThat(descriptor.setActive(validId, true)).isTrue();
-        assertThat(descriptor.isActive(validId)).isTrue();
+    @Test
+    public void getType_whenNeverSet_defaultToUnspecified() {
+        assertThat(mDescriptor.getType(VALID_ID))
+                .isEqualTo(bluetooth.constants.AudioInputType.UNSPECIFIED);
+    }
 
-        // Descriptor
-        assertThat(descriptor.getDescription(validId)).isEqualTo(defaultDesc);
-        assertThat(descriptor.setDescription(validId, testDesc)).isTrue();
-        assertThat(descriptor.getDescription(validId)).isEqualTo(testDesc);
+    @Test
+    public void setType_withValidId_valueIsUpdated() {
+        @AudioInputType int type = bluetooth.constants.AudioInputType.AMBIENT;
+        mDescriptor.setType(VALID_ID, type);
 
-        // Type
-        assertThat(descriptor.getType(validId))
-                .isEqualTo(VolumeControlInputDescriptor.AUDIO_INPUT_TYPE_UNSPECIFIED);
-        assertThat(descriptor.setType(validId, testType)).isTrue();
-        assertThat(descriptor.getType(validId)).isEqualTo(testType);
+        assertThat(mDescriptor.getType(VALID_ID)).isEqualTo(type);
+    }
 
-        // Properties
-        assertThat(
-                        descriptor.setPropSettings(
-                                validId,
-                                testGainSettingsUnit,
-                                testGainSettingsMin,
-                                testGainSettingsMax))
-                .isTrue();
+    @Test
+    public void setType_withInvalidId_valueIsNotUpdated() {
+        @AudioInputType int type = bluetooth.constants.AudioInputType.BLUETOOTH;
+        mDescriptor.setType(INVALID_ID2, type);
 
-        // State
-        assertThat(descriptor.setState(validId, testGainValue, testGainMode, testGainMute))
-                .isTrue();
-        assertThat(descriptor.getGain(validId)).isEqualTo(testGainValue);
+        assertThat(mDescriptor.getType(INVALID_ID2)).isNotEqualTo(type);
+    }
+
+    @Test
+    public void setState_withValidIdButIncorrectSettings_valueIsNotUpdated() {
+        mDescriptor.onStateChanged(
+                VALID_ID,
+                34,
+                bluetooth.constants.aics.Mute.NOT_MUTED,
+                bluetooth.constants.aics.GainMode.MANUAL);
+
+        assertThat(mDescriptor.getGainSetting(VALID_ID)).isEqualTo(0);
+        assertThat(mDescriptor.getGainMode(VALID_ID))
+                .isEqualTo(bluetooth.constants.aics.GainMode.MANUAL_ONLY);
+        assertThat(mDescriptor.getMute(VALID_ID)).isEqualTo(bluetooth.constants.aics.Mute.DISABLED);
+    }
+
+    @Test
+    public void setState_withValidIdAndCorrectSettings_valueIsUpdated() {
+        int max = 100;
+        int min = 0;
+        int unit = 1;
+        mDescriptor.onGainSettingsPropertiesChanged(VALID_ID, unit, min, max);
+
+        int gainSetting = 42;
+        @Mute int mute = bluetooth.constants.aics.Mute.MUTED;
+        @GainMode int gainMode = bluetooth.constants.aics.GainMode.MANUAL;
+        mDescriptor.onStateChanged(VALID_ID, gainSetting, mute, gainMode);
+
+        assertThat(mDescriptor.getGainSetting(VALID_ID)).isEqualTo(gainSetting);
+        assertThat(mDescriptor.getGainMode(VALID_ID)).isEqualTo(gainMode);
+        assertThat(mDescriptor.getMute(VALID_ID)).isEqualTo(mute);
+    }
+
+    @Test
+    public void setState_withInvalidId_valueIsNotUpdated() {
+        int max = 100;
+        int min = 0;
+        int unit = 1;
+        // Should be no-op but we want to copy the working case test, just with an invalid id
+        mDescriptor.onGainSettingsPropertiesChanged(INVALID_ID, unit, min, max);
+
+        mDescriptor.onStateChanged(
+                INVALID_ID,
+                35,
+                bluetooth.constants.aics.Mute.MUTED,
+                bluetooth.constants.aics.GainMode.MANUAL);
+
+        assertThat(mDescriptor.getGainSetting(INVALID_ID)).isEqualTo(0);
+        assertThat(mDescriptor.getGainMode(INVALID_ID))
+                .isEqualTo(bluetooth.constants.aics.GainMode.AUTOMATIC_ONLY);
+        assertThat(mDescriptor.getMute(INVALID_ID))
+                .isEqualTo(bluetooth.constants.aics.Mute.DISABLED);
+    }
+
+    @Test
+    public void getDescription_whenNeverSet_defaultToEmptyString() {
+        assertThat(mDescriptor.getDescription(VALID_ID)).isEmpty();
+    }
+
+    @Test
+    public void setDescription_withValidId_valueIsUpdated() {
+        String newDescription = "what a nice description";
+        mDescriptor.onDescriptionChanged(VALID_ID, newDescription, false);
+
+        assertThat(mDescriptor.getDescription(VALID_ID)).isEqualTo(newDescription);
+    }
+
+    @Test
+    public void setDescription_withInvalidId_valueIsNotUpdated() {
+        String newDescription = "what a nice description";
+        mDescriptor.onDescriptionChanged(INVALID_ID, newDescription, true);
+
+        assertThat(mDescriptor.getDescription(INVALID_ID)).isNotEqualTo(newDescription);
     }
 }

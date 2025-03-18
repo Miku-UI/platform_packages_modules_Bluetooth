@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"지금 블루투스를 사용하시겠습니까?"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"취소"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"사용"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"파일 전송"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"파일 수신을 수락하시겠습니까?"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"거부"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"수락"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g>에서 <xliff:g id="FILE">%2$s</xliff:g> 파일을 전송할 준비가 되었습니다."</string>
     <string name="notification_receiving" msgid="8445265771083510696">"블루투스 공유: <xliff:g id="FILE">%1$s</xliff:g> 받는 중"</string>
     <string name="notification_received" msgid="2330252358543000567">"블루투스 공유: <xliff:g id="FILE">%1$s</xliff:g> 받음"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"블루투스 공유: <xliff:g id="FILE">%1$s</xliff:g> 파일이 수신되지 않았습니다."</string>
     <string name="notification_sending" msgid="8269912843286868700">"블루투스 공유: <xliff:g id="FILE">%1$s</xliff:g> 보내는 중"</string>
     <string name="notification_sent" msgid="2685202778935769332">"블루투스 공유: <xliff:g id="FILE">%1$s</xliff:g> 보냄"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"100% 완료"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"블루투스 공유: <xliff:g id="FILE">%1$s</xliff:g> 파일을 보내지 못함"</string>
     <string name="download_title" msgid="6449408649671518102">"파일 전송"</string>
     <string name="download_line1" msgid="6449220145685308846">"보낸사람: \'<xliff:g id="SENDER">%1$s</xliff:g>\'"</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"잠시 기다려 주세요."</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"블루투스 켜는 중..."</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"파일이 수신됩니다. 알림 패널에서 진행률을 확인하세요."</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"파일을 받지 못했습니다."</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"\'<xliff:g id="SENDER">%1$s</xliff:g>\'님으로부터 파일 받기를 중지했습니다."</string>
     <string name="bt_toast_4" msgid="480365991944956695">"\'<xliff:g id="RECIPIENT">%1$s</xliff:g>\'님에게 파일을 보내는 중"</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"\'<xliff:g id="RECIPIENT">%2$s</xliff:g>\'에 <xliff:g id="NUMBER">%1$s</xliff:g>개 파일을 보내는 중"</string>
@@ -118,7 +114,6 @@
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"지우기"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"지금 재생 중"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"애플리케이션 아이콘"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"블루투스 오디오가 연결됨"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"블루투스 오디오가 연결 해제됨"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"블루투스 오디오"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"4GB보다 큰 파일은 전송할 수 없습니다"</string>

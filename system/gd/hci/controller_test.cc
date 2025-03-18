@@ -29,9 +29,11 @@
 #include "common/bind.h"
 #include "hci/address.h"
 #include "hci/hci_layer_fake.h"
-#include "module_dumper.h"
 #include "os/thread.h"
 #include "packet/raw_builder.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 using namespace std::chrono_literals;
@@ -72,6 +74,12 @@ public:
   void EnqueueCommand(
           std::unique_ptr<CommandBuilder> /* command */,
           common::ContextualOnceCallback<void(CommandStatusView)> /* on_status */) override {
+    FAIL() << "Controller properties should not generate Command Status";
+  }
+
+  void EnqueueCommand(std::unique_ptr<CommandBuilder> /* command */,
+                      common::ContextualOnceCallback<void(
+                              CommandStatusOrCompleteView)> /* on_status_or_complete */) override {
     FAIL() << "Controller properties should not generate Command Status";
   }
 
@@ -384,21 +392,21 @@ TEST_F(ControllerTest, read_controller_info) {
             test_hci_layer_->total_num_synchronous_data_packets);
   ASSERT_EQ(controller_->GetMacAddress(), Address::kAny);
   LocalVersionInformation local_version_information = controller_->GetLocalVersionInformation();
-  ASSERT_EQ(local_version_information.hci_version_, HciVersion::V_5_0);
-  ASSERT_EQ(local_version_information.hci_revision_, 0x1234);
-  ASSERT_EQ(local_version_information.lmp_version_, LmpVersion::V_4_2);
-  ASSERT_EQ(local_version_information.manufacturer_name_, 0xBAD);
-  ASSERT_EQ(local_version_information.lmp_subversion_, 0x5678);
-  ASSERT_EQ(controller_->GetLeBufferSize().le_data_packet_length_, 0x16);
-  ASSERT_EQ(controller_->GetLeBufferSize().total_num_le_packets_, 0x08);
-  ASSERT_EQ(controller_->GetLeSupportedStates(), 0x001f123456789abeUL);
-  ASSERT_EQ(controller_->GetLeMaximumDataLength().supported_max_tx_octets_, 0x12);
-  ASSERT_EQ(controller_->GetLeMaximumDataLength().supported_max_tx_time_, 0x34);
-  ASSERT_EQ(controller_->GetLeMaximumDataLength().supported_max_rx_octets_, 0x56);
-  ASSERT_EQ(controller_->GetLeMaximumDataLength().supported_max_rx_time_, 0x78);
-  ASSERT_EQ(controller_->GetLeMaximumAdvertisingDataLength(), 0x0672);
-  ASSERT_EQ(controller_->GetLeNumberOfSupportedAdverisingSets(), 0xF0);
-  ASSERT_TRUE(controller_->GetLocalSupportedBrEdrCodecIds().size() > 0);
+  ASSERT_EQ(HciVersion::V_5_0, local_version_information.hci_version_);
+  ASSERT_EQ(0x1234, local_version_information.hci_revision_);
+  ASSERT_EQ(LmpVersion::V_4_2, local_version_information.lmp_version_);
+  ASSERT_EQ(0xBAD, local_version_information.manufacturer_name_);
+  ASSERT_EQ(0x5678, local_version_information.lmp_subversion_);
+  ASSERT_EQ(0x16, controller_->GetLeBufferSize().le_data_packet_length_);
+  ASSERT_EQ(0x08, controller_->GetLeBufferSize().total_num_le_packets_);
+  ASSERT_EQ(0x001f123456789abeUL, controller_->GetLeSupportedStates());
+  ASSERT_EQ(0x12, controller_->GetLeMaximumDataLength().supported_max_tx_octets_);
+  ASSERT_EQ(0x34, controller_->GetLeMaximumDataLength().supported_max_tx_time_);
+  ASSERT_EQ(0x56, controller_->GetLeMaximumDataLength().supported_max_rx_octets_);
+  ASSERT_EQ(0x78, controller_->GetLeMaximumDataLength().supported_max_rx_time_);
+  ASSERT_EQ(0x0672, controller_->GetLeMaximumAdvertisingDataLength());
+  ASSERT_EQ(0xF0, controller_->GetLeNumberOfSupportedAdverisingSets());
+  ASSERT_GT(controller_->GetLocalSupportedBrEdrCodecIds().size(), 0u);
 }
 
 TEST_F(ControllerTest, read_write_local_name) {
@@ -626,16 +634,6 @@ TEST_F(ControllerTest, leRandTest) {
 
   ASSERT_EQ(std::future_status::ready, le_rand_set_future.wait_for(2s));
   ASSERT_EQ(kRandomNumber, le_rand_set_future.get());
-}
-
-TEST_F(ControllerTest, Dumpsys) {
-  ModuleDumper dumper(STDOUT_FILENO, fake_registry_, title);
-
-  std::string output;
-  std::ostringstream oss;
-  dumper.DumpState(&output, oss);
-
-  ASSERT_TRUE(output.find("Hci Controller Dumpsys") != std::string::npos);
 }
 
 }  // namespace hci

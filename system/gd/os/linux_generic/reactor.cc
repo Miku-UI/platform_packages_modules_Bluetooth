@@ -27,8 +27,6 @@
 #include <cinttypes>
 #include <cstring>
 
-#include "os/log.h"
-
 namespace {
 
 // Use at most sizeof(epoll_event) * kEpollMaxEvents kernel memory

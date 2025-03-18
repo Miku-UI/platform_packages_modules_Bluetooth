@@ -16,6 +16,10 @@
 
 #include "model/controller/dual_mode_controller.h"
 
+#include <openssl/ec.h>
+#include <openssl/ec_key.h>
+#include <openssl/mem.h>
+#include <openssl/nid.h>
 #include <packet_runtime.h>
 
 #include <algorithm>
@@ -1721,8 +1725,8 @@ void DualModeController::LeRequestPeerSca(CommandView command) {
   }
 }
 
-void DualModeController::LeSetHostFeature(CommandView command) {
-  auto command_view = bluetooth::hci::LeSetHostFeatureView::Create(command);
+void DualModeController::LeSetHostFeatureV1(CommandView command) {
+  auto command_view = bluetooth::hci::LeSetHostFeatureV1View::Create(command);
   CHECK_PACKET_VIEW(command_view);
   uint8_t bit_number = static_cast<uint8_t>(command_view.GetBitNumber());
   uint8_t bit_value = static_cast<uint8_t>(command_view.GetBitValue());
@@ -1732,7 +1736,8 @@ void DualModeController::LeSetHostFeature(CommandView command) {
   DEBUG(id_, "   bit_value={}", bit_value);
 
   ErrorCode status = link_layer_controller_.LeSetHostFeature(bit_number, bit_value);
-  send_event_(bluetooth::hci::LeSetHostFeatureCompleteBuilder::Create(kNumCommandPackets, status));
+  send_event_(
+          bluetooth::hci::LeSetHostFeatureV1CompleteBuilder::Create(kNumCommandPackets, status));
 }
 
 void DualModeController::LeReadBufferSizeV1(CommandView command) {
@@ -1792,14 +1797,14 @@ void DualModeController::LeSetResolvablePrivateAddressTimeout(CommandView comman
           kNumCommandPackets, status));
 }
 
-void DualModeController::LeReadLocalSupportedFeatures(CommandView command) {
-  auto command_view = bluetooth::hci::LeReadLocalSupportedFeaturesView::Create(command);
+void DualModeController::LeReadLocalSupportedFeaturesPage0(CommandView command) {
+  auto command_view = bluetooth::hci::LeReadLocalSupportedFeaturesPage0View::Create(command);
   CHECK_PACKET_VIEW(command_view);
 
-  DEBUG(id_, "<< LE Read Local Supported Features");
+  DEBUG(id_, "<< LE Read Local Supported Features Page 0");
 
   uint64_t le_features = link_layer_controller_.GetLeSupportedFeatures();
-  send_event_(bluetooth::hci::LeReadLocalSupportedFeaturesCompleteBuilder::Create(
+  send_event_(bluetooth::hci::LeReadLocalSupportedFeaturesPage0CompleteBuilder::Create(
           kNumCommandPackets, ErrorCode::SUCCESS, le_features));
 }
 
@@ -2210,6 +2215,61 @@ void DualModeController::LeWriteSuggestedDefaultDataLength(CommandView command) 
           kNumCommandPackets, status));
 }
 
+static ErrorCode generateP256Key(std::array<uint8_t, 32>& key_x_coordinate,
+                                 std::array<uint8_t, 32>& key_y_coordinate) {
+  auto ec_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  if (!ec_key) {
+    WARNING("EC_KEY_new_by_curve_name(NID_X9_62_prime256v1) failed");
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  if (!EC_KEY_generate_key(ec_key)) {
+    WARNING("EC_KEY_generate_key failed");
+    EC_KEY_free(ec_key);
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  uint8_t* out_buf = nullptr;
+  auto size = EC_KEY_key2buf(ec_key, POINT_CONVERSION_UNCOMPRESSED, &out_buf, nullptr);
+  if (!out_buf) {
+    WARNING("EC_KEY_key2buf failed");
+    EC_KEY_free(ec_key);
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  const size_t expected_size = key_x_coordinate.size() + key_y_coordinate.size() + 1;
+  if (size != expected_size) {
+    WARNING("unexpected size {}", size);
+    OPENSSL_free(out_buf);
+    EC_KEY_free(ec_key);
+    return ErrorCode::UNSPECIFIED_ERROR;
+  }
+
+  memcpy(key_x_coordinate.data(), out_buf + 1, key_x_coordinate.size());
+  memcpy(key_y_coordinate.data(), out_buf + 1 + key_x_coordinate.size(), key_y_coordinate.size());
+
+  // OPENSSL_free(out_buf); // <-- this call fails with error invalid pointer
+  EC_KEY_free(ec_key);
+  return ErrorCode::SUCCESS;
+}
+
+void DualModeController::LeReadLocalP256PublicKey(CommandView command) {
+  auto command_view = bluetooth::hci::LeReadLocalP256PublicKeyView::Create(command);
+  CHECK_PACKET_VIEW(command_view);
+
+  DEBUG(id_, "<< LE Read Local P-256 Public Key");
+
+  send_event_(bluetooth::hci::LeReadLocalP256PublicKeyStatusBuilder::Create(ErrorCode::SUCCESS,
+                                                                            kNumCommandPackets));
+
+  std::array<uint8_t, 32> key_x_coordinate = {};
+  std::array<uint8_t, 32> key_y_coordinate = {};
+  ErrorCode status = generateP256Key(key_x_coordinate, key_y_coordinate);
+
+  send_event_(bluetooth::hci::LeReadLocalP256PublicKeyCompleteBuilder::Create(
+          status, key_x_coordinate, key_y_coordinate));
+}
+
 void DualModeController::LeAddDeviceToResolvingList(CommandView command) {
   auto command_view = bluetooth::hci::LeAddDeviceToResolvingListView::Create(command);
   CHECK_PACKET_VIEW(command_view);
@@ -2241,17 +2301,17 @@ void DualModeController::LeRemoveDeviceFromResolvingList(CommandView command) {
           kNumCommandPackets, status));
 }
 
-void DualModeController::LeSetPeriodicAdvertisingParameters(CommandView command) {
-  auto command_view = bluetooth::hci::LeSetPeriodicAdvertisingParametersView::Create(command);
+void DualModeController::LeSetPeriodicAdvertisingParametersV1(CommandView command) {
+  auto command_view = bluetooth::hci::LeSetPeriodicAdvertisingParametersV1View::Create(command);
   CHECK_PACKET_VIEW(command_view);
 
-  DEBUG(id_, "<< LE Set Periodic Advertising Parameters");
+  DEBUG(id_, "<< LE Set Periodic Advertising Parameters V1");
   DEBUG(id_, "   advertising_handle={}", command_view.GetAdvertisingHandle());
 
   ErrorCode status = link_layer_controller_.LeSetPeriodicAdvertisingParameters(
           command_view.GetAdvertisingHandle(), command_view.GetPeriodicAdvertisingIntervalMin(),
           command_view.GetPeriodicAdvertisingIntervalMax(), command_view.GetIncludeTxPower());
-  send_event_(bluetooth::hci::LeSetPeriodicAdvertisingParametersCompleteBuilder::Create(
+  send_event_(bluetooth::hci::LeSetPeriodicAdvertisingParametersV1CompleteBuilder::Create(
           kNumCommandPackets, status));
 }
 
@@ -2405,11 +2465,11 @@ void DualModeController::LeSetExtendedScanEnable(CommandView command) {
                                                                              status));
 }
 
-void DualModeController::LeExtendedCreateConnection(CommandView command) {
-  auto command_view = bluetooth::hci::LeExtendedCreateConnectionView::Create(command);
+void DualModeController::LeExtendedCreateConnectionV1(CommandView command) {
+  auto command_view = bluetooth::hci::LeExtendedCreateConnectionV1View::Create(command);
   CHECK_PACKET_VIEW(command_view);
 
-  DEBUG(id_, "<< LE Extended Create Connection");
+  DEBUG(id_, "<< LE Extended Create Connection V1");
   DEBUG(id_, "   peer_address={}", command_view.GetPeerAddress());
   DEBUG(id_, "   peer_address_type={}",
         bluetooth::hci::PeerAddressTypeText(command_view.GetPeerAddressType()));
@@ -2434,8 +2494,8 @@ void DualModeController::LeExtendedCreateConnection(CommandView command) {
                   peer_address_type,
           },
           command_view.GetInitiatingPhys(), command_view.GetInitiatingPhyParameters());
-  send_event_(bluetooth::hci::LeExtendedCreateConnectionStatusBuilder::Create(status,
-                                                                              kNumCommandPackets));
+  send_event_(bluetooth::hci::LeExtendedCreateConnectionV1StatusBuilder::Create(
+          status, kNumCommandPackets));
 }
 
 void DualModeController::LeSetPrivacyMode(CommandView command) {
@@ -2454,19 +2514,19 @@ void DualModeController::LeSetPrivacyMode(CommandView command) {
   send_event_(bluetooth::hci::LeSetPrivacyModeCompleteBuilder::Create(kNumCommandPackets, status));
 }
 
-void DualModeController::LeReadRemoteFeatures(CommandView command) {
-  auto command_view = bluetooth::hci::LeReadRemoteFeaturesView::Create(command);
+void DualModeController::LeReadRemoteFeaturesPage0(CommandView command) {
+  auto command_view = bluetooth::hci::LeReadRemoteFeaturesPage0View::Create(command);
   CHECK_PACKET_VIEW(command_view);
   uint16_t handle = command_view.GetConnectionHandle();
 
-  DEBUG(id_, "<< LE Read Remote Features");
+  DEBUG(id_, "<< LE Read Remote Features Page 0");
   DEBUG(id_, "   connection_handle=0x{:x}", handle);
 
-  auto status = link_layer_controller_.SendCommandToRemoteByHandle(OpCode::LE_READ_REMOTE_FEATURES,
-                                                                   command_view.bytes(), handle);
+  auto status = link_layer_controller_.SendCommandToRemoteByHandle(
+          OpCode::LE_READ_REMOTE_FEATURES_PAGE_0, command_view.bytes(), handle);
 
-  send_event_(
-          bluetooth::hci::LeReadRemoteFeaturesStatusBuilder::Create(status, kNumCommandPackets));
+  send_event_(bluetooth::hci::LeReadRemoteFeaturesPage0StatusBuilder::Create(status,
+                                                                             kNumCommandPackets));
 }
 
 void DualModeController::LeEncrypt(CommandView command) {
@@ -3020,11 +3080,11 @@ void DualModeController::LeSetAdvertisingSetRandomAddress(CommandView command) {
           kNumCommandPackets, status));
 }
 
-void DualModeController::LeSetExtendedAdvertisingParameters(CommandView command) {
-  auto command_view = bluetooth::hci::LeSetExtendedAdvertisingParametersView::Create(command);
+void DualModeController::LeSetExtendedAdvertisingParametersV1(CommandView command) {
+  auto command_view = bluetooth::hci::LeSetExtendedAdvertisingParametersV1View::Create(command);
   CHECK_PACKET_VIEW(command_view);
 
-  DEBUG(id_, "<< LE Set Extended Advertising Parameters");
+  DEBUG(id_, "<< LE Set Extended Advertising Parameters V1");
   DEBUG(id_, "   advertising_handle={}", command_view.GetAdvertisingHandle());
 
   ErrorCode status = link_layer_controller_.LeSetExtendedAdvertisingParameters(
@@ -3039,7 +3099,7 @@ void DualModeController::LeSetExtendedAdvertisingParameters(CommandView command)
           command_view.GetScanRequestNotificationEnable() == Enable::ENABLED);
   // The selected TX power is always the requested TX power
   // at the moment.
-  send_event_(bluetooth::hci::LeSetExtendedAdvertisingParametersCompleteBuilder::Create(
+  send_event_(bluetooth::hci::LeSetExtendedAdvertisingParametersV1CompleteBuilder::Create(
           kNumCommandPackets, status, command_view.GetAdvertisingTxPower()));
 }
 
@@ -3449,7 +3509,8 @@ const std::unordered_map<OpCode, OpCodeIndex> DualModeController::hci_command_op
         // TESTING
         {OpCode::READ_LOOPBACK_MODE, OpCodeIndex::READ_LOOPBACK_MODE},
         {OpCode::WRITE_LOOPBACK_MODE, OpCodeIndex::WRITE_LOOPBACK_MODE},
-        {OpCode::ENABLE_DEVICE_UNDER_TEST_MODE, OpCodeIndex::ENABLE_DEVICE_UNDER_TEST_MODE},
+        {OpCode::ENABLE_IMPLEMENTATION_UNDER_TEST_MODE,
+         OpCodeIndex::ENABLE_IMPLEMENTATION_UNDER_TEST_MODE},
         {OpCode::WRITE_SIMPLE_PAIRING_DEBUG_MODE, OpCodeIndex::WRITE_SIMPLE_PAIRING_DEBUG_MODE},
         {OpCode::WRITE_SECURE_CONNECTIONS_TEST_MODE,
          OpCodeIndex::WRITE_SECURE_CONNECTIONS_TEST_MODE},
@@ -3457,7 +3518,8 @@ const std::unordered_map<OpCode, OpCodeIndex> DualModeController::hci_command_op
         // LE_CONTROLLER
         {OpCode::LE_SET_EVENT_MASK, OpCodeIndex::LE_SET_EVENT_MASK},
         {OpCode::LE_READ_BUFFER_SIZE_V1, OpCodeIndex::LE_READ_BUFFER_SIZE_V1},
-        {OpCode::LE_READ_LOCAL_SUPPORTED_FEATURES, OpCodeIndex::LE_READ_LOCAL_SUPPORTED_FEATURES},
+        {OpCode::LE_READ_LOCAL_SUPPORTED_FEATURES_PAGE_0,
+         OpCodeIndex::LE_READ_LOCAL_SUPPORTED_FEATURES_PAGE_0},
         {OpCode::LE_SET_RANDOM_ADDRESS, OpCodeIndex::LE_SET_RANDOM_ADDRESS},
         {OpCode::LE_SET_ADVERTISING_PARAMETERS, OpCodeIndex::LE_SET_ADVERTISING_PARAMETERS},
         {OpCode::LE_READ_ADVERTISING_PHYSICAL_CHANNEL_TX_POWER,
@@ -3479,7 +3541,7 @@ const std::unordered_map<OpCode, OpCodeIndex> DualModeController::hci_command_op
         {OpCode::LE_SET_HOST_CHANNEL_CLASSIFICATION,
          OpCodeIndex::LE_SET_HOST_CHANNEL_CLASSIFICATION},
         {OpCode::LE_READ_CHANNEL_MAP, OpCodeIndex::LE_READ_CHANNEL_MAP},
-        {OpCode::LE_READ_REMOTE_FEATURES, OpCodeIndex::LE_READ_REMOTE_FEATURES},
+        {OpCode::LE_READ_REMOTE_FEATURES_PAGE_0, OpCodeIndex::LE_READ_REMOTE_FEATURES_PAGE_0},
         {OpCode::LE_ENCRYPT, OpCodeIndex::LE_ENCRYPT},
         {OpCode::LE_RAND, OpCodeIndex::LE_RAND},
         {OpCode::LE_START_ENCRYPTION, OpCodeIndex::LE_START_ENCRYPTION},
@@ -3519,8 +3581,8 @@ const std::unordered_map<OpCode, OpCodeIndex> DualModeController::hci_command_op
         {OpCode::LE_TRANSMITTER_TEST_V2, OpCodeIndex::LE_TRANSMITTER_TEST_V2},
         {OpCode::LE_SET_ADVERTISING_SET_RANDOM_ADDRESS,
          OpCodeIndex::LE_SET_ADVERTISING_SET_RANDOM_ADDRESS},
-        {OpCode::LE_SET_EXTENDED_ADVERTISING_PARAMETERS,
-         OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_PARAMETERS},
+        {OpCode::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V1,
+         OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V1},
         {OpCode::LE_SET_EXTENDED_ADVERTISING_DATA, OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_DATA},
         {OpCode::LE_SET_EXTENDED_SCAN_RESPONSE_DATA,
          OpCodeIndex::LE_SET_EXTENDED_SCAN_RESPONSE_DATA},
@@ -3532,14 +3594,14 @@ const std::unordered_map<OpCode, OpCodeIndex> DualModeController::hci_command_op
          OpCodeIndex::LE_READ_NUMBER_OF_SUPPORTED_ADVERTISING_SETS},
         {OpCode::LE_REMOVE_ADVERTISING_SET, OpCodeIndex::LE_REMOVE_ADVERTISING_SET},
         {OpCode::LE_CLEAR_ADVERTISING_SETS, OpCodeIndex::LE_CLEAR_ADVERTISING_SETS},
-        {OpCode::LE_SET_PERIODIC_ADVERTISING_PARAMETERS,
-         OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_PARAMETERS},
+        {OpCode::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V1,
+         OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V1},
         {OpCode::LE_SET_PERIODIC_ADVERTISING_DATA, OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_DATA},
         {OpCode::LE_SET_PERIODIC_ADVERTISING_ENABLE,
          OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_ENABLE},
         {OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS, OpCodeIndex::LE_SET_EXTENDED_SCAN_PARAMETERS},
         {OpCode::LE_SET_EXTENDED_SCAN_ENABLE, OpCodeIndex::LE_SET_EXTENDED_SCAN_ENABLE},
-        {OpCode::LE_EXTENDED_CREATE_CONNECTION, OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION},
+        {OpCode::LE_EXTENDED_CREATE_CONNECTION_V1, OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION_V1},
         {OpCode::LE_PERIODIC_ADVERTISING_CREATE_SYNC,
          OpCodeIndex::LE_PERIODIC_ADVERTISING_CREATE_SYNC},
         {OpCode::LE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL,
@@ -3606,7 +3668,7 @@ const std::unordered_map<OpCode, OpCodeIndex> DualModeController::hci_command_op
         {OpCode::LE_ISO_RECEIVE_TEST, OpCodeIndex::LE_ISO_RECEIVE_TEST},
         {OpCode::LE_ISO_READ_TEST_COUNTERS, OpCodeIndex::LE_ISO_READ_TEST_COUNTERS},
         {OpCode::LE_ISO_TEST_END, OpCodeIndex::LE_ISO_TEST_END},
-        {OpCode::LE_SET_HOST_FEATURE, OpCodeIndex::LE_SET_HOST_FEATURE},
+        {OpCode::LE_SET_HOST_FEATURE_V1, OpCodeIndex::LE_SET_HOST_FEATURE_V1},
         {OpCode::LE_READ_ISO_LINK_QUALITY, OpCodeIndex::LE_READ_ISO_LINK_QUALITY},
         {OpCode::LE_ENHANCED_READ_TRANSMIT_POWER_LEVEL,
          OpCodeIndex::LE_ENHANCED_READ_TRANSMIT_POWER_LEVEL},
@@ -3622,6 +3684,49 @@ const std::unordered_map<OpCode, OpCodeIndex> DualModeController::hci_command_op
          OpCodeIndex::LE_SET_DATA_RELATED_ADDRESS_CHANGES},
         {OpCode::LE_SET_DEFAULT_SUBRATE, OpCodeIndex::LE_SET_DEFAULT_SUBRATE},
         {OpCode::LE_SUBRATE_REQUEST, OpCodeIndex::LE_SUBRATE_REQUEST},
+        {OpCode::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V2,
+         OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V2},
+        {OpCode::LE_SET_DECISION_DATA, OpCodeIndex::LE_SET_DECISION_DATA},
+        {OpCode::LE_SET_DECISION_INSTRUCTIONS, OpCodeIndex::LE_SET_DECISION_INSTRUCTIONS},
+        {OpCode::LE_SET_PERIODIC_ADVERTISING_SUBEVENT_DATA,
+         OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_SUBEVENT_DATA},
+        {OpCode::LE_SET_PERIODIC_ADVERTISING_RESPONSE_DATA,
+         OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_RESPONSE_DATA},
+        {OpCode::LE_SET_PERIODIC_SYNC_SUBEVENT, OpCodeIndex::LE_SET_PERIODIC_SYNC_SUBEVENT},
+        {OpCode::LE_EXTENDED_CREATE_CONNECTION_V2, OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION_V2},
+        {OpCode::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V2,
+         OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V2},
+        {OpCode::LE_READ_ALL_LOCAL_SUPPORTED_FEATURES,
+         OpCodeIndex::LE_READ_ALL_LOCAL_SUPPORTED_FEATURES},
+        {OpCode::LE_READ_ALL_REMOTE_FEATURES, OpCodeIndex::LE_READ_ALL_REMOTE_FEATURES},
+        {OpCode::LE_CS_READ_LOCAL_SUPPORTED_CAPABILITIES,
+         OpCodeIndex::LE_CS_READ_LOCAL_SUPPORTED_CAPABILITIES},
+        {OpCode::LE_CS_READ_REMOTE_SUPPORTED_CAPABILITIES,
+         OpCodeIndex::LE_CS_READ_REMOTE_SUPPORTED_CAPABILITIES},
+        {OpCode::LE_CS_WRITE_CACHED_REMOTE_SUPPORTED_CAPABILITIES,
+         OpCodeIndex::LE_CS_WRITE_CACHED_REMOTE_SUPPORTED_CAPABILITIES},
+        {OpCode::LE_CS_SECURITY_ENABLE, OpCodeIndex::LE_CS_SECURITY_ENABLE},
+        {OpCode::LE_CS_SET_DEFAULT_SETTINGS, OpCodeIndex::LE_CS_SET_DEFAULT_SETTINGS},
+        {OpCode::LE_CS_READ_REMOTE_FAE_TABLE, OpCodeIndex::LE_CS_READ_REMOTE_FAE_TABLE},
+        {OpCode::LE_CS_WRITE_CACHED_REMOTE_FAE_TABLE,
+         OpCodeIndex::LE_CS_WRITE_CACHED_REMOTE_FAE_TABLE},
+        {OpCode::LE_CS_CREATE_CONFIG, OpCodeIndex::LE_CS_CREATE_CONFIG},
+        {OpCode::LE_CS_REMOVE_CONFIG, OpCodeIndex::LE_CS_REMOVE_CONFIG},
+        {OpCode::LE_CS_SET_CHANNEL_CLASSIFICATION, OpCodeIndex::LE_CS_SET_CHANNEL_CLASSIFICATION},
+        {OpCode::LE_CS_SET_PROCEDURE_PARAMETERS, OpCodeIndex::LE_CS_SET_PROCEDURE_PARAMETERS},
+        {OpCode::LE_CS_PROCEDURE_ENABLE, OpCodeIndex::LE_CS_PROCEDURE_ENABLE},
+        {OpCode::LE_CS_TEST, OpCodeIndex::LE_CS_TEST},
+        {OpCode::LE_CS_TEST_END, OpCodeIndex::LE_CS_TEST_END},
+        {OpCode::LE_ADD_DEVICE_TO_MONITORED_ADVERTISERS_LIST,
+         OpCodeIndex::LE_ADD_DEVICE_TO_MONITORED_ADVERTISERS_LIST},
+        {OpCode::LE_REMOVE_DEVICE_FROM_MONITORED_ADVERTISERS_LIST,
+         OpCodeIndex::LE_REMOVE_DEVICE_FROM_MONITORED_ADVERTISERS_LIST},
+        {OpCode::LE_CLEAR_MONITORED_ADVERTISERS_LIST,
+         OpCodeIndex::LE_CLEAR_MONITORED_ADVERTISERS_LIST},
+        {OpCode::LE_READ_MONITORED_ADVERTISERS_LIST_SIZE,
+         OpCodeIndex::LE_READ_MONITORED_ADVERTISERS_LIST_SIZE},
+        {OpCode::LE_ENABLE_MONITORING_ADVERTISERS, OpCodeIndex::LE_ENABLE_MONITORING_ADVERTISERS},
+        {OpCode::LE_FRAME_SPACE_UPDATE, OpCodeIndex::LE_FRAME_SPACE_UPDATE},
 };
 
 const std::unordered_map<OpCode, DualModeController::CommandHandler>
@@ -3911,8 +4016,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                 // LE_CONTROLLER
                 {OpCode::LE_SET_EVENT_MASK, &DualModeController::LeSetEventMask},
                 {OpCode::LE_READ_BUFFER_SIZE_V1, &DualModeController::LeReadBufferSizeV1},
-                {OpCode::LE_READ_LOCAL_SUPPORTED_FEATURES,
-                 &DualModeController::LeReadLocalSupportedFeatures},
+                {OpCode::LE_READ_LOCAL_SUPPORTED_FEATURES_PAGE_0,
+                 &DualModeController::LeReadLocalSupportedFeaturesPage0},
                 {OpCode::LE_SET_RANDOM_ADDRESS, &DualModeController::LeSetRandomAddress},
                 {OpCode::LE_SET_ADVERTISING_PARAMETERS,
                  &DualModeController::LeSetAdvertisingParameters},
@@ -3937,7 +4042,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                 //{OpCode::LE_SET_HOST_CHANNEL_CLASSIFICATION,
                 //&DualModeController::LeSetHostChannelClassification},
                 //{OpCode::LE_READ_CHANNEL_MAP, &DualModeController::LeReadChannelMap},
-                {OpCode::LE_READ_REMOTE_FEATURES, &DualModeController::LeReadRemoteFeatures},
+                {OpCode::LE_READ_REMOTE_FEATURES_PAGE_0,
+                 &DualModeController::LeReadRemoteFeaturesPage0},
                 {OpCode::LE_ENCRYPT, &DualModeController::LeEncrypt},
                 {OpCode::LE_RAND, &DualModeController::LeRand},
                 {OpCode::LE_START_ENCRYPTION, &DualModeController::LeStartEncryption},
@@ -3959,8 +4065,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                  &DualModeController::LeReadSuggestedDefaultDataLength},
                 {OpCode::LE_WRITE_SUGGESTED_DEFAULT_DATA_LENGTH,
                  &DualModeController::LeWriteSuggestedDefaultDataLength},
-                //{OpCode::LE_READ_LOCAL_P_256_PUBLIC_KEY,
-                //&DualModeController::LeReadLocalP256PublicKey},
+                {OpCode::LE_READ_LOCAL_P_256_PUBLIC_KEY,
+                 &DualModeController::LeReadLocalP256PublicKey},
                 //{OpCode::LE_GENERATE_DHKEY_V1,
                 //&DualModeController::LeGenerateDhkeyV1},
                 {OpCode::LE_ADD_DEVICE_TO_RESOLVING_LIST,
@@ -3986,8 +4092,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                 //&DualModeController::LeTransmitterTestV2},
                 {OpCode::LE_SET_ADVERTISING_SET_RANDOM_ADDRESS,
                  &DualModeController::LeSetAdvertisingSetRandomAddress},
-                {OpCode::LE_SET_EXTENDED_ADVERTISING_PARAMETERS,
-                 &DualModeController::LeSetExtendedAdvertisingParameters},
+                {OpCode::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V1,
+                 &DualModeController::LeSetExtendedAdvertisingParametersV1},
                 {OpCode::LE_SET_EXTENDED_ADVERTISING_DATA,
                  &DualModeController::LeSetExtendedAdvertisingData},
                 {OpCode::LE_SET_EXTENDED_SCAN_RESPONSE_DATA,
@@ -4000,8 +4106,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                  &DualModeController::LeReadNumberOfSupportedAdvertisingSets},
                 {OpCode::LE_REMOVE_ADVERTISING_SET, &DualModeController::LeRemoveAdvertisingSet},
                 {OpCode::LE_CLEAR_ADVERTISING_SETS, &DualModeController::LeClearAdvertisingSets},
-                {OpCode::LE_SET_PERIODIC_ADVERTISING_PARAMETERS,
-                 &DualModeController::LeSetPeriodicAdvertisingParameters},
+                {OpCode::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V1,
+                 &DualModeController::LeSetPeriodicAdvertisingParametersV1},
                 {OpCode::LE_SET_PERIODIC_ADVERTISING_DATA,
                  &DualModeController::LeSetPeriodicAdvertisingData},
                 {OpCode::LE_SET_PERIODIC_ADVERTISING_ENABLE,
@@ -4009,8 +4115,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                 {OpCode::LE_SET_EXTENDED_SCAN_PARAMETERS,
                  &DualModeController::LeSetExtendedScanParameters},
                 {OpCode::LE_SET_EXTENDED_SCAN_ENABLE, &DualModeController::LeSetExtendedScanEnable},
-                {OpCode::LE_EXTENDED_CREATE_CONNECTION,
-                 &DualModeController::LeExtendedCreateConnection},
+                {OpCode::LE_EXTENDED_CREATE_CONNECTION_V1,
+                 &DualModeController::LeExtendedCreateConnectionV1},
                 {OpCode::LE_PERIODIC_ADVERTISING_CREATE_SYNC,
                  &DualModeController::LePeriodicAdvertisingCreateSync},
                 {OpCode::LE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL,
@@ -4088,7 +4194,7 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                 //{OpCode::LE_ISO_READ_TEST_COUNTERS,
                 //&DualModeController::LeIsoReadTestCounters},
                 //{OpCode::LE_ISO_TEST_END, &DualModeController::LeIsoTestEnd},
-                {OpCode::LE_SET_HOST_FEATURE, &DualModeController::LeSetHostFeature},
+                {OpCode::LE_SET_HOST_FEATURE_V1, &DualModeController::LeSetHostFeatureV1},
                 //{OpCode::LE_READ_ISO_LINK_QUALITY,
                 //&DualModeController::LeReadIsoLinkQuality},
                 //{OpCode::LE_ENHANCED_READ_TRANSMIT_POWER_LEVEL,
@@ -4108,6 +4214,57 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                 //{OpCode::LE_SET_DEFAULT_SUBRATE,
                 //&DualModeController::LeSetDefaultSubrate},
                 //{OpCode::LE_SUBRATE_REQUEST, &DualModeController::LeSubrateRequest},
+                //{OpCode::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V2,
+                //&DualModeController::LeSetExtendedAdvertisingParametersV2},
+                //{OpCode::LE_SET_DECISION_DATA, &DualModeController::LeSetDecisionData},
+                //{OpCode::LE_SET_DECISION_INSTRUCTIONS,
+                //&DualModeController::LeSetDecisionInstructions},
+                //{OpCode::LE_SET_PERIODIC_ADVERTISING_SUBEVENT_DATA,
+                //&DualModeController::LeSetPeriodicAdvertisingSubeventData},
+                //{OpCode::LE_SET_PERIODIC_ADVERTISING_RESPONSE_DATA,
+                //&DualModeController::LeSetPeriodicAdvertisingResponseData},
+                //{OpCode::LE_SET_PERIODIC_SYNC_SUBEVENT,
+                //&DualModeController::LeSetPeriodicSyncSubevent},
+                //{OpCode::LE_EXTENDED_CREATE_CONNECTION_V2,
+                //&DualModeController::LeExtendedCreateConnectionV2},
+                //{OpCode::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V2,
+                //&DualModeController::LeSetPeriodicAdvertisingParametersV2},
+                //{OpCode::LE_READ_ALL_LOCAL_SUPPORTED_FEATURES,
+                //&DualModeController::LeReadAllLocalSupportedFeatures},
+                //{OpCode::LE_READ_ALL_REMOTE_FEATURES,
+                //&DualModeController::LeReadAllRemoteFeatures},
+                //{OpCode::LE_CS_READ_LOCAL_SUPPORTED_CAPABILITIES,
+                //&DualModeController::LeCsReadLocalSupportedCapabilities},
+                //{OpCode::LE_CS_READ_REMOTE_SUPPORTED_CAPABILITIES,
+                //&DualModeController::LeCsReadRemoteSupportedCapabilities},
+                //{OpCode::LE_CS_WRITE_CACHED_REMOTE_SUPPORTED_CAPABILITIES,
+                //&DualModeController::LeCsWriteCachedRemoteSupportedCapabilities},
+                //{OpCode::LE_CS_SECURITY_ENABLE, &DualModeController::LeCsSecurityEnable},
+                //{OpCode::LE_CS_SET_DEFAULT_SETTINGS, &DualModeController::LeCsSetDefaultSettings},
+                //{OpCode::LE_CS_READ_REMOTE_FAE_TABLE,
+                //&DualModeController::LeCsReadRemoteFaeTable},
+                //{OpCode::LE_CS_WRITE_CACHED_REMOTE_FAE_TABLE,
+                //&DualModeController::LeCsWriteCachedRemoteFaeTable},
+                //{OpCode::LE_CS_CREATE_CONFIG, &DualModeController::LeCsCreateConfig},
+                //{OpCode::LE_CS_REMOVE_CONFIG, &DualModeController::LeCsRemoveConfig},
+                //{OpCode::LE_CS_SET_CHANNEL_CLASSIFICATION,
+                //&DualModeController::LeCsSetChannelClassification},
+                //{OpCode::LE_CS_SET_PROCEDURE_PARAMETERS,
+                //&DualModeController::LeCsSetProcedureParameters},
+                //{OpCode::LE_CS_PROCEDURE_ENABLE, &DualModeController::LeCsProcedureEnable},
+                //{OpCode::LE_CS_TEST, &DualModeController::LeCsTest},
+                //{OpCode::LE_CS_TEST_END, &DualModeController::LeCsTestEnd},
+                //{OpCode::LE_ADD_DEVICE_TO_MONITORED_ADVERTISERS_LIST,
+                //&DualModeController::LeAddDeviceToMonitoredAdvertisersList},
+                //{OpCode::LE_REMOVE_DEVICE_FROM_MONITORED_ADVERTISERS_LIST,
+                //&DualModeController::LeRemoveDeviceFromMonitoredAdvertisersList},
+                //{OpCode::LE_CLEAR_MONITORED_ADVERTISERS_LIST,
+                //&DualModeController::LeClearMonitoredAdvertisersList},
+                //{OpCode::LE_READ_MONITORED_ADVERTISERS_LIST_SIZE,
+                //&DualModeController::LeReadMonitoredAdvertisersListSize},
+                //{OpCode::LE_ENABLE_MONITORED_ADVERTISERS,
+                //&DualModeController::LeEnableMonitoredAdvertisers},
+                //{OpCode::LE_FRAME_SPACE_UPDATE, &DualModeController::LeFrameSpaceUpdate},
 
                 // VENDOR
                 {OpCode(CSR_VENDOR), &DualModeController::CsrVendorCommand},

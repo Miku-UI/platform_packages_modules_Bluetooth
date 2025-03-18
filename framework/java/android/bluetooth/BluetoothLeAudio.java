@@ -23,6 +23,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -33,8 +34,11 @@ import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
+import android.app.compat.CompatChanges;
 import android.bluetooth.annotations.RequiresBluetoothConnectPermission;
 import android.bluetooth.annotations.RequiresLegacyBluetoothPermission;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.os.IBinder;
@@ -42,6 +46,8 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.util.CloseGuard;
 import android.util.Log;
+
+import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -149,6 +155,24 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 Log.d(TAG, " onGroupStreamStatusChanged is not implemented.");
             }
         }
+
+        /**
+         * Callback invoked when the broadcast to unicast fallback group changes.
+         *
+         * <p>This callback provides the new broadcast to unicast fallback group ID. It is invoked
+         * when the broadcast to unicast fallback group is initially set, or when it subsequently
+         * changes.
+         *
+         * @param groupId The ID of the new broadcast to unicast fallback group.
+         * @hide
+         */
+        @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_API_MANAGE_PRIMARY_GROUP)
+        @SystemApi
+        default void onBroadcastToUnicastFallbackGroupChanged(int groupId) {
+            if (DBG) {
+                Log.d(TAG, "onBroadcastToUnicastFallbackGroupChanged is not implemented.");
+            }
+        }
     }
 
     private final CallbackWrapper<Callback, IBluetoothLeAudio> mCallbackWrapper;
@@ -182,6 +206,14 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
         public void onGroupStreamStatusChanged(int groupId, int groupStreamStatus) {
             mCallbackWrapper.forEach(
                     (cb) -> cb.onGroupStreamStatusChanged(groupId, groupStreamStatus));
+        }
+
+        @Override
+        public void onBroadcastToUnicastFallbackGroupChanged(int groupId) {
+            if (Flags.leaudioBroadcastApiManagePrimaryGroup()) {
+                mCallbackWrapper.forEach(
+                        (cb) -> cb.onBroadcastToUnicastFallbackGroupChanged(groupId));
+            }
         }
     }
 
@@ -347,11 +379,42 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     public static final int GROUP_ID_INVALID = IBluetoothLeAudio.LE_AUDIO_GROUP_ID_INVALID;
 
     /**
+     * This ChangeId allows to use new Mono audio location as per
+     * https://www.bluetooth.com/specifications/assigned-numbers/ 6.12.1 Audio Location Definitions
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    static final long LEAUDIO_MONO_LOCATION_ERRATA = 330847930L;
+
+    /**
      * This represents an invalid audio location.
+     *
+     * @deprecated As per Bluetooth Assigned Numbers, previously location invalid is now replaced
+     *     with a meaning MONO.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_LEAUDIO_MONO_LOCATION_ERRATA_API)
+    @Deprecated
+    @SystemApi
+    public static final int AUDIO_LOCATION_INVALID = 0;
+
+    /**
+     * This represents an Mono audio location.
      *
      * @hide
      */
-    @SystemApi public static final int AUDIO_LOCATION_INVALID = 0;
+    @FlaggedApi(Flags.FLAG_LEAUDIO_MONO_LOCATION_ERRATA_API)
+    @SystemApi
+    public static final int AUDIO_LOCATION_MONO = 0;
+
+    /**
+     * This represents an Unknown audio location which will be returned only when Bluetooth is OFF.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_LEAUDIO_MONO_LOCATION_ERRATA_API)
+    @SystemApi
+    public static final int AUDIO_LOCATION_UNKNOWN = 0x01 << 31;
 
     /**
      * This represents an audio location front left.
@@ -550,11 +613,13 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
     @SystemApi public static final int AUDIO_LOCATION_RIGHT_SURROUND = 0x01 << 27;
 
     /** @hide */
+    @SuppressLint("UniqueConstants")
     @IntDef(
             flag = true,
             prefix = "AUDIO_LOCATION_",
             value = {
                 AUDIO_LOCATION_INVALID,
+                AUDIO_LOCATION_MONO,
                 AUDIO_LOCATION_FRONT_LEFT,
                 AUDIO_LOCATION_FRONT_RIGHT,
                 AUDIO_LOCATION_FRONT_CENTER,
@@ -583,6 +648,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 AUDIO_LOCATION_FRONT_RIGHT_WIDE,
                 AUDIO_LOCATION_LEFT_SURROUND,
                 AUDIO_LOCATION_RIGHT_SURROUND,
+                AUDIO_LOCATION_UNKNOWN,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AudioLocation {}
@@ -912,9 +978,9 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * Register a {@link Callback} that will be invoked during the operation of this profile.
      *
      * <p>Repeated registration of the same <var>callback</var> object will have no effect after the
-     * first call to this method, even when the <var>executor</var> is different. API caller would
-     * have to call {@link #unregisterCallback(Callback)} with the same callback object before
-     * registering it again.
+     * first call to this method, even when the <var>executor</var> is different. API caller must
+     * call {@link #unregisterCallback(Callback)} with the same callback object before registering
+     * it again.
      *
      * <p>The {@link Callback} will be invoked only if there is codec status changed for the remote
      * device or the device is connected/disconnected in a certain group or the group status is
@@ -948,7 +1014,7 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * <p>The same {@link Callback} object used when calling {@link #registerCallback(Executor,
      * Callback)} must be used.
      *
-     * <p>Callbacks are automatically unregistered when application process goes away
+     * <p>Callbacks are automatically unregistered when the application process goes away
      *
      * @param callback user implementation of the {@link Callback}
      * @throws NullPointerException when callback is null
@@ -1140,13 +1206,13 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
      * Front Left: 0x00000001 Front Right: 0x00000002 Front Left | Front Right: 0x00000003
      *
      * @param device the bluetooth device
-     * @return The bit field of audio location for the device, if bluetooth is off, return
-     *     AUDIO_LOCATION_INVALID.
+     * @return The bit field of audio location for the device.
      * @hide
      */
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    @SuppressWarnings("FlaggedApi") // Due to deprecated AUDIO_LOCATION_INVALID
     public @AudioLocation int getAudioLocation(@NonNull BluetoothDevice device) {
         if (VDBG) log("getAudioLocation()");
         final IBluetoothLeAudio service = getService();
@@ -1160,6 +1226,12 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
+
+        if (Flags.leaudioMonoLocationErrataApi()
+                && CompatChanges.isChangeEnabled(LEAUDIO_MONO_LOCATION_ERRATA)) {
+            return AUDIO_LOCATION_UNKNOWN;
+        }
+
         return AUDIO_LOCATION_INVALID;
     }
 
@@ -1357,5 +1429,78 @@ public final class BluetoothLeAudio implements BluetoothProfile, AutoCloseable {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
+    }
+
+    /**
+     * Sets broadcast to unicast fallback group.
+     *
+     * <p>In broadcast handover situations where unicast is unavailable, this group acts as the
+     * fallback.
+     *
+     * <p>A handover can occur when ongoing broadcast is interrupted with unicast streaming request.
+     *
+     * <p>On fallback group changed, {@link Callback#onBroadcastToUnicastFallbackGroupChanged} will
+     * be invoked.
+     *
+     * @param groupId the ID of the group to switch to if unicast fails during a broadcast handover,
+     *     {@link #GROUP_ID_INVALID} when there should be no such fallback group.
+     * @see BluetoothLeAudio#getGroupId()
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_API_MANAGE_PRIMARY_GROUP)
+    @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public void setBroadcastToUnicastFallbackGroup(int groupId) {
+        if (DBG) Log.d(TAG, "setBroadcastToUnicastFallbackGroup(" + groupId + ")");
+
+        final IBluetoothLeAudio service = getService();
+
+        if (service == null) {
+            Log.w(TAG, "Proxy not attached to service");
+            if (DBG) log(Log.getStackTraceString(new Throwable()));
+        } else if (mAdapter.isEnabled()) {
+            try {
+                service.setBroadcastToUnicastFallbackGroup(groupId, mAttributionSource);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+    }
+
+    /**
+     * Gets broadcast to unicast fallback group.
+     *
+     * <p>In broadcast handover situations where unicast is unavailable, this group acts as the
+     * fallback.
+     *
+     * <p>A broadcast handover can occur when a {@link BluetoothLeBroadcast#startBroadcast} call is
+     * successful and there's an active unicast group.
+     *
+     * @return groupId the ID of the fallback group, {@link #GROUP_ID_INVALID} when adapter is
+     *     disabled
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_API_MANAGE_PRIMARY_GROUP)
+    @SystemApi
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
+    public int getBroadcastToUnicastFallbackGroup() {
+        if (DBG) Log.d(TAG, "getBroadcastToUnicastFallbackGroup()");
+
+        final IBluetoothLeAudio service = getService();
+
+        if (service == null) {
+            Log.w(TAG, "Proxy not attached to service");
+            if (DBG) log(Log.getStackTraceString(new Throwable()));
+        } else if (mAdapter.isEnabled()) {
+            try {
+                return service.getBroadcastToUnicastFallbackGroup(mAttributionSource);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+
+        return GROUP_ID_INVALID;
     }
 }

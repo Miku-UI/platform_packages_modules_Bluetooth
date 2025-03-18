@@ -124,9 +124,9 @@ protected:
 TEST_F(A2dpLdacTest, a2dp_source_read_underflow) {
   static int enqueue_cb_invoked = 0;
 
-  auto read_cb = +[](uint8_t* p_buf, uint32_t len) -> uint32_t { return 0; };
+  auto read_cb = +[](uint8_t* /*p_buf*/, uint32_t /*len*/) -> uint32_t { return 0; };
 
-  auto enqueue_cb = +[](BT_HDR* p_buf, size_t frames_n, uint32_t len) -> bool {
+  auto enqueue_cb = +[](BT_HDR* /*p_buf*/, size_t /*frames_n*/, uint32_t /*len*/) -> bool {
     enqueue_cb_invoked += 1;
     return false;
   };

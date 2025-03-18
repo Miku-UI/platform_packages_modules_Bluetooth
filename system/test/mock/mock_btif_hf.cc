@@ -29,12 +29,17 @@
 
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace btif_hf {
 
 // Function state capture and return values, if needed
 struct GetInterface GetInterface;
+struct IsCallIdle IsCallIdle;
+struct IsDuringVoiceRecognition IsDuringVoiceRecognition;
 }  // namespace btif_hf
 }  // namespace mock
 }  // namespace test
@@ -45,6 +50,16 @@ namespace headset {
 Interface* GetInterface() {
   inc_func_call_count(__func__);
   return test::mock::btif_hf::GetInterface();
+}
+
+bool IsCallIdle() {
+  inc_func_call_count(__func__);
+  return test::mock::btif_hf::IsCallIdle();
+}
+
+bool IsDuringVoiceRecognition(RawAddress* bd_addr) {
+  inc_func_call_count(__func__);
+  return test::mock::btif_hf::IsDuringVoiceRecognition(bd_addr);
 }
 }  // namespace headset
 }  // namespace bluetooth

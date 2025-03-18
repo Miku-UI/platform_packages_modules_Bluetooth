@@ -17,8 +17,6 @@
 #ifndef ANDROID_INCLUDE_BLE_SCANNER_H
 #define ANDROID_INCLUDE_BLE_SCANNER_H
 
-#include <bluetooth/uuid.h>
-#include <raw_address.h>
 #include <stdint.h>
 
 #include <memory>
@@ -27,6 +25,8 @@
 #include "bt_common_types.h"
 #include "bt_gatt_client.h"
 #include "bt_gatt_types.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 /** Callback invoked when batchscan reports are obtained */
 typedef void (*batchscan_reports_callback)(int client_if, int status, int report_format,
@@ -116,7 +116,6 @@ public:
           base::Callback<void(uint8_t /* filt_type */, uint8_t /* avbl_space */,
                               uint8_t /* action */, uint8_t /* btm_status */)>;
 
-#if TARGET_FLOSS
   using MsftAdvMonitorAddCallback =
           base::Callback<void(uint8_t /* monitor_handle */, uint8_t /* status */)>;
 
@@ -124,7 +123,6 @@ public:
 
   using MsftAdvMonitorEnableCallback = base::Callback<void(uint8_t /* status */)>;
 
-#endif
   /** Registers a scanner with the stack */
   virtual void RegisterScanner(const bluetooth::Uuid& app_uuid, RegisterCallback) = 0;
 
@@ -149,7 +147,6 @@ public:
   /** Enable / disable scan filter feature*/
   virtual void ScanFilterEnable(bool enable, EnableCallback cb) = 0;
 
-#if TARGET_FLOSS
   /** Is MSFT Extension supported? */
   virtual bool IsMsftSupported() = 0;
 
@@ -161,7 +158,6 @@ public:
 
   /** Enable / disable MSFT scan filter feature */
   virtual void MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEnableCallback cb) = 0;
-#endif
 
   /** Sets the LE scan interval and window in units of N*0.625 msec */
   virtual void SetScanParameters(int scanner_id, uint8_t scan_type, int scan_interval,

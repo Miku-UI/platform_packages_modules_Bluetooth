@@ -25,6 +25,7 @@
 #include <cstdint>
 
 #include "bta/include/bta_api_data_types.h"
+#include "include/hardware/bluetooth.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
@@ -67,6 +68,7 @@ typedef enum : uint8_t {
   BTA_DM_LE_ADDR_ASSOC_EVT = 33,     /* identity address association event */
   BTA_DM_SIRK_VERIFICATION_REQ_EVT = 35,
   BTA_DM_KEY_MISSING_EVT = 36,
+  BTA_DM_ENCRYPTION_CHANGE_EVT = 37,
 } tBTA_DM_SEC_EVT;
 
 /* Structure associated with BTA_DM_PIN_REQ_EVT */
@@ -236,6 +238,7 @@ typedef union {
   tBTA_DM_RC_UNPAIR delete_key_RC_to_unpair;
   tBTA_DM_PROC_ID_ADDR proc_id_addr; /* Identity address event */
   tBTA_DM_KEY_MISSING key_missing;
+  bt_encryption_change_evt encryption_change;
 } tBTA_DM_SEC;
 
 /* Security callback */
@@ -481,7 +484,7 @@ void BTA_DmSirkSecCbRegister(tBTA_DM_SEC_CBACK* p_cback);
  ******************************************************************************/
 void BTA_DmSirkConfirmDeviceReply(const RawAddress& bd_addr, bool accept);
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_DM_SEC_EVT> : enum_formatter<tBTA_DM_SEC_EVT> {};
-}  // namespace fmt
+}  // namespace std

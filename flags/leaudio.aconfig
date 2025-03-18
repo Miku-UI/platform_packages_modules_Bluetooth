@@ -18,13 +18,6 @@ flag {
 }
 
 flag {
-    name: "leaudio_broadcast_audio_handover_policies"
-    namespace: "bluetooth"
-    description: "Support le audio broadcast audio routing policies"
-    bug: "308171251"
-}
-
-flag {
     name: "leaudio_multicodec_aidl_support"
     namespace: "bluetooth"
     description: "Enables support for the multicodec AIDL"
@@ -50,13 +43,6 @@ flag {
     namespace: "bluetooth"
     description: "Sync audio stream with the bluetooth link clock"
     bug: "312273987"
-}
-
-flag {
-    name: "leaudio_broadcast_feature_support"
-    namespace: "bluetooth"
-    description: "Le audio broadcast feature roll-out control flag"
-    bug: "316005152"
 }
 
 flag {
@@ -110,6 +96,14 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "leaudio_mono_location_errata_api"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add mono location as per Bluetooth Assigned Numbers to API"
+    bug: "372840605"
 }
 
 flag {
@@ -368,4 +362,103 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "leaudio_improve_switch_during_phone_call"
+    namespace: "bluetooth"
+    description: "Fix audio slip to speaker while switching bt audio device during phonecall"
+    bug: "369322905"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_sort_scans_to_sync_by_fails"
+    namespace: "bluetooth"
+    description: "Sort scan results for source sync by fails counter"
+    bug: "370639684"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "metadata_api_microphone_for_call_enabled"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "API to get and set microphone for call enable status"
+    bug: "372395197"
+}
+
+flag {
+    name: "leaudio_broadcast_primary_group_selection"
+    namespace: "bluetooth"
+    description: "Fix race condition in primary group selection"
+    bug: "375422795"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_api_get_local_metadata"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "API to get broadcast assistant local metadata"
+    bug: "375423982"
+}
+
+flag {
+    name: "leaudio_broadcast_api_manage_primary_group"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "API to manage broadcast primary group"
+    bug: "375422410"
+}
+
+flag {
+    name: "leaudio_stop_updated_to_not_available_context_stream"
+    namespace: "bluetooth"
+    description: "Allow stack to stop stream which remains with non allowed context"
+    bug: "376251433"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_monitor_unicast_source_when_managed_by_broadcast_delegator"
+    namespace: "bluetooth"
+    description: "Monitor stream for primary devices which manages external sources"
+    bug: "378661060"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_config_profile_enabling"
+    namespace: "bluetooth"
+    description: "Change how LE Audio profiles are configured and enabled"
+    bug: "379178585"
+}
+
+flag {
+    name: "leaudio_dev_options_respect_profile_sysprops"
+    namespace: "bluetooth"
+    description: "LE Audio developer options should respect profile sysprops"
+    bug: "379562663"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_add_opus_codec_type"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add OPUS codec type"
+    bug: "380029892"
 }

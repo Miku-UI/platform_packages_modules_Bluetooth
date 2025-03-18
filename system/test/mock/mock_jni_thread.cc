@@ -28,6 +28,9 @@
 #include "test/common/jni_thread.h"
 #include "test/common/mock_functions.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool is_on_jni_thread() {
   inc_func_call_count(__func__);
   return false;

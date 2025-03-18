@@ -266,8 +266,8 @@ private:
 }  // namespace audio
 }  // namespace bluetooth
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bluetooth::audio::hidl::BluetoothAudioCtrlAck>
     : enum_formatter<bluetooth::audio::hidl::BluetoothAudioCtrlAck> {};
-}  // namespace fmt
+}  // namespace std

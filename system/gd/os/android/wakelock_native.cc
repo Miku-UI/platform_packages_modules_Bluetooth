@@ -32,20 +32,6 @@
 #include <functional>
 #include <string>
 
-// We want the os/log.h definitions
-#undef LOG_DEBUG
-#undef LOG_INFO
-
-#include "os/log.h"
-
-// Save the os/log.h definitions
-#pragma push_macro("LOG_DEBUG")
-#pragma push_macro("LOG_INFO")
-
-// Undef these to avoid conflicting with later imports
-#undef LOG_DEBUG
-#undef LOG_INFO
-
 using ::aidl::android::system::suspend::ISystemSuspend;
 using ::aidl::android::system::suspend::IWakeLock;
 using ::aidl::android::system::suspend::WakeLockType;
@@ -53,10 +39,6 @@ using ::aidl::android::system::suspend::WakeLockType;
 namespace bluetooth {
 namespace os {
 namespace internal {
-
-// Restore the os/log.h definitions after all imported headers
-#pragma pop_macro("LOG_DEBUG")
-#pragma pop_macro("LOG_INFO")
 
 static void onSuspendDeath(void* cookie) {
   auto onDeath = static_cast<std::function<void(void)>*>(cookie);

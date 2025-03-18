@@ -19,6 +19,7 @@
 #define LOG_TAG "bta"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -64,7 +65,7 @@ uint8_t BTA_AllocateSCN(void) {
       return i + 1;  // allocated scn is index + 1
     }
   }
-  log::debug("Unable to allocate an scn");
+  log::warn("Unable to allocate an scn");
   return 0; /* No free ports */
 }
 
@@ -109,12 +110,21 @@ bool BTA_FreeSCN(uint8_t scn) {
   /* Since this isn't used by HFP, this function will only free valid SCNs
    * that aren't reserved for HFP, which is range [2, RFCOMM_MAX_SCN].
    */
-  if (scn < RFCOMM_MAX_SCN && scn > 1) {
-    bta_jv_cb.scn_in_use[scn - 1] = false;
-    log::debug("Freed SCN: {}", scn);
-    return true;
+
+  if (com::android::bluetooth::flags::allow_free_last_scn()) {
+    if (scn <= RFCOMM_MAX_SCN && scn > 1) {
+      bta_jv_cb.scn_in_use[scn - 1] = false;
+      log::debug("Freed SCN: {}", scn);
+      return true;
+    }
   } else {
-    log::warn("Invalid SCN: {}", scn);
-    return false; /* Illegal SCN passed in */
+    if (scn < RFCOMM_MAX_SCN && scn > 1) {
+      bta_jv_cb.scn_in_use[scn - 1] = false;
+      log::debug("Freed SCN: {}", scn);
+      return true;
+    }
   }
+
+  log::warn("Invalid SCN: {}", scn);
+  return false; /* Illegal SCN passed in */
 }

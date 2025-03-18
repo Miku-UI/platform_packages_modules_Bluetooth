@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
-/**
- * Bluetooth Headset Client StateMachine (Disconnected) | ^ ^ CONNECT | | | DISCONNECTED V | |
- * (Connecting) | | | CONNECTED | | DISCONNECT V | (Connected) | ^ CONNECT_AUDIO | |
- * DISCONNECT_AUDIO V | (AudioOn)
- */
+// Bluetooth Headset Client State Machine
+//                (Disconnected)
+//                  |        ^
+//          CONNECT |        | DISCONNECTED
+//                  V        |
+//          (Connecting)   (Disconnecting)
+//                  |        ^
+//        CONNECTED |        | DISCONNECT
+//                  V        |
+//                  (Connected)
+//                  |        |
+//    CONNECT_AUDIO |        | DISCONNECT_AUDIO
+//                  |        |
+//                  (Audio_On)
+
 package com.android.bluetooth.hfpclient;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
@@ -56,6 +66,7 @@ import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.IState;
@@ -109,12 +120,14 @@ public class HeadsetClientStateMachine extends StateMachine {
     @VisibleForTesting static final int QUERY_OPERATOR_NAME = 51;
     @VisibleForTesting static final int SUBSCRIBER_INFO = 52;
     @VisibleForTesting static final int CONNECTING_TIMEOUT = 53;
+    @VisibleForTesting static final int DISCONNECTING_TIMEOUT = 54;
 
     // special action to handle terminating specific call from multiparty call
     static final int TERMINATE_SPECIFIC_CALL = 53;
 
     // Timeouts.
     @VisibleForTesting static final int CONNECTING_TIMEOUT_MS = 10000; // 10s
+    @VisibleForTesting static final int DISCONNECTING_TIMEOUT_MS = 10000; // 10s
     private static final int ROUTING_DELAY_MS = 250;
 
     static final int HF_ORIGINATED_CALL_ID = -1;
@@ -127,6 +140,7 @@ public class HeadsetClientStateMachine extends StateMachine {
     private final Disconnected mDisconnected;
     private final Connecting mConnecting;
     private final Connected mConnected;
+    private final Disconnecting mDisconnecting;
     private final AudioOn mAudioOn;
     private State mPrevState;
 
@@ -314,6 +328,8 @@ public class HeadsetClientStateMachine extends StateMachine {
                 return "SUBSCRIBER_INFO";
             case CONNECTING_TIMEOUT:
                 return "CONNECTING_TIMEOUT";
+            case DISCONNECTING_TIMEOUT:
+                return "DISCONNECTING_TIMEOUT";
             default:
                 return "UNKNOWN(" + what + ")";
         }
@@ -932,11 +948,15 @@ public class HeadsetClientStateMachine extends StateMachine {
         mConnecting = new Connecting();
         mConnected = new Connected();
         mAudioOn = new AudioOn();
+        mDisconnecting = new Disconnecting();
 
         addState(mDisconnected);
         addState(mConnecting);
         addState(mConnected);
         addState(mAudioOn, mConnected);
+        if (Flags.hfpClientDisconnectingState()) {
+            addState(mDisconnecting);
+        }
 
         setInitialState(mDisconnected);
     }
@@ -1003,7 +1023,11 @@ public class HeadsetClientStateMachine extends StateMachine {
     class Disconnected extends State {
         @Override
         public void enter() {
-            debug("Enter Disconnected: " + getCurrentMessage().what);
+            debug(
+                    "Enter Disconnected: from state="
+                            + mPrevState
+                            + ", message="
+                            + getMessageName(getCurrentMessage().what));
 
             // cleanup
             mIndicatorNetworkState = HeadsetClientHalConstants.NETWORK_STATE_NOT_AVAILABLE;
@@ -1040,7 +1064,15 @@ public class HeadsetClientStateMachine extends StateMachine {
                         mCurrentDevice,
                         BluetoothProfile.STATE_DISCONNECTED,
                         BluetoothProfile.STATE_CONNECTED);
-            } else if (mPrevState != null) { // null is the default state before Disconnected
+            } else if (Flags.hfpClientDisconnectingState()) {
+                if (mPrevState == mDisconnecting) {
+                    broadcastConnectionState(
+                            mCurrentDevice,
+                            BluetoothProfile.STATE_DISCONNECTED,
+                            BluetoothProfile.STATE_DISCONNECTING);
+                }
+            } else if (mPrevState != null) {
+                // null is the default state before Disconnected
                 error(
                         "Disconnected: Illegal state transition from "
                                 + mPrevState.getName()
@@ -1139,7 +1171,7 @@ public class HeadsetClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            debug("Exit Disconnected: " + getCurrentMessage().what);
+            debug("Exit Disconnected: " + getMessageName(getCurrentMessage().what));
             mPrevState = this;
         }
     }
@@ -1147,7 +1179,7 @@ public class HeadsetClientStateMachine extends StateMachine {
     class Connecting extends State {
         @Override
         public void enter() {
-            debug("Enter Connecting: " + getCurrentMessage().what);
+            debug("Enter Connecting: " + getMessageName(getCurrentMessage().what));
             // This message is either consumed in processMessage or
             // removed in exit. It is safe to send a CONNECTING_TIMEOUT here since
             // the only transition is when connection attempt is initiated.
@@ -1351,7 +1383,7 @@ public class HeadsetClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            debug("Exit Connecting: " + getCurrentMessage().what);
+            debug("Exit Connecting: " + getMessageName(getCurrentMessage().what));
             removeMessages(CONNECTING_TIMEOUT);
             mPrevState = this;
         }
@@ -1362,7 +1394,7 @@ public class HeadsetClientStateMachine extends StateMachine {
 
         @Override
         public void enter() {
-            debug("Enter Connected: " + getCurrentMessage().what);
+            debug("Enter Connected: " + getMessageName(getCurrentMessage().what));
             mAudioWbs = false;
             mAudioSWB = false;
             mCommandedSpeakerVolume = -1;
@@ -1409,7 +1441,12 @@ public class HeadsetClientStateMachine extends StateMachine {
                     if (!mCurrentDevice.equals(dev)) {
                         break;
                     }
-                    if (!mNativeInterface.disconnect(dev)) {
+                    if (Flags.hfpClientDisconnectingState()) {
+                        if (!mNativeInterface.disconnect(mCurrentDevice)) {
+                            warn("disconnectNative failed for " + mCurrentDevice);
+                        }
+                        transitionTo(mDisconnecting);
+                    } else if (!mNativeInterface.disconnect(dev)) {
                         error("disconnectNative failed for " + dev);
                     }
                     break;
@@ -1569,7 +1606,7 @@ public class HeadsetClientStateMachine extends StateMachine {
                                             + event.device
                                             + ": "
                                             + event.valueInt);
-                            processConnectionEvent(event.valueInt, event.device);
+                            processConnectionEvent(message, event.valueInt, event.device);
                             break;
                         case StackEvent.EVENT_TYPE_AUDIO_STATE_CHANGED:
                             debug(
@@ -1810,13 +1847,19 @@ public class HeadsetClientStateMachine extends StateMachine {
         }
 
         // in Connected state
-        private void processConnectionEvent(int state, BluetoothDevice device) {
+        private void processConnectionEvent(Message message, int state, BluetoothDevice device) {
             switch (state) {
                 case HeadsetClientHalConstants.CONNECTION_STATE_DISCONNECTED:
                     debug("Connected disconnects.");
                     // AG disconnects
                     if (mCurrentDevice.equals(device)) {
-                        transitionTo(mDisconnected);
+                        if (Flags.hfpClientDisconnectingState()) {
+                            transitionTo(mDisconnecting);
+                            // message is deferred to be processed in the disconnecting state
+                            deferMessage(message);
+                        } else {
+                            transitionTo(mDisconnected);
+                        }
                     } else {
                         error("Disconnected from unknown device: " + device);
                     }
@@ -1915,7 +1958,101 @@ public class HeadsetClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            debug("Exit Connected: " + getCurrentMessage().what);
+            debug("Exit Connected: " + getMessageName(getCurrentMessage().what));
+            mPrevState = this;
+        }
+    }
+
+    class Disconnecting extends State {
+        @Override
+        public void enter() {
+            debug(
+                    "Disconnecting: enter disconnecting from state="
+                            + mPrevState
+                            + ", message="
+                            + getMessageName(getCurrentMessage().what));
+            if (mPrevState == mConnected || mPrevState == mAudioOn) {
+                broadcastConnectionState(
+                        mCurrentDevice,
+                        BluetoothProfile.STATE_DISCONNECTING,
+                        BluetoothProfile.STATE_CONNECTED);
+            } else {
+                String prevStateName = mPrevState == null ? "null" : mPrevState.getName();
+                error(
+                        "Disconnecting: Illegal state transition from "
+                                + prevStateName
+                                + " to Disconnecting");
+            }
+            sendMessageDelayed(DISCONNECTING_TIMEOUT, DISCONNECTING_TIMEOUT_MS);
+        }
+
+        @Override
+        public synchronized boolean processMessage(Message message) {
+            debug("Disconnecting: Process message: " + message.what);
+
+            switch (message.what) {
+                    // Defering messages as state machine objects are meant to be reused and after
+                    // disconnect is complete we want honor other message requests
+                case CONNECT:
+                case CONNECT_AUDIO:
+                case DISCONNECT:
+                case DISCONNECT_AUDIO:
+                    deferMessage(message);
+                    break;
+
+                case DISCONNECTING_TIMEOUT:
+                    // We timed out trying to disconnect, force transition to disconnected.
+                    warn("Disconnecting: Disconnection timeout for " + mCurrentDevice);
+                    transitionTo(mDisconnected);
+                    break;
+
+                case StackEvent.STACK_EVENT:
+                    StackEvent event = (StackEvent) message.obj;
+
+                    switch (event.type) {
+                        case StackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED:
+                            debug(
+                                    "Disconnecting: Connection state changed: "
+                                            + event.device
+                                            + ": "
+                                            + event.valueInt);
+                            processConnectionEvent(event.valueInt, event.device);
+                            break;
+                        default:
+                            error("Disconnecting: Unknown stack event: " + event.type);
+                            break;
+                    }
+                    break;
+                default:
+                    warn("Disconnecting: Message not handled " + message);
+                    return NOT_HANDLED;
+            }
+            return HANDLED;
+        }
+
+        private void processConnectionEvent(int state, BluetoothDevice device) {
+            switch (state) {
+                case HeadsetClientHalConstants.CONNECTION_STATE_DISCONNECTED:
+                    if (mCurrentDevice.equals(device)) {
+                        transitionTo(mDisconnected);
+                    } else {
+                        error("Disconnecting: Disconnected from unknown device: " + device);
+                    }
+                    break;
+                default:
+                    error(
+                            "Disconnecting: Connection State Device: "
+                                    + device
+                                    + " bad state: "
+                                    + state);
+                    break;
+            }
+        }
+
+        @Override
+        public void exit() {
+            debug("Disconnecting: Exit Disconnecting: " + getMessageName(getCurrentMessage().what));
+            removeMessages(DISCONNECTING_TIMEOUT);
             mPrevState = this;
         }
     }
@@ -1923,7 +2060,7 @@ public class HeadsetClientStateMachine extends StateMachine {
     class AudioOn extends State {
         @Override
         public void enter() {
-            debug("Enter AudioOn: " + getCurrentMessage().what);
+            debug("Enter AudioOn: " + getMessageName(getCurrentMessage().what));
             broadcastAudioState(
                     mCurrentDevice,
                     BluetoothHeadsetClient.STATE_AUDIO_CONNECTED,
@@ -1975,7 +2112,7 @@ public class HeadsetClientStateMachine extends StateMachine {
                                             + event.device
                                             + ": "
                                             + event.valueInt);
-                            processConnectionEvent(event.valueInt, event.device);
+                            processConnectionEvent(message, event.valueInt, event.device);
                             break;
                         case StackEvent.EVENT_TYPE_AUDIO_STATE_CHANGED:
                             debug(
@@ -1996,13 +2133,20 @@ public class HeadsetClientStateMachine extends StateMachine {
         }
 
         // in AudioOn state. Can AG disconnect RFCOMM prior to SCO? Handle this
-        private void processConnectionEvent(int state, BluetoothDevice device) {
+        private void processConnectionEvent(Message message, int state, BluetoothDevice device) {
             switch (state) {
                 case HeadsetClientHalConstants.CONNECTION_STATE_DISCONNECTED:
                     if (mCurrentDevice.equals(device)) {
                         processAudioEvent(
                                 HeadsetClientHalConstants.AUDIO_STATE_DISCONNECTED, device);
-                        transitionTo(mDisconnected);
+                        if (Flags.hfpClientDisconnectingState()) {
+                            transitionTo(mDisconnecting);
+                            // message is deferred to be processed in the disconnecting state
+                            deferMessage(message);
+                        } else {
+                            transitionTo(mDisconnected);
+                        }
+
                     } else {
                         error("Disconnected from unknown device: " + device);
                     }
@@ -2041,7 +2185,7 @@ public class HeadsetClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            debug("Exit AudioOn: " + getCurrentMessage().what);
+            debug("Exit AudioOn: " + getMessageName(getCurrentMessage().what));
             mPrevState = this;
             broadcastAudioState(
                     mCurrentDevice,
@@ -2064,7 +2208,11 @@ public class HeadsetClientStateMachine extends StateMachine {
             return BluetoothProfile.STATE_CONNECTED;
         }
 
-        error("Bad currentState: " + currentState);
+        if (Flags.hfpClientDisconnectingState()) {
+            if (currentState == mDisconnecting) {
+                return BluetoothProfile.STATE_DISCONNECTING;
+            }
+        }
         return BluetoothProfile.STATE_DISCONNECTED;
     }
 

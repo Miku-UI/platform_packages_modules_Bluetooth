@@ -51,43 +51,49 @@ static int adev_set_parameters(struct audio_hw_device* dev, const char* kvpairs)
   return 0;
 }
 
-static char* adev_get_parameters(const struct audio_hw_device* dev, const char* keys) {
+static char* adev_get_parameters(const struct audio_hw_device* /*dev*/, const char* keys) {
   LOG(VERBOSE) << __func__ << ": keys=[" << keys << "]";
   return strdup("");
 }
 
-static int adev_init_check(const struct audio_hw_device* dev) { return 0; }
+static int adev_init_check(const struct audio_hw_device* /*dev*/) { return 0; }
 
-static int adev_set_voice_volume(struct audio_hw_device* dev, float volume) {
+static int adev_set_voice_volume(struct audio_hw_device* /*dev*/, float volume) {
   LOG(VERBOSE) << __func__ << ": volume=" << volume;
   return -ENOSYS;
 }
 
-static int adev_set_master_volume(struct audio_hw_device* dev, float volume) {
+static int adev_set_master_volume(struct audio_hw_device* /*dev*/, float volume) {
   LOG(VERBOSE) << __func__ << ": volume=" << volume;
   return -ENOSYS;
 }
 
-static int adev_get_master_volume(struct audio_hw_device* dev, float* volume) { return -ENOSYS; }
+static int adev_get_master_volume(struct audio_hw_device* /*dev*/, float* /*volume*/) {
+  return -ENOSYS;
+}
 
-static int adev_set_master_mute(struct audio_hw_device* dev, bool muted) {
+static int adev_set_master_mute(struct audio_hw_device* /*dev*/, bool muted) {
   LOG(VERBOSE) << __func__ << ": mute=" << muted;
   return -ENOSYS;
 }
 
-static int adev_get_master_mute(struct audio_hw_device* dev, bool* muted) { return -ENOSYS; }
+static int adev_get_master_mute(struct audio_hw_device* /*dev*/, bool* /*muted*/) {
+  return -ENOSYS;
+}
 
-static int adev_set_mode(struct audio_hw_device* dev, audio_mode_t mode) {
+static int adev_set_mode(struct audio_hw_device* /*dev*/, audio_mode_t mode) {
   LOG(VERBOSE) << __func__ << ": mode=" << mode;
   return 0;
 }
 
-static int adev_set_mic_mute(struct audio_hw_device* dev, bool state) {
+static int adev_set_mic_mute(struct audio_hw_device* /*dev*/, bool state) {
   LOG(VERBOSE) << __func__ << ": state=" << state;
   return -ENOSYS;
 }
 
-static int adev_get_mic_mute(const struct audio_hw_device* dev, bool* state) { return -ENOSYS; }
+static int adev_get_mic_mute(const struct audio_hw_device* /*dev*/, bool* /*state*/) {
+  return -ENOSYS;
+}
 
 static int adev_create_audio_patch(struct audio_hw_device* device, unsigned int num_sources,
                                    const struct audio_port_config* sources, unsigned int num_sinks,
@@ -145,7 +151,7 @@ static int adev_get_audio_port(struct audio_hw_device* device, struct audio_port
   return -ENOSYS;
 }
 
-static int adev_dump(const audio_hw_device_t* device, int fd) { return 0; }
+static int adev_dump(const audio_hw_device_t* /*device*/, int /*fd*/) { return 0; }
 
 static int adev_close(hw_device_t* device) {
   auto* bluetooth_device = reinterpret_cast<BluetoothAudioDevice*>(device);

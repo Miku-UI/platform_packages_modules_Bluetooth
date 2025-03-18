@@ -21,9 +21,9 @@
 #include <bluetooth/log.h>
 #include <lc3.h>
 
+#include <cstdint>
 #include <cstring>
 
-#include "os/log.h"
 #include "osi/include/allocator.h"
 
 using namespace bluetooth;

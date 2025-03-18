@@ -32,6 +32,9 @@
 
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace btif_av {
@@ -73,7 +76,6 @@ struct btif_av_stream_started_ready btif_av_stream_started_ready;
 struct btif_av_stream_stop btif_av_stream_stop;
 struct btif_av_stream_suspend btif_av_stream_suspend;
 struct btif_debug_av_dump btif_debug_av_dump;
-struct dump_av_sm_event_name dump_av_sm_event_name;
 
 }  // namespace btif_av
 }  // namespace mock
@@ -108,7 +110,6 @@ bt_status_t btif_av_source_execute_service::return_value = BT_STATUS_SUCCESS;
 bool btif_av_src_sink_coexist_enabled::return_value = false;
 bool btif_av_stream_ready::return_value = false;
 bool btif_av_stream_started_ready::return_value = false;
-const char* dump_av_sm_event_name::return_value = nullptr;
 
 }  // namespace btif_av
 }  // namespace mock
@@ -264,10 +265,6 @@ void btif_av_stream_suspend(void) {
 void btif_debug_av_dump(int fd) {
   inc_func_call_count(__func__);
   test::mock::btif_av::btif_debug_av_dump(fd);
-}
-const char* dump_av_sm_event_name(int event) {
-  inc_func_call_count(__func__);
-  return test::mock::btif_av::dump_av_sm_event_name(event);
 }
 // Mocked functions complete
 // END mockcify generation

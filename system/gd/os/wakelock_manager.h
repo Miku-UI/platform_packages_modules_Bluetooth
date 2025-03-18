@@ -18,14 +18,11 @@
 
 #pragma once
 
-#include <flatbuffers/flatbuffers.h>
-
 #include <memory>
 #include <mutex>
 #include <string>
 
 #include "handler.h"
-#include "wakelock_manager_generated.h"
 
 namespace bluetooth {
 namespace os {
@@ -73,16 +70,16 @@ public:
   // This will NOT clean up the callouts
   void CleanUp();
 
-  // Dump wakelock-related debug info to a flat buffer defined in wakelock_manager.fbs
-  flatbuffers::Offset<WakelockManagerData> GetDumpsysData(
-          flatbuffers::FlatBufferBuilder* fb_builder);
+  /// Write debug information relevant for the wakelock manager
+  /// to the dumpsys output file descriptor.
+  void Dump(int fd) const;
 
   ~WakelockManager();
 
 private:
   WakelockManager();
 
-  std::recursive_mutex mutex_;
+  mutable std::recursive_mutex mutex_;
   bool initialized_ = false;
   OsCallouts* os_callouts_ = nullptr;
   Handler* os_callouts_handler_ = nullptr;

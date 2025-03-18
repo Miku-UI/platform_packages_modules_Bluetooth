@@ -89,6 +89,13 @@ private:
     }
   }
 
+  void EnqueueCommand(
+          std::unique_ptr<hci::AclCommandBuilder> /* command */,
+          common::ContextualOnceCallback<
+                  void(hci::CommandStatusOrCompleteView)> /* on_status_or_complete */) override {
+    FAIL();
+  }
+
 public:
   virtual ~TestLeAclConnectionInterface() = default;
 

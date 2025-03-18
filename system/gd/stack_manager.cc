@@ -25,7 +25,6 @@
 #include "common/bind.h"
 #include "module.h"
 #include "os/handler.h"
-#include "os/log.h"
 #include "os/system_properties.h"
 #include "os/thread.h"
 #include "os/wakelock_manager.h"

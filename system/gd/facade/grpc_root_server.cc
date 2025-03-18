@@ -30,7 +30,6 @@
 #include "hci/facade/le_initiator_address_facade.h"
 #include "hci/facade/le_scanning_manager_facade.h"
 #include "neighbor/facade/facade.h"
-#include "os/log.h"
 #include "os/thread.h"
 #include "stack_manager.h"
 

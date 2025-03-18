@@ -43,7 +43,7 @@ int PORT_FlowControl_MaxCredit(uint16_t /* handle */, bool /* enable */) {
   inc_func_call_count(__func__);
   return 0;
 }
-int PORT_GetState(uint16_t /* handle */, tPORT_STATE* /* p_settings */) {
+int PORT_GetSettings(uint16_t /* handle */, PortSettings* /* p_settings */) {
   inc_func_call_count(__func__);
   return 0;
 }
@@ -61,7 +61,7 @@ int PORT_SetEventMaskAndCallback(uint16_t /* port_handle */, uint32_t /* mask */
   inc_func_call_count(__func__);
   return 0;
 }
-int PORT_SetState(uint16_t /* handle */, tPORT_STATE* /* p_settings */) {
+int PORT_SetSettings(uint16_t /* handle */, PortSettings* /* p_settings */) {
   inc_func_call_count(__func__);
   return 0;
 }

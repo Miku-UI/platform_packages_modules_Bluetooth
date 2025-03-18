@@ -7,6 +7,16 @@ package {
     default_applicable_licenses: ["system_bt_license"],
 }
 
+rust_defaults {
+    name: "gd_rust_defaults",
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
+    host_supported: true,
+}
+
 rust_library {
     name: "libbt_common",
     defaults: ["libbt_common_defaults"],

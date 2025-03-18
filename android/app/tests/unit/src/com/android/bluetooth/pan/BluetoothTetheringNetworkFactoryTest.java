@@ -18,7 +18,6 @@ package com.android.bluetooth.pan;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -106,8 +105,8 @@ public class BluetoothTetheringNetworkFactoryTest {
 
         bluetoothTetheringNetworkFactory.stopReverseTether();
 
-        verify(mPanService, times(1)).getConnectedDevices();
-        verify(mPanService, times(1)).disconnect(bluetoothDevice);
+        verify(mPanService).getConnectedDevices();
+        verify(mPanService).disconnect(bluetoothDevice);
     }
 
     @Test

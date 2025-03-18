@@ -23,25 +23,50 @@
 #include <base/strings/string_number_conversions.h>  // HexEncode
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <deque>
+#include <functional>
+#include <list>
+#include <memory>
 #include <mutex>
+#include <ostream>
+#include <sstream>
+#include <utility>
 #include <vector>
 
 #include "audio/asrc/asrc_resampler.h"
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/include/bta_hearing_aid_api.h"
+#include "btm_api_types.h"
+#include "btm_ble_api_types.h"
 #include "btm_iso_api.h"
+#include "btm_sec_api_types.h"
 #include "embdrv/g722/g722_enc_dec.h"
-#include "hal/link_clocker.h"
+#include "gap_api.h"
+#include "gatt/database.h"
+#include "gatt_api.h"
+#include "gattdefs.h"
 #include "hardware/bt_gatt_types.h"
+#include "hardware/bt_hearing_aid.h"
 #include "hci/controller_interface.h"
 #include "internal_include/bt_trace.h"
+#include "l2cap_types.h"
 #include "main/shim/entry.h"
+#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
+#include "profiles_api.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api_types.h"  // tBTM_RSSI_RESULT
 #include "stack/include/bt_hdr.h"
@@ -224,7 +249,7 @@ public:
 };
 
 static void write_rpt_ctl_cfg_cb(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                 uint16_t len, const uint8_t* value, void* data) {
+                                 uint16_t len, const uint8_t* /*value*/, void* /*data*/) {
   if (status != GATT_SUCCESS) {
     log::error("handle= {}, conn_id={}, status= 0x{:x}, length={}", handle, conn_id,
                static_cast<uint8_t>(status), len);
@@ -465,8 +490,8 @@ public:
 
   int GetDeviceCount() { return hearingDevices.size(); }
 
-  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF client_if,
-                       RawAddress address, tBT_TRANSPORT transport, uint16_t mtu) {
+  void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF /*client_if*/,
+                       RawAddress address, tBT_TRANSPORT /*transport*/, uint16_t /*mtu*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByAddress(address);
     if (!hearingDevice) {
       /* When Hearing Aid is quickly disabled and enabled in settings, this case
@@ -498,6 +523,10 @@ public:
     }
 
     hearingDevice->conn_id = conn_id;
+
+    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
+      BtaGattQueue::Clean(conn_id);
+    }
 
     uint64_t hi_sync_id = hearingDevice->hi_sync_id;
 
@@ -882,8 +911,8 @@ public:
     device->command_acked = true;
   }
 
-  void OnReadOnlyPropertiesRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                uint16_t len, uint8_t* value, void* data) {
+  void OnReadOnlyPropertiesRead(tCONN_ID conn_id, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                                uint16_t len, uint8_t* value, void* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -989,13 +1018,13 @@ public:
     }
   }
 
-  void OnAudioStatus(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                     uint8_t* value, void* data) {
+  void OnAudioStatus(tCONN_ID /*conn_id*/, tGATT_STATUS /*status*/, uint16_t /*handle*/,
+                     uint16_t len, uint8_t* value, void* /*data*/) {
     log::info("{}", base::HexEncode(value, len));
   }
 
-  void OnPsmRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
-                 uint8_t* value, void* data) {
+  void OnPsmRead(tCONN_ID conn_id, tGATT_STATUS status, uint16_t /*handle*/, uint16_t len,
+                 uint8_t* value, void* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x}", conn_id);
@@ -1278,7 +1307,8 @@ public:
   }
 
   static void StartAudioCtrlCallbackStatic(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                           uint16_t len, const uint8_t* value, void* data) {
+                                           uint16_t /*len*/, const uint8_t* /*value*/,
+                                           void* /*data*/) {
     if (status != GATT_SUCCESS) {
       log::error("handle={}, conn_id={}, status=0x{:x}", handle, conn_id,
                  static_cast<uint8_t>(status));
@@ -1553,7 +1583,7 @@ public:
     }
   }
 
-  void GapCallback(uint16_t gap_handle, uint16_t event, tGAP_CB_DATA* data) {
+  void GapCallback(uint16_t gap_handle, uint16_t event, tGAP_CB_DATA* /*data*/) {
     HearingDevice* hearingDevice = hearingDevices.FindByGapHandle(gap_handle);
     if (!hearingDevice) {
       log::error("unknown device: gap_handle={} event=0x{:x}", gap_handle, event);
@@ -1679,7 +1709,7 @@ public:
       if (!strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp)) {
         log::error("strftime fails. tm_sec={}, tm_min={}, tm_hour={}", tstamp->tm_sec,
                    tstamp->tm_min, tstamp->tm_hour);
-        strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
+        osi_strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
       }
       snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
                rssi_logs.timestamp.tv_nsec / 1000000);
@@ -1768,7 +1798,7 @@ public:
     DoDisconnectAudioStop();
   }
 
-  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF client_if, RawAddress remote_bda) {
+  void OnGattDisconnected(tCONN_ID conn_id, tGATT_IF /*client_if*/, RawAddress remote_bda) {
     HearingDevice* hearingDevice = hearingDevices.FindByConnId(conn_id);
     if (!hearingDevice) {
       log::error("unknown device: conn_id=0x{:x} bd_addr={}", conn_id, remote_bda);

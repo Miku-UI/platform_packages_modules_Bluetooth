@@ -19,17 +19,18 @@ package com.android.bluetooth.gatt;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Log;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -68,6 +69,9 @@ public class AppAdvertiseStatsTest {
 
     @Captor ArgumentCaptor<Long> mAdvDurationCaptor;
 
+    private final AttributionSource mAttributionSource =
+            InstrumentationRegistry.getTargetContext().getAttributionSource();
+
     @Before
     public void setUp() throws Exception {
         MetricsLogger.setInstanceForTesting(mMetricsLogger);
@@ -79,7 +83,6 @@ public class AppAdvertiseStatsTest {
     @After
     public void tearDown() throws Exception {
         MetricsLogger.setInstanceForTesting(null);
-        MetricsLogger.getInstance();
     }
 
     private void testSleep(long millis) {
@@ -96,7 +99,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
 
@@ -134,7 +138,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         int duration = 1;
         int maxExtAdvEvents = 2;
@@ -174,7 +179,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         int duration = 1;
         int maxExtAdvEvents = 2;
@@ -196,7 +202,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertiseData advertiseData = new AdvertiseData.Builder().build();
         appAdvertiseStats.setAdvertisingData(advertiseData);
@@ -210,7 +217,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertiseData scanResponse = new AdvertiseData.Builder().build();
         appAdvertiseStats.setScanResponseData(scanResponse);
@@ -224,7 +232,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
         appAdvertiseStats.setAdvertisingParameters(parameters);
@@ -236,7 +245,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         PeriodicAdvertisingParameters periodicParameters =
                 new PeriodicAdvertisingParameters.Builder().build();
@@ -249,7 +259,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertiseData periodicData = new AdvertiseData.Builder().build();
         appAdvertiseStats.setPeriodicAdvertisingData(periodicData);
@@ -265,7 +276,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
         AdvertiseData advertiseData = new AdvertiseData.Builder().build();
@@ -297,7 +309,8 @@ public class AppAdvertiseStatsTest {
         int id = 1;
         String name = "name";
 
-        AppAdvertiseStats appAdvertiseStats = new AppAdvertiseStats(appUid, id, name);
+        AppAdvertiseStats appAdvertiseStats =
+                new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
         AdvertisingSetParameters parameters =
                 new AdvertisingSetParameters.Builder().setConnectable(true).build();
@@ -320,13 +333,13 @@ public class AppAdvertiseStatsTest {
                 duration,
                 maxExtAdvEvents,
                 instanceCount);
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_ENABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_CONNECTABLE_ENABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_PERIODIC_ENABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logAdvStateChanged(
                         new int[] {appUid},
                         new String[] {name},
@@ -345,21 +358,21 @@ public class AppAdvertiseStatsTest {
         testSleep(advTestDuration);
 
         appAdvertiseStats.recordAdvertiseStop(instanceCount);
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_DISABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_CONNECTABLE_DISABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_COUNT_PERIODIC_DISABLE), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(eq(BluetoothProtoEnums.LE_ADV_DURATION_COUNT_TOTAL_1M), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_ADV_DURATION_COUNT_CONNECTABLE_1M), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .cacheCount(
                         eq(BluetoothProtoEnums.LE_ADV_DURATION_COUNT_PERIODIC_1M), eq((long) 1));
-        verify(mMetricsLogger, times(1))
+        verify(mMetricsLogger)
                 .logAdvStateChanged(
                         eq(new int[] {appUid}),
                         eq(new String[] {name}),

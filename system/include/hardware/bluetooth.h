@@ -26,9 +26,9 @@
 #include <vector>
 
 #include "avrcp/avrcp.h"
-#include "bluetooth/uuid.h"
-#include "bt_transport.h"
-#include "raw_address.h"
+#include "types/bluetooth/uuid.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 
 /**
  * The Bluetooth Hardware Module ID
@@ -238,6 +238,10 @@ typedef struct {
   bool le_channel_sounding_supported;
 } bt_local_le_features_t;
 
+typedef struct {
+  uint8_t number_of_supported_offloaded_le_coc_sockets;
+} bt_lpp_offload_features_t;
+
 /** Bluetooth Vendor and Product ID info */
 typedef struct {
   uint8_t vendor_id_src;
@@ -415,6 +419,13 @@ typedef enum {
    */
   BT_PROPERTY_REMOTE_MAX_SESSION_KEY_SIZE,
 
+  /**
+   * Description - Low power processor offload features
+   * Access mode - GET.
+   * Data Type   - bt_lpp_offload_features_t.
+   */
+  BT_PROPERTY_LPP_OFFLOAD_FEATURES,
+
   BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
 
@@ -477,6 +488,15 @@ typedef enum {
   BT_SSP_VARIANT_PASSKEY_NOTIFICATION
 } bt_ssp_variant_t;
 
+typedef struct {
+  RawAddress bd_addr;
+  uint8_t status; /* bt_hci_error_code_t */
+  bool encr_enable;
+  uint8_t key_size;
+  tBT_TRANSPORT transport;
+  bool secure_connections;
+} bt_encryption_change_evt;
+
 #define BT_MAX_NUM_UUIDS 32
 
 /** Bluetooth Interface callbacks */
@@ -536,9 +556,10 @@ typedef void (*address_consolidate_callback)(RawAddress* main_bd_addr,
 
 /** Bluetooth LE Address association callback */
 /* Callback for the upper layer to associate the LE-only device's RPA to the
- * identity address */
+ * identity address and identity address type */
 typedef void (*le_address_associate_callback)(RawAddress* main_bd_addr,
-                                              RawAddress* secondary_bd_addr);
+                                              RawAddress* secondary_bd_addr,
+                                              uint8_t identity_address_type);
 
 /** Bluetooth ACL connection state changed callback */
 typedef void (*acl_state_changed_callback)(bt_status_t status, RawAddress* remote_bd_addr,
@@ -594,6 +615,8 @@ typedef void (*generate_local_oob_data_callback)(tBT_TRANSPORT transport, bt_oob
 
 typedef void (*key_missing_callback)(const RawAddress bd_addr);
 
+typedef void (*encryption_change_callback)(const bt_encryption_change_evt encryption_change);
+
 /** TODO: Add callbacks for Link Up/Down and other generic
  *  notifications/callbacks */
 
@@ -622,6 +645,7 @@ typedef struct {
   switch_codec_callback switch_codec_cb;
   le_rand_callback le_rand_cb;
   key_missing_callback key_missing_cb;
+  encryption_change_callback encryption_change_cb;
 } bt_callbacks_t;
 
 typedef int (*acquire_wake_lock_callout)(const char* lock_name);
@@ -675,13 +699,11 @@ typedef struct {
    * config file. These devices are deleted upon leaving restricted mode.
    * The |is_common_criteria_mode| flag inits the adapter in common criteria
    * mode. The |config_compare_result| flag show the config checksum check
-   * result if is in common criteria mode. The |init_flags| are config flags
-   * that cannot change during run. The |is_atv| flag indicates whether the
-   * local device is an Android TV
+   * result if is in common criteria mode. The |is_atv| flag indicates whether
+   * the local device is an Android TV
    */
   int (*init)(bt_callbacks_t* callbacks, bool guest_mode, bool is_common_criteria_mode,
-              int config_compare_result, const char** init_flags, bool is_atv,
-              const char* user_data_directory);
+              int config_compare_result, bool is_atv);
 
   /** Enable Bluetooth. */
   int (*enable)();
@@ -983,7 +1005,6 @@ typedef struct {
 
   /** check if pbap pse dynamic version upgrade is enable */
   bool (*pbap_pse_dynamic_version_upgrade_is_enabled)();
-
 } bt_interface_t;
 
 #define BLUETOOTH_INTERFACE_STRING "bluetoothInterface"
@@ -991,7 +1012,7 @@ typedef struct {
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bt_status_t> : enum_formatter<bt_status_t> {};
 template <>
@@ -1000,7 +1021,7 @@ template <>
 struct formatter<bt_bond_state_t> : enum_formatter<bt_bond_state_t> {};
 template <>
 struct formatter<bt_property_type_t> : enum_formatter<bt_property_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)
 

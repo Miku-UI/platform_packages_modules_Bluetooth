@@ -24,7 +24,6 @@
 #include "hal/hci_hal_fake.h"
 #include "hci/hci_packets.h"
 #include "module.h"
-#include "os/log.h"
 #include "os/thread.h"
 #include "packet/bit_inserter.h"
 #include "packet/raw_builder.h"

@@ -624,6 +624,11 @@ public:
     auto view = ReadRemoteSupportedFeaturesCompleteView::Create(packet);
     log::assert_that(view.IsValid(), "Read remote supported features packet invalid");
     uint16_t handle = view.GetConnectionHandle();
+    auto status = view.GetStatus();
+    if (status != ErrorCode::SUCCESS) {
+      log::error("handle:{} status:{}", handle, ErrorCodeText(status));
+      return;
+    }
     bluetooth::os::LogMetricBluetoothRemoteSupportedFeatures(connections.get_address(handle), 0,
                                                              view.GetLmpFeatures(), handle);
     connections.execute(handle, [=](ConnectionManagementCallbacks* callbacks) {
@@ -635,6 +640,11 @@ public:
     auto view = ReadRemoteExtendedFeaturesCompleteView::Create(packet);
     log::assert_that(view.IsValid(), "Read remote extended features packet invalid");
     uint16_t handle = view.GetConnectionHandle();
+    auto status = view.GetStatus();
+    if (status != ErrorCode::SUCCESS) {
+      log::error("handle:{} status:{}", handle, ErrorCodeText(status));
+      return;
+    }
     bluetooth::os::LogMetricBluetoothRemoteSupportedFeatures(connections.get_address(handle),
                                                              view.GetPageNumber(),
                                                              view.GetExtendedLmpFeatures(), handle);

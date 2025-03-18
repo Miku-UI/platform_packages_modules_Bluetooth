@@ -24,30 +24,33 @@
  *
  *****************************************************************************/
 
-#define LOG_TAG "avctp"
-
 #include <bluetooth/log.h>
 
-#include "avct_api.h"
-#include "avct_int.h"
+#include <cstddef>
+#include <cstdint>
+
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
+#include "stack/avct/avct_int.h"
+#include "stack/include/avct_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cdefs.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth;
 
 /* callback function declarations */
-void avct_l2c_br_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm,
-                                   uint8_t id);
-void avct_l2c_br_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result);
-void avct_l2c_br_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
-void avct_l2c_br_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
-void avct_l2c_br_disconnect_ind_cback(uint16_t lcid, bool ack_needed);
-void avct_l2c_br_congestion_ind_cback(uint16_t lcid, bool is_congested);
-void avct_l2c_br_data_ind_cback(uint16_t lcid, BT_HDR* p_buf);
-void avct_br_on_l2cap_error(uint16_t lcid, uint16_t result);
+static void avct_l2c_br_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm,
+                                          uint8_t id);
+static void avct_l2c_br_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result);
+static void avct_l2c_br_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
+static void avct_l2c_br_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
+static void avct_l2c_br_disconnect_ind_cback(uint16_t lcid, bool ack_needed);
+static void avct_l2c_br_congestion_ind_cback(uint16_t lcid, bool is_congested);
+static void avct_l2c_br_data_ind_cback(uint16_t lcid, BT_HDR* p_buf);
+static void avct_br_on_l2cap_error(uint16_t lcid, uint16_t result);
 
 /* L2CAP callback function structure */
 const tL2CAP_APPL_INFO avct_l2c_br_appl = {avct_l2c_br_connect_ind_cback,
@@ -77,9 +80,8 @@ const tL2CAP_APPL_INFO avct_l2c_br_appl = {avct_l2c_br_connect_ind_cback,
  ******************************************************************************/
 static bool avct_l2c_br_is_passive(tAVCT_BCB* p_bcb) {
   bool is_passive = false;
-  tAVCT_LCB* p_lcb;
   tAVCT_CCB* p_ccb = &avct_cb.ccb[0];
-  p_lcb = avct_lcb_by_bcb(p_bcb);
+  tAVCT_LCB* p_lcb = avct_lcb_by_bcb(p_bcb);
   int i;
 
   for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
@@ -106,12 +108,10 @@ static bool avct_l2c_br_is_passive(tAVCT_BCB* p_bcb) {
  ******************************************************************************/
 void avct_l2c_br_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm */,
                                    uint8_t /* id */) {
-  tAVCT_LCB* p_lcb;
   tL2CAP_CONN result = tL2CAP_CONN::L2CAP_CONN_NO_RESOURCES;
-  tAVCT_BCB* p_bcb;
-  tL2CAP_ERTM_INFO ertm_info;
+  tAVCT_BCB* p_bcb{nullptr};
 
-  p_lcb = avct_lcb_by_bd(bd_addr);
+  tAVCT_LCB* p_lcb = avct_lcb_by_bd(bd_addr);
   if (p_lcb != NULL) {
     /* control channel exists */
     p_bcb = avct_bcb_by_lcb(p_lcb);
@@ -136,26 +136,20 @@ void avct_l2c_br_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uin
       }
     }
   }
-  /* else no control channel yet, reject */
-
-  /* Set the FCR options: Browsing channel mandates ERTM */
-  ertm_info.preferred_mode = L2CAP_FCR_ERTM_MODE;
-
-  /* If we reject the connection, send DisconnectReq */
-  if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
-    log::verbose("Connection rejected to lcid:0x{:x}", lcid);
-    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
-      log::warn("Unable to send L2CAP disconnect request cid:{}", lcid);
-    }
-  }
 
   /* if result ok, proceed with connection */
   if (result == tL2CAP_CONN::L2CAP_CONN_OK) {
     /* store LCID */
     p_bcb->ch_lcid = lcid;
-
     /* transition to configuration state */
     p_bcb->ch_state = AVCT_CH_CFG;
+  } else {
+    /* else no control channel yet, reject */
+    /* If we reject the connection, send DisconnectReq */
+    log::verbose("Connection rejected to lcid:0x{:x}", lcid);
+    if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
+      log::warn("Unable to send L2CAP disconnect request cid:0x{:04x}", lcid);
+    }
   }
 }
 
@@ -174,7 +168,7 @@ void avct_br_on_l2cap_error(uint16_t lcid, uint16_t result) {
   p_bcb->ch_result = result;
 
   /* Send L2CAP disconnect req */
-  avct_l2c_br_disconnect(lcid, 0);
+  avct_l2c_br_disconnect(lcid, 0 /* is_ack_needed */);
 }
 
 /*******************************************************************************
@@ -188,24 +182,23 @@ void avct_br_on_l2cap_error(uint16_t lcid, uint16_t result) {
  *
  ******************************************************************************/
 void avct_l2c_br_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
-  tAVCT_BCB* p_bcb;
-
   /* look up bcb for this channel */
-  p_bcb = avct_bcb_by_lcid(lcid);
-
-  if (p_bcb == NULL) {
+  tAVCT_BCB* p_bcb = avct_bcb_by_lcid(lcid);
+  if (p_bcb == nullptr) {
+    log::warn(
+            "Received browse connect confirm callback without a browse control channel "
+            "lcid:0x{:02x} status:{}",
+            lcid, l2cap_result_code_text(result));
     return;
   }
-  /* if in correct state */
   if (p_bcb->ch_state == AVCT_CH_CONN) {
     /* if result successful */
     if (result == tL2CAP_CONN::L2CAP_CONN_OK) {
       /* set channel state */
       p_bcb->ch_state = AVCT_CH_CFG;
-    }
-    /* else failure */
-    else {
-      log::error("Invoked with non OK status");
+    } else {
+      log::error("Invoked with non OK lcid:0x{:04x} state:{} status:{}", lcid,
+                 avct_ch_state_text(p_bcb->ch_state), l2cap_result_code_text(result));
     }
   } else if (p_bcb->conflict_lcid == lcid) {
     /* we must be in AVCT_CH_CFG state for the ch_lcid channel */
@@ -214,8 +207,12 @@ void avct_l2c_br_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
        * disconnect req */
       log::verbose("Disconnect conflict_lcid:0x{:x}", p_bcb->conflict_lcid);
       if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
-        log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_bcb->peer_addr, lcid);
+        log::warn("Unable to send L2CAP disconnect request peer:{} lcid:0x{:04x}", p_bcb->peer_addr,
+                  lcid);
       }
+    } else {
+      log::error("Invoked with failure peer:{} lcid:0x{:04x} conflict_lcid:0x{:04x} status:{}",
+                 p_bcb->peer_addr, lcid, p_bcb->conflict_lcid, l2cap_result_code_text(result));
     }
     p_bcb->conflict_lcid = 0;
   }
@@ -231,19 +228,21 @@ void avct_l2c_br_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
  * Returns          void
  *
  ******************************************************************************/
-void avct_l2c_br_config_cfm_cback(uint16_t lcid, uint16_t /* initiator */, tL2CAP_CFG_INFO* p_cfg) {
+void avct_l2c_br_config_cfm_cback(uint16_t lcid, uint16_t initiator, tL2CAP_CFG_INFO* p_cfg) {
+  log::verbose("lcid:0x{:04x} initiator:{}", lcid, initiator);
   avct_l2c_br_config_ind_cback(lcid, p_cfg);
 
-  tAVCT_BCB* p_lcb;
-
-  /* look up lcb for this channel */
-  p_lcb = avct_bcb_by_lcid(lcid);
-  if ((p_lcb == NULL) || (p_lcb->ch_state != AVCT_CH_CFG)) {
+  /* look up bcb for this channel */
+  tAVCT_BCB* p_bcb = avct_bcb_by_lcid(lcid);
+  if ((p_bcb == NULL) || (p_bcb->ch_state != AVCT_CH_CFG)) {
+    log::warn(
+            "Got config confirm callback with no browse channel or browse channel not in "
+            "configuration state");
     return;
   }
 
-  p_lcb->ch_state = AVCT_CH_OPEN;
-  avct_bcb_event(p_lcb, AVCT_LCB_LL_OPEN_EVT, NULL);
+  p_bcb->ch_state = AVCT_CH_OPEN;
+  avct_bcb_event(p_bcb, AVCT_LCB_LL_OPEN_EVT, NULL);
 }
 
 /*******************************************************************************
@@ -257,26 +256,27 @@ void avct_l2c_br_config_cfm_cback(uint16_t lcid, uint16_t /* initiator */, tL2CA
  *
  ******************************************************************************/
 void avct_l2c_br_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
-  tAVCT_BCB* p_lcb;
-  uint16_t max_mtu = BT_DEFAULT_BUFFER_SIZE - L2CAP_MIN_OFFSET - BT_HDR_SIZE;
+  log::verbose("lcid:0x{:04x}", lcid);
+  const uint16_t max_mtu = BT_DEFAULT_BUFFER_SIZE - L2CAP_MIN_OFFSET - BT_HDR_SIZE;
 
-  /* look up lcb for this channel */
-  p_lcb = avct_bcb_by_lcid(lcid);
-  if (p_lcb == NULL) {
+  /* look up bcb for this channel */
+  tAVCT_BCB* p_bcb = avct_bcb_by_lcid(lcid);
+  if (p_bcb == NULL) {
+    log::warn("Unable to find browse control block lcid:0x{:02x}", lcid);
     return;
   }
 
   /* store the mtu in tbl */
-  p_lcb->peer_mtu = L2CAP_DEFAULT_MTU;
+  p_bcb->peer_mtu = L2CAP_DEFAULT_MTU;
   if (p_cfg->mtu_present) {
-    p_lcb->peer_mtu = p_cfg->mtu;
+    p_bcb->peer_mtu = p_cfg->mtu;
   }
 
-  if (p_lcb->peer_mtu > max_mtu) {
-    p_lcb->peer_mtu = max_mtu;
+  if (p_bcb->peer_mtu > max_mtu) {
+    p_bcb->peer_mtu = max_mtu;
   }
 
-  log::verbose("peer_mtu:{} use:{}", p_lcb->peer_mtu, max_mtu);
+  log::verbose("peer_mtu:{} max_mtu:{}", p_bcb->peer_mtu, max_mtu);
 }
 
 /*******************************************************************************
@@ -290,41 +290,37 @@ void avct_l2c_br_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
  *
  ******************************************************************************/
 void avct_l2c_br_disconnect_ind_cback(uint16_t lcid, bool /* ack_needed */) {
-  tAVCT_BCB* p_lcb;
   uint16_t result = AVCT_RESULT_FAIL;
 
-  /* look up lcb for this channel */
-  p_lcb = avct_bcb_by_lcid(lcid);
-  if (p_lcb == NULL) {
+  /* look up bcb for this channel */
+  tAVCT_BCB* p_bcb = avct_bcb_by_lcid(lcid);
+  if (p_bcb == NULL) {
     return;
   }
 
   tAVCT_LCB_EVT avct_lcb_evt;
   avct_lcb_evt.result = result;
-  avct_bcb_event(p_lcb, AVCT_LCB_LL_CLOSE_EVT, &avct_lcb_evt);
+  avct_bcb_event(p_bcb, AVCT_LCB_LL_CLOSE_EVT, &avct_lcb_evt);
 }
 
 void avct_l2c_br_disconnect(uint16_t lcid, uint16_t result) {
   if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
-    log::warn("Unable to send L2CAP disconnect request cid:{}", lcid);
+    log::warn("Unable to send L2CAP disconnect request cid:0x{:04x}", lcid);
   }
 
-  tAVCT_BCB* p_lcb;
-  uint16_t res;
-
-  /* look up lcb for this channel */
-  p_lcb = avct_bcb_by_lcid(lcid);
-  if (p_lcb == NULL) {
+  /* look up bcb for this channel */
+  tAVCT_BCB* p_bcb = avct_bcb_by_lcid(lcid);
+  if (p_bcb == NULL) {
     return;
   }
 
   /* result value may be previously stored */
-  res = (p_lcb->ch_result != 0) ? p_lcb->ch_result : result;
-  p_lcb->ch_result = 0;
+  uint16_t res = (p_bcb->ch_result != 0) ? p_bcb->ch_result : result;
+  p_bcb->ch_result = 0;
 
   tAVCT_LCB_EVT avct_lcb_evt;
   avct_lcb_evt.result = res;
-  avct_bcb_event(p_lcb, AVCT_LCB_LL_CLOSE_EVT, &avct_lcb_evt);
+  avct_bcb_event(p_bcb, AVCT_LCB_LL_CLOSE_EVT, &avct_lcb_evt);
 }
 
 /*******************************************************************************
@@ -338,17 +334,15 @@ void avct_l2c_br_disconnect(uint16_t lcid, uint16_t result) {
  *
  ******************************************************************************/
 void avct_l2c_br_congestion_ind_cback(uint16_t lcid, bool is_congested) {
-  tAVCT_BCB* p_lcb;
-
-  /* look up lcb for this channel */
-  p_lcb = avct_bcb_by_lcid(lcid);
-  if (p_lcb == NULL) {
+  /* look up bcb for this channel */
+  tAVCT_BCB* p_bcb = avct_bcb_by_lcid(lcid);
+  if (p_bcb == NULL) {
     return;
   }
 
   tAVCT_LCB_EVT avct_lcb_evt;
   avct_lcb_evt.cong = is_congested;
-  avct_bcb_event(p_lcb, AVCT_LCB_LL_CONG_EVT, &avct_lcb_evt);
+  avct_bcb_event(p_bcb, AVCT_LCB_LL_CONG_EVT, &avct_lcb_evt);
 }
 
 /*******************************************************************************
@@ -362,17 +356,15 @@ void avct_l2c_br_congestion_ind_cback(uint16_t lcid, bool is_congested) {
  *
  ******************************************************************************/
 void avct_l2c_br_data_ind_cback(uint16_t lcid, BT_HDR* p_buf) {
-  tAVCT_BCB* p_lcb;
-  tAVCT_LCB_EVT evt_data;
-
-  /* look up lcb for this channel */
-  p_lcb = avct_bcb_by_lcid(lcid);
-  if (p_lcb == NULL) {
+  /* look up bcb for this channel */
+  tAVCT_BCB* p_bcb = avct_bcb_by_lcid(lcid);
+  if (p_bcb == NULL) {
     /* prevent buffer leak */
     osi_free(p_buf);
     return;
   }
 
+  tAVCT_LCB_EVT evt_data{};
   evt_data.p_buf = p_buf;
-  avct_bcb_event(p_lcb, AVCT_LCB_LL_MSG_EVT, &evt_data);
+  avct_bcb_event(p_bcb, AVCT_LCB_LL_MSG_EVT, &evt_data);
 }

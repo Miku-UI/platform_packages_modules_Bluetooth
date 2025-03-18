@@ -1283,7 +1283,7 @@ impl IsoManager {
                     conn_event_count: 0,
                 },
             );
-            self.send_hci_event(hci::LeCisEstablishedBuilder {
+            self.send_hci_event(hci::LeCisEstablishedV1Builder {
                 status: hci::ErrorCode::Success,
                 connection_handle: cis_connection_handle,
                 cig_sync_delay: parameters.cig_sync_delay,
@@ -1323,7 +1323,7 @@ impl IsoManager {
             let cis = self.cis_connections.get_mut(&cis_connection_handle).unwrap();
             cis.state = CisState::Configuration;
             cis.parameters = None;
-            self.send_hci_event(hci::LeCisEstablishedBuilder {
+            self.send_hci_event(hci::LeCisEstablishedV1Builder {
                 status: hci::ErrorCode::RemoteUserTerminatedConnection,
                 connection_handle: cis_connection_handle,
                 cig_sync_delay: 0,
@@ -1364,7 +1364,7 @@ impl IsoManager {
             });
             let cis = self.cis_connections.get(&cis_connection_handle).unwrap();
             let parameters = cis.parameters.as_ref().unwrap();
-            self.send_hci_event(hci::LeCisEstablishedBuilder {
+            self.send_hci_event(hci::LeCisEstablishedV1Builder {
                 status: hci::ErrorCode::Success,
                 connection_handle: cis_connection_handle,
                 cig_sync_delay: parameters.cig_sync_delay,

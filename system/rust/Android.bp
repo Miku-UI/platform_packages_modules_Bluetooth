@@ -22,7 +22,6 @@ rust_defaults {
         "libbase",
     ],
     static_libs: [
-        "libbt_shim_bridge",
         "libchrome",
         "libevent",
         "libmodpb64",
@@ -35,7 +34,6 @@ rust_defaults {
         "libanyhow",
         "libbitflags",
         "libbt_common",
-        "libbt_shim",
         "libbytes",
         "libcxx",
         "liblog_rust",
@@ -44,11 +42,6 @@ rust_defaults {
     ],
     whole_static_libs: [
         "libbluetooth_core_rs_bridge",
-    ],
-    features: [
-        // used to hide libbt_shim in Cargo builds, but
-        // expose it to Soong to work around linker bug
-        "via_android_bp",
     ],
     target: {
         android: {
@@ -110,8 +103,11 @@ rust_test_host {
 cc_library_static {
     name: "libbluetooth_core_rs_bridge",
     defaults: ["bluetooth_cflags"],
+    cflags: [
+        // The generated code triggers these warnings.
+        "-Wno-missing-prototypes",
+    ],
     srcs: [
-        "src/connection/ffi/connection_shim.cc",
         "src/core/ffi/module.cc",
         "src/gatt/ffi/gatt_shim.cc",
     ],
@@ -120,25 +116,20 @@ cc_library_static {
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
         "packages/modules/Bluetooth/system/stack/include",
-        "packages/modules/Bluetooth/system/types",
     ],
     export_include_dirs: ["."],
     static_libs: [
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
-        "libbt_shim_bridge",
-        "libbt_shim_ffi",
         "libchrome",
         "libflatbuffers-cpp",
     ],
     generated_headers: [
         "cxx-bridge-header",
         "libbluetooth_core_rs_bridge_codegen_header",
-
-        "BluetoothGeneratedBundlerSchema_h_bfbs",
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     export_generated_headers: [
+        "cxx-bridge-header",
         "libbluetooth_core_rs_bridge_codegen_header",
     ],
     host_supported: true,
@@ -173,7 +164,6 @@ cc_library_static {
 filegroup {
     name: "libbluetooth_core_rs_ffi",
     srcs: [
-        "src/connection/ffi.rs",
         "src/core/ffi.rs",
         "src/gatt/ffi.rs",
     ],

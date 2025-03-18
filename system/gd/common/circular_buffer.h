@@ -46,13 +46,13 @@ private:
 
 class Timestamper {
 public:
-  virtual long long GetTimestamp() const = 0;
+  virtual uint64_t GetTimestamp() const = 0;
   virtual ~Timestamper() {}
 };
 
 class TimestamperInMilliseconds : public Timestamper {
 public:
-  long long GetTimestamp() const override {
+  uint64_t GetTimestamp() const override {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                    std::chrono::system_clock::now().time_since_epoch())
             .count();
@@ -62,7 +62,7 @@ public:
 
 template <typename T>
 struct TimestampedEntry {
-  long long timestamp;
+  uint64_t timestamp;
   T entry;
 };
 

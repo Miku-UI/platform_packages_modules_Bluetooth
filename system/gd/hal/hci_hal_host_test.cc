@@ -34,7 +34,6 @@
 
 #include "hal/hci_hal.h"
 #include "hal/serialize_packet.h"
-#include "os/log.h"
 #include "os/thread.h"
 #include "os/utils.h"
 #include "packet/raw_builder.h"

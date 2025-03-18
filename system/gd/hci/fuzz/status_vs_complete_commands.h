@@ -23,7 +23,7 @@ namespace hci {
 namespace fuzz {
 
 bool uses_command_status(hci::OpCode code);
-
+bool uses_command_status_or_complete(hci::OpCode code);
 }
 }  // namespace hci
 }  // namespace bluetooth

@@ -26,8 +26,8 @@
 #include "avrcp_internal.h"
 #include "packet/base/packet.h"
 #include "profile/avrcp/device.h"
-#include "raw_address.h"
 #include "stack/include/sdp_status.h"
+#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace avrcp {

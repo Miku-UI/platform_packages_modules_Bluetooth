@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "bta/le_audio/le_audio_types.h"
-#include "os/log.h"
 #include "src/profiles/le_audio.rs.h"
 #include "types/raw_address.h"
 
@@ -253,7 +252,7 @@ public:
   }
 
   void OnConnectionState(le_audio::ConnectionState state, const RawAddress& address) override {
-    log::info("state={}, address={}", static_cast<int>(state), ADDRESS_TO_LOGGABLE_CSTR(address));
+    log::info("state={}, address={}", static_cast<int>(state), address);
     topshim::rust::internal::connection_state_cb(state, address);
   }
 
@@ -264,8 +263,8 @@ public:
 
   void OnGroupNodeStatus(const RawAddress& bd_addr, int group_id,
                          le_audio::GroupNodeStatus node_status) {
-    log::info("bd_addr={}, group_id={}, node_status={}", ADDRESS_TO_LOGGABLE_CSTR(bd_addr),
-              group_id, static_cast<int>(node_status));
+    log::info("bd_addr={}, group_id={}, node_status={}", bd_addr, group_id,
+              static_cast<int>(node_status));
     topshim::rust::internal::group_node_status_cb(bd_addr, group_id, node_status);
   }
 
@@ -280,8 +279,7 @@ public:
   }
 
   void OnSinkAudioLocationAvailable(const RawAddress& address, uint32_t snk_audio_locations) {
-    log::info("address={}, snk_audio_locations={}", ADDRESS_TO_LOGGABLE_CSTR(address),
-              snk_audio_locations);
+    log::info("address={}, snk_audio_locations={}", address, snk_audio_locations);
     topshim::rust::internal::sink_audio_location_available_cb(address, snk_audio_locations);
   }
 
@@ -323,7 +321,7 @@ public:
 
   void OnHealthBasedRecommendationAction(const RawAddress& address,
                                          le_audio::LeAudioHealthBasedAction action) {
-    log::info("address={}, action={}", ADDRESS_TO_LOGGABLE_CSTR(address), static_cast<int>(action));
+    log::info("address={}, action={}", address, static_cast<int>(action));
   }
 
   void OnHealthBasedGroupRecommendationAction(int group_id,

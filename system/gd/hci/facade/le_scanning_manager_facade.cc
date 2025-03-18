@@ -28,7 +28,6 @@
 #include "common/bind.h"
 #include "grpc/grpc_event_queue.h"
 #include "hci/le_scanning_manager.h"
-#include "os/log.h"
 #include "packet/raw_builder.h"
 
 namespace bluetooth {

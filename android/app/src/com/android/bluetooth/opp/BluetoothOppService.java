@@ -135,7 +135,7 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
     private BluetoothShareContentObserver mObserver;
 
     /** Class to handle Notification Manager updates */
-    private BluetoothOppNotification mNotifier;
+    @VisibleForTesting BluetoothOppNotification mNotifier;
 
     private boolean mPendingUpdate;
 
@@ -244,12 +244,12 @@ public class BluetoothOppService extends ProfileService implements IObexConnecti
 
     @Override
     protected IProfileServiceBinder initBinder() {
-        return new OppBinder(this);
+        return new OppBinder();
     }
 
     private static class OppBinder extends Binder implements IProfileServiceBinder {
 
-        OppBinder(BluetoothOppService service) {}
+        OppBinder() {}
 
         @Override
         public void cleanup() {}

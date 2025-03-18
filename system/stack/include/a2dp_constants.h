@@ -20,6 +20,7 @@
 #include <bluetooth/log.h>
 
 #include <cstdint>
+#include <optional>
 
 /* Profile supported features */
 #define A2DP_SUPF_PLAYER 0x0001
@@ -43,24 +44,63 @@ enum tA2DP_CODEC_TYPE : uint8_t {
   A2DP_MEDIA_CT_NON_A2DP = 0xff,
 };
 
-// Standardized codec identifiers.
-// The codec identifier is 40 bits,
-//  - Bits 0-7: Audio Codec ID, as defined by Assigned Numbers § 6.5.1 Audio Codec ID
-//          0x00: SBC
-//          0x02: AAC
-//          0xFF: Vendor
-//  - Bits 8-23: Company ID,
-//          set to 0, if octet 0 is not 0xFF.
-//  - Bits 24-39: Vendor-defined codec ID,
-//          set to 0, if octet 0 is not 0xFF.
-enum tA2DP_CODEC_ID : uint64_t {
-  A2DP_CODEC_ID_SBC = 0x0000000000,
-  A2DP_CODEC_ID_AAC = 0x0000000002,
-  A2DP_CODEC_ID_APTX = 0x0001004fff,
-  A2DP_CODEC_ID_APTX_HD = 0x002400d7ff,
-  A2DP_CODEC_ID_LDAC = 0x00aa012dff,
-  A2DP_CODEC_ID_OPUS = 0x000100e0ff,
+namespace bluetooth::a2dp {
+
+/// Generate the `CodecId` tag value for a vendor codec identified
+/// by the input `company_id` and `codec_id`.
+constexpr static uint64_t VendorCodecId(uint16_t company_id, uint16_t codec_id) {
+  return 0xff | (static_cast<uint64_t>(company_id) << 8) | (static_cast<uint64_t>(codec_id) << 24);
+}
+
+static constexpr uint16_t kAptxCompanyId = 0x004F;
+static constexpr uint16_t kAptxHdCompanyId = 0x00D7;
+static constexpr uint16_t kLdacCompanyId = 0x012D;
+static constexpr uint16_t kOpusCompanyId = 0x00E0;
+
+static constexpr uint16_t kAptxCodecId = 0x0001;
+static constexpr uint16_t kAptxHdCodecId = 0x0024;
+static constexpr uint16_t kLdacCodecId = 0x00AA;
+static constexpr uint16_t kOpusCodecId = 0x0001;
+
+/// Standardized codec identifiers.
+///
+/// The codec identifier is 40 bits,
+///  - Bits 0-7: Media Codec Type, as defined by Assigned Numbers § 6.5.1 Audio Codec ID
+///          0x00: SBC
+///          0x02: MPEG-AAC
+///          0xFF: Vendor
+///  - Bits 8-23: Company ID,
+///          set to 0, if octet 0 is not 0xFF. The Company ID is contained
+///          within the codec Vendor ID, and specified by
+///          Assigned Numbers § 7 Company identifiers.
+///  - Bits 24-39: Vendor-defined codec ID,
+///          set to 0, if octet 0 is not 0xFF.
+///
+/// Values are defined here for codecs that are supported by default.
+/// Offloaded codecs may be referenced using this identifier and in this case the
+/// identifier is constructed from the Media Codec Capabilities information.
+enum class CodecId : uint64_t {
+  SBC = 0x00,
+  AAC = 0x02,
+  APTX = VendorCodecId(kAptxCompanyId, kAptxCodecId),
+  APTX_HD = VendorCodecId(kAptxHdCompanyId, kAptxHdCodecId),
+  LDAC = VendorCodecId(kLdacCompanyId, kLdacCodecId),
+  OPUS = VendorCodecId(kOpusCompanyId, kOpusCodecId),
 };
+
+/// Parse the standardized codec identifier from the Media Codec Capabilities.
+/// `media_codec_capabilities` must point to a non-null buffer that contains
+/// well formed Media Codec Capabilities.
+///
+/// Returns an error in one of three cases:
+///  - unsupported Media Codec Type
+///  - incorrectly formatted Media Codec Capabilities (e.g. truncated
+///    Codec Specific Information Elements for non-A2DP codecs)
+///  - incorrectly formatted Vendor ID (The upper 16 bits of the 32-
+///    bit Vendor ID shall be set to zero)
+std::optional<CodecId> ParseCodecId(uint8_t const media_codec_capabilities[]);
+
+}  // namespace bluetooth::a2dp
 
 // Error codes returned in AVDTP reject signalling messages.
 // The codes are specified from multiple sources as documented in the enum.
@@ -127,9 +167,11 @@ enum tA2DP_STATUS : uint8_t {
   A2DP_NOT_SUPPORTED_CODEC_PARAMETER = 0xE3,
 };
 
-namespace fmt {
+namespace std {
+template <>
+struct formatter<bluetooth::a2dp::CodecId> : enum_formatter<bluetooth::a2dp::CodecId> {};
 template <>
 struct formatter<tA2DP_CODEC_TYPE> : enum_formatter<tA2DP_CODEC_TYPE> {};
 template <>
 struct formatter<tA2DP_STATUS> : enum_formatter<tA2DP_STATUS> {};
-}  // namespace fmt
+}  // namespace std

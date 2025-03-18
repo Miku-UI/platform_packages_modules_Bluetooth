@@ -137,6 +137,7 @@ public class DckL2capTest() : Closeable {
     }
 
     @Test
+    @VirtualOnly
     fun testSend() {
         Log.d(TAG, "testSend")
         val remoteDevice =
@@ -189,6 +190,7 @@ public class DckL2capTest() : Closeable {
     }
 
     @Test
+    @VirtualOnly
     fun testReceive() {
         Log.d(TAG, "testReceive: Connect L2CAP")
         var bluetoothSocket: BluetoothSocket?

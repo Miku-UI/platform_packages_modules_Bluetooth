@@ -43,9 +43,11 @@ public class InitiatorFragment extends Fragment {
     private static final DecimalFormat DISTANCE_DECIMAL_FMT = new DecimalFormat("0.00");
 
     private ArrayAdapter<String> mDmMethodArrayAdapter;
+    private ArrayAdapter<String> mFreqArrayAdapter;
     private TextView mDistanceText;
     private CanvasView mDistanceCanvasView;
     private Spinner mSpinnerDmMethod;
+    private Spinner mSpinnerFreq;
     private Button mButtonCs;
     private LinearLayout mDistanceViewLayout;
     private TextView mLogText;
@@ -63,6 +65,7 @@ public class InitiatorFragment extends Fragment {
 
         mButtonCs = (Button) root.findViewById(R.id.btn_cs);
         mSpinnerDmMethod = (Spinner) root.findViewById(R.id.spinner_dm_method);
+        mSpinnerFreq = (Spinner) root.findViewById(R.id.spinner_freq);
         mDistanceViewLayout = (LinearLayout) root.findViewById(R.id.layout_distance_view);
         mDistanceText = new TextView(getContext());
         mDistanceViewLayout.addView(mDistanceText);
@@ -85,6 +88,11 @@ public class InitiatorFragment extends Fragment {
         mDmMethodArrayAdapter.setDropDownViewResource(
                 android.R.layout.simple_spinner_dropdown_item);
         mSpinnerDmMethod.setAdapter(mDmMethodArrayAdapter);
+        mFreqArrayAdapter =
+                new ArrayAdapter<String>(
+                        getContext(), android.R.layout.simple_spinner_item, new ArrayList<>());
+        mFreqArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mSpinnerFreq.setAdapter(mFreqArrayAdapter);
 
         mInitiatorViewModel = new ViewModelProvider(this).get(InitiatorViewModel.class);
         mBleConnectionViewModel = new ViewModelProvider(this).get(BleConnectionViewModel.class);
@@ -134,14 +142,15 @@ public class InitiatorFragment extends Fragment {
                         });
 
         mDmMethodArrayAdapter.addAll(mInitiatorViewModel.getSupportedDmMethods());
-
+        mFreqArrayAdapter.addAll(mInitiatorViewModel.getMeasurementFreqs());
         mButtonCs.setOnClickListener(
                 v -> {
                     String methodName = mSpinnerDmMethod.getSelectedItem().toString();
+                    String freq = mSpinnerFreq.getSelectedItem().toString();
                     if (TextUtils.isEmpty(methodName)) {
                         printLog("the device doesn't support any distance measurement methods.");
                     }
-                    mInitiatorViewModel.toggleCsStartStop(methodName);
+                    mInitiatorViewModel.toggleCsStartStop(methodName, freq);
                 });
     }
 

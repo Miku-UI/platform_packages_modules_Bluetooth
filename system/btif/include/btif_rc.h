@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef BTIF_RC_H
-#define BTIF_RC_H
+#pragma once
 
 #include "bta_av_api.h"
+#include "hardware/bt_rc.h"
 #include "types/raw_address.h"
 
 class RawAddress;
+
+const btrc_interface_t* btif_rc_get_interface(void);
+const btrc_ctrl_interface_t* btif_rc_ctrl_get_interface(void);
 
 void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data);
 uint8_t btif_rc_get_connected_peer_handle(const RawAddress& peer_addr);
@@ -29,5 +32,3 @@ bool btif_rc_is_connected_peer(const RawAddress& peer_addr);
 void btif_rc_check_pending_cmd(const RawAddress& peer_addr);
 void btif_rc_get_addr_by_handle(uint8_t handle, RawAddress& rc_addr);
 void btif_debug_rc_dump(int fd);
-
-#endif  // BTIF_RC_H

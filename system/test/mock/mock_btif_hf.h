@@ -25,6 +25,7 @@
 #include <functional>
 
 #include "include/hardware/bluetooth_headset_interface.h"
+#include "types/raw_address.h"
 
 // Original included files, if any
 // NOTE: Since this is a mock file with mock definitions some number of
@@ -51,6 +52,19 @@ struct GetInterface {
   bluetooth::headset::Interface* operator()() { return body(); }
 };
 extern struct GetInterface GetInterface;
+
+struct IsCallIdle {
+  std::function<bool()> body{[]() { return false; }};
+  bool operator()() { return body(); }
+};
+extern struct IsCallIdle IsCallIdle;
+
+struct IsDuringVoiceRecognition {
+  std::function<bool(RawAddress* bd_addr)> body{
+          [](RawAddress* bd_addr) { return bd_addr != nullptr; }};
+  bool operator()(RawAddress* bd_addr) { return body(bd_addr); }
+};
+extern struct IsDuringVoiceRecognition IsDuringVoiceRecognition;
 
 // Shared state between mocked functions and tests
 }  // namespace btif_hf

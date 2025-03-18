@@ -16,13 +16,23 @@
 
 #define LOG_TAG "BluetoothHidHostServiceJni"
 
-#include <string.h>
+#include <bluetooth/log.h>
+#include <jni.h>
+#include <nativehelper/scoped_local_ref.h>
 
+#include <cstdint>
+#include <cstring>
+#include <mutex>
 #include <shared_mutex>
 
 #include "com_android_bluetooth.h"
+#include "hardware/bluetooth.h"
 #include "hardware/bt_hh.h"
+#include "types/ble_address_with_type.h"
+#include "types/bt_transport.h"
+#include "types/raw_address.h"
 #include "utils/Log.h"
+
 namespace android {
 
 static jmethodID method_onConnectStateChanged;

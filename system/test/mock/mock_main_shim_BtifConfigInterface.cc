@@ -76,6 +76,8 @@ bool bluetooth::shim::BtifConfigInterface::RemoveProperty(const std::string& /* 
   return false;
 }
 void bluetooth::shim::BtifConfigInterface::RemoveSection(const std::string& /* section */) {}
+void bluetooth::shim::BtifConfigInterface::RemoveSectionWithProperty(
+        const std::string& /* property */) {}
 std::vector<std::string> bluetooth::shim::BtifConfigInterface::GetPersistentDevices() {
   return std::vector<std::string>();
 }

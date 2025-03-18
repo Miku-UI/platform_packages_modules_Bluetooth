@@ -15,6 +15,7 @@
  */
 #include "metrics/chromeos/metrics_event.h"
 
+#include <android-base/parseint.h>
 #include <base/files/file_path.h>
 #include <base/files/file_util.h>
 #include <base/strings/pattern.h>
@@ -665,7 +666,7 @@ static int64_t GetChipsetInfoId(const char* path, const char* file) {
   int64_t id;
 
   if (base::ReadFileToString(base::FilePath(path).Append(file), &content)) {
-    if (base::HexStringToInt64(base::CollapseWhitespaceASCII(content, false), &id)) {
+    if (android::base::ParseInt(base::CollapseWhitespaceASCII(content, false), &id)) {
       return id;
     }
   }

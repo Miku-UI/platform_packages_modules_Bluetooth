@@ -37,7 +37,6 @@
 #define GATT_OP_CODE_SIZE 1
 #define GATT_START_END_HANDLE_SIZE 4
 
-using base::StringPrintf;
 using bluetooth::Uuid;
 using namespace bluetooth;
 
@@ -471,7 +470,7 @@ static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t
 
   if (gatt_tcb_is_cid_busy(tcb, p_clcb->cid) && cmd_code != GATT_HANDLE_VALUE_CONF) {
     if (gatt_cmd_enq(tcb, p_clcb, true, cmd_code, p_cmd)) {
-      log::debug("Enqueued ATT command {} conn_id=0x{:04x}, cid={}", fmt::ptr(p_clcb),
+      log::debug("Enqueued ATT command {} conn_id=0x{:04x}, cid={}", std::format_ptr(p_clcb),
                  p_clcb->conn_id, p_clcb->cid);
       return GATT_CMD_STARTED;
     }
@@ -485,7 +484,7 @@ static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t
   tGATT_STATUS att_ret = attp_send_msg_to_l2cap(tcb, p_clcb->cid, p_cmd);
   if (att_ret != GATT_CONGESTED && att_ret != GATT_SUCCESS) {
     log::warn("Unable to send ATT command to l2cap layer {} conn_id=0x{:04x}, cid={}",
-              fmt::ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
+              std::format_ptr(p_clcb), p_clcb->conn_id, p_clcb->cid);
     return GATT_INTERNAL_ERROR;
   }
 
@@ -493,7 +492,7 @@ static tGATT_STATUS attp_cl_send_cmd(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint8_t
     return att_ret;
   }
 
-  log::debug("Starting ATT response timer {} conn_id=0x{:04x}, cid={}", fmt::ptr(p_clcb),
+  log::debug("Starting ATT response timer {} conn_id=0x{:04x}, cid={}", std::format_ptr(p_clcb),
              p_clcb->conn_id, p_clcb->cid);
   gatt_start_rsp_timer(p_clcb);
   if (!gatt_cmd_enq(tcb, p_clcb, false, cmd_code, NULL)) {

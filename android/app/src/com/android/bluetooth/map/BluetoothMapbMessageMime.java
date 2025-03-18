@@ -37,9 +37,15 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 8
 public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
+    private static final Pattern NEW_LINE = Pattern.compile("\r\n");
+    private static final Pattern TWO_NEW_LINE = Pattern.compile("\r\n\r\n");
+    private static final Pattern SEMI_COLON = Pattern.compile(";");
+    private static final Pattern BOUNDARY_PATTERN = Pattern.compile("boundary[\\s]*=");
+    private static final Pattern CHARSET_PATTERN = Pattern.compile("charset[\\s]*=");
 
     public static class MimePart {
         public long mId = INVALID_VALUE; /* The _id from the content provider, can be used to
@@ -559,7 +565,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
      *     headers were found.
      */
     private String parseMimeHeaders(String hdrPart) {
-        String[] headers = hdrPart.split("\r\n");
+        String[] headers = NEW_LINE.split(hdrPart);
         Log.d(TAG, "Header count=" + headers.length);
         String header;
 
@@ -574,7 +580,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
             if (header.trim().isEmpty()) {
                 continue;
             }
-            String[] headerParts = header.split(":", 2);
+            String[] headerParts = COLON.split(header, 2);
             if (headerParts.length != 2) {
                 // We treat the remaining content as plain text.
                 StringBuilder remaining = new StringBuilder();
@@ -622,12 +628,12 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
             } else if (headerType.contains("MIME-VERSION")) {
                 /* The mime version is not needed */
             } else if (headerType.contains("CONTENT-TYPE")) {
-                String[] contentTypeParts = headerValue.split(";");
+                String[] contentTypeParts = SEMI_COLON.split(headerValue);
                 mContentType = contentTypeParts[0];
                 // Extract the boundary if it exists
                 for (int j = 1, n = contentTypeParts.length; j < n; j++) {
                     if (contentTypeParts[j].contains("boundary")) {
-                        mBoundary = contentTypeParts[j].split("boundary[\\s]*=", 2)[1].trim();
+                        mBoundary = BOUNDARY_PATTERN.split(contentTypeParts[j], 2)[1].trim();
                         // removing quotes from boundary string
                         if ((mBoundary.charAt(0) == '\"')
                                 && (mBoundary.charAt(mBoundary.length() - 1) == '\"')) {
@@ -635,7 +641,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                         }
                         Log.d(TAG, "Boundary tag=" + mBoundary);
                     } else if (contentTypeParts[j].contains("charset")) {
-                        mCharset = contentTypeParts[j].split("charset[\\s]*=", 2)[1].trim();
+                        mCharset = CHARSET_PATTERN.split(contentTypeParts[j], 2)[1].trim();
                     }
                 }
             } else if (headerType.contains("CONTENT-TRANSFER-ENCODING")) {
@@ -653,12 +659,12 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
     }
 
     private void parseMimePart(String partStr) {
-        String[] parts = partStr.split("\r\n\r\n", 2); // Split the header from the body
+        String[] parts = TWO_NEW_LINE.split(partStr, 2); // Split the header from the body
         MimePart newPart = addMimePart();
         String partEncoding = mMyEncoding; /* Use the overall encoding as default */
         String body;
 
-        String[] headers = parts[0].split("\r\n");
+        String[] headers = NEW_LINE.split(parts[0]);
         Log.d(TAG, "parseMimePart: headers count=" + headers.length);
 
         if (parts.length != 2) {
@@ -672,7 +678,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                     continue;
                 }
 
-                String[] headerParts = header.split(":", 2);
+                String[] headerParts = COLON.split(header, 2);
                 if (headerParts.length != 2) {
                     Log.w(TAG, "part-Header not formatted correctly: ");
                     ContentProfileErrorReportUtils.report(
@@ -687,13 +693,13 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
                 String headerType = Ascii.toUpperCase(headerParts[0]);
                 String headerValue = headerParts[1].trim();
                 if (headerType.contains("CONTENT-TYPE")) {
-                    String[] contentTypeParts = headerValue.split(";");
+                    String[] contentTypeParts = SEMI_COLON.split(headerValue);
                     newPart.mContentType = contentTypeParts[0];
                     // Extract the boundary if it exists
                     for (int j = 1, n = contentTypeParts.length; j < n; j++) {
                         String value = Ascii.toLowerCase(contentTypeParts[j]);
                         if (value.contains("charset")) {
-                            newPart.mCharsetName = value.split("charset[\\s]*=", 2)[1].trim();
+                            newPart.mCharsetName = CHARSET_PATTERN.split(value, 2)[1].trim();
                         }
                     }
                 } else if (headerType.contains("CONTENT-LOCATION")) {
@@ -772,7 +778,7 @@ public class BluetoothMapbMessageMime extends BluetoothMapbMessage {
         String messageBody = null;
 
         message = message.replaceAll("\\r\\n[ \\\t]+", ""); // Unfold
-        messageParts = message.split("\r\n\r\n", 2); // Split the header from the body
+        messageParts = TWO_NEW_LINE.split(message, 2); // Split the header from the body
         if (messageParts.length != 2) {
             // Handle entire message as plain text
             messageBody = message;

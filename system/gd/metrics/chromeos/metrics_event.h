@@ -110,7 +110,6 @@ enum class MetricProfileConnectionStatus : int64_t {
   PROFILE_CONN_STATE_REMOTE_UNAVAILABLE = 6,
   PROFILE_CONN_STATE_PROFILE_NOT_SUPPORTED = 7,
   PROFILE_CONN_STATE_UNKNOWN_ERROR = 8,
-
 };
 
 // ENUM definition for profile disconnection status that in sync with ChromeOS structured metrics

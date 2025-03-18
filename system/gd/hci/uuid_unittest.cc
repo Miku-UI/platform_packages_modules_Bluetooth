@@ -45,9 +45,9 @@ TEST(UuidTest, IsEmpty) {
 }
 
 TEST(UuidTest, GetShortestRepresentationSize) {
-  ASSERT_TRUE(Uuid::kNumBytes16 == kBase.GetShortestRepresentationSize());
-  ASSERT_TRUE(Uuid::kNumBytes32 == Uuid::From32Bit(0x01234567).GetShortestRepresentationSize());
-  ASSERT_TRUE(Uuid::kNumBytes128 == Uuid::kEmpty.GetShortestRepresentationSize());
+  ASSERT_EQ(Uuid::kNumBytes16, kBase.GetShortestRepresentationSize());
+  ASSERT_EQ(Uuid::kNumBytes32, Uuid::From32Bit(0x01234567).GetShortestRepresentationSize());
+  ASSERT_EQ(Uuid::kNumBytes128, Uuid::kEmpty.GetShortestRepresentationSize());
 }
 
 TEST(UuidTest, As16Bit) {
@@ -80,17 +80,17 @@ TEST(UuidTest, From16Bit) {
   const uint8_t u2[] = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   Uuid uuid = Uuid::From16Bit(0x0001);
-  ASSERT_TRUE(memcmp(uuid.data(), u2, sizeof(u2)) == 0);
+  ASSERT_EQ(0, memcmp(uuid.data(), u2, sizeof(u2)));
 
   const uint8_t u3[] = {0x00, 0x00, 0x55, 0x3e, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From16Bit(0x553e);
-  ASSERT_TRUE(memcmp(uuid.data(), u3, sizeof(u3)) == 0);
+  ASSERT_EQ(0, memcmp(uuid.data(), u3, sizeof(u3)));
 
   const uint8_t u4[] = {0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From16Bit(0xffff);
-  ASSERT_TRUE(memcmp(uuid.data(), u4, sizeof(u4)) == 0);
+  ASSERT_EQ(0, memcmp(uuid.data(), u4, sizeof(u4)));
 }
 
 TEST(UuidTest, From32Bit) {
@@ -99,17 +99,17 @@ TEST(UuidTest, From32Bit) {
   const uint8_t u2[] = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   Uuid uuid = Uuid::From32Bit(0x00000001);
-  ASSERT_TRUE(memcmp(uuid.data(), u2, sizeof(u2)) == 0);
+  ASSERT_EQ(0, memcmp(uuid.data(), u2, sizeof(u2)));
 
   const uint8_t u3[] = {0x33, 0x44, 0x55, 0x3e, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From32Bit(0x3344553e);
-  ASSERT_TRUE(memcmp(uuid.data(), u3, sizeof(u3)) == 0);
+  ASSERT_EQ(0, memcmp(uuid.data(), u3, sizeof(u3)));
 
   const uint8_t u4[] = {0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From32Bit(0xffffffff);
-  ASSERT_TRUE(memcmp(uuid.data(), u4, sizeof(u4)) == 0);
+  ASSERT_EQ(0, memcmp(uuid.data(), u4, sizeof(u4)));
 }
 
 TEST(UuidTest, ToString) {
@@ -132,19 +132,19 @@ TEST(UuidTest, test_string_to_uuid) {
                         0x9d, 0xb0, 0x35, 0xfb, 0xd9, 0xae, 0xbf, 0x22};
   auto uuid = Uuid::FromString("e39c6285-867f-4b1d-9db0-35fbd9aebf22");
   ASSERT_TRUE(uuid);
-  ASSERT_TRUE(memcmp(uuid->data(), u1, sizeof(u1)) == 0);
+  ASSERT_EQ(0, memcmp(uuid->data(), u1, sizeof(u1)));
 
   const uint8_t u2[] = {0x00, 0x00, 0x1a, 0xe8, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::FromString("1Ae8");
   ASSERT_TRUE(uuid);
-  ASSERT_TRUE(memcmp(uuid->data(), u2, sizeof(u2)) == 0);
+  ASSERT_EQ(0, memcmp(uuid->data(), u2, sizeof(u2)));
 
   const uint8_t u3[] = {0x12, 0x34, 0x11, 0x28, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::FromString("12341128");
   ASSERT_TRUE(uuid);
-  ASSERT_TRUE(memcmp(uuid->data(), u3, sizeof(u3)) == 0);
+  ASSERT_EQ(0, memcmp(uuid->data(), u3, sizeof(u3)));
 }
 
 TEST(UuidTest, legacy) {

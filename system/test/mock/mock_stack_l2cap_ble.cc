@@ -31,6 +31,9 @@
 // Mocked compile conditionals, if any
 // Mocked internal structures, if any
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 namespace test {
 namespace mock {
 namespace stack_l2cap_ble {
@@ -55,7 +58,6 @@ struct l2cble_credit_based_conn_req l2cble_credit_based_conn_req;
 struct l2cble_credit_based_conn_res l2cble_credit_based_conn_res;
 struct l2cble_send_flow_control_credit l2cble_send_flow_control_credit;
 struct l2cble_send_peer_disc_req l2cble_send_peer_disc_req;
-struct l2cble_sec_comp l2cble_sec_comp;
 struct l2ble_sec_access_req l2ble_sec_access_req;
 struct L2CA_AdjustConnectionIntervals L2CA_AdjustConnectionIntervals;
 struct L2CA_SetEcosystemBaseInterval L2CA_SetEcosystemBaseInterval;
@@ -154,11 +156,6 @@ void l2cble_send_flow_control_credit(tL2C_CCB* p_ccb, uint16_t credit_value) {
 void l2cble_send_peer_disc_req(tL2C_CCB* p_ccb) {
   inc_func_call_count(__func__);
   test::mock::stack_l2cap_ble::l2cble_send_peer_disc_req(p_ccb);
-}
-void l2cble_sec_comp(const RawAddress* bda, tBT_TRANSPORT transport, void* p_ref_data,
-                     tBTM_STATUS status) {
-  inc_func_call_count(__func__);
-  test::mock::stack_l2cap_ble::l2cble_sec_comp(bda, transport, p_ref_data, status);
 }
 tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t psm,
                                            bool is_originator, tBTM_SEC_CALLBACK* p_callback,

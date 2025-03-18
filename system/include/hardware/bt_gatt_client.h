@@ -17,12 +17,12 @@
 #ifndef ANDROID_INCLUDE_BT_GATT_CLIENT_H
 #define ANDROID_INCLUDE_BT_GATT_CLIENT_H
 
-#include <bluetooth/uuid.h>
-#include <raw_address.h>
 #include <stdint.h>
 
 #include "bt_common_types.h"
 #include "bt_gatt_types.h"
+#include "types/bluetooth/uuid.h"
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -291,7 +291,6 @@ typedef struct {
   /** Request a BLE subrate request procedure */
   bt_status_t (*subrate_request)(const RawAddress& bd_addr, int subrate_min, int subrate_max,
                                  int max_latency, int cont_num, int timeout);
-
 } btgatt_client_interface_t;
 
 __END_DECLS

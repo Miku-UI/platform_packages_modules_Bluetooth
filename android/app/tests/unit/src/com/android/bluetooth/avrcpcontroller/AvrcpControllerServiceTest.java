@@ -31,8 +31,6 @@ import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.support.v4.media.session.PlaybackStateCompat;
 
 import androidx.test.InstrumentationRegistry;
@@ -44,7 +42,6 @@ import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.a2dpsink.A2dpSinkService;
 import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService.BrowseResult;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -68,8 +65,6 @@ public class AvrcpControllerServiceTest {
 
     private AvrcpControllerService mService = null;
     private BluetoothAdapter mAdapter = null;
-
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Rule
     public final ServiceTestRule mBluetoothBrowserMediaServiceTestRule = new ServiceTestRule();
@@ -262,7 +257,7 @@ public class AvrcpControllerServiceTest {
 
         BrowseResult result = mService.getContents(parentMediaId);
 
-        verify(mStateMachine, times(1)).requestContents(eq(node));
+        verify(mStateMachine).requestContents(eq(node));
         assertThat(result.getStatus()).isEqualTo(BrowseResult.DOWNLOAD_PENDING);
     }
 
@@ -516,7 +511,6 @@ public class AvrcpControllerServiceTest {
      * first device by checking that it has remained as the active device.
      */
     @Test
-    @EnableFlags(Flags.FLAG_RANDOMIZE_DEVICE_LEVEL_MEDIA_IDS)
     public void testActiveDeviceMaintainsAudioFocusWhenOtherDeviceConnects_audioFocusMaintained() {
         mService.onConnectionStateChanged(true, true, mRemoteDevice);
         // check set active device is called

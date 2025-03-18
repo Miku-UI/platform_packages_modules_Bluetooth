@@ -22,6 +22,8 @@
 #include <cstdint>
 
 #include "stack/btm/power_mode.h"
+#include "stack/include/acl_api.h"
+#include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
@@ -78,7 +80,3 @@ void btm_pm_proc_ssr_evt(uint8_t* /* p */, uint16_t /* evt_len */) {
   inc_func_call_count(__func__);
 }
 void btm_pm_reset(void) { inc_func_call_count(__func__); }
-void process_ssr_event(tHCI_STATUS /* status */, uint16_t /* handle */, uint16_t /* max_tx_lat */,
-                       uint16_t /* max_rx_lat */) {
-  inc_func_call_count(__func__);
-}

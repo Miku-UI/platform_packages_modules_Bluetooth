@@ -223,6 +223,38 @@ public class TbsGenericTest {
     }
 
     @Test
+    public void testCallAddedWithNullUri() {
+        Integer ccid = prepareTestBearer();
+        reset(mTbsGatt);
+
+        BluetoothLeCall tbsCall =
+                new BluetoothLeCall(
+                        UUID.randomUUID(),
+                        null,
+                        "aFriendlyCaller",
+                        BluetoothLeCall.STATE_INCOMING,
+                        0);
+        mTbsGeneric.callAdded(ccid, tbsCall);
+
+        ArgumentCaptor<Integer> callIndexCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(mTbsGatt).setIncomingCall(callIndexCaptor.capture(), eq(null));
+        Integer capturedCallIndex = callIndexCaptor.getValue();
+        verify(mTbsGatt).setCallFriendlyName(eq(capturedCallIndex), eq("aFriendlyCaller"));
+        ArgumentCaptor<Map> currentCallsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(mTbsGatt).setCallState(currentCallsCaptor.capture());
+        Map<Integer, TbsCall> capturedCurrentCalls = currentCallsCaptor.getValue();
+        assertThat(capturedCurrentCalls.size()).isEqualTo(1);
+        TbsCall capturedTbsCall = capturedCurrentCalls.get(capturedCallIndex);
+        assertThat(capturedTbsCall).isNotNull();
+        assertThat(capturedTbsCall.getState()).isEqualTo(BluetoothLeCall.STATE_INCOMING);
+        assertThat(capturedTbsCall.getUri()).isEqualTo(null);
+        assertThat(capturedTbsCall.getSafeUri()).isEqualTo(null);
+        assertThat(capturedTbsCall.getFlags()).isEqualTo(0);
+        assertThat(capturedTbsCall.isIncoming()).isTrue();
+        assertThat(capturedTbsCall.getFriendlyName()).isEqualTo("aFriendlyCaller");
+    }
+
+    @Test
     public void testCallRemoved() {
         Integer ccid = prepareTestBearer();
         reset(mTbsGatt);

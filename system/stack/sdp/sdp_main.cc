@@ -423,9 +423,16 @@ void sdp_init(void) {
   sdp_cb.reg_info.pL2CA_DataInd_Cb = sdp_data_ind;
   sdp_cb.reg_info.pL2CA_Error_Cb = sdp_on_l2cap_error;
 
+  tL2CAP_ERTM_INFO ertm_info;
+  ertm_info.preferred_mode = L2CAP_FCR_BASIC_MODE;
+
+#if (L2CAP_CONFORMANCE_TESTING == TRUE)
+  ertm_info.preferred_mode = L2CAP_FCR_ERTM_MODE;
+#endif
+
   /* Now, register with L2CAP */
   if (!stack::l2cap::get_interface().L2CA_RegisterWithSecurity(BT_PSM_SDP, sdp_cb.reg_info,
-                                                               true /* enable_snoop */, nullptr,
+                                                               true /* enable_snoop */, &ertm_info,
                                                                SDP_MTU_SIZE, 0, BTM_SEC_NONE)) {
     log::error("SDP Registration failed");
   }

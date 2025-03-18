@@ -148,8 +148,8 @@ public:
 
   struct {
     struct {
-      long long start_time_ms;
-      unsigned long results;
+      uint64_t start_time_ms;
+      uint64_t results;
     } classic_inquiry, le_scan, le_inquiry, le_observe, le_legacy_scan;
     std::unique_ptr<bluetooth::common::TimestampedCircularBuffer<tBTM_INQUIRY_CMPL>>
             inquiry_history_ = std::make_unique<

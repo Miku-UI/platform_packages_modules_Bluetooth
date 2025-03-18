@@ -23,7 +23,6 @@
 #include <unordered_set>
 
 #include "bta_gatt_server_queue.h"
-#include "os/log.h"
 
 using gatts_operation = BtaGattServerQueue::gatts_operation;
 using bluetooth::Uuid;

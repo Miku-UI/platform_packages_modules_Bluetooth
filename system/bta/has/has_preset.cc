@@ -19,6 +19,12 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <ostream>
+#include <vector>
+
 #include "stack/include/bt_types.h"
 
 using namespace bluetooth;

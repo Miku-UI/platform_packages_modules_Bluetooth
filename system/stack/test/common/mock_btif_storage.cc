@@ -20,6 +20,9 @@
 
 #include "stack/include/btm_sec_api_types.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 static bluetooth::manager::MockBtifStorageInterface* btif_storage_interface = nullptr;
 
 void bluetooth::manager::SetMockBtifStorageInterface(

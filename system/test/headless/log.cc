@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "os/log.h"
-
 #include <chrono>
 #include <ctime>
 #include <string>
@@ -24,9 +22,12 @@
 #include "internal_include/bt_trace.h"
 #include "stack/btm/btm_int_types.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 std::chrono::system_clock::time_point _prev = std::chrono::system_clock::now();
 
 extern tBTM_CB btm_cb;
 
 bluetooth::common::TimestamperInMilliseconds timestamper_in_ms;
-long long GetTimestampMs() { return timestamper_in_ms.GetTimestamp(); }
+uint64_t GetTimestampMs() { return timestamper_in_ms.GetTimestamp(); }

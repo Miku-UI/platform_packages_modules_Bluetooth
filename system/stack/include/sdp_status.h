@@ -87,7 +87,7 @@ inline std::string sdp_status_text(const tSDP_STATUS& status) {
 }
 const auto sdp_result_text = sdp_status_text;
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tSDP_STATUS> : enum_formatter<tSDP_STATUS> {};
-}  // namespace fmt
+}  // namespace std

@@ -103,6 +103,7 @@ const SNOOP_Y0_TO_Y1970_US: i64 = 62_168_256_000_000_000;
 
 /// Snoop file packet format.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SnoopPacketPreamble {
     /// The original length of the captured packet as received via a network.
     pub original_length: u32,
@@ -177,7 +178,15 @@ pub trait GeneralSnoopPacket {
     fn get_timestamp(&self) -> Option<NaiveDateTime> {
         let preamble = self.preamble();
         let ts_i64 = i64::try_from(preamble.timestamp_us).unwrap_or(i64::MAX);
-        DateTime::from_timestamp_micros(ts_i64 - SNOOP_Y0_TO_Y1970_US).map(|date| date.naive_utc())
+
+        // TODO: directly use Datetime::from_timestamp_micros() once chrono package is re-vendored
+        //       to v0.4.35. Below is the actual implementation of that function.
+        let from_timestamp_micros = |micros: i64| -> Option<DateTime<_>> {
+            let secs = micros.div_euclid(1_000_000);
+            let nsecs = micros.rem_euclid(1_000_000) as u32 * 1000;
+            DateTime::from_timestamp(secs, nsecs)
+        };
+        from_timestamp_micros(ts_i64 - SNOOP_Y0_TO_Y1970_US).map(|date| date.naive_utc())
     }
 }
 
@@ -420,6 +429,7 @@ impl<'a> TryFrom<&'a dyn GeneralSnoopPacket> for PacketChild {
 
 /// A single processable packet of data.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Packet {
     /// Timestamp of this packet
     pub ts: NaiveDateTime,
@@ -454,6 +464,7 @@ impl<'a> TryFrom<(usize, &'a dyn GeneralSnoopPacket)> for Packet {
     }
 }
 
+#[allow(dead_code)]
 pub enum AclContent {
     Control(Control),
     LeControl(LeControl),

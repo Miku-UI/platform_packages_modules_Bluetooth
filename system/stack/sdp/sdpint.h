@@ -292,19 +292,17 @@ bool sdpu_process_pend_ccb_new_cid(const tCONN_CB& ccb);
 void sdpu_clear_pend_ccb(const tCONN_CB& ccb);
 void sdpu_callback(const tCONN_CB& ccb, tSDP_REASON reason);
 
-/* Functions provided by sdp_db.cc
- */
+/* Functions provided by sdp_db.cc */
 const tSDP_RECORD* sdp_db_service_search(const tSDP_RECORD* p_rec, const tSDP_UUID_SEQ* p_seq);
 tSDP_RECORD* sdp_db_find_record(uint32_t handle);
 const tSDP_ATTRIBUTE* sdp_db_find_attr_in_rec(const tSDP_RECORD* p_rec, uint16_t start_attr,
                                               uint16_t end_attr);
 
-/* Functions provided by sdp_server.cc
- */
+/* Functions provided by sdp_server.cc */
 void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg);
+bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress& remote_address);
 
-/* Functions provided by sdp_discovery.cc
- */
+/* Functions provided by sdp_discovery.cc */
 void sdp_disc_connected(tCONN_CB* p_ccb);
 void sdp_disc_server_rsp(tCONN_CB* p_ccb, BT_HDR* p_msg);
 

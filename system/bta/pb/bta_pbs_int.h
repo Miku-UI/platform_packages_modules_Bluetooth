@@ -53,7 +53,6 @@ typedef struct {
                                      (Server only) */
   uint8_t supported_features;     /* Server supported features */
   uint8_t supported_repositories; /* Server supported repositories */
-
 } tBTA_PBS_CFG;
 
 #endif /* BTA_PBS_INT_H */

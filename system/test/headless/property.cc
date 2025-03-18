@@ -20,7 +20,6 @@
 
 #include <map>
 
-#include "gd/os/log.h"
 #include "include/hardware/bluetooth.h"
 #include "test/headless/log.h"
 

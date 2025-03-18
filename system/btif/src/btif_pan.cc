@@ -27,7 +27,8 @@
 
 #define LOG_TAG "bt_btif_pan"
 
-#include <android_bluetooth_sysprop.h>
+#include "btif/include/btif_pan.h"
+
 #include <arpa/inet.h>
 #include <base/functional/bind.h>
 #include <base/location.h>
@@ -37,13 +38,24 @@
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <poll.h>
+#include <string.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
+
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 #include "bta/include/bta_pan_api.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_pan_internal.h"
 #include "btif/include/btif_sock_thread.h"
+#include "hardware/bluetooth.h"
 #include "hci/controller_interface.h"
 #include "include/hardware/bt_pan.h"
 #include "internal_include/bt_target.h"
@@ -51,6 +63,7 @@
 #include "main/shim/helpers.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
+#include "osi/include/osi.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"
@@ -281,7 +294,7 @@ static int tap_if_up(const char* devname, const RawAddress& addr) {
 
   // set mac addr
   memset(&ifr, 0, sizeof(ifr));
-  strlcpy(ifr.ifr_name, devname, IFNAMSIZ);
+  osi_strlcpy(ifr.ifr_name, devname, IFNAMSIZ);
   err = ioctl(sk, SIOCGIFHWADDR, &ifr);
   if (err < 0) {
     log::error("Could not get network hardware for interface:{}, errno:{}", devname,
@@ -290,7 +303,7 @@ static int tap_if_up(const char* devname, const RawAddress& addr) {
     return -1;
   }
 
-  strlcpy(ifr.ifr_name, devname, IFNAMSIZ);
+  osi_strlcpy(ifr.ifr_name, devname, IFNAMSIZ);
   memcpy(ifr.ifr_hwaddr.sa_data, addr.address, 6);
 
   /* The IEEE has specified that the most significant bit of the most
@@ -316,7 +329,7 @@ static int tap_if_up(const char* devname, const RawAddress& addr) {
 
   // bring it up
   memset(&ifr, 0, sizeof(ifr));
-  strlcpy(ifr.ifr_name, devname, IF_NAMESIZE);
+  osi_strlcpy(ifr.ifr_name, devname, IF_NAMESIZE);
 
   ifr.ifr_flags |= IFF_UP;
   ifr.ifr_flags |= IFF_MULTICAST;
@@ -343,7 +356,7 @@ static int tap_if_down(const char* devname) {
   }
 
   memset(&ifr, 0, sizeof(ifr));
-  strlcpy(ifr.ifr_name, devname, IF_NAMESIZE);
+  osi_strlcpy(ifr.ifr_name, devname, IF_NAMESIZE);
 
   ifr.ifr_flags &= ~IFF_UP;
 
@@ -382,7 +395,7 @@ int btpan_tap_open() {
   memset(&ifr, 0, sizeof(ifr));
   ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
-  strlcpy(ifr.ifr_name, TAP_IF_NAME, IFNAMSIZ);
+  osi_strlcpy(ifr.ifr_name, TAP_IF_NAME, IFNAMSIZ);
 
   /* try to create the device */
   err = ioctl(fd, TUNSETIFF, (void*)&ifr);
@@ -457,7 +470,7 @@ btpan_conn_t* btpan_find_conn_addr(const RawAddress& addr) {
 static void btpan_open_conn(btpan_conn_t* conn, tBTA_PAN* p_data) {
   log::verbose("btpan_open_conn: local_role:{}, peer_role: {},  handle:{}, conn: {}",
                p_data->open.local_role, p_data->open.peer_role, p_data->open.handle,
-               fmt::ptr(conn));
+               std::format_ptr(conn));
 
   if (conn == NULL) {
     conn = btpan_new_conn(p_data->open.handle, p_data->open.bd_addr, p_data->open.local_role,
@@ -487,7 +500,7 @@ static void btpan_open_conn(btpan_conn_t* conn, tBTA_PAN* p_data) {
 }
 
 static void btpan_close_conn(btpan_conn_t* conn) {
-  log::verbose("btpan_close_conn: {}", fmt::ptr(conn));
+  log::verbose("btpan_close_conn: {}", std::format_ptr(conn));
 
   if (conn && conn->state == PAN_STATE_OPEN) {
     log::verbose("btpan_close_conn: PAN_STATE_OPEN");
@@ -530,14 +543,6 @@ btpan_conn_t* btpan_new_conn(int handle, const RawAddress& addr, tBTA_PAN_ROLE l
   }
   log::warn("Unable to create new pan connection max:{}", MAX_PAN_CONNS);
   return nullptr;
-}
-
-void btpan_close_handle(btpan_conn_t* p) {
-  log::verbose("btpan_close_handle : close handle {}", p->handle);
-  p->handle = -1;
-  p->local_role = -1;
-  p->remote_role = -1;
-  memset(&p->peer, 0, 6);
 }
 
 static inline bool should_forward(tETH_HDR* hdr) {
@@ -755,7 +760,7 @@ static void btif_pan_close_all_conns() {
   }
 }
 
-static void btpan_tap_fd_signaled(int fd, int type, int flags, uint32_t user_id) {
+static void btpan_tap_fd_signaled(int fd, int /*type*/, int flags, uint32_t /*user_id*/) {
   log::assert_that(btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd,
                    "assert failed: btpan_cb.tap_fd == INVALID_FD || btpan_cb.tap_fd == fd");
 

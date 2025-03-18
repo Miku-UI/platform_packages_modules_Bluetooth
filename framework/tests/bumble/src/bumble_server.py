@@ -14,29 +14,29 @@
 
 import argparse
 import asyncio
-import logging
 import json
+import logging
+from typing import Any, Dict
 
 from bumble import pandora as bumble_server
-from bumble.pandora import PandoraDevice, Config, serve
-
+from bumble.pandora import Config, PandoraDevice, serve
 from bumble_experimental.asha import AshaService
+from bumble_experimental.avrcp import AvrcpService
+from bumble_experimental.bumble_config import BumbleConfigService
 from bumble_experimental.dck import DckService
 from bumble_experimental.gatt import GATTService
-from bumble_experimental.rfcomm import RFCOMMService
-from bumble_experimental.avrcp import AvrcpService
 from bumble_experimental.hid import HIDService
 from bumble_experimental.oob import OOBService
-
+from bumble_experimental.rfcomm import RFCOMMService
 from pandora_experimental.asha_grpc_aio import add_AshaServicer_to_server
+from pandora_experimental.avrcp_grpc_aio import add_AVRCPServicer_to_server
+from pandora_experimental.bumble_config_grpc_aio import \
+    add_BumbleConfigServicer_to_server
 from pandora_experimental.dck_grpc_aio import add_DckServicer_to_server
 from pandora_experimental.gatt_grpc_aio import add_GATTServicer_to_server
-from pandora_experimental.rfcomm_grpc_aio import add_RFCOMMServicer_to_server
-from pandora_experimental.avrcp_grpc_aio import add_AVRCPServicer_to_server
 from pandora_experimental.hid_grpc_aio import add_HIDServicer_to_server
 from pandora_experimental.oob_grpc_aio import add_OOBServicer_to_server
-
-from typing import Any, Dict
+from pandora_experimental.rfcomm_grpc_aio import add_RFCOMMServicer_to_server
 
 BUMBLE_SERVER_GRPC_PORT = 7999
 ROOTCANAL_PORT_CUTTLEFISH = 7300
@@ -89,6 +89,8 @@ def register_experimental_services() -> None:
         lambda bumble, _, server: add_HIDServicer_to_server(HIDService(bumble.device), server))
     bumble_server.register_servicer_hook(
         lambda bumble, _, server: add_OOBServicer_to_server(OOBService(bumble.device), server))
+    bumble_server.register_servicer_hook(
+        lambda bumble, config, server: add_BumbleConfigServicer_to_server(BumbleConfigService(bumble.device, config), server))
 
 
 def retrieve_config(config: str) -> Dict[str, Any]:

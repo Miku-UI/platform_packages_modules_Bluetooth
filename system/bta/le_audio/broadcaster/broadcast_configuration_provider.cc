@@ -16,7 +16,14 @@
 
 #include "broadcast_configuration_provider.h"
 
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "internal_include/stack_config.h"
+#include "le_audio/broadcaster/broadcaster_types.h"
+#include "le_audio/le_audio_types.h"
 
 namespace bluetooth::le_audio {
 namespace broadcaster {

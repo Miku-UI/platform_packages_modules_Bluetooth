@@ -40,9 +40,9 @@ inline std::string bt_transport_text(const tBT_TRANSPORT& transport) {
   RETURN_UNKNOWN_TYPE_STRING(tBT_TRANSPORT, transport);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBT_TRANSPORT> : enum_formatter<tBT_TRANSPORT> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif

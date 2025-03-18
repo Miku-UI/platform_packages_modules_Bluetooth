@@ -24,6 +24,9 @@
 #include "test/common/mock_functions.h"
 #include "udrv/include/uipc.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 std::unique_ptr<tUIPC_STATE> mock_uipc_init_ret;
 uint32_t mock_uipc_read_ret;
 bool mock_uipc_send_ret;

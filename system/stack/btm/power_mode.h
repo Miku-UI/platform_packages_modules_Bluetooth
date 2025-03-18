@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
-
 #include <cstdint>
 #include <string>
 
@@ -85,7 +83,7 @@ inline bool is_legal_power_mode(tBTM_PM_MODE mode) {
 }
 
 inline std::string power_mode_text(tBTM_PM_MODE mode) {
-  std::string s = base::StringPrintf((mode & BTM_PM_MD_FORCE) ? "" : "forced:");
+  std::string s = (mode & BTM_PM_MD_FORCE) ? "" : "forced:";
   switch (mode & ~BTM_PM_MD_FORCE) {
     case BTM_PM_MD_ACTIVE:
       return s + std::string("active");

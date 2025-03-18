@@ -30,6 +30,7 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <bitset>
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -66,14 +67,17 @@
 #include "stack/include/gattdefs.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/inq_hci_link_interface.h"
+#include "stack/rnr/remote_name_request.h"
 #include "types/ble_address_with_type.h"
 #include "types/raw_address.h"
+
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
 
-void btm_inq_remote_name_timer_timeout(void* data);
 void btm_ble_adv_filter_init(void);
 
 #define BTM_EXT_BLE_RMT_NAME_TIMEOUT_MS (30 * 1000)
@@ -356,7 +360,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_INIT_BIT,          /* passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_INIT_BIT,        /*  active scan */
                 HCI_LE_STATES_SCAN_ADV_INIT_BIT            /* scanable adv */
-
         },
         {
                 /* central */
@@ -370,7 +373,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_CENTRAL_BIT,       /*  passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_CENTRAL_BIT,     /*   active scan */
                 HCI_LE_STATES_SCAN_ADV_CENTRAL_BIT         /*  scanable adv */
-
         },
         {
                 /* peripheral */
@@ -384,7 +386,6 @@ const uint8_t btm_le_state_combo_tbl[BTM_BLE_STATE_MAX][BTM_BLE_STATE_MAX] = {
                 HCI_LE_STATES_PASS_SCAN_PERIPHERAL_BIT,       /* passive scan */
                 HCI_LE_STATES_ACTIVE_SCAN_PERIPHERAL_BIT,     /*  active scan */
                 HCI_LE_STATES_SCAN_ADV_PERIPHERAL_BIT         /* scanable adv */
-
         },
         {
                 /* lo duty cycle adv */
@@ -592,12 +593,12 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
       }
     }
   } else if (btm_cb.ble_ctr_cb.is_ble_observe_active()) {
-    const unsigned long long duration_timestamp =
+    const uint64_t duration_timestamp =
             timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_observe.start_time_ms;
     BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Le observe stopped",
                    base::StringPrintf("duration_s:%6.3f results:%-3lu",
                                       (double)duration_timestamp / 1000.0,
-                                      btm_cb.neighbor.le_observe.results));
+                                      (unsigned long)btm_cb.neighbor.le_observe.results));
     status = tBTM_STATUS::BTM_CMD_STARTED;
     btm_ble_stop_observe();
   } else {
@@ -1173,11 +1174,9 @@ static uint8_t btm_set_conn_mode_adv_init_addr(RawAddress& p_peer_addr_ptr,
       /* resolving list is empty, not enabled */
       *p_own_addr_type = BLE_ADDR_RANDOM;
     }
-  }
-  /* privacy 1.1, or privacy 1.2, general discoverable/connectable mode, disable
-     privacy in */
-  /* controller fall back to host based privacy */
-  else if (btm_cb.ble_ctr_cb.privacy_mode != BTM_PRIVACY_NONE) {
+  } else if (btm_cb.ble_ctr_cb.privacy_mode != BTM_PRIVACY_NONE) {
+    /* privacy 1.1, or privacy 1.2, general discoverable/connectable mode, disable privacy in */
+    /* controller fall back to host based privacy */
     *p_own_addr_type = BLE_ADDR_RANDOM;
   }
 
@@ -2386,6 +2385,35 @@ static void btm_ble_start_scan() {
 
 /*******************************************************************************
  *
+ * Function         btm_update_scanner_filter_policy
+ *
+ * Description      This function updates the filter policy of scanner
+ ******************************************************************************/
+static void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy) {
+  uint32_t scan_interval = !btm_cb.ble_ctr_cb.inq_var.scan_interval
+                                   ? BTM_BLE_GAP_DISC_SCAN_INT
+                                   : btm_cb.ble_ctr_cb.inq_var.scan_interval;
+  uint32_t scan_window = !btm_cb.ble_ctr_cb.inq_var.scan_window
+                                 ? BTM_BLE_GAP_DISC_SCAN_WIN
+                                 : btm_cb.ble_ctr_cb.inq_var.scan_window;
+  uint8_t scan_phy = !btm_cb.ble_ctr_cb.inq_var.scan_phy ? BTM_BLE_DEFAULT_PHYS
+                                                         : btm_cb.ble_ctr_cb.inq_var.scan_phy;
+
+  log::verbose("");
+
+  btm_cb.ble_ctr_cb.inq_var.sfp = scan_policy;
+  btm_cb.ble_ctr_cb.inq_var.scan_type =
+          btm_cb.ble_ctr_cb.inq_var.scan_type == BTM_BLE_SCAN_MODE_NONE
+                  ? BTM_BLE_SCAN_MODE_ACTI
+                  : btm_cb.ble_ctr_cb.inq_var.scan_type;
+
+  btm_send_hci_set_scan_params(btm_cb.ble_ctr_cb.inq_var.scan_type, (uint16_t)scan_interval,
+                               (uint16_t)scan_window, (uint8_t)scan_phy,
+                               btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, scan_policy);
+}
+
+/*******************************************************************************
+ *
  * Function         btm_ble_stop_scan
  *
  * Description      Stop the BLE scan.
@@ -2404,12 +2432,12 @@ static void btm_ble_stop_scan(void) {
   btm_cb.ble_ctr_cb.inq_var.scan_type = BTM_BLE_SCAN_MODE_NONE;
 
   /* stop discovery now */
-  const unsigned long long duration_timestamp =
+  const uint64_t duration_timestamp =
           timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_legacy_scan.start_time_ms;
   BTM_LogHistory(
           kBtmLogTag, RawAddress::kEmpty, "Le legacy scan stopped",
           base::StringPrintf("duration_s:%6.3f results:%-3lu", (double)duration_timestamp / 1000.0,
-                             btm_cb.neighbor.le_legacy_scan.results));
+                             (unsigned long)btm_cb.neighbor.le_legacy_scan.results));
   btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
 
   btm_update_scanner_filter_policy(SP_ADV_ALL);
@@ -2426,12 +2454,12 @@ static void btm_ble_stop_scan(void) {
 void btm_ble_stop_inquiry(void) {
   alarm_cancel(btm_cb.ble_ctr_cb.inq_var.inquiry_timer);
 
-  const unsigned long long duration_timestamp =
+  const uint64_t duration_timestamp =
           timestamper_in_milliseconds.GetTimestamp() - btm_cb.neighbor.le_inquiry.start_time_ms;
   BTM_LogHistory(
           kBtmLogTag, RawAddress::kEmpty, "Le inquiry stopped",
           base::StringPrintf("duration_s:%6.3f results:%-3lu", (double)duration_timestamp / 1000.0,
-                             btm_cb.neighbor.le_inquiry.results));
+                             (unsigned long)btm_cb.neighbor.le_inquiry.results));
   btm_cb.ble_ctr_cb.reset_ble_inquiry();
 
   /* Cleanup anything remaining on index 0 */

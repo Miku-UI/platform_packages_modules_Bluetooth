@@ -103,17 +103,13 @@ pub fn cb_variant(input: TokenStream) -> TokenStream {
         let ident = format_ident!("_{}", i);
         params.extend(quote! { #ident: #start, });
 
-        match end {
-            Some(v) => {
-                // Argument needs an into translation if it doesn't match the start
-                if start != v {
-                    args.extend(quote! { #end::from(#ident), });
-                } else {
-                    args.extend(quote! {#ident,});
-                }
+        if let Some(v) = end {
+            // Argument needs an into translation if it doesn't match the start
+            if start != v {
+                args.extend(quote! { #end::from(#ident), });
+            } else {
+                args.extend(quote! {#ident,});
             }
-            // If there's no end type, just consume it instead.
-            None => (),
         }
     }
 

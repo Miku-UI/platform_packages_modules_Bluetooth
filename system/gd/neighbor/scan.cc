@@ -25,7 +25,6 @@
 #include "hci/hci_packets.h"
 #include "module.h"
 #include "os/handler.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace neighbor {

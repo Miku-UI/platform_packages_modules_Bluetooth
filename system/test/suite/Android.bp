@@ -19,7 +19,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/bta/sys",
         "packages/modules/Bluetooth/system/btif/avrcp",
         "packages/modules/Bluetooth/system/btif/co",
-        "packages/modules/Bluetooth/system/device/include",
         "packages/modules/Bluetooth/system/embdrv/sbc/decoder/include",
         "packages/modules/Bluetooth/system/embdrv/sbc/encoder/include",
         "packages/modules/Bluetooth/system/gd",
@@ -66,7 +65,6 @@ cc_defaults {
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
         "libFraunhoferAAC",
-        "libbluetooth-dumpsys",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_core_rs_bridge",
@@ -120,8 +118,8 @@ cc_test {
         "gatt/gatt_unittest.cc",
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
-        "libbluetooth-gdx",
+        "aics",
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
@@ -129,19 +127,19 @@ cc_test {
         "libbt-btu-main-thread",
         "libbt-jni-thread",
         "libbt-platform-protos-lite",
-        "libbt_shim_bridge",
         "libchrome",
         "libevent",
         "libflags_rust_cpp_bridge",
         "libprotobuf-cpp-lite",
     ],
+    aidl: {
+        libs: ["bluetooth_constants"],
+    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
         "server_configurable_flags",
-    ],
-    generated_headers: [
-        "BluetoothGeneratedDumpsysDataSchema_h",
     ],
     target: {
         android: {
@@ -154,5 +152,4 @@ cc_test {
         },
         host: {},
     },
-    cflags: ["-Wno-unused-parameter"],
 }

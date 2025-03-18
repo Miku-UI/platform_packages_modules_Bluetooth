@@ -63,6 +63,8 @@ public:
   // it starts linking the .cc file.
   ~AclManager();
 
+  void Dump(int fd) const;
+
   // Should register only once when user module starts.
   // Generates OnConnectSuccess when an incoming connection is established.
   virtual void RegisterCallbacks(acl_manager::ConnectionCallbacks* callbacks, os::Handler* handler);
@@ -141,13 +143,9 @@ protected:
   void ListDependencies(ModuleList* list) const override;
 
   void Start() override;
-
   void Stop() override;
 
   std::string ToString() const override;
-
-  DumpsysDataFinisher GetDumpsysData(
-          flatbuffers::FlatBufferBuilder* builder) const override;  // Module
 
 private:
   virtual uint16_t HACK_GetHandle(const Address address);

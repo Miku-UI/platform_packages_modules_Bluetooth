@@ -27,20 +27,29 @@
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/include/bta_hh_api.h"
 #include "bta/include/bta_hh_co.h"
 #include "bta/sys/bta_sys.h"
+#include "bta_api.h"
+#include "bta_gatt_api.h"
 #include "osi/include/allocator.h"
+#include "sdp_device_id.h"
+#include "sdp_status.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/hiddefs.h"
 #include "stack/include/hidh_api.h"
 #include "stack/include/sdp_api.h"
+#include "stack/sdp/sdp_discovery_db.h"
+#include "types/ble_address_with_type.h"
+#include "types/bt_transport.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
@@ -636,7 +645,7 @@ void bta_hh_open_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_hh_data_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
+void bta_hh_data_act(tBTA_HH_DEV_CB* /*p_cb*/, const tBTA_HH_DATA* p_data) {
   BT_HDR* pdata = p_data->hid_cback.p_data;
   uint8_t* p_rpt = (uint8_t*)(pdata + 1) + pdata->offset;
 
@@ -977,6 +986,9 @@ void bta_hh_maint_dev_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
           dev_info.status = BTA_HH_OK;
 
           /* remove from known device list in BTA */
+          bta_hh_clean_up_kdev(p_cb);
+        } else if (com::android::bluetooth::flags::remove_pending_hid_connection()) {
+          log::warn("Failed to remove device {}", dev_info.link_spec);
           bta_hh_clean_up_kdev(p_cb);
         }
       }

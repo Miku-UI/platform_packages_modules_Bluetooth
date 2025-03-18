@@ -34,6 +34,9 @@
 #include "stack/test/rfcomm/stack_rfcomm_test_utils.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 std::string DumpByteBufferToString(uint8_t* p_data, size_t len) {

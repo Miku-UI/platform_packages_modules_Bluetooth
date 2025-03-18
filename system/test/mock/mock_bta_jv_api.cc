@@ -106,6 +106,7 @@ tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& /* bd_addr */, uint16_t /*
   inc_func_call_count(__func__);
   return tBTA_JV_STATUS::SUCCESS;
 }
+void BTA_JvCancelDiscovery(uint32_t /* rfcomm_slot_id */) { inc_func_call_count(__func__); }
 uint16_t BTA_JvRfcommGetPortHdl(uint32_t /* handle */) {
   inc_func_call_count(__func__);
   return 0;

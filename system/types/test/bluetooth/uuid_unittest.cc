@@ -16,7 +16,8 @@
  *
  ******************************************************************************/
 
-#include <bluetooth/uuid.h>
+#include "types/bluetooth/uuid.h"
+
 #include <gtest/gtest.h>
 
 using bluetooth::Uuid;
@@ -72,17 +73,17 @@ TEST(UuidTest, From16Bit) {
   const uint8_t u2[] = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   Uuid uuid = Uuid::From16Bit(0x0001);
-  EXPECT_TRUE(memcmp(&uuid, u2, sizeof(u2)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u2, sizeof(u2)));
 
   const uint8_t u3[] = {0x00, 0x00, 0x55, 0x3e, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From16Bit(0x553e);
-  EXPECT_TRUE(memcmp(&uuid, u3, sizeof(u3)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u3, sizeof(u3)));
 
   const uint8_t u4[] = {0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From16Bit(0xffff);
-  EXPECT_TRUE(memcmp(&uuid, u4, sizeof(u4)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u4, sizeof(u4)));
 }
 
 TEST(UuidTest, From32Bit) {
@@ -91,17 +92,17 @@ TEST(UuidTest, From32Bit) {
   const uint8_t u2[] = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   Uuid uuid = Uuid::From32Bit(0x00000001);
-  EXPECT_TRUE(memcmp(&uuid, u2, sizeof(u2)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u2, sizeof(u2)));
 
   const uint8_t u3[] = {0x33, 0x44, 0x55, 0x3e, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From32Bit(0x3344553e);
-  EXPECT_TRUE(memcmp(&uuid, u3, sizeof(u3)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u3, sizeof(u3)));
 
   const uint8_t u4[] = {0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   uuid = Uuid::From32Bit(0xffffffff);
-  EXPECT_TRUE(memcmp(&uuid, u4, sizeof(u4)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u4, sizeof(u4)));
 }
 
 TEST(UuidTest, ToString) {
@@ -125,21 +126,21 @@ TEST(BtifStorageTest, test_string_to_uuid) {
   bool is_valid = false;
   Uuid uuid = Uuid::FromString("e39c6285-867f-4b1d-9db0-35fbd9aebf22", &is_valid);
   EXPECT_TRUE(is_valid);
-  EXPECT_TRUE(memcmp(&uuid, u1, sizeof(u1)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u1, sizeof(u1)));
 
   const uint8_t u2[] = {0x00, 0x00, 0x1a, 0xe8, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   is_valid = false;
   uuid = Uuid::FromString("1Ae8", &is_valid);
   EXPECT_TRUE(is_valid);
-  EXPECT_TRUE(memcmp(&uuid, u2, sizeof(u2)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u2, sizeof(u2)));
 
   const uint8_t u3[] = {0x12, 0x34, 0x11, 0x28, 0x00, 0x00, 0x10, 0x00,
                         0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
   is_valid = false;
   uuid = Uuid::FromString("12341128", &is_valid);
   EXPECT_TRUE(is_valid);
-  EXPECT_TRUE(memcmp(&uuid, u3, sizeof(u3)) == 0);
+  EXPECT_EQ(0, memcmp(&uuid, u3, sizeof(u3)));
 }
 
 TEST(BtifStorageTest, test_string_to_uuid_invalid) {

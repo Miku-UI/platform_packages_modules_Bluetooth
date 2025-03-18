@@ -22,7 +22,6 @@
 
 #include "include/hardware/bluetooth.h"
 #include "macros.h"
-#include "os/log.h"
 
 std::string bt_conn_direction_text(const bt_conn_direction_t& direction) {
   switch (direction) {

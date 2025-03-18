@@ -22,6 +22,9 @@
   case const:                  \
     return #const;
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 const char* audio_ha_hw_dump_ctrl_event(tHEARING_AID_CTRL_CMD event) {
   switch (event) {
     CASE_RETURN_STR(HEARING_AID_CTRL_CMD_NONE)

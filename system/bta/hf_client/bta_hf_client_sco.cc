@@ -19,9 +19,16 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 #include "bta/hf_client/bta_hf_client_int.h"
+#include "bta_hf_client_api.h"
+#include "bta_sys.h"
+#include "btm_api_types.h"
+#include "device/include/esco_parameters.h"
+#include "hci_error_code.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_client_interface.h"
@@ -64,9 +71,8 @@ static bool bta_hf_client_sco_remove(tBTA_HF_CLIENT_CB* client_cb) {
 
     if (status == tBTM_STATUS::BTM_CMD_STARTED) {
       removed_started = true;
-    }
-    /* If no connection reset the SCO handle */
-    else if ((status == tBTM_STATUS::BTM_SUCCESS) || (status == tBTM_STATUS::BTM_UNKNOWN_ADDR)) {
+    } else if ((status == tBTM_STATUS::BTM_SUCCESS) || (status == tBTM_STATUS::BTM_UNKNOWN_ADDR)) {
+      /* If no connection reset the SCO handle */
       client_cb->sco_idx = BTM_INVALID_SCO_INDEX;
     }
   }

@@ -37,8 +37,8 @@ TEST(BtifStorageTest, test_uuid_split_multiple) {
   Uuid uuids[2];
   size_t num_uuids = btif_split_uuids_string(s1, uuids, 2);
   EXPECT_EQ(num_uuids, 2u);
-  EXPECT_TRUE(memcmp(uuids[0].To128BitBE().data(), u1, sizeof(u1)) == 0);
-  EXPECT_TRUE(memcmp(uuids[1].To128BitBE().data(), u2, sizeof(u2)) == 0);
+  EXPECT_EQ(0, memcmp(uuids[0].To128BitBE().data(), u1, sizeof(u1)));
+  EXPECT_EQ(0, memcmp(uuids[1].To128BitBE().data(), u2, sizeof(u2)));
 }
 
 TEST(BtifStorageTest, test_uuid_split_partial) {

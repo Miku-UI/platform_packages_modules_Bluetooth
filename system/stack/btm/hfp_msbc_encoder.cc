@@ -18,6 +18,7 @@
 
 #include "hfp_msbc_encoder.h"
 
+#include <cstdint>
 #include <cstring>
 
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"

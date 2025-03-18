@@ -135,7 +135,6 @@ typedef struct {
   bluetooth::Uuid prv_dst_uuid;
   bluetooth::Uuid src_uuid;
   bluetooth::Uuid dst_uuid;
-
 } tBNEP_CONN;
 
 /*  The main BNEP control block
@@ -155,7 +154,6 @@ typedef struct {
   tL2CAP_APPL_INFO reg_info;
 
   bool profile_registered; /* true when we got our BD addr */
-
 } tBNEP_CB;
 
 /* Global BNEP data

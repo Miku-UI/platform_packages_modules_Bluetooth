@@ -198,10 +198,11 @@ void rfc_send_buf_uih(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   if (dlci == RFCOMM_MX_DLCI) {
     rfc_check_send_cmd(p_mcb, p_buf);
   } else {
+    uint16_t len = p_buf->len;
     if (stack::l2cap::get_interface().L2CA_DataWrite(p_mcb->lcid, p_buf) !=
         tL2CAP_DW_RESULT::SUCCESS) {
       log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_mcb->bd_addr, p_mcb->lcid,
-                p_buf->len);
+                len);
     }
   }
 }
@@ -375,7 +376,7 @@ void rfc_send_rls(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, uint8_t status
  * Description      This function sends Non Supported Command Response.
  *
  ******************************************************************************/
-void rfc_send_nsc(tRFC_MCB* p_mcb) {
+static void rfc_send_nsc(tRFC_MCB* p_mcb) {
   uint8_t* p_data;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(RFCOMM_CMD_BUF_SIZE);
 
@@ -401,7 +402,7 @@ void rfc_send_nsc(tRFC_MCB* p_mcb) {
  * Description      This function sends Remote Port Negotiation Command
  *
  ******************************************************************************/
-void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_STATE* p_pars,
+void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, PortSettings* p_settings,
                   uint16_t mask) {
   uint8_t* p_data;
   BT_HDR* p_buf = (BT_HDR*)osi_malloc(RFCOMM_CMD_BUF_SIZE);
@@ -411,7 +412,7 @@ void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_STATE* p
 
   *p_data++ = RFCOMM_EA | RFCOMM_I_CR(is_command) | RFCOMM_MX_RPN;
 
-  if (!p_pars) {
+  if (!p_settings) {
     *p_data++ = RFCOMM_EA | (RFCOMM_MX_RPN_REQ_LEN << 1);
 
     *p_data++ = RFCOMM_EA | RFCOMM_CR_MASK | (dlci << RFCOMM_SHIFT_DLCI);
@@ -421,14 +422,14 @@ void rfc_send_rpn(tRFC_MCB* p_mcb, uint8_t dlci, bool is_command, tPORT_STATE* p
     *p_data++ = RFCOMM_EA | (RFCOMM_MX_RPN_LEN << 1);
 
     *p_data++ = RFCOMM_EA | RFCOMM_CR_MASK | (dlci << RFCOMM_SHIFT_DLCI);
-    *p_data++ = p_pars->baud_rate;
-    *p_data++ = (p_pars->byte_size << RFCOMM_RPN_BITS_SHIFT) |
-                (p_pars->stop_bits << RFCOMM_RPN_STOP_BITS_SHIFT) |
-                (p_pars->parity << RFCOMM_RPN_PARITY_SHIFT) |
-                (p_pars->parity_type << RFCOMM_RPN_PARITY_TYPE_SHIFT);
-    *p_data++ = p_pars->fc_type;
-    *p_data++ = p_pars->xon_char;
-    *p_data++ = p_pars->xoff_char;
+    *p_data++ = p_settings->baud_rate;
+    *p_data++ = (p_settings->byte_size << RFCOMM_RPN_BITS_SHIFT) |
+                (p_settings->stop_bits << RFCOMM_RPN_STOP_BITS_SHIFT) |
+                (p_settings->parity << RFCOMM_RPN_PARITY_SHIFT) |
+                (p_settings->parity_type << RFCOMM_RPN_PARITY_TYPE_SHIFT);
+    *p_data++ = p_settings->fc_type;
+    *p_data++ = p_settings->xon_char;
+    *p_data++ = p_settings->xoff_char;
     *p_data++ = (mask & 0xFF);
     *p_data++ = (mask >> 8);
 
@@ -680,7 +681,7 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
   }
 
   if (mx_len != length) {
-    log::error("Bad MX frame, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb), p_mcb->bd_addr);
+    log::error("Bad MX frame, p_mcb={}, bd_addr={}", std::format_ptr(p_mcb), p_mcb->bd_addr);
     osi_free(p_buf);
     return;
   }
@@ -689,7 +690,8 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
   switch (p_rx_frame->type) {
     case RFCOMM_MX_PN:
       if (length != RFCOMM_MX_PN_LEN) {
-        log::error("Invalid PN length, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb), p_mcb->bd_addr);
+        log::error("Invalid PN length, p_mcb={}, bd_addr={}", std::format_ptr(p_mcb),
+                   p_mcb->bd_addr);
         break;
       }
 
@@ -705,7 +707,7 @@ void rfc_process_mx_message(tRFC_MCB* p_mcb, BT_HDR* p_buf) {
 
       if (!p_rx_frame->dlci || !RFCOMM_VALID_DLCI(p_rx_frame->dlci) ||
           (p_rx_frame->u.pn.mtu < RFCOMM_MIN_MTU) || (p_rx_frame->u.pn.mtu > RFCOMM_MAX_MTU)) {
-        log::error("Bad PN frame, p_mcb={}, bd_addr={}", fmt::ptr(p_mcb), p_mcb->bd_addr);
+        log::error("Bad PN frame, p_mcb={}, bd_addr={}", std::format_ptr(p_mcb), p_mcb->bd_addr);
         break;
       }
 

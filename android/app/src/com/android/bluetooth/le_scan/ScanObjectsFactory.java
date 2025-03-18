@@ -16,7 +16,8 @@
 
 package com.android.bluetooth.le_scan;
 
-import android.content.Context;
+import static com.android.bluetooth.Utils.sSystemClock;
+
 import android.os.Looper;
 import android.util.Log;
 
@@ -66,20 +67,19 @@ public class ScanObjectsFactory {
     /**
      * Create an instance of ScanManager
      *
-     * @param context a Context instance
-     * @param scanHelper a TransitionalScanHelper instance
      * @param adapterService an AdapterService instance
+     * @param scanHelper a TransitionalScanHelper instance
      * @param bluetoothAdapterProxy a bluetoothAdapterProxy instance
      * @param looper the looper to be used for processing messages
      * @return the created ScanManager instance
      */
     public ScanManager createScanManager(
-            Context context,
-            TransitionalScanHelper scanHelper,
             AdapterService adapterService,
+            TransitionalScanHelper scanHelper,
             BluetoothAdapterProxy bluetoothAdapterProxy,
             Looper looper) {
-        return new ScanManager(context, scanHelper, adapterService, bluetoothAdapterProxy, looper);
+        return new ScanManager(
+                adapterService, scanHelper, bluetoothAdapterProxy, looper, sSystemClock);
     }
 
     public PeriodicScanManager createPeriodicScanManager(AdapterService adapterService) {

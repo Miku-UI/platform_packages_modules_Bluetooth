@@ -19,6 +19,9 @@
 #include <unistd.h>
 #endif
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 bool is_bluetooth_uid() {
 #ifdef __ANDROID__
   return getuid() == AID_BLUETOOTH;

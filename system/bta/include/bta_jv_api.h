@@ -32,7 +32,7 @@
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/include/rfcdefs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -148,10 +148,10 @@ inline std::string bta_jv_conn_state_text(const tBTA_JV_CONN_STATE& state) {
   }
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_JV_CONN_STATE> : enum_formatter<tBTA_JV_CONN_STATE> {};
-}  // namespace fmt
+}  // namespace std
 
 /* JV Connection types */
 enum class tBTA_JV_CONN_TYPE {
@@ -171,10 +171,10 @@ inline std::string bta_jv_conn_type_text(const tBTA_JV_CONN_TYPE& type) {
   RETURN_UNKNOWN_TYPE_STRING(tBTA_JV_CONN_TYPE, type);
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tBTA_JV_CONN_TYPE> : enum_formatter<tBTA_JV_CONN_TYPE> {};
-}  // namespace fmt
+}  // namespace std
 
 enum tBTA_JV_EVT : uint16_t {
   /* Java I/F callback events */
@@ -260,6 +260,11 @@ typedef struct {
   int32_t tx_mtu;        /* The transmit MTU */
   uint16_t local_cid;    /* The local CID */
   uint16_t remote_cid;   /* The remote CID */
+  uint16_t local_coc_mps;     /* The local COC MPS */
+  uint16_t remote_coc_mps;    /* The remote COC MPS */
+  uint16_t local_coc_credit;  /* The local COC credit */
+  uint16_t remote_coc_credit; /* The remote COC credit */
+  uint16_t acl_handle;        /* The ACL handle */
 } tBTA_JV_L2CAP_OPEN;
 
 /* data associated with BTA_JV_L2CAP_OPEN_EVT for LE sockets */
@@ -511,6 +516,19 @@ tBTA_JV_STATUS BTA_JvFreeChannel(uint16_t channel, tBTA_JV_CONN_TYPE conn_type);
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvStartDiscovery(const RawAddress& bd_addr, uint16_t num_uuid,
                                     const bluetooth::Uuid* p_uuid_list, uint32_t rfcomm_slot_id);
+
+/*******************************************************************************
+ *
+ * Function         BTA_JvCancelDiscovery
+ *
+ * Description      This function cancels the ongoing service discovery and make
+ *                  sure the tBTA_JV_DM_CBACK callback function will be called
+ *                  with a BTA_JV_DISCOVERY_COMP_EVT.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_JvCancelDiscovery(uint32_t rfcomm_slot_id);
 
 /*******************************************************************************
  *

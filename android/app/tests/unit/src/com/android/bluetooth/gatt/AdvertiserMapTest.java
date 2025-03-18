@@ -26,9 +26,11 @@ import static org.mockito.Mockito.verify;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
 import android.content.pm.PackageManager;
 import android.os.Binder;
 
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -55,6 +57,9 @@ public class AdvertiserMapTest {
     @Mock private AdapterService mAdapterService;
     @Mock private PackageManager mMockPackageManager;
 
+    private final AttributionSource mAttributionSource =
+            InstrumentationRegistry.getTargetContext().getAttributionSource();
+
     @Before
     public void setUp() throws Exception {
         TestUtils.setAdapterService(mAdapterService);
@@ -73,7 +78,7 @@ public class AdvertiserMapTest {
         AdvertiserMap advertiserMap = new AdvertiserMap();
 
         int id = 12345;
-        advertiserMap.addAppAdvertiseStats(id, mAdapterService);
+        advertiserMap.addAppAdvertiseStats(id, mAdapterService, mAttributionSource);
 
         AppAdvertiseStats stats = advertiserMap.getAppAdvertiseStatsById(id);
         assertThat(stats.mAppName).isEqualTo(APP_NAME);
@@ -84,7 +89,7 @@ public class AdvertiserMapTest {
         AdvertiserMap advertiserMap = new AdvertiserMap();
 
         int id = 12345;
-        advertiserMap.addAppAdvertiseStats(id, mAdapterService);
+        advertiserMap.addAppAdvertiseStats(id, mAdapterService, mAttributionSource);
 
         AppAdvertiseStats stats = advertiserMap.getAppAdvertiseStatsById(id);
         assertThat(stats.mAppName).isEqualTo(APP_NAME);
@@ -98,7 +103,9 @@ public class AdvertiserMapTest {
         AdvertiserMap advertiserMap = new AdvertiserMap();
         int id = 12345;
         AppAdvertiseStats appAdvertiseStats =
-                spy(new AppAdvertiseStats(Binder.getCallingUid(), id, APP_NAME));
+                spy(
+                        new AppAdvertiseStats(
+                                Binder.getCallingUid(), id, APP_NAME, mAttributionSource));
         advertiserMap.addAppAdvertiseStats(id, appAdvertiseStats);
 
         int duration = 60;
@@ -155,11 +162,11 @@ public class AdvertiserMapTest {
         AdvertiserMap advertiserMap = new AdvertiserMap();
 
         int id = 12345;
-        advertiserMap.addAppAdvertiseStats(id, mAdapterService);
+        advertiserMap.addAppAdvertiseStats(id, mAdapterService, mAttributionSource);
         advertiserMap.recordAdvertiseStop(id);
 
         int idSecond = 54321;
-        advertiserMap.addAppAdvertiseStats(idSecond, mAdapterService);
+        advertiserMap.addAppAdvertiseStats(idSecond, mAdapterService, mAttributionSource);
         advertiserMap.dump(sb);
     }
 }

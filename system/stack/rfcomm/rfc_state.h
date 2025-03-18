@@ -68,10 +68,10 @@ inline std::string rfcomm_port_state_text(const tRFC_PORT_STATE& state) {
   }
 }
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<tRFC_MX_STATE> : enum_formatter<tRFC_MX_STATE> {};
 template <>
 struct formatter<tRFC_PORT_STATE> : enum_formatter<tRFC_PORT_STATE> {};
 
-}  // namespace fmt
+}  // namespace std

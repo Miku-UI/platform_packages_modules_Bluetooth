@@ -19,13 +19,20 @@ package android.bluetooth;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresNoPermission;
+import android.os.Binder;
 import android.os.Parcel;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** @hide */
 public final class BluetoothUtils {
@@ -323,5 +330,103 @@ public final class BluetoothUtils {
      */
     public static void writeStringToParcel(@NonNull Parcel out, @Nullable String str) {
         out.writeString(str);
+    }
+
+    /**
+     * Execute the callback without UID / PID information
+     *
+     * @hide
+     */
+    public static void executeFromBinder(@NonNull Executor executor, @NonNull Runnable callback) {
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            executor.execute(() -> callback.run());
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /** A {@link Consumer} that automatically logs {@link RemoteException} @hide */
+    @FunctionalInterface
+    public interface RemoteExceptionIgnoringConsumer<T> {
+        /** Called by {@code accept}. */
+        void acceptOrThrow(T t) throws RemoteException;
+
+        @RequiresNoPermission
+        default void accept(T t) {
+            try {
+                acceptOrThrow(t);
+            } catch (RemoteException ex) {
+                logRemoteException(TAG, ex);
+            }
+        }
+    }
+
+    /** A {@link Function} that automatically logs {@link RemoteException} @hide */
+    @FunctionalInterface
+    public interface RemoteExceptionIgnoringFunction<T, R> {
+        R applyOrThrow(T t) throws RemoteException;
+
+        @RequiresNoPermission
+        default R apply(T t, R defaultValue) {
+            try {
+                return applyOrThrow(t);
+            } catch (RemoteException ex) {
+                logRemoteException(TAG, ex);
+                return defaultValue;
+            }
+        }
+    }
+
+    public static <S, R> R callService(
+            S service, RemoteExceptionIgnoringFunction<S, R> function, R defaultValue) {
+        return function.apply(service, defaultValue);
+    }
+
+    public static <S, R> R callServiceIfEnabled(
+            BluetoothAdapter adapter,
+            Supplier<S> provider,
+            RemoteExceptionIgnoringFunction<S, R> function,
+            R defaultValue) {
+        if (!adapter.isEnabled()) {
+            Log.d(TAG, "BluetoothAdapter is not enabled");
+            return defaultValue;
+        }
+        final S service = provider.get();
+        if (service == null) {
+            Log.d(TAG, "Proxy not attached to service");
+            return defaultValue;
+        }
+        return callService(service, function, defaultValue);
+    }
+
+    public static <S> void callServiceIfEnabled(
+            BluetoothAdapter adapter,
+            Supplier<S> provider,
+            RemoteExceptionIgnoringConsumer<S> consumer) {
+        if (!adapter.isEnabled()) {
+            Log.d(TAG, "BluetoothAdapter is not enabled");
+            return;
+        }
+        final S service = provider.get();
+        if (service == null) {
+            Log.d(TAG, "Proxy not attached to service");
+            return;
+        }
+        consumer.accept(service);
+    }
+
+    /** return the current stack trace as a string without new line @hide */
+    public static String inlineStackTrace() {
+        StringBuilder sb = new StringBuilder();
+        Arrays.stream(new Throwable().getStackTrace())
+                .skip(1) // skip the inlineStackTrace method in the outputted stack trace
+                .forEach(trace -> sb.append(" [at ").append(trace).append("]"));
+        return sb.toString();
+    }
+
+    /** Gracefully print a RemoteException as a one line warning @hide */
+    public static void logRemoteException(String tag, RemoteException ex) {
+        Log.w(tag, ex.toString() + ": " + inlineStackTrace());
     }
 }

@@ -24,7 +24,6 @@
 #include <memory>
 
 #include "aidl/audio_aidl_interfaces.h"
-#include "os/log.h"
 
 namespace bluetooth {
 namespace audio {
@@ -113,7 +112,7 @@ android::sp<IBluetoothAudioProvidersFactory_2_1> HalVersionManager::GetProviders
                    "V2_1::IBluetoothAudioProvidersFactory::getService() failed");
 
   log::info("V2_1::IBluetoothAudioProvidersFactory::getService() returned {}{}",
-            fmt::ptr(providers_factory.get()),
+            std::format_ptr(providers_factory.get()),
             (providers_factory->isRemote() ? " (remote)" : " (local)"));
   return providers_factory;
 }
@@ -130,7 +129,7 @@ android::sp<IBluetoothAudioProvidersFactory_2_0> HalVersionManager::GetProviders
                    "V2_0::IBluetoothAudioProvidersFactory::getService() failed");
 
   log::info("V2_0::IBluetoothAudioProvidersFactory::getService() returned {}{}",
-            fmt::ptr(providers_factory.get()),
+            std::format_ptr(providers_factory.get()),
             (providers_factory->isRemote() ? " (remote)" : " (local)"));
   guard.unlock();
   return providers_factory;

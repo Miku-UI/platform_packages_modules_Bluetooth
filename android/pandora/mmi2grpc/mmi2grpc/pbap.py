@@ -16,7 +16,6 @@
 from typing import Optional
 
 from grpc import RpcError
-
 from mmi2grpc._helpers import assert_description, match_description
 from mmi2grpc._proxy import ProfileProxy
 from pandora.host_grpc import Host

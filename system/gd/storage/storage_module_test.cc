@@ -168,6 +168,7 @@ static const std::string kReadTestConfig =
         "[01:02:03:ab:cd:ea]\n"
         "Name = hello world\n"
         "LinkKey = fedcba0987654321fedcba0987654328\n"
+        "DevType = 1\n"
         "\n";
 
 TEST_F(StorageModuleTest, read_existing_config_test) {

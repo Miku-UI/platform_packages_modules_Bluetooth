@@ -34,10 +34,6 @@ namespace bluetooth {
 namespace audio {
 namespace aidl {
 
-using ::aidl::android::hardware::bluetooth::audio::A2dpConfiguration;
-using ::aidl::android::hardware::bluetooth::audio::A2dpConfigurationHint;
-using ::aidl::android::hardware::bluetooth::audio::A2dpRemoteCapabilities;
-using ::aidl::android::hardware::bluetooth::audio::A2dpStatus;
 using ::aidl::android::hardware::bluetooth::audio::AudioCapabilities;
 using ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::CodecId;
@@ -80,16 +76,7 @@ public:
           SessionType session_type,
           std::shared_ptr<IBluetoothAudioProviderFactory> provider_factory = nullptr);
 
-  std::optional<A2dpStatus> ParseA2dpConfiguration(const CodecId& codec_id,
-                                                   const std::vector<uint8_t>& configuration,
-                                                   CodecParameters* codec_parameters) const;
-
-  std::optional<A2dpConfiguration> GetA2dpConfiguration(
-          std::vector<A2dpRemoteCapabilities> const& remote_capabilities,
-          A2dpConfigurationHint const& hint) const;
-
   void StreamStarted(const BluetoothAudioCtrlAck& ack);
-
   void StreamSuspended(const BluetoothAudioCtrlAck& ack);
 
   int StartSession();

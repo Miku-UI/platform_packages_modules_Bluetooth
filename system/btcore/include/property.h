@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include <bluetooth/uuid.h>
 #include <hardware/bluetooth.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #include "btcore/include/device_class.h"
+#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 // Copies an array of consecutive properties of |count| to a newly

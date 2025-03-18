@@ -25,15 +25,22 @@
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
+#include <cstdint>
+
 #include "avct_api.h"
 #include "avct_int.h"
 #include "bta/include/bta_sec_api.h"
 #include "btif/include/btif_av.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
 #include "osi/include/allocator.h"
+#include "osi/include/fixed_queue.h"
 #include "stack/avct/avct_defs.h"
+#include "stack/include/avct_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
 
@@ -75,9 +82,8 @@ static BT_HDR* avct_lcb_msg_asmbl(tAVCT_LCB* p_lcb, BT_HDR* p_buf) {
     osi_free(p_buf);
     log::warn("Bad length during reassembly");
     p_ret = NULL;
-  }
-  /* single packet */
-  else if (pkt_type == AVCT_PKT_TYPE_SINGLE) {
+  } else if (pkt_type == AVCT_PKT_TYPE_SINGLE) {
+    /* single packet */
     /* if reassembly in progress drop message and process new single */
     if (p_lcb->p_rx_msg != NULL) {
       log::warn("Got single during reassembly");
@@ -86,9 +92,8 @@ static BT_HDR* avct_lcb_msg_asmbl(tAVCT_LCB* p_lcb, BT_HDR* p_buf) {
     osi_free_and_reset((void**)&p_lcb->p_rx_msg);
 
     p_ret = p_buf;
-  }
-  /* start packet */
-  else if (pkt_type == AVCT_PKT_TYPE_START) {
+  } else if (pkt_type == AVCT_PKT_TYPE_START) {
+    /* start packet */
     /* if reassembly in progress drop message and process new start */
     if (p_lcb->p_rx_msg != NULL) {
       log::warn("Got start during reassembly");
@@ -125,9 +130,8 @@ static BT_HDR* avct_lcb_msg_asmbl(tAVCT_LCB* p_lcb, BT_HDR* p_buf) {
     p_lcb->p_rx_msg->len -= 1;
 
     p_ret = NULL;
-  }
-  /* continue or end */
-  else {
+  } else {
+    /* continue or end */
     /* if no reassembly in progress drop message */
     if (p_lcb->p_rx_msg == NULL) {
       osi_free(p_buf);
@@ -188,13 +192,8 @@ void avct_lcb_chnl_open(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
   uint16_t result = AVCT_RESULT_FAIL;
 
   p_lcb->ch_state = AVCT_CH_CONN;
-  if (com::android::bluetooth::flags::use_encrypt_req_for_av()) {
-    p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            AVCT_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
-  } else {
-    p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
-            AVCT_PSM, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE);
-  }
+  p_lcb->ch_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(
+    BT_PSM_AVCTP, p_lcb->peer_addr, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
   if (p_lcb->ch_lcid == 0) {
     /* if connect req failed, send ourselves close event */
     tAVCT_LCB_EVT avct_lcb_evt;
@@ -239,7 +238,7 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
     bool is_originater = false;
 
     for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
-      if (p_ccb->allocated && (p_ccb->p_lcb == p_lcb) && p_ccb->cc.role == AVCT_INT) {
+      if (p_ccb->allocated && (p_ccb->p_lcb == p_lcb) && p_ccb->cc.role == AVCT_ROLE_INITIATOR) {
         log::verbose("find int handle {}", i);
         is_originater = true;
       }
@@ -250,26 +249,24 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
       /* if ccb allocated and */
       /** M: to avoid avctp collision, make sure the collision can be checked @{
        */
-      log::verbose("{} ccb to lcb, alloc {}, lcb {}, role {}, pid 0x{:x}", i, p_ccb->allocated,
-                   fmt::ptr(p_ccb->p_lcb), p_ccb->cc.role, p_ccb->cc.pid);
+      log::verbose("{} ccb to lcb, alloc {}, role {}, pid 0x{:04x}", i, p_ccb->allocated,
+                   avct_role_text(p_ccb->cc.role), p_ccb->cc.pid);
       if (p_ccb->allocated && (p_ccb->p_lcb == p_lcb)) {
         /* if bound to this lcb send connect confirm event */
-        if (p_ccb->cc.role == AVCT_INT) {
+        if (p_ccb->cc.role == AVCT_ROLE_INITIATOR) {
           /** @} */
           bind = true;
           if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
                                                                 L2CAP_CHNL_PRIORITY_HIGH)) {
-            log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
+            log::warn("Unable to set L2CAP transmit high priority peer:{} lcid:0x{:04x}",
                       p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
           }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT, 0,
                                  &p_lcb->peer_addr);
-        }
-        /* if unbound acceptor and lcb doesn't already have a ccb for this PID
-         */
-        /** M: to avoid avctp collision, make sure the collision can be checked
-           @{ */
-        else if ((p_ccb->cc.role == AVCT_ACP) && avct_lcb_has_pid(p_lcb, p_ccb->cc.pid)) {
+        } else if ((p_ccb->cc.role == AVCT_ROLE_ACCEPTOR) &&
+                   avct_lcb_has_pid(p_lcb, p_ccb->cc.pid)) {
+          /* if unbound acceptor and lcb doesn't already have a ccb for this PID */
+          /* to avoid avctp collision, make sure the collision can be checked */
           /* bind ccb to lcb and send connect ind event  */
           if (is_originater) {
             log::error("int exist, unbind acp handle:{}", i);
@@ -279,7 +276,7 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
             p_ccb->p_lcb = p_lcb;
             if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
                                                                   L2CAP_CHNL_PRIORITY_HIGH)) {
-              log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
+              log::warn("Unable to set L2CAP transmit high priority peer:{} lcid:0x{:04x}",
                         p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
             }
             p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_IND_EVT, 0,
@@ -297,22 +294,20 @@ void avct_lcb_open_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
           bind = true;
           if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
                                                                 L2CAP_CHNL_PRIORITY_HIGH)) {
-            log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
+            log::warn("Unable to set L2CAP transmit high priority peer:{} lcid:0x{:04x}",
                       p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
           }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_CFM_EVT, 0,
                                  &p_lcb->peer_addr);
-        }
-        /* if unbound acceptor and lcb doesn't already have a ccb for this PID
-         */
-        else if ((p_ccb->p_lcb == NULL) && (p_ccb->cc.role == AVCT_ACP) &&
-                 (avct_lcb_has_pid(p_lcb, p_ccb->cc.pid) == NULL)) {
+        } else if ((p_ccb->p_lcb == NULL) && (p_ccb->cc.role == AVCT_ROLE_ACCEPTOR) &&
+                   (avct_lcb_has_pid(p_lcb, p_ccb->cc.pid) == NULL)) {
+          /* if unbound acceptor and lcb doesn't already have a ccb for this PID */
           /* bind ccb to lcb and send connect ind event */
           bind = true;
           p_ccb->p_lcb = p_lcb;
           if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_lcb->ch_lcid,
                                                                 L2CAP_CHNL_PRIORITY_HIGH)) {
-            log::warn("Unable to set L2CAP transmit high priority peer:{} cid:{}",
+            log::warn("Unable to set L2CAP transmit high priority peer:{} lcid:0x{:04x}",
                       p_ccb->p_lcb->peer_addr, p_lcb->ch_lcid);
           }
           p_ccb->cc.p_ctrl_cback(avct_ccb_to_idx(p_ccb), AVCT_CONNECT_IND_EVT, 0,
@@ -369,7 +364,7 @@ void avct_lcb_close_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* /* p_data */) {
 
   for (i = 0; i < AVCT_NUM_CONN; i++, p_ccb++) {
     if (p_ccb->allocated && (p_ccb->p_lcb == p_lcb)) {
-      if (p_ccb->cc.role == AVCT_INT) {
+      if (p_ccb->cc.role == AVCT_ROLE_INITIATOR) {
         avct_ccb_dealloc(p_ccb, AVCT_DISCONNECT_IND_EVT, 0, &p_lcb->peer_addr);
       } else {
         p_ccb->p_lcb = NULL;
@@ -406,7 +401,7 @@ void avct_lcb_close_cfm(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
         event = AVCT_DISCONNECT_IND_EVT;
       }
 
-      if (p_ccb->cc.role == AVCT_INT) {
+      if (p_ccb->cc.role == AVCT_ROLE_INITIATOR) {
         avct_ccb_dealloc(p_ccb, event, p_data->result, &p_lcb->peer_addr);
       } else {
         p_ccb->p_lcb = NULL;
@@ -613,10 +608,8 @@ void avct_lcb_send_msg(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
 
     if (p_lcb->cong) {
       fixed_queue_enqueue(p_lcb->tx_q, p_buf);
-    }
-
-    /* send message to L2CAP */
-    else {
+    } else {
+      /* send message to L2CAP */
       if (stack::l2cap::get_interface().L2CA_DataWrite(p_lcb->ch_lcid, p_buf) ==
           tL2CAP_DW_RESULT::CONGESTED) {
         p_lcb->cong = true;
@@ -714,7 +707,7 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
   }
 
   /* PID not found; drop message */
-  log::warn("No ccb for PID={:x}", pid);
+  log::warn("No ccb for PID=0x{:04x}", pid);
   osi_free_and_reset((void**)&p_data->p_buf);
 
   /* if command send reject */
@@ -725,10 +718,13 @@ void avct_lcb_msg_ind(tAVCT_LCB* p_lcb, tAVCT_LCB_EVT* p_data) {
     p = (uint8_t*)(p_buf + 1) + p_buf->offset;
     AVCT_BUILD_HDR(p, label, AVCT_PKT_TYPE_SINGLE, AVCT_REJ);
     UINT16_TO_BE_STREAM(p, pid);
+
+    uint16_t len = p_buf->len;
+
     if (stack::l2cap::get_interface().L2CA_DataWrite(p_lcb->ch_lcid, p_buf) !=
         tL2CAP_DW_RESULT::SUCCESS) {
-      log::warn("Unable to write L2CAP data peer:{} cid:{} len:{}", p_lcb->peer_addr,
-                p_lcb->ch_lcid, p_buf->len);
+      log::warn("Unable to write L2CAP data peer:{} lcid:0x{:04x} len:{}", p_lcb->peer_addr,
+                p_lcb->ch_lcid, len);
     }
   }
 }

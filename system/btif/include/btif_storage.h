@@ -19,7 +19,6 @@
 #ifndef SYSTEM_BTIF_INCLUDE_BTIF_STORAGE_H_
 #define SYSTEM_BTIF_INCLUDE_BTIF_STORAGE_H_
 
-#include <bluetooth/uuid.h>
 #include <hardware/bluetooth.h>
 
 #include <string>
@@ -29,6 +28,7 @@
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "types/ble_address_with_type.h"
+#include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
 /*******************************************************************************
@@ -180,7 +180,7 @@ bt_status_t btif_storage_remove_bonded_device(const RawAddress* remote_bd_addr);
  *                  It also invokes invoke_address_consolidate_cb
  *                  to consolidate each Dual Mode device and
  *                  invoke_le_address_associate_cb to associate each LE-only
- *                  device between its RPA and identity address.
+ *                  device between its RPA, identity address, and identity address type.
  *
  ******************************************************************************/
 void btif_storage_load_le_devices(void);
@@ -333,6 +333,17 @@ void btif_storage_set_leaudio_has_acceptlist(const RawAddress& address, bool add
  *
  ******************************************************************************/
 bool btif_storage_is_restricted_device(const RawAddress* remote_bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         btif_storage_prune_devices
+ *
+ * Description      Removes restricted mode devices in non-restricted mode
+ *
+ * Returns          none
+ *
+ ******************************************************************************/
+void btif_storage_prune_devices();
 
 bt_status_t btif_storage_add_ble_bonding_key(RawAddress* remote_bd_addr, const uint8_t* key,
                                              uint8_t key_type, uint8_t key_length);

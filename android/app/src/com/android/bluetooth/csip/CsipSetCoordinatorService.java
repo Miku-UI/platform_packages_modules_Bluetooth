@@ -51,6 +51,7 @@ import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.btservice.ServiceFactory;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
@@ -85,6 +86,7 @@ public class CsipSetCoordinatorService extends ProfileService {
 
     @VisibleForTesting CsipSetCoordinatorNativeInterface mCsipSetCoordinatorNativeInterface;
 
+    @GuardedBy("mStateMachines")
     private final Map<BluetoothDevice, CsipSetCoordinatorStateMachine> mStateMachines =
             new HashMap<>();
 
@@ -143,8 +145,11 @@ public class CsipSetCoordinatorService extends ProfileService {
         // Get LE Audio service (can be null)
         mLeAudioService = mServiceFactory.getLeAudioService();
 
+        synchronized (mStateMachines) {
+            mStateMachines.clear();
+        }
+
         // Start handler thread for state machines
-        mStateMachines.clear();
         mStateMachinesThread = new HandlerThread("CsipSetCoordinatorService.StateMachines");
         mStateMachinesThread.start();
 
@@ -906,6 +911,16 @@ public class CsipSetCoordinatorService extends ProfileService {
 
     /** Process a change in the bonding state for a device */
     public void handleBondStateChanged(BluetoothDevice device, int fromState, int toState) {
+        if (mHandler == null) {
+            Log.e(
+                    TAG,
+                    "mHandler is null, service is stopped. Ignore Bond State for "
+                            + device
+                            + " to state: "
+                            + toState);
+            return;
+        }
+
         mHandler.post(() -> bondStateChanged(device, toState));
     }
 
@@ -967,6 +982,15 @@ public class CsipSetCoordinatorService extends ProfileService {
     }
 
     void handleConnectionStateChanged(BluetoothDevice device, int fromState, int toState) {
+        if (mHandler == null) {
+            Log.e(
+                    TAG,
+                    "mHandler is null, service is stopped. Ignore Connection State for "
+                            + device
+                            + " to state: "
+                            + toState);
+            return;
+        }
         mHandler.post(() -> connectionStateChanged(device, fromState, toState));
     }
 
@@ -1181,8 +1205,10 @@ public class CsipSetCoordinatorService extends ProfileService {
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        for (CsipSetCoordinatorStateMachine sm : mStateMachines.values()) {
-            sm.dump(sb);
+        synchronized (mStateMachines) {
+            for (CsipSetCoordinatorStateMachine sm : mStateMachines.values()) {
+                sm.dump(sb);
+            }
         }
         ProfileService.println(sb, "mFoundSetMemberToGroupId: ");
         for (Map.Entry<BluetoothDevice, Integer> entry : mFoundSetMemberToGroupId.entrySet()) {

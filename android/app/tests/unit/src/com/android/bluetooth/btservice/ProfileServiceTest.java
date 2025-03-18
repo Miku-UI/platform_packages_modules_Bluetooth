@@ -45,7 +45,6 @@ import com.android.bluetooth.hid.HidDeviceNativeInterface;
 import com.android.bluetooth.hid.HidHostNativeInterface;
 import com.android.bluetooth.le_audio.LeAudioNativeInterface;
 import com.android.bluetooth.pan.PanNativeInterface;
-import com.android.bluetooth.vc.VolumeControlNativeInterface;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -94,7 +93,6 @@ public class ProfileServiceTest {
     @Mock private PanNativeInterface mPanNativeInterface;
     @Mock private CsipSetCoordinatorNativeInterface mCsipSetCoordinatorInterface;
     @Mock private LeAudioNativeInterface mLeAudioInterface;
-    @Mock private VolumeControlNativeInterface mVolumeControlInterface;
 
     private void setProfileState(int profile, int state) {
         FutureTask task =
@@ -157,6 +155,7 @@ public class ProfileServiceTest {
                         .filter(
                                 profile ->
                                         profile != BluetoothProfile.HAP_CLIENT
+                                                && profile != BluetoothProfile.VOLUME_CONTROL
                                                 && profile != BluetoothProfile.GATT)
                         .toArray();
         TestUtils.setAdapterService(mAdapterService);
@@ -175,7 +174,6 @@ public class ProfileServiceTest {
         PanNativeInterface.setInstance(mPanNativeInterface);
         CsipSetCoordinatorNativeInterface.setInstance(mCsipSetCoordinatorInterface);
         LeAudioNativeInterface.setInstance(mLeAudioInterface);
-        VolumeControlNativeInterface.setInstance(mVolumeControlInterface);
     }
 
     @After
@@ -196,7 +194,6 @@ public class ProfileServiceTest {
         PanNativeInterface.setInstance(null);
         CsipSetCoordinatorNativeInterface.setInstance(null);
         LeAudioNativeInterface.setInstance(null);
-        VolumeControlNativeInterface.setInstance(null);
     }
 
     /**

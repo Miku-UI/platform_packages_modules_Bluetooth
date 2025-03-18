@@ -20,17 +20,31 @@
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
+#include <stdio.h>
 
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
 #include <optional>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "audio/asrc/asrc_resampler.h"
 #include "audio_hal_client.h"
 #include "audio_hal_interface/le_audio_software.h"
 #include "bta/le_audio/codec_manager.h"
+#include "common/message_loop_thread.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
-#include "gd/hal/link_clocker.h"
-#include "os/log.h"
+#include "hardware/bluetooth.h"
+#include "le_audio/broadcaster/broadcaster_types.h"
+#include "le_audio/le_audio_types.h"
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
 
@@ -120,7 +134,7 @@ bool SourceImpl::Acquire() {
           .on_metadata_update_ = std::bind(&SourceImpl::OnMetadataUpdateReq, this,
                                            std::placeholders::_1, std::placeholders::_2),
           .on_sink_metadata_update_ =
-                  [](const sink_metadata_v7_t& sink_metadata) {
+                  [](const sink_metadata_v7_t& /*sink_metadata*/) {
                     // TODO: update microphone configuration based on sink metadata
                     return true;
                   },
@@ -174,7 +188,7 @@ void SourceImpl::Release() {
   }
 }
 
-bool SourceImpl::OnResumeReq(bool start_media_task) {
+bool SourceImpl::OnResumeReq(bool /*start_media_task*/) {
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
   if (audioSourceCallbacks_ == nullptr) {
     log::error("audioSourceCallbacks_ not set");
@@ -506,7 +520,7 @@ std::unique_ptr<LeAudioSourceAudioHalClient> LeAudioSourceAudioHalClient::Acquir
 std::unique_ptr<LeAudioSourceAudioHalClient> LeAudioSourceAudioHalClient::AcquireBroadcast() {
   std::unique_ptr<SourceImpl> impl(new SourceImpl(true));
   if (!impl->Acquire()) {
-    log::error("Could not acquire Broadcast Source on LE Audio HAL enpoint");
+    log::error("Could not acquire Broadcast Source on LE Audio HAL endpoint");
     impl.reset();
     return nullptr;
   }
@@ -525,7 +539,7 @@ void LeAudioSourceAudioHalClient::DebugDump(int fd) {
          << sStats.media_read_total_underflow_bytes
          << "\n    Last update time ago in ms (underflow)                  : "
          << (sStats.media_read_last_underflow_us > 0
-                     ? (unsigned long long)(now_us - sStats.media_read_last_underflow_us) / 1000
+                     ? (now_us - sStats.media_read_last_underflow_us) / 1000
                      : 0)
          << std::endl;
   dprintf(fd, "%s", stream.str().c_str());

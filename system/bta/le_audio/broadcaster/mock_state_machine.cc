@@ -52,11 +52,13 @@ std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine::State& s
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const BigConfig& config) { return os; }
+std::ostream& operator<<(std::ostream& os, const BigConfig& /*config*/) { return os; }
 
-std::ostream& operator<<(std::ostream& os, const BroadcastStateMachineConfig& config) { return os; }
+std::ostream& operator<<(std::ostream& os, const BroadcastStateMachineConfig& /*config*/) {
+  return os;
+}
 
-std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine& machine) { return os; }
+std::ostream& operator<<(std::ostream& os, const BroadcastStateMachine& /*machine*/) { return os; }
 
 }  // namespace broadcaster
 }  // namespace bluetooth::le_audio

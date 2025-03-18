@@ -27,6 +27,9 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 int bta_hh_co_write(int /* fd */, uint8_t* /* rpt */, uint16_t /* len */) {
   inc_func_call_count(__func__);
   return 0;
@@ -66,4 +69,3 @@ void bta_hh_le_co_rpt_info(const tAclLinkSpec& /* link_spec */,
                            tBTA_HH_RPT_CACHE_ENTRY* /* p_entry */, uint8_t /* app_id */) {
   inc_func_call_count(__func__);
 }
-void uhid_set_non_blocking(int /* fd */) { inc_func_call_count(__func__); }

@@ -37,6 +37,9 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
@@ -104,6 +107,14 @@ void bta_dm_sec_enable(tBTA_DM_SEC_CBACK* p_sec_cback) {
   it could be an error recovery mechanism */
   if (p_sec_cback != NULL) {
     bta_dm_sec_cb.p_sec_cback = p_sec_cback;
+  }
+}
+
+void bta_dm_on_encryption_change(bt_encryption_change_evt encryption_change) {
+  if (bta_dm_sec_cb.p_sec_cback) {
+    tBTA_DM_SEC sec_event;
+    sec_event.encryption_change = encryption_change;
+    bta_dm_sec_cb.p_sec_cback(BTA_DM_ENCRYPTION_CHANGE_EVT, &sec_event);
   }
 }
 
@@ -787,7 +798,8 @@ static tBTM_STATUS bta_dm_ble_smp_cback(tBTM_LE_EVT event, const RawAddress& bda
 
     case BTM_LE_ADDR_ASSOC_EVT:
       sec_event.proc_id_addr.pairing_bda = bda;
-      sec_event.proc_id_addr.id_addr = p_data->id_addr;
+      sec_event.proc_id_addr.id_addr = p_data->id_addr_with_type.bda;
+      sec_event.proc_id_addr.id_addr_type = p_data->id_addr_with_type.type;
       bta_dm_sec_cb.p_sec_cback(BTA_DM_LE_ADDR_ASSOC_EVT, &sec_event);
       break;
 

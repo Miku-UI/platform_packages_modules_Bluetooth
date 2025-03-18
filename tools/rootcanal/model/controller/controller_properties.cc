@@ -259,12 +259,13 @@ static std::array<uint8_t, 64> SupportedCommands() {
 
           // TESTING
           OpCodeIndex::READ_LOOPBACK_MODE, OpCodeIndex::WRITE_LOOPBACK_MODE,
-          OpCodeIndex::ENABLE_DEVICE_UNDER_TEST_MODE, OpCodeIndex::WRITE_SIMPLE_PAIRING_DEBUG_MODE,
+          OpCodeIndex::ENABLE_IMPLEMENTATION_UNDER_TEST_MODE,
+          OpCodeIndex::WRITE_SIMPLE_PAIRING_DEBUG_MODE,
           OpCodeIndex::WRITE_SECURE_CONNECTIONS_TEST_MODE,
 
           // LE_CONTROLLER
           OpCodeIndex::LE_SET_EVENT_MASK, OpCodeIndex::LE_READ_BUFFER_SIZE_V1,
-          OpCodeIndex::LE_READ_LOCAL_SUPPORTED_FEATURES, OpCodeIndex::LE_SET_RANDOM_ADDRESS,
+          OpCodeIndex::LE_READ_LOCAL_SUPPORTED_FEATURES_PAGE_0, OpCodeIndex::LE_SET_RANDOM_ADDRESS,
           OpCodeIndex::LE_SET_ADVERTISING_PARAMETERS,
           OpCodeIndex::LE_READ_ADVERTISING_PHYSICAL_CHANNEL_TX_POWER,
           OpCodeIndex::LE_SET_ADVERTISING_DATA, OpCodeIndex::LE_SET_SCAN_RESPONSE_DATA,
@@ -275,8 +276,9 @@ static std::array<uint8_t, 64> SupportedCommands() {
           OpCodeIndex::LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST,
           OpCodeIndex::LE_REMOVE_DEVICE_FROM_FILTER_ACCEPT_LIST, OpCodeIndex::LE_CONNECTION_UPDATE,
           OpCodeIndex::LE_SET_HOST_CHANNEL_CLASSIFICATION, OpCodeIndex::LE_READ_CHANNEL_MAP,
-          OpCodeIndex::LE_READ_REMOTE_FEATURES, OpCodeIndex::LE_ENCRYPT, OpCodeIndex::LE_RAND,
-          OpCodeIndex::LE_START_ENCRYPTION, OpCodeIndex::LE_LONG_TERM_KEY_REQUEST_REPLY,
+          OpCodeIndex::LE_READ_REMOTE_FEATURES_PAGE_0, OpCodeIndex::LE_ENCRYPT,
+          OpCodeIndex::LE_RAND, OpCodeIndex::LE_START_ENCRYPTION,
+          OpCodeIndex::LE_LONG_TERM_KEY_REQUEST_REPLY,
           OpCodeIndex::LE_LONG_TERM_KEY_REQUEST_NEGATIVE_REPLY,
           OpCodeIndex::LE_READ_SUPPORTED_STATES, OpCodeIndex::LE_RECEIVER_TEST_V1,
           OpCodeIndex::LE_TRANSMITTER_TEST_V1, OpCodeIndex::LE_TEST_END,
@@ -285,7 +287,7 @@ static std::array<uint8_t, 64> SupportedCommands() {
           // OpCodeIndex::LE_SET_DATA_LENGTH,
           OpCodeIndex::LE_READ_SUGGESTED_DEFAULT_DATA_LENGTH,
           OpCodeIndex::LE_WRITE_SUGGESTED_DEFAULT_DATA_LENGTH,
-          // OpCodeIndex::LE_READ_LOCAL_P_256_PUBLIC_KEY,
+          OpCodeIndex::LE_READ_LOCAL_P_256_PUBLIC_KEY,
           // OpCodeIndex::LE_GENERATE_DHKEY_V1,
           OpCodeIndex::LE_ADD_DEVICE_TO_RESOLVING_LIST,
           OpCodeIndex::LE_REMOVE_DEVICE_FROM_RESOLVING_LIST, OpCodeIndex::LE_CLEAR_RESOLVING_LIST,
@@ -298,18 +300,18 @@ static std::array<uint8_t, 64> SupportedCommands() {
           // OpCodeIndex::LE_RECEIVER_TEST_V2,
           // OpCodeIndex::LE_TRANSMITTER_TEST_V2,
           OpCodeIndex::LE_SET_ADVERTISING_SET_RANDOM_ADDRESS,
-          OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_PARAMETERS,
+          OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V1,
           OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_DATA,
           OpCodeIndex::LE_SET_EXTENDED_SCAN_RESPONSE_DATA,
           OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_ENABLE,
           OpCodeIndex::LE_READ_MAXIMUM_ADVERTISING_DATA_LENGTH,
           OpCodeIndex::LE_READ_NUMBER_OF_SUPPORTED_ADVERTISING_SETS,
           OpCodeIndex::LE_REMOVE_ADVERTISING_SET, OpCodeIndex::LE_CLEAR_ADVERTISING_SETS,
-          OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_PARAMETERS,
+          OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V1,
           OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_DATA,
           OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_ENABLE,
           OpCodeIndex::LE_SET_EXTENDED_SCAN_PARAMETERS, OpCodeIndex::LE_SET_EXTENDED_SCAN_ENABLE,
-          OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION,
+          OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION_V1,
           OpCodeIndex::LE_PERIODIC_ADVERTISING_CREATE_SYNC,
           OpCodeIndex::LE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL,
           OpCodeIndex::LE_PERIODIC_ADVERTISING_TERMINATE_SYNC,
@@ -353,7 +355,7 @@ static std::array<uint8_t, 64> SupportedCommands() {
           // OpCodeIndex::LE_ISO_RECEIVE_TEST,
           // OpCodeIndex::LE_ISO_READ_TEST_COUNTERS,
           // OpCodeIndex::LE_ISO_TEST_END,
-          OpCodeIndex::LE_SET_HOST_FEATURE,
+          OpCodeIndex::LE_SET_HOST_FEATURE_V1,
           // OpCodeIndex::LE_READ_ISO_LINK_QUALITY,
           // OpCodeIndex::LE_ENHANCED_READ_TRANSMIT_POWER_LEVEL,
           // OpCodeIndex::LE_READ_REMOTE_TRANSMIT_POWER_LEVEL,
@@ -984,7 +986,7 @@ bool ControllerProperties::CheckSupportedCommands() const {
   // C94: Mandatory if the LE Create Connection or LE Extended Create Connection
   // command is supported, otherwise excluded.
   auto c94 = mandatory_or_excluded(SupportsCommand(OpCodeIndex::LE_CREATE_CONNECTION) ||
-                                   SupportsCommand(OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION));
+                                   SupportsCommand(OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION_V1));
   // C95: Mandatory if the LE Request Peer SCA command is supported, otherwise
   // excluded.
   //
@@ -1235,7 +1237,7 @@ bool ControllerProperties::CheckSupportedCommands() const {
   check_command_(DELETE_RESERVED_LT_ADDR, c201, excluded);
   check_command_(DELETE_STORED_LINK_KEY, c121, excluded);
   check_command_(DISCONNECT, mandatory, c3);
-  check_command_(ENABLE_DEVICE_UNDER_TEST_MODE, c123, excluded);
+  check_command_(ENABLE_IMPLEMENTATION_UNDER_TEST_MODE, c123, excluded);
   // Table 3.1: Alphabetical list of commands and events (Sheet 5 of 49)
   check_command_(ENHANCED_ACCEPT_SYNCHRONOUS_CONNECTION, c135, excluded);
   check_command_(ENHANCED_FLUSH, mandatory, excluded);
@@ -1280,7 +1282,7 @@ bool ControllerProperties::CheckSupportedCommands() const {
   check_command_(LE_ENCRYPT, excluded, c4);
   // Table 3.1: Alphabetical list of commands and events (Sheet 12 of 49)
   check_command_(LE_ENHANCED_READ_TRANSMIT_POWER_LEVEL, excluded, c51);
-  check_command_(LE_EXTENDED_CREATE_CONNECTION, excluded, c20);
+  check_command_(LE_EXTENDED_CREATE_CONNECTION_V1, excluded, c20);
   check_command_(LE_GENERATE_DHKEY_V1, excluded, c99);
   check_command_(LE_GENERATE_DHKEY_V2, excluded, optional);
   check_command_(LE_ISO_READ_TEST_COUNTERS, excluded, c46);
@@ -1309,14 +1311,14 @@ bool ControllerProperties::CheckSupportedCommands() const {
   check_command_(LE_READ_ISO_TX_SYNC, excluded, c45);
   check_command_(LE_READ_LOCAL_RESOLVABLE_ADDRESS, excluded, c10);
   // Table 3.1: Alphabetical list of commands and events (Sheet 16 of 49)
-  check_command_(LE_READ_LOCAL_SUPPORTED_FEATURES, excluded, mandatory);
+  check_command_(LE_READ_LOCAL_SUPPORTED_FEATURES_PAGE_0, excluded, mandatory);
   check_command_(LE_READ_MAXIMUM_ADVERTISING_DATA_LENGTH, excluded, c17);
   check_command_(LE_READ_MAXIMUM_DATA_LENGTH, excluded, c8);
   check_command_(LE_READ_NUMBER_OF_SUPPORTED_ADVERTISING_SETS, excluded, c17);
   check_command_(LE_READ_PEER_RESOLVABLE_ADDRESS, excluded, c10);
   check_command_(LE_READ_PERIODIC_ADVERTISER_LIST_SIZE, excluded, c21);
   check_command_(LE_READ_PHY, excluded, c11);
-  check_command_(LE_READ_REMOTE_FEATURES, excluded, c3);
+  check_command_(LE_READ_REMOTE_FEATURES_PAGE_0, excluded, c3);
   // Table 3.1: Alphabetical list of commands and events (Sheet 17 of 49)
   check_command_(LE_READ_REMOTE_TRANSMIT_POWER_LEVEL, excluded, c51);
   check_command_(LE_READ_RESOLVING_LIST_SIZE, excluded, c9);
@@ -1361,18 +1363,18 @@ bool ControllerProperties::CheckSupportedCommands() const {
   check_command_(LE_SET_EVENT_MASK, excluded, mandatory);
   check_command_(LE_SET_EXTENDED_ADVERTISING_DATA, excluded, c17);
   check_command_(LE_SET_EXTENDED_ADVERTISING_ENABLE, excluded, c17);
-  check_command_(LE_SET_EXTENDED_ADVERTISING_PARAMETERS, excluded, c17);
+  check_command_(LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V1, excluded, c17);
   check_command_(LE_SET_EXTENDED_SCAN_ENABLE, excluded, c19);
   // Table 3.1: Alphabetical list of commands and events (Sheet 22 of 49)
   check_command_(LE_SET_EXTENDED_SCAN_PARAMETERS, excluded, c19);
   check_command_(LE_SET_EXTENDED_SCAN_RESPONSE_DATA, excluded, c17);
   check_command_(LE_SET_HOST_CHANNEL_CLASSIFICATION, excluded, c36);
-  check_command_(LE_SET_HOST_FEATURE, excluded, c49);
+  check_command_(LE_SET_HOST_FEATURE_V1, excluded, c49);
   check_command_(LE_SET_PATH_LOSS_REPORTING_ENABLE, excluded, c52);
   check_command_(LE_SET_PATH_LOSS_REPORTING_PARAMETERS, excluded, c52);
   check_command_(LE_SET_PERIODIC_ADVERTISING_DATA, excluded, c18);
   check_command_(LE_SET_PERIODIC_ADVERTISING_ENABLE, excluded, c18);
-  check_command_(LE_SET_PERIODIC_ADVERTISING_PARAMETERS, excluded, c18);
+  check_command_(LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V1, excluded, c18);
   // Table 3.1: Alphabetical list of commands and events (Sheet 23 of 49)
   check_command_(LE_SET_PERIODIC_ADVERTISING_RECEIVE_ENABLE, excluded, c32);
   check_command_(LE_SET_PERIODIC_ADVERTISING_SYNC_TRANSFER_PARAMETERS, excluded, c35);
@@ -1593,7 +1595,7 @@ ControllerProperties::ControllerProperties()
 // Commands enabled by the LE Extended Advertising feature bit.
 static std::vector<OpCodeIndex> le_extended_advertising_commands_ = {
         OpCodeIndex::LE_CLEAR_ADVERTISING_SETS,
-        OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION,
+        OpCodeIndex::LE_EXTENDED_CREATE_CONNECTION_V1,
         OpCodeIndex::LE_READ_MAXIMUM_ADVERTISING_DATA_LENGTH,
         OpCodeIndex::LE_READ_NUMBER_OF_SUPPORTED_ADVERTISING_SETS,
         OpCodeIndex::LE_RECEIVER_TEST_V2,
@@ -1602,7 +1604,7 @@ static std::vector<OpCodeIndex> le_extended_advertising_commands_ = {
         OpCodeIndex::LE_SET_DATA_RELATED_ADDRESS_CHANGES,
         OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_DATA,
         OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_ENABLE,
-        OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_PARAMETERS,
+        OpCodeIndex::LE_SET_EXTENDED_ADVERTISING_PARAMETERS_V1,
         OpCodeIndex::LE_SET_EXTENDED_SCAN_ENABLE,
         OpCodeIndex::LE_SET_EXTENDED_SCAN_PARAMETERS,
         OpCodeIndex::LE_SET_EXTENDED_SCAN_RESPONSE_DATA,
@@ -1621,7 +1623,7 @@ static std::vector<OpCodeIndex> le_periodic_advertising_commands_ = {
         OpCodeIndex::LE_SET_DATA_RELATED_ADDRESS_CHANGES,
         OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_DATA,
         OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_ENABLE,
-        OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_PARAMETERS,
+        OpCodeIndex::LE_SET_PERIODIC_ADVERTISING_PARAMETERS_V1,
 };
 
 // Commands enabled by the LL Privacy feature bit.

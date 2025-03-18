@@ -19,6 +19,9 @@
 
 #include <bluetooth/log.h>
 
+// TODO(b/369381361) Enfore -Wmissing-prototypes
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+
 using namespace bluetooth;
 
 static bluetooth::storage::MockBtifStorageInterface* btif_storage_interface = nullptr;

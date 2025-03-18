@@ -42,7 +42,7 @@ import java.util.Calendar;
 
 /** VCard composer especially for Call Log used in Bluetooth. */
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
-public class BluetoothPbapCallLogComposer {
+public class BluetoothPbapCallLogComposer implements AutoCloseable {
     private static final String TAG = "PbapCallLogComposer";
 
     @VisibleForTesting
@@ -91,8 +91,6 @@ public class BluetoothPbapCallLogComposer {
 
     private final Context mContext;
     private Cursor mCursor;
-
-    private boolean mTerminateIsCalled;
 
     private String mErrorReason = NO_ERROR;
 
@@ -281,7 +279,9 @@ public class BluetoothPbapCallLogComposer {
                 toRfc2455Format(dateAsLong));
     }
 
-    public void terminate() {
+    /** Closes the composer, releasing all of its resources. */
+    @Override
+    public void close() {
         if (mCursor != null) {
             try {
                 mCursor.close();
@@ -295,16 +295,6 @@ public class BluetoothPbapCallLogComposer {
                 Log.e(TAG, "SQLiteException on Cursor#close(): " + e.getMessage());
             }
             mCursor = null;
-        }
-
-        mTerminateIsCalled = true;
-    }
-
-    @Override
-    @SuppressWarnings("Finalize") // TODO: b/366307571 remove override
-    public void finalize() {
-        if (!mTerminateIsCalled) {
-            terminate();
         }
     }
 

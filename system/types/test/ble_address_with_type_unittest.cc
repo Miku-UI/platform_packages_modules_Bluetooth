@@ -23,19 +23,19 @@ TEST(BleAddressWithTypeTest, to_ble_addr_type) {
   for (unsigned i = 0; i < 0xff + 1; i++) {
     switch (to_ble_addr_type((uint8_t)i)) {
       case BLE_ADDR_PUBLIC:
-        ASSERT_TRUE(i == 0);
+        ASSERT_EQ(0u, i);
         break;
       case BLE_ADDR_RANDOM:
-        ASSERT_TRUE(i == 1);
+        ASSERT_EQ(1u, i);
         break;
       case BLE_ADDR_PUBLIC_ID:
-        ASSERT_TRUE(i == 2);
+        ASSERT_EQ(2u, i);
         break;
       case BLE_ADDR_RANDOM_ID:
-        ASSERT_TRUE(i == 3);
+        ASSERT_EQ(3u, i);
         break;
       case BLE_ADDR_ANONYMOUS:
-        ASSERT_TRUE(i == 0xff);
+        ASSERT_EQ(0xffu, i);
         break;
       default:
         ASSERT_TRUE(i > 3 && i != 0xff);

@@ -49,6 +49,8 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -454,6 +456,19 @@ public class TestUtils {
                     }
                 }
             }
+        }
+    }
+
+    public static final class FakeTimeProvider implements Utils.TimeProvider {
+        private Instant currentTime = Instant.EPOCH;
+
+        @Override
+        public long elapsedRealtime() {
+            return currentTime.toEpochMilli();
+        }
+
+        public void advanceTime(Duration amountToAdvance) {
+            currentTime = currentTime.plus(amountToAdvance);
         }
     }
 }

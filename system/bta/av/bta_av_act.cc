@@ -27,19 +27,34 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
+#include "avct_api.h"
+#include "avdt_api.h"
+#include "avrc_api.h"
+#include "avrc_defs.h"
+#include "bt_dev_class.h"
 #include "bta/av/bta_av_int.h"
 #include "bta/include/bta_ar_api.h"
 #include "bta/include/utl.h"
+#include "bta_av_api.h"
+#include "bta_sys.h"
 #include "btif/avrcp/avrcp_service.h"
+#include "btif/include/btif_av.h"
+#include "common/bind.h"
+#include "device/include/device_iot_conf_defs.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
+#include "l2cap_types.h"
+#include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "osi/include/list.h"
 #include "osi/include/osi.h"  // UINT_TO_PTR PTR_TO_UINT
 #include "osi/include/properties.h"
-#include "stack/include/acl_api.h"
+#include "sdpdefs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -47,6 +62,7 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdp_status.h"
+#include "stack/sdp/sdp_discovery_db.h"
 #include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
@@ -71,13 +87,6 @@ static void bta_av_accept_signalling_timer_cback(void* data);
 #ifndef AVRC_MIN_META_CMD_LEN
 #define AVRC_MIN_META_CMD_LEN 20
 #endif
-
-extern bool btif_av_is_source_enabled(void);
-extern bool btif_av_both_enable(void);
-extern bool btif_av_src_sink_coexist_enabled(void);
-extern bool btif_av_is_sink_enabled(void);
-extern bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
-extern const RawAddress& btif_av_find_by_handle(tBTA_AV_HNDL bta_handle);
 
 /*******************************************************************************
  *
@@ -327,7 +336,7 @@ static void bta_av_rc_msg_cback(uint8_t handle, uint8_t label, uint8_t opcode, t
  * Returns          the created rc handle
  *
  ******************************************************************************/
-uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl, uint8_t lidx) {
+uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, tAVCT_ROLE role, uint8_t shdl, uint8_t lidx) {
   if ((!btif_av_src_sink_coexist_enabled() ||
        (btif_av_src_sink_coexist_enabled() && !btif_av_is_sink_enabled() &&
         btif_av_is_source_enabled())) &&
@@ -336,14 +345,13 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl, uint8_t l
     return BTA_AV_RC_HANDLE_NONE;
   }
 
-  tAVRC_CONN_CB ccb;
   RawAddress bda = RawAddress::kAny;
   uint8_t status = BTA_AV_RC_ROLE_ACP;
   int i;
   uint8_t rc_handle;
-  tBTA_AV_RCB* p_rcb;
+  tBTA_AV_RCB* p_rcb{nullptr};
 
-  if (role == AVCT_INT) {
+  if (role == AVCT_ROLE_INITIATOR) {
     // Can't grab a stream control block that doesn't have a valid handle
     if (!shdl) {
       log::error("Can't grab stream control block for shdl = {} -> index = {}", shdl, shdl - 1);
@@ -363,14 +371,16 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl, uint8_t l
     }
   }
 
-  ccb.ctrl_cback = base::Bind(bta_av_rc_ctrl_cback);
-  ccb.msg_cback = base::Bind(bta_av_rc_msg_cback);
-  ccb.company_id = p_bta_av_cfg->company_id;
-  ccb.conn = role;
-  /* note: BTA_AV_FEAT_RCTG = AVRC_CT_TARGET, BTA_AV_FEAT_RCCT = AVRC_CT_CONTROL
-   */
-  ccb.control = p_cb->features &
-                (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT | BTA_AV_FEAT_METADATA | AVRC_CT_PASSIVE);
+  tAVRC_CONN_CB ccb = {
+          .ctrl_cback = base::Bind(bta_av_rc_ctrl_cback),
+          .msg_cback = base::Bind(bta_av_rc_msg_cback),
+          .company_id = p_bta_av_cfg->company_id,
+          .conn = role,
+          // note: BTA_AV_FEAT_RCTG = AVRC_CT_TARGET, BTA_AV_FEAT_RCCT = AVRC_CT_CONTROL
+          .control =
+                  static_cast<uint8_t>(p_cb->features & (BTA_AV_FEAT_RCTG | BTA_AV_FEAT_RCCT |
+                                                         BTA_AV_FEAT_METADATA | AVRC_CT_PASSIVE)),
+  };
 
   if (AVRC_Open(&rc_handle, &ccb, bda) != AVRC_SUCCESS) {
     DEVICE_IOT_CONFIG_ADDR_INT_ADD_ONE(bda, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
@@ -398,8 +408,8 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, uint8_t role, uint8_t shdl, uint8_t l
     p_cb->rc_acp_idx = (i + 1);
     log::verbose("rc_acp_handle:{} idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
   }
-  log::verbose("create {}, role: {}, shdl:{}, rc_handle:{}, lidx:{}, status:0x{:x}", i, role, shdl,
-               p_rcb->handle, lidx, p_rcb->status);
+  log::verbose("create {}, role: {}, shdl:{}, rc_handle:{}, lidx:{}, status:0x{:x}", i,
+               avct_role_text(role), shdl, p_rcb->handle, lidx, p_rcb->status);
 
   return rc_handle;
 }
@@ -545,7 +555,7 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   /* listen to browsing channel when the connection is open,
    * if peer initiated AVRCP connection and local device supports browsing
    * channel */
-  AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_ACP);
+  AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_ROLE_ACCEPTOR);
 
   if (p_cb->rcb[i].lidx == (BTA_AV_NUM_LINKS + 1) && shdl != 0) {
     /* rc is opened on the RC only ACP channel, but is for a specific
@@ -624,7 +634,7 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
          (rc_open.peer_tg_features & BTA_AV_FEAT_BROWSE))) {
       if ((p_cb->rcb[i].status & BTA_AV_RC_ROLE_MASK) == BTA_AV_RC_ROLE_INT) {
         log::verbose("opening AVRC Browse channel");
-        AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_INT);
+        AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_ROLE_INITIATOR);
       }
     }
     return;
@@ -655,7 +665,7 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   if ((p_cb->features & BTA_AV_FEAT_BROWSE) && (rc_open.peer_features & BTA_AV_FEAT_BROWSE) &&
       ((p_cb->rcb[i].status & BTA_AV_RC_ROLE_MASK) == BTA_AV_RC_ROLE_INT)) {
     log::verbose("opening AVRC Browse channel");
-    AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_INT);
+    AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_ROLE_INITIATOR);
   }
 }
 
@@ -825,7 +835,7 @@ static tAVRC_STS bta_av_chk_notif_evt_id(tAVRC_MSG_VENDOR* p_vendor) {
   return status;
 }
 
-void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
+static void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
   uint16_t rc_ver = 0x105;
   const tBTA_AV_CFG* p_src_cfg = NULL;
   if (rc_ver != 0x103) {
@@ -859,8 +869,8 @@ void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
  * Returns          true to respond immediately
  *
  ******************************************************************************/
-tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG* p_msg,
-                                 uint8_t* p_ctype) {
+static tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG* p_msg,
+                                        uint8_t* p_ctype) {
   tBTA_AV_EVT evt = BTA_AV_META_MSG_EVT;
   uint8_t u8, pdu, *p;
   uint16_t u16;
@@ -1020,10 +1030,9 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
         memcpy(&av.remote_cmd.hdr, &p_data->rc_msg.msg.hdr, sizeof(tAVRC_HDR));
         av.remote_cmd.label = p_data->rc_msg.label;
       }
-    }
-    /* else if this is a pass thru response */
-    /* id response type is not impl, we have to release label */
-    else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_NOT_IMPL) {
+    } else if (p_data->rc_msg.msg.hdr.ctype >= AVRC_RSP_NOT_IMPL) {
+      /* else if this is a pass thru response */
+      /* id response type is not impl, we have to release label */
       /* set up for callback */
       evt = BTA_AV_REMOTE_RSP_EVT;
       av.remote_rsp.rc_id = p_data->rc_msg.msg.pass.op_id;
@@ -1041,15 +1050,13 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
         memcpy(av.remote_rsp.p_data, p_data->rc_msg.msg.pass.p_pass_data,
                p_data->rc_msg.msg.pass.pass_len);
       }
-    }
-    /* must be a bad ctype -> reject*/
-    else {
+    } else {
+      /* must be a bad ctype -> reject*/
       p_data->rc_msg.msg.hdr.ctype = AVRC_RSP_REJ;
       AVRC_PassRsp(p_data->rc_msg.handle, p_data->rc_msg.label, &p_data->rc_msg.msg.pass);
     }
-  }
-  /* else if this is a vendor specific command or response */
-  else if (p_data->rc_msg.opcode == AVRC_OP_VENDOR) {
+  } else if (p_data->rc_msg.opcode == AVRC_OP_VENDOR) {
+    /* else if this is a vendor specific command or response */
     /* set up for callback */
     av.vendor_cmd.code = p_data->rc_msg.msg.hdr.ctype;
     av.vendor_cmd.company_id = p_vendor->company_id;
@@ -1341,7 +1348,7 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
 
     /* if the AVRCP is no longer listening, create the listening channel */
     if (bta_av_cb.rc_acp_handle == BTA_AV_RC_HANDLE_NONE && bta_av_cb.features & BTA_AV_FEAT_RCTG) {
-      bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
+      bta_av_rc_create(&bta_av_cb, AVCT_ROLE_ACCEPTOR, 0, BTA_AV_NUM_LINKS + 1);
     }
   }
 
@@ -1560,12 +1567,12 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
       p_lcb->conn_msk = 0; /* clear the connect mask */
       /* start listening when the signal channel is open */
       if (p_cb->features & BTA_AV_FEAT_RCTG) {
-        bta_av_rc_create(p_cb, AVCT_ACP, 0, p_lcb->lidx);
+        bta_av_rc_create(p_cb, AVCT_ROLE_ACCEPTOR, 0, p_lcb->lidx);
       }
       /* this entry is not used yet. */
       p_cb->conn_lcb |= mask; /* mark it as used */
       log::verbose("start sig timer {}", p_data->hdr.offset);
-      if (p_data->hdr.offset == AVDT_ACP) {
+      if (p_data->hdr.offset == static_cast<uint16_t>(tAVDT_ROLE::AVDT_ACP)) {
         log::verbose("Incoming L2CAP acquired, set state as incoming");
         p_scb->OnConnected(p_data->str_msg.bd_addr);
         p_scb->use_rc = true; /* allowing RC for incoming connection */
@@ -1782,7 +1789,7 @@ static void bta_av_store_peer_rc_version() {
  * Returns          tBTA_AV_FEAT peer device feature mask
  *
  ******************************************************************************/
-tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
+static tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
   tBTA_AV_FEAT peer_features = 0;
   tBTA_AV_CB* p_cb = &bta_av_cb;
   tSDP_DISC_REC* p_rec = NULL;
@@ -1857,7 +1864,7 @@ tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
  * Returns          tBTA_AV_FEAT peer device feature mask
  *
  ******************************************************************************/
-tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
+static tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
   tBTA_AV_FEAT peer_features = 0;
   tBTA_AV_CB* p_cb = &bta_av_cb;
 
@@ -1946,7 +1953,7 @@ tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
  *                  one does not exist.
  *
  *****************************************************************************/
-uint16_t bta_avk_get_cover_art_psm() {
+static uint16_t bta_avk_get_cover_art_psm() {
   log::verbose("searching for cover art psm");
   /* Cover Art L2CAP PSM is only available on a target device */
   tBTA_AV_CB* p_cb = &bta_av_cb;
@@ -2028,7 +2035,7 @@ uint16_t bta_avk_get_cover_art_psm() {
   return 0x0000;
 }
 
-void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
+static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
   tBTA_AV_CB* p_cb = &bta_av_cb;
   tBTA_AV_SCB* p_scb = NULL;
   tBTA_AV_LCB* p_lcb;
@@ -2124,7 +2131,8 @@ void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
           ((p_cb->features & BTA_AV_FEAT_RCTG) && (peer_ct_features & BTA_AV_FEAT_RCCT))) {
         p_lcb = bta_av_find_lcb(p_scb->PeerAddress(), BTA_AV_LCB_FIND);
         if (p_lcb) {
-          rc_handle = bta_av_rc_create(p_cb, AVCT_INT, (uint8_t)(p_scb->hdi + 1), p_lcb->lidx);
+          rc_handle = bta_av_rc_create(p_cb, AVCT_ROLE_INITIATOR, (uint8_t)(p_scb->hdi + 1),
+                                       p_lcb->lidx);
           if (rc_handle != BTA_AV_RC_HANDLE_NONE) {
             p_cb->rcb[rc_handle].peer_ct_features = peer_ct_features;
             p_cb->rcb[rc_handle].peer_tg_features = peer_tg_features;
@@ -2308,7 +2316,8 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
           ((p_cb->features & BTA_AV_FEAT_RCTG) && (peer_features & BTA_AV_FEAT_RCCT))) {
         p_lcb = bta_av_find_lcb(p_scb->PeerAddress(), BTA_AV_LCB_FIND);
         if (p_lcb) {
-          rc_handle = bta_av_rc_create(p_cb, AVCT_INT, (uint8_t)(p_scb->hdi + 1), p_lcb->lidx);
+          rc_handle = bta_av_rc_create(p_cb, AVCT_ROLE_INITIATOR, (uint8_t)(p_scb->hdi + 1),
+                                       p_lcb->lidx);
           if (rc_handle < BTA_AV_NUM_RCB) {
             p_cb->rcb[rc_handle].peer_features = peer_features;
             p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
@@ -2490,7 +2499,7 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
   bta_av_data.rc_close = rc_close;
   (*p_cb->p_cback)(BTA_AV_RC_CLOSE_EVT, &bta_av_data);
   if (bta_av_cb.rc_acp_handle == BTA_AV_RC_HANDLE_NONE && bta_av_cb.features & BTA_AV_FEAT_RCTG) {
-    bta_av_rc_create(&bta_av_cb, AVCT_ACP, 0, BTA_AV_NUM_LINKS + 1);
+    bta_av_rc_create(&bta_av_cb, AVCT_ROLE_ACCEPTOR, 0, BTA_AV_NUM_LINKS + 1);
   }
 }
 

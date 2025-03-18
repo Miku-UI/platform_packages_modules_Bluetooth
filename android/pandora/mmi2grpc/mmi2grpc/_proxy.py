@@ -13,9 +13,7 @@
 # limitations under the License.
 """Profile proxy base module."""
 
-from mmi2grpc._helpers import format_function
-from mmi2grpc._helpers import assert_description
-
+from mmi2grpc._helpers import assert_description, format_function
 from pandora_experimental.os_grpc import Os
 
 

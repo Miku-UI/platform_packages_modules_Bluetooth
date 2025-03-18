@@ -17,8 +17,9 @@
 #ifndef ANDROID_INCLUDE_BT_HD_H
 #define ANDROID_INCLUDE_BT_HD_H
 
-#include <raw_address.h>
 #include <stdint.h>
+
+#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -112,7 +113,6 @@ typedef struct {
 
   /** send Virtual Cable Unplug  */
   bt_status_t (*virtual_cable_unplug)(void);
-
 } bthd_interface_t;
 
 __END_DECLS
@@ -120,10 +120,10 @@ __END_DECLS
 #if __has_include(<bluetooth/log.h>)
 #include <bluetooth/log.h>
 
-namespace fmt {
+namespace std {
 template <>
 struct formatter<bthd_report_type_t> : enum_formatter<bthd_report_type_t> {};
-}  // namespace fmt
+}  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)
 

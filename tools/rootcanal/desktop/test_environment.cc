@@ -104,7 +104,7 @@ void TestEnvironment::SetUpHciServer(
                                                      AsyncDataChannelServer* server) {
             // AddHciConnection needs to be executed in task thread to
             // prevent data races on test model.
-            async_manager_.ExecAsync(socket_user_id_, std::chrono::milliseconds(0), [=]() {
+            async_manager_.ExecAsync(socket_user_id_, std::chrono::milliseconds(0), [=, this]() {
               auto transport = HciSocketTransport::Create(socket);
               if (enable_hci_sniffer_) {
                 transport = HciSniffer::Create(transport);

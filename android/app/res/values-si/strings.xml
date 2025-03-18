@@ -32,7 +32,6 @@
     <string name="bt_enable_line2" msgid="1466367120348920892">"දැන් බ්ලූටූත් සක්‍රිය කරන්නද?"</string>
     <string name="bt_enable_cancel" msgid="6770180540581977614">"අවලංගු කරන්න"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"ක්‍රියාත්මක කරන්න"</string>
-    <string name="incoming_file_confirm_title" msgid="938251186275547290">"ගොනු මාරුව"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"ඇතුළට එන ගොනුව පිළිගන්නද?"</string>
     <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"ප්‍රතික්ෂේප කරන්න"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"පිළිගන්න"</string>
@@ -42,10 +41,8 @@
     <string name="incoming_file_confirm_Notification_content" msgid="2669135531488877921">"<xliff:g id="SENDER">%1$s</xliff:g> ගොනුවක් යැවීමට සූදානම්ය: <xliff:g id="FILE">%2$s</xliff:g>"</string>
     <string name="notification_receiving" msgid="8445265771083510696">"බ්ලූටූත් බෙදා ගැනීම: <xliff:g id="FILE">%1$s</xliff:g> ලැබේ"</string>
     <string name="notification_received" msgid="2330252358543000567">"බ්ලූටූත් බෙදා ගැනීම: <xliff:g id="FILE">%1$s</xliff:g> ලැබිණි"</string>
-    <string name="notification_received_fail" msgid="9059153354809379374">"බ්ලූටූත් බෙදා ගැනීම: <xliff:g id="FILE">%1$s</xliff:g> ගොනුව නොලැබිණි"</string>
     <string name="notification_sending" msgid="8269912843286868700">"බ්ලූටූත් බෙදා ගැනීම: <xliff:g id="FILE">%1$s</xliff:g> යැවේ"</string>
     <string name="notification_sent" msgid="2685202778935769332">"බ්ලූටූත් බෙදා ගැනීම: <xliff:g id="FILE">%1$s</xliff:g> යවන්න"</string>
-    <string name="notification_sent_complete" msgid="6293391081175517098">"100% සම්පූර්ණයි"</string>
     <string name="notification_sent_fail" msgid="7449832660578001579">"බ්ලූටූත් බෙදා ගැනීම: <xliff:g id="FILE">%1$s</xliff:g> ගොනුව නොයැවිණි"</string>
     <string name="download_title" msgid="6449408649671518102">"ගොනු මාරුව"</string>
     <string name="download_line1" msgid="6449220145685308846">"වෙතින්: \"<xliff:g id="SENDER">%1$s</xliff:g>\""</string>
@@ -80,7 +77,6 @@
     <string name="enabling_progress_title" msgid="5262637688863903594">"කරුණාකර රැඳී සිටින්න..."</string>
     <string name="enabling_progress_content" msgid="685427201206684584">"බ්ලූටූත් සක්‍රිය කෙරේ…"</string>
     <string name="bt_toast_1" msgid="8791691594887576215">"ගොනුව ලැබෙනු ඇත. දැනුම්දීම් පුවරුව තුළ ප්‍රගතිය පරික්ෂා කරන්න."</string>
-    <string name="bt_toast_2" msgid="2041575937953174042">"ගොනුව ලැබිය නොහැක."</string>
     <string name="bt_toast_3" msgid="3053157171297761920">"\"<xliff:g id="SENDER">%1$s</xliff:g>\" වෙතින් ගොනුව ලැබීම නතර විය"</string>
     <string name="bt_toast_4" msgid="480365991944956695">"\"<xliff:g id="RECIPIENT">%1$s</xliff:g>\" වෙත ගොනුව යැවේ"</string>
     <string name="bt_toast_5" msgid="4818264207982268297">"\"<xliff:g id="RECIPIENT">%2$s</xliff:g>\" වෙත <xliff:g id="NUMBER">%1$s</xliff:g> ගොනු යැවේ"</string>
@@ -118,7 +114,6 @@
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"හිස් කරන්න"</string>
     <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"දැන් වාදනය වේ"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"යෙදුම් නිරූපකය"</string>
-    <string name="bluetooth_connected" msgid="5687474377090799447">"බ්ලූටූත් ශ්‍රව්‍යය සම්බන්ධ කරන ලදී"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"බ්ලූටූත් ශ්‍රව්‍යය විසන්ධි කරන ලදී"</string>
     <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"බ්ලූටූත් ශ්‍රව්‍යය"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"4GBට වඩා විශාල ගොනු මාරු කළ නොහැකිය"</string>

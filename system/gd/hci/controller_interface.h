@@ -30,6 +30,10 @@ public:
   ControllerInterface() = default;
   virtual ~ControllerInterface() = default;
 
+  /// Write debug information relevant for the controller interface
+  /// to the dumpsys output file descriptor.
+  virtual void Dump(int /*fd*/) const {}
+
   using CompletedAclPacketsCallback =
           common::ContextualCallback<void(uint16_t /* handle */, uint16_t /* num_packets */)>;
   virtual void RegisterCompletedAclPacketsCallback(CompletedAclPacketsCallback cb) = 0;
@@ -211,6 +215,8 @@ public:
   virtual VendorCapabilities GetVendorCapabilities() const = 0;
 
   virtual bool IsSupported(OpCode op_code) const = 0;
+
+  virtual bool IsRpaGenerationSupported(void) const = 0;
 };
 
 }  // namespace hci

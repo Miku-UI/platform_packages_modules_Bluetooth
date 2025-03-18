@@ -16,8 +16,9 @@ import asyncio
 from avatar import BumblePandoraDevice, PandoraDevice, PandoraDevices, asynchronous
 from bumble.gatt import GATT_HEARING_ACCESS_SERVICE, GATT_AUDIO_STREAM_CONTROL_SERVICE, GATT_PUBLISHED_AUDIO_CAPABILITIES_SERVICE
 from bumble.profiles import hap
-from bumble.profiles.hap import DynamicPresets, HearingAccessService, HearingAidFeatures, HearingAidType, IndependentPresets, PresetRecord, PresetSynchronizationSupport, WritablePresetsSupport
+from bumble.profiles.hap import DynamicPresets, HearingAccessService, HearingAidFeatures, HearingAidType, IndependentPresets, PresetChangedOperation, PresetChangedOperationAvailable, PresetRecord, PresetSynchronizationSupport, WritablePresetsSupport
 
+from pandora_experimental.os_grpc_aio import Os as OsAio
 from pandora_experimental.gatt_grpc_aio import GATT
 from pandora_experimental.hap_grpc_aio import HAP
 from pandora_experimental.hap_pb2 import PresetRecord as grpcPresetRecord  # type: ignore
@@ -84,6 +85,8 @@ class HapTest(base_test.BaseTestClass):
     @asynchronous
     async def setup_test(self) -> None:
         await asyncio.gather(self.dut.reset(), self.ref_left.reset())
+        self.logcat = OsAio(channel=self.dut.aio.channel)
+        await self.logcat.Log("setup test")
         self.hap_grpc = HAP(channel=self.dut.aio.channel)
         device_features = HearingAidFeatures(HearingAidType.MONAURAL_HEARING_AID,
                                              PresetSynchronizationSupport.PRESET_SYNCHRONIZATION_IS_NOT_SUPPORTED,
@@ -154,14 +157,21 @@ class HapTest(base_test.BaseTestClass):
 
         return dut_connection_to_ref
 
-    async def assertIdentiqPresetInDutAndRef(self, dut_connection_to_ref: Connection):
+    async def assertIdenticalPreset(self, dut_connection_to_ref: Connection) -> None:
         remote_preset = toBumblePresetList(
             (await self.hap_grpc.GetAllPresetRecords(connection=dut_connection_to_ref)).preset_record_list)
         AssertThat(remote_preset).ContainsExactlyElementsIn(  # type: ignore
             get_server_preset_sorted(self.has)).InOrder()  # type: ignore
 
+    async def verify_no_crash(self, dut_connection_to_ref: Connection) -> None:
+        ''' Periodically check that there is no android crash '''
+        for __i__ in range(10):
+            await asyncio.sleep(.3)
+            await self.assertIdenticalPreset(dut_connection_to_ref)
+
     @asynchronous
     async def test_get_features(self) -> None:
+        await self.logcat.Log("test_get_features")
         dut_connection_to_ref = await self.setupHapConnection()
 
         features = hap.HearingAidFeatures_from_bytes(
@@ -170,7 +180,72 @@ class HapTest(base_test.BaseTestClass):
 
     @asynchronous
     async def test_get_preset(self) -> None:
+        await self.logcat.Log("test_get_preset")
         dut_connection_to_ref = await self.setupHapConnection()
 
-        await self.assertIdentiqPresetInDutAndRef(dut_connection_to_ref)
+        await self.assertIdenticalPreset(dut_connection_to_ref)
 
+    @asynchronous
+    async def test_preset__remove_preset__verify_dut_is_updated(self) -> None:
+        await self.logcat.Log("test_preset__remove_preset__verify_dut_is_updated")
+        dut_connection_to_ref = await self.setupHapConnection()
+
+        await self.assertIdenticalPreset(dut_connection_to_ref)
+
+        await self.logcat.Log("Remove preset in server")
+        await self.has.delete_preset(unavailable_preset.index)
+        await asyncio.sleep(1)  # wait event
+
+        await self.assertIdenticalPreset(dut_connection_to_ref)
+
+    @asynchronous
+    async def test__add_preset__verify_dut_is_updated(self) -> None:
+        await self.logcat.Log("test__add_preset__verify_dut_is_updated")
+        dut_connection_to_ref = await self.setupHapConnection()
+
+        await self.assertIdenticalPreset(dut_connection_to_ref)
+
+        added_preset = PresetRecord(bar_preset.index + 3, "added_preset")
+        self.has.preset_records[added_preset.index] = added_preset
+
+        await self.logcat.Log("Preset added in server. Notify now")
+        await self.has.generic_update(
+            PresetChangedOperation(PresetChangedOperation.ChangeId.GENERIC_UPDATE,
+                                   PresetChangedOperation.Generic(bar_preset.index, added_preset)))
+        await asyncio.sleep(1)  # wait event
+
+        await self.assertIdenticalPreset(dut_connection_to_ref)
+
+    @asynchronous
+    async def test__set_non_existing_preset_as_active__verify_no_crash_and_no_update(self) -> None:
+        await self.logcat.Log("test__set_non_existing_preset_as_active__verify_no_crash_and_no_update")
+        non_existing_preset_index = 79
+        AssertThat(non_existing_preset_index).IsNotIn(self.has.preset_records.keys())  # type: ignore
+        dut_connection_to_ref = await self.setupHapConnection()
+        AssertThat(
+            toBumblePreset(  # type: ignore
+                (await self.hap_grpc.GetActivePresetRecord(connection=dut_connection_to_ref
+                                                          )).preset_record)).IsEqualTo(foo_preset)
+
+        await self.logcat.Log("Notify active update to non existing index")
+        # bypass the set_active_preset checks by sending an invalid index on purpose
+        self.has.active_preset_index = non_existing_preset_index
+        await self.has.notify_active_preset()
+
+        await self.verify_no_crash(dut_connection_to_ref)
+        AssertThat(
+            toBumblePreset(  # type: ignore
+                (await self.hap_grpc.GetActivePresetRecord(connection=dut_connection_to_ref
+                                                          )).preset_record)).IsEqualTo(foo_preset)
+
+    @asynchronous
+    async def test__set_non_existing_preset_as_available__verify_no_crash_and_no_update(self) -> None:
+        await self.logcat.Log("test__set_non_existing_preset_as_available__verify_no_crash_and_no_update")
+        non_existing_preset_index = 79
+        AssertThat(non_existing_preset_index).IsNotIn(self.has.preset_records.keys())  # type: ignore
+        dut_connection_to_ref = await self.setupHapConnection()
+
+        await self.logcat.Log("Notify available preset to non existing index")
+        await self.has.generic_update(PresetChangedOperationAvailable(non_existing_preset_index))
+
+        await self.verify_no_crash(dut_connection_to_ref)

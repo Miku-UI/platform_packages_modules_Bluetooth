@@ -22,7 +22,6 @@
 
 #include <bluetooth/log.h>
 
-#include "os/log.h"
 #include "osi/include/allocator.h"
 #include "osi/include/osi.h"
 #include "osi/semaphore.h"

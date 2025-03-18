@@ -26,9 +26,15 @@
 
 #include <bluetooth/log.h>
 
+#include <cstddef>
+#include <cstdint>
+
 #include "avdt_int.h"
 #include "bta/include/bta_av_api.h"
 #include "device/include/interop.h"
+#include "hcidefs.h"
+#include "l2cap_types.h"
+#include "l2cdefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
@@ -63,61 +69,6 @@ const tL2CAP_APPL_INFO avdt_l2c_appl = {avdt_l2c_connect_ind_cback,
                                         NULL,
                                         NULL};
 
-/*******************************************************************************
- *
- * Function         avdt_l2c_sec_check_complete_term
- *
- * Description      The function called when Security Manager finishes
- *                  verification of the service side connection
- *
- * Returns          void
- *
- ******************************************************************************/
-static void avdt_l2c_sec_check_complete_term(const RawAddress& bd_addr) {
-  AvdtpCcb* p_ccb = NULL;
-  AvdtpTransportChannel* p_tbl;
-
-  p_ccb = avdt_ccb_by_bd(bd_addr);
-  p_tbl = avdt_ad_tc_tbl_by_st(AVDT_CHAN_SIG, p_ccb, AVDT_AD_ST_SEC_ACP);
-  if (p_tbl == NULL) {
-    log::warn("Adaptation layer transport channel table is NULL");
-    return;
-  }
-
-  /* store idx in LCID table, store LCID in routing table */
-  avdtp_cb.ad.lcid_tbl[p_tbl->lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
-  avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].lcid = p_tbl->lcid;
-  log::verbose("lcid: 0x{:04x}, bd_addr: {}", p_tbl->lcid, bd_addr);
-
-  /* transition to configuration state */
-  p_tbl->state = AVDT_AD_ST_CFG;
-}
-
-/*******************************************************************************
- *
- * Function         avdt_l2c_sec_check_complete_orig
- *
- * Description      The function called when Security Manager finishes
- *                  verification of the service side connection
- *
- * Returns          void
- *
- ******************************************************************************/
-static void avdt_l2c_sec_check_complete_orig(const RawAddress& bd_addr) {
-  AvdtpCcb* p_ccb = NULL;
-  AvdtpTransportChannel* p_tbl;
-
-  p_ccb = avdt_ccb_by_bd(bd_addr);
-  p_tbl = avdt_ad_tc_tbl_by_st(AVDT_CHAN_SIG, p_ccb, AVDT_AD_ST_SEC_INT);
-  if (p_tbl == NULL) {
-    log::warn("Adaptation layer transport channel table is NULL");
-    return;
-  }
-
-  log::verbose("lcid: 0x{:04x}, bd_addr: {}", p_tbl->lcid, bd_addr);
-  /* set channel state */
-  p_tbl->state = AVDT_AD_ST_CFG;
-}
 /*******************************************************************************
  *
  * Function         avdt_l2c_connect_ind_cback
@@ -156,8 +107,8 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
       p_tbl->my_mtu = kAvdtpMtu;
       p_tbl->tcid = AVDT_CHAN_SIG;
       p_tbl->lcid = lcid;
-      p_tbl->state = AVDT_AD_ST_SEC_ACP;
-      p_tbl->cfg_flags = AVDT_L2C_CFG_CONN_ACP;
+      p_tbl->state = AVDT_AD_ST_CFG;
+      p_tbl->role = tAVDT_ROLE::AVDT_ACP;
 
       if (interop_match_addr(INTEROP_2MBPS_LINK_ONLY, &bd_addr)) {
         // Disable 3DH packets for AVDT ACL to improve sensitivity on HS
@@ -165,8 +116,9 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
                 bd_addr, (acl_get_supported_packet_types() | HCI_PKT_TYPES_MASK_NO_3_DH1 |
                           HCI_PKT_TYPES_MASK_NO_3_DH3 | HCI_PKT_TYPES_MASK_NO_3_DH5));
       }
-      /* Assume security check is complete */
-      avdt_l2c_sec_check_complete_term(p_ccb->peer_addr);
+      /* store idx in LCID table, store LCID in routing table */
+      avdtp_cb.ad.lcid_tbl[p_tbl->lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
+      avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].lcid = p_tbl->lcid;
       return;
     }
   } else {
@@ -278,9 +230,9 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
     return;
   }
 
-  p_tbl->state = AVDT_AD_ST_SEC_INT;
+  p_tbl->state = AVDT_AD_ST_CFG;
   p_tbl->lcid = lcid;
-  p_tbl->cfg_flags = AVDT_L2C_CFG_CONN_INT;
+  p_tbl->role = tAVDT_ROLE::AVDT_INT;
 
   if (interop_match_addr(INTEROP_2MBPS_LINK_ONLY, (const RawAddress*)&p_ccb->peer_addr)) {
     // Disable 3DH packets for AVDT ACL to improve sensitivity on HS
@@ -288,9 +240,6 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
             p_ccb->peer_addr, (acl_get_supported_packet_types() | HCI_PKT_TYPES_MASK_NO_3_DH1 |
                                HCI_PKT_TYPES_MASK_NO_3_DH3 | HCI_PKT_TYPES_MASK_NO_3_DH5));
   }
-
-  /* Assume security check is complete */
-  avdt_l2c_sec_check_complete_orig(p_ccb->peer_addr);
 }
 
 /*******************************************************************************
