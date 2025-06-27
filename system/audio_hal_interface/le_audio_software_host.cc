@@ -187,8 +187,8 @@ void SinkMetadataChanged(const sink_metadata_v7_t& metadata) {
 }
 
 OffloadCapabilities get_offload_capabilities() {
-  return {std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0),
-          std::vector<bluetooth::le_audio::set_configurations::AudioSetConfiguration>(0)};
+  return {std::vector<bluetooth::le_audio::types::AudioSetConfiguration>(0),
+          std::vector<bluetooth::le_audio::types::AudioSetConfiguration>(0)};
 }
 
 void LeAudioClientInterface::Sink::Cleanup() {
@@ -305,7 +305,7 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
 }
 
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
-        const ::le_audio::offload_config& /*offload_config*/) {}
+        const ::le_audio::stream_config& /*offload_config*/) {}
 
 void LeAudioClientInterface::Sink::UpdateBroadcastAudioConfigToHal(
         ::le_audio::broadcast_offload_config const& /*config*/) {}
@@ -327,7 +327,7 @@ size_t LeAudioClientInterface::Sink::Read(uint8_t* p_buf, uint32_t len) {
   return bytes_read;
 }
 
-std::optional<::bluetooth::le_audio::set_configurations::AudioSetConfiguration>
+std::optional<::bluetooth::le_audio::types::AudioSetConfiguration>
 LeAudioClientInterface::Sink::GetUnicastConfig(
         const ::bluetooth::le_audio::CodecManager::
                 UnicastConfigurationRequirements& /*requirements*/) const {
@@ -457,7 +457,7 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
 }
 
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
-        const ::le_audio::offload_config& /*offload_config*/) {}
+        const ::le_audio::stream_config& /*offload_config*/) {}
 
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {
   log::info("");
@@ -569,6 +569,11 @@ LeAudioClientInterface* LeAudioClientInterface::Get() {
 }
 
 void LeAudioClientInterface::SetAllowedDsaModes(DsaModes /*dsa_modes*/) { return; }
+
+std::optional<bluetooth::le_audio::ProviderInfo> LeAudioClientInterface::GetCodecConfigProviderInfo(
+        void) const {
+  return std::nullopt;
+}
 
 }  // namespace le_audio
 }  // namespace audio

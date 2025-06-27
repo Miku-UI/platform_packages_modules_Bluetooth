@@ -53,7 +53,6 @@ group("gd_default_deps") {
 static_library("libbluetooth_gd") {
   sources = [
     "module.cc",
-    "stack_manager.cc",
   ]
 
   include_dirs = [ "." ]
@@ -66,8 +65,6 @@ static_library("libbluetooth_gd") {
     "//bt/system/gd/hal:BluetoothHalSources_ranging_host",
     "//bt/system/gd/hal:BluetoothHalSources_socket_host",
     "//bt/system/gd/metrics:BluetoothMetricsSources",
-    "//bt/system/gd/neighbor:BluetoothNeighborSources",
-    "//bt/system/gd/shim:BluetoothShimSources",
     "//bt/system/gd/storage:BluetoothStorageSources",
     "//bt/system/gd/sysprops:BluetoothSyspropsSources",
     "//bt/system/pdl:BluetoothGeneratedPackets_h",

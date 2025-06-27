@@ -6,14 +6,12 @@ pub mod shared_box;
 pub mod shared_mutex;
 pub mod uuid;
 
-use std::{pin::Pin, rc::Rc, thread};
+use std::pin::Pin;
 
 use cxx::UniquePtr;
 
-use crate::{
-    gatt::ffi::{AttTransportImpl, GattCallbacksImpl},
-    GlobalModuleRegistry, MainThreadTxMessage, GLOBAL_MODULE_REGISTRY,
-};
+use crate::gatt::ffi::{AttTransportImpl, GattCallbacksImpl};
+use crate::RustModuleRunner;
 
 use self::ffi::{future_ready, Future, GattServerCallbacks};
 
@@ -21,21 +19,15 @@ fn start(
     gatt_server_callbacks: UniquePtr<GattServerCallbacks>,
     on_started: Pin<&'static mut Future>,
 ) {
-    thread::spawn(move || {
-        GlobalModuleRegistry::start(
-            Rc::new(GattCallbacksImpl(gatt_server_callbacks)),
-            Rc::new(AttTransportImpl()),
-            || {
-                future_ready(on_started);
-            },
-        );
+    RustModuleRunner::start(GattCallbacksImpl(gatt_server_callbacks), AttTransportImpl(), || {
+        future_ready(on_started);
     });
 }
 
 fn stop() {
-    let _ = GLOBAL_MODULE_REGISTRY
-        .try_lock()
-        .unwrap()
-        .as_ref()
-        .map(|registry| registry.task_tx.send(MainThreadTxMessage::Stop));
+    RustModuleRunner::stop();
+}
+
+fn set_disabled_in_test() {
+    RustModuleRunner::set_disabled_in_test();
 }

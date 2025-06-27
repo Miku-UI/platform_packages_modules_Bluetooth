@@ -14,30 +14,22 @@ pub mod isolation_manager;
 #[cfg(test)]
 mod test;
 
-use std::{
-    collections::HashMap,
-    rc::Rc,
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-use crate::{
-    core::shared_box::{SharedBox, WeakBox, WeakBoxRef},
-    gatt::server::gatt_database::GattDatabase,
-};
+use crate::core::shared_box::{SharedBox, WeakBox, WeakBoxRef};
+use crate::gatt::server::gatt_database::GattDatabase;
 
-use self::{
-    super::ids::ServerId,
-    att_server_bearer::AttServerBearer,
-    gatt_database::{AttDatabaseImpl, GattServiceWithHandle},
-    isolation_manager::IsolationManager,
-    services::register_builtin_services,
-};
+use self::super::ids::ServerId;
+use self::att_server_bearer::AttServerBearer;
+use self::gatt_database::{AttDatabaseImpl, GattServiceWithHandle};
+use self::isolation_manager::IsolationManager;
+use self::services::register_builtin_services;
 
-use super::{
-    callbacks::RawGattDatastore,
-    channel::AttTransport,
-    ids::{AdvertiserId, AttHandle, TransportIndex},
-};
+use super::callbacks::RawGattDatastore;
+use super::channel::AttTransport;
+use super::ids::{AdvertiserId, AttHandle, TransportIndex};
 use anyhow::{anyhow, bail, Result};
 use log::info;
 

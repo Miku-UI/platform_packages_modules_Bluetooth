@@ -214,6 +214,11 @@ void bluetooth::stack::l2cap::Impl::L2CA_Consolidate(const RawAddress& identity_
   return ::L2CA_GetBleConnRole(bd_addr);
 }
 
+[[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_GetBleConnInterval(
+        const RawAddress& bd_addr) {
+  return ::L2CA_GetBleConnInterval(bd_addr);
+}
+
 void bluetooth::stack::l2cap::Impl::L2CA_AdjustConnectionIntervals(uint16_t* min_interval,
                                                                    uint16_t* max_interval,
                                                                    uint16_t floor_interval) {
@@ -227,13 +232,6 @@ void bluetooth::stack::l2cap::Impl::L2CA_SetEcosystemBaseInterval(uint32_t base_
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_IsLinkEstablished(const RawAddress& bd_addr,
                                                                          tBT_TRANSPORT transport) {
   return ::L2CA_IsLinkEstablished(bd_addr, transport);
-}
-
-void bluetooth::stack::l2cap::Impl::L2CA_SetDefaultSubrate(uint16_t subrate_min,
-                                                           uint16_t subrate_max,
-                                                           uint16_t max_latency, uint16_t cont_num,
-                                                           uint16_t timeout) {
-  ::L2CA_SetDefaultSubrate(subrate_min, subrate_max, max_latency, cont_num, timeout);
 }
 
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_SubrateRequest(
@@ -261,4 +259,9 @@ void bluetooth::stack::l2cap::Impl::L2CA_SetMediaStreamChannel(uint16_t local_me
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetAclHandle(uint16_t lcid,
                                                                     uint16_t* acl_handle) {
   return ::L2CA_GetAclHandle(lcid, acl_handle);
+}
+
+[[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_GetLocalMtu(uint16_t lcid,
+                                                                   uint16_t* local_mtu) {
+  return ::L2CA_GetLocalMtu(lcid, local_mtu);
 }

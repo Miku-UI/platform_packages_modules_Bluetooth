@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +15,22 @@
  */
 package com.android.bluetooth;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.Utils.formatSimple;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.location.LocationManager;
-import android.os.Build;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.btservice.ProfileService;
@@ -46,17 +42,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-/** Test for Utils.java */
+/** Test cases for {@link Utils}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class UtilsTest {
@@ -72,13 +63,6 @@ public class UtilsTest {
                 };
         long s = Utils.byteArrayToLong(valueBuf);
         assertThat(s).isEqualTo(0x0807060504030201L);
-    }
-
-    @Test
-    public void byteArrayToString() {
-        byte[] valueBuf = new byte[] {0x01, 0x02};
-        String str = Utils.byteArrayToString(valueBuf);
-        assertThat(str).isEqualTo("01 02");
     }
 
     @Test
@@ -111,8 +95,8 @@ public class UtilsTest {
 
     @Test
     public void blockedByLocationOff() throws Exception {
-        Context context = InstrumentationRegistry.getTargetContext();
-        UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        UserHandle userHandle = UserHandle.SYSTEM;
         LocationManager locationManager = context.getSystemService(LocationManager.class);
         boolean enableStatus = locationManager.isLocationEnabledForUser(userHandle);
         assertThat(Utils.blockedByLocationOff(context, userHandle)).isEqualTo(!enableStatus);
@@ -125,8 +109,8 @@ public class UtilsTest {
 
     @Test
     public void checkCallerHasCoarseLocation_doesNotCrash() {
-        Context context = InstrumentationRegistry.getTargetContext();
-        UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        UserHandle userHandle = UserHandle.SYSTEM;
         LocationManager locationManager = context.getSystemService(LocationManager.class);
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
@@ -145,8 +129,8 @@ public class UtilsTest {
 
     @Test
     public void checkCallerHasCoarseOrFineLocation_doesNotCrash() {
-        Context context = InstrumentationRegistry.getTargetContext();
-        UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        UserHandle userHandle = UserHandle.SYSTEM;
         LocationManager locationManager = context.getSystemService(LocationManager.class);
         boolean enabledStatus = locationManager.isLocationEnabledForUser(userHandle);
 
@@ -166,7 +150,7 @@ public class UtilsTest {
 
     @Test
     public void checkPermissionMethod_doesNotCrash() {
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         try {
             Utils.checkAdvertisePermissionForDataDelivery(context, null, "message");
             Utils.checkAdvertisePermissionForPreflight(context);
@@ -182,14 +166,14 @@ public class UtilsTest {
     public void getLoggableAddress() {
         assertThat(Utils.getLoggableAddress(null)).isEqualTo("00:00:00:00:00:00");
 
-        BluetoothDevice device = TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 1);
+        BluetoothDevice device = getTestDevice(1);
         String loggableAddress = "xx:xx:xx:xx:" + device.getAddress().substring(12);
         assertThat(Utils.getLoggableAddress(device)).isEqualTo(loggableAddress);
     }
 
     @Test
     public void checkCallerIsSystemMethods_doesNotCrash() {
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         String tag = "test_tag";
 
         Utils.checkCallerIsSystemOrActiveOrManagedUser(context, tag);

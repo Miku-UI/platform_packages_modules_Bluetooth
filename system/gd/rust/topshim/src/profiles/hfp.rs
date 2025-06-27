@@ -5,8 +5,9 @@ use bitflags::bitflags;
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::cast::FromPrimitive;
 use std::convert::{TryFrom, TryInto};
+use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
-use topshim_macros::{cb_variant, profile_enabled_or};
+use topshim_macros::{cb_variant, log_args, profile_enabled_or};
 
 use log::warn;
 
@@ -192,6 +193,7 @@ pub mod ffi {
 
         unsafe fn GetHfpProfile(btif: *const u8) -> UniquePtr<HfpIntf>;
         unsafe fn interop_insert_call_when_sco_start(bt_addr: RawAddress) -> bool;
+        unsafe fn interop_disable_hf_profile(name: *const c_char) -> bool;
         fn init(self: Pin<&mut HfpIntf>) -> i32;
         fn connect(self: Pin<&mut HfpIntf>, bt_addr: RawAddress) -> u32;
         fn connect_audio(
@@ -265,6 +267,12 @@ pub fn interop_insert_call_when_sco_start(bt_addr: RawAddress) -> bool {
     unsafe { return ffi::interop_insert_call_when_sco_start(bt_addr) }
 }
 
+pub fn interop_disable_hf_profile(name: String) -> bool {
+    let c_name = std::ffi::CString::new(name).unwrap();
+    // Call an unsafe function in c++. This is necessary for bridge C++ interop API with floss(rust).
+    unsafe { return ffi::interop_disable_hf_profile(c_name.as_ptr()) }
+}
+
 pub type TelephonyDeviceStatus = ffi::TelephonyDeviceStatus;
 
 impl TelephonyDeviceStatus {
@@ -319,6 +327,12 @@ pub enum HfpCallbacks {
 
 pub struct HfpCallbacksDispatcher {
     pub dispatch: Box<dyn Fn(HfpCallbacks) + Send>,
+}
+
+impl Debug for HfpCallbacksDispatcher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "HfpCallbacksDispatcher {{}}")
+    }
 }
 
 type HfpCb = Arc<Mutex<HfpCallbacksDispatcher>>;
@@ -427,6 +441,7 @@ impl ToggleableProfile for Hfp {
 }
 
 impl Hfp {
+    #[log_args]
     pub fn new(intf: &BluetoothInterface) -> Hfp {
         let hfpif: cxx::UniquePtr<ffi::HfpIntf>;
         unsafe {
@@ -436,10 +451,12 @@ impl Hfp {
         Hfp { internal: hfpif, _is_init: false, _is_enabled: false }
     }
 
+    #[log_args]
     pub fn is_initialized(&self) -> bool {
         self._is_init
     }
 
+    #[log_args]
     pub fn initialize(&mut self, callbacks: HfpCallbacksDispatcher) -> bool {
         if get_dispatchers().lock().unwrap().set::<HfpCb>(Arc::new(Mutex::new(callbacks))) {
             panic!("Tried to set dispatcher for HFP callbacks while it already exists");
@@ -448,11 +465,13 @@ impl Hfp {
         true
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady)]
     pub fn connect(&mut self, addr: RawAddress) -> BtStatus {
         BtStatus::from(self.internal.pin_mut().connect(addr))
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady.into())]
     pub fn connect_audio(
         &mut self,
@@ -463,31 +482,37 @@ impl Hfp {
         self.internal.pin_mut().connect_audio(addr, sco_offload, disabled_codecs)
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady.into())]
     pub fn set_active_device(&mut self, addr: RawAddress) -> i32 {
         self.internal.pin_mut().set_active_device(addr)
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady.into())]
     pub fn set_volume(&mut self, volume: i8, addr: RawAddress) -> i32 {
         self.internal.pin_mut().set_volume(volume, addr)
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady.into())]
     pub fn set_mic_volume(&mut self, volume: i8, addr: RawAddress) -> BtStatus {
         BtStatus::from(self.internal.pin_mut().set_mic_volume(volume, addr))
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady)]
     pub fn disconnect(&mut self, addr: RawAddress) -> BtStatus {
         BtStatus::from(self.internal.pin_mut().disconnect(addr))
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady.into())]
     pub fn disconnect_audio(&mut self, addr: RawAddress) -> i32 {
         self.internal.pin_mut().disconnect_audio(addr)
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady)]
     pub fn device_status_notification(
         &mut self,
@@ -497,6 +522,7 @@ impl Hfp {
         BtStatus::from(self.internal.pin_mut().device_status_notification(status, addr))
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady)]
     pub fn indicator_query_response(
         &mut self,
@@ -511,6 +537,7 @@ impl Hfp {
         ))
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady)]
     pub fn current_calls_query_response(
         &mut self,
@@ -520,6 +547,7 @@ impl Hfp {
         BtStatus::from(self.internal.pin_mut().current_calls_query_response(call_list, addr))
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady)]
     pub fn phone_state_change(
         &mut self,
@@ -530,16 +558,19 @@ impl Hfp {
         BtStatus::from(self.internal.pin_mut().phone_state_change(phone_state, number, addr))
     }
 
+    #[log_args]
     #[profile_enabled_or(BtStatus::NotReady)]
     pub fn simple_at_response(&mut self, ok: bool, addr: RawAddress) -> BtStatus {
         BtStatus::from(self.internal.pin_mut().simple_at_response(ok, addr))
     }
 
+    #[log_args]
     #[profile_enabled_or]
     pub fn debug_dump(&mut self) {
         self.internal.pin_mut().debug_dump();
     }
 
+    #[log_args]
     #[profile_enabled_or(false)]
     pub fn cleanup(&mut self) -> bool {
         self.internal.pin_mut().cleanup();

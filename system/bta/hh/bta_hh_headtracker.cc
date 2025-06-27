@@ -138,30 +138,17 @@ void bta_hh_headtracker_parse_service(tBTA_HH_DEV_CB* p_dev_cb, const gatt::Serv
  *
  ******************************************************************************/
 bool bta_hh_headtracker_supported(tBTA_HH_DEV_CB* p_dev_cb) {
-  if (!com::android::bluetooth::flags::android_headtracker_service()) {
-    return false;
-  }
-
   if (p_dev_cb->hid_srvc.headtracker_support == BTA_HH_UNKNOWN) {
-    bluetooth::Uuid remote_uuids[BT_MAX_NUM_UUIDS] = {};
-    bt_property_t remote_properties = {BT_PROPERTY_UUIDS, sizeof(remote_uuids), &remote_uuids};
-    const RawAddress& bd_addr = p_dev_cb->link_spec.addrt.bda;
-    p_dev_cb->hid_srvc.headtracker_support = BTA_HH_UNAVAILABLE;
-
-    // Find which services known to be available
-    if (btif_storage_get_remote_device_property(&bd_addr, &remote_properties) ==
-        BT_STATUS_SUCCESS) {
-      int count = remote_properties.len / sizeof(remote_uuids[0]);
-      for (int i = 0; i < count; i++) {
-        if (remote_uuids[i] == ANDROID_HEADTRACKER_SERVICE_UUID) {
-          p_dev_cb->hid_srvc.headtracker_support = BTA_HH_AVAILABLE;
-          break;
-        }
-      }
+    const std::vector<bluetooth::Uuid>& uuids =
+            btif_storage_get_services(p_dev_cb->link_spec.addrt.bda, BT_TRANSPORT_LE);
+    if (std::find(uuids.begin(), uuids.end(), ANDROID_HEADTRACKER_SERVICE_UUID) != uuids.end()) {
+      p_dev_cb->hid_srvc.headtracker_support = BTA_HH_AVAILABLE;
+    } else {
+      p_dev_cb->hid_srvc.headtracker_support = BTA_HH_UNAVAILABLE;
     }
 
     log::verbose("Headtracker support: {}",
-                 (p_dev_cb->hid_srvc.headtracker_support == BTA_HH_AVAILABLE));
+                 p_dev_cb->hid_srvc.headtracker_support == BTA_HH_AVAILABLE);
   }
 
   return p_dev_cb->hid_srvc.headtracker_support == BTA_HH_AVAILABLE;

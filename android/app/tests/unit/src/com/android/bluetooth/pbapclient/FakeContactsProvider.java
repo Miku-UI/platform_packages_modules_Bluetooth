@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -203,10 +203,10 @@ public class FakeContactsProvider extends MockContentProvider {
     }
 
     private int mNextDataId = 0;
-    private SparseArray<FakeAccount> mAccounts = new SparseArray<>();
-    private SparseArray<FakeRawContact> mRawContacts = new SparseArray<>();
-    private SparseArray<FakeData> mData = new SparseArray<>();
-    private SparseArray<FakeCallLog> mCallHistory = new SparseArray<>();
+    private final SparseArray<FakeAccount> mAccounts = new SparseArray<>();
+    private final SparseArray<FakeRawContact> mRawContacts = new SparseArray<>();
+    private final SparseArray<FakeData> mData = new SparseArray<>();
+    private final SparseArray<FakeCallLog> mCallHistory = new SparseArray<>();
 
     // *********************************************************************************************
     // * Get Data (for validation)

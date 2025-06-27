@@ -7,15 +7,14 @@ use std::sync::{Arc, Mutex};
 use log::{error, trace, warn};
 use std::sync::RwLock;
 
-use crate::{do_in_rust_thread, packets::att};
+use crate::do_in_rust_thread;
+use crate::packets::att;
 
-use super::{
-    ffi::{InterceptAction, StoreCallbacksFromRust},
-    ids::{AdvertiserId, TransportIndex},
-    mtu::MtuEvent,
-    opcode_types::{classify_opcode, OperationType},
-    server::isolation_manager::IsolationManager,
-};
+use super::ffi::{InterceptAction, StoreCallbacksFromRust};
+use super::ids::{AdvertiserId, TransportIndex};
+use super::mtu::MtuEvent;
+use super::opcode_types::{classify_opcode, OperationType};
+use super::server::isolation_manager::IsolationManager;
 
 static ARBITER: RwLock<Option<Arc<Mutex<IsolationManager>>>> = RwLock::new(None);
 
@@ -156,10 +155,8 @@ fn on_mtu_event(tcb_idx: TransportIndex, event: MtuEvent) {
 mod test {
     use super::*;
 
-    use crate::{
-        gatt::ids::{AttHandle, ServerId},
-        packets::att,
-    };
+    use crate::gatt::ids::{AttHandle, ServerId};
+    use crate::packets::att;
 
     const TCB_IDX: TransportIndex = TransportIndex(1);
     const ADVERTISER_ID: AdvertiserId = AdvertiserId(3);

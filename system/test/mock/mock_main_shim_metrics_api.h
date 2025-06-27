@@ -274,17 +274,23 @@ struct LogMetricSocketConnectionState {
   std::function<void(const RawAddress& raw_address, int port, int type,
                      android::bluetooth::SocketConnectionstateEnum connection_state,
                      int64_t tx_bytes, int64_t rx_bytes, int uid, int server_port,
-                     android::bluetooth::SocketRoleEnum socket_role)>
+                     android::bluetooth::SocketRoleEnum socket_role,
+                     uint64_t connection_duration_ms,
+                     android::bluetooth::SocketErrorEnum error_code, bool is_hardware_offload)>
           body{[](const RawAddress& /* raw_address */, int /* port */, int /* type */,
                   android::bluetooth::SocketConnectionstateEnum /* connection_state */,
                   int64_t /* tx_bytes */, int64_t /* rx_bytes */, int /* uid */,
-                  int /* server_port */, android::bluetooth::SocketRoleEnum /* socket_role */) {}};
+                  int /* server_port */, android::bluetooth::SocketRoleEnum /* socket_role */,
+                  uint64_t /* connection_duration_ms */,
+                  android::bluetooth::SocketErrorEnum /* error_code */,
+                  bool /* is_hardware_offload */) {}};
   void operator()(const RawAddress& raw_address, int port, int type,
                   android::bluetooth::SocketConnectionstateEnum connection_state, int64_t tx_bytes,
                   int64_t rx_bytes, int uid, int server_port,
-                  android::bluetooth::SocketRoleEnum socket_role) {
+                  android::bluetooth::SocketRoleEnum socket_role, uint64_t connection_duration_ms,
+                  android::bluetooth::SocketErrorEnum error_code, bool is_hardware_offload) {
     body(raw_address, port, type, connection_state, tx_bytes, rx_bytes, uid, server_port,
-         socket_role);
+         socket_role, connection_duration_ms, error_code, is_hardware_offload);
   }
 };
 extern struct LogMetricSocketConnectionState LogMetricSocketConnectionState;
@@ -350,6 +356,159 @@ struct LogMetricLeConnectionLifecycle {
   }
 };
 extern struct LogMetricLeConnectionLifecycle LogMetricLeConnectionLifecycle;
+
+// Name: LogMetricLeConnectionCompletion
+// Params: bluetooth::hci::Address, hci::ErrorCode reason, bool
+// is_locally_initiated
+// Returns: void
+struct LogMetricLeConnectionCompletion {
+  std::function<void(bluetooth::hci::Address address, bluetooth::hci::ErrorCode reason,
+                     bool is_locally_initiated)>
+          body{[](bluetooth::hci::Address /* address */, bluetooth::hci::ErrorCode /* reason */,
+                  bool /* is_locally_initiated */) {}};
+  void operator()(bluetooth::hci::Address address, bluetooth::hci::ErrorCode reason,
+                  bool is_locally_initiated) {
+    body(address, reason, is_locally_initiated);
+  }
+};
+extern struct LogMetricLeConnectionCompletion LogMetricLeConnectionCompletion;
+
+// Name: LogMetricRfcommConnectionAtClose
+// Params: const RawAddress& raw_address, android::bluetooth::rfcomm::PortResult close_reason,
+//         android::bluetooth::rfcomm::SocketConnectionSecurity security,
+//         android::bluetooth::rfcomm::RfcommPortEvent last_event,
+//         android::bluetooth::rfcomm::RfcommPortState previous_state, int32_t open_duration_ms,
+//         int32_t uid, android::bluetooth::BtaStatus sdp_status, bool is_server,
+//         bool sdp_initiated, int32_t sdp_duration_ms
+// Returns: void
+struct LogMetricRfcommConnectionAtClose {
+  std::function<void(
+          const RawAddress& raw_address, android::bluetooth::rfcomm::PortResult close_reason,
+          android::bluetooth::rfcomm::SocketConnectionSecurity security,
+          android::bluetooth::rfcomm::RfcommPortEvent last_event,
+          android::bluetooth::rfcomm::RfcommPortState previous_state, int32_t open_duration_ms,
+          int32_t uid, android::bluetooth::BtaStatus sdp_status, bool is_server, bool sdp_initiated,
+          int32_t sdp_duration_ms)>
+          body{[](const RawAddress& /* raw_address */,
+                  android::bluetooth::rfcomm::PortResult /* close_reason */,
+                  android::bluetooth::rfcomm::SocketConnectionSecurity /* security */,
+                  android::bluetooth::rfcomm::RfcommPortEvent /* last_event */,
+                  android::bluetooth::rfcomm::RfcommPortState /* previous_state */,
+                  int32_t /* open_duration_ms */, int32_t /* uid */,
+                  android::bluetooth::BtaStatus /* sdp_status */, bool /* is_server */,
+                  bool /* sdp_initiated */, int32_t /* sdp_duration_ms */) {}};
+  void operator()(const RawAddress& raw_address,
+                  android::bluetooth::rfcomm::PortResult close_reason,
+                  android::bluetooth::rfcomm::SocketConnectionSecurity security,
+                  android::bluetooth::rfcomm::RfcommPortEvent last_event,
+                  android::bluetooth::rfcomm::RfcommPortState previous_state,
+                  int32_t open_duration_ms, int32_t uid, android::bluetooth::BtaStatus sdp_status,
+                  bool is_server, bool sdp_initiated, int32_t sdp_duration_ms) {
+    body(raw_address, close_reason, security, last_event, previous_state, open_duration_ms, uid,
+         sdp_status, is_server, sdp_initiated, sdp_duration_ms);
+  }
+};
+extern struct LogMetricRfcommConnectionAtClose LogMetricRfcommConnectionAtClose;
+
+// Name: LogMetricLeConnectionRejected
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricLeConnectionRejected {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricLeConnectionRejected LogMetricLeConnectionRejected;
+
+// Name: LogMetricHfpAgVersion
+// Params: bluetooth::hci::Address, uint16_t version
+// Returns: void
+struct LogMetricHfpAgVersion {
+  std::function<void(bluetooth::hci::Address address, uint16_t version)> body{
+          [](bluetooth::hci::Address /* address */, uint16_t /* version */) {}};
+  void operator()(bluetooth::hci::Address address, uint16_t version) { body(address, version); }
+};
+extern struct LogMetricHfpAgVersion LogMetricHfpAgVersion;
+
+// Name: LogMetricHfpHfVersion
+// Params: bluetooth::hci::Address, uint16_t version
+// Returns: void
+struct LogMetricHfpHfVersion {
+  std::function<void(bluetooth::hci::Address address, uint16_t version)> body{
+          [](bluetooth::hci::Address /* address */, uint16_t /* version */) {}};
+  void operator()(bluetooth::hci::Address address, uint16_t version) { body(address, version); }
+};
+extern struct LogMetricHfpHfVersion LogMetricHfpHfVersion;
+
+// Name: LogMetricHfpRfcommChannelFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpRfcommChannelFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpRfcommChannelFail LogMetricHfpRfcommChannelFail;
+
+// Name: LogMetricHfpRfcommCollisionFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpRfcommCollisionFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpRfcommCollisionFail LogMetricHfpRfcommCollisionFail;
+
+// Name: LogMetricHfpRfcommAgOpenFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpRfcommAgOpenFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpRfcommAgOpenFail LogMetricHfpRfcommAgOpenFail;
+
+// Name: LogMetricHfpSlcFail
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricHfpSlcFail {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricHfpSlcFail LogMetricHfpSlcFail;
+
+// Name: LogMetricScoCodec
+// Params: bluetooth::hci::Address, uint16_t codec
+// Returns: void
+struct LogMetricScoCodec {
+  std::function<void(bluetooth::hci::Address address, uint16_t codec)> body{
+          [](bluetooth::hci::Address /* address */, uint16_t /* codec */) {}};
+  void operator()(bluetooth::hci::Address address, uint16_t codec) { body(address, codec); }
+};
+extern struct LogMetricScoCodec LogMetricScoCodec;
+
+// Name: LogMetricScoLinkCreated
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricScoLinkCreated {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricScoLinkCreated LogMetricScoLinkCreated;
+
+// Name: LogMetricScoLinkRemoved
+// Params: bluetooth::hci::Address
+// Returns: void
+struct LogMetricScoLinkRemoved {
+  std::function<void(bluetooth::hci::Address address)> body{
+          [](bluetooth::hci::Address /* address */) {}};
+  void operator()(bluetooth::hci::Address address) { body(address); }
+};
+extern struct LogMetricScoLinkRemoved LogMetricScoLinkRemoved;
 
 }  // namespace main_shim_metrics_api
 }  // namespace mock

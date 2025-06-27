@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@ import java.util.Set;
 // should be avoided
 public class BluetoothMethodProxy {
     private static final String TAG = BluetoothMethodProxy.class.getSimpleName();
+
     private static final Object INSTANCE_LOCK = new Object();
     private static BluetoothMethodProxy sInstance;
 
@@ -104,7 +105,13 @@ public class BluetoothMethodProxy {
             final String selection,
             final String[] selectionArgs,
             final String sortOrder) {
-        return contentResolver.query(contentUri, projection, selection, selectionArgs, sortOrder);
+        try {
+            return contentResolver.query(
+                    contentUri, projection, selection, selectionArgs, sortOrder);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception happened" + e + "\n" + Log.getStackTraceString(new Throwable()));
+            return null;
+        }
     }
 
     /** Proxies {@link ContentResolver#query(Uri, String[], Bundle, CancellationSignal)}. */
@@ -114,7 +121,12 @@ public class BluetoothMethodProxy {
             final String[] projection,
             final Bundle queryArgs,
             final CancellationSignal cancellationSignal) {
-        return contentResolver.query(contentUri, projection, queryArgs, cancellationSignal);
+        try {
+            return contentResolver.query(contentUri, projection, queryArgs, cancellationSignal);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception happened " + e + "\n" + Log.getStackTraceString(new Throwable()));
+            return null;
+        }
     }
 
     /** Proxies {@link ContentResolver#insert(Uri, ContentValues)}. */
@@ -282,7 +294,7 @@ public class BluetoothMethodProxy {
         return handlerThread.getLooper();
     }
 
-    /** Peoziws {@link MediaSessionManager#getActiveSessions} */
+    /** Proxies {@link MediaSessionManager#getActiveSessions} */
     public @NonNull List<MediaController> mediaSessionManagerGetActiveSessions(
             MediaSessionManager manager) {
         return manager.getActiveSessions(null);
@@ -293,5 +305,10 @@ public class BluetoothMethodProxy {
     public int componentCallerCheckContentUriPermission(
             ComponentCaller caller, Uri uri, int modeFlags) {
         return caller.checkContentUriPermission(uri, modeFlags);
+    }
+
+    /** Proxies {@link Context#grantUriPermission(String, Uri, int)}. } */
+    public void grantUriPermission(Context context, String packageName, Uri uri, int modeFlags) {
+        context.grantUriPermission(packageName, uri, modeFlags);
     }
 }

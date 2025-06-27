@@ -26,7 +26,6 @@ import android.telecom.InCallService;
 import android.telecom.PhoneAccountHandle;
 
 import com.android.bluetooth.apishim.BluetoothCallShimImpl;
-import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,8 +41,7 @@ import java.util.UUID;
  * functioning of the BluetoothInCallService class, the final class must be put into a container
  * that can be mocked correctly.
  */
-@VisibleForTesting
-public class BluetoothCall {
+class BluetoothCall {
 
     private Call mCall;
     private UUID mCallId;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,6 @@
 
 #include <array>
 #include <memory>
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace testing {
 
@@ -269,7 +266,7 @@ TEST(StringsTest, string_format_time_with_ms_test) {
 }
 
 class ExampleClass {};
-std::ostream& operator<<(std::ostream& os, const ExampleClass& /* obj */) {
+static std::ostream& operator<<(std::ostream& os, const ExampleClass& /* obj */) {
   os << "ExampleClass";
   return os;
 }

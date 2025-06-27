@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,15 @@
 
 package com.android.bluetooth.btservice.bluetoothkeystore;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
+import static com.google.common.truth.Truth.assertThat;
+
 import android.os.Binder;
 import android.os.Process;
 import android.util.Log;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
@@ -29,8 +32,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,12 +42,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/** Test cases for {@link BluetoothKeystoreService}. */
 @RunWith(JUnit4.class)
 public final class BluetoothKeystoreServiceTest {
-    private static final String TAG = "BluetoothKeystoreServiceTest";
+    private static final String TAG = BluetoothKeystoreServiceTest.class.getSimpleName();
+
     private BluetoothKeystoreService mBluetoothKeystoreService;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private BluetoothKeystoreNativeInterface mMockNativeInterface;
 
@@ -92,13 +95,12 @@ public final class BluetoothKeystoreServiceTest {
 
     private List<String> mConfigData = new ArrayList<>();
 
-    private Map<String, String> mNameDecryptKeyResult = new HashMap<>();
+    private final Map<String, String> mNameDecryptKeyResult = new HashMap<>();
 
     @Before
     public void setUp() {
         Assume.assumeTrue("Ignore test when the user is not primary.", isPrimaryUser());
         mBluetoothKeystoreService = new BluetoothKeystoreService(mMockNativeInterface, true);
-        Assert.assertNotNull(mBluetoothKeystoreService);
         // backup origin config data.
         try {
             mConfigData = Files.readAllLines(Paths.get(CONFIG_FILE_PATH));
@@ -126,11 +128,11 @@ public final class BluetoothKeystoreServiceTest {
         mBluetoothKeystoreService = null;
     }
 
-    private boolean isPrimaryUser() {
+    private static boolean isPrimaryUser() {
         return Binder.getCallingUid() == Process.BLUETOOTH_UID;
     }
 
-    private void overwriteConfigFile(List<String> data) {
+    private static void overwriteConfigFile(List<String> data) {
         try {
             Files.write(Paths.get(CONFIG_FILE_PATH), data);
         } catch (IOException e) {
@@ -153,14 +155,6 @@ public final class BluetoothKeystoreServiceTest {
         mNameDecryptKeyResult.put(
                 "aa:bb:cc:dd:ee:ff-LE_KEY_LCSRK",
                 "aec555555555555555555555555555555555555555555555");
-    }
-
-    private boolean doCompareKeySet(Map<String, String> map1, Map<String, String> map2) {
-        return map1.keySet().equals(map2.keySet());
-    }
-
-    private boolean doCompareMap(Map<String, String> map1, Map<String, String> map2) {
-        return map1.equals(map2);
     }
 
     private boolean parseConfigFile(String filePathString) {
@@ -203,10 +197,9 @@ public final class BluetoothKeystoreServiceTest {
         // over write config
         overwriteConfigFile(mConfigTestData);
         // load config file.
-        Assert.assertTrue(parseConfigFile(CONFIG_FILE_PATH));
+        assertThat(parseConfigFile(CONFIG_FILE_PATH)).isTrue();
         // make sure it is same with createNameDecryptKeyResult
-        Assert.assertTrue(
-                doCompareMap(mNameDecryptKeyResult, mBluetoothKeystoreService.getNameDecryptKey()));
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey()).isEqualTo(mNameDecryptKeyResult);
     }
 
     @Test
@@ -216,9 +209,8 @@ public final class BluetoothKeystoreServiceTest {
         // Wait for encryption to complete
         mBluetoothKeystoreService.stopThread();
 
-        Assert.assertTrue(
-                doCompareKeySet(
-                        mNameDecryptKeyResult, mBluetoothKeystoreService.getNameEncryptKey()));
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey().keySet())
+                .containsExactlyElementsIn(mNameDecryptKeyResult.keySet());
     }
 
     @Test
@@ -229,51 +221,48 @@ public final class BluetoothKeystoreServiceTest {
         // clear up memory.
         mBluetoothKeystoreService.cleanupMemory();
         // load encryption file and do encryption.
-        Assert.assertTrue(loadEncryptionFile(CONFIG_FILE_ENCRYPTION_PATH, true));
+        assertThat(loadEncryptionFile(CONFIG_FILE_ENCRYPTION_PATH, true)).isTrue();
         // Wait for encryption to complete
         mBluetoothKeystoreService.stopThread();
 
-        Assert.assertTrue(
-                doCompareMap(mNameDecryptKeyResult, mBluetoothKeystoreService.getNameDecryptKey()));
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey()).isEqualTo(mNameDecryptKeyResult);
     }
 
     @Test
     public void testCompareHashFile() {
         // save config checksum.
-        Assert.assertTrue(setEncryptKeyOrRemoveKey(CONFIG_FILE_PREFIX, CONFIG_FILE_HASH));
+        assertThat(setEncryptKeyOrRemoveKey(CONFIG_FILE_PREFIX, CONFIG_FILE_HASH)).isTrue();
         // clean up memory
         mBluetoothKeystoreService.cleanupMemory();
 
-        Assert.assertTrue(loadEncryptionFile(CONFIG_CHECKSUM_ENCRYPTION_PATH, false));
+        assertThat(loadEncryptionFile(CONFIG_CHECKSUM_ENCRYPTION_PATH, false)).isTrue();
 
-        Assert.assertTrue(compareFileHash(CONFIG_FILE_PATH));
+        assertThat(compareFileHash(CONFIG_FILE_PATH)).isTrue();
     }
 
     @Test
     public void testParserFileAfterDisableCommonCriteriaMode() {
         // preconfiguration.
-        // need to creat encrypted file.
+        // need to create encrypted file.
         testParserFile();
         // created encrypted file
-        Assert.assertTrue(setEncryptKeyOrRemoveKey(CONFIG_FILE_PREFIX, CONFIG_FILE_HASH));
+        assertThat(setEncryptKeyOrRemoveKey(CONFIG_FILE_PREFIX, CONFIG_FILE_HASH)).isTrue();
         // clean up memory and stop thread.
         mBluetoothKeystoreService.cleanupForCommonCriteriaModeEnable();
 
         // new mBluetoothKeystoreService and the Common Criteria mode is false.
         mBluetoothKeystoreService = new BluetoothKeystoreService(mMockNativeInterface, false);
-        Assert.assertNotNull(mBluetoothKeystoreService);
 
         mBluetoothKeystoreService.loadConfigData();
 
         // check encryption file clean up.
-        Assert.assertFalse(Files.exists(Paths.get(CONFIG_CHECKSUM_ENCRYPTION_PATH)));
-        Assert.assertFalse(Files.exists(Paths.get(CONFIG_FILE_ENCRYPTION_PATH)));
+        assertThat(Files.exists(Paths.get(CONFIG_CHECKSUM_ENCRYPTION_PATH))).isFalse();
+        assertThat(Files.exists(Paths.get(CONFIG_FILE_ENCRYPTION_PATH))).isFalse();
 
         // remove hash data avoid interfering result.
         mBluetoothKeystoreService.getNameDecryptKey().remove(CONFIG_FILE_PREFIX);
 
-        Assert.assertTrue(
-                doCompareMap(mNameDecryptKeyResult, mBluetoothKeystoreService.getNameDecryptKey()));
+        assertThat(mBluetoothKeystoreService.getNameDecryptKey()).isEqualTo(mNameDecryptKeyResult);
     }
 
     @Test
@@ -285,6 +274,6 @@ public final class BluetoothKeystoreServiceTest {
         mBluetoothKeystoreService = new BluetoothKeystoreService(mMockNativeInterface, true);
         mBluetoothKeystoreService.loadConfigData();
 
-        Assert.assertTrue(mBluetoothKeystoreService.getCompareResult() == 0);
+        assertThat(mBluetoothKeystoreService.getCompareResult()).isEqualTo(0);
     }
 }

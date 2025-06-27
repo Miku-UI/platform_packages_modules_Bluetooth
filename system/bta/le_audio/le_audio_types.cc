@@ -48,95 +48,14 @@
 #include "le_audio_utils.h"
 #include "stack/include/bt_types.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth::le_audio {
 using types::acs_ac_record;
 using types::LeAudioContextType;
 
-namespace set_configurations {
-using set_configurations::CodecConfigSetting;
+namespace types {
+using types::CodecConfigSetting;
 using types::kLeAudioCodingFormatLC3;
 using types::LeAudioCoreCodecConfig;
-
-void get_cis_count(LeAudioContextType context_type, uint8_t expected_remote_direction,
-                   int expected_device_cnt, types::LeAudioConfigurationStrategy strategy,
-                   int avail_group_ase_snk_cnt, int avail_group_ase_src_count,
-                   uint8_t& out_cis_count_bidir, uint8_t& out_cis_count_unidir_sink,
-                   uint8_t& out_cis_count_unidir_source) {
-  log::info(
-          "{} expected_remote_direction {}, strategy {}, group avail sink ases: {}, "
-          "group avail source ases {} "
-          "expected_device_count {}",
-          bluetooth::common::ToString(context_type), expected_remote_direction,
-          static_cast<int>(strategy), avail_group_ase_snk_cnt, avail_group_ase_src_count,
-          expected_device_cnt);
-
-  bool is_bidirectional = expected_remote_direction == types::kLeAudioDirectionBoth;
-  bool is_source_only = expected_remote_direction == types::kLeAudioDirectionSource;
-
-  switch (strategy) {
-    case types::LeAudioConfigurationStrategy::MONO_ONE_CIS_PER_DEVICE:
-    /* This strategy is for the CSIS topology, e.g. two earbuds which are both
-     * connected with a Phone
-     */
-    case types::LeAudioConfigurationStrategy::STEREO_ONE_CIS_PER_DEVICE:
-      /* This strategy is for e.g. the banded headphones */
-      if (is_bidirectional) {
-        if ((avail_group_ase_snk_cnt > 0) && (avail_group_ase_src_count) > 0) {
-          /* Prepare CIG to enable all microphones */
-          out_cis_count_bidir = expected_device_cnt;
-        } else {
-          if (avail_group_ase_snk_cnt > 0) {
-            out_cis_count_unidir_sink = expected_device_cnt;
-          } else if (avail_group_ase_src_count > 0) {
-            out_cis_count_unidir_source = expected_device_cnt;
-          }
-        }
-      } else if (is_source_only) {
-        out_cis_count_unidir_source = expected_device_cnt;
-      } else {
-        out_cis_count_unidir_sink = expected_device_cnt;
-      }
-
-      break;
-    case types::LeAudioConfigurationStrategy::STEREO_TWO_CISES_PER_DEVICE:
-      /* This strategy is for the old TWS topology. e.g. one earbud connected to
-       * the Phone but each channel is carried in separate CIS
-       */
-      if (is_bidirectional) {
-        if ((avail_group_ase_snk_cnt > 0) && (avail_group_ase_src_count) > 0) {
-          /* Prepare CIG to enable all microphones per device */
-          out_cis_count_bidir = expected_device_cnt;
-          if (avail_group_ase_src_count > 1) {
-            out_cis_count_bidir++;
-          } else {
-            out_cis_count_unidir_sink = expected_device_cnt;
-          }
-        } else {
-          if (avail_group_ase_snk_cnt > 0) {
-            out_cis_count_unidir_sink = 2 * expected_device_cnt;
-          } else if (avail_group_ase_src_count > 0) {
-            out_cis_count_unidir_source = 2 * expected_device_cnt;
-          }
-        }
-      } else if (is_source_only) {
-        out_cis_count_unidir_source = 2 * expected_device_cnt;
-      } else {
-        out_cis_count_unidir_sink = 2 * expected_device_cnt;
-      }
-      break;
-    case types::LeAudioConfigurationStrategy::RFU:
-      log::error("Should not happen;");
-      break;
-  }
-
-  log::info(
-          "Required cis count: Bi-Directional: {}, Uni-Directional Sink: {}, "
-          "Uni-Directional Source: {}",
-          out_cis_count_bidir, out_cis_count_unidir_sink, out_cis_count_unidir_source);
-}
 
 uint16_t CodecConfigSetting::GetOctetsPerFrame() const {
   switch (id.coding_format) {
@@ -227,9 +146,6 @@ std::ostream& operator<<(std::ostream& os, const CodecConfigSetting& config) {
   return os;
 }
 
-}  // namespace set_configurations
-
-namespace types {
 /* Helper map for matching various frequency notations */
 const std::map<uint8_t, uint32_t> LeAudioCoreCodecConfig::sampling_freq_map = {
         {codec_spec_conf::kLeAudioSamplingFreq8000Hz, LeAudioCodecConfiguration::kSampleRate8000},
@@ -263,7 +179,7 @@ const std::map<uint32_t, uint8_t> LeAudioCoreCodecConfig::data_interval_map = {
          codec_spec_conf::kLeAudioCodecFrameDur10000us},
 };
 
-std::string CapabilityTypeToStr(const uint8_t& type) {
+static std::string CapabilityTypeToStr(const uint8_t& type) {
   switch (type) {
     case codec_spec_caps::kLeAudioLtvTypeSupportedSamplingFrequencies:
       return "Supported Sampling Frequencies";
@@ -280,7 +196,7 @@ std::string CapabilityTypeToStr(const uint8_t& type) {
   }
 }
 
-std::string CapabilityValueToStr(const uint8_t& type, const std::vector<uint8_t>& value) {
+static std::string CapabilityValueToStr(const uint8_t& type, const std::vector<uint8_t>& value) {
   std::string string = "";
 
   switch (type) {
@@ -773,22 +689,6 @@ std::ostream& operator<<(std::ostream& os, const AudioContexts& contexts) {
   return os;
 }
 
-template <typename T>
-const T& BidirectionalPair<T>::get(uint8_t direction) const {
-  log::assert_that(direction < types::kLeAudioDirectionBoth,
-                   "Unsupported complex direction. Consider using "
-                   "get_bidirectional<>() instead.");
-  return (direction == types::kLeAudioDirectionSink) ? sink : source;
-}
-
-template <typename T>
-T& BidirectionalPair<T>::get(uint8_t direction) {
-  log::assert_that(direction < types::kLeAudioDirectionBoth,
-                   "Unsupported complex direction. Reference to a single "
-                   "complex direction value is not supported.");
-  return (direction == types::kLeAudioDirectionSink) ? sink : source;
-}
-
 /* Bidirectional getter trait for AudioContexts bidirectional pair */
 template <>
 AudioContexts get_bidirectional(BidirectionalPair<AudioContexts> p) {
@@ -873,24 +773,6 @@ std::ostream& operator<<(std::ostream& os, const LeAudioMetadata& config) {
   os << "}";
   return os;
 }
-
-template struct BidirectionalPair<AudioContexts>;
-template struct BidirectionalPair<AudioLocations>;
-template struct BidirectionalPair<CisType>;
-template struct BidirectionalPair<LeAudioConfigurationStrategy>;
-template struct BidirectionalPair<ase*>;
-template struct BidirectionalPair<std::string>;
-template struct BidirectionalPair<std::vector<uint8_t>>;
-template struct BidirectionalPair<stream_configuration>;
-template struct BidirectionalPair<stream_parameters>;
-template struct BidirectionalPair<uint16_t>;
-template struct BidirectionalPair<uint8_t>;
-template struct BidirectionalPair<bool>;
-template struct BidirectionalPair<int>;
-template struct BidirectionalPair<std::vector<set_configurations::AseConfiguration>>;
-template struct BidirectionalPair<set_configurations::QosConfigSetting>;
-template struct BidirectionalPair<
-        std::unique_ptr<const bluetooth::le_audio::btle_audio_codec_config_t>>;
 
 }  // namespace types
 }  // namespace bluetooth::le_audio

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.gatt;
 
+import android.os.Looper;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
@@ -24,6 +25,7 @@ import com.android.bluetooth.btservice.AdapterService;
 /** Factory class for object initialization to help with unit testing */
 public class GattObjectsFactory {
     private static final String TAG = GattObjectsFactory.class.getSimpleName();
+
     private static GattObjectsFactory sInstance;
     private static final Object INSTANCE_LOCK = new Object();
 
@@ -61,7 +63,7 @@ public class GattObjectsFactory {
     }
 
     public DistanceMeasurementManager createDistanceMeasurementManager(
-            AdapterService adapterService) {
-        return new DistanceMeasurementManager(adapterService);
+            AdapterService adapterService, Looper looper) {
+        return new DistanceMeasurementManager(adapterService, looper);
     }
 }

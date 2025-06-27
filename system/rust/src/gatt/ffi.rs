@@ -1,8 +1,7 @@
 //! FFI interfaces for the GATT module. Some structs are exported so that
 //! core::init can instantiate and pass them into the main loop.
 
-use pdl_runtime::EncodeError;
-use pdl_runtime::Packet;
+use pdl_runtime::{EncodeError, Packet};
 use std::iter::Peekable;
 
 use anyhow::{bail, Result};
@@ -11,25 +10,18 @@ pub use inner::*;
 use log::{error, info, trace, warn};
 use tokio::task::spawn_local;
 
-use crate::{
-    do_in_rust_thread,
-    packets::att::{self, AttErrorCode},
-};
+use crate::do_in_rust_thread;
+use crate::packets::att::{self, AttErrorCode};
 
-use super::{
-    arbiter::with_arbiter,
-    callbacks::{GattWriteRequestType, GattWriteType, TransactionDecision},
-    channel::AttTransport,
-    ids::{AdvertiserId, AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex},
-    server::{
-        gatt_database::{
-            AttPermissions, GattCharacteristicWithHandle, GattDescriptorWithHandle,
-            GattServiceWithHandle,
-        },
-        IndicationError,
-    },
-    GattCallbacks,
+use super::arbiter::with_arbiter;
+use super::callbacks::{GattWriteRequestType, GattWriteType, TransactionDecision};
+use super::channel::AttTransport;
+use super::ids::{AdvertiserId, AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex};
+use super::server::gatt_database::{
+    AttPermissions, GattCharacteristicWithHandle, GattDescriptorWithHandle, GattServiceWithHandle,
 };
+use super::server::IndicationError;
+use super::GattCallbacks;
 
 #[cxx::bridge]
 #[allow(clippy::needless_lifetimes)]

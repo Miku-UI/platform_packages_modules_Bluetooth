@@ -32,14 +32,6 @@ void RegisterClientCallback(int status, int clientIf, const bluetooth::Uuid& /*a
   semaphore_post(instance->register_client_callback_sem_);
 }
 
-void ScanResultCallback(uint16_t /*ble_evt_type*/, uint8_t /*addr_type*/, RawAddress* /*bda*/,
-                        uint8_t /*ble_primary_phy*/, uint8_t /*ble_secondary_phy*/,
-                        uint8_t /*ble_advertising_sid*/, int8_t /*ble_tx_power*/, int8_t /*rssi*/,
-                        uint16_t /*ble_periodic_adv_int*/, std::vector<uint8_t> /*adv_data*/,
-                        RawAddress* /*original_bda*/) {
-  semaphore_post(instance->scan_result_callback_sem_);
-}
-
 // GATT server callbacks
 void RegisterServerCallback(int status, int server_if, const bluetooth::Uuid& /*uuid*/) {
   instance->status_ = status;
@@ -69,10 +61,6 @@ void ServiceDeletedCallback(int status, int server_if, int srvc_handle) {
   semaphore_post(instance->service_deleted_callback_sem_);
 }
 
-static const btgatt_scanner_callbacks_t scanner_callbacks = {
-        .scan_result_cb = ScanResultCallback,
-};
-
 static const btgatt_client_callbacks_t client_callbacks = {
         .register_client_cb = RegisterClientCallback,
 };
@@ -88,7 +76,6 @@ static const btgatt_callbacks_t callbacks = {
         sizeof(btgatt_callbacks_t),
         &client_callbacks,
         &server_callbacks,
-        &scanner_callbacks,
 };
 
 void GattTest::SetUp() {

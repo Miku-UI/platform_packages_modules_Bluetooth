@@ -492,6 +492,7 @@ public:
   alarm_t* avrc_ct_timer;                   /* delay timer for AVRC CT */
   alarm_t* link_signalling_timer;
   alarm_t* accept_signalling_timer; /* timer to monitor signalling when accepting */
+  alarm_t* accept_open_timer;       /* timer to monitor AVDT open when accepting */
   uint16_t l2c_cid;                 /* L2CAP channel ID */
   uint16_t stream_mtu;              /* MTU of stream */
   uint8_t media_type;               /* Media type: AVDT_MEDIA_TYPE_* */

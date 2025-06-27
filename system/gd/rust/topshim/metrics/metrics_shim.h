@@ -38,6 +38,7 @@ void acl_connect_attempt(RawAddress addr, uint32_t acl_state);
 void acl_connection_state_changed(RawAddress addr, uint32_t transport, uint32_t status,
                                   uint32_t acl_state, uint32_t direction, uint32_t hci_reason);
 void suspend_complete_state(uint32_t state);
+void ll_privacy_state(uint32_t llp_state, uint32_t rpa_state);
 
 }  // namespace rust
 }  // namespace topshim

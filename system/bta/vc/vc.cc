@@ -20,6 +20,7 @@
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_vc.h>
 #include <stdio.h>
@@ -114,7 +115,7 @@ public:
   VolumeControlImpl(bluetooth::vc::VolumeControlCallbacks* callbacks, const base::Closure& initCb)
       : gatt_if_(0), callbacks_(callbacks), latest_operation_id_(0) {
     BTA_GATTC_AppRegister(
-            gattc_callback_static,
+            "volume_control", gattc_callback_static,
             base::Bind(
                     [](const base::Closure& initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {
@@ -143,7 +144,7 @@ public:
 
     auto device = volume_control_devices_.FindByAddress(address);
     if (!device) {
-      if (!BTM_IsLinkKeyKnown(address, BT_TRANSPORT_LE)) {
+      if (!BTM_IsBonded(address, BT_TRANSPORT_LE)) {
         bluetooth::log::error("Connecting  {} when not bonded", address);
         callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
         return;
@@ -176,7 +177,7 @@ public:
   }
 
   void OnGattConnected(tGATT_STATUS status, tCONN_ID connection_id, tGATT_IF /*client_if*/,
-                       RawAddress address, tBT_TRANSPORT transport, uint16_t /*mtu*/) {
+                       RawAddress address, tBT_TRANSPORT transport, uint16_t mtu) {
     bluetooth::log::info("{}, conn_id=0x{:04x}, transport={}, status={}(0x{:02x})", address,
                          connection_id, bt_transport_text(transport), gatt_status_text(status),
                          status);
@@ -202,6 +203,7 @@ public:
     }
 
     device->connection_id = connection_id;
+    device->mtu_ = mtu;
 
     /* Make sure to remove device from background connect.
      * It will be added back if needed, when device got disconnected
@@ -260,7 +262,14 @@ public:
     std::vector<RawAddress> devices = {device->address};
     device->DeregisterNotifications(gatt_if_);
 
-    RemovePendingVolumeControlOperations(devices, bluetooth::groups::kGroupUnknown);
+    if (com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+      RemoveNotStartedPendingOperations(devices, bluetooth::groups::kGroupUnknown, {});
+    } else {
+      RemoveNotStartedPendingOperations(devices, bluetooth::groups::kGroupUnknown,
+                                        {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                                         kControlPointOpcodeSetAbsoluteVolume});
+    }
+
     device->ResetHandles();
     BTA_GATTC_ServiceSearchRequest(device->connection_id, kVolumeControlUuid);
   }
@@ -273,6 +282,15 @@ public:
     }
 
     ClearDeviceInformationAndStartSearch(device);
+  }
+
+  void OnMtuChanged(tCONN_ID conn_id, uint16_t mtu) {
+    VolumeControlDevice* device = volume_control_devices_.FindByConnId(conn_id);
+    if (!device) {
+      bluetooth::log::error("Skipping unknown device conn_id: {}", conn_id);
+      return;
+    }
+    device->mtu_ = mtu;
   }
 
   void OnServiceDiscDoneEvent(const RawAddress& address) {
@@ -411,7 +429,7 @@ public:
                           is_volume_change, is_mute_change);
 
     if (!is_volume_change && !is_mute_change) {
-      bluetooth::log::error("Autonomous change but volume and mute did not changed.");
+      bluetooth::log::warn("Autonomous change but volume and mute did not changed.");
       return;
     }
 
@@ -909,7 +927,7 @@ public:
             [operation_id](auto& operation) { return operation.operation_id_ == operation_id; });
 
     if (op == ongoing_operations_.end()) {
-      bluetooth::log::error("Could not find operation id: {}", operation_id);
+      bluetooth::log::warn("Could not find operation id: {}", operation_id);
       return;
     }
 
@@ -924,13 +942,55 @@ public:
     }
   }
 
-  void RemovePendingVolumeControlOperations(const std::vector<RawAddress>& devices, int group_id) {
+  bool IsMuteOrUnmuteRequired(VolumeControlDevice* dev, bool mute) {
+    if (!dev->IsReady()) {
+      return false;
+    }
+
+    // Check if the mute status differs on the remote
+    if (dev->mute != mute) {
+      return true;
+    }
+
+    // Check if the mute status differs in the currently executing request
+    uint8_t oppositeOpcode = mute ? kControlPointOpcodeUnmute : kControlPointOpcodeMute;
+    const auto op = &ongoing_operations_.front();
+    if (op->IsStarted() && (op->opcode_ == oppositeOpcode) &&
+        (std::find(op->devices_.begin(), op->devices_.end(), dev->address) != op->devices_.end())) {
+      return true;
+    }
+
+    return false;
+  }
+
+  bool IsSetAbsoluteVolumeRequired(VolumeControlDevice* dev, uint8_t volume) {
+    if (!dev->IsReady()) {
+      return false;
+    }
+
+    // Check if the volume differs on the remote
+    if (dev->volume != volume) {
+      return true;
+    }
+
+    // Check if the volume differs in the currently executing request
+    const auto op = &ongoing_operations_.front();
+    std::vector<uint8_t> arg({volume});
+    if (op->IsStarted() && (op->opcode_ == kControlPointOpcodeSetAbsoluteVolume) &&
+        (std::find(op->devices_.begin(), op->devices_.end(), dev->address) != op->devices_.end()) &&
+        !std::equal(op->arguments_.begin(), op->arguments_.end(), arg.begin())) {
+      return true;
+    }
+
+    return false;
+  }
+
+  void RemoveNotStartedPendingOperations(const std::vector<RawAddress>& devices, int group_id,
+                                         std::vector<uint8_t> opcodes) {
     bluetooth::log::debug("");
     for (auto op = ongoing_operations_.begin(); op != ongoing_operations_.end();) {
-      // We only remove operations that don't affect the mute field.
-      if (op->IsStarted() || (op->opcode_ != kControlPointOpcodeSetAbsoluteVolume &&
-                              op->opcode_ != kControlPointOpcodeVolumeUp &&
-                              op->opcode_ != kControlPointOpcodeVolumeDown)) {
+      if (op->IsStarted() || (!opcodes.empty() && std::find(opcodes.begin(), opcodes.end(),
+                                                            op->opcode_) == opcodes.end())) {
         op++;
         continue;
       }
@@ -947,8 +1007,8 @@ public:
         }
       }
       if (op->devices_.empty()) {
-        op = ongoing_operations_.erase(op);
         bluetooth::log::debug("Removing operation {}", op->operation_id_);
+        op = ongoing_operations_.erase(op);
       } else {
         op++;
       }
@@ -1056,6 +1116,7 @@ public:
                                 devices.end());
                   return devices.empty();
                 }) == ongoing_operations_.end()) {
+      bluetooth::log::debug("New operation id {} added", latest_operation_id_);
       ongoing_operations_.emplace_back(latest_operation_id_++, group_id, is_autonomous, opcode,
                                        arguments, devices);
     }
@@ -1071,10 +1132,19 @@ public:
               volume_control_devices_.FindByAddress(std::get<RawAddress>(addr_or_group_id));
       if (dev != nullptr) {
         bluetooth::log::debug("Address: {}: isReady: {}", dev->address, dev->IsReady());
-        if (dev->IsReady() && (dev->mute != mute)) {
-          std::vector<RawAddress> devices = {dev->address};
-          PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
-                                        arg);
+        std::vector<RawAddress> devices = {dev->address};
+        if (!com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+          if (dev->IsReady() && (dev->mute != mute)) {
+            PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
+                                          arg);
+          }
+        } else {
+          RemoveNotStartedPendingOperations(devices, bluetooth::groups::kGroupUnknown,
+                                            {kControlPointOpcodeMute, kControlPointOpcodeUnmute});
+          if (IsMuteOrUnmuteRequired(dev, mute)) {
+            PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
+                                          arg);
+          }
         }
       }
     } else {
@@ -1093,6 +1163,11 @@ public:
         return;
       }
 
+      if (com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+        RemoveNotStartedPendingOperations(devices, group_id,
+                                          {kControlPointOpcodeMute, kControlPointOpcodeUnmute});
+      }
+
       bool muteNotChanged = false;
       bool deviceNotReady = false;
 
@@ -1103,11 +1178,20 @@ public:
           continue;
         }
 
-        if (!dev->IsReady() || (dev->mute == mute)) {
-          it = devices.erase(it);
-          muteNotChanged = muteNotChanged ? muteNotChanged : (dev->mute == mute);
-          deviceNotReady = deviceNotReady ? deviceNotReady : !dev->IsReady();
-          continue;
+        if (!com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+          if (!dev->IsReady() || (dev->mute == mute)) {
+            it = devices.erase(it);
+            muteNotChanged = muteNotChanged ? muteNotChanged : (dev->mute == mute);
+            deviceNotReady = deviceNotReady ? deviceNotReady : !dev->IsReady();
+            continue;
+          }
+        } else {
+          if (!IsMuteOrUnmuteRequired(dev, mute)) {
+            it = devices.erase(it);
+            muteNotChanged = muteNotChanged ? muteNotChanged : (dev->mute == mute);
+            deviceNotReady = deviceNotReady ? deviceNotReady : !dev->IsReady();
+            continue;
+          }
         }
         it++;
       }
@@ -1146,11 +1230,25 @@ public:
               volume_control_devices_.FindByAddress(std::get<RawAddress>(addr_or_group_id));
       if (dev != nullptr) {
         bluetooth::log::debug("Address: {}: isReady: {}", dev->address, dev->IsReady());
-        if (dev->IsReady() && (dev->volume != volume)) {
-          std::vector<RawAddress> devices = {dev->address};
-          RemovePendingVolumeControlOperations(devices, bluetooth::groups::kGroupUnknown);
-          PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
-                                        arg);
+        std::vector<RawAddress> devices = {dev->address};
+        if (!com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+          if (dev->IsReady() && (dev->volume != volume)) {
+            RemoveNotStartedPendingOperations(
+                    devices, bluetooth::groups::kGroupUnknown,
+                    {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                     kControlPointOpcodeSetAbsoluteVolume});
+            PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
+                                          arg);
+          }
+        } else {
+          RemoveNotStartedPendingOperations(
+                  devices, bluetooth::groups::kGroupUnknown,
+                  {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                   kControlPointOpcodeSetAbsoluteVolume});
+          if (IsSetAbsoluteVolumeRequired(dev, volume)) {
+            PrepareVolumeControlOperation(devices, bluetooth::groups::kGroupUnknown, false, opcode,
+                                          arg);
+          }
         }
       }
     } else {
@@ -1169,6 +1267,13 @@ public:
         return;
       }
 
+      if (com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+        RemoveNotStartedPendingOperations(
+                devices, group_id,
+                {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                 kControlPointOpcodeSetAbsoluteVolume});
+      }
+
       bool volumeNotChanged = false;
       bool deviceNotReady = false;
 
@@ -1179,11 +1284,20 @@ public:
           continue;
         }
 
-        if (!dev->IsReady() || (dev->volume == volume)) {
-          it = devices.erase(it);
-          volumeNotChanged = volumeNotChanged ? volumeNotChanged : (dev->volume == volume);
-          deviceNotReady = deviceNotReady ? deviceNotReady : !dev->IsReady();
-          continue;
+        if (!com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+          if (!dev->IsReady() || (dev->volume == volume)) {
+            it = devices.erase(it);
+            volumeNotChanged = volumeNotChanged ? volumeNotChanged : (dev->volume == volume);
+            deviceNotReady = deviceNotReady ? deviceNotReady : !dev->IsReady();
+            continue;
+          }
+        } else {
+          if (!IsSetAbsoluteVolumeRequired(dev, volume)) {
+            it = devices.erase(it);
+            volumeNotChanged = volumeNotChanged ? volumeNotChanged : (dev->volume == volume);
+            deviceNotReady = deviceNotReady ? deviceNotReady : !dev->IsReady();
+            continue;
+          }
         }
 
         it++;
@@ -1197,7 +1311,12 @@ public:
         return;
       }
 
-      RemovePendingVolumeControlOperations(devices, group_id);
+      if (!com::android::bluetooth::flags::vcp_allow_set_same_volume_if_pending()) {
+        RemoveNotStartedPendingOperations(
+                devices, group_id,
+                {kControlPointOpcodeVolumeDown, kControlPointOpcodeVolumeUp,
+                 kControlPointOpcodeSetAbsoluteVolume});
+      }
       PrepareVolumeControlOperation(devices, group_id, false, opcode, arg);
     }
 
@@ -1461,6 +1580,7 @@ private:
     device->Disconnect(gatt_if_);
 
     RemoveDeviceFromOperationList(device->address);
+    device->mtu_ = GATT_DEF_BLE_MTU_SIZE;
 
     if (notify) {
       callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, device->address);
@@ -1545,6 +1665,10 @@ private:
         OnServiceChangeEvent(p_data->service_changed.remote_bda);
         break;
 
+      case BTA_GATTC_CFG_MTU_EVT:
+        OnMtuChanged(p_data->cfg_mtu.conn_id, p_data->cfg_mtu.mtu);
+        break;
+
       case BTA_GATTC_SRVC_DISC_DONE_EVT:
         OnServiceDiscDoneEvent(p_data->service_discovery_done.remote_bda);
         break;
@@ -1599,14 +1723,13 @@ private:
       instance->OnCharacteristicValueChanged(conn_id, status, hdl, len, ptr,
                                              ((index == (handles.num_attr - 1)) ? data : nullptr),
                                              false);
-
       position += len + 2; /* skip the length of data */
       index++;
     }
 
-    if (handles.num_attr - 1 != index) {
+    if (handles.num_attr != index) {
       bluetooth::log::warn("Attempted to read {} handles, but received just {} values",
-                           +handles.num_attr, index + 1);
+                           +handles.num_attr, index);
     }
   }
 };

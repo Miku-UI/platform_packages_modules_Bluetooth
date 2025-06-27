@@ -158,3 +158,6 @@ void BTM_EnableInterlacedInquiryScan();
  *
  ******************************************************************************/
 void BTM_EnableInterlacedPageScan();
+
+void btm_inq_db_reset(void);
+void btm_clr_inq_result_flt(void);

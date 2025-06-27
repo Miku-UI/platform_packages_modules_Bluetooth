@@ -67,6 +67,10 @@ pub enum PropertyBool {
     LeAdvMonRtlQuirk,
     LeAdvMonQcaQuirk,
 
+    // bluetooth.core.gap
+    LePrivacyEnabled,
+    LePrivacyOwnAddressTypeEnabled,
+
     // bluetooth.le_audio
     LeAudioEnableLeAudioOnly,
 }
@@ -79,6 +83,10 @@ impl Into<(CString, bool)> for PropertyBool {
             PropertyBool::LeAdvMonQcaQuirk => ("bluetooth.core.le.adv_mon_qca_quirk", false),
             PropertyBool::LeAudioEnableLeAudioOnly => {
                 ("bluetooth.le_audio.enable_le_audio_only", false)
+            }
+            PropertyBool::LePrivacyEnabled => ("bluetooth.core.gap.le.privacy.enabled", false),
+            PropertyBool::LePrivacyOwnAddressTypeEnabled => {
+                ("bluetooth.core.gap.le.privacy.own_address_type.enabled", false)
             }
         };
 

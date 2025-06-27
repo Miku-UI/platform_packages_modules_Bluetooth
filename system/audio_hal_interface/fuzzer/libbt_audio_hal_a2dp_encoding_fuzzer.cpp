@@ -42,7 +42,7 @@ constexpr btav_a2dp_codec_index_t kCodecIndices[] = {
         BTAV_A2DP_CODEC_INDEX_SOURCE_SBC,  BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
         BTAV_A2DP_CODEC_INDEX_SOURCE_APTX, BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
         BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, BTAV_A2DP_CODEC_INDEX_SINK_SBC,
-        BTAV_A2DP_CODEC_INDEX_SINK_AAC,    BTAV_A2DP_CODEC_INDEX_SINK_LDAC};
+        BTAV_A2DP_CODEC_INDEX_SINK_AAC};
 
 std::vector<std::vector<btav_a2dp_codec_config_t>> CodecOffloadingPreferenceGenerator() {
   std::vector<std::vector<btav_a2dp_codec_config_t>> offloadingPreferences = {
@@ -92,7 +92,7 @@ void A2dpEncodingFuzzer::process(const uint8_t* data, size_t size) {
 
   bluetooth::common::MessageLoopThread messageLoopThread(name);
   messageLoopThread.StartUp();
-  messageLoopThread.DoInThread(FROM_HERE, base::BindOnce(&source_init_delayed));
+  messageLoopThread.DoInThread(base::BindOnce(&source_init_delayed));
 
   uint16_t delayReport = fdp.ConsumeIntegral<uint16_t>();
   bluetooth::audio::a2dp::set_remote_delay(delayReport);

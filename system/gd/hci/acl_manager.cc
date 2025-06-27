@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@
 #include "hci/controller.h"
 #include "hci/hci_layer.h"
 #include "hci/remote_name_request.h"
+#include "main/shim/entry.h"
 #include "storage/config_keys.h"
 #include "storage/storage_module.h"
 
@@ -84,7 +85,7 @@ struct AclManager::impl {
                                        crash_on_unknown_handle, acl_scheduler_,
                                        remote_name_request_module_);
       le_impl_ = new le_impl(hci_layer_, controller_, handler_, round_robin_scheduler_,
-                             crash_on_unknown_handle);
+                             crash_on_unknown_handle, classic_impl_);
     }
 
     hci_queue_end_ = hci_layer_->GetAclQueueEnd();
@@ -259,28 +260,13 @@ void AclManager::CreateLeConnection(AddressWithType address_with_type, bool is_d
   CallOn(pimpl_->le_impl_, &le_impl::create_le_connection, address_with_type, true, is_direct);
 }
 
-void AclManager::IsOnBackgroundList(AddressWithType address_with_type, std::promise<bool> promise) {
-  CallOn(pimpl_->le_impl_, &le_impl::is_on_background_connection_list, address_with_type,
-         std::move(promise));
-}
-
-void AclManager::SetLeSuggestedDefaultDataParameters(uint16_t octets, uint16_t time) {
-  CallOn(pimpl_->le_impl_, &le_impl::set_le_suggested_default_data_parameters, octets, time);
-}
-
-void AclManager::LeSetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
-                                     uint16_t max_latency, uint16_t cont_num, uint16_t sup_tout) {
-  CallOn(pimpl_->le_impl_, &le_impl::LeSetDefaultSubrate, subrate_min, subrate_max, max_latency,
-         cont_num, sup_tout);
-}
-
 void AclManager::SetPrivacyPolicyForInitiatorAddress(
         LeAddressManager::AddressPolicy address_policy, AddressWithType fixed_address,
         std::chrono::milliseconds minimum_rotation_time,
         std::chrono::milliseconds maximum_rotation_time) {
   Octet16 rotation_irk{};
-  auto irk_prop = GetDependency<storage::StorageModule>()->GetProperty(
-          BTIF_STORAGE_SECTION_ADAPTER, BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
+  auto irk_prop = shim::GetStorage()->GetProperty(BTIF_STORAGE_SECTION_ADAPTER,
+                                                  BTIF_STORAGE_KEY_LE_LOCAL_KEY_IRK);
   if (irk_prop.has_value()) {
     auto irk = common::ByteArray<16>::FromString(irk_prop.value());
     if (irk.has_value()) {
@@ -372,6 +358,10 @@ void AclManager::SetSystemSuspendState(bool suspended) {
   CallOn(pimpl_->le_impl_, &le_impl::set_system_suspend_state, suspended);
 }
 
+void AclManager::AddDeviceToRelaxedConnectionIntervalList(const Address address) {
+  CallOn(pimpl_->le_impl_, &le_impl::add_device_to_relaxed_connection_interval_list, address);
+}
+
 LeAddressManager* AclManager::GetLeAddressManager() {
   return pimpl_->le_impl_->le_address_manager_;
 }
@@ -396,7 +386,6 @@ void AclManager::HACK_SetAclTxPriority(uint8_t handle, bool high_priority) {
 void AclManager::ListDependencies(ModuleList* list) const {
   list->add<HciLayer>();
   list->add<Controller>();
-  list->add<storage::StorageModule>();
   list->add<AclScheduler>();
   list->add<RemoteNameRequestModule>();
 }

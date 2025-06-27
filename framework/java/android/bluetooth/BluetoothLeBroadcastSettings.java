@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package android.bluetooth;
+
+import static java.util.Objects.requireNonNull;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -162,13 +164,7 @@ public final class BluetoothLeBroadcastSettings implements Parcelable {
     public void writeToParcel(Parcel out, int flags) {
         out.writeBoolean(mIsPublicBroadcast);
         BluetoothUtils.writeStringToParcel(out, mBroadcastName);
-        if (mBroadcastCode != null) {
-            out.writeInt(mBroadcastCode.length);
-            out.writeByteArray(mBroadcastCode);
-        } else {
-            // -1 indicates missing broadcast code
-            out.writeInt(-1);
-        }
+        out.writeByteArray(mBroadcastCode);
         out.writeTypedObject(mPublicBroadcastMetadata, 0);
         out.writeTypedList(mSubgroupSettings);
     }
@@ -185,14 +181,7 @@ public final class BluetoothLeBroadcastSettings implements Parcelable {
                     Builder builder = new Builder();
                     builder.setPublicBroadcast(in.readBoolean());
                     builder.setBroadcastName(in.readString());
-                    final int codeLen = in.readInt();
-                    byte[] broadcastCode = null;
-                    if (codeLen != -1) {
-                        broadcastCode = new byte[codeLen];
-                        if (codeLen >= 0) {
-                            in.readByteArray(broadcastCode);
-                        }
-                    }
+                    byte[] broadcastCode = in.createByteArray();
                     builder.setBroadcastCode(broadcastCode);
                     builder.setPublicBroadcastMetadata(
                             in.readTypedObject(BluetoothLeAudioContentMetadata.CREATOR));
@@ -339,7 +328,7 @@ public final class BluetoothLeBroadcastSettings implements Parcelable {
         @NonNull
         public Builder addSubgroupSettings(
                 @NonNull BluetoothLeBroadcastSubgroupSettings subgroupSettings) {
-            Objects.requireNonNull(subgroupSettings, "subgroupSettings cannot be null");
+            requireNonNull(subgroupSettings);
             mSubgroupSettings.add(subgroupSettings);
             return this;
         }

@@ -18,12 +18,10 @@
 
 #include "mock_btm_layer.h"
 
+#include "stack/include/acl_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/rfcdefs.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 static bluetooth::manager::MockBtmSecurityInternalInterface* btm_security_internal_interface =
         nullptr;

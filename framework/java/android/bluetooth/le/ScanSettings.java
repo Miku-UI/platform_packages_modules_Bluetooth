@@ -17,9 +17,14 @@
 package android.bluetooth.le;
 
 import android.annotation.SystemApi;
+import android.app.compat.CompatChanges;
 import android.bluetooth.BluetoothDevice;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import com.android.bluetooth.flags.Flags;
 
 /**
  * Bluetooth LE scan settings are passed to {@link BluetoothLeScanner#startScan} to define the
@@ -162,26 +167,35 @@ public final class ScanSettings implements Parcelable {
      */
     public static final int PHY_LE_ALL_SUPPORTED = 255;
 
+    /**
+     * Starting with Android B (Baklava), the default number of trackable advertisements for onFound
+     * /onLost scanning is 2 instead of (max hardware allows / 2). TODO: b/391981111 - Change 36 to
+     * VERSION_CODES.BAKLAVA when available.
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = 36)
+    static final long CHANGE_DEFAULT_TRACKABLE_ADV_NUMBER = 386727721L;
+
     // Bluetooth LE scan mode.
-    private int mScanMode;
+    private final int mScanMode;
 
     // Bluetooth LE scan callback type.
-    private int mCallbackType;
+    private final int mCallbackType;
 
     // Bluetooth LE scan result type.
-    private int mScanResultType;
+    private final int mScanResultType;
 
     // Time of delay for reporting the scan result.
-    private long mReportDelayMillis;
+    private final long mReportDelayMillis;
 
-    private int mMatchMode;
+    private final int mMatchMode;
 
-    private int mNumOfMatchesPerFilter;
+    private final int mNumOfMatchesPerFilter;
 
     // Include only legacy advertising results.
-    private boolean mLegacy;
+    private final boolean mLegacy;
 
-    private int mPhy;
+    private final int mPhy;
 
     public int getScanMode() {
         return mScanMode;
@@ -292,7 +306,15 @@ public final class ScanSettings implements Parcelable {
         private int mMatchMode = MATCH_MODE_AGGRESSIVE;
         private int mNumOfMatchesPerFilter = MATCH_NUM_MAX_ADVERTISEMENT;
         private boolean mLegacy = true;
-        private int mPhy = PHY_LE_ALL_SUPPORTED;
+        private int mPhy = BluetoothDevice.PHY_LE_1M;
+
+        // Instance initializer for mNumOfMatchesPerFilter
+        {
+            if (Flags.changeDefaultTrackableAdvNumber()
+                    && CompatChanges.isChangeEnabled(CHANGE_DEFAULT_TRACKABLE_ADV_NUMBER)) {
+                mNumOfMatchesPerFilter = MATCH_NUM_FEW_ADVERTISEMENT;
+            }
+        }
 
         /**
          * Set scan mode for Bluetooth LE scan.
@@ -335,7 +357,7 @@ public final class ScanSettings implements Parcelable {
         }
 
         // Returns true if the callbackType is valid.
-        private boolean isValidCallbackType(int callbackType) {
+        private static boolean isValidCallbackType(int callbackType) {
             if (callbackType == CALLBACK_TYPE_ALL_MATCHES
                     || callbackType == CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH
                     || callbackType == CALLBACK_TYPE_FIRST_MATCH

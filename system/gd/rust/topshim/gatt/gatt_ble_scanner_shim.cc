@@ -245,12 +245,13 @@ void BleScannerIntf::MsftAdvMonitorEnable(bool enable) {
           base::Bind(&BleScannerIntf::OnMsftAdvMonitorEnableCallback, base::Unretained(this)));
 }
 
-void BleScannerIntf::SetScanParameters(uint8_t scanner_id, uint8_t scan_type,
-                                       uint16_t scan_interval, uint16_t scan_window,
-                                       uint8_t scan_phy) {
-  scanner_intf_->SetScanParameters(
-          scanner_id, scan_type, scan_interval, scan_window, scan_phy,
-          base::Bind(&BleScannerIntf::OnStatusCallback, base::Unretained(this), scanner_id));
+void BleScannerIntf::SetScanParameters(uint8_t scan_type, uint8_t scanner_id_1m,
+                                       uint16_t scan_interval_1m, uint16_t scan_window_1m,
+                                       uint8_t scanner_id_coded, uint16_t scan_interval_coded,
+                                       uint16_t scan_window_coded, uint8_t scan_phy) {
+  scanner_intf_->SetScanParameters(scan_type, scanner_id_1m, scan_interval_1m, scan_window_1m,
+                                   scanner_id_coded, scan_interval_coded, scan_window_coded,
+                                   scan_phy);
 }
 
 void BleScannerIntf::BatchscanConfigStorage(uint8_t scanner_id, int32_t batch_scan_full_max,

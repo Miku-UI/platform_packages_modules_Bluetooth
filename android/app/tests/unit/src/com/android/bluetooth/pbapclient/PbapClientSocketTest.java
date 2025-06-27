@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,38 +16,36 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/** Test cases for {@link PbapClientSocket}. */
 @RunWith(AndroidJUnit4.class)
 public class PbapClientSocketTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private static final int TEST_L2CAP_PSM = 4098;
     private static final int TEST_RFCOMM_CHANNEL_ID = 3;
 
-    private BluetoothAdapter mAdapter = null;
     private BluetoothDevice mTestDevice;
 
     // This class is used to wrap the otherwise unmockable/untestable BluetoothSocket class. As such
@@ -58,8 +56,7 @@ public class PbapClientSocketTest {
 
     @Before
     public void setUp() throws IOException {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = TestUtils.getTestDevice(mAdapter, 1);
+        mTestDevice = getTestDevice(1);
 
         PbapClientSocket.inject(mInjectedInput, mInjectedOutput);
     }

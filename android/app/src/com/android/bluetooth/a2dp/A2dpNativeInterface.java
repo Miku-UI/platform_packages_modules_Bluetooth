@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,71 +15,37 @@
  */
 
 /*
- * Defines the native inteface that is used by state machine/service to
+ * Defines the native interface that is used by state machine/service to
  * send or receive messages from the native stack. This file is registered
  * for the native methods in the corresponding JNI C++ file.
  */
 package com.android.bluetooth.a2dp;
 
-import android.bluetooth.BluetoothA2dp;
-import android.bluetooth.BluetoothAdapter;
+import static java.util.Objects.requireNonNull;
+
+import android.annotation.NonNull;
 import android.bluetooth.BluetoothCodecConfig;
-import android.bluetooth.BluetoothCodecStatus;
 import android.bluetooth.BluetoothCodecType;
 import android.bluetooth.BluetoothDevice;
-import android.util.Log;
 
 import com.android.bluetooth.Utils;
-import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.lang.annotation.Native;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 /** A2DP Native Interface to/from JNI. */
 public class A2dpNativeInterface {
     private static final String TAG = A2dpNativeInterface.class.getSimpleName();
-    private BluetoothAdapter mAdapter;
-    private AdapterService mAdapterService;
 
-    @GuardedBy("INSTANCE_LOCK")
-    private static A2dpNativeInterface sInstance;
+    @Native private final A2dpNativeCallback mNativeCallback;
 
-    private static BluetoothCodecType[] sSupportedCodecTypes;
-
-    private static final Object INSTANCE_LOCK = new Object();
+    private BluetoothCodecType[] mSupportedCodecTypes;
 
     @VisibleForTesting
-    private A2dpNativeInterface() {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mAdapter == null) {
-            Log.wtf(TAG, "No Bluetooth Adapter Available");
-        }
-        mAdapterService =
-                Objects.requireNonNull(
-                        AdapterService.getAdapterService(),
-                        "AdapterService cannot be null when A2dpNativeInterface init");
-    }
-
-    /** Get singleton instance. */
-    public static A2dpNativeInterface getInstance() {
-        synchronized (INSTANCE_LOCK) {
-            if (sInstance == null) {
-                sInstance = new A2dpNativeInterface();
-            }
-            return sInstance;
-        }
-    }
-
-    /** Set singleton instance. */
-    @VisibleForTesting
-    public static void setInstance(A2dpNativeInterface instance) {
-        synchronized (INSTANCE_LOCK) {
-            sInstance = instance;
-        }
+    A2dpNativeInterface(@NonNull A2dpNativeCallback nativeCallback) {
+        mNativeCallback = requireNonNull(nativeCallback);
     }
 
     /**
@@ -103,10 +69,10 @@ public class A2dpNativeInterface {
 
     /** Returns the list of locally supported codec types. */
     public List<BluetoothCodecType> getSupportedCodecTypes() {
-        if (sSupportedCodecTypes == null) {
-            sSupportedCodecTypes = getSupportedCodecTypesNative();
+        if (mSupportedCodecTypes == null) {
+            mSupportedCodecTypes = getSupportedCodecTypesNative();
         }
-        return Arrays.asList(sSupportedCodecTypes);
+        return Arrays.asList(mSupportedCodecTypes);
     }
 
     /**
@@ -161,83 +127,13 @@ public class A2dpNativeInterface {
         return setCodecConfigPreferenceNative(getByteAddress(device), codecConfigArray);
     }
 
-    private BluetoothDevice getDevice(byte[] address) {
-        return mAdapterService.getDeviceFromByte(address);
-    }
-
-    private byte[] getByteAddress(BluetoothDevice device) {
+    private static byte[] getByteAddress(BluetoothDevice device) {
         if (device == null) {
             return Utils.getBytesFromAddress("00:00:00:00:00:00");
         }
-        if (Flags.identityAddressNullIfNotKnown()) {
-            return Utils.getByteBrEdrAddress(device);
-        } else {
-            return mAdapterService.getByteIdentityAddress(device);
-        }
+        return Utils.getByteBrEdrAddress(device);
     }
 
-    private void sendMessageToService(A2dpStackEvent event) {
-        A2dpService service = A2dpService.getA2dpService();
-        if (service != null) {
-            service.messageFromNative(event);
-        } else {
-            Log.w(TAG, "Event ignored, service not available: " + event);
-        }
-    }
-
-    // Callbacks from the native stack back into the Java framework.
-    // All callbacks are routed via the Service which will disambiguate which
-    // state machine the message should be routed to.
-
-    private void onConnectionStateChanged(byte[] address, int state) {
-        A2dpStackEvent event =
-                new A2dpStackEvent(A2dpStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
-        event.device = getDevice(address);
-        event.valueInt = state;
-
-        Log.d(TAG, "onConnectionStateChanged: " + event);
-        sendMessageToService(event);
-    }
-
-    private void onAudioStateChanged(byte[] address, int state) {
-        A2dpStackEvent event = new A2dpStackEvent(A2dpStackEvent.EVENT_TYPE_AUDIO_STATE_CHANGED);
-        event.device = getDevice(address);
-        event.valueInt = state;
-
-        Log.d(TAG, "onAudioStateChanged: " + event);
-        sendMessageToService(event);
-    }
-
-    private void onCodecConfigChanged(
-            byte[] address,
-            BluetoothCodecConfig newCodecConfig,
-            BluetoothCodecConfig[] codecsLocalCapabilities,
-            BluetoothCodecConfig[] codecsSelectableCapabilities) {
-        A2dpStackEvent event = new A2dpStackEvent(A2dpStackEvent.EVENT_TYPE_CODEC_CONFIG_CHANGED);
-        event.device = getDevice(address);
-        event.codecStatus =
-                new BluetoothCodecStatus(
-                        newCodecConfig,
-                        Arrays.asList(codecsLocalCapabilities),
-                        Arrays.asList(codecsSelectableCapabilities));
-        Log.d(TAG, "onCodecConfigChanged: " + event);
-        sendMessageToService(event);
-    }
-
-    private boolean isMandatoryCodecPreferred(byte[] address) {
-        A2dpService service = A2dpService.getA2dpService();
-        if (service != null) {
-            int enabled = service.getOptionalCodecsEnabled(getDevice(address));
-            Log.d(TAG, "isMandatoryCodecPreferred: optional preference " + enabled);
-            // Optional codecs are more preferred if possible
-            return enabled == BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED;
-        } else {
-            Log.w(TAG, "isMandatoryCodecPreferred: service not available");
-            return false;
-        }
-    }
-
-    // Native methods that call into the JNI interface
     private native void initNative(
             int maxConnectedAudioDevices,
             BluetoothCodecConfig[] codecConfigPriorities,

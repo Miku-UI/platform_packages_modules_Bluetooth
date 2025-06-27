@@ -76,8 +76,8 @@ void BTA_GATTC_Disable(void) {
  * module. |client_cb| pointer to the application callback function.
  * |cb| one time callback when registration is finished
  */
-void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                           bool eatt_support) {
+void BTA_GATTC_AppRegister(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                           BtaAppRegisterCallback cb, bool eatt_support) {
   log::debug("eatt_support={}", eatt_support);
   if (!bta_sys_is_register(BTA_ID_GATTC)) {
     log::debug("BTA_ID_GATTC not registered in BTA, registering it");
@@ -86,8 +86,8 @@ void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback
 
   Uuid uuid = Uuid::From128BitBE(bluetooth::os::GenerateRandom<Uuid::kNumBytes128>());
 
-  do_in_main_thread(
-          base::BindOnce(&bta_gattc_register, uuid, p_client_cb, std::move(cb), eatt_support));
+  do_in_main_thread(base::BindOnce(&bta_gattc_register, uuid, name, p_client_cb, std::move(cb),
+                                   eatt_support));
 }
 
 static void app_deregister_impl(tGATT_IF client_if) {

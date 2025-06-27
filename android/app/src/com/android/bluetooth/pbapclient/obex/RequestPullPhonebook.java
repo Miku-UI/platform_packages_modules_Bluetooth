@@ -16,8 +16,6 @@
 
 package com.android.bluetooth.pbapclient;
 
-import android.accounts.Account;
-
 import com.android.bluetooth.ObexAppParameters;
 import com.android.obex.HeaderSet;
 import com.android.vcard.VCardEntry;
@@ -35,7 +33,6 @@ final class RequestPullPhonebook extends PbapClientRequest {
     private final byte mFormat;
     private final int mMaxListCount;
     private final int mListStartOffset;
-    private Account mAccount;
 
     private PbapPhonebook mResponse;
 
@@ -44,12 +41,11 @@ final class RequestPullPhonebook extends PbapClientRequest {
         return TYPE_PULL_PHONEBOOK;
     }
 
-    RequestPullPhonebook(String phonebook, PbapApplicationParameters params, Account account) {
+    RequestPullPhonebook(String phonebook, PbapApplicationParameters params) {
         mPhonebook = phonebook;
         mFormat = params.getVcardFormat();
         mMaxListCount = params.getMaxListCount();
         mListStartOffset = params.getListStartOffset();
-        mAccount = account;
 
         long properties = params.getPropertySelectorMask();
 
@@ -84,7 +80,7 @@ final class RequestPullPhonebook extends PbapClientRequest {
 
     @Override
     protected void readResponse(InputStream stream) throws IOException {
-        mResponse = new PbapPhonebook(mPhonebook, mFormat, mListStartOffset, mAccount, stream);
+        mResponse = new PbapPhonebook(mPhonebook, mFormat, mListStartOffset, stream);
     }
 
     public String getPhonebook() {

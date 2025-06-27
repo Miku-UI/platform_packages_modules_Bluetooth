@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,11 @@
  */
 
 package com.android.bluetooth.map;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.*;
@@ -45,7 +50,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
 import com.android.bluetooth.mapapi.BluetoothMapContract;
 import com.android.bluetooth.mapapi.BluetoothMapContract.MessageColumns;
@@ -54,7 +58,6 @@ import com.android.obex.ResponseCodes;
 import com.google.android.mms.pdu.PduHeaders;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,8 +65,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -73,6 +74,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/** Test cases for {@link BluetoothMapContentObserver}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapContentObserverTest {
@@ -121,7 +123,7 @@ public class BluetoothMapContentObserverTest {
     static final int TEST_PRIORITY = 1;
     static final int TEST_LAST_ONLINE = 1;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private BluetoothMnsObexClient mClient;
@@ -183,11 +185,9 @@ public class BluetoothMapContentObserverTest {
         // Functions that get called when BluetoothMapContentObserver is created
         when(mUserService.isUserUnlocked()).thenReturn(true);
         when(mContext.getContentResolver()).thenReturn(mMockContentResolver);
-        when(mContext.getSystemService(Context.TELEPHONY_SERVICE)).thenReturn(mTelephonyManager);
-        when(mContext.getSystemServiceName(TelephonyManager.class))
-                .thenReturn(Context.TELEPHONY_SERVICE);
-        when(mContext.getSystemService(Context.USER_SERVICE)).thenReturn(mUserService);
-        when(mContext.getSystemServiceName(UserManager.class)).thenReturn(Context.USER_SERVICE);
+        mockGetSystemService(
+                mContext, Context.TELEPHONY_SERVICE, TelephonyManager.class, mTelephonyManager);
+        mockGetSystemService(mContext, Context.USER_SERVICE, UserManager.class, mUserService);
         when(mInstance.getMasId()).thenReturn(TEST_ID);
 
         mObserver = new BluetoothMapContentObserver(mContext, mClient, mInstance, null, true);
@@ -232,9 +232,9 @@ public class BluetoothMapContentObserverTest {
                 () -> observer.pushMessage(message, folderElement, appParams, null));
 
         // Validate that 3 addresses were inserted into the database with 2 being the recipients
-        Assert.assertEquals(3, mProvider.mContents.size());
-        Assert.assertTrue(mProvider.mContents.contains(TEST_NUMBER_ONE));
-        Assert.assertTrue(mProvider.mContents.contains(TEST_NUMBER_TWO));
+        assertThat(mProvider.mContents).hasSize(3);
+        assertThat(mProvider.mContents).contains(TEST_NUMBER_ONE);
+        assertThat(mProvider.mContents).contains(TEST_NUMBER_TWO);
     }
 
     @Test
@@ -260,7 +260,7 @@ public class BluetoothMapContentObserverTest {
         mObserver.sendEvent(event);
         verify(mClient, never()).sendEvent(any(), anyInt());
 
-        event.eventType = BluetoothMapContentObserver.EVENT_TYPE_DELEVERY_SUCCESS;
+        event.eventType = BluetoothMapContentObserver.EVENT_TYPE_DELIVERY_SUCCESS;
         mObserver.sendEvent(event);
         verify(mClient, never()).sendEvent(any(), anyInt());
 
@@ -304,47 +304,40 @@ public class BluetoothMapContentObserverTest {
 
     @Test
     public void testSetContactList() {
-        Map<String, BluetoothMapConvoContactElement> map = Map.of();
+        mObserver.setContactList(Map.of(), true);
 
-        mObserver.setContactList(map, true);
-
-        Assert.assertEquals(mObserver.getContactList(), map);
+        assertThat(mObserver.getContactList()).isEmpty();
     }
 
     @Test
     public void testSetMsgListSms() {
-        Map<Long, BluetoothMapContentObserver.Msg> map = Map.of();
+        mObserver.setMsgListSms(Map.of(), true);
 
-        mObserver.setMsgListSms(map, true);
-
-        Assert.assertEquals(mObserver.getMsgListSms(), map);
+        assertThat(mObserver.getMsgListSms()).isEmpty();
     }
 
     @Test
     public void testSetMsgListMsg() {
-        Map<Long, BluetoothMapContentObserver.Msg> map = Map.of();
+        mObserver.setMsgListMsg(Map.of(), true);
 
-        mObserver.setMsgListMsg(map, true);
-
-        Assert.assertEquals(mObserver.getMsgListMsg(), map);
+        assertThat(mObserver.getMsgListMsg()).isEmpty();
     }
 
     @Test
     public void testSetMsgListMms() {
-        Map<Long, BluetoothMapContentObserver.Msg> map = Map.of();
+        mObserver.setMsgListMms(Map.of(), true);
 
-        mObserver.setMsgListMms(map, true);
-
-        Assert.assertEquals(mObserver.getMsgListMms(), map);
+        assertThat(mObserver.getMsgListMms()).isEmpty();
     }
 
     @Test
     public void testSetNotificationRegistration_withNullHandler() throws Exception {
         when(mClient.getMessageHandler()).thenReturn(null);
 
-        Assert.assertEquals(
-                mObserver.setNotificationRegistration(BluetoothMapAppParams.NOTIFICATION_STATUS_NO),
-                ResponseCodes.OBEX_HTTP_UNAVAILABLE);
+        assertThat(
+                        mObserver.setNotificationRegistration(
+                                BluetoothMapAppParams.NOTIFICATION_STATUS_NO))
+                .isEqualTo(ResponseCodes.OBEX_HTTP_UNAVAILABLE);
     }
 
     @Test
@@ -356,9 +349,10 @@ public class BluetoothMapContentObserverTest {
         when(mClient.getMessageHandler()).thenReturn(handler);
         when(mClient.isValidMnsRecord()).thenReturn(false);
 
-        Assert.assertEquals(
-                mObserver.setNotificationRegistration(BluetoothMapAppParams.NOTIFICATION_STATUS_NO),
-                ResponseCodes.OBEX_HTTP_OK);
+        assertThat(
+                        mObserver.setNotificationRegistration(
+                                BluetoothMapAppParams.NOTIFICATION_STATUS_NO))
+                .isEqualTo(ResponseCodes.OBEX_HTTP_OK);
     }
 
     @Test
@@ -370,9 +364,10 @@ public class BluetoothMapContentObserverTest {
         when(mClient.getMessageHandler()).thenReturn(handler);
         when(mClient.isValidMnsRecord()).thenReturn(true);
 
-        Assert.assertEquals(
-                mObserver.setNotificationRegistration(BluetoothMapAppParams.NOTIFICATION_STATUS_NO),
-                ResponseCodes.OBEX_HTTP_OK);
+        assertThat(
+                        mObserver.setNotificationRegistration(
+                                BluetoothMapAppParams.NOTIFICATION_STATUS_NO))
+                .isEqualTo(ResponseCodes.OBEX_HTTP_OK);
     }
 
     @Test
@@ -386,11 +381,12 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusRead(
-                        TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE));
+        assertThat(
+                        mObserver.setMessageStatusRead(
+                                TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE))
+                .isTrue();
 
-        Assert.assertEquals(msg.flagRead, TEST_STATUS_VALUE);
+        assertThat(msg.flagRead).isEqualTo(TEST_STATUS_VALUE);
     }
 
     @Test
@@ -404,11 +400,12 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusRead(
-                        TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE));
+        assertThat(
+                        mObserver.setMessageStatusRead(
+                                TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE))
+                .isTrue();
 
-        Assert.assertEquals(msg.flagRead, TEST_STATUS_VALUE);
+        assertThat(msg.flagRead).isEqualTo(TEST_STATUS_VALUE);
     }
 
     @Test
@@ -421,11 +418,12 @@ public class BluetoothMapContentObserverTest {
         mObserver.mProviderClient = mProviderClient;
         when(mProviderClient.update(any(), any(), any(), any())).thenReturn(TEST_PLACEHOLDER_INT);
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusRead(
-                        TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE));
+        assertThat(
+                        mObserver.setMessageStatusRead(
+                                TEST_HANDLE_ONE, type, TEST_URI_STR, TEST_STATUS_VALUE))
+                .isTrue();
 
-        Assert.assertEquals(msg.flagRead, TEST_STATUS_VALUE);
+        assertThat(msg.flagRead).isEqualTo(TEST_STATUS_VALUE);
     }
 
     @Test
@@ -435,7 +433,7 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Mms.MESSAGE_BOX_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListMms(map, true);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Mms.THREAD_ID});
         cursor.addRow(new Object[] {TEST_THREAD_ID});
@@ -446,9 +444,9 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
-        Assert.assertEquals(msg.threadId, BluetoothMapContentObserver.DELETED_THREAD_ID);
+        assertThat(msg.threadId).isEqualTo(BluetoothMapContentObserver.DELETED_THREAD_ID);
     }
 
     @Test
@@ -458,7 +456,7 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Mms.MESSAGE_BOX_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListMms(map, true);
-        Assert.assertNotNull(mObserver.getMsgListMms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE)).isNotNull();
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Mms.THREAD_ID});
         cursor.addRow(new Object[] {BluetoothMapContentObserver.DELETED_THREAD_ID});
@@ -469,9 +467,9 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverDelete(any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
-        Assert.assertNull(mObserver.getMsgListMms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE)).isNull();
     }
 
     @Test
@@ -481,7 +479,7 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Sms.MESSAGE_TYPE_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListSms(map, true);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Mms.THREAD_ID});
         cursor.addRow(new Object[] {TEST_THREAD_ID});
@@ -492,9 +490,9 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
-        Assert.assertEquals(msg.threadId, BluetoothMapContentObserver.DELETED_THREAD_ID);
+        assertThat(msg.threadId).isEqualTo(BluetoothMapContentObserver.DELETED_THREAD_ID);
     }
 
     @Test
@@ -504,7 +502,7 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Sms.MESSAGE_TYPE_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListSms(map, true);
-        Assert.assertNotNull(mObserver.getMsgListSms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE)).isNotNull();
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Mms.THREAD_ID});
         cursor.addRow(new Object[] {BluetoothMapContentObserver.DELETED_THREAD_ID});
@@ -515,9 +513,9 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverDelete(any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.deleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.deleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
-        Assert.assertNull(mObserver.getMsgListSms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE)).isNull();
     }
 
     @Test
@@ -527,8 +525,8 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Mms.MESSAGE_BOX_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListMms(map, true);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Mms.MESSAGE_BOX_ALL);
 
         MatrixCursor cursor =
                 new MatrixCursor(
@@ -550,10 +548,10 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
-        Assert.assertEquals(msg.threadId, TEST_OLD_THREAD_ID);
-        Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_INBOX);
+        assertThat(msg.threadId).isEqualTo(TEST_OLD_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Mms.MESSAGE_BOX_INBOX);
     }
 
     @Test
@@ -563,8 +561,8 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Mms.MESSAGE_BOX_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListMms(map, true);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Mms.MESSAGE_BOX_ALL);
 
         MatrixCursor cursor =
                 new MatrixCursor(
@@ -586,10 +584,10 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
-        Assert.assertEquals(msg.threadId, TEST_OLD_THREAD_ID);
-        Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_INBOX);
+        assertThat(msg.threadId).isEqualTo(TEST_OLD_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Mms.MESSAGE_BOX_INBOX);
     }
 
     @Test
@@ -599,8 +597,8 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Mms.MESSAGE_BOX_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListMms(map, true);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Mms.MESSAGE_BOX_ALL);
 
         MatrixCursor cursor =
                 new MatrixCursor(
@@ -615,11 +613,11 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageMms(TEST_HANDLE_ONE)).isTrue();
 
         // Nothing changes when thread id is not BluetoothMapContentObserver.DELETED_THREAD_ID
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.type, Sms.MESSAGE_TYPE_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Sms.MESSAGE_TYPE_ALL);
     }
 
     @Test
@@ -629,8 +627,8 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Sms.MESSAGE_TYPE_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListSms(map, true);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.type, Sms.MESSAGE_TYPE_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Sms.MESSAGE_TYPE_ALL);
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Sms.THREAD_ID, Sms.ADDRESS});
         cursor.addRow(new Object[] {BluetoothMapContentObserver.DELETED_THREAD_ID, TEST_ADDRESS});
@@ -644,10 +642,10 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
-        Assert.assertEquals(msg.threadId, TEST_OLD_THREAD_ID);
-        Assert.assertEquals(msg.type, Sms.MESSAGE_TYPE_INBOX);
+        assertThat(msg.threadId).isEqualTo(TEST_OLD_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Sms.MESSAGE_TYPE_INBOX);
     }
 
     @Test
@@ -657,8 +655,8 @@ public class BluetoothMapContentObserverTest {
                 createMsgWithTypeAndThreadId(Sms.MESSAGE_TYPE_ALL, TEST_THREAD_ID);
         map.put(TEST_HANDLE_ONE, msg);
         mObserver.setMsgListSms(map, true);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.type, Sms.MESSAGE_TYPE_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Sms.MESSAGE_TYPE_ALL);
 
         MatrixCursor cursor = new MatrixCursor(new String[] {Sms.THREAD_ID, Sms.ADDRESS});
         cursor.addRow(new Object[] {TEST_THREAD_ID, TEST_ADDRESS});
@@ -669,11 +667,11 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .telephonyGetOrCreateThreadId(any(), any());
 
-        Assert.assertTrue(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE));
+        assertThat(mObserver.unDeleteMessageSms(TEST_HANDLE_ONE)).isTrue();
 
         // Nothing changes when thread id is not BluetoothMapContentObserver.DELETED_THREAD_ID
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.type, Sms.MESSAGE_TYPE_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.type).isEqualTo(Sms.MESSAGE_TYPE_ALL);
     }
 
     @Test
@@ -687,11 +685,11 @@ public class BluetoothMapContentObserverTest {
         BluetoothMapContentObserver.PushMsgInfo msgInfo =
                 new BluetoothMapContentObserver.PushMsgInfo(id, transparent, retry, phone, uri);
 
-        Assert.assertEquals(msgInfo.id, id);
-        Assert.assertEquals(msgInfo.transparent, transparent);
-        Assert.assertEquals(msgInfo.retry, retry);
-        Assert.assertEquals(msgInfo.phone, phone);
-        Assert.assertEquals(msgInfo.uri, uri);
+        assertThat(msgInfo.id).isEqualTo(id);
+        assertThat(msgInfo.transparent).isEqualTo(transparent);
+        assertThat(msgInfo.retry).isEqualTo(retry);
+        assertThat(msgInfo.phone).isEqualTo(phone);
+        assertThat(msgInfo.uri).isEqualTo(uri);
     }
 
     @Test
@@ -708,13 +706,14 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
-        Assert.assertEquals(msg.folderId, TEST_DELETE_FOLDER_ID);
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isTrue();
+        assertThat(msg.folderId).isEqualTo(TEST_DELETE_FOLDER_ID);
     }
 
     @Test
@@ -729,12 +728,13 @@ public class BluetoothMapContentObserverTest {
         mObserver.setMsgListMsg(map, true);
         doReturn(0).when(mMapMethodProxy).contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertFalse(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
     }
 
     @Test
@@ -755,13 +755,14 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
-        Assert.assertEquals(msg.folderId, TEST_INBOX_FOLDER_ID);
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isTrue();
+        assertThat(msg.folderId).isEqualTo(TEST_INBOX_FOLDER_ID);
     }
 
     @Test
@@ -783,13 +784,14 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
-        Assert.assertEquals(msg.folderId, TEST_INBOX_FOLDER_ID);
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isTrue();
+        assertThat(msg.folderId).isEqualTo(TEST_INBOX_FOLDER_ID);
     }
 
     @Test
@@ -813,13 +815,14 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setEmailMessageStatusDelete(
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        TEST_HANDLE_ONE,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
-        Assert.assertEquals(msg.folderId, TEST_OLD_FOLDER_ID);
+        assertThat(
+                        mObserver.setEmailMessageStatusDelete(
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                TEST_HANDLE_ONE,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isTrue();
+        assertThat(msg.folderId).isEqualTo(TEST_OLD_FOLDER_ID);
     }
 
     @Test
@@ -836,24 +839,26 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverUpdate(any(), any(), any(), any(), any());
 
-        Assert.assertTrue(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.EMAIL,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.EMAIL,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isTrue();
     }
 
     @Test
     public void setMessageStatusDeleted_withTypeIm() {
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.IM,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.IM,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
     }
 
     @Test
@@ -867,20 +872,22 @@ public class BluetoothMapContentObserverTest {
 
         // setMessageStatusDeleted with type Gsm or Mms calls either deleteMessage() or
         // unDeleteMessage(), which returns false when no cursor is set with BluetoothMethodProxy.
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.MMS,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.SMS_GSM,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_NO));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.MMS,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isFalse();
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.SMS_GSM,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_NO))
+                .isFalse();
     }
 
     @Test
@@ -894,20 +901,22 @@ public class BluetoothMapContentObserverTest {
 
         // setMessageStatusDeleted with type Gsm or Mms calls either deleteMessage() or
         // unDeleteMessage(), which returns false when no cursor is set with BluetoothMethodProxy.
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.MMS,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
-        Assert.assertFalse(
-                mObserver.setMessageStatusDeleted(
-                        TEST_HANDLE_ONE,
-                        TYPE.SMS_GSM,
-                        mCurrentFolder,
-                        TEST_URI_STR,
-                        BluetoothMapAppParams.STATUS_VALUE_YES));
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.MMS,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
+        assertThat(
+                        mObserver.setMessageStatusDeleted(
+                                TEST_HANDLE_ONE,
+                                TYPE.SMS_GSM,
+                                mCurrentFolder,
+                                TEST_URI_STR,
+                                BluetoothMapAppParams.STATUS_VALUE_YES))
+                .isFalse();
     }
 
     @Test
@@ -934,10 +943,10 @@ public class BluetoothMapContentObserverTest {
         mObserver.initMsgList();
 
         BluetoothMapContentObserver.Msg msg = mObserver.getMsgListSms().get((long) TEST_ID);
-        Assert.assertEquals(msg.id, TEST_ID);
-        Assert.assertEquals(msg.type, TEST_SMS_TYPE_ALL);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.flagRead, TEST_READ_FLAG_ONE);
+        assertThat(msg.id).isEqualTo(TEST_ID);
+        assertThat(msg.type).isEqualTo(TEST_SMS_TYPE_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.flagRead).isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -973,10 +982,10 @@ public class BluetoothMapContentObserverTest {
         mObserver.initMsgList();
 
         BluetoothMapContentObserver.Msg msg = mObserver.getMsgListMms().get((long) TEST_ID);
-        Assert.assertEquals(msg.id, TEST_ID);
-        Assert.assertEquals(msg.type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(msg.threadId, TEST_THREAD_ID);
-        Assert.assertEquals(msg.flagRead, TEST_READ_FLAG_ZERO);
+        assertThat(msg.id).isEqualTo(TEST_ID);
+        assertThat(msg.type).isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(msg.threadId).isEqualTo(TEST_THREAD_ID);
+        assertThat(msg.flagRead).isEqualTo(TEST_READ_FLAG_ZERO);
     }
 
     @Test
@@ -1013,9 +1022,9 @@ public class BluetoothMapContentObserverTest {
         mObserver.initMsgList();
 
         BluetoothMapContentObserver.Msg msg = mObserver.getMsgListMsg().get((long) TEST_ID);
-        Assert.assertEquals(msg.id, TEST_ID);
-        Assert.assertEquals(msg.folderId, TEST_INBOX_FOLDER_ID);
-        Assert.assertEquals(msg.flagRead, TEST_READ_FLAG_ONE);
+        assertThat(msg.id).isEqualTo(TEST_ID);
+        assertThat(msg.folderId).isEqualTo(TEST_INBOX_FOLDER_ID);
+        assertThat(msg.flagRead).isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1062,16 +1071,16 @@ public class BluetoothMapContentObserverTest {
         BluetoothMapConvoContactElement contactElement = mObserver.getContactList().get(TEST_UCI);
 
         final SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
-        Assert.assertEquals(contactElement.getContactId(), TEST_UCI);
-        Assert.assertEquals(contactElement.getName(), TEST_NAME);
-        Assert.assertEquals(contactElement.getDisplayName(), TEST_DISPLAY_NAME);
-        Assert.assertEquals(contactElement.getBtUid(), TEST_BT_UID);
-        Assert.assertEquals(contactElement.getChatState(), TEST_CHAT_STATE);
-        Assert.assertEquals(contactElement.getPresenceStatus(), TEST_STATUS_TEXT);
-        Assert.assertEquals(contactElement.getPresenceAvailability(), TEST_PRESENCE_STATE);
-        Assert.assertEquals(
-                contactElement.getLastActivityString(), format.format(TEST_LAST_ACTIVITY));
-        Assert.assertEquals(contactElement.getPriority(), TEST_PRIORITY);
+        assertThat(contactElement.getContactId()).isEqualTo(TEST_UCI);
+        assertThat(contactElement.getName()).isEqualTo(TEST_NAME);
+        assertThat(contactElement.getDisplayName()).isEqualTo(TEST_DISPLAY_NAME);
+        assertThat(contactElement.getBtUid()).isEqualTo(TEST_BT_UID);
+        assertThat(contactElement.getChatState()).isEqualTo(TEST_CHAT_STATE);
+        assertThat(contactElement.getPresenceStatus()).isEqualTo(TEST_STATUS_TEXT);
+        assertThat(contactElement.getPresenceAvailability()).isEqualTo(TEST_PRESENCE_STATE);
+        assertThat(contactElement.getLastActivityString())
+                .isEqualTo(format.format(TEST_LAST_ACTIVITY));
+        assertThat(contactElement.getPriority()).isEqualTo(TEST_PRIORITY);
     }
 
     @Test
@@ -1115,11 +1124,11 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMsg(TEST_URI);
 
-        Assert.assertEquals(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).type, TEST_INBOX_FOLDER_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_INBOX_FOLDER_ID);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1165,11 +1174,11 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMsg(TEST_URI);
 
-        Assert.assertEquals(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).type, TEST_INBOX_FOLDER_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_INBOX_FOLDER_ID);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1200,11 +1209,11 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMsg(TEST_URI);
 
-        Assert.assertEquals(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).type, TEST_INBOX_FOLDER_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_INBOX_FOLDER_ID);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1235,11 +1244,11 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMsg(TEST_URI);
 
-        Assert.assertEquals(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId, TEST_DELETE_FOLDER_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId)
+                .isEqualTo(TEST_DELETE_FOLDER_ID);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1272,11 +1281,11 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMsg(TEST_URI);
 
-        Assert.assertEquals(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId, TEST_SENT_FOLDER_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId)
+                .isEqualTo(TEST_SENT_FOLDER_ID);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1313,11 +1322,11 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMsg(TEST_URI);
 
-        Assert.assertEquals(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId, TEST_SENT_FOLDER_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId)
+                .isEqualTo(TEST_SENT_FOLDER_ID);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1349,11 +1358,11 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMsg(TEST_URI);
 
-        Assert.assertEquals(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId, TEST_INBOX_FOLDER_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).folderId)
+                .isEqualTo(TEST_INBOX_FOLDER_ID);
+        assertThat(mObserver.getMsgListMsg().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1399,12 +1408,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1450,69 +1460,17 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
-    }
-
-    @Test
-    public void handleMsgListChangesMms_withNonExistingOldMessage_andVersion12() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.YEAR, -1);
-        cal.add(Calendar.DATE, -1);
-        long timestampSec = TimeUnit.MILLISECONDS.toSeconds(cal.getTimeInMillis());
-
-        MatrixCursor cursor =
-                new MatrixCursor(
-                        new String[] {
-                            Mms._ID,
-                            Mms.MESSAGE_BOX,
-                            Mms.MESSAGE_TYPE,
-                            Mms.THREAD_ID,
-                            Mms.READ,
-                            Mms.DATE,
-                            Mms.SUBJECT,
-                            Mms.PRIORITY,
-                            Mms.Addr.ADDRESS
-                        });
-        cursor.addRow(
-                new Object[] {
-                    TEST_HANDLE_ONE,
-                    TEST_MMS_TYPE_ALL,
-                    TEST_MMS_MTYPE,
-                    TEST_THREAD_ID,
-                    TEST_READ_FLAG_ONE,
-                    timestampSec,
-                    TEST_SUBJECT,
-                    PduHeaders.PRIORITY_HIGH,
-                    null
-                });
-        doReturn(cursor)
-                .when(mMapMethodProxy)
-                .contentResolverQuery(any(), any(), any(), any(), any(), any());
-
-        Map<Long, BluetoothMapContentObserver.Msg> map = new HashMap<>();
-        // Giving a different handle for msg below and cursor above makes handleMsgListChangesMms()
-        // function for a non-existing message
-        BluetoothMapContentObserver.Msg msg =
-                new BluetoothMapContentObserver.Msg(
-                        TEST_HANDLE_TWO, TEST_INBOX_FOLDER_ID, TEST_READ_FLAG_ONE);
-        map.put(TEST_HANDLE_TWO, msg);
-        mObserver.setMsgListMms(map, true);
-        mObserver.mMapEventReportVersion = BluetoothMapUtils.MAP_EVENT_REPORT_V12;
-
-        mObserver.handleMsgListChangesMms();
-
-        Assert.assertEquals(null, mObserver.getMsgListMms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
     public void handleMsgListChangesMms_withNonExistingOldMessage_andVersion12_andOneWeekLimit() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
         Instant oldInstant =
                 Instant.now()
                         .minus(BluetoothMapContentObserver.NEW_MESSAGE_DURATION_FOR_NOTIFICATION);
@@ -1559,7 +1517,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(null, mObserver.getMsgListMms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE)).isNull();
     }
 
     @Test
@@ -1593,12 +1551,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1633,12 +1592,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1673,12 +1633,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1713,13 +1674,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId,
-                BluetoothMapContentObserver.DELETED_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(BluetoothMapContentObserver.DELETED_THREAD_ID);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1755,12 +1716,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesMms();
 
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type, TEST_MMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId, undeletedThreadId);
-        Assert.assertEquals(
-                mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_MMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(undeletedThreadId);
+        assertThat(mObserver.getMsgListMms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1804,13 +1766,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesSms();
 
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type, TEST_SMS_TYPE_INBOX);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_SMS_TYPE_INBOX);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -1852,64 +1814,17 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesSms();
 
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type, TEST_SMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
-    }
-
-    @Test
-    public void handleMsgListChangesSms_withNonExistingOldMessage_andVersion12() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.YEAR, -1);
-        cal.add(Calendar.DATE, -1);
-
-        MatrixCursor cursor =
-                new MatrixCursor(
-                        new String[] {
-                            Sms._ID,
-                            Sms.TYPE,
-                            Sms.THREAD_ID,
-                            Sms.READ,
-                            Sms.DATE,
-                            Sms.BODY,
-                            Sms.ADDRESS
-                        });
-        cursor.addRow(
-                new Object[] {
-                    TEST_HANDLE_ONE,
-                    TEST_SMS_TYPE_ALL,
-                    TEST_THREAD_ID,
-                    TEST_READ_FLAG_ONE,
-                    cal.getTimeInMillis(),
-                    "",
-                    null
-                });
-        doReturn(cursor)
-                .when(mMapMethodProxy)
-                .contentResolverQuery(any(), any(), any(), any(), any(), any());
-
-        Map<Long, BluetoothMapContentObserver.Msg> map = new HashMap<>();
-        // Giving a different handle for msg below and cursor above makes handleMsgListChangesMms()
-        // function for a non-existing message
-        BluetoothMapContentObserver.Msg msg =
-                new BluetoothMapContentObserver.Msg(
-                        TEST_HANDLE_TWO, TEST_SMS_TYPE_INBOX, TEST_READ_FLAG_ONE);
-        map.put(TEST_HANDLE_TWO, msg);
-        mObserver.setMsgListSms(map, true);
-        mObserver.mMapEventReportVersion = BluetoothMapUtils.MAP_EVENT_REPORT_V12;
-
-        mObserver.handleMsgListChangesSms();
-
-        Assert.assertEquals(null, mObserver.getMsgListSms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_SMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
     public void handleMsgListChangesSms_withNonExistingOldMessage_andVersion12_andOneWeekLimit() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_MAP_LIMIT_NOTIFICATION);
         Instant oldInstant =
                 Instant.now()
                         .minus(BluetoothMapContentObserver.NEW_MESSAGE_DURATION_FOR_NOTIFICATION);
@@ -1951,7 +1866,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesSms();
 
-        Assert.assertEquals(null, mObserver.getMsgListSms().get(TEST_HANDLE_ONE));
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE)).isNull();
     }
 
     @Test
@@ -1978,12 +1893,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesSms();
 
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type, TEST_SMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_SMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -2010,12 +1926,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesSms();
 
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type, TEST_SMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId, TEST_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_SMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(TEST_THREAD_ID);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -2045,13 +1962,13 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesSms();
 
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type, TEST_SMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId,
-                BluetoothMapContentObserver.DELETED_THREAD_ID);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_SMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(BluetoothMapContentObserver.DELETED_THREAD_ID);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
@@ -2079,19 +1996,20 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.handleMsgListChangesSms();
 
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id, TEST_HANDLE_ONE);
-        Assert.assertEquals(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type, TEST_SMS_TYPE_ALL);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId, undeletedThreadId);
-        Assert.assertEquals(
-                mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead, TEST_READ_FLAG_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).id).isEqualTo(TEST_HANDLE_ONE);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).type)
+                .isEqualTo(TEST_SMS_TYPE_ALL);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).threadId)
+                .isEqualTo(undeletedThreadId);
+        assertThat(mObserver.getMsgListSms().get(TEST_HANDLE_ONE).flagRead)
+                .isEqualTo(TEST_READ_FLAG_ONE);
     }
 
     @Test
     public void handleMmsSendIntent_withMnsClientNotConnected() {
         when(mClient.isConnected()).thenReturn(false);
 
-        Assert.assertFalse(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isFalse();
     }
 
     @Test
@@ -2101,7 +2019,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mIntent)
                 .getLongExtra(BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_HANDLE, -1);
 
-        Assert.assertTrue(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isTrue();
     }
 
     @Test
@@ -2120,7 +2038,7 @@ public class BluetoothMapContentObserverTest {
                 .getIntExtra(BluetoothMapContentObserver.EXTRA_MESSAGE_SENT_TRANSPARENT, 0);
         mObserver.mObserverRegistered = true;
 
-        Assert.assertTrue(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isTrue();
     }
 
     @Test
@@ -2139,7 +2057,7 @@ public class BluetoothMapContentObserverTest {
                 .when(mMapMethodProxy)
                 .contentResolverDelete(any(), any(), any(), any());
 
-        Assert.assertTrue(mObserver.handleMmsSendIntent(mContext, mIntent));
+        assertThat(mObserver.handleMmsSendIntent(mContext, mIntent)).isTrue();
     }
 
     @Test
@@ -2160,7 +2078,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMessageSentDisconnected(mContext, mIntent, 1);
 
-        Assert.assertTrue(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList).containsKey(TEST_HANDLE_ONE);
     }
 
     @Test
@@ -2197,7 +2115,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, 1, mmsMsgList);
 
-        Assert.assertTrue(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList).containsKey(TEST_HANDLE_ONE);
     }
 
     @Test
@@ -2218,7 +2136,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, 1, mmsMsgList);
 
-        Assert.assertFalse(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList).doesNotContainKey(TEST_HANDLE_ONE);
     }
 
     @Test
@@ -2244,7 +2162,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, Activity.RESULT_OK, mmsMsgList);
 
-        Assert.assertTrue(mmsMsgList.containsKey(TEST_HANDLE_ONE));
+        assertThat(mmsMsgList).containsKey(TEST_HANDLE_ONE);
     }
 
     @Test
@@ -2262,7 +2180,7 @@ public class BluetoothMapContentObserverTest {
 
         mObserver.actionMmsSent(mContext, mIntent, Activity.RESULT_FIRST_USER, mmsMsgList);
 
-        Assert.assertEquals(msg.type, Mms.MESSAGE_BOX_OUTBOX);
+        assertThat(msg.type).isEqualTo(Mms.MESSAGE_BOX_OUTBOX);
     }
 
     @Test
@@ -2401,16 +2319,16 @@ public class BluetoothMapContentObserverTest {
 
         BluetoothMapConvoContactElement contactElement = mObserver.getContactList().get(TEST_UCI);
         final SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
-        Assert.assertEquals(contactElement.getContactId(), TEST_UCI);
-        Assert.assertEquals(contactElement.getName(), TEST_NAME);
-        Assert.assertEquals(contactElement.getDisplayName(), TEST_DISPLAY_NAME);
-        Assert.assertEquals(contactElement.getBtUid(), TEST_BT_UID);
-        Assert.assertEquals(contactElement.getChatState(), TEST_CHAT_STATE);
-        Assert.assertEquals(contactElement.getPresenceStatus(), TEST_STATUS_TEXT);
-        Assert.assertEquals(contactElement.getPresenceAvailability(), TEST_PRESENCE_STATE);
-        Assert.assertEquals(
-                contactElement.getLastActivityString(), format.format(TEST_LAST_ACTIVITY));
-        Assert.assertEquals(contactElement.getPriority(), TEST_PRIORITY);
+        assertThat(contactElement.getContactId()).isEqualTo(TEST_UCI);
+        assertThat(contactElement.getName()).isEqualTo(TEST_NAME);
+        assertThat(contactElement.getDisplayName()).isEqualTo(TEST_DISPLAY_NAME);
+        assertThat(contactElement.getBtUid()).isEqualTo(TEST_BT_UID);
+        assertThat(contactElement.getChatState()).isEqualTo(TEST_CHAT_STATE);
+        assertThat(contactElement.getPresenceStatus()).isEqualTo(TEST_STATUS_TEXT);
+        assertThat(contactElement.getPresenceAvailability()).isEqualTo(TEST_PRESENCE_STATE);
+        assertThat(contactElement.getLastActivityString())
+                .isEqualTo(format.format(TEST_LAST_ACTIVITY));
+        assertThat(contactElement.getPriority()).isEqualTo(TEST_PRIORITY);
     }
 
     @Test
@@ -2472,16 +2390,16 @@ public class BluetoothMapContentObserverTest {
 
         BluetoothMapConvoContactElement contactElement = mObserver.getContactList().get(TEST_UCI);
         final SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
-        Assert.assertEquals(contactElement.getContactId(), TEST_UCI);
-        Assert.assertEquals(contactElement.getName(), TEST_NAME);
-        Assert.assertEquals(contactElement.getDisplayName(), TEST_DISPLAY_NAME);
-        Assert.assertEquals(contactElement.getBtUid(), TEST_BT_UID);
-        Assert.assertEquals(contactElement.getChatState(), TEST_CHAT_STATE);
-        Assert.assertEquals(contactElement.getPresenceStatus(), TEST_STATUS_TEXT);
-        Assert.assertEquals(contactElement.getPresenceAvailability(), TEST_PRESENCE_STATE);
-        Assert.assertEquals(
-                contactElement.getLastActivityString(), format.format(TEST_LAST_ACTIVITY));
-        Assert.assertEquals(contactElement.getPriority(), TEST_PRIORITY);
+        assertThat(contactElement.getContactId()).isEqualTo(TEST_UCI);
+        assertThat(contactElement.getName()).isEqualTo(TEST_NAME);
+        assertThat(contactElement.getDisplayName()).isEqualTo(TEST_DISPLAY_NAME);
+        assertThat(contactElement.getBtUid()).isEqualTo(TEST_BT_UID);
+        assertThat(contactElement.getChatState()).isEqualTo(TEST_CHAT_STATE);
+        assertThat(contactElement.getPresenceStatus()).isEqualTo(TEST_STATUS_TEXT);
+        assertThat(contactElement.getPresenceAvailability()).isEqualTo(TEST_PRESENCE_STATE);
+        assertThat(contactElement.getLastActivityString())
+                .isEqualTo(format.format(TEST_LAST_ACTIVITY));
+        assertThat(contactElement.getPriority()).isEqualTo(TEST_PRIORITY);
     }
 
     @Test
@@ -2496,15 +2414,16 @@ public class BluetoothMapContentObserverTest {
         verify(mProviderClient, never()).query(any(), any(), any(), any(), any(), any());
     }
 
-    private BluetoothMapContentObserver.Msg createSimpleMsg() {
+    private static BluetoothMapContentObserver.Msg createSimpleMsg() {
         return new BluetoothMapContentObserver.Msg(1, 1L, 1);
     }
 
-    private BluetoothMapContentObserver.Msg createMsgWithTypeAndThreadId(int type, int threadId) {
+    private static BluetoothMapContentObserver.Msg createMsgWithTypeAndThreadId(
+            int type, int threadId) {
         return new BluetoothMapContentObserver.Msg(1, type, threadId, 1);
     }
 
-    private void setFolderStructureWithTelecomAndMsg(
+    private static void setFolderStructureWithTelecomAndMsg(
             BluetoothMapFolderElement folderElement, String folderName, long folderId) {
         folderElement.addFolder("telecom");
         folderElement.getSubFolder("telecom").addFolder("msg");

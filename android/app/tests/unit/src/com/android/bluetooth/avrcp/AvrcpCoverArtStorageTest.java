@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -35,6 +35,7 @@ import org.junit.runner.RunWith;
 
 import java.io.InputStream;
 
+/** Test cases for {@link AvrcpCoverArtStorage}. */
 @RunWith(AndroidJUnit4.class)
 public class AvrcpCoverArtStorageTest {
     private Resources mTestResources;
@@ -44,7 +45,8 @@ public class AvrcpCoverArtStorageTest {
     @Before
     public void setUp() throws Exception {
         mTestResources =
-                TestUtils.getTestApplicationResources(InstrumentationRegistry.getTargetContext());
+                TestUtils.getTestApplicationResources(
+                        InstrumentationRegistry.getInstrumentation().getTargetContext());
 
         mAvrcpCoverArtStorage = new AvrcpCoverArtStorage(2);
     }

@@ -570,10 +570,9 @@ void avdt_scb_hdl_setconfig_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   // the codec type differs from the type of the SEP, or INVALID_CODEC_TYPE
   // if the codec type does not match the values defined by Assigned Numbers.
   if (local_codec_type != remote_codec_type) {
-    p_data->msg.hdr.err_code =
-            !com::android::bluetooth::flags::avdtp_error_codes() ? AVDTP_UNSUPPORTED_CONFIGURATION
-            : !A2DP_IsCodecTypeValid(remote_codec_type)          ? A2DP_INVALID_CODEC_TYPE
-                                                                 : A2DP_NOT_SUPPORTED_CODEC_TYPE;
+    p_data->msg.hdr.err_code = !A2DP_IsCodecTypeValid(remote_codec_type)
+                                       ? A2DP_INVALID_CODEC_TYPE
+                                       : A2DP_NOT_SUPPORTED_CODEC_TYPE;
     p_data->msg.hdr.err_param = 0;
     avdt_msg_send_rej(avdt_ccb_by_idx(p_data->msg.hdr.ccb_idx), p_data->msg.hdr.sig_id,
                       &p_data->msg);
@@ -680,11 +679,18 @@ void avdt_scb_hdl_setconfig_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     // Delay reporting is sent before open request (i.e., in configured state).
     avdt_scb_snd_snk_delay_rpt_req(p_scb, p_data);
 
-    /* initiate open */
-    single.seid = p_scb->peer_seid;
-    tAVDT_SCB_EVT avdt_scb_evt;
-    avdt_scb_evt.msg.single = single;
-    avdt_scb_event(p_scb, AVDT_SCB_API_OPEN_REQ_EVT, &avdt_scb_evt);
+    if (com::android::bluetooth::flags::avdt_wait_for_initial_delay_report_as_initiator() &&
+        (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+      log::verbose("set alarm init_delay_report_timer");
+      alarm_set_on_mloop(p_scb->init_delay_report_timer, AVDT_INIT_DELAY_REPORT_TIMEOUT_MS,
+                         avdt_init_delay_report_timer_timeout, p_scb);
+    } else {
+      /* initiate open */
+      single.seid = p_scb->peer_seid;
+      tAVDT_SCB_EVT avdt_scb_evt;
+      avdt_scb_evt.msg.single = single;
+      avdt_scb_event(p_scb, AVDT_SCB_API_OPEN_REQ_EVT, &avdt_scb_evt);
+    }
   }
 }
 
@@ -836,11 +842,38 @@ void avdt_scb_hdl_delay_rpt_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
           avdt_scb_to_hdl(p_scb), p_scb->p_ccb ? p_scb->p_ccb->peer_addr : RawAddress::kEmpty,
           AVDT_DELAY_REPORT_EVT, (tAVDT_CTRL*)&p_data->msg.hdr, p_scb->stream_config.scb_index);
 
-  if (p_scb->p_ccb) {
-    avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_DELAY_RPT, &p_data->msg);
-  } else {
+  if (!p_scb->p_ccb) {
     avdt_scb_rej_not_in_use(p_scb, p_data);
+    return;
   }
+
+  avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_DELAY_RPT, &p_data->msg);
+
+  if (!com::android::bluetooth::flags::avdt_wait_for_initial_delay_report_as_initiator()) {
+    return;
+  }
+
+  if (!alarm_is_scheduled(p_scb->init_delay_report_timer)) {
+    log::verbose("init_delay_report_timer alarm not scheduled");
+    return;
+  }
+
+  if (!(p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+    log::verbose("delay report not supported");
+    return;
+  }
+
+  if (p_scb->state != AVDT_SCB_CONF_ST) {
+    log::verbose("not initial delay report");
+    return;
+  }
+
+  alarm_cancel(p_scb->init_delay_report_timer);
+
+  log::verbose("initiate open after receiving initial delay report");
+  tAVDT_EVT_HDR single = {.seid = p_scb->peer_seid};
+  tAVDT_SCB_EVT avdt_scb_evt = {.msg = {.single = single}};
+  avdt_scb_event(p_scb, AVDT_SCB_API_OPEN_REQ_EVT, &avdt_scb_evt);
 }
 
 /*******************************************************************************

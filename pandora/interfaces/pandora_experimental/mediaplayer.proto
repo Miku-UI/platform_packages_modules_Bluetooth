@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 
 service MediaPlayer {
   rpc Play(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc PlayUpdated(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc Stop(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc Pause(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc Rewind(google.protobuf.Empty) returns (google.protobuf.Empty);
@@ -17,6 +18,7 @@ service MediaPlayer {
   rpc Backward(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc SetLargeMetadata(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc UpdateQueue(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc ResetQueue(google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc GetShuffleMode(google.protobuf.Empty) returns (GetShuffleModeResponse);
   rpc SetShuffleMode(SetShuffleModeRequest) returns (google.protobuf.Empty);
   rpc StartTestPlayback(google.protobuf.Empty) returns (google.protobuf.Empty);

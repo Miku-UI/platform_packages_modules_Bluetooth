@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 /* Place a message into current directory on MSE. */
-@VisibleForTesting
+@VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 public class RequestPushMessage extends Request {
 
     private static final String TYPE = "x-bt/message";
@@ -64,8 +64,6 @@ public class RequestPushMessage extends Request {
                 mMsgHandle = handle;
             }
         } catch (NumberFormatException e) {
-            mResponseCode = ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
-        } catch (IOException e) {
             mResponseCode = ResponseCodes.OBEX_HTTP_INTERNAL_ERROR;
         }
     }

@@ -76,12 +76,7 @@ cc_library_static {
         },
     },
     host_supported: true,
-    cflags: [
-        "-Wthread-safety",
-    ],
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     header_libs: ["libbluetooth_headers"],
 }
@@ -94,6 +89,7 @@ cc_test {
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
@@ -228,7 +224,6 @@ cc_defaults {
         "android.hardware.common.fmq-V1-ndk",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
@@ -239,12 +234,10 @@ cc_defaults {
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbt-stack",
-        "libbt-stack-core",
         "libbtcore",
         "libbtdevice",
         "libbte",
         "libbtif",
-        "libbtif-core",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libcutils",
@@ -273,12 +266,14 @@ cc_defaults {
 // Bluetooth Audio client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-aidl-leaudio-utils",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "fluoride_defaults",
         "latest_android_hardware_audio_common_ndk_static",
         "latest_android_hardware_bluetooth_audio_ndk_static",
         "latest_android_media_audio_common_types_ndk_static",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
@@ -291,6 +286,7 @@ cc_test {
         "aidl/le_audio_utils_unittest.cc",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libbinder",
         "libbinder_ndk",
@@ -324,9 +320,11 @@ cc_test {
 // Bluetooth Audio client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-le-audio-software",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/audio_hal_interface",
@@ -360,9 +358,11 @@ cc_test {
 // HFP client interface library unit tests
 cc_test {
     name: "bluetooth-test-audio-hal-hfp-client-interface",
+    test_suites: ["general-tests"],
     host_supported: true,
     defaults: [
         "libbt_audio_hal_interface_test_defaults",
+        "mts_defaults",
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system/audio_hal_interface",

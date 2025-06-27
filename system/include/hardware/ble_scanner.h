@@ -28,30 +28,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
 
-/** Callback invoked when batchscan reports are obtained */
-typedef void (*batchscan_reports_callback)(int client_if, int status, int report_format,
-                                           int num_records, std::vector<uint8_t> data);
-
-/** Callback invoked when batchscan storage threshold limit is crossed */
-typedef void (*batchscan_threshold_callback)(int client_if);
-
-/** Track ADV VSE callback invoked when tracked device is found or lost */
-typedef void (*track_adv_event_callback)(btgatt_track_adv_info_t* p_track_adv_info);
-
-/** Callback for scan results */
-typedef void (*scan_result_callback)(uint16_t event_type, uint8_t addr_type, RawAddress* bda,
-                                     uint8_t primary_phy, uint8_t secondary_phy,
-                                     uint8_t advertising_sid, int8_t tx_power, int8_t rssi,
-                                     uint16_t periodic_adv_int, std::vector<uint8_t> adv_data,
-                                     RawAddress* original_bda);
-
-typedef struct {
-  scan_result_callback scan_result_cb;
-  batchscan_reports_callback batchscan_reports_cb;
-  batchscan_threshold_callback batchscan_threshold_cb;
-  track_adv_event_callback track_adv_event_cb;
-} btgatt_scanner_callbacks_t;
-
 class AdvertisingTrackInfo {
 public:
   // For MSFT-based advertisement monitor.
@@ -160,8 +136,9 @@ public:
   virtual void MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEnableCallback cb) = 0;
 
   /** Sets the LE scan interval and window in units of N*0.625 msec */
-  virtual void SetScanParameters(int scanner_id, uint8_t scan_type, int scan_interval,
-                                 int scan_window, int scan_phy, Callback cb) = 0;
+  virtual void SetScanParameters(uint8_t scan_type, int scanner_id_1m, int scan_interval_1m,
+                                 int scan_window_1m, int scanner_id_coded, int scan_interval_coded,
+                                 int scan_window_coded, int scan_phy) = 0;
 
   /* Configure the batchscan storage */
   virtual void BatchscanConfigStorage(int client_if, int batch_scan_full_max,

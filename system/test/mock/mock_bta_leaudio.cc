@@ -41,14 +41,13 @@ class HalVersionManager {
 }  // namespace audio
 }  // namespace bluetooth
 
-void LeAudioClient::AddFromStorage(const RawAddress& /* addr */, bool /* autoconnect */,
-                                   int /* sink_audio_location */, int /* source_audio_location */,
-                                   int /* sink_supported_context_types */,
-                                   int /* source_supported_context_types */,
-                                   const std::vector<uint8_t>& /* handles */,
-                                   const std::vector<uint8_t>& /* sink_pacs */,
-                                   const std::vector<uint8_t>& /* source_pacs */,
-                                   const std::vector<uint8_t>& /* ases */) {
+void LeAudioClient::AddFromStorage(
+        const RawAddress& /* addr */, bool /* autoconnect */,
+        std::optional<int> /* sink_audio_location */,
+        std::optional<int> /* source_audio_location */, int /* sink_supported_context_types */,
+        int /* source_supported_context_types */, const std::vector<uint8_t>& /* handles */,
+        const std::vector<uint8_t>& /* sink_pacs */, const std::vector<uint8_t>& /* source_pacs */,
+        const std::vector<uint8_t>& /* ases */, const std::vector<uint8_t>& /* gmap */) {
   inc_func_call_count(__func__);
 }
 
@@ -71,6 +70,12 @@ bool LeAudioClient::GetSourcePacsForStorage(const RawAddress& /* addr */,
 }
 
 bool LeAudioClient::GetAsesForStorage(const RawAddress& /* addr */,
+                                      std::vector<uint8_t>& /* out */) {
+  inc_func_call_count(__func__);
+  return false;
+}
+
+bool LeAudioClient::GetGmapForStorage(const RawAddress& /* addr */,
                                       std::vector<uint8_t>& /* out */) {
   inc_func_call_count(__func__);
   return false;

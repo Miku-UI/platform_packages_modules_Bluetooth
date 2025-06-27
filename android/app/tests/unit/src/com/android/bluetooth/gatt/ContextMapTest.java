@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.anyInt;
@@ -24,8 +26,8 @@ import static org.mockito.Mockito.doReturn;
 import android.bluetooth.IBluetoothGattCallback;
 import android.content.pm.PackageManager;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -41,8 +43,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.List;
 import java.util.UUID;
@@ -63,7 +63,7 @@ public class ContextMapTest {
 
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private IBluetoothGattCallback mMockCallback;
@@ -140,15 +140,15 @@ public class ContextMapTest {
     @Test
     public void removeMethods() {
         ContextMap<IBluetoothGattCallback> contextMap = getMapWithAppAndConnection();
-        contextMap.remove(APP_ID1);
+        contextMap.remove(APP_ID1, ContextMap.RemoveReason.REASON_UNREGISTER_CLIENT);
         assertThat(contextMap.getAllAppsIds()).isNotEmpty();
-        contextMap.remove(APP_ID2);
+        contextMap.remove(APP_ID2, ContextMap.RemoveReason.REASON_UNREGISTER_CLIENT);
         assertThat(contextMap.getAllAppsIds()).isEmpty();
 
         contextMap = getMapWithAppAndConnection();
-        contextMap.remove(RANDOM_UUID1);
+        contextMap.remove(RANDOM_UUID1, ContextMap.RemoveReason.REASON_REGISTER_FAILED);
         assertThat(contextMap.getAllAppsIds()).isNotEmpty();
-        contextMap.remove(RANDOM_UUID2);
+        contextMap.remove(RANDOM_UUID2, ContextMap.RemoveReason.REASON_REGISTER_FAILED);
         assertThat(contextMap.getAllAppsIds()).isEmpty();
 
         contextMap = getMapWithAppAndConnection();
@@ -178,14 +178,18 @@ public class ContextMapTest {
                         RANDOM_UUID1,
                         mMockCallback,
                         mAdapterService,
-                        InstrumentationRegistry.getTargetContext().getAttributionSource());
+                        InstrumentationRegistry.getInstrumentation()
+                                .getTargetContext()
+                                .getAttributionSource());
         app.id = APP_ID1;
         app =
                 contextMap.add(
                         RANDOM_UUID2,
                         mMockCallback,
                         mAdapterService,
-                        InstrumentationRegistry.getTargetContext().getAttributionSource());
+                        InstrumentationRegistry.getInstrumentation()
+                                .getTargetContext()
+                                .getAttributionSource());
         app.id = APP_ID2;
 
         contextMap.addConnection(APP_ID1, CONN_ID1, ADDRESS1);

@@ -77,6 +77,9 @@ android_test {
         "configs/pts_bot_tests_config.json",
         "configs/pts_bot_tests_config_auto.json",
     ],
-    test_suites: ["mts-bluetooth"],
+    test_suites: [
+        "mts-bluetooth",
+        "mts-bt",
+    ],
     min_sdk_version: "Tiramisu",
 }

@@ -5,18 +5,14 @@ use std::rc::Rc;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::{
-    core::uuid::Uuid,
-    gatt::{
-        callbacks::GattDatastore,
-        ffi::AttributeBackingType,
-        ids::{AttHandle, TransportIndex},
-        server::gatt_database::{
-            AttPermissions, GattCharacteristicWithHandle, GattDatabase, GattServiceWithHandle,
-        },
-    },
-    packets::att::AttErrorCode,
+use crate::core::uuid::Uuid;
+use crate::gatt::callbacks::GattDatastore;
+use crate::gatt::ffi::AttributeBackingType;
+use crate::gatt::ids::{AttHandle, TransportIndex};
+use crate::gatt::server::gatt_database::{
+    AttPermissions, GattCharacteristicWithHandle, GattDatabase, GattServiceWithHandle,
 };
+use crate::packets::att::AttErrorCode;
 
 struct GapService;
 
@@ -95,14 +91,12 @@ pub fn register_gap_service(database: &mut GattDatabase) -> Result<()> {
 mod test {
     use super::*;
 
-    use crate::{
-        core::shared_box::SharedBox,
-        gatt::server::{
-            att_database::AttDatabase,
-            gatt_database::{GattDatabase, CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID},
-        },
-        utils::task::block_on_locally,
+    use crate::core::shared_box::SharedBox;
+    use crate::gatt::server::att_database::AttDatabase;
+    use crate::gatt::server::gatt_database::{
+        GattDatabase, CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID,
     };
+    use crate::utils::task::block_on_locally;
 
     const TCB_IDX: TransportIndex = TransportIndex(1);
 

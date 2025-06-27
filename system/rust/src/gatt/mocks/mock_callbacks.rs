@@ -1,12 +1,10 @@
 //! Mocked implementation of GattCallbacks for use in test
 
-use crate::gatt::{
-    callbacks::{GattWriteType, TransactionDecision},
-    ffi::AttributeBackingType,
-    ids::{AttHandle, ConnectionId, TransactionId},
-    server::IndicationError,
-    GattCallbacks,
-};
+use crate::gatt::callbacks::{GattWriteType, TransactionDecision};
+use crate::gatt::ffi::AttributeBackingType;
+use crate::gatt::ids::{AttHandle, ConnectionId, TransactionId};
+use crate::gatt::server::IndicationError;
+use crate::gatt::GattCallbacks;
 use tokio::sync::mpsc::{self, unbounded_channel, UnboundedReceiver};
 
 /// Routes calls to GattCallbacks into a channel of MockCallbackEvents

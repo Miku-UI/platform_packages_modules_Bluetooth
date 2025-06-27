@@ -25,7 +25,7 @@ import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.IBluetoothGatt;
+import android.bluetooth.IBluetoothAdvertise;
 import android.bluetooth.annotations.RequiresBluetoothAdvertisePermission;
 import android.bluetooth.annotations.RequiresLegacyBluetoothAdminPermission;
 import android.content.AttributionSource;
@@ -41,20 +41,20 @@ import android.util.Log;
  * @see AdvertiseData
  */
 public final class AdvertisingSet {
-    private static final String TAG = "AdvertisingSet";
+    private static final String TAG = AdvertisingSet.class.getSimpleName();
 
-    private final IBluetoothGatt mGatt;
+    private final IBluetoothAdvertise mAdvertise;
     private int mAdvertiserId;
-    private AttributionSource mAttributionSource;
+    private final AttributionSource mAttributionSource;
 
     AdvertisingSet(
-            IBluetoothGatt gatt,
+            IBluetoothAdvertise advertise,
             int advertiserId,
             BluetoothAdapter bluetoothAdapter,
             AttributionSource attributionSource) {
         mAdvertiserId = advertiserId;
         mAttributionSource = attributionSource;
-        mGatt = requireNonNull(gatt, "Bluetooth gatt cannot be null");
+        mAdvertise = requireNonNull(advertise);
     }
 
     /* package */ void setAdvertiserId(int advertiserId) {
@@ -77,7 +77,7 @@ public final class AdvertisingSet {
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void enableAdvertising(boolean enable, int duration, int maxExtendedAdvertisingEvents) {
         try {
-            mGatt.enableAdvertisingSet(
+            mAdvertise.enableAdvertisingSet(
                     mAdvertiserId,
                     enable,
                     duration,
@@ -105,7 +105,7 @@ public final class AdvertisingSet {
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setAdvertisingData(AdvertiseData advertiseData) {
         try {
-            mGatt.setAdvertisingData(mAdvertiserId, advertiseData, mAttributionSource);
+            mAdvertise.setAdvertisingData(mAdvertiserId, advertiseData, mAttributionSource);
         } catch (RemoteException e) {
             Log.e(TAG, "remote exception - ", e);
         }
@@ -125,7 +125,7 @@ public final class AdvertisingSet {
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setScanResponseData(AdvertiseData scanResponse) {
         try {
-            mGatt.setScanResponseData(mAdvertiserId, scanResponse, mAttributionSource);
+            mAdvertise.setScanResponseData(mAdvertiserId, scanResponse, mAttributionSource);
         } catch (RemoteException e) {
             Log.e(TAG, "remote exception - ", e);
         }
@@ -136,14 +136,20 @@ public final class AdvertisingSet {
      * advertising is not active. This method returns immediately, the operation status is delivered
      * through {@code callback.onAdvertisingParametersUpdated}.
      *
+     * <p>Requires the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} permission when
+     * {@code parameters.getOwnAddressType()} is different from {@code
+     * AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT} or {@code parameters.isDirected()} is true.
+     *
      * @param parameters advertising set parameters.
      */
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothAdvertisePermission
-    @RequiresPermission(BLUETOOTH_ADVERTISE)
+    @RequiresPermission(
+            allOf = {BLUETOOTH_ADVERTISE, BLUETOOTH_PRIVILEGED},
+            conditional = true)
     public void setAdvertisingParameters(AdvertisingSetParameters parameters) {
         try {
-            mGatt.setAdvertisingParameters(mAdvertiserId, parameters, mAttributionSource);
+            mAdvertise.setAdvertisingParameters(mAdvertiserId, parameters, mAttributionSource);
         } catch (RemoteException e) {
             Log.e(TAG, "remote exception - ", e);
         }
@@ -159,7 +165,8 @@ public final class AdvertisingSet {
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setPeriodicAdvertisingParameters(PeriodicAdvertisingParameters parameters) {
         try {
-            mGatt.setPeriodicAdvertisingParameters(mAdvertiserId, parameters, mAttributionSource);
+            mAdvertise.setPeriodicAdvertisingParameters(
+                    mAdvertiserId, parameters, mAttributionSource);
         } catch (RemoteException e) {
             Log.e(TAG, "remote exception - ", e);
         }
@@ -180,7 +187,7 @@ public final class AdvertisingSet {
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setPeriodicAdvertisingData(AdvertiseData periodicData) {
         try {
-            mGatt.setPeriodicAdvertisingData(mAdvertiserId, periodicData, mAttributionSource);
+            mAdvertise.setPeriodicAdvertisingData(mAdvertiserId, periodicData, mAttributionSource);
         } catch (RemoteException e) {
             Log.e(TAG, "remote exception - ", e);
         }
@@ -197,7 +204,7 @@ public final class AdvertisingSet {
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public void setPeriodicAdvertisingEnabled(boolean enable) {
         try {
-            mGatt.setPeriodicAdvertisingEnable(mAdvertiserId, enable, mAttributionSource);
+            mAdvertise.setPeriodicAdvertisingEnable(mAdvertiserId, enable, mAttributionSource);
         } catch (RemoteException e) {
             Log.e(TAG, "remote exception - ", e);
         }
@@ -217,7 +224,7 @@ public final class AdvertisingSet {
             })
     public void getOwnAddress() {
         try {
-            mGatt.getOwnAddress(mAdvertiserId, mAttributionSource);
+            mAdvertise.getOwnAddress(mAdvertiserId, mAttributionSource);
         } catch (RemoteException e) {
             Log.e(TAG, "remote exception - ", e);
         }

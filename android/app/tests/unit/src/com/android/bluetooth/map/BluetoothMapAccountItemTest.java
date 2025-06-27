@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import androidx.test.runner.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+/** Test cases for {@link BluetoothMapAccountItem}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapAccountItemTest {
     private static final String TEST_NAME = "test_name";
@@ -202,7 +203,7 @@ public class BluetoothMapAccountItemTest {
                         TEST_UCI,
                         TEST_UCI_PREFIX);
 
-        assertThat(accountItem).isNotEqualTo(null);
+        assertThat(accountItem).isNotNull();
     }
 
     @SuppressWarnings("EqualsIncompatibleType")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,31 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** A test suite for the BipEncoding class */
+/** Test cases for {@link BipEncoding}. */
 @RunWith(AndroidJUnit4.class)
 public class BipEncodingTest {
 
-    private void testParse(
+    private static void testParse(
             String input,
             int encodingType,
             String encodingStr,
             String propId,
             boolean isAndroidSupported) {
         BipEncoding encoding = new BipEncoding(input);
-        Assert.assertEquals(encodingType, encoding.getType());
-        Assert.assertEquals(encodingStr, encoding.toString());
-        Assert.assertEquals(propId, encoding.getProprietaryEncodingId());
-        Assert.assertEquals(isAndroidSupported, encoding.isAndroidSupported());
+        assertThat(encoding.getType()).isEqualTo(encodingType);
+        assertThat(encoding.toString()).isEqualTo(encodingStr);
+        assertThat(encoding.getProprietaryEncodingId()).isEqualTo(propId);
+        assertThat(encoding.isAndroidSupported()).isEqualTo(isAndroidSupported);
     }
 
-    private void testParseMany(
+    private static void testParseMany(
             String[] inputs,
             int encodingType,
             String encodingStr,
@@ -109,27 +110,27 @@ public class BipEncodingTest {
                 };
         for (int encodingType : inputs) {
             BipEncoding encoding = new BipEncoding(encodingType, null);
-            Assert.assertEquals(encodingType, encoding.getType());
-            Assert.assertEquals(null, encoding.getProprietaryEncodingId());
+            assertThat(encoding.getType()).isEqualTo(encodingType);
+            assertThat(encoding.getProprietaryEncodingId()).isNull();
         }
     }
 
     @Test
     public void testCreateProprietaryEncoding() {
         BipEncoding encoding = new BipEncoding(BipEncoding.USR_XXX, "test-encoding");
-        Assert.assertEquals(BipEncoding.USR_XXX, encoding.getType());
-        Assert.assertEquals("TEST-ENCODING", encoding.getProprietaryEncodingId());
-        Assert.assertEquals("USR-TEST-ENCODING", encoding.toString());
-        Assert.assertFalse(encoding.isAndroidSupported());
+        assertThat(encoding.getType()).isEqualTo(BipEncoding.USR_XXX);
+        assertThat(encoding.getProprietaryEncodingId()).isEqualTo("TEST-ENCODING");
+        assertThat(encoding.toString()).isEqualTo("USR-TEST-ENCODING");
+        assertThat(encoding.isAndroidSupported()).isFalse();
     }
 
     @Test
     public void testCreateProprietaryEncoding_emptyId() {
         BipEncoding encoding = new BipEncoding(BipEncoding.USR_XXX, "");
-        Assert.assertEquals(BipEncoding.USR_XXX, encoding.getType());
-        Assert.assertEquals("", encoding.getProprietaryEncodingId());
-        Assert.assertEquals("USR-", encoding.toString());
-        Assert.assertFalse(encoding.isAndroidSupported());
+        assertThat(encoding.getType()).isEqualTo(BipEncoding.USR_XXX);
+        assertThat(encoding.getProprietaryEncodingId()).isEqualTo("");
+        assertThat(encoding.toString()).isEqualTo("USR-");
+        assertThat(encoding.isAndroidSupported()).isFalse();
     }
 
     @Test(expected = ParseException.class)

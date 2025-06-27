@@ -63,7 +63,6 @@ import com.android.bluetooth.BluetoothObexTransport;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.ObexTransport;
 
@@ -73,12 +72,10 @@ import java.io.IOException;
 // Next tag value for ContentProfileErrorReportUtils.report(): 24
 @SuppressLint("AndroidFrameworkRequiresPermission")
 public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatchListener {
-    private static final String TAG = "BtOppTransfer";
+    private static final String TAG = BluetoothOppTransfer.class.getSimpleName();
 
     @VisibleForTesting static final int TRANSPORT_ERROR = 10;
-
     @VisibleForTesting static final int TRANSPORT_CONNECTED = 11;
-
     @VisibleForTesting static final int SOCKET_ERROR_RETRY = 13;
 
     private static final String SOCKET_LINK_KEY_ERROR = "Invalid exchange";
@@ -86,23 +83,15 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
     private static final Object INSTANCE_LOCK = new Object();
 
     private final Context mContext;
-
-    private BluetoothAdapter mAdapter;
-
-    @VisibleForTesting BluetoothDevice mDevice;
-
+    private final BluetoothAdapter mAdapter;
     private final BluetoothOppBatch mBatch;
 
+    @VisibleForTesting BluetoothDevice mDevice;
     private BluetoothOppObexSession mSession;
-
     @VisibleForTesting BluetoothOppShareInfo mCurrentShare;
-
     private ObexTransport mTransport;
-
     private HandlerThread mHandlerThread;
-
     @VisibleForTesting EventHandler mSessionHandler;
-
     private long mTimestamp;
 
     @VisibleForTesting
@@ -126,7 +115,8 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                     Log.e(
                             TAG,
                             "device : "
-                                    + BluetoothUtils.toAnonymizedAddress(getBrEdrAddress(device))
+                                    + BluetoothUtils.toAnonymizedAddress(
+                                            Utils.getBrEdrAddress(device))
                                     + " mBatch :"
                                     + mBatch
                                     + " mCurrentShare :"
@@ -143,7 +133,8 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                     Log.v(
                             TAG,
                             "Device :"
-                                    + BluetoothUtils.toAnonymizedAddress(getBrEdrAddress(device))
+                                    + BluetoothUtils.toAnonymizedAddress(
+                                            Utils.getBrEdrAddress(device))
                                     + "- OPP device: "
                                     + mBatch.mDestination
                                     + " \n mCurrentShare.mConfirm == "
@@ -190,8 +181,8 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                                 3);
                         return;
                     }
-                    String deviceIdentityAddress = getBrEdrAddress(device);
-                    String transferDeviceIdentityAddress = getBrEdrAddress(mDevice);
+                    String deviceIdentityAddress = Utils.getBrEdrAddress(device);
+                    String transferDeviceIdentityAddress = Utils.getBrEdrAddress(mDevice);
                     if (deviceIdentityAddress == null
                             || transferDeviceIdentityAddress == null
                             || !deviceIdentityAddress.equalsIgnoreCase(
@@ -550,7 +541,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
             mBatch.mStatus = Constants.BATCH_STATUS_FAILED;
             return;
         }
-        registerConnectionreceiver();
+        registerConnectionReceiver();
         if (mHandlerThread == null) {
             Log.v(TAG, "Create handler thread for batch " + mBatch.mId);
             mHandlerThread =
@@ -655,7 +646,7 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
         processCurrentShare();
     }
 
-    private void registerConnectionreceiver() {
+    private void registerConnectionReceiver() {
         /*
          * OBEX channel need to be monitored for unexpected ACL disconnection
          * such as Remote Battery removal
@@ -1017,12 +1008,5 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-    }
-
-    private String getBrEdrAddress(BluetoothDevice device) {
-        if (Flags.identityAddressNullIfNotKnown()) {
-            return Utils.getBrEdrAddress(device);
-        }
-        return device.getIdentityAddress();
     }
 }

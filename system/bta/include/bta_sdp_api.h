@@ -24,8 +24,6 @@
 #ifndef BTA_SDP_API_H
 #define BTA_SDP_API_H
 
-#include <base/strings/stringprintf.h>
-
 #include <cstdint>
 #include <string>
 
@@ -50,7 +48,7 @@ inline std::string bta_sdp_status_text(const tBTA_SDP_STATUS& status) {
     CASE_RETURN_TEXT(BTA_SDP_FAILURE);
     CASE_RETURN_TEXT(BTA_SDP_BUSY);
     default:
-      return base::StringPrintf("UNKNOWN[%d]", status);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(status));
   }
 }
 

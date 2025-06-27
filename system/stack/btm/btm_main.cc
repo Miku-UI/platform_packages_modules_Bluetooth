@@ -30,11 +30,11 @@
 #include "common/strings.h"
 #include "main/shim/dumpsys.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/btm/internal/btm_api.h"
+#include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_log_history.h"
 #include "stack/include/security_client_callbacks.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -81,7 +81,7 @@ static void btm_log_history(const std::string& tag, const char* addr, const std:
 
 void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std::string& msg,
                     const std::string& extra) {
-  btm_log_history(tag, ADDRESS_TO_LOGGABLE_CSTR(bd_addr), msg, extra);
+  btm_log_history(tag, bd_addr.ToRedactedStringForLogging().c_str(), msg, extra);
 }
 
 void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std::string& msg) {
@@ -90,7 +90,7 @@ void BTM_LogHistory(const std::string& tag, const RawAddress& bd_addr, const std
 
 void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& ble_bd_addr, const std::string& msg,
                     const std::string& extra) {
-  btm_log_history(tag, ADDRESS_TO_LOGGABLE_CSTR(ble_bd_addr), msg, extra);
+  btm_log_history(tag, ble_bd_addr.ToRedactedStringForLogging().c_str(), msg, extra);
 }
 
 void BTM_LogHistory(const std::string& tag, const tBLE_BD_ADDR& ble_bd_addr,

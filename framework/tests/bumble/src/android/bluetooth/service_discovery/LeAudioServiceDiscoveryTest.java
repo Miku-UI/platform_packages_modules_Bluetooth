@@ -77,6 +77,7 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class LeAudioServiceDiscoveryTest {
     private static final String TAG = LeAudioServiceDiscoveryTest.class.getSimpleName();
+
     private static final String BUMBLE_DEVICE_NAME = "Bumble";
     private static final Duration BOND_INTENT_TIMEOUT = Duration.ofSeconds(10);
     private static final int DISCOVERY_TIMEOUT = 2000; // 2 seconds
@@ -271,13 +272,11 @@ public class LeAudioServiceDiscoveryTest {
                         BluetoothDevice.EXTRA_UUID,
                         Matchers.allOf(
                                 Matchers.hasItemInArray(BluetoothUuid.HFP),
-                                Matchers.hasItemInArray(BluetoothUuid.HID),
                                 Matchers.hasItemInArray(BluetoothUuid.A2DP_SOURCE),
                                 Matchers.hasItemInArray(BluetoothUuid.A2DP_SINK),
                                 Matchers.hasItemInArray(BluetoothUuid.AVRCP),
                                 Matchers.hasItemInArray(BluetoothUuid.LE_AUDIO),
-                                Matchers.hasItemInArray(BluetoothUuid.BATTERY),
-                                Matchers.hasItemInArray(BluetoothUuid.HOGP))));
+                                Matchers.hasItemInArray(BluetoothUuid.BATTERY))));
         unregisterIntentActions(
                 BluetoothDevice.ACTION_UUID,
                 BluetoothDevice.ACTION_ACL_CONNECTED,

@@ -1,0 +1,23 @@
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "system_bt_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["system_bt_license"],
+}
+
+android_test_helper_app {
+    name: "BumbleBluetoothTestsHelperApp",
+    defaults: ["framework-bluetooth-tests-defaults"],
+
+    min_sdk_version: "current",
+    target_sdk_version: "current",
+
+    jarjar_rules: ":bluetooth-jarjar-rules",
+
+    // Include all test kotlin files.
+    srcs: [
+        "src/**/*.kt",
+    ],
+}

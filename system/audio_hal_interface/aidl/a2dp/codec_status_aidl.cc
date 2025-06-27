@@ -502,16 +502,11 @@ bool UpdateOffloadingCapabilities(
         codec_type_set.insert(CodecType::OPUS);
         break;
       case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
-        [[fallthrough]];
       case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
-        [[fallthrough]];
-      case BTAV_A2DP_CODEC_INDEX_SINK_LDAC:
-        [[fallthrough]];
       case BTAV_A2DP_CODEC_INDEX_SINK_OPUS:
         log::warn("Ignore sink codec_type={}", preference.codec_type);
         break;
       case BTAV_A2DP_CODEC_INDEX_MAX:
-        [[fallthrough]];
       default:
         log::error("Unknown codec_type={}", preference.codec_type);
         return false;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -281,9 +281,15 @@ struct ProcedureDataV2 {
 
 struct RangingResult {
   double result_meters_;
+  double error_meters_;
+
   // A normalized value from 0 (low confidence) to 100 (high confidence) representing the confidence
   // of estimated distance. The value is -1 when unavailable.
   int8_t confidence_level_;
+  double delay_spread_meters_;
+  uint8_t detected_attack_level_;
+  double velocity_meters_per_second_;
+  int64_t elapsed_timestamp_nanos_;
 };
 
 class RangingHalCallback {
@@ -323,6 +329,7 @@ public:
   virtual void WriteProcedureData(uint16_t connection_handle, hci::CsRole local_cs_role,
                                   const ProcedureDataV2& procedure_data,
                                   uint16_t procedure_counter) = 0;
+  virtual bool IsAbortedProcedureRequired(uint16_t connection_handle) = 0;
 };
 
 }  // namespace hal

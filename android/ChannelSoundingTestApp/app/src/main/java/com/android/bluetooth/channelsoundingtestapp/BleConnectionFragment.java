@@ -100,6 +100,7 @@ public class BleConnectionFragment extends Fragment {
                                     mButtonScanConnect.setText("Scan and Connect");
                             }
                         });
+        mViewModel.updateBondedDevices();
         mButtonUpdate.setOnClickListener(
                 v -> {
                     mViewModel.updateBondedDevices();

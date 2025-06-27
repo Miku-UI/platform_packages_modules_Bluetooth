@@ -8,3 +8,9 @@
 
 # Required for tests that use Mockito's thenThrow with checked exceptions.
 -keepattributes Exceptions
+
+# Minimal set of keep rules for mocked methods with checked exceptions.
+# This can be relaxed to specific packages if that simplifies testing.
+# See also https://r8.googlesource.com/r8/+/refs/heads/master/compatibility-faq.md#r8-full-mode.
+-keepclassmembers,allowshrinking,allowoptimization,allowobfuscation,allowaccessmodification class com.android.bluetooth.BluetoothMethodProxy { public <methods>; }
+-keepclassmembers,allowshrinking,allowoptimization,allowobfuscation,allowaccessmodification class com.android.obex.Operation { public <methods>; }

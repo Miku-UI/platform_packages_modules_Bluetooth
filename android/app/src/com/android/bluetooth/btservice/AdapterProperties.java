@@ -19,6 +19,12 @@ package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_SCAN;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+
+import static com.android.bluetooth.Utils.BD_ADDR_LEN;
 
 import android.annotation.NonNull;
 import android.app.BroadcastOptions;
@@ -49,7 +55,6 @@ import androidx.annotation.VisibleForTesting;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.RemoteDevices.DeviceProperties;
-import com.android.bluetooth.flags.Flags;
 import com.android.modules.utils.build.SdkLevel;
 
 import java.io.FileDescriptor;
@@ -75,7 +80,6 @@ class AdapterProperties {
 
     private static final long DEFAULT_DISCOVERY_TIMEOUT_MS = 12800;
     @VisibleForTesting static final int BLUETOOTH_NAME_MAX_LENGTH_BYTES = 248;
-    private static final int BD_ADDR_LEN = 6; // in bytes
     private static final int SYSTEM_CONNECTION_LATENCY_METRIC = 65536;
 
     private volatile String mName;
@@ -85,7 +89,8 @@ class AdapterProperties {
     private volatile int mDiscoverableTimeout;
     private volatile ParcelUuid[] mUuids;
 
-    private CopyOnWriteArrayList<BluetoothDevice> mBondedDevices = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<BluetoothDevice> mBondedDevices =
+            new CopyOnWriteArrayList<>();
 
     private int mProfilesConnecting, mProfilesConnected, mProfilesDisconnecting;
     private final HashMap<Integer, Pair<Integer, Integer>> mProfileConnectionState =
@@ -135,7 +140,7 @@ class AdapterProperties {
     private boolean mIsLeChannelSoundingSupported;
 
     private int mNumberOfSupportedOffloadedLeCocSockets;
-    private int mNumberOfSupportedOffloadedRfcommSockets = 0;
+    private int mNumberOfSupportedOffloadedRfcommSockets;
 
     // Lock for all getters and setters.
     // If finer grained locking is needer, more locks
@@ -525,10 +530,7 @@ class AdapterProperties {
 
     void cleanupPrevBondRecordsFor(BluetoothDevice device) {
         String address = device.getAddress();
-        String identityAddress =
-                Flags.identityAddressNullIfNotKnown()
-                        ? Utils.getBrEdrAddress(device, mService)
-                        : mService.getIdentityAddress(address);
+        String identityAddress = Utils.getBrEdrAddress(device, mService);
         int deviceType = mRemoteDevices.getDeviceProperties(device).getDeviceType();
         debugLog("cleanupPrevBondRecordsFor: " + device + ", device type: " + deviceType);
         if (identityAddress == null) {
@@ -541,10 +543,7 @@ class AdapterProperties {
 
         for (BluetoothDevice existingDevice : mBondedDevices) {
             String existingAddress = existingDevice.getAddress();
-            String existingIdentityAddress =
-                    Flags.identityAddressNullIfNotKnown()
-                            ? Utils.getBrEdrAddress(existingDevice, mService)
-                            : mService.getIdentityAddress(existingAddress);
+            String existingIdentityAddress = Utils.getBrEdrAddress(existingDevice, mService);
             int existingDeviceType =
                     mRemoteDevices.getDeviceProperties(existingDevice).getDeviceType();
 
@@ -597,7 +596,7 @@ class AdapterProperties {
             if (p != null) {
                 return p.first;
             }
-            return BluetoothProfile.STATE_DISCONNECTED;
+            return STATE_DISCONNECTED;
         }
     }
 
@@ -667,40 +666,37 @@ class AdapterProperties {
         }
     }
 
-
-
-    private boolean validateProfileConnectionState(int state) {
-        return (state == BluetoothProfile.STATE_DISCONNECTED
-                || state == BluetoothProfile.STATE_CONNECTING
-                || state == BluetoothProfile.STATE_CONNECTED
-                || state == BluetoothProfile.STATE_DISCONNECTING);
+    private static boolean validateProfileConnectionState(int state) {
+        return (state == STATE_DISCONNECTED
+                || state == STATE_CONNECTING
+                || state == STATE_CONNECTED
+                || state == STATE_DISCONNECTING);
     }
 
     private static int convertToAdapterState(int state) {
         switch (state) {
-            case BluetoothProfile.STATE_DISCONNECTED:
+            case STATE_DISCONNECTED:
                 return BluetoothAdapter.STATE_DISCONNECTED;
-            case BluetoothProfile.STATE_DISCONNECTING:
+            case STATE_DISCONNECTING:
                 return BluetoothAdapter.STATE_DISCONNECTING;
-            case BluetoothProfile.STATE_CONNECTED:
+            case STATE_CONNECTED:
                 return BluetoothAdapter.STATE_CONNECTED;
-            case BluetoothProfile.STATE_CONNECTING:
+            case STATE_CONNECTING:
                 return BluetoothAdapter.STATE_CONNECTING;
         }
-        Log.e(TAG, "convertToAdapterState, unknow state " + state);
+        Log.e(TAG, "convertToAdapterState, unknown state " + state);
         return -1;
     }
 
     private static boolean isNormalStateTransition(int prevState, int nextState) {
         switch (prevState) {
-            case BluetoothProfile.STATE_DISCONNECTED:
-                return nextState == BluetoothProfile.STATE_CONNECTING;
-            case BluetoothProfile.STATE_CONNECTED:
-                return nextState == BluetoothProfile.STATE_DISCONNECTING;
-            case BluetoothProfile.STATE_DISCONNECTING:
-            case BluetoothProfile.STATE_CONNECTING:
-                return (nextState == BluetoothProfile.STATE_DISCONNECTED)
-                        || (nextState == BluetoothProfile.STATE_CONNECTED);
+            case STATE_DISCONNECTED:
+                return nextState == STATE_CONNECTING;
+            case STATE_CONNECTED:
+                return nextState == STATE_DISCONNECTING;
+            case STATE_DISCONNECTING:
+            case STATE_CONNECTING:
+                return (nextState == STATE_DISCONNECTED) || (nextState == STATE_CONNECTED);
             default:
                 return false;
         }
@@ -708,7 +704,7 @@ class AdapterProperties {
 
     private boolean updateCountersAndCheckForConnectionStateChange(int state, int prevState) {
         switch (prevState) {
-            case BluetoothProfile.STATE_CONNECTING:
+            case STATE_CONNECTING:
                 if (mProfilesConnecting > 0) {
                     mProfilesConnecting--;
                 } else {
@@ -718,7 +714,7 @@ class AdapterProperties {
                 }
                 break;
 
-            case BluetoothProfile.STATE_CONNECTED:
+            case STATE_CONNECTED:
                 if (mProfilesConnected > 0) {
                     mProfilesConnected--;
                 } else {
@@ -728,7 +724,7 @@ class AdapterProperties {
                 }
                 break;
 
-            case BluetoothProfile.STATE_DISCONNECTING:
+            case STATE_DISCONNECTING:
                 if (mProfilesDisconnecting > 0) {
                     mProfilesDisconnecting--;
                 } else {
@@ -740,19 +736,19 @@ class AdapterProperties {
         }
 
         switch (state) {
-            case BluetoothProfile.STATE_CONNECTING:
+            case STATE_CONNECTING:
                 mProfilesConnecting++;
                 return (mProfilesConnected == 0 && mProfilesConnecting == 1);
 
-            case BluetoothProfile.STATE_CONNECTED:
+            case STATE_CONNECTED:
                 mProfilesConnected++;
                 return (mProfilesConnected == 1);
 
-            case BluetoothProfile.STATE_DISCONNECTING:
+            case STATE_DISCONNECTING:
                 mProfilesDisconnecting++;
                 return (mProfilesConnected == 0 && mProfilesDisconnecting == 1);
 
-            case BluetoothProfile.STATE_DISCONNECTED:
+            case STATE_DISCONNECTED:
                 return (mProfilesConnected == 0 && mProfilesConnecting == 0);
 
             default:
@@ -787,17 +783,15 @@ class AdapterProperties {
 
             if (newState == currHashState) {
                 numDev++;
-            } else if (newState == BluetoothProfile.STATE_CONNECTED
-                    || (newState == BluetoothProfile.STATE_CONNECTING
-                            && currHashState != BluetoothProfile.STATE_CONNECTED)) {
+            } else if (newState == STATE_CONNECTED
+                    || (newState == STATE_CONNECTING && currHashState != STATE_CONNECTED)) {
                 numDev = 1;
             } else if (numDev == 1 && oldState == currHashState) {
                 update = true;
             } else if (numDev > 1 && oldState == currHashState) {
                 numDev--;
 
-                if (currHashState == BluetoothProfile.STATE_CONNECTED
-                        || currHashState == BluetoothProfile.STATE_CONNECTING) {
+                if (currHashState == STATE_CONNECTED || currHashState == STATE_CONNECTING) {
                     newHashState = currHashState;
                 }
             } else {
@@ -812,15 +806,10 @@ class AdapterProperties {
     }
 
     void adapterPropertyChangedCallback(int[] types, byte[][] values) {
-        if (Flags.adapterPropertiesLooper()) {
-            mHandler.post(() -> adapterPropertyChangedCallbackInternal(types, values));
-        } else {
-            adapterPropertyChangedCallbackInternal(types, values);
-        }
+        mHandler.post(() -> adapterPropertyChangedCallbackInternal(types, values));
     }
 
     private void adapterPropertyChangedCallbackInternal(int[] types, byte[][] values) {
-        Intent intent;
         int type;
         byte[] val;
         for (int i = 0; i < types.length; i++) {
@@ -831,45 +820,21 @@ class AdapterProperties {
                 switch (type) {
                     case AbstractionLayer.BT_PROPERTY_BDNAME:
                         String name = new String(val);
-                        if (Flags.getNameAndAddressAsCallback() && name.equals(mName)) {
+                        if (name.equals(mName)) {
                             debugLog("Name already set: " + mName);
                             break;
                         }
                         mName = name;
-                        if (Flags.getNameAndAddressAsCallback()) {
-                            mService.updateAdapterName(mName);
-                            break;
-                        }
-                        intent = new Intent(BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED);
-                        intent.putExtra(BluetoothAdapter.EXTRA_LOCAL_NAME, mName);
-                        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-                        mService.sendBroadcastAsUser(
-                                intent,
-                                UserHandle.ALL,
-                                BLUETOOTH_CONNECT,
-                                Utils.getTempBroadcastOptions().toBundle());
-                        debugLog("Name is: " + mName);
+                        mService.updateAdapterName(mName);
                         break;
                     case AbstractionLayer.BT_PROPERTY_BDADDR:
-                        if (Flags.getNameAndAddressAsCallback() && Arrays.equals(mAddress, val)) {
+                        if (Arrays.equals(mAddress, val)) {
                             debugLog("Address already set");
                             break;
                         }
                         mAddress = val;
                         String address = Utils.getAddressStringFromByte(mAddress);
-                        if (Flags.getNameAndAddressAsCallback()) {
-                            mService.updateAdapterAddress(address);
-                            // ACTION_BLUETOOTH_ADDRESS_CHANGED is redundant
-                            break;
-                        }
-                        intent = new Intent(BluetoothAdapter.ACTION_BLUETOOTH_ADDRESS_CHANGED);
-                        intent.putExtra(BluetoothAdapter.EXTRA_BLUETOOTH_ADDRESS, address);
-                        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-                        mService.sendBroadcastAsUser(
-                                intent,
-                                UserHandle.ALL,
-                                BLUETOOTH_CONNECT,
-                                Utils.getTempBroadcastOptions().toBundle());
+                        mService.updateAdapterAddress(address);
                         break;
                     case AbstractionLayer.BT_PROPERTY_CLASS_OF_DEVICE:
                         if (val == null || val.length != 3) {
@@ -1044,12 +1009,12 @@ class AdapterProperties {
     }
 
     private void updateLppOffloadFeatureSupport(byte[] val) {
-        if (val.length < 1) {
+        if (val == null || val.length < 2) {
             Log.e(TAG, "BT_PROPERTY_LPP_OFFLOAD_FEATURES: invalid value length");
             return;
         }
-        // TODO(b/342012881) Read mNumberOfSupportedOffloadedRfcommSockets from host stack
         mNumberOfSupportedOffloadedLeCocSockets = (0xFF & ((int) val[0]));
+        mNumberOfSupportedOffloadedRfcommSockets = (0xFF & ((int) val[1]));
 
         Log.d(
                 TAG,
@@ -1128,10 +1093,7 @@ class AdapterProperties {
         StringBuilder sb = new StringBuilder();
         for (BluetoothDevice device : mBondedDevices) {
             String address = device.getAddress();
-            String brEdrAddress =
-                    Flags.identityAddressNullIfNotKnown()
-                            ? Utils.getBrEdrAddress(device)
-                            : mService.getIdentityAddress(address);
+            String brEdrAddress = Utils.getBrEdrAddress(device);
             if (brEdrAddress.equals(address)) {
                 writer.println(
                         "    "
@@ -1159,7 +1121,7 @@ class AdapterProperties {
         writer.println(sb.toString());
     }
 
-    private String dumpDeviceType(int deviceType) {
+    private static String dumpDeviceType(int deviceType) {
         switch (deviceType) {
             case BluetoothDevice.DEVICE_TYPE_UNKNOWN:
                 return " ???? ";
@@ -1174,7 +1136,7 @@ class AdapterProperties {
         }
     }
 
-    private String dumpConnectionState(int state) {
+    private static String dumpConnectionState(int state) {
         switch (state) {
             case BluetoothAdapter.STATE_DISCONNECTED:
                 return "STATE_DISCONNECTED";

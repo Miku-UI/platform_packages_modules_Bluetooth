@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <com_android_bluetooth_flags.h>
+
 #include <unordered_map>
 
 #include "module.h"
@@ -25,14 +27,23 @@ namespace metrics {
 
 class CounterMetrics : public bluetooth::Module {
 public:
+  CounterMetrics(os::Handler* handler) : Module(handler) {}
+  ~CounterMetrics() {
+    if (!com::android::bluetooth::flags::same_handler_for_all_modules()) {
+      GetHandler()->Clear();
+      GetHandler()->WaitUntilStopped(std::chrono::milliseconds(2000));
+      delete GetHandler();
+    }
+  }
+
   bool CacheCount(int32_t key, int64_t value);
   virtual bool Count(int32_t key, int64_t count);
   void Stop() override;
-  static const ModuleFactory Factory;
+  void Start() override;
 
 protected:
+  CounterMetrics() = default;
   void ListDependencies(ModuleList* list) const override;
-  void Start() override;
   std::string ToString() const override { return std::string("BluetoothCounterMetrics"); }
   void DrainBufferedCounters();
   virtual bool IsInitialized() { return initialized_; }

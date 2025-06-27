@@ -9,8 +9,8 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-JAVA_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bluetooth-tests-list-shard-01.xml'
-NATIVE_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bluetooth-tests-list-shard-02.xml'
+JAVA_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bt-tests-list-shard-01.xml'
+NATIVE_UNIT_TESTS = 'test/mts/tools/mts-tradefed/res/config/mts-bt-tests-list-shard-02.xml'
 DO_NOT_RETRY_TESTS = {
   'CtsBluetoothTestCases',
   'GoogleBluetoothInstrumentationTests',
@@ -310,8 +310,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--apex-name',
-      default='com.android.btservices',
-      help='bluetooth apex name. Default: com.android.btservices')
+      default='com.android.bt',
+      help='bluetooth apex name. Default: com.android.bt')
   parser.add_argument(
       '--java', action='store_true', help='generate Java coverage')
   parser.add_argument(

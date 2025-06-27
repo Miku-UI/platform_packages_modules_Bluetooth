@@ -37,9 +37,6 @@
 #include "hardware/bluetooth.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::avrcp::Attribute;
 using bluetooth::avrcp::AttributeEntry;
 using bluetooth::avrcp::FolderInfo;
@@ -74,7 +71,7 @@ static std::vector<SongInfo> getNowPlayingList();
 static uint16_t getCurrentPlayerId();
 static std::vector<MediaPlayerInfo> getMediaPlayerList();
 using SetBrowsedPlayerCb = MediaInterface::SetBrowsedPlayerCallback;
-static void setBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCb);
+static void setBrowsedPlayer(uint16_t player_id, std::string current_path, SetBrowsedPlayerCb);
 static uint16_t setAddressedPlayer(uint16_t player_id);
 using GetFolderItemsCb = MediaInterface::FolderItemsCallback;
 static void getFolderItems(uint16_t player_id, std::string media_id, GetFolderItemsCb cb);
@@ -165,8 +162,9 @@ public:
     cb.Run(current_player);
   }
 
-  void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) override {
-    setBrowsedPlayer(player_id, browse_cb);
+  void SetBrowsedPlayer(uint16_t player_id, std::string current_path,
+                        SetBrowsedPlayerCallback browse_cb) override {
+    setBrowsedPlayer(player_id, current_path, browse_cb);
   }
 
   void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback addressed_cb) override {
@@ -320,7 +318,7 @@ static void cleanupNative(JNIEnv* env, jobject /* object */) {
   sServiceInterface = nullptr;
 }
 
-jboolean connectDeviceNative(JNIEnv* env, jobject /* object */, jstring address) {
+static jboolean connectDeviceNative(JNIEnv* env, jobject /* object */, jstring address) {
   log::debug("");
   std::unique_lock<std::shared_timed_mutex> interface_lock(interface_mutex);
   if (mServiceCallbacks == nullptr) {
@@ -340,7 +338,7 @@ jboolean connectDeviceNative(JNIEnv* env, jobject /* object */, jstring address)
   return sServiceInterface->ConnectDevice(bdaddr) == true ? JNI_TRUE : JNI_FALSE;
 }
 
-jboolean disconnectDeviceNative(JNIEnv* env, jobject /* object */, jstring address) {
+static jboolean disconnectDeviceNative(JNIEnv* env, jobject /* object */, jstring address) {
   log::debug("");
   std::unique_lock<std::shared_timed_mutex> interface_lock(interface_mutex);
   if (mServiceCallbacks == nullptr) {
@@ -693,7 +691,7 @@ static std::vector<MediaPlayerInfo> getMediaPlayerList() {
   return ret_list;
 }
 
-static void setBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCb cb) {
+static void setBrowsedPlayer(uint16_t player_id, std::string current_path, SetBrowsedPlayerCb cb) {
   log::debug("");
   std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
   CallbackEnv sCallbackEnv(__func__);
@@ -702,21 +700,22 @@ static void setBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCb cb) {
   }
 
   set_browsed_player_cb = cb;
-  sCallbackEnv->CallVoidMethod(mJavaInterface, method_setBrowsedPlayer, player_id);
+  jstring j_current_path = sCallbackEnv->NewStringUTF(current_path.c_str());
+  sCallbackEnv->CallVoidMethod(mJavaInterface, method_setBrowsedPlayer, player_id, j_current_path);
 }
 
 static void setBrowsedPlayerResponseNative(JNIEnv* env, jobject /* object */, jint /* player_id */,
-                                           jboolean success, jstring root_id, jint num_items) {
+                                           jboolean success, jstring current_path, jint num_items) {
   log::debug("");
 
-  std::string root;
-  if (root_id != nullptr) {
-    const char* value = env->GetStringUTFChars(root_id, nullptr);
-    root = std::string(value);
-    env->ReleaseStringUTFChars(root_id, value);
+  std::string path;
+  if (current_path != nullptr) {
+    const char* value = env->GetStringUTFChars(current_path, nullptr);
+    path = std::string(value);
+    env->ReleaseStringUTFChars(current_path, value);
   }
 
-  set_browsed_player_cb.Run(success == JNI_TRUE, root, num_items);
+  set_browsed_player_cb.Run(success == JNI_TRUE, path, num_items);
 }
 
 static uint16_t setAddressedPlayer(uint16_t player_id) {
@@ -1101,7 +1100,7 @@ int register_com_android_bluetooth_avrcp_target(JNIEnv* env) {
           {"getNowPlayingList", "()Ljava/util/List;", &method_getNowPlayingList},
           {"getCurrentPlayerId", "()I", &method_getCurrentPlayerId},
           {"getMediaPlayerList", "()Ljava/util/List;", &method_getMediaPlayerList},
-          {"setBrowsedPlayer", "(I)V", &method_setBrowsedPlayer},
+          {"setBrowsedPlayer", "(ILjava/lang/String;)V", &method_setBrowsedPlayer},
           {"setAddressedPlayer", "(I)I", &method_setAddressedPlayer},
           {"getFolderItemsRequest", "(ILjava/lang/String;)V", &method_getFolderItemsRequest},
           {"playItem", "(IZLjava/lang/String;)V", &method_playItem},

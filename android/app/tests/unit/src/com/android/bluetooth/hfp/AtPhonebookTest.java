@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.hfp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -26,23 +29,24 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
+import android.app.admin.DevicePolicyManager;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.database.Cursor;
+import android.net.Uri;
+import android.os.UserManager;
 import android.provider.CallLog;
 import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.telephony.PhoneNumberUtils;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.util.DevicePolicyUtils;
-import com.android.internal.telephony.GsmAlphabet;
+import com.android.bluetooth.util.GsmAlphabet;
 
 import org.junit.After;
 import org.junit.Before;
@@ -51,45 +55,50 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link AtPhonebook}. */
 @RunWith(AndroidJUnit4.class)
 public class AtPhonebookTest {
-    private static final String INVALID_COMMAND = "invalid_command";
-    private Context mTargetContext;
-    private BluetoothAdapter mAdapter;
-    private BluetoothDevice mTestDevice;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private HeadsetNativeInterface mNativeInterface;
 
-    private AtPhonebook mAtPhonebook;
     @Spy private BluetoothMethodProxy mHfpMethodProxy = BluetoothMethodProxy.getInstance();
+
+    private static final String INVALID_COMMAND = "invalid_command";
+
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final BluetoothDevice mDevice = getTestDevice(198);
+
+    private AtPhonebook mAtPhonebook;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
-        TestUtils.setAdapterService(mAdapterService);
+        doReturn(mTargetContext.getSystemService(UserManager.class))
+                .when(mAdapterService)
+                .getSystemService(UserManager.class);
+        doReturn(mTargetContext.getSystemService(DevicePolicyManager.class))
+                .when(mAdapterService)
+                .getSystemService(DevicePolicyManager.class);
+        doReturn(mTargetContext.getContentResolver()).when(mAdapterService).getContentResolver();
+        doReturn(mTargetContext.getString(R.string.unknownNumber))
+                .when(mAdapterService)
+                .getString(R.string.unknownNumber);
 
         BluetoothMethodProxy.setInstanceForTesting(mHfpMethodProxy);
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        // Spy on native interface
-        mAtPhonebook = new AtPhonebook(mTargetContext, mNativeInterface);
+        mAtPhonebook = new AtPhonebook(mAdapterService, mNativeInterface);
     }
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.clearAdapterService(mAdapterService);
         BluetoothMethodProxy.setInstanceForTesting(null);
     }
 
     @Test
     public void checkAccessPermission_returnsCorrectPermission() {
-        assertThat(mAtPhonebook.checkAccessPermission(mTestDevice))
+        assertThat(mAtPhonebook.checkAccessPermission(mDevice))
                 .isEqualTo(BluetoothDevice.ACCESS_UNKNOWN);
     }
 
@@ -102,119 +111,116 @@ public class AtPhonebookTest {
 
     @Test
     public void handleCscsCommand() {
-        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_READ, mTestDevice);
-        verify(mNativeInterface).atResponseString(mTestDevice, "+CSCS: \"" + "UTF-8" + "\"");
+        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_READ, mDevice);
+        verify(mNativeInterface).atResponseString(mDevice, "+CSCS: \"" + "UTF-8" + "\"");
 
-        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_TEST, mTestDevice);
-        verify(mNativeInterface)
-                .atResponseString(mTestDevice, "+CSCS: (\"UTF-8\",\"IRA\",\"GSM\")");
+        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_TEST, mDevice);
+        verify(mNativeInterface).atResponseString(mDevice, "+CSCS: (\"UTF-8\",\"IRA\",\"GSM\")");
 
-        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_SET, mDevice);
         verify(mNativeInterface, atLeastOnce())
-                .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, -1);
+                .atResponseCode(mDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, -1);
 
-        mAtPhonebook.handleCscsCommand("command=GSM", AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCscsCommand("command=GSM", AtPhonebook.TYPE_SET, mDevice);
         verify(mNativeInterface, atLeastOnce())
-                .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_OK, -1);
+                .atResponseCode(mDevice, HeadsetHalConstants.AT_RESPONSE_OK, -1);
 
-        mAtPhonebook.handleCscsCommand("command=ERR", AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCscsCommand("command=ERR", AtPhonebook.TYPE_SET, mDevice);
         verify(mNativeInterface)
                 .atResponseCode(
-                        mTestDevice,
+                        mDevice,
                         HeadsetHalConstants.AT_RESPONSE_ERROR,
                         BluetoothCmeError.OPERATION_NOT_SUPPORTED);
 
-        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_UNKNOWN, mTestDevice);
+        mAtPhonebook.handleCscsCommand(INVALID_COMMAND, AtPhonebook.TYPE_UNKNOWN, mDevice);
         verify(mNativeInterface)
                 .atResponseCode(
-                        mTestDevice,
+                        mDevice,
                         HeadsetHalConstants.AT_RESPONSE_ERROR,
                         BluetoothCmeError.TEXT_HAS_INVALID_CHARS);
     }
 
     @Test
     public void handleCpbsCommand() {
-        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_READ, mTestDevice);
+        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_READ, mDevice);
         int size = mAtPhonebook.getPhonebookResult("ME", true).cursor.getCount();
         int maxSize = mAtPhonebook.getMaxPhoneBookSize(size);
         verify(mNativeInterface)
-                .atResponseString(mTestDevice, "+CPBS: \"" + "ME" + "\"," + size + "," + maxSize);
+                .atResponseString(mDevice, "+CPBS: \"" + "ME" + "\"," + size + "," + maxSize);
 
-        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_TEST, mTestDevice);
+        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_TEST, mDevice);
         verify(mNativeInterface)
-                .atResponseString(mTestDevice, "+CPBS: (\"ME\",\"SM\",\"DC\",\"RC\",\"MC\")");
+                .atResponseString(mDevice, "+CPBS: (\"ME\",\"SM\",\"DC\",\"RC\",\"MC\")");
 
-        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_SET, mDevice);
         verify(mNativeInterface)
                 .atResponseCode(
-                        mTestDevice,
+                        mDevice,
                         HeadsetHalConstants.AT_RESPONSE_ERROR,
                         BluetoothCmeError.OPERATION_NOT_SUPPORTED);
 
-        mAtPhonebook.handleCpbsCommand("command=ERR", AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCpbsCommand("command=ERR", AtPhonebook.TYPE_SET, mDevice);
         verify(mNativeInterface)
                 .atResponseCode(
-                        mTestDevice,
+                        mDevice,
                         HeadsetHalConstants.AT_RESPONSE_ERROR,
                         BluetoothCmeError.OPERATION_NOT_ALLOWED);
 
-        mAtPhonebook.handleCpbsCommand("command=SM", AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCpbsCommand("command=SM", AtPhonebook.TYPE_SET, mDevice);
         verify(mNativeInterface, atLeastOnce())
-                .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_OK, -1);
+                .atResponseCode(mDevice, HeadsetHalConstants.AT_RESPONSE_OK, -1);
 
-        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_UNKNOWN, mTestDevice);
+        mAtPhonebook.handleCpbsCommand(INVALID_COMMAND, AtPhonebook.TYPE_UNKNOWN, mDevice);
         verify(mNativeInterface)
                 .atResponseCode(
-                        mTestDevice,
+                        mDevice,
                         HeadsetHalConstants.AT_RESPONSE_ERROR,
                         BluetoothCmeError.TEXT_HAS_INVALID_CHARS);
     }
 
     @Test
     public void handleCpbrCommand() {
-        mAtPhonebook.handleCpbrCommand(INVALID_COMMAND, AtPhonebook.TYPE_TEST, mTestDevice);
+        mAtPhonebook.handleCpbrCommand(INVALID_COMMAND, AtPhonebook.TYPE_TEST, mDevice);
         int size = mAtPhonebook.getPhonebookResult("ME", true).cursor.getCount();
         if (size == 0) {
             size = 1;
         }
-        verify(mNativeInterface).atResponseString(mTestDevice, "+CPBR: (1-" + size + "),30,30");
-        verify(mNativeInterface)
-                .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_OK, -1);
+        verify(mNativeInterface).atResponseString(mDevice, "+CPBR: (1-" + size + "),30,30");
+        verify(mNativeInterface).atResponseCode(mDevice, HeadsetHalConstants.AT_RESPONSE_OK, -1);
 
-        mAtPhonebook.handleCpbrCommand(INVALID_COMMAND, AtPhonebook.TYPE_SET, mTestDevice);
-        verify(mNativeInterface)
-                .atResponseCode(mTestDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, -1);
+        mAtPhonebook.handleCpbrCommand(INVALID_COMMAND, AtPhonebook.TYPE_SET, mDevice);
+        verify(mNativeInterface).atResponseCode(mDevice, HeadsetHalConstants.AT_RESPONSE_ERROR, -1);
 
-        mAtPhonebook.handleCpbrCommand("command=ERR", AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCpbrCommand("command=ERR", AtPhonebook.TYPE_SET, mDevice);
         verify(mNativeInterface)
                 .atResponseCode(
-                        mTestDevice,
+                        mDevice,
                         HeadsetHalConstants.AT_RESPONSE_ERROR,
                         BluetoothCmeError.TEXT_HAS_INVALID_CHARS);
 
-        mAtPhonebook.handleCpbrCommand("command=123,123", AtPhonebook.TYPE_SET, mTestDevice);
+        mAtPhonebook.handleCpbrCommand("command=123,123", AtPhonebook.TYPE_SET, mDevice);
         assertThat(mAtPhonebook.getCheckingAccessPermission()).isTrue();
 
-        mAtPhonebook.handleCpbrCommand(INVALID_COMMAND, AtPhonebook.TYPE_UNKNOWN, mTestDevice);
+        mAtPhonebook.handleCpbrCommand(INVALID_COMMAND, AtPhonebook.TYPE_UNKNOWN, mDevice);
         verify(mNativeInterface, atLeastOnce())
                 .atResponseCode(
-                        mTestDevice,
+                        mDevice,
                         HeadsetHalConstants.AT_RESPONSE_ERROR,
                         BluetoothCmeError.TEXT_HAS_INVALID_CHARS);
     }
 
     @Test
     public void processCpbrCommand() {
-        mAtPhonebook.handleCpbsCommand("command=SM", AtPhonebook.TYPE_SET, mTestDevice);
-        assertThat(mAtPhonebook.processCpbrCommand(mTestDevice))
+        mAtPhonebook.handleCpbsCommand("command=SM", AtPhonebook.TYPE_SET, mDevice);
+        assertThat(mAtPhonebook.processCpbrCommand(mDevice))
                 .isEqualTo(HeadsetHalConstants.AT_RESPONSE_OK);
 
-        mAtPhonebook.handleCpbsCommand("command=ME", AtPhonebook.TYPE_SET, mTestDevice);
-        assertThat(mAtPhonebook.processCpbrCommand(mTestDevice))
+        mAtPhonebook.handleCpbsCommand("command=ME", AtPhonebook.TYPE_SET, mDevice);
+        assertThat(mAtPhonebook.processCpbrCommand(mDevice))
                 .isEqualTo(HeadsetHalConstants.AT_RESPONSE_OK);
 
         mAtPhonebook.mCurrentPhonebook = "ER";
-        assertThat(mAtPhonebook.processCpbrCommand(mTestDevice))
+        assertThat(mAtPhonebook.processCpbrCommand(mDevice))
                 .isEqualTo(HeadsetHalConstants.AT_RESPONSE_ERROR);
     }
 
@@ -237,7 +243,7 @@ public class AtPhonebookTest {
         mAtPhonebook.mCpbrIndex1 = 1;
         mAtPhonebook.mCpbrIndex2 = 2;
 
-        mAtPhonebook.processCpbrCommand(mTestDevice);
+        mAtPhonebook.processCpbrCommand(mDevice);
 
         String expected =
                 "+CPBR: "
@@ -252,7 +258,7 @@ public class AtPhonebookTest {
                         + AtPhonebook.getPhoneType(Phone.TYPE_WORK)
                         + "\""
                         + "\r\n\r\n";
-        verify(mNativeInterface).atResponseString(mTestDevice, expected);
+        verify(mNativeInterface).atResponseString(mDevice, expected);
     }
 
     @Test
@@ -281,7 +287,7 @@ public class AtPhonebookTest {
         mAtPhonebook.mCpbrIndex1 = 1;
         mAtPhonebook.mCpbrIndex2 = 2;
 
-        mAtPhonebook.processCpbrCommand(mTestDevice);
+        mAtPhonebook.processCpbrCommand(mDevice);
 
         String expected =
                 "+CPBR: "
@@ -294,11 +300,11 @@ public class AtPhonebookTest {
                         + mTargetContext.getString(R.string.unknownNumber)
                         + "\""
                         + "\r\n\r\n";
-        verify(mNativeInterface).atResponseString(mTestDevice, expected);
+        verify(mNativeInterface).atResponseString(mDevice, expected);
     }
 
     @Test
-    public void processCpbrCommand_withReceivcedCallsAndCharsetGsm() {
+    public void processCpbrCommand_withReceivedCallsAndCharsetGsm() {
         Cursor mockCursorOne = mock(Cursor.class);
         when(mockCursorOne.getCount()).thenReturn(1);
         when(mockCursorOne.getColumnIndexOrThrow(CallLog.Calls.NUMBER)).thenReturn(1);
@@ -324,7 +330,7 @@ public class AtPhonebookTest {
         mAtPhonebook.mCpbrIndex2 = 2;
         mAtPhonebook.mCharacterSet = "GSM";
 
-        mAtPhonebook.processCpbrCommand(mTestDevice);
+        mAtPhonebook.processCpbrCommand(mDevice);
 
         String expectedName = new String(GsmAlphabet.stringToGsm8BitPacked(name.substring(0, 28)));
         String expected =
@@ -338,12 +344,14 @@ public class AtPhonebookTest {
                         + expectedName
                         + "\""
                         + "\r\n\r\n";
-        verify(mNativeInterface).atResponseString(mTestDevice, expected);
+        verify(mNativeInterface).atResponseString(mDevice, expected);
     }
 
     @Test
     public void processCpbrCommand_doesNotCrashWithEncodingNeededNumber() {
         final String encodingNeededNumber = "###0102124";
+
+        Uri uri = DevicePolicyUtils.getEnterprisePhoneUri(mAdapterService);
 
         Cursor mockCursorOne = mock(Cursor.class);
         when(mockCursorOne.getCount()).thenReturn(1);
@@ -355,19 +363,14 @@ public class AtPhonebookTest {
         when(mockCursorOne.moveToNext()).thenReturn(false);
         doReturn(mockCursorOne)
                 .when(mHfpMethodProxy)
-                .contentResolverQuery(
-                        any(),
-                        eq(DevicePolicyUtils.getEnterprisePhoneUri(mTargetContext)),
-                        any(),
-                        any(),
-                        any());
+                .contentResolverQuery(any(), eq(uri), any(), any(), any());
 
         mAtPhonebook.mCurrentPhonebook = "ME";
         mAtPhonebook.mCpbrIndex1 = 1;
         mAtPhonebook.mCpbrIndex2 = 2;
 
         // This call should not crash
-        mAtPhonebook.processCpbrCommand(mTestDevice);
+        mAtPhonebook.processCpbrCommand(mDevice);
     }
 
     @Test

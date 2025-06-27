@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,8 +52,10 @@ public:
 
   virtual void Scan(bool start);
 
-  virtual void SetScanParameters(ScannerId scanner_id, LeScanType scan_type, uint16_t scan_interval,
-                                 uint16_t scan_window, uint8_t scan_phy);
+  virtual void SetScanParameters(LeScanType scan_type, ScannerId scanner_id_1m,
+                                 uint16_t scan_interval_1m, uint16_t scan_window_1m,
+                                 ScannerId scanner_id_coded, uint16_t scan_interval_coded,
+                                 uint16_t scan_window_coded, uint8_t scan_phy);
 
   virtual void SetScanFilterPolicy(LeScanningFilterPolicy filter_policy);
 

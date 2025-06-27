@@ -24,7 +24,6 @@
 #ifndef PAN_API_H
 #define PAN_API_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -58,9 +57,9 @@
 typedef uint8_t tPAN_ROLE;
 
 inline const std::string pan_role_to_text(const tPAN_ROLE& role) {
-  return base::StringPrintf("%c%c%c[0x%x]", (role & PAN_ROLE_CLIENT) ? 'C' : '.',
-                            (role & PAN_ROLE_GROUP) ? 'G' : '.',
-                            (role & PAN_ROLE_NAP_SERVER) ? 'N' : '.', role);
+  return std::format("{:c}{:c}{:c}[0x{:x}]", (role & PAN_ROLE_CLIENT) ? 'C' : '.',
+                     (role & PAN_ROLE_GROUP) ? 'G' : '.', (role & PAN_ROLE_NAP_SERVER) ? 'N' : '.',
+                     role);
 }
 
 /*****************************************************************************
@@ -116,7 +115,7 @@ inline const std::string pan_result_text(const tPAN_RESULT& result) {
     CASE_RETURN_TEXT(PAN_FAILURE);
     CASE_RETURN_TEXT(PAN_HOTSPOT_DISABLED);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", result);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(result));
   }
 }
 

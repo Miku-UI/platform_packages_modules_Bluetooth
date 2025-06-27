@@ -8,7 +8,7 @@ use crate::gatt::ids::{AdvertiserId, ServerId, TransportIndex};
 
 /// This class is responsible for tracking which connections and advertising we
 /// own, and using this information to decide what servers should be exposed to
-/// a given connetion.
+/// a given connection.
 #[derive(Default)]
 pub struct IsolationManager {
     advertiser_to_server: HashMap<AdvertiserId, ServerId>,

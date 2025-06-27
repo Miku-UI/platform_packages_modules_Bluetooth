@@ -22,6 +22,7 @@
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
 
+#include "bta/gatt/bta_gattc_int.h"
 #include "bta/gatt/database.h"
 #include "bta/include/bta_gatt_api.h"
 #include "stack/include/gatt_api.h"
@@ -29,9 +30,6 @@
 #include "types/bluetooth/uuid.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 void BTA_GATTC_Disable(void) { inc_func_call_count(__func__); }
 const gatt::Characteristic* BTA_GATTC_GetCharacteristic(uint16_t /* conn_id */,
@@ -69,8 +67,8 @@ tGATT_STATUS BTA_GATTC_RegisterForNotifications(tGATT_IF /* client_if */,
   return GATT_SUCCESS;
 }
 void BTA_GATTC_AppDeregister(tGATT_IF /* client_if */) { inc_func_call_count(__func__); }
-void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* /* p_client_cb */, BtaAppRegisterCallback /* cb */,
-                           bool /* eatt_support */) {
+void BTA_GATTC_AppRegister(const std::string& /* name */, tBTA_GATTC_CBACK* /* p_client_cb */,
+                           BtaAppRegisterCallback /* cb */, bool /* eatt_support */) {
   inc_func_call_count(__func__);
 }
 void BTA_GATTC_CancelOpen(tGATT_IF /* client_if */, const RawAddress& /* remote_bda */,

@@ -42,8 +42,7 @@ import java.util.regex.Pattern;
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class SmsMmsContacts {
-
-    private static final String TAG = "SmsMmsContacts";
+    private static final String TAG = SmsMmsContacts.class.getSimpleName();
 
     private HashMap<Long, String> mPhoneNumbers = null;
 
@@ -76,7 +75,7 @@ public class SmsMmsContacts {
      * Get a contacts phone number based on the canonical addresses id of the contact. (The ID
      * listed in the Threads table.)
      *
-     * @param resolver the ContantResolver to be used.
+     * @param resolver the ContentResolver to be used.
      * @param id the id of the contact, as listed in the Threads table
      * @return the phone number of the contact - or null if id does not exist.
      */
@@ -129,7 +128,7 @@ public class SmsMmsContacts {
      * Refreshes the cache, by clearing all cached values and fill the cache with the result of a
      * new query.
      *
-     * @param resolver the ContantResolver to be used.
+     * @param resolver the ContentResolver to be used.
      */
     @VisibleForTesting
     void fillPhoneCache(ContentResolver resolver) {
@@ -187,7 +186,7 @@ public class SmsMmsContacts {
         MapContact contact = mNames.get(phone);
 
         if (contact != null) {
-            if (contact.getId() < 0) {
+            if (contact.id() < 0) {
                 return null;
             }
             if (contactNameFilter == null) {
@@ -197,7 +196,7 @@ public class SmsMmsContacts {
             String searchString = contactNameFilter.replace("*", ".*");
             searchString = ".*" + searchString + ".*";
             Pattern p = Pattern.compile(Pattern.quote(searchString), Pattern.CASE_INSENSITIVE);
-            if (p.matcher(contact.getName()).find()) {
+            if (p.matcher(contact.name()).find()) {
                 return contact;
             }
             return null;
@@ -223,10 +222,10 @@ public class SmsMmsContacts {
                 c.moveToFirst();
                 long id = c.getLong(COL_CONTACT_ID);
                 String name = c.getString(COL_CONTACT_NAME);
-                contact = MapContact.create(id, name);
+                contact = new MapContact(id, name);
                 mNames.put(phone, contact);
             } else {
-                contact = MapContact.create(-1, null);
+                contact = new MapContact(-1, null);
                 mNames.put(phone, contact);
                 contact = null;
             }

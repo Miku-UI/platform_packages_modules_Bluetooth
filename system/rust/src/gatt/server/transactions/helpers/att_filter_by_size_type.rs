@@ -1,11 +1,9 @@
 //! This module extracts the common logic in filtering attributes by type +
 //! length, used in READ_BY_TYPE_REQ and READ_BY_GROUP_TYPE_REQ
 
-use crate::{
-    core::uuid::Uuid,
-    gatt::server::att_database::{AttAttribute, StableAttDatabase},
-    packets::att::AttErrorCode,
-};
+use crate::core::uuid::Uuid;
+use crate::gatt::server::att_database::{AttAttribute, StableAttDatabase};
+use crate::packets::att::AttErrorCode;
 
 /// An attribute and the value
 #[derive(Debug, PartialEq, Eq)]
@@ -67,17 +65,11 @@ pub async fn filter_read_attributes_by_size_type(
 mod test {
     use super::*;
 
-    use crate::{
-        core::uuid::Uuid,
-        gatt::{
-            ids::AttHandle,
-            server::{
-                att_database::{AttAttribute, AttDatabase, StableAttDatabase},
-                gatt_database::AttPermissions,
-                test::test_att_db::TestAttDatabase,
-            },
-        },
-    };
+    use crate::core::uuid::Uuid;
+    use crate::gatt::ids::AttHandle;
+    use crate::gatt::server::att_database::{AttAttribute, AttDatabase, StableAttDatabase};
+    use crate::gatt::server::gatt_database::AttPermissions;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
 
     const UUID: Uuid = Uuid::new(1234);
     const ANOTHER_UUID: Uuid = Uuid::new(2345);

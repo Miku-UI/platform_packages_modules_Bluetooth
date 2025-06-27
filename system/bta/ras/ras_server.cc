@@ -85,6 +85,7 @@ public:
     PendingWriteResponse pending_write_response_;
     uint16_t last_ready_procedure_ = 0;
     uint16_t last_overwritten_procedure_ = 0;
+    uint16_t mtu = kDefaultGattMtu;
   };
 
   void Initialize() override {
@@ -210,6 +211,9 @@ public:
       case BTA_GATTS_DISCONNECT_EVT: {
         OnGattDisconnect(p_data);
       } break;
+      case BTA_GATTS_MTU_EVT: {
+        OnGattMtuChanged(p_data->req_data);
+      } break;
       case BTA_GATTS_REG_EVT: {
         OnGattServerRegister(p_data);
       } break;
@@ -248,6 +252,19 @@ public:
     btm_random_pseudo_to_identity_addr(&identity_address, &address_type);
     // TODO: optimize, remove this event, initialize the tracker within the GD on demand.
     callbacks_->OnRasServerConnected(identity_address);
+  }
+
+  void OnGattMtuChanged(const tBTA_GATTS_REQ& req_data) {
+    auto remote_bda = req_data.remote_bda;
+    log::info("mtu is changed as {}", req_data.p_data->mtu);
+    auto it = trackers_.find(remote_bda);
+    if (it != trackers_.end()) {
+      it->second.mtu = req_data.p_data->mtu;
+
+      tBLE_ADDR_TYPE address_type = BLE_ADDR_PUBLIC_ID;
+      btm_random_pseudo_to_identity_addr(&remote_bda, &address_type);
+      callbacks_->OnMtuChangedFromServer(remote_bda, it->second.mtu);
+    }
   }
 
   void OnGattDisconnect(tBTA_GATTS* p_data) {
@@ -322,7 +339,7 @@ public:
     btgatt_db_element_t ras_control_point;
     ras_control_point.uuid = kRasControlPointCharacteristic;
     ras_control_point.type = BTGATT_DB_CHARACTERISTIC;
-    ras_control_point.properties = GATT_CHAR_PROP_BIT_WRITE | GATT_CHAR_PROP_BIT_INDICATE;
+    ras_control_point.properties = GATT_CHAR_PROP_BIT_WRITE_NR | GATT_CHAR_PROP_BIT_INDICATE;
     ras_control_point.permissions = GATT_PERM_WRITE_ENCRYPTED | key_mask;
     service.push_back(ras_control_point);
     service.push_back(ccc_descriptor);
@@ -390,13 +407,13 @@ public:
       return;
     }
     log::info("Read uuid, {}", getUuidName(uuid));
-    ClientTracker* tracker = &trackers_[p_data->req_data.remote_bda];
     if (trackers_.find(p_data->req_data.remote_bda) == trackers_.end()) {
       log::warn("Can't find tracker for {}", p_data->req_data.remote_bda);
       BTA_GATTS_SendRsp(p_data->req_data.conn_id, p_data->req_data.trans_id, GATT_ILLEGAL_PARAMETER,
                         &p_msg);
       return;
     }
+    ClientTracker* tracker = &trackers_[p_data->req_data.remote_bda];
 
     // Check Characteristic UUID
     switch (uuid.As16Bit()) {
@@ -557,6 +574,7 @@ public:
     }
 
     if (trackers_.find(remote_bda) == trackers_.end()) {
+      log::warn("Can't find tracker for remote_bda {}", remote_bda);
       BTA_GATTS_SendRsp(conn_id, p_data->req_data.trans_id, GATT_ILLEGAL_PARAMETER, &p_msg);
       return;
     }

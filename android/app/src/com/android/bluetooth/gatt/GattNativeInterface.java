@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,10 +122,6 @@ public class GattNativeInterface {
             throws RemoteException {
         getGattService()
                 .onServerSubrateChange(connId, subrateFactor, latency, contNum, timeout, status);
-    }
-
-    void onSearchCompleted(int connId, int status) throws RemoteException {
-        getGattService().onSearchCompleted(connId, status);
     }
 
     GattDbElement getSampleGattDbElement() {
@@ -282,7 +278,7 @@ public class GattNativeInterface {
     private native int gattClientGetDeviceTypeNative(String address);
 
     private native void gattClientRegisterAppNative(
-            long appUuidLsb, long appUuidMsb, boolean eattSupport);
+            long appUuidLsb, long appUuidMsb, String name, boolean eattSupport);
 
     private native void gattClientUnregisterAppNative(int clientIf);
 
@@ -310,8 +306,6 @@ public class GattNativeInterface {
 
     private native void gattClientDiscoverServiceByUuidNative(
             int connId, long serviceUuidLsb, long serviceUuidMsb);
-
-    private native void gattClientGetGattDbNative(int connId);
 
     private native void gattClientReadCharacteristicNative(int connId, int handle, int authReq);
 
@@ -382,7 +376,7 @@ public class GattNativeInterface {
             byte[] val,
             int authReq);
 
-    private native void gattSubrateRequestNative(
+    private native int gattSubrateRequestNative(
             int clientIf,
             String address,
             int subrateMin,
@@ -427,8 +421,9 @@ public class GattNativeInterface {
     /**
      * Register the given client It will invoke {@link #onClientRegistered(int, int, long, long)}.
      */
-    public void gattClientRegisterApp(long appUuidLsb, long appUuidMsb, boolean eattSupport) {
-        gattClientRegisterAppNative(appUuidLsb, appUuidMsb, eattSupport);
+    public void gattClientRegisterApp(
+            long appUuidLsb, long appUuidMsb, String name, boolean eattSupport) {
+        gattClientRegisterAppNative(appUuidLsb, appUuidMsb, name, eattSupport);
     }
 
     /** Unregister the client */
@@ -492,11 +487,6 @@ public class GattNativeInterface {
     public void gattClientDiscoverServiceByUuid(
             int connId, long serviceUuidLsb, long serviceUuidMsb) {
         gattClientDiscoverServiceByUuidNative(connId, serviceUuidLsb, serviceUuidMsb);
-    }
-
-    /** Get GATT DB of the remote device */
-    public void gattClientGetGattDb(int connId) {
-        gattClientGetGattDbNative(connId);
     }
 
     /** Read a characteristic by the given handle */
@@ -570,7 +560,7 @@ public class GattNativeInterface {
     }
 
     /** Update connection parameter. */
-    public void gattSubrateRequest(
+    public int gattSubrateRequest(
             int clientIf,
             String address,
             int subrateMin,
@@ -578,7 +568,7 @@ public class GattNativeInterface {
             int maxLatency,
             int contNumber,
             int supervisionTimeout) {
-        gattSubrateRequestNative(
+        return gattSubrateRequestNative(
                 clientIf,
                 address,
                 subrateMin,

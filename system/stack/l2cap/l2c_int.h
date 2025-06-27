@@ -23,7 +23,6 @@
  ******************************************************************************/
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <stdbool.h>
 
@@ -95,7 +94,7 @@ inline std::string channel_state_text(const tL2C_CHNL_STATE& state) {
     CASE_RETURN_TEXT(CST_W4_L2CAP_DISCONNECT_RSP);
     CASE_RETURN_TEXT(CST_W4_L2CA_DISCONNECT_RSP);
     default:
-      return base::StringPrintf("UNKNOWN[%d]", state);
+      return std::format("UNKNOWN[{}]", static_cast<int>(state));
   }
 }
 
@@ -395,6 +394,8 @@ enum tCONN_UPDATE_MASK : uint8_t {
   L2C_BLE_UPDATE_PENDING = (1u << 2),
   /* not using default connection parameters */
   L2C_BLE_NOT_DEFAULT_PARAM = (1u << 3),
+  /* Aggressive initial connection parameters are used */
+  L2C_BLE_AGGRESSIVE_INITIAL_PARAM = (1u << 4),
 };
 
 /* Define a link control block. There is one link control block between
@@ -429,6 +430,7 @@ public:
 
 private:
   tHCI_ROLE link_role_{HCI_ROLE_CENTRAL}; /* Central or peripheral */
+  uint16_t conn_interval_;
 
 public:
   tHCI_ROLE LinkRole() const { return link_role_; }
@@ -436,6 +438,8 @@ public:
   bool IsLinkRolePeripheral() const { return link_role_ == HCI_ROLE_PERIPHERAL; }
   void SetLinkRoleAsCentral() { link_role_ = HCI_ROLE_CENTRAL; }
   void SetLinkRoleAsPeripheral() { link_role_ = HCI_ROLE_PERIPHERAL; }
+  uint16_t ConnInterval() const { return conn_interval_; }
+  void SetConnInterval(uint16_t conn_interval) { conn_interval_ = conn_interval; }
 
   uint8_t signal_id;     /* Signalling channel id */
   uint8_t cur_echo_id;   /* Current id value for echo request */
@@ -754,6 +758,7 @@ bool l2cu_initialize_fixed_ccb(tL2C_LCB* p_lcb, uint16_t fixed_cid);
 void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb);
 void l2cu_process_fixed_chnl_resp(tL2C_LCB* p_lcb);
 bool l2cu_is_ccb_active(tL2C_CCB* p_ccb);
+void l2cu_set_lcb_handle(tL2C_LCB& p_lcb, uint16_t handle);
 tL2CAP_CONN le_result_to_l2c_conn(tL2CAP_LE_RESULT_CODE result);
 
 /* Functions provided for Broadcom Aware

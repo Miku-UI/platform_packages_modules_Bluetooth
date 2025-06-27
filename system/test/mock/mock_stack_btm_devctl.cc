@@ -23,22 +23,14 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include "stack/btm/internal/btm_api.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/btm_api_types.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/dev_hci_link_interface.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-namespace test {
-namespace mock {
-namespace stack_btm_devctl {
-
-}
-}  // namespace mock
-}  // namespace test
 
 tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* /* bd_addr */, tBTM_CMPL_CB* /* p_cb */) {
   inc_func_call_count(__func__);
@@ -56,5 +48,3 @@ void BTM_db_reset(void) { inc_func_call_count(__func__); }
 void btm_delete_stored_link_key_complete(uint8_t* /* p */, uint16_t /* evt_len */) {
   inc_func_call_count(__func__);
 }
-void btm_dev_free() { inc_func_call_count(__func__); }
-void btm_dev_init() { inc_func_call_count(__func__); }

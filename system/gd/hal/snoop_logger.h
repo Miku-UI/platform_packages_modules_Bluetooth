@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #pragma once
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <fstream>
 #include <string>
@@ -29,6 +30,7 @@
 #include "hal/snoop_logger_socket_interface.h"
 #include "hal/snoop_logger_socket_thread.h"
 #include "hal/syscall_wrapper_impl.h"
+#include "hci/hci_packets.h"
 #include "module.h"
 #include "os/repeating_alarm.h"
 
@@ -144,7 +146,7 @@ public:
   static const ModuleFactory Factory;
 
   static const std::string kBtSnoopMaxPacketsPerFileProperty;
-  static const std::string kIsDebuggableProperty;
+  static const std::string kRoBuildType;
   static const std::string kBtSnoopLogModeProperty;
   static const std::string kBtSnoopLogPersists;
   static const std::string kBtSnoopDefaultLogModeProperty;
@@ -193,6 +195,15 @@ public:
     uint16_t remote_cid;
   };
 
+  SnoopLogger(os::Handler* handler);
+  ~SnoopLogger() {
+    if (!com::android::bluetooth::flags::same_handler_for_all_modules()) {
+      GetHandler()->Clear();
+      GetHandler()->WaitUntilStopped(std::chrono::milliseconds(2000));
+      delete GetHandler();
+    }
+  }
+
   // Returns the maximum number of packets per file
   // Changes to this value is only effective after restarting Bluetooth
   static size_t GetMaxPacketsPerFile();
@@ -223,6 +234,8 @@ public:
     OUTGOING,
   };
 
+  void Start() override;
+  void Stop() override;
   void Capture(const HciPacket& packet, Direction direction, PacketType type);
 
   // Set a L2CAP channel as acceptlisted, allowing packets with that L2CAP CID
@@ -267,6 +280,8 @@ public:
   // Dump the contents of the snooz buffer to a file.
   void DumpSnoozLogToFile();
 
+  SnoopLoggerSocketThread const* GetSocketThread() { return snoop_logger_socket_thread_.get(); }
+
 protected:
   // Packet type length
   static const size_t PACKET_TYPE_LENGTH;
@@ -276,16 +291,16 @@ protected:
   // Max packet data size when headersfiltered option enabled
   static const size_t MAX_HCI_ACL_LEN;
 
-  void ListDependencies(ModuleList* list) const override;
-  void Start() override;
-  void Stop() override;
+  void ListDependencies(ModuleList* /*list*/) const override {}
   std::string ToString() const override { return std::string("SnoopLogger"); }
 
-  SnoopLogger(std::string snoop_log_path, std::string snooz_log_path, size_t max_packets_per_file,
-              size_t max_packets_per_buffer, const std::string& btsnoop_mode,
-              bool qualcomm_debug_log_enabled, const std::chrono::milliseconds snooz_log_life_time,
+  SnoopLogger(os::Handler* handler, std::string snoop_log_path, std::string snooz_log_path,
+              size_t max_packets_per_file, size_t max_packets_per_buffer,
+              const std::string& btsnoop_mode, bool qualcomm_debug_log_enabled,
+              const std::chrono::milliseconds snooz_log_life_time,
               const std::chrono::milliseconds snooz_log_delete_alarm_interval,
               bool snoop_log_persists);
+
   void CloseCurrentSnoopLogFile();
   void OpenNextSnoopLogFile();
   // Enable filters according to their sysprops
@@ -339,6 +354,8 @@ private:
   SnoopLoggerSocketInterface* socket_;
   SyscallWrapperImpl syscall_if;
   bool snoop_log_persists = false;
+
+  friend class SnoopLoggerTest;
 };
 
 }  // namespace hal

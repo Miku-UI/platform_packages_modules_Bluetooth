@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.anyInt;
@@ -24,10 +27,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.ContentResolver;
-import android.content.res.Resources;
 import android.os.HandlerThread;
 import android.os.Looper;
 
@@ -42,36 +43,27 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link PbapClientConnectionHandler}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientConnectionHandlerTest {
+    private static final String TAG = PbapClientConnectionHandlerTest.class.getSimpleName();
 
-    private static final String TAG = "ConnHandlerTest";
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
+
+    @Mock private PbapClientService mService;
+    @Mock private ContentResolver mMockContentResolver;
+    @Mock private PbapClientStateMachineOld mStateMachine;
 
     // Normal supported features for our client
     private static final int SUPPORTED_FEATURES =
             PbapSdpRecord.FEATURE_DOWNLOADING | PbapSdpRecord.FEATURE_DEFAULT_IMAGE_FORMAT;
 
-    private HandlerThread mThread;
+    private final BluetoothDevice mDevice = getTestDevice(23);
+
     private Looper mLooper;
-    private BluetoothDevice mRemoteDevice;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    private BluetoothAdapter mAdapter;
-
-    @Mock private PbapClientService mService;
-
-    @Mock private Resources mMockResources;
-
-    @Mock private ContentResolver mMockContentResolver;
-
-    @Mock private PbapClientStateMachineOld mStateMachine;
-
+    private HandlerThread mThread;
     private PbapClientConnectionHandler mHandler;
 
     @Before
@@ -80,17 +72,13 @@ public class PbapClientConnectionHandlerTest {
             Looper.prepare();
         }
 
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-
         mThread = new HandlerThread("test_handler_thread");
         mThread.start();
         mLooper = mThread.getLooper();
-        mRemoteDevice = mAdapter.getRemoteDevice(REMOTE_DEVICE_ADDRESS);
 
         doReturn(mService).when(mStateMachine).getContext();
         doReturn(mMockContentResolver).when(mService).getContentResolver();
-        doReturn(mMockResources).when(mService).getResources();
-        doReturn("com.android.bluetooth.pbapclient").when(mMockResources).getString(anyInt());
+        doReturn("com.android.bluetooth.pbapclient").when(mService).getString(anyInt());
 
         mHandler =
                 new PbapClientConnectionHandler.Builder()
@@ -98,7 +86,7 @@ public class PbapClientConnectionHandlerTest {
                         .setLocalSupportedFeatures(SUPPORTED_FEATURES)
                         .setClientSM(mStateMachine)
                         .setService(mService)
-                        .setRemoteDevice(mRemoteDevice)
+                        .setRemoteDevice(mDevice)
                         .build();
     }
 

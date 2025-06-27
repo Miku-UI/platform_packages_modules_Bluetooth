@@ -23,8 +23,7 @@ use bluetooth_qa::{BluetoothQA, IBluetoothQA};
 use log::{debug, info};
 use num_derive::{FromPrimitive, ToPrimitive};
 use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc::channel;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{sleep, Duration};
 
 use crate::battery_manager::{BatteryManager, BatterySet};
@@ -45,33 +44,31 @@ use crate::bluetooth_gatt::{
 use crate::bluetooth_media::{BluetoothMedia, IBluetoothMedia, MediaActions};
 use crate::dis::{DeviceInformation, ServiceCallbacks};
 use crate::socket_manager::{BluetoothSocketManager, SocketActions};
-use crate::suspend::Suspend;
-use bt_topshim::{
-    btif::{BaseCallbacks, BtAclState, BtBondState, BtTransport, DisplayAddress, RawAddress, Uuid},
-    profiles::{
-        a2dp::A2dpCallbacks,
-        avrcp::AvrcpCallbacks,
-        csis::CsisClientCallbacks,
-        gatt::GattAdvCallbacks,
-        gatt::GattAdvInbandCallbacks,
-        gatt::GattClientCallbacks,
-        gatt::GattScannerCallbacks,
-        gatt::GattScannerInbandCallbacks,
-        gatt::GattServerCallbacks,
-        hfp::HfpCallbacks,
-        hid_host::{BthhReportType, HHCallbacks},
-        le_audio::LeAudioClientCallbacks,
-        sdp::SdpCallbacks,
-        vc::VolumeControlCallbacks,
-    },
+use crate::suspend::{Suspend, SuspendActions};
+use bt_topshim::btif::{
+    BaseCallbacks, BtAclState, BtBondState, BtTransport, DisplayAddress, RawAddress, Uuid,
 };
+use bt_topshim::profiles::a2dp::A2dpCallbacks;
+use bt_topshim::profiles::avrcp::AvrcpCallbacks;
+use bt_topshim::profiles::csis::CsisClientCallbacks;
+use bt_topshim::profiles::gatt::{
+    GattAdvCallbacks, GattAdvInbandCallbacks, GattClientCallbacks, GattScannerCallbacks,
+    GattScannerInbandCallbacks, GattServerCallbacks,
+};
+use bt_topshim::profiles::hfp::HfpCallbacks;
+use bt_topshim::profiles::hid_host::{BthhReportType, HHCallbacks};
+use bt_topshim::profiles::le_audio::LeAudioClientCallbacks;
+use bt_topshim::profiles::sdp::SdpCallbacks;
+use bt_topshim::profiles::vc::VolumeControlCallbacks;
 
 /// Message types that are sent to the stack main dispatch loop.
 pub enum Message {
     /// Remove the DBus API. Call it before other AdapterShutdown.
     InterfaceShutdown,
     /// Disable the adapter by calling btif disable.
-    AdapterShutdown,
+    /// Param: bool to indicate abort(true) or graceful shutdown(false).
+    /// Use abort when we believe adapter is already in a bad state.
+    AdapterShutdown(bool),
     /// Clean up the adapter by calling btif cleanup.
     Cleanup,
     /// Clean up the media by calling profile cleanup.
@@ -121,11 +118,7 @@ pub enum Message {
     ),
 
     // Suspend related
-    SuspendCallbackRegistered(u32),
-    SuspendCallbackDisconnected(u32),
-    SuspendReady(i32),
-    ResumeReady(i32),
-    AudioReconnectOnResumeComplete,
+    SuspendActions(SuspendActions),
 
     // Scanner related
     ScannerCallbackDisconnected(u32),
@@ -296,9 +289,9 @@ impl Stack {
                     });
                 }
 
-                Message::AdapterShutdown => {
+                Message::AdapterShutdown(abort) => {
                     bluetooth_gatt.lock().unwrap().enable(false);
-                    bluetooth.lock().unwrap().disable();
+                    bluetooth.lock().unwrap().shutdown_adapter(abort);
                 }
 
                 Message::Cleanup => {
@@ -340,8 +333,7 @@ impl Stack {
                 }
 
                 Message::Base(b) => {
-                    dispatch_base_callbacks(bluetooth.lock().unwrap().as_mut(), b.clone());
-                    dispatch_base_callbacks(suspend.lock().unwrap().as_mut(), b);
+                    dispatch_base_callbacks(bluetooth.lock().unwrap().as_mut(), b);
                 }
 
                 // When pairing is busy for any reason, the bond cannot be created.
@@ -461,24 +453,8 @@ impl Stack {
                     }
                 }
 
-                Message::SuspendCallbackRegistered(id) => {
-                    suspend.lock().unwrap().callback_registered(id);
-                }
-
-                Message::SuspendCallbackDisconnected(id) => {
-                    suspend.lock().unwrap().remove_callback(id);
-                }
-
-                Message::SuspendReady(suspend_id) => {
-                    suspend.lock().unwrap().suspend_ready(suspend_id);
-                }
-
-                Message::ResumeReady(suspend_id) => {
-                    suspend.lock().unwrap().resume_ready(suspend_id);
-                }
-
-                Message::AudioReconnectOnResumeComplete => {
-                    suspend.lock().unwrap().audio_reconnect_complete();
+                Message::SuspendActions(action) => {
+                    suspend.lock().unwrap().handle_action(action);
                 }
 
                 Message::ScannerCallbackDisconnected(id) => {
@@ -619,7 +595,7 @@ impl Stack {
                     // to know whether a socket is open or not.
                     if bluetooth_gatt.lock().unwrap().get_connected_applications(&addr)
                         == vec![bas_app_uuid]
-                        && !bluetooth.lock().unwrap().is_hh_connected(&addr)
+                        && !bluetooth.lock().unwrap().is_initiated_hh_connection(&addr)
                         && bluetooth_media.lock().unwrap().get_connected_profiles(&addr).is_empty()
                     {
                         info!(

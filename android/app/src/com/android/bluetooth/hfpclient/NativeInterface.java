@@ -15,21 +15,20 @@
  */
 
 /*
- * Defines the native inteface that is used by state machine/service to either or receive messages
+ * Defines the native interface that is used by state machine/service to either or receive messages
  * from the native stack. This file is registered for the native methods in corresponding CPP file.
  */
 package com.android.bluetooth.hfpclient;
+
+import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-
-import java.util.Objects;
 
 /**
  * Defines native calls that are used by state machine/service to either send or receive messages
@@ -39,18 +38,16 @@ import java.util.Objects;
 public class NativeInterface {
     private static final String TAG = NativeInterface.class.getSimpleName();
 
-    private AdapterService mAdapterService;
+    private final AdapterService mAdapterService;
 
     @GuardedBy("INSTANCE_LOCK")
     private static NativeInterface sInstance;
 
     private static final Object INSTANCE_LOCK = new Object();
 
-    private NativeInterface() {
-        mAdapterService =
-                Objects.requireNonNull(
-                        AdapterService.getAdapterService(),
-                        "AdapterService cannot be null when NativeInterface init");
+    @VisibleForTesting
+    NativeInterface(AdapterService adapterService) {
+        mAdapterService = requireNonNull(adapterService);
     }
 
     /**
@@ -61,7 +58,7 @@ public class NativeInterface {
     public static NativeInterface getInstance() {
         synchronized (INSTANCE_LOCK) {
             if (sInstance == null) {
-                sInstance = new NativeInterface();
+                sInstance = new NativeInterface(AdapterService.getAdapterService());
             }
             return sInstance;
         }
@@ -264,9 +261,9 @@ public class NativeInterface {
      *
      * @param device target device
      * @param atCmd command code
-     * @param val1 command specific argurment1
-     * @param val2 command specific argurment2
-     * @param arg other command specific argurments
+     * @param val1 command specific argument1
+     * @param val2 command specific argument2
+     * @param arg other command specific arguments
      * @return True on success, False on failure
      */
     @VisibleForTesting
@@ -336,12 +333,8 @@ public class NativeInterface {
         return mAdapterService.getDeviceFromByte(address);
     }
 
-    private byte[] getByteAddress(BluetoothDevice device) {
-        if (Flags.identityAddressNullIfNotKnown()) {
-            return Utils.getByteBrEdrAddress(device);
-        } else {
-            return mAdapterService.getByteIdentityAddress(device);
-        }
+    private static byte[] getByteAddress(BluetoothDevice device) {
+        return Utils.getByteBrEdrAddress(device);
     }
 
     // Callbacks from the native back into the java framework. All callbacks are routed via the
@@ -514,7 +507,7 @@ public class NativeInterface {
     /**
      * CIEV (Call indicators) notifying call held states.
      *
-     * <p>Values include: 0 - No calls held 1 - Call is placed on hold or active/held calls wapped
+     * <p>Values include: 0 - No calls held 1 - Call is placed on hold or active/held calls swapped
      * (The AG has both an ACTIVE and HELD call) 2 - Call on hold, no active call
      */
     @VisibleForTesting
@@ -682,7 +675,7 @@ public class NativeInterface {
         if (service != null) {
             service.messageFromNative(event);
         } else {
-            Log.w(TAG, "onUnknowEvent: Ignoring message because service not available: " + event);
+            Log.w(TAG, "onUnknownEvent: Ignoring message because service not available: " + event);
         }
     }
 }

@@ -1,11 +1,9 @@
 use async_trait::async_trait;
 use bitflags::bitflags;
 
-use crate::{
-    core::uuid::Uuid,
-    gatt::ids::AttHandle,
-    packets::att::{self, AttErrorCode},
-};
+use crate::core::uuid::Uuid;
+use crate::gatt::ids::AttHandle;
+use crate::packets::att::{self, AttErrorCode};
 
 impl From<att::AttHandle> for AttHandle {
     fn from(value: att::AttHandle) -> Self {

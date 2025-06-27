@@ -45,6 +45,11 @@
 #define RFCOMM_DEFAULT_MTU 127
 
 /*
+ *  The minimum allowed MTU should be 23 according to the RFCOMM specs
+ */
+#define RFCOMM_MIN_MTU 23
+
+/*
  * RFCOMM buffer sizes
  */
 #define RFCOMM_CMD_BUF_SIZE BT_SMALL_BUFFER_SIZE     // command packet buffer size

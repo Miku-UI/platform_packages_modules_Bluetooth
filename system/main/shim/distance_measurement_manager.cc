@@ -25,6 +25,7 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/main_thread.h"
 
+using bluetooth::hci::DistanceMeasurementDetectedAttackLevel;
 using bluetooth::hci::DistanceMeasurementErrorCode;
 using bluetooth::hci::DistanceMeasurementMethod;
 using namespace bluetooth;
@@ -117,15 +118,18 @@ public:
   void OnDistanceMeasurementResult(bluetooth::hci::Address address, uint32_t centimeter,
                                    uint32_t error_centimeter, int azimuth_angle,
                                    int error_azimuth_angle, int altitude_angle,
-                                   int error_altitude_angle, uint64_t elapsedRealtimeNanos,
-                                   int8_t confidence_level,
+                                   int error_altitude_angle, uint64_t elapsed_realtime_nanos,
+                                   int8_t confidence_level, double delay_spread_meters,
+                                   DistanceMeasurementDetectedAttackLevel detected_attack_level,
+                                   double velocity_meters_per_second,
                                    DistanceMeasurementMethod method) override {
-    do_in_jni_thread(base::BindOnce(&::DistanceMeasurementCallbacks::OnDistanceMeasurementResult,
-                                    base::Unretained(distance_measurement_callbacks_),
-                                    bluetooth::ToRawAddress(address), centimeter, error_centimeter,
-                                    azimuth_angle, error_azimuth_angle, altitude_angle,
-                                    error_altitude_angle, elapsedRealtimeNanos, confidence_level,
-                                    static_cast<uint8_t>(method)));
+    do_in_jni_thread(base::BindOnce(
+            &::DistanceMeasurementCallbacks::OnDistanceMeasurementResult,
+            base::Unretained(distance_measurement_callbacks_), bluetooth::ToRawAddress(address),
+            centimeter, error_centimeter, azimuth_angle, error_azimuth_angle, altitude_angle,
+            error_altitude_angle, elapsed_realtime_nanos, confidence_level, delay_spread_meters,
+            static_cast<uint8_t>(detected_attack_level), velocity_meters_per_second,
+            static_cast<uint8_t>(method)));
   }
 
   void OnRasFragmentReady(bluetooth::hci::Address address, uint16_t procedure_counter, bool is_last,
@@ -202,6 +206,21 @@ public:
   }
 
   // Must be called from main_thread
+  // Callbacks of bluetooth::ras::RasServerCallbacks
+  void OnMtuChangedFromServer(const RawAddress& address, uint16_t mtu) override {
+    handle_mtu_changed(address, mtu);
+  }
+
+  void OnMtuChangedFromClient(const RawAddress& address, uint16_t mtu) override {
+    handle_mtu_changed(address, mtu);
+  }
+
+  void handle_mtu_changed(const RawAddress& address, uint16_t mtu) {
+    uint16_t connection_handle = GetConnectionHandleAndRole(address);
+    bluetooth::shim::GetDistanceMeasurementManager()->HandleMtuChanged(connection_handle, mtu);
+  }
+
+  // Must be called from main_thread
   // Callbacks of bluetooth::ras::RasSeverCallbacks
   void OnRasServerDisconnected(const RawAddress& identity_address) override {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasServerDisconnected(
@@ -233,9 +252,10 @@ public:
             bluetooth::ToGdAddress(address), GetConnectionHandleAndRole(address), conn_interval);
   }
 
-  void OnDisconnected(const RawAddress& address) {
+  void OnDisconnected(const RawAddress& address,
+                      const ras::RasDisconnectReason& ras_disconnect_reason) {
     bluetooth::shim::GetDistanceMeasurementManager()->HandleRasClientDisconnectedEvent(
-            bluetooth::ToGdAddress(address));
+            bluetooth::ToGdAddress(address), ras_disconnect_reason);
   }
 
   // Must be called from main_thread

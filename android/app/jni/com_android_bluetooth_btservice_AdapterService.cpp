@@ -43,9 +43,6 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::Uuid;
 extern bt_interface_t bluetoothInterface;
 
@@ -1025,7 +1022,7 @@ static bt_os_callouts_t sBluetoothOsCallouts = {
         release_wake_lock_callout,
 };
 
-int hal_util_load_bt_library(const bt_interface_t** interface) {
+static int hal_util_load_bt_library(const bt_interface_t** interface) {
   *interface = &bluetoothInterface;
   return 0;
 }
@@ -1730,21 +1727,6 @@ static void dumpNative(JNIEnv* env, jobject /* obj */, jobject fdObj, jobjectArr
   delete[] argObjs;
 }
 
-static jbyteArray dumpMetricsNative(JNIEnv* env, jobject /* obj */) {
-  log::info("");
-  if (!sBluetoothInterface) {
-    return env->NewByteArray(0);
-  }
-
-  std::string output;
-  sBluetoothInterface->dumpMetrics(&output);
-  jsize output_size = output.size() * sizeof(char);
-  jbyteArray output_bytes = env->NewByteArray(output_size);
-  env->SetByteArrayRegion(output_bytes, 0, output_size,
-                          reinterpret_cast<const jbyte*>(output.data()));
-  return output_bytes;
-}
-
 static jboolean factoryResetNative(JNIEnv* /* env */, jobject /* obj */) {
   log::verbose("");
   if (!sBluetoothInterface) {
@@ -2237,6 +2219,26 @@ static jboolean disconnectAllAclsNative(JNIEnv* /* env */, jobject /* obj */) {
   return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
 }
 
+static jboolean disconnectAclNative(JNIEnv* env, jobject /* obj */, jbyteArray address,
+                                    jint transport) {
+  log::verbose("");
+
+  if (!sBluetoothInterface) {
+    return JNI_FALSE;
+  }
+
+  jbyte* addr = env->GetByteArrayElements(address, nullptr);
+  if (addr == nullptr) {
+    jniThrowIOException(env, EINVAL);
+    return JNI_FALSE;
+  }
+  RawAddress addr_obj = {};
+  addr_obj.FromOctets(reinterpret_cast<uint8_t*>(addr));
+  env->ReleaseByteArrayElements(address, addr, 0);
+
+  return sBluetoothInterface->disconnect_acl(addr_obj, transport);
+}
+
 static jboolean allowWakeByHidNative(JNIEnv* /* env */, jobject /* obj */) {
   log::verbose("");
 
@@ -2259,7 +2261,7 @@ static jboolean restoreFilterAcceptListNative(JNIEnv* /* env */, jobject /* obj 
   return (ret == BT_STATUS_SUCCESS) ? JNI_TRUE : JNI_FALSE;
 }
 
-int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
+static int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
   const JNINativeMethod methods[] = {
           {"initNative", "(ZZIZ)Z", reinterpret_cast<void*>(initNative)},
           {"cleanupNative", "()V", reinterpret_cast<void*>(cleanupNative)},
@@ -2290,7 +2292,6 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"readEnergyInfoNative", "()I", reinterpret_cast<void*>(readEnergyInfoNative)},
           {"dumpNative", "(Ljava/io/FileDescriptor;[Ljava/lang/String;)V",
            reinterpret_cast<void*>(dumpNative)},
-          {"dumpMetricsNative", "()[B", reinterpret_cast<void*>(dumpMetricsNative)},
           {"factoryResetNative", "()Z", reinterpret_cast<void*>(factoryResetNative)},
           {"obfuscateAddressNative", "([B)[B", reinterpret_cast<void*>(obfuscateAddressNative)},
           {"setBufferLengthMillisNative", "(II)Z",
@@ -2329,6 +2330,7 @@ int register_com_android_bluetooth_btservice_AdapterService(JNIEnv* env) {
           {"clearFilterAcceptListNative", "()Z",
            reinterpret_cast<void*>(clearFilterAcceptListNative)},
           {"disconnectAllAclsNative", "()Z", reinterpret_cast<void*>(disconnectAllAclsNative)},
+          {"disconnectAclNative", "([BI)Z", reinterpret_cast<void*>(disconnectAclNative)},
           {"allowWakeByHidNative", "()Z", reinterpret_cast<void*>(allowWakeByHidNative)},
           {"restoreFilterAcceptListNative", "()Z",
            reinterpret_cast<void*>(restoreFilterAcceptListNative)},

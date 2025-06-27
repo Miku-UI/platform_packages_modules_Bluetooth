@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,9 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -35,16 +38,14 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.UserHandle;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.TestLooper;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -55,19 +56,17 @@ import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link HearingAidStateMachine}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class HearingAidStateMachineTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private HearingAidService mService;
     @Mock private HearingAidNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mTestDevice = TestUtils.getTestDevice(mAdapter, 0xDA);
+    private final BluetoothDevice mTestDevice = getTestDevice(0xDA);
 
     private HearingAidStateMachine mStateMachine;
     private InOrder mInOrder;

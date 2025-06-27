@@ -30,8 +30,6 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.google.errorprone.annotations.InlineMe;
-
 public class TestUtils extends android.bluetooth.test_utils.TestUtils {
     /**
      * Get the current enabled status of a given profile.
@@ -158,23 +156,6 @@ public class TestUtils extends android.bluetooth.test_utils.TestUtils {
         BluetoothAdapter adapter = manager.getAdapter();
         assertThat(adapter).isNotNull();
         return adapter;
-    }
-
-    /**
-     * Utility method to assert two byte arrays are equal.
-     *
-     * @param expected expected value
-     * @param actual actual value
-     * @deprecated Please use {@link com.google.common.truth.Truth},
-     *     "assertThat(actual).isEqualTo(expected)". Keeping it here since some tests are still
-     *     using it.
-     */
-    @Deprecated
-    @InlineMe(
-            replacement = "assertThat(actual).isEqualTo(expected)",
-            staticImports = "com.google.common.truth.Truth.assertThat")
-    public static void assertArrayEquals(byte[] expected, byte[] actual) {
-        assertThat(actual).isEqualTo(expected);
     }
 
     /**

@@ -23,9 +23,6 @@
 #include "stack/l2cap/l2c_int.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 static bluetooth::l2cap::MockL2capInterface* l2cap_interface = nullptr;
 
 void bluetooth::l2cap::SetMockInterface(MockL2capInterface* mock_l2cap_interface) {
@@ -47,16 +44,6 @@ uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& bd_addr) {
 
 bool L2CA_DisconnectReq(uint16_t cid) { return l2cap_interface->DisconnectRequest(cid); }
 
-bool L2CA_DisconnectRsp(uint16_t cid) { return l2cap_interface->DisconnectResponse(cid); }
-
-bool L2CA_ConfigReq(uint16_t cid, tL2CAP_CFG_INFO* p_cfg) {
-  return l2cap_interface->ConfigRequest(cid, p_cfg);
-}
-
-bool L2CA_ConfigRsp(uint16_t cid, tL2CAP_CFG_INFO* p_cfg) {
-  return l2cap_interface->ConfigResponse(cid, p_cfg);
-}
-
 tL2CAP_DW_RESULT L2CA_DataWrite(uint16_t cid, BT_HDR* p_data) {
   return l2cap_interface->DataWrite(cid, p_data);
 }
@@ -70,6 +57,10 @@ void L2CA_DeregisterLECoc(uint16_t psm) { return l2cap_interface->DeregisterLECo
 
 tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) {
   return to_hci_role(l2cap_interface->GetBleConnRole(bd_addr));
+}
+
+uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) {
+  return l2cap_interface->GetBleConnInterval(bd_addr);
 }
 
 std::vector<uint16_t> L2CA_ConnectCreditBasedReq(uint16_t psm, const RawAddress& bd_addr,

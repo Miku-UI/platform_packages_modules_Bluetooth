@@ -23,10 +23,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "os/metrics.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using testing::_;
 using testing::AnyNumber;
@@ -59,9 +57,9 @@ std::vector<int64_t> last_streaming_duration_nanos;
 std::vector<int32_t> last_streaming_context_type;
 
 namespace bluetooth {
-namespace common {
+namespace os {
 
-void LogLeAudioConnectionSessionReported(
+void LogMetricLeAudioConnectionSessionReported(
         int32_t group_size, int32_t group_metric_id, int64_t connection_duration_nanos,
         const std::vector<int64_t>& device_connecting_offset_nanos,
         const std::vector<int64_t>& device_connected_offset_nanos,
@@ -87,11 +85,11 @@ void LogLeAudioConnectionSessionReported(
   last_streaming_context_type = streaming_context_type;
 }
 
-void LogLeAudioBroadcastSessionReported(int64_t duration_nanos) {
+void LogMetricLeAudioBroadcastSessionReported(int64_t duration_nanos) {
   last_broadcast_duration_nanos = duration_nanos;
 }
 
-}  // namespace common
+}  // namespace os
 }  // namespace bluetooth
 
 namespace bluetooth::le_audio {

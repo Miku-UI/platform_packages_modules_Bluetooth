@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
@@ -23,8 +25,7 @@ import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.flags.Flags;
-
-import com.google.common.annotations.VisibleForTesting;
+import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -154,7 +155,7 @@ public class BrowseTree {
         private int mExpectedChildrenCount;
 
         BrowseNode(AvrcpItem item) {
-            Objects.requireNonNull(item, "Cannot have a browse node with a null item");
+            requireNonNull(item);
             mItem = item;
         }
 

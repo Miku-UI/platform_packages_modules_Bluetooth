@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import org.junit.runner.RunWith;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Test cases for {@link PhonebookPullRequest}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PhonebookPullRequestTest {
@@ -71,14 +72,14 @@ public class PhonebookPullRequestTest {
         assertThat(mRequest.complete).isTrue();
     }
 
-    private VCardProperty createProperty(String name, String value) {
+    private static VCardProperty createProperty(String name, String value) {
         VCardProperty property = new VCardProperty();
         property.setName(name);
         property.setValues(value);
         return property;
     }
 
-    private VCardEntry createEntry(int propertyCount) {
+    private static VCardEntry createEntry(int propertyCount) {
         VCardEntry entry = new VCardEntry();
         for (int i = 0; i < propertyCount; i++) {
             entry.addProperty(createProperty(VCardConstants.PROPERTY_TEL, Integer.toString(i)));

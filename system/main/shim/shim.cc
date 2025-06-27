@@ -54,7 +54,3 @@ EXPORT_SYMBOL extern const module_t gd_shim_module = {.name = GD_SHIM_MODULE,
                                                       .shut_down = GeneralShutDown,
                                                       .clean_up = kUnusedModuleApi,
                                                       .dependencies = {kUnusedModuleDependencies}};
-
-bool bluetooth::shim::is_gd_stack_started_up() {
-  return bluetooth::shim::Stack::GetInstance()->IsRunning();
-}

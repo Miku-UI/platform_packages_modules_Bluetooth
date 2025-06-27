@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,14 @@
 
 package com.android.bluetooth.btservice;
 
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringConsumer;
+
 import android.bluetooth.IBluetoothHciVendorSpecificCallback;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.ArrayMap;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
 import com.android.internal.annotations.GuardedBy;
 
 import java.nio.ByteBuffer;
@@ -32,7 +33,7 @@ import java.util.Set;
 import java.util.UUID;
 
 class BluetoothHciVendorSpecificDispatcher {
-    private static final String TAG = "BluetoothHciVendorSpecificDispatcher";
+    private static final String TAG = BluetoothHciVendorSpecificDispatcher.class.getSimpleName();
 
     private final class Registration implements IBinder.DeathRecipient {
         final IBluetoothHciVendorSpecificCallback mCallback;
@@ -99,7 +100,7 @@ class BluetoothHciVendorSpecificDispatcher {
 
     void dispatchCommandStatusOrComplete(
             byte[] cookie,
-            Utils.RemoteExceptionIgnoringConsumer<IBluetoothHciVendorSpecificCallback> action) {
+            RemoteExceptionIgnoringConsumer<IBluetoothHciVendorSpecificCallback> action) {
         ByteBuffer cookieBb = ByteBuffer.wrap(cookie);
         UUID uuid = new UUID(cookieBb.getLong(), cookieBb.getLong());
         synchronized (mRegistrations) {
@@ -119,7 +120,7 @@ class BluetoothHciVendorSpecificDispatcher {
 
     void broadcastEvent(
             int eventCode,
-            Utils.RemoteExceptionIgnoringConsumer<IBluetoothHciVendorSpecificCallback> action) {
+            RemoteExceptionIgnoringConsumer<IBluetoothHciVendorSpecificCallback> action) {
         synchronized (mRegistrations) {
             mRegistrations.values().stream()
                     .filter((r) -> r.mEventCodes.contains(eventCode))

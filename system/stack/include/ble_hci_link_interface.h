@@ -18,8 +18,10 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "stack/include/hci_error_code.h"
+#include "stack/include/rnr_interface.h"
 
 // This header contains functions for HCI-ble to invoke
 void btm_ble_read_remote_features_complete(uint8_t* p, uint8_t length);
@@ -30,3 +32,21 @@ void btm_ble_read_resolving_list_entry_complete(const uint8_t* p, uint16_t evt_l
 void btm_ble_remove_resolving_list_entry_complete(uint8_t* p, uint16_t evt_len);
 void btm_ble_add_resolving_list_entry_complete(uint8_t* p, uint16_t evt_len);
 void btm_ble_clear_resolving_list_complete(uint8_t* p, uint16_t evt_len);
+tBTM_STATUS btm_ble_read_remote_cod(const RawAddress& remote_bda);
+tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb);
+bool btm_ble_cancel_remote_name(const RawAddress& remote_bda);
+void btm_ble_decrement_link_topology_mask(uint8_t link_role);
+void btm_ble_increment_link_topology_mask(uint8_t link_role);
+DEV_CLASS btm_ble_get_appearance_as_cod(std::vector<uint8_t> const& data);
+void btm_ble_process_adv_addr(RawAddress& raw_address, tBLE_ADDR_TYPE* address_type);
+void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t event_type, tBLE_ADDR_TYPE address_type,
+                                              const RawAddress& raw_address, uint8_t primary_phy,
+                                              uint8_t secondary_phy, uint8_t advertising_sid,
+                                              int8_t tx_power, int8_t rssi,
+                                              uint16_t periodic_adv_int,
+                                              std::vector<uint8_t> advertising_data);
+void btm_ble_process_adv_pkt_cont(uint16_t evt_type, tBLE_ADDR_TYPE addr_type,
+                                  const RawAddress& bda, uint8_t primary_phy, uint8_t secondary_phy,
+                                  uint8_t advertising_sid, int8_t tx_power, int8_t rssi,
+                                  uint16_t periodic_adv_int, uint8_t data_len, const uint8_t* data,
+                                  const RawAddress& original_bda);

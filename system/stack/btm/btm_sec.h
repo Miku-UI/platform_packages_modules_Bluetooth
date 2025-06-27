@@ -57,9 +57,11 @@ bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info);
 
 bool BTM_IsEncrypted(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool BTM_IsLinkKeyAuthed(const RawAddress& bd_addr, tBT_TRANSPORT transport);
-bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+bool BTM_IsBonded(const RawAddress& bd_addr, tBT_TRANSPORT transport = BT_TRANSPORT_AUTO);
 bool BTM_IsAuthenticated(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool BTM_CanReadDiscoverableCharacteristics(const RawAddress& bd_addr);
+void BTM_update_version_info(const RawAddress& bd_addr,
+                             const remote_version_info& remote_version_info);
 
 /*******************************************************************************
  *
@@ -243,7 +245,7 @@ tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport
                               tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
                               tBTM_BLE_SEC_ACT sec_act);
 
-bool BTM_SecIsSecurityPending(const RawAddress& bd_addr);
+bool BTM_SecIsLeSecurityPending(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
@@ -401,7 +403,7 @@ void btm_sec_conn_req(const RawAddress& bda, const DEV_CLASS dc);
  * Returns          void
  *
  ******************************************************************************/
-void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr, uint32_t value);
+void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr);
 
 /*******************************************************************************
  *

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,6 @@
 
 // TODO(b/378143579) For peer address not in resolving list
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace bluetooth {
 namespace hci {
 
@@ -53,7 +50,7 @@ std::string LeAddressManager::ClientStateText(const ClientState cs) {
   RETURN_UNKNOWN_TYPE_STRING(ClientState, cs);
 }
 
-std::string AddressPolicyText(const LeAddressManager::AddressPolicy policy) {
+static std::string AddressPolicyText(const LeAddressManager::AddressPolicy policy) {
   switch (policy) {
     CASE_RETURN_STRING(LeAddressManager::AddressPolicy::POLICY_NOT_SET);
     CASE_RETURN_STRING(LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS);
@@ -168,12 +165,8 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
                 min_seconds.count(), max_seconds.count());
         enqueue_command_.Run(std::move(packet));
       } else {
-        if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
-          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
-          address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
-        } else {
-          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
-        }
+        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
+        address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
       }
       set_random_address();
       break;
@@ -232,12 +225,8 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddressForTest(
                 min_seconds.count(), max_seconds.count());
         enqueue_command_.Run(std::move(packet));
       } else {
-        if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
-          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
-          address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
-        } else {
-          address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_);
-        }
+        address_rotation_wake_alarm_ = std::make_unique<os::Alarm>(handler_, true);
+        address_rotation_non_wake_alarm_ = std::make_unique<os::Alarm>(handler_, false);
         set_random_address();
       }
       break;
@@ -425,31 +414,25 @@ void LeAddressManager::prepare_to_rotate() {
 }
 
 void LeAddressManager::schedule_rotate_random_address() {
-  if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation()) {
-    std::string client_name = "LeAddressManager";
-    auto privateAddressIntervalRange = GetNextPrivateAddressIntervalRange(client_name);
-    address_rotation_wake_alarm_->Schedule(
-            common::BindOnce(
-                    []() { log::info("deadline wakeup in schedule_rotate_random_address"); }),
-            privateAddressIntervalRange.max);
-    address_rotation_non_wake_alarm_->Schedule(
-            common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
-            privateAddressIntervalRange.min);
+  std::string client_name = "LeAddressManager";
+  auto privateAddressIntervalRange = GetNextPrivateAddressIntervalRange(client_name);
+  address_rotation_wake_alarm_->Schedule(
+          common::BindOnce(
+                  []() { log::info("deadline wakeup in schedule_rotate_random_address"); }),
+          privateAddressIntervalRange.max);
+  address_rotation_non_wake_alarm_->Schedule(
+          common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
+          privateAddressIntervalRange.min);
 
-    auto now = std::chrono::system_clock::now();
-    if (address_rotation_interval_min.has_value()) {
-      CheckAddressRotationHappenedInExpectedTimeInterval(
-              *address_rotation_interval_min, *address_rotation_interval_max, now, client_name);
-    }
-
-    // Update the expected range here.
-    address_rotation_interval_min.emplace(now + privateAddressIntervalRange.min);
-    address_rotation_interval_max.emplace(now + privateAddressIntervalRange.max);
-  } else {
-    address_rotation_wake_alarm_->Schedule(
-            common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
-            GetNextPrivateAddressIntervalMs());
+  auto now = std::chrono::system_clock::now();
+  if (address_rotation_interval_min.has_value()) {
+    CheckAddressRotationHappenedInExpectedTimeInterval(
+            *address_rotation_interval_min, *address_rotation_interval_max, now, client_name);
   }
+
+  // Update the expected range here.
+  address_rotation_interval_min.emplace(now + privateAddressIntervalRange.min);
+  address_rotation_interval_max.emplace(now + privateAddressIntervalRange.max);
 }
 
 void LeAddressManager::set_random_address() {
@@ -601,10 +584,12 @@ void LeAddressManager::CheckAddressRotationHappenedInExpectedTimeInterval(
         const std::chrono::time_point<std::chrono::system_clock>& interval_max,
         const std::chrono::time_point<std::chrono::system_clock>& event_time,
         const std::string& client_name) {
-  // Give some tolerance to upper limit since alarms may ring a little bit late.
+  // Give some tolerance since alarms may ring a little bit early or late.
+  auto lower_limit_tolerance = std::chrono::seconds(2);
   auto upper_limit_tolerance = std::chrono::seconds(5);
 
-  if (event_time < interval_min || event_time > interval_max + upper_limit_tolerance) {
+  if (event_time < interval_min - lower_limit_tolerance ||
+      event_time > interval_max + upper_limit_tolerance) {
     log::warn("RPA rotation happened outside expected time interval. client={}", client_name);
 
     auto tt_interval_min = std::chrono::system_clock::to_time_t(interval_min);

@@ -143,24 +143,6 @@ struct BTM_StartInquiry {
 };
 extern struct BTM_StartInquiry BTM_StartInquiry;
 
-// Name: btm_clear_all_pending_le_entry
-// Params: void
-// Return: void
-struct btm_clear_all_pending_le_entry {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); }
-};
-extern struct btm_clear_all_pending_le_entry btm_clear_all_pending_le_entry;
-
-// Name: btm_clr_inq_db
-// Params: const RawAddress* p_bda
-// Return: void
-struct btm_clr_inq_db {
-  std::function<void(const RawAddress* p_bda)> body{[](const RawAddress* /* p_bda */) {}};
-  void operator()(const RawAddress* p_bda) { body(p_bda); }
-};
-extern struct btm_clr_inq_db btm_clr_inq_db;
-
 // Name: btm_clr_inq_result_flt
 // Params: void
 // Return: void
@@ -221,25 +203,6 @@ struct btm_process_inq_complete {
   void operator()(tHCI_STATUS status, uint8_t mode) { body(status, mode); }
 };
 extern struct btm_process_inq_complete btm_process_inq_complete;
-
-// Name: btm_set_eir_uuid
-// Params: const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results
-// Return: void
-struct btm_set_eir_uuid {
-  std::function<void(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results)> body{
-          [](const uint8_t* /* p_eir */, tBTM_INQ_RESULTS* /* p_results */) {}};
-  void operator()(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results) { body(p_eir, p_results); }
-};
-extern struct btm_set_eir_uuid btm_set_eir_uuid;
-
-// Name: btm_sort_inq_result
-// Params: void
-// Return: void
-struct btm_sort_inq_result {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); }
-};
-extern struct btm_sort_inq_result btm_sort_inq_result;
 
 }  // namespace stack_btm_inq
 }  // namespace mock

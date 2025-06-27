@@ -27,10 +27,10 @@
 #include "hci/msft.h"
 #include "hci/remote_name_request.h"
 #include "lpp/lpp_offload_manager.h"
+#include "main/shim/shim.h"
 #include "main/shim/stack.h"
 #include "metrics/counter_metrics.h"
 #include "os/handler.h"
-#include "shim/dumpsys.h"
 #include "storage/storage_module.h"
 
 namespace bluetooth {
@@ -39,54 +39,44 @@ namespace shim {
 os::Handler* GetGdShimHandler() { return Stack::GetInstance()->GetHandler(); }
 
 hci::LeAdvertisingManager* GetAdvertising() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::LeAdvertisingManager>();
+  return Stack::GetInstance()->GetInstance<hci::LeAdvertisingManager>();
 }
 
 hci::ControllerInterface* GetController() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::Controller>();
+  return Stack::GetInstance()->GetInstance<hci::Controller>();
 }
 
-Dumpsys* GetDumpsys() { return Stack::GetInstance()->GetStackManager()->GetInstance<Dumpsys>(); }
-
-hci::HciInterface* GetHciLayer() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::HciLayer>();
-}
+hci::HciInterface* GetHciLayer() { return Stack::GetInstance()->GetInstance<hci::HciLayer>(); }
 
 hci::RemoteNameRequestModule* GetRemoteNameRequest() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::RemoteNameRequestModule>();
+  return Stack::GetInstance()->GetInstance<hci::RemoteNameRequestModule>();
 }
 
 hci::LeScanningManager* GetScanning() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::LeScanningManager>();
+  return Stack::GetInstance()->GetInstance<hci::LeScanningManager>();
 }
 
 hci::DistanceMeasurementManager* GetDistanceMeasurementManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::DistanceMeasurementManager>();
+  return Stack::GetInstance()->GetInstance<hci::DistanceMeasurementManager>();
 }
 
-hal::SnoopLogger* GetSnoopLogger() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hal::SnoopLogger>();
-}
+hal::SnoopLogger* GetSnoopLogger() { return Stack::GetInstance()->GetSnoopLogger(); }
 
 lpp::LppOffloadInterface* GetLppOffloadManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<lpp::LppOffloadManager>();
+  return Stack::GetInstance()->GetInstance<lpp::LppOffloadManager>();
 }
 
-storage::StorageModule* GetStorage() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<storage::StorageModule>();
-}
+storage::StorageModule* GetStorage() { return Stack::GetInstance()->GetStorage(); }
 
-hci::AclManager* GetAclManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::AclManager>();
-}
+hci::AclManager* GetAclManager() { return Stack::GetInstance()->GetInstance<hci::AclManager>(); }
 
-metrics::CounterMetrics* GetCounterMetrics() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<metrics::CounterMetrics>();
-}
+metrics::CounterMetrics* GetCounterMetrics() { return Stack::GetInstance()->GetCounterMetrics(); }
 
 hci::MsftExtensionManager* GetMsftExtensionManager() {
-  return Stack::GetInstance()->GetStackManager()->GetInstance<hci::MsftExtensionManager>();
+  return Stack::GetInstance()->GetInstance<hci::MsftExtensionManager>();
 }
+
+bool is_gd_stack_started_up() { return Stack::GetInstance()->IsRunning(); }
 
 }  // namespace shim
 }  // namespace bluetooth

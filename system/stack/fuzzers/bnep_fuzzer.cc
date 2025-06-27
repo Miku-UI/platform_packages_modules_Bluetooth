@@ -31,10 +31,6 @@
 #include "test/mock/mock_stack_l2cap_ble.h"
 #include "types/bluetooth/uuid.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using bluetooth::Uuid;
 
 namespace {

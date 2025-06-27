@@ -1,15 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
-
-flag {
-    name: "override_context_to_specify_device_id"
-    namespace: "bluetooth"
-    description: "In Bluetooth Manager, override the context with createDeviceContext to pin a specific DeviceId"
-    bug: "349657939"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
+container: "com.android.bt"
 
 flag {
     name: "support_metadata_device_types_apis"
@@ -20,49 +10,11 @@ flag {
 }
 
 flag {
-    name: "support_exclusive_manager"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Support setting/retrieving the exclusive manager app for a BluetoothDevice"
-    bug: "319716512"
-}
-
-flag {
-    name: "identity_address_null_if_not_known"
-    namespace: "bluetooth"
-    description: "Return null for identity address if identity address is not known"
-    bug: "317120534"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "remove_address_map_on_unbond"
-    namespace: "bluetooth"
-    description: "Removes the address map when the bond is removed"
-    bug: "335465028"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "support_bluetooth_quality_report_v6"
     is_exported: true
     namespace: "bluetooth"
     description: "Enhanced Bluetooth Framework Support for Accessing Bluetooth Quality Report v6 Information"
     bug: "364517559"
-}
-
-flag {
-    name: "get_profile_use_lock"
-    namespace: "bluetooth"
-    description: "Instead of bloating the main thread, use the binder thread with a synchronization lock"
-    bug: "370815283"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -105,4 +57,45 @@ flag {
     namespace: "bluetooth"
     description: "Make BluetoothDevice.ACTION_KEY_MISSING into public API"
     bug: "379729762"
+}
+
+flag {
+    name: "set_component_available_fix"
+    namespace: "bluetooth"
+    description: "Ensure the state in PackageManager has DISABLED to ENABLED to trigger PACKAGE_CHANGED"
+    bug: "391084450"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_started_module_race"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Fix race in modifying and accessing started modules"
+    bug: "394488590"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_unhandled_bqr_subevent"
+    namespace: "bluetooth"
+    description: "Fix Unhandled BQR subevent on bqr report"
+    bug: "397854116"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "same_handler_for_all_modules"
+    namespace: "bluetooth"
+    description: "Update all modules to use the same handler"
+    bug: "398195386"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

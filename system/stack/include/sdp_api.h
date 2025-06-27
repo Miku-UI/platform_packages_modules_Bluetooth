@@ -19,7 +19,6 @@
 #pragma once
 
 #include <base/functional/callback_forward.h>
-#include <base/strings/stringprintf.h>
 
 #include <cstdint>
 

@@ -111,10 +111,10 @@ struct BTM_IsLinkKeyAuthed {
 };
 extern struct BTM_IsLinkKeyAuthed BTM_IsLinkKeyAuthed;
 
-// Name: BTM_IsLinkKeyKnown
+// Name: BTM_IsBonded
 // Params: const RawAddress& bd_addr, tBT_TRANSPORT transport
 // Return: bool
-struct BTM_IsLinkKeyKnown {
+struct BTM_IsBonded {
   static bool return_value;
   std::function<bool(const RawAddress& bd_addr, tBT_TRANSPORT transport)> body{
           [](const RawAddress& /* bd_addr */, tBT_TRANSPORT /* transport */) {
@@ -124,7 +124,7 @@ struct BTM_IsLinkKeyKnown {
     return body(bd_addr, transport);
   }
 };
-extern struct BTM_IsLinkKeyKnown BTM_IsLinkKeyKnown;
+extern struct BTM_IsBonded BTM_IsBonded;
 
 // Name: BTM_PINCodeReply
 // Params: const RawAddress& bd_addr, tBTM_STATUS res, uint8_t pin_len, uint8_t*
@@ -246,16 +246,16 @@ struct BTM_SecGetDeviceLinkKeyType {
 };
 extern struct BTM_SecGetDeviceLinkKeyType BTM_SecGetDeviceLinkKeyType;
 
-// Name: BTM_SecIsSecurityPending
+// Name: BTM_SecIsLeSecurityPending
 // Params: const RawAddress& bd_addr
 // Return: bool
-struct BTM_SecIsSecurityPending {
+struct BTM_SecIsLeSecurityPending {
   static bool return_value;
   std::function<bool(const RawAddress& bd_addr)> body{
           [](const RawAddress& /* bd_addr */) { return return_value; }};
   bool operator()(const RawAddress& bd_addr) { return body(bd_addr); }
 };
-extern struct BTM_SecIsSecurityPending BTM_SecIsSecurityPending;
+extern struct BTM_SecIsLeSecurityPending BTM_SecIsLeSecurityPending;
 
 // Name: BTM_SecRegister
 // Params: const tBTM_APPL_INFO* p_cb_info
@@ -331,15 +331,6 @@ struct BTM_update_version_info {
 };
 extern struct BTM_update_version_info BTM_update_version_info;
 
-// Name: NotifyBondingCanceled
-// Params: tBTM_STATUS btm_status
-// Return: void
-struct NotifyBondingCanceled {
-  std::function<void(tBTM_STATUS btm_status)> body{[](tBTM_STATUS /* btm_status */) {}};
-  void operator()(tBTM_STATUS btm_status) { body(btm_status); }
-};
-extern struct NotifyBondingCanceled NotifyBondingCanceled;
-
 // Name: btm_create_conn_cancel_complete
 // Params: uint8_t status, RawAddress bd_addr
 // Return: void
@@ -354,10 +345,10 @@ extern struct btm_create_conn_cancel_complete btm_create_conn_cancel_complete;
 // Params: const RawAddress& bda
 // Return: DEV_CLASS
 struct btm_get_dev_class {
-  static const DEV_CLASS return_value;
-  std::function<const DEV_CLASS(const RawAddress& bda)> body{
+  static DEV_CLASS return_value;
+  std::function<DEV_CLASS(const RawAddress& bda)> body{
           [](const RawAddress& /* bda */) { return return_value; }};
-  const DEV_CLASS operator()(const RawAddress& bda) { return body(bda); }
+  DEV_CLASS operator()(const RawAddress& bda) { return body(bda); }
 };
 extern struct btm_get_dev_class btm_get_dev_class;
 
@@ -447,15 +438,6 @@ struct btm_sec_bond_by_transport {
   }
 };
 extern struct btm_sec_bond_by_transport btm_sec_bond_by_transport;
-
-// Name: btm_sec_check_pending_reqs
-// Params: void
-// Return: void
-struct btm_sec_check_pending_reqs {
-  std::function<void(void)> body{[](void) {}};
-  void operator()(void) { body(); }
-};
-extern struct btm_sec_check_pending_reqs btm_sec_check_pending_reqs;
 
 // Name: btm_sec_clear_ble_keys
 // Params: tBTM_SEC_DEV_REC* p_dev_rec

@@ -4,6 +4,18 @@
         <option name="force-root" value="true"/>
     </target_preparer>
 
+    <target_preparer class="com.android.tradefed.targetprep.RunHostCommandTargetPreparer">
+        <!-- Needs to run before test APKs are installed, to avoid blocking setup due to verification -->
+        <option name="host-setup-command" value="adb shell settings put global verifier_verify_adb_installs 0" />
+        <option name="host-teardown-command" value="adb shell settings delete global verifier_verify_adb_installs" />
+    </target_preparer>
+
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="cleanup-apks" value="true" />
+        <option name="test-file-name" value="BumbleBluetoothTestsHelperApp.apk" />
+        <option name="install-arg" value="-g" />
+    </target_preparer>
+
     <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
         <option name="cleanup-apks" value="true" />
         <option name="test-file-name" value="BumbleBluetoothTestsApp.apk" />
@@ -11,7 +23,7 @@
     </target_preparer>
 
     <target_preparer class="com.android.tradefed.targetprep.PythonVirtualenvPreparer">
-        <option name="dep-module" value="grpcio==1.51.1" />
+        <option name="dep-module" value="grpcio==1.70.0" />
         <option name="dep-module" value="cryptography==35" />
         <option name="dep-module" value="libusb1>=2.0.1" />
         <option name="dep-module" value="libusb-package==1.0.26.1" />
@@ -47,8 +59,8 @@
     <!-- Only run if the Bluetooth Mainline module is installed. -->
     <object type="module_controller"
             class="com.android.tradefed.testtype.suite.module.MainlineTestModuleController">
-        <option name="mainline-module-package-name" value="com.android.btservices" />
-        <option name="mainline-module-package-name" value="com.google.android.btservices" />
+        <option name="mainline-module-package-name" value="com.android.bt" />
+        <option name="mainline-module-package-name" value="com.google.android.bt" />
     </object>
 
     <!-- Collect Bluetooth snoop logs for each test run -->

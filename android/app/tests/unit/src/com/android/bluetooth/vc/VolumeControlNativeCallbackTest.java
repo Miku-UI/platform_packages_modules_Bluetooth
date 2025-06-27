@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.vc;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_DEVICE_AVAILABLE;
 import static com.android.bluetooth.vc.VolumeControlStackEvent.EVENT_TYPE_EXT_AUDIO_OUT_DESCRIPTION_CHANGED;
@@ -27,8 +30,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
-
-import android.bluetooth.BluetoothProfile;
 
 import androidx.test.runner.AndroidJUnit4;
 
@@ -43,12 +44,11 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link VolumeControlNativeCallback}. */
 @RunWith(AndroidJUnit4.class)
 public class VolumeControlNativeCallbackTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public Expect expect = Expect.create();
 
     @Mock private AdapterService mAdapterService;
@@ -66,7 +66,7 @@ public class VolumeControlNativeCallbackTest {
 
     @Test
     public void onConnectionStateChanged() {
-        int state = BluetoothProfile.STATE_CONNECTED;
+        int state = STATE_CONNECTED;
 
         mNativeCallback.onConnectionStateChanged(state, null);
         verify(mService).messageFromNative(mEvent.capture());

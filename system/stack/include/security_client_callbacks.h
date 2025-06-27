@@ -110,8 +110,8 @@ typedef struct {
                                    tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
                                    tBTM_BLE_SEC_ACT sec_act);
   bool (*BTM_IsEncrypted)(const RawAddress& bd_addr, tBT_TRANSPORT transport);
-  bool (*BTM_SecIsSecurityPending)(const RawAddress& bd_addr);
-  bool (*BTM_IsLinkKeyKnown)(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+  bool (*BTM_SecIsLeSecurityPending)(const RawAddress& bd_addr);
+  bool (*BTM_IsBonded)(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
   // Secure service management
   bool (*BTM_SetSecurityLevel)(bool is_originator, const char* p_name, uint8_t service_id,

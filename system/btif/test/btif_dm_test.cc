@@ -23,8 +23,10 @@
 #include <memory>
 
 #include "bta/include/bta_api_data_types.h"
-#include "btif/include/btif_dm.h"
 #include "btif/include/mock_core_callbacks.h"
+#include "btif/include/stack_manager_t.h"
+#include "main/shim/entry.h"
+#include "main/shim/shim.h"
 #include "main/shim/stack.h"
 #include "module.h"
 #include "stack/include/bt_dev_class.h"
@@ -40,10 +42,6 @@ namespace {
 const RawAddress kRawAddress = {{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}};
 constexpr char kBdName[] = {'k', 'B', 'd', 'N', 'a', 'm', 'e', '\0'};
 }  // namespace
-
-namespace bluetooth::legacy::testing {
-void set_interface_to_profiles(bluetooth::core::CoreInterface* interfaceToProfiles);
-}  // namespace bluetooth::legacy::testing
 
 namespace {
 constexpr tBTM_BLE_TX_TIME_MS tx_time = 0x12345678;
@@ -116,21 +114,47 @@ TEST_F(BtifDmWithUidTest, bta_energy_info_cb__with_uid) {
   ASSERT_TRUE(invoke_energy_info_cb_entered);
 }
 
+// Mock implementation for GetStorage()
+static bluetooth::storage::StorageModule* s_StorageModule = nullptr;
+bluetooth::storage::StorageModule* bluetooth::shim::GetStorage() { return s_StorageModule; }
+
+bluetooth::os::Handler* bluetooth::shim::GetGdShimHandler() { return nullptr; }
+bluetooth::hci::LeAdvertisingManager* bluetooth::shim::GetAdvertising() { return nullptr; }
+bluetooth::hci::ControllerInterface* bluetooth::shim::GetController() { return nullptr; }
+bluetooth::hci::HciInterface* bluetooth::shim::GetHciLayer() { return nullptr; }
+bluetooth::hci::RemoteNameRequestModule* bluetooth::shim::GetRemoteNameRequest() { return nullptr; }
+bluetooth::hci::LeScanningManager* bluetooth::shim::GetScanning() { return nullptr; }
+bluetooth::hci::DistanceMeasurementManager* bluetooth::shim::GetDistanceMeasurementManager() {
+  return nullptr;
+}
+bluetooth::hal::SnoopLogger* bluetooth::shim::GetSnoopLogger() { return nullptr; }
+bluetooth::lpp::LppOffloadInterface* bluetooth::shim::GetLppOffloadManager() { return nullptr; }
+bluetooth::hci::AclManager* bluetooth::shim::GetAclManager() { return nullptr; }
+bluetooth::metrics::CounterMetrics* bluetooth::shim::GetCounterMetrics() { return nullptr; }
+bluetooth::hci::MsftExtensionManager* bluetooth::shim::GetMsftExtensionManager() { return nullptr; }
+
+bool bluetooth::shim::is_gd_stack_started_up() { return s_StorageModule != nullptr; }
+
 class BtifDmWithStackTest : public BtifDmTest {
 protected:
   void SetUp() override {
     BtifDmTest::SetUp();
-    modules_.add<bluetooth::storage::StorageModule>();
-    bluetooth::shim::Stack::GetInstance()->StartModuleStack(
-            &modules_,
-            new bluetooth::os::Thread("gd_stack_thread", bluetooth::os::Thread::Priority::NORMAL));
+    thread_ = new bluetooth::os::Thread("gd_stack_thread", bluetooth::os::Thread::Priority::NORMAL);
+    storage_module_ = new bluetooth::storage::StorageModule(new bluetooth::os::Handler(thread_));
+    storage_module_->Start();
+    s_StorageModule = storage_module_;
   }
 
   void TearDown() override {
-    bluetooth::shim::Stack::GetInstance()->Stop();
+    storage_module_->Stop();
+    s_StorageModule = nullptr;
+    delete storage_module_;
+    delete thread_;
     BtifDmTest::TearDown();
   }
-  bluetooth::ModuleList modules_;
+
+  bluetooth::os::Thread* thread_;
+  bluetooth::storage::StorageModule* storage_module_;
 };
 
 TEST_F_WITH_FLAGS(BtifDmWithStackTest, btif_dm_search_services_evt__BTA_DM_NAME_READ_EVT) {

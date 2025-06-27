@@ -201,58 +201,21 @@ void bta_ar_reg_avrc(uint16_t service_uuid, const char* service_name, const char
     return;
   }
 
-  if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-    const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-    AvrcpSdpRecord add_record_request = {service_uuid,
-                                         service_name,
-                                         provider_name,
-                                         categories,
-                                         browse_supported,
-                                         profile_version,
-                                         0};
-    if (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET) {
-      avrcp_sdp_service->AddRecord(add_record_request, bta_ar_cb.sdp_tg_request_id);
-      log::debug("Assigned target request id {}", bta_ar_cb.sdp_tg_request_id);
-    } else if (service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL ||
-               service_uuid == UUID_SERVCLASS_AV_REM_CTRL_CONTROL) {
-      avrcp_sdp_service->AddRecord(add_record_request, bta_ar_cb.sdp_ct_request_id);
-      log::debug("Assigned control request id {}", bta_ar_cb.sdp_ct_request_id);
-    }
-    return;
-  }
-  uint8_t mask = BTA_AR_AV_MASK;
-  uint8_t temp[8], *p;
-
+  const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
+  AvrcpSdpRecord add_record_request = {service_uuid,
+                                       service_name,
+                                       provider_name,
+                                       categories,
+                                       browse_supported,
+                                       profile_version,
+                                       0};
   if (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET) {
-    if (bta_ar_cb.sdp_tg_handle == 0) {
-      bta_ar_cb.tg_registered = mask;
-      bta_ar_cb.sdp_tg_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-      AVRC_AddRecord(service_uuid, service_name, provider_name, categories, bta_ar_cb.sdp_tg_handle,
-                     browse_supported, profile_version, 0);
-      bta_sys_add_uuid(service_uuid);
-    }
-    /* only one TG is allowed (first-come, first-served).
-     * If sdp_tg_handle is non-0, ignore this request */
-  } else if ((service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL) ||
-             (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_CONTROL)) {
-    bta_ar_cb.ct_categories[mask - 1] = categories;
-    categories = bta_ar_cb.ct_categories[0] | bta_ar_cb.ct_categories[1];
-    if (bta_ar_cb.sdp_ct_handle == 0) {
-      bta_ar_cb.sdp_ct_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-      AVRC_AddRecord(service_uuid, service_name, provider_name, categories, bta_ar_cb.sdp_ct_handle,
-                     browse_supported, profile_version, 0);
-      bta_sys_add_uuid(service_uuid);
-    } else {
-      /* multiple CTs are allowed.
-       * Change supported categories on the second one */
-      p = temp;
-      UINT16_TO_BE_STREAM(p, categories);
-      if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-                  bta_ar_cb.sdp_ct_handle, ATTR_ID_SUPPORTED_FEATURES, UINT_DESC_TYPE, (uint32_t)2,
-                  (uint8_t*)temp)) {
-        log::warn("Unable to add supported features handle:{}", bta_ar_cb.sdp_ct_handle);
-      }
-    }
+    avrcp_sdp_service->AddRecord(add_record_request, bta_ar_cb.sdp_tg_request_id);
+    log::debug("Assigned target request id {}", bta_ar_cb.sdp_tg_request_id);
+  } else if (service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL ||
+             service_uuid == UUID_SERVCLASS_AV_REM_CTRL_CONTROL) {
+    avrcp_sdp_service->AddRecord(add_record_request, bta_ar_cb.sdp_ct_request_id);
+    log::debug("Assigned control request id {}", bta_ar_cb.sdp_ct_request_id);
   }
 }
 
@@ -268,57 +231,17 @@ void bta_ar_reg_avrc(uint16_t service_uuid, const char* service_name, const char
  *****************************************************************************/
 void bta_ar_dereg_avrc(uint16_t service_uuid) {
   log::verbose("Deregister AVRC 0x{:x}", service_uuid);
-  if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-    const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-    if (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET &&
-        bta_ar_cb.sdp_tg_request_id != UNASSIGNED_REQUEST_ID) {
-      avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET,
-                                      bta_ar_cb.sdp_tg_request_id);
-      bta_ar_cb.sdp_tg_request_id = UNASSIGNED_REQUEST_ID;
-    } else if ((service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL ||
-                service_uuid == UUID_SERVCLASS_AV_REM_CTRL_CONTROL) &&
-               bta_ar_cb.sdp_ct_request_id != UNASSIGNED_REQUEST_ID) {
-      avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REMOTE_CONTROL,
-                                      bta_ar_cb.sdp_ct_request_id);
-      bta_ar_cb.sdp_ct_request_id = UNASSIGNED_REQUEST_ID;
-    }
-    return;
-  }
-  uint8_t mask = BTA_AR_AV_MASK;
-  uint16_t categories = 0;
-  uint8_t temp[8], *p;
 
-  if (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET) {
-    if (bta_ar_cb.sdp_tg_handle && mask == bta_ar_cb.tg_registered) {
-      bta_ar_cb.tg_registered = 0;
-      if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(bta_ar_cb.sdp_tg_handle)) {
-        log::warn("Unable to delete SDP record handle:{}", bta_ar_cb.sdp_tg_handle);
-      }
-      bta_ar_cb.sdp_tg_handle = 0;
-      bta_sys_remove_uuid(service_uuid);
-    }
-  } else if (service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL) {
-    if (bta_ar_cb.sdp_ct_handle) {
-      bta_ar_cb.ct_categories[mask - 1] = 0;
-      categories = bta_ar_cb.ct_categories[0] | bta_ar_cb.ct_categories[1];
-      if (!categories) {
-        /* no CT is still registered - cleanup */
-        if (get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(bta_ar_cb.sdp_ct_handle)) {
-          log::warn("Unable to delete SDP record handle:{}", bta_ar_cb.sdp_ct_handle);
-        }
-        bta_ar_cb.sdp_ct_handle = 0;
-        bta_sys_remove_uuid(service_uuid);
-      } else {
-        /* change supported categories to the remaining one */
-        p = temp;
-        UINT16_TO_BE_STREAM(p, categories);
-        if (!get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-                    bta_ar_cb.sdp_ct_handle, ATTR_ID_SUPPORTED_FEATURES, UINT_DESC_TYPE,
-                    (uint32_t)2, (uint8_t*)temp)) {
-          log::warn("Unable to add SDP supported features handle:{}", bta_ar_cb.sdp_ct_handle);
-        }
-      }
-    }
+  const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
+  if (service_uuid == UUID_SERVCLASS_AV_REM_CTRL_TARGET &&
+      bta_ar_cb.sdp_tg_request_id != UNASSIGNED_REQUEST_ID) {
+    avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET, bta_ar_cb.sdp_tg_request_id);
+    bta_ar_cb.sdp_tg_request_id = UNASSIGNED_REQUEST_ID;
+  } else if ((service_uuid == UUID_SERVCLASS_AV_REMOTE_CONTROL ||
+              service_uuid == UUID_SERVCLASS_AV_REM_CTRL_CONTROL) &&
+             bta_ar_cb.sdp_ct_request_id != UNASSIGNED_REQUEST_ID) {
+    avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REMOTE_CONTROL, bta_ar_cb.sdp_ct_request_id);
+    bta_ar_cb.sdp_ct_request_id = UNASSIGNED_REQUEST_ID;
   }
 }
 

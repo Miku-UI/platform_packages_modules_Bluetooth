@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,13 @@ package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
+
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
@@ -30,24 +34,22 @@ import android.os.Message;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link BondStateMachine}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BondStateMachineTest {
@@ -67,34 +69,36 @@ public class BondStateMachineTest {
     private static final int BOND_BONDING = BluetoothDevice.BOND_BONDING;
     private static final int BOND_BONDED = BluetoothDevice.BOND_BONDED;
 
-    private BluetoothManager mBluetoothManager;
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final BluetoothManager mBluetoothManager =
+            mTargetContext.getSystemService(BluetoothManager.class);
+
     private AdapterProperties mAdapterProperties;
     private BluetoothDevice mDevice;
-    private Context mTargetContext;
     private RemoteDevices mRemoteDevices;
     private BondStateMachine mBondStateMachine;
     private HandlerThread mHandlerThread;
     private RemoteDevices.DeviceProperties mDeviceProperties;
     private int mVerifyCount = 0;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private AdapterNativeInterface mNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
         TestUtils.setAdapterService(mAdapterService);
         doReturn(mNativeInterface).when(mAdapterService).getNative();
         mHandlerThread = new HandlerThread("BondStateMachineTestHandlerThread");
         mHandlerThread.start();
 
-        mBluetoothManager = mTargetContext.getSystemService(BluetoothManager.class);
-        when(mAdapterService.getSystemService(Context.BLUETOOTH_SERVICE))
-                .thenReturn(mBluetoothManager);
-        when(mAdapterService.getSystemServiceName(BluetoothManager.class))
-                .thenReturn(Context.BLUETOOTH_SERVICE);
+        mockGetSystemService(
+                mAdapterService,
+                Context.BLUETOOTH_SERVICE,
+                BluetoothManager.class,
+                mBluetoothManager);
 
         mRemoteDevices = new RemoteDevices(mAdapterService, mHandlerThread.getLooper());
         mRemoteDevices.reset();
@@ -175,12 +179,18 @@ public class BondStateMachineTest {
         mBondStateMachine.mPendingBondedDevices.clear();
 
         BluetoothDevice device1 =
-                BluetoothAdapter.getDefaultAdapter()
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getSystemService(BluetoothManager.class)
+                        .getAdapter()
                         .getRemoteLeDevice(
                                 Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES),
                                 BluetoothDevice.ADDRESS_TYPE_PUBLIC);
         BluetoothDevice device2 =
-                BluetoothAdapter.getDefaultAdapter()
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getSystemService(BluetoothManager.class)
+                        .getAdapter()
                         .getRemoteLeDevice(
                                 Utils.getAddressStringFromByte(TEST_BT_ADDR_BYTES_2),
                                 BluetoothDevice.ADDRESS_TYPE_RANDOM);
@@ -212,14 +222,14 @@ public class BondStateMachineTest {
         RemoteDevices.DeviceProperties pendingDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES_2);
         BluetoothDevice pendingDevice = pendingDeviceProperties.getDevice();
-        Assert.assertNotNull(pendingDevice);
+        assertThat(pendingDevice).isNotNull();
         mBondStateMachine.sendIntent(pendingDevice, BOND_BONDED, TEST_BOND_REASON, false);
 
         RemoteDevices.DeviceProperties testDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
-        testDeviceProperties.mUuids = TEST_UUIDS;
+        testDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
         BluetoothDevice testDevice = testDeviceProperties.getDevice();
-        Assert.assertNotNull(testDevice);
+        assertThat(testDevice).isNotNull();
 
         Message bondingMsg = mBondStateMachine.obtainMessage(BondStateMachine.BONDING_STATE_CHANGE);
         bondingMsg.obj = testDevice;
@@ -227,7 +237,7 @@ public class BondStateMachineTest {
         bondingMsg.arg2 = AbstractionLayer.BT_STATUS_RMT_DEV_DOWN;
         mBondStateMachine.sendMessage(bondingMsg);
 
-        pendingDeviceProperties.mUuids = TEST_UUIDS;
+        pendingDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
         Message uuidUpdateMsg = mBondStateMachine.obtainMessage(BondStateMachine.UUID_UPDATE);
         uuidUpdateMsg.obj = pendingDevice;
 
@@ -240,7 +250,7 @@ public class BondStateMachineTest {
         mBondStateMachine.sendMessage(bondedMsg);
 
         TestUtils.waitForLooperToFinishScheduledTask(mBondStateMachine.getHandler().getLooper());
-        Assert.assertTrue(mBondStateMachine.mPendingBondedDevices.isEmpty());
+        assertThat(mBondStateMachine.mPendingBondedDevices).isEmpty();
     }
 
     private void resetRemoteDevice(int deviceType) {
@@ -248,7 +258,7 @@ public class BondStateMachineTest {
         mRemoteDevices.reset();
         mDeviceProperties = mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
         mDevice = mDeviceProperties.getDevice();
-        Assert.assertNotNull(mDevice);
+        assertThat(mDevice).isNotNull();
         mDeviceProperties.mDeviceType = deviceType;
         mBondStateMachine.mPendingBondedDevices.clear();
     }
@@ -585,7 +595,7 @@ public class BondStateMachineTest {
 
         // Properties are removed when bond is removed
         if (newState != BluetoothDevice.BOND_NONE) {
-            Assert.assertEquals(expectedNewState, mDeviceProperties.getBondState());
+            assertThat(mDeviceProperties.getBondState()).isEqualTo(expectedNewState);
         }
 
         // Check for bond state Intent status.
@@ -606,10 +616,12 @@ public class BondStateMachineTest {
         }
 
         if (shouldDelayMessageExist) {
-            Assert.assertTrue(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY));
+            assertThat(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY))
+                    .isTrue();
             mBondStateMachine.removeMessage(mBondStateMachine.BONDED_INTENT_DELAY);
         } else {
-            Assert.assertFalse(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY));
+            assertThat(mBondStateMachine.hasMessage(mBondStateMachine.BONDED_INTENT_DELAY))
+                    .isFalse();
         }
     }
 
@@ -631,7 +643,7 @@ public class BondStateMachineTest {
             }
             if (uuids != null) {
                 // Add dummy UUID for the device.
-                mDeviceProperties.mUuids = TEST_UUIDS;
+                mDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
             }
             testSendIntentCase(
                     oldState,
@@ -734,17 +746,18 @@ public class BondStateMachineTest {
     }
 
     private void verifyBondStateChangeIntent(int oldState, int newState, Intent intent) {
-        Assert.assertNotNull(intent);
-        Assert.assertEquals(BluetoothDevice.ACTION_BOND_STATE_CHANGED, intent.getAction());
-        Assert.assertEquals(mDevice, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
-        Assert.assertEquals(newState, intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1));
-        Assert.assertEquals(
-                oldState, intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1));
+        assertThat(intent).isNotNull();
+        assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(mDevice);
+        assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)).isEqualTo(newState);
+        assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1))
+                .isEqualTo(oldState);
         if (newState == BOND_NONE) {
-            Assert.assertEquals(
-                    TEST_BOND_REASON, intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1));
+            assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1))
+                    .isEqualTo(TEST_BOND_REASON);
         } else {
-            Assert.assertEquals(-1, intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1));
+            assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1)).isEqualTo(-1);
         }
     }
 }

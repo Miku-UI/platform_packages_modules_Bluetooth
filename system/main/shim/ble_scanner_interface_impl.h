@@ -68,8 +68,9 @@ public:
   void MsftAdvMonitorAdd(MsftAdvMonitor monitor, MsftAdvMonitorAddCallback cb) override;
   void MsftAdvMonitorRemove(uint8_t monitor_handle, MsftAdvMonitorRemoveCallback cb) override;
   void MsftAdvMonitorEnable(bool enable, MsftAdvMonitorEnableCallback cb) override;
-  void SetScanParameters(int scanner_id, uint8_t scan_type, int scan_interval, int scan_window,
-                         int scan_phy, Callback cb) override;
+  void SetScanParameters(uint8_t scan_type, int scanner_id_1m, int scan_interval_1m,
+                         int scan_window_1m, int scanner_id_coded, int scan_interval_coded,
+                         int scan_window_coded, int scan_phy) override;
   void BatchscanConfigStorage(int client_if, int batch_scan_full_max, int batch_scan_trunc_max,
                               int batch_scan_notify_threshold, Callback cb) override;
   void BatchscanEnable(int scan_mode, int scan_interval, int scan_window, int addr_type,
@@ -131,6 +132,10 @@ private:
                             ApcfCommand apcf_command);
   void handle_remote_properties(RawAddress bd_addr, tBLE_ADDR_TYPE addr_type,
                                 std::vector<uint8_t> advertising_data);
+  void on_scan_result(uint16_t event_type, uint8_t address_type, bluetooth::hci::Address address,
+                      uint8_t primary_phy, uint8_t secondary_phy, uint8_t advertising_sid,
+                      int8_t tx_power, int8_t rssi, uint16_t periodic_advertising_interval,
+                      std::vector<uint8_t> advertising_data);
 
   class AddressCache {
   public:

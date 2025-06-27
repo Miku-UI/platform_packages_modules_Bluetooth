@@ -25,10 +25,9 @@
 
 #include <cstdint>
 
+#include "btif/include/btif_profile_storage.h"
+#include "btif/include/btif_storage.h"
 #include "test/common/mock_functions.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 // Original usings
 using bluetooth::Uuid;
@@ -55,6 +54,7 @@ struct btif_storage_leaudio_clear_service_data btif_storage_leaudio_clear_servic
 struct btif_storage_leaudio_update_ase_bin btif_storage_leaudio_update_ase_bin;
 struct btif_storage_leaudio_update_handles_bin btif_storage_leaudio_update_handles_bin;
 struct btif_storage_leaudio_update_pacs_bin btif_storage_leaudio_update_pacs_bin;
+struct btif_storage_leaudio_update_gmap_bin btif_storage_leaudio_update_gmap_bin;
 struct btif_storage_load_bonded_csis_devices btif_storage_load_bonded_csis_devices;
 struct btif_storage_load_bonded_groups btif_storage_load_bonded_groups;
 struct btif_storage_load_bonded_hearing_aids btif_storage_load_bonded_hearing_aids;
@@ -73,7 +73,9 @@ struct btif_storage_remove_leaudio btif_storage_remove_leaudio;
 struct btif_storage_remove_leaudio_has btif_storage_remove_leaudio_has;
 struct btif_storage_set_hearing_aid_acceptlist btif_storage_set_hearing_aid_acceptlist;
 struct btif_storage_set_hidd btif_storage_set_hidd;
-struct btif_storage_set_leaudio_audio_location btif_storage_set_leaudio_audio_location;
+struct btif_storage_set_leaudio_sink_audio_location btif_storage_set_leaudio_sink_audio_location;
+struct btif_storage_set_leaudio_source_audio_location
+        btif_storage_set_leaudio_source_audio_location;
 struct btif_storage_set_leaudio_autoconnect btif_storage_set_leaudio_autoconnect;
 struct btif_storage_set_leaudio_has_acceptlist btif_storage_set_leaudio_has_acceptlist;
 struct btif_storage_set_leaudio_has_active_preset btif_storage_set_leaudio_has_active_preset;
@@ -183,6 +185,10 @@ void btif_storage_leaudio_update_pacs_bin(const RawAddress& addr) {
   inc_func_call_count(__func__);
   test::mock::btif_profile_storage::btif_storage_leaudio_update_pacs_bin(addr);
 }
+void btif_storage_leaudio_update_gmap_bin(const RawAddress& addr) {
+  inc_func_call_count(__func__);
+  test::mock::btif_profile_storage::btif_storage_leaudio_update_gmap_bin(addr);
+}
 void btif_storage_load_bonded_csis_devices(void) {
   inc_func_call_count(__func__);
   test::mock::btif_profile_storage::btif_storage_load_bonded_csis_devices();
@@ -252,11 +258,16 @@ bt_status_t btif_storage_set_hidd(const RawAddress& remote_bd_addr) {
   inc_func_call_count(__func__);
   return test::mock::btif_profile_storage::btif_storage_set_hidd(remote_bd_addr);
 }
-void btif_storage_set_leaudio_audio_location(const RawAddress& addr, uint32_t sink_location,
-                                             uint32_t source_location) {
+void btif_storage_set_leaudio_sink_audio_location(const RawAddress& addr, uint32_t sink_location) {
   inc_func_call_count(__func__);
-  test::mock::btif_profile_storage::btif_storage_set_leaudio_audio_location(addr, sink_location,
-                                                                            source_location);
+  test::mock::btif_profile_storage::btif_storage_set_leaudio_sink_audio_location(addr,
+                                                                                 sink_location);
+}
+void btif_storage_set_leaudio_source_audio_location(const RawAddress& addr,
+                                                    uint32_t source_location) {
+  inc_func_call_count(__func__);
+  test::mock::btif_profile_storage::btif_storage_set_leaudio_source_audio_location(addr,
+                                                                                   source_location);
 }
 void btif_storage_set_leaudio_autoconnect(const RawAddress& addr, bool autoconnect) {
   inc_func_call_count(__func__);

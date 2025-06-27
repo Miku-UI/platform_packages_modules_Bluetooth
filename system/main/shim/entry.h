@@ -61,14 +61,12 @@ class StorageModule;
 }
 
 namespace shim {
-class Dumpsys;
 
 /* This returns a handler that might be used in shim to receive callbacks from
  * within the stack. */
 os::Handler* GetGdShimHandler();
 hci::LeAdvertisingManager* GetAdvertising();
 bluetooth::hci::ControllerInterface* GetController();
-Dumpsys* GetDumpsys();
 hci::HciInterface* GetHciLayer();
 hci::RemoteNameRequestModule* GetRemoteNameRequest();
 hci::DistanceMeasurementManager* GetDistanceMeasurementManager();

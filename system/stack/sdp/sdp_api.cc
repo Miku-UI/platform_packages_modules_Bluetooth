@@ -26,7 +26,6 @@
 
 #include "stack/include/sdp_api.h"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <string.h>
 
@@ -1113,8 +1112,6 @@ const bluetooth::legacy::stack::sdp::tSdpApi*
 bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api() {
   return &api_;
 }
-
-extern void BTA_SdpDumpsys(int fd);
 
 #define DUMPSYS_TAG "shim::legacy::sdp"
 

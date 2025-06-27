@@ -99,12 +99,6 @@ static_assert(BTA_HH_INCLUDED,
               "  Host interface device profile is always enabled in the bluetooth stack"
               "*** Conditional Compilation Directive error");
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-void BTA_dm_on_hw_on();
-void BTA_dm_on_hw_off();
-
 using bluetooth::common::MessageLoopThread;
 using bluetooth::log::error;
 using bluetooth::log::fatal;
@@ -149,8 +143,8 @@ static void init_stack(bluetooth::core::CoreInterface* interface) {
   // and do not overlap.
   std::promise<void> promise;
   auto future = promise.get_future();
-  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_init_stack, std::move(promise),
-                                                         base::Unretained(interface)));
+  management_thread.DoInThread(
+          base::BindOnce(event_init_stack, std::move(promise), base::Unretained(interface)));
   future.wait();
 }
 
@@ -158,11 +152,11 @@ static void start_up_stack_async(bluetooth::core::CoreInterface* interface,
                                  ProfileStartCallback startProfiles,
                                  ProfileStopCallback stopProfiles) {
   management_thread.DoInThread(
-          FROM_HERE, base::BindOnce(event_start_up_stack, interface, startProfiles, stopProfiles));
+          base::BindOnce(event_start_up_stack, interface, startProfiles, stopProfiles));
 }
 
 static void shut_down_stack_async(ProfileStopCallback stopProfiles) {
-  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_shut_down_stack, stopProfiles));
+  management_thread.DoInThread(base::BindOnce(event_shut_down_stack, stopProfiles));
 }
 
 static void clean_up_stack(ProfileStopCallback stopProfiles) {
@@ -171,7 +165,7 @@ static void clean_up_stack(ProfileStopCallback stopProfiles) {
   std::promise<void> promise;
   auto future = promise.get_future();
   management_thread.DoInThread(
-          FROM_HERE, base::BindOnce(event_clean_up_stack, std::move(promise), stopProfiles));
+          base::BindOnce(event_clean_up_stack, std::move(promise), stopProfiles));
 
   auto status = future.wait_for(std::chrono::milliseconds(
           bluetooth::os::GetSystemPropertyUint32("bluetooth.cleanup_timeout",
@@ -184,12 +178,11 @@ static void clean_up_stack(ProfileStopCallback stopProfiles) {
 }
 
 static void start_up_rust_module_async(std::promise<void> promise) {
-  management_thread.DoInThread(FROM_HERE,
-                               base::BindOnce(event_start_up_rust_module, std::move(promise)));
+  management_thread.DoInThread(base::BindOnce(event_start_up_rust_module, std::move(promise)));
 }
 
 static void shut_down_rust_module_async() {
-  management_thread.DoInThread(FROM_HERE, base::BindOnce(event_shut_down_rust_module));
+  management_thread.DoInThread(base::BindOnce(event_shut_down_rust_module));
 }
 
 static bool get_stack_is_running() { return stack_is_running; }
@@ -327,13 +320,13 @@ static void event_start_up_stack(bluetooth::core::CoreInterface* interface,
     return;
   }
 
-  if (!com::android::bluetooth::flags::scan_manager_refactor()) {
+  if (!com::android::bluetooth::flags::only_start_scan_during_ble_on()) {
     info("Starting rust module");
     module_start_up(get_local_module(RUST_MODULE));
-  }
-  if (com::android::bluetooth::flags::channel_sounding_in_stack()) {
-    bluetooth::ras::GetRasServer()->Initialize();
-    bluetooth::ras::GetRasClient()->Initialize();
+    if (com::android::bluetooth::flags::channel_sounding_in_stack()) {
+      bluetooth::ras::GetRasServer()->Initialize();
+      bluetooth::ras::GetRasClient()->Initialize();
+    }
   }
 
   stack_is_running = true;
@@ -353,7 +346,7 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
   hack_future = local_hack_future;
   stack_is_running = false;
 
-  if (!com::android::bluetooth::flags::scan_manager_refactor()) {
+  if (!com::android::bluetooth::flags::only_start_scan_during_ble_on()) {
     info("Stopping rust module");
     module_shut_down(get_local_module(RUST_MODULE));
   }
@@ -395,6 +388,11 @@ static void event_shut_down_stack(ProfileStopCallback stopProfiles) {
 static void event_start_up_rust_module(std::promise<void> promise) {
   info("is bringing up the Rust module");
   module_start_up(get_local_module(RUST_MODULE));
+  if (com::android::bluetooth::flags::channel_sounding_in_stack()) {
+    // GATT server requires the rust module to be running
+    bluetooth::ras::GetRasServer()->Initialize();
+    bluetooth::ras::GetRasClient()->Initialize();
+  }
   promise.set_value();
   info("finished");
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,11 +55,16 @@ public:
 
   static const std::string kAdapterSection;
 
+  StorageModule();
+  StorageModule(os::Handler*);
   StorageModule(const StorageModule&) = delete;
   StorageModule& operator=(const StorageModule&) = delete;
 
   ~StorageModule();
   static const ModuleFactory Factory;
+
+  void Start() override;
+  void Stop() override;
 
   // Methods to access the storage layer via Device abstraction
   // - Devices will be lazily created when methods below are called. Hence, no std::optional<> nor
@@ -121,8 +126,6 @@ public:
 
 protected:
   void ListDependencies(ModuleList* list) const override;
-  void Start() override;
-  void Stop() override;
   std::string ToString() const override;
 
   friend shim::BtifConfigInterface;
@@ -147,15 +150,17 @@ protected:
   // - temp_devices_capacity is the number of temporary, typically unpaired devices to hold in a
   // memory based LRU
   // - is_restricted_mode and is_single_user_mode are flags from upper layer
-  StorageModule(std::string config_file_path, std::chrono::milliseconds config_save_delay,
-                size_t temp_devices_capacity, bool is_restricted_mode, bool is_single_user_mode);
+  StorageModule(os::Handler* handler, std::string config_file_path,
+                std::chrono::milliseconds config_save_delay, size_t temp_devices_capacity,
+                bool is_restricted_mode, bool is_single_user_mode);
+
+  void SetProperty(std::string section, std::string property, std::string value);
 
   bool HasSection(const std::string& section) const;
   bool HasProperty(const std::string& section, const std::string& property) const;
 
   std::optional<std::string> GetProperty(const std::string& section,
                                          const std::string& property) const;
-  void SetProperty(std::string section, std::string property, std::string value);
 
   std::vector<std::string> GetPersistentSections() const;
 
@@ -179,6 +184,9 @@ protected:
               const std::vector<uint8_t>& value);
   std::optional<std::vector<uint8_t>> GetBin(const std::string& section,
                                              const std::string& property) const;
+
+  // Enable testing of internal methods
+  friend class StorageModuleTest;
 
 private:
   struct impl;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,6 +79,7 @@ class MediaBrowserWrapper {
     private final Looper mLooper;
     private final String mPackageName;
     private final Handler mRunHandler;
+    private final String mClassName;
 
     private ConnectionState mBrowserConnectionState = ConnectionState.DISCONNECTED;
 
@@ -94,6 +95,7 @@ class MediaBrowserWrapper {
             Context context, Looper looper, String packageName, String className) {
         mContext = context;
         mPackageName = packageName;
+        mClassName = className;
         mLooper = looper;
         mRunHandler = new Handler(mLooper);
         mWrappedBrowser =
@@ -188,8 +190,20 @@ class MediaBrowserWrapper {
                                     + " and "
                                     + mediaId
                                     + ": adding callback and subscribing.");
-                    mSubscribedIds.put(mediaId, new ArrayList<>(Arrays.asList(callback)));
-                    mWrappedBrowser.subscribe(mediaId, new BrowserSubscriptionCallback(mediaId));
+                    // Empty mediaId can cause an exception, retrieve root instead.
+                    if (mediaId.isEmpty()) {
+                        getRootId(
+                                (rootId) -> {
+                                    mSubscribedIds.put(
+                                            rootId, new ArrayList<>(Arrays.asList(callback)));
+                                    mWrappedBrowser.subscribe(
+                                            rootId, new BrowserSubscriptionCallback(rootId));
+                                });
+                    } else {
+                        mSubscribedIds.put(mediaId, new ArrayList<>(Arrays.asList(callback)));
+                        mWrappedBrowser.subscribe(
+                                mediaId, new BrowserSubscriptionCallback(mediaId));
+                    }
                 });
     }
 
@@ -382,5 +396,10 @@ class MediaBrowserWrapper {
         public Handler getTimeoutHandler() {
             return mRunHandler;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Browsable Package & Class Name: " + mPackageName + " " + mClassName + "\n";
     }
 }

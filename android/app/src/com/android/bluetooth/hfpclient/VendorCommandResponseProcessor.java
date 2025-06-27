@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 /*
- * Defines utility inteface that is used by state machine/service to either send vendor specific AT
+ * Defines utility interface that is used by state machine/service to either send vendor specific AT
  * command or receive vendor specific response from the native stack.
  */
 package com.android.bluetooth.hfpclient;
@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Objects;
 
 class VendorCommandResponseProcessor {
-
     private static final String TAG = VendorCommandResponseProcessor.class.getSimpleName();
 
     private final HeadsetClientService mService;
@@ -114,7 +113,7 @@ class VendorCommandResponseProcessor {
         return true;
     }
 
-    private String getVendorIdFromAtCommand(String atString) {
+    private static String getVendorIdFromAtCommand(String atString) {
         // Get event code
         int indexOfEqual = atString.indexOf('=');
         int indexOfColon = atString.indexOf(':');

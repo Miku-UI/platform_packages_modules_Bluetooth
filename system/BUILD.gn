@@ -41,7 +41,6 @@ group("bluetooth") {
 #if (use.test) {
   #group("bluetooth_tests") {
     #deps = [
-      #"//bt/system/btcore:net_test_btcore",
       #"//bt/system/common:bluetooth_test_common",
       #"//bt/system/profile/avrcp:net_test_avrcp",
       #"//bt/system/service:bluetoothtbd_test",
@@ -76,9 +75,9 @@ config("target_defaults") {
     "//bt/system",
     "//bt/flags/exported_include",
     "//bt/sysprop/exported_include",
-    "//bt/system/linux_include",
     "//bt/system/include",
     "//bt/system/gd",
+    "//bt/system/pdl/hci/include",
 
     # For flatbuffer generated headers
     "${root_gen_dir}/bt/system/gd/",

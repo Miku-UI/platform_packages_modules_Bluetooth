@@ -80,14 +80,16 @@ public:
 
   static bool RegisterIsoDataConsumer(LeAudioIsoDataCallback callback);
 
-  static void AddFromStorage(const RawAddress& addr, bool autoconnect, int sink_audio_location,
-                             int source_audio_location, int sink_supported_context_types,
-                             int source_supported_context_types,
+  static void AddFromStorage(const RawAddress& addr, bool autoconnect,
+                             std::optional<int> sink_audio_location,
+                             std::optional<int> source_audio_location,
+                             int sink_supported_context_types, int source_supported_context_types,
                              const std::vector<uint8_t>& handles,
                              const std::vector<uint8_t>& sink_pacs,
                              const std::vector<uint8_t>& source_pacs,
-                             const std::vector<uint8_t>& ases);
+                             const std::vector<uint8_t>& ases, const std::vector<uint8_t>& gmap);
   static bool GetHandlesForStorage(const RawAddress& addr, std::vector<uint8_t>& out);
+  static bool GetGmapForStorage(const RawAddress& addr, std::vector<uint8_t>& out);
   static bool GetSinkPacsForStorage(const RawAddress& addr, std::vector<uint8_t>& out);
   static bool GetSourcePacsForStorage(const RawAddress& addr, std::vector<uint8_t>& out);
   static bool GetAsesForStorage(const RawAddress& addr, std::vector<uint8_t>& out);

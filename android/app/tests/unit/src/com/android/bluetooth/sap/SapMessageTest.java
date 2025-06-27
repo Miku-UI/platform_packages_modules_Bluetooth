@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package com.android.bluetooth.sap;
 
 import static com.android.bluetooth.sap.SapMessage.CON_STATUS_OK;
-import static com.android.bluetooth.sap.SapMessage.DISC_GRACEFULL;
+import static com.android.bluetooth.sap.SapMessage.DISC_GRACEFUL;
 import static com.android.bluetooth.sap.SapMessage.ID_CONNECT_REQ;
 import static com.android.bluetooth.sap.SapMessage.ID_DISCONNECT_REQ;
 import static com.android.bluetooth.sap.SapMessage.ID_POWER_SIM_OFF_REQ;
@@ -55,6 +55,7 @@ import org.mockito.Mockito;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
+/** Test cases for {@link SapMessage}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class SapMessageTest {
@@ -72,7 +73,7 @@ public class SapMessageTest {
         int maxMsgSize = 512;
         int connectionStatus = CON_STATUS_OK;
         int resultCode = RESULT_OK;
-        int disconnectionType = DISC_GRACEFULL;
+        int disconnectionType = DISC_GRACEFUL;
         int cardReaderStatus = STATUS_CARD_INSERTED;
         int statusChange = 1;
         int transportProtocol = TRANS_PROTO_T0;
@@ -143,7 +144,7 @@ public class SapMessageTest {
         int maxMsgSize = 512;
         int connectionStatus = CON_STATUS_OK;
         int resultCode = RESULT_OK;
-        int disconnectionType = DISC_GRACEFULL;
+        int disconnectionType = DISC_GRACEFUL;
         int cardReaderStatus = STATUS_CARD_INSERTED;
         int statusChange = 1;
         int transportProtocol = TRANS_PROTO_T0;

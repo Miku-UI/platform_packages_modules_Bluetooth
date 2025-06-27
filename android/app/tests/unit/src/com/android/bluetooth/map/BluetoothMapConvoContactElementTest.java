@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,14 @@ package com.android.bluetooth.map;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.when;
-
 import android.util.Xml;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.SignedLongLong;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 import org.xmlpull.v1.XmlSerializer;
@@ -40,6 +34,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 
+/** Test cases for {@link BluetoothMapConvoContactElement}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapConvoContactElementTest {
     private static final String TEST_UCI = "test_bt_uci";
@@ -53,10 +48,6 @@ public class BluetoothMapConvoContactElementTest {
     private static final String TEST_BT_UID = "1111";
 
     private final SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Mock private MapContact mMapContact;
 
     @Test
     public void constructorWithArguments() {
@@ -88,10 +79,9 @@ public class BluetoothMapConvoContactElementTest {
     public void createFromMapContact() {
         final long id = 1111;
         final SignedLongLong signedLongLong = new SignedLongLong(id, 0);
-        when(mMapContact.getId()).thenReturn(id);
-        when(mMapContact.getName()).thenReturn(TEST_DISPLAY_NAME);
+        MapContact mapContact = new MapContact(id, TEST_DISPLAY_NAME);
         BluetoothMapConvoContactElement contactElement =
-                BluetoothMapConvoContactElement.createFromMapContact(mMapContact, TEST_UCI);
+                BluetoothMapConvoContactElement.createFromMapContact(mapContact, TEST_UCI);
         assertThat(contactElement.getContactId()).isEqualTo(TEST_UCI);
         assertThat(contactElement.getBtUid()).isEqualTo(signedLongLong.toHexString());
         assertThat(contactElement.getDisplayName()).isEqualTo(TEST_DISPLAY_NAME);

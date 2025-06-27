@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -306,6 +306,31 @@ void LogMetricsSuspendIdState(uint32_t state) {
           .SetBootId(boot_id)
           .SetSystemTime(boot_time)
           .SetSuspendIdState(suspend_id_state)
+          .Record();
+}
+
+void LogMetricsLLPrivacyState(uint32_t llp_state, uint32_t rpa_state) {
+  int64_t ll_privacy_state = 0;
+  int64_t addr_privacy_state = 0;
+  int64_t boot_time;
+  std::string boot_id;
+
+  if (!GetBootId(&boot_id)) {
+    return;
+  }
+
+  boot_time = bluetooth::common::time_get_os_boottime_us();
+
+  ll_privacy_state = (int64_t)ToLLPrivacyState(llp_state);
+  addr_privacy_state = (int64_t)ToAddressPrivacyState(rpa_state);
+  log::debug("LLPrivacyState: {}, {}, {}, {}", boot_id, boot_time, ll_privacy_state,
+             addr_privacy_state);
+
+  ::metrics::structured::events::bluetooth::BluetoothLLPrivacyState()
+          .SetBootId(boot_id)
+          .SetSystemTime(boot_time)
+          .SetLLPrivacyState(ll_privacy_state)
+          .SetAddressPrivacyState(addr_privacy_state)
           .Record();
 }
 

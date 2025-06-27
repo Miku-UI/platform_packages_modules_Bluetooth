@@ -26,8 +26,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.mapapi.BluetoothMapContract;
 
-import com.google.common.base.Ascii;
-
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -43,14 +41,15 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Various utility methods and generic defines that can be used throughout MAPS */
 // Next tag value for ContentProfileErrorReportUtils.report(): 11
 public class BluetoothMapUtils {
+    private static final String TAG = BluetoothMapUtils.class.getSimpleName();
 
-    private static final String TAG = "BluetoothMapUtils";
     /* We use the upper 4 bits for the type mask.
      * TODO: When more types are needed, consider just using a number
      *       in stead of a bit to indicate the message type. Then 4
@@ -80,7 +79,7 @@ public class BluetoothMapUtils {
     static final int MAP_FEATURE_MESSAGE_FORMAT_V11_BIT = 1 << 8;
     static final int MAP_FEATURE_MESSAGE_LISTING_FORMAT_V11_BIT = 1 << 9;
     static final int MAP_FEATURE_PERSISTENT_MESSAGE_HANDLE_BIT = 1 << 10;
-    static final int MAP_FEATURE_DATABASE_INDENTIFIER_BIT = 1 << 11;
+    static final int MAP_FEATURE_DATABASE_IDENTIFIER_BIT = 1 << 11;
     static final int MAP_FEATURE_FOLDER_VERSION_COUNTER_BIT = 1 << 12;
     static final int MAP_FEATURE_CONVERSATION_VERSION_COUNTER_BIT = 1 << 13;
     static final int MAP_FEATURE_PARTICIPANT_PRESENCE_CHANGE_BIT = 1 << 14;
@@ -120,7 +119,7 @@ public class BluetoothMapUtils {
         SMS_CDMA,
         MMS,
         IM;
-        private static TYPE[] sAllValues = values();
+        private static final TYPE[] sAllValues = values();
 
         public static TYPE fromOrdinal(int n) {
             if (n < sAllValues.length) {
@@ -424,7 +423,7 @@ public class BluetoothMapUtils {
      * @param maxLength Max length of byte array returned including null termination
      * @return byte array containing valid utf8 characters with max length
      */
-    public static byte[] truncateUtf8StringToBytearray(String utf8String, int maxLength) {
+    public static byte[] truncateUtf8StringToByteArray(String utf8String, int maxLength) {
 
         byte[] utf8Bytes = new byte[utf8String.length() + 1];
         System.arraycopy(
@@ -465,7 +464,7 @@ public class BluetoothMapUtils {
         if (utf8InBytes.length <= maxBytesLength) {
             return utf8InString;
         }
-        // Create a buffer that wildly truncate at desired lengtht.
+        // Create a buffer that wildly truncate at desired length.
         // It may contain invalid utf-8 char.
         ByteBuffer truncatedString = ByteBuffer.wrap(utf8InBytes, 0, maxBytesLength);
         CharBuffer validUtf8Buffer = CharBuffer.allocate(maxBytesLength);
@@ -578,59 +577,54 @@ public class BluetoothMapUtils {
          * */
         for (in = 0, out = 0; in < stopCnt; in++) {
             byte b0 = input[in];
-            if (b0 == '=') {
-                byte b1 = input[++in];
-                byte b2 = input[++in];
-                if (b1 == '\r' && b2 == '\n') {
-                    continue; // soft line break, remove all tree;
-                }
-                if (((b1 >= '0' && b1 <= '9')
-                                || (b1 >= 'A' && b1 <= 'F')
-                                || (b1 >= 'a' && b1 <= 'f'))
-                        && ((b2 >= '0' && b2 <= '9')
-                                || (b2 >= 'A' && b2 <= 'F')
-                                || (b2 >= 'a' && b2 <= 'f'))) {
-                    Log.v(TAG, "Found hex number: " + formatSimple("%c%c", b1, b2));
-                    if (b1 <= '9') {
-                        b1 = (byte) (b1 - '0');
-                    } else if (b1 <= 'F') {
-                        b1 = (byte) (b1 - 'A' + 10);
-                    } else if (b1 <= 'f') {
-                        b1 = (byte) (b1 - 'a' + 10);
-                    }
-
-                    if (b2 <= '9') {
-                        b2 = (byte) (b2 - '0');
-                    } else if (b2 <= 'F') {
-                        b2 = (byte) (b2 - 'A' + 10);
-                    } else if (b2 <= 'f') {
-                        b2 = (byte) (b2 - 'a' + 10);
-                    }
-
-                    Log.v(TAG, "Resulting nibble values: " + formatSimple("b1=%x b2=%x", b1, b2));
-
-                    output[out++] = (byte) (b1 << 4 | b2); // valid hex char, append
-                    Log.v(TAG, "Resulting value: " + formatSimple("0x%2x", output[out - 1]));
-                    continue;
-                }
-                Log.w(
-                        TAG,
-                        "Received wrongly quoted printable encoded text. "
-                                + "Continuing at best effort...");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        6);
-                /* If we get a '=' without either a hex value or CRLF following, just add it and
-                 * rewind the in counter. */
-                output[out++] = b0;
-                in -= 2;
-                continue;
-            } else {
+            if (b0 != '=') {
                 output[out++] = b0;
                 continue;
             }
+            byte b1 = input[++in];
+            byte b2 = input[++in];
+            if (b1 == '\r' && b2 == '\n') {
+                continue; // soft line break, remove all tree;
+            }
+            if (((b1 >= '0' && b1 <= '9') || (b1 >= 'A' && b1 <= 'F') || (b1 >= 'a' && b1 <= 'f'))
+                    && ((b2 >= '0' && b2 <= '9')
+                            || (b2 >= 'A' && b2 <= 'F')
+                            || (b2 >= 'a' && b2 <= 'f'))) {
+                Log.v(TAG, "Found hex number: " + formatSimple("%c%c", b1, b2));
+                if (b1 <= '9') {
+                    b1 = (byte) (b1 - '0');
+                } else if (b1 <= 'F') {
+                    b1 = (byte) (b1 - 'A' + 10);
+                } else if (b1 <= 'f') {
+                    b1 = (byte) (b1 - 'a' + 10);
+                }
+
+                if (b2 <= '9') {
+                    b2 = (byte) (b2 - '0');
+                } else if (b2 <= 'F') {
+                    b2 = (byte) (b2 - 'A' + 10);
+                } else if (b2 <= 'f') {
+                    b2 = (byte) (b2 - 'a' + 10);
+                }
+
+                Log.v(TAG, "Resulting nibble values: " + formatSimple("b1=%x b2=%x", b1, b2));
+
+                output[out++] = (byte) (b1 << 4 | b2); // valid hex char, append
+                Log.v(TAG, "Resulting value: " + formatSimple("0x%2x", output[out - 1]));
+                continue;
+            }
+            Log.w(
+                    TAG,
+                    "Received wrongly quoted printable encoded text. Continuing at best effort...");
+            ContentProfileErrorReportUtils.report(
+                    BluetoothProfile.MAP,
+                    BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
+                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
+                    6);
+            /* If we get a '=' without either a hex value or CRLF following, just add it and
+             * rewind the in counter. */
+            output[out++] = b0;
+            in -= 2;
         }
 
         // Just add any remaining characters. If they contain any encoding, it is invalid,
@@ -645,7 +639,7 @@ public class BluetoothMapUtils {
         if (charset == null) {
             charset = "UTF-8";
         } else {
-            charset = Ascii.toUpperCase(charset);
+            charset = charset.toUpperCase(Locale.ROOT);
             try {
                 if (!Charset.isSupported(charset)) {
                     charset = "UTF-8";
@@ -689,7 +683,7 @@ public class BluetoothMapUtils {
 
     /**
      * Encodes an array of bytes into an array of quoted-printable 7-bit characters. Unsafe
-     * characters are escaped. Simplified version of encoder from QuetedPrintableCodec.java (Apache
+     * characters are escaped. Simplified version of encoder from QuotedPrintableCodec.java (Apache
      * external)
      *
      * @param bytes array of bytes to be encoded
@@ -742,8 +736,8 @@ public class BluetoothMapUtils {
     static String getDateTimeString(long timestamp) {
         SimpleDateFormat format =
                 (mPeerSupportUtcTimeStamp)
-                        ? new SimpleDateFormat("yyyyMMdd'T'HHmmssZ")
-                        : new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+                        ? new SimpleDateFormat("yyyyMMdd'T'HHmmssZ", Locale.ROOT)
+                        : new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.ROOT);
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timestamp);
         Log.v(
@@ -753,23 +747,6 @@ public class BluetoothMapUtils {
                         + " time:"
                         + format.format(cal.getTime()));
         return format.format(cal.getTime());
-    }
-
-    static boolean isDateTimeOlderThanOneYear(long timestamp) {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(timestamp);
-        Calendar oneYearAgo = Calendar.getInstance();
-        oneYearAgo.add(Calendar.YEAR, -1);
-        if (cal.before(oneYearAgo)) {
-            Log.v(
-                    TAG,
-                    "isDateTimeOlderThanOneYear "
-                            + cal.getTimeInMillis()
-                            + " oneYearAgo: "
-                            + oneYearAgo.getTimeInMillis());
-            return true;
-        }
-        return false;
     }
 
     static boolean isDateTimeOlderThanDuration(long timestamp, Duration duration) {

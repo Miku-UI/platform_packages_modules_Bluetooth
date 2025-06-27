@@ -33,20 +33,14 @@ impl<Db: AttDatabase> AttCommandHandler<Db> {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        core::uuid::Uuid,
-        gatt::{
-            ids::AttHandle,
-            server::{
-                att_database::{AttAttribute, AttDatabase},
-                command_handler::AttCommandHandler,
-                gatt_database::AttPermissions,
-                test::test_att_db::TestAttDatabase,
-            },
-        },
-        packets::att,
-        utils::task::block_on_locally,
-    };
+    use crate::core::uuid::Uuid;
+    use crate::gatt::ids::AttHandle;
+    use crate::gatt::server::att_database::{AttAttribute, AttDatabase};
+    use crate::gatt::server::command_handler::AttCommandHandler;
+    use crate::gatt::server::gatt_database::AttPermissions;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::packets::att;
+    use crate::utils::task::block_on_locally;
 
     #[test]
     fn test_write_command() {

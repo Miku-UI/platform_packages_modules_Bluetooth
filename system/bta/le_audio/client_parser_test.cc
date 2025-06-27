@@ -326,6 +326,84 @@ TEST(LeAudioClientParserTest, testParsePacsInvalidMetaLength) {
   ASSERT_FALSE(ParsePacs(pac_recs, sizeof(value), value));
 }
 
+TEST(LeAudioClientParserTest, testParsePacsInvalidMetaLtvFormat) {
+  std::vector<struct types::acs_ac_record> pac_recs;
+
+  const uint8_t value[] = {
+          // Num records
+          0x03,
+          // [#1] Codec_ID for the valid entry
+          0x01, 0x03, 0x02, 0x05, 0x04,
+          // Codec Spec. Caps. Len
+          0x07,
+          // Codec Spec. Caps.
+          0x02,  // [0].length
+          0x02,  // [0].type
+          0x03,  // [0].value[0]
+          0x03,  // [1].length
+          0x03,  // [1].type
+          0x04,  // [1].value[0]
+          0x05,  // [1].value[1]
+                 // Metadata Length
+          0x04,  // Valid metadata length
+          // Valid Metadata
+          0x03,  // [0].length
+          0x01,  // [0].type - preferred audio context
+          0x00,  // [0].value[0]
+          0x04,  // [0].value[1]
+          // [#2] Codec_ID for the invalid entry
+          0x01, 0x03, 0x02, 0x05, 0x04,
+          // Codec Spec. Caps. Len
+          0x07,
+          // Codec Spec. Caps.
+          0x02,  // [0].length
+          0x02,  // [0].type
+          0x03,  // [0].value[0]
+          0x03,  // [1].length
+          0x03,  // [1].type
+          0x04,  // [1].value[0]
+          0x05,  // [1].value[1]
+                 // Metadata Length
+          0x09,  // Valid metadata length
+          // Metadata with invalid LTV entry
+          0x09,  // Invalid [0].length - off by 1
+          0x07,  // [0].type - program info uri
+          0x01,  // [0].value[0]
+          0x01,  // [0].value[1]
+          0x01,  // [0].value[2]
+          0x01,  // [0].value[3]
+          0x01,  // [0].value[4]
+          0x01,  // [0].value[5]
+          0x01,  // [0].value[6]
+          // [#3] Codec_ID for the valid entry
+          0x01, 0x03, 0x02, 0x05, 0x04,
+          // Codec Spec. Caps. Len
+          0x07,
+          // Codec Spec. Caps.
+          0x02,  // [0].length
+          0x02,  // [0].type
+          0x03,  // [0].value[0]
+          0x03,  // [1].length
+          0x03,  // [1].type
+          0x04,  // [1].value[0]
+          0x05,  // [1].value[1]
+                 // Metadata Length
+          0x06,  // Valid metadata length
+          // Valid Metadata
+          0x05,  // [0].length
+          0x07,  // [0].type - program info uri
+          0x01,  // [0].value[0]
+          0x01,  // [0].value[1]
+          0x01,  // [0].value[2]
+          0x01,  // [0].value[3]
+  };
+
+  ASSERT_FALSE(ParsePacs(pac_recs, sizeof(value), value));
+  // Expecting to stop parsing after the valid PAC record #1, since the data integrity is no
+  // longer guaranteed after the corrupted metadata format at record #2.
+  ASSERT_EQ(pac_recs.size(), 1lu);
+}
+
 TEST(LeAudioClientParserTest, testParsePacsValidMeta) {
   std::vector<struct types::acs_ac_record> pac_recs;
 
@@ -369,11 +447,12 @@ TEST(LeAudioClientParserTest, testParsePacsValidMeta) {
   ASSERT_EQ(codec_spec_caps[0x03u][0], 0x04u);
   ASSERT_EQ(codec_spec_caps[0x03u][1], 0x05u);
 
-  ASSERT_EQ(pac_recs[0].metadata.size(), 4u);
-  ASSERT_EQ(pac_recs[0].metadata[0], 0x03u);
-  ASSERT_EQ(pac_recs[0].metadata[1], 0x02u);
-  ASSERT_EQ(pac_recs[0].metadata[2], 0x01u);
-  ASSERT_EQ(pac_recs[0].metadata[3], 0x00u);
+  auto pac_metadata = pac_recs[0].metadata.RawPacket();
+  ASSERT_EQ(pac_metadata.size(), 4u);
+  ASSERT_EQ(pac_metadata[0], 0x03u);
+  ASSERT_EQ(pac_metadata[1], 0x02u);
+  ASSERT_EQ(pac_metadata[2], 0x01u);
+  ASSERT_EQ(pac_metadata[3], 0x00u);
 
   // Validate the raw data from ltv matches the original pac record data buffer
   ASSERT_EQ(pac_recs[0].codec_spec_caps.RawPacket(), pac_recs[0].codec_spec_caps_raw);
@@ -465,7 +544,7 @@ TEST(LeAudioClientParserTest, testParsePacsMultipleRecords) {
   ASSERT_EQ(record0.codec_id.vendor_company_id, 0x0203u);
   ASSERT_EQ(record0.codec_id.vendor_codec_id, 0x0405u);
   ASSERT_EQ(record0.codec_spec_caps_raw.size(), 0u);
-  ASSERT_EQ(record0.metadata.size(), 0u);
+  ASSERT_EQ(record0.metadata.Size(), 0u);
 
   // Verify 2nd record
   auto& record1 = pac_recs[1];
@@ -480,11 +559,12 @@ TEST(LeAudioClientParserTest, testParsePacsMultipleRecords) {
   ASSERT_EQ(codec_spec_caps1[0x02u].size(), 1u);
   ASSERT_EQ(codec_spec_caps1[0x02u][0], 0x03u);
 
-  ASSERT_EQ(record1.metadata.size(), 4u);
-  ASSERT_EQ(record1.metadata[0], 0x03u);
-  ASSERT_EQ(record1.metadata[1], 0x02u);
-  ASSERT_EQ(record1.metadata[2], 0x01u);
-  ASSERT_EQ(record1.metadata[3], 0x00u);
+  auto pac_metadata = record1.metadata.RawPacket();
+  ASSERT_EQ(pac_metadata.size(), 4u);
+  ASSERT_EQ(pac_metadata[0], 0x03u);
+  ASSERT_EQ(pac_metadata[1], 0x02u);
+  ASSERT_EQ(pac_metadata[2], 0x01u);
+  ASSERT_EQ(pac_metadata[3], 0x00u);
 
   // Validate the raw data from ltv matches the original pac record data buffer
   ASSERT_EQ(record1.codec_spec_caps.RawPacket(), record1.codec_spec_caps_raw);
@@ -502,11 +582,12 @@ TEST(LeAudioClientParserTest, testParsePacsMultipleRecords) {
   ASSERT_EQ(0, memcmp(record2.codec_spec_caps_raw.data(), value + 28,
                       record2.codec_spec_caps_raw.size()));
 
-  ASSERT_EQ(record2.metadata.size(), 4u);
-  ASSERT_EQ(record2.metadata[0], 0x03u);
-  ASSERT_EQ(record2.metadata[1], 0x12u);
-  ASSERT_EQ(record2.metadata[2], 0x11u);
-  ASSERT_EQ(record2.metadata[3], 0x10u);
+  pac_metadata = record2.metadata.RawPacket();
+  ASSERT_EQ(pac_metadata.size(), 4u);
+  ASSERT_EQ(pac_metadata[0], 0x03u);
+  ASSERT_EQ(pac_metadata[1], 0x12u);
+  ASSERT_EQ(pac_metadata[2], 0x11u);
+  ASSERT_EQ(pac_metadata[3], 0x10u);
 }
 
 TEST(LeAudioClientParserTest, testParsePacsVendorCodecRecords) {

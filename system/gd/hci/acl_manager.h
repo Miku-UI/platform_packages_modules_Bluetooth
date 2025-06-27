@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,12 +86,6 @@ public:
   // Generates OnLeConnectSuccess if connected, or OnLeConnectFail otherwise
   virtual void CreateLeConnection(AddressWithType address_with_type, bool is_direct);
 
-  // Ask the controller for specific data parameters
-  virtual void SetLeSuggestedDefaultDataParameters(uint16_t octets, uint16_t time);
-
-  virtual void LeSetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency,
-                                   uint16_t cont_num, uint16_t sup_tout);
-
   virtual void SetPrivacyPolicyForInitiatorAddress(LeAddressManager::AddressPolicy address_policy,
                                                    AddressWithType fixed_address,
                                                    std::chrono::milliseconds minimum_rotation_time,
@@ -108,7 +102,6 @@ public:
   // connected
   virtual void CancelConnect(Address address);
   virtual void RemoveFromBackgroundList(AddressWithType address_with_type);
-  virtual void IsOnBackgroundList(AddressWithType address_with_type, std::promise<bool> promise);
 
   virtual void CancelLeConnect(AddressWithType address_with_type);
 
@@ -136,6 +129,7 @@ public:
   virtual void OnClassicSuspendInitiatedDisconnect(uint16_t handle, ErrorCode reason);
   virtual void OnLeSuspendInitiatedDisconnect(uint16_t handle, ErrorCode reason);
   virtual void SetSystemSuspendState(bool suspended);
+  virtual void AddDeviceToRelaxedConnectionIntervalList(const Address address);
 
   static const ModuleFactory Factory;
 

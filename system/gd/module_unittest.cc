@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <sstream>
 #include <string>
 
+#include "com_android_bluetooth_flags.h"
 #include "gtest/gtest.h"
 #include "os/handler.h"
 #include "os/thread.h"
@@ -35,16 +36,23 @@ class ModuleTest : public ::testing::Test {
 protected:
   void SetUp() override {
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
+    handler_ = new os::Handler(thread_);
     registry_ = new ModuleRegistry();
   }
 
   void TearDown() override {
+    handler_->Clear();
+    if (com::android::bluetooth::flags::same_handler_for_all_modules()) {
+      handler_->WaitUntilStopped(kHandlerStopTimeout);
+    }
     delete registry_;
+    delete handler_;
     delete thread_;
   }
 
   ModuleRegistry* registry_;
   Thread* thread_;
+  os::Handler* handler_;
 };
 
 os::Handler* test_module_no_dependency_handler = nullptr;
@@ -161,7 +169,7 @@ const ModuleFactory TestModuleTwoDependencies::Factory =
 TEST_F(ModuleTest, no_dependency) {
   ModuleList list;
   list.add<TestModuleNoDependency>();
-  registry_->Start(&list, thread_);
+  registry_->Start(&list, thread_, handler_);
 
   EXPECT_TRUE(registry_->IsStarted<TestModuleNoDependency>());
   EXPECT_FALSE(registry_->IsStarted<TestModuleOneDependency>());
@@ -179,7 +187,7 @@ TEST_F(ModuleTest, no_dependency) {
 TEST_F(ModuleTest, one_dependency) {
   ModuleList list;
   list.add<TestModuleOneDependency>();
-  registry_->Start(&list, thread_);
+  registry_->Start(&list, thread_, handler_);
 
   EXPECT_TRUE(registry_->IsStarted<TestModuleNoDependency>());
   EXPECT_TRUE(registry_->IsStarted<TestModuleOneDependency>());
@@ -197,7 +205,7 @@ TEST_F(ModuleTest, one_dependency) {
 TEST_F(ModuleTest, two_dependencies) {
   ModuleList list;
   list.add<TestModuleTwoDependencies>();
-  registry_->Start(&list, thread_);
+  registry_->Start(&list, thread_, handler_);
 
   EXPECT_TRUE(registry_->IsStarted<TestModuleNoDependency>());
   EXPECT_TRUE(registry_->IsStarted<TestModuleOneDependency>());
@@ -220,7 +228,7 @@ void post_to_module_one_handler() {
 TEST_F(ModuleTest, shutdown_with_unhandled_callback) {
   ModuleList list;
   list.add<TestModuleOneDependency>();
-  registry_->Start(&list, thread_);
+  registry_->Start(&list, thread_, handler_);
   test_module_no_dependency_handler->Post(common::BindOnce(&post_to_module_one_handler));
   registry_->StopAll();
 }

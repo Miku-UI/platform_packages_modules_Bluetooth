@@ -7,6 +7,8 @@ option java_outer_classname = "HidProto";
 import "google/protobuf/empty.proto";
 
 service HID {
+  // Register service
+  rpc RegisterService(ServiceRequest) returns (google.protobuf.Empty);
   // Connect HID Host
   rpc ConnectHost(google.protobuf.Empty) returns (google.protobuf.Empty);
   // Disconnect HID Host
@@ -37,6 +39,16 @@ enum HidReportId {
   HID_KEYBD_RPT_ID = 0;
   HID_MOUSE_RPT_ID = 1;
   HID_INVALID_RPT_ID = 3;
+}
+
+enum HidServiceType {
+  SERVICE_TYPE_HID = 0;
+  SERVICE_TYPE_HOGP = 1;
+  SERVICE_TYPE_BOTH = 2;
+}
+
+message ServiceRequest {
+  HidServiceType service_type = 1;
 }
 
 message SendHostReportRequest {

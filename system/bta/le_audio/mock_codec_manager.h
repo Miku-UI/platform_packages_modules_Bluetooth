@@ -38,6 +38,8 @@ public:
   virtual ~MockCodecManager() = default;
 
   MOCK_METHOD((bluetooth::le_audio::types::CodecLocation), GetCodecLocation, (), (const));
+  MOCK_METHOD(std::optional<bluetooth::le_audio::ProviderInfo>, GetCodecConfigProviderInfo, (),
+              (const));
   MOCK_METHOD((bool), IsDualBiDirSwbSupported, (), (const));
 
   MOCK_METHOD((bool), UpdateActiveUnicastAudioHalClient,
@@ -52,22 +54,19 @@ public:
   MOCK_METHOD((void), UpdateActiveAudioConfig,
               (const bluetooth::le_audio::types::BidirectionalPair<
                        bluetooth::le_audio::stream_parameters>& stream_params,
-               bluetooth::le_audio::types::BidirectionalPair<uint16_t> delays_ms,
-               std::function<void(const ::bluetooth::le_audio::offload_config& config,
+               std::function<void(const ::bluetooth::le_audio::stream_config& config,
                                   uint8_t direction)>
-                       update_receiver));
+                       update_receiver,
+               uint8_t directions_to_update));
   MOCK_METHOD(
-          (std::unique_ptr<bluetooth::le_audio::set_configurations::AudioSetConfiguration>),
-          GetCodecConfig,
+          (std::unique_ptr<bluetooth::le_audio::types::AudioSetConfiguration>), GetCodecConfig,
           (const bluetooth::le_audio::CodecManager::UnicastConfigurationRequirements& requirements,
            bluetooth::le_audio::CodecManager::UnicastConfigurationProvider),
           (const));
   MOCK_METHOD((bool), CheckCodecConfigIsBiDirSwb,
-              (const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config),
-              (const));
+              (const bluetooth::le_audio::types::AudioSetConfiguration& config), (const));
   MOCK_METHOD((bool), CheckCodecConfigIsDualBiDirSwb,
-              (const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config),
-              (const));
+              (const bluetooth::le_audio::types::AudioSetConfiguration& config), (const));
   MOCK_METHOD((std::unique_ptr<bluetooth::le_audio::broadcaster::BroadcastConfiguration>),
               GetBroadcastConfig,
               (const bluetooth::le_audio::CodecManager::BroadcastConfigurationRequirements&),

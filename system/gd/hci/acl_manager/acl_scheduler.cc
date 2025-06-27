@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -170,13 +170,11 @@ private:
     if (pending_outgoing_operations_.empty()) {
       return false;
     }
-    if (com::android::bluetooth::flags::progress_acl_scheduler_upon_incoming_connection()) {
-      if (const RemoteNameRequestQueueEntry* peek =
-                  std::get_if<RemoteNameRequestQueueEntry>(&pending_outgoing_operations_.front())) {
-        if (incoming_connecting_address_set_.contains(peek->address)) {
-          log::info("Pending incoming connection and outgoing RNR to same peer:{}", peek->address);
-          return true;
-        }
+    if (const RemoteNameRequestQueueEntry* peek =
+                std::get_if<RemoteNameRequestQueueEntry>(&pending_outgoing_operations_.front())) {
+      if (incoming_connecting_address_set_.contains(peek->address)) {
+        log::info("Pending incoming connection and outgoing RNR to same peer:{}", peek->address);
+        return true;
       }
     }
     return incoming_connecting_address_set_.empty() && !outgoing_entry_.has_value();
@@ -215,7 +213,7 @@ private:
   const std::string set_of_incoming_connecting_addresses() const {
     std::stringstream buffer;
     for (const auto& c : incoming_connecting_address_set_) {
-      buffer << " " << c;
+      buffer << " " << c.ToRedactedStringForLogging();
     }
     return buffer.str();
   }

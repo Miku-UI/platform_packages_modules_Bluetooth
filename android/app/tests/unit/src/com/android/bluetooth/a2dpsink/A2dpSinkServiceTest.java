@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,23 +21,25 @@ import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAudioConfig;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioManager;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
@@ -48,16 +50,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/** Test cases for {@link A2dpSinkService}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class A2dpSinkServiceTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private DatabaseManager mDatabaseManager;
@@ -66,9 +67,8 @@ public class A2dpSinkServiceTest {
     private static final int TEST_SAMPLE_RATE = 44;
     private static final int TEST_CHANNEL_COUNT = 1;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice1 = mAdapter.getRemoteDevice("11:11:11:11:11:11");
-    private final BluetoothDevice mDevice2 = mAdapter.getRemoteDevice("22:22:22:22:22:22");
+    private final BluetoothDevice mDevice1 = getTestDevice(83);
+    private final BluetoothDevice mDevice2 = getTestDevice(82);
 
     private TestLooper mLooper;
     private A2dpSinkService mService;
@@ -93,7 +93,7 @@ public class A2dpSinkServiceTest {
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
+        mService.cleanup();
         assertThat(A2dpSinkService.getA2dpSinkService()).isNull();
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <queue>
 #include <thread>
 
+#include "com_android_bluetooth_flags.h"
 #include "hal/hci_backend.h"
 #include "hal/hci_hal.h"
 #include "os/thread.h"
@@ -74,11 +75,17 @@ class HciHalAndroidTest : public ::testing::Test {
 protected:
   void SetUp() override {
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
-    hal = fake_registry_.Start<HciHal>(thread_);
+    handler_ = new os::Handler(thread_);
+    hal = fake_registry_.Start<HciHal>(thread_, handler_);
   }
 
   void TearDown() override {
+    handler_->Clear();
+    if (com::android::bluetooth::flags::same_handler_for_all_modules()) {
+      handler_->WaitUntilStopped(bluetooth::kHandlerStopTimeout);
+    }
     fake_registry_.StopAll();
+    delete handler_;
     delete thread_;
   }
 
@@ -87,6 +94,7 @@ protected:
 private:
   ModuleRegistry fake_registry_;
   Thread* thread_;
+  os::Handler* handler_;
 };
 
 TEST_F(HciHalAndroidTest, init) {

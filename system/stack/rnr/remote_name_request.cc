@@ -25,14 +25,12 @@
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/security_device_record.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/btm_client_interface.h"
 
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
-
-tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMPL_CB* p_cb);
-bool btm_ble_cancel_remote_name(const RawAddress& remote_bda);
 
 bool BTM_SecAddRmtNameNotifyCallback(tBTM_RMT_NAME_CALLBACK* p_callback) {
   int i;

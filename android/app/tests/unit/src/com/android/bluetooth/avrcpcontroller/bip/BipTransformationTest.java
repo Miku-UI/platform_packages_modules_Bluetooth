@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,53 +16,54 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** A test suite for the BipTransformation class */
+/** Test cases for {@link BipTransformation}. */
 @RunWith(AndroidJUnit4.class)
 public class BipTransformationTest {
 
     @Test
     public void testCreateEmpty() {
         BipTransformation trans = new BipTransformation();
-        Assert.assertFalse(trans.supportsAny());
-        Assert.assertEquals(null, trans.toString());
+        assertThat(trans.supportsAny()).isFalse();
+        assertThat(trans.toString()).isNull();
     }
 
     @Test
     public void testAddTransformation() {
         BipTransformation trans = new BipTransformation();
         trans.addTransformation(BipTransformation.CROP);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("crop");
 
         trans.addTransformation(BipTransformation.STRETCH);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("stretch crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch crop");
     }
 
     @Test
     public void testAddExistingTransformation() {
         BipTransformation trans = new BipTransformation();
         trans.addTransformation(BipTransformation.CROP);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("crop");
 
         trans.addTransformation(BipTransformation.CROP);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("crop");
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -82,17 +83,17 @@ public class BipTransformationTest {
     public void testRemoveOnlyTransformation() {
         BipTransformation trans = new BipTransformation();
         trans.addTransformation(BipTransformation.CROP);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("crop");
 
         trans.removeTransformation(BipTransformation.CROP);
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.supportsAny());
-        Assert.assertEquals(null, trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.supportsAny()).isFalse();
+        assertThat(trans.toString()).isNull();
     }
 
     @Test
@@ -100,16 +101,16 @@ public class BipTransformationTest {
         BipTransformation trans = new BipTransformation();
         trans.addTransformation(BipTransformation.CROP);
         trans.addTransformation(BipTransformation.STRETCH);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("stretch crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch crop");
 
         trans.removeTransformation(BipTransformation.CROP);
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("stretch", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch");
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -118,10 +119,10 @@ public class BipTransformationTest {
         trans.addTransformation(BipTransformation.CROP);
         trans.addTransformation(BipTransformation.STRETCH);
         trans.removeTransformation(BipTransformation.UNKNOWN);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("stretch crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch crop");
     }
 
     @Test
@@ -130,136 +131,136 @@ public class BipTransformationTest {
         trans.addTransformation(BipTransformation.CROP);
         trans.addTransformation(BipTransformation.STRETCH);
         trans.removeTransformation(BipTransformation.FILL);
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("stretch crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch crop");
     }
 
     @Test
     public void testParse_Stretch() {
         BipTransformation trans = new BipTransformation("stretch");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch");
     }
 
     @Test
     public void testParse_Crop() {
         BipTransformation trans = new BipTransformation("crop");
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("crop");
     }
 
     @Test
     public void testParse_Fill() {
         BipTransformation trans = new BipTransformation("Fill");
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("fill", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isEqualTo("fill");
     }
 
     @Test
     public void testParse_StretchFill() {
         BipTransformation trans = new BipTransformation("stretch fill");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch fill");
     }
 
     @Test
     public void testParse_StretchCrop() {
         BipTransformation trans = new BipTransformation("stretch crop");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertEquals("stretch crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch crop");
     }
 
     @Test
     public void testParse_FillCrop() {
         BipTransformation trans = new BipTransformation("fill crop");
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertEquals("fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.toString()).isEqualTo("fill crop");
     }
 
     @Test
     public void testParse_StretchFillCrop() {
         BipTransformation trans = new BipTransformation("stretch fill crop");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("stretch fill crop");
     }
 
     @Test
     public void testParse_CropFill() {
         BipTransformation trans = new BipTransformation("crop fill");
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertEquals("fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.toString()).isEqualTo("fill crop");
     }
 
     @Test
     public void testParse_CropFillStretch() {
         BipTransformation trans = new BipTransformation("crop fill stretch");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("stretch fill crop");
     }
 
     @Test
     public void testParse_CropFillStretchWithDuplicates() {
         BipTransformation trans = new BipTransformation("stretch crop fill fill crop stretch");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("stretch fill crop");
     }
 
     @Test
     public void testCreate_stretch() {
         BipTransformation trans = new BipTransformation(BipTransformation.STRETCH);
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch");
     }
 
     @Test
     public void testCreate_fill() {
         BipTransformation trans = new BipTransformation(BipTransformation.FILL);
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("fill", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isEqualTo("fill");
     }
 
     @Test
     public void testCreate_crop() {
         BipTransformation trans = new BipTransformation(BipTransformation.CROP);
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("crop");
     }
 
     @Test
     public void testCreate_cropArray() {
         BipTransformation trans = new BipTransformation(new int[] {BipTransformation.CROP});
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("crop");
     }
 
     @Test
@@ -267,10 +268,10 @@ public class BipTransformationTest {
         BipTransformation trans =
                 new BipTransformation(
                         new int[] {BipTransformation.STRETCH, BipTransformation.FILL});
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch fill");
     }
 
     @Test
@@ -282,10 +283,10 @@ public class BipTransformationTest {
                             BipTransformation.FILL,
                             BipTransformation.CROP
                         });
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("stretch fill crop");
     }
 
     @Test
@@ -297,10 +298,10 @@ public class BipTransformationTest {
                             BipTransformation.FILL,
                             BipTransformation.STRETCH
                         });
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("stretch fill crop");
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -316,36 +317,36 @@ public class BipTransformationTest {
     @Test
     public void testParse_badTransformationOnly() {
         BipTransformation trans = new BipTransformation("bad");
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals(null, trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isNull();
     }
 
     @Test
     public void testParse_badTransformationMixedIn() {
         BipTransformation trans = new BipTransformation("crop fill bad stretch");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("stretch fill crop");
     }
 
     @Test
     public void testParse_badTransformationStart() {
         BipTransformation trans = new BipTransformation("bad crop fill");
-        Assert.assertFalse(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertTrue(trans.isSupported(BipTransformation.FILL));
-        Assert.assertTrue(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("fill crop", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isTrue();
+        assertThat(trans.toString()).isEqualTo("fill crop");
     }
 
     @Test
     public void testParse_badTransformationEnd() {
         BipTransformation trans = new BipTransformation("stretch bad");
-        Assert.assertTrue(trans.isSupported(BipTransformation.STRETCH));
-        Assert.assertFalse(trans.isSupported(BipTransformation.FILL));
-        Assert.assertFalse(trans.isSupported(BipTransformation.CROP));
-        Assert.assertEquals("stretch", trans.toString());
+        assertThat(trans.isSupported(BipTransformation.STRETCH)).isTrue();
+        assertThat(trans.isSupported(BipTransformation.FILL)).isFalse();
+        assertThat(trans.isSupported(BipTransformation.CROP)).isFalse();
+        assertThat(trans.toString()).isEqualTo("stretch");
     }
 }

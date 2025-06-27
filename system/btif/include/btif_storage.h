@@ -30,6 +30,7 @@
 #include "types/ble_address_with_type.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
+#include "types/bt_transport.h"
 
 /*******************************************************************************
  *  Constants & Macros
@@ -295,8 +296,11 @@ void btif_storage_leaudio_update_ase_bin(const RawAddress& addr);
 void btif_storage_leaudio_update_handles_bin(const RawAddress& addr);
 
 /** Store Le Audio device audio locations */
-void btif_storage_set_leaudio_audio_location(const RawAddress& addr, uint32_t sink_location,
-                                             uint32_t source_location);
+void btif_storage_set_leaudio_sink_audio_location(const RawAddress& addr, uint32_t sink_location);
+
+/** Store Le Audio device audio locations */
+void btif_storage_set_leaudio_source_audio_location(const RawAddress& addr,
+                                                    uint32_t source_location);
 
 /** Store Le Audio device context types */
 void btif_storage_set_leaudio_supported_context_types(const RawAddress& addr,
@@ -446,6 +450,19 @@ bt_status_t btif_storage_set_hid_connection_policy(const tAclLinkSpec& link_spec
 bt_status_t btif_storage_get_hid_connection_policy(const tAclLinkSpec& link_spec,
                                                    bool* reconnect_allowed);
 
+/*******************************************************************************
+ *
+ * Function         btif_storage_get_services
+ *
+ * Description      Retrieves the stored all services for the remote device.
+ *
+ * Returns          vector of UUIDs
+ *
+ ******************************************************************************/
+std::vector<bluetooth::Uuid> btif_storage_get_services(const RawAddress& bd_addr,
+                                                       tBT_TRANSPORT transport = BT_TRANSPORT_AUTO);
+
+void btif_storage_migrate_services();
 /******************************************************************************
  * Exported for unit tests
  *****************************************************************************/

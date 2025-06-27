@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,9 +36,11 @@
 #include "storage/device.h"
 #include "storage/legacy_config_file.h"
 
-namespace testing {
+namespace bluetooth::storage {
 
-using bluetooth::TestModuleRegistry;
+using ::testing::ElementsAre;
+using ::testing::StrEq;
+
 using bluetooth::hci::Address;
 using bluetooth::os::fake_timer::fake_timerfd_advance;
 using bluetooth::storage::ConfigCache;
@@ -46,62 +48,38 @@ using bluetooth::storage::Device;
 using bluetooth::storage::LegacyConfigFile;
 using bluetooth::storage::StorageModule;
 
+using namespace std::chrono_literals;
+
 static const std::chrono::milliseconds kTestConfigSaveDelay = std::chrono::milliseconds(100);
 static const size_t kTestTempDevicesCapacity = 10;
 
-class TestStorageModule : public StorageModule {
-public:
-  TestStorageModule(std::string config_file_path, std::chrono::milliseconds config_save_delay,
-                    bool is_restricted_mode, bool is_single_user_mode)
-      : StorageModule(std::move(config_file_path), config_save_delay, kTestTempDevicesCapacity,
-                      is_restricted_mode, is_single_user_mode) {}
-
-  ConfigCache* GetMemoryOnlyConfigCachePublic() {
-    return StorageModule::GetMemoryOnlyConfigCache();
-  }
-
-  bool HasSectionPublic(const std::string& section) const {
-    return StorageModule::HasSection(section);
-  }
-  bool HasPropertyPublic(const std::string& section, const std::string& property) const {
-    return HasProperty(section, property);
-  }
-
-  std::optional<std::string> GetPropertyPublic(const std::string& section,
-                                               const std::string& property) const {
-    return GetProperty(section, property);
-  }
-  void SetPropertyPublic(std::string section, std::string property, std::string value) {
-    return SetProperty(section, property, value);
-  }
-
-  std::vector<std::string> GetPersistentSectionsPublic() const { return GetPersistentSections(); }
-
-  bool RemovePropertyPublic(const std::string& section, const std::string& property) {
-    return RemoveProperty(section, property);
-  }
-
-  void ConvertEncryptOrDecryptKeyIfNeededPublic() { return ConvertEncryptOrDecryptKeyIfNeeded(); }
-
-  void RemoveSectionWithPropertyPublic(const std::string& property) {
-    return RemoveSectionWithProperty(property);
-  }
-
-  void RemoveSectionPublic(const std::string& section) { return RemoveSection(section); }
-};
-
-class StorageModuleTest : public Test {
+class StorageModuleTest : public testing::Test {
 protected:
   void SetUp() override {
+    thread_ = new bluetooth::os::Thread("test_thread", bluetooth::os::Thread::Priority::NORMAL);
+    handler_ = new bluetooth::os::Handler(thread_);
+
     temp_dir_ = std::filesystem::temp_directory_path();
     temp_config_ = temp_dir_ / "temp_config.txt";
+
     DeleteConfigFiles();
     ASSERT_FALSE(std::filesystem::exists(temp_config_));
+
+    storage_ = new StorageModule(handler_, temp_config_.string(), kTestConfigSaveDelay,
+                                 kTestTempDevicesCapacity, false, false);
   }
 
   void TearDown() override {
-    test_registry_.StopAll();
     DeleteConfigFiles();
+    handler_->Clear();
+    handler_->WaitUntilStopped(200ms);
+    thread_->Stop();
+    delete storage_;
+    delete handler_;
+    delete thread_;
+    handler_ = nullptr;
+    thread_ = nullptr;
+    storage_ = nullptr;
   }
 
   void DeleteConfigFiles() {
@@ -110,35 +88,45 @@ protected:
     }
   }
 
+  void SetProperty(std::string section, std::string property, std::string value) {
+    storage_->SetProperty(std::move(section), std::move(property), std::move(value));
+  }
+
+  std::optional<std::string> GetProperty(const std::string& section, const std::string& property) {
+    return storage_->GetProperty(section, property);
+  }
+
+  bool RemoveProperty(const std::string& section, const std::string& property) {
+    return storage_->RemoveProperty(section, property);
+  }
+
+  void RemoveSection(const std::string& section) { storage_->RemoveSection(section); }
+  bool HasSection(const std::string& section) { return storage_->HasSection(section); }
+  std::vector<std::string> GetPersistentSections() { return storage_->GetPersistentSections(); }
+
   void FakeTimerAdvance(std::chrono::milliseconds time) {
-    auto handler = test_registry_.GetTestModuleHandler(&StorageModule::Factory);
-    handler->Post(bluetooth::common::BindOnce(fake_timerfd_advance, time.count()));
+    handler_->Post(bluetooth::common::BindOnce(fake_timerfd_advance, time.count()));
   }
 
   bool WaitForReactorIdle(std::chrono::milliseconds time) {
-    bool stopped =
-            test_registry_.GetTestThread().GetReactor()->WaitForIdle(std::chrono::seconds(2));
+    bool stopped = thread_->GetReactor()->WaitForIdle(200ms);
     if (!stopped) {
       return false;
     }
     FakeTimerAdvance(time);
-    return test_registry_.GetTestThread().GetReactor()->WaitForIdle(std::chrono::seconds(2));
+    return thread_->GetReactor()->WaitForIdle(200ms);
   }
 
+  bluetooth::os::Thread* thread_;
   bluetooth::os::Handler* handler_;
-  TestModuleRegistry test_registry_;
+  StorageModule* storage_;
   std::filesystem::path temp_dir_;
   std::filesystem::path temp_config_;
 };
 
 TEST_F(StorageModuleTest, empty_config_no_op_test) {
-  // Verify state before test
-  ASSERT_FALSE(std::filesystem::exists(temp_config_));
-
-  // Actual test
-  auto* storage = new TestStorageModule(temp_config_.string(), kTestConfigSaveDelay, false, false);
-  test_registry_.InjectTestModule(&StorageModule::Factory, storage);
-  test_registry_.StopAll();
+  storage_->Start();
+  storage_->Stop();
 
   // Verify states after test
   ASSERT_TRUE(std::filesystem::exists(temp_config_));
@@ -173,20 +161,17 @@ static const std::string kReadTestConfig =
 
 TEST_F(StorageModuleTest, read_existing_config_test) {
   ASSERT_TRUE(bluetooth::os::WriteToFile(temp_config_.string(), kReadTestConfig));
-  // Actual test
 
   // Set up
-  auto* storage = new TestStorageModule(temp_config_.string(), kTestConfigSaveDelay, false, false);
-  test_registry_.InjectTestModule(&StorageModule::Factory, storage);
+  storage_->Start();
 
   // Test
-  ASSERT_TRUE(storage->HasSectionPublic("Metrics"));
-  ASSERT_THAT(storage->GetPersistentSectionsPublic(), ElementsAre("01:02:03:ab:cd:ea"));
-  ASSERT_THAT(storage->GetPropertyPublic(StorageModule::kAdapterSection, BTIF_STORAGE_KEY_ADDRESS),
+  ASSERT_TRUE(HasSection("Metrics"));
+  ASSERT_THAT(GetPersistentSections(), ElementsAre("01:02:03:ab:cd:ea"));
+  ASSERT_THAT(GetProperty(StorageModule::kAdapterSection, BTIF_STORAGE_KEY_ADDRESS),
               Optional(StrEq("01:02:03:ab:cd:ef")));
 
-  // Tear down
-  test_registry_.StopAll();
+  storage_->Stop();
 
   // Verify states after test
   ASSERT_TRUE(std::filesystem::exists(temp_config_));
@@ -202,25 +187,22 @@ TEST_F(StorageModuleTest, save_config_test) {
   ASSERT_TRUE(bluetooth::os::WriteToFile(temp_config_.string(), kReadTestConfig));
 
   // Set up
-  auto* storage = new TestStorageModule(temp_config_.string(), kTestConfigSaveDelay, false, false);
-  test_registry_.InjectTestModule(&StorageModule::Factory, storage);
+  storage_->Start();
 
   // Test
   // Change a property
-  ASSERT_THAT(storage->GetPropertyPublic("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME),
+  ASSERT_THAT(GetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME),
               Optional(StrEq("hello world")));
-  storage->SetPropertyPublic("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME, "foo");
-  ASSERT_THAT(storage->GetPropertyPublic("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME),
-              Optional(StrEq("foo")));
+  SetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME, "foo");
+  ASSERT_THAT(GetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME), Optional(StrEq("foo")));
   ASSERT_TRUE(WaitForReactorIdle(kTestConfigSaveDelay));
 
   auto config = LegacyConfigFile::FromPath(temp_config_.string()).Read(kTestTempDevicesCapacity);
   ASSERT_TRUE(config);
-  ASSERT_THAT(config->GetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME),
-              Optional(StrEq("foo")));
+  ASSERT_THAT(GetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME), Optional(StrEq("foo")));
 
   // Remove a property
-  storage->RemovePropertyPublic("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME);
+  RemoveProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME);
   ASSERT_TRUE(WaitForReactorIdle(kTestConfigSaveDelay));
   bluetooth::log::info("After waiting 2");
   config = LegacyConfigFile::FromPath(temp_config_.string()).Read(kTestTempDevicesCapacity);
@@ -228,7 +210,7 @@ TEST_F(StorageModuleTest, save_config_test) {
   ASSERT_FALSE(config->HasProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME));
 
   // Remove a section
-  storage->RemoveSectionPublic("01:02:03:ab:cd:ea");
+  RemoveSection("01:02:03:ab:cd:ea");
   ASSERT_TRUE(WaitForReactorIdle(kTestConfigSaveDelay));
   bluetooth::log::info("After waiting 3");
   config = LegacyConfigFile::FromPath(temp_config_.string()).Read(kTestTempDevicesCapacity);
@@ -236,7 +218,7 @@ TEST_F(StorageModuleTest, save_config_test) {
   ASSERT_FALSE(config->HasSection("01:02:03:ab:cd:ea"));
 
   // Tear down
-  test_registry_.StopAll();
+  storage_->Stop();
 
   // Verify states after test
   ASSERT_TRUE(std::filesystem::exists(temp_config_));
@@ -247,15 +229,13 @@ TEST_F(StorageModuleTest, get_bonded_devices_test) {
   ASSERT_TRUE(bluetooth::os::WriteToFile(temp_config_.string(), kReadTestConfig));
 
   // Set up
-  auto* storage = new TestStorageModule(temp_config_.string(), kTestConfigSaveDelay, false, false);
-  test_registry_.InjectTestModule(&StorageModule::Factory, storage);
+  storage_->Start();
 
-  ASSERT_EQ(storage->GetBondedDevices().size(), 1u);
+  ASSERT_EQ(storage_->GetBondedDevices().size(), 1u);
   auto address = Address::FromString("01:02:03:ab:cd:ea");
-  ASSERT_EQ(address, storage->GetBondedDevices()[0].GetAddress());
+  ASSERT_EQ(address, storage_->GetBondedDevices()[0].GetAddress());
 
-  // Tear down
-  test_registry_.StopAll();
+  storage_->Stop();
 }
 
 TEST_F(StorageModuleTest, unchanged_config_causes_no_write) {
@@ -263,18 +243,17 @@ TEST_F(StorageModuleTest, unchanged_config_causes_no_write) {
   ASSERT_TRUE(bluetooth::os::WriteToFile(temp_config_.string(), kReadTestConfig));
 
   // Set up
-  auto* storage = new TestStorageModule(temp_config_.string(), kTestConfigSaveDelay, false, false);
-  test_registry_.InjectTestModule(&StorageModule::Factory, storage);
+  storage_->Start();
 
-  ASSERT_EQ(storage->GetBondedDevices().size(), 1u);
+  ASSERT_EQ(storage_->GetBondedDevices().size(), 1u);
   auto address = Address::FromString("01:02:03:ab:cd:ea");
-  ASSERT_EQ(address, storage->GetBondedDevices()[0].GetAddress());
+  ASSERT_EQ(address, storage_->GetBondedDevices()[0].GetAddress());
 
   // Remove the file after it was read, so we can check if it was written with exists()
   DeleteConfigFiles();
 
   // Tear down
-  test_registry_.StopAll();
+  storage_->Stop();
 
   ASSERT_FALSE(std::filesystem::exists(temp_config_));
 }
@@ -284,32 +263,27 @@ TEST_F(StorageModuleTest, changed_config_causes_a_write) {
   ASSERT_TRUE(bluetooth::os::WriteToFile(temp_config_.string(), kReadTestConfig));
 
   // Set up
-  auto* storage = new TestStorageModule(temp_config_.string(), kTestConfigSaveDelay, false, false);
-  test_registry_.InjectTestModule(&StorageModule::Factory, storage);
+  storage_->Start();
 
   // Remove the file after it was read, so we can check if it was written with exists()
   DeleteConfigFiles();
 
   // Change a property
-  storage->SetPropertyPublic("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME, "foo");
+  SetProperty("01:02:03:ab:cd:ea", BTIF_STORAGE_KEY_NAME, "foo");
 
   ASSERT_TRUE(WaitForReactorIdle(std::chrono::milliseconds(1)));
 
   // Tear down
-  test_registry_.StopAll();
+  storage_->Stop();
 
   ASSERT_TRUE(std::filesystem::exists(temp_config_));
 }
 
 TEST_F(StorageModuleTest, no_config_causes_a_write) {
-  // Set up
-  auto* storage = new TestStorageModule(temp_config_.string(), kTestConfigSaveDelay, false, false);
-  test_registry_.InjectTestModule(&StorageModule::Factory, storage);
-
-  // Tear down
-  test_registry_.StopAll();
+  storage_->Start();
+  storage_->Stop();
 
   ASSERT_TRUE(std::filesystem::exists(temp_config_));
 }
 
-}  // namespace testing
+}  // namespace bluetooth::storage

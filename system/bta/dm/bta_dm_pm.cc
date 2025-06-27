@@ -46,9 +46,6 @@
 #include "stack/include/main_thread.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 static void bta_dm_pm_cback(tBTA_SYS_CONN_STATUS status, const tBTA_SYS_ID id, uint8_t app_id,
@@ -1210,6 +1207,6 @@ tBTM_CONTRL_STATE bta_dm_pm_obtain_controller_state(void) {
   tBTM_CONTRL_STATE cur_state = BTM_CONTRL_UNKNOWN;
   cur_state = BTM_PM_ReadControllerState();
 
-  log::verbose("bta_dm_pm_obtain_controller_state: {}", cur_state);
+  log::verbose("cur_state: {}", cur_state);
   return cur_state;
 }

@@ -25,7 +25,7 @@ import android.bluetooth.BluetoothDevice.BOND_NONE
 import android.bluetooth.BluetoothDevice.TRANSPORT_BREDR
 import android.bluetooth.BluetoothDevice.TRANSPORT_LE
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothProfile.STATE_CONNECTED
 import android.bluetooth.BluetoothUuid
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
@@ -36,6 +36,7 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanRecord
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.bluetooth.le.ScanSettings.PHY_LE_ALL_SUPPORTED
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -104,7 +105,7 @@ object ByteArrayOps {
 class Host(
     private val context: Context,
     private val security: Security,
-    private val server: Server
+    private val server: Server,
 ) : HostImplBase(), Closeable {
     private val TAG = "PandoraHost"
 
@@ -215,7 +216,7 @@ class Host(
 
     override fun readLocalAddress(
         request: Empty,
-        responseObserver: StreamObserver<ReadLocalAddressResponse>
+        responseObserver: StreamObserver<ReadLocalAddressResponse>,
     ) {
         grpcUnary<ReadLocalAddressResponse>(scope, responseObserver) {
             Log.i(TAG, "readLocalAddress")
@@ -291,7 +292,7 @@ class Host(
 
     override fun waitConnection(
         request: WaitConnectionRequest,
-        responseObserver: StreamObserver<WaitConnectionResponse>
+        responseObserver: StreamObserver<WaitConnectionResponse>,
     ) {
         grpcUnary(scope, responseObserver) {
             if (request.address.isEmpty())
@@ -320,7 +321,7 @@ class Host(
 
     override fun waitDisconnection(
         request: WaitDisconnectionRequest,
-        responseObserver: StreamObserver<Empty>
+        responseObserver: StreamObserver<Empty>,
     ) {
         grpcUnary(scope, responseObserver) {
             val bluetoothDevice = request.connection.toBluetoothDevice(bluetoothAdapter)
@@ -345,7 +346,7 @@ class Host(
 
     override fun connect(
         request: ConnectRequest,
-        responseObserver: StreamObserver<ConnectResponse>
+        responseObserver: StreamObserver<ConnectResponse>,
     ) {
         grpcUnary(scope, responseObserver) {
             if (request.address.isEmpty())
@@ -399,7 +400,7 @@ class Host(
                         } catch (e: Exception) {
                             Log.w(TAG, "Gatt instance doesn't exist. Android might be peripheral")
                             val instance = GattInstance(bluetoothDevice, TRANSPORT_LE, context)
-                            instance.waitForState(BluetoothProfile.STATE_CONNECTED)
+                            instance.waitForState(STATE_CONNECTED)
                             instance
                         }
                     if (gattInstance.isDisconnected()) {
@@ -424,7 +425,7 @@ class Host(
 
     override fun connectLE(
         request: ConnectLERequest,
-        responseObserver: StreamObserver<ConnectLEResponse>
+        responseObserver: StreamObserver<ConnectLEResponse>,
     ) {
         grpcUnary<ConnectLEResponse>(scope, responseObserver) {
             val ownAddressType = request.ownAddressType
@@ -451,8 +452,7 @@ class Host(
             val bluetoothDevice =
                 bluetoothAdapter.getRemoteLeDevice(address.decodeAsMacAddressToString(), type)
             initiatedConnection.add(bluetoothDevice)
-            GattInstance(bluetoothDevice, TRANSPORT_LE, context)
-                .waitForState(BluetoothProfile.STATE_CONNECTED)
+            GattInstance(bluetoothDevice, TRANSPORT_LE, context).waitForState(STATE_CONNECTED)
             ConnectLEResponse.newBuilder()
                 .setConnection(bluetoothDevice.toConnection(TRANSPORT_LE))
                 .build()
@@ -461,7 +461,7 @@ class Host(
 
     override fun advertise(
         request: AdvertiseRequest,
-        responseObserver: StreamObserver<AdvertiseResponse>
+        responseObserver: StreamObserver<AdvertiseResponse>,
     ) {
         Log.d(TAG, "advertise")
         grpcServerStream(scope, responseObserver) {
@@ -471,7 +471,7 @@ class Host(
                         override fun onAdvertisingSetStarted(
                             advertisingSet: AdvertisingSet,
                             txPower: Int,
-                            status: Int
+                            status: Int,
                         ) {
                             Log.d(TAG, "advertising started with status " + status)
                             if (status != 0) {
@@ -536,7 +536,7 @@ class Host(
                 for ((uuid128, data) in dataTypesRequest.getServiceDataUuid128()) {
                     advertisingDataBuilder.addServiceData(
                         ParcelUuid.fromString(uuid128),
-                        data.toByteArray()
+                        data.toByteArray(),
                     )
                 }
 
@@ -548,7 +548,7 @@ class Host(
                     .setIncludeTxPowerLevel(dataTypesRequest.includeTxPowerLevel)
                     .addManufacturerData(
                         BluetoothAssignedNumbers.GOOGLE,
-                        dataTypesRequest.manufacturerSpecificData.toByteArray()
+                        dataTypesRequest.manufacturerSpecificData.toByteArray(),
                     )
                 val advertisingData = advertisingDataBuilder.build()
 
@@ -617,13 +617,11 @@ class Host(
 
                             scanData[ScanRecord.DATA_TYPE_LOCAL_NAME_SHORT]?.let {
                                 dataTypesBuilder.setShortenedLocalName(it.decodeToString())
-                            }
-                                ?: run { dataTypesBuilder.setIncludeShortenedLocalName(false) }
+                            } ?: run { dataTypesBuilder.setIncludeShortenedLocalName(false) }
 
                             scanData[ScanRecord.DATA_TYPE_LOCAL_NAME_COMPLETE]?.let {
                                 dataTypesBuilder.setCompleteLocalName(it.decodeToString())
-                            }
-                                ?: run { dataTypesBuilder.setIncludeCompleteLocalName(false) }
+                            } ?: run { dataTypesBuilder.setIncludeCompleteLocalName(false) }
 
                             scanData[ScanRecord.DATA_TYPE_ADVERTISING_INTERVAL]?.let {
                                 dataTypesBuilder.setAdvertisingInterval(
@@ -674,20 +672,20 @@ class Host(
                                         parcelUuid.uuid.toString().substring(4, 8).uppercase()
                                     dataTypesBuilder.putServiceDataUuid16(
                                         uuid16,
-                                        ByteString.copyFrom(serviceDataEntry.value)
+                                        ByteString.copyFrom(serviceDataEntry.value),
                                     )
                                 } else if (BluetoothUuid.is32BitUuid(parcelUuid)) {
                                     val uuid32 =
                                         parcelUuid.uuid.toString().substring(0, 8).uppercase()
                                     dataTypesBuilder.putServiceDataUuid32(
                                         uuid32,
-                                        ByteString.copyFrom(serviceDataEntry.value)
+                                        ByteString.copyFrom(serviceDataEntry.value),
                                     )
                                 } else {
                                     val uuid128 = parcelUuid.uuid.toString().uppercase()
                                     dataTypesBuilder.putServiceDataUuid128(
                                         uuid128,
-                                        ByteString.copyFrom(serviceDataEntry.value)
+                                        ByteString.copyFrom(serviceDataEntry.value),
                                     )
                                 }
                             }
@@ -746,7 +744,7 @@ class Host(
                                 ByteString.copyFrom(
                                     manufacturerData.array(),
                                     0,
-                                    manufacturerData.position()
+                                    manufacturerData.position(),
                                 )
                             )
                             val primaryPhy =
@@ -791,7 +789,7 @@ class Host(
                                 else ->
                                     Log.w(
                                         TAG,
-                                        "Address type UNKNOWN: ${bluetoothDevice.type} addr: $bluetoothDevice"
+                                        "Address type UNKNOWN: ${bluetoothDevice.type} addr: $bluetoothDevice",
                                     )
                             }
                             // TODO: Complete the missing field as needed, all the examples are here
@@ -802,7 +800,11 @@ class Host(
                             error("scan failed")
                         }
                     }
-                val scanSettings = ScanSettings.Builder().setLegacy(request.legacy).build()
+                val scanSettings =
+                    ScanSettings.Builder()
+                        .setLegacy(request.legacy)
+                        .setPhy(PHY_LE_ALL_SUPPORTED)
+                        .build()
                 bluetoothAdapter.bluetoothLeScanner.startScan(null, scanSettings, callback)
 
                 awaitClose { bluetoothAdapter.bluetoothLeScanner.stopScan(callback) }
@@ -833,7 +835,7 @@ class Host(
 
     override fun setDiscoverabilityMode(
         request: SetDiscoverabilityModeRequest,
-        responseObserver: StreamObserver<Empty>
+        responseObserver: StreamObserver<Empty>,
     ) {
         Log.d(TAG, "setDiscoverabilityMode")
         grpcUnary(scope, responseObserver) {
@@ -868,7 +870,7 @@ class Host(
 
     override fun setConnectabilityMode(
         request: SetConnectabilityModeRequest,
-        responseObserver: StreamObserver<Empty>
+        responseObserver: StreamObserver<Empty>,
     ) {
         grpcUnary(scope, responseObserver) {
             Log.d(TAG, "setConnectabilityMode")

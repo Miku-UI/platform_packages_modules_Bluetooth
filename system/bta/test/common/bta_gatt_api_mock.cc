@@ -31,10 +31,10 @@ void gatt::SetMockBtaGattInterface(MockBtaGattInterface* mock_bta_gatt_interface
   gatt_interface = mock_bta_gatt_interface;
 }
 
-void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                           bool eatt_support) {
+void BTA_GATTC_AppRegister(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                           BtaAppRegisterCallback cb, bool eatt_support) {
   log::assert_that(gatt_interface != nullptr, "Mock GATT interface not set!");
-  gatt_interface->AppRegister(p_client_cb, cb, eatt_support);
+  gatt_interface->AppRegister(name, p_client_cb, cb, eatt_support);
 }
 
 void BTA_GATTC_AppDeregister(tGATT_IF client_if) {
@@ -88,6 +88,25 @@ const gatt::Service* BTA_GATTC_GetOwningService(uint16_t conn_id, uint16_t handl
   return gatt_interface->GetOwningService(conn_id, handle);
 }
 
+void BTA_GATTC_ReadCharacteristic(tCONN_ID conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req,
+                                  GATT_READ_OP_CB callback, void* cb_data) {
+  log::assert_that(gatt_interface != nullptr, "Mock GATT interface not set!");
+  gatt_interface->ReadCharacteristic(conn_id, handle, auth_req, callback, cb_data);
+}
+
+void BTA_GATTC_WriteCharValue(tCONN_ID conn_id, uint16_t handle, tGATT_WRITE_TYPE write_type,
+                              std::vector<uint8_t> value, tGATT_AUTH_REQ auth_req,
+                              GATT_WRITE_OP_CB callback, void* cb_data) {
+  log::assert_that(gatt_interface != nullptr, "Mock GATT interface not set!");
+  gatt_interface->WriteCharValue(conn_id, handle, write_type, value, auth_req, callback, cb_data);
+}
+
+void BTA_GATTC_WriteCharDescr(tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
+                              tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback, void* cb_data) {
+  log::assert_that(gatt_interface != nullptr, "Mock GATT interface not set!");
+  gatt_interface->WriteCharDescr(conn_id, handle, value, auth_req, callback, cb_data);
+}
+
 tGATT_STATUS BTA_GATTC_RegisterForNotifications(tGATT_IF client_if, const RawAddress& remote_bda,
                                                 uint16_t handle) {
   log::assert_that(gatt_interface != nullptr, "Mock GATT interface not set!");
@@ -98,6 +117,11 @@ tGATT_STATUS BTA_GATTC_DeregisterForNotifications(tGATT_IF client_if, const RawA
                                                   uint16_t handle) {
   log::assert_that(gatt_interface != nullptr, "Mock GATT interface not set!");
   return gatt_interface->DeregisterForNotifications(client_if, remote_bda, handle);
+}
+
+void BTA_GATTC_ConfigureMTU(tCONN_ID conn_id, uint16_t mtu) {
+  log::assert_that(gatt_interface != nullptr, "Mock GATT interface not set!");
+  gatt_interface->ConfigureMTU(conn_id, mtu);
 }
 
 void BTA_GATTS_Disable(void) {

@@ -18,6 +18,10 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothUtils.isValidDevice;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
@@ -61,8 +65,8 @@ import java.util.List;
  */
 @SystemApi
 public class BluetoothPbap implements BluetoothProfile {
+    private static final String TAG = BluetoothPbap.class.getSimpleName();
 
-    private static final String TAG = "BluetoothPbap";
     private static final boolean DBG = false;
 
     /**
@@ -106,7 +110,7 @@ public class BluetoothPbap implements BluetoothProfile {
      */
     public static final int RESULT_CANCELED = 2;
 
-    private BluetoothAdapter mAdapter;
+    private final BluetoothAdapter mAdapter;
 
     private IBluetoothPbap mService;
 
@@ -193,11 +197,11 @@ public class BluetoothPbap implements BluetoothProfile {
             if (service == null) {
                 Log.w(TAG, "Proxy not attached to service");
             }
-            return BluetoothProfile.STATE_DISCONNECTED;
+            return STATE_DISCONNECTED;
         } catch (RemoteException e) {
             Log.e(TAG, e.toString());
         }
-        return BluetoothProfile.STATE_DISCONNECTED;
+        return STATE_DISCONNECTED;
     }
 
     /**
@@ -252,8 +256,8 @@ public class BluetoothPbap implements BluetoothProfile {
         try {
             final IBluetoothPbap service = getService();
             if (service != null && isEnabled() && isValidDevice(device)) {
-                if (connectionPolicy != BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                        && connectionPolicy != BluetoothProfile.CONNECTION_POLICY_ALLOWED) {
+                if (connectionPolicy != CONNECTION_POLICY_FORBIDDEN
+                        && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
                     return false;
                 }
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
@@ -294,13 +298,6 @@ public class BluetoothPbap implements BluetoothProfile {
 
     private boolean isEnabled() {
         if (mAdapter.getState() == BluetoothAdapter.STATE_ON) return true;
-        return false;
-    }
-
-    private boolean isValidDevice(BluetoothDevice device) {
-        if (device == null) return false;
-
-        if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;
         return false;
     }
 

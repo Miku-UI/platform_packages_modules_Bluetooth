@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -50,7 +50,7 @@ import java.util.List;
 /** VCard composer especially for Call Log used in Bluetooth. */
 // Next tag value for ContentProfileErrorReportUtils.report(): 6
 public class BluetoothPbapSimVcardManager implements AutoCloseable {
-    private static final String TAG = "PbapSIMvCardComposer";
+    private static final String TAG = BluetoothPbapSimVcardManager.class.getSimpleName();
 
     @VisibleForTesting
     public static final String FAILURE_REASON_FAILED_TO_GET_DATABASE_INFO =
@@ -88,7 +88,7 @@ public class BluetoothPbapSimVcardManager implements AutoCloseable {
     private static final int NUMBERLABEL_COLUMN_INDEX = 3;
 
     private final Context mContext;
-    private ContentResolver mContentResolver;
+    private final ContentResolver mContentResolver;
     private Cursor mCursor;
     private String mErrorReason = NO_ERROR;
 

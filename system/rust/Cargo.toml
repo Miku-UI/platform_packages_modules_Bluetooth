@@ -18,9 +18,6 @@ name = "bluetooth_core"
 version = "0.0.1"
 edition = "2021"
 
-[dependencies]
-bt_common = { path = "../gd/rust/common", default-features = false }
-
 # External dependencies
 # Note: source-of-truth is Android.bp, these are mirrored solely for IDE convenience
 anyhow = "1.0"

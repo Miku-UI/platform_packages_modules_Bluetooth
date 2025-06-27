@@ -48,7 +48,7 @@ import java.util.Map;
  * controlling state machine.
  */
 class PbapClientConnectionHandler extends Handler {
-    private static final String TAG = "PbapClientConnHandler";
+    private static final String TAG = PbapClientConnectionHandler.class.getSimpleName();
 
     // Tradeoff: larger BATCH_SIZE leads to faster download rates, while smaller
     // BATCH_SIZE is less prone to IO Exceptions if there is a download in
@@ -84,14 +84,14 @@ class PbapClientConnectionHandler extends Handler {
                 0x66
             };
 
-    private Account mAccount;
+    private final Account mAccount;
     private BluetoothSocket mSocket;
     private final BluetoothDevice mDevice;
     private final int mLocalSupportedFeatures;
     // PSE SDP Record for current device.
     private PbapSdpRecord mPseRec = null;
     private ClientSession mObexSession;
-    private PbapClientService mService;
+    private final PbapClientService mService;
     private PbapClientObexAuthenticator mAuth = null;
     private final PbapClientStateMachineOld mPbapClientStateMachine;
     private boolean mAccountCreated;
@@ -354,14 +354,14 @@ class PbapClientConnectionHandler extends Handler {
                             PbapApplicationParameters.PROPERTIES_ALL,
                             /* format, unused */ (byte) 0,
                             PbapApplicationParameters.RETURN_SIZE_ONLY,
-                            /* list start offeset, start from beginning */ 0);
+                            /* list startOffset, start from beginning */ 0);
 
             // Download contacts in batches of size DEFAULT_BATCH_SIZE
             RequestPullPhonebookMetadata requestPbSize =
                     new RequestPullPhonebookMetadata(path, params);
             requestPbSize.execute(mObexSession);
 
-            int numberOfContactsRemaining = requestPbSize.getMetadata().getSize();
+            int numberOfContactsRemaining = requestPbSize.getMetadata().size();
             int startOffset = 0;
             if (PbapPhonebook.LOCAL_PHONEBOOK_PATH.equals(path)) {
                 // PBAP v1.2.3, Sec 3.1.5. The first contact in pb is owner card 0.vcf, which we
@@ -386,12 +386,14 @@ class PbapClientConnectionHandler extends Handler {
                                 numberOfContactsToDownload,
                                 startOffset);
 
-                RequestPullPhonebook request = new RequestPullPhonebook(path, params, mAccount);
+                RequestPullPhonebook request = new RequestPullPhonebook(path, params);
                 request.execute(mObexSession);
                 List<VCardEntry> vcards = request.getList();
-                if (PbapPhonebook.FAVORITES_PATH.equals(path)) {
+                for (VCardEntry v : vcards) {
+                    v.setAccount(mAccount);
+
                     // mark each vcard as a favorite
-                    for (VCardEntry v : vcards) {
+                    if (PbapPhonebook.FAVORITES_PATH.equals(path)) {
                         v.setStarred(true);
                     }
                 }
@@ -422,7 +424,7 @@ class PbapClientConnectionHandler extends Handler {
                             0,
                             0);
 
-            RequestPullPhonebook request = new RequestPullPhonebook(path, params, mAccount);
+            RequestPullPhonebook request = new RequestPullPhonebook(path, params);
             request.execute(mObexSession);
             CallLogPullRequest processor =
                     new CallLogPullRequest(

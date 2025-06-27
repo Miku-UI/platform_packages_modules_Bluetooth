@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 4
 class BluetoothPbapUtils {
-    private static final String TAG = "BluetoothPbapUtils";
+    private static final String TAG = BluetoothPbapUtils.class.getSimpleName();
 
     // Filter constants from Bluetooth PBAP specification
     private static final int FILTER_PHOTO = 3;
@@ -84,9 +84,9 @@ class BluetoothPbapUtils {
 
     private static class ContactData {
         private String mName;
-        private List<String> mEmail;
-        private List<String> mPhone;
-        private List<String> mAddress;
+        private final List<String> mEmail;
+        private final List<String> mPhone;
+        private final List<String> mAddress;
 
         ContactData() {
             mPhone = new ArrayList<>();
@@ -496,7 +496,7 @@ class BluetoothPbapUtils {
             return true;
 
             /* when new fields are added for a type(phone/email/address) in a contact
-             * for which there were no fields of this type earliar.*/
+             * for which there were no fields of this type earlier.*/
         } else if (oldFields == null && newFields != null && newFields.size() > 0) {
             sTotalSvcFields += newFields.size();
             sTotalFields += newFields.size();
@@ -507,7 +507,7 @@ class BluetoothPbapUtils {
 
     /* fetchAndSetContacts reads contacts and caches them
      * isLoad = true indicates its loading all contacts
-     * isLoad = false indiacates its caching recently added contact in database*/
+     * isLoad = false indicates its caching recently added contact in database*/
     @VisibleForTesting
     static synchronized int fetchAndSetContacts(
             Context context,
@@ -584,7 +584,7 @@ class BluetoothPbapUtils {
         }
 
         /* This code checks if there is any update in contacts after last pbap
-         * disconnect has happenned (even if BT is turned OFF during this time)*/
+         * disconnect has happened (even if BT is turned OFF during this time)*/
         if (isLoad && currentTotalFields != sTotalFields) {
             sPrimaryVersionCounter += Math.abs(sTotalContacts - sContactSet.size());
 

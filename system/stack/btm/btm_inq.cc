@@ -48,6 +48,7 @@
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "packet/bit_inserter.h"
+#include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_eir.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/neighbor_inquiry.h"
@@ -85,9 +86,6 @@
     ((uint32_t)1 << (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))) >> \
    (((uint32_t)(service)) % BTM_EIR_ARRAY_BITS))
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 namespace {
 constexpr char kBtmLogTag[] = "SCAN";
 
@@ -98,9 +96,9 @@ void btm_log_history_scan_mode(uint8_t scan_mode) {
   }
 
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Classic updated",
-                 base::StringPrintf("inquiry_scan_enable:%c page_scan_enable:%c",
-                                    (scan_mode & HCI_INQUIRY_SCAN_ENABLED) ? 'T' : 'F',
-                                    (scan_mode & HCI_PAGE_SCAN_ENABLED) ? 'T' : 'F'));
+                 std::format("inquiry_scan_enable:{:c} page_scan_enable:{:c}",
+                             (scan_mode & HCI_INQUIRY_SCAN_ENABLED) ? 'T' : 'F',
+                             (scan_mode & HCI_PAGE_SCAN_ENABLED) ? 'T' : 'F'));
   scan_mode_cached_ = scan_mode;
 }
 
@@ -118,12 +116,6 @@ uint16_t max_bd_entries_; /* Maximum number of entries that can be stored */
 }  // namespace
 
 extern tBTM_CB btm_cb;
-void btm_inq_db_set_inq_by_rssi(void);
-tBTM_STATUS btm_ble_set_discoverability(uint16_t combined_mode);
-tBTM_STATUS btm_ble_set_connectability(uint16_t combined_mode);
-
-tBTM_STATUS btm_ble_start_inquiry(uint8_t duration);
-void btm_ble_stop_inquiry(void);
 
 using namespace bluetooth;
 using bluetooth::Uuid;
@@ -241,16 +233,15 @@ const uint16_t BTM_EIR_UUID_LKUP_TBL[BTM_EIR_MAX_SERVICES] = {
 /******************************************************************************/
 static void btm_clr_inq_db(const RawAddress* p_bda);
 static void btm_init_inq_result_flt(void);
-void btm_clr_inq_result_flt(void);
 
 static uint8_t btm_convert_uuid_to_eir_service(uint16_t uuid16);
-void btm_set_eir_uuid(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results);
 static const uint8_t* btm_eir_get_uuid_list(const uint8_t* p_eir, size_t eir_len, uint8_t uuid_size,
                                             uint8_t* p_num_uuid, uint8_t* p_uuid_list_type);
-
+static void btm_set_eir_uuid(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results);
 static void btm_process_cancel_complete(tHCI_STATUS status, uint8_t mode);
 static void on_incoming_hci_event(EventView event);
 static bool is_inquery_by_rssi() { return osi_property_get_bool(PROPERTY_INQ_BY_RSSI, false); }
+
 /*******************************************************************************
  *
  * Function         BTM_SetDiscoverability
@@ -563,12 +554,11 @@ void BTM_CancelInquiry(void) {
   const auto duration_ms = timestamper_in_milliseconds.GetTimestamp() -
                            btm_cb.neighbor.classic_inquiry.start_time_ms;
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Classic inquiry canceled",
-                 base::StringPrintf(
-                         "duration_s:%6.3f results:%lu std:%u rssi:%u ext:%u", duration_ms / 1000.0,
-                         (unsigned long)btm_cb.neighbor.classic_inquiry.results,
-                         btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_STANDARD],
-                         btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_WITH_RSSI],
-                         btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_EXTENDED]));
+                 std::format("duration_s:{:6.3f} results:{} std:{} rssi:{} ext:{}",
+                             duration_ms / 1000.0, btm_cb.neighbor.classic_inquiry.results,
+                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_STANDARD],
+                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_WITH_RSSI],
+                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_EXTENDED]));
   btm_cb.neighbor.classic_inquiry = {};
 
   /* Only cancel if not in periodic mode, otherwise the caller should call
@@ -710,9 +700,9 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb, tBTM_CMPL_CB* p_
   }
 
   BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Classic inquiry started",
-                 base::StringPrintf("%s", (btm_cb.neighbor.classic_inquiry.start_time_ms == 0)
-                                                  ? ""
-                                                  : "ERROR Already in progress"));
+                 std::format("{}", (btm_cb.neighbor.classic_inquiry.start_time_ms == 0)
+                                           ? ""
+                                           : "ERROR Already in progress"));
 
   const uint8_t inq_length =
           osi_property_get_int32(PROPERTY_INQ_LENGTH, BTIF_DM_DEFAULT_INQ_MAX_DURATION);
@@ -890,7 +880,7 @@ tBTM_STATUS BTM_ClearInqDb(const RawAddress* p_bda) {
  * Returns          void
  *
  ******************************************************************************/
-void btm_clear_all_pending_le_entry(void) {
+static void btm_clear_all_pending_le_entry(void) {
   uint16_t xx;
   std::lock_guard<std::mutex> lock(inq_db_lock_);
   tINQ_DB_ENT* p_ent = inq_db_;
@@ -990,11 +980,11 @@ void btm_inq_db_reset(void) {
  * Returns          void
  *
  ******************************************************************************/
-void btm_clr_inq_db(const RawAddress* p_bda) {
+static void btm_clr_inq_db(const RawAddress* p_bda) {
   uint16_t xx;
 
 #if (BTM_INQ_DEBUG == TRUE)
-  log::verbose("btm_clr_inq_db: inq_active:0x{:x} state:{}", btm_cb.btm_inq_vars.inq_active,
+  log::verbose("inq_active:0x{:x} state:{}", btm_cb.btm_inq_vars.inq_active,
                btm_cb.btm_inq_vars.state);
 #endif
   std::lock_guard<std::mutex> lock(inq_db_lock_);
@@ -1601,7 +1591,7 @@ static void btm_process_inq_results_extended(EventView event) {
  * Returns          void
  *
  ******************************************************************************/
-void btm_sort_inq_result(void) {
+static void btm_sort_inq_result(void) {
   uint8_t xx, yy, num_resp;
   std::lock_guard<std::mutex> lock(inq_db_lock_);
   tINQ_DB_ENT* p_ent = inq_db_;
@@ -1690,16 +1680,16 @@ void btm_process_inq_complete(tHCI_STATUS status, uint8_t mode) {
               .start_time_ms = btm_cb.neighbor.classic_inquiry.start_time_ms,
       });
       const auto end_time_ms = timestamper_in_milliseconds.GetTimestamp();
-      BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Classic inquiry complete",
-                     base::StringPrintf(
-                             "duration_s:%6.3f results:%lu inq_active:0x%02x std:%u rssi:%u "
-                             "ext:%u status:%s",
-                             (end_time_ms - btm_cb.neighbor.classic_inquiry.start_time_ms) / 1000.0,
-                             (unsigned long)btm_cb.neighbor.classic_inquiry.results, inq_active,
-                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_STANDARD],
-                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_WITH_RSSI],
-                             btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_EXTENDED],
-                             hci_error_code_text(status).c_str()));
+      BTM_LogHistory(
+              kBtmLogTag, RawAddress::kEmpty, "Classic inquiry complete",
+              std::format("duration_s:{:6.3f} results:{} inq_active:0x{:02x} std:{} rssi:{} ext:{} "
+                          "status:{}",
+                          (end_time_ms - btm_cb.neighbor.classic_inquiry.start_time_ms) / 1000.0,
+                          btm_cb.neighbor.classic_inquiry.results, inq_active,
+                          btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_STANDARD],
+                          btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_WITH_RSSI],
+                          btm_cb.btm_inq_vars.inq_cmpl_info.resp_type[BTM_INQ_RESULT_EXTENDED],
+                          hci_error_code_text(status)));
 
       btm_cb.neighbor.classic_inquiry.start_time_ms = 0;
       /* Clear the results callback if set */
@@ -2074,7 +2064,7 @@ static uint16_t btm_convert_uuid_to_uuid16(const uint8_t* p_uuid, uint8_t uuid_s
  * Returns          None
  *
  ******************************************************************************/
-void btm_set_eir_uuid(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results) {
+static void btm_set_eir_uuid(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results) {
   const uint8_t* p_uuid_data;
   uint8_t num_uuid;
   uint16_t uuid16;
@@ -2193,12 +2183,3 @@ void tBTM_INQUIRY_VAR_ST::Init() {
 }
 
 void tBTM_INQUIRY_VAR_ST::Free() { alarm_free(classic_inquiry_timer); }
-
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-void btm_clr_inq_db(const RawAddress* p_bda) { ::btm_clr_inq_db(p_bda); }
-uint16_t btm_get_num_bd_entries() { return num_bd_entries_; }
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth

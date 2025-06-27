@@ -36,9 +36,6 @@
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
 #endif
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -65,7 +62,6 @@ protected:
     fake_osi_ = std::make_unique<test::fake::FakeOsi>();
     bluetooth::testing::stack::l2cap::set_interface(&mock_stack_l2cap_interface_);
 
-    tL2CAP_APPL_INFO l2cap_callbacks{};
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_RegisterWithSecurity(_, _, _, _, _, _, _))
             .WillOnce(DoAll(SaveArg<1>(&l2cap_callbacks), ::testing::ReturnArg<0>()));
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_Deregister(_));
@@ -76,6 +72,7 @@ protected:
     fake_osi_.reset();
   }
 
+  tL2CAP_APPL_INFO l2cap_callbacks{};
   bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
   std::unique_ptr<test::fake::FakeOsi> fake_osi_;
 };
@@ -130,7 +127,7 @@ TEST_F(StackSdpInitTest, sdp_service_search_request) {
   ASSERT_EQ(p_ccb->con_state, tSDP_STATE::IDLE);
 }
 
-tCONN_CB* find_ccb(uint16_t cid, tSDP_STATE state) {
+static tCONN_CB* find_ccb(uint16_t cid, tSDP_STATE state) {
   uint16_t xx;
   tCONN_CB* p_ccb;
 
@@ -188,7 +185,7 @@ TEST_F(StackSdpInitTest, sdp_service_search_request_queuing) {
   ASSERT_EQ(p_ccb2->con_state, tSDP_STATE::IDLE);
 }
 
-void sdp_callback(const RawAddress& /* bd_addr */, tSDP_RESULT result) {
+static void sdp_callback(const RawAddress& /* bd_addr */, tSDP_RESULT result) {
   if (result == tSDP_STATUS::SDP_SUCCESS) {
     ASSERT_TRUE(SDP_ServiceSearchRequest(addr, sdp_db, nullptr));
   }
@@ -243,7 +240,7 @@ TEST_F(StackSdpInitTest, sdp_disc_wait_text) {
   for (const auto& state : states) {
     ASSERT_STREQ(state.second.c_str(), sdp_disc_wait_text(state.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%d]", std::numeric_limits<uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max());
   ASSERT_STREQ(unknown.c_str(),
                sdp_disc_wait_text(static_cast<tSDP_DISC_WAIT>(std::numeric_limits<uint8_t>::max()))
                        .c_str());
@@ -277,7 +274,7 @@ TEST_F(StackSdpInitTest, sdp_flags_text) {
   for (const auto& flag : flags) {
     ASSERT_STREQ(flag.second.c_str(), sdp_flags_text(flag.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           sdp_flags_text(static_cast<tSDP_DISC_WAIT>(std::numeric_limits<uint8_t>::max())).c_str());
@@ -315,7 +312,7 @@ TEST_F(StackSdpInitTest, sdp_status_text) {
   for (const auto& stat : status) {
     ASSERT_STREQ(stat.second.c_str(), sdp_status_text(stat.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hu]", std::numeric_limits<uint16_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint16_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           sdp_status_text(static_cast<tSDP_STATUS>(std::numeric_limits<uint16_t>::max())).c_str());

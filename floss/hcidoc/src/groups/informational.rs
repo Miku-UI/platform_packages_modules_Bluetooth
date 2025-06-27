@@ -244,7 +244,7 @@ impl fmt::Display for DeviceInformation {
             address = self.address,
             address_type = self.address_type,
             device_names = DeviceInformation::print_names(&self.names),
-            num_connections = self.acls.len()
+            num_connections = self.acls[&Transport::BREDR].len() + self.acls[&Transport::LE].len()
         );
         for acl in &self.acls[&Transport::BREDR] {
             let _ = write!(f, "{}", acl);

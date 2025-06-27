@@ -7,7 +7,6 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bt_common = { path = "../../common" }
 bt_topshim = { path = "../../topshim" }
 bt_utils = { path = "../utils" }
 btstack = { path = "../stack" }

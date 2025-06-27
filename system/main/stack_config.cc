@@ -60,7 +60,7 @@ static future_t* init() {
 #if defined(TARGET_FLOSS)
   const char* path = "/etc/bluetooth/bt_stack.conf";
 #elif defined(__ANDROID__)
-  const char* path = "/apex/com.android.btservices/etc/bluetooth/bt_stack.conf";
+  const char* path = "/apex/com.android.bt/etc/bluetooth/bt_stack.conf";
 #else   // !defined(__ANDROID__)
   const char* path = "bt_stack.conf";
 #endif  // defined(__ANDROID__)

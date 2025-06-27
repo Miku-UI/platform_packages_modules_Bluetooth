@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -64,7 +63,7 @@ inline std::string security_mode_text(const tSECURITY_MODE& security_mode) {
     case BTM_SEC_MODE_SC:
       return std::string("secure connections only");
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", security_mode);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(security_mode));
   }
 }
 
@@ -137,7 +136,7 @@ inline std::string linkkey_type_text(const int linkkey_type) {
     case BTM_LKEY_TYPE_AUTH_COMB_P_256:
       return std::string("AUTH_COMB_P_256");
     default:
-      return base::StringPrintf("UNKNOWN[0x%02x]", linkkey_type);
+      return std::format("UNKNOWN[0x{:02x}]", linkkey_type);
   }
 }
 
@@ -196,7 +195,7 @@ inline std::string sp_evt_to_text(const tBTM_SP_EVT evt) {
     CASE_RETURN_TEXT(BTM_SP_RMT_OOB_EVT);
   }
 
-  return base::StringPrintf("UNKNOWN[%hhu]", evt);
+  return std::format("UNKNOWN[{}]", static_cast<uint8_t>(evt));
 }
 
 enum : uint8_t {
@@ -223,7 +222,7 @@ inline std::string io_capabilities_text(const tBTM_IO_CAP& io_caps) {
     case BTM_IO_CAP_KBDISP:
       return std::string("Keyboard-Display");
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", io_caps);
+      return std::format("UNKNOWN[{}]", io_caps);
   }
 }
 
@@ -442,7 +441,7 @@ inline std::string ble_evt_to_text(const tBTM_LE_EVT evt) {
     CASE_RETURN_TEXT(BTM_LE_ADDR_ASSOC_EVT);
   }
 
-  return base::StringPrintf("UNKNOWN[%hhu]", evt);
+  return std::format("UNKNOWN[{}]", static_cast<uint8_t>(evt));
 }
 
 enum : uint8_t {
@@ -521,7 +520,7 @@ inline std::string bond_type_text(const tBTM_BOND_TYPE& bond_type) {
     CASE_RETURN_TEXT(BOND_TYPE_PERSISTENT);
     CASE_RETURN_TEXT(BOND_TYPE_TEMPORARY);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", bond_type);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(bond_type));
   }
 }
 

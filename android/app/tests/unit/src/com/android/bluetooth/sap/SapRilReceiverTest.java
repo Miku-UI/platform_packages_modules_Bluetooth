@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package com.android.bluetooth.sap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.sap.SapMessage.CON_STATUS_OK;
-import static com.android.bluetooth.sap.SapMessage.DISC_GRACEFULL;
+import static com.android.bluetooth.sap.SapMessage.DISC_GRACEFUL;
 import static com.android.bluetooth.sap.SapMessage.ID_CONNECT_RESP;
 import static com.android.bluetooth.sap.SapMessage.ID_DISCONNECT_RESP;
 import static com.android.bluetooth.sap.SapMessage.ID_POWER_SIM_OFF_REQ;
@@ -69,11 +70,10 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.Arrays;
 
+/** Test cases for {@link SapRilReceiver}. */
 @LargeTest
 @RunWith(AndroidJUnit4.class)
 public class SapRilReceiverTest {
@@ -85,7 +85,7 @@ public class SapRilReceiverTest {
 
     @Spy private TestHandlerCallback mCallback = new TestHandlerCallback();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private Handler mServiceHandler;
 
@@ -199,7 +199,7 @@ public class SapRilReceiverTest {
     @Test
     public void callback_disconnectIndication() throws Exception {
         int token = 1;
-        int disconnectType = DISC_GRACEFULL;
+        int disconnectType = DISC_GRACEFUL;
         mReceiver.mSapCallback.disconnectIndication(token, disconnectType);
 
         verify(mCallback, timeout(TIMEOUT_MS))

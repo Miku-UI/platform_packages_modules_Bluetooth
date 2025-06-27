@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothSocket;
 
 import com.android.bluetooth.Utils;
@@ -26,7 +28,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Objects;
 
 /** Generic Obex Transport class, to be used in OBEX based Bluetooth Profiles. */
 public class PbapClientObexTransport implements ObexTransport {
@@ -35,11 +36,8 @@ public class PbapClientObexTransport implements ObexTransport {
     /** Will default at the maximum packet length. */
     public static final int PACKET_SIZE_UNSPECIFIED = -1;
 
-    private int mMaxTransmitPacketSize = PACKET_SIZE_UNSPECIFIED;
-    private int mMaxReceivePacketSize = PACKET_SIZE_UNSPECIFIED;
-
     public PbapClientObexTransport(PbapClientSocket socket) {
-        mSocket = Objects.requireNonNull(socket);
+        mSocket = requireNonNull(socket);
     }
 
     @Override
@@ -87,7 +85,7 @@ public class PbapClientObexTransport implements ObexTransport {
     @Override
     public int getMaxTransmitPacketSize() {
         if (mSocket.getConnectionType() != BluetoothSocket.TYPE_L2CAP) {
-            return mMaxTransmitPacketSize;
+            return PACKET_SIZE_UNSPECIFIED;
         }
         return mSocket.getMaxTransmitPacketSize();
     }
@@ -95,12 +93,12 @@ public class PbapClientObexTransport implements ObexTransport {
     @Override
     public int getMaxReceivePacketSize() {
         if (mSocket.getConnectionType() != BluetoothSocket.TYPE_L2CAP) {
-            return mMaxReceivePacketSize;
+            return PACKET_SIZE_UNSPECIFIED;
         }
         return mSocket.getMaxReceivePacketSize();
     }
 
-    /** Get the remote device MAC address associated with the transport, as a tring */
+    /** Get the remote device MAC address associated with the transport, as a string */
     public String getRemoteAddress() {
         String identityAddress = Utils.getBrEdrAddress(mSocket.getRemoteDevice());
         return mSocket.getConnectionType() == BluetoothSocket.TYPE_RFCOMM

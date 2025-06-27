@@ -75,7 +75,6 @@ typedef enum {
   // Add an entry for each sink codec here
   BTAV_A2DP_CODEC_INDEX_SINK_SBC = BTAV_A2DP_CODEC_INDEX_SINK_MIN,
   BTAV_A2DP_CODEC_INDEX_SINK_AAC,
-  BTAV_A2DP_CODEC_INDEX_SINK_LDAC,
   BTAV_A2DP_CODEC_INDEX_SINK_OPUS,
 
   BTAV_A2DP_CODEC_INDEX_SINK_MAX,
@@ -184,8 +183,6 @@ struct btav_a2dp_codec_config_t {
         return "SBC (Sink)";
       case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
         return "AAC (Sink)";
-      case BTAV_A2DP_CODEC_INDEX_SINK_LDAC:
-        return "LDAC (Sink)";
       case BTAV_A2DP_CODEC_INDEX_SOURCE_LC3:
         return "LC3";
       case BTAV_A2DP_CODEC_INDEX_SINK_OPUS:

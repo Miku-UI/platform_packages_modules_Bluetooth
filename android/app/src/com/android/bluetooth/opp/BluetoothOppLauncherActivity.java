@@ -81,7 +81,7 @@ import java.util.regex.Pattern;
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 11
 public class BluetoothOppLauncherActivity extends Activity {
-    private static final String TAG = "BluetoothOppLauncherActivity";
+    private static final String TAG = BluetoothOppLauncherActivity.class.getSimpleName();
 
     // Regex that matches characters that have special meaning in HTML. '<', '>', '&' and
     // multiple continuous spaces.
@@ -127,11 +127,9 @@ public class BluetoothOppLauncherActivity extends Activity {
                 final String type = intent.getType();
                 final Uri stream = (Uri) intent.getParcelableExtra(Intent.EXTRA_STREAM);
                 CharSequence extraText = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
-                // If we get ACTION_SEND intent with EXTRA_STREAM, we'll use the
-                // uri data;
-                // If we get ACTION_SEND intent without EXTRA_STREAM, but with
-                // EXTRA_TEXT, we will try send this TEXT out; Currently in
-                // Browser, share one link goes to this case;
+                // If we get ACTION_SEND intent with EXTRA_STREAM, we'll use the uri data;
+                // If we get ACTION_SEND intent without EXTRA_STREAM, but with EXTRA_TEXT, we will
+                // try send this TEXT out; Currently in Browser, share one link goes to this case;
                 if (stream != null && type != null) {
                     Log.v(TAG, "Get ACTION_SEND intent: Uri = " + stream + "; mimetype = " + type);
                     if (Flags.oppCheckContentUriPermissions() && SdkLevel.isAtLeastV()) {
@@ -144,22 +142,16 @@ public class BluetoothOppLauncherActivity extends Activity {
                     } else {
                         Log.v(TAG, "Did not check sender permissions to Uri = " + stream);
                     }
-                    // Save type/stream, will be used when adding transfer
-                    // session to DB.
-                    Thread t =
-                            new Thread(
-                                    new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            sendFileInfo(
-                                                    type,
-                                                    stream.toString(),
-                                                    false /* isHandover */,
-                                                    true /*
-                                                         fromExternal */);
-                                        }
-                                    });
-                    t.start();
+                    // Save type/stream, will be used when adding transfer session to DB.
+                    new Thread(
+                                    () -> {
+                                        sendFileInfo(
+                                                type,
+                                                stream.toString(),
+                                                false /* isHandover */,
+                                                true /* fromExternal */);
+                                    })
+                            .start();
                     return;
                 } else if (extraText != null && type != null) {
                     Log.v(
@@ -172,19 +164,15 @@ public class BluetoothOppLauncherActivity extends Activity {
                             createFileForSharedContent(
                                     this.createCredentialProtectedStorageContext(), extraText);
                     if (fileUri != null) {
-                        Thread t =
-                                new Thread(
-                                        new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                sendFileInfo(
-                                                        type,
-                                                        fileUri.toString(),
-                                                        false /* isHandover */,
-                                                        false /* fromExternal */);
-                                            }
-                                        });
-                        t.start();
+                        new Thread(
+                                        () -> {
+                                            sendFileInfo(
+                                                    type,
+                                                    fileUri.toString(),
+                                                    false /* isHandover */,
+                                                    false /* fromExternal */);
+                                        })
+                                .start();
                         return;
                     } else {
                         Log.w(TAG, "Error trying to do set text...File not created!");
@@ -250,37 +238,39 @@ public class BluetoothOppLauncherActivity extends Activity {
                         permittedUris = uris;
                         Log.v(TAG, "Did not check sender permissions to uris in " + uris);
                     }
-                    Thread t =
-                            new Thread(
-                                    new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            try {
-                                                BluetoothOppManager.getInstance(
-                                                                BluetoothOppLauncherActivity.this)
-                                                        .saveSendingFileInfo(
-                                                                mimeType,
-                                                                permittedUris,
-                                                                false /* isHandover */,
-                                                                true /* fromExternal */);
-                                                // Done getting file info..Launch device picker
-                                                // and finish this activity
-                                                launchDevicePicker();
-                                                finish();
-                                            } catch (IllegalArgumentException exception) {
-                                                ContentProfileErrorReportUtils.report(
-                                                        BluetoothProfile.OPP,
-                                                        BluetoothProtoEnums
-                                                                .BLUETOOTH_OPP_LAUNCHER_ACTIVITY,
-                                                        BluetoothStatsLog
-                                                                .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                                        3);
-                                                showToast(exception.getMessage());
-                                                finish();
+                    new Thread(
+                                    () -> {
+                                        try {
+                                            BluetoothOppManager.getInstance(
+                                                            BluetoothOppLauncherActivity.this)
+                                                    .saveSendingFileInfo(
+                                                            mimeType,
+                                                            permittedUris,
+                                                            false /* isHandover */,
+                                                            true /* fromExternal */);
+                                            if (Flags.sendOppDevicePickerExtraIntent()) {
+                                                BluetoothOppUtility
+                                                        .grantPermissionToNearbyComponent(
+                                                                BluetoothOppLauncherActivity.this,
+                                                                uris);
                                             }
+                                            // Done getting file info..Launch device picker
+                                            // and finish this activity
+                                            launchDevicePicker();
+                                            finish();
+                                        } catch (IllegalArgumentException exception) {
+                                            ContentProfileErrorReportUtils.report(
+                                                    BluetoothProfile.OPP,
+                                                    BluetoothProtoEnums
+                                                            .BLUETOOTH_OPP_LAUNCHER_ACTIVITY,
+                                                    BluetoothStatsLog
+                                                            .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
+                                                    3);
+                                            showToast(exception.getMessage());
+                                            finish();
                                         }
-                                    });
-                    t.start();
+                                    })
+                            .start();
                     return;
                 } else {
                     Log.e(TAG, "type is null; or sending files URIs are null");
@@ -299,7 +289,7 @@ public class BluetoothOppLauncherActivity extends Activity {
             Log.v(TAG, "Get ACTION_OPEN intent: Uri = " + uri);
             Intent intent1 = new Intent(Constants.ACTION_OPEN);
             intent1.setClassName(this, BluetoothOppReceiver.class.getName());
-            intent1.setDataAndNormalize(uri);
+            intent1.setData(uri.normalizeScheme());
             BluetoothMethodProxy.getInstance().contextSendBroadcast(this, intent1);
             finish();
         } else {
@@ -338,6 +328,11 @@ public class BluetoothOppLauncherActivity extends Activity {
             in1.putExtra(BluetoothDevicePicker.EXTRA_LAUNCH_PACKAGE, getPackageName());
             in1.putExtra(
                     BluetoothDevicePicker.EXTRA_LAUNCH_CLASS, BluetoothOppReceiver.class.getName());
+            if (Flags.sendOppDevicePickerExtraIntent()) {
+                in1.putExtra(
+                        BluetoothDevicePicker.EXTRA_DEVICE_PICKER_ORIGINAL_SEND_INTENT,
+                        getIntent());
+            }
             Log.v(TAG, "Launching " + BluetoothDevicePicker.ACTION_LAUNCH);
             startActivity(in1);
         }
@@ -571,6 +566,10 @@ public class BluetoothOppLauncherActivity extends Activity {
     void sendFileInfo(String mimeType, String uriString, boolean isHandover, boolean fromExternal) {
         BluetoothOppManager manager = BluetoothOppManager.getInstance(getApplicationContext());
         try {
+            if (Flags.sendOppDevicePickerExtraIntent()) {
+                BluetoothOppUtility.grantPermissionToNearbyComponent(
+                        this, List.of(Uri.parse(uriString)));
+            }
             manager.saveSendingFileInfo(mimeType, uriString, isHandover, fromExternal);
             launchDevicePicker();
             finish();
@@ -587,11 +586,6 @@ public class BluetoothOppLauncherActivity extends Activity {
 
     private void showToast(final String msg) {
         BluetoothOppLauncherActivity.this.runOnUiThread(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
-                    }
-                });
+                () -> Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show());
     }
 }

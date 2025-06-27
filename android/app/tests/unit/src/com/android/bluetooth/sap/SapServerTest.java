@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,11 @@
 
 package com.android.bluetooth.sap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.sap.SapMessage.CON_STATUS_ERROR_CONNECTION;
 import static com.android.bluetooth.sap.SapMessage.CON_STATUS_OK;
 import static com.android.bluetooth.sap.SapMessage.CON_STATUS_OK_ONGOING_CALL;
-import static com.android.bluetooth.sap.SapMessage.DISC_GRACEFULL;
+import static com.android.bluetooth.sap.SapMessage.DISC_GRACEFUL;
 import static com.android.bluetooth.sap.SapMessage.ID_CONNECT_REQ;
 import static com.android.bluetooth.sap.SapMessage.ID_CONNECT_RESP;
 import static com.android.bluetooth.sap.SapMessage.ID_DISCONNECT_IND;
@@ -78,12 +79,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/** Test cases for {@link SapServer}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class SapServerTest {
@@ -98,7 +98,7 @@ public class SapServerTest {
 
     @Spy private TestHandlerCallback mCallback = new TestHandlerCallback();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private InputStream mInputStream;
 
@@ -128,7 +128,7 @@ public class SapServerTest {
                 .thenReturn(notificationManager);
 
         ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
-        int type = DISC_GRACEFULL;
+        int type = DISC_GRACEFUL;
         int flags = PendingIntent.FLAG_CANCEL_CURRENT;
         mSapServer.setNotification(type, flags);
 
@@ -298,7 +298,7 @@ public class SapServerTest {
 
     @Test
     public void handleRilInd_whenStateIsConnected_callsSendClientMessage() {
-        int disconnectionType = DISC_GRACEFULL;
+        int disconnectionType = DISC_GRACEFUL;
         SapMessage msg = mock(SapMessage.class);
         when(msg.getMsgType()).thenReturn(ID_RIL_UNSOL_DISCONNECT_IND);
         when(msg.getDisconnectionType()).thenReturn(disconnectionType);
@@ -318,7 +318,7 @@ public class SapServerTest {
 
     @Test
     public void handleRilInd_whenStateIsDisconnected_callsSendDisconnectInd() {
-        int disconnectionType = DISC_GRACEFULL;
+        int disconnectionType = DISC_GRACEFUL;
         NotificationManager notificationManager = mock(NotificationManager.class);
         when(mTargetContext.getSystemService(NotificationManager.class))
                 .thenReturn(notificationManager);
@@ -431,7 +431,7 @@ public class SapServerTest {
     }
 
     @Test
-    public void handleRfcommReply_statusIndMsg_whenInDisonnectingState_doesNotSendMessage()
+    public void handleRfcommReply_statusIndMsg_whenInDisconnectingState_doesNotSendMessage()
             throws Exception {
         SapMessage msg = mock(SapMessage.class);
         when(msg.getMsgType()).thenReturn(ID_STATUS_IND);
@@ -600,7 +600,7 @@ public class SapServerTest {
     public void handleMessage_forRilIndMsg_callsHandleRilInd() throws Exception {
         SapMessage sapMsg = mock(SapMessage.class);
         when(sapMsg.getMsgType()).thenReturn(ID_RIL_UNSOL_DISCONNECT_IND);
-        when(sapMsg.getDisconnectionType()).thenReturn(DISC_GRACEFULL);
+        when(sapMsg.getDisconnectionType()).thenReturn(DISC_GRACEFUL);
         mSapServer.changeState(SapServer.SAP_STATE.CONNECTED);
         mSapServer.mSapHandler = mHandler;
 
@@ -683,7 +683,7 @@ public class SapServerTest {
         mSapServer.mIntentReceiver = mSapServer.new SapServerBroadcastReceiver();
         mSapServer.mSapHandler = mHandler;
 
-        int disconnectType = SapMessage.DISC_GRACEFULL;
+        int disconnectType = SapMessage.DISC_GRACEFUL;
         Intent intent = new Intent(SapServer.SAP_DISCONNECT_ACTION);
         intent.putExtra(SapServer.SAP_DISCONNECT_TYPE_EXTRA, disconnectType);
         mSapServer.changeState(SapServer.SAP_STATE.CONNECTED);

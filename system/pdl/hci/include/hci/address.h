@@ -25,8 +25,6 @@
 #include <ostream>
 #include <string>
 
-#include "common/interfaces/ILoggable.h"
-#include "os/logging/log_adapter.h"
 #include "packet/custom_field_fixed_size_interface.h"
 #include "storage/serializable.h"
 
@@ -34,8 +32,7 @@ namespace bluetooth {
 namespace hci {
 
 class Address final : public packet::CustomFieldFixedSizeInterface<Address>,
-                      public storage::Serializable<Address>,
-                      public bluetooth::common::IRedactableLoggable {
+                      public storage::Serializable<Address> {
 public:
   static constexpr size_t kLength = 6;
 
@@ -56,11 +53,10 @@ public:
   // storage::Serializable methods
   std::string ToString() const override;
   std::string ToColonSepHexString() const;
-  std::string ToStringForLogging() const override;
-  std::string ToRedactedStringForLogging() const override;
-
-  static std::optional<Address> FromString(const std::string& from);
+  std::string ToStringForLogging() const;
+  std::string ToRedactedStringForLogging() const;
   std::string ToLegacyConfigString() const override;
+  static std::optional<Address> FromString(const std::string& from);
   static std::optional<Address> FromLegacyConfigString(const std::string& str);
 
   bool operator<(const Address& rhs) const { return address < rhs.address; }
@@ -88,13 +84,6 @@ public:
 private:
   std::string _ToMaskedColonSepHexString(int bytes_to_mask) const;
 };
-
-// TODO: to fine-tune this.
-// we need an interface between the logger and ILoggable
-inline std::ostream& operator<<(std::ostream& os, const Address& a) {
-  os << a.ToString();
-  return os;
-}
 
 }  // namespace hci
 }  // namespace bluetooth

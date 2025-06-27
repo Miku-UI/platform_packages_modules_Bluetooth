@@ -23,9 +23,7 @@
  ******************************************************************************/
 #define LOG_TAG "gatt_utils"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <deque>
@@ -431,16 +429,26 @@ tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& bda, tBT_TRANSPORT transport)
   return p_tcb;
 }
 
+/* This is  for connection manager */
+std::string get_client_name(uint8_t gatt_if) {
+  if (gatt_if == CONN_MGR_ID_L2CAP) {
+    return "L2CAP";
+  }
+
+  tGATT_REG* reg = gatt_get_regcb(gatt_if);
+  return (reg == nullptr) ? "" : reg->name;
+}
+
 std::string gatt_tcb_get_holders_info_string(const tGATT_TCB* p_tcb) {
   std::stringstream stream;
 
   if (p_tcb->app_hold_link.size() == 0) {
     stream << "No ACL holders";
   } else {
-    stream << "ACL holders gatt_if:";
+    stream << "ACL holders gatt_if: ";
 
     for (auto gatt_if : p_tcb->app_hold_link) {
-      stream << static_cast<int>(gatt_if) << ",";
+      stream << get_client_name(gatt_if) << " (" << +gatt_if << "), ";
     }
   }
   return stream.str();
@@ -473,7 +481,7 @@ void gatt_tcb_dump(int fd) {
     if (p_tcb->in_use) {
       in_use_cnt++;
       stream << "  id: " << +p_tcb->tcb_idx
-             << "  address: " << ADDRESS_TO_LOGGABLE_STR(p_tcb->peer_bda)
+             << "  address: " << p_tcb->peer_bda.ToRedactedStringForLogging()
              << "  transport: " << bt_transport_text(p_tcb->transport)
              << "  ch_state: " << gatt_channel_state_text(p_tcb->ch_state) << ", "
              << gatt_tcb_get_holders_info_string(p_tcb) << "\n";
@@ -858,7 +866,7 @@ std::list<tGATT_SRV_LIST_ELEM>::iterator gatt_sr_find_i_rcb_by_handle(uint16_t h
 void gatt_sr_get_sec_info(const RawAddress& rem_bda, tBT_TRANSPORT transport,
                           tGATT_SEC_FLAG* p_sec_flag, uint8_t* p_key_size) {
   tGATT_SEC_FLAG flags = {};
-  flags.is_link_key_known = BTM_IsLinkKeyKnown(rem_bda, transport);
+  flags.is_link_key_known = BTM_IsBonded(rem_bda, transport);
   flags.is_link_key_authed = BTM_IsLinkKeyAuthed(rem_bda, transport);
   flags.is_encrypted = BTM_IsEncrypted(rem_bda, transport);
   flags.can_read_discoverable_characteristics = BTM_CanReadDiscoverableCharacteristics(rem_bda);
@@ -1034,21 +1042,12 @@ tGATT_REG* gatt_get_regcb(tGATT_IF gatt_if) {
   uint8_t ii = (uint8_t)gatt_if;
   tGATT_REG* p_reg = NULL;
 
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    auto it = gatt_cb.cl_rcb_map.find(gatt_if);
-    if (it == gatt_cb.cl_rcb_map.end()) {
-      log::warn("unknown gatt_if = {}", ii);
-      return NULL;
-    }
-    p_reg = it->second.get();
-  } else {
-    // Index for cl_rcb is always 1 less than gatt_if.
-    if (ii < 1 || ii > GATT_MAX_APPS) {
-      log::warn("gatt_if out of range = {}", ii);
-      return NULL;
-    }
-    p_reg = &gatt_cb.cl_rcb[ii - 1];
+  auto it = gatt_cb.cl_rcb_map.find(gatt_if);
+  if (it == gatt_cb.cl_rcb_map.end()) {
+    log::warn("unknown gatt_if = {}", ii);
+    return NULL;
   }
+  p_reg = it->second.get();
 
   if (!p_reg->in_use) {
     log::warn("gatt_if found but not in use.");
@@ -1323,16 +1322,8 @@ tGATT_TCB* gatt_find_tcb_by_cid(uint16_t lcid) {
 }
 
 void gatt_sr_copy_prep_cnt_to_cback_cnt(tGATT_TCB& tcb) {
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    for (auto& [i, cnt] : tcb.prep_cnt_map) {
-      tcb.sr_cmd.cback_cnt_map[i] = 1;
-    }
-  } else {
-    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-      if (tcb.prep_cnt[i]) {
-        tcb.sr_cmd.cback_cnt[i] = 1;
-      }
-    }
+  for (auto& [i, cnt] : tcb.prep_cnt_map) {
+    tcb.sr_cmd.cback_cnt_map[i] = 1;
   }
 }
 
@@ -1363,17 +1354,20 @@ tGATT_SR_CMD* gatt_sr_get_cmd_by_trans_id(tGATT_TCB* p_tcb, uint32_t trans_id) {
  * Returns          True if thetotal application callback count is zero
  *
  ******************************************************************************/
-bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& tcb) {
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    return tcb.sr_cmd.cback_cnt_map.empty();
+bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& tcb, uint16_t cid) {
+  tGATT_SR_CMD* sr_cmd_p;
+  if (cid == tcb.att_lcid) {
+    sr_cmd_p = &tcb.sr_cmd;
   } else {
-    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-      if (tcb.sr_cmd.cback_cnt[i]) {
-        return false;
-      }
+    EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
+    if (channel == nullptr) {
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
+      return true;
     }
-    return true;
+    sr_cmd_p = &channel->server_outstanding_cmd_;
   }
+
+  return sr_cmd_p->cback_cnt_map.empty();
 }
 
 /*******************************************************************************
@@ -1385,18 +1379,7 @@ bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& tcb) {
  * Returns          True no prepare write request
  *
  ******************************************************************************/
-bool gatt_sr_is_prep_cnt_zero(tGATT_TCB& tcb) {
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    return tcb.prep_cnt_map.empty();
-  } else {
-    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-      if (tcb.prep_cnt[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-}
+bool gatt_sr_is_prep_cnt_zero(tGATT_TCB& tcb) { return tcb.prep_cnt_map.empty(); }
 
 /*******************************************************************************
  *
@@ -1408,31 +1391,15 @@ bool gatt_sr_is_prep_cnt_zero(tGATT_TCB& tcb) {
  *
  ******************************************************************************/
 void gatt_sr_reset_cback_cnt(tGATT_TCB& tcb, uint16_t cid) {
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    if (cid == tcb.att_lcid) {
-      tcb.sr_cmd.cback_cnt_map.clear();
-    } else {
-      EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
-      if (channel == nullptr) {
-        log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
-        return;
-      }
-      channel->server_outstanding_cmd_.cback_cnt_map.clear();
-    }
+  if (cid == tcb.att_lcid) {
+    tcb.sr_cmd.cback_cnt_map.clear();
   } else {
-    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-      if (cid == tcb.att_lcid) {
-        tcb.sr_cmd.cback_cnt[i] = 0;
-      } else {
-        EattChannel* channel =
-                EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
-        if (channel == nullptr) {
-          log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
-          return;
-        }
-        channel->server_outstanding_cmd_.cback_cnt[i] = 0;
-      }
+    EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
+    if (channel == nullptr) {
+      log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
+      return;
     }
+    channel->server_outstanding_cmd_.cback_cnt_map.clear();
   }
 }
 
@@ -1518,25 +1485,13 @@ void gatt_sr_update_cback_cnt(tGATT_TCB& tcb, uint16_t cid, tGATT_IF gatt_if, bo
     gatt_sr_reset_cback_cnt(tcb, cid);
   }
 
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    if (is_inc) {
-      sr_cmd_p->cback_cnt_map[gatt_if]++;
-    } else {
-      auto cback_cnt_it = sr_cmd_p->cback_cnt_map.find(gatt_if);
-      if (cback_cnt_it != sr_cmd_p->cback_cnt_map.end()) {
-        if ((--cback_cnt_it->second) <= 0) {
-          sr_cmd_p->cback_cnt_map.erase(cback_cnt_it);
-        }
-      }
-    }
+  if (is_inc) {
+    sr_cmd_p->cback_cnt_map[gatt_if]++;
   } else {
-    uint8_t idx = ((uint8_t)gatt_if) - 1;
-
-    if (is_inc) {
-      sr_cmd_p->cback_cnt[idx]++;
-    } else {
-      if (sr_cmd_p->cback_cnt[idx]) {
-        sr_cmd_p->cback_cnt[idx]--;
+    auto cback_cnt_it = sr_cmd_p->cback_cnt_map.find(gatt_if);
+    if (cback_cnt_it != sr_cmd_p->cback_cnt_map.end()) {
+      if ((--cback_cnt_it->second) <= 0) {
+        sr_cmd_p->cback_cnt_map.erase(cback_cnt_it);
       }
     }
   }
@@ -1560,68 +1515,37 @@ void gatt_sr_update_prep_cnt(tGATT_TCB& tcb, tGATT_IF gatt_if, bool is_inc, bool
   if (is_reset_first) {
     gatt_sr_reset_prep_cnt(tcb);
   }
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    if (is_inc) {
-      tcb.prep_cnt_map[gatt_if]++;
-    } else {
-      auto prep_cnt_i = tcb.prep_cnt_map.find(gatt_if);
-      if (prep_cnt_i != tcb.prep_cnt_map.end()) {
-        if (--prep_cnt_i->second <= 0) {
-          tcb.prep_cnt_map.erase(prep_cnt_i);
-        }
-      }
-    }
+  if (is_inc) {
+    tcb.prep_cnt_map[gatt_if]++;
   } else {
-    if (is_inc) {
-      tcb.prep_cnt[idx]++;
-    } else {
-      if (tcb.prep_cnt[idx]) {
-        tcb.prep_cnt[idx]--;
+    auto prep_cnt_i = tcb.prep_cnt_map.find(gatt_if);
+    if (prep_cnt_i != tcb.prep_cnt_map.end()) {
+      if (--prep_cnt_i->second <= 0) {
+        tcb.prep_cnt_map.erase(prep_cnt_i);
       }
     }
   }
-}
-
-static bool gatt_is_anybody_interested_in_connection(const RawAddress& bda) {
-  if (connection_manager::is_background_connection(bda)) {
-    log::debug("{} is in background connection", bda);
-    return true;
-  }
-
-  for (size_t i = 1; i <= GATT_MAX_APPS; i++) {
-    tGATT_REG* p_reg = &gatt_cb.cl_rcb[i - 1];
-    if (p_reg->in_use && p_reg->direct_connect_request.count(bda) > 0) {
-      log::debug("gatt_if {} interested in connection to {}", i, bda);
-      return true;
-    }
-  }
-  return false;
 }
 
 /** Cancel LE Create Connection request */
 bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
+  if (connection_manager::direct_connect_remove(gatt_if, bda)) {
+    log::info("{} was doing direct connect to {}, canceled", gatt_if, bda);
+  }
+  if (connection_manager::background_connect_remove(gatt_if, bda)) {
+    log::info("{} was doing background connect to {}, canceled", gatt_if, bda);
+  }
+
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, BT_TRANSPORT_LE);
   if (!p_tcb) {
-    /* TCB is not allocated when trying to connect under this flag.
-     * but device address is storred in the tGATT_REG. Make sure to remove
-     * the address from the list when cancel is called.
-     */
-
-    tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
-    if (!p_reg) {
-      log::error("Unable to find registered app gatt_if={}", gatt_if);
-    } else {
-      log::info("Removing {} from direct list", bda);
-      p_reg->direct_connect_request.erase(bda);
-    }
-    if (!gatt_is_anybody_interested_in_connection(bda)) {
-      gatt_cancel_connect(bda, static_cast<tBT_TRANSPORT>(BT_TRANSPORT_LE));
+    if (connection_manager::get_apps_connecting_to(bda).empty()) {
+      gatt_cleanup_upon_disc(bda, GATT_CONN_TERMINATE_LOCAL_HOST, BT_TRANSPORT_LE);
     }
     return true;
   }
 
   if (gatt_get_ch_state(p_tcb) == GATT_CH_OPEN) {
-    log::error("link connected Too late to cancel");
+    log::error("link connected too late to cancel {}", bda);
     return false;
   }
 
@@ -1631,24 +1555,6 @@ bool gatt_cancel_open(tGATT_IF gatt_if, const RawAddress& bda) {
     log::debug("Client reference count is zero disconnecting device gatt_if:{} peer:{}", gatt_if,
                bda);
     gatt_disconnect(p_tcb);
-  }
-
-  if (!connection_manager::direct_connect_remove(gatt_if, bda)) {
-    if (!connection_manager::is_background_connection(bda)) {
-      if (!com::android::bluetooth::flags::gatt_fix_multiple_direct_connect() ||
-          p_tcb->app_hold_link.empty()) {
-        bluetooth::shim::ACL_IgnoreLeConnectionFrom(BTM_Sec_GetAddressWithType(bda));
-      }
-      log::info(
-              "Gatt connection manager has no background record but  removed "
-              "filter acceptlist gatt_if:{} peer:{}",
-              gatt_if, bda);
-    } else {
-      log::info(
-              "Gatt connection manager maintains a background record preserving "
-              "filter acceptlist gatt_if:{} peer:{}",
-              gatt_if, bda);
-    }
   }
 
   return true;
@@ -1823,36 +1729,12 @@ static void gatt_disconnect_complete_notify_user(const RawAddress& bda, tGATT_DI
                                                  tBT_TRANSPORT transport) {
   tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bda, transport);
 
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
-      if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
-        tCONN_ID conn_id =
-                p_tcb ? gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
-        (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id, kGattDisconnected, reason,
-                                   transport);
-      }
-
-      if (p_reg->direct_connect_request.count(bda) > 0) {
-        log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
-                  p_reg->gatt_if);
-        p_reg->direct_connect_request.erase(bda);
-      }
-    }
-  } else {
-    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-      tGATT_REG* p_reg = &gatt_cb.cl_rcb[i];
-      if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
-        tCONN_ID conn_id =
-                p_tcb ? gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
-        (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id, kGattDisconnected, reason,
-                                   transport);
-      }
-
-      if (p_reg->direct_connect_request.count(bda) > 0) {
-        log::info("Removing device {} from the direct connect list of gatt_if {}", bda,
-                  p_reg->gatt_if);
-        p_reg->direct_connect_request.erase(bda);
-      }
+  for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
+    if (p_reg->in_use && p_reg->app_cb.p_conn_cb) {
+      tCONN_ID conn_id =
+              p_tcb ? gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if) : GATT_INVALID_CONN_ID;
+      (*p_reg->app_cb.p_conn_cb)(p_reg->gatt_if, bda, conn_id, kGattDisconnected, reason,
+                                 transport);
     }
   }
 }
@@ -1907,6 +1789,9 @@ void gatt_cleanup_upon_disc(const RawAddress& bda, tGATT_DISCONN_REASON reason,
   gatt_free_pending_ind(p_tcb);
   fixed_queue_free(p_tcb->sr_cmd.multi_rsp_q, NULL);
   p_tcb->sr_cmd.multi_rsp_q = NULL;
+  if (p_tcb->sr_cmd.p_rsp_msg) {
+    osi_free_and_reset((void**)&p_tcb->sr_cmd.p_rsp_msg);
+  }
 
   gatt_disconnect_complete_notify_user(bda, reason, transport);
 
@@ -1969,41 +1854,22 @@ uint16_t gatt_get_mtu_pref(const tGATT_REG* p_reg, const RawAddress& bda) {
 
 uint16_t gatt_get_apps_preferred_mtu(const RawAddress& bda) {
   uint16_t preferred_mtu = 0;
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
-      if (!p_reg->in_use) {
-        continue;
-      }
-
-      preferred_mtu = std::max(preferred_mtu, gatt_get_mtu_pref(p_reg.get(), bda));
+  for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
+    if (!p_reg->in_use) {
+      continue;
     }
-  } else {
-    for (auto& reg : gatt_cb.cl_rcb) {
-      if (!reg.in_use) {
-        continue;
-      }
 
-      preferred_mtu = std::max(preferred_mtu, gatt_get_mtu_pref(&reg, bda));
-    }
+    preferred_mtu = std::max(preferred_mtu, gatt_get_mtu_pref(p_reg.get(), bda));
   }
 
   return preferred_mtu;
 }
 
 void gatt_remove_apps_mtu_prefs(const RawAddress& bda) {
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
-      if (!p_reg->in_use) {
-        continue;
-      }
-      p_reg.get()->mtu_prefs.erase(bda);
+  for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
+    if (!p_reg->in_use) {
+      continue;
     }
-  } else {
-    for (auto& reg : gatt_cb.cl_rcb) {
-      if (!reg.in_use) {
-        continue;
-      }
-      reg.mtu_prefs.erase(bda);
-    }
+    p_reg.get()->mtu_prefs.erase(bda);
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,15 @@
 
 package com.android.bluetooth.pbapclient;
 
-import static com.google.common.truth.Truth.assertThat;
+import static com.android.bluetooth.TestUtils.MockitoRule;
 
-import android.accounts.Account;
+import static com.google.common.truth.Truth.assertThat;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -35,18 +32,18 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+/** Test cases for {@link PbapPhonebook}. */
 @RunWith(AndroidJUnit4.class)
 public class PbapPhonebookTest {
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-    @Mock private Account mMockAccount;
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     // *********************************************************************************************
     // * Create Phonebook
     // *********************************************************************************************
 
     @Test
-    public void testCreatePhonebook_forFavorites_emptyFavoritesPhonebookeCreated()
+    public void testCreatePhonebook_forFavorites_emptyFavoritesPhonebookCreated()
             throws IOException {
         PbapPhonebook phonebook = new PbapPhonebook(PbapPhonebook.FAVORITES_PATH);
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.FAVORITES_PATH);
@@ -56,7 +53,7 @@ public class PbapPhonebookTest {
     }
 
     @Test
-    public void testCreatePhonebook_forLocalPhonebook_emptyLocalPhonebookeCreated()
+    public void testCreatePhonebook_forLocalPhonebook_emptyLocalPhonebookCreated()
             throws IOException {
         PbapPhonebook phonebook = new PbapPhonebook(PbapPhonebook.LOCAL_PHONEBOOK_PATH);
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.LOCAL_PHONEBOOK_PATH);
@@ -116,7 +113,7 @@ public class PbapPhonebookTest {
     }
 
     @Test
-    public void testCreatePhonebook_forSimMissedCallHistory_emptyMiSimssedCallHistoryCreated()
+    public void testCreatePhonebook_forSimMissedCallHistory_emptySimMissedCallHistoryCreated()
             throws IOException {
         PbapPhonebook phonebook = new PbapPhonebook(PbapPhonebook.SIM_MCH_PATH);
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_MCH_PATH);
@@ -156,7 +153,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.FAVORITES_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.FAVORITES_PATH);
@@ -190,7 +186,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.LOCAL_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.LOCAL_PHONEBOOK_PATH);
@@ -224,7 +219,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
@@ -262,7 +256,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.ICH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.ICH_PATH);
@@ -296,7 +289,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.OCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.OCH_PATH);
@@ -330,7 +322,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.MCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.MCH_PATH);
@@ -364,7 +355,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_ICH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_ICH_PATH);
@@ -398,7 +388,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_OCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_OCH_PATH);
@@ -432,7 +421,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_MCH_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_MCH_PATH);
@@ -470,7 +458,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_30,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
@@ -504,7 +491,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
@@ -538,7 +524,6 @@ public class PbapPhonebookTest {
                         PbapPhonebook.SIM_PHONEBOOK_PATH,
                         PbapPhonebook.FORMAT_VCARD_21,
                         0,
-                        mMockAccount,
                         stream);
 
         assertThat(phonebook.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
@@ -564,7 +549,7 @@ public class PbapPhonebookTest {
     // * Utilities
     // *********************************************************************************************
 
-    private InputStream toUtf8Stream(String s) {
+    private static InputStream toUtf8Stream(String s) {
         return new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8));
     }
 }

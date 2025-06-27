@@ -1,4 +1,5 @@
-use crate::{gatt::server::att_database::AttDatabase, packets::att};
+use crate::gatt::server::att_database::AttDatabase;
+use crate::packets::att;
 use pdl_runtime::EncodeError;
 
 pub async fn handle_write_request<T: AttDatabase>(
@@ -24,18 +25,12 @@ mod test {
 
     use tokio_test::block_on;
 
-    use crate::{
-        core::uuid::Uuid,
-        gatt::{
-            ids::AttHandle,
-            server::{
-                att_database::{AttAttribute, AttDatabase},
-                gatt_database::AttPermissions,
-                test::test_att_db::TestAttDatabase,
-            },
-        },
-        packets::att,
-    };
+    use crate::core::uuid::Uuid;
+    use crate::gatt::ids::AttHandle;
+    use crate::gatt::server::att_database::{AttAttribute, AttDatabase};
+    use crate::gatt::server::gatt_database::AttPermissions;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::packets::att;
 
     #[test]
     fn test_successful_write() {

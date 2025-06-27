@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,16 +27,17 @@ import java.util.UUID;
 
 /** Manages information of apps that registered distance measurement */
 class DistanceMeasurementTracker {
-    private static final String TAG = "DistanceMeasurementTracker";
+    private static final String TAG = DistanceMeasurementTracker.class.getSimpleName();
 
-    final DistanceMeasurementManager mManager;
     final BluetoothDevice mDevice;
     final String mIdentityAddress;
-    final UUID mUuid;
     final int mInterval; // Report interval in ms
-    final int mDuration; // Report duration in s
-    final int mMethod;
     final IDistanceMeasurementCallback mCallback;
+    private final DistanceMeasurementManager mManager;
+    private final UUID mUuid;
+    private final int mDuration; // Report duration in s
+    private final int mMethod;
+
     boolean mStarted = false;
     private Handler mHandler;
 
@@ -60,12 +61,7 @@ class DistanceMeasurementTracker {
     void startTimer(Looper looper) {
         mHandler = new Handler(looper);
         mHandler.postDelayed(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        mManager.stopDistanceMeasurement(mUuid, mDevice, mMethod, true);
-                    }
-                },
+                () -> mManager.stopDistanceMeasurement(mUuid, mDevice, mMethod, true),
                 mDuration * 1000L);
     }
 
@@ -88,15 +84,12 @@ class DistanceMeasurementTracker {
     @Override
     public boolean equals(Object o) {
         if (o == null) return false;
-
         if (!(o instanceof DistanceMeasurementTracker)) return false;
 
         final DistanceMeasurementTracker u = (DistanceMeasurementTracker) o;
-
         if (!Objects.equals(mIdentityAddress, u.mIdentityAddress)) {
             return false;
         }
-
         if (!Objects.equals(mUuid, u.mUuid)) {
             return false;
         }

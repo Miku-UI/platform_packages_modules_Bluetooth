@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,13 @@
 
 package com.android.bluetooth.pan;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.os.Looper;
 
-import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -35,22 +30,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /** Test cases for {@link BluetoothTetheringNetworkFactory}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothTetheringNetworkFactoryTest {
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private PanService mPanService;
-
-    private Context mContext = ApplicationProvider.getApplicationContext();
+    @Mock Context mContext;
 
     @Test
     public void networkStartReverseTetherEmptyIface() {
@@ -65,48 +54,6 @@ public class BluetoothTetheringNetworkFactoryTest {
         bluetoothTetheringNetworkFactory.startReverseTether(iface);
 
         assertThat(bluetoothTetheringNetworkFactory.getProvider()).isNull();
-    }
-
-    @Test
-    public void networkStartReverseTether() {
-        if (Looper.myLooper() == null) {
-            Looper.prepare();
-        }
-
-        BluetoothTetheringNetworkFactory bluetoothTetheringNetworkFactory =
-                new BluetoothTetheringNetworkFactory(mContext, Looper.myLooper(), mPanService);
-
-        String iface = "iface";
-        bluetoothTetheringNetworkFactory.startReverseTether(iface);
-
-        assertThat(bluetoothTetheringNetworkFactory.getProvider()).isNotNull();
-    }
-
-    @Test
-    public void networkStartReverseTetherStop() {
-        if (Looper.myLooper() == null) {
-            Looper.prepare();
-        }
-
-        BluetoothTetheringNetworkFactory bluetoothTetheringNetworkFactory =
-                new BluetoothTetheringNetworkFactory(mContext, Looper.myLooper(), mPanService);
-
-        String iface = "iface";
-        bluetoothTetheringNetworkFactory.startReverseTether(iface);
-
-        assertThat(bluetoothTetheringNetworkFactory.getProvider()).isNotNull();
-
-        BluetoothAdapter adapter = mContext.getSystemService(BluetoothManager.class).getAdapter();
-        List<BluetoothDevice> bluetoothDevices = new ArrayList<>();
-        BluetoothDevice bluetoothDevice = adapter.getRemoteDevice("11:11:11:11:11:11");
-        bluetoothDevices.add(bluetoothDevice);
-
-        when(mPanService.getConnectedDevices()).thenReturn(bluetoothDevices);
-
-        bluetoothTetheringNetworkFactory.stopReverseTether();
-
-        verify(mPanService).getConnectedDevices();
-        verify(mPanService).disconnect(bluetoothDevice);
     }
 
     @Test

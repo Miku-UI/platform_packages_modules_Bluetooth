@@ -54,6 +54,7 @@ public:
   void GetAddressedPlayer(GetAddressedPlayerCallback cb) override { cb.Run(currentPlayer_); }
 
   void SetBrowsedPlayer([[maybe_unused]] uint16_t player_id,
+                        [[maybe_unused]] std::string current_path,
                         [[maybe_unused]] SetBrowsedPlayerCallback browse_cb) override {}
 
   void SetAddressedPlayer([[maybe_unused]] uint16_t player_id,

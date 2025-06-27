@@ -1,10 +1,19 @@
+// Copyright (C) 2024 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 package {
-    // See: http://go/android-license-faq
-    // A large-scale-change added 'default_applicable_licenses' to import
-    // all of the 'license_kinds' from "system_bt_license"
-    // to get the below license kinds:
-    //   SPDX-license-identifier-Apache-2.0
-    default_applicable_licenses: ["system_bt_license"],
+    default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
 linker_config {
@@ -13,13 +22,41 @@ linker_config {
     installable: false,
 }
 
-// Mainline bluetooth apex module.
+// Legacy Bluetooth apex prior to Baklava
+// This is kept for soong purposes but this apex doesn't do anything anymore
+// TODO b/383863941 delete
 apex {
+    enabled: false,
     name: "com.android.btservices",
     defaults: ["t-launched-apex-module"],
     manifest: "apex_manifest.json",
-    bootclasspath_fragments: ["com.android.btservices-bootclasspath-fragment"],
-    systemserverclasspath_fragments: ["com.android.btservices-systemserverclasspath-fragment"],
+
+    key: "com.android.btservices.key",
+    certificate: ":com.android.btservices.certificate",
+    updatable: true,
+    compressible: false,
+    visibility: ["//packages/modules/common/build"],
+}
+
+apex_key {
+    name: "com.android.btservices.key",
+    public_key: "com.android.btservices.avbpubkey",
+    private_key: "com.android.btservices.pem",
+}
+
+android_app_certificate {
+    name: "com.android.btservices.certificate",
+    certificate: "com.android.btservices",
+}
+
+// Mainline bluetooth apex module.
+apex {
+    name: "com.android.bt",
+    defaults: ["b-launched-apex-module"],
+    manifest: "manifest.json",
+    bootclasspath_fragments: ["com.android.bt-bootclasspath-fragment"],
+    systemserverclasspath_fragments: ["com.android.bt-systemserverclasspath-fragment"],
+    file_contexts: ":com.android.bt-file_contexts",
     compat_configs: [
         "bluetooth-compat-config",
         "bluetoothapk-platform-compat-config",
@@ -43,41 +80,28 @@ apex {
         "audio_set_scenarios_json",
         "bt_did.conf",
         "bt_stack.conf",
-        "btservices-linker-config",
         "interop_database.conf",
     ],
-    key: "com.android.btservices.key",
-    certificate: ":com.android.btservices.certificate",
-    updatable: true,
+    key: "com.android.bt.key",
+    certificate: ":com.android.bt.certificate",
     compressible: false,
     visibility: ["//packages/modules/common/build"],
 }
 
-apex_key {
-    name: "com.android.btservices.key",
-    public_key: "com.android.btservices.avbpubkey",
-    private_key: "com.android.btservices.pem",
-}
-
-android_app_certificate {
-    name: "com.android.btservices.certificate",
-    certificate: "com.android.btservices",
-}
-
 sdk {
-    name: "btservices-module-sdk",
+    name: "bt-module-sdk",
     apexes: [
         // Adds exportable dependencies of the APEX to the sdk,
         // e.g. *classpath_fragments.
-        "com.android.btservices",
+        "com.android.bt",
     ],
 }
 
 // Encapsulate the contributions made by the com.android.bluetooth to the bootclasspath.
 bootclasspath_fragment {
-    name: "com.android.btservices-bootclasspath-fragment",
+    name: "com.android.bt-bootclasspath-fragment",
     contents: ["framework-bluetooth"],
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
 
     // The bootclasspath_fragments that provide APIs on which this depends.
     fragments: [
@@ -96,7 +120,6 @@ bootclasspath_fragment {
     // Additional hidden API flag files to override the defaults. This must only be
     // modified by the Soong or platform compat team.
     hidden_api: {
-        max_target_o_low_priority: ["hiddenapi/hiddenapi-max-target-o-low-priority.txt"],
         max_target_r_low_priority: ["hiddenapi/hiddenapi-max-target-r-low-priority.txt"],
         unsupported: ["hiddenapi/hiddenapi-unsupported.txt"],
 
@@ -121,11 +144,10 @@ bootclasspath_fragment {
             "com.android.bluetooth",
         ],
     },
-
 }
 
 systemserverclasspath_fragment {
-    name: "com.android.btservices-systemserverclasspath-fragment",
+    name: "com.android.bt-systemserverclasspath-fragment",
     standalone_contents: ["service-bluetooth"],
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
 }

@@ -26,7 +26,6 @@
 #define BTA_GATT_API_H
 
 #include <base/functional/callback_forward.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <list>
@@ -95,7 +94,7 @@ inline std::string gatt_client_event_text(const tBTA_GATTC_EVT& event) {
     CASE_RETURN_TEXT(BTA_GATTC_CONN_UPDATE_EVT);
     CASE_RETURN_TEXT(BTA_GATTC_SUBRATE_CHG_EVT);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", event);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(event));
   }
 }
 
@@ -322,7 +321,7 @@ inline std::string gatt_server_event_text(const tBTA_GATTS_EVT& event) {
     CASE_RETURN_TEXT(BTA_GATTS_CONN_UPDATE_EVT);
     CASE_RETURN_TEXT(BTA_GATTS_SUBRATE_CHG_EVT);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", event);
+      return std::format("UNKNOWN[{}]", event);
   }
 }
 
@@ -467,8 +466,8 @@ using BtaAppRegisterCallback = base::Callback<void(uint8_t /* app_id */, uint8_t
  *module.
  * p_client_cb - pointer to the application callback function.
  **/
-void BTA_GATTC_AppRegister(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                           bool eatt_support);
+void BTA_GATTC_AppRegister(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                           BtaAppRegisterCallback cb, bool eatt_support);
 
 /*******************************************************************************
  *

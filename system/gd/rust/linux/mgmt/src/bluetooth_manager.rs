@@ -302,9 +302,4 @@ impl IBluetoothExperimental for BluetoothManager {
 
         true
     }
-
-    fn set_devcoredump(&mut self, enabled: bool) -> bool {
-        warn!("Set Floss DevCoreDump={}", enabled);
-        config_util::write_coredump_state_to_file(enabled)
-    }
 }

@@ -1,41 +1,11 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
-    name: "adm_fallback_when_wired_audio_disconnected"
+    name: "adm_remove_handling_wired"
     namespace: "bluetooth"
-    description: "Fallback to other connected device when wired audio device disconnects"
-    bug: "348124361"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "adm_always_fallback_to_available_device"
-    namespace: "bluetooth"
-    description: "Fix audio path and always fallback to available device"
-    bug: "351820274"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "adm_verify_active_fallback_device"
-    namespace: "bluetooth"
-    description: "Verify if device selected for fallback is different then last one"
-    bug: "369799111"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "adm_fix_disconnect_of_set_member"
-    namespace: "bluetooth"
-    description: "Fix disconnecting of the set member device. Make sure the other set member is not considered as fallback device."
-    bug: "374320313"
+    description: "ActiveDeviceManager doesn't need to handle adding and removing wired devices."
+    bug: "390372480"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -503,8 +503,19 @@ struct BidirectionalPair {
   T sink;
   T source;
 
-  const T& get(uint8_t direction) const;
-  T& get(uint8_t direction);
+  const T& get(uint8_t direction) const {
+    log::assert_that(direction < types::kLeAudioDirectionBoth,
+                     "Unsupported complex direction. Consider using "
+                     "get_bidirectional<>() instead.");
+    return (direction == types::kLeAudioDirectionSink) ? sink : source;
+  }
+
+  T& get(uint8_t direction) {
+    log::assert_that(direction < types::kLeAudioDirectionBoth,
+                     "Unsupported complex direction. Reference to a single "
+                     "complex direction value is not supported.");
+    return (direction == types::kLeAudioDirectionSink) ? sink : source;
+  }
 };
 
 template <typename T>
@@ -603,6 +614,13 @@ struct LeAudioCoreCodecConfig {
 
     return 0;
   }
+
+  /** Returns the audio channel allocation bitmask */
+  inline uint32_t GetAudioChannelAllocation() const { return audio_channel_allocation.value_or(0); }
+  /** Returns the number of codec frame blocks */
+  inline uint8_t GetCodecFrameBlocksPerSdu() const {
+    return codec_frames_blocks_per_sdu.value_or(0);
+  }
 };
 
 struct LeAudioCoreCodecCapabilities {
@@ -651,8 +669,8 @@ struct LeAudioCoreCodecCapabilities {
 };
 
 struct LeAudioMetadata {
-  std::optional<uint16_t> preferred_audio_context;
-  std::optional<uint16_t> streaming_audio_context;
+  std::optional<AudioContexts> preferred_audio_context;
+  std::optional<AudioContexts> streaming_audio_context;
   std::optional<std::string> program_info;
   std::optional<std::string> language;  // ISO 639-3 (3 lowercase letter codes)
   std::optional<std::vector<uint8_t>> ccid_list;
@@ -791,8 +809,9 @@ public:
   const struct LeAudioMetadata& GetAsLeAudioMetadata() const;
   LeAudioLtvMap GetIntersection(const LeAudioLtvMap& other) const;
 
-  std::string ToString(const std::string& indent_string,
-                       std::string (*format)(const uint8_t&, const std::vector<uint8_t>&)) const;
+  std::string ToString(const std::string& indent_string = "",
+                       std::string (*format)(const uint8_t&,
+                                             const std::vector<uint8_t>&) = nullptr) const;
   size_t RawPacketSize() const;
   uint8_t* RawPacket(uint8_t* p_buf) const;
   std::vector<uint8_t> RawPacket() const;
@@ -818,17 +837,21 @@ private:
     LeAudioMetadata metadata;
 
     auto vec_opt = ltvs.Find(types::kLeAudioMetadataTypePreferredAudioContext);
-    if (vec_opt &&
-        (vec_opt->size() == sizeof(decltype(metadata.preferred_audio_context)::value_type))) {
+    if (vec_opt && (vec_opt->size() == sizeof(uint16_t))) {
       auto ptr = vec_opt->data();
-      STREAM_TO_UINT16(metadata.preferred_audio_context, ptr);
+      uint16_t raw_ctx;
+      STREAM_TO_UINT16(raw_ctx, ptr);
+      AudioContexts ctx(raw_ctx);
+      metadata.preferred_audio_context = ctx;
     }
 
     vec_opt = ltvs.Find(types::kLeAudioMetadataTypeStreamingAudioContext);
-    if (vec_opt &&
-        (vec_opt->size() == sizeof(decltype(metadata.streaming_audio_context)::value_type))) {
+    if (vec_opt && (vec_opt->size() == sizeof(uint16_t))) {
       auto ptr = vec_opt->data();
-      STREAM_TO_UINT16(metadata.streaming_audio_context, ptr);
+      uint16_t raw_ctx;
+      STREAM_TO_UINT16(raw_ctx, ptr);
+      AudioContexts ctx(raw_ctx);
+      metadata.streaming_audio_context = ctx;
     }
 
     vec_opt = ltvs.Find(types::kLeAudioMetadataTypeProgramInfo);
@@ -1083,6 +1106,12 @@ struct hdl_pair {
   uint16_t ccc_hdl = 0;
 };
 
+template <typename T>
+struct hdl_pair_wrapper {
+  hdl_pair handles;
+  T value;
+};
+
 struct AseQosConfiguration {
   uint32_t presentation_delay = 0;
   uint32_t sdu_interval = 0;
@@ -1102,6 +1131,48 @@ struct AseQosPreferences {
   uint32_t preferred_pres_delay_min = 0;
   uint32_t preferred_pres_delay_max = 0;
 };
+
+struct CodecConfigSetting {
+  /* Codec identifier */
+  types::LeAudioCodecId id;
+
+  /* Codec Specific Configuration */
+  types::LeAudioLtvMap params;
+  /* Vendor Specific Configuration */
+  std::vector<uint8_t> vendor_params;
+
+  /* Channel count per device */
+  uint8_t channel_count_per_iso_stream;
+
+  /* Octets per fram for codec */
+  uint16_t GetOctetsPerFrame() const;
+  /* Sampling frequency requested for codec */
+  uint32_t GetSamplingFrequencyHz() const;
+  /* Data fetch/feed interval for codec in microseconds */
+  uint32_t GetDataIntervalUs() const;
+  /* Audio bit depth required for codec */
+  uint8_t GetBitsPerSample() const;
+  /* Audio channel allocation bitmask */
+  inline uint32_t GetAudioChannelAllocation() const {
+    return params.GetAsCoreCodecConfig().GetAudioChannelAllocation();
+  }
+  inline uint8_t GetCodecFrameBlocksPerSdu() const {
+    return params.GetAsCoreCodecConfig().GetCodecFrameBlocksPerSdu();
+  }
+
+  /* Audio channels number for a device */
+  uint8_t GetChannelCountPerIsoStream() const { return channel_count_per_iso_stream; }
+
+  bool operator==(const CodecConfigSetting& other) const {
+    return (id == other.id) &&
+           (channel_count_per_iso_stream == other.channel_count_per_iso_stream) &&
+           (vendor_params == other.vendor_params) && (params == other.params);
+  }
+
+  bool operator!=(const CodecConfigSetting& other) const { return !(*this == other); }
+};
+
+std::ostream& operator<<(std::ostream& os, const CodecConfigSetting& config);
 
 struct ase {
   static constexpr uint8_t kAseIdInvalid = 0x00;
@@ -1133,10 +1204,7 @@ struct ase {
   LeAudioContextType configured_for_context_type;
 
   /* Codec configuration */
-  LeAudioCodecId codec_id;
-  LeAudioLtvMap codec_config;
-  std::vector<uint8_t> vendor_codec_config;
-  uint8_t channel_count;
+  CodecConfigSetting codec_config;
 
   /* Data path configuration */
   DataPathConfiguration data_path_configuration;
@@ -1147,7 +1215,7 @@ struct ase {
   /* QoS requirements in Codec Configured state */
   AseQosPreferences qos_preferences;
 
-  std::vector<uint8_t> metadata;
+  LeAudioLtvMap metadata;
 
   AseState state;
 };
@@ -1156,7 +1224,7 @@ struct acs_ac_record {
   LeAudioCodecId codec_id;
   LeAudioLtvMap codec_spec_caps;
   std::vector<uint8_t> codec_spec_caps_raw;
-  std::vector<uint8_t> metadata;
+  LeAudioLtvMap metadata;
 };
 
 using PublishedAudioCapabilities = std::vector<std::tuple<hdl_pair, std::vector<acs_ac_record>>>;
@@ -1171,47 +1239,6 @@ std::ostream& operator<<(std::ostream& os, const LeAudioContextType& context);
 std::ostream& operator<<(std::ostream& os, const DataPathState& state);
 std::ostream& operator<<(std::ostream& os, const CisState& state);
 std::ostream& operator<<(std::ostream& os, const AudioContexts& contexts);
-}  // namespace types
-
-namespace set_configurations {
-
-struct CodecConfigSetting {
-  /* Codec identifier */
-  types::LeAudioCodecId id;
-
-  /* Codec Specific Configuration */
-  types::LeAudioLtvMap params;
-  /* Vendor Specific Configuration */
-  std::vector<uint8_t> vendor_params;
-
-  /* Channel count per device */
-  uint8_t channel_count_per_iso_stream;
-
-  /* Octets per fram for codec */
-  uint16_t GetOctetsPerFrame() const;
-  /* Sampling frequency requested for codec */
-  uint32_t GetSamplingFrequencyHz() const;
-  /* Data fetch/feed interval for codec in microseconds */
-  uint32_t GetDataIntervalUs() const;
-  /* Audio bit depth required for codec */
-  uint8_t GetBitsPerSample() const;
-  /* Audio channels number for a device */
-  uint8_t GetChannelCountPerIsoStream() const { return channel_count_per_iso_stream; }
-
-  bool operator==(const CodecConfigSetting& other) const {
-    return (id == other.id) &&
-           (channel_count_per_iso_stream == other.channel_count_per_iso_stream) &&
-           (vendor_params == other.vendor_params) && (params == other.params);
-  }
-
-  bool operator!=(const CodecConfigSetting& other) const { return !(*this == other); }
-
-  /* TODO: Add vendor parameter or Ltv map viewers for
-   * vendor specific LTV types.
-   */
-};
-
-std::ostream& operator<<(std::ostream& os, const CodecConfigSetting& config);
 
 struct QosConfigSetting {
   uint8_t target_latency;
@@ -1239,12 +1266,13 @@ struct AseConfiguration {
   types::DataPathConfiguration data_path_configuration;
   CodecConfigSetting codec;
   QosConfigSetting qos;
+  types::LeAudioLtvMap metadata;
 
   bool operator!=(const AseConfiguration& other) { return !(*this == other); }
 
   bool operator==(const AseConfiguration& other) const {
     return (data_path_configuration == other.data_path_configuration) && (codec == other.codec) &&
-           (qos == other.qos);
+           (qos == other.qos) && (metadata == other.metadata);
   }
 };
 
@@ -1275,37 +1303,63 @@ const types::LeAudioCodecId LeAudioCodecIdLc3 = {
 
 static constexpr uint32_t kChannelAllocationStereo =
         codec_spec_conf::kLeAudioLocationFrontLeft | codec_spec_conf::kLeAudioLocationFrontRight;
+}  // namespace types
 
-/* Declarations */
-void get_cis_count(types::LeAudioContextType context_type, uint8_t expected_direction,
-                   int expected_device_cnt, types::LeAudioConfigurationStrategy strategy,
-                   int group_ase_snk_cnt, int group_ase_src_count, uint8_t& cis_count_bidir,
-                   uint8_t& cis_count_unidir_sink, uint8_t& cis_count_unidir_source);
-}  // namespace set_configurations
+struct stream_map_info {
+  stream_map_info(uint16_t stream_handle, uint32_t audio_channel_allocation, bool is_stream_active)
+      : stream_handle(stream_handle),
+        audio_channel_allocation(audio_channel_allocation),
+        is_stream_active(is_stream_active) {}
+  uint16_t stream_handle;
+  uint32_t audio_channel_allocation;
+  bool is_stream_active;
 
-struct stream_parameters {
-  /* For now we have always same frequency for all the channels */
-  uint32_t sample_frequency_hz;
+  /* The non-legacy codec extensibility feature of a stream map allows us to update the stream
+   * parameters more granularly for each CIS handle
+   */
+  types::CodecConfigSetting codec_config;
+  uint8_t target_latency;
+  uint8_t target_phy;
+  types::LeAudioLtvMap metadata;
+  RawAddress address;
+  uint8_t address_type;
+};
+
+struct stream_config {
+  std::vector<stream_map_info> stream_map;
+  /* For a legacy reason we have always same frequency for all the channels */
+  uint8_t bits_per_sample;
+  uint32_t sampling_frequency_hz;
   uint32_t frame_duration_us;
   uint16_t octets_per_codec_frame;
-  uint32_t audio_channel_allocation;
   uint8_t codec_frames_blocks_per_sdu;
+  uint16_t peer_delay_ms;
+
+  void clear() {
+    stream_map.clear();
+    bits_per_sample = 0;
+    sampling_frequency_hz = 0;
+    frame_duration_us = 0;
+    octets_per_codec_frame = 0;
+    codec_frames_blocks_per_sdu = 0;
+    peer_delay_ms = 0;
+  }
+};
+
+struct stream_parameters {
+  uint32_t audio_channel_allocation;
+
+  /* Stream parameters and CIS to Audio Allocation map */
+  stream_config stream_config;
 
   /* Total number of channels we request from the audio framework */
   uint8_t num_of_channels;
   int num_of_devices;
-  /* cis_handle, audio location*/
-  std::vector<std::pair<uint16_t, uint32_t>> stream_locations;
 
   void clear() {
-    sample_frequency_hz = 0;
-    frame_duration_us = 0;
-    octets_per_codec_frame = 0;
-    audio_channel_allocation = 0;
-    codec_frames_blocks_per_sdu = 0;
     num_of_channels = 0;
     num_of_devices = 0;
-    stream_locations.clear();
+    stream_config.clear();
   }
 };
 
@@ -1314,7 +1368,7 @@ struct stream_configuration {
   bool pending_configuration;
 
   /* Currently selected remote device set configuration */
-  std::shared_ptr<const bluetooth::le_audio::set_configurations::AudioSetConfiguration> conf;
+  std::shared_ptr<const bluetooth::le_audio::types::AudioSetConfiguration> conf;
 
   /* Currently selected local audio codec */
   types::LeAudioCodecId codec_id;

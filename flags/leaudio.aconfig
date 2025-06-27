@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "leaudio_broadcast_monitor_source_sync_status"
@@ -15,34 +15,6 @@ flag {
     namespace: "bluetooth"
     description: "Allow volume control for connected devices"
     bug: "307408418"
-}
-
-flag {
-    name: "leaudio_multicodec_aidl_support"
-    namespace: "bluetooth"
-    description: "Enables support for the multicodec AIDL"
-    bug: "313054645"
-}
-
-flag {
-    name: "leaudio_dynamic_spatial_audio"
-    namespace: "bluetooth"
-    description: "Support Dynamic Spatial Audio for LE Audio"
-    bug: "309665975"
-}
-
-flag {
-    name: "asymmetric_phy_for_unidirectional_cis"
-    namespace: "bluetooth"
-    description: "Apply asymetric PHY setting for unidirectional CIS"
-    bug: "314176433"
-}
-
-flag {
-    name: "leaudio_hal_client_asrc"
-    namespace: "bluetooth"
-    description: "Sync audio stream with the bluetooth link clock"
-    bug: "312273987"
 }
 
 flag {
@@ -72,30 +44,10 @@ flag {
 }
 
 flag {
-    name: "leaudio_codec_config_callback_order_fix"
-    namespace: "bluetooth"
-    description: "Fix for the order on the callback"
-    bug: "326442537"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "leaudio_allow_leaudio_only_devices"
     namespace: "bluetooth"
     description: "Enable Le Audio for LeAudio only devices"
     bug: "328471369"
-}
-
-flag {
-    name: "leaudio_mono_location_errata"
-    namespace: "bluetooth"
-    description: "Add mono location as per Bluetooth Assigned Numbers"
-    bug: "331139722"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -107,147 +59,10 @@ flag {
 }
 
 flag {
-    name: "leaudio_getting_active_state_support"
-    namespace: "bluetooth"
-    description: "Introduce getting active state for LE Audio to avoid unnecessary broadcast handover when changing active group"
-    bug: "331387253"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_audio_base_ecosystem_interval"
-    namespace: "bluetooth"
-    description: "Set base ecosystem interval when LE Audio is in use"
-    bug: "332574780"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_audio_support_unidirectional_voice_assistant"
-    namespace: "bluetooth"
-    description: "Allow to create unidirectional stream for VOICEASSISTANT"
-    bug: "332510824"
-}
-
-flag {
-    name: "leaudio_start_request_state_mutex_check"
-    namespace: "bluetooth"
-    description: "Check mutex before getting start request state"
-    bug: "332847150"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_assistant_peripheral_entrustment"
-    namespace: "bluetooth"
-    description: "Give peripheral devices more responsibility for source handling"
-    bug: "333050419"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_destroy_after_timeout"
-    namespace: "bluetooth"
-    description: "Destroy broadcast if it fails to start in time"
-    bug: "332500141"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_volume_control_with_set_volume"
-    namespace: "bluetooth"
-    description: "Set broadcast sink volume with setVolume API"
-    bug: "333761969"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "run_clock_recovery_in_worker_thread"
     namespace: "bluetooth"
     description: "Fix thread ownership issue in clock_recovery"
     bug: "333657963"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_extract_periodic_scanner_from_state_machine"
-    namespace: "bluetooth"
-    description: "Extract periodic scanner from state machine to make it independent from remote devices"
-    bug: "333691526"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_allowed_context_mask"
-    namespace: "bluetooth"
-    description: "Set allowed context mask to filter stream requests in native"
-    bug: "336468573"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_call_start_scan_directly"
-    namespace: "bluetooth"
-    description: "Calling the framework is working only when we are expecting IPC. This will call the underlying implementation directly"
-    bug: "348562830"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_no_context_validate_streaming_request"
-    namespace: "bluetooth"
-    description: "Request streaming would be send without available cotext validation"
-    bug: "336466406"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_synchronize_start"
-    namespace: "bluetooth"
-    description: "Do not post on main looper when starting le_audio"
-    bug: "341385684"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "headtracker_codec_capability"
-    namespace: "bluetooth"
-    description: "Use Android Headtracker codec capabilities"
-    bug: "338098113"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_use_audio_mode_listener"
-    namespace: "bluetooth"
-    description: "Use Audio Mode listener instead of Telecom in call callback"
-    bug: "339612732"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -264,60 +79,10 @@ flag {
 }
 
 flag {
-    name: "leaudio_broadcast_update_metadata_callback"
-    namespace: "bluetooth"
-    description: "Notify upper layer with callback when medadata is updated"
-    bug: "347710374"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "headtracker_sdu_size"
-    namespace: "bluetooth"
-    description: "Use updated headtracker SDU size"
-    bug: "350090733"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "le_ase_read_multiple_variable"
     namespace: "bluetooth"
     description: "Use GATT read multiple variable length characteristic values"
     bug: "352085435"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_speed_up_reconfiguration_between_call"
-    namespace: "bluetooth"
-    description: "Fix reconfiguration time between call and media"
-    bug: "352686917"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_broadcast_volume_control_primary_group_only"
-    namespace: "bluetooth"
-    description: "Only control broadcast primary group volume"
-    bug: "354201794"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "unbonded_profile_forbid_fix"
-    namespace: "bluetooth"
-    description: "Do not mark profiles as forbidden for unbonded devices"
-    bug: "356325069"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -349,26 +114,6 @@ flag {
     namespace: "bluetooth"
     description: "Helps sinks to resync to external broadcast when BIS or PA unsynced"
     bug: "363168099"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_unicast_no_available_contexts"
-    namespace: "bluetooth"
-    description: "Fix handling initial zero available contexts"
-    bug: "367325041"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "leaudio_improve_switch_during_phone_call"
-    namespace: "bluetooth"
-    description: "Fix audio slip to speaker while switching bt audio device during phonecall"
-    bug: "369322905"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -461,4 +206,94 @@ flag {
     namespace: "bluetooth"
     description: "Add OPUS codec type"
     bug: "380029892"
+}
+
+flag {
+    name: "leaudio_broadcast_receive_state_processing_refactor"
+    namespace: "bluetooth"
+    description: "Fix parsing empty receive states and refactor its processing"
+    bug: "380231464"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "dsa_hw_transparent_codec"
+    namespace: "bluetooth"
+    description: "Use trasparent codec for DSA hardware path"
+    bug: "382263607"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_use_audio_recording_listener"
+    namespace: "bluetooth"
+    description: "Use Audio Recording listener instead of monitoring sink session"
+    bug: "381054654"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_sm_ignore_connect_events_in_connecting_state"
+    namespace: "bluetooth"
+    description: "When received CONNECT event in Connecting state, with no prior DISCONNECT - ignore the event"
+    bug: "384460395"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_disable_broadcast_for_hap_device"
+    namespace: "bluetooth"
+    description: "Disable broadcast feature for HAP device"
+    bug: "391702876"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_bass_scan_with_internal_scan_controller"
+    namespace: "bluetooth"
+    description: "Use internal scan controller for BASS service scan"
+    bug: "392953619"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_broadcast_prevent_resume_interruption"
+    namespace: "bluetooth"
+    description: "Prevent addSource/resumeSource iterruption by start/stop searching"
+    bug: "391773917"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "do_not_hardcode_tmap_role_mask"
+    namespace: "bluetooth"
+    description: "When initializing TMAP role mask in LeAudioService, make it a function of enabled services"
+    bug: "399410612"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "leaudio_use_aggressive_params"
+    namespace: "bluetooth"
+    description: "use aggressive parameters for LE Audio device"
+    bug: "400607635"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

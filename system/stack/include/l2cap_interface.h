@@ -638,6 +638,7 @@ public:
    ******************************************************************************/
   virtual void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) = 0;
   virtual tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) = 0;
+  virtual uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) = 0;
 
   /*******************************************************************************
    **
@@ -870,21 +871,6 @@ public:
   virtual void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) = 0;
 
   /*******************************************************************************
-   *
-   *  Function        L2CA_SetDefaultSubrate
-   *
-   *  Description     BLE Set Default Subrate.
-   *
-   *  Parameters:     Subrate parameters
-   *
-   *  Return value:   void
-   *
-   ******************************************************************************/
-  virtual void L2CA_SetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max,
-                                      uint16_t max_latency, uint16_t cont_num,
-                                      uint16_t timeout) = 0;
-
-  /*******************************************************************************
    **
    ** Function         L2CA_SetMediaStreamChannel
    **
@@ -933,6 +919,23 @@ public:
    **
    ******************************************************************************/
   virtual bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) = 0;
+
+  /*******************************************************************************
+   **
+   ** Function         L2CA_GetLocalMtu
+   **
+   ** Description      Given a local channel identifier, |lcid|, this function
+   **                  returns the L2CAP local mtu, |local_mtu|. If
+   **                  |lcid| is not known or is invalid, this function returns false and does not
+   **                  modify the value pointed at by |local_mtu|.
+   **
+   ** Parameters:      lcid: Local CID
+   **                  local_mtu: Pointer to L2CAP local mtu must NOT be nullptr
+   **
+   ** Returns          true if local_mtu lookup was successful
+   **
+   ******************************************************************************/
+  virtual bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) = 0;
 };
 
 Interface& get_interface();

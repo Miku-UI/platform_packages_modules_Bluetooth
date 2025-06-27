@@ -18,6 +18,8 @@ from pandora_experimental.hid_pb2 import (
     PROTOCOL_REPORT_MODE,
     PROTOCOL_BOOT_MODE,
     PROTOCOL_UNSUPPORTED_MODE,
+    SERVICE_TYPE_HID,
+    SERVICE_TYPE_HOGP,
 )
 
 from bumble.core import (
@@ -705,6 +707,21 @@ def on_virtual_cable_unplug_cb():
 
 hid_protoMode_queue = None
 hid_report_queue = None
+hid_device = None
+
+
+def register_hid(self) -> None:
+    self.device.sdp_service_records.update(sdp_records())
+    global hid_device
+    hid_device = HID_Device(self.device)
+    # Register for  call backs
+    hid_device.register_get_report_cb(on_get_report_cb)
+    hid_device.register_set_report_cb(on_set_report_cb)
+    hid_device.register_get_protocol_cb(on_get_protocol_cb)
+    hid_device.register_set_protocol_cb(on_set_protocol_cb)
+    # Register for virtual cable unplug call back
+    hid_device.on('virtual_cable_unplug', on_virtual_cable_unplug_cb)
+
 
 # This class implements the Hid Pandora interface.
 class HIDService(HIDServicer):
@@ -714,19 +731,23 @@ class HIDService(HIDServicer):
     def __init__(self, device: Device) -> None:
         super().__init__()
         self.device = device
-        self.device.sdp_service_records.update(sdp_records())
         self.event_queue: Optional[asyncio.Queue[ProtocolModeEvent]] = None
-        hogp_device(self.device)
-        logging.info(f'Hid device register: ')
-        global hid_device
-        hid_device = HID_Device(self.device)
-        # Register for  call backs
-        hid_device.register_get_report_cb(on_get_report_cb)
-        hid_device.register_set_report_cb(on_set_report_cb)
-        hid_device.register_get_protocol_cb(on_get_protocol_cb)
-        hid_device.register_set_protocol_cb(on_set_protocol_cb)
-        # Register for virtual cable unplug call back
-        hid_device.on('virtual_cable_unplug', on_virtual_cable_unplug_cb)
+
+    @utils.rpc
+    async def RegisterService(self, request: empty_pb2.Empty, context: grpc.ServicerContext) -> empty_pb2.Empty:
+
+        if request.service_type == SERVICE_TYPE_HID:
+            logging.info(f'Registering HID')
+            register_hid(self)
+        elif request.service_type == SERVICE_TYPE_HOGP:
+            logging.info(f'Registering HOGP')
+            hogp_device(self.device)
+        else:
+            logging.info(f'Registering both HID and HOGP')
+            register_hid(self)
+            hogp_device(self.device)
+
+        return empty_pb2.Empty()
 
     @utils.rpc
     async def ConnectHost(self, request: empty_pb2.Empty, context: grpc.ServicerContext) -> empty_pb2.Empty:

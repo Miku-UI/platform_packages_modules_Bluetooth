@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #include "os/alarm.h"
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
 
@@ -41,8 +40,7 @@ using common::OnceClosure;
 Alarm::Alarm(Handler* handler) : Alarm(handler, true) {}
 
 Alarm::Alarm(Handler* handler, bool isWakeAlarm) : handler_(handler) {
-  int timerfd_flag =
-          com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation() ? TFD_NONBLOCK : 0;
+  int timerfd_flag = TFD_NONBLOCK;
 
   fd_ = TIMERFD_CREATE(isWakeAlarm ? ALARM_CLOCK : CLOCK_BOOTTIME, timerfd_flag);
 
@@ -85,7 +83,7 @@ void Alarm::on_fire() {
   auto bytes_read = read(fd_, &times_invoked, sizeof(uint64_t));
   lock.unlock();
 
-  if (com::android::bluetooth::flags::non_wake_alarm_for_rpa_rotation() && bytes_read == -1) {
+  if (bytes_read == -1) {
     log::debug("No data to read.");
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       log::debug("Alarm is already canceled or rescheduled.");
@@ -96,6 +94,11 @@ void Alarm::on_fire() {
   log::assert_that(bytes_read == static_cast<ssize_t>(sizeof(uint64_t)),
                    "assert failed: bytes_read == static_cast<ssize_t>(sizeof(uint64_t))");
   log::assert_that(times_invoked == 1u, "Invoked number of times:{} fd:{}", times_invoked, fd_);
+
+  if (task.is_null()) {
+    log::warn("task is null.");
+    return;
+  }
   std::move(task).Run();
 }
 

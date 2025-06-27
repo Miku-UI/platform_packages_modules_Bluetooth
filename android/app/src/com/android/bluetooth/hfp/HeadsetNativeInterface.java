@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,15 @@
 
 package com.android.bluetooth.hfp;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
-import com.android.internal.annotations.VisibleForTesting;
-
-import java.util.Objects;
 
 /**
  * Defines native calls that are used by state machine/service to either send or receive messages
@@ -34,7 +32,7 @@ import java.util.Objects;
  * file.
  */
 public class HeadsetNativeInterface {
-    private static final String TAG = "HeadsetNativeInterface";
+    private static final String TAG = HeadsetNativeInterface.class.getSimpleName();
 
     private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
 
@@ -43,13 +41,10 @@ public class HeadsetNativeInterface {
 
     private static final Object INSTANCE_LOCK = new Object();
 
-    private AdapterService mAdapterService;
+    private final AdapterService mAdapterService;
 
     private HeadsetNativeInterface() {
-        mAdapterService =
-                Objects.requireNonNull(
-                        AdapterService.getAdapterService(),
-                        "AdapterService cannot be null when HeadsetNativeInterface init");
+        mAdapterService = requireNonNull(AdapterService.getAdapterService());
     }
 
     /**
@@ -67,19 +62,18 @@ public class HeadsetNativeInterface {
     }
 
     /** Set singleton instance. */
-    @VisibleForTesting
     public static void setInstance(HeadsetNativeInterface instance) {
         synchronized (INSTANCE_LOCK) {
             sInstance = instance;
         }
     }
 
-    private void sendMessageToService(HeadsetStackEvent event) {
+    private static void sendMessageToService(HeadsetStackEvent event) {
         HeadsetService service = HeadsetService.getHeadsetService();
         if (service != null) {
             service.messageFromNative(event);
         } else {
-            // Service must call cleanup() when quiting and native stack shouldn't send any event
+            // Service must call cleanup() when quitting and native stack shouldn't send any event
             // after cleanup() -> cleanupNative() is called.
             Log.w(TAG, "Stack sent event while service is not available: " + event);
         }
@@ -89,16 +83,12 @@ public class HeadsetNativeInterface {
         return mAdapterService.getDeviceFromByte(address);
     }
 
-    private byte[] getByteAddress(BluetoothDevice device) {
+    private static byte[] getByteAddress(BluetoothDevice device) {
         if (device == null) {
             // Set bt_stack's active device to default if java layer set active device to null
             return Utils.getBytesFromAddress("00:00:00:00:00:00");
         }
-        if (Flags.identityAddressNullIfNotKnown()) {
-            return Utils.getByteBrEdrAddress(device);
-        } else {
-            return mAdapterService.getByteIdentityAddress(device);
-        }
+        return Utils.getByteBrEdrAddress(device);
     }
 
     void onConnectionStateChanged(int state, byte[] address) {
@@ -265,14 +255,12 @@ public class HeadsetNativeInterface {
      * @param maxHfClients maximum number of headset clients that can be connected simultaneously
      * @param inbandRingingEnabled whether in-band ringing is enabled on this AG
      */
-    @VisibleForTesting
-    public void init(int maxHfClients, boolean inbandRingingEnabled) {
+    void init(int maxHfClients, boolean inbandRingingEnabled) {
         initializeNative(maxHfClients, inbandRingingEnabled);
     }
 
     /** Closes the interface */
-    @VisibleForTesting
-    public void cleanup() {
+    void cleanup() {
         cleanupNative();
     }
 
@@ -284,8 +272,7 @@ public class HeadsetNativeInterface {
      * @param errorCode error code in case of ERROR
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean atResponseCode(BluetoothDevice device, int responseCode, int errorCode) {
+    boolean atResponseCode(BluetoothDevice device, int responseCode, int errorCode) {
         return atResponseCodeNative(responseCode, errorCode, getByteAddress(device));
     }
 
@@ -296,8 +283,7 @@ public class HeadsetNativeInterface {
      * @param responseString formatted AT response string
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean atResponseString(BluetoothDevice device, String responseString) {
+    boolean atResponseString(BluetoothDevice device, String responseString) {
         return atResponseStringNative(responseString, getByteAddress(device));
     }
 
@@ -307,8 +293,7 @@ public class HeadsetNativeInterface {
      * @param device target headset
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean connectHfp(BluetoothDevice device) {
+    boolean connectHfp(BluetoothDevice device) {
         return connectHfpNative(getByteAddress(device));
     }
 
@@ -318,8 +303,7 @@ public class HeadsetNativeInterface {
      * @param device target headset
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean disconnectHfp(BluetoothDevice device) {
+    boolean disconnectHfp(BluetoothDevice device) {
         return disconnectHfpNative(getByteAddress(device));
     }
 
@@ -329,8 +313,7 @@ public class HeadsetNativeInterface {
      * @param device target headset
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean connectAudio(BluetoothDevice device) {
+    boolean connectAudio(BluetoothDevice device) {
         return connectAudioNative(getByteAddress(device));
     }
 
@@ -340,8 +323,7 @@ public class HeadsetNativeInterface {
      * @param device target headset
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean disconnectAudio(BluetoothDevice device) {
+    boolean disconnectAudio(BluetoothDevice device) {
         return disconnectAudioNative(getByteAddress(device));
     }
 
@@ -352,7 +334,7 @@ public class HeadsetNativeInterface {
      * @param device target headset
      * @return true if the device support echo cancellation or noise reduction, false otherwise
      */
-    public boolean isNoiseReductionSupported(BluetoothDevice device) {
+    boolean isNoiseReductionSupported(BluetoothDevice device) {
         return isNoiseReductionSupportedNative(getByteAddress(device));
     }
 
@@ -362,7 +344,7 @@ public class HeadsetNativeInterface {
      * @param device target headset
      * @return true if the device supports voice recognition, false otherwise
      */
-    public boolean isVoiceRecognitionSupported(BluetoothDevice device) {
+    boolean isVoiceRecognitionSupported(BluetoothDevice device) {
         return isVoiceRecognitionSupportedNative(getByteAddress(device));
     }
 
@@ -370,11 +352,11 @@ public class HeadsetNativeInterface {
      * Start voice recognition
      *
      * @param device target headset
+     * @param sendResult whether a BVRA response should be sent
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean startVoiceRecognition(BluetoothDevice device) {
-        return startVoiceRecognitionNative(getByteAddress(device));
+    boolean startVoiceRecognition(BluetoothDevice device, boolean sendResult) {
+        return startVoiceRecognitionNative(getByteAddress(device), sendResult);
     }
 
     /**
@@ -383,8 +365,7 @@ public class HeadsetNativeInterface {
      * @param device target headset
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean stopVoiceRecognition(BluetoothDevice device) {
+    boolean stopVoiceRecognition(BluetoothDevice device) {
         return stopVoiceRecognitionNative(getByteAddress(device));
     }
 
@@ -396,8 +377,7 @@ public class HeadsetNativeInterface {
      * @param volume value value
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean setVolume(BluetoothDevice device, int volumeType, int volume) {
+    boolean setVolume(BluetoothDevice device, int volumeType, int volume) {
         return setVolumeNative(volumeType, volume, getByteAddress(device));
     }
 
@@ -414,8 +394,7 @@ public class HeadsetNativeInterface {
      * @param batteryCharge battery charge level [0-5]
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean cindResponse(
+    boolean cindResponse(
             BluetoothDevice device,
             int service,
             int numActive,
@@ -442,8 +421,7 @@ public class HeadsetNativeInterface {
      * @param deviceState device status object
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean notifyDeviceStatus(BluetoothDevice device, HeadsetDeviceState deviceState) {
+    boolean notifyDeviceStatus(BluetoothDevice device, HeadsetDeviceState deviceState) {
         return notifyDeviceStatusNative(
                 deviceState.mService,
                 deviceState.mRoam,
@@ -471,8 +449,7 @@ public class HeadsetNativeInterface {
      * @param type optional
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean clccResponse(
+    boolean clccResponse(
             BluetoothDevice device,
             int index,
             int dir,
@@ -492,8 +469,7 @@ public class HeadsetNativeInterface {
      * @param operatorName operator name
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean copsResponse(BluetoothDevice device, String operatorName) {
+    boolean copsResponse(BluetoothDevice device, String operatorName) {
         return copsResponseNative(operatorName, getByteAddress(device));
     }
 
@@ -503,11 +479,10 @@ public class HeadsetNativeInterface {
      * values from BtHfCallState 3. number & type: valid only for incoming & waiting call
      *
      * @param device target device for this update
-     * @param callState callstate structure
+     * @param callState callState structure
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean phoneStateChange(BluetoothDevice device, HeadsetCallState callState) {
+    boolean phoneStateChange(BluetoothDevice device, HeadsetCallState callState) {
         return phoneStateChangeNative(
                 callState.mNumActive,
                 callState.mNumHeld,
@@ -524,8 +499,7 @@ public class HeadsetNativeInterface {
      * @param value True to enable, False to disable
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean setScoAllowed(boolean value) {
+    boolean setScoAllowed(boolean value) {
         return setScoAllowedNative(value);
     }
 
@@ -536,8 +510,7 @@ public class HeadsetNativeInterface {
      * @param value True to enable, False to disable
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean sendBsir(BluetoothDevice device, boolean value) {
+    boolean sendBsir(BluetoothDevice device, boolean value) {
         return sendBsirNative(value, getByteAddress(device));
     }
 
@@ -547,8 +520,7 @@ public class HeadsetNativeInterface {
      * @param device current active SCO device
      * @return true on success
      */
-    @VisibleForTesting
-    public boolean setActiveDevice(BluetoothDevice device) {
+    boolean setActiveDevice(BluetoothDevice device) {
         return setActiveDeviceNative(getByteAddress(device));
     }
 
@@ -560,8 +532,7 @@ public class HeadsetNativeInterface {
      * @param device current active SCO device
      * @return True on success, False on failure
      */
-    @VisibleForTesting
-    public boolean enableSwb(int swbCodec, boolean enable, BluetoothDevice device) {
+    boolean enableSwb(int swbCodec, boolean enable, BluetoothDevice device) {
         return enableSwbNative(swbCodec, enable, getByteAddress(device));
     }
 
@@ -586,7 +557,7 @@ public class HeadsetNativeInterface {
 
     private native boolean isVoiceRecognitionSupportedNative(byte[] address);
 
-    private native boolean startVoiceRecognitionNative(byte[] address);
+    private native boolean startVoiceRecognitionNative(byte[] address, boolean sendResult);
 
     private native boolean stopVoiceRecognitionNative(byte[] address);
 

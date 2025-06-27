@@ -525,6 +525,7 @@ public:
   void LeGetControllerActivityEnergyInfo(CommandView command);
   void LeExSetScanParameters(CommandView command);
   void GetControllerDebugInfo(CommandView command);
+  void IntelDdcConfigWrite(CommandView command);
 
   // CSR vendor command.
   // Implement the command specific to the CSR controller

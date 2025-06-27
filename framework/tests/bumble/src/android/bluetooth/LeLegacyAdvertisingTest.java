@@ -24,13 +24,9 @@ import android.bluetooth.le.AdvertisingSetCallback;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.os.ParcelUuid;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import com.android.bluetooth.flags.Flags;
 import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 
 import org.junit.Rule;
@@ -48,10 +44,6 @@ public class LeLegacyAdvertisingTest {
     @Rule(order = 1)
     public final AdoptShellPermissionsRule mPermissionRule = new AdoptShellPermissionsRule();
 
-    @Rule(order = 0)
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
-
-    @RequiresFlagsEnabled(Flags.FLAG_BLE_CHECK_DATA_LENGTH_ON_LEGACY_ADVERTISING)
     @Test
     public void setAdvertisingDataOver31Bytes() throws Exception {
         final BluetoothLeAdvertiser advertiser =
@@ -103,7 +95,6 @@ public class LeLegacyAdvertisingTest {
         }
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_BLE_CHECK_DATA_LENGTH_ON_LEGACY_ADVERTISING)
     @Test
     public void setScanResponseDataOver31Bytes() throws Exception {
         final BluetoothLeAdvertiser advertiser =

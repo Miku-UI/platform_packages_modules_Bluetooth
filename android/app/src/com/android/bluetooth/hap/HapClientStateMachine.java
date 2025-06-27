@@ -157,8 +157,9 @@ final class HapClientStateMachine extends StateMachine {
                         .addFlags(
                                 Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
                                         | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-        mService.sendBroadcastWithMultiplePermissions(
-                intent, new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED});
+        mService.getBaseContext()
+                .sendBroadcastWithMultiplePermissions(
+                        intent, new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED});
     }
 
     public void dump(StringBuilder sb) {

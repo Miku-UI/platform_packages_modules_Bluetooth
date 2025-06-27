@@ -24,7 +24,6 @@
     "A2DP/SNK/CC/BV-08-I",
     "A2DP/SNK/REL/BV-01-I",
     "A2DP/SNK/REL/BV-02-I",
-    "A2DP/SNK/SDP/BV-02-I",
     "A2DP/SNK/SET/BV-01-I",
     "A2DP/SNK/SET/BV-02-I",
     "A2DP/SNK/SET/BV-03-I",
@@ -44,7 +43,6 @@
     "A2DP/SRC/CC/BV-09-I",
     "A2DP/SRC/REL/BV-01-I",
     "A2DP/SRC/REL/BV-02-I",
-    "A2DP/SRC/SDP/BV-01-I",
     "A2DP/SRC/SET/BV-01-I",
     "A2DP/SRC/SET/BV-02-I",
     "A2DP/SRC/SET/BV-03-I",
@@ -129,6 +127,11 @@
     "AVDTP/SRC/INT/SIG/SMG/BV-31-C",
     "AVDTP/SRC/INT/SIG/SYN/BV-05-C",
     "AVDTP/SRC/INT/TRA/BTR/BV-01-C",
+    "AVRCP/TG/CA/BI-03-C",
+    "AVRCP/TG/CA/BI-05-C",
+    "AVRCP/TG/CA/BI-07-C",
+    "AVRCP/TG/CA/BI-10-C",
+    "AVRCP/TG/CA/BV-16-C",
     "AVRCP/CT/CEC/BV-02-I",
     "AVRCP/CT/CRC/BV-02-I",
     "AVRCP/TG/CEC/BV-01-I",
@@ -730,6 +733,7 @@
   ],
   "skip": [
     "A2DP/SNK/AVP/BI-07-C",
+    "A2DP/SNK/SDP/BV-02-I",
     "A2DP/SNK/SET/BV-04-I",
     "A2DP/SNK/SET/BV-06-I",
     "A2DP/SNK/SUS/BV-02-I",
@@ -737,6 +741,7 @@
     "A2DP/SRC/AS/BV-03-I",
     "A2DP/SRC/AS/BV-04-I",
     "A2DP/SRC/CC/BV-10-I",
+    "A2DP/SRC/SDP/BV-01-I",
     "A2DP/SRC/SET/BV-05-I",
     "A2DP/SRC/SET/BV-06-I",
     "A2DP/SRC/SUS/BV-02-I",
@@ -769,6 +774,21 @@
     "AVDTP/SRC/INT/SIG/SMG/BV-23-C",
     "AVDTP/SRC/INT/SIG/SMG/BV-33-C",
     "AVDTP/SRC/INT/SIG/SMG/ESR05/BV-13-C",
+    "AVRCP/TG/CA/BI-01-C",
+    "AVRCP/TG/CA/BI-04-C",
+    "AVRCP/TG/CA/BI-06-C",
+    "AVRCP/TG/CA/BI-08-C",
+    "AVRCP/TG/CA/BI-09-C",
+    "AVRCP/TG/CA/BV-01-I",
+    "AVRCP/TG/CA/BV-02-C",
+    "AVRCP/TG/CA/BV-02-I",
+    "AVRCP/TG/CA/BV-03-I",
+    "AVRCP/TG/CA/BV-04-C",
+    "AVRCP/TG/CA/BV-06-C",
+    "AVRCP/TG/CA/BV-08-C",
+    "AVRCP/TG/CA/BV-10-C",
+    "AVRCP/TG/CA/BV-12-C",
+    "AVRCP/TG/CA/BV-14-C",
     "AVRCP/CT/CEC/BV-01-I",
     "AVRCP/CT/CRC/BV-01-I",
     "AVRCP/CT/PTH/BV-01-C",
@@ -1566,6 +1586,7 @@
     "TSPC_AVRCP_7_64": true,
     "TSPC_AVRCP_7_65": true,
     "TSPC_AVRCP_7_66": true,
+    "TSPC_AVRCP_7_67": true,
     "TSPC_AVRCP_7b_4": true,
     "TSPC_AVRCP_8_19": true,
     "TSPC_AVRCP_8_20": true,
@@ -3210,17 +3231,21 @@
     "SM": {},
     "SPP": {},
     "SUM ICS": {},
-    "VCP": {
-    }
+    "VCP": {}
   },
   "flags": [
     {
       "flags": [
-        "avdtp_error_codes"
+        "set_addressed_player",
+        "browsing_refactor",
+        "avrcp_16_default"
       ],
       "tests": [
-        "A2DP/SNK/AVP",
-        "A2DP/SRC/AVP"
+        "AVRCP/TG/CA/BI-03-C",
+        "AVRCP/TG/CA/BI-05-C",
+        "AVRCP/TG/CA/BI-07-C",
+        "AVRCP/TG/CA/BI-10-C",
+        "AVRCP/TG/CA/BV-16-C"
       ]
     },
     {
@@ -3260,6 +3285,61 @@
         "VCP/VC/SPE/BI-18-C",
         "VCP/VC/SPE/BI-19-C",
         "VCP/VC/SPE/BI-20-C"
+      ]
+    }
+  ],
+  "system_properties": [
+    {
+      "system_properties": {
+        "bluetooth.profile.a2dp.sink.enabled": "true",
+        "bluetooth.profile.a2dp.source.enabled": "false"
+      },
+      "tests": [
+        "A2DP/SNK",
+        "AVCTP/CT",
+        "AVDTP/SNK",
+        "AVRCP/CT/CEC",
+        "AVRCP/CT/CRC",
+        "AVRCP/CT/PTH",
+        "AVRCP/CT/PTT"
+      ]
+    },
+    {
+      "system_properties": {
+        "bluetooth.profile.a2dp.sink.enabled": "false",
+        "bluetooth.profile.a2dp.source.enabled": "true"
+      },
+      "tests": [
+        "A2DP/SRC",
+        "AVCTP/TG",
+        "AVDTP/SRC",
+        "AVRCP/TG"
+      ]
+    },
+    {
+      "system_properties": {
+        "bluetooth.profile.hfp.hf.enabled": "true",
+        "bluetooth.profile.hfp.ag.enabled": "false"
+      },
+      "tests": [
+        "HFP/HF"
+      ]
+    },
+    {
+      "system_properties": {
+        "bluetooth.profile.hfp.hf.enabled": "false",
+        "bluetooth.profile.hfp.ag.enabled": "true"
+      },
+      "tests": [
+        "HFP/AG"
+      ]
+    },
+    {
+      "system_properties": {
+        "bluetooth.a2dp.avdt_accept_open_timeout_ms": "15000"
+      },
+      "tests": [
+        "A2DP/SNK/SYN/BV-01-C"
       ]
     }
   ]

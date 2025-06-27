@@ -20,6 +20,7 @@ from typing import Any, Dict
 
 from bumble import pandora as bumble_server
 from bumble.pandora import Config, PandoraDevice, serve
+from bumble.rfcomm import Server as RFCOMMServer
 from bumble_experimental.asha import AshaService
 from bumble_experimental.avrcp import AvrcpService
 from bumble_experimental.bumble_config import BumbleConfigService
@@ -27,6 +28,7 @@ from bumble_experimental.dck import DckService
 from bumble_experimental.gatt import GATTService
 from bumble_experimental.hid import HIDService
 from bumble_experimental.oob import OOBService
+from bumble_experimental.opp import OppService
 from bumble_experimental.rfcomm import RFCOMMService
 from pandora_experimental.asha_grpc_aio import add_AshaServicer_to_server
 from pandora_experimental.avrcp_grpc_aio import add_AVRCPServicer_to_server
@@ -36,6 +38,7 @@ from pandora_experimental.dck_grpc_aio import add_DckServicer_to_server
 from pandora_experimental.gatt_grpc_aio import add_GATTServicer_to_server
 from pandora_experimental.hid_grpc_aio import add_HIDServicer_to_server
 from pandora_experimental.oob_grpc_aio import add_OOBServicer_to_server
+from pandora_experimental.opp_grpc_aio import add_OppServicer_to_server
 from pandora_experimental.rfcomm_grpc_aio import add_RFCOMMServicer_to_server
 
 BUMBLE_SERVER_GRPC_PORT = 7999
@@ -74,6 +77,12 @@ def args_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def register_rfcomm_dependent_servicers(bumble, _, server) -> None:
+    rfcomm_server = RFCOMMServer(bumble.device)
+    add_RFCOMMServicer_to_server(RFCOMMService(bumble.device, rfcomm_server), server)
+    add_OppServicer_to_server(OppService(bumble.device, rfcomm_server), server)
+
+
 def register_experimental_services() -> None:
     bumble_server.register_servicer_hook(
         lambda bumble, _, server: add_AVRCPServicer_to_server(AvrcpService(bumble.device), server))
@@ -83,14 +92,13 @@ def register_experimental_services() -> None:
         lambda bumble, _, server: add_DckServicer_to_server(DckService(bumble.device), server))
     bumble_server.register_servicer_hook(
         lambda bumble, _, server: add_GATTServicer_to_server(GATTService(bumble.device), server))
-    bumble_server.register_servicer_hook(
-        lambda bumble, _, server: add_RFCOMMServicer_to_server(RFCOMMService(bumble.device), server))
+    bumble_server.register_servicer_hook(register_rfcomm_dependent_servicers)
     bumble_server.register_servicer_hook(
         lambda bumble, _, server: add_HIDServicer_to_server(HIDService(bumble.device), server))
     bumble_server.register_servicer_hook(
         lambda bumble, _, server: add_OOBServicer_to_server(OOBService(bumble.device), server))
-    bumble_server.register_servicer_hook(
-        lambda bumble, config, server: add_BumbleConfigServicer_to_server(BumbleConfigService(bumble.device, config), server))
+    bumble_server.register_servicer_hook(lambda bumble, config, server: add_BumbleConfigServicer_to_server(
+        BumbleConfigService(bumble.device, config), server))
 
 
 def retrieve_config(config: str) -> Dict[str, Any]:

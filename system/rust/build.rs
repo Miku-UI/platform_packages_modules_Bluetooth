@@ -2,7 +2,10 @@
 //!
 //! Run `cargo install --path .` in `external/rust/crates/pdl-compiler` to ensure `pdlc`
 //! is in your path.
-use std::{env, fs::File, io::Write, path::Path};
+use std::env;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
 
 fn main() {
     let out_dir = env::var_os("OUT_DIR").unwrap();

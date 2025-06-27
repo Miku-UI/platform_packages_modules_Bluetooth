@@ -19,7 +19,6 @@ package android.bluetooth;
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.compat.annotation.UnsupportedAppUsage;
-import android.os.Handler;
 import android.os.ParcelUuid;
 import android.util.Log;
 
@@ -72,23 +71,21 @@ import java.io.IOException;
  */
 @SuppressLint("AndroidFrameworkBluetoothPermission")
 public final class BluetoothServerSocket implements Closeable {
+    private static final String TAG = BluetoothServerSocket.class.getSimpleName();
 
-    private static final String TAG = "BluetoothServerSocket";
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
 
     @UnsupportedAppUsage(
             publicAlternatives = "Use public {@link BluetoothServerSocket} API " + "instead.")
     /*package*/ final BluetoothSocket mSocket;
 
-    private Handler mHandler;
-    private int mMessage;
     private int mChannel;
     private long mSocketCreationTimeMillis = 0;
     private long mSocketCreationLatencyMillis = 0;
 
     // BluetoothSocket.getConnectionType() will hide L2CAP_LE.
     // Therefore a new variable need to be maintained here.
-    private int mType;
+    private final int mType;
 
     /**
      * Construct a socket for incoming connections.
@@ -277,18 +274,7 @@ public final class BluetoothServerSocket implements Closeable {
      */
     public void close() throws IOException {
         if (DBG) Log.d(TAG, "BluetoothServerSocket:close() called. mChannel=" + mChannel);
-        synchronized (this) {
-            if (mHandler != null) {
-                mHandler.obtainMessage(mMessage).sendToTarget();
-            }
-        }
         mSocket.close();
-    }
-
-    /*package*/
-    synchronized void setCloseHandler(Handler handler, int message) {
-        mHandler = handler;
-        mMessage = message;
     }
 
     /*package*/ void setServiceName(String serviceName) {

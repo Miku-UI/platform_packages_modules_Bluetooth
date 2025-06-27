@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,8 +47,8 @@ class AdvertisingConfig {
 public:
   std::vector<GapData> advertisement;
   std::vector<GapData> scan_response;
-  uint16_t interval_min;
-  uint16_t interval_max;
+  uint32_t interval_min;
+  uint32_t interval_max;
   AdvertisingType advertising_type;
   AdvertiserAddressType requested_advertiser_address_type;
   PeerAddressType peer_address_type;

@@ -36,10 +36,8 @@ using namespace bluetooth;
 using bluetooth::le_audio::GmapClient;
 bool GmapClient::is_offloader_support_gmap_ = false;
 
-void GmapClient::AddFromStorage(const RawAddress &addr, const uint8_t role,
-                                const uint16_t role_handle, const uint8_t UGT_feature,
-                                const uint16_t UGT_feature_handle) {
-  addr_ = addr;
+void GmapClient::AddFromStorage(uint8_t role, uint16_t role_handle, uint8_t UGT_feature,
+                                uint16_t UGT_feature_handle) {
   role_ = role;
   role_handle_ = role_handle;
   UGT_feature_ = UGT_feature;
@@ -60,8 +58,8 @@ bool GmapClient::IsGmapClientEnabled() {
   bool system_prop = osi_property_get_bool("bluetooth.profile.gmap.enabled", false);
 
   bool result = flag && system_prop && is_offloader_support_gmap_;
-  log::info("GmapClientEnabled={}, flag={}, system_prop={}, offloader_support={}", result,
-            system_prop, flag, GmapClient::is_offloader_support_gmap_);
+  log::info("GmapClientEnabled={}, flag={}, system_prop={}, offloader_support={}", result, flag,
+            system_prop, GmapClient::is_offloader_support_gmap_);
   return result;
 }
 
@@ -90,14 +88,14 @@ bool GmapClient::parseAndSaveUGTFeature(uint16_t len, const uint8_t *value) {
   return true;
 }
 
-std::bitset<8> GmapClient::getRole() { return role_; }
+std::bitset<8> GmapClient::getRole() const { return role_; }
 
-uint16_t GmapClient::getRoleHandle() { return role_handle_; }
+uint16_t GmapClient::getRoleHandle() const { return role_handle_; }
 
 void GmapClient::setRoleHandle(uint16_t handle) { role_handle_ = handle; }
 
-std::bitset<8> GmapClient::getUGTFeature() { return UGT_feature_; }
+std::bitset<8> GmapClient::getUGTFeature() const { return UGT_feature_; }
 
-uint16_t GmapClient::getUGTFeatureHandle() { return UGT_feature_handle_; }
+uint16_t GmapClient::getUGTFeatureHandle() const { return UGT_feature_handle_; }
 
 void GmapClient::setUGTFeatureHandle(uint16_t handle) { UGT_feature_handle_ = handle; }

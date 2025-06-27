@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.opp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
@@ -25,7 +28,6 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -43,18 +45,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/** Test cases for {@link BluetoothOppHandoverReceiver}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppHandoverReceiverTest {
     Context mContext;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Spy BluetoothMethodProxy mCallProxy = BluetoothMethodProxy.getInstance();
 
@@ -76,12 +77,8 @@ public class BluetoothOppHandoverReceiverTest {
     @Test
     public void onReceive_withActionHandoverSend_startTransfer() {
         Intent intent = new Intent(Constants.ACTION_HANDOVER_SEND);
-        String address = "AA:BB:CC:DD:EE:FF";
         Uri uri = Uri.parse("content:///abc/xyz.txt");
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(38);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(Intent.EXTRA_STREAM, uri);
         intent.setType("text/plain");
@@ -103,17 +100,13 @@ public class BluetoothOppHandoverReceiverTest {
     @Test
     public void onReceive_withActionHandoverSendMultiple_startTransfer() {
         Intent intent = new Intent(Constants.ACTION_HANDOVER_SEND_MULTIPLE);
-        String address = "AA:BB:CC:DD:EE:FF";
         ArrayList<Uri> uris =
                 new ArrayList<Uri>(
                         List.of(
                                 Uri.parse("content:///abc/xyz.txt"),
                                 Uri.parse("content:///a/b/c/d/x/y/z.txt"),
                                 Uri.parse("content:///123/456.txt")));
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(33);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(Intent.EXTRA_STREAM, uris);
         intent.setType("text/plain");
@@ -135,11 +128,7 @@ public class BluetoothOppHandoverReceiverTest {
     @Test
     public void onReceive_withActionStopHandover_triggerContentResolverDelete() {
         Intent intent = new Intent(Constants.ACTION_STOP_HANDOVER);
-        String address = "AA:BB:CC:DD:EE:FF";
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(32);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
         intent.putExtra(Constants.EXTRA_BT_OPP_TRANSFER_ID, 0);
 

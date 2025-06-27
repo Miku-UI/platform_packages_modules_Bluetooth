@@ -48,14 +48,12 @@ void LeAudioClient::Initialize(
 void LeAudioClient::Cleanup(void) {}
 LeAudioClient* LeAudioClient::Get(void) { return nullptr; }
 void LeAudioClient::DebugDump(int fd) {}
-void LeAudioClient::AddFromStorage(const RawAddress& addr, bool autoconnect,
-                                   int sink_audio_location, int source_audio_location,
-                                   int sink_supported_context_types,
-                                   int source_supported_context_types,
-                                   const std::vector<uint8_t>& handles,
-                                   const std::vector<uint8_t>& sink_pacs,
-                                   const std::vector<uint8_t>& source_pacs,
-                                   const std::vector<uint8_t>& ases) {}
+void LeAudioClient::AddFromStorage(
+        const RawAddress& addr, bool autoconnect, std::optional<int> sink_audio_location,
+        std::optional<int> source_audio_location, int sink_supported_context_types,
+        int source_supported_context_types, const std::vector<uint8_t>& handles,
+        const std::vector<uint8_t>& sink_pacs, const std::vector<uint8_t>& source_pacs,
+        const std::vector<uint8_t>& ases, const std::vector<uint8_t>& gmap) {}
 bool LeAudioClient::GetHandlesForStorage(const RawAddress& addr, std::vector<uint8_t>& out) {
   return false;
 }
@@ -66,6 +64,9 @@ bool LeAudioClient::GetSourcePacsForStorage(const RawAddress& addr, std::vector<
   return false;
 }
 bool LeAudioClient::GetAsesForStorage(const RawAddress& addr, std::vector<uint8_t>& out) {
+  return false;
+}
+bool LeAudioClient::GetGmapForStorage(const RawAddress& addr, std::vector<uint8_t>& out) {
   return false;
 }
 bool LeAudioClient::IsLeAudioClientRunning() { return false; }

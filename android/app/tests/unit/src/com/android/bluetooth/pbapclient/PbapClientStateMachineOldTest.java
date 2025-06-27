@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,27 @@
  */
 package com.android.bluetooth.pbapclient;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.app.BroadcastOptions;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
+import android.os.HandlerThread;
 import android.os.UserManager;
 import android.util.Log;
 
@@ -44,50 +52,45 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link PbapClientStateMachineOld}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientStateMachineOldTest {
-    private static final String TAG = "PbapClientStateMachineOldTest";
+    private static final String TAG = PbapClientStateMachineOldTest.class.getSimpleName();
 
-    private PbapClientStateMachineOld mPbapClientStateMachine = null;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private PbapClientService mMockPbapClientService;
-    @Mock private UserManager mMockUserManager;
     @Mock private PbapClientConnectionHandler mMockHandler;
 
-    private BluetoothDevice mTestDevice;
-    private BluetoothAdapter mAdapter;
+    private static final int DISCONNECT_TIMEOUT = 5000;
 
-    private ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
+    private final BluetoothDevice mDevice = getTestDevice(40);
+    private final ArgumentCaptor<Intent> mIntentArgument = ArgumentCaptor.forClass(Intent.class);
 
-    static final int DISCONNECT_TIMEOUT = 5000;
+    private HandlerThread mHandlerThread;
+    private PbapClientStateMachineOld mPbapClientStateMachine;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
+        mockGetSystemService(mMockPbapClientService, Context.USER_SERVICE, UserManager.class);
 
-        // This line must be called to make sure relevant objects are initialized properly
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        // Get a device for testing
-        mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        when(mMockPbapClientService.getSystemServiceName(UserManager.class))
-                .thenReturn(Context.USER_SERVICE);
-        when(mMockPbapClientService.getSystemService(UserManager.class))
-                .thenReturn(mMockUserManager);
+        doCallRealMethod().when(mMockHandler).obtainMessage(anyInt(), any());
+        doCallRealMethod().when(mMockHandler).obtainMessage(anyInt());
+
+        mHandlerThread = new HandlerThread("HeadsetStateMachineTestHandlerThread");
+        mHandlerThread.start();
+
         mPbapClientStateMachine =
-                new PbapClientStateMachineOld(mMockPbapClientService, mTestDevice, mMockHandler);
+                new PbapClientStateMachineOld(
+                        mMockPbapClientService, mDevice, mMockHandler, mHandlerThread);
         mPbapClientStateMachine.start();
     }
 
     @After
-    public void tearDown() throws Exception {
-        if (mPbapClientStateMachine != null) {
-            mPbapClientStateMachine.doQuit();
-        }
+    public void tearDown() {
+        mPbapClientStateMachine.doQuit();
     }
 
     /** Test that default state is STATE_CONNECTING */
@@ -98,8 +101,7 @@ public class PbapClientStateMachineOldTest {
         // currently solved by waiting for looper to finish task
         TestUtils.waitForLooperToFinishScheduledTask(
                 mPbapClientStateMachine.getHandler().getLooper());
-        assertThat(mPbapClientStateMachine.getConnectionState())
-                .isEqualTo(BluetoothProfile.STATE_CONNECTING);
+        assertThat(mPbapClientStateMachine.getConnectionState()).isEqualTo(STATE_CONNECTING);
     }
 
     /**
@@ -108,15 +110,13 @@ public class PbapClientStateMachineOldTest {
      */
     @Test
     public void testStateTransitionFromConnectingToDisconnected() {
-        assertThat(mPbapClientStateMachine.getConnectionState())
-                .isEqualTo(BluetoothProfile.STATE_CONNECTING);
+        assertThat(mPbapClientStateMachine.getConnectionState()).isEqualTo(STATE_CONNECTING);
 
-        mPbapClientStateMachine.disconnect(mTestDevice);
+        mPbapClientStateMachine.disconnect(mDevice);
 
         TestUtils.waitForLooperToFinishScheduledTask(
                 mPbapClientStateMachine.getHandler().getLooper());
-        assertThat(mPbapClientStateMachine.getConnectionState())
-                .isEqualTo(BluetoothProfile.STATE_DISCONNECTING);
+        assertThat(mPbapClientStateMachine.getConnectionState()).isEqualTo(STATE_DISCONNECTING);
 
         // wait until timeout occurs
         Mockito.clearInvocations(mMockPbapClientService);
@@ -125,7 +125,6 @@ public class PbapClientStateMachineOldTest {
                         mIntentArgument.capture(),
                         any(String[].class),
                         any(BroadcastOptions.class));
-        assertThat(mPbapClientStateMachine.getConnectionState())
-                .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
+        assertThat(mPbapClientStateMachine.getConnectionState()).isEqualTo(STATE_DISCONNECTED);
     }
 }

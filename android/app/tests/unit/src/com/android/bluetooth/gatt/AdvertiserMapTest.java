@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.gatt;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.anyInt;
@@ -30,8 +32,8 @@ import android.content.AttributionSource;
 import android.content.pm.PackageManager;
 import android.os.Binder;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
@@ -43,8 +45,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 /** Test cases for {@link AdvertiserMap}. */
 @SmallTest
@@ -52,13 +52,13 @@ import org.mockito.junit.MockitoRule;
 public class AdvertiserMapTest {
     private static final String APP_NAME = "com.android.what.a.name";
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private PackageManager mMockPackageManager;
 
     private final AttributionSource mAttributionSource =
-            InstrumentationRegistry.getTargetContext().getAttributionSource();
+            InstrumentationRegistry.getInstrumentation().getTargetContext().getAttributionSource();
 
     @Before
     public void setUp() throws Exception {

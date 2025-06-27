@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,47 +16,29 @@
 
 package com.android.bluetooth.pan;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+
 import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothPan;
-import android.bluetooth.BluetoothProfile;
 import android.util.Log;
 
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 /** Provides Bluetooth Pan native interface for the Pan service */
 public class PanNativeInterface {
     private static final String TAG = PanNativeInterface.class.getSimpleName();
-    private PanService mPanService;
 
-    @GuardedBy("INSTANCE_LOCK")
-    private static PanNativeInterface sInstance;
+    private final PanService mPanService;
 
-    private static final Object INSTANCE_LOCK = new Object();
-
-    private PanNativeInterface() {}
-
-    /** Get singleton instance. */
-    public static PanNativeInterface getInstance() {
-        synchronized (INSTANCE_LOCK) {
-            if (sInstance == null) {
-                sInstance = new PanNativeInterface();
-            }
-            return sInstance;
-        }
-    }
-
-    /** Set singleton instance. */
-    @VisibleForTesting
-    public static void setInstance(PanNativeInterface instance) {
-        synchronized (INSTANCE_LOCK) {
-            sInstance = instance;
-        }
-    }
-
-    void init(PanService panService) {
+    PanNativeInterface(PanService panService) {
         mPanService = panService;
+    }
+
+    void init() {
         initializeNative();
     }
 
@@ -65,13 +47,13 @@ public class PanNativeInterface {
     }
 
     boolean connect(byte[] identityAddress) {
-        requireNonNull(identityAddress, "Identity address can not be null");
+        requireNonNull(identityAddress);
         return connectPanNative(
                 identityAddress, BluetoothPan.LOCAL_PANU_ROLE, BluetoothPan.REMOTE_NAP_ROLE);
     }
 
     boolean disconnect(byte[] identityAddress) {
-        requireNonNull(identityAddress, "Identity address can not be null");
+        requireNonNull(identityAddress);
         return disconnectPanNative(identityAddress);
     }
 
@@ -93,16 +75,16 @@ public class PanNativeInterface {
     static int convertHalState(int halState) {
         switch (halState) {
             case CONN_STATE_CONNECTED:
-                return BluetoothProfile.STATE_CONNECTED;
+                return STATE_CONNECTED;
             case CONN_STATE_CONNECTING:
-                return BluetoothProfile.STATE_CONNECTING;
+                return STATE_CONNECTING;
             case CONN_STATE_DISCONNECTED:
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             case CONN_STATE_DISCONNECTING:
-                return BluetoothProfile.STATE_DISCONNECTING;
+                return STATE_DISCONNECTING;
             default:
                 Log.e(TAG, "Invalid pan connection state: " + halState);
-                return BluetoothProfile.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
         }
     }
 

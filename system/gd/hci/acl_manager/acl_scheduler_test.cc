@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ MATCHER(IsSet, "Future is set") {
 class AclSchedulerTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    fake_registry_.Start<AclScheduler>(&thread_);
+    fake_registry_.Start<AclScheduler>(&thread_, fake_registry_.GetTestHandler());
     ASSERT_TRUE(fake_registry_.IsStarted<AclScheduler>());
 
     client_handler_ = fake_registry_.GetTestModuleHandler(&AclScheduler::Factory);
@@ -291,9 +291,7 @@ TEST_F(AclSchedulerTest, DoNothingWhileIncomingConnectionsExist) {
   EXPECT_THAT(future, IsSet());
 }
 
-TEST_F_WITH_FLAGS(AclSchedulerTest, IncomingConnectionPendingWithOutgoingRemoteNameRequest,
-                  REQUIRES_FLAGS_ENABLED(
-                          ACONFIG_FLAG(TEST_BT, progress_acl_scheduler_upon_incoming_connection))) {
+TEST_F(AclSchedulerTest, IncomingConnectionPendingWithOutgoingRemoteNameRequest) {
   auto promise = std::promise<void>{};
   auto future = promise.get_future();
 
@@ -308,9 +306,7 @@ TEST_F_WITH_FLAGS(AclSchedulerTest, IncomingConnectionPendingWithOutgoingRemoteN
   EXPECT_THAT(future, IsSet());
 }
 
-TEST_F_WITH_FLAGS(AclSchedulerTest, ConnectionToSameDeviceIncomingConnectionPending,
-                  REQUIRES_FLAGS_ENABLED(
-                          ACONFIG_FLAG(TEST_BT, progress_acl_scheduler_upon_incoming_connection))) {
+TEST_F(AclSchedulerTest, ConnectionToSameDeviceIncomingConnectionPending) {
   auto promise = std::promise<void>{};
   auto future = promise.get_future();
 

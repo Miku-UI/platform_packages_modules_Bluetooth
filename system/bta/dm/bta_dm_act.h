@@ -21,6 +21,14 @@
 #include "types/raw_address.h"
 
 void bta_dm_process_remove_device_no_callback(const RawAddress& bd_addr);
+void bta_dm_process_remove_device(const RawAddress& bd_addr);
 
 tBTA_DM_PEER_DEVICE* find_connected_device(const RawAddress& bd_addr,
                                            tBT_TRANSPORT /* transport */);
+
+namespace bluetooth::legacy::testing {
+void bta_dm_init_cb(void);
+void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle);
+tBTA_DM_PEER_DEVICE* allocate_device_for(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+}  // namespace bluetooth::legacy::testing

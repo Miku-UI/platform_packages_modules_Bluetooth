@@ -16,8 +16,11 @@
 
 #pragma once
 
+#include "bta/dm/bta_dm_device_search_int.h"
 #include "bta/include/bta_api.h"  // tBTA_DM_SEARCH_CBACK
+#include "stack/btm/neighbor_inquiry.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/rnr_interface.h"
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
@@ -39,3 +42,21 @@ bool bta_dm_is_search_request_queued();
 
 // Provide data for the dumpsys procedure
 void DumpsysBtaDmSearch(int fd);
+
+namespace bluetooth::legacy::testing {
+
+void bta_dm_disc_init_search_cb(tBTA_DM_SEARCH_CB& bta_dm_search_cb);
+bool bta_dm_read_remote_device_name(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+tBTA_DM_SEARCH_CB& bta_dm_disc_search_cb();
+void bta_dm_discover_next_device();
+void bta_dm_inq_cmpl();
+void bta_dm_inq_cmpl_cb(void* p_result);
+void bta_dm_observe_cmpl_cb(void* p_result);
+void bta_dm_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir, uint16_t eir_len);
+void bta_dm_opportunistic_observe_results_cb(tBTM_INQ_RESULTS* p_inq, const uint8_t* p_eir,
+                                             uint16_t eir_len);
+void bta_dm_queue_search(tBTA_DM_API_SEARCH& search);
+void bta_dm_remname_cback(const tBTM_REMOTE_DEV_NAME* p);
+void bta_dm_start_scan(uint8_t duration_sec);
+
+}  // namespace bluetooth::legacy::testing

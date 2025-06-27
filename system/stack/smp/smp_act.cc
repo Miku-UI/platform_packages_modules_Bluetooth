@@ -23,6 +23,7 @@
 
 #include <cstring>
 
+#include "bta/dm/bta_dm_sec_int.h"
 #include "btif/include/btif_common.h"
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
@@ -34,6 +35,7 @@
 #include "stack/btm/btm_ble_sec.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/include/acl_api.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
@@ -269,7 +271,7 @@ void smp_send_pair_fail(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
   if (p_cb->status <= SMP_MAX_FAIL_RSN_PER_SPEC && p_cb->status != SMP_SUCCESS) {
     log::error("Pairing failed smp_status:{}", smp_status_text(p_cb->status));
     BTM_LogHistory(kBtmLogTag, p_cb->pairing_bda, "Pairing failed",
-                   base::StringPrintf("smp_status:%s", smp_status_text(p_cb->status).c_str()));
+                   std::format("smp_status:{}", smp_status_text(p_cb->status)));
     smp_send_cmd(SMP_OPCODE_PAIRING_FAILED, p_cb);
     p_cb->wait_for_authorization_complete = true;
   }
@@ -548,6 +550,21 @@ void smp_proc_pair_cmd(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
 
   /* erase all keys if it is peripheral proc pairing req */
   if (p_dev_rec && (p_cb->role == HCI_ROLE_PERIPHERAL)) {
+    if (com::android::bluetooth::flags::key_missing_ble_peripheral()) {
+      tBTM_SEC_DEV_REC* p_rec = btm_find_dev(p_cb->pairing_bda);
+      /* If we bonded, but not encrypted, it's a key missing - disconnect.
+       * If we are bonded, its key upgrade and ok to continue.
+       * If we are not bonded, its new device pairing and ok.
+       */
+      if (p_rec != NULL && p_rec->sec_rec.is_le_link_key_known() &&
+          !p_rec->sec_rec.is_le_device_encrypted()) {
+        log::warn("bonded unencrypted central wants to pair {}", p_cb->pairing_bda);
+        bta_dm_remote_key_missing(p_cb->pairing_bda);
+        acl_disconnect_from_handle(p_rec->ble_hci_handle, HCI_ERR_AUTH_FAILURE,
+                                   "bonded unencrypted central wants to pair");
+        return;
+      }
+    }
     btm_sec_clear_ble_keys(p_dev_rec);
   }
 
@@ -1220,8 +1237,8 @@ void smp_sirk_verify(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     smp_int_data.status = SMP_SIRK_DEVICE_INVALID;
 
     BTM_LogHistory(kBtmLogTag, p_cb->pairing_bda, "SIRK verification",
-                   base::StringPrintf("Verification failed, smp_status:%s",
-                                      smp_status_text(smp_int_data.status).c_str()));
+                   std::format("Verification failed, smp_status:{}",
+                               smp_status_text(smp_int_data.status)));
 
     smp_sm_event(p_cb, SMP_SIRK_DEVICE_VALID_EVT, &smp_int_data);
 
@@ -1235,7 +1252,7 @@ void smp_sirk_verify(tSMP_CB* p_cb, tSMP_INT_DATA* p_data) {
     /* There is no member validator callback - device is by default valid */
     if (callback_rc == tBTM_STATUS::BTM_SUCCESS_NO_SECURITY) {
       BTM_LogHistory(kBtmLogTag, p_cb->pairing_bda, "SIRK verification",
-                     base::StringPrintf("Device validated due to no security"));
+                     std::format("Device validated due to no security"));
 
       tSMP_INT_DATA smp_int_data;
       smp_int_data.status = SMP_SUCCESS;

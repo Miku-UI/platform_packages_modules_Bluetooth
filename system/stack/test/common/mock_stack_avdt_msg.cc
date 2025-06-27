@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "mock_stack_avdt_msg.h"
+
 #include <vector>
 
 #include "stack/avdt/avdt_int.h"
@@ -24,9 +26,6 @@
  * TODO: This way of mocking is primitive.
  * Need to consider more sophisticated existing methods.
  */
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 static std::vector<uint8_t> _rsp_sig_ids{};
 

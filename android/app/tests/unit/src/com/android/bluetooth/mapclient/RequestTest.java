@@ -134,7 +134,7 @@ public class RequestTest {
                         false, /*retry*/
                         false);
         assertThat(newRequest).isNotNull();
-        assertThat(newRequest.getMsgHandle()).isEqualTo(null);
+        assertThat(newRequest.getMsgHandle()).isNull();
         newRequest.execute(mFakeClientSession);
 
         assertThat(newRequest.isSuccess()).isTrue();

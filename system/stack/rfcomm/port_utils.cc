@@ -199,8 +199,8 @@ void port_select_mtu(tPORT* p_port) {
  *
  ******************************************************************************/
 void port_release_port(tPORT* p_port) {
-  log::verbose("p_port: {} state: {} keep_handle: {}", std::format_ptr(p_port), p_port->rfc.state,
-               p_port->keep_port_handle);
+  log::verbose("p_port: {} state: {} keep_handle: {}", std::format_ptr(p_port),
+               p_port->rfc.sm_cb.state, p_port->keep_port_handle);
 
   mutex_global_lock();
   BT_HDR* p_buf;
@@ -219,7 +219,7 @@ void port_release_port(tPORT* p_port) {
 
   p_port->state = PORT_CONNECTION_STATE_CLOSED;
 
-  if (p_port->rfc.state == RFC_STATE_CLOSED) {
+  if (p_port->rfc.sm_cb.state == RFC_STATE_CLOSED) {
     if (p_port->rfc.p_mcb) {
       p_port->rfc.p_mcb->port_handles[p_port->dlci] = 0;
 
@@ -228,6 +228,7 @@ void port_release_port(tPORT* p_port) {
     }
 
     rfc_port_timer_stop(p_port);
+    p_port->rfc.sm_cb = {};
 
     mutex_global_lock();
     fixed_queue_free(p_port->tx.queue, nullptr);

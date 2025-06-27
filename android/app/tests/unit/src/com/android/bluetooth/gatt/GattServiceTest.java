@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,11 @@
 
 package com.android.bluetooth.gatt;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -26,38 +31,31 @@ import android.app.ActivityManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.IBluetoothGattCallback;
 import android.bluetooth.IBluetoothGattServerCallback;
-import android.bluetooth.le.AdvertiseData;
-import android.bluetooth.le.AdvertisingSetParameters;
-import android.bluetooth.le.DistanceMeasurementMethod;
-import android.bluetooth.le.DistanceMeasurementParams;
-import android.bluetooth.le.IDistanceMeasurementCallback;
-import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.companion.CompanionDeviceManager;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.res.Resources;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
+import android.os.Process;
 import android.provider.Settings;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.CompanionManager;
-import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.le_scan.PeriodicScanManager;
 import com.android.bluetooth.le_scan.ScanManager;
 import com.android.bluetooth.le_scan.ScanObjectsFactory;
-import com.android.bluetooth.le_scan.ScannerMap;
 
 import org.junit.After;
 import org.junit.Before;
@@ -65,8 +63,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,12 +76,11 @@ import java.util.UUID;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class GattServiceTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private ContextMap<IBluetoothGattCallback> mClientMap;
-    @Mock private ScannerMap mScannerMap;
     @Mock private ScanManager mScanManager;
+    @Mock private PeriodicScanManager mPeriodicScanManager;
     @Mock private Set<String> mReliableQueue;
     @Mock private ContextMap<IBluetoothGattServerCallback> mServerMap;
     @Mock private DistanceMeasurementManager mDistanceMeasurementManager;
@@ -99,9 +94,16 @@ public class GattServiceTest {
     private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
     private static final int TIMES_UP_AND_DOWN = 3;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final BluetoothAdapter mAdapter =
+            InstrumentationRegistry.getInstrumentation()
+                    .getTargetContext()
+                    .getSystemService(BluetoothManager.class)
+                    .getAdapter();
     private final AttributionSource mAttributionSource = mAdapter.getAttributionSource();
-    private final Context mContext = InstrumentationRegistry.getTargetContext();
+    private final Context mContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final CompanionDeviceManager mCompanionDeviceManager =
+            mContext.getSystemService(CompanionDeviceManager.class);
 
     private MockContentResolver mMockContentResolver;
 
@@ -126,10 +128,11 @@ public class GattServiceTest {
         doReturn(mNativeInterface).when(mGattObjectsFactory).getNativeInterface();
         doReturn(mDistanceMeasurementManager)
                 .when(mGattObjectsFactory)
-                .createDistanceMeasurementManager(any());
+                .createDistanceMeasurementManager(any(), any());
         doReturn(mScanManager)
                 .when(mScanObjectsFactory)
                 .createScanManager(any(), any(), any(), any());
+        doReturn(mPeriodicScanManager).when(mScanObjectsFactory).createPeriodicScanManager();
         doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
         doReturn(mContext.getSharedPreferences("GattServiceTestPrefs", Context.MODE_PRIVATE))
                 .when(mAdapterService)
@@ -141,6 +144,11 @@ public class GattServiceTest {
                 mAdapterService, Context.LOCATION_SERVICE, LocationManager.class);
         TestUtils.mockGetSystemService(
                 mAdapterService, Context.ACTIVITY_SERVICE, ActivityManager.class);
+        TestUtils.mockGetSystemService(
+                mAdapterService,
+                Context.COMPANION_DEVICE_SERVICE,
+                CompanionDeviceManager.class,
+                mCompanionDeviceManager);
 
         mBtCompanionManager = new CompanionManager(mAdapterService, null);
         doReturn(mBtCompanionManager).when(mAdapterService).getCompanionManager();
@@ -149,14 +157,13 @@ public class GattServiceTest {
         mService = new GattService(mAdapterService);
 
         mService.mClientMap = mClientMap;
-        mService.mTransitionalScanHelper.setScannerMap(mScannerMap);
         mService.mReliableQueue = mReliableQueue;
         mService.mServerMap = mServerMap;
     }
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
+        mService.cleanup();
         AdvertiseManagerNativeInterface.setInstance(null);
 
         GattObjectsFactory.setInstanceForTesting(null);
@@ -166,7 +173,7 @@ public class GattServiceTest {
     @Test
     public void testServiceUpAndDown() throws Exception {
         for (int i = 0; i < TIMES_UP_AND_DOWN; i++) {
-            mService.stop();
+            mService.cleanup();
             mService = new GattService(mAdapterService);
         }
     }
@@ -268,6 +275,118 @@ public class GattServiceTest {
     }
 
     @Test
+    public void clientConnectOverLeFailed() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        AttributionSource testAttributeSource =
+                new AttributionSource.Builder(Process.SYSTEM_UID)
+                        .setPid(Process.myPid())
+                        .setDeviceId(Context.DEVICE_ID_DEFAULT)
+                        .setPackageName("com.google.android.gms")
+                        .setAttributionTag("com.google.android.gms.findmydevice")
+                        .build();
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                testAttributeSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 0, BluetoothGatt.GATT_CONNECTION_TIMEOUT, address);
+        verify(mAdapterService).notifyGattClientConnectFailed(anyInt(), any());
+    }
+
+    @Test
+    public void clientConnectDisconnectOverLe() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        AttributionSource testAttributeSource =
+                new AttributionSource.Builder(Process.SYSTEM_UID)
+                        .setPid(Process.myPid())
+                        .setDeviceId(Context.DEVICE_ID_DEFAULT)
+                        .setPackageName("com.google.android.gms")
+                        .setAttributionTag("com.google.android.gms.findmydevice")
+                        .build();
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                testAttributeSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 15, BluetoothGatt.GATT_SUCCESS, address);
+        mService.clientDisconnect(clientIf, address, mAttributionSource);
+
+        verify(mAdapterService).notifyGattClientDisconnect(anyInt(), any());
+    }
+
+    @Test
+    public void clientConnectOverLeDisconnectedByRemote() throws Exception {
+        int clientIf = 1;
+        String address = REMOTE_DEVICE_ADDRESS;
+        int addressType = BluetoothDevice.ADDRESS_TYPE_RANDOM;
+        boolean isDirect = true;
+        int transport = BluetoothDevice.TRANSPORT_LE;
+        boolean opportunistic = false;
+        int phy = 3;
+
+        AttributionSource testAttributeSource =
+                new AttributionSource.Builder(Process.SYSTEM_UID)
+                        .setPid(Process.myPid())
+                        .setDeviceId(Context.DEVICE_ID_DEFAULT)
+                        .setPackageName("com.google.android.gms")
+                        .setAttributionTag("com.google.android.gms.findmydevice")
+                        .build();
+
+        mService.clientConnect(
+                clientIf,
+                address,
+                addressType,
+                isDirect,
+                transport,
+                opportunistic,
+                phy,
+                testAttributeSource);
+
+        verify(mAdapterService).notifyDirectLeGattClientConnect(anyInt(), any());
+        verify(mNativeInterface)
+                .gattClientConnect(
+                        clientIf, address, addressType, isDirect, transport, opportunistic, phy, 0);
+        mService.onConnected(clientIf, 15, BluetoothGatt.GATT_SUCCESS, address);
+        mService.onDisconnected(clientIf, 15, 1, address);
+
+        verify(mAdapterService).notifyGattClientDisconnect(anyInt(), any());
+    }
+
+    @Test
     public void disconnectAll() {
         Map<Integer, String> connMap = new HashMap<>();
         int clientIf = 1;
@@ -282,59 +401,10 @@ public class GattServiceTest {
     }
 
     @Test
-    public void setAdvertisingData() {
-        int advertiserId = 1;
-        AdvertiseData data = new AdvertiseData.Builder().build();
-
-        mService.setAdvertisingData(advertiserId, data, mAttributionSource);
-    }
-
-    @Test
-    public void setAdvertisingParameters() {
-        int advertiserId = 1;
-        AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
-
-        mService.setAdvertisingParameters(advertiserId, parameters, mAttributionSource);
-    }
-
-    @Test
-    public void setPeriodicAdvertisingData() {
-        int advertiserId = 1;
-        AdvertiseData data = new AdvertiseData.Builder().build();
-
-        mService.setPeriodicAdvertisingData(advertiserId, data, mAttributionSource);
-    }
-
-    @Test
-    public void setPeriodicAdvertisingEnable() {
-        int advertiserId = 1;
-        boolean enable = true;
-
-        mService.setPeriodicAdvertisingEnable(advertiserId, enable, mAttributionSource);
-    }
-
-    @Test
-    public void setPeriodicAdvertisingParameters() {
-        int advertiserId = 1;
-        PeriodicAdvertisingParameters parameters =
-                new PeriodicAdvertisingParameters.Builder().build();
-
-        mService.setPeriodicAdvertisingParameters(advertiserId, parameters, mAttributionSource);
-    }
-
-    @Test
-    public void setScanResponseData() {
-        int advertiserId = 1;
-        AdvertiseData data = new AdvertiseData.Builder().build();
-
-        mService.setScanResponseData(advertiserId, data, mAttributionSource);
-    }
-
-    @Test
     public void getDevicesMatchingConnectionStates() {
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
+        int[] states = new int[] {STATE_CONNECTED};
 
-        BluetoothDevice testDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
+        BluetoothDevice testDevice = getTestDevice(90);
         BluetoothDevice[] bluetoothDevices = new BluetoothDevice[] {testDevice};
         doReturn(bluetoothDevices).when(mAdapterService).getBondedDevices();
 
@@ -347,7 +417,7 @@ public class GattServiceTest {
                 mService.getDevicesMatchingConnectionStates(states, mAttributionSource);
 
         int expectedSize = 1;
-        assertThat(deviceList.size()).isEqualTo(expectedSize);
+        assertThat(deviceList).hasSize(expectedSize);
 
         BluetoothDevice bluetoothDevice = deviceList.get(0);
         assertThat(bluetoothDevice.getAddress()).isEqualTo(address);
@@ -362,27 +432,31 @@ public class GattServiceTest {
         mService.registerClient(uuid, callback, eattSupport, mAttributionSource);
         verify(mNativeInterface)
                 .gattClientRegisterApp(
-                        uuid.getLeastSignificantBits(), uuid.getMostSignificantBits(), eattSupport);
+                        uuid.getLeastSignificantBits(),
+                        uuid.getMostSignificantBits(),
+                        mAttributionSource.getPackageName(),
+                        eattSupport);
     }
 
     @Test
     public void registerClient_checkLimitPerApp() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_GATT_CLIENT_DYNAMIC_ALLOCATION);
         doReturn(GattService.GATT_CLIENT_LIMIT_PER_APP).when(mClientMap).countByAppUid(anyInt());
         UUID uuid = UUID.randomUUID();
         IBluetoothGattCallback callback = mock(IBluetoothGattCallback.class);
 
         mService.registerClient(uuid, callback, /* eattSupport= */ true, mAttributionSource);
         verify(mClientMap, never()).add(any(), any(), any(), any());
-        verify(mNativeInterface, never()).gattClientRegisterApp(anyLong(), anyLong(), anyBoolean());
+        verify(mNativeInterface, never())
+                .gattClientRegisterApp(anyLong(), anyLong(), anyString(), anyBoolean());
     }
 
     @Test
     public void unregisterClient() {
         int clientIf = 3;
 
-        mService.unregisterClient(clientIf, mAttributionSource);
-        verify(mClientMap).remove(clientIf);
+        mService.unregisterClient(
+                clientIf, mAttributionSource, ContextMap.RemoveReason.REASON_UNREGISTER_CLIENT);
+        verify(mClientMap).remove(clientIf, ContextMap.RemoveReason.REASON_UNREGISTER_CLIENT);
         verify(mNativeInterface).gattClientUnregisterApp(clientIf);
     }
 
@@ -622,24 +696,6 @@ public class GattServiceTest {
     }
 
     @Test
-    public void getOwnAddress() throws Exception {
-        int advertiserId = 1;
-
-        mService.getOwnAddress(advertiserId, mAttributionSource);
-    }
-
-    @Test
-    public void enableAdvertisingSet() throws Exception {
-        int advertiserId = 1;
-        boolean enable = true;
-        int duration = 3;
-        int maxExtAdvEvents = 4;
-
-        mService.enableAdvertisingSet(
-                advertiserId, enable, duration, maxExtAdvEvents, mAttributionSource);
-    }
-
-    @Test
     public void unregAll() throws Exception {
         int appId = 1;
         List<Integer> appIds = new ArrayList<>();
@@ -647,63 +703,13 @@ public class GattServiceTest {
         doReturn(appIds).when(mClientMap).getAllAppsIds();
 
         mService.unregAll(mAttributionSource);
-        verify(mClientMap).remove(appId);
+        verify(mClientMap).remove(appId, ContextMap.RemoveReason.REASON_UNREGISTER_ALL);
         verify(mNativeInterface).gattClientUnregisterApp(appId);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void numHwTrackFiltersAvailable() {
-        mService.getTransitionalScanHelper().numHwTrackFiltersAvailable(mAttributionSource);
-        verify(mScanManager).getCurrentUsedTrackingAdvertisement();
-    }
-
-    @Test
-    public void getSupportedDistanceMeasurementMethods() {
-        mService.getSupportedDistanceMeasurementMethods();
-        verify(mDistanceMeasurementManager).getSupportedDistanceMeasurementMethods();
-    }
-
-    @Test
-    public void startDistanceMeasurement() {
-        UUID uuid = UUID.randomUUID();
-        BluetoothDevice device = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        DistanceMeasurementParams params =
-                new DistanceMeasurementParams.Builder(device)
-                        .setDurationSeconds(123)
-                        .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
-                        .build();
-        IDistanceMeasurementCallback callback = mock(IDistanceMeasurementCallback.class);
-        mService.startDistanceMeasurement(uuid, params, callback);
-        verify(mDistanceMeasurementManager).startDistanceMeasurement(uuid, params, callback);
-    }
-
-    @Test
-    public void stopDistanceMeasurement() {
-        UUID uuid = UUID.randomUUID();
-        BluetoothDevice device = mAdapter.getRemoteDevice("00:01:02:03:04:05");
-        int method = DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI;
-        mService.stopDistanceMeasurement(uuid, device, method);
-        verify(mDistanceMeasurementManager).stopDistanceMeasurement(uuid, device, method, false);
     }
 
     @Test
     public void cleanUp_doesNotCrash() {
         mService.cleanup();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SCAN_MANAGER_REFACTOR)
-    public void profileConnectionStateChanged_notifyScanManager() {
-        mService.notifyProfileConnectionStateChange(
-                BluetoothProfile.A2DP,
-                BluetoothProfile.STATE_CONNECTING,
-                BluetoothProfile.STATE_CONNECTED);
-        verify(mScanManager)
-                .handleBluetoothProfileConnectionStateChanged(
-                        BluetoothProfile.A2DP,
-                        BluetoothProfile.STATE_CONNECTING,
-                        BluetoothProfile.STATE_CONNECTED);
     }
 
     @Test

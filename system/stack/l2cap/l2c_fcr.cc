@@ -24,6 +24,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -683,10 +684,19 @@ void l2c_lcc_proc_pdu(tL2C_CCB* p_ccb, BT_HDR* p_buf) {
   uint16_t sdu_length;
   BT_HDR* p_data = NULL;
 
+  uint16_t local_mps = p_ccb->local_conn_cfg.mps;
+  if (com::android::bluetooth::flags::fix_buf_len_check_for_first_k_frame()) {
+    if (p_ccb->is_first_seg) {
+      // for the first k-frame, donot consider sdu_length
+      // as part of the information payload
+      local_mps = p_ccb->local_conn_cfg.mps + sizeof(sdu_length);
+    }
+  }
+
   /* Buffer length should not exceed local mps */
-  if (p_buf->len > p_ccb->local_conn_cfg.mps) {
+  if (p_buf->len > local_mps) {
     log::error("buffer length={} exceeds local mps={}. Drop and disconnect.", p_buf->len,
-               p_ccb->local_conn_cfg.mps);
+               local_mps);
 
     /* Discard the buffer and disconnect*/
     osi_free(p_buf);

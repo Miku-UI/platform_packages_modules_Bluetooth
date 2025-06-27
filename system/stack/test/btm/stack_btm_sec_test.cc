@@ -48,17 +48,7 @@ const uint8_t kBdName[] = "kBdName";
 constexpr char kTimeFormat[] = "%Y-%m-%d %H:%M:%S";
 }  // namespace
 
-namespace bluetooth {
-namespace testing {
-namespace legacy {
-
-void wipe_secrets_and_remove(tBTM_SEC_DEV_REC* p_dev_rec);
-
-}  // namespace legacy
-}  // namespace testing
-}  // namespace bluetooth
-
-using bluetooth::testing::legacy::wipe_secrets_and_remove;
+using bluetooth::legacy::testing::wipe_secrets_and_remove;
 
 constexpr size_t kBtmSecMaxDeviceRecords = static_cast<size_t>(BTM_SEC_MAX_DEVICE_RECORDS + 1);
 
@@ -79,7 +69,8 @@ protected:
     down_thread_ =
             new bluetooth::os::Thread("down_thread", bluetooth::os::Thread::Priority::NORMAL);
     down_handler_ = new bluetooth::os::Handler(down_thread_);
-    bluetooth::hci::testing::mock_hci_layer_ = &mock_hci_;
+    bluetooth::hci::testing::mock_hci_layer_ =
+            std::make_unique<bluetooth::hci::testing::MockHciLayer>();
     bluetooth::hci::testing::mock_gd_shim_handler_ = up_handler_;
   }
   void TearDown() override {
@@ -89,10 +80,10 @@ protected:
     down_handler_->Clear();
     delete down_handler_;
     delete down_thread_;
+    bluetooth::hci::testing::mock_hci_layer_.reset();
     StackBtmSecTest::TearDown();
   }
   bluetooth::common::BidiQueue<bluetooth::hci::ScoView, bluetooth::hci::ScoBuilder> sco_queue_{10};
-  bluetooth::hci::testing::MockHciLayer mock_hci_;
   bluetooth::os::Thread* up_thread_;
   bluetooth::os::Handler* up_handler_;
   bluetooth::os::Thread* down_thread_;
@@ -226,7 +217,7 @@ TEST_F(StackBtmSecTest, btm_oob_data_text) {
   for (const auto& data : datas) {
     ASSERT_STREQ(data.second.c_str(), btm_oob_data_text(data.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<std::uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<std::uint8_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           btm_oob_data_text(static_cast<tBTM_OOB_DATA>(std::numeric_limits<std::uint8_t>::max()))
@@ -242,7 +233,7 @@ TEST_F(StackBtmSecTest, bond_type_text) {
   for (const auto& data : datas) {
     ASSERT_STREQ(data.second.c_str(), bond_type_text(data.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<std::uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<std::uint8_t>::max());
   ASSERT_STREQ(unknown.c_str(),
                bond_type_text(static_cast<tBTM_BOND_TYPE>(std::numeric_limits<std::uint8_t>::max()))
                        .c_str());

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package com.android.bluetooth.opp;
 
 import static android.os.UserHandle.myUserId;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -34,9 +36,11 @@ import android.net.Uri;
 import android.provider.OpenableColumns;
 
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
+
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
 import org.junit.After;
 import org.junit.Before;
@@ -44,18 +48,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 
-@RunWith(AndroidJUnit4.class)
+/** Test cases for {@link BluetoothOppSendFileInfo}. */
+@RunWith(TestParameterInjector.class)
 public class BluetoothOppSendFileInfoTest {
     Context mContext;
     MatrixCursor mCursor;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock BluetoothMethodProxy mCallProxy;
 
@@ -122,10 +125,11 @@ public class BluetoothOppSendFileInfoTest {
     }
 
     @Test
-    public void generateFileInfo_withContentUriForOtherUser_returnsSendFileInfoError()
-            throws Exception {
+    public void generateFileInfo_withContentUriForOtherUser_returnsSendFileInfoError(
+            @TestParameter boolean encodedAt) throws Exception {
         String type = "image/jpeg";
-        Uri uri = buildContentUriWithEncodedAuthority((myUserId() + 1) + "@media");
+        String authoritySuffix = encodedAt ? "%40media" : "@media";
+        Uri uri = buildContentUriWithEncodedAuthority((myUserId() + 1) + authoritySuffix);
 
         long fileLength = 1000;
         String fileName = "pic.jpg";
@@ -185,10 +189,11 @@ public class BluetoothOppSendFileInfoTest {
     }
 
     @Test
-    public void generateFileInfo_withContentUriForSameUser_returnsInfoWithCorrectLength()
-            throws Exception {
+    public void generateFileInfo_withContentUriForSameUser_returnsInfoWithCorrectLength(
+            @TestParameter boolean encodedAt) throws Exception {
         String type = "image/jpeg";
-        Uri uri = buildContentUriWithEncodedAuthority(myUserId() + "@media");
+        String authoritySuffix = encodedAt ? "%40media" : "@media";
+        Uri uri = buildContentUriWithEncodedAuthority(myUserId() + authoritySuffix);
 
         long fileLength = 1000;
         String fileName = "pic.jpg";

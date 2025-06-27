@@ -21,15 +21,30 @@ import android.content.pm.PackageManager;
 import android.media.MediaMetadata;
 import android.media.browse.MediaBrowser.MediaItem;
 import android.media.session.MediaSession;
+import android.os.SystemProperties;
 import android.util.Log;
 
-import com.android.bluetooth.R;
+import androidx.annotation.VisibleForTesting;
 
 import java.util.ArrayList;
 import java.util.List;
 
 class Util {
     public static String TAG = "audio_util.Util";
+
+    private static final String VFS_COVER_ART_ENABLED_PROPERTY =
+            "bluetooth.profile.avrcp.target.vfs_coverart.enabled";
+
+    private static final String MULTIPLE_PLAYERS_SUPPORT_ENABLED_PROPERTY =
+            "bluetooth.profile.avrcp.target.multiple_players.enabled";
+
+    @VisibleForTesting
+    static Boolean sUriImagesSupport =
+            SystemProperties.getBoolean(VFS_COVER_ART_ENABLED_PROPERTY, false);
+
+    @VisibleForTesting
+    static Boolean sMultiPlayersSupport =
+            SystemProperties.getBoolean(MULTIPLE_PLAYERS_SUPPORT_ENABLED_PROPERTY, false);
 
     // TODO (apanicke): Remove this prefix later, for now it makes debugging easier.
     public static final String NOW_PLAYING_PREFIX = "NowPlayingId";
@@ -49,13 +64,23 @@ class Util {
     }
 
     /**
-     * Get whether or not Bluetooth is configured to support URI images or not.
+     * Get whether or not Bluetooth is configured to support URI images.
      *
      * <p>Note that creating URI images will dramatically increase memory usage.
      */
-    public static boolean areUriImagesSupported(Context context) {
-        if (context == null) return false;
-        return context.getResources().getBoolean(R.bool.avrcp_target_cover_art_uri_images);
+    public static boolean areUriImagesSupported() {
+        return sUriImagesSupport.booleanValue();
+    }
+
+    /**
+     * Get whether or not Bluetooth is configured to advertise multiple media players.
+     *
+     * <p>This is disabled by default as some car head units will stop working if multiple media
+     * players are present. Addressed Player and Browsing commands should always display only one
+     * media player to the remote device by default.
+     */
+    public static boolean areMultiplePlayersSupported() {
+        return sMultiPlayersSupport.booleanValue();
     }
 
     /** Translate a MediaItem to audio_util's Metadata */

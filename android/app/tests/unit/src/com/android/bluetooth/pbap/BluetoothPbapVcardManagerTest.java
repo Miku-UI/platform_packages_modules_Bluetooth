@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,13 @@
 
 package com.android.bluetooth.pbap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -30,8 +33,8 @@ import android.database.Cursor;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -43,21 +46,19 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 import org.mockito.stubbing.Answer;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/** Test cases for {@link BluetoothPbapVcardManager}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapVcardManagerTest {
-
     private static final String TAG = BluetoothPbapVcardManagerTest.class.getSimpleName();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Spy BluetoothMethodProxy mPbapMethodProxy = BluetoothMethodProxy.getInstance();
 
@@ -67,7 +68,7 @@ public class BluetoothPbapVcardManagerTest {
     @Before
     public void setUp() {
         BluetoothMethodProxy.setInstanceForTesting(mPbapMethodProxy);
-        mContext = InstrumentationRegistry.getTargetContext();
+        mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mManager = new BluetoothPbapVcardManager(mContext);
     }
 
@@ -198,6 +199,7 @@ public class BluetoothPbapVcardManagerTest {
         final int expectedSize = 10;
         when(cursor.getCount()).thenReturn(expectedSize);
         BluetoothPbapSimVcardManager simVcardManager = mock(BluetoothPbapSimVcardManager.class);
+        doCallRealMethod().when(simVcardManager).getSIMContactsSize();
 
         assertThat(
                         mManager.getPhonebookSize(

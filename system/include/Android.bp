@@ -22,7 +22,7 @@ cc_library_headers {
     host_supported: true,
     apex_available: [
         "//apex_available:platform",
-        "com.android.btservices",
+        "com.android.bt",
     ],
     min_sdk_version: "30",
 }
@@ -30,9 +30,7 @@ cc_library_headers {
 cc_library_headers {
     name: "libbluetooth_headers",
     visibility: [
-        "//packages/apps/Test/connectivity/sl4n",
         "//packages/modules/Bluetooth:__subpackages__",
-        "//vendor:__subpackages__",
     ],
     header_libs: [
         "aics_headers",
@@ -47,11 +45,10 @@ cc_library_headers {
         "libbtcore_headers",
     ],
     export_include_dirs: ["./"],
-    vendor_available: true,
     host_supported: true,
     apex_available: [
         "//apex_available:platform",
-        "com.android.btservices",
+        "com.android.bt",
     ],
     min_sdk_version: "30",
 }

@@ -3,29 +3,24 @@
 //! ATT read/write requests into characteristic reads/writes
 
 use pdl_runtime::Packet;
-use std::{cell::RefCell, collections::BTreeMap, ops::RangeInclusive, rc::Rc};
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::ops::RangeInclusive;
+use std::rc::Rc;
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
 use log::{error, warn};
 
-use crate::{
-    core::{
-        shared_box::{SharedBox, WeakBox, WeakBoxRef},
-        uuid::Uuid,
-    },
-    gatt::{
-        callbacks::{GattWriteRequestType, RawGattDatastore},
-        ffi::AttributeBackingType,
-        ids::{AttHandle, TransportIndex},
-    },
-    packets::att::{self, AttErrorCode},
-};
+use crate::core::shared_box::{SharedBox, WeakBox, WeakBoxRef};
+use crate::core::uuid::Uuid;
+use crate::gatt::callbacks::{GattWriteRequestType, RawGattDatastore};
+use crate::gatt::ffi::AttributeBackingType;
+use crate::gatt::ids::{AttHandle, TransportIndex};
+use crate::packets::att::{self, AttErrorCode};
 
-use super::{
-    att_database::{AttAttribute, AttDatabase},
-    att_server_bearer::AttServerBearer,
-};
+use super::att_database::{AttAttribute, AttDatabase};
+use super::att_server_bearer::AttServerBearer;
 
 pub use super::att_database::AttPermissions;
 
@@ -510,17 +505,15 @@ impl AttDatabaseImpl {
 
 #[cfg(test)]
 mod test {
-    use tokio::{join, sync::mpsc::error::TryRecvError, task::spawn_local};
+    use tokio::join;
+    use tokio::sync::mpsc::error::TryRecvError;
+    use tokio::task::spawn_local;
 
-    use crate::{
-        gatt::mocks::{
-            mock_database_callbacks::{MockCallbackEvents, MockCallbacks},
-            mock_datastore::{MockDatastore, MockDatastoreEvents},
-            mock_raw_datastore::{MockRawDatastore, MockRawDatastoreEvents},
-        },
-        packets::att,
-        utils::task::block_on_locally,
-    };
+    use crate::gatt::mocks::mock_database_callbacks::{MockCallbackEvents, MockCallbacks};
+    use crate::gatt::mocks::mock_datastore::{MockDatastore, MockDatastoreEvents};
+    use crate::gatt::mocks::mock_raw_datastore::{MockRawDatastore, MockRawDatastoreEvents};
+    use crate::packets::att;
+    use crate::utils::task::block_on_locally;
 
     use super::*;
 

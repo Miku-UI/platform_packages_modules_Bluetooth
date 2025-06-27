@@ -3290,6 +3290,11 @@ void DualModeController::WriteLoopbackMode(CommandView command) {
                                                                        ErrorCode::SUCCESS));
 }
 
+void DualModeController::IntelDdcConfigWrite(CommandView /*command*/) {
+  send_event_(bluetooth::hci::CommandCompleteBuilder::Create(kNumCommandPackets, OpCode::INTEL_DDC_CONFIG_WRITE,
+                                                             std::vector<uint8_t> { static_cast<uint8_t>(ErrorCode::SUCCESS) }));
+}
+
 // Note: the list does not contain all defined opcodes.
 // Notable exceptions:
 // - Vendor commands
@@ -4274,6 +4279,8 @@ const std::unordered_map<OpCode, DualModeController::CommandHandler>
                 {OpCode::LE_GET_CONTROLLER_ACTIVITY_ENERGY_INFO,
                  &DualModeController::LeGetControllerActivityEnergyInfo},
                 {OpCode::LE_EX_SET_SCAN_PARAMETERS, &DualModeController::LeExSetScanParameters},
-                {OpCode::GET_CONTROLLER_DEBUG_INFO, &DualModeController::GetControllerDebugInfo}};
+                {OpCode::GET_CONTROLLER_DEBUG_INFO, &DualModeController::GetControllerDebugInfo},
+                {OpCode::INTEL_DDC_CONFIG_WRITE, &DualModeController::IntelDdcConfigWrite},
+        };
 
 }  // namespace rootcanal

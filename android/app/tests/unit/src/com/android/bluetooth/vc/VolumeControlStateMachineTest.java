@@ -28,6 +28,8 @@ import static android.bluetooth.BluetoothVolumeControl.ACTION_CONNECTION_STATE_C
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.vc.VolumeControlStateMachine.MESSAGE_CONNECT;
 import static com.android.bluetooth.vc.VolumeControlStateMachine.MESSAGE_CONNECT_TIMEOUT;
 import static com.android.bluetooth.vc.VolumeControlStateMachine.MESSAGE_DISCONNECT;
@@ -43,15 +45,13 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.TestLooper;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -62,19 +62,17 @@ import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link VolumeControlStateMachine}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class VolumeControlStateMachineTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private VolumeControlService mService;
     @Mock private VolumeControlNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 39);
+    private final BluetoothDevice mDevice = getTestDevice(39);
 
     private VolumeControlStateMachine mStateMachine;
     private InOrder mInOrder;

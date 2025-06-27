@@ -30,6 +30,7 @@
 #include "common/strings.h"
 #include "hardware/bt_av.h"
 #include "hci/hci_packets.h"
+#include "main/shim/helpers.h"
 
 namespace std {
 template <>
@@ -51,6 +52,23 @@ template <>
 struct formatter<android::bluetooth::EventType> : enum_formatter<android::bluetooth::EventType> {};
 template <>
 struct formatter<android::bluetooth::State> : enum_formatter<android::bluetooth::State> {};
+template <>
+struct formatter<android::bluetooth::rfcomm::PortResult>
+    : enum_formatter<android::bluetooth::rfcomm::PortResult> {};
+template <>
+struct formatter<android::bluetooth::rfcomm::RfcommPortState>
+    : enum_formatter<android::bluetooth::rfcomm::RfcommPortState> {};
+template <>
+struct formatter<android::bluetooth::rfcomm::RfcommPortEvent>
+    : enum_formatter<android::bluetooth::rfcomm::RfcommPortEvent> {};
+template <>
+struct formatter<android::bluetooth::rfcomm::SocketConnectionSecurity>
+    : enum_formatter<android::bluetooth::rfcomm::SocketConnectionSecurity> {};
+template <>
+struct formatter<android::bluetooth::BtaStatus> : enum_formatter<android::bluetooth::BtaStatus> {};
+template <>
+struct formatter<android::bluetooth::SocketErrorEnum>
+    : enum_formatter<android::bluetooth::SocketErrorEnum> {};
 }  // namespace std
 
 namespace bluetooth {
@@ -86,7 +104,7 @@ void LogMetricLinkLayerConnectionEvent(const Address* address, uint32_t connecti
             common::ToHexString(cmd_status), common::ToHexString(reason_code),
             common::ToHexString(hci_cmd), common::ToHexString(hci_event),
             common::ToHexString(hci_ble_event),
-            address ? ADDRESS_TO_LOGGABLE_CSTR(*address) : "(NULL)", connection_handle,
+            address ? address->ToRedactedStringForLogging() : "(NULL)", connection_handle,
             common::ToHexString(link_type), ret);
   }
 }
@@ -104,11 +122,9 @@ void LogMetricRemoteVersionInfo(uint16_t handle, uint8_t status, uint8_t version
                         manufacturer_name, subversion);
   if (ret < 0) {
     log::warn(
-            "Failed for handle {}, status {}, version {}, manufacturer_name {}, subversion {}, "
-            "error "
-            "{}",
-            handle, common::ToHexString(status), common::ToHexString(version),
-            common::ToHexString(manufacturer_name), common::ToHexString(subversion), ret);
+            "failed for handle {}, status 0x{:x}, version 0x{:x}, "
+            "manufacturer_name 0x{:x}, subversion 0x{:x}, error {}",
+            handle, status, version, manufacturer_name, subversion, ret);
   }
 }
 
@@ -317,21 +333,28 @@ void LogMetricSdpAttribute(const Address& address, uint16_t protocol_uuid, uint1
 void LogMetricSocketConnectionState(const Address& address, int port, int type,
                                     android::bluetooth::SocketConnectionstateEnum connection_state,
                                     int64_t tx_bytes, int64_t rx_bytes, int uid, int server_port,
-                                    android::bluetooth::SocketRoleEnum socket_role) {
+                                    android::bluetooth::SocketRoleEnum socket_role,
+                                    uint64_t connection_duration_ms,
+                                    android::bluetooth::SocketErrorEnum error_code,
+                                    bool is_hardware_offload) {
   int metric_id = 0;
   if (!address.IsEmpty()) {
     metric_id = MetricIdManager::GetInstance().AllocateId(address);
   }
+
   int ret = stats_write(BLUETOOTH_SOCKET_CONNECTION_STATE_CHANGED, byteField, port, type,
                         connection_state, tx_bytes, rx_bytes, uid, server_port, socket_role,
-                        metric_id);
+                        metric_id, static_cast<int64_t>(connection_duration_ms), error_code,
+                        is_hardware_offload);
+
   if (ret < 0) {
     log::warn(
             "Failed for {}, port {}, type {}, state {}, tx_bytes {}, rx_bytes {}, uid {}, "
             "server_port "
-            "{}, socket_role {}, error {}",
+            "{}, socket_role {}, error {}, connection_duration_ms {}, socket_error_code {}, "
+            "is_hardware_offload {}",
             address, port, type, connection_state, tx_bytes, rx_bytes, uid, server_port,
-            socket_role, ret);
+            socket_role, ret, connection_duration_ms, error_code, is_hardware_offload);
   }
 }
 
@@ -475,6 +498,77 @@ void LogMetricBluetoothEvent(const Address& address, android::bluetooth::EventTy
   if (ret < 0) {
     log::warn("Failed BluetoothEvent Upload - Address {}, Event_type {}, State {}", address,
               event_type, state);
+  }
+}
+
+void LogMetricRfcommConnectionAtClose(const Address& address,
+                                      android::bluetooth::rfcomm::PortResult close_reason,
+                                      android::bluetooth::rfcomm::SocketConnectionSecurity security,
+                                      android::bluetooth::rfcomm::RfcommPortEvent last_event,
+                                      android::bluetooth::rfcomm::RfcommPortState previous_state,
+                                      int32_t open_duration_ms, int32_t uid,
+                                      android::bluetooth::BtaStatus sdp_status, bool is_server,
+                                      bool sdp_initiated, int32_t sdp_duration_ms) {
+  int metric_id = 0;
+  if (address.IsEmpty()) {
+    log::warn("Failed to upload - Address is empty");
+    return;
+  }
+  metric_id = MetricIdManager::GetInstance().AllocateId(address);
+  int ret = stats_write(BLUETOOTH_RFCOMM_CONNECTION_REPORTED_AT_CLOSE, close_reason, security,
+                        last_event, previous_state, open_duration_ms, uid, metric_id, sdp_status,
+                        is_server, sdp_initiated, sdp_duration_ms);
+  if (ret < 0) {
+    log::warn("Failed to log RFCOMM Connection metric for uid {}, close reason {}", uid,
+              close_reason);
+  }
+}
+
+void LogMetricLeAudioConnectionSessionReported(
+        int32_t group_size, int32_t group_metric_id, int64_t connection_duration_nanos,
+        const std::vector<int64_t>& device_connecting_offset_nanos,
+        const std::vector<int64_t>& device_connected_offset_nanos,
+        const std::vector<int64_t>& device_connection_duration_nanos,
+        const std::vector<int32_t>& device_connection_status,
+        const std::vector<int32_t>& device_disconnection_status,
+        const std::vector<RawAddress>& device_address,
+        const std::vector<int64_t>& streaming_offset_nanos,
+        const std::vector<int64_t>& streaming_duration_nanos,
+        const std::vector<int32_t>& streaming_context_type) {
+  std::vector<int32_t> device_metric_id(device_address.size());
+  for (uint64_t i = 0; i < device_address.size(); i++) {
+    if (!device_address[i].IsEmpty()) {
+      device_metric_id[i] =
+              MetricIdManager::GetInstance().AllocateId(ToGdAddress(device_address[i]));
+    } else {
+      device_metric_id[i] = 0;
+    }
+  }
+  int ret = stats_write(LE_AUDIO_CONNECTION_SESSION_REPORTED, group_size, group_metric_id,
+                        connection_duration_nanos, device_connecting_offset_nanos,
+                        device_connected_offset_nanos, device_connection_duration_nanos,
+                        device_connection_status, device_disconnection_status, device_metric_id,
+                        streaming_offset_nanos, streaming_duration_nanos, streaming_context_type);
+  if (ret < 0) {
+    log::warn(
+            "failed for group {}device_connecting_offset_nanos[{}], "
+            "device_connected_offset_nanos[{}], "
+            "device_connection_duration_nanos[{}], device_connection_status[{}], "
+            "device_disconnection_status[{}], device_metric_id[{}], "
+            "streaming_offset_nanos[{}], streaming_duration_nanos[{}], "
+            "streaming_context_type[{}]",
+            group_metric_id, device_connecting_offset_nanos.size(),
+            device_connected_offset_nanos.size(), device_connection_duration_nanos.size(),
+            device_connection_status.size(), device_disconnection_status.size(),
+            device_metric_id.size(), streaming_offset_nanos.size(), streaming_duration_nanos.size(),
+            streaming_context_type.size());
+  }
+}
+
+void LogMetricLeAudioBroadcastSessionReported(int64_t duration_nanos) {
+  int ret = stats_write(LE_AUDIO_BROADCAST_SESSION_REPORTED, duration_nanos);
+  if (ret < 0) {
+    log::warn("failed for duration={}", duration_nanos);
   }
 }
 

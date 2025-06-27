@@ -18,6 +18,10 @@ package com.android.bluetooth.pbapclient;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
 import android.accounts.Account;
 import android.bluetooth.BluetoothDevice;
@@ -30,7 +34,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.android.bluetooth.BluetoothMetricsProto;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.MetricsLogger;
@@ -140,9 +143,9 @@ class PbapClientStateMachine extends StateMachine {
         }
 
         public int getTotalNumberOfContacts() {
-            return (mMetadata == null || mMetadata.getSize() == PbapPhonebookMetadata.INVALID_SIZE)
+            return (mMetadata == null || mMetadata.size() == PbapPhonebookMetadata.INVALID_SIZE)
                     ? 0
-                    : mMetadata.getSize();
+                    : mMetadata.size();
         }
 
         public int getNumberOfContactsDownloaded() {
@@ -159,24 +162,24 @@ class PbapClientStateMachine extends StateMachine {
                         + "/ UNKNOWN] (db:UNKNOWN, pc:UNKNOWN, sc:UNKNOWN)";
             }
 
-            String databaseIdentifier = mMetadata.getDatabaseIdentifier();
+            String databaseIdentifier = mMetadata.databaseIdentifier();
             if (databaseIdentifier == PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER) {
                 databaseIdentifier = "UNKNOWN";
             }
 
-            String primaryVersionCounter = mMetadata.getPrimaryVersionCounter();
+            String primaryVersionCounter = mMetadata.primaryVersionCounter();
             if (primaryVersionCounter == PbapPhonebookMetadata.INVALID_VERSION_COUNTER) {
                 primaryVersionCounter = "UNKNOWN";
             }
 
-            String secondaryVersionCounter = mMetadata.getSecondaryVersionCounter();
+            String secondaryVersionCounter = mMetadata.secondaryVersionCounter();
             if (secondaryVersionCounter == PbapPhonebookMetadata.INVALID_VERSION_COUNTER) {
                 secondaryVersionCounter = "UNKNOWN";
             }
 
             String totalContactsExpected = "UNKNOWN";
-            if (mMetadata.getSize() != PbapPhonebookMetadata.INVALID_SIZE) {
-                totalContactsExpected = Integer.toString(mMetadata.getSize());
+            if (mMetadata.size() != PbapPhonebookMetadata.INVALID_SIZE) {
+                totalContactsExpected = Integer.toString(mMetadata.size());
             }
 
             return mName
@@ -194,7 +197,7 @@ class PbapClientStateMachine extends StateMachine {
     private final Context mContext;
     private PbapSdpRecord mSdpRecord = null;
     private final Account mAccount;
-    private Map<String, Phonebook> mPhonebooks = new HashMap<String, Phonebook>();
+    private final Map<String, Phonebook> mPhonebooks = new HashMap<String, Phonebook>();
     private final PbapClientObexClient mObexClient;
     private final PbapClientContactsStorage mContactsStorage;
 
@@ -222,7 +225,7 @@ class PbapClientStateMachine extends StateMachine {
                 }
             };
 
-    private int mCurrentState = BluetoothProfile.STATE_DISCONNECTED;
+    private int mCurrentState = STATE_DISCONNECTED;
     private State mDisconnected;
     private State mConnecting;
     private State mConnected;
@@ -359,9 +362,9 @@ class PbapClientStateMachine extends StateMachine {
         @Override
         public void enter() {
             debug("Disconnected: Enter, from=" + eventToString(getCurrentMessage().what));
-            if (mCurrentState != BluetoothProfile.STATE_DISCONNECTED) {
+            if (mCurrentState != STATE_DISCONNECTED) {
                 // Only broadcast a state change that came from something other than disconnected
-                onConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTED);
+                onConnectionStateChanged(STATE_DISCONNECTED);
 
                 // Quit processing on this handler. This makes this object one time use. The
                 // connection state changed callback event will trigger the service to clean up
@@ -391,7 +394,7 @@ class PbapClientStateMachine extends StateMachine {
         @Override
         public void enter() {
             debug("Connecting: Enter from=" + eventToString(getCurrentMessage().what));
-            onConnectionStateChanged(BluetoothProfile.STATE_CONNECTING);
+            onConnectionStateChanged(STATE_CONNECTING);
 
             // We can't connect over OBEX until we known where/how to connect. We need the SDP
             // record details to do this. Thus, being connected means we received a valid SDP record
@@ -421,7 +424,7 @@ class PbapClientStateMachine extends StateMachine {
 
                 case MSG_SDP_FAILED:
                     int failureCode = message.arg1;
-                    info("Connecting: SDP unsuccessful, code=" + sdpCodetoString(failureCode));
+                    info("Connecting: SDP unsuccessful, code=" + sdpCodeToString(failureCode));
                     if (failureCode == SDP_BUSY) {
                         mDevice.sdpSearch(BluetoothUuid.PBAP_PSE);
                     } else {
@@ -504,11 +507,11 @@ class PbapClientStateMachine extends StateMachine {
         @Override
         public void enter() {
             debug("Connected: Enter, from=" + eventToString(getCurrentMessage().what));
-            if (mCurrentState != BluetoothProfile.STATE_CONNECTING) {
+            if (mCurrentState != STATE_CONNECTING) {
                 return;
             }
 
-            onConnectionStateChanged(BluetoothProfile.STATE_CONNECTED);
+            onConnectionStateChanged(STATE_CONNECTED);
 
             mHasDownloaded = false;
 
@@ -601,7 +604,7 @@ class PbapClientStateMachine extends StateMachine {
 
                 case MSG_PHONEBOOK_METADATA_RECEIVED:
                     PbapPhonebookMetadata metadata = (PbapPhonebookMetadata) message.obj;
-                    phonebook = metadata.getPhonebook();
+                    phonebook = metadata.phonebook();
                     if (currentPhonebook != null && currentPhonebook.equals(phonebook)) {
                         info("Downloading: received metadata=" + metadata);
 
@@ -609,7 +612,7 @@ class PbapClientStateMachine extends StateMachine {
                         mPhonebooks.get(phonebook).setMetadata(metadata);
 
                         // If phonebook has contacts, begin downloading them
-                        if (metadata.getSize() > 0) {
+                        if (metadata.size() > 0) {
                             downloadPhonebook(currentPhonebook, 0, CONTACT_DOWNLOAD_BATCH_SIZE);
                         } else {
                             warn(
@@ -788,7 +791,7 @@ class PbapClientStateMachine extends StateMachine {
             PbapApplicationParameters params =
                     new PbapApplicationParameters(
                             DEFAULT_PROPERTIES, DEFAULT_VCARD_VERSION, numToFetch, batchStart);
-            mObexClient.requestDownloadPhonebook(mPhonebooksToDownload.get(0), params, mAccount);
+            mObexClient.requestDownloadPhonebook(mPhonebooksToDownload.get(0), params);
         }
     }
 
@@ -796,10 +799,10 @@ class PbapClientStateMachine extends StateMachine {
         @Override
         public void enter() {
             debug("Disconnecting: Enter, from=" + eventToString(getCurrentMessage().what));
-            onConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTING);
+            onConnectionStateChanged(STATE_DISCONNECTING);
 
             // Disconnect
-            if (mObexClient.getConnectionState() != BluetoothProfile.STATE_DISCONNECTED) {
+            if (mObexClient.getConnectionState() != STATE_DISCONNECTED) {
                 mObexClient.disconnect();
                 sendMessageDelayed(MSG_DISCONNECT_TIMEOUT, DISCONNECT_TIMEOUT_MS);
             } else {
@@ -854,12 +857,12 @@ class PbapClientStateMachine extends StateMachine {
     protected void onQuitting() {
         Log.d(TAG, "State machine is force quitting");
         switch (mCurrentState) {
-            case BluetoothProfile.STATE_CONNECTED:
-                onConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTING);
+            case STATE_CONNECTED:
+                onConnectionStateChanged(STATE_DISCONNECTING);
                 // intentional fallthrough-- we want to broadcast both state changes
-            case BluetoothProfile.STATE_CONNECTING:
-            case BluetoothProfile.STATE_DISCONNECTING:
-                onConnectionStateChanged(BluetoothProfile.STATE_DISCONNECTED);
+            case STATE_CONNECTING:
+            case STATE_DISCONNECTING:
+                onConnectionStateChanged(STATE_DISCONNECTED);
                 cleanup();
                 break;
             default:
@@ -904,9 +907,6 @@ class PbapClientStateMachine extends StateMachine {
 
     private void onConnectionStateChanged(int state) {
         int prevState = mCurrentState;
-        if (prevState != state && state == BluetoothProfile.STATE_CONNECTED) {
-            MetricsLogger.logProfileConnectionEvent(BluetoothMetricsProto.ProfileId.PBAP_CLIENT);
-        }
 
         Intent intent = new Intent(BluetoothPbapClient.ACTION_CONNECTION_STATE_CHANGED);
         intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
@@ -939,9 +939,9 @@ class PbapClientStateMachine extends StateMachine {
         @Override
         public void onConnectionStateChanged(int oldState, int newState) {
             info("Obex client connection state changed: " + oldState + " -> " + newState);
-            if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+            if (newState == STATE_DISCONNECTED) {
                 obtainMessage(MSG_OBEX_CLIENT_DISCONNECTED).sendToTarget();
-            } else if (newState == BluetoothProfile.STATE_CONNECTED) {
+            } else if (newState == STATE_CONNECTED) {
                 obtainMessage(MSG_OBEX_CLIENT_CONNECTED).sendToTarget();
             }
         }
@@ -1014,7 +1014,7 @@ class PbapClientStateMachine extends StateMachine {
         }
     }
 
-    private static String sdpCodetoString(int code) {
+    private static String sdpCodeToString(int code) {
         switch (code) {
             case SDP_SUCCESS:
                 return "SDP_SUCCESS";

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import androidx.test.runner.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+/** Test cases for {@link PbapPhonebookMetadata}. */
 @RunWith(AndroidJUnit4.class)
 public class PbapPhonebookMetadataTest {
     private static final int SIZE = 5;
@@ -40,11 +41,11 @@ public class PbapPhonebookMetadataTest {
                         PRIMARY_VERSION_COUNTER,
                         SECONDARY_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.FAVORITES_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier()).isEqualTo(DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter()).isEqualTo(PRIMARY_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter()).isEqualTo(SECONDARY_VERSION_COUNTER);
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.FAVORITES_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier()).isEqualTo(DATABASE_IDENTIFIER);
+        assertThat(metadata.primaryVersionCounter()).isEqualTo(PRIMARY_VERSION_COUNTER);
+        assertThat(metadata.secondaryVersionCounter()).isEqualTo(SECONDARY_VERSION_COUNTER);
 
         String str = metadata.toString();
         assertThat(str).isNotNull();
@@ -61,11 +62,11 @@ public class PbapPhonebookMetadataTest {
                         PRIMARY_VERSION_COUNTER,
                         SECONDARY_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.LOCAL_PHONEBOOK_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier()).isEqualTo(DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter()).isEqualTo(PRIMARY_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter()).isEqualTo(SECONDARY_VERSION_COUNTER);
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.LOCAL_PHONEBOOK_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier()).isEqualTo(DATABASE_IDENTIFIER);
+        assertThat(metadata.primaryVersionCounter()).isEqualTo(PRIMARY_VERSION_COUNTER);
+        assertThat(metadata.secondaryVersionCounter()).isEqualTo(SECONDARY_VERSION_COUNTER);
 
         String str = metadata.toString();
         assertThat(str).isNotNull();
@@ -82,11 +83,11 @@ public class PbapPhonebookMetadataTest {
                         PRIMARY_VERSION_COUNTER,
                         SECONDARY_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier()).isEqualTo(DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter()).isEqualTo(PRIMARY_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter()).isEqualTo(SECONDARY_VERSION_COUNTER);
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.SIM_PHONEBOOK_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier()).isEqualTo(DATABASE_IDENTIFIER);
+        assertThat(metadata.primaryVersionCounter()).isEqualTo(PRIMARY_VERSION_COUNTER);
+        assertThat(metadata.secondaryVersionCounter()).isEqualTo(SECONDARY_VERSION_COUNTER);
 
         String str = metadata.toString();
         assertThat(str).isNotNull();
@@ -103,13 +104,13 @@ public class PbapPhonebookMetadataTest {
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER,
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.ICH_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.ICH_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
         String str = metadata.toString();
@@ -127,13 +128,13 @@ public class PbapPhonebookMetadataTest {
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER,
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.OCH_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.OCH_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
         String str = metadata.toString();
@@ -151,13 +152,13 @@ public class PbapPhonebookMetadataTest {
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER,
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.MCH_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.MCH_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
         String str = metadata.toString();
@@ -175,13 +176,13 @@ public class PbapPhonebookMetadataTest {
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER,
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.SIM_ICH_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.SIM_ICH_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
         String str = metadata.toString();
@@ -199,13 +200,13 @@ public class PbapPhonebookMetadataTest {
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER,
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.SIM_OCH_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.SIM_OCH_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
         String str = metadata.toString();
@@ -223,13 +224,13 @@ public class PbapPhonebookMetadataTest {
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER,
                         PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
-        assertThat(metadata.getPhonebook()).isEqualTo(PbapPhonebook.SIM_MCH_PATH);
-        assertThat(metadata.getSize()).isEqualTo(SIZE);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PbapPhonebook.SIM_MCH_PATH);
+        assertThat(metadata.size()).isEqualTo(SIZE);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
 
         String str = metadata.toString();

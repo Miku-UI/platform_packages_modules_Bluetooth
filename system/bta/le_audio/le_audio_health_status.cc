@@ -31,7 +31,6 @@
 #include "devices.h"
 #include "hardware/bt_le_audio.h"
 #include "main/shim/metrics_api.h"
-#include "os/logging/log_adapter.h"
 #include "types/raw_address.h"
 
 using bluetooth::common::ToString;
@@ -221,7 +220,8 @@ private:
   void dumpsys_dev(int fd, const device_stats& dev) {
     std::stringstream stream;
 
-    stream << "\n " << ADDRESS_TO_LOGGABLE_STR(dev.address_) << ": " << dev.latest_recommendation_
+    stream << "\n " << dev.address_.ToRedactedStringForLogging() << ": "
+           << dev.latest_recommendation_
            << (dev.is_valid_service_ ? " service: OK" : " service : NOK")
            << (dev.is_valid_group_member_ ? " csis: OK" : " csis : NOK");
 

@@ -949,6 +949,17 @@ public:
           log::info("Start queued broadcast.");
           StartAudioBroadcast(broadcast_id);
         }
+      } else {
+        // If audio resumes before ISO release, trigger broadcast start
+        if (audio_state_ == AudioState::ACTIVE) {
+          cancelBroadcastTimers();
+          UpdateAudioActiveStateInPublicAnnouncement();
+
+          for (auto& broadcast_pair : broadcasts_) {
+            auto& broadcast = broadcast_pair.second;
+            broadcast->ProcessMessage(BroadcastStateMachine::Message::START, nullptr);
+          }
+        }
       }
 
       if (queued_create_broadcast_request_) {
@@ -1175,24 +1186,18 @@ private:
     }
 
     void OnAdvertisingDataSet(uint8_t advertiser_id, uint8_t status) {
-      if (com::android::bluetooth::flags::leaudio_broadcast_update_metadata_callback()) {
-        if (!instance) {
-          return;
-        }
+      if (!instance) {
+        return;
+      }
 
-        auto const& iter =
-                std::find_if(instance->broadcasts_.cbegin(), instance->broadcasts_.cend(),
-                             [advertiser_id](auto const& sm) {
-                               return sm.second->GetAdvertisingSid() == advertiser_id;
-                             });
-        if (iter != instance->broadcasts_.cend()) {
-          iter->second->OnUpdateAnnouncement(status);
-        } else {
-          log::warn("Ignored OnAdvertisingDataSet callback advertiser_id:{}", advertiser_id);
-        }
+      auto const& iter = std::find_if(instance->broadcasts_.cbegin(), instance->broadcasts_.cend(),
+                                      [advertiser_id](auto const& sm) {
+                                        return sm.second->GetAdvertisingSid() == advertiser_id;
+                                      });
+      if (iter != instance->broadcasts_.cend()) {
+        iter->second->OnUpdateAnnouncement(status);
       } else {
-        log::warn("Not being used, ignored OnAdvertisingDataSet callback advertiser_id:{}",
-                  advertiser_id);
+        log::warn("Ignored OnAdvertisingDataSet callback advertiser_id:{}", advertiser_id);
       }
     }
 
@@ -1215,25 +1220,18 @@ private:
     }
 
     void OnPeriodicAdvertisingDataSet(uint8_t advertiser_id, uint8_t status) {
-      if (com::android::bluetooth::flags::leaudio_broadcast_update_metadata_callback()) {
-        if (!instance) {
-          return;
-        }
+      if (!instance) {
+        return;
+      }
 
-        auto const& iter =
-                std::find_if(instance->broadcasts_.cbegin(), instance->broadcasts_.cend(),
-                             [advertiser_id](auto const& sm) {
-                               return sm.second->GetAdvertisingSid() == advertiser_id;
-                             });
-        if (iter != instance->broadcasts_.cend()) {
-          iter->second->OnUpdateAnnouncement(status);
-        } else {
-          log::warn("Ignored OnPeriodicAdvertisingDataSet callback advertiser_id:{}",
-                    advertiser_id);
-        }
+      auto const& iter = std::find_if(instance->broadcasts_.cbegin(), instance->broadcasts_.cend(),
+                                      [advertiser_id](auto const& sm) {
+                                        return sm.second->GetAdvertisingSid() == advertiser_id;
+                                      });
+      if (iter != instance->broadcasts_.cend()) {
+        iter->second->OnUpdateAnnouncement(status);
       } else {
-        log::warn("Not being used, ignored OnPeriodicAdvertisingDataSet callback advertiser_id:{}",
-                  advertiser_id);
+        log::warn("Ignored OnPeriodicAdvertisingDataSet callback advertiser_id:{}", advertiser_id);
       }
     }
 
@@ -1394,10 +1392,19 @@ private:
           return;
         }
 
+        /* If there is ongoing ISO traffic, it might be not torn down unicast stream. Resume of
+         * broadcast stream would be triggered from IsoTrafficEventCb context, once ISO would be
+         * released.
+         */
+        if (!IsAnyoneStreaming() && instance->is_iso_running_) {
+          log::debug("iso is busy, skip resume request");
+          return;
+        }
+
         instance->cancelBroadcastTimers();
         instance->UpdateAudioActiveStateInPublicAnnouncement();
 
-        /* In case of double call of resume when broadcast are already in streaming states */
+        /* In case of double call of resume when broadcasts are already in streaming states */
         if (IsAnyoneStreaming()) {
           log::debug("broadcasts are already streaming");
           instance->le_audio_source_hal_client_->ConfirmStreamingRequest();

@@ -15,6 +15,9 @@
  */
 package com.android.bluetooth.gatt;
 
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED;
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
+
 import static com.android.bluetooth.util.AttributionSourceUtil.getLastAttributionTag;
 
 import android.annotation.Nullable;
@@ -32,7 +35,6 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.btservice.MetricsLogger;
-import com.android.bluetooth.flags.Flags;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -46,7 +48,7 @@ import java.util.Map;
 class AppAdvertiseStats {
     private static final String TAG = AppAdvertiseStats.class.getSimpleName();
 
-    private static DateTimeFormatter sDateFormat =
+    private static final DateTimeFormatter sDateFormat =
             DateTimeFormatter.ofPattern("MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
 
     static final String[] PHY_LE_STRINGS = {"LE_1M", "LE_2M", "LE_CODED"};
@@ -78,15 +80,17 @@ class AppAdvertiseStats {
         public Instant stopTime = null;
         public int duration = 0;
         public int maxExtendedAdvertisingEvents = 0;
+        public int appImportanceOnStart;
 
-        AppAdvertiserRecord(Instant startTime) {
+        AppAdvertiserRecord(Instant startTime, int appImportanceOnStart) {
             this.startTime = startTime;
+            this.appImportanceOnStart = appImportanceOnStart;
         }
     }
 
-    private int mAppUid;
+    private final int mAppUid;
     @VisibleForTesting String mAppName;
-    @Nullable private String mAttributionTag;
+    private final @Nullable String mAttributionTag;
     private int mId;
     private boolean mAdvertisingEnabled = false;
     private boolean mPeriodicAdvertisingEnabled = false;
@@ -98,11 +102,12 @@ class AppAdvertiseStats {
     private boolean mAnonymous = false;
     private boolean mConnectable = false;
     private boolean mScannable = false;
-    @Nullable private AppAdvertiserData mAdvertisingData = null;
-    @Nullable private AppAdvertiserData mScanResponseData = null;
-    @Nullable private AppAdvertiserData mPeriodicAdvertisingData = null;
+    private @Nullable AppAdvertiserData mAdvertisingData = null;
+    private @Nullable AppAdvertiserData mScanResponseData = null;
+    private @Nullable AppAdvertiserData mPeriodicAdvertisingData = null;
     private boolean mPeriodicIncludeTxPower = false;
     private int mPeriodicInterval = 0;
+    private int mAppImportance = IMPORTANCE_CACHED;
     public ArrayList<AppAdvertiserRecord> mAdvertiserRecords = new ArrayList<AppAdvertiserRecord>();
 
     AppAdvertiseStats(int appUid, int id, String name, AttributionSource attrSource) {
@@ -122,7 +127,7 @@ class AppAdvertiseStats {
             int maxExtAdvEvents,
             int instanceCount) {
         mAdvertisingEnabled = true;
-        AppAdvertiserRecord record = new AppAdvertiserRecord(Instant.now());
+        AppAdvertiserRecord record = new AppAdvertiserRecord(Instant.now(), mAppImportance);
         record.duration = duration;
         record.maxExtendedAdvertisingEvents = maxExtAdvEvents;
         mAdvertiserRecords.add(record);
@@ -213,18 +218,17 @@ class AppAdvertiseStats {
     }
 
     void recordAdvertiseErrorCount(int status) {
-        if (Flags.bleScanAdvMetricsRedesign()) {
-            BluetoothStatsLog.write(
-                    BluetoothStatsLog.LE_ADV_ERROR_REPORTED,
-                    new int[] {mAppUid},
-                    new String[] {mAppName},
-                    BluetoothStatsLog.LE_ADV_ERROR_REPORTED__LE_ADV_OP_CODE__ERROR_CODE_ON_START,
-                    convertStatusCode(status));
-        }
+        BluetoothStatsLog.write(
+                BluetoothStatsLog.LE_ADV_ERROR_REPORTED,
+                new int[] {mAppUid},
+                new String[] {mAppName},
+                BluetoothStatsLog.LE_ADV_ERROR_REPORTED__LE_ADV_OP_CODE__ERROR_CODE_ON_START,
+                convertStatusCode(status),
+                getAttributionTag());
         MetricsLogger.getInstance().cacheCount(BluetoothProtoEnums.LE_ADV_ERROR_ON_START_COUNT, 1);
     }
 
-    private int convertStatusCode(int status) {
+    private static int convertStatusCode(int status) {
         switch (status) {
             case AdvertisingSetCallback.ADVERTISE_SUCCESS:
                 return BluetoothStatsLog.LE_ADV_ERROR_REPORTED__STATUS_CODE__ADV_STATUS_SUCCESS;
@@ -345,6 +349,14 @@ class AppAdvertiseStats {
         this.mId = id;
     }
 
+    void setAppImportance(int importance) {
+        mAppImportance = importance;
+    }
+
+    private String getAttributionTag() {
+        return mAttributionTag != null ? mAttributionTag : "";
+    }
+
     private static void recordAdvertiseDurationCount(
             Duration duration, boolean isConnectable, boolean inPeriodic) {
         if (duration.compareTo(Duration.ofMinutes(1)) < 0) {
@@ -406,21 +418,21 @@ class AppAdvertiseStats {
     }
 
     private void recordAdvertiseEnableCount(boolean enable, int instanceCount, long durationMs) {
-        if (Flags.bleScanAdvMetricsRedesign()) {
-            MetricsLogger.getInstance()
-                    .logAdvStateChanged(
-                            new int[] {mAppUid},
-                            new String[] {mAppName},
-                            enable /* enabled */,
-                            convertAdvInterval(mInterval),
-                            convertTxPowerLevel(mTxPowerLevel),
-                            mConnectable,
-                            mPeriodicAdvertisingEnabled,
-                            mScanResponseData != null && mScannable /* hasScanResponse */,
-                            !mLegacy /* isExtendedAdv */,
-                            instanceCount,
-                            durationMs);
-        }
+        MetricsLogger.getInstance()
+                .logAdvStateChanged(
+                        new int[] {mAppUid},
+                        new String[] {mAppName},
+                        enable /* enabled */,
+                        convertAdvInterval(mInterval),
+                        convertTxPowerLevel(mTxPowerLevel),
+                        mConnectable,
+                        mPeriodicAdvertisingEnabled,
+                        mScanResponseData != null && mScannable /* hasScanResponse */,
+                        !mLegacy /* isExtendedAdv */,
+                        instanceCount,
+                        durationMs,
+                        mAppImportance,
+                        getAttributionTag());
         if (enable) {
             MetricsLogger.getInstance().cacheCount(BluetoothProtoEnums.LE_ADV_COUNT_ENABLE, 1);
             if (mConnectable) {
@@ -444,7 +456,7 @@ class AppAdvertiseStats {
         }
     }
 
-    private int convertAdvInterval(int interval) {
+    private static int convertAdvInterval(int interval) {
         switch (interval) {
             case AdvertisingSetParameters.INTERVAL_HIGH:
                 return BluetoothStatsLog.LE_ADV_STATE_CHANGED__ADV_INTERVAL__INTERVAL_HIGH;
@@ -457,7 +469,7 @@ class AppAdvertiseStats {
         }
     }
 
-    private int convertTxPowerLevel(int level) {
+    private static int convertTxPowerLevel(int level) {
         switch (level) {
             case AdvertisingSetParameters.TX_POWER_ULTRA_LOW:
                 return BluetoothStatsLog.LE_ADV_STATE_CHANGED__ADV_TX_POWER__TX_POWER_ULTRA_LOW;
@@ -583,6 +595,22 @@ class AppAdvertiseStats {
                     .append(record.duration);
             sb.append("\n        └Maximum number of extended advertising events  : ")
                     .append(record.maxExtendedAdvertisingEvents);
+            if (record.appImportanceOnStart < IMPORTANCE_FOREGROUND_SERVICE) {
+                sb.append(
+                        "\n"
+                                + "        └App Importance                                 : higher"
+                                + " than Foreground Service");
+            } else if (record.appImportanceOnStart > IMPORTANCE_FOREGROUND_SERVICE) {
+                sb.append(
+                        "\n"
+                            + "        └App Importance                                 : lower than"
+                            + " Foreground Service");
+            } else {
+                sb.append(
+                        "\n"
+                            + "        └App Importance                                 : Foreground"
+                            + " Service");
+            }
         }
 
         dumpAppAdvertiseStats(sb, stats);

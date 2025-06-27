@@ -99,6 +99,10 @@ std::map<::bt_property_type_t,
                    return new headless::property::void_t(data, len,
                                                          BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP);
                  }},
+                {BT_PROPERTY_UUIDS_LE,
+                 [](const uint8_t* data, const size_t len) -> headless::bt_property_t* {
+                   return new headless::property::uuid_t(data, len);
+                 }},
 };
 
 }  // namespace

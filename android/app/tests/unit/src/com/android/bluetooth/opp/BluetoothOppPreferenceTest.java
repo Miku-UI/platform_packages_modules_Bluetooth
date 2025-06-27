@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.opp;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.opp.BluetoothOppManager.OPP_PREFERENCE_FILE;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -26,7 +27,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 
@@ -40,6 +40,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+/** Test cases for {@link BluetoothOppPreference}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppPreferenceTest {
     Context mContext;
@@ -76,12 +77,8 @@ public class BluetoothOppPreferenceTest {
 
     @Test
     public void setNameAndGetNameAndRemoveName_setsAndGetsAndRemovesNameCorrectly() {
-        String address = "AA:BB:CC:DD:EE:FF";
         String name = "randomName";
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(43);
         BluetoothOppPreference.getInstance(mContext).setName(device, name);
 
         assertThat(BluetoothOppPreference.getInstance(mContext).getName(device)).isEqualTo(name);
@@ -93,13 +90,9 @@ public class BluetoothOppPreferenceTest {
 
     @Test
     public void setChannelAndGetAndRemoveChannel_setsAndGetsAndRemovesChannelCorrectly() {
-        String address = "AA:BB:CC:DD:EE:FF";
         int uuid = 1234;
         int channel = 78910;
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(80);
         BluetoothOppPreference.getInstance(mContext).setChannel(device, uuid, channel);
         assertThat(BluetoothOppPreference.getInstance(mContext).getChannel(device, uuid))
                 .isEqualTo(channel);

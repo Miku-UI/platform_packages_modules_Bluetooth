@@ -18,9 +18,9 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" msgid="2326164424236203271">"Bluetooth"</string>
     <string name="permlab_bluetoothShareManager" msgid="5297865456717871041">"Maak toegang aflaaibestuurder oop."</string>
-    <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Gee aan die program toegang tot die BluetoothShare-bestuurder en om dit te gebruik om lêers oor te dra."</string>
+    <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Gee aan die app toegang tot die BluetoothShare-bestuurder en om dit te gebruik om lêers oor te dra."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Voeg Bluetooth-toesteltoegang by aanvaarlys."</string>
-    <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Laat die program toe om \'n Bluetooth-toestel tydelik by aanvaarlys te voeg, sodat daardie toestel lêers na hierdie toestel kan stuur sonder die gebruiker se bevestiging."</string>
+    <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Laat die app toe om \'n Bluetooth-toestel tydelik by aanvaarlys te voeg, sodat daardie toestel lêers na hierdie toestel kan stuur sonder die gebruiker se bevestiging."</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Onbekende toestel"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Onbekend"</string>
@@ -71,7 +71,7 @@
     <string name="upload_fail_cancel" msgid="1632528037932779727">"Maak toe"</string>
     <string name="bt_error_btn_ok" msgid="2802751202009957372">"OK"</string>
     <string name="unknown_file" msgid="3719981572107052685">"Onbekende lêer"</string>
-    <string name="unknown_file_desc" msgid="9185609398960437760">"Daar is geen program om hierdie tipe lêer te hanteer nie. \n"</string>
+    <string name="unknown_file_desc" msgid="9185609398960437760">"Daar is geen app om hierdie tipe lêer te hanteer nie. \n"</string>
     <string name="not_exist_file" msgid="5097565588949092486">"Geen lêers nie"</string>
     <string name="not_exist_file_desc" msgid="250802392160941265">"Die lêer bestaan nie. \n"</string>
     <string name="enabling_progress_title" msgid="5262637688863903594">"Wag asseblief…"</string>

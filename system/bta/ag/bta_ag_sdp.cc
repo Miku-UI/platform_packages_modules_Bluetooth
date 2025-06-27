@@ -32,15 +32,19 @@
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_hfp_api.h"
+#include "bta/include/bta_rfcomm_metrics.h"
 #include "bta/include/bta_rfcomm_scn.h"
 #include "bta_ag_api.h"
 #include "bta_api.h"
 #include "bta_sys.h"
 #include "btif/include/btif_config.h"
 #include "btm_api_types.h"
+#include "common/time_util.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/helpers.h"
+#include "main/shim/metrics_api.h"
 #include "osi/include/allocator.h"
 #include "sdp_callback.h"
 #include "sdp_status.h"
@@ -57,6 +61,7 @@
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
+using namespace bluetooth::shim;
 using bluetooth::Uuid;
 
 /* Number of protocol elements in protocol element list. */
@@ -106,6 +111,9 @@ static void bta_ag_sdp_cback(tSDP_STATUS status, uint8_t idx) {
       event = BTA_AG_DISC_INT_RES_EVT;
     }
     tBTA_AG_DATA disc_result = {.disc_result = {.status = status}};
+    p_scb->sdp_metrics.status = (status == tSDP_STATUS::SDP_SUCCESS) ? tBTA_JV_STATUS::SUCCESS
+                                                                     : tBTA_JV_STATUS::FAILURE;
+    p_scb->sdp_metrics.sdp_end_ms = common::time_gettimeofday_us();
     do_in_main_thread(base::BindOnce(&bta_ag_sm_execute_by_handle, idx, event, disc_result));
   }
 }
@@ -383,6 +391,8 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
       peer_version = p_scb->peer_version;
     }
 
+    LogMetricHfpHfVersion(ToGdAddress(p_scb->peer_addr), p_scb->peer_version);
+
     if (service & BTA_HFP_SERVICE_MASK) {
       /* Update cached peer version if the new one is different */
       if (peer_version != p_scb->peer_version) {
@@ -522,6 +532,8 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     return;
   }
 
+  p_scb->sdp_metrics.sdp_initiated = true;
+
   /* allocate buffer for sdp database */
   p_scb->p_disc_db = (tSDP_DISCOVERY_DB*)osi_malloc(BTA_AG_DISC_BUF_SIZE);
   /* set up service discovery database; attr happens to be attr_list len */
@@ -530,9 +542,12 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
     if (get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest(
                 p_scb->peer_addr, p_scb->p_disc_db,
                 bta_ag_sdp_cback_tbl[bta_ag_scb_to_idx(p_scb) - 1])) {
+      p_scb->sdp_metrics.sdp_start_ms = common::time_gettimeofday_us() / 1000;
       return;
     } else {
       log::error("failed to start SDP discovery for {}", p_scb->peer_addr);
+      bta_collect_rfc_metrics_after_sdp_fail(tBTA_JV_STATUS::FAILURE, p_scb->peer_addr, 0,
+                                             BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT, false, 0);
     }
   } else {
     log::error("failed to init SDP discovery database for {}", p_scb->peer_addr);

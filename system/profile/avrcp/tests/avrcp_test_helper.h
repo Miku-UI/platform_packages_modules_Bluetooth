@@ -45,7 +45,8 @@ public:
   MOCK_METHOD1(GetMediaPlayerList, void(MediaInterface::MediaListCallback));
   MOCK_METHOD1(GetAddressedPlayer, void(MediaInterface::GetAddressedPlayerCallback));
   MOCK_METHOD3(GetFolderItems, void(uint16_t, std::string, MediaInterface::FolderItemsCallback));
-  MOCK_METHOD2(SetBrowsedPlayer, void(uint16_t, MediaInterface::SetBrowsedPlayerCallback));
+  MOCK_METHOD3(SetBrowsedPlayer,
+               void(uint16_t, std::string, MediaInterface::SetBrowsedPlayerCallback));
   MOCK_METHOD2(SetAddressedPlayer, void(uint16_t, MediaInterface::SetAddressedPlayerCallback));
   MOCK_METHOD3(PlayItem, void(uint16_t, bool, std::string));
   MOCK_METHOD1(SetActiveDevice, void(const RawAddress&));

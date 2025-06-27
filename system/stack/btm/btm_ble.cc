@@ -35,15 +35,13 @@
 #include "stack/btm/btm_int_types.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btu_hcif.h"
 #include "stack/include/gatt_api.h"
 #include "stack/include/hcimsgs.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -136,8 +134,8 @@ bool BTM_UseLeLink(const RawAddress& bd_addr) {
   return dev_type == BT_DEVICE_TYPE_BLE;
 }
 
-void read_phy_cb(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb,
-                 uint8_t* data, uint16_t len) {
+static void read_phy_cb(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb,
+                        uint8_t* data, uint16_t len) {
   uint8_t status, tx_phy, rx_phy;
   uint16_t handle;
 
@@ -184,11 +182,8 @@ void BTM_BleReadPhy(const RawAddress& bd_addr,
   uint8_t data[len];
   uint8_t* pp = data;
   UINT16_TO_STREAM(pp, handle);
-  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_BLE_READ_PHY, data, len,
-                            base::Bind(&read_phy_cb, std::move(cb)));
+  btu_hcif_send_cmd_with_cb(HCI_BLE_READ_PHY, data, len, base::Bind(&read_phy_cb, std::move(cb)));
 }
-
-void doNothing(uint8_t* /* data */, uint16_t /* len */) {}
 
 void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
                    uint16_t phy_options) {
@@ -233,5 +228,5 @@ void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
   UINT8_TO_STREAM(pp, tx_phys);
   UINT8_TO_STREAM(pp, rx_phys);
   UINT16_TO_STREAM(pp, phy_options);
-  btu_hcif_send_cmd_with_cb(FROM_HERE, HCI_BLE_SET_PHY, data, len, base::Bind(doNothing));
+  btu_hcif_send_cmd_with_cb(HCI_BLE_SET_PHY, data, len, base::Bind([](uint8_t*, uint16_t) {}));
 }

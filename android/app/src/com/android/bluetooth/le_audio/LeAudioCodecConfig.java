@@ -25,9 +25,9 @@ import android.util.Log;
  * LeAudio Codec Configuration setup.
  */
 class LeAudioCodecConfig {
-    private static final String TAG = "LeAudioCodecConfig";
+    private static final String TAG = LeAudioCodecConfig.class.getSimpleName();
 
-    private Context mContext;
+    private final Context mContext;
     private BluetoothLeAudioCodecConfig[] mCodecConfigOffloading =
             new BluetoothLeAudioCodecConfig[0];
 

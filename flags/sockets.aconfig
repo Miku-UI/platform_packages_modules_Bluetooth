@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "unix_file_socket_creation_failure"
@@ -58,6 +58,46 @@ flag {
     namespace: "bluetooth"
     description: "Avoid l2cap processing while stack is shutdown"
     bug: "379731768"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_buf_len_check_for_first_k_frame"
+    namespace: "bluetooth"
+    description: "Fix L2cap buffer length check against MPS for the first k-frame"
+    bug: "386382446"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "invalidate_hci_handle_on_acl_removal"
+    namespace: "bluetooth"
+    description: "invalidate hci handle associated with lcb on acl removal"
+    bug: "394329150"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "disconnect_acls_by_bredr_disabled"
+    namespace: "bluetooth"
+    description: "Fix ACL Link still connected even BREDR is disabled"
+    bug: "391263869"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_lecoc_socket_available"
+    namespace: "bluetooth"
+    description: "Fix Bluetooth Socket available API for LECOC socket"
+    bug: "402536099"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -69,6 +69,8 @@
 #define BTM_VSC_CHIP_CAPABILITY_S_VERSION 98
 
 #define BTM_BLE_DEFAULT_PHYS 0x01
+#define BTM_BLE_1M_PHY_MASK 1
+#define BTM_BLE_CODED_PHY_MASK (1 << 2)
 
 typedef struct {
   uint16_t data_mask;
@@ -83,8 +85,10 @@ typedef struct {
 typedef struct {
   uint16_t discoverable_mode;
   uint16_t connectable_mode;
-  uint16_t scan_window;
-  uint16_t scan_interval;
+  uint16_t scan_window_1m;
+  uint16_t scan_interval_1m;
+  uint16_t scan_window_coded;
+  uint16_t scan_interval_coded;
   uint8_t scan_type; /* current scan type: active or passive */
   uint8_t scan_phy;
 
@@ -98,6 +102,8 @@ typedef struct {
   void enable_advertising_mode() { adv_mode = BTM_BLE_ADV_ENABLE; }
   void disable_advertising_mode() { adv_mode = BTM_BLE_ADV_DISABLE; }
   bool is_advertising_mode_enabled() const { return adv_mode == BTM_BLE_ADV_ENABLE; }
+  bool is_1m_phy_configured() const { return (scan_phy & BTM_BLE_1M_PHY_MASK) != 0; }
+  bool is_coded_phy_configured() const { return (scan_phy & BTM_BLE_CODED_PHY_MASK) != 0; }
 
   tBLE_BD_ADDR direct_bda;
   tBTM_BLE_EVT directed_conn;

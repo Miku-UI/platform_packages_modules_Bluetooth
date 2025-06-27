@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,135 +16,125 @@
 
 package com.android.bluetooth.hid;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
+import android.content.AttributionSource;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link HidHostServiceBinder}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class HidHostServiceBinderTest {
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-    private static final String REMOTE_DEVICE_ADDRESS = "00:00:00:00:00:00";
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private HidHostService mService;
 
-    BluetoothDevice mRemoteDevice;
+    private final AttributionSource mAttributionSource = new AttributionSource.Builder(1).build();
+    private final BluetoothDevice mDevice = getTestDevice(50);
 
-    HidHostService.BluetoothHidHostBinder mBinder;
+    private HidHostServiceBinder mBinder;
 
     @Before
-    public void setUp() throws Exception {
-        mRemoteDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
-        mBinder = new HidHostService.BluetoothHidHostBinder(mService);
+    public void setUp() {
+        mBinder = new HidHostServiceBinder(mService);
     }
 
     @Test
     public void connect_callsServiceMethod() {
-        mBinder.connect(mRemoteDevice, null);
-
-        verify(mService).connect(mRemoteDevice);
+        mBinder.connect(mDevice, mAttributionSource);
+        verify(mService).connect(mDevice);
     }
 
     @Test
     public void disconnect_callsServiceMethod() {
-        mBinder.disconnect(mRemoteDevice, null);
-
-        verify(mService).disconnect(mRemoteDevice);
+        mBinder.disconnect(mDevice, mAttributionSource);
+        verify(mService).disconnect(mDevice);
     }
 
     @Test
     public void getConnectedDevices_callsServiceMethod() {
-        mBinder.getConnectedDevices(null);
-
-        verify(mService)
-                .getDevicesMatchingConnectionStates(new int[] {BluetoothProfile.STATE_CONNECTED});
+        mBinder.getConnectedDevices(mAttributionSource);
+        verify(mService).getDevicesMatchingConnectionStates(new int[] {STATE_CONNECTED});
     }
 
     @Test
     public void getDevicesMatchingConnectionStates_callsServiceMethod() {
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
-        mBinder.getDevicesMatchingConnectionStates(states, null);
+        int[] states = new int[] {STATE_CONNECTED};
 
+        mBinder.getDevicesMatchingConnectionStates(states, mAttributionSource);
         verify(mService).getDevicesMatchingConnectionStates(states);
     }
 
     @Test
     public void getConnectionState_callsServiceMethod() {
-        mBinder.getConnectionState(mRemoteDevice, null);
-
-        verify(mService).getConnectionState(mRemoteDevice);
+        mBinder.getConnectionState(mDevice, mAttributionSource);
+        verify(mService).getConnectionState(mDevice);
     }
 
     @Test
     public void setConnectionPolicy_callsServiceMethod() {
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
-        mBinder.setConnectionPolicy(mRemoteDevice, connectionPolicy, null);
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
 
-        verify(mService).setConnectionPolicy(mRemoteDevice, connectionPolicy);
+        mBinder.setConnectionPolicy(mDevice, connectionPolicy, mAttributionSource);
+        verify(mService).setConnectionPolicy(mDevice, connectionPolicy);
     }
 
     @Test
     public void getConnectionPolicy_callsServiceMethod() {
-        mBinder.getConnectionPolicy(mRemoteDevice, null);
-
-        verify(mService).getConnectionPolicy(mRemoteDevice);
+        mBinder.getConnectionPolicy(mDevice, mAttributionSource);
+        verify(mService).getConnectionPolicy(mDevice);
     }
 
     @Test
     public void setPreferredTransport_callsServiceMethod() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP);
         int preferredTransport = BluetoothDevice.TRANSPORT_AUTO;
-        mBinder.setPreferredTransport(mRemoteDevice, preferredTransport, null);
 
-        verify(mService).setPreferredTransport(mRemoteDevice, preferredTransport);
+        mBinder.setPreferredTransport(mDevice, preferredTransport, mAttributionSource);
+        verify(mService).setPreferredTransport(mDevice, preferredTransport);
     }
 
     @Test
     public void getPreferredTransport_callsServiceMethod() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ALLOW_SWITCHING_HID_AND_HOGP);
-        mBinder.getPreferredTransport(mRemoteDevice, null);
-
-        verify(mService).getPreferredTransport(mRemoteDevice);
+        mBinder.getPreferredTransport(mDevice, mAttributionSource);
+        verify(mService).getPreferredTransport(mDevice);
     }
 
     @Test
     public void getProtocolMode_callsServiceMethod() {
-        mBinder.getProtocolMode(mRemoteDevice, null);
-
-        verify(mService).getProtocolMode(mRemoteDevice);
+        mBinder.getProtocolMode(mDevice, mAttributionSource);
+        verify(mService).getProtocolMode(mDevice);
     }
 
     @Test
     public void virtualUnplug_callsServiceMethod() {
-        mBinder.virtualUnplug(mRemoteDevice, null);
-
-        verify(mService).virtualUnplug(mRemoteDevice);
+        mBinder.virtualUnplug(mDevice, mAttributionSource);
+        verify(mService).virtualUnplug(mDevice);
     }
 
     @Test
     public void setProtocolMode_callsServiceMethod() {
         int protocolMode = 1;
-        mBinder.setProtocolMode(mRemoteDevice, protocolMode, null);
 
-        verify(mService).setProtocolMode(mRemoteDevice, protocolMode);
+        mBinder.setProtocolMode(mDevice, protocolMode, mAttributionSource);
+        verify(mService).setProtocolMode(mDevice, protocolMode);
     }
 
     @Test
@@ -152,41 +142,40 @@ public class HidHostServiceBinderTest {
         byte reportType = 1;
         byte reportId = 2;
         int bufferSize = 16;
-        mBinder.getReport(mRemoteDevice, reportType, reportId, bufferSize, null);
 
-        verify(mService).getReport(mRemoteDevice, reportType, reportId, bufferSize);
+        mBinder.getReport(mDevice, reportType, reportId, bufferSize, mAttributionSource);
+        verify(mService).getReport(mDevice, reportType, reportId, bufferSize);
     }
 
     @Test
     public void setReport_callsServiceMethod() {
         byte reportType = 1;
         String report = "test_report";
-        mBinder.setReport(mRemoteDevice, reportType, report, null);
 
-        verify(mService).setReport(mRemoteDevice, reportType, report);
+        mBinder.setReport(mDevice, reportType, report, mAttributionSource);
+        verify(mService).setReport(mDevice, reportType, report);
     }
 
     @Test
     public void sendData_callsServiceMethod() {
         String report = "test_report";
-        mBinder.sendData(mRemoteDevice, report, null);
 
-        verify(mService).sendData(mRemoteDevice, report);
+        mBinder.sendData(mDevice, report, mAttributionSource);
+        verify(mService).sendData(mDevice, report);
     }
 
     @Test
     public void setIdleTime_callsServiceMethod() {
         byte idleTime = 1;
-        mBinder.setIdleTime(mRemoteDevice, idleTime, null);
 
-        verify(mService).setIdleTime(mRemoteDevice, idleTime);
+        mBinder.setIdleTime(mDevice, idleTime, mAttributionSource);
+        verify(mService).setIdleTime(mDevice, idleTime);
     }
 
     @Test
     public void getIdleTime_callsServiceMethod() {
-        mBinder.getIdleTime(mRemoteDevice, null);
-
-        verify(mService).getIdleTime(mRemoteDevice);
+        mBinder.getIdleTime(mDevice, mAttributionSource);
+        verify(mService).getIdleTime(mDevice);
     }
 
     @Test

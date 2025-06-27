@@ -23,8 +23,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 
-import com.google.common.base.Ascii;
-
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
@@ -39,7 +37,9 @@ import java.util.Locale;
 /** Class to contain a single folder element representation. */
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
 public class BluetoothMapFolderElement implements Comparable<BluetoothMapFolderElement> {
-    private String mName;
+    private static final String TAG = BluetoothMapFolderElement.class.getSimpleName();
+
+    private final String mName;
     private BluetoothMapFolderElement mParent = null;
     private long mFolderId = -1;
     private boolean mHasSmsMmsContent = false;
@@ -48,9 +48,7 @@ public class BluetoothMapFolderElement implements Comparable<BluetoothMapFolderE
 
     private boolean mIgnore = false;
 
-    private HashMap<String, BluetoothMapFolderElement> mSubFolders;
-
-    private static final String TAG = "BluetoothMapFolderElement";
+    private final HashMap<String, BluetoothMapFolderElement> mSubFolders;
 
     public BluetoothMapFolderElement(String name, BluetoothMapFolderElement parent) {
         this.mName = name;
@@ -259,7 +257,7 @@ public class BluetoothMapFolderElement implements Comparable<BluetoothMapFolderE
      * @return the subFolder element if found {@code null} otherwise.
      */
     public BluetoothMapFolderElement getSubFolder(String folderName) {
-        return mSubFolders.get(Ascii.toLowerCase(folderName));
+        return mSubFolders.get(folderName.toLowerCase(Locale.ROOT));
     }
 
     public byte[] encode(int offset, int count) {

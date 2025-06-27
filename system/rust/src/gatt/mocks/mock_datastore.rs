@@ -1,19 +1,13 @@
 //! Mocked implementation of GattDatastore for use in test
 
-use crate::{
-    gatt::{
-        callbacks::GattDatastore,
-        ffi::AttributeBackingType,
-        ids::{AttHandle, TransportIndex},
-    },
-    packets::att::AttErrorCode,
-};
+use crate::gatt::callbacks::GattDatastore;
+use crate::gatt::ffi::AttributeBackingType;
+use crate::gatt::ids::{AttHandle, TransportIndex};
+use crate::packets::att::AttErrorCode;
 use async_trait::async_trait;
 use log::info;
-use tokio::sync::{
-    mpsc::{self, unbounded_channel, UnboundedReceiver},
-    oneshot,
-};
+use tokio::sync::mpsc::{self, unbounded_channel, UnboundedReceiver};
+use tokio::sync::oneshot;
 
 /// Routes calls to GattDatastore into a channel of MockDatastoreEvents
 pub struct MockDatastore(mpsc::UnboundedSender<MockDatastoreEvents>);

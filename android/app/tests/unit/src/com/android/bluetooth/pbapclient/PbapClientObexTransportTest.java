@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,25 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.TestUtils;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -44,11 +42,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/** Test cases for {@link PbapClientObexTransport}. */
 @RunWith(AndroidJUnit4.class)
 public class PbapClientObexTransportTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    private BluetoothAdapter mAdapter;
     private BluetoothDevice mTestDevice;
 
     @Mock private PbapClientSocket mMockSocket;
@@ -57,8 +55,7 @@ public class PbapClientObexTransportTest {
 
     @Before
     public void setUp() throws IOException {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = TestUtils.getTestDevice(mAdapter, 1);
+        mTestDevice = getTestDevice(1);
 
         doReturn(mMockInputStream).when(mMockSocket).getInputStream();
         doReturn(mMockOutputStream).when(mMockSocket).getOutputStream();
@@ -187,7 +184,6 @@ public class PbapClientObexTransportTest {
     public void testGetRemoteAddress_transportRfcomm_returnsDeviceIdentityAddress() {
         doReturn(BluetoothSocket.TYPE_RFCOMM).when(mMockSocket).getConnectionType();
         PbapClientObexTransport transport = new PbapClientObexTransport(mMockSocket);
-        // See "Flags.identityAddressNullIfNotKnown():"
         // Identity address won't be "known" by the stack for a test device, so it'll return null.
         // assertThat(transport.getRemoteAddress()).isNull();
         assertThat(transport.getRemoteAddress()).isEqualTo(mTestDevice.getAddress());

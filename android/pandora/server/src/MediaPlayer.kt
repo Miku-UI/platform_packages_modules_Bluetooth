@@ -55,6 +55,13 @@ class MediaPlayer(val context: Context) : MediaPlayerImplBase(), Closeable {
         }
     }
 
+    override fun playUpdated(request: Empty, responseObserver: StreamObserver<Empty>) {
+        grpcUnary<Empty>(scope, responseObserver) {
+            MediaPlayerBrowserService.instance.playUpdated()
+            Empty.getDefaultInstance()
+        }
+    }
+
     override fun stop(request: Empty, responseObserver: StreamObserver<Empty>) {
         grpcUnary<Empty>(scope, responseObserver) {
             MediaPlayerBrowserService.instance.stop()
@@ -107,6 +114,13 @@ class MediaPlayer(val context: Context) : MediaPlayerImplBase(), Closeable {
     override fun updateQueue(request: Empty, responseObserver: StreamObserver<Empty>) {
         grpcUnary<Empty>(scope, responseObserver) {
             MediaPlayerBrowserService.instance.updateQueue()
+            Empty.getDefaultInstance()
+        }
+    }
+
+    override fun resetQueue(request: Empty, responseObserver: StreamObserver<Empty>) {
+        grpcUnary<Empty>(scope, responseObserver) {
+            MediaPlayerBrowserService.instance.resetQueue()
             Empty.getDefaultInstance()
         }
     }

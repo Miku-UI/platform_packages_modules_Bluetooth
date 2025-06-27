@@ -47,15 +47,12 @@
 #include "osi/include/osi.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 #ifdef __ANDROID__
 static const char* INTEROP_DYNAMIC_FILE_PATH = "/data/misc/bluedroid/interop_database_dynamic.conf";
 static const char* INTEROP_STATIC_FILE_PATH =
-        "/apex/com.android.btservices/etc/bluetooth/interop_database.conf";
+        "/apex/com.android.bt/etc/bluetooth/interop_database.conf";
 #elif TARGET_FLOSS
 #include <base/files/file_util.h>
 
@@ -327,6 +324,7 @@ static const char* interop_feature_string_(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_DISABLE_LE_SECURE_CONNECTIONS)
     CASE_RETURN_STR(INTEROP_AUTO_RETRY_PAIRING)
     CASE_RETURN_STR(INTEROP_DISABLE_ABSOLUTE_VOLUME)
+    CASE_RETURN_STR(INTEROP_DISABLE_SIRK_READ_BY_TYPE)
     CASE_RETURN_STR(INTEROP_DISABLE_AUTO_PAIRING)
     CASE_RETURN_STR(INTEROP_KEYBOARD_REQUIRES_FIXED_PIN)
     CASE_RETURN_STR(INTEROP_2MBPS_LINK_ONLY)
@@ -393,6 +391,8 @@ static const char* interop_feature_string_(const interop_feature_t feature) {
     CASE_RETURN_STR(INTEROP_HID_PREF_CONN_ZERO_LATENCY);
     CASE_RETURN_STR(INTEROP_HOGP_LONG_REPORT);
     CASE_RETURN_STR(INTEROP_HOGP_FORCE_MTU_EXCHANGE);
+    CASE_RETURN_STR(INTEROP_DISABLE_HF_PROFILE);
+    CASE_RETURN_STR(INTEROP_DISABLE_READ_LE_APPEARANCE);
   }
   return UNKNOWN_INTEROP_FEATURE;
 }
@@ -790,7 +790,7 @@ static char* trim(char* str) {
   return str;
 }
 
-bool token_to_ul(char* token, uint16_t* ul) {
+static bool token_to_ul(char* token, uint16_t* ul) {
   char* e;
   bool ret_value = false;
 

@@ -54,8 +54,7 @@ import android.widget.Toast;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
-
-import com.google.common.annotations.VisibleForTesting;
+import com.android.internal.annotations.VisibleForTesting;
 
 /**
  * Handle all transfer related dialogs: -Ongoing transfer -Receiving one file dialog -Sending one
@@ -68,7 +67,7 @@ import com.google.common.annotations.VisibleForTesting;
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class BluetoothOppTransferActivity extends AlertActivity
         implements DialogInterface.OnClickListener {
-    private static final String TAG = "BluetoothOppTransferActivity";
+    private static final String TAG = BluetoothOppTransferActivity.class.getSimpleName();
 
     private Uri mUri;
 

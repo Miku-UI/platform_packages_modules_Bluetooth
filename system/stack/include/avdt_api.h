@@ -25,7 +25,6 @@
 #ifndef AVDT_API_H
 #define AVDT_API_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -69,7 +68,7 @@ inline std::string avdt_result_text(const tAVDT_RESULT& result) {
     CASE_RETURN_TEXT(AVDT_BUSY);
     CASE_RETURN_TEXT(AVDT_WRITE_FAIL);
     default:
-      return base::StringPrintf("UNKNOWN[%hu]", result);
+      return std::format("UNKNOWN[{}]", static_cast<uint16_t>(result));
   }
 }
 

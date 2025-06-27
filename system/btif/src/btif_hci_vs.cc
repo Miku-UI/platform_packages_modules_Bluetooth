@@ -56,7 +56,7 @@ static void CommandStatusOrCompleteCallback(BluetoothHciVendorSpecificCallbacks*
 
 static void EventCallback(BluetoothHciVendorSpecificCallbacks* callbacks,
                           VendorSpecificEventView view) {
-  const uint8_t aosp_reserved_codes_range[] = {0x50, 0x60};
+  const uint8_t aosp_reserved_codes_range[] = {0x52, 0x60};
   auto code = static_cast<uint8_t>(view.GetSubeventCode());
   if (code >= aosp_reserved_codes_range[0] && code < aosp_reserved_codes_range[1]) {
     return;

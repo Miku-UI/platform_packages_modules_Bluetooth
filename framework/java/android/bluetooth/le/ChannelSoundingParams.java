@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -146,9 +146,9 @@ public final class ChannelSoundingParams implements Parcelable {
      */
     @SystemApi public static final int CS_SECURITY_LEVEL_FOUR = 4;
 
-    private int mSightType;
-    private int mLocationType;
-    private int mCsSecurityLevel;
+    private final int mSightType;
+    private final int mLocationType;
+    private final int mCsSecurityLevel;
 
     /** @hide */
     public ChannelSoundingParams(int sightType, int locationType, int csSecurityLevel) {

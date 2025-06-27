@@ -17,6 +17,8 @@
 package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -47,7 +49,8 @@ import java.util.UUID;
  * {@link BluetoothManager#openGattServer} to get an instance of this class.
  */
 public final class BluetoothGattServer implements BluetoothProfile {
-    private static final String TAG = "BluetoothGattServer";
+    private static final String TAG = BluetoothGattServer.class.getSimpleName();
+
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 
@@ -59,9 +62,9 @@ public final class BluetoothGattServer implements BluetoothProfile {
 
     private final Object mServerIfLock = new Object();
     private int mServerIf;
-    private int mTransport;
+    private final int mTransport;
     private BluetoothGattService mPendingService;
-    private List<BluetoothGattService> mServices;
+    private final List<BluetoothGattService> mServices;
 
     private static final int CALLBACK_REG_TIMEOUT = 10000;
     // Max length of an attribute value, defined in gatt_api.h
@@ -115,15 +118,13 @@ public final class BluetoothGattServer implements BluetoothProfile {
                                         + " connected="
                                         + connected
                                         + " device="
-                                        + address);
+                                        + BluetoothUtils.toAnonymizedAddress(address));
                     }
                     try {
                         mCallback.onConnectionStateChange(
                                 mAdapter.getRemoteDevice(address),
                                 status,
-                                connected
-                                        ? BluetoothProfile.STATE_CONNECTED
-                                        : BluetoothProfile.STATE_DISCONNECTED);
+                                connected ? STATE_CONNECTED : STATE_DISCONNECTED);
                     } catch (Exception ex) {
                         Log.w(TAG, "Unhandled exception in callback", ex);
                     }
@@ -305,7 +306,7 @@ public final class BluetoothGattServer implements BluetoothProfile {
                                 TAG,
                                 "onExecuteWrite() - "
                                         + "device="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + ", transId="
                                         + transId
                                         + "execWrite="
@@ -334,7 +335,7 @@ public final class BluetoothGattServer implements BluetoothProfile {
                                 TAG,
                                 "onNotificationSent() - "
                                         + "device="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + ", status="
                                         + status);
                     }
@@ -388,7 +389,7 @@ public final class BluetoothGattServer implements BluetoothProfile {
                                 TAG,
                                 "onPhyUpdate() - "
                                         + "device="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + ", txPHy="
                                         + txPhy
                                         + ", rxPHy="
@@ -417,7 +418,7 @@ public final class BluetoothGattServer implements BluetoothProfile {
                                 TAG,
                                 "onPhyUpdate() - "
                                         + "device="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + ", txPHy="
                                         + txPhy
                                         + ", rxPHy="
@@ -446,7 +447,7 @@ public final class BluetoothGattServer implements BluetoothProfile {
                         Log.d(
                                 TAG,
                                 "onConnectionUpdated() - Device="
-                                        + address
+                                        + BluetoothUtils.toAnonymizedAddress(address)
                                         + " interval="
                                         + interval
                                         + " latency="

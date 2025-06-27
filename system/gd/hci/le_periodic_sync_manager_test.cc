@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -766,8 +766,8 @@ TEST_F(PeriodicSyncManagerTest, onStartSyncTimeout_callWithoutPeriodicSyncs) {
   Address::FromString("00:11:22:33:44:55", address);
   AddressWithType address_with_type = AddressWithType(address, AddressType::PUBLIC_DEVICE_ADDRESS);
 
-  uint8_t advertiser_sid_1 = 0x02;
   int request_id_1 = 0x01;
+  uint8_t advertiser_sid_1 = 0x02;
   PeriodicSyncStates request{
           .request_id = request_id_1,
           .advertiser_sid = advertiser_sid_1,
@@ -775,7 +775,6 @@ TEST_F(PeriodicSyncManagerTest, onStartSyncTimeout_callWithoutPeriodicSyncs) {
           .sync_handle = sync_handle,
           .sync_state = PeriodicSyncState::PERIODIC_SYNC_STATE_IDLE,
   };
-  ASSERT_NO_FATAL_FAILURE(test_le_scanning_interface_->SetCommandFuture());
   periodic_sync_manager_->StartSync(request, 0x04, 0x0A);
 
   // First timeout to erase periodic_syncs_
@@ -813,6 +812,73 @@ TEST_F(PeriodicSyncManagerTest,
   test_le_scanning_interface_->CommandStatusCallback(
           LePeriodicAdvertisingCreateSyncStatusBuilder::Create(ErrorCode::MEMORY_CAPACITY_EXCEEDED,
                                                                0x00));
+  sync_handler();
+}
+
+TEST_F(PeriodicSyncManagerTest, handleLePeriodicAdvertisingReport_callWithoutPeriodicSyncs) {
+  uint16_t sync_handle = 0x12;
+  ASSERT_NO_FATAL_FAILURE(test_le_scanning_interface_->SetCommandFuture());
+
+  // Get LePeriodicAdvertisingReport
+  std::vector<uint8_t> data = {0x01, 0x02, 0x03};
+  auto builder = LePeriodicAdvertisingReportBuilder::Create(sync_handle, 0x1a, 0x1a,
+                                                            CteType::AOA_CONSTANT_TONE_EXTENSION,
+                                                            DataStatus::COMPLETE, data);
+  auto event_view = LePeriodicAdvertisingReportView::Create(
+          LeMetaEventView::Create(EventView::Create(GetPacketView(std::move(builder)))));
+  periodic_sync_manager_->HandleLePeriodicAdvertisingReport(event_view);
+
+  // Check sync termination
+  auto packet =
+          test_le_scanning_interface_->GetCommand(OpCode::LE_PERIODIC_ADVERTISING_TERMINATE_SYNC);
+  auto packet_view =
+          LePeriodicAdvertisingTerminateSyncView::Create(LeScanningCommandView::Create(packet));
+  ASSERT_TRUE(packet_view.IsValid());
+  ASSERT_EQ(sync_handle, packet_view.GetSyncHandle());
+  sync_handler();
+}
+
+TEST_F(PeriodicSyncManagerTest, handleLePeriodicAdvertisingSyncLost_callWithoutPeriodicSyncs) {
+  uint16_t sync_handle = 0x12;
+  ASSERT_NO_FATAL_FAILURE(test_le_scanning_interface_->SetCommandFuture());
+
+  // Get LePeriodicAdvertisingSyncLost
+  auto builder = LePeriodicAdvertisingSyncLostBuilder::Create(sync_handle);
+
+  auto event_view = LePeriodicAdvertisingSyncLostView::Create(
+          LeMetaEventView::Create(EventView::Create(GetPacketView(std::move(builder)))));
+  periodic_sync_manager_->HandleLePeriodicAdvertisingSyncLost(event_view);
+
+  // Check sync termination
+  auto packet =
+          test_le_scanning_interface_->GetCommand(OpCode::LE_PERIODIC_ADVERTISING_TERMINATE_SYNC);
+  auto packet_view =
+          LePeriodicAdvertisingTerminateSyncView::Create(LeScanningCommandView::Create(packet));
+  ASSERT_TRUE(packet_view.IsValid());
+  ASSERT_EQ(sync_handle, packet_view.GetSyncHandle());
+  sync_handler();
+}
+
+TEST_F(PeriodicSyncManagerTest, handleLeBigInfoAdvertisingReport_callWithoutPeriodicSyncs) {
+  uint16_t sync_handle = 0x12;
+  ASSERT_NO_FATAL_FAILURE(test_le_scanning_interface_->SetCommandFuture());
+
+  // Get LeBigInfoAdvertisingReport
+  auto builder = LeBigInfoAdvertisingReportBuilder::Create(
+          sync_handle, 2, 9, 24, 3, 1, 2, 100, 10000, 100, static_cast<SecondaryPhyType>(2),
+          static_cast<Enable>(0), static_cast<Enable>(1));
+
+  auto event_view = LeBigInfoAdvertisingReportView::Create(
+          LeMetaEventView::Create(EventView::Create(GetPacketView(std::move(builder)))));
+  periodic_sync_manager_->HandleLeBigInfoAdvertisingReport(event_view);
+
+  // Check sync termination
+  auto packet =
+          test_le_scanning_interface_->GetCommand(OpCode::LE_PERIODIC_ADVERTISING_TERMINATE_SYNC);
+  auto packet_view =
+          LePeriodicAdvertisingTerminateSyncView::Create(LeScanningCommandView::Create(packet));
+  ASSERT_TRUE(packet_view.IsValid());
+  ASSERT_EQ(sync_handle, packet_view.GetSyncHandle());
   sync_handler();
 }
 

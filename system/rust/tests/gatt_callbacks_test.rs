@@ -1,20 +1,19 @@
 mod utils;
 
-use std::{rc::Rc, time::Duration};
+use std::rc::Rc;
+use std::time::Duration;
 
-use bluetooth_core::{
-    gatt::{
-        callbacks::{
-            CallbackResponseError, CallbackTransactionManager, GattWriteRequestType, GattWriteType,
-            RawGattDatastore, TransactionDecision,
-        },
-        ffi::AttributeBackingType,
-        ids::{AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex},
-        mocks::mock_callbacks::{MockCallbackEvents, MockCallbacks},
-    },
-    packets::att::AttErrorCode,
+use bluetooth_core::gatt::callbacks::{
+    CallbackResponseError, CallbackTransactionManager, GattWriteRequestType, GattWriteType,
+    RawGattDatastore, TransactionDecision,
 };
-use tokio::{sync::mpsc::UnboundedReceiver, task::spawn_local, time::Instant};
+use bluetooth_core::gatt::ffi::AttributeBackingType;
+use bluetooth_core::gatt::ids::{AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex};
+use bluetooth_core::gatt::mocks::mock_callbacks::{MockCallbackEvents, MockCallbacks};
+use bluetooth_core::packets::att::AttErrorCode;
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::task::spawn_local;
+use tokio::time::Instant;
 use utils::start_test;
 
 const TCB_IDX: TransportIndex = TransportIndex(1);

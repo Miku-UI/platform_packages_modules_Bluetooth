@@ -25,19 +25,20 @@
 #include "hci/address_with_type.h"
 #include "hci/class_of_device.h"
 #include "main/shim/acl_interface.h"
-#include "main/shim/link_connection_interface.h"
 #include "os/handler.h"
 #include "packet/raw_builder.h"
 #include "types/raw_address.h"
+
+void DumpsysAcl(int fd);
+void DumpsysNeighbor(int fd);
 
 namespace bluetooth {
 namespace shim {
 
 class Acl : public hci::acl_manager::ConnectionCallbacks,
-            public hci::acl_manager::LeConnectionCallbacks,
-            public LinkConnectionInterface {
+            public hci::acl_manager::LeConnectionCallbacks {
 public:
-  Acl(os::Handler* handler, const acl_interface_t& acl_interface, uint8_t max_acceptlist_size,
+  Acl(os::Handler* handler, const acl_interface_t& acl_interface,
       uint8_t max_address_resolution_size);
 
   Acl(const Acl&) = delete;
@@ -64,17 +65,13 @@ public:
   void GetAdvertisingSetConnectedTo(const RawAddress& remote_bda,
                                     std::promise<std::optional<uint8_t>> promise);
 
-  // LinkConnectionInterface
-  void CreateClassicConnection(const hci::Address& address) override;
-  void CancelClassicConnection(const hci::Address& address) override;
-  void AcceptLeConnectionFrom(const hci::AddressWithType& address_with_type, bool is_direct,
-                              std::promise<bool> promise) override;
-  void IgnoreLeConnectionFrom(const hci::AddressWithType& address_with_type) override;
-  void DisconnectClassic(uint16_t handle, tHCI_REASON reason, std::string comment) override;
-  void DisconnectLe(uint16_t handle, tHCI_REASON reason, std::string comment) override;
+  void CreateClassicConnection(const hci::Address& address);
+  void CancelClassicConnection(const hci::Address& address);
+  void DisconnectClassic(uint16_t handle, tHCI_REASON reason, std::string comment);
+  void DisconnectLe(uint16_t handle, tHCI_REASON reason, std::string comment);
   void UpdateConnectionParameters(uint16_t handle, uint16_t conn_int_min, uint16_t conn_int_max,
                                   uint16_t conn_latency, uint16_t conn_timeout, uint16_t min_ce_len,
-                                  uint16_t max_ce_len) override;
+                                  uint16_t max_ce_len);
 
   // Address Resolution List
   void AddToAddressResolution(const hci::AddressWithType& address_with_type,
@@ -83,8 +80,6 @@ public:
   void RemoveFromAddressResolution(const hci::AddressWithType& address_with_type);
   void ClearAddressResolution();
 
-  void LeSetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency,
-                           uint16_t cont_num, uint16_t sup_tout);
   void LeSubrateRequest(uint16_t hci_handle, uint16_t subrate_min, uint16_t subrate_max,
                         uint16_t max_latency, uint16_t cont_num, uint16_t sup_tout);
 

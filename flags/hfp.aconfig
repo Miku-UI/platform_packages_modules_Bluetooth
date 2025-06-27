@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "auto_connect_on_multiple_hfp_when_no_a2dp_device"
@@ -15,12 +15,6 @@ flag {
     bug: "315234036"
 }
 
-flag {
-    name: "retry_esco_with_zero_retransmission_effort"
-    namespace: "bluetooth"
-    description: "retry eSCO connection based on retransmission_effort"
-    bug: "316498257"
-}
 
 flag {
     name: "hfp_software_datapath"
@@ -44,26 +38,6 @@ flag {
     namespace: "bluetooth"
     description: "Fix multiple issues in CVSD fallback logics, which are blocking PTS HFP Qualification 1.9"
     bug: "332650199"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "reset_ag_state_on_collision"
-    namespace: "bluetooth"
-    description: "Reset AG instance state as well when outgoing connection attempt is discarded on collision detection"
-    bug: "341376713"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "headset_client_am_hf_volume_symmetric"
-    namespace: "bluetooth"
-    description: "Fix AM/HF volume conversion to be symmetric"
-    bug: "340482648"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -100,30 +74,60 @@ flag {
 }
 
 flag {
-    name: "update_active_device_in_band_ringtone"
-    namespace: "bluetooth"
-    description: "Active device update the in band ringtone, but how ringtone is played is still decided by the headset"
-    bug: "349318724"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "hfp_allow_volume_change_without_sco"
-    namespace: "bluetooth"
-    description: "Allow Audio Fwk to change SCO volume when HFP profile is connected and SCO not connected"
-    bug: "362313390"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "choose_wrong_hfp_codec_in_specific_config"
     namespace: "bluetooth"
     description: "Flag to fix codec selection in nego when the peer device only support NB and SWB."
     bug: "354070098"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "sco_state_machine_cleanup"
+    namespace: "bluetooth"
+    description: "Cleanup SCO SM if headset disconnected during opening."
+    bug: "391090332"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "non_conference_call_hangup"
+    namespace: "bluetooth"
+    description: "Active call hangup when conference call is in holding state "
+    bug: "388159341"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "check_peer_hf_indicator"
+    namespace: "bluetooth"
+    description: "Flag to check the peer HF indicator before setting feature mask"
+    bug: "383933502"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_battery_level_update_only_through_hf_indicator"
+    namespace: "bluetooth"
+    description: "Flag to ignore vendor specific battery level update when HF indicator support is enabled."
+    bug: "385870861"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hfp_volume_control_property"
+    namespace: "bluetooth"
+    description: "Check system property before hands-free volume UI request."
+    bug: "404152232"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -21,7 +21,6 @@
 #include "device_iot_config_int.h"
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -184,15 +183,11 @@ EXPORT_SYMBOL module_t device_iot_config_module = {.name = DEVICE_IOT_CONFIG_MOD
                                                    .clean_up = device_iot_config_module_clean_up};
 
 void device_iot_config_write(uint16_t event, UNUSED_ATTR char* p_param) {
-  if (!com::android::bluetooth::flags::device_iot_config_logging()) {
-    return;
-  }
-
+  std::unique_lock<std::mutex> lock(config_lock);
   log::assert_that(config != NULL, "assert failed: config != NULL");
   log::assert_that(config_timer != NULL, "assert failed: config_timer != NULL");
 
   log::info("evt={}", event);
-  std::unique_lock<std::mutex> lock(config_lock);
   if (event == IOT_CONFIG_SAVE_TIMER_FIRED_EVT) {
     device_iot_config_set_modified_time();
   }
@@ -223,10 +218,6 @@ bool device_iot_config_has_key_value(const std::string& section, const std::stri
 }
 
 void device_iot_config_save_async(void) {
-  if (!com::android::bluetooth::flags::device_iot_config_logging()) {
-    return;
-  }
-
   log::assert_that(config != NULL, "assert failed: config != NULL");
   log::assert_that(config_timer != NULL, "assert failed: config_timer != NULL");
 
@@ -235,10 +226,6 @@ void device_iot_config_save_async(void) {
 }
 
 int device_iot_config_get_device_num(const config_t& conf) {
-  if (!com::android::bluetooth::flags::device_iot_config_logging()) {
-    return 0;
-  }
-
   int devices = 0;
 
   for (const auto& entry : conf.sections) {

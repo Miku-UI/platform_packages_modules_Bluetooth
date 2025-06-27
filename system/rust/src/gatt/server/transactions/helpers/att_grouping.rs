@@ -54,10 +54,9 @@ pub fn find_group_end(
 
 #[cfg(test)]
 mod test {
-    use crate::gatt::{
-        ids::AttHandle,
-        server::{gatt_database::AttPermissions, test::test_att_db::TestAttDatabase},
-    };
+    use crate::gatt::ids::AttHandle;
+    use crate::gatt::server::gatt_database::AttPermissions;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
 
     use super::*;
 

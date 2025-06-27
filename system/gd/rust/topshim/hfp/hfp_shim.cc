@@ -383,6 +383,10 @@ bool interop_insert_call_when_sco_start(RawAddress addr) {
   return interop_match_addr(interop_feature_t::INTEROP_INSERT_CALL_WHEN_SCO_START, &addr);
 }
 
+bool interop_disable_hf_profile(const char* name) {
+  return interop_match_name(interop_feature_t::INTEROP_DISABLE_HF_PROFILE, name);
+}
+
 }  // namespace rust
 }  // namespace topshim
 }  // namespace bluetooth

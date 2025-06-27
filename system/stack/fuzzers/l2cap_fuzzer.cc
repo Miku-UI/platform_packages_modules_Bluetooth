@@ -42,9 +42,6 @@
 #include "test/mock/mock_stack_acl.h"
 #include "test/mock/mock_stack_btm_devctl.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using bluetooth::Uuid;
 using testing::Return;
 using namespace bluetooth;
@@ -78,6 +75,9 @@ uint32_t GetSystemPropertyUint32Base(const std::string& /*property*/, uint32_t d
                                      int /*base*/) {
   return default_value;
 }
+uint32_t GetSystemPropertyUint32(const std::string& /*property*/, uint32_t default_value) {
+  return default_value;
+}
 }  // namespace os
 
 namespace hal {
@@ -97,8 +97,8 @@ void SnoopLogger::SetL2capChannelOpen(uint16_t, uint16_t, uint16_t, uint16_t, bo
 }  // namespace bluetooth
 
 namespace connection_manager {
-bool create_le_connection(uint8_t /* id */, const RawAddress& /* bd_addr */,
-                          tBLE_ADDR_TYPE /* addr_type */) {
+bool direct_connect_add(uint8_t /* id */, const RawAddress& /* bd_addr */,
+                        tBLE_ADDR_TYPE /* addr_type */) {
   return true;
 }
 }  // namespace connection_manager
@@ -121,26 +121,30 @@ public:
 
     GetInterfaceToProfiles()->profileSpecific_HACK->GetHearingAidDeviceCount = []() { return 1; };
 
-    ON_CALL(controller_, GetLeSuggestedDefaultDataLength).WillByDefault(Return(512));
+    bluetooth::hci::testing::mock_controller_ =
+            std::make_unique<bluetooth::hci::testing::MockControllerInterface>();
+    ON_CALL(*bluetooth::hci::testing::mock_controller_, GetLeSuggestedDefaultDataLength)
+            .WillByDefault(Return(512));
     bluetooth::hci::LeBufferSize iso_size;
     iso_size.le_data_packet_length_ = 512;
     iso_size.total_num_le_packets_ = 6;
-    ON_CALL(controller_, GetControllerIsoBufferSize).WillByDefault(Return(iso_size));
+    ON_CALL(*bluetooth::hci::testing::mock_controller_, GetControllerIsoBufferSize)
+            .WillByDefault(Return(iso_size));
     bluetooth::hci::LeBufferSize le_size;
     le_size.le_data_packet_length_ = 512;
     le_size.total_num_le_packets_ = 6;
-    ON_CALL(controller_, GetLeBufferSize).WillByDefault(Return(le_size));
-    ON_CALL(controller_, SupportsBle).WillByDefault(Return(true));
-    ON_CALL(controller_, GetAclPacketLength).WillByDefault(Return(512));
-    bluetooth::hci::testing::mock_controller_ = &controller_;
+    ON_CALL(*bluetooth::hci::testing::mock_controller_, GetLeBufferSize)
+            .WillByDefault(Return(le_size));
+    ON_CALL(*bluetooth::hci::testing::mock_controller_, SupportsBle).WillByDefault(Return(true));
+    ON_CALL(*bluetooth::hci::testing::mock_controller_, GetAclPacketLength)
+            .WillByDefault(Return(512));
   }
 
   ~FakeBtStack() {
     test::mock::stack_acl::acl_send_data_packet_br_edr = {};
     test::mock::stack_acl::acl_send_data_packet_ble = {};
-    bluetooth::hci::testing::mock_controller_ = nullptr;
+    bluetooth::hci::testing::mock_controller_.reset();
   }
-  bluetooth::hci::testing::MockControllerInterface controller_;
 };
 
 class Fakes {

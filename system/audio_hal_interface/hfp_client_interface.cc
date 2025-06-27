@@ -89,7 +89,7 @@ static CodecId sco_codec_to_hal_codec(tBTA_AG_UUID_CODEC sco_codec) {
   }
 }
 
-static AudioConfiguration offload_config_to_hal_audio_config(
+static AudioConfiguration stream_config_to_hal_audio_config(
         const ::hfp::offload_config& offload_config) {
   HfpConfiguration hfp_config{
           .codecId = sco_codec_to_hal_codec(offload_config.sco_codec),
@@ -515,7 +515,7 @@ void HfpClientInterface::Offload::UpdateAudioConfigToHal(
 
   log::info("offload");
   get_encode_client_interface()->UpdateAudioConfig(
-          offload_config_to_hal_audio_config(offload_config));
+          stream_config_to_hal_audio_config(offload_config));
 }
 
 void HfpClientInterface::Offload::UpdateAudioConfigToHal(const ::hfp::pcm_config& /*pcm_config*/) {

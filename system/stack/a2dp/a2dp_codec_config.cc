@@ -123,7 +123,6 @@ A2dpCodecConfig::A2dpCodecConfig(btav_a2dp_codec_index_t codec_index, a2dp::Code
   setCodecPriority(codec_priority);
 
   init_btav_a2dp_codec_config(&codec_config_, codec_index_, codecPriority());
-  init_btav_a2dp_codec_config(&codec_capability_, codec_index_, codecPriority());
   init_btav_a2dp_codec_config(&codec_local_capability_, codec_index_, codecPriority());
   init_btav_a2dp_codec_config(&codec_selectable_capability_, codec_index_, codecPriority());
   init_btav_a2dp_codec_config(&codec_user_config_, codec_index_, BTAV_A2DP_CODEC_PRIORITY_DEFAULT);
@@ -159,8 +158,6 @@ void A2dpCodecConfig::setDefaultCodecPriority() {
 
 A2dpCodecConfig* A2dpCodecConfig::createCodec(btav_a2dp_codec_index_t codec_index,
                                               btav_a2dp_codec_priority_t codec_priority) {
-  log::info("{}", A2DP_CodecIndexStr(codec_index));
-
   // Hardware offload codec extensibility:
   // management of the codec is moved under the ProviderInfo
   // class of the aidl audio HAL client.
@@ -191,9 +188,6 @@ A2dpCodecConfig* A2dpCodecConfig::createCodec(btav_a2dp_codec_index_t codec_inde
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
       codec_config = new A2dpCodecConfigLdacSource(codec_priority);
-      break;
-    case BTAV_A2DP_CODEC_INDEX_SINK_LDAC:
-      codec_config = new A2dpCodecConfigLdacSink(codec_priority);
       break;
     case BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS:
       codec_config = new A2dpCodecConfigOpusSource(codec_priority);
@@ -324,13 +318,6 @@ btav_a2dp_codec_config_t A2dpCodecConfig::getCodecConfig() {
 
   // TODO: We should check whether the codec config is valid
   return codec_config_;
-}
-
-btav_a2dp_codec_config_t A2dpCodecConfig::getCodecCapability() {
-  std::lock_guard<std::recursive_mutex> lock(codec_mutex_);
-
-  // TODO: We should check whether the codec capability is valid
-  return codec_capability_;
 }
 
 btav_a2dp_codec_config_t A2dpCodecConfig::getCodecLocalCapability() {
@@ -686,10 +673,6 @@ bool A2dpCodecs::init() {
     A2dpCodecConfig* codec_config = A2dpCodecConfig::createCodec(codec_index, codec_priority);
     if (codec_config == nullptr) {
       continue;
-    }
-
-    if (codec_priority != BTAV_A2DP_CODEC_PRIORITY_DEFAULT) {
-      log::info("updated {} codec priority to {}", codec_config->name(), codec_priority);
     }
 
     // Test if the codec is disabled

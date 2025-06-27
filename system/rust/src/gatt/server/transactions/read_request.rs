@@ -1,4 +1,5 @@
-use crate::{gatt::server::att_database::AttDatabase, packets::att};
+use crate::gatt::server::att_database::AttDatabase;
+use crate::packets::att;
 use pdl_runtime::EncodeError;
 
 pub async fn handle_read_request<T: AttDatabase>(
@@ -27,17 +28,11 @@ pub async fn handle_read_request<T: AttDatabase>(
 mod test {
     use super::*;
 
-    use crate::{
-        core::uuid::Uuid,
-        gatt::{
-            ids::AttHandle,
-            server::{
-                att_database::{AttAttribute, AttPermissions},
-                test::test_att_db::TestAttDatabase,
-            },
-        },
-        packets::att,
-    };
+    use crate::core::uuid::Uuid;
+    use crate::gatt::ids::AttHandle;
+    use crate::gatt::server::att_database::{AttAttribute, AttPermissions};
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::packets::att;
 
     fn make_db_with_handle_and_value(handle: u16, value: Vec<u8>) -> TestAttDatabase {
         TestAttDatabase::new(vec![(

@@ -200,6 +200,15 @@ void SMP_ClearLocScOobData();
  ******************************************************************************/
 void SMP_SirkConfirmDeviceReply(const RawAddress& bd_addr, uint8_t res);
 
+/*******************************************************************************
+ *
+ * Function         SMP_SirkConfirmDeviceReply
+ *
+ * Description      Returns the key size of peinding LE pairing
+ *
+ ******************************************************************************/
+uint16_t SMP_GetPendingPairingKeySize();
+
 // Called when LTK request is received from controller.
 bool smp_proc_ltk_request(const RawAddress& bda);
 

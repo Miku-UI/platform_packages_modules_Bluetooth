@@ -2,7 +2,8 @@
 //! in many ATT commands, such as ATT_FIND_INFORMATION_REQ and
 //! ATT_FIND_BY_TYPE_VALUE REQ
 
-use crate::gatt::{ids::AttHandle, server::att_database::AttAttribute};
+use crate::gatt::ids::AttHandle;
+use crate::gatt::server::att_database::AttAttribute;
 
 /// Filter a (sorted) iterator of attributes to those that lie within
 /// the specified range. If the range is invalid (start = 0, or start > end),
@@ -24,7 +25,7 @@ pub fn filter_to_range(
 
 #[cfg(test)]
 mod test {
-    use crate::gatt::server::{gatt_database::AttPermissions, gatt_database::CHARACTERISTIC_UUID};
+    use crate::gatt::server::gatt_database::{AttPermissions, CHARACTERISTIC_UUID};
 
     use super::*;
 

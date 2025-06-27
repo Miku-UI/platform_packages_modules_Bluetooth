@@ -1,19 +1,29 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
-
-flag {
-    name: "adapter_properties_looper"
-    namespace: "bluetooth"
-    description: "Manage AdapterProperties threading to not conflict with main looper and handle callback from native properly"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-    bug: "372777933"
-}
+container: "com.android.bt"
 
 flag {
     name: "adapter_suspend_mgmt"
     namespace: "bluetooth"
     description: "Configure the BT adapter in a suspend state to avoid unexpected wake-up"
     bug: "366432079"
+}
+
+flag {
+    name: "call_bluetooth_ready_before_profiles_start"
+    namespace: "bluetooth"
+    description: "Initiates the adapter properties before starting profiles"
+    bug: "405437771"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "empty_names_are_invalid"
+    namespace: "bluetooth"
+    description: "Make sure the names used in the stack are valid"
+    bug: "395178934"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

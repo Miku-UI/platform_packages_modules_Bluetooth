@@ -1,22 +1,16 @@
 use log::warn;
-use pdl_runtime::DecodeError;
-use pdl_runtime::EncodeError;
+use pdl_runtime::{DecodeError, EncodeError};
 
-use crate::{
-    gatt::ids::AttHandle,
-    packets::att::{self, AttErrorCode},
-};
+use crate::gatt::ids::AttHandle;
+use crate::packets::att::{self, AttErrorCode};
 
-use super::{
-    att_database::AttDatabase,
-    transactions::{
-        find_by_type_value::handle_find_by_type_value_request,
-        find_information_request::handle_find_information_request,
-        read_by_group_type_request::handle_read_by_group_type_request,
-        read_by_type_request::handle_read_by_type_request, read_request::handle_read_request,
-        write_request::handle_write_request,
-    },
-};
+use super::att_database::AttDatabase;
+use super::transactions::find_by_type_value::handle_find_by_type_value_request;
+use super::transactions::find_information_request::handle_find_information_request;
+use super::transactions::read_by_group_type_request::handle_read_by_group_type_request;
+use super::transactions::read_by_type_request::handle_read_by_type_request;
+use super::transactions::read_request::handle_read_request;
+use super::transactions::write_request::handle_write_request;
 
 /// This struct handles all requests needing ACKs. Only ONE should exist per
 /// bearer per database, to ensure serialization.
@@ -108,15 +102,11 @@ impl<Db: AttDatabase> AttRequestHandler<Db> {
 mod test {
     use super::*;
 
-    use crate::{
-        core::uuid::Uuid,
-        gatt::server::{
-            att_database::{AttAttribute, AttPermissions},
-            request_handler::AttRequestHandler,
-            test::test_att_db::TestAttDatabase,
-        },
-        packets::att,
-    };
+    use crate::core::uuid::Uuid;
+    use crate::gatt::server::att_database::{AttAttribute, AttPermissions};
+    use crate::gatt::server::request_handler::AttRequestHandler;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::packets::att;
 
     #[test]
     fn test_read_request() {

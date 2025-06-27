@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,10 @@
  */
 
 package com.android.bluetooth.audio_util;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
 
@@ -34,15 +38,13 @@ import android.os.HandlerThread;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,13 +52,12 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Test cases for {@link BrowserPlayerWrapper}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BrowserPlayerWrapperTest {
@@ -66,7 +67,7 @@ public class BrowserPlayerWrapperTest {
     @Captor ArgumentCaptor<MediaController.Callback> mControllerCb;
     @Captor ArgumentCaptor<Handler> mTimeoutHandler;
     @Captor ArgumentCaptor<List<ListItem>> mWrapperBrowseCb;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock MediaBrowser mMockBrowser;
     @Mock BrowsedPlayerWrapper.ConnectionCallback mConnCb;
@@ -74,7 +75,6 @@ public class BrowserPlayerWrapperTest {
     private HandlerThread mThread;
 
     @Mock Context mMockContext;
-    @Mock Resources mMockResources;
     private Context mTargetContext;
     private Resources mTestResources;
     private MockContentResolver mTestContentResolver;
@@ -94,7 +94,7 @@ public class BrowserPlayerWrapperTest {
     @Before
     public void setUp() {
 
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mTestResources = TestUtils.getTestApplicationResources(mTargetContext);
 
         mTestBitmap = loadImage(com.android.bluetooth.tests.R.raw.image_200_200);
@@ -115,8 +115,7 @@ public class BrowserPlayerWrapperTest {
                 });
 
         when(mMockContext.getContentResolver()).thenReturn(mTestContentResolver);
-        when(mMockResources.getBoolean(R.bool.avrcp_target_cover_art_uri_images)).thenReturn(true);
-        when(mMockContext.getResources()).thenReturn(mMockResources);
+        Util.sUriImagesSupport = true;
 
         // Set up Looper thread for the timeout handler
         mThread = new HandlerThread("MediaPlayerWrapperTestThread");
@@ -137,6 +136,7 @@ public class BrowserPlayerWrapperTest {
         mTestBitmap = null;
         mTestResources = null;
         mTargetContext = null;
+        Util.sUriImagesSupport = false;
     }
 
     private Bitmap loadImage(int resId) {
@@ -144,7 +144,7 @@ public class BrowserPlayerWrapperTest {
         return BitmapFactory.decodeStream(imageInputStream);
     }
 
-    private MediaDescription getMediaDescription(
+    private static MediaDescription getMediaDescription(
             String id,
             String title,
             String artist,
@@ -170,7 +170,7 @@ public class BrowserPlayerWrapperTest {
         return builder.build();
     }
 
-    private MediaItem getMediaItem(MediaDescription description, int flags) {
+    private static MediaItem getMediaItem(MediaDescription description, int flags) {
         return new MediaItem(description, flags);
     }
 
@@ -272,7 +272,7 @@ public class BrowserPlayerWrapperTest {
         MediaBrowser.ConnectionCallback browserConnCb = mBrowserConnCb.getValue();
         browserConnCb.onConnected();
 
-        Assert.assertEquals("root_folder", wrapper.getRootId());
+        assertThat(wrapper.getRootId()).isEqualTo("root_folder");
         verify(mMockBrowser).disconnect();
     }
 
@@ -390,30 +390,30 @@ public class BrowserPlayerWrapperTest {
         for (int i = 0; i < item_list.size(); i++) {
             MediaItem expected = items.get(i);
             ListItem item = item_list.get(i);
-            Assert.assertEquals(expected.isBrowsable(), item.isFolder);
+            assertThat(item.isFolder).isEqualTo(expected.isBrowsable());
             if (item.isFolder) {
                 Folder folder = item.folder;
-                Assert.assertNotNull(folder);
-                Assert.assertFalse(folder.isPlayable);
-                Assert.assertEquals(expected.getDescription().getMediaId(), folder.mediaId);
-                Assert.assertEquals(expected.getDescription().getTitle().toString(), folder.title);
+                assertThat(folder).isNotNull();
+                assertThat(folder.isPlayable).isFalse();
+                assertThat(folder.mediaId).isEqualTo(expected.getDescription().getMediaId());
+                assertThat(folder.title).isEqualTo(expected.getDescription().getTitle().toString());
             } else {
                 Metadata song = item.song;
-                Assert.assertNotNull(song);
-                Assert.assertEquals(expected.getDescription().getMediaId(), song.mediaId);
-                Assert.assertEquals(expected.getDescription().getTitle().toString(), song.title);
-                Assert.assertEquals(
-                        expected.getDescription().getSubtitle().toString(), song.artist);
-                Assert.assertEquals(
-                        expected.getDescription().getDescription().toString(), song.album);
+                assertThat(song).isNotNull();
+                assertThat(song.mediaId).isEqualTo(expected.getDescription().getMediaId());
+                assertThat(song.title).isEqualTo(expected.getDescription().getTitle().toString());
+                assertThat(song.artist)
+                        .isEqualTo(expected.getDescription().getSubtitle().toString());
+                assertThat(song.album)
+                        .isEqualTo(expected.getDescription().getDescription().toString());
                 if (expected.getDescription().getIconBitmap() != null) {
-                    Assert.assertNotNull(song.image);
+                    assertThat(song.image).isNotNull();
                     Bitmap expectedBitmap = expected.getDescription().getIconBitmap();
-                    Assert.assertTrue(expectedBitmap.sameAs(song.image.getImage()));
+                    assertThat(expectedBitmap.sameAs(song.image.getImage())).isTrue();
                 } else if (expected.getDescription().getIconUri() != null) {
-                    Assert.assertTrue(mTestBitmap.sameAs(song.image.getImage()));
+                    assertThat(mTestBitmap.sameAs(song.image.getImage())).isTrue();
                 } else {
-                    Assert.assertEquals(null, song.image);
+                    assertThat(song.image).isNull();
                 }
             }
         }

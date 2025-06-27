@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import com.android.bluetooth.btservice.AdapterService;
 /** Factory class for object initialization to help with unit testing */
 public class HeadsetObjectsFactory {
     private static final String TAG = HeadsetObjectsFactory.class.getSimpleName();
+
     private static HeadsetObjectsFactory sInstance;
     private static final Object INSTANCE_LOCK = new Object();
 

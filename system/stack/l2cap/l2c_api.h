@@ -73,8 +73,6 @@ public:
                                           uint8_t* p_chnl_mask) override;
   [[nodiscard]] bool L2CA_SetAclPriority(const RawAddress& bd_addr,
                                          tL2CAP_PRIORITY priority) override;
-  void L2CA_SetDefaultSubrate(uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency,
-                              uint16_t cont_num, uint16_t timeout) override;
   void L2CA_AdjustConnectionIntervals(uint16_t* min_interval, uint16_t* max_interval,
                                       uint16_t floor_interval) override;
   void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) override;
@@ -106,6 +104,7 @@ public:
   void L2CA_LockBleConnParamsForServiceDiscovery(const RawAddress& bd_addr, bool lock) override;
   void L2CA_LockBleConnParamsForProfileConnection(const RawAddress& bd_addr, bool lock) override;
   [[nodiscard]] tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) override;
+  [[nodiscard]] uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) override;
   [[nodiscard]] bool L2CA_SetLeGattTimeout(const RawAddress& bd_addr, uint16_t idle_tout) override;
   [[nodiscard]] bool L2CA_MarkLeLinkAsActive(const RawAddress& bd_addr) override;
   [[nodiscard]] bool L2CA_GetPeerLECocConfig(uint16_t lcid, tL2CAP_LE_CFG_INFO* peer_cfg) override;
@@ -135,6 +134,8 @@ public:
                                          bool is_local_cid) override;
 
   [[nodiscard]] bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) override;
+
+  [[nodiscard]] bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) override;
 };
 
 }  // namespace l2cap

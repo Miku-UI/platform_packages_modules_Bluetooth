@@ -33,13 +33,10 @@
 #include "test/mock/mock_stack_l2cap_api.h"
 #include "test/mock/mock_stack_l2cap_ble.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 bluetooth::common::MessageLoopThread* main_thread_ptr = nullptr;
 
 bluetooth::common::MessageLoopThread* get_main_thread() { return main_thread_ptr; }
+
 namespace {
 
 #define SDP_DB_SIZE 0x10000

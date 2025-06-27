@@ -30,7 +30,10 @@ void LogMetricClassicPairingEvent(const Address& address, uint16_t handle, uint3
 void LogMetricSocketConnectionState(const Address& address, int port, int type,
                                     android::bluetooth::SocketConnectionstateEnum connection_state,
                                     int64_t tx_bytes, int64_t rx_bytes, int uid, int server_port,
-                                    android::bluetooth::SocketRoleEnum socket_role) {}
+                                    android::bluetooth::SocketRoleEnum socket_role,
+                                    uint64_t /* connection_duration_ms */,
+                                    android::bluetooth::SocketErrorEnum /* error_code */,
+                                    bool /* is_hardware_offload */) {}
 
 void LogMetricHciTimeoutEvent(uint32_t hci_cmd) {}
 
@@ -108,7 +111,31 @@ void LogMetricBluetoothCodePathCounterMetrics(int32_t key, int64_t count) {}
 
 void LogMetricBluetoothLEConnection(os::LEConnectionSessionOptions /* session_options */) {}
 
+void LogMetricRfcommConnectionAtClose(const Address& raw_address,
+                                      android::bluetooth::rfcomm::PortResult close_reason,
+                                      android::bluetooth::rfcomm::SocketConnectionSecurity security,
+                                      android::bluetooth::rfcomm::RfcommPortEvent last_event,
+                                      android::bluetooth::rfcomm::RfcommPortState previous_state,
+                                      int32_t open_duration_ms, int32_t uid,
+                                      android::bluetooth::BtaStatus sdp_status, bool is_server,
+                                      bool sdp_initiated, int32_t sdp_duration_ms) {}
+
 void LogMetricBluetoothEvent(const Address& address, android::bluetooth::EventType event_type,
                              android::bluetooth::State state) {}
+
+void LogMetricLeAudioConnectionSessionReported(
+        int32_t /*group_size*/, int32_t /*group_metric_id*/, int64_t /*connection_duration_nanos*/,
+        const std::vector<int64_t>& /*device_connecting_offset_nanos*/,
+        const std::vector<int64_t>& /*device_connected_offset_nanos*/,
+        const std::vector<int64_t>& /*device_connection_duration_nanos*/,
+        const std::vector<int32_t>& /*device_connection_status*/,
+        const std::vector<int32_t>& /*device_disconnection_status*/,
+        const std::vector<RawAddress>& /*device_address*/,
+        const std::vector<int64_t>& /*streaming_offset_nanos*/,
+        const std::vector<int64_t>& /*streaming_duration_nanos*/,
+        const std::vector<int32_t>& /*streaming_context_type*/) {}
+
+void LogMetricLeAudioBroadcastSessionReported(int64_t /*duration_nanos*/) {}
+
 }  // namespace os
 }  // namespace bluetooth

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,16 @@
  */
 package com.android.bluetooth.a2dpsink;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -26,15 +32,13 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAudioConfig;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.media.AudioFormat;
-import android.os.test.TestLooper;
 
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 
 import org.junit.After;
@@ -43,18 +47,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link A2dpSinkStateMachine}. */
 @RunWith(AndroidJUnit4.class)
 public class A2dpSinkStateMachineTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private A2dpSinkService mService;
     @Mock private A2dpSinkNativeInterface mNativeInterface;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = mAdapter.getRemoteDevice("11:11:11:11:11:11");
+    private final BluetoothDevice mDevice = getTestDevice(11);
 
     private A2dpSinkStateMachine mStateMachine;
     private TestLooper mLooper;
@@ -133,7 +135,7 @@ public class A2dpSinkStateMachineTest {
 
     @Test
     public void testAllowedIncomingConnectionInDisconnected() {
-        mockDeviceConnectionPolicy(mDevice, BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        mockDeviceConnectionPolicy(mDevice, CONNECTION_POLICY_ALLOWED);
 
         sendConnectionEvent(STATE_CONNECTING);
         assertThat(mStateMachine.getState()).isEqualTo(STATE_CONNECTING);
@@ -142,7 +144,7 @@ public class A2dpSinkStateMachineTest {
 
     @Test
     public void testForbiddenIncomingConnectionInDisconnected() {
-        mockDeviceConnectionPolicy(mDevice, BluetoothProfile.CONNECTION_POLICY_FORBIDDEN);
+        mockDeviceConnectionPolicy(mDevice, CONNECTION_POLICY_FORBIDDEN);
 
         sendConnectionEvent(STATE_CONNECTING);
         verify(mNativeInterface).disconnectA2dpSink(mDevice);
@@ -151,7 +153,7 @@ public class A2dpSinkStateMachineTest {
 
     @Test
     public void testUnknownIncomingConnectionInDisconnected() {
-        mockDeviceConnectionPolicy(mDevice, BluetoothProfile.CONNECTION_POLICY_UNKNOWN);
+        mockDeviceConnectionPolicy(mDevice, CONNECTION_POLICY_UNKNOWN);
 
         sendConnectionEvent(STATE_CONNECTING);
         assertThat(mStateMachine.getState()).isEqualTo(STATE_CONNECTING);

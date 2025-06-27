@@ -40,7 +40,12 @@ import java.security.NoSuchAlgorithmException;
  */
 public class CoverArt {
     private static final String TAG = CoverArt.class.getSimpleName();
-    private static final BipPixel PIXEL_THUMBNAIL = BipPixel.createFixed(200, 200);
+
+    // The size in pixels of the thumbnail sides.
+    private static final int THUMBNAIL_SIZE = 200;
+
+    private static final BipPixel PIXEL_THUMBNAIL =
+            BipPixel.createFixed(THUMBNAIL_SIZE, THUMBNAIL_SIZE);
 
     private String mImageHandle = null;
     private Bitmap mImage = null;
@@ -50,7 +55,7 @@ public class CoverArt {
         // Create a scaled version of the image for now, as consumers don't need
         // anything larger than this at the moment. Also makes each image gathered
         // the same dimensions for hashing purposes.
-        mImage = Bitmap.createScaledBitmap(image.getImage(), 200, 200, false);
+        mImage = Bitmap.createScaledBitmap(image.getImage(), THUMBNAIL_SIZE, THUMBNAIL_SIZE, false);
     }
 
     /**
@@ -72,7 +77,7 @@ public class CoverArt {
     }
 
     /** Covert a Bitmap to a byte array with an image format without lossy compression */
-    private byte[] toByteArray(Bitmap bitmap) {
+    private static byte[] toByteArray(Bitmap bitmap) {
         if (bitmap == null) return null;
         ByteArrayOutputStream buffer =
                 new ByteArrayOutputStream(bitmap.getWidth() * bitmap.getHeight());
@@ -126,20 +131,22 @@ public class CoverArt {
     }
 
     /** Determine if a given image descriptor is valid */
-    private boolean isDescriptorValid(BipImageDescriptor descriptor) {
+    private static boolean isDescriptorValid(BipImageDescriptor descriptor) {
         debug("isDescriptorValid(descriptor=" + descriptor + ")");
         if (descriptor == null) return false;
 
         BipEncoding encoding = descriptor.getEncoding();
         BipPixel pixel = descriptor.getPixel();
 
-        if (encoding.getType() == BipEncoding.JPEG && PIXEL_THUMBNAIL.equals(pixel)) {
+        int encodingType = encoding.getType();
+        if ((encodingType == BipEncoding.JPEG || encodingType == BipEncoding.PNG)
+                && PIXEL_THUMBNAIL.equals(pixel)) {
             return true;
         }
         return false;
     }
 
-    /** Get the cover artwork image bytes as a 200 x 200 JPEG thumbnail */
+    /** Get the cover artwork image bytes as a THUMBNAIL_SIZE x THUMBNAIL_SIZE JPEG thumbnail */
     public byte[] getThumbnail() {
         debug("GetImageThumbnail()");
         if (mImage == null) return null;
@@ -160,12 +167,19 @@ public class CoverArt {
             return null;
         }
         BipImageProperties.Builder builder = new BipImageProperties.Builder();
-        BipEncoding encoding = new BipEncoding(BipEncoding.JPEG);
-        BipPixel pixel = BipPixel.createFixed(200, 200);
-        BipImageFormat format = BipImageFormat.createNative(encoding, pixel, -1);
+
+        BipEncoding jpgEncoding = new BipEncoding(BipEncoding.JPEG);
+        BipEncoding pngEncoding = new BipEncoding(BipEncoding.PNG);
+        BipPixel jpgPixel = BipPixel.createFixed(THUMBNAIL_SIZE, THUMBNAIL_SIZE);
+        BipPixel pngPixel = BipPixel.createFixed(THUMBNAIL_SIZE, THUMBNAIL_SIZE);
+
+        BipImageFormat jpgNativeFormat = BipImageFormat.createNative(jpgEncoding, jpgPixel, -1);
+        BipImageFormat pngVariantFormat =
+                BipImageFormat.createVariant(pngEncoding, pngPixel, THUMBNAIL_SIZE, null);
 
         builder.setImageHandle(mImageHandle);
-        builder.addNativeFormat(format);
+        builder.addNativeFormat(jpgNativeFormat);
+        builder.addVariantFormat(pngVariantFormat);
 
         BipImageProperties properties = builder.build();
         return properties;
@@ -182,12 +196,12 @@ public class CoverArt {
     }
 
     /** Print a message to DEBUG if debug output is enabled */
-    private void debug(String msg) {
+    private static void debug(String msg) {
         Log.d(TAG, msg);
     }
 
     /** Print a message to ERROR */
-    private void error(String msg) {
+    private static void error(String msg) {
         Log.e(TAG, msg);
     }
 }

@@ -4917,7 +4917,6 @@ packet LeSubrateRequestStatus : CommandStatus (command_op_code = LE_SUBRATE_REQU
 }
 
 packet LeCsReadLocalSupportedCapabilities : DistanceMeasurementCommand (op_code = LE_CS_READ_LOCAL_SUPPORTED_CAPABILITIES) {
-
 }
 
 struct CsRoleSupported {
@@ -4950,12 +4949,13 @@ struct CsOptionalNadmRandomCapability {
 
 struct CsOptionalCsSyncPhysSupported {
   le_2m_phy : 1,
-  _reserved_ : 7,
+  le_2m_2bt_phy : 1,
+  _reserved_ : 6,
 }
 
 struct CsOptionalSubfeaturesSupported {
-  companion_signal : 1,
-  frequency_actuation_error : 1,
+  _reserved_ : 1,
+  no_frequency_actuation_error : 1,
   channel_selection_algorithm : 1,
   phase_based_ranging : 1,
   _reserved_ : 12,
@@ -5140,7 +5140,7 @@ enum CsRole : 8 {
 }
 
 enum CsConfigRttType : 8 {
-  RTT_AA_COARSE = 0x00,
+  RTT_AA_ONLY = 0x00,
   RTT_WITH_32_BIT_SOUNDING_SEQUENCE = 0x01,
   RTT_WITH_96_BIT_SOUNDING_SEQUENCE = 0x02,
   RTT_WITH_32_BIT_RANDOM_SEQUENCE = 0x03,
@@ -5152,6 +5152,7 @@ enum CsConfigRttType : 8 {
 enum CsSyncPhy : 8 {
   LE_1M_PHY = 0x01,
   LE_2M_PHY = 0x02,
+  LE_2M_2BT_PHY = 0x03,
 }
 
 enum CsChannelSelectionType : 8 {
@@ -5293,7 +5294,7 @@ packet LeCsTest : DistanceMeasurementCommand (op_code = LE_CS_TEST) {
   snr_control_reflector: CsSnrControl,
   drbg_nonce : 16,
   channel_map_repetition : 8,
-  override_config : 8,
+  override_config : 16,
   override_parameters_length : 8,
   override_parameters_data : 8[],
 }
@@ -6890,6 +6891,7 @@ packet LeCsProcedureEnableComplete : LeMetaEvent (subevent_code = LE_CS_PROCEDUR
   event_interval : 16,
   procedure_interval : 16,
   procedure_count : 16,
+  max_procedure_len : 16,
 }
 
 struct LeCsMode0InitatorData {
@@ -6975,8 +6977,8 @@ struct LeCsMode3InitatorData {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
-  packet_antenna : 8,
   toa_tod_initiator : 16,
+  packet_antenna : 8,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }
@@ -6986,10 +6988,10 @@ struct LeCsMode3InitatorDataWithPacketPct {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
+  toa_tod_initiator : 16,
   packet_antenna : 8,
   packet_pct1 : LeCsToneData,
   packet_pct2 : LeCsToneData,
-  toa_tod_initiator : 16,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }
@@ -6999,8 +7001,8 @@ struct LeCsMode3ReflectorData {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
-  packet_antenna : 8,
   tod_toa_reflector : 16,
+  packet_antenna : 8,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }
@@ -7010,10 +7012,10 @@ struct LeCsMode3ReflectorDataWithPacketPct {
   packet_quality : 8,
   packet_nadm : CsPacketNadm,
   packet_rssi : 8,
+  tod_toa_reflector : 16,
   packet_antenna : 8,
   packet_pct1 : LeCsToneData,
   packet_pct2 : LeCsToneData,
-  tod_toa_reflector : 16,
   antenna_permutation_index : 8,
   tone_data : LeCsToneDataWithQuality[],
 }

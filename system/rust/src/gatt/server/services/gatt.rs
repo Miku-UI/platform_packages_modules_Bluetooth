@@ -1,32 +1,27 @@
 //! The GATT service as defined in Core Spec 5.3 Vol 3G Section 7
 
 use pdl_runtime::Packet;
-use std::{cell::RefCell, collections::HashMap, ops::RangeInclusive, rc::Rc};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ops::RangeInclusive;
+use std::rc::Rc;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use log::{error, warn};
 use tokio::task::spawn_local;
 
-use crate::{
-    core::{
-        shared_box::{WeakBox, WeakBoxRef},
-        uuid::Uuid,
-    },
-    gatt::{
-        callbacks::GattDatastore,
-        ffi::AttributeBackingType,
-        ids::{AttHandle, TransportIndex},
-        server::{
-            att_server_bearer::AttServerBearer,
-            gatt_database::{
-                AttDatabaseImpl, AttPermissions, GattCharacteristicWithHandle, GattDatabase,
-                GattDatabaseCallbacks, GattDescriptorWithHandle, GattServiceWithHandle,
-            },
-        },
-    },
-    packets::att::{self, AttErrorCode},
+use crate::core::shared_box::{WeakBox, WeakBoxRef};
+use crate::core::uuid::Uuid;
+use crate::gatt::callbacks::GattDatastore;
+use crate::gatt::ffi::AttributeBackingType;
+use crate::gatt::ids::{AttHandle, TransportIndex};
+use crate::gatt::server::att_server_bearer::AttServerBearer;
+use crate::gatt::server::gatt_database::{
+    AttDatabaseImpl, AttPermissions, GattCharacteristicWithHandle, GattDatabase,
+    GattDatabaseCallbacks, GattDescriptorWithHandle, GattServiceWithHandle,
 };
+use crate::packets::att::{self, AttErrorCode};
 
 #[derive(Default)]
 struct GattService {
@@ -178,20 +173,14 @@ mod test {
 
     use super::*;
 
-    use crate::{
-        core::shared_box::SharedBox,
-        gatt::{
-            mocks::mock_datastore::MockDatastore,
-            server::{
-                att_database::AttDatabase,
-                gatt_database::{
-                    GattDatabase, CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID,
-                },
-            },
-        },
-        packets::att,
-        utils::task::{block_on_locally, try_await},
+    use crate::core::shared_box::SharedBox;
+    use crate::gatt::mocks::mock_datastore::MockDatastore;
+    use crate::gatt::server::att_database::AttDatabase;
+    use crate::gatt::server::gatt_database::{
+        GattDatabase, CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID,
     };
+    use crate::packets::att;
+    use crate::utils::task::{block_on_locally, try_await};
 
     const TCB_IDX: TransportIndex = TransportIndex(1);
     const ANOTHER_TCB_IDX: TransportIndex = TransportIndex(2);

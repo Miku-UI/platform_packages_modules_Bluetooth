@@ -22,25 +22,13 @@ import static org.mockito.Mockito.*;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+/** Test cases for {@link VolumeControlOffsetDescriptor}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class VolumeControlOffsetDescriptorTest {
-
-    @Before
-    public void setUp() throws Exception {
-        // placeholder
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        // placeholder
-    }
-
     @Test
     public void testVolumeControlOffsetDescriptorInvalidIdOperations() {
         VolumeControlOffsetDescriptor descriptor = new VolumeControlOffsetDescriptor();

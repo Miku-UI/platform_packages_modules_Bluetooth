@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -182,12 +182,12 @@ final class AvrcpCoverArtStorage {
     }
 
     /** Print a message to DEBUG if debug output is enabled */
-    private void debug(String msg) {
+    private static void debug(String msg) {
         Log.d(TAG, msg);
     }
 
     /** Print a message to ERROR */
-    private void error(String msg) {
+    private static void error(String msg) {
         Log.e(TAG, msg);
     }
 }

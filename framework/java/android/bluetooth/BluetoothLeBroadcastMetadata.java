@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package android.bluetooth;
+
+import static java.util.Objects.requireNonNull;
 
 import android.annotation.IntDef;
 import android.annotation.IntRange;
@@ -516,7 +518,7 @@ public final class BluetoothLeBroadcastMetadata implements Parcelable {
         private @AudioConfigQuality int mAudioConfigQuality = AUDIO_CONFIG_QUALITY_NONE;
         private int mRssi = RSSI_UNKNOWN;
         private BluetoothLeAudioContentMetadata mPublicBroadcastMetadata = null;
-        private List<BluetoothLeBroadcastSubgroup> mSubgroups = new ArrayList<>();
+        private final List<BluetoothLeBroadcastSubgroup> mSubgroups = new ArrayList<>();
 
         /**
          * Create an empty builder.
@@ -547,7 +549,9 @@ public final class BluetoothLeBroadcastMetadata implements Parcelable {
             mAudioConfigQuality = original.getAudioConfigQuality();
             mRssi = original.getRssi();
             mPublicBroadcastMetadata = original.getPublicBroadcastMetadata();
-            mSubgroups = original.getSubgroups();
+            for (BluetoothLeBroadcastSubgroup subgroup : original.getSubgroups()) {
+                mSubgroups.add(new BluetoothLeBroadcastSubgroup.Builder(subgroup).build());
+            }
         }
 
         /**
@@ -580,7 +584,7 @@ public final class BluetoothLeBroadcastMetadata implements Parcelable {
                 throw new IllegalArgumentException(
                         "sourceAddressType " + sourceAddressType + " is invalid");
             }
-            Objects.requireNonNull(sourceDevice, "sourceDevice cannot be null");
+            requireNonNull(sourceDevice);
             mSourceAddressType = sourceAddressType;
             mSourceDevice = sourceDevice;
             return this;
@@ -783,7 +787,7 @@ public final class BluetoothLeBroadcastMetadata implements Parcelable {
          */
         @SystemApi
         public @NonNull Builder addSubgroup(@NonNull BluetoothLeBroadcastSubgroup subgroup) {
-            Objects.requireNonNull(subgroup, "subgroup cannot be null");
+            requireNonNull(subgroup);
             mSubgroups.add(subgroup);
             return this;
         }
@@ -819,7 +823,7 @@ public final class BluetoothLeBroadcastMetadata implements Parcelable {
                 throw new IllegalArgumentException(
                         "sourceAddressType " + mSourceAddressType + " is invalid");
             }
-            Objects.requireNonNull(mSourceDevice, "mSourceDevice cannot be null");
+            requireNonNull(mSourceDevice);
             if (mSubgroups.isEmpty()) {
                 throw new IllegalArgumentException("Must contain at least one subgroup");
             }

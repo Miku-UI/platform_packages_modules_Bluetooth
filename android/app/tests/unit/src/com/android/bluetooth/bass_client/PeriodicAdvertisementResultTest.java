@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,26 @@
 
 package com.android.bluetooth.bass_client;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeBroadcastMetadata;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+/** Test cases for {@link PeriodicAdvertisementResult}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class PeriodicAdvertisementResultTest {
-    private static final String REMOTE_DEVICE_ADDRESS = "00:01:02:03:04:05";
     private static final String TEST_BROADCAST_NAME = "Test";
 
-    BluetoothDevice mDevice;
-
-    @Before
-    public void setUp() {
-        mDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
-    }
+    private final BluetoothDevice mDevice = getTestDevice(80);
 
     @Test
     public void constructor() {
@@ -144,7 +139,7 @@ public class PeriodicAdvertisementResultTest {
     }
 
     /** Helper to generate test data for public broadcast. */
-    private PublicBroadcastData generatePublicBroadcastData() {
+    private static PublicBroadcastData generatePublicBroadcastData() {
         PublicBroadcastData.PublicBroadcastInfo info =
                 new PublicBroadcastData.PublicBroadcastInfo();
         info.isEncrypted = true;

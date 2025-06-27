@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,11 @@
  */
 
 package com.android.bluetooth.hid;
+
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
 import android.util.Log;
 
@@ -109,18 +114,18 @@ public class HidHostNativeInterface {
     private static int convertHalState(int halState) {
         switch (halState) {
             case CONN_STATE_CONNECTED:
-                return HidHostService.STATE_CONNECTED;
+                return STATE_CONNECTED;
             case CONN_STATE_CONNECTING:
-                return HidHostService.STATE_CONNECTING;
+                return STATE_CONNECTING;
             case CONN_STATE_DISCONNECTED:
-                return HidHostService.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
             case CONN_STATE_DISCONNECTING:
-                return HidHostService.STATE_DISCONNECTING;
+                return STATE_DISCONNECTING;
             case CONN_STATE_ACCEPTING:
                 return HidHostService.STATE_ACCEPTING;
             default:
                 Log.e(TAG, "bad hid connection state: " + halState);
-                return HidHostService.STATE_DISCONNECTED;
+                return STATE_DISCONNECTED;
         }
     }
 

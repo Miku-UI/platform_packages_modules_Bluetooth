@@ -117,6 +117,7 @@ class AVRCPProxy(ProfileProxy):
         Action: Make sure the IUT is in a connectable state.
 
         """
+        self.mediaplayer.ResetQueue()
         return "OK"
 
     @assert_description
@@ -1078,5 +1079,75 @@ class AVRCPProxy(ProfileProxy):
            * Result =
         0x0000 (Request accepted)
         """
+
+        return "OK"
+
+    @assert_description
+    def TSC_OBEX_MMI_iut_accept_slc_connect_l2cap(self, **kwargs):
+        """
+         Please accept the l2cap channel connection for an OBEX connection.
+        """
+
+        return "OK"
+
+    @assert_description
+    def TSC_OBEX_MMI_iut_accept_connect(self, **kwargs):
+        """
+         Please accept the OBEX CONNECT REQ.
+        """
+
+        return "OK"
+
+
+    @assert_description
+    def TSC_AVRCP_mmi_user_queue_cover_art_element(self, **kwargs):
+        """
+        Take action to play a media element with cover art.  Press 'Ok' when
+        ready.
+        """
+        self.mediaplayer.Play()
+
+        return "OK"
+
+    @assert_description
+    def TSC_AVRCP_mmi_iut_reject_invalid_get_img(self, **kwargs):
+        """
+        Take action to reject the invalid 'get-img' request sent by the tester.
+        """
+
+        return "OK"
+
+    @assert_description
+    def TSC_BIP_MMI_iut_accept_get_img_properties(self, **kwargs):
+        """
+         Take action to accept the GetImgProperties operation from the tester.
+        """
+
+        return "OK"
+
+    @assert_description
+    def TSC_BIP_MMI_iut_accept_get_img(self, **kwargs):
+        """
+         Take action to accept the GetImg operation from the tester.
+        """
+
+        return "OK"
+
+    @assert_description
+    def TSC_OBEX_MMI_tester_verify_sent_file_or_folder(self, **kwargs):
+        """
+         Was the currently displayed file or folder sent by the IUT?
+        """
+
+        return "OK"
+
+    @assert_description
+    def TSC_AVRCP_mmi_user_queue_no_cover_art_element(self, **kwargs):
+        """
+        Take action to play a media element that does not have any cover art
+        with it.  Press 'Ok' when ready.
+        """
+        self.mediaplayer.UpdateQueue()
+        self.mediaplayer.PlayUpdated()
 
         return "OK"

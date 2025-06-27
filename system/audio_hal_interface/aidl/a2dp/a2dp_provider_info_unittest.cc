@@ -269,7 +269,7 @@ TEST_F(ProviderInfoTest, TestGetCodecNotSupported) {
   GetProviderInfoForTesting(true, false);
 
   auto received_codec_info_not_supported_codec =
-          provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SINK_LDAC);
+          provider_info->GetCodec(BTAV_A2DP_CODEC_INDEX_SINK_MAX);
   ASSERT_FALSE(received_codec_info_not_supported_codec.has_value());
 }
 

@@ -1,12 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
-
-flag {
-    name: "break_uhid_polling_early"
-    namespace: "bluetooth"
-    description: "Break from UHID polling early if HID host disconnects"
-    bug: "319846147"
-}
+container: "com.android.bt"
 
 flag {
     name: "allow_switching_hid_and_hogp"
@@ -14,83 +7,6 @@ flag {
     namespace: "bluetooth"
     description: "Allow switching between HID and HOGP supported on the same device"
     bug: "320762367"
-}
-
-flag {
-    name: "prevent_hogp_reconnect_when_connected"
-    namespace: "bluetooth"
-    description: "Do not request GATT connection while the HOGP is already connected"
-    bug: "329720661"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "save_initial_hid_connection_policy"
-    namespace: "bluetooth"
-    description: "Save HID connection policy on initial successful connection"
-    bug: "335904609"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "android_headtracker_service"
-    namespace: "bluetooth"
-    description: "Support headtracking through Android Headtracker Service"
-    bug: "335708774"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "suppress_hid_rejection_broadcast"
-    namespace: "bluetooth"
-    description: "Don't generate state change event when an incoming HID connection is rejected"
-    bug: "339018102"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "hid_report_queuing"
-    namespace: "bluetooth"
-    description: "Queue incoming HID reports if UHID is not ready"
-    bug: "345498287"
-}
-
-flag {
-    name: "remove_input_device_on_vup"
-    namespace: "bluetooth"
-    description: "Remove the input device entry on device removal"
-    bug: "354758065"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "initiate_multiple_hid_connections"
-    namespace: "bluetooth"
-    description: "Allow HID host to initiate multiple HID connections at a time"
-    bug: "356141637"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "close_hid_only_if_connected"
-    namespace: "bluetooth"
-    description: "Do not close BTA HID host if it is already closed"
-    bug: "358241286"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -104,30 +20,10 @@ flag {
 }
 
 flag {
-    name: "serialize_hogp_and_dis"
-    namespace: "bluetooth"
-    description: "start HOGP service discovery only after DIS discovery is finished"
-    bug: "367910199"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "dont_send_hid_set_idle"
     namespace: "bluetooth"
     description: "Don't send the SET IDLE HID message"
     bug: "369310847"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "forward_get_set_report_failure_to_uhid"
-    namespace: "bluetooth"
-    description: "Forward GET/SET REPORT reply to UHID even when the request fails"
-    bug: "369748430"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -158,6 +54,66 @@ flag {
     namespace: "bluetooth"
     description: "Properly cancel the pending connection to the already added devices"
     bug: "381135214"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "disconnect_hid_channels_serially"
+    namespace: "bluetooth"
+    description: "Only disconnect control channel after interrupt channel disconnection is acked"
+    bug: "387937345"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "vup_for_pending_connection"
+    namespace: "bluetooth"
+    description: "Generate HID VUP for pending connections as well"
+    bug: "396747085"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_unselected_hid_transport_states"
+    namespace: "bluetooth"
+    description: "Ignore HID state transitions for transports that are not selected"
+    bug: "397460323"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "early_incoming_hid_connection"
+    namespace: "bluetooth"
+    description: "Allow early incoming HID connection"
+    bug: "398105207"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hh_state_update_race_fix"
+    namespace: "bluetooth"
+    description: "Fix stuck in connecting state due to race when updating state"
+    bug: "403420458"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "simpler_hid_connection_policy"
+    namespace: "bluetooth"
+    description: "Simplify native HID host connection policy enforcement"
+    bug: "404590499"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

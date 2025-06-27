@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package android.bluetooth;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -28,7 +30,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * The {@link BluetoothLeBroadcastReceiveState} is used by the BASS server to expose information
@@ -250,7 +251,7 @@ public final class BluetoothLeBroadcastReceiveState implements Parcelable {
             throw new IllegalArgumentException(
                     "sourceId " + sourceId + " does not fall between 0x00 and 0xFF");
         }
-        Objects.requireNonNull(sourceDevice, "sourceDevice cannot be null");
+        requireNonNull(sourceDevice);
         if (sourceAddressType == BluetoothDevice.ADDRESS_TYPE_UNKNOWN) {
             throw new IllegalArgumentException("sourceAddressType cannot be ADDRESS_TYPE_UNKNOWN");
         }
@@ -259,7 +260,7 @@ public final class BluetoothLeBroadcastReceiveState implements Parcelable {
             throw new IllegalArgumentException(
                     "sourceAddressType " + sourceAddressType + " is invalid");
         }
-        Objects.requireNonNull(bisSyncState, "bisSyncState cannot be null");
+        requireNonNull(bisSyncState);
         if (bisSyncState.size() != numSubgroups) {
             throw new IllegalArgumentException(
                     "bisSyncState.size() "
@@ -267,7 +268,7 @@ public final class BluetoothLeBroadcastReceiveState implements Parcelable {
                             + " must be equal to numSubgroups "
                             + numSubgroups);
         }
-        Objects.requireNonNull(subgroupMetadata, "subgroupMetadata cannot be null");
+        requireNonNull(subgroupMetadata);
         if (subgroupMetadata.size() != numSubgroups) {
             throw new IllegalArgumentException(
                     "subgroupMetadata.size()  "
@@ -489,14 +490,7 @@ public final class BluetoothLeBroadcastReceiveState implements Parcelable {
         out.writeInt(mBroadcastId);
         out.writeInt(mPaSyncState);
         out.writeInt(mBigEncryptionState);
-
-        if (mBadCode != null) {
-            out.writeInt(mBadCode.length);
-            out.writeByteArray(mBadCode);
-        } else {
-            // -1 indicates that there is no "bad broadcast code"
-            out.writeInt(-1);
-        }
+        out.writeByteArray(mBadCode);
         out.writeInt(mNumSubgroups);
         out.writeList(mBisSyncState);
         out.writeTypedList(mSubgroupMetadata);
@@ -557,15 +551,7 @@ public final class BluetoothLeBroadcastReceiveState implements Parcelable {
                     final int broadcastId = in.readInt();
                     final int paSyncState = in.readInt();
                     final int bigEncryptionState = in.readInt();
-                    final int badCodeLen = in.readInt();
-                    byte[] badCode = null;
-
-                    if (badCodeLen != -1) {
-                        badCode = new byte[badCodeLen];
-                        if (badCodeLen > 0) {
-                            in.readByteArray(badCode);
-                        }
-                    }
+                    final byte[] badCode = in.createByteArray();
                     final byte numSubGroups = in.readByte();
                     final List<Long> bisSyncState =
                             in.readArrayList(Long.class.getClassLoader(), Long.class);

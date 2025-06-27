@@ -32,6 +32,7 @@ static const uint16_t kRasControlPointCharacteristic16bit = 0x2C17;
 static const uint16_t kRasRangingDataReadyCharacteristic16bit = 0x2C18;
 static const uint16_t kRasRangingDataOverWrittenCharacteristic16bit = 0x2C19;
 static const uint16_t kClientCharacteristicConfiguration16bit = 0x2902;
+static const uint16_t kDefaultGattMtu = 23;
 
 static const bluetooth::Uuid kRangingService = bluetooth::Uuid::From16Bit(kRangingService16Bit);
 static const bluetooth::Uuid kRasFeaturesCharacteristic =

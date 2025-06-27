@@ -49,11 +49,10 @@ void BtStackInfo::DumpsysLite() {
   LOG_CONSOLE("jni_pid:%u", jni_pid_);
 
   int fd = STDIN_FILENO;
-  const char** arguments = nullptr;
 
   connection_manager::dump(fd);
   PAN_Dumpsys(fd);
   DumpsysHid(fd);
   DumpsysBtaDm(fd);
-  bluetooth::shim::Dump(fd, arguments);
+  bluetooth::shim::Dump(fd);
 }

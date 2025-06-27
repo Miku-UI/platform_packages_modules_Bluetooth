@@ -66,7 +66,6 @@ class DistanceMeasurementInitiator {
         }
     }
 
-    private static final int DISTANCE_MEASUREMENT_DURATION_SEC = 3600;
     private static final List<Pair<Integer, String>> mDistanceMeasurementMethodMapping =
             List.of(
                     new Pair<>(DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO, "AUTO"),
@@ -151,8 +150,13 @@ class DistanceMeasurementInitiator {
         return List.of(Freq.MEDIUM.toString(), Freq.HIGH.toString(), Freq.LOW.toString());
     }
 
+    List<String> getMeasureDurationsInSeconds() {
+        return List.of("3600", "300", "60", "10");
+    }
+
     @SuppressLint("MissingPermission") // permissions are checked upfront
-    void startDistanceMeasurement(String distanceMeasurementMethodName, String selectedFreq) {
+    void startDistanceMeasurement(
+            String distanceMeasurementMethodName, String selectedFreq, int duration) {
 
         if (mTargetDevice == null) {
             printLog("do Gatt connect first");
@@ -163,7 +167,7 @@ class DistanceMeasurementInitiator {
 
         DistanceMeasurementParams params =
                 new DistanceMeasurementParams.Builder(mTargetDevice)
-                        .setDurationSeconds(DISTANCE_MEASUREMENT_DURATION_SEC)
+                        .setDurationSeconds(duration)
                         .setFrequency(Freq.fromName(selectedFreq).getFreq())
                         .setMethodId(getDistanceMeasurementMethodId(distanceMeasurementMethodName))
                         .build();

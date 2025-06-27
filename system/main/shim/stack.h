@@ -22,14 +22,25 @@
 #include "module.h"
 #include "os/handler.h"
 #include "os/thread.h"
-#include "stack_manager.h"
 
 // The shim layer implementation on the Gd stack side.
 namespace bluetooth {
+
+namespace hal {
+class SnoopLogger;
+}
+
+namespace storage {
+class StorageModule;
+}
+
+namespace metrics {
+class CounterMetrics;
+}
+
 namespace shim {
 
 class Acl;
-class Btm;
 
 // GD shim stack, having modes corresponding to legacy stack
 class Stack {
@@ -40,50 +51,49 @@ public:
   Stack(const Stack&) = delete;
   Stack& operator=(const Stack&) = delete;
 
-  ~Stack() = default;
+  virtual ~Stack() = default;
 
   // Running mode, everything is up
   void StartEverything();
 
   void Stop();
   bool IsRunning();
-  bool IsDumpsysModuleStarted() const;
 
-  StackManager* GetStackManager();
-  const StackManager* GetStackManager() const;
+  template <class T>
+  T* GetInstance() const {
+    return static_cast<T*>(registry_.Get(&T::Factory));
+  }
 
-  Acl* GetAcl();
+  template <class T>
+  bool IsStarted() const {
+    return registry_.IsStarted(&T::Factory);
+  }
+
+  virtual Acl* GetAcl() const;
+  virtual metrics::CounterMetrics* GetCounterMetrics() const;
+  virtual storage::StorageModule* GetStorage() const;
+  virtual hal::SnoopLogger* GetSnoopLogger() const;
 
   os::Handler* GetHandler();
 
-  bool LockForDumpsys(std::function<void()> dumpsys_callback);
-
-  // Start the list of modules with the given stack manager thread
-  void StartModuleStack(const ModuleList* modules, const os::Thread* thread);
-
-  // Run the callable object on the module instance
-  template <typename T>
-  bool CallOnModule(std::function<void(T* mod)> run) {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
-    if (is_running_) {
-      run(stack_manager_.GetInstance<T>());
-    }
-    return is_running_;
-  }
-
-  size_t NumModules() const { return num_modules_; }
+  void Dump(int fd, std::promise<void> promise) const;
 
 private:
   struct impl;
   std::shared_ptr<impl> pimpl_;
 
   mutable std::recursive_mutex mutex_;
-  StackManager stack_manager_;
   bool is_running_ = false;
   os::Thread* stack_thread_ = nullptr;
   os::Handler* stack_handler_ = nullptr;
-  size_t num_modules_{0};
-  void Start(ModuleList* modules);
+
+  os::Thread* management_thread_ = nullptr;
+  os::Handler* management_handler_ = nullptr;
+  ModuleRegistry registry_;
+
+  void handle_start_up(ModuleList* modules, std::promise<void> promise);
+  void handle_shut_down(std::promise<void> promise);
+  static std::chrono::milliseconds get_gd_stack_timeout_ms(bool is_start);
 };
 
 }  // namespace shim

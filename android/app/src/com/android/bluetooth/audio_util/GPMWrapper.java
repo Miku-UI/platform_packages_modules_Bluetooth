@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,16 @@ import android.media.session.MediaSession;
 import android.os.Looper;
 import android.util.Log;
 
+import com.android.bluetooth.avrcpcontroller.AvrcpControllerUtils;
+
 /**
  * Google Play Music hides some of the metadata behind a specific key in the Extras of the
  * MediaDescription in the MediaSession.QueueItem. This class exists to provide alternate methods to
  * allow Google Play Music to match the default behaviour of MediaPlayerWrapper.
  */
 class GPMWrapper extends MediaPlayerWrapper {
-    private static final String TAG = "AvrcpGPMWrapper";
+    private static final String TAG =
+            AvrcpControllerUtils.TAG_PREFIX_AVRCP + GPMWrapper.class.getSimpleName();
 
     GPMWrapper(Context context, MediaController controller, Looper looper) {
         super(context, controller, looper);

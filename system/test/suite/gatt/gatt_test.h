@@ -73,7 +73,6 @@ protected:
   // Semaphores used to wait for specific callback execution. Each callback
   // has its own semaphore associated with it
   btsemaphore register_client_callback_sem_;
-  btsemaphore scan_result_callback_sem_;
   btsemaphore listen_callback_sem_;
 
   btsemaphore register_server_callback_sem_;

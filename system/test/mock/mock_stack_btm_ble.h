@@ -414,46 +414,6 @@ struct btm_ble_set_encryption {
 };
 extern struct btm_ble_set_encryption btm_ble_set_encryption;
 
-// Name: btm_ble_set_keep_rfu_in_auth_req
-// Params: bool keep_rfu
-// Return: void
-struct btm_ble_set_keep_rfu_in_auth_req {
-  std::function<void(bool)> body{[](bool /* keep_rfu */) {}};
-  void operator()(bool keep_rfu) { body(keep_rfu); }
-};
-extern struct btm_ble_set_keep_rfu_in_auth_req btm_ble_set_keep_rfu_in_auth_req;
-
-// Name: btm_ble_set_no_disc_if_pair_fail
-// Params: bool disable_disc
-// Return: void
-struct btm_ble_set_no_disc_if_pair_fail {
-  std::function<void(bool)> body{[](bool /* disable_disc */) {}};
-  void operator()(bool disable_disc) { body(disable_disc); }
-};
-extern struct btm_ble_set_no_disc_if_pair_fail btm_ble_set_no_disc_if_pair_fail;
-
-// Name: btm_ble_set_test_local_sign_cntr_value
-// Params: bool enable, uint32_t test_local_sign_cntr
-// Return: void
-struct btm_ble_set_test_local_sign_cntr_value {
-  std::function<void(bool enable, uint32_t test_local_sign_cntr)> body{
-          [](bool /* enable */, uint32_t /* test_local_sign_cntr */) {}};
-  void operator()(bool enable, uint32_t test_local_sign_cntr) {
-    body(enable, test_local_sign_cntr);
-  }
-};
-extern struct btm_ble_set_test_local_sign_cntr_value btm_ble_set_test_local_sign_cntr_value;
-
-// Name: btm_ble_set_test_mac_value
-// Params: bool enable, uint8_t* p_test_mac_val
-// Return: void
-struct btm_ble_set_test_mac_value {
-  std::function<void(bool enable, uint8_t* p_test_mac_val)> body{
-          [](bool /* enable */, uint8_t* /* p_test_mac_val */) {}};
-  void operator()(bool enable, uint8_t* p_test_mac_val) { body(enable, p_test_mac_val); }
-};
-extern struct btm_ble_set_test_mac_value btm_ble_set_test_mac_value;
-
 // Name: btm_ble_start_encrypt
 // Params: const RawAddress& bda, bool use_stk, Octet16* p_stk
 // Return: tBTM_STATUS
@@ -544,32 +504,6 @@ struct btm_sec_save_le_key {
   }
 };
 extern struct btm_sec_save_le_key btm_sec_save_le_key;
-
-// Name: doNothing
-// Params: uint8_t* data, uint16_t len
-// Return: void
-struct doNothing {
-  std::function<void(uint8_t* data, uint16_t len)> body{
-          [](uint8_t* /* data */, uint16_t /* len */) {}};
-  void operator()(uint8_t* data, uint16_t len) { body(data, len); }
-};
-extern struct doNothing doNothing;
-
-// Name: read_phy_cb
-// Params: base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status
-// Return: void
-struct read_phy_cb {
-  std::function<void(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> callback,
-                     uint8_t* data, uint16_t len)>
-          body{[](base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>
-                  /* callback */,
-                  uint8_t* /* data */, uint16_t /* len */) {}};
-  void operator()(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> callback,
-                  uint8_t* data, uint16_t len) {
-    body(callback, data, len);
-  }
-};
-extern struct read_phy_cb read_phy_cb;
 
 }  // namespace stack_btm_ble
 }  // namespace mock

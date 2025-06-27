@@ -28,10 +28,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** SapRiilReceiverHidl is the HIDL implementation of ISapRilReceiver */
+/** SapRilReceiverHidl is the HIDL implementation of ISapRilReceiver */
 @SuppressWarnings("NonApiType") // We cannot change hidl anymore
 public class SapRilReceiverHidl implements ISapRilReceiver {
-    private static final String TAG = "SapRilReceiverHidl";
+    private static final String TAG = SapRilReceiverHidl.class.getSimpleName();
 
     // todo: add support for slot2 and slot3
     private static final String SERVICE_NAME_RIL_BT = "slot1";
@@ -48,7 +48,7 @@ public class SapRilReceiverHidl implements ISapRilReceiver {
     public static final int RIL_MAX_COMMAND_BYTES = (8 * 1024);
     public byte[] buffer = new byte[RIL_MAX_COMMAND_BYTES];
 
-    private ArrayList<Byte> primitiveArrayToContainerArrayList(byte[] arr) {
+    private static ArrayList<Byte> primitiveArrayToContainerArrayList(byte[] arr) {
         ArrayList<Byte> arrayList = new ArrayList<>(arr.length);
         for (byte b : arr) {
             arrayList.add(b);
@@ -114,7 +114,7 @@ public class SapRilReceiverHidl implements ISapRilReceiver {
     /**
      * Set callback that has response and unsolicited indication functions
      *
-     * @param sapCallback Object containing response and unosolicited indication callbacks
+     * @param sapCallback Object containing response and unsolicited indication callbacks
      */
     @Override
     public void setCallback(android.hardware.radio.sap.ISapCallback sapCallback)

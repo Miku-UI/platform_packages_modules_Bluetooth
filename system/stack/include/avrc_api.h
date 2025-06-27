@@ -133,10 +133,6 @@
 #define AVRC_1_3_STRING "avrcp13"
 #endif
 
-#ifndef AVRC_DEFAULT_VERSION
-#define AVRC_DEFAULT_VERSION AVRC_1_5_STRING
-#endif
-
 /* Configurable dynamic avrcp version enable key*/
 #ifndef AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY
 #define AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY "persist.bluetooth.dynamic_avrcp.enable"

@@ -89,7 +89,7 @@ tSMP_STATUS SMP_Pair(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type) {
   if (p_cb->state != SMP_STATE_IDLE || p_cb->flags & SMP_PAIR_FLAGS_WE_STARTED_DD ||
       p_cb->smp_over_br) {
     /* pending security on going, reject this one */
-    return SMP_BUSY;
+    return SMP_IMPL_BUSY;
   } else {
     p_cb->flags = SMP_PAIR_FLAGS_WE_STARTED_DD;
     p_cb->pairing_bda = bd_addr;
@@ -135,7 +135,7 @@ tSMP_STATUS SMP_BR_PairWith(const RawAddress& bd_addr) {
   if (p_cb->state != SMP_STATE_IDLE || p_cb->smp_over_br ||
       p_cb->flags & SMP_PAIR_FLAGS_WE_STARTED_DD) {
     /* pending security on going, reject this one */
-    return SMP_BUSY;
+    return SMP_IMPL_BUSY;
   }
 
   p_cb->role = HCI_ROLE_CENTRAL;
@@ -524,4 +524,9 @@ void SMP_SirkConfirmDeviceReply(const RawAddress& bd_addr, uint8_t res) {
     smp_int_data.status = SMP_SUCCESS;
     smp_sm_event(p_cb, SMP_SIRK_DEVICE_VALID_EVT, &smp_int_data);
   }
+}
+
+uint16_t SMP_GetPendingPairingKeySize() {
+  tSMP_CB* p_cb = &smp_cb;
+  return p_cb->loc_enc_size;
 }

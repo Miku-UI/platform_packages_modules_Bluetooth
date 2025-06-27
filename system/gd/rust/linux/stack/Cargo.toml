@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-bt_common = { path = "../../common" }
 bt_topshim = { path = "../../topshim" }
 bt_utils = { path = "../utils" }
 

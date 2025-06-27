@@ -28,19 +28,15 @@
 #include <map>
 #include <mutex>
 
-#include "os/logging/log_adapter.h"
 #include "osi/include/properties.h"
 #include "stack/include/acl_api_types.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_status.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
-time_t get_current_time() { return time(0); }
+static time_t get_current_time() { return time(0); }
 
 namespace {
 
@@ -750,7 +746,7 @@ void power_telemetry::PowerTelemetry::Dumpsys(int32_t fd) {
       const RawAddress& bd_addr = itr.first;
       std::list<ChannelDetails> channel_details_list = itr.second;
       for (auto& channel_details : channel_details_list) {
-        dprintf(fd, "%-19s ", ADDRESS_TO_LOGGABLE_CSTR(bd_addr));
+        dprintf(fd, "%-19s ", bd_addr.ToRedactedStringForLogging().c_str());
         dprintf(fd, "%-7s %-7d %-7d %-8d %-22s %-22s %-14s",
                 (channel_details.channel_type == ChannelType::kRfcomm) ? "RFCOMM" : "L2CAP",
                 channel_details.src.cid, channel_details.dst.cid, channel_details.psm,
@@ -799,7 +795,7 @@ void power_telemetry::PowerTelemetry::Dumpsys(int32_t fd) {
       uint16_t handle = itr.first;
       SniffData sniff_data = itr.second;
       dprintf(fd, "%-8d %-19s %-19d %-24ld %-19d %-24ld\n", handle,
-              ADDRESS_TO_LOGGABLE_CSTR(sniff_data.bd_addr), sniff_data.active_count,
+              sniff_data.bd_addr.ToRedactedStringForLogging().c_str(), sniff_data.active_count,
               (long)sniff_data.active_duration_ts, sniff_data.sniff_count,
               (long)sniff_data.sniff_duration_ts);
     }
@@ -812,13 +808,15 @@ void power_telemetry::PowerTelemetry::Dumpsys(int32_t fd) {
     for (auto it : ldc.acl.link_details_map) {
       uint16_t handle = it.first;
       LinkDetails lds = it.second;
-      dprintf(fd, "%-6d %-19s %-22s %-22s %-8d\n", handle, ADDRESS_TO_LOGGABLE_CSTR(lds.bd_addr),
+      dprintf(fd, "%-6d %-19s %-22s %-22s %-8d\n", handle,
+              lds.bd_addr.ToRedactedStringForLogging().c_str(),
               GetTimeString(lds.duration.begin).c_str(), GetTimeString(lds.duration.end).c_str(),
               lds.tx_power_level);
     }
 
     for (auto& it : ldc.acl.link_details_list) {
-      dprintf(fd, "%-6d %-19s %-22s %-22s %-8d\n", it.handle, ADDRESS_TO_LOGGABLE_CSTR(it.bd_addr),
+      dprintf(fd, "%-6d %-19s %-22s %-22s %-8d\n", it.handle,
+              it.bd_addr.ToRedactedStringForLogging().c_str(),
               GetTimeString(it.duration.begin).c_str(), GetTimeString(it.duration.end).c_str(),
               it.tx_power_level);
     }
@@ -828,7 +826,8 @@ void power_telemetry::PowerTelemetry::Dumpsys(int32_t fd) {
           "DisconnectedTimeStamp");
   for (auto&& ldc : pimpl_->log_data_containers_) {
     for (auto& it : ldc.sco.link_details_list) {
-      dprintf(fd, "%-6d %-19s %-22s %-22s\n", it.handle, ADDRESS_TO_LOGGABLE_CSTR(it.bd_addr),
+      dprintf(fd, "%-6d %-19s %-22s %-22s\n", it.handle,
+              it.bd_addr.ToRedactedStringForLogging().c_str(),
               GetTimeString(it.duration.begin).c_str(), GetTimeString(it.duration.end).c_str());
     }
   }

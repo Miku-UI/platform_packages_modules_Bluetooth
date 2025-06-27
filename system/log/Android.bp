@@ -2,9 +2,7 @@ cc_library {
     name: "libbluetooth_log",
     host_supported: true,
     min_sdk_version: "33",
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     export_include_dirs: [
         "include",
     ],
@@ -35,13 +33,18 @@ cc_library {
 
 cc_test {
     name: "libbluetooth_log_test",
+    test_suites: ["general-tests"],
+    defaults: ["mts_defaults"],
     host_supported: true,
     srcs: [
         "src/truncating_buffer_test.cc",
         "src/vlog_test.cc",
     ],
+    static_libs: [
+        "libbluetooth_log",
+    ],
     shared_libs: [
         "libbase",
-        "libbluetooth_log",
+        "liblog",
     ],
 }

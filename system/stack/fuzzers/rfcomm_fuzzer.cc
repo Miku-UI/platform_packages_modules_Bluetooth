@@ -39,10 +39,6 @@
 #include "test/mock/mock_stack_l2cap_interface.h"
 #include "test/rfcomm/stack_rfcomm_test_utils.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
@@ -56,10 +52,6 @@ void SnoopLogger::AcceptlistRfcommDlci(uint16_t, uint16_t, uint8_t) {}
 void SnoopLogger::SetRfcommPortOpen(uint16_t, uint16_t, uint8_t, uint16_t, bool) {}
 void SnoopLogger::SetRfcommPortClose(uint16_t, uint16_t, uint8_t, uint16_t) {}
 }  // namespace hal
-
-namespace common {
-uint64_t time_get_os_boottime_ms() { return 0; }
-}  // namespace common
 }  // namespace bluetooth
 
 namespace {
@@ -82,6 +74,7 @@ void port_event_cback(uint32_t code, uint16_t port_handle) {
 
 class FakeBtStack {
   NiceMock<bluetooth::testing::stack::l2cap::Mock> mock_l2cap_interface;
+
 public:
   NiceMock<bluetooth::rfcomm::MockRfcommCallback> mock_rfcomm_callback;
 
@@ -130,7 +123,7 @@ static int ServerInit(FuzzedDataProvider* fdp, uint16_t* server_handle) {
   auto uuid = fdp->ConsumeIntegral<uint16_t>();
 
   int status = RFCOMM_CreateConnectionWithSecurity(uuid, scn, true, mtu, kDummyAddr, server_handle,
-                                                   port_mgmt_cback, 0);
+                                                   port_mgmt_cback, 0, RfcommCfgInfo{});
   if (status != PORT_SUCCESS) {
     return status;
   }
@@ -175,7 +168,7 @@ static int ClientInit(FuzzedDataProvider* fdp, uint16_t* client_handle) {
   auto uuid = fdp->ConsumeIntegral<uint16_t>();
 
   int status = RFCOMM_CreateConnectionWithSecurity(uuid, scn, false, mtu, kDummyAddr, client_handle,
-                                                   port_mgmt_cback, 0);
+                                                   port_mgmt_cback, 0, RfcommCfgInfo{});
   if (status != PORT_SUCCESS) {
     return status;
   }

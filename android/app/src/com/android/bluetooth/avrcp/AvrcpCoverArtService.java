@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,10 +60,11 @@ public class AvrcpCoverArtService {
     private final Object mServerLock = new Object();
 
     // Native interface
-    private AvrcpNativeInterface mNativeInterface;
+    private final AvrcpNativeInterface mNativeInterface;
 
-    public AvrcpCoverArtService() {
-        mNativeInterface = AvrcpNativeInterface.getInstance();
+    // The native interface must be a parameter here in order to be able to mock AvrcpTargetService
+    public AvrcpCoverArtService(AvrcpNativeInterface nativeInterface) {
+        mNativeInterface = nativeInterface;
         mAcceptThread = new SocketAcceptor();
         mStorage = new AvrcpCoverArtStorage(COVER_ART_STORAGE_MAX_ITEMS);
     }
@@ -87,7 +88,7 @@ public class AvrcpCoverArtService {
     /**
      * Stop the AVRCP Cover Art Service.
      *
-     * <p>Tear down existing connections, remove ourselved from the SDP record.
+     * <p>Tear down existing connections, remove ourselves from the SDP record.
      */
     public boolean stop() {
         debug("Stopping service");
@@ -272,12 +273,12 @@ public class AvrcpCoverArtService {
     }
 
     /** Print a message to DEBUG if debug output is enabled */
-    private void debug(String msg) {
+    private static void debug(String msg) {
         Log.d(TAG, msg);
     }
 
     /** Print a message to ERROR */
-    private void error(String msg) {
+    private static void error(String msg) {
         Log.e(TAG, msg);
     }
 }

@@ -302,3 +302,4 @@ void btm_send_sco_packet(std::vector<uint8_t> data);
 bool btm_peer_supports_esco_2m_phy(RawAddress remote_bda);
 bool btm_peer_supports_esco_3m_phy(RawAddress remote_bda);
 bool btm_peer_supports_esco_ev3(RawAddress remote_bda);
+void btm_sco_acl_removed(const RawAddress* bda);

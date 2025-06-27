@@ -1,19 +1,14 @@
 use log::warn;
 use pdl_runtime::EncodeError;
 
-use crate::{
-    core::uuid::Uuid,
-    gatt::{
-        ids::AttHandle,
-        server::att_database::{AttAttribute, StableAttDatabase},
-    },
-    packets::att::{self, AttErrorCode},
-};
+use crate::core::uuid::Uuid;
+use crate::gatt::ids::AttHandle;
+use crate::gatt::server::att_database::{AttAttribute, StableAttDatabase};
+use crate::packets::att::{self, AttErrorCode};
 
-use super::helpers::{
-    att_grouping::find_group_end, att_range_filter::filter_to_range,
-    payload_accumulator::PayloadAccumulator,
-};
+use super::helpers::att_grouping::find_group_end;
+use super::helpers::att_range_filter::filter_to_range;
+use super::helpers::payload_accumulator::PayloadAccumulator;
 
 pub async fn handle_find_by_type_value_request(
     request: att::AttFindByTypeValueRequest,
@@ -72,18 +67,12 @@ pub async fn handle_find_by_type_value_request(
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        gatt::{
-            ffi::Uuid,
-            server::{
-                gatt_database::{
-                    AttPermissions, CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID,
-                },
-                test::test_att_db::TestAttDatabase,
-            },
-        },
-        packets::att,
+    use crate::gatt::ffi::Uuid;
+    use crate::gatt::server::gatt_database::{
+        AttPermissions, CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID,
     };
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::packets::att;
 
     use super::*;
 

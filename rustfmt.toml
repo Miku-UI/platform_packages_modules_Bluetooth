@@ -7,3 +7,4 @@
 edition = "2021"
 use_small_heuristics = "Max"
 newline_style = "Unix"
+imports_granularity = "Module"

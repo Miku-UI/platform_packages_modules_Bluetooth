@@ -1,17 +1,15 @@
 use std::time::Duration;
 
 use log::{trace, warn};
-use tokio::{
-    sync::mpsc::{self, error::TrySendError},
-    time::timeout,
-};
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::mpsc::{self};
+use tokio::time::timeout;
 
-use crate::{gatt::ids::AttHandle, packets::att};
+use crate::gatt::ids::AttHandle;
+use crate::packets::att;
 
-use super::{
-    att_database::{AttDatabase, StableAttDatabase},
-    att_server_bearer::SendError,
-};
+use super::att_database::{AttDatabase, StableAttDatabase};
+use super::att_server_bearer::SendError;
 
 #[derive(Debug)]
 /// Errors that can occur while sending an indication
@@ -116,16 +114,15 @@ impl ConfirmationWatcher {
 #[cfg(test)]
 mod test {
     use crate::packets::att;
-    use tokio::{sync::oneshot, task::spawn_local, time::Instant};
+    use tokio::sync::oneshot;
+    use tokio::task::spawn_local;
+    use tokio::time::Instant;
 
-    use crate::{
-        core::uuid::Uuid,
-        gatt::server::{
-            att_database::AttAttribute, gatt_database::AttPermissions,
-            test::test_att_db::TestAttDatabase,
-        },
-        utils::task::block_on_locally,
-    };
+    use crate::core::uuid::Uuid;
+    use crate::gatt::server::att_database::AttAttribute;
+    use crate::gatt::server::gatt_database::AttPermissions;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::utils::task::block_on_locally;
 
     use super::*;
 

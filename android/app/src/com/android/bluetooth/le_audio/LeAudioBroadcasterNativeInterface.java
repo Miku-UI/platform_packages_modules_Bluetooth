@@ -33,8 +33,9 @@ import com.android.internal.annotations.VisibleForTesting;
 
 /** LeAudio Native Interface to/from JNI. */
 public class LeAudioBroadcasterNativeInterface {
-    private static final String TAG = "LeAudioBroadcasterNativeInterface";
-    private BluetoothAdapter mAdapter;
+    private static final String TAG = LeAudioBroadcasterNativeInterface.class.getSimpleName();
+
+    private final BluetoothAdapter mAdapter;
 
     @GuardedBy("INSTANCE_LOCK")
     private static LeAudioBroadcasterNativeInterface sInstance;
@@ -66,7 +67,7 @@ public class LeAudioBroadcasterNativeInterface {
         }
     }
 
-    private void sendMessageToService(LeAudioStackEvent event) {
+    private static void sendMessageToService(LeAudioStackEvent event) {
         LeAudioService service = LeAudioService.getLeAudioService();
         if (service != null) {
             service.messageFromNative(event);

@@ -19,9 +19,8 @@ package com.android.bluetooth.avrcpcontroller;
 import android.annotation.SuppressLint;
 import android.util.Log;
 
-import com.google.common.base.Ascii;
-
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -39,7 +38,9 @@ import java.util.Objects;
  * pixel=“1280*960” size=“500000” transformation="stretch"/> </image-descriptor>
  */
 public class BipTransformation {
-    private static final String TAG = "avrcpcontroller.BipTransformation";
+    private static final String TAG =
+            AvrcpControllerUtils.TAG_PREFIX_AVRCP_CONTROLLER
+                    + BipTransformation.class.getSimpleName();
 
     public static final int UNKNOWN = -1;
     public static final int STRETCH = 0;
@@ -55,7 +56,7 @@ public class BipTransformation {
     public BipTransformation(String transformations) {
         if (transformations == null) return;
 
-        transformations = Ascii.toLowerCase(transformations.trim());
+        transformations = transformations.trim().toLowerCase(Locale.ROOT);
         String[] tokens = transformations.split(" ");
         for (String token : tokens) {
             switch (token) {
@@ -120,7 +121,7 @@ public class BipTransformation {
      *     BipTransformation.* constants, but doesn't *have* to be
      * @return True if the transformation constant is valid, False otherwise
      */
-    private boolean isValid(int transformation) {
+    private static boolean isValid(int transformation) {
         return transformation >= STRETCH && transformation <= CROP;
     }
 

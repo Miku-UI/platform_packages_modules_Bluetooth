@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 #include "hci/class_of_device.h"
 #include "hci/hci_metrics_logging.h"
 #include "hci/inquiry_interface.h"
+#include "main/shim/entry.h"
 #include "os/alarm.h"
 #include "os/metrics.h"
 #include "os/queue.h"
@@ -62,6 +63,11 @@ using std::unique_ptr;
 
 static std::recursive_mutex life_cycle_guard;
 static bool life_cycle_stopped = true;
+
+#ifdef TARGET_FLOSS
+// Signal to indicate the controller needs to be reset.
+const int SIG_RESET_CTRL = SIGUSR1;
+#endif
 
 static std::chrono::milliseconds getHciTimeoutMs() {
   static auto sHciTimeoutMs = std::chrono::milliseconds(bluetooth::os::GetSystemPropertyUint32Base(
@@ -294,6 +300,22 @@ struct HciLayer::impl {
   }
 
   void on_hci_timeout(OpCode op_code) {
+#ifdef TARGET_FLOSS
+    std::unique_lock<std::recursive_mutex> lock(life_cycle_guard);
+    if (life_cycle_stopped) {
+      return;
+    }
+
+    log::warn("Ignoring the timeouted HCI command {}.", OpCodeText(op_code));
+
+    // Terminate the process to trigger controller reset, also stop sending and
+    // processing any incoming packet immediately to prevent further error
+    // while terminating.
+    module_.LifeCycleStop();
+    kill(getpid(), SIG_RESET_CTRL);
+    return;
+#endif
+
     common::StopWatch::DumpStopWatchLog();
     log::error("Timed out waiting for {} for {}ms", OpCodeText(op_code), getHciTimeoutMs().count());
 
@@ -304,16 +326,6 @@ struct HciLayer::impl {
     command_queue_.clear();
     command_credits_ = 1;
     waiting_command_ = OpCode::NONE;
-
-#ifdef TARGET_FLOSS
-    log::warn("Ignoring the timeouted HCI command {}.", OpCodeText(op_code));
-    // Terminate the process to trigger controller reset, also mark the controller
-    // is broken to prevent further error while terminating.
-    auto hal = module_.GetDependency<hal::HciHal>();
-    hal->markControllerBroken();
-    kill(getpid(), SIGTERM);
-    return;
-#endif
 
     // Ignore the response, since we don't know what might come back.
     enqueue_command(ControllerDebugInfoBuilder::Create(),
@@ -457,10 +469,9 @@ struct HciLayer::impl {
                          EventCodeText(event_code), OpCodeText(op_code));
       }
       std::unique_ptr<CommandView> no_waiting_command{nullptr};
-      log_hci_event(no_waiting_command, event, module_.GetDependency<storage::StorageModule>());
+      log_hci_event(no_waiting_command, event, shim::GetStorage());
     } else {
-      log_hci_event(command_queue_.front().command_view, event,
-                    module_.GetDependency<storage::StorageModule>());
+      log_hci_event(command_queue_.front().command_view, event, shim::GetStorage());
     }
     power_telemetry::GetInstance().LogHciEvtDetail();
     EventCode event_code = event.GetEventCode();
@@ -507,12 +518,11 @@ struct HciLayer::impl {
     log::assert_that(event_view.IsValid(), "assert failed: event_view.IsValid()");
 #ifdef TARGET_FLOSS
     log::warn("Hardware Error Event with code 0x{:02x}", event_view.GetHardwareCode());
-    // Sending SIGTERM to process the exception from BT controller.
+    // Sending signal to indicate BT controller needs to reset.
     // The Floss daemon will be restarted. HCI reset during restart will clear the
     // error state of the BT controller.
-    auto hal = module_.GetDependency<hal::HciHal>();
-    hal->markControllerBroken();
-    kill(getpid(), SIGTERM);
+    module_.LifeCycleStop();
+    kill(getpid(), SIG_RESET_CTRL);
 #else
     log::fatal("Hardware Error Event with code 0x{:02x}", event_view.GetHardwareCode());
 #endif
@@ -618,6 +628,14 @@ struct HciLayer::hal_callbacks : public hal::HciHalCallbacks {
     auto iso = std::make_unique<IsoView>(IsoView::Create(packet));
     module_.impl_->incoming_iso_buffer_.Enqueue(std::move(iso), module_.GetHandler());
   }
+
+#ifdef TARGET_FLOSS
+  void controllerNeedsReset() override {
+    log::info("Controller needs reset!");
+    module_.LifeCycleStop();
+    kill(getpid(), SIG_RESET_CTRL);
+  }
+#endif
 
   HciLayer& module_;
 };
@@ -922,10 +940,7 @@ std::unique_ptr<InquiryInterface> HciLayer::GetInquiryInterface(
 
 const ModuleFactory HciLayer::Factory = ModuleFactory([]() { return new HciLayer(); });
 
-void HciLayer::ListDependencies(ModuleList* list) const {
-  list->add<hal::HciHal>();
-  list->add<storage::StorageModule>();
-}
+void HciLayer::ListDependencies(ModuleList* list) const { list->add<hal::HciHal>(); }
 
 void HciLayer::Start() {
   std::unique_lock<std::recursive_mutex> lock(life_cycle_guard);
@@ -961,6 +976,7 @@ void HciLayer::StartWithNoHalDependencies(Handler* handler) {
 
 void HciLayer::Stop() {
   std::unique_lock<std::recursive_mutex> lock(life_cycle_guard);
+  life_cycle_stopped = true;
   auto hal = GetDependency<hal::HciHal>();
   hal->unregisterIncomingPacketCallback();
   delete hal_callbacks_;
@@ -969,7 +985,11 @@ void HciLayer::Stop() {
   impl_->sco_queue_.GetDownEnd()->UnregisterDequeue();
   impl_->iso_queue_.GetDownEnd()->UnregisterDequeue();
   delete impl_;
+}
 
+// Function to stop sending and handling incoming packets
+void HciLayer::LifeCycleStop() {
+  std::unique_lock<std::recursive_mutex> lock(life_cycle_guard);
   life_cycle_stopped = true;
 }
 

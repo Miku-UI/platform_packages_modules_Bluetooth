@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.annotation.SuppressLint;
 
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
+import com.google.common.testing.EqualsTester;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -29,11 +32,12 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/** A test suite for the BipDateTime class */
+/** Test cases for {@link BipDatetime}. */
 @RunWith(AndroidJUnit4.class)
 public class BipDatetimeTest {
 
-    private Date makeDate(int month, int day, int year, int hours, int min, int sec, TimeZone tz) {
+    private static Date makeDate(
+            int month, int day, int year, int hours, int min, int sec, TimeZone tz) {
         Calendar.Builder builder = new Calendar.Builder();
 
         /* Note that Calendar months are zero-based in Java framework */
@@ -43,11 +47,12 @@ public class BipDatetimeTest {
         return builder.build().getTime();
     }
 
-    private Date makeDate(int month, int day, int year, int hours, int min, int sec) {
+    private static Date makeDate(int month, int day, int year, int hours, int min, int sec) {
         return makeDate(month, day, year, hours, min, sec, null);
     }
 
-    private String makeTzAdjustedString(int month, int day, int year, int hours, int min, int sec) {
+    private static String makeTzAdjustedString(
+            int month, int day, int year, int hours, int min, int sec) {
         Calendar cal = Calendar.getInstance();
         cal.setTime(makeDate(month, day, year, hours, min, sec));
         cal.setTimeZone(TimeZone.getDefault());
@@ -63,19 +68,20 @@ public class BipDatetimeTest {
     }
 
     @SuppressLint("UndefinedEquals")
-    private void testParse(String date, Date expectedDate, boolean isUtc, String expectedStr) {
+    private static void testParse(
+            String date, Date expectedDate, boolean isUtc, String expectedStr) {
         BipDateTime bipDateTime = new BipDateTime(date);
-        Assert.assertEquals(expectedDate, bipDateTime.getTime());
-        Assert.assertEquals(isUtc, bipDateTime.isUtc());
-        Assert.assertEquals(expectedStr, bipDateTime.toString());
+        assertThat(bipDateTime.getTime()).isEqualTo(expectedDate);
+        assertThat(bipDateTime.isUtc()).isEqualTo(isUtc);
+        assertThat(bipDateTime.toString()).isEqualTo(expectedStr);
     }
 
     @SuppressLint("UndefinedEquals")
-    private void testCreate(Date date, String dateStr) {
+    private static void testCreate(Date date, String dateStr) {
         BipDateTime bipDate = new BipDateTime(date);
-        Assert.assertEquals(date, bipDate.getTime());
-        Assert.assertTrue(bipDate.isUtc());
-        Assert.assertEquals(dateStr, bipDate.toString());
+        assertThat(bipDate.getTime()).isEqualTo(date);
+        assertThat(bipDate.isUtc()).isTrue();
+        assertThat(bipDate.toString()).isEqualTo(dateStr);
     }
 
     @Test
@@ -209,28 +215,7 @@ public class BipDatetimeTest {
     }
 
     @Test
-    public void testEquals_withSameInstance() {
-        TimeZone utc = TimeZone.getTimeZone("UTC");
-        utc.setRawOffset(0);
-
-        BipDateTime bipDate = new BipDateTime(makeDate(1, 1, 2000, 6, 1, 15, utc));
-
-        Assert.assertTrue(bipDate.equals(bipDate));
-    }
-
-    @Test
-    public void testEquals_withDifferentClass() {
-        TimeZone utc = TimeZone.getTimeZone("UTC");
-        utc.setRawOffset(0);
-
-        BipDateTime bipDate = new BipDateTime(makeDate(1, 1, 2000, 6, 1, 15, utc));
-        String notBipDate = "notBipDate";
-
-        Assert.assertFalse(bipDate.equals(notBipDate));
-    }
-
-    @Test
-    public void testEquals_withSameInfo() {
+    public void testEquals() {
         TimeZone utc = TimeZone.getTimeZone("UTC");
         utc.setRawOffset(0);
         Date date = makeDate(1, 1, 2000, 6, 1, 15, utc);
@@ -238,6 +223,11 @@ public class BipDatetimeTest {
         BipDateTime bipDate = new BipDateTime(date);
         BipDateTime bipDateEqual = new BipDateTime(date);
 
-        Assert.assertTrue(bipDate.equals(bipDateEqual));
+        String notBipDate = "notBipDate";
+
+        new EqualsTester()
+                .addEqualityGroup(bipDate, bipDate, bipDateEqual)
+                .addEqualityGroup(notBipDate)
+                .testEquals();
     }
 }

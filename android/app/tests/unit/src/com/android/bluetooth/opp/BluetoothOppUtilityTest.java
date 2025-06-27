@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package com.android.bluetooth.opp;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -33,6 +35,7 @@ import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
@@ -41,6 +44,7 @@ import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
+import android.provider.Settings;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -55,29 +59,28 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/** Test cases for {@link BluetoothOppUtility}. */
 public class BluetoothOppUtilityTest {
-
-    private static final Uri CORRECT_FORMAT_BUT_INVALID_FILE_URI =
-            Uri.parse("content://com.android.bluetooth.opp/btopp/0123455343467");
-    private static final Uri INCORRECT_FORMAT_URI = Uri.parse("www.google.com");
-
-    Context mContext;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mCursor;
 
     @Spy BluetoothMethodProxy mCallProxy = BluetoothMethodProxy.getInstance();
 
+    private static final Uri CORRECT_FORMAT_BUT_INVALID_FILE_URI =
+            Uri.parse("content://com.android.bluetooth.opp/btopp/0123455343467");
+    private static final Uri INCORRECT_FORMAT_URI = Uri.parse("www.google.com");
+
+    private final Context mContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+
     @Before
     public void setUp() throws Exception {
-        mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         BluetoothMethodProxy.setInstanceForTesting(mCallProxy);
         TestUtils.setUpUiTest();
     }
@@ -280,7 +283,7 @@ public class BluetoothOppUtilityTest {
 
     @Test
     public void fillRecord_filledAllProperties() {
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        BluetoothAdapter adapter = mContext.getSystemService(BluetoothManager.class).getAdapter();
         int idValue = 1234;
         int directionValue = BluetoothShare.DIRECTION_OUTBOUND;
         long totalBytesValue = 10;
@@ -319,17 +322,11 @@ public class BluetoothOppUtilityTest {
         assertThat(info.mCurrentBytes).isEqualTo(currentBytesValue);
         assertThat(info.mTimeStamp).isEqualTo(timestampValue);
         assertThat(info.mDestAddr).isEqualTo(destinationValue);
-        assertThat(info.mFileUri).isEqualTo(null);
+        assertThat(info.mFileUri).isNull();
         assertThat(info.mFileType).isEqualTo(fileTypeValue);
         assertThat(info.mDeviceName).isEqualTo(deviceNameValue);
         assertThat(info.mHandoverInitiated).isEqualTo(false);
         assertThat(info.mFileName).isEqualTo(fileNameValue);
-    }
-
-    @Test
-    public void fileExists_returnFalse() {
-        assertThat(BluetoothOppUtility.fileExists(mContext, CORRECT_FORMAT_BUT_INVALID_FILE_URI))
-                .isFalse();
     }
 
     @Test
@@ -436,5 +433,23 @@ public class BluetoothOppUtilityTest {
         } catch (Exception e) {
             assertWithMessage("Exception should not happen. " + e).fail();
         }
+    }
+
+    @Test
+    public void grantPermissionToNearbyComponent() {
+        Uri originalUri = Uri.parse("content://test.provider/1");
+        Settings.Secure.putString(
+                mContext.getContentResolver(),
+                "nearby_sharing_component",
+                "com.example/.BComponent");
+        Context spiedContext = spy(new ContextWrapper(mContext));
+
+        BluetoothOppUtility.grantPermissionToNearbyComponent(spiedContext, List.of(originalUri));
+
+        verify(spiedContext)
+                .grantUriPermission(
+                        eq("com.example"),
+                        eq(originalUri),
+                        eq(Intent.FLAG_GRANT_READ_URI_PERMISSION));
     }
 }

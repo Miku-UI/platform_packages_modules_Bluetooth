@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static java.util.Objects.requireNonNull;
+
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.bluetooth.BluetoothDevice;
@@ -38,7 +40,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -54,7 +55,7 @@ import java.util.Set;
  * stack startup to be available. This object also abstracts this issue away, handling the timing
  * and notifying clients when accounts are ready.
  *
- * <p>Once the account list has been intitialized, clients can begin making calls to add, remove and
+ * <p>Once the account list has been initialized, clients can begin making calls to add, remove and
  * list accounts.
  */
 class PbapClientAccountManager {
@@ -98,7 +99,7 @@ class PbapClientAccountManager {
 
     @VisibleForTesting
     PbapClientAccountManager(Context context, HandlerThread handlerThread, Callback callback) {
-        mContext = Objects.requireNonNull(context);
+        mContext = requireNonNull(context);
         mAccountManager = mContext.getSystemService(AccountManager.class);
         mUserManager = mContext.getSystemService(UserManager.class);
         mAccountType = mContext.getResources().getString(R.string.pbap_client_account_type);
@@ -362,7 +363,7 @@ class PbapClientAccountManager {
      * ready. The AccountManager framework doesn't have a good way for us to know _exactly_ when
      * this is, so the best we can do is try to interact with our account type and see if it works.
      *
-     * <p>We use a fake device address and our accoun ttype here to see if our account is visible
+     * <p>We use a fake device address and our account type here to see if our account is visible
      * yet.
      *
      * <p>This function is used in conjunction with the handler and a polling scheme to see

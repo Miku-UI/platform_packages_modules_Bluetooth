@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,25 @@
 
 package com.android.bluetooth.pbapclient;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.SdpPseRecord;
 
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+/** Test cases for {@link PbapSdpRecord}. */
 @RunWith(AndroidJUnit4.class)
 public class PbapSdpRecordTest {
-    private BluetoothAdapter mAdapter;
     private BluetoothDevice mTestDevice;
 
     private static final String SERVICE_NAME = "PSE SERVICE NAME";
@@ -67,8 +66,7 @@ public class PbapSdpRecordTest {
 
     @Before
     public void setUp() throws Exception {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = TestUtils.getTestDevice(mAdapter, 1);
+        mTestDevice = getTestDevice(1);
     }
 
     @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package com.android.bluetooth.btservice;
 import static android.bluetooth.BluetoothAdapter.SCAN_MODE_CONNECTABLE;
 import static android.bluetooth.BluetoothAdapter.SCAN_MODE_NONE;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.anyLong;
@@ -25,44 +27,44 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 
 import android.content.Context;
-import android.hardware.display.DisplayManager;
-import android.os.test.TestLooper;
+import android.hardware.devicestate.DeviceStateManager;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.TestLooper;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link AdapterSuspend}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AdapterSuspendTest {
     private TestLooper mTestLooper;
-    private DisplayManager mDisplayManager;
+    private DeviceStateManager mDeviceStateManager;
     private AdapterSuspend mAdapterSuspend;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Mock private AdapterNativeInterface mAdapterNativeInterface;
 
     @Before
     public void setUp() throws Exception {
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mTestLooper = new TestLooper();
-        mDisplayManager = context.getSystemService(DisplayManager.class);
+        mDeviceStateManager = context.getSystemService(DeviceStateManager.class);
 
         mAdapterSuspend =
                 new AdapterSuspend(
-                        mAdapterNativeInterface, mTestLooper.getLooper(), mDisplayManager);
+                        mAdapterNativeInterface, mTestLooper.getLooper(), mDeviceStateManager);
     }
 
     private void triggerSuspend() throws Exception {
-        mAdapterSuspend.handleSuspend();
+        mAdapterSuspend.handleSuspend(true);
     }
 
     private void triggerResume() throws Exception {

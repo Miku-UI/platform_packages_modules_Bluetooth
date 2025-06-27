@@ -27,13 +27,11 @@
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_log_history.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_main_shim_hci_layer.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::hci::IsoManager;
 using testing::_;
@@ -136,7 +134,8 @@ protected:
     bluetooth::shim::SetMockIsoInterface(&iso_interface_);
     hcic::SetMockHcicInterface(&hcic_interface_);
     bluetooth::shim::testing::hci_layer_set_interface(&bluetooth::shim::interface);
-    bluetooth::hci::testing::mock_controller_ = &controller_;
+    bluetooth::hci::testing::mock_controller_ =
+            std::make_unique<bluetooth::hci::testing::MockControllerInterface>();
 
     big_callbacks_.reset(new MockBigCallbacks());
     cig_callbacks_.reset(new MockCigCallbacks());
@@ -144,7 +143,8 @@ protected:
 
     iso_sizes_.total_num_le_packets_ = 6;
     iso_sizes_.le_data_packet_length_ = 1024;
-    ON_CALL(controller_, GetControllerIsoBufferSize()).WillByDefault(Return(iso_sizes_));
+    ON_CALL(*bluetooth::hci::testing::mock_controller_, GetControllerIsoBufferSize())
+            .WillByDefault(Return(iso_sizes_));
 
     InitIsoManager();
   }
@@ -158,7 +158,7 @@ protected:
     bluetooth::shim::SetMockIsoInterface(nullptr);
     hcic::SetMockHcicInterface(nullptr);
     bluetooth::shim::testing::hci_layer_set_interface(nullptr);
-    bluetooth::hci::testing::mock_controller_ = nullptr;
+    bluetooth::hci::testing::mock_controller_.reset();
   }
 
   virtual void InitIsoManager() {
@@ -314,7 +314,6 @@ protected:
   IsoManager* manager_instance_;
   bluetooth::shim::MockIsoInterface iso_interface_;
   hcic::MockHcicInterface hcic_interface_;
-  bluetooth::hci::testing::MockControllerInterface controller_;
   bluetooth::hci::LeBufferSize iso_sizes_;
 
   std::unique_ptr<MockBigCallbacks> big_callbacks_;
@@ -448,14 +447,14 @@ protected:
   void CleanupIsoManager() override { /* DO NOTHING */ }
 };
 
-bool operator==(const EXT_CIS_CFG& x, const EXT_CIS_CFG& y) {
+static bool operator==(const EXT_CIS_CFG& x, const EXT_CIS_CFG& y) {
   return (x.cis_id == y.cis_id) && (x.max_sdu_size_mtos == y.max_sdu_size_mtos) &&
          (x.max_sdu_size_stom == y.max_sdu_size_stom) && (x.phy_mtos == y.phy_mtos) &&
          (x.phy_stom == y.phy_stom) && (x.rtn_mtos == y.rtn_mtos) && (x.rtn_stom == y.rtn_stom);
 }
 
-bool operator==(const struct bluetooth::hci::iso_manager::cig_create_params& x,
-                const struct bluetooth::hci::iso_manager::cig_create_params& y) {
+static bool operator==(const struct bluetooth::hci::iso_manager::cig_create_params& x,
+                       const struct bluetooth::hci::iso_manager::cig_create_params& y) {
   return (x.sdu_itv_mtos == y.sdu_itv_mtos) && (x.sdu_itv_stom == y.sdu_itv_stom) &&
          (x.sca == y.sca) && (x.packing == y.packing) && (x.framing == y.framing) &&
          (x.max_trans_lat_stom == y.max_trans_lat_stom) &&
@@ -463,8 +462,8 @@ bool operator==(const struct bluetooth::hci::iso_manager::cig_create_params& x,
          std::is_permutation(x.cis_cfgs.begin(), x.cis_cfgs.end(), y.cis_cfgs.begin());
 }
 
-bool operator==(const struct bluetooth::hci::iso_manager::big_create_params& x,
-                const struct bluetooth::hci::iso_manager::big_create_params& y) {
+static bool operator==(const struct bluetooth::hci::iso_manager::big_create_params& x,
+                       const struct bluetooth::hci::iso_manager::big_create_params& y) {
   return (x.adv_handle == y.adv_handle) && (x.num_bis == y.num_bis) && (x.sdu_itv == y.sdu_itv) &&
          (x.max_sdu_size == y.max_sdu_size) &&
          (x.max_transport_latency == y.max_transport_latency) && (x.rtn == y.rtn) &&
@@ -2209,7 +2208,8 @@ TEST_F(IsoManagerTest, SendIsoDataBigValid) {
 }
 
 TEST_F(IsoManagerTest, SendIsoDataNoCredits) {
-  uint8_t num_buffers = controller_.GetControllerIsoBufferSize().total_num_le_packets_;
+  uint8_t num_buffers = bluetooth::hci::testing::mock_controller_->GetControllerIsoBufferSize()
+                                .total_num_le_packets_;
   std::vector<uint8_t> data_vec(108, 0);
 
   // Check on CIG
@@ -2256,7 +2256,8 @@ TEST_F(IsoManagerTest, SendIsoDataNoCredits) {
 }
 
 TEST_F(IsoManagerTest, SendIsoDataCreditsReturned) {
-  uint8_t num_buffers = controller_.GetControllerIsoBufferSize().total_num_le_packets_;
+  uint8_t num_buffers = bluetooth::hci::testing::mock_controller_->GetControllerIsoBufferSize()
+                                .total_num_le_packets_;
   std::vector<uint8_t> data_vec(108, 0);
 
   // Check on CIG
@@ -2325,7 +2326,8 @@ TEST_F(IsoManagerTest, SendIsoDataCreditsReturned) {
 }
 
 TEST_F(IsoManagerTest, SendIsoDataCreditsReturnedByDisconnection) {
-  uint8_t num_buffers = controller_.GetControllerIsoBufferSize().total_num_le_packets_;
+  uint8_t num_buffers = bluetooth::hci::testing::mock_controller_->GetControllerIsoBufferSize()
+                                .total_num_le_packets_;
   std::vector<uint8_t> data_vec(108, 0);
 
   // Check on CIG
@@ -2544,7 +2546,8 @@ TEST_F(IsoManagerDeathTestNoCleanup, HandleLateArivingEventHandleDisconnect) {
  * is already stopped.
  */
 TEST_F(IsoManagerDeathTestNoCleanup, HandleLateArivingEventHandleNumComplDataPkts) {
-  uint8_t num_buffers = controller_.GetControllerIsoBufferSize().total_num_le_packets_;
+  uint8_t num_buffers = bluetooth::hci::testing::mock_controller_->GetControllerIsoBufferSize()
+                                .total_num_le_packets_;
 
   IsoManager::GetInstance()->CreateCig(volatile_test_cig_create_cmpl_evt_.cig_id,
                                        kDefaultCigParams);

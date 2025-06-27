@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 
 package com.android.bluetooth.map;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -47,9 +49,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link BluetoothMapObexServer}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapObexServerTest {
@@ -69,7 +70,7 @@ public class BluetoothMapObexServerTest {
     private BluetoothMapObexServer mObexServer;
     private BluetoothMapAppParams mParams;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private Context mContext;
     @Mock private BluetoothMapService mMapService;
@@ -290,7 +291,7 @@ public class BluetoothMapObexServerTest {
         assertThat(mParams.getFilterMessageType()).isEqualTo(expectedMask);
     }
 
-    private void setUpBluetoothMapAppParams(BluetoothMapAppParams params) {
+    private static void setUpBluetoothMapAppParams(BluetoothMapAppParams params) {
         params.setPresenceAvailability(1);
         params.setPresenceStatus("test_presence_status");
         params.setLastActivity(0);

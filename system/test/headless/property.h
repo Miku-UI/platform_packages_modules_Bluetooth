@@ -52,6 +52,7 @@ inline std::string bt_property_type_text(const ::bt_property_type_t type) {
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_MODEL_NUM);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP);
     CASE_RETURN_TEXT(BT_PROPERTY_REMOTE_ADDR_TYPE);
+    CASE_RETURN_TEXT(BT_PROPERTY_UUIDS_LE);
     CASE_RETURN_TEXT(BT_PROPERTY_RESERVED_0x14);
     default:
       RETURN_UNKNOWN_TYPE_STRING(::bt_property_type_t, type);

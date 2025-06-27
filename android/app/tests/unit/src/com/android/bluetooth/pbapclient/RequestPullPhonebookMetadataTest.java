@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import org.junit.runner.RunWith;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+/** Test cases for {@link RequestPullPhonebookMetadata}. */
 @RunWith(AndroidJUnit4.class)
 public class RequestPullPhonebookMetadataTest {
     private static final String PHONEBOOK_NAME = "phonebook";
@@ -81,13 +82,13 @@ public class RequestPullPhonebookMetadataTest {
         assertThat(mRequest.getPhonebook()).isEqualTo(PHONEBOOK_NAME);
 
         PbapPhonebookMetadata metadata = mRequest.getMetadata();
-        assertThat(metadata.getPhonebook()).isEqualTo(PHONEBOOK_NAME);
-        assertThat(metadata.getSize()).isEqualTo(200);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PHONEBOOK_NAME);
+        assertThat(metadata.size()).isEqualTo(200);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
     }
 
@@ -101,13 +102,13 @@ public class RequestPullPhonebookMetadataTest {
         assertThat(mRequest.getPhonebook()).isEqualTo(PHONEBOOK_NAME);
 
         PbapPhonebookMetadata metadata = mRequest.getMetadata();
-        assertThat(metadata.getPhonebook()).isEqualTo(PHONEBOOK_NAME);
-        assertThat(metadata.getSize()).isEqualTo(PbapPhonebookMetadata.INVALID_SIZE);
-        assertThat(metadata.getDatabaseIdentifier())
+        assertThat(metadata.phonebook()).isEqualTo(PHONEBOOK_NAME);
+        assertThat(metadata.size()).isEqualTo(PbapPhonebookMetadata.INVALID_SIZE);
+        assertThat(metadata.databaseIdentifier())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_DATABASE_IDENTIFIER);
-        assertThat(metadata.getPrimaryVersionCounter())
+        assertThat(metadata.primaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
-        assertThat(metadata.getSecondaryVersionCounter())
+        assertThat(metadata.secondaryVersionCounter())
                 .isEqualTo(PbapPhonebookMetadata.INVALID_VERSION_COUNTER);
     }
 
@@ -122,8 +123,7 @@ public class RequestPullPhonebookMetadataTest {
         try {
             HeaderSet headerSet = new HeaderSet();
             mRequest.readResponseHeaders(headerSet);
-            assertThat(mRequest.getMetadata().getSize())
-                    .isEqualTo(PbapPhonebookMetadata.INVALID_SIZE);
+            assertThat(mRequest.getMetadata().size()).isEqualTo(PbapPhonebookMetadata.INVALID_SIZE);
         } catch (Exception e) {
             assertWithMessage("Exception should not happen.").fail();
         }
@@ -168,7 +168,7 @@ public class RequestPullPhonebookMetadataTest {
             return sendResponse(op, replyHeaders, null);
         }
 
-        public byte[] shortToByteArray(short s) {
+        public static byte[] shortToByteArray(short s) {
             ByteBuffer ret = ByteBuffer.allocate(2);
             ret.putShort(s);
             return ret.array();

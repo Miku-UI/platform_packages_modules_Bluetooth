@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doAnswer;
@@ -31,16 +33,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link BluetoothPbapAuthenticator}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapAuthenticatorTest {
 
     private BluetoothPbapAuthenticator mAuthenticator;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock PbapStateMachine mMockPbapStateMachine;
 

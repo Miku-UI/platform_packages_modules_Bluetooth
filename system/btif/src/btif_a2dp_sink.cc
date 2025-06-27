@@ -207,8 +207,7 @@ bool btif_a2dp_sink_init() {
     log::fatal("Failed to increase A2DP decoder thread priority");
 #endif
   }
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_init_delayed));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_init_delayed));
   return true;
 }
 
@@ -219,8 +218,7 @@ static void btif_a2dp_sink_init_delayed() {
 
 bool btif_a2dp_sink_startup() {
   log::info("");
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_startup_delayed));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_startup_delayed));
   return true;
 }
 
@@ -305,9 +303,8 @@ static bool btif_a2dp_sink_initialize_a2dp_control_block(const RawAddress& peer_
 bool btif_a2dp_sink_start_session(const RawAddress& peer_address,
                                   std::promise<void> peer_ready_promise) {
   log::info("peer_address={}", peer_address);
-  if (btif_a2dp_sink_cb.worker_thread.DoInThread(
-              FROM_HERE, base::BindOnce(btif_a2dp_sink_start_session_delayed, peer_address,
-                                        std::move(peer_ready_promise)))) {
+  if (btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(
+              btif_a2dp_sink_start_session_delayed, peer_address, std::move(peer_ready_promise)))) {
     return true;
   } else {
     // cannot set promise but triggers crash
@@ -353,8 +350,7 @@ bool btif_a2dp_sink_restart_session(const RawAddress& old_peer_address,
 
 bool btif_a2dp_sink_end_session(const RawAddress& peer_address) {
   log::info("peer_address={}", peer_address);
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_end_session_delayed));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_end_session_delayed));
   return true;
 }
 
@@ -366,8 +362,7 @@ static void btif_a2dp_sink_end_session_delayed() {
 
 void btif_a2dp_sink_shutdown() {
   log::info("");
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_shutdown_delayed));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_shutdown_delayed));
 }
 
 static void btif_a2dp_sink_shutdown_delayed() {
@@ -401,8 +396,7 @@ void btif_a2dp_sink_cleanup() {
   alarm_free(decode_alarm);
 
   // Exit the thread
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_cleanup_delayed));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_cleanup_delayed));
   btif_a2dp_sink_cb.worker_thread.ShutDown();
 }
 
@@ -460,15 +454,14 @@ void btif_a2dp_sink_update_decoder(const RawAddress& peer_address, const uint8_t
   p_buf->hdr.event = BTIF_MEDIA_SINK_DECODER_UPDATE;
 
   btif_a2dp_sink_cb.worker_thread.DoInThread(
-          FROM_HERE, base::BindOnce(btif_a2dp_sink_command_ready, (BT_HDR_RIGID*)p_buf));
+          base::BindOnce(btif_a2dp_sink_command_ready, (BT_HDR_RIGID*)p_buf));
 }
 
 void btif_a2dp_sink_on_idle() {
   log::info("");
   BT_HDR_RIGID* p_buf = reinterpret_cast<BT_HDR_RIGID*>(osi_malloc(sizeof(BT_HDR_RIGID)));
   p_buf->event = BTIF_MEDIA_SINK_SUSPEND;
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
 
   if (btif_a2dp_sink_state == BTIF_A2DP_SINK_STATE_OFF) {
     return;
@@ -481,8 +474,7 @@ void btif_a2dp_sink_on_stopped(tBTA_AV_SUSPEND* /* p_av_suspend */) {
   log::info("");
   BT_HDR_RIGID* p_buf = reinterpret_cast<BT_HDR_RIGID*>(osi_malloc(sizeof(BT_HDR_RIGID)));
   p_buf->event = BTIF_MEDIA_SINK_SUSPEND;
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
 
   if (btif_a2dp_sink_state == BTIF_A2DP_SINK_STATE_OFF) {
     return;
@@ -494,8 +486,7 @@ void btif_a2dp_sink_on_suspended(tBTA_AV_SUSPEND* /* p_av_suspend */) {
   log::info("");
   BT_HDR_RIGID* p_buf = reinterpret_cast<BT_HDR_RIGID*>(osi_malloc(sizeof(BT_HDR_RIGID)));
   p_buf->event = BTIF_MEDIA_SINK_SUSPEND;
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
 
   if (btif_a2dp_sink_state == BTIF_A2DP_SINK_STATE_OFF) {
     return;
@@ -508,8 +499,7 @@ bool btif_a2dp_sink_on_start() {
 
   BT_HDR_RIGID* p_buf = reinterpret_cast<BT_HDR_RIGID*>(osi_malloc(sizeof(BT_HDR_RIGID)));
   p_buf->event = BTIF_MEDIA_SINK_START;
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
 
   return true;
 }
@@ -540,9 +530,7 @@ static void btif_a2dp_sink_audio_handle_stop_decoding() {
 }
 
 static void btif_decode_alarm_cb(void* /* context */) {
-  LockGuard lock(g_mutex);
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_avk_handle_timer));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_avk_handle_timer));
 }
 
 static void btif_a2dp_sink_clear_track_event() {
@@ -732,6 +720,7 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
   }
 
   log::verbose("+");
+
   /* Allocate and queue this buffer */
   BT_HDR* p_msg = reinterpret_cast<BT_HDR*>(osi_malloc(sizeof(*p_msg) + p_pkt->len));
   memcpy(p_msg, p_pkt, sizeof(*p_msg));
@@ -739,17 +728,18 @@ uint8_t btif_a2dp_sink_enqueue_buf(BT_HDR* p_pkt) {
   memcpy(p_msg->data, p_pkt->data + p_pkt->offset, p_pkt->len);
   fixed_queue_enqueue(btif_a2dp_sink_cb.rx_audio_queue, p_msg);
 
+  /* If the queue is full, pop the front off to make room for the new data */
   if (fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) == MAX_INPUT_A2DP_FRAME_QUEUE_SZ) {
+    log::verbose("Audio data buffer has reached max size. Dropping front packet");
     osi_free(fixed_queue_try_dequeue(btif_a2dp_sink_cb.rx_audio_queue));
-    uint8_t ret = fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue);
-    return ret;
   }
 
-  // Avoid other checks if alarm has already been initialized.
+  /* Check to see if we need to start decoding */
   if (btif_a2dp_sink_cb.decode_alarm == nullptr &&
       fixed_queue_length(btif_a2dp_sink_cb.rx_audio_queue) >= MAX_A2DP_DELAYED_START_FRAME_COUNT) {
-    log::verbose("Initiate decoding. Current focus state:{}", btif_a2dp_sink_cb.rx_focus_state);
+    log::verbose("Can initiate decoding, focus_state={}", btif_a2dp_sink_cb.rx_focus_state);
     if (btif_a2dp_sink_cb.rx_focus_state == BTIF_A2DP_SINK_FOCUS_GRANTED) {
+      log::info("Request to begin decoding");
       btif_a2dp_sink_audio_handle_start_decoding();
     }
   }
@@ -766,8 +756,7 @@ void btif_a2dp_sink_audio_rx_flush_req() {
 
   BT_HDR_RIGID* p_buf = reinterpret_cast<BT_HDR_RIGID*>(osi_malloc(sizeof(BT_HDR_RIGID)));
   p_buf->event = BTIF_MEDIA_SINK_AUDIO_RX_FLUSH;
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
 }
 
 void btif_a2dp_sink_debug_dump(int /* fd */) {
@@ -781,7 +770,7 @@ void btif_a2dp_sink_set_focus_state_req(btif_a2dp_sink_focus_state_t state) {
   p_buf->focus_state = state;
   p_buf->hdr.event = BTIF_MEDIA_SINK_SET_FOCUS_STATE;
   btif_a2dp_sink_cb.worker_thread.DoInThread(
-          FROM_HERE, base::BindOnce(btif_a2dp_sink_command_ready, (BT_HDR_RIGID*)p_buf));
+          base::BindOnce(btif_a2dp_sink_command_ready, (BT_HDR_RIGID*)p_buf));
 }
 
 static void btif_a2dp_sink_set_focus_state_event(btif_a2dp_sink_focus_state_t state) {
@@ -814,8 +803,7 @@ static void btif_a2dp_sink_clear_track_event_req() {
   BT_HDR_RIGID* p_buf = reinterpret_cast<BT_HDR_RIGID*>(osi_malloc(sizeof(BT_HDR_RIGID)));
 
   p_buf->event = BTIF_MEDIA_SINK_CLEAR_TRACK;
-  btif_a2dp_sink_cb.worker_thread.DoInThread(FROM_HERE,
-                                             base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
+  btif_a2dp_sink_cb.worker_thread.DoInThread(base::BindOnce(btif_a2dp_sink_command_ready, p_buf));
 }
 
 static void btif_a2dp_sink_on_start_event() {

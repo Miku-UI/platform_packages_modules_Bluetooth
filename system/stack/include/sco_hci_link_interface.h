@@ -33,8 +33,5 @@ void btm_sco_connection_failed(tHCI_STATUS hci_status, const RawAddress& bda, ui
                                tBTM_ESCO_DATA* p_esco_data);
 void btm_sco_create_command_status_failed(tHCI_STATUS hci_status);
 
-bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason);
-
-void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason);
 void btm_sco_on_esco_connect_request(const RawAddress&, const bluetooth::hci::ClassOfDevice&);
 void btm_sco_on_sco_connect_request(const RawAddress&, const bluetooth::hci::ClassOfDevice&);

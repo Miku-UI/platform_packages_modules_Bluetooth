@@ -21,6 +21,8 @@
 #include "include/hardware/bluetooth.h"
 #include "types/raw_address.h"
 
+struct HearingDevice;
+
 namespace bluetooth {
 namespace storage {
 
@@ -28,10 +30,11 @@ class BtifStorageInterface {
 public:
   virtual void AddLeaudioAutoconnect(RawAddress const& addr, bool autoconnect) = 0;
   virtual void LeAudioUpdatePacs(RawAddress const& addr) = 0;
+  virtual void LeAudioUpdateGmap(RawAddress const& addr) = 0;
   virtual void LeAudioUpdateAses(RawAddress const& addr) = 0;
   virtual void LeAudioUpdateHandles(RawAddress const& addr) = 0;
-  virtual void SetLeAudioLocations(RawAddress const& addr, uint32_t sink_location,
-                                   uint32_t source_location) = 0;
+  virtual void SetLeAudioSinkLocations(RawAddress const& addr, uint32_t sink_location) = 0;
+  virtual void SetLeAudioSourceLocations(RawAddress const& addr, uint32_t source_location) = 0;
   virtual void SetLeAudioContexts(RawAddress const& addr, uint16_t sink_context,
                                   uint16_t source_context) = 0;
   virtual void ClearLeAudioServiceData(RawAddress const& addr) = 0;
@@ -49,6 +52,11 @@ public:
   virtual bt_status_t GetRemoteDeviceProperty(const RawAddress* address,
                                               bt_property_t* property) = 0;
 
+  virtual bool GetHearingAidProp(const RawAddress& address, uint8_t* capabilities,
+                                 uint64_t* hi_sync_id, uint16_t* render_delay,
+                                 uint16_t* preparation_delay, uint16_t* codecs) = 0;
+  virtual void AddHearingAid(const HearingDevice* dev_info) = 0;
+
   virtual ~BtifStorageInterface() = default;
 };
 
@@ -57,10 +65,12 @@ public:
   MOCK_METHOD((void), AddLeaudioAutoconnect, (RawAddress const& addr, bool autoconnect),
               (override));
   MOCK_METHOD((void), LeAudioUpdatePacs, (RawAddress const& addr), (override));
+  MOCK_METHOD((void), LeAudioUpdateGmap, (RawAddress const& addr), (override));
   MOCK_METHOD((void), LeAudioUpdateAses, (RawAddress const& addr), (override));
   MOCK_METHOD((void), LeAudioUpdateHandles, (RawAddress const& addr), (override));
-  MOCK_METHOD((void), SetLeAudioLocations,
-              (RawAddress const& addr, uint32_t sink_location, uint32_t source_location),
+  MOCK_METHOD((void), SetLeAudioSinkLocations, (RawAddress const& addr, uint32_t sink_location),
+              (override));
+  MOCK_METHOD((void), SetLeAudioSourceLocations, (RawAddress const& addr, uint32_t source_location),
               (override));
   MOCK_METHOD((void), SetLeAudioContexts,
               (RawAddress const& addr, uint16_t sink_context, uint16_t source_context), (override));
@@ -85,6 +95,11 @@ public:
   MOCK_METHOD((void), RemoveLeaudioHas, (const RawAddress& address), (override));
   MOCK_METHOD((bt_status_t), GetRemoteDeviceProperty,
               (const RawAddress* address, bt_property_t* property), (override));
+  MOCK_METHOD((bool), GetHearingAidProp,
+              (const RawAddress& address, uint8_t* capabilities, uint64_t* hi_sync_id,
+               uint16_t* render_delay, uint16_t* preparation_delay, uint16_t* codecs),
+              (override));
+  MOCK_METHOD((void), AddHearingAid, (const HearingDevice* dev_info), (override));
 };
 
 /**

@@ -35,7 +35,6 @@
 
 #include "bta_groups.h"
 #include "btif/include/btif_profile_storage.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -383,7 +382,7 @@ std::ostream& operator<<(std::ostream& out, bluetooth::groups::DeviceGroup const
       << "      Uuid: " << group.group_uuid_ << std::endl;
   out << "      Devices:\n";
   for (auto const& addr : group.devices_) {
-    out << "        " << ADDRESS_TO_LOGGABLE_STR(addr) << std::endl;
+    out << "        " << addr.ToRedactedStringForLogging() << std::endl;
   }
   return out;
 }

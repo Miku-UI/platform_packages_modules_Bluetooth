@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,40 +15,50 @@
  */
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 
-import android.bluetooth.BluetoothAdapter;
+import static com.google.common.truth.Truth.assertThat;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+
 import android.bluetooth.BluetoothDevice;
+import android.content.ContentResolver;
+import android.provider.Settings;
 
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.BluetoothMetricsProto.BluetoothLog;
 import com.android.bluetooth.BluetoothMetricsProto.BluetoothRemoteDeviceInformation;
-import com.android.bluetooth.BluetoothMetricsProto.ProfileConnectionStats;
-import com.android.bluetooth.BluetoothMetricsProto.ProfileId;
-import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.BluetoothStatsLog;
 
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
+import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-/** Unit tests for {@link MetricsLogger} */
+/** Test cases for {@link MetricsLogger}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class MetricsLoggerTest {
@@ -83,14 +93,14 @@ public class MetricsLoggerTest {
     }
 
     private TestableMetricsLogger mTestableMetricsLogger;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private RemoteDevices mRemoteDevices;
 
     private static class TestableMetricsLogger extends MetricsLogger {
-        public HashMap<Integer, Long> mTestableCounters = new HashMap<>();
-        public HashMap<String, Integer> mTestableDeviceNames = new HashMap<>();
+        public final HashMap<Integer, Long> mTestableCounters = new HashMap<>();
+        public final HashMap<String, Integer> mTestableDeviceNames = new HashMap<>();
 
         @Override
         public boolean count(int key, long count) {
@@ -112,66 +122,13 @@ public class MetricsLoggerTest {
 
     @Before
     public void setUp() {
-        MetricsLogger.dumpProto(BluetoothLog.newBuilder());
         mTestableMetricsLogger = new TestableMetricsLogger();
         mTestableMetricsLogger.init(mAdapterService, mRemoteDevices);
     }
 
     @After
     public void tearDown() {
-        // Dump metrics to clean up internal states
-        MetricsLogger.dumpProto(BluetoothLog.newBuilder());
         mTestableMetricsLogger.close();
-    }
-
-    /** Simple test to verify that profile connection event can be logged, dumped, and cleaned */
-    @Test
-    public void testLogProfileConnectionEvent() {
-        MetricsLogger.logProfileConnectionEvent(ProfileId.AVRCP);
-        BluetoothLog.Builder metricsBuilder = BluetoothLog.newBuilder();
-        MetricsLogger.dumpProto(metricsBuilder);
-        BluetoothLog metricsProto = metricsBuilder.build();
-        Assert.assertEquals(1, metricsProto.getProfileConnectionStatsCount());
-        ProfileConnectionStats profileUsageStatsAvrcp = metricsProto.getProfileConnectionStats(0);
-        Assert.assertEquals(ProfileId.AVRCP, profileUsageStatsAvrcp.getProfileId());
-        Assert.assertEquals(1, profileUsageStatsAvrcp.getNumTimesConnected());
-        // Verify that MetricsLogger's internal state is cleared after a dump
-        BluetoothLog.Builder metricsBuilderAfterDump = BluetoothLog.newBuilder();
-        MetricsLogger.dumpProto(metricsBuilderAfterDump);
-        BluetoothLog metricsProtoAfterDump = metricsBuilderAfterDump.build();
-        Assert.assertEquals(0, metricsProtoAfterDump.getProfileConnectionStatsCount());
-    }
-
-    /** Test whether multiple profile's connection events can be logged interleaving */
-    @Test
-    public void testLogProfileConnectionEventMultipleProfile() {
-        MetricsLogger.logProfileConnectionEvent(ProfileId.AVRCP);
-        MetricsLogger.logProfileConnectionEvent(ProfileId.HEADSET);
-        MetricsLogger.logProfileConnectionEvent(ProfileId.AVRCP);
-        BluetoothLog.Builder metricsBuilder = BluetoothLog.newBuilder();
-        MetricsLogger.dumpProto(metricsBuilder);
-        BluetoothLog metricsProto = metricsBuilder.build();
-        Assert.assertEquals(2, metricsProto.getProfileConnectionStatsCount());
-        Map<ProfileId, ProfileConnectionStats> profileConnectionCountMap =
-                getProfileUsageStatsMap(metricsProto.getProfileConnectionStatsList());
-        Assert.assertTrue(profileConnectionCountMap.containsKey(ProfileId.AVRCP));
-        Assert.assertEquals(
-                2, profileConnectionCountMap.get(ProfileId.AVRCP).getNumTimesConnected());
-        Assert.assertTrue(profileConnectionCountMap.containsKey(ProfileId.HEADSET));
-        Assert.assertEquals(
-                1, profileConnectionCountMap.get(ProfileId.HEADSET).getNumTimesConnected());
-        // Verify that MetricsLogger's internal state is cleared after a dump
-        BluetoothLog.Builder metricsBuilderAfterDump = BluetoothLog.newBuilder();
-        MetricsLogger.dumpProto(metricsBuilderAfterDump);
-        BluetoothLog metricsProtoAfterDump = metricsBuilderAfterDump.build();
-        Assert.assertEquals(0, metricsProtoAfterDump.getProfileConnectionStatsCount());
-    }
-
-    private static Map<ProfileId, ProfileConnectionStats> getProfileUsageStatsMap(
-            List<ProfileConnectionStats> profileUsageStats) {
-        HashMap<ProfileId, ProfileConnectionStats> profileUsageStatsMap = new HashMap<>();
-        profileUsageStats.forEach(item -> profileUsageStatsMap.put(item.getProfileId(), item));
-        return profileUsageStatsMap;
     }
 
     /** Test add counters and send them to statsd */
@@ -182,32 +139,32 @@ public class MetricsLoggerTest {
         mTestableMetricsLogger.cacheCount(2, 5);
         mTestableMetricsLogger.drainBufferedCounters();
 
-        Assert.assertEquals(20L, mTestableMetricsLogger.mTestableCounters.get(1).longValue());
-        Assert.assertEquals(5L, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(1).longValue()).isEqualTo(20L);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue()).isEqualTo(5L);
 
         mTestableMetricsLogger.cacheCount(1, 3);
         mTestableMetricsLogger.cacheCount(2, 5);
         mTestableMetricsLogger.cacheCount(2, 5);
         mTestableMetricsLogger.cacheCount(3, 1);
         mTestableMetricsLogger.drainBufferedCounters();
-        Assert.assertEquals(3L, mTestableMetricsLogger.mTestableCounters.get(1).longValue());
-        Assert.assertEquals(10L, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
-        Assert.assertEquals(1L, mTestableMetricsLogger.mTestableCounters.get(3).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(1).longValue()).isEqualTo(3L);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue()).isEqualTo(10L);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(3).longValue()).isEqualTo(1L);
     }
 
     @Test
     public void testAddAndSendCountersCornerCases() {
-        Assert.assertTrue(mTestableMetricsLogger.isInitialized());
+        assertThat(mTestableMetricsLogger.isInitialized()).isTrue();
         mTestableMetricsLogger.cacheCount(1, -1);
         mTestableMetricsLogger.cacheCount(3, 0);
         mTestableMetricsLogger.cacheCount(2, 10);
         mTestableMetricsLogger.cacheCount(2, Long.MAX_VALUE - 8L);
         mTestableMetricsLogger.drainBufferedCounters();
 
-        Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(1));
-        Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(3));
-        Assert.assertEquals(
-                Long.MAX_VALUE, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(1);
+        assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(3);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue())
+                .isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
@@ -217,43 +174,40 @@ public class MetricsLoggerTest {
         mTestableMetricsLogger.cacheCount(2, Long.MAX_VALUE);
         mTestableMetricsLogger.close();
 
-        Assert.assertEquals(1, mTestableMetricsLogger.mTestableCounters.get(1).longValue());
-        Assert.assertEquals(
-                Long.MAX_VALUE, mTestableMetricsLogger.mTestableCounters.get(2).longValue());
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(1).longValue()).isEqualTo(1);
+        assertThat(mTestableMetricsLogger.mTestableCounters.get(2).longValue())
+                .isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
     public void testMetricsLoggerNotInit() {
         mTestableMetricsLogger.close();
-        Assert.assertFalse(mTestableMetricsLogger.cacheCount(1, 1));
+        assertThat(mTestableMetricsLogger.cacheCount(1, 1)).isFalse();
         mTestableMetricsLogger.drainBufferedCounters();
-        Assert.assertFalse(mTestableMetricsLogger.mTestableCounters.containsKey(1));
+        assertThat(mTestableMetricsLogger.mTestableCounters).doesNotContainKey(1);
     }
 
     @Test
     public void testAddAndSendCountersDoubleInit() {
-        Assert.assertTrue(mTestableMetricsLogger.isInitialized());
+        assertThat(mTestableMetricsLogger.isInitialized()).isTrue();
         // sending a null adapterService will crash in case the double init no longer works
         mTestableMetricsLogger.init(null, mRemoteDevices);
     }
 
     @Test
-    public void testDeviceNameToSha() {
+    public void testDeviceNameToSha() throws IOException {
         initTestingBloomfilter();
         for (Map.Entry<String, String> entry : SANITIZED_DEVICE_NAME_MAP.entrySet()) {
             String deviceName = entry.getKey();
             String sha256 = MetricsLogger.getSha256String(entry.getValue());
-            Assert.assertEquals(
-                    deviceName,
-                    sha256,
-                    mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName));
+            assertThat(mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, deviceName))
+                    .isEqualTo(sha256);
         }
     }
 
     @Test
     public void testOuiFromBluetoothDevice() {
-        BluetoothDevice bluetoothDevice =
-                TestUtils.getTestDevice(BluetoothAdapter.getDefaultAdapter(), 0);
+        BluetoothDevice bluetoothDevice = getTestDevice(0);
 
         byte[] remoteDeviceInformationBytes =
                 mTestableMetricsLogger.getRemoteDeviceInfoProto(bluetoothDevice);
@@ -262,10 +216,10 @@ public class MetricsLoggerTest {
             BluetoothRemoteDeviceInformation bluetoothRemoteDeviceInformation =
                     BluetoothRemoteDeviceInformation.parseFrom(remoteDeviceInformationBytes);
             int oui = (0 << 16) | (1 << 8) | 2; // OUI from the above mac address
-            Assert.assertEquals(bluetoothRemoteDeviceInformation.getOui(), oui);
+            assertThat(bluetoothRemoteDeviceInformation.getOui()).isEqualTo(oui);
 
         } catch (InvalidProtocolBufferException e) {
-            Assert.assertNull(e.getMessage()); // test failure here
+            assertThat(e.getMessage()).isNull(); // test failure here
         }
     }
 
@@ -277,7 +231,7 @@ public class MetricsLoggerTest {
         String actualMedicalDeviceSha256 =
                 mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, true);
 
-        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+        assertThat(actualMedicalDeviceSha256).isEqualTo(expectMedicalDeviceSha256);
     }
 
     @Test
@@ -288,25 +242,66 @@ public class MetricsLoggerTest {
         String actualMedicalDeviceSha256 =
                 mTestableMetricsLogger.getAllowlistedDeviceNameHash(deviceName, false);
 
-        Assert.assertEquals(expectMedicalDeviceSha256, actualMedicalDeviceSha256);
+        assertThat(actualMedicalDeviceSha256).isEqualTo(expectMedicalDeviceSha256);
     }
 
     @Test
-    public void uploadEmptyDeviceName() {
+    public void uploadEmptyDeviceName() throws IOException {
         initTestingBloomfilter();
-        Assert.assertEquals("", mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, ""));
+        assertThat(mTestableMetricsLogger.logAllowlistedDeviceNameHash(1, "")).isEmpty();
     }
 
-    private void initTestingBloomfilter() {
+    @Test
+    public void testUpdateHearingDeviceActiveTime() {
+        BluetoothDevice bluetoothDevice = getTestDevice(0);
+        int day = BluetoothStatsLog.HEARING_DEVICE_ACTIVE_EVENT_REPORTED__TIME_PERIOD__DAY;
+        int week = BluetoothStatsLog.HEARING_DEVICE_ACTIVE_EVENT_REPORTED__TIME_PERIOD__WEEK;
+        int month = BluetoothStatsLog.HEARING_DEVICE_ACTIVE_EVENT_REPORTED__TIME_PERIOD__MONTH;
+        doReturn(ApplicationProvider.getApplicationContext().getContentResolver())
+                .when(mAdapterService)
+                .getContentResolver();
+
+        // last active time is 2 days ago, should update last active day
+        TestableMetricsLogger logger = spy(mTestableMetricsLogger);
+        prepareLastActiveTimeDaysAgo(2);
+        logger.updateHearingDeviceActiveTime(bluetoothDevice, 1);
+        verify(logger).logHearingDeviceActiveEvent(any(), anyInt(), eq(day));
+        verify(logger, never()).logHearingDeviceActiveEvent(any(), anyInt(), eq(week));
+        verify(logger, never()).logHearingDeviceActiveEvent(any(), anyInt(), eq(month));
+
+        // last active time is 8 days ago, should update last active day and week
+        Mockito.reset(logger);
+        prepareLastActiveTimeDaysAgo(8);
+        logger.updateHearingDeviceActiveTime(bluetoothDevice, 1);
+        verify(logger).logHearingDeviceActiveEvent(any(), anyInt(), eq(day));
+        verify(logger).logHearingDeviceActiveEvent(any(), anyInt(), eq(week));
+        verify(logger, never()).logHearingDeviceActiveEvent(any(), anyInt(), eq(month));
+
+        // last active time is 60 days ago, should update last active day, week and month
+        Mockito.reset(logger);
+        prepareLastActiveTimeDaysAgo(60);
+        logger.updateHearingDeviceActiveTime(bluetoothDevice, 1);
+        verify(logger).logHearingDeviceActiveEvent(any(), anyInt(), eq(day));
+        verify(logger).logHearingDeviceActiveEvent(any(), anyInt(), eq(week));
+        verify(logger).logHearingDeviceActiveEvent(any(), anyInt(), eq(month));
+    }
+
+    private static void prepareLastActiveTimeDaysAgo(int days) {
+        final ContentResolver contentResolver =
+                ApplicationProvider.getApplicationContext().getContentResolver();
+        final LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+        final String lastActive = now.minusDays(days).toString();
+        Settings.Secure.putString(contentResolver, "last_active_day", lastActive);
+        Settings.Secure.putString(contentResolver, "last_active_week", lastActive);
+        Settings.Secure.putString(contentResolver, "last_active_month", lastActive);
+    }
+
+    private void initTestingBloomfilter() throws IOException {
         byte[] bloomfilterData =
                 DeviceBloomfilterGenerator.hexStringToByteArray(
                         DeviceBloomfilterGenerator.BLOOM_FILTER_DEFAULT);
-        try {
-            mTestableMetricsLogger.setBloomfilter(
-                    BloomFilter.readFrom(
-                            new ByteArrayInputStream(bloomfilterData), Funnels.byteArrayFunnel()));
-        } catch (IOException e) {
-            Assert.assertTrue(false);
-        }
+        mTestableMetricsLogger.setBloomfilter(
+                BloomFilter.readFrom(
+                        new ByteArrayInputStream(bloomfilterData), Funnels.byteArrayFunnel()));
     }
 }

@@ -20,6 +20,7 @@ import android.content.Context
 import android.content.res.Resources
 import android.os.HandlerThread
 import android.os.UserManager
+import android.provider.Settings
 import com.android.server.SystemService
 import com.android.server.SystemService.TargetUser
 
@@ -47,20 +48,41 @@ class BluetoothService(context: Context) : SystemService(context) {
         if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
             publishBinderService(
                 BluetoothAdapter.BLUETOOTH_MANAGER_SERVICE,
-                mBluetoothManagerService.getBinder()
+                mBluetoothManagerService.getBinder(),
             )
         }
     }
 
+    private fun shouldInitializeBluetooth(): Boolean {
+        // Not HSUM, we can initialize Bluetooth on system user
+        if (!UserManager.isHeadlessSystemUserMode()) {
+            return true
+        }
+
+        try {
+            // In HSUM, refer to config_hsumBootStrategy to see if we can boot on system user for
+            // provisioned device
+            val r = Resources.getSystem()
+            if (
+                r.getInteger(r.getIdentifier("config_hsumBootStrategy", "integer", "android")) ==
+                    1 &&
+                    Settings.Global.getInt(
+                        context.contentResolver,
+                        Settings.Global.DEVICE_PROVISIONED,
+                        0,
+                    ) == 1
+            ) {
+                return true
+            }
+        } catch (_e: Resources.NotFoundException) {
+            // Config not found, assuming it's 0 so no need to initialize Bluetooth
+        }
+
+        return false
+    }
+
     override fun onUserStarting(user: TargetUser) {
-        if (
-            !UserManager.isHeadlessSystemUserMode() ||
-                Resources.getSystem()
-                    .getBoolean(
-                        Resources.getSystem()
-                            .getIdentifier("config_bootToHeadlessSystemUser", "bool", "android")
-                    )
-        ) {
+        if (shouldInitializeBluetooth()) {
             initialize(user)
         }
     }

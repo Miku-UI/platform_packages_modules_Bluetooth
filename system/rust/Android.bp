@@ -33,7 +33,6 @@ rust_defaults {
     rustlibs: [
         "libanyhow",
         "libbitflags",
-        "libbt_common",
         "libbytes",
         "libcxx",
         "liblog_rust",
@@ -56,20 +55,37 @@ rust_defaults {
                 "libstatslog_bt",
                 "libutils",
             ],
+            rustlibs: [
+                "libandroid_logger",
+            ],
+            test_config_template: ":BluetoothRustTestConfigTemplate",
+            test_suites: [
+                "general-tests",
+                "mts-bt",
+            ],
+        },
+        host: {
+            rustlibs: [
+                "libenv_logger",
+            ],
+        },
+        darwin: {
+            enabled: false,
         },
     },
-    apex_available: ["com.android.btservices"],
-}
-
-rust_library {
-    name: "libbluetooth_core_rs_for_facade",
-    crate_name: "bluetooth_core_rs_for_facade",
-    defaults: ["libbluetooth_core_rs_defaults"],
-    rustlibs: [
-        "libbluetooth_aconfig_flags_rust",
-        "libtokio",
+    compile_multilib: "both",
+    multilib: {
+        lib32: {
+            suffix: "32",
+        },
+        lib64: {
+            suffix: "64",
+        },
+    },
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.bt",
     ],
-    host_supported: true,
 }
 
 rust_ffi_static {
@@ -90,8 +106,9 @@ rust_ffi_static {
     host_supported: true,
 }
 
-rust_test_host {
+rust_test {
     name: "libbluetooth_core_rs_test",
+    host_supported: true,
     defaults: ["libbluetooth_core_rs_defaults"],
     rustlibs: [
         "libbluetooth_aconfig_flags_rust",
@@ -134,7 +151,7 @@ cc_library_static {
     ],
     host_supported: true,
     generated_sources: ["libbluetooth_core_rs_bridge_codegen"],
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     // Bug: 286537287 this library gets linked with Rust objects but cross-language LTO
     // isn't supported yet.

@@ -21,7 +21,6 @@
 #include <deque>
 #include <memory>
 
-#include "os/logging/log_adapter.h"
 #include "stack/gatt/gatt_int.h"
 #include "types/raw_address.h"
 
@@ -87,10 +86,12 @@ public:
       if (state == EattChannelState::EATT_CHANNEL_OPENED) {
         server_outstanding_cmd_ = tGATT_SR_CMD{};
         char name[64];
-        sprintf(name, "eatt_ind_ack_timer_%s_cid_0x%04x", ADDRESS_TO_LOGGABLE_CSTR(bda_), cid_);
+        sprintf(name, "eatt_ind_ack_timer_%s_cid_0x%04x", bda_.ToRedactedStringForLogging().c_str(),
+                cid_);
         ind_ack_timer_ = alarm_new(name);
 
-        sprintf(name, "eatt_ind_conf_timer_%s_cid_0x%04x", ADDRESS_TO_LOGGABLE_CSTR(bda_), cid_);
+        sprintf(name, "eatt_ind_conf_timer_%s_cid_0x%04x",
+                bda_.ToRedactedStringForLogging().c_str(), cid_);
         ind_confirmation_timer_ = alarm_new(name);
       }
     }

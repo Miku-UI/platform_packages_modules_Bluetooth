@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ public class MediaBrowser {
      * A function that allows Mockito to capture the constructor arguments when using
      * MediaBrowserFactory.make()
      */
-    @VisibleForTesting
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void testInit(
             Context context,
             ComponentName serviceComponent,

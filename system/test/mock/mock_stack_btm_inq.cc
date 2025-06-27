@@ -24,15 +24,15 @@
 
 #include <cstdint>
 
+#include "stack/btm/internal/btm_api.h"
+#include "stack/include/btm_inq.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/inq_hci_link_interface.h"
 #include "test/common/mock_functions.h"
 
 // Original usings
 
 // Mocked internal structures, if any
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace test {
 namespace mock {
@@ -48,16 +48,12 @@ struct BTM_SetConnectability BTM_SetConnectability;
 struct BTM_SetDiscoverability BTM_SetDiscoverability;
 struct BTM_SetInquiryMode BTM_SetInquiryMode;
 struct BTM_StartInquiry BTM_StartInquiry;
-struct btm_clear_all_pending_le_entry btm_clear_all_pending_le_entry;
-struct btm_clr_inq_db btm_clr_inq_db;
 struct btm_clr_inq_result_flt btm_clr_inq_result_flt;
 struct btm_inq_db_find btm_inq_db_find;
 struct btm_inq_db_new btm_inq_db_new;
 struct btm_inq_db_reset btm_inq_db_reset;
 struct btm_inq_find_bdaddr btm_inq_find_bdaddr;
 struct btm_process_inq_complete btm_process_inq_complete;
-struct btm_set_eir_uuid btm_set_eir_uuid;
-struct btm_sort_inq_result btm_sort_inq_result;
 
 }  // namespace stack_btm_inq
 }  // namespace mock
@@ -119,14 +115,6 @@ tBTM_STATUS BTM_StartInquiry(tBTM_INQ_RESULTS_CB* p_results_cb, tBTM_CMPL_CB* p_
   inc_func_call_count(__func__);
   return test::mock::stack_btm_inq::BTM_StartInquiry(p_results_cb, p_cmpl_cb);
 }
-void btm_clear_all_pending_le_entry(void) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::btm_clear_all_pending_le_entry();
-}
-void btm_clr_inq_db(const RawAddress* p_bda) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::btm_clr_inq_db(p_bda);
-}
 void btm_clr_inq_result_flt(void) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_inq::btm_clr_inq_result_flt();
@@ -150,14 +138,6 @@ bool btm_inq_find_bdaddr(const RawAddress& p_bda) {
 void btm_process_inq_complete(tHCI_STATUS status, uint8_t mode) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_inq::btm_process_inq_complete(status, mode);
-}
-void btm_set_eir_uuid(const uint8_t* p_eir, tBTM_INQ_RESULTS* p_results) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::btm_set_eir_uuid(p_eir, p_results);
-}
-void btm_sort_inq_result(void) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_inq::btm_sort_inq_result();
 }
 // Mocked functions complete
 // END mockcify generation

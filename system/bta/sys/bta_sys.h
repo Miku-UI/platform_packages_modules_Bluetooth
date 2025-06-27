@@ -24,7 +24,6 @@
 #ifndef BTA_SYS_H
 #define BTA_SYS_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <chrono>
@@ -140,7 +139,7 @@ inline std::string BtaIdSysText(const tBTA_SYS_ID& sys_id) {
     CASE_RETURN_TEXT(BTA_ID_SDP);
     CASE_RETURN_TEXT(BTA_ID_BLUETOOTH_MAX);
     default:
-      return base::StringPrintf("Unknown[%hhu]", sys_id);
+      return std::format("Unknown[{}]", static_cast<uint8_t>(sys_id));
   }
 }
 

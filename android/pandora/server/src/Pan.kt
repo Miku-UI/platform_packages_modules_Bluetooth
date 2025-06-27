@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothDevice.TRANSPORT_BREDR
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothPan
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED
 import android.content.Context
 import android.net.TetheringManager
 import android.net.TetheringManager.TETHERING_BLUETOOTH
@@ -66,13 +67,14 @@ class Pan(private val context: Context) : PANImplBase(), Closeable {
     }
 
     override fun close() {
+        mTetheringManager.stopTethering(TETHERING_BLUETOOTH)
         bluetoothAdapter.closeProfileProxy(BluetoothProfile.PAN, bluetoothPan)
         mScope.cancel()
     }
 
     override fun enableTethering(
         request: EnableTetheringRequest,
-        responseObserver: StreamObserver<EnableTetheringResponse>
+        responseObserver: StreamObserver<EnableTetheringResponse>,
     ) {
         grpcUnary<EnableTetheringResponse>(mScope, responseObserver) {
             Log.i(TAG, "enableTethering")
@@ -80,7 +82,7 @@ class Pan(private val context: Context) : PANImplBase(), Closeable {
                 mTetheringManager.startTethering(
                     TETHERING_BLUETOOTH,
                     Executors.newSingleThreadExecutor(),
-                    mStartTetheringCallback
+                    mStartTetheringCallback,
                 )
                 mTetheringEnabled.first { it == true }
             }
@@ -90,12 +92,12 @@ class Pan(private val context: Context) : PANImplBase(), Closeable {
 
     override fun connectPan(
         request: ConnectPanRequest,
-        responseObserver: StreamObserver<ConnectPanResponse>
+        responseObserver: StreamObserver<ConnectPanResponse>,
     ) {
         grpcUnary<ConnectPanResponse>(mScope, responseObserver) {
             Log.i(TAG, "connectPan")
             val device = request.address.toBluetoothDevice(bluetoothAdapter)
-            bluetoothPan.setConnectionPolicy(device, BluetoothProfile.CONNECTION_POLICY_ALLOWED)
+            bluetoothPan.setConnectionPolicy(device, CONNECTION_POLICY_ALLOWED)
             bluetoothPan.connect(device)
             ConnectPanResponse.newBuilder()
                 .setConnection(device.toConnection(TRANSPORT_BREDR))

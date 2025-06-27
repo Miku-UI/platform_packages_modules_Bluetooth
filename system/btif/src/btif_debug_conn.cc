@@ -21,7 +21,6 @@
 #include <time.h>
 
 #include "common/time_util.h"
-#include "os/logging/log_adapter.h"
 #include "types/raw_address.h"
 
 #define NUM_CONNECTION_EVENTS 16
@@ -90,7 +89,7 @@ void btif_debug_conn_dump(int fd) {
   while (connection_events[dump_event].ts) {
     conn_event_t* evt = &connection_events[dump_event];
     dprintf(fd, "  %s %s %s", format_ts(evt->ts, ts_buffer, sizeof(ts_buffer)),
-            format_state(evt->state), ADDRESS_TO_LOGGABLE_CSTR(evt->bda));
+            format_state(evt->state), evt->bda.ToRedactedStringForLogging().c_str());
     if (evt->state == BTIF_DEBUG_DISCONNECTED) {
       dprintf(fd, " reason=%d", evt->disconnect_reason);
     }

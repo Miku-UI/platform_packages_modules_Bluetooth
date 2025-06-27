@@ -34,11 +34,13 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class BluetoothMapConvoListingElement
         implements Comparable<BluetoothMapConvoListingElement> {
+    private static final String TAG = BluetoothMapConvoListingElement.class.getSimpleName();
 
     public static final String XML_TAG_CONVERSATION = "conversation";
     private static final String XML_ATT_LAST_ACTIVITY = "last_activity";
@@ -47,7 +49,6 @@ public class BluetoothMapConvoListingElement
     private static final String XML_ATT_READ = "readstatus";
     private static final String XML_ATT_VERSION_COUNTER = "version_counter";
     private static final String XML_ATT_SUMMARY = "summary";
-    private static final String TAG = "BluetoothMapConvoListingElement";
 
     private SignedLongLong mId = null;
     private String mName = ""; // title of the conversation #REQUIRED, but allowed empty
@@ -146,7 +147,7 @@ public class BluetoothMapConvoListingElement
 
     @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getLastActivityString() {
-        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.ROOT);
         Date date = new Date(mLastActivity);
         return format.format(date); // Format to YYYYMMDDTHHMMSS local time
     }
@@ -159,7 +160,7 @@ public class BluetoothMapConvoListingElement
     @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void setLastActivity(String lastActivity) throws ParseException {
         // TODO: Encode with time-zone if MCE requests it
-        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.ROOT);
         Date date = format.parse(lastActivity);
         this.mLastActivity = date.getTime();
     }
@@ -207,7 +208,7 @@ public class BluetoothMapConvoListingElement
     }
 
     public long getCpConvoId() {
-        return mId.getLeastSignificantBits();
+        return mId.leastSignificantBits();
     }
 
     public void setSummary(String summary) {
@@ -323,7 +324,6 @@ public class BluetoothMapConvoListingElement
             } else {
                 Log.w(TAG, "Unknown XML tag: " + name);
                 Utils.skipCurrentTag(parser);
-                continue;
             }
         }
         // As we have extracted all attributes, we should expect an end-tag

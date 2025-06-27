@@ -17,6 +17,8 @@
 package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothUtils.isValidDevice;
 
 import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
@@ -44,7 +46,8 @@ import java.util.List;
  * @hide
  */
 public final class BluetoothAvrcpController implements BluetoothProfile {
-    private static final String TAG = "BluetoothAvrcpController";
+    private static final String TAG = BluetoothAvrcpController.class.getSimpleName();
+
     private static final boolean DBG = false;
     private static final boolean VDBG = false;
 
@@ -193,7 +196,7 @@ public final class BluetoothAvrcpController implements BluetoothProfile {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-        return BluetoothProfile.STATE_DISCONNECTED;
+        return STATE_DISCONNECTED;
     }
 
     /**
@@ -271,10 +274,6 @@ public final class BluetoothAvrcpController implements BluetoothProfile {
 
     private boolean isEnabled() {
         return mAdapter.getState() == BluetoothAdapter.STATE_ON;
-    }
-
-    private static boolean isValidDevice(BluetoothDevice device) {
-        return device != null && BluetoothAdapter.checkBluetoothAddress(device.getAddress());
     }
 
     private static void log(String msg) {

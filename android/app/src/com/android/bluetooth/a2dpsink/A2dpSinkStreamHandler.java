@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.a2dpsink;
 
+import static java.util.Objects.requireNonNull;
+
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
@@ -70,7 +73,7 @@ public class A2dpSinkStreamHandler extends Handler {
     private static final int STATE_FOCUS_GRANTED = 1;
 
     // Private variables.
-    private final A2dpSinkService mA2dpSinkService;
+    private final Context mContext;
     private final A2dpSinkNativeInterface mNativeInterface;
     private final AudioManager mAudioManager;
 
@@ -90,7 +93,7 @@ public class A2dpSinkStreamHandler extends Handler {
     private MediaPlayer mMediaPlayer = null;
 
     // Focus changes when we are currently holding focus.
-    private OnAudioFocusChangeListener mAudioFocusListener =
+    private final OnAudioFocusChangeListener mAudioFocusListener =
             new OnAudioFocusChangeListener() {
                 @Override
                 public void onAudioFocusChange(int focusChange) {
@@ -101,11 +104,10 @@ public class A2dpSinkStreamHandler extends Handler {
                 }
             };
 
-    public A2dpSinkStreamHandler(
-            A2dpSinkService a2dpSinkService, A2dpSinkNativeInterface nativeInterface) {
-        mA2dpSinkService = a2dpSinkService;
-        mNativeInterface = nativeInterface;
-        mAudioManager = mA2dpSinkService.getSystemService(AudioManager.class);
+    public A2dpSinkStreamHandler(Context ctx, A2dpSinkNativeInterface nativeInterface) {
+        mContext = requireNonNull(ctx);
+        mNativeInterface = requireNonNull(nativeInterface);
+        mAudioManager = requireNonNull(mContext.getSystemService(AudioManager.class));
     }
 
     /** Safely clean up this stream handler object */
@@ -195,8 +197,7 @@ public class A2dpSinkStreamHandler extends Handler {
                     case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                         // Make the volume duck.
                         int duckPercent =
-                                mA2dpSinkService
-                                        .getResources()
+                                mContext.getResources()
                                         .getInteger(R.integer.a2dp_sink_duck_percent);
                         if (duckPercent < 0 || duckPercent > 100) {
                             Log.e(TAG, "Invalid duck percent using default.");
@@ -287,10 +288,7 @@ public class A2dpSinkStreamHandler extends Handler {
 
             mMediaPlayer =
                     MediaPlayer.create(
-                            mA2dpSinkService,
-                            R.raw.silent,
-                            attrs,
-                            mAudioManager.generateAudioSessionId());
+                            mContext, R.raw.silent, attrs, mAudioManager.generateAudioSessionId());
             if (mMediaPlayer == null) {
                 Log.e(TAG, "Failed to initialize media player. You may not get media key events");
                 return;
@@ -345,20 +343,15 @@ public class A2dpSinkStreamHandler extends Handler {
     }
 
     private boolean isIotDevice() {
-        return mA2dpSinkService
-                .getPackageManager()
-                .hasSystemFeature(PackageManager.FEATURE_EMBEDDED);
+        return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_EMBEDDED);
     }
 
     private boolean isTvDevice() {
-        return mA2dpSinkService
-                .getPackageManager()
-                .hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+        return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
     private boolean shouldRequestFocus() {
-        return mA2dpSinkService
-                .getResources()
+        return mContext.getResources()
                 .getBoolean(R.bool.a2dp_sink_automatically_request_audio_focus);
     }
 }

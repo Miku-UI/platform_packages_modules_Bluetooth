@@ -17,8 +17,8 @@
 
 #include "mock_btm_api_layer.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#include "stack/btm/btm_ble_sec.h"
+#include "stack/btm/btm_sec.h"
 
 static bluetooth::manager::MockBtmApiInterface* btm_api_interface = nullptr;
 
@@ -37,8 +37,8 @@ bool BTM_IsEncrypted(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport) 
   return btm_api_interface->IsEncrypted(remote_bd_addr, transport);
 }
 
-bool BTM_IsLinkKeyKnown(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport) {
-  return btm_api_interface->IsLinkKeyKnown(remote_bd_addr, transport);
+bool BTM_IsBonded(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport) {
+  return btm_api_interface->IsDeviceBonded(remote_bd_addr, transport);
 }
 
 uint8_t btm_ble_read_sec_key_size(const RawAddress& bd_addr) {

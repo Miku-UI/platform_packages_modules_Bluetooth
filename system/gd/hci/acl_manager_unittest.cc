@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -155,7 +155,7 @@ protected:
     fake_registry_.InjectTestModule(&Controller::Factory, test_controller_);
     client_handler_ = fake_registry_.GetTestModuleHandler(&HciLayer::Factory);
     ASSERT_NE(client_handler_, nullptr);
-    fake_registry_.Start<AclManager>(&thread_);
+    fake_registry_.Start<AclManager>(&thread_, fake_registry_.GetTestHandler());
   }
 
   void TearDown() override {
@@ -440,7 +440,7 @@ protected:
     fake_registry_.InjectTestModule(&Controller::Factory, test_controller_);
     client_handler_ = fake_registry_.GetTestModuleHandler(&HciLayer::Factory);
     ASSERT_NE(client_handler_, nullptr);
-    fake_registry_.Start<AclManager>(&thread_);
+    fake_registry_.Start<AclManager>(&thread_, fake_registry_.GetTestHandler());
     acl_manager_ =
             static_cast<AclManager*>(fake_registry_.GetModuleUnderTest(&AclManager::Factory));
     hci::Address address;

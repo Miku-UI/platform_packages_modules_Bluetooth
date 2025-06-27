@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,13 @@
 
 package com.android.bluetooth.hap;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothHapPresetInfo;
-import android.bluetooth.BluetoothProfile;
 
 import com.android.bluetooth.btservice.AdapterService;
 
@@ -31,11 +34,10 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link HapClientNativeCallback}. */
 public class HapClientNativeCallbackTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public Expect expect = Expect.create();
 
     @Mock private AdapterService mAdapterService;
@@ -51,7 +53,7 @@ public class HapClientNativeCallbackTest {
 
     @Test
     public void onConnectionStateChanged() {
-        int state = BluetoothProfile.STATE_CONNECTED;
+        int state = STATE_CONNECTED;
         mNativeCallback.onConnectionStateChanged(state, null);
 
         verify(mHapClientService).messageFromNative(mEvent.capture());

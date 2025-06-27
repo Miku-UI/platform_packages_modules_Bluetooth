@@ -15,6 +15,8 @@
  */
 package com.android.bluetooth.hfpclient;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 import android.os.Bundle;
@@ -55,13 +57,13 @@ public class HfpClientConnection extends Connection {
         mDevice = device;
         mConnServ = connServ;
         mServiceInterface = serviceInterface;
-        mCurrentCall = Objects.requireNonNull(call);
+        mCurrentCall = requireNonNull(call);
 
         handleCallChanged();
         finishInitializing();
     }
 
-    // Constructor to be used when a call is intiated on the HF. The call handle is obtained by
+    // Constructor to be used when a call is initiated on the HF. The call handle is obtained by
     // using the dial() command.
     public HfpClientConnection(
             BluetoothDevice device,

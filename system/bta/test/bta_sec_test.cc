@@ -38,17 +38,6 @@ constexpr char kRemoteName[] = "TheRemoteName";
 
 }  // namespace
 
-// Test hooks
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-
-tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth
-
 class BtaSecTest : public BtaWithHwOnTest {
 protected:
   void SetUp() override {

@@ -63,7 +63,6 @@
 #include "internal_include/bt_trace.h"
 #include "l2cap_types.h"
 #include "main/shim/entry.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "profiles_api.h"
@@ -329,7 +328,7 @@ public:
               default_data_interval_ms, overwrite_min_ce_len, overwrite_max_ce_len);
 
     BTA_GATTC_AppRegister(
-            hearingaid_gattc_callback,
+            "asha", hearingaid_gattc_callback,
             base::Bind(
                     [](Closure initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {
@@ -560,7 +559,7 @@ public:
       log::warn("Unable to set BLE data length peer:{} size:{}", address, 167);
     }
 
-    if (BTM_SecIsSecurityPending(address)) {
+    if (BTM_SecIsLeSecurityPending(address)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT) */
       return;
@@ -573,7 +572,7 @@ public:
       return;
     }
 
-    if (BTM_IsLinkKeyKnown(address, BT_TRANSPORT_LE)) {
+    if (BTM_IsBonded(address, BT_TRANSPORT_LE)) {
       /* if bonded and link not encrypted */
       BTM_SetEncryption(address, BT_TRANSPORT_LE, encryption_callback, nullptr,
                         BTM_BLE_SEC_ENCRYPT);
@@ -1070,9 +1069,7 @@ public:
             /// The L2CAP will automatically reconnect the LE-ACL link on
             /// disconnection when there is a pending channel request,
             /// which invalidates all encryption checks performed here.
-            com::android::bluetooth::flags::asha_encrypted_l2c_coc()
-                    ? BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT
-                    : BTM_SEC_NONE,
+            BTM_SEC_IN_ENCRYPT | BTM_SEC_OUT_ENCRYPT,
             HearingAidImpl::GapCallbackStatic, BT_TRANSPORT_LE);
 
     if (gap_handle == GAP_INVALID_HANDLE) {
@@ -1692,10 +1689,11 @@ public:
     const struct AudioStats* stats = &device.audio_stats;
 
     if (stats->rssi_history.size() <= 0) {
-      dprintf(fd, "  No RSSI history for %s:\n", ADDRESS_TO_LOGGABLE_CSTR(device.address));
+      dprintf(fd, "  No RSSI history for %s:\n",
+              device.address.ToRedactedStringForLogging().c_str());
       return;
     }
-    dprintf(fd, "  RSSI history for %s:\n", ADDRESS_TO_LOGGABLE_CSTR(device.address));
+    dprintf(fd, "  RSSI history for %s:\n", device.address.ToRedactedStringForLogging().c_str());
 
     dprintf(fd, "    Time of RSSI    0.0  0.1  0.2  0.3  0.4  0.5  0.6  0.7  0.8  0.9\n");
     for (auto& rssi_logs : stats->rssi_history) {

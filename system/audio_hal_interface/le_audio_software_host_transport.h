@@ -27,8 +27,8 @@ namespace audio {
 namespace host {
 namespace le_audio {
 
-using ::bluetooth::le_audio::set_configurations::AudioSetConfiguration;
-using ::bluetooth::le_audio::set_configurations::CodecConfigSetting;
+using ::bluetooth::le_audio::types::AudioSetConfiguration;
+using ::bluetooth::le_audio::types::CodecConfigSetting;
 
 using ::bluetooth::audio::le_audio::btle_stream_started_status;
 using ::bluetooth::audio::le_audio::LeAudioClientInterface;

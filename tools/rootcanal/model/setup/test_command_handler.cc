@@ -246,6 +246,8 @@ void TestCommandHandler::SetDeviceConfiguration(const vector<std::string>& args)
     preset = rootcanal::configuration::ControllerPreset::LAIRD_BL654;
   } else if (args[1] == "csr_rck_pts_dongle") {
     preset = rootcanal::configuration::ControllerPreset::CSR_RCK_PTS_DONGLE;
+  } else if (args[1] == "intel_be200") {
+    preset = rootcanal::configuration::ControllerPreset::INTEL_BE200;
   } else {
     response_string_ = "TestCommandHandler 'set_device_configuration' invalid configuration preset";
     send_response_(response_string_);

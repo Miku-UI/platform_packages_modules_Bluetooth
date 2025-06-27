@@ -88,6 +88,7 @@ typedef struct {
   BT_HDR_RIGID hdr;
   tAclLinkSpec link_spec;
   tBTA_HH_PROTO_MODE mode;
+  bool direct;
 } tBTA_HH_API_CONN;
 
 /* internal event data from BTE HID callback */
@@ -292,7 +293,7 @@ tBTA_HH_STATUS bta_hh_read_ssr_param(const tAclLinkSpec& link_spec, uint16_t* p_
 /* functions for LE HID */
 void bta_hh_le_enable(void);
 void bta_hh_le_deregister(void);
-void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb);
+void bta_hh_le_open_conn(tBTA_HH_DEV_CB* p_cb, bool direct);
 void bta_hh_le_api_disc_act(tBTA_HH_DEV_CB* p_cb);
 void bta_hh_le_get_dscp_act(tBTA_HH_DEV_CB* p_cb);
 void bta_hh_le_write_dev_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);

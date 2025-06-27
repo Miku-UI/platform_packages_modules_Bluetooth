@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -82,7 +81,7 @@ inline std::string sdp_status_text(const tSDP_STATUS& status) {
     CASE_RETURN_TEXT(tSDP_STATUS::SDP_DB_FULL);
     CASE_RETURN_TEXT(tSDP_STATUS::SDP_CANCEL);
     default:
-      return base::StringPrintf("UNKNOWN[%hu]", status);
+      return std::format("UNKNOWN[{}]", static_cast<uint16_t>(status));
   }
 }
 const auto sdp_result_text = sdp_status_text;

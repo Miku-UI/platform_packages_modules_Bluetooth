@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "has_preset.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/bt_types.h"
 #include "types/raw_address.h"
 
@@ -236,7 +235,7 @@ std::ostream& operator<<(std::ostream& out, const HasCtpOp& op) {
   if (std::holds_alternative<int>(op.addr_or_group)) {
     out << "\"group_id\": " << std::get<int>(op.addr_or_group);
   } else if (std::holds_alternative<RawAddress>(op.addr_or_group)) {
-    out << "\"address\": \"" << ADDRESS_TO_LOGGABLE_STR(std::get<RawAddress>(op.addr_or_group))
+    out << "\"address\": \"" << std::get<RawAddress>(op.addr_or_group).ToRedactedStringForLogging()
         << "\"";
   } else {
     out << "\"bad value\"";

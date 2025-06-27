@@ -15,27 +15,28 @@
  */
 
 #include <functional>
+#include <memory>
 
 #include "hci/acl_manager_mock.h"
 #include "hci/controller_interface_mock.h"
 #include "hci/distance_measurement_manager_mock.h"
-#include "hci/hci_interface.h"
+#include "hci/hci_layer_mock.h"
 #include "hci/le_advertising_manager_mock.h"
 #include "hci/le_scanning_manager_mock.h"
-#include "shim/dumpsys.h"
+#include "storage/storage_module.h"
 
 namespace bluetooth {
 namespace hci {
 namespace testing {
 
-extern MockAclManager* mock_acl_manager_;
-extern MockControllerInterface* mock_controller_;
-extern std::function<shim::Dumpsys*()> shim_dumpsys_;
-extern HciInterface* mock_hci_layer_;
+extern std::unique_ptr<MockAclManager> mock_acl_manager_;
+extern std::unique_ptr<MockControllerInterface> mock_controller_;
+extern std::unique_ptr<MockHciLayer> mock_hci_layer_;
 extern os::Handler* mock_gd_shim_handler_;
 extern MockLeAdvertisingManager* mock_le_advertising_manager_;
 extern MockLeScanningManager* mock_le_scanning_manager_;
 extern MockDistanceMeasurementManager* mock_distance_measurement_manager_;
+extern storage::StorageModule* mock_storage_;
 
 }  // namespace testing
 }  // namespace hci

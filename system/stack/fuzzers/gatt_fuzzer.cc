@@ -33,11 +33,8 @@
 #include "test/mock/mock_stack_l2cap_api.h"
 #include "test/mock/mock_stack_l2cap_ble.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
 using bluetooth::Uuid;
+
 bt_status_t do_in_main_thread(base::OnceCallback<void()>) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases

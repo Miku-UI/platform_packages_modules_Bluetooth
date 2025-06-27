@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.opp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.android.bluetooth.opp.BluetoothOppObexSession.MSG_SESSION_COMPLETE;
 import static com.android.bluetooth.opp.BluetoothOppObexSession.MSG_SHARE_INTERRUPTED;
 
@@ -29,11 +31,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
+import android.app.NotificationManager;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.PowerManager;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
@@ -48,8 +52,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,21 +59,27 @@ import java.io.OutputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+/** Test cases for {@link BluetoothOppObexClientSession}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppObexClientSessionTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    @Mock BluetoothMethodProxy mMethodProxy;
+    @Mock private Context mContext;
+    @Mock private BluetoothMethodProxy mMethodProxy;
+    @Mock private BluetoothObexTransport mTransport;
 
-    Context mTargetContext;
-    @Mock BluetoothObexTransport mTransport;
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final PowerManager mPowerManager = mTargetContext.getSystemService(PowerManager.class);
 
     BluetoothOppObexClientSession mClientSession;
 
     @Before
     public void setUp() throws IOException {
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        mClientSession = new BluetoothOppObexClientSession(mTargetContext, mTransport);
+        mockGetSystemService(mContext, Context.NOTIFICATION_SERVICE, NotificationManager.class);
+        mockGetSystemService(mContext, Context.POWER_SERVICE, PowerManager.class, mPowerManager);
+
+        mClientSession = new BluetoothOppObexClientSession(mContext, mTransport);
 
         // to control the mServerSession.mSession
         InputStream input = mock(InputStream.class);
@@ -190,9 +198,7 @@ public class BluetoothOppObexClientSessionTest {
                 new BluetoothOppSendFileInfo(filename, mimetype, totalBytes, null, status);
 
         BluetoothOppObexClientSession.ClientThread thread =
-                mClientSession
-                .new ClientThread(
-                        mTargetContext, mTransport, 0, new Handler(Looper.getMainLooper()));
+                mClientSession.new ClientThread(0, new Handler(Looper.getMainLooper()));
         InputStream is = mock(InputStream.class);
         OutputStream os = mock(OutputStream.class);
         doReturn(is).when(mTransport).openInputStream();
@@ -200,7 +206,7 @@ public class BluetoothOppObexClientSessionTest {
         thread.mCs = new ClientSession(mTransport);
         thread.addShare(shareInfo);
 
-        // thread.mCs.put() will throw because the obexconnection is not connected
+        // thread.mCs.put() will throw because the obex connection is not connected
         assertThat(thread.sendFile(sendFileInfo)).isEqualTo(BluetoothShare.STATUS_OBEX_DATA_ERROR);
     }
 
@@ -210,8 +216,6 @@ public class BluetoothOppObexClientSessionTest {
         BluetoothOppObexClientSession.ClientThread thread =
                 mClientSession
                 .new ClientThread(
-                        mTargetContext,
-                        mTransport,
                         0,
                         new Handler(Looper.getMainLooper()) {
                             @Override
@@ -222,7 +226,9 @@ public class BluetoothOppObexClientSessionTest {
                                 }
                             }
                         });
-        mClientSession.mWaitingForRemote = true;
+        synchronized (thread) {
+            thread.mWaitingForRemote = true;
+        }
         thread.interrupt();
         assertThat(sessionInterruptLatch.await(3_000, TimeUnit.MILLISECONDS)).isTrue();
     }

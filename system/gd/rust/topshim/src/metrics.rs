@@ -49,6 +49,7 @@ mod ffi {
             hci_reason: u32,
         );
         fn suspend_complete_state(state: u32);
+        fn ll_privacy_state(llp_state: u32, rpa_state: u32);
     }
 }
 
@@ -131,4 +132,8 @@ pub fn acl_connection_state_changed(
 
 pub fn suspend_complete_state(state: u32) {
     ffi::suspend_complete_state(state);
+}
+
+pub fn ll_privacy_state(llp_state: u32, rpa_state: u32) {
+    ffi::ll_privacy_state(llp_state, rpa_state);
 }

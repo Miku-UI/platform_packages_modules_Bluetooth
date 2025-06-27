@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,44 +16,50 @@
 
 package com.android.bluetooth.a2dpsink;
 
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.content.AttributionSource;
 
-import com.android.bluetooth.TestUtils;
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link A2dpSinkServiceBinder}. */
+@SmallTest
+@RunWith(AndroidJUnit4.class)
 public class A2dpSinkServiceBinderTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private A2dpSinkService mService;
-    private A2dpSinkService.A2dpSinkServiceBinder mBinder;
-    private BluetoothAdapter mAdapter;
+    private A2dpSinkServiceBinder mBinder;
 
     @Before
     public void setUp() throws Exception {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mBinder = new A2dpSinkService.A2dpSinkServiceBinder(mService);
+        mBinder = new A2dpSinkServiceBinder(mService);
     }
 
     @After
-    public void cleaUp() {
+    public void cleanUp() {
         mBinder.cleanup();
     }
 
     @Test
     public void connect() {
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice device = getTestDevice(0);
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.connect(device, source);
@@ -62,7 +68,7 @@ public class A2dpSinkServiceBinderTest {
 
     @Test
     public void disconnect() {
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice device = getTestDevice(0);
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.disconnect(device, source);
@@ -79,7 +85,7 @@ public class A2dpSinkServiceBinderTest {
 
     @Test
     public void getDevicesMatchingConnectionStates() {
-        int[] states = new int[] {BluetoothProfile.STATE_CONNECTED};
+        int[] states = new int[] {STATE_CONNECTED};
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.getDevicesMatchingConnectionStates(states, source);
@@ -88,7 +94,7 @@ public class A2dpSinkServiceBinderTest {
 
     @Test
     public void getConnectionState() {
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice device = getTestDevice(0);
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.getConnectionState(device, source);
@@ -97,8 +103,8 @@ public class A2dpSinkServiceBinderTest {
 
     @Test
     public void setConnectionPolicy() {
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
-        int connectionPolicy = BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+        BluetoothDevice device = getTestDevice(0);
+        int connectionPolicy = CONNECTION_POLICY_ALLOWED;
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.setConnectionPolicy(device, connectionPolicy, source);
@@ -107,7 +113,7 @@ public class A2dpSinkServiceBinderTest {
 
     @Test
     public void getConnectionPolicy() {
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice device = getTestDevice(0);
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.getConnectionPolicy(device, source);
@@ -116,7 +122,7 @@ public class A2dpSinkServiceBinderTest {
 
     @Test
     public void isA2dpPlaying() {
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice device = getTestDevice(0);
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.isA2dpPlaying(device, source);
@@ -125,7 +131,7 @@ public class A2dpSinkServiceBinderTest {
 
     @Test
     public void getAudioConfig() {
-        BluetoothDevice device = TestUtils.getTestDevice(mAdapter, 0);
+        BluetoothDevice device = getTestDevice(0);
         AttributionSource source = new AttributionSource.Builder(0).build();
 
         mBinder.getAudioConfig(device, source);

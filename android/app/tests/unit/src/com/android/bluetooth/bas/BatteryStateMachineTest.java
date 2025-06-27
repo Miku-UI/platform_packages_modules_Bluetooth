@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.bas.BatteryStateMachine.MESSAGE_CONNECT;
 import static com.android.bluetooth.bas.BatteryStateMachine.MESSAGE_CONNECTION_STATE_CHANGED;
 import static com.android.bluetooth.bas.BatteryStateMachine.MESSAGE_DISCONNECT;
@@ -34,14 +36,12 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.os.Looper;
-import android.os.test.TestLooper;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.TestLooper;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,18 +49,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link BatteryStateMachine}. */
 @SmallTest
 @RunWith(JUnit4.class)
 public class BatteryStateMachineTest {
-    @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private BatteryService mBatteryService;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mDevice = TestUtils.getTestDevice(mAdapter, 93);
+    private final BluetoothDevice mDevice = getTestDevice(93);
 
     private TestLooper mLooper;
     private FakeBatteryStateMachine mBatteryStateMachine;

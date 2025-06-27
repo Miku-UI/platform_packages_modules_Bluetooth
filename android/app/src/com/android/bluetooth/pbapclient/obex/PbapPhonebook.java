@@ -16,8 +16,6 @@
 
 package com.android.bluetooth.pbapclient;
 
-import android.accounts.Account;
-import android.annotation.Nullable;
 import android.util.Log;
 
 import com.android.vcard.VCardConfig;
@@ -61,12 +59,6 @@ public class PbapPhonebook {
     private final int mListStartOffset;
     private final List<VCardEntry> mCards = new ArrayList<VCardEntry>();
 
-    // Needed for VCard parsing, since the account on older platform versions cannot be associated
-    // with the VCard (to construct a query) after parse time. Newer platform versions support this
-    // though, which means we can eventually remove this in favor of assigning an account post parse
-    // time.
-    @Nullable private final Account mAccount;
-
     class CardEntryHandler implements VCardEntryHandler {
         @Override
         public void onStart() {}
@@ -82,7 +74,6 @@ public class PbapPhonebook {
 
     PbapPhonebook(String phonebook) {
         mPhonebook = phonebook;
-        mAccount = null;
         mListStartOffset = 0;
     }
 
@@ -90,7 +81,6 @@ public class PbapPhonebook {
             String phonebook,
             byte format,
             int listStartOffset,
-            @Nullable Account account,
             InputStream inputStream)
             throws IOException {
         if (format != FORMAT_VCARD_21 && format != FORMAT_VCARD_30) {
@@ -98,7 +88,6 @@ public class PbapPhonebook {
         }
         mPhonebook = phonebook;
         mListStartOffset = listStartOffset;
-        mAccount = account;
         parse(inputStream, format);
     }
 
@@ -112,7 +101,7 @@ public class PbapPhonebook {
         }
 
         VCardEntryConstructor constructor =
-                new VCardEntryConstructor(VCardConfig.VCARD_TYPE_V21_GENERIC, mAccount);
+                new VCardEntryConstructor(VCardConfig.VCARD_TYPE_V21_GENERIC);
 
         CardEntryHandler handler = new CardEntryHandler();
         constructor.addEntryHandler(handler);
@@ -156,7 +145,7 @@ public class PbapPhonebook {
      *     any other {@link VCardException} or succeeds (i.e., no {@link VCardException}).
      * @throws IOException if there's an issue reading the {@link InputStream}.
      */
-    private boolean parsedWithVcardVersionException(VCardParser parser, InputStream in)
+    private static boolean parsedWithVcardVersionException(VCardParser parser, InputStream in)
             throws IOException {
         try {
             parser.parse(in);
@@ -181,7 +170,7 @@ public class PbapPhonebook {
     /**
      * Get the offset associated with this PbapPhonebook object
      *
-     * <p>The offset respresents the start index of the remote contacts pull
+     * <p>The offset represents the start index of the remote contacts pull
      *
      * @return an int representing the offset index where this pull started from
      */

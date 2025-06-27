@@ -39,7 +39,6 @@ import com.android.bluetooth.audio_util.MediaData;
 import com.android.bluetooth.audio_util.MediaPlayerList;
 import com.android.bluetooth.audio_util.MediaPlayerWrapper;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.ContentControlIdKeeper;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -82,10 +81,10 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
     // MCP service instance
     private MediaControlGattServiceInterface mGMcsService;
 
-    // MCP Service requests for stete fields needed to fill the characteristic values
+    // MCP Service requests for state fields needed to fill the characteristic values
     private List<PlayerStateField> mPendingStateRequest;
 
-    private MediaPlayerWrapper mLastActivePlayer = null;
+    private final MediaPlayerWrapper mLastActivePlayer = null;
 
     // Same base feature set as the player item features defined in `avrcp/get_foder_items.cc`
     private static final long BASE_PLAYER_ACTION_SET =
@@ -99,7 +98,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
 
     @VisibleForTesting
     long getCurrentPlayerSupportedActions() {
-        // Notice: Stay compatible with the currently hard-codded ACRVP supported player features
+        // Notice: Stay compatible with the currently hard-codded AVRCP supported player features
         if (mCurrentData != null && mCurrentData.state != null) {
             return Long.valueOf(mCurrentData.state.getActions() | BASE_PLAYER_ACTION_SET);
         }
@@ -406,13 +405,12 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
         mEventLogger.logd(
                 TAG,
                 "GMCS onMediaControlRequest: opcode= "
-                        + Request.Opcodes.toString(request.getOpcode()));
+                        + Request.Opcodes.toString(request.opcode()));
         Request.Results status = Request.Results.COMMAND_CANNOT_BE_COMPLETED;
 
-        if (Flags.mcpAllowPlayWithoutActivePlayer()
-                && !Utils.isPtsTestMode()
+        if (!Utils.isPtsTestMode()
                 && mMediaPlayerList.getActivePlayer() == null
-                && request.getOpcode() == Request.Opcodes.PLAY) {
+                && request.opcode() == Request.Opcodes.PLAY) {
             Log.d(TAG, "Player is not active. GMCS send media key for PLAY");
             mMediaPlayerList.sendMediaKeyEvent(BluetoothAvrcp.PASSTHROUGH_ID_PLAY, true);
             mMediaPlayerList.sendMediaKeyEvent(BluetoothAvrcp.PASSTHROUGH_ID_PLAY, false);
@@ -430,7 +428,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
         }
 
         long actions = getCurrentPlayerSupportedActions();
-        switch (request.getOpcode()) {
+        switch (request.opcode()) {
             case Request.Opcodes.PLAY:
                 if ((actions & PlaybackState.ACTION_PLAY) != 0
                         || (actions & PlaybackState.ACTION_PLAY_PAUSE) != 0) {
@@ -482,7 +480,7 @@ public class MediaControlProfile implements MediaControlServiceCallbacks {
                 break;
             case Request.Opcodes.MOVE_RELATIVE:
                 if ((actions & PlaybackState.ACTION_SEEK_TO) != 0) {
-                    long requested_offset_ms = request.getIntArg();
+                    long requested_offset_ms = request.arg();
                     long current_pos_ms = getLatestTrackPosition();
                     long track_duration_ms = getCurrentTrackDuration();
 

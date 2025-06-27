@@ -145,51 +145,6 @@ void BtaGattQueue::gatt_read_multi_op_finished(tCONN_ID conn_id, tGATT_STATUS st
   }
 }
 
-void BtaGattQueue::gatt_read_multi_op_simulate(tCONN_ID conn_id, tGATT_STATUS status,
-                                               uint16_t handle, uint16_t len, uint8_t* value,
-                                               void* data_read) {
-  gatt_read_multi_simulate_op_data* data = (gatt_read_multi_simulate_op_data*)data_read;
-
-  log::verbose("conn_id: 0x{:x} handle: 0x{:x} status: 0x{:x} len: {}", conn_id, handle, status,
-               len);
-  if (status == GATT_SUCCESS && ((data->values_end + 2 + len) < MAX_ATT_MTU)) {
-    data->values[data->values_end] = (len & 0x00ff);
-    data->values[data->values_end + 1] = (len & 0xff00) >> 8;
-    data->values_end += 2;
-
-    // concatenate all read values together
-    std::copy(value, value + len, data->values.data() + data->values_end);
-    data->values_end += len;
-
-    if (data->read_index < data->handles.num_attr - 1) {
-      // grab next handle and read it
-      data->read_index++;
-      uint16_t next_handle = data->handles.handles[data->read_index];
-
-      BTA_GATTC_ReadCharacteristic(conn_id, next_handle, GATT_AUTH_REQ_NONE,
-                                   gatt_read_multi_op_simulate, data_read);
-      return;
-    }
-  }
-
-  // all handles read, or bad status, or values too long
-  GATT_READ_MULTI_OP_CB tmp_cb = data->cb;
-  void* tmp_cb_data = data->cb_data;
-
-  std::array<uint8_t, MAX_ATT_MTU> value_copy = data->values;
-  uint16_t value_len = data->values_end;
-  auto handles = data->handles;
-
-  osi_free(data_read);
-
-  mark_as_not_executing(conn_id);
-  gatt_execute_next_op(conn_id);
-
-  if (tmp_cb) {
-    tmp_cb(conn_id, status, handles, value_len, value_copy.data(), tmp_cb_data);
-  }
-}
-
 void BtaGattQueue::gatt_execute_next_op(tCONN_ID conn_id) {
   log::verbose("conn_id=0x{:x}", conn_id);
   if (gatt_op_queue.empty()) {
@@ -255,28 +210,6 @@ void BtaGattQueue::gatt_execute_next_op(tCONN_ID conn_id) {
       data->cb_data = op.read_cb_data;
       BTA_GATTC_ReadMultiple(conn_id, op.handles, true, GATT_AUTH_REQ_NONE,
                              gatt_read_multi_op_finished, data);
-    } else {
-      /* This file contains just queue, and simulating reads should rather live in BTA or
-       * stack/gatt. However, placing this logic in layers below would be significantly harder.
-       * Having it here is a good balance - it's easy to add, and the API we expose to apps is same
-       * as if it was in layers below.
-       */
-      log::verbose("EATT not supported, simulating read multi. conn_id: 0x{:x} num_handles: {}",
-                   conn_id, op.handles.num_attr);
-      gatt_read_multi_simulate_op_data* data = (gatt_read_multi_simulate_op_data*)osi_malloc(
-              sizeof(gatt_read_multi_simulate_op_data));
-      data->cb = op.read_multi_cb;
-      data->cb_data = op.read_cb_data;
-
-      std::fill(data->values.begin(), data->values.end(), 0);
-      data->values_end = 0;
-
-      data->handles = op.handles;
-      data->read_index = 0;
-      uint16_t handle = data->handles.handles[data->read_index];
-
-      BTA_GATTC_ReadCharacteristic(conn_id, handle, GATT_AUTH_REQ_NONE, gatt_read_multi_op_simulate,
-                                   data);
     }
   }
 
@@ -333,11 +266,15 @@ void BtaGattQueue::ConfigureMtu(tCONN_ID conn_id, uint16_t mtu) {
   gatt_execute_next_op(conn_id);
 }
 
-void BtaGattQueue::ReadMultiCharacteristic(tCONN_ID conn_id, tBTA_GATTC_MULTI& handles,
+bool BtaGattQueue::ReadMultiCharacteristic(tCONN_ID conn_id, tBTA_GATTC_MULTI& handles,
                                            GATT_READ_MULTI_OP_CB cb, void* cb_data) {
+  if (!gatt_profile_get_eatt_support_by_conn_id(conn_id)) {
+    return false;
+  }
   gatt_op_queue[conn_id].push_back({.type = GATT_READ_MULTI,
                                     .handles = handles,
                                     .read_multi_cb = cb,
                                     .read_cb_data = cb_data});
   gatt_execute_next_op(conn_id);
+  return true;
 }

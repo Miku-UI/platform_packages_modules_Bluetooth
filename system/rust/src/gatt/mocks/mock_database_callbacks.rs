@@ -2,16 +2,10 @@
 
 use std::ops::RangeInclusive;
 
-use crate::{
-    core::shared_box::{WeakBox, WeakBoxRef},
-    gatt::{
-        ids::{AttHandle, TransportIndex},
-        server::{
-            att_server_bearer::AttServerBearer,
-            gatt_database::{AttDatabaseImpl, GattDatabaseCallbacks},
-        },
-    },
-};
+use crate::core::shared_box::{WeakBox, WeakBoxRef};
+use crate::gatt::ids::{AttHandle, TransportIndex};
+use crate::gatt::server::att_server_bearer::AttServerBearer;
+use crate::gatt::server::gatt_database::{AttDatabaseImpl, GattDatabaseCallbacks};
 use tokio::sync::mpsc::{self, unbounded_channel, UnboundedReceiver};
 
 /// Routes calls to GattDatabaseCallbacks into a channel of MockCallbackEvents

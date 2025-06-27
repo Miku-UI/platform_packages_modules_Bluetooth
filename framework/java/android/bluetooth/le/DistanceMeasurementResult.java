@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package android.bluetooth.le;
 
-import android.annotation.ElapsedRealtimeLong;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntDef;
@@ -133,7 +132,7 @@ public final class DistanceMeasurementResult implements Parcelable {
     private final double mConfidenceLevel;
     private final int mDetectedAttackLevel;
     private final double mVelocityMetersPerSecond;
-    private final @ElapsedRealtimeLong long mMeasurementTimestampNanos;
+    private final long mMeasurementTimestampNanos;
 
     private DistanceMeasurementResult(
             double meters,
@@ -146,7 +145,7 @@ public final class DistanceMeasurementResult implements Parcelable {
             double confidenceLevel,
             @Nadm int detectedAttackLevel,
             double velocityMetersPerSecond,
-            @ElapsedRealtimeLong long measurementTimestampNanos) {
+            long measurementTimestampNanos) {
         mMeters = meters;
         mErrorMeters = errorMeters;
         mAzimuthAngle = azimuthAngle;
@@ -313,7 +312,7 @@ public final class DistanceMeasurementResult implements Parcelable {
      */
     @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING_25Q2_APIS)
     @SystemApi
-    public @ElapsedRealtimeLong long getMeasurementTimestampNanos() {
+    public long getMeasurementTimestampNanos() {
         return mMeasurementTimestampNanos;
     }
 
@@ -419,7 +418,7 @@ public final class DistanceMeasurementResult implements Parcelable {
         private double mConfidenceLevel = Double.NaN;
         private int mDetectedAttackLevel = NADM_UNKNOWN;
         private double mVelocityMetersPerSecond = Double.NaN;
-        private @ElapsedRealtimeLong long mMeasurementTimestampNanos = -1L;
+        private long mMeasurementTimestampNanos = -1L;
 
         /**
          * Constructor of the Builder.
@@ -602,8 +601,7 @@ public final class DistanceMeasurementResult implements Parcelable {
         @FlaggedApi(Flags.FLAG_CHANNEL_SOUNDING_25Q2_APIS)
         @SystemApi
         @NonNull
-        public Builder setMeasurementTimestampNanos(
-                @ElapsedRealtimeLong long measurementTimestampNanos) {
+        public Builder setMeasurementTimestampNanos(long measurementTimestampNanos) {
             mMeasurementTimestampNanos = measurementTimestampNanos;
             return this;
         }

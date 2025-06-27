@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -361,7 +361,10 @@ public:
     uint16_t sync_handle = event_view.GetSyncHandle();
     auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
     if (periodic_sync == periodic_syncs_.end()) {
-      log::error("[PSync]: index not found for handle {}", sync_handle);
+      log::warn("[PSync]: index not found for handle {}", sync_handle);
+      le_scanning_interface_->EnqueueCommand(
+              hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(sync_handle),
+              handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
       return;
     }
 
@@ -384,7 +387,10 @@ public:
     callbacks_->OnPeriodicSyncLost(sync_handle);
     auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
     if (periodic_sync == periodic_syncs_.end()) {
-      log::error("[PSync]: index not found for handle {}", sync_handle);
+      log::warn("[PSync]: index not found for handle {}", sync_handle);
+      le_scanning_interface_->EnqueueCommand(
+              hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(sync_handle),
+              handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
       return;
     }
     periodic_syncs_.erase(periodic_sync);
@@ -459,7 +465,10 @@ public:
     uint16_t sync_handle = event_view.GetSyncHandle();
     auto periodic_sync = GetEstablishedSyncFromHandle(sync_handle);
     if (periodic_sync == periodic_syncs_.end()) {
-      log::error("[PSync]: index not found for handle {}", sync_handle);
+      log::warn("[PSync]: index not found for handle {}", sync_handle);
+      le_scanning_interface_->EnqueueCommand(
+              hci::LePeriodicAdvertisingTerminateSyncBuilder::Create(sync_handle),
+              handler_->BindOnce(check_complete<LePeriodicAdvertisingTerminateSyncCompleteView>));
       return;
     }
     log::debug("{}", "[PSync]: invoking callback");

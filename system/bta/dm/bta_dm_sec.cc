@@ -37,9 +37,6 @@
 #include "types/bt_transport.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
 
 static tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
@@ -50,7 +47,7 @@ static tBTM_STATUS bta_dm_new_link_key_cback(const RawAddress& bd_addr, DEV_CLAS
                                              bool is_ctkd);
 static tBTM_STATUS bta_dm_pin_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
                                     const BD_NAME bd_name, bool min_16_digit);
-static tBTM_STATUS bta_dm_sirk_verifiction_cback(const RawAddress& bd_addr);
+static tBTM_STATUS bta_dm_sirk_verification_cback(const RawAddress& bd_addr);
 static void bta_dm_authentication_complete_cback(const RawAddress& bd_addr, DEV_CLASS dev_class,
                                                  BD_NAME bd_name, tHCI_REASON result);
 static void bta_dm_ble_id_key_cback(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key);
@@ -67,7 +64,7 @@ const tBTM_APPL_INFO bta_security = {
         .p_sp_callback = &bta_dm_sp_cback,
         .p_le_callback = &bta_dm_ble_smp_cback,
         .p_le_key_callback = &bta_dm_ble_id_key_cback,
-        .p_sirk_verification_callback = &bta_dm_sirk_verifiction_cback};
+        .p_sirk_verification_callback = &bta_dm_sirk_verification_cback};
 
 void btm_sec_on_hw_on() {
   tBTA_DM_SEC_CBACK* temp_sec_cback = bta_dm_sec_cb.p_sec_cback;
@@ -923,14 +920,14 @@ static void bta_dm_ble_id_key_cback(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key
 
 /*******************************************************************************
  *
- * Function         bta_dm_sirk_verifiction_cback
+ * Function         bta_dm_sirk_verification_cback
  *
  * Description      SIRK verification when pairing CSIP set member.
  *
  * Returns          void
  *
  ******************************************************************************/
-static tBTM_STATUS bta_dm_sirk_verifiction_cback(const RawAddress& bd_addr) {
+static tBTM_STATUS bta_dm_sirk_verification_cback(const RawAddress& bd_addr) {
   tBTA_DM_SEC sec_event = {.ble_req = {
                                    .bd_addr = bd_addr,
                            }};
@@ -1016,7 +1013,6 @@ namespace testing {
 tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data) {
   return ::bta_dm_sp_cback(event, p_data);
 }
-
 }  // namespace testing
 }  // namespace legacy
 }  // namespace bluetooth

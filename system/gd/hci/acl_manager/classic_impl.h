@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -159,6 +159,10 @@ private:
 
   public:
     bool crash_on_unknown_handle_ = false;
+    size_t size() const {
+      std::unique_lock<std::mutex> lock(acl_connections_guard_);
+      return acl_connections_.size();
+    }
     bool is_empty() const {
       std::unique_lock<std::mutex> lock(acl_connections_guard_);
       return acl_connections_.empty();
@@ -277,6 +281,8 @@ public:
   bool is_classic_link_already_connected(Address address) {
     return connections.is_classic_link_already_connected(address);
   }
+
+  size_t get_connection_count() { return connections.size(); }
 
   void create_connection(Address address) {
     // TODO: Configure default connection parameters?

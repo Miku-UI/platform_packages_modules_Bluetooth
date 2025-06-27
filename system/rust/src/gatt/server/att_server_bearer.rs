@@ -3,32 +3,25 @@
 //! AttDatabase (that may in turn be backed by an upper-layer protocol)
 
 use pdl_runtime::EncodeError;
-use std::{cell::Cell, future::Future};
+use std::cell::Cell;
+use std::future::Future;
 
 use anyhow::Result;
 use log::{error, trace, warn};
 use tokio::task::spawn_local;
 
-use crate::{
-    core::{
-        shared_box::{WeakBox, WeakBoxRef},
-        shared_mutex::SharedMutex,
-    },
-    gatt::{
-        ids::AttHandle,
-        mtu::{AttMtu, MtuEvent},
-        opcode_types::{classify_opcode, OperationType},
-    },
-    packets::att::{self, AttErrorCode},
-    utils::owned_handle::OwnedHandle,
-};
+use crate::core::shared_box::{WeakBox, WeakBoxRef};
+use crate::core::shared_mutex::SharedMutex;
+use crate::gatt::ids::AttHandle;
+use crate::gatt::mtu::{AttMtu, MtuEvent};
+use crate::gatt::opcode_types::{classify_opcode, OperationType};
+use crate::packets::att::{self, AttErrorCode};
+use crate::utils::owned_handle::OwnedHandle;
 
-use super::{
-    att_database::AttDatabase,
-    command_handler::AttCommandHandler,
-    indication_handler::{ConfirmationWatcher, IndicationError, IndicationHandler},
-    request_handler::AttRequestHandler,
-};
+use super::att_database::AttDatabase;
+use super::command_handler::AttCommandHandler;
+use super::indication_handler::{ConfirmationWatcher, IndicationError, IndicationHandler};
+use super::request_handler::AttRequestHandler;
 
 enum AttRequestState<T: AttDatabase> {
     Idle(AttRequestHandler<T>),
@@ -212,27 +205,23 @@ impl<T: AttDatabase + Clone + 'static> WeakBox<AttServerBearer<T>> {
 mod test {
     use std::rc::Rc;
 
-    use tokio::sync::mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver};
+    use tokio::sync::mpsc::error::TryRecvError;
+    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
     use super::*;
 
-    use crate::{
-        core::{shared_box::SharedBox, uuid::Uuid},
-        gatt::{
-            ffi::AttributeBackingType,
-            ids::TransportIndex,
-            mocks::mock_datastore::{MockDatastore, MockDatastoreEvents},
-            server::{
-                att_database::{AttAttribute, AttPermissions},
-                gatt_database::{
-                    GattCharacteristicWithHandle, GattDatabase, GattServiceWithHandle,
-                },
-                test::test_att_db::TestAttDatabase,
-            },
-        },
-        packets::att,
-        utils::task::{block_on_locally, try_await},
+    use crate::core::shared_box::SharedBox;
+    use crate::core::uuid::Uuid;
+    use crate::gatt::ffi::AttributeBackingType;
+    use crate::gatt::ids::TransportIndex;
+    use crate::gatt::mocks::mock_datastore::{MockDatastore, MockDatastoreEvents};
+    use crate::gatt::server::att_database::{AttAttribute, AttPermissions};
+    use crate::gatt::server::gatt_database::{
+        GattCharacteristicWithHandle, GattDatabase, GattServiceWithHandle,
     };
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::packets::att;
+    use crate::utils::task::{block_on_locally, try_await};
 
     const VALID_HANDLE: AttHandle = AttHandle(3);
     const INVALID_HANDLE: AttHandle = AttHandle(4);

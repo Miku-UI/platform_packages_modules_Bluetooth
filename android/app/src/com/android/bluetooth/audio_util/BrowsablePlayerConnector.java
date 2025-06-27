@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import android.os.Message;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.avrcpcontroller.AvrcpControllerUtils;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
@@ -41,7 +42,9 @@ import java.util.Set;
  * BrowsedPlayerWrappers by hand.
  */
 public class BrowsablePlayerConnector extends Handler {
-    private static final String TAG = "AvrcpBrowsablePlayerConnector";
+    private static final String TAG =
+            AvrcpControllerUtils.TAG_PREFIX_AVRCP + BrowsablePlayerConnector.class.getSimpleName();
+
     private static final long CONNECT_TIMEOUT_MS = 10000; // Time in ms to wait for a connection
 
     private static final int MSG_GET_FOLDER_ITEMS_CB = 0;
@@ -49,10 +52,10 @@ public class BrowsablePlayerConnector extends Handler {
     private static final int MSG_TIMEOUT = 2;
 
     private static BrowsablePlayerConnector sInjectConnector;
-    private PlayerListCallback mCallback;
+    private final PlayerListCallback mCallback;
 
-    private List<BrowsedPlayerWrapper> mResults = new ArrayList<BrowsedPlayerWrapper>();
-    private Set<BrowsedPlayerWrapper> mPendingPlayers = new HashSet<BrowsedPlayerWrapper>();
+    private final List<BrowsedPlayerWrapper> mResults = new ArrayList<BrowsedPlayerWrapper>();
+    private final Set<BrowsedPlayerWrapper> mPendingPlayers = new HashSet<BrowsedPlayerWrapper>();
 
     interface PlayerListCallback {
         void run(List<BrowsedPlayerWrapper> result);

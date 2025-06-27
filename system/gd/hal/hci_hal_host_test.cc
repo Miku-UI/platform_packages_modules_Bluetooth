@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "com_android_bluetooth_flags.h"
 #include "hal/hci_hal.h"
 #include "hal/serialize_packet.h"
 #include "os/thread.h"
@@ -141,10 +142,11 @@ class HciHalRootcanalTest : public ::testing::Test {
 protected:
   void SetUp() override {
     thread_ = new Thread("test_thread", Thread::Priority::NORMAL);
+    handler_ = new os::Handler(thread_);
 
     HciHalHostRootcanalConfig::Get()->SetPort(kTestPort);
     fake_server_ = new FakeRootcanalDesktopHciServer;
-    hal_ = fake_registry_.Start<HciHal>(thread_);
+    hal_ = fake_registry_.Start<HciHal>(thread_, handler_);
     hal_->registerIncomingPacketCallback(&callbacks_);
     fake_server_socket_ =
             fake_server_->Accept();  // accept() after client is connected to avoid blocking
@@ -154,7 +156,12 @@ protected:
 
   void TearDown() override {
     hal_->unregisterIncomingPacketCallback();
+    handler_->Clear();
+    if (com::android::bluetooth::flags::same_handler_for_all_modules()) {
+      handler_->WaitUntilStopped(bluetooth::kHandlerStopTimeout);
+    }
     fake_registry_.StopAll();
+    delete handler_;
     close(fake_server_socket_);
     delete fake_server_;
     delete thread_;
@@ -172,6 +179,7 @@ protected:
   TestHciHalCallbacks callbacks_;
   int fake_server_socket_ = -1;
   Thread* thread_;
+  os::Handler* handler_;
 };
 
 void check_packet_equal(std::pair<uint8_t, HciPacket> hci_packet1_type_data_pair,

@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import android.os.ParcelUuid;
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import com.android.bluetooth.flags.Flags;
 import com.android.modules.utils.BytesMatcher;
 
 import org.junit.Rule;
@@ -35,7 +34,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /**
- * Unit test cases for {@link ScanRecord}.
+ * Test cases for {@link ScanRecord}.
  *
  * <p>To run this test, use adb shell am instrument -e class 'android.bluetooth.ScanRecordTest' -w
  * 'com.android.bluetooth.tests/android.bluetooth.BluetoothTestRunner'
@@ -195,8 +194,6 @@ public class ScanRecordTest {
 
     @Test
     public void testParserMultipleManufacturerSpecificData() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_SCAN_RECORD_MANUFACTURER_DATA_MERGE);
-
         byte[] scanRecord =
                 new byte[] {
                     0x02,

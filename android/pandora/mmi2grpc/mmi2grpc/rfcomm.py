@@ -64,12 +64,12 @@ class RFCOMMProxy(ProfileProxy):
 
         self.server = self.rfcomm.StartServer(uuid=self.SPP_UUID, name=self.SERVICE_NAME).server
 
-        self.host.WaitConnection(address=pts_addr)
+        _ = self.host.WaitConnection(address=pts_addr).connection
 
         return "OK"
 
     @assert_description
-    def TSC_RFCOMM_mmi_iut_accept_sabm(self, **kwargs):
+    def TSC_RFCOMM_mmi_iut_accept_sabm(self, test: str, **kwargs):
         """
         Take action to accept the SABM operation initiated by the tester.
 
@@ -78,7 +78,23 @@ class RFCOMMProxy(ProfileProxy):
         TSPX_server_channel_iut
         """
 
-        self.connection = self.rfcomm.AcceptConnection(server=self.server).connection
+        def accept_connection():
+            self.connection = self.rfcomm.AcceptConnection(server=self.server).connection
+
+        if test in [
+            "RFCOMM/DEVA-DEVB/RFC/BV-03-C",
+            "RFCOMM/DEVA-DEVB/RFC/BV-11-C",
+            "RFCOMM/DEVA-DEVB/RFC/BV-15-C",
+            "RFCOMM/DEVA-DEVB/RFC/BV-17-C",
+            "RFCOMM/DEVA-DEVB/RFC/BV-19-C",
+            "RFCOMM/DEVB/RFC/BV-02-C",
+        ]:
+            # For the tests listed above, the PTS does not complete the service
+            # level connection but only executes part of the setup.
+            threading.Thread(target=accept_connection).start()
+        else:
+            accept_connection()
+
         return "OK"
 
     @assert_description

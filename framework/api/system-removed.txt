@@ -1,1 +1,9 @@
 // Signature format: 2.0
+package android.bluetooth.le {
+
+  public final class BluetoothLeScanner {
+    method @Deprecated @RequiresPermission(android.Manifest.permission.BLUETOOTH_SCAN) public void startTruncatedScan(java.util.List<android.bluetooth.le.TruncatedFilter>, android.bluetooth.le.ScanSettings, android.bluetooth.le.ScanCallback);
+  }
+
+}
+

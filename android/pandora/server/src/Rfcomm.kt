@@ -22,7 +22,6 @@ import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
 import com.google.protobuf.ByteString
-import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import java.io.Closeable
 import java.io.IOException
@@ -39,9 +38,8 @@ import pandora.RfcommProto.*
 @kotlinx.coroutines.ExperimentalCoroutinesApi
 class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
 
-    private val _bufferSize = 512
-
     private val TAG = "PandoraRfcomm"
+    private val _bufferSize = 512
 
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
 
@@ -53,7 +51,7 @@ class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
     data class Connection(
         val connection: BluetoothSocket,
         val inputStream: InputStream,
-        val outputStream: OutputStream
+        val outputStream: OutputStream,
     )
 
     private var serverMap: HashMap<Int, BluetoothServerSocket> = hashMapOf()
@@ -68,26 +66,24 @@ class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
         responseObserver: StreamObserver<ConnectionResponse>,
     ) {
         grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "RFCOMM: connect: request=${request.address}")
+            Log.i(TAG, "Connect: address=${request.address}")
+
             val device = request.address.toBluetoothDevice(bluetoothAdapter)
             val clientSocket =
                 device.createInsecureRfcommSocketToServiceRecord(UUID.fromString(request.uuid))
+
             try {
                 clientSocket.connect()
             } catch (e: IOException) {
-                Log.e(TAG, "connect threw ${e}.")
-                throw Status.UNKNOWN.asException()
+                Log.e(TAG, "Connect failed with exception: $e")
+                throw RuntimeException("RFCOMM connect failure")
             }
-            Log.i(TAG, "connected.")
+
+            Log.i(TAG, "connected: socket= $clientSocket")
             val connectedClientSocket = currentCookie++
-            // Get the BluetoothSocket input and output streams
-            try {
-                val tmpIn = clientSocket.inputStream!!
-                val tmpOut = clientSocket.outputStream!!
-                connectionMap[connectedClientSocket] = Connection(clientSocket, tmpIn, tmpOut)
-            } catch (e: IOException) {
-                Log.e(TAG, "temp sockets not created", e)
-            }
+            val tmpIn = clientSocket.inputStream!!
+            val tmpOut = clientSocket.outputStream!!
+            connectionMap[connectedClientSocket] = Connection(clientSocket, tmpIn, tmpOut)
 
             ConnectionResponse.newBuilder()
                 .setConnection(RfcommConnection.newBuilder().setId(connectedClientSocket).build())
@@ -101,13 +97,15 @@ class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
     ) {
         grpcUnary(scope, responseObserver) {
             val id = request.connection.id
-            Log.i(TAG, "RFCOMM: disconnect: request=${id}")
-            if (connectionMap.containsKey(id)) {
-                connectionMap[id]!!.connection.close()
-                connectionMap.remove(id)
-            } else {
-                throw Status.UNKNOWN.asException()
+            Log.i(TAG, "Disconnect: id=${id}")
+
+            if (!connectionMap.containsKey(id)) {
+                throw RuntimeException("Unknown connection identifier")
             }
+
+            connectionMap[id]!!.connection.close()
+            connectionMap.remove(id)
+
             DisconnectionResponse.newBuilder().build()
         }
     }
@@ -117,11 +115,12 @@ class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
         responseObserver: StreamObserver<StartServerResponse>,
     ) {
         grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "startServer")
+            Log.i(TAG, "StartServer")
+
             val serverSocket =
                 bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(
                     request.name,
-                    UUID.fromString(request.uuid)
+                    UUID.fromString(request.uuid),
                 )
             val serverSocketCookie = currentCookie++
             serverMap[serverSocketCookie] = serverSocket
@@ -137,36 +136,42 @@ class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
         responseObserver: StreamObserver<AcceptConnectionResponse>,
     ) {
         grpcUnary(scope, responseObserver) {
-            Log.i(TAG, "accepting: serverSocket= $(request.id)")
-            val acceptedSocketCookie = currentCookie++
-            try {
-                val acceptedSocket: BluetoothSocket = serverMap[request.server.id]!!.accept(2000)
-                Log.i(TAG, "accepted: acceptedSocket= $acceptedSocket")
-                val tmpIn = acceptedSocket.inputStream!!
-                val tmpOut = acceptedSocket.outputStream!!
-                connectionMap[acceptedSocketCookie] = Connection(acceptedSocket, tmpIn, tmpOut)
-            } catch (e: IOException) {
-                Log.e(TAG, "Caught an IOException while trying to accept and create streams.")
-            }
+            Log.i(TAG, "Accept: id=${request.server.id}")
 
-            Log.i(TAG, "after accept")
+            val acceptedSocket: BluetoothSocket =
+                try {
+                    serverMap[request.server.id]!!.accept(2000)
+                } catch (e: IOException) {
+                    Log.e(TAG, "Accept failed with exception", e)
+                    throw RuntimeException("RFCOMM accept failure")
+                }
+
+            Log.i(TAG, "accepted: socket=$acceptedSocket")
+            val acceptedSocketCookie = currentCookie++
+            val tmpIn = acceptedSocket.inputStream!!
+            val tmpOut = acceptedSocket.outputStream!!
+            connectionMap[acceptedSocketCookie] = Connection(acceptedSocket, tmpIn, tmpOut)
+
             AcceptConnectionResponse.newBuilder()
                 .setConnection(RfcommConnection.newBuilder().setId(acceptedSocketCookie).build())
                 .build()
         }
     }
 
-    override fun send(
-        request: TxRequest,
-        responseObserver: StreamObserver<TxResponse>,
-    ) {
+    override fun send(request: TxRequest, responseObserver: StreamObserver<TxResponse>) {
         grpcUnary(scope, responseObserver) {
-            if (request.data.isEmpty) {
-                throw Status.UNKNOWN.asException()
-            }
-            val data = request.data!!.toByteArray()
+            Log.i(TAG, "Send: id=${request.connection.id}")
 
+            if (request.data.isEmpty) {
+                throw RuntimeException("Invalid data parameter")
+            }
+            if (!connectionMap.containsKey(request.connection.id)) {
+                throw RuntimeException("Unknown connection identifier")
+            }
+
+            val data = request.data!!.toByteArray()
             val socketOut = connectionMap[request.connection.id]!!.outputStream
+
             withContext(Dispatchers.IO) {
                 try {
                     socketOut.write(data)
@@ -175,19 +180,22 @@ class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
                     Log.e(TAG, "Exception while writing output stream", e)
                 }
             }
-            Log.i(TAG, "Sent data")
+
             TxResponse.newBuilder().build()
         }
     }
 
-    override fun receive(
-        request: RxRequest,
-        responseObserver: StreamObserver<RxResponse>,
-    ) {
+    override fun receive(request: RxRequest, responseObserver: StreamObserver<RxResponse>) {
         grpcUnary(scope, responseObserver) {
-            val data = ByteArray(_bufferSize)
+            Log.i(TAG, "Receive: id=${request.connection.id}")
 
+            if (!connectionMap.containsKey(request.connection.id)) {
+                throw RuntimeException("Unknown connection identifier")
+            }
+
+            val data = ByteArray(_bufferSize)
             val socketIn = connectionMap[request.connection.id]!!.inputStream
+
             withContext(Dispatchers.IO) {
                 try {
                     socketIn.read(data)
@@ -195,7 +203,7 @@ class Rfcomm(val context: Context) : RFCOMMImplBase(), Closeable {
                     Log.e(TAG, "Exception while reading from input stream", e)
                 }
             }
-            Log.i(TAG, "Read data")
+
             RxResponse.newBuilder().setData(ByteString.copyFrom(data)).build()
         }
     }

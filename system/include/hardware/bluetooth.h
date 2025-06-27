@@ -49,7 +49,6 @@
 #define BT_PROFILE_MAP_CLIENT_ID "map_client"
 #define BT_PROFILE_SDP_CLIENT_ID "sdp"
 #define BT_PROFILE_GATT_ID "gatt"
-#define BT_PROFILE_AV_RC_ID "avrcp"
 #define BT_PROFILE_AV_RC_CTRL_ID "avrcp_ctrl"
 #define BT_PROFILE_HEARING_AID_ID "hearing_aid"
 #define BT_PROFILE_HAP_CLIENT_ID "has_client"
@@ -240,6 +239,7 @@ typedef struct {
 
 typedef struct {
   uint8_t number_of_supported_offloaded_le_coc_sockets;
+  uint8_t number_of_supported_offloaded_rfcomm_sockets;
 } bt_lpp_offload_features_t;
 
 /** Bluetooth Vendor and Product ID info */
@@ -298,7 +298,7 @@ typedef enum {
    */
   BT_PROPERTY_TYPE_OF_DEVICE,
   /**
-   * Description - Bluetooth Service Record
+   * Description - Bluetooth Service Record, UUIDs on BREDR transport
    * Access mode - Only GET.
    * Data type   - bt_service_record_t
    */
@@ -425,6 +425,14 @@ typedef enum {
    * Data Type   - bt_lpp_offload_features_t.
    */
   BT_PROPERTY_LPP_OFFLOAD_FEATURES,
+
+  /**
+   * Description - Bluetooth Service 128-bit UUIDs on LE transport
+   * Access mode - Only GET.
+   * Data type   - Array of bluetooth::Uuid (Array size inferred from property
+   *               length).
+   */
+  BT_PROPERTY_UUIDS_LE,
 
   BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
@@ -828,14 +836,6 @@ typedef struct {
   void (*dump)(int fd, const char** arguments);
 
   /**
-   * Native support for metrics protobuf dumping. The dumping format will be
-   * raw byte array
-   *
-   * @param output an externally allocated string to dump serialized protobuf
-   */
-  void (*dumpMetrics)(std::string* output);
-
-  /**
    * Clear /data/misc/bt_config.conf and erase all stored connections
    */
   int (*config_clear)(void);
@@ -912,6 +912,11 @@ typedef struct {
    * Call to disconnect all ACL connections
    */
   int (*disconnect_all_acls)();
+
+  /**
+   * Call to disconnect ACL connection to device
+   */
+  int (*disconnect_acl)(const RawAddress& bd_addr, int transport);
 
   /**
    * Call to retrieve a generated random
@@ -1021,6 +1026,8 @@ template <>
 struct formatter<bt_bond_state_t> : enum_formatter<bt_bond_state_t> {};
 template <>
 struct formatter<bt_property_type_t> : enum_formatter<bt_property_type_t> {};
+template <>
+struct formatter<bt_ssp_variant_t> : enum_formatter<bt_ssp_variant_t> {};
 }  // namespace std
 
 #endif  // __has_include(<bluetooth/log.h>)

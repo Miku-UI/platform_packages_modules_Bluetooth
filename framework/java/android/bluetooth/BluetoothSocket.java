@@ -94,7 +94,8 @@ import java.util.UUID;
  * @see java.io.OutputStream
  */
 public final class BluetoothSocket implements Closeable {
-    private static final String TAG = "BluetoothSocket";
+    private static final String TAG = BluetoothSocket.class.getSimpleName();
+
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     private static final boolean VDBG = Log.isLoggable(TAG, Log.VERBOSE);
 
@@ -670,7 +671,7 @@ public final class BluetoothSocket implements Closeable {
                                     mDevice, mType, mUuid, mPort, getSecurityFlags());
                 } else {
                     mPfd =
-                            socketManager.connectSocketwithOffload(
+                            socketManager.connectSocketWithOffload(
                                     mDevice,
                                     mType,
                                     mUuid,
@@ -978,6 +979,8 @@ public final class BluetoothSocket implements Closeable {
             if (mL2capBuffer.remaining() == 0) {
                 if (VDBG) Log.v(TAG, "l2cap buffer empty, refilling...");
                 if (fillL2capRxBuffer() == -1) {
+                    Log.d(TAG, "socket EOF, returning -1");
+                    mSocketState = SocketState.CLOSED;
                     return -1;
                 }
             }
@@ -994,6 +997,7 @@ public final class BluetoothSocket implements Closeable {
             ret = mSocketIS.read(b, offset, length);
         }
         if (ret < 0) {
+            mSocketState = SocketState.CLOSED;
             throw new IOException("bt socket closed, read return: " + ret);
         }
         if (VDBG) Log.d(TAG, "read out:  " + mSocketIS + " ret: " + ret);
@@ -1279,7 +1283,7 @@ public final class BluetoothSocket implements Closeable {
         return mPfd;
     }
 
-    private String convertAddr(final byte[] addr) {
+    private static String convertAddr(final byte[] addr) {
         return String.format(
                 Locale.US,
                 "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -1390,7 +1394,7 @@ public final class BluetoothSocket implements Closeable {
         }
     }
 
-    private int readAll(InputStream is, byte[] b) throws IOException {
+    private static int readAll(InputStream is, byte[] b) throws IOException {
         int left = b.length;
         while (left > 0) {
             int ret = is.read(b, b.length - left, left);
@@ -1411,7 +1415,7 @@ public final class BluetoothSocket implements Closeable {
         return b.length;
     }
 
-    private int readInt(InputStream is) throws IOException {
+    private static int readInt(InputStream is) throws IOException {
         byte[] ibytes = new byte[4];
         int ret = readAll(is, ibytes);
         if (VDBG) Log.d(TAG, "inputStream.read ret: " + ret);

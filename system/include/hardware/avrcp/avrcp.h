@@ -131,8 +131,9 @@ public:
   virtual void GetAddressedPlayer(GetAddressedPlayerCallback addressed_player) = 0;
 
   using SetBrowsedPlayerCallback =
-          base::Callback<void(bool success, std::string root_id, uint32_t num_items)>;
-  virtual void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) = 0;
+          base::Callback<void(bool success, std::string current_path, uint32_t num_items)>;
+  virtual void SetBrowsedPlayer(uint16_t player_id, std::string current_path,
+                                SetBrowsedPlayerCallback browse_cb) = 0;
 
   using SetAddressedPlayerCallback = base::Callback<void(uint16_t)>;
   virtual void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback new_player) = 0;

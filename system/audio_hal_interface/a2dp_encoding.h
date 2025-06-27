@@ -38,6 +38,7 @@ enum class Status {
   UNSUPPORTED_CODEC_CONFIGURATION,
   FAILURE,
   PENDING,
+  RECONFIGURATION,
 };
 
 /// Loosely copied after the definition from the Bluetooth Audio interface:

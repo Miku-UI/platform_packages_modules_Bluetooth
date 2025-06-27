@@ -53,9 +53,9 @@ FIRST_SERVICE_RECORD_HANDLE = 0x00010010
 class RFCOMMService(RFCOMMServicer):
     device: Device
 
-    def __init__(self, device: Device) -> None:
+    def __init__(self, device: Device, server: Server) -> None:
         super().__init__()
-        self.server = None
+        self.server = server
         self.device = device
         self.server_ports = {}  # key = channel, value = ServerInstance
         self.connections = {}  # key = id, value = dlc
@@ -116,9 +116,6 @@ class RFCOMMService(RFCOMMServicer):
     async def StartServer(self, request: StartServerRequest, context: grpc.ServicerContext) -> StartServerResponse:
         uuid = core.UUID(request.uuid)
         logging.info(f"StartServer {uuid}")
-
-        if self.server is None:
-            self.server = Server(self.device)
 
         for existing_id, port in self.server_ports.items():
             if port.uuid == uuid:

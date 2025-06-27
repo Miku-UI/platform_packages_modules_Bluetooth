@@ -54,7 +54,6 @@ import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
@@ -68,7 +67,7 @@ import java.util.List;
  */
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class BluetoothOppManager {
-    private static final String TAG = "BluetoothOppManager";
+    private static final String TAG = BluetoothOppManager.class.getSimpleName();
 
     @VisibleForTesting static BluetoothOppManager sInstance;
 
@@ -121,7 +120,7 @@ public class BluetoothOppManager {
 
     // A list of devices that may send files over OPP to this device
     // without user confirmation. Used for connection handover from forex NFC.
-    private List<Pair<String, Long>> mAcceptlist = new ArrayList<Pair<String, Long>>();
+    private final List<Pair<String, Long>> mAcceptlist = new ArrayList<Pair<String, Long>>();
 
     // The time for which the acceptlist entries remain valid.
     private static final int ACCEPTLIST_DURATION_MS = 15000;
@@ -190,7 +189,7 @@ public class BluetoothOppManager {
         mAcceptlist.add(new Pair<String, Long>(address, SystemClock.elapsedRealtime()));
     }
 
-    public synchronized boolean isAcceptlisted(String address) {
+    public synchronized boolean isAcceptListed(String address) {
         cleanupAcceptlist();
         for (Pair<String, Long> entry : mAcceptlist) {
             if (entry.first.equals(address)) {
@@ -480,11 +479,7 @@ public class BluetoothOppManager {
                 }
 
                 values.put(BluetoothShare.MIMETYPE, contentType);
-                values.put(
-                        BluetoothShare.DESTINATION,
-                        Flags.identityAddressNullIfNotKnown()
-                                ? Utils.getBrEdrAddress(mRemoteDevice)
-                                : mRemoteDevice.getIdentityAddress());
+                values.put(BluetoothShare.DESTINATION, Utils.getBrEdrAddress(mRemoteDevice));
                 values.put(BluetoothShare.TIMESTAMP, ts);
                 if (mIsHandoverInitiated) {
                     values.put(
@@ -512,11 +507,7 @@ public class BluetoothOppManager {
             ContentValues values = new ContentValues();
             values.put(BluetoothShare.URI, mUri);
             values.put(BluetoothShare.MIMETYPE, mTypeOfSingleFile);
-            values.put(
-                    BluetoothShare.DESTINATION,
-                    Flags.identityAddressNullIfNotKnown()
-                            ? Utils.getBrEdrAddress(mRemoteDevice)
-                            : mRemoteDevice.getIdentityAddress());
+            values.put(BluetoothShare.DESTINATION, Utils.getBrEdrAddress(mRemoteDevice));
             if (mIsHandoverInitiated) {
                 values.put(
                         BluetoothShare.USER_CONFIRMATION,

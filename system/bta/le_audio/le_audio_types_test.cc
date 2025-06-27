@@ -702,7 +702,7 @@ constexpr types::LeAudioCodecId kLeAudioCodecIdVendor1 = {
         .vendor_codec_id = 0xDE,
 };
 
-static const set_configurations::CodecConfigSetting vendor_16_2 = {
+static const types::CodecConfigSetting vendor_16_2 = {
         .id = kLeAudioCodecIdVendor1,
         .params = types::LeAudioLtvMap({
                 LTV_ENTRY_SAMPLING_FREQUENCY(codec_spec_conf::kLeAudioSamplingFreq16000Hz),
@@ -825,7 +825,7 @@ TEST(CodecSpecTest, test_channel_count_transition) {
 }
 
 TEST(CodecConfigTest, test_lc3_bits_per_sample) {
-  set_configurations::CodecConfigSetting lc3_codec_config = {
+  types::CodecConfigSetting lc3_codec_config = {
           .id = {.coding_format = types::kLeAudioCodingFormatLC3},
   };
   ASSERT_EQ(utils::translateToBtLeAudioCodecConfigBitPerSample(lc3_codec_config.GetBitsPerSample()),
@@ -833,11 +833,51 @@ TEST(CodecConfigTest, test_lc3_bits_per_sample) {
 }
 
 TEST(CodecConfigTest, test_invalid_codec_bits_per_sample) {
-  set_configurations::CodecConfigSetting invalid_codec_config = {
+  types::CodecConfigSetting invalid_codec_config = {
           .id = {.coding_format = types::kLeAudioCodingFormatVendorSpecific}};
   ASSERT_EQ(utils::translateToBtLeAudioCodecConfigBitPerSample(
                     invalid_codec_config.GetBitsPerSample()),
             LE_AUDIO_BITS_PER_SAMPLE_INDEX_NONE);
+}
+
+TEST(CodecConfigTest, test_tmap_and_gmap_target_latency) {
+  /* TMAP: Media -> Higher reliability */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::MEDIA),
+            types::kTargetLatencyHigherReliability);
+
+  /* TMAP: Live performance -> Low Latency */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::LIVE),
+            types::kTargetLatencyLower);
+
+  /* TMAP: Call -> Balanced reliability */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::RINGTONE),
+            types::kTargetLatencyBalancedLatencyReliability);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::CONVERSATIONAL),
+            types::kTargetLatencyBalancedLatencyReliability);
+
+  /* GMAP: Game -> Low Latency */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::GAME),
+            types::kTargetLatencyLower);
+
+  /* Undefined for the rest of contexts */
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::UNINITIALIZED),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::UNSPECIFIED),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::INSTRUCTIONAL),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::VOICEASSISTANTS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::SOUNDEFFECTS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::NOTIFICATIONS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::ALERTS),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::EMERGENCYALARM),
+            types::kTargetLatencyUndefined);
+  ASSERT_EQ(utils::GetTargetLatencyForAudioContext(LeAudioContextType::RFU),
+            types::kTargetLatencyUndefined);
 }
 
 }  // namespace types

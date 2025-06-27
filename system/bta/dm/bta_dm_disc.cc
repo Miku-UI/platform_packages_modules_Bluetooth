@@ -19,7 +19,6 @@
 #include "bta/dm/bta_dm_disc.h"
 
 #include <base/functional/bind.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -37,8 +36,8 @@
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
+#include "osi/include/osi.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_uuid16.h"
@@ -53,9 +52,6 @@
 #ifdef TARGET_FLOSS
 #include "stack/include/srvc_api.h"
 #endif
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
@@ -99,7 +95,7 @@ static void post_disc_evt(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_DM_MSG> m
 static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status);
 static void bta_dm_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 static void bta_dm_execute_queued_discovery_request();
-static void bta_dm_close_gatt_conn();
+static void bta_dm_close_gatt_conn(uint16_t conn_id);
 
 namespace {
 
@@ -108,8 +104,8 @@ struct gatt_interface_t {
   void (*BTA_GATTC_Refresh)(const RawAddress& remote_bda);
   void (*BTA_GATTC_GetGattDb)(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                               btgatt_db_element_t** db, int* count);
-  void (*BTA_GATTC_AppRegister)(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                                bool eatt_support);
+  void (*BTA_GATTC_AppRegister)(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                                BtaAppRegisterCallback cb, bool eatt_support);
   void (*BTA_GATTC_Close)(tCONN_ID conn_id);
   void (*BTA_GATTC_ServiceSearchRequest)(tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid);
   void (*BTA_GATTC_Open)(tGATT_IF client_if, const RawAddress& remote_bda,
@@ -127,8 +123,9 @@ struct gatt_interface_t {
                   BTA_GATTC_GetGattDb(conn_id, start_handle, end_handle, db, count);
                 },
         .BTA_GATTC_AppRegister =
-                [](tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb, bool eatt_support) {
-                  BTA_GATTC_AppRegister(p_client_cb, cb, eatt_support);
+                [](const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                   BtaAppRegisterCallback cb, bool eatt_support) {
+                  BTA_GATTC_AppRegister(name, p_client_cb, cb, eatt_support);
                 },
         .BTA_GATTC_Close = [](tCONN_ID conn_id) { BTA_GATTC_Close(conn_id); },
         .BTA_GATTC_ServiceSearchRequest =
@@ -155,8 +152,7 @@ gatt_interface_t& get_gatt_interface() { return *gatt_interface; }
 
 void bta_dm_disc_gatt_cancel_open(const RawAddress& bd_addr) {
   get_gatt_interface().BTA_GATTC_CancelOpen(0, bd_addr, false);
-  if (com::android::bluetooth::flags::cancel_open_discovery_client() &&
-      bta_dm_discovery_cb.client_if != BTA_GATTS_INVALID_IF) {
+  if (bta_dm_discovery_cb.client_if != BTA_GATTS_INVALID_IF) {
     get_gatt_interface().BTA_GATTC_CancelOpen(bta_dm_discovery_cb.client_if, bd_addr, true);
   }
 }
@@ -399,7 +395,7 @@ static void bta_dm_discover_services(tBTA_DM_API_DISCOVER& discover) {
   }
 
   BTM_LogHistory(kBtmLogTag, bd_addr, "Discovery started ",
-                 base::StringPrintf("Transport:%s", bt_transport_text(transport).c_str()));
+                 std::format("Transport:{}", bt_transport_text(transport)));
 
   if (transport == BT_TRANSPORT_LE) {
     if (bta_dm_discovery_cb.transports & BT_TRANSPORT_LE) {
@@ -468,7 +464,8 @@ void bta_dm_disc_gattc_register(void) {
     return;
   }
   get_gatt_interface().BTA_GATTC_AppRegister(
-          bta_dm_gattc_callback, base::Bind([](uint8_t client_id, uint8_t status) {
+          "bta_dm_disc_gatt", bta_dm_gattc_callback,
+          base::Bind([](uint8_t client_id, uint8_t status) {
             tGATT_STATUS gatt_status = static_cast<tGATT_STATUS>(status);
             if (static_cast<tGATT_STATUS>(status) == GATT_SUCCESS) {
               log::info("Registered device discovery search gatt client tGATT_IF:{}", client_id);
@@ -484,8 +481,10 @@ void bta_dm_disc_gattc_register(void) {
           false);
 }
 
-static void gatt_close_timer_cb(void*) {
-  bta_dm_disc_sm_execute(BTA_DM_DISC_CLOSE_TOUT_EVT, nullptr);
+static void gatt_close_timer_cb(void* data) {
+  uint16_t conn_id = PTR_TO_UINT(data);
+  bta_dm_disc_sm_execute(BTA_DM_DISC_CLOSE_TOUT_EVT,
+                         std::make_unique<tBTA_DM_MSG>(tBTA_DM_TOUT{.conn_id = conn_id}));
 }
 
 void bta_dm_gatt_finished(RawAddress bda, tBTA_STATUS result,
@@ -514,7 +513,7 @@ static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
   log::verbose("conn_id = {}, status = {}, sdp_pending = {}, le_pending = {}", conn_id, status,
                sdp_pending, le_pending);
 
-  if (com::android::bluetooth::flags::bta_dm_discover_both() && sdp_pending && !le_pending) {
+  if (sdp_pending && !le_pending) {
     /* LE Service discovery finished, and services were reported, but SDP is not
      * finished yet. gatt_close_timer closed the connection, and we received
      * this callback because of disconnection */
@@ -551,46 +550,42 @@ static void bta_dm_gatt_disc_complete(tCONN_ID conn_id, tGATT_STATUS status) {
     if (bta_dm_discovery_cb.gatt_close_timer != nullptr) {
       /* start a GATT channel close delay timer */
       alarm_set_on_mloop(bta_dm_discovery_cb.gatt_close_timer, BTA_DM_GATT_CLOSE_DELAY_TOUT,
-                         gatt_close_timer_cb, 0);
+                         gatt_close_timer_cb, UINT_TO_PTR(conn_id));
     } else {
-      bta_dm_disc_sm_execute(BTA_DM_DISC_CLOSE_TOUT_EVT, nullptr);
+      bta_dm_disc_sm_execute(BTA_DM_DISC_CLOSE_TOUT_EVT,
+                             std::make_unique<tBTA_DM_MSG>(tBTA_DM_TOUT{.conn_id = conn_id}));
     }
   } else {
     log::info("Discovery complete for invalid conn ID. Will pick up next job");
 
-    if (com::android::bluetooth::flags::cancel_open_discovery_client()) {
-      bta_dm_close_gatt_conn();
-    } else {
-      bta_dm_discovery_cb.conn_id = GATT_INVALID_CONN_ID;
-    }
-    if (com::android::bluetooth::flags::fix_le_evt_cancelling_sdp_discovery() &&
-        (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR)) {
+    bta_dm_close_gatt_conn(bta_dm_discovery_cb.conn_id);
+    if (bta_dm_discovery_cb.transports & BT_TRANSPORT_BR_EDR) {
       log::info("classic discovery still pending {}", bta_dm_discovery_cb.peer_bdaddr);
       return;
-    } else {
-      bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
     }
+    bta_dm_discovery_set_state(BTA_DM_DISCOVER_IDLE);
     bta_dm_execute_queued_discovery_request();
   }
 }
 
-/*******************************************************************************
- *
- * Function         bta_dm_close_gatt_conn
- *
- * Description      This function close the GATT connection after delay
- *timeout.
- *
- * Parameters:
- *
- ******************************************************************************/
-static void bta_dm_close_gatt_conn() {
-  if (bta_dm_discovery_cb.conn_id != GATT_INVALID_CONN_ID) {
-    BTA_GATTC_Close(bta_dm_discovery_cb.conn_id);
+/* This function close the GATT connection after delay timeout */
+static void bta_dm_close_gatt_conn(uint16_t conn_id) {
+  if (com::android::bluetooth::flags::bta_dm_disc_close_proper_conn_id()) {
+    if (conn_id != GATT_INVALID_CONN_ID) {
+      BTA_GATTC_Close(conn_id);
+    }
+  } else {
+    if (bta_dm_discovery_cb.conn_id != GATT_INVALID_CONN_ID) {
+      BTA_GATTC_Close(bta_dm_discovery_cb.conn_id);
+    }
   }
 
   bta_dm_discovery_cb.pending_close_bda = RawAddress::kEmpty;
-  bta_dm_discovery_cb.conn_id = GATT_INVALID_CONN_ID;
+
+  if (!com::android::bluetooth::flags::bta_dm_disc_close_proper_conn_id() ||
+      bta_dm_discovery_cb.conn_id == conn_id) {
+    bta_dm_discovery_cb.conn_id = GATT_INVALID_CONN_ID;
+  }
 }
 /*******************************************************************************
  *
@@ -718,10 +713,6 @@ tBT_TRANSPORT bta_dm_determine_discovery_transport(const RawAddress& bd_addr) {
   return ::bta_dm_determine_discovery_transport(bd_addr);
 }
 
-void bta_dm_sdp_result(tSDP_STATUS sdp_status, tBTA_DM_SDP_STATE* state) {
-  ::bta_dm_sdp_result(sdp_status, state);
-}
-
 }  // namespace testing
 }  // namespace legacy
 }  // namespace bluetooth
@@ -735,8 +726,7 @@ std::string EpochMillisToString(uint64_t time_ms) {
   struct tm tm;
   localtime_r(&time_sec, &tm);
   std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
-  return base::StringPrintf("%s.%03u", s.c_str(),
-                            static_cast<unsigned int>(time_ms % MillisPerSecond));
+  return std::format("{}.{:03}", s, time_ms % MillisPerSecond);
 }
 
 }  // namespace
@@ -745,8 +735,7 @@ struct tDISCOVERY_STATE_HISTORY {
   const tBTA_DM_SERVICE_DISCOVERY_STATE state;
   const tBTA_DM_DISC_EVT event;
   std::string ToString() const {
-    return base::StringPrintf("state:%25s event:%s", bta_dm_state_text(state).c_str(),
-                              bta_dm_event_text(event).c_str());
+    return std::format("state:{:25s} event:{}", bta_dm_state_text(state), bta_dm_event_text(event));
   }
 };
 
@@ -772,7 +761,9 @@ static void bta_dm_disc_sm_execute(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_
           bta_dm_discover_services(std::get<tBTA_DM_API_DISCOVER>(*msg));
           break;
         case BTA_DM_DISC_CLOSE_TOUT_EVT:
-          bta_dm_close_gatt_conn();
+          log::assert_that(std::holds_alternative<tBTA_DM_TOUT>(*msg), "bad message type: {}",
+                           msg->index());
+          bta_dm_close_gatt_conn(std::get<tBTA_DM_TOUT>(*msg).conn_id);
           break;
         default:
           log::info("Received unexpected event {}[0x{:x}] in state {}", bta_dm_event_text(event),
@@ -793,15 +784,16 @@ static void bta_dm_disc_sm_execute(tBTA_DM_DISC_EVT event, std::unique_ptr<tBTA_
                            "bad message type: {}", msg->index());
 
           auto req = std::get<tBTA_DM_API_DISCOVER>(*msg);
-          if (com::android::bluetooth::flags::bta_dm_discover_both() &&
-              is_same_device(req.bd_addr, bta_dm_discovery_cb.peer_bdaddr)) {
+          if (is_same_device(req.bd_addr, bta_dm_discovery_cb.peer_bdaddr)) {
             bta_dm_discover_services(std::get<tBTA_DM_API_DISCOVER>(*msg));
           } else {
             bta_dm_queue_disc(std::get<tBTA_DM_API_DISCOVER>(*msg));
           }
         } break;
         case BTA_DM_DISC_CLOSE_TOUT_EVT:
-          bta_dm_close_gatt_conn();
+          log::assert_that(std::holds_alternative<tBTA_DM_TOUT>(*msg), "bad message type: {}",
+                           msg->index());
+          bta_dm_close_gatt_conn(std::get<tBTA_DM_TOUT>(*msg).conn_id);
           break;
         default:
           log::info("Received unexpected event {}[0x{:x}] in state {}", bta_dm_event_text(event),
@@ -850,13 +842,3 @@ void DumpsysBtaDmDisc(int fd) {
               bta_dm_state_text(bta_dm_discovery_get_state()).c_str());
 }
 #undef DUMPSYS_TAG
-
-namespace bluetooth {
-namespace legacy {
-namespace testing {
-
-tBTA_DM_SERVICE_DISCOVERY_CB& bta_dm_discovery_cb() { return ::bta_dm_discovery_cb; }
-
-}  // namespace testing
-}  // namespace legacy
-}  // namespace bluetooth

@@ -27,7 +27,6 @@ static_library("osi") {
     "src/mutex.cc",
     "src/properties.cc",
     "src/reactor.cc",
-    "src/ringbuffer.cc",
     "src/socket.cc",
 
     # TODO(mcchou): Remove these sources after platform specific
@@ -44,7 +43,6 @@ static_library("osi") {
 
   include_dirs = [
     "//bt/system/",
-    "//bt/system/linux_include",
     "//bt/system/osi/include_internal",
     "//bt/system/stack/include",
   ]
@@ -76,7 +74,6 @@ if (use.test) {
       "test/list_test.cc",
       "test/properties_test.cc",
       "test/reactor_test.cc",
-      "test/ringbuffer_test.cc",
       "test/thread_test.cc",
 
       "test/internal/semaphore_test.cc",

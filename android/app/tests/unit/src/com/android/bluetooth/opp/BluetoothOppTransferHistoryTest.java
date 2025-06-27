@@ -23,6 +23,8 @@ import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
@@ -44,7 +46,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.flags.Flags;
 
 import com.google.common.base.Objects;
 
@@ -58,16 +59,14 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** This class will also test BluetoothOppTransferAdapter */
+/** Test cases for {@link BluetoothOppTransferHistory} and {@link BluetoothOppTransferAdapter}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppTransferHistoryTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mCursor;
     @Spy BluetoothMethodProxy mBluetoothMethodProxy;
@@ -155,11 +154,7 @@ public class BluetoothOppTransferHistoryTest {
                 mTargetContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH));
 
         BluetoothOppTestUtils.setUpMockCursor(mCursor, mCursorMockDataList);
-        if (Flags.oppStartActivityDirectlyFromNotification()) {
-            mIntent.setAction(Constants.ACTION_OPEN_INBOUND_TRANSFER);
-        } else {
-            mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_INBOUND);
-        }
+        mIntent.setAction(Constants.ACTION_OPEN_INBOUND_TRANSFER);
 
         ActivityScenario.launch(mIntent);
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
@@ -178,11 +173,7 @@ public class BluetoothOppTransferHistoryTest {
                 1,
                 new BluetoothOppTestUtils.CursorMockData(
                         BluetoothShare.DIRECTION, 2, BluetoothShare.DIRECTION_OUTBOUND));
-        if (Flags.oppStartActivityDirectlyFromNotification()) {
-            mIntent.setAction(Constants.ACTION_OPEN_OUTBOUND_TRANSFER);
-        } else {
-            mIntent.putExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_OUTBOUND);
-        }
+        mIntent.setAction(Constants.ACTION_OPEN_OUTBOUND_TRANSFER);
 
         ActivityScenario.launch(mIntent);
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();

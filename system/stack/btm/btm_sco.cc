@@ -27,7 +27,6 @@
 
 #include "stack/btm/btm_sco.h"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -45,6 +44,7 @@
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "main/shim/metrics_api.h"
 #include "osi/include/properties.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_int_types.h"
@@ -59,12 +59,9 @@
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcimsgs.h"
 #include "stack/include/main_thread.h"
+#include "stack/include/sco_hci_link_interface.h"
 #include "stack/include/sdpdefs.h"
-#include "stack/include/stack_metrics_logging.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 extern tBTM_CB btm_cb;
 
@@ -93,11 +90,15 @@ constexpr char kBtmLogTag[] = "SCO";
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
 
-// forward declaration for dequeueing packets
+/******************************************************************************/
+/*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
+/******************************************************************************/
+static tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx, tBTM_CHG_ESCO_PARAMS* p_parms);
+
+static void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason);
+static uint16_t btm_sco_voice_settings_to_legacy(enh_esco_params_t* p_parms);
 static void btm_route_sco_data(bluetooth::hci::ScoView valid_packet);
-void btm_sco_conn_req(const RawAddress& bda, const DEV_CLASS& dev_class, uint8_t link_type);
-void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason);
-bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason);
+static bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason);
 
 namespace cpp {
 bluetooth::common::BidiQueueEnd<bluetooth::hci::ScoBuilder, bluetooth::hci::ScoView>*
@@ -215,7 +216,7 @@ enum btm_pcm_buf_state {
   DECODE_BUF_PARTIAL,
 };
 
-void incr_btm_pcm_buf_offset(size_t& offset, bool& mirror, size_t amount) {
+static void incr_btm_pcm_buf_offset(size_t& offset, bool& mirror, size_t amount) {
   size_t bytes_remaining = BTM_SCO_DATA_SIZE_MAX - offset;
   if (bytes_remaining > amount) {
     offset += amount;
@@ -226,7 +227,7 @@ void incr_btm_pcm_buf_offset(size_t& offset, bool& mirror, size_t amount) {
   offset = amount - bytes_remaining;
 }
 
-btm_pcm_buf_state btm_pcm_buf_status() {
+static btm_pcm_buf_state btm_pcm_buf_status() {
   if (btm_pcm_buf_read_offset == btm_pcm_buf_write_offset) {
     if (btm_pcm_buf_read_mirror == btm_pcm_buf_write_mirror) {
       return DECODE_BUF_EMPTY;
@@ -236,7 +237,7 @@ btm_pcm_buf_state btm_pcm_buf_status() {
   return DECODE_BUF_PARTIAL;
 }
 
-size_t btm_pcm_buf_data_len() {
+static size_t btm_pcm_buf_data_len() {
   switch (btm_pcm_buf_status()) {
     case DECODE_BUF_EMPTY:
       return 0;
@@ -251,9 +252,9 @@ size_t btm_pcm_buf_data_len() {
   };
 }
 
-size_t btm_pcm_buf_avail_len() { return BTM_SCO_DATA_SIZE_MAX - btm_pcm_buf_data_len(); }
+static size_t btm_pcm_buf_avail_len() { return BTM_SCO_DATA_SIZE_MAX - btm_pcm_buf_data_len(); }
 
-size_t write_btm_pcm_buf(uint8_t* source, size_t amount) {
+static size_t write_btm_pcm_buf(uint8_t* source, size_t amount) {
   if (btm_pcm_buf_avail_len() < amount) {
     return 0;
   }
@@ -269,13 +270,6 @@ size_t write_btm_pcm_buf(uint8_t* source, size_t amount) {
   incr_btm_pcm_buf_offset(btm_pcm_buf_write_offset, btm_pcm_buf_write_mirror, amount);
   return amount;
 }
-
-/******************************************************************************/
-/*            L O C A L    F U N C T I O N     P R O T O T Y P E S            */
-/******************************************************************************/
-static tBTM_STATUS BTM_ChangeEScoLinkParms(uint16_t sco_inx, tBTM_CHG_ESCO_PARAMS* p_parms);
-
-static uint16_t btm_sco_voice_settings_to_legacy(enh_esco_params_t* p_parms);
 
 /*******************************************************************************
  *
@@ -810,7 +804,7 @@ tBTM_STATUS BTM_CreateSco(const RawAddress* remote_bda, bool is_orig, uint16_t p
       log::debug("SCO connection successfully requested");
       if (p->state == SCO_ST_CONNECTING) {
         BTM_LogHistory(kBtmLogTag, *remote_bda, "Connecting",
-                       base::StringPrintf("local initiated acl:0x%04x", acl_handle));
+                       std::format("local initiated acl:0x{:04x}", acl_handle));
       }
       return tBTM_STATUS::BTM_CMD_STARTED;
     }
@@ -1005,7 +999,7 @@ void btm_sco_connected(const RawAddress& bda, uint16_t hci_handle, tBTM_ESCO_DAT
          (p->state == SCO_ST_W4_CONN_RSP)) &&
         (p->rem_bd_known) && (p->esco.data.bd_addr == bda)) {
       BTM_LogHistory(kBtmLogTag, bda, "Connection created",
-                     base::StringPrintf("sco_idx:%hu handle:0x%04x ", xx, hci_handle));
+                     std::format("sco_idx:{} handle:0x{:04x}", xx, hci_handle));
       power_telemetry::GetInstance().LogLinkDetails(hci_handle, bda, true, false);
 
       if (p->state == SCO_ST_LISTENING) {
@@ -1017,7 +1011,7 @@ void btm_sco_connected(const RawAddress& bda, uint16_t hci_handle, tBTM_ESCO_DAT
 
       BTM_LogHistory(
               kBtmLogTag, bda, "Connection success",
-              base::StringPrintf("handle:0x%04x %s", hci_handle, (spt) ? "listener" : "initiator"));
+              std::format("handle:0x{:04x} {}", hci_handle, (spt) ? "listener" : "initiator"));
       log::debug("Connected SCO link handle:0x{:04x} peer:{}", hci_handle, bda);
 
       if (!btm_cb.sco_cb.esco_supported) {
@@ -1080,19 +1074,17 @@ void btm_sco_create_command_status_failed(tHCI_STATUS hci_status) {
       (*p->p_disc_cb)(idx);
 
       BTM_LogHistory(kBtmLogTag, p->esco.data.bd_addr, "Connection failed",
-                     base::StringPrintf(
-                             "locally_initiated reason:%s",
-                             hci_reason_code_text(static_cast<tHCI_REASON>(hci_status)).c_str()));
+                     std::format("locally_initiated reason:{}",
+                                 hci_reason_code_text(static_cast<tHCI_REASON>(hci_status))));
       return;
     }
   }
 
   log::warn("No context found for the SCO connection failed");
 
-  BTM_LogHistory(
-          kBtmLogTag, RawAddress::kEmpty, "Connection failed",
-          base::StringPrintf("locally_initiated reason:%s",
-                             hci_reason_code_text(static_cast<tHCI_REASON>(hci_status)).c_str()));
+  BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Connection failed",
+                 std::format("locally_initiated reason:{}",
+                             hci_reason_code_text(static_cast<tHCI_REASON>(hci_status))));
 }
 
 /*******************************************************************************
@@ -1133,9 +1125,8 @@ void btm_sco_connection_failed(tHCI_STATUS hci_status, const RawAddress& bda, ui
             (*p->p_disc_cb)(xx);
         }
         BTM_LogHistory(kBtmLogTag, bda, "Connection failed",
-                       base::StringPrintf(
-                               "locally_initiated reason:%s",
-                               hci_reason_code_text(static_cast<tHCI_REASON>(hci_status)).c_str()));
+                       std::format("locally_initiated reason:{}",
+                                   hci_reason_code_text(static_cast<tHCI_REASON>(hci_status))));
       } else {
         log::debug("SCO terminating connection failed handle:0x{:04x} reason:{}", hci_handle,
                    hci_error_code_text(hci_status));
@@ -1149,9 +1140,8 @@ void btm_sco_connection_failed(tHCI_STATUS hci_status, const RawAddress& bda, ui
           }
         }
         BTM_LogHistory(kBtmLogTag, bda, "Connection failed",
-                       base::StringPrintf(
-                               "remote_initiated reason:%s",
-                               hci_reason_code_text(static_cast<tHCI_REASON>(hci_status)).c_str()));
+                       std::format("remote_initiated reason:{}",
+                                   hci_reason_code_text(static_cast<tHCI_REASON>(hci_status))));
       }
       return;
     }
@@ -1203,8 +1193,8 @@ tBTM_STATUS BTM_RemoveSco(uint16_t sco_inx) {
 
   log::debug("Disconnecting link sco_handle:0x{:04x} peer:{}", p->Handle(), p->esco.data.bd_addr);
   BTM_LogHistory(kBtmLogTag, p->esco.data.bd_addr, "Disconnecting",
-                 base::StringPrintf("local initiated handle:0x%04x previous_state:%s", p->Handle(),
-                                    sco_state_text(old_state).c_str()));
+                 std::format("local initiated handle:0x{:04x} previous_state:{}", p->Handle(),
+                             sco_state_text(old_state)));
   return tBTM_STATUS::BTM_CMD_STARTED;
 }
 
@@ -1231,7 +1221,7 @@ void BTM_RemoveScoByBdaddr(const RawAddress& bda) {
  * Returns          true if the link is known about, else false
  *
  ******************************************************************************/
-bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason) {
+static bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason) {
   tSCO_CONN* p = &btm_cb.sco_cb.sco_db[0];
   uint16_t xx;
 
@@ -1260,7 +1250,7 @@ bool btm_sco_removed(uint16_t hci_handle, tHCI_REASON reason) {
   return false;
 }
 
-void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason) {
+static void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason) {
   tSCO_CONN* p_sco = btm_cb.sco_cb.get_sco_connection_from_handle(hci_handle);
   if (p_sco == nullptr) {
     log::debug("Unable to find sco connection");
@@ -1287,9 +1277,9 @@ void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason) {
   p_sco->esco.p_esco_cback = NULL; /* Deregister eSCO callback */
   (*p_sco->p_disc_cb)(btm_cb.sco_cb.get_index(p_sco));
   log::debug("Disconnected SCO link handle:{} reason:{}", hci_handle, hci_reason_code_text(reason));
-  BTM_LogHistory(kBtmLogTag, bd_addr, "Disconnected",
-                 base::StringPrintf("handle:0x%04x reason:%s", hci_handle,
-                                    hci_reason_code_text(reason).c_str()));
+  BTM_LogHistory(
+          kBtmLogTag, bd_addr, "Disconnected",
+          std::format("handle:0x{:04x} reason:{}", hci_handle, hci_reason_code_text(reason)));
 
   hfp_hal_interface::notify_sco_connection_change(
           bd_addr, /*is_connected=*/false,
@@ -1308,7 +1298,8 @@ void btm_sco_on_disconnected(uint16_t hci_handle, tHCI_REASON reason) {
       if (fill_plc_stats(&num_decoded_frames, &packet_loss_ratio)) {
         const int16_t codec_id = sco_codec_type_to_id(codec_type);
         const std::string codec = sco_codec_type_text(codec_type);
-        log_hfp_audio_packet_loss_stats(bd_addr, num_decoded_frames, packet_loss_ratio, codec_id);
+        bluetooth::shim::LogMetricHfpPacketLossStats(bd_addr, num_decoded_frames, packet_loss_ratio,
+                                                     codec_id);
         log::debug(
                 "Stopped SCO codec:{}, num_decoded_frames:{}, "
                 "packet_loss_ratio:{:f}",

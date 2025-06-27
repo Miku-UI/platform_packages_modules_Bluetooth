@@ -54,7 +54,7 @@ public:
   void ConfirmStreamingRequest() override;
   void CancelStreamingRequest() override;
   void UpdateRemoteDelay(uint16_t remote_delay_ms) override;
-  void UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) override;
+  void UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) override;
   void SuspendedForReconfiguration() override;
   void ReconfigurationComplete() override;
 
@@ -303,7 +303,7 @@ void SinkImpl::UpdateRemoteDelay(uint16_t remote_delay_ms) {
   halSourceInterface_->SetRemoteDelay(remote_delay_ms);
 }
 
-void SinkImpl::UpdateAudioConfigToHal(const ::bluetooth::le_audio::offload_config& config) {
+void SinkImpl::UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) {
   if ((halSourceInterface_ == nullptr) || (le_audio_source_hal_state != HAL_STARTED)) {
     log::error("Audio HAL Audio source was not started!");
     return;

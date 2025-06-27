@@ -30,7 +30,7 @@ TEST_F(GattTest, GattClientRegister) {
   // Registers gatt client.
   bluetooth::Uuid gatt_client_uuid = bluetooth::Uuid::From128BitBE(
           bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
-  gatt_client_interface()->register_client(gatt_client_uuid, false);
+  gatt_client_interface()->register_client(gatt_client_uuid, "test", false);
   semaphore_wait(register_client_callback_sem_);
   EXPECT_TRUE(status() == BT_STATUS_SUCCESS) << "Error registering GATT client app callback.";
 

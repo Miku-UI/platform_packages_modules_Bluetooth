@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -202,6 +202,14 @@ enum class MetricTransportType {
 // BluetoothSuspendIdStateChanged/SuspendIdState.
 enum class SuspendIdState : int64_t { NoRecord = 0, Recorded = 1 };
 
+// ENUM definition for LL Privacy that in sync with ChromeOS structured metrics
+// BluetoothLLPrivacyState/LLPrivacyState.
+enum class LLPrivacyState : int64_t { Disabled = 0, Enabled = 1 };
+
+// ENUM definition for Host RPA that in sync with ChromeOS structured metrics
+// BluetoothLLPrivacyState/AddressPrivacyState.
+enum class AddressPrivacyState : int64_t { Disabled = 0, Enabled = 1 };
+
 // A struct holds the parsed profile connection event.
 struct ProfileConnectionEvent {
   int64_t type;
@@ -214,6 +222,12 @@ AdapterState ToAdapterState(uint32_t state);
 
 // Convert to SuspendIdState.
 SuspendIdState ToSuspendIdState(uint32_t state);
+
+// Convert to LLPrivacyState.
+LLPrivacyState ToLLPrivacyState(uint32_t state);
+
+// Convert to AddressPrivacyState.
+AddressPrivacyState ToAddressPrivacyState(uint32_t state);
 
 // Convert topshim::btif::BtDeviceType to ConnectionType
 ConnectionType ToPairingDeviceType(std::string addr, uint32_t device_type);

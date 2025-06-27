@@ -171,9 +171,6 @@ static std::optional<btav_a2dp_codec_index_t> assignSinkCodecIndex(
       int codec_id = codec.id.get<CodecId::vendor>().codecId;
 
       /* match know vendor codecs */
-      if (vendor_id == A2DP_LDAC_VENDOR_ID && codec_id == A2DP_LDAC_CODEC_ID) {
-        return BTAV_A2DP_CODEC_INDEX_SINK_LDAC;
-      }
       if (vendor_id == A2DP_OPUS_VENDOR_ID && codec_id == A2DP_OPUS_CODEC_ID) {
         return BTAV_A2DP_CODEC_INDEX_SINK_OPUS;
       }
@@ -379,7 +376,11 @@ bool ProviderInfo::CodecCapabilities(btav_a2dp_codec_index_t codec_index,
     }
   }
   if (codec_config != nullptr) {
-    memset(codec_config, 0, sizeof(*codec_config));
+    *codec_config = btav_a2dp_codec_config_t{
+            .codec_type = codec_index,
+            .codec_priority = BTAV_A2DP_CODEC_PRIORITY_DEFAULT,
+    };
+
     for (auto const& channel_mode : transport.channelMode) {
       switch (channel_mode) {
         case ChannelMode::MONO:

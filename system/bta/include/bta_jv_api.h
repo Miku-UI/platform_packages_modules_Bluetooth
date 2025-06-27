@@ -33,6 +33,7 @@
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_types.h"
+#include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -231,7 +232,7 @@ inline std::string bta_jv_event_text(const tBTA_JV_EVT& event) {
     CASE_RETURN_TEXT(BTA_JV_RFCOMM_SRV_OPEN_EVT);
     CASE_RETURN_TEXT(BTA_JV_MAX_EVT);
     default:
-      return base::StringPrintf("UNKNOWN[%hu]", event);
+      return std::format("UNKNOWN[{}]", static_cast<uint16_t>(event));
   }
 }
 
@@ -328,9 +329,19 @@ typedef struct {
 
 /* data associated with BTA_JV_RFCOMM_OPEN_EVT */
 typedef struct {
-  tBTA_JV_STATUS status; /* Whether the operation succeeded or failed. */
-  uint32_t handle;       /* The connection handle */
-  RawAddress rem_bda;    /* The peer address */
+  tBTA_JV_STATUS status;   /* Whether the operation succeeded or failed. */
+  uint32_t handle;         /* The connection handle */
+  RawAddress rem_bda;      /* The peer address */
+  uint16_t rx_mtu;         /* The receive (local) L2CAP MTU */
+  uint16_t tx_mtu;         /* The transmit (remote) L2CAP MTU */
+  uint16_t local_credit;   /* The local RFCOMM credit */
+  uint16_t remote_credit;  /* The remote RFCOMM credit */
+  uint16_t local_cid;      /* The local L2CAP CID */
+  uint16_t remote_cid;     /* The remote L2CAP CID */
+  uint16_t dlci;           /* DLCI */
+  uint16_t max_frame_size; /* The max frame size for RFCOMM */
+  uint16_t acl_handle;     /* The ACL handle */
+  bool mux_initiator;      /* Is the initiator of the RFCOMM multiplexer control channel */
 } tBTA_JV_RFCOMM_OPEN;
 /* data associated with BTA_JV_RFCOMM_SRV_OPEN_EVT */
 typedef struct {
@@ -338,6 +349,16 @@ typedef struct {
   uint32_t handle;            /* The connection handle */
   uint32_t new_listen_handle; /* The new listen handle */
   RawAddress rem_bda;         /* The peer address */
+  uint16_t rx_mtu;            /* The receive (local) L2CAP MTU */
+  uint16_t tx_mtu;            /* The transmit (remote) L2CAP MTU */
+  uint16_t local_credit;      /* The local RFCOMM credit */
+  uint16_t remote_credit;     /* The remote RFCOMM credit */
+  uint16_t local_cid;         /* The local L2CAP CID */
+  uint16_t remote_cid;        /* The remote L2CAP CID */
+  uint16_t dlci;              /* DLCI */
+  uint16_t max_frame_size;    /* The max frame size for RFCOMM */
+  uint16_t acl_handle;        /* The ACL handle */
+  bool mux_initiator;         /* Is the initiator of the RFCOMM multiplexer control channel */
 } tBTA_JV_RFCOMM_SRV_OPEN;
 
 /* data associated with BTA_JV_RFCOMM_CLOSE_EVT */
@@ -677,7 +698,8 @@ tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t handle, uint32_t req_id, BT_HDR* msg, u
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC sec_mask, uint8_t remote_scn,
                                    const RawAddress& peer_bd_addr, tBTA_JV_RFCOMM_CBACK* p_cback,
-                                   uint32_t rfcomm_slot_id);
+                                   uint32_t rfcomm_slot_id, RfcommCfgInfo cfg, uint32_t app_uid,
+                                   uint64_t sdp_duration_ms);
 
 /*******************************************************************************
  *
@@ -707,7 +729,8 @@ tBTA_JV_STATUS BTA_JvRfcommClose(uint32_t handle, uint32_t rfcomm_slot_id);
  *
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
-                                       tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id);
+                                       tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                                       RfcommCfgInfo cfg, uint32_t app_uid);
 
 /*******************************************************************************
  *

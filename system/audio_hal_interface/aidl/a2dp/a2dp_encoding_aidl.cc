@@ -306,10 +306,7 @@ static bool a2dp_get_selected_hal_pcm_config(A2dpCodecConfig* a2dp_codec_configs
   pcm_config->sampleRateHz = A2dpCodecToHalSampleRate(current_codec);
   pcm_config->bitsPerSample = A2dpCodecToHalBitsPerSample(current_codec);
   pcm_config->channelMode = A2dpCodecToHalChannelMode(current_codec);
-
-  if (com::android::bluetooth::flags::a2dp_aidl_encoding_interval()) {
-    pcm_config->dataIntervalUs = preferred_encoding_interval_us;
-  }
+  pcm_config->dataIntervalUs = preferred_encoding_interval_us;
 
   return pcm_config->sampleRateHz > 0 && pcm_config->bitsPerSample > 0 &&
          pcm_config->channelMode != ChannelMode::UNKNOWN;
@@ -833,6 +830,11 @@ provider::get_a2dp_configuration(
       break;
     default:
       break;
+  }
+
+  auto codec = provider_info->GetCodec(user_preferences.codec_type);
+  if (codec.has_value()) {
+    hint.codecId = codec.value()->id;
   }
 
   log::info("remote capabilities:");

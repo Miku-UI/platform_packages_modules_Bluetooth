@@ -26,13 +26,12 @@
 
 #include "stack/include/port_api.h"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
 #include "internal_include/bt_trace.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "osi/include/mutex.h"
 #include "stack/include/bt_hdr.h"
@@ -97,6 +96,7 @@ const char kBtmLogTag[] = "RFCOMM";
  *                                 connection up/down events.
  *                  sec_mask     - bitmask of BTM_SEC_* values indicating the
  *                                 minimum security requirements for this
+ *                  cfg          - optional configurations for the connection
  *connection Notes:
  *
  * Server can call this function with the same scn parameter multiple times if
@@ -110,7 +110,8 @@ const char kBtmLogTag[] = "RFCOMM";
  ******************************************************************************/
 int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_server, uint16_t mtu,
                                         const RawAddress& bd_addr, uint16_t* p_handle,
-                                        tPORT_MGMT_CALLBACK* p_mgmt_callback, uint16_t sec_mask) {
+                                        tPORT_MGMT_CALLBACK* p_mgmt_callback, uint16_t sec_mask,
+                                        RfcommCfgInfo cfg) {
   *p_handle = 0;
 
   if ((scn == 0) || (scn > RFCOMM_MAX_SCN)) {
@@ -141,7 +142,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
         log::error(
                 "already at opened state {}, RFC_state={}, MCB_state={}, "
                 "bd_addr={}, scn={}, is_server={}, mtu={}, uuid=0x{:x}, dlci={}, p_mcb={}, port={}",
-                static_cast<int>(p_port->state), static_cast<int>(p_port->rfc.state),
+                static_cast<int>(p_port->state), static_cast<int>(p_port->rfc.sm_cb.state),
                 p_port->rfc.p_mcb ? p_port->rfc.p_mcb->state : 0, bd_addr, scn, is_server, mtu,
                 uuid, dlci, std::format_ptr(p_mcb), p_port->handle);
         *p_handle = p_port->handle;
@@ -198,6 +199,17 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
     p_port->mtu = rfcomm_mtu;
   }
 
+  // Set the optional configuration for future use when the server or client negotiates the
+  // parameters with the peer device.
+  if (com::android::bluetooth::flags::socket_settings_api()) {
+    p_port->rfc_cfg_info = cfg;
+    // Update the local mtu with the optional configuration if set by the app
+    if (p_port->rfc_cfg_info.rx_mtu_present) {
+      p_port->mtu =
+              (p_port->rfc_cfg_info.rx_mtu < rfcomm_mtu) ? p_port->rfc_cfg_info.rx_mtu : rfcomm_mtu;
+    }
+  }
+
   // Other states
   // server doesn't need to release port when closing
   if (is_server) {
@@ -219,15 +231,13 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
 
   // If this is not initiator of the connection need to just wait
   if (p_port->is_server) {
-    BTM_LogHistory(
-            kBtmLogTag, bd_addr, "Server started",
-            base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu mtu:%hu", *p_handle, scn, dlci, mtu));
+    BTM_LogHistory(kBtmLogTag, bd_addr, "Server started",
+                   std::format("handle:{} scn:{} dlci:{} mtu:{}", *p_handle, scn, dlci, mtu));
     return PORT_SUCCESS;
   }
 
-  BTM_LogHistory(
-          kBtmLogTag, bd_addr, "Connection opened",
-          base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu mtu:%hu", *p_handle, scn, dlci, mtu));
+  BTM_LogHistory(kBtmLogTag, bd_addr, "Connection opened",
+                 std::format("handle:{} scn:{} dlci:{} mtu:{}", *p_handle, scn, dlci, mtu));
 
   // Open will be continued after security checks are passed
   return port_open_continue(p_port);
@@ -306,10 +316,9 @@ int RFCOMM_RemoveConnection(uint16_t handle) {
 
   const RawAddress bd_addr =
           (p_port->rfc.p_mcb) ? (p_port->rfc.p_mcb->bd_addr) : (RawAddress::kEmpty);
-  BTM_LogHistory(
-          kBtmLogTag, bd_addr, "Connection closed",
-          base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu is_server:%s", handle, p_port->scn,
-                             p_port->dlci, p_port->is_server ? "true" : "false"));
+  BTM_LogHistory(kBtmLogTag, bd_addr, "Connection closed",
+                 std::format("handle:{} scn:{} dlci:{} is_server:{}", handle, p_port->scn,
+                             p_port->dlci, p_port->is_server));
 
   p_port->state = PORT_CONNECTION_STATE_CLOSING;
 
@@ -345,10 +354,9 @@ int RFCOMM_RemoveServer(uint16_t handle) {
 
   const RawAddress bd_addr =
           (p_port->rfc.p_mcb) ? (p_port->rfc.p_mcb->bd_addr) : (RawAddress::kEmpty);
-  BTM_LogHistory(
-          kBtmLogTag, bd_addr, "Server stopped",
-          base::StringPrintf("handle:%hu scn:%hhu dlci:%hhu is_server:%s", handle, p_port->scn,
-                             p_port->dlci, p_port->is_server ? "true" : "false"));
+  BTM_LogHistory(kBtmLogTag, bd_addr, "Server stopped",
+                 std::format("handle:{} scn:{} dlci:{} is_server:{}", handle, p_port->scn,
+                             p_port->dlci, p_port->is_server));
 
   /* this port will be deallocated after closing */
   p_port->keep_port_handle = false;
@@ -447,14 +455,14 @@ int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr, uint16_t* p_lcid)
   }
   log::verbose("handle={}, in_use={}, port_state={}, p_mcb={}, peer_ready={}, rfc_state={}", handle,
                p_port->in_use, p_port->state, std::format_ptr(p_port->rfc.p_mcb),
-               p_port->rfc.p_mcb ? p_port->rfc.p_mcb->peer_ready : -1, p_port->rfc.state);
+               p_port->rfc.p_mcb ? p_port->rfc.p_mcb->peer_ready : -1, p_port->rfc.sm_cb.state);
 
   if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
     return PORT_NOT_OPENED;
   }
 
   if (!p_port->rfc.p_mcb || !p_port->rfc.p_mcb->peer_ready ||
-      (p_port->rfc.state != RFC_STATE_OPENED)) {
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return PORT_LINE_ERR;
   }
 
@@ -466,17 +474,6 @@ int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr, uint16_t* p_lcid)
   return PORT_SUCCESS;
 }
 
-/*******************************************************************************
- *
- * Function         PORT_IsOpening
- *
- * Description      This function returns true if there is any RFCOMM connection
- *                  opening in process.
- *
- * Parameters:      true if any connection opening is found
- *                  bd_addr    - bd_addr of the peer
- *
- ******************************************************************************/
 static const tPORT* get_port_from_mcb(const tRFC_MCB* multiplexer_cb) {
   tPORT* p_port = nullptr;
 
@@ -486,32 +483,6 @@ static const tPORT* get_port_from_mcb(const tRFC_MCB* multiplexer_cb) {
     }
   }
   return nullptr;
-}
-
-bool PORT_IsOpening(RawAddress* bd_addr) {
-  /* Check for any rfc_mcb which is in the middle of opening. */
-  for (auto& multiplexer_cb : rfc_cb.port.rfc_mcb) {
-    if ((multiplexer_cb.state > RFC_MX_STATE_IDLE) &&
-        (multiplexer_cb.state < RFC_MX_STATE_CONNECTED)) {
-      *bd_addr = multiplexer_cb.bd_addr;
-      log::info("Found a rfc_mcb in the middle of opening a port, returning true");
-      return true;
-    }
-
-    if (multiplexer_cb.state == RFC_MX_STATE_CONNECTED) {
-      const tPORT* p_port = get_port_from_mcb(&multiplexer_cb);
-      log::info("RFC_MX_STATE_CONNECTED, found_port={}, tRFC_PORT_STATE={}",
-                (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.state : 0);
-      if ((p_port == nullptr) || (p_port->rfc.state < RFC_STATE_OPENED)) {
-        /* Port is not established yet. */
-        *bd_addr = multiplexer_cb.bd_addr;
-        log::info("In RFC_MX_STATE_CONNECTED but port is not established yet, returning true");
-        return true;
-      }
-    }
-  }
-  log::info("false");
-  return false;
 }
 
 /*******************************************************************************
@@ -546,8 +517,8 @@ bool PORT_IsCollisionDetected(RawAddress bd_addr) {
     if (multiplexer_cb.state == RFC_MX_STATE_CONNECTED) {
       const tPORT* p_port = get_port_from_mcb(&multiplexer_cb);
       log::info("RFC_MX_STATE_CONNECTED, found_port={}, tRFC_PORT_STATE={}",
-                (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.state : 0);
-      if ((p_port == nullptr) || (p_port->rfc.state < RFC_STATE_OPENED)) {
+                (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.sm_cb.state : 0);
+      if ((p_port == nullptr) || (p_port->rfc.sm_cb.state < RFC_STATE_OPENED)) {
         // Port is not established yet
         log::info(
                 "In RFC_MX_STATE_CONNECTED but port is not established yet, "
@@ -558,6 +529,53 @@ bool PORT_IsCollisionDetected(RawAddress bd_addr) {
   }
   log::info("returning false");
   return false;
+}
+
+/*******************************************************************************
+ *
+ * Function         PORT_SetAppUid
+ *
+ * Description      This function sets app_uid in port structure
+ *
+ * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
+ *                  app_uid    - Uid of app that requested the socket
+ *
+ ******************************************************************************/
+int PORT_SetAppUid(uint16_t handle, uint32_t app_uid) {
+  tPORT* p_port = get_port_from_handle(handle);
+
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
+    return PORT_BAD_HANDLE;
+  }
+
+  p_port->app_uid = app_uid;
+
+  return PORT_SUCCESS;
+}
+
+/*******************************************************************************
+ *
+ * Function         PORT_SetSdpDuration
+ *
+ * Description      This function saves calculated SDP duration (in
+ *                  milliseconds) to ports structure
+ *
+ * Parameters:      handle          - Handle returned in RFCOMM_CreateConnection
+ *                  sdp_duration_ms - Time spent doing sdp
+ *
+ ******************************************************************************/
+int PORT_SetSdpDuration(uint16_t handle, uint64_t sdp_duration_ms) {
+  tPORT* p_port = get_port_from_handle(handle);
+
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
+    return PORT_BAD_HANDLE;
+  }
+
+  p_port->sdp_duration_ms = sdp_duration_ms;
+
+  return PORT_SUCCESS;
 }
 
 /*******************************************************************************
@@ -820,7 +838,7 @@ int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len, uint16_t* p_l
 static int port_write(tPORT* p_port, BT_HDR* p_buf) {
   /* We should not allow to write data in to server port when connection is not
    * opened */
-  if (p_port->is_server && (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if (p_port->is_server && (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     osi_free(p_buf);
     return PORT_CLOSED;
   }
@@ -829,7 +847,7 @@ static int port_write(tPORT* p_port, BT_HDR* p_buf) {
   /* Peer is not ready or Port is not yet opened or initial port control */
   /* command has not been sent */
   if (p_port->tx.peer_fc || !p_port->rfc.p_mcb || !p_port->rfc.p_mcb->peer_ready ||
-      (p_port->rfc.state != RFC_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED) ||
       ((p_port->port_ctrl & (PORT_CTRL_REQ_SENT | PORT_CTRL_IND_RECEIVED)) !=
        (PORT_CTRL_REQ_SENT | PORT_CTRL_IND_RECEIVED))) {
     if ((p_port->tx.queue_size > PORT_TX_CRITICAL_WM) ||
@@ -849,7 +867,7 @@ static int port_write(tPORT* p_port, BT_HDR* p_buf) {
             "Data is enqueued. flow disabled {} peer_ready {} state {} ctrl_state "
             "{:x}",
             p_port->tx.peer_fc, p_port->rfc.p_mcb && p_port->rfc.p_mcb->peer_ready,
-            p_port->rfc.state, p_port->port_ctrl);
+            p_port->rfc.sm_cb.state, p_port->port_ctrl);
 
     fixed_queue_enqueue(p_port->tx.queue, p_buf);
     p_port->tx.queue_size += p_buf->len;
@@ -1192,5 +1210,55 @@ int PORT_GetSecurityMask(uint16_t handle, uint16_t* sec_mask) {
     return PORT_BAD_HANDLE;
   }
   *sec_mask = p_port->sec_mask;
+  return PORT_SUCCESS;
+}
+
+int PORT_GetChannelInfo(uint16_t handle, uint16_t* local_mtu, uint16_t* remote_mtu,
+                        uint16_t* local_credit, uint16_t* remote_credit, uint16_t* local_cid,
+                        uint16_t* remote_cid, uint16_t* dlci, uint16_t* max_frame_size,
+                        uint16_t* acl_handle, bool* mux_initiator) {
+  log::verbose("PORT_GetChannelInfo() handle:{}", handle);
+
+  tPORT* p_port = get_port_from_handle(handle);
+  if (p_port == nullptr) {
+    log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
+    return PORT_BAD_HANDLE;
+  }
+
+  if (!p_port->in_use || (p_port->state == PORT_CONNECTION_STATE_CLOSED)) {
+    return PORT_NOT_OPENED;
+  }
+
+  if (p_port->rfc.p_mcb == nullptr || p_port->line_status) {
+    log::warn("PORT_LINE_ERR - p_port->rfc.p_mcb == nullptr:{} p_port->line_status:{}",
+              (p_port->rfc.p_mcb == nullptr) ? "T" : "F", p_port->line_status);
+    return PORT_LINE_ERR;
+  }
+
+  uint16_t rcid, ahandle, lmtu;
+  if (!stack::l2cap::get_interface().L2CA_GetRemoteChannelId(p_port->rfc.p_mcb->lcid, &rcid)) {
+    log::error("L2CA_GetRemoteChannelId failed, local cid: {}", p_port->rfc.p_mcb->lcid);
+    return PORT_PEER_FAILED;
+  }
+
+  if (!stack::l2cap::get_interface().L2CA_GetAclHandle(p_port->rfc.p_mcb->lcid, &ahandle)) {
+    log::error("L2CA_GetAclHandle failed, local cid: {}", p_port->rfc.p_mcb->lcid);
+    return PORT_PEER_FAILED;
+  }
+
+  if (!stack::l2cap::get_interface().L2CA_GetLocalMtu(p_port->rfc.p_mcb->lcid, &lmtu)) {
+    log::error("L2CA_GetLocalMtu failed, local cid: {}", p_port->rfc.p_mcb->lcid);
+    return PORT_PEER_FAILED;
+  }
+  *local_mtu = lmtu;
+  *remote_mtu = p_port->rfc.p_mcb->peer_l2cap_mtu + RFCOMM_MIN_OFFSET + 1;
+  *local_credit = p_port->credit_rx;
+  *remote_credit = p_port->credit_tx;
+  *local_cid = p_port->rfc.p_mcb->lcid;
+  *remote_cid = rcid;
+  *dlci = p_port->dlci;
+  *max_frame_size = p_port->mtu;
+  *acl_handle = ahandle;
+  *mux_initiator = p_port->rfc.p_mcb->is_initiator;
   return PORT_SUCCESS;
 }

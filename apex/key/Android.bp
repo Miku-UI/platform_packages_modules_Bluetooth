@@ -1,0 +1,16 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+apex_key {
+    name: "com.android.bt.key",
+    public_key: "com.android.bt.avbpubkey",
+    private_key: "com.android.bt.pem",
+    visibility: ["//packages/modules/Bluetooth/apex"],
+}
+
+android_app_certificate {
+    name: "com.android.bt.certificate",
+    certificate: "com.android.bt",
+    visibility: ["//packages/modules/Bluetooth/apex"],
+}

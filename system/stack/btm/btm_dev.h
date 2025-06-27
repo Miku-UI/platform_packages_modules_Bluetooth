@@ -215,3 +215,7 @@ const tBLE_BD_ADDR BTM_Sec_GetAddressWithType(const RawAddress& bd_addr);
  *
  ******************************************************************************/
 void DumpsysRecord(int fd);
+
+namespace bluetooth::legacy::testing {
+void wipe_secrets_and_remove(tBTM_SEC_DEV_REC* p_dev_rec);
+}  // namespace bluetooth::legacy::testing

@@ -1,10 +1,9 @@
-use crate::{
-    gatt::server::att_database::{AttAttribute, AttDatabase},
-    packets::att::{self, AttErrorCode},
-};
+use crate::gatt::server::att_database::{AttAttribute, AttDatabase};
+use crate::packets::att::{self, AttErrorCode};
 use pdl_runtime::EncodeError;
 
-use super::helpers::{att_range_filter::filter_to_range, payload_accumulator::PayloadAccumulator};
+use super::helpers::att_range_filter::filter_to_range;
+use super::helpers::payload_accumulator::PayloadAccumulator;
 
 pub fn handle_find_information_request<T: AttDatabase>(
     request: att::AttFindInformationRequest,
@@ -89,12 +88,11 @@ fn handle_find_information_request_long(
 
 #[cfg(test)]
 mod test {
+    use crate::core::uuid::Uuid;
+    use crate::gatt::server::gatt_database::AttPermissions;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
     use crate::gatt::server::AttHandle;
-    use crate::{
-        core::uuid::Uuid,
-        gatt::server::{gatt_database::AttPermissions, test::test_att_db::TestAttDatabase},
-        packets::att,
-    };
+    use crate::packets::att;
 
     use super::*;
 

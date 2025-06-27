@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import static androidx.test.espresso.intent.Intents.intended;
 import static androidx.test.espresso.intent.Intents.intending;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.anyIntent;
 
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.opp.BluetoothOppManager.ALLOWED_INSERT_SHARE_THREAD_NUMBER;
 import static com.android.bluetooth.opp.BluetoothOppManager.OPP_PREFERENCE_FILE;
 
@@ -34,7 +35,6 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -56,6 +56,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/** Test cases for {@link BluetoothOppManager}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppManagerTest {
     Context mContext;
@@ -153,8 +154,8 @@ public class BluetoothOppManagerTest {
 
         bluetoothOppManager.addToAcceptlist(address1);
         bluetoothOppManager.addToAcceptlist(address2);
-        assertThat(bluetoothOppManager.isAcceptlisted(address1)).isTrue();
-        assertThat(bluetoothOppManager.isAcceptlisted(address2)).isTrue();
+        assertThat(bluetoothOppManager.isAcceptListed(address1)).isTrue();
+        assertThat(bluetoothOppManager.isAcceptListed(address2)).isTrue();
     }
 
     @Test
@@ -162,16 +163,15 @@ public class BluetoothOppManagerTest {
         BluetoothOppManager bluetoothOppManager = BluetoothOppManager.getInstance(mContext);
         String address = "01:23:45:67:89:AB";
 
-        assertThat(bluetoothOppManager.isAcceptlisted(address)).isFalse();
+        assertThat(bluetoothOppManager.isAcceptListed(address)).isFalse();
 
         bluetoothOppManager.addToAcceptlist(address);
-        assertThat(bluetoothOppManager.isAcceptlisted(address)).isTrue();
+        assertThat(bluetoothOppManager.isAcceptListed(address)).isTrue();
     }
 
     @Test
     public void startTransfer_withMultipleUris_contentResolverInsertMultipleTimes() {
         BluetoothOppManager bluetoothOppManager = BluetoothOppManager.getInstance(mContext);
-        String address = "AA:BB:CC:DD:EE:FF";
         bluetoothOppManager.saveSendingFileInfo(
                 "text/plain",
                 new ArrayList<Uri>(
@@ -181,10 +181,7 @@ public class BluetoothOppManagerTest {
                                 Uri.parse("content:///123/456.txt"))),
                 false,
                 true);
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(56);
         bluetoothOppManager.startTransfer(device);
         // add 2 files
         verify(mCallProxy, timeout(5_000).times(3))
@@ -194,13 +191,9 @@ public class BluetoothOppManagerTest {
     @Test
     public void startTransfer_withOneUri_contentResolverInsertOnce() {
         BluetoothOppManager bluetoothOppManager = BluetoothOppManager.getInstance(mContext);
-        String address = "AA:BB:CC:DD:EE:FF";
         bluetoothOppManager.saveSendingFileInfo(
                 "text/plain", "content:///abc/xyz.txt", false, true);
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(34);
         bluetoothOppManager.startTransfer(device);
         verify(mCallProxy, timeout(5_000).times(1))
                 .contentResolverInsert(any(), nullable(Uri.class), nullable(ContentValues.class));
@@ -211,13 +204,9 @@ public class BluetoothOppManagerTest {
     public void startTransferMoreThanAllowedInsertShareThreadNumberTimes_blockExceedingTransfer()
             throws InterruptedException {
         BluetoothOppManager bluetoothOppManager = BluetoothOppManager.getInstance(mContext);
-        String address = "AA:BB:CC:DD:EE:FF";
         bluetoothOppManager.saveSendingFileInfo(
                 "text/plain", "content:///abc/xyz.txt", false, true);
-        BluetoothDevice device =
-                (mContext.getSystemService(BluetoothManager.class))
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(72);
 
         AtomicBoolean intended = new AtomicBoolean(false);
         intending(anyIntent())
@@ -254,12 +243,12 @@ public class BluetoothOppManagerTest {
     public void cleanUpSendingFileInfo_fileInfoCleaned() {
         BluetoothOppUtility.sSendFileMap.clear();
         Uri uri = Uri.parse("content:///a/new/folder/abc/xyz.txt");
-        assertThat(BluetoothOppUtility.sSendFileMap.size()).isEqualTo(0);
+        assertThat(BluetoothOppUtility.sSendFileMap).isEmpty();
         BluetoothOppManager.getInstance(mContext)
                 .saveSendingFileInfo("text/plain", uri.toString(), false, true);
-        assertThat(BluetoothOppUtility.sSendFileMap.size()).isEqualTo(1);
+        assertThat(BluetoothOppUtility.sSendFileMap).hasSize(1);
 
         BluetoothOppManager.getInstance(mContext).cleanUpSendingFileInfo();
-        assertThat(BluetoothOppUtility.sSendFileMap.size()).isEqualTo(0);
+        assertThat(BluetoothOppUtility.sSendFileMap).isEmpty();
     }
 }

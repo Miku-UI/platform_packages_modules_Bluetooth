@@ -35,39 +35,36 @@
 #include "types/hci_role.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using testing::StrEq;
 
 tBTM_CB btm_cb;
 
 const std::string kSmpOptions("mock smp options");
 const std::string kBroadcastAudioConfigOptions("mock broadcast audio config options");
-bool get_pts_avrcp_test(void) { return false; }
-bool get_pts_secure_only_mode(void) { return false; }
-bool get_pts_conn_updates_disabled(void) { return false; }
-bool get_pts_crosskey_sdp_disable(void) { return false; }
-const std::string* get_pts_smp_options(void) { return &kSmpOptions; }
-int get_pts_smp_failure_case(void) { return 123; }
-bool get_pts_force_eatt_for_notifications(void) { return false; }
-bool get_pts_connect_eatt_unconditionally(void) { return false; }
-bool get_pts_connect_eatt_before_encryption(void) { return false; }
-bool get_pts_unencrypt_broadcast(void) { return false; }
-bool get_pts_eatt_peripheral_collision_support(void) { return false; }
-bool get_pts_use_eatt_for_all_services(void) { return false; }
-bool get_pts_force_le_audio_multiple_contexts_metadata(void) { return false; }
-bool get_pts_l2cap_ecoc_upper_tester(void) { return false; }
-int get_pts_l2cap_ecoc_min_key_size(void) { return -1; }
-int get_pts_l2cap_ecoc_initial_chan_cnt(void) { return -1; }
-bool get_pts_l2cap_ecoc_connect_remaining(void) { return false; }
-int get_pts_l2cap_ecoc_send_num_of_sdu(void) { return -1; }
-bool get_pts_l2cap_ecoc_reconfigure(void) { return false; }
-const std::string* get_pts_broadcast_audio_config_options(void) {
+static bool get_pts_avrcp_test(void) { return false; }
+static bool get_pts_secure_only_mode(void) { return false; }
+static bool get_pts_conn_updates_disabled(void) { return false; }
+static bool get_pts_crosskey_sdp_disable(void) { return false; }
+static const std::string* get_pts_smp_options(void) { return &kSmpOptions; }
+static int get_pts_smp_failure_case(void) { return 123; }
+static bool get_pts_force_eatt_for_notifications(void) { return false; }
+static bool get_pts_connect_eatt_unconditionally(void) { return false; }
+static bool get_pts_connect_eatt_before_encryption(void) { return false; }
+static bool get_pts_unencrypt_broadcast(void) { return false; }
+static bool get_pts_eatt_peripheral_collision_support(void) { return false; }
+static bool get_pts_use_eatt_for_all_services(void) { return false; }
+static bool get_pts_force_le_audio_multiple_contexts_metadata(void) { return false; }
+static bool get_pts_l2cap_ecoc_upper_tester(void) { return false; }
+static int get_pts_l2cap_ecoc_min_key_size(void) { return -1; }
+static int get_pts_l2cap_ecoc_initial_chan_cnt(void) { return -1; }
+static bool get_pts_l2cap_ecoc_connect_remaining(void) { return false; }
+static int get_pts_l2cap_ecoc_send_num_of_sdu(void) { return -1; }
+static bool get_pts_l2cap_ecoc_reconfigure(void) { return false; }
+static const std::string* get_pts_broadcast_audio_config_options(void) {
   return &kBroadcastAudioConfigOptions;
 }
-bool get_pts_le_audio_disable_ases_before_stopping(void) { return false; }
-config_t* get_all(void) { return nullptr; }
+static bool get_pts_le_audio_disable_ases_before_stopping(void) { return false; }
+static config_t* get_all(void) { return nullptr; }
 const packet_fragmenter_t* packet_fragmenter_get_interface() { return nullptr; }
 
 stack_config_t mock_stack_config{
@@ -127,42 +124,12 @@ const stack_config_t* stack_config_get_interface(void) { return &mock_stack_conf
  * MSB on the right.
  */
 
-Octet16 smp_gen_p1_4_confirm(tSMP_CB* p_cb, tBLE_ADDR_TYPE remote_bd_addr_type);
-
-Octet16 smp_gen_p2_4_confirm(tSMP_CB* p_cb, const RawAddress& remote_bda);
-
-tSMP_STATUS smp_calculate_confirm(tSMP_CB* p_cb, const Octet16& rand, Octet16* output);
-
-void dump_uint128(const Octet16& a, char* buffer) {
-  for (unsigned int i = 0; i < OCTET16_LEN; ++i) {
-    snprintf(buffer, 3, "%02x", a[i]);
-    buffer += 2;
-  }
-  *buffer = '\0';
-}
-
-void dump_uint128_reverse(const Octet16& a, char* buffer) {
+static void dump_uint128_reverse(const Octet16& a, char* buffer) {
   for (int i = (int)(OCTET16_LEN - 1); i >= 0; --i) {
     snprintf(buffer, 3, "%02x", a[i]);
     buffer += 2;
   }
   *buffer = '\0';
-}
-
-void print_uint128(const Octet16& a) {
-  for (unsigned int i = 0; i < OCTET16_LEN; ++i) {
-    printf("%02x", a[i]);
-  }
-  printf("\n");
-}
-
-Octet16 parse_uint128(const char* input) {
-  Octet16 output{0};
-  for (unsigned int count = 0; count < OCTET16_LEN; count++) {
-    sscanf(input, "%2hhx", &output[count]);
-    input += 2;
-  }
-  return output;
 }
 
 class SmpCalculateConfirmTest : public testing::Test {
@@ -408,11 +375,13 @@ TEST(SmpStatusText, smp_status_text) {
           std::make_pair(SMP_NUMERIC_COMPAR_FAIL, "SMP_NUMERIC_COMPAR_FAIL"),
           std::make_pair(SMP_BR_PARING_IN_PROGR, "SMP_BR_PARING_IN_PROGR"),
           std::make_pair(SMP_XTRANS_DERIVE_NOT_ALLOW, "SMP_XTRANS_DERIVE_NOT_ALLOW"),
+          std::make_pair(SMP_KEY_REJECTED, "SMP_KEY_REJECTED"),
+          std::make_pair(SMP_BUSY, "SMP_BUSY"),
           std::make_pair(SMP_MAX_FAIL_RSN_PER_SPEC,
-                         "SMP_XTRANS_DERIVE_NOT_ALLOW"),  // NOTE: Dup
+                         "SMP_BUSY"),  // NOTE: Dup
           std::make_pair(SMP_PAIR_INTERNAL_ERR, "SMP_PAIR_INTERNAL_ERR"),
           std::make_pair(SMP_UNKNOWN_IO_CAP, "SMP_UNKNOWN_IO_CAP"),
-          std::make_pair(SMP_BUSY, "SMP_BUSY"),
+          std::make_pair(SMP_IMPL_BUSY, "SMP_IMPL_BUSY"),
           std::make_pair(SMP_ENC_FAIL, "SMP_ENC_FAIL"),
           std::make_pair(SMP_STARTED, "SMP_STARTED"),
           std::make_pair(SMP_RSP_TIMEOUT, "SMP_RSP_TIMEOUT"),
@@ -422,7 +391,7 @@ TEST(SmpStatusText, smp_status_text) {
   for (const auto& stat : status) {
     ASSERT_STREQ(stat.second.c_str(), smp_status_text(stat.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", std::numeric_limits<uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[{}]", std::numeric_limits<uint8_t>::max());
   ASSERT_STREQ(
           unknown.c_str(),
           smp_status_text(static_cast<tSMP_STATUS>(std::numeric_limits<uint8_t>::max())).c_str());

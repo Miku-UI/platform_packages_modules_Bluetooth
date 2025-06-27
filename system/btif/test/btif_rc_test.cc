@@ -99,7 +99,7 @@ bool btif_av_both_enable(void) { return true; }
 
 static bluetooth::common::MessageLoopThread jni_thread("bt_jni_thread");
 bt_status_t do_in_jni_thread(base::OnceClosure task) {
-  if (!jni_thread.DoInThread(FROM_HERE, std::move(task))) {
+  if (!jni_thread.DoInThread(std::move(task))) {
     log::error("Post task to task runner failed!");
     return BT_STATUS_JNI_THREAD_ATTACH_ERROR;
   }
@@ -118,19 +118,6 @@ protected:
   void SetUp() override { reset_mock_function_count_map(); }
   void TearDown() override {}
 };
-
-TEST_F(BtifRcTest, get_element_attr_rsp) {
-  btif_rc_cb.rc_multi_cb[0].rc_addr = kDeviceAddress;
-  btif_rc_cb.rc_multi_cb[0].rc_connected = true;
-  btif_rc_cb.rc_multi_cb[0].rc_pdu_info[IDX_GET_ELEMENT_ATTR_RSP].is_rsp_pending = true;
-  btif_rc_cb.rc_multi_cb[0].rc_state = BTRC_CONNECTION_STATE_CONNECTED;
-
-  btrc_element_attr_val_t p_attrs[BTRC_MAX_ELEM_ATTR_SIZE];
-  uint8_t num_attr = BTRC_MAX_ELEM_ATTR_SIZE + 1;
-
-  ASSERT_EQ(get_element_attr_rsp(kDeviceAddress, num_attr, p_attrs), BT_STATUS_SUCCESS);
-  ASSERT_EQ(1, get_func_call_count("AVRC_BldResponse"));
-}
 
 TEST_F(BtifRcTest, btif_rc_get_addr_by_handle) {
   RawAddress bd_addr;
@@ -245,6 +232,51 @@ TEST_F(BtifRcWithCallbacksTest, handle_rc_ctrl_features) {
   log::info("FEATURES:{}", res.feature);
   ASSERT_EQ(res.feature, (BTRC_FEAT_ABSOLUTE_VOLUME | BTRC_FEAT_METADATA | BTRC_FEAT_BROWSE |
                           BTRC_FEAT_COVER_ARTWORK));
+}
+
+TEST_F(BtifRcTest, handle_track_change_notification_response) {
+  btif_rc_cb.rc_multi_cb[0].rc_connected = true;
+  btif_rc_cb.rc_multi_cb[0].br_connected = true;
+  btif_rc_cb.rc_multi_cb[0].rc_handle = kRcHandle;
+  btif_rc_cb.rc_multi_cb[0].rc_features = {};
+  btif_rc_cb.rc_multi_cb[0].rc_cover_art_psm = 0;
+  btif_rc_cb.rc_multi_cb[0].rc_state = BTRC_CONNECTION_STATE_CONNECTED;
+  btif_rc_cb.rc_multi_cb[0].rc_addr = kDeviceAddress;
+  btif_rc_cb.rc_multi_cb[0].rc_volume = 0;
+  btif_rc_cb.rc_multi_cb[0].rc_vol_label = 0;
+  btif_rc_cb.rc_multi_cb[0].rc_supported_event_list = nullptr;
+  btif_rc_cb.rc_multi_cb[0].rc_app_settings = {};
+  btif_rc_cb.rc_multi_cb[0].rc_play_status_timer = nullptr;
+  btif_rc_cb.rc_multi_cb[0].rc_features_processed = false;
+  btif_rc_cb.rc_multi_cb[0].rc_playing_uid = 0;
+  btif_rc_cb.rc_multi_cb[0].rc_procedure_complete = false;
+  btif_rc_cb.rc_multi_cb[0].peer_ct_features = {};
+  btif_rc_cb.rc_multi_cb[0].peer_tg_features = {};
+  btif_rc_cb.rc_multi_cb[0].launch_cmd_pending = 0;
+  ASSERT_TRUE(btif_rc_get_device_by_handle(kRcHandle));
+  tBTA_AV_META_MSG meta_msg = {
+          .rc_handle = kRcHandle,
+          .len = 0,
+          .label = 0,
+          .code = AVRC_RSP_CHANGED,
+          .company_id = 0,
+          .p_data = {},
+          .p_msg = nullptr,
+  };
+  tAVRC_NOTIF_RSP_PARAM param = {
+          .track = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+  };
+  tAVRC_REG_NOTIF_RSP track_change = {
+          .pdu = 0,
+          .status = AVRC_STS_NO_ERROR,
+          .opcode = 0,
+          .event_id = AVRC_EVT_TRACK_CHANGE,
+          .param = param,
+  };
+  uint64_t now_playing_uid = 0x01;
+
+  handle_notification_response(&meta_msg, &track_change);
+  ASSERT_EQ(btif_rc_cb.rc_multi_cb[0].rc_playing_uid, now_playing_uid);
 }
 
 class BtifRcBrowseConnectionTest : public BtifRcTest {
@@ -426,7 +458,6 @@ TEST_F(BtifTrackChangeCBTest, handle_get_metadata_attr_response) {
   btif_rc_cb.rc_multi_cb[0].rc_cover_art_psm = 0;
   btif_rc_cb.rc_multi_cb[0].rc_state = BTRC_CONNECTION_STATE_CONNECTED;
   btif_rc_cb.rc_multi_cb[0].rc_addr = kDeviceAddress;
-  btif_rc_cb.rc_multi_cb[0].rc_pending_play = 0;
   btif_rc_cb.rc_multi_cb[0].rc_volume = 0;
   btif_rc_cb.rc_multi_cb[0].rc_vol_label = 0;
   btif_rc_cb.rc_multi_cb[0].rc_supported_event_list = nullptr;

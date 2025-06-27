@@ -24,6 +24,8 @@
 #ifndef PORT_API_H
 #define PORT_API_H
 
+#include <hardware/bt_sock.h>
+
 #include <cstdint>
 
 #include "include/macros.h"
@@ -179,6 +181,18 @@ inline std::string port_result_text(const tPORT_RESULT& result) {
   RETURN_UNKNOWN_TYPE_STRING(tPORT_RESULT, result);
 }
 
+/* Define a structure to hold the configuration parameters. Since the
+ * parameters are optional, for each parameter there is a boolean to
+ * use to signify its presence or absence.
+ */
+struct RfcommCfgInfo {
+  bool init_credit_present;
+  uint16_t init_credit;
+  bool rx_mtu_present;
+  uint16_t rx_mtu;
+  btsock_data_path_t data_path{BTSOCK_DATA_PATH_NO_OFFLOAD};
+};
+
 namespace std {
 template <>
 struct formatter<tPORT_RESULT> : enum_formatter<tPORT_RESULT> {};
@@ -192,9 +206,9 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
 
 /*******************************************************************************
  *
- * Function         RFCOMM_CreateConnection
+ * Function         RFCOMM_CreateConnectionWithSecurity
  *
- * Description      RFCOMM_CreateConnection is used from the application to
+ * Description      RFCOMM_CreateConnectionWithSecurity is used from the application to
  *                  establish a serial port connection to the peer device,
  *                  or allow RFCOMM to accept a connection from the peer
  *                  application.
@@ -210,6 +224,9 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
  *                  p_handle     - OUT pointer to the handle.
  *                  p_mgmt_callback - pointer to callback function to receive
  *                                 connection up/down events.
+ *                  sec_mask     - bitmask of BTM_SEC_* values indicating the
+ *                                 minimum security requirements for this
+ *                  cfg          - optional configurations for the connection
  * Notes:
  *
  * Server can call this function with the same scn parameter multiple times if
@@ -225,7 +242,7 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
                                                       uint16_t mtu, const RawAddress& bd_addr,
                                                       uint16_t* p_handle,
                                                       tPORT_MGMT_CALLBACK* p_mgmt_callback,
-                                                      uint16_t sec_mask);
+                                                      uint16_t sec_mask, RfcommCfgInfo cfg);
 
 /*******************************************************************************
  *
@@ -320,19 +337,6 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
 
 /*******************************************************************************
  *
- * Function         PORT_IsOpening
- *
- * Description      This function returns true if there is any RFCOMM connection
- *                  opening in process.
- *
- * Parameters:      true if any connection opening is found
- *                  bd_addr    - bd_addr of the peer
- *
- ******************************************************************************/
-[[nodiscard]] bool PORT_IsOpening(RawAddress* bd_addr);
-
-/*******************************************************************************
- *
  * Function         PORT_IsCollisionDetected
  *
  * Description      This function returns true if there is already an incoming
@@ -343,6 +347,31 @@ typedef void(tPORT_MGMT_CALLBACK)(const tPORT_RESULT code, uint16_t port_handle)
  *
  ******************************************************************************/
 [[nodiscard]] bool PORT_IsCollisionDetected(RawAddress bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         PORT_SetAppUid
+ *
+ * Description      This function sets app_uid in port structure
+ *
+ * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
+ *                  app_uid    - Uid of app that requested the socket
+ *
+ ******************************************************************************/
+[[nodiscard]] int PORT_SetAppUid(uint16_t handle, uint32_t app_uid);
+
+/*******************************************************************************
+ *
+ * Function         PORT_SetSdpDuration
+ *
+ * Description      This function saves calculated sdp duration (in
+ *                  milliseconds) to port structure
+ *
+ * Parameters:      handle          - Handle returned in RFCOMM_CreateConnection
+ *                  sdp_duration_ms - Time spent doing sdp
+ *
+ ******************************************************************************/
+[[nodiscard]] int PORT_SetSdpDuration(uint16_t handle, uint64_t sdp_duration_ms);
 
 /*******************************************************************************
  *
@@ -482,5 +511,31 @@ void RFCOMM_Init(void);
  *
  ******************************************************************************/
 [[nodiscard]] int PORT_GetSecurityMask(uint16_t handle, uint16_t* sec_mask);
+
+/*******************************************************************************
+ *
+ * Function         PORT_GetChannelInfo
+ *
+ * Description      This function is called to get RFCOMM channel information
+ *                  by the handle of the port. All OUT parameters must NOT be nullptr.
+ *
+ * Parameters:      handle        - Handle of the port returned in the Open
+ *                  local_mtu     - OUT local L2CAP MTU
+ *                  remote_mtu    - OUT remote L2CAP MTU
+ *                  local_credit  - OUT local RFCOMM credit
+ *                  remote_credit - OUT remote RFCOMM credit
+ *                  local_cid     - OUT local L2CAP CID
+ *                  remote_cid    - OUT remote L2CAP CID
+ *                  dlci          - OUT dlci
+ *                  max_frame_size- OUT max frame size for RFCOMM
+ *                  acl_handle    - OUT ACL handle
+ *                  mux_initiator - OUT is initiator of the RFCOMM multiplexer control channel
+ *
+ ******************************************************************************/
+[[nodiscard]] int PORT_GetChannelInfo(uint16_t handle, uint16_t* local_mtu, uint16_t* remote_mtu,
+                                      uint16_t* local_credit, uint16_t* remote_credit,
+                                      uint16_t* local_cid, uint16_t* remote_cid, uint16_t* dlci,
+                                      uint16_t* max_frame_size, uint16_t* acl_handle,
+                                      bool* mux_initiator);
 
 #endif /* PORT_API_H */

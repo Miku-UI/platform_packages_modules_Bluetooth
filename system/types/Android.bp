@@ -10,13 +10,12 @@ package {
 
 cc_library_headers {
     name: "libbluetooth-types-header",
-    visibility: ["//visibility:public"],
     export_include_dirs: ["./"],
     vendor_available: true,
     host_supported: true,
     apex_available: [
         "//apex_available:platform",
-        "com.android.btservices",
+        "com.android.bt",
         "com.android.media",
         "com.android.media.swcodec",
     ],
@@ -37,7 +36,6 @@ cc_library_static {
         /* we export all classes, so change default visibility, instead of having EXPORT_SYMBOL on each class*/
         "-fvisibility=default",
     ],
-    visibility: ["//visibility:public"],
     host_supported: true,
     srcs: [
         "bluetooth/uuid.cc",
@@ -47,7 +45,7 @@ cc_library_static {
     export_header_lib_headers: ["libbluetooth-types-header"],
     apex_available: [
         "//apex_available:platform",
-        "com.android.btservices",
+        "com.android.bt",
     ],
     min_sdk_version: "29",
 }

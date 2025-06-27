@@ -47,6 +47,8 @@
 #include "internal/btm_api.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
+#include "main/shim/helpers.h"
+#include "main/shim/metrics_api.h"
 #include "osi/include/alarm.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_int_types.h"
@@ -61,6 +63,7 @@ extern tBTM_CB btm_cb;
 
 using HfpInterface = bluetooth::audio::hfp::HfpClientInterface;
 using namespace bluetooth;
+using namespace bluetooth::shim;
 
 /* Codec negotiation timeout */
 #ifndef BTA_AG_CODEC_NEGOTIATION_TIMEOUT_MS
@@ -74,6 +77,9 @@ using namespace bluetooth;
 #define BTM_VOICE_SETTING_TRANS                                                                    \
   ((uint16_t)(HCI_INP_CODING_LINEAR | HCI_INP_DATA_FMT_2S_COMPLEMENT | HCI_INP_SAMPLE_SIZE_16BIT | \
               HCI_AIR_CODING_FORMAT_TRANSPNT))
+
+static void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
+                                                  enh_esco_params_t& params);
 
 static bool sco_allowed = true;
 static bool hfp_software_datapath_enabled = false;
@@ -122,24 +128,6 @@ static const char* bta_ag_sco_evt_str(uint8_t event) {
   }
 }
 
-static const char* bta_ag_sco_state_str(uint8_t state) {
-  switch (state) {
-    CASE_RETURN_STR(BTA_AG_SCO_SHUTDOWN_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_LISTEN_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CODEC_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPENING_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPEN_CL_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPEN_XFER_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_OPEN_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CLOSING_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CLOSE_OP_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_CLOSE_XFER_ST)
-    CASE_RETURN_STR(BTA_AG_SCO_SHUTTING_ST)
-    default:
-      return "Unknown SCO State";
-  }
-}
-
 static int codec_uuid_to_sample_rate(tBTA_AG_UUID_CODEC codec) {
   int sample_rate;
   switch (codec) {
@@ -166,9 +154,6 @@ static int codec_uuid_to_sample_rate(tBTA_AG_UUID_CODEC codec) {
 bool bta_ag_sco_is_active_device(const RawAddress& bd_addr) {
   return !active_device_addr.IsEmpty() && active_device_addr == bd_addr;
 }
-
-void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
-                                           enh_esco_params_t& params);
 
 /*******************************************************************************
  *
@@ -223,8 +208,7 @@ static void bta_ag_sco_conn_cback(uint16_t sco_idx) {
 static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
   uint16_t handle = 0;
 
-  log::debug("sco_idx: 0x{:x} sco.state:{}", sco_idx,
-             sco_state_text(static_cast<tSCO_STATE>(bta_ag_cb.sco.state)));
+  log::debug("sco_idx: 0x{:x} sco.state:{}", sco_idx, bta_ag_cb.sco.state);
   log::debug("scb[0] in_use:{} sco_idx: 0x{:x} ag state:{}", bta_ag_cb.scb[0].in_use,
              bta_ag_cb.scb[0].sco_idx, bta_ag_state_str(bta_ag_cb.scb[0].state));
   log::debug("scb[1] in_use:{} sco_idx:0x{:x} ag state:{}", bta_ag_cb.scb[1].in_use,
@@ -303,24 +287,15 @@ static void bta_ag_sco_disc_cback(uint16_t sco_idx) {
       }
     } else if (bta_ag_sco_is_opening(bta_ag_cb.sco.p_curr_scb) &&
                (!com::android::bluetooth::flags::fix_hfp_qual_1_9() || bta_ag_cb.sco.is_local)) {
-      if (com::android::bluetooth::flags::retry_esco_with_zero_retransmission_effort() &&
-          bta_ag_cb.sco.p_curr_scb->retransmission_effort_retries == 0) {
-        bta_ag_cb.sco.p_curr_scb->retransmission_effort_retries++;
-        if (!com::android::bluetooth::flags::fix_hfp_qual_1_9()) {
-          bta_ag_cb.sco.p_curr_scb->state = (tBTA_AG_STATE)BTA_AG_SCO_CODEC_ST;
-        }
-        log::warn("eSCO/SCO failed to open, retry with retransmission_effort");
-      } else {
-        log::error("eSCO/SCO failed to open, no more fall back");
-        if (bta_ag_is_sco_managed_by_audio()) {
-          if (hfp_software_datapath_enabled) {
-            if (hfp_encode_interface) {
-              hfp_encode_interface->CancelStreamingRequest();
-              hfp_decode_interface->CancelStreamingRequest();
-            }
-          } else {
-            hfp_offload_interface->CancelStreamingRequest();
+      log::error("eSCO/SCO failed to open, no more fall back");
+      if (bta_ag_is_sco_managed_by_audio()) {
+        if (hfp_software_datapath_enabled) {
+          if (hfp_encode_interface) {
+            hfp_encode_interface->CancelStreamingRequest();
+            hfp_decode_interface->CancelStreamingRequest();
           }
+        } else {
+          hfp_offload_interface->CancelStreamingRequest();
         }
       }
     }
@@ -357,6 +332,7 @@ static bool bta_ag_remove_sco(tBTA_AG_SCB* p_scb, bool only_active) {
   if (p_scb->sco_idx != BTM_INVALID_SCO_INDEX) {
     if (!only_active || p_scb->sco_idx == bta_ag_cb.sco.cur_idx) {
       tBTM_STATUS status = get_btm_client_interface().sco.BTM_RemoveSco(p_scb->sco_idx);
+      LogMetricScoLinkRemoved(ToGdAddress(p_scb->peer_addr));
       log::debug("Removed SCO index:0x{:04x} status:{}", p_scb->sco_idx, btm_status_text(status));
       if (status == tBTM_STATUS::BTM_CMD_STARTED) {
         /* SCO is connected; set current control block */
@@ -553,13 +529,6 @@ void bta_ag_create_sco(tBTA_AG_SCB* p_scb, bool is_orig) {
 
   updateCodecParametersFromProviderInfo(esco_codec, params);
 
-  if (com::android::bluetooth::flags::retry_esco_with_zero_retransmission_effort() &&
-      p_scb->retransmission_effort_retries == 1) {
-    log::info("change retransmission_effort to 0, retry");
-    p_scb->retransmission_effort_retries++;
-    params.retransmission_effort = ESCO_RETRANSMISSION_OFF;
-  }
-
   /* Configure input/output data path based on HAL settings. */
   hfp_hal_interface::set_codec_datapath(esco_codec);
   hfp_hal_interface::update_esco_parameters(&params);
@@ -598,6 +567,8 @@ void bta_ag_create_sco(tBTA_AG_SCB* p_scb, bool is_orig) {
       bta_ag_cb.sco.cur_idx = p_scb->sco_idx;
       /* Configure input/output data. */
       hfp_hal_interface::set_codec_datapath(esco_codec);
+      LogMetricScoLinkCreated(ToGdAddress(p_scb->peer_addr));
+      LogMetricScoCodec(ToGdAddress(p_scb->peer_addr), p_scb->sco_codec);
       log::verbose("initiated SCO connection");
     }
 
@@ -620,8 +591,8 @@ void bta_ag_create_sco(tBTA_AG_SCB* p_scb, bool is_orig) {
   log::debug("AFTER {}", p_scb->ToString());
 }
 
-void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
-                                           enh_esco_params_t& params) {
+static void updateCodecParametersFromProviderInfo(tBTA_AG_UUID_CODEC esco_codec,
+                                                  enh_esco_params_t& params) {
   if (bta_ag_is_sco_managed_by_audio() && !sco_config_map.empty()) {
     auto sco_config_it = sco_config_map.find(esco_codec);
     if (sco_config_it == sco_config_map.end()) {
@@ -752,9 +723,10 @@ void bta_ag_codec_negotiate(tBTA_AG_SCB* p_scb) {
 
 static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
   tBTA_AG_SCO_CB* p_sco = &bta_ag_cb.sco;
-  uint8_t previous_state = p_sco->state;
-  log::info("device:{} index:0x{:04x} state:{}[{}] event:{}[{}]", p_scb->peer_addr, p_scb->sco_idx,
-            bta_ag_sco_state_str(p_sco->state), p_sco->state, bta_ag_sco_evt_str(event), event);
+  tBTA_AG_SCO previous_state = p_sco->state;
+  log::info("device:{} index:0x{:04x} state:{}[0x{:02x}] event:{}[{}]", p_scb->peer_addr,
+            p_scb->sco_idx, p_sco->state, static_cast<uint8_t>(p_sco->state),
+            bta_ag_sco_evt_str(event), event);
 
   switch (p_sco->state) {
     case BTA_AG_SCO_SHUTDOWN_ST:
@@ -903,14 +875,30 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
           break;
 
         case BTA_AG_SCO_SHUTDOWN_E:
-          /* If not opening scb, just close it */
-          if (p_scb != p_sco->p_curr_scb) {
+          if (com::android::bluetooth::flags::sco_state_machine_cleanup()) {
             /* remove listening connection */
             bta_ag_remove_sco(p_scb, false);
-          } else {
-            p_sco->state = BTA_AG_SCO_SHUTTING_ST;
-          }
 
+            /* If last SCO instance then finish shutting down */
+            if (!bta_ag_other_scb_open(p_scb)) {
+              p_sco->state = BTA_AG_SCO_SHUTDOWN_ST;
+            } else if (p_scb == p_sco->p_curr_scb) {
+              /* If current instance shutdown, move to listening */
+              p_sco->state = BTA_AG_SCO_LISTEN_ST;
+            }
+
+            if (p_scb == p_sco->p_curr_scb) {
+              p_sco->p_curr_scb = nullptr;
+            }
+          } else {
+            /* If not opening scb, just close it */
+            if (p_scb != p_sco->p_curr_scb) {
+              /* remove listening connection */
+              bta_ag_remove_sco(p_scb, false);
+            } else {
+              p_sco->state = BTA_AG_SCO_SHUTTING_ST;
+            }
+          }
           break;
 
         case BTA_AG_SCO_CONN_OPEN_E:
@@ -1244,8 +1232,8 @@ static void bta_ag_sco_event(tBTA_AG_SCB* p_scb, uint8_t event) {
     log::warn(
             "SCO_state_change: [{}(0x{:02x})]->[{}(0x{:02x})] after event "
             "[{}(0x{:02x})]",
-            bta_ag_sco_state_str(previous_state), previous_state,
-            bta_ag_sco_state_str(p_sco->state), p_sco->state, bta_ag_sco_evt_str(event), event);
+            previous_state, static_cast<uint8_t>(previous_state), p_sco->state,
+            static_cast<uint8_t>(p_sco->state), bta_ag_sco_evt_str(event), event);
   }
 }
 
@@ -1486,8 +1474,6 @@ void bta_ag_sco_conn_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   /* call app callback */
   bta_ag_cback_sco(p_scb, BTA_AG_AUDIO_OPEN_EVT);
 
-  /* reset retransmission_effort_retries*/
-  p_scb->retransmission_effort_retries = 0;
   /* reset to mSBC T2 settings as the preferred */
   p_scb->codec_msbc_settings = BTA_AG_SCO_MSBC_SETTINGS_T2;
   /* reset to LC3 T2 settings as the preferred */
@@ -1518,19 +1504,16 @@ void bta_ag_sco_conn_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   /* codec_fallback is set when AG is initiator and connection failed for mSBC.
    * OR if codec is msbc and T2 settings failed, then retry Safe T1 settings
    * same operations for LC3 settings */
-  if (p_scb->svc_conn &&
-      (p_scb->codec_fallback ||
-       (p_scb->sco_codec == BTM_SCO_CODEC_MSBC &&
-        p_scb->codec_msbc_settings == BTA_AG_SCO_MSBC_SETTINGS_T1) ||
-       (p_scb->sco_codec == BTM_SCO_CODEC_LC3 &&
-        p_scb->codec_lc3_settings == BTA_AG_SCO_LC3_SETTINGS_T1) ||
-       (com::android::bluetooth::flags::retry_esco_with_zero_retransmission_effort() &&
-        p_scb->retransmission_effort_retries == 1) ||
-       aptx_voice ||
-       (com::android::bluetooth::flags::fix_hfp_qual_1_9() &&
-        p_scb->sco_codec == BTM_SCO_CODEC_CVSD &&
-        p_scb->codec_cvsd_settings == BTA_AG_SCO_CVSD_SETTINGS_S1 &&
-        p_scb->trying_cvsd_safe_settings))) {
+  if (p_scb->svc_conn && (p_scb->codec_fallback ||
+                          (p_scb->sco_codec == BTM_SCO_CODEC_MSBC &&
+                           p_scb->codec_msbc_settings == BTA_AG_SCO_MSBC_SETTINGS_T1) ||
+                          (p_scb->sco_codec == BTM_SCO_CODEC_LC3 &&
+                           p_scb->codec_lc3_settings == BTA_AG_SCO_LC3_SETTINGS_T1) ||
+                          aptx_voice ||
+                          (com::android::bluetooth::flags::fix_hfp_qual_1_9() &&
+                           p_scb->sco_codec == BTM_SCO_CODEC_CVSD &&
+                           p_scb->codec_cvsd_settings == BTA_AG_SCO_CVSD_SETTINGS_S1 &&
+                           p_scb->trying_cvsd_safe_settings))) {
     bta_ag_sco_event(p_scb, BTA_AG_SCO_REOPEN_E);
   } else {
     /* Indicate if the closing of audio is because of transfer */

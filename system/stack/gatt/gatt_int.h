@@ -20,7 +20,6 @@
 #define GATT_INT_H
 
 #include <base/functional/bind.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <deque>
@@ -34,7 +33,6 @@
 #include "gatt_api.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"
@@ -64,7 +62,7 @@ inline std::string gatt_security_action_text(const tGATT_SEC_ACTION& action) {
     CASE_RETURN_TEXT(GATT_SEC_ENCRYPT_MITM);
     CASE_RETURN_TEXT(GATT_SEC_ENC_PENDING);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", action);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(action));
   }
 }
 
@@ -195,7 +193,6 @@ typedef struct {
   uint8_t listening{0}; /* if adv for all has been enabled */
   bool eatt_support{false};
   std::string name;
-  std::set<RawAddress> direct_connect_request;
   std::map<RawAddress, uint16_t> mtu_prefs;
 } tGATT_REG;
 
@@ -248,7 +245,7 @@ inline std::string gatt_channel_state_text(const tGATT_CH_STATE& state) {
     CASE_RETURN_TEXT(GATT_CH_CFG);
     CASE_RETURN_TEXT(GATT_CH_OPEN);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", state);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(state));
   }
 }
 
@@ -259,7 +256,8 @@ inline std::string gatt_channel_state_text(const tGATT_CH_STATE& state) {
 #define GATT_GMCS_START_HANDLE 40
 #define GATT_GTBS_START_HANDLE 90
 #define GATT_TMAS_START_HANDLE 130
-#define GATT_APP_START_HANDLE 134
+#define GATT_GMAS_START_HANDLE 133
+#define GATT_APP_START_HANDLE 144
 
 typedef struct hdl_cfg {
   uint16_t gatt_start_hdl;
@@ -267,6 +265,7 @@ typedef struct hdl_cfg {
   uint16_t gmcs_start_hdl;
   uint16_t gtbs_start_hdl;
   uint16_t tmas_start_hdl;
+  uint16_t gmas_start_hdl;
   uint16_t app_start_hdl;
 } tGATT_HDL_CFG;
 
@@ -473,8 +472,7 @@ inline std::string EpochMillisToString(uint64_t time_ms) {
   struct tm tm;
   localtime_r(&time_sec, &tm);
   std::string s = bluetooth::common::StringFormatTime(kTimeFormatString, tm);
-  return base::StringPrintf("%s.%03u", s.c_str(),
-                            static_cast<unsigned int>(time_ms % MillisPerSecond));
+  return std::format("{}.{:03}", s, time_ms % MillisPerSecond);
 }
 }  // namespace
 
@@ -484,9 +482,8 @@ struct tTCB_STATE_HISTORY {
   tGATT_CH_STATE state;
   std::string holders_info;
   std::string ToString() const {
-    return base::StringPrintf("%s, %s, state: %s, %s", ADDRESS_TO_LOGGABLE_CSTR(address),
-                              bt_transport_text(transport).c_str(),
-                              gatt_channel_state_text(state).c_str(), holders_info.c_str());
+    return std::format("{}, {}, state: {}, {}", address, bt_transport_text(transport),
+                       gatt_channel_state_text(state), holders_info);
   }
 };
 
@@ -494,7 +491,6 @@ extern bluetooth::common::TimestampedCircularBuffer<tTCB_STATE_HISTORY> tcb_stat
 
 /* from gatt_main.cc */
 bool gatt_disconnect(tGATT_TCB* p_tcb);
-void gatt_cancel_connect(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT transport,
                       int8_t initiating_phys);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
@@ -617,7 +613,7 @@ bool gatt_is_pending_mtu_exchange(tGATT_TCB* p_tcb);
 void gatt_set_conn_id_waiting_for_mtu_exchange(tGATT_TCB* p_tcb, tCONN_ID conn_id);
 
 void gatt_sr_copy_prep_cnt_to_cback_cnt(tGATT_TCB& p_tcb);
-bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb);
+bool gatt_sr_is_cback_cnt_zero(tGATT_TCB& p_tcb, uint16_t cid);
 bool gatt_sr_is_prep_cnt_zero(tGATT_TCB& p_tcb);
 void gatt_sr_reset_cback_cnt(tGATT_TCB& p_tcb, uint16_t cid);
 void gatt_sr_reset_prep_cnt(tGATT_TCB& tcb);

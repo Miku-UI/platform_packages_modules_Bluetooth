@@ -61,6 +61,10 @@ void acl_connection_state_changed(RawAddress addr, uint32_t transport, uint32_t 
 
 void suspend_complete_state(uint32_t state) { metrics::LogMetricsSuspendIdState(state); }
 
+void ll_privacy_state(uint32_t llp_state, uint32_t rpa_state) {
+  metrics::LogMetricsLLPrivacyState(llp_state, rpa_state);
+}
+
 }  // namespace rust
 }  // namespace topshim
 }  // namespace bluetooth

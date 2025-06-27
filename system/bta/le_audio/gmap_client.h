@@ -26,8 +26,8 @@ namespace bluetooth::le_audio {
 
 class GmapClient {
 public:
-  void AddFromStorage(const RawAddress& addr, const uint8_t role, const uint16_t role_handle,
-                      const uint8_t UGT_feature, const uint16_t UGT_feature_handle);
+  void AddFromStorage(uint8_t role, uint16_t role_handle, uint8_t UGT_feature,
+                      uint16_t UGT_feature_handle);
 
   void DebugDump(std::stringstream& stream);
 
@@ -41,15 +41,15 @@ public:
 
   bool parseAndSaveUGTFeature(uint16_t len, const uint8_t* value);
 
-  std::bitset<8> getRole();
+  std::bitset<8> getRole() const;
 
-  uint16_t getRoleHandle();
+  uint16_t getRoleHandle() const;
 
   void setRoleHandle(uint16_t handle);
 
-  std::bitset<8> getUGTFeature();
+  std::bitset<8> getUGTFeature() const;
 
-  uint16_t getUGTFeatureHandle();
+  uint16_t getUGTFeatureHandle() const;
 
   void setUGTFeatureHandle(uint16_t handle);
 

@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 
+/** Test cases for {@link BluetoothMapbMessageMime}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapbMessageMimeTest {
@@ -105,7 +106,7 @@ public class BluetoothMapbMessageMimeTest {
         assertThat(mMime.getBcc()).isEqualTo(TEST_BCC);
         assertThat(mMime.getReplyTo()).isEqualTo(TEST_REPLY_TO);
 
-        assertThat(mMime.getMimeParts().size()).isEqualTo(1);
+        assertThat(mMime.getMimeParts()).hasSize(1);
     }
 
     @Test

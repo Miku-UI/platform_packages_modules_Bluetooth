@@ -27,6 +27,7 @@ import static android.Manifest.permission.NETWORK_SETUP_WIZARD;
 import static android.Manifest.permission.RADIO_SCAN_WITHOUT_LOCATION;
 import static android.Manifest.permission.RENOUNCE_PERMISSIONS;
 import static android.Manifest.permission.WRITE_SMS;
+import static android.bluetooth.BluetoothUtils.RemoteExceptionIgnoringRunnable;
 import static android.bluetooth.BluetoothUtils.USER_HANDLE_NULL;
 import static android.content.pm.PackageManager.GET_PERMISSIONS;
 import static android.content.pm.PackageManager.MATCH_UNINSTALLED_PACKAGES;
@@ -36,6 +37,8 @@ import static android.permission.PermissionManager.PERMISSION_HARD_DENIED;
 
 import static com.android.modules.utils.build.SdkLevel.isAtLeastV;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.PermissionMethod;
@@ -44,6 +47,7 @@ import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.app.BroadcastOptions;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.companion.AssociationInfo;
 import android.companion.CompanionDeviceManager;
@@ -59,7 +63,6 @@ import android.os.Build;
 import android.os.ParcelUuid;
 import android.os.PowerExemptionManager;
 import android.os.Process;
-import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -72,6 +75,7 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -91,10 +95,19 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 public final class Utils {
-    private static final String TAG = "BluetoothUtils";
+    public static final String TAG_PREFIX_BLUETOOTH = "Bluetooth";
+    private static final String TAG = TAG_PREFIX_BLUETOOTH + Utils.class.getSimpleName();
+
+    public static final int BD_ADDR_LEN = 6; // bytes
+    private static final int BD_UUID_LEN = 16; // bytes
+
+    /** Thread pool to handle background and outgoing blocking task */
+    public static final ExecutorService BackgroundExecutor = Executors.newSingleThreadExecutor();
+
+    public static final String PAIRING_UI_PROPERTY = "bluetooth.pairing_ui_package.name";
+
     private static final int MICROS_PER_UNIT = 625;
     private static final String PTS_TEST_MODE_PROPERTY = "persist.bluetooth.pts";
 
@@ -110,13 +123,22 @@ public final class Utils {
     private static final String KEY_TEMP_ALLOW_LIST_DURATION_MS = "temp_allow_list_duration_ms";
     private static final long DEFAULT_TEMP_ALLOW_LIST_DURATION_MS = 20_000;
 
-    static final int BD_ADDR_LEN = 6; // bytes
-    static final int BD_UUID_LEN = 16; // bytes
+    private static int sSystemUiUid = USER_HANDLE_NULL.getIdentifier();
+    private static int sForegroundUserId = USER_HANDLE_NULL.getIdentifier();
 
-    /** Thread pool to handle background and outgoing blocking task */
-    public static final ExecutorService BackgroundExecutor = Executors.newSingleThreadExecutor();
+    private Utils() {}
 
-    public static final String PAIRING_UI_PROPERTY = "bluetooth.pairing_ui_package.name";
+    public static void setSystemUiUid(int uid) {
+        sSystemUiUid = uid;
+    }
+
+    public static int getForegroundUserId() {
+        return sForegroundUserId;
+    }
+
+    public static void setForegroundUserId(int userId) {
+        sForegroundUserId = userId;
+    }
 
     /**
      * Check if dual mode audio is enabled. This is set via the system property
@@ -166,6 +188,34 @@ public final class Utils {
     public static void setIsScoManagedByAudioEnabled(boolean enabled) {
         Log.i(TAG, "Updating isScoManagedByAudioEnabled for testing to: " + enabled);
         isScoManagedByAudioEnabled = enabled;
+    }
+
+    /**
+     * Checks CoD and metadata to determine if the device is a watch
+     *
+     * @param service Adapter service
+     * @param device the remote device
+     * @return {@code true} if it's a watch, {@code false} otherwise
+     */
+    public static boolean isWatch(
+            @NonNull AdapterService service, @NonNull BluetoothDevice device) {
+        // Check CoD
+        BluetoothClass deviceClass = new BluetoothClass(service.getRemoteClass(device));
+        if (deviceClass.getDeviceClass() == BluetoothClass.Device.WEARABLE_WRIST_WATCH) {
+            return true;
+        }
+
+        // Check metadata
+        DatabaseManager mDbManager = service.getDatabase();
+        byte[] deviceType = mDbManager.getCustomMeta(device, BluetoothDevice.METADATA_DEVICE_TYPE);
+        if (deviceType == null) {
+            return false;
+        }
+        String deviceTypeStr = new String(deviceType);
+        if (deviceTypeStr.equals(BluetoothDevice.DEVICE_TYPE_WATCH)) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -314,17 +364,6 @@ public final class Utils {
         return converter.getLong(offset);
     }
 
-    public static String byteArrayToString(byte[] valueBuf) {
-        StringBuilder sb = new StringBuilder();
-        for (int idx = 0; idx < valueBuf.length; idx++) {
-            if (idx != 0) {
-                sb.append(" ");
-            }
-            sb.append(formatSimple("%02x", valueBuf[idx]));
-        }
-        return sb.toString();
-    }
-
     /**
      * A parser to transfer a byte array to a UTF8 string
      *
@@ -394,22 +433,6 @@ public final class Utils {
             offset += BD_UUID_LEN;
         }
         return puuids;
-    }
-
-    static int sSystemUiUid = USER_HANDLE_NULL.getIdentifier();
-
-    public static void setSystemUiUid(int uid) {
-        Utils.sSystemUiUid = uid;
-    }
-
-    static int sForegroundUserId = USER_HANDLE_NULL.getIdentifier();
-
-    public static int getForegroundUserId() {
-        return Utils.sForegroundUserId;
-    }
-
-    public static void setForegroundUserId(int userId) {
-        Utils.sForegroundUserId = userId;
     }
 
     /**
@@ -541,16 +564,16 @@ public final class Utils {
     private static boolean checkPermissionForDataDelivery(
             Context context,
             @PermissionName String permission,
-            AttributionSource attributionSource,
+            AttributionSource source,
             String message) {
         if (isInstrumentationTestMode()) {
             return true;
         }
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(Objects.requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
@@ -597,9 +620,15 @@ public final class Utils {
     @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforce the permission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public static boolean checkConnectPermissionForDataDelivery(
-            Context context, AttributionSource attributionSource, String message) {
-        return checkPermissionForDataDelivery(
-                context, BLUETOOTH_CONNECT, attributionSource, message);
+            Context context, AttributionSource source, String message) {
+        return checkPermissionForDataDelivery(context, BLUETOOTH_CONNECT, source, message);
+    }
+
+    @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforce the permission
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    public static boolean checkConnectPermissionForDataDelivery(
+            Context context, AttributionSource source, String tag, String method) {
+        return checkConnectPermissionForDataDelivery(context, source, tag + "." + method + "()");
     }
 
     /**
@@ -624,8 +653,9 @@ public final class Utils {
     @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforce the permission
     @RequiresPermission(BLUETOOTH_SCAN)
     public static boolean checkScanPermissionForDataDelivery(
-            Context context, AttributionSource attributionSource, String message) {
-        return checkPermissionForDataDelivery(context, BLUETOOTH_SCAN, attributionSource, message);
+            Context context, AttributionSource source, String tag, String method) {
+        return checkPermissionForDataDelivery(
+                context, BLUETOOTH_SCAN, source, tag + "." + method + "()");
     }
 
     /**
@@ -652,9 +682,8 @@ public final class Utils {
     @SuppressLint("AndroidFrameworkRequiresPermission") // This method enforce the permission
     @RequiresPermission(BLUETOOTH_ADVERTISE)
     public static boolean checkAdvertisePermissionForDataDelivery(
-            Context context, AttributionSource attributionSource, String message) {
-        return checkPermissionForDataDelivery(
-                context, BLUETOOTH_ADVERTISE, attributionSource, message);
+            Context context, AttributionSource source, String message) {
+        return checkPermissionForDataDelivery(context, BLUETOOTH_ADVERTISE, source, message);
     }
 
     /**
@@ -665,11 +694,11 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean hasDisavowedLocationForScan(
-            Context context, AttributionSource attributionSource, boolean inTestMode) {
+            Context context, AttributionSource source, boolean inTestMode) {
 
         // Check every step along the attribution chain for a renouncement.
         // If location has been renounced anywhere in the chain we treat it as a disavowal.
-        AttributionSource currentAttrib = attributionSource;
+        AttributionSource currentAttrib = source;
         while (true) {
             if (currentAttrib.getRenouncedPermissions().contains(ACCESS_FINE_LOCATION)
                     && (inTestMode
@@ -719,16 +748,12 @@ public final class Utils {
                 || (UserHandle.getAppId(Process.SYSTEM_UID) == UserHandle.getAppId(callingUid));
     }
 
-    public static boolean checkCallerIsSystemOrActiveUser(String tag) {
+    static boolean checkCallerIsSystemOrActiveUser(String tag) {
         final boolean res = checkCallerIsSystemOrActiveUser();
         if (!res) {
             Log.w(TAG, tag + " - Not allowed for non-active user and non-system user");
         }
         return res;
-    }
-
-    public static boolean callerIsSystemOrActiveUser(String tag, String method) {
-        return checkCallerIsSystemOrActiveUser(tag + "." + method + "()");
     }
 
     /**
@@ -824,17 +849,17 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean checkCallerHasCoarseLocation(
-            Context context, AttributionSource attributionSource, UserHandle userHandle) {
+            Context context, AttributionSource source, UserHandle userHandle) {
         if (blockedByLocationOff(context, userHandle)) {
             Log.e(TAG, "Permission denial: Location is off.");
             return false;
         }
         AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(Objects.requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
             return false;
@@ -845,10 +870,7 @@ public final class Utils {
             return true;
         }
 
-        Log.e(
-                TAG,
-                "Permission denial: Need ACCESS_COARSE_LOCATION "
-                        + "permission to get scan results");
+        Log.e(TAG, "Need ACCESS_COARSE_LOCATION permission for " + currentAttribution);
         return false;
     }
 
@@ -859,7 +881,7 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean checkCallerHasCoarseOrFineLocation(
-            Context context, AttributionSource attributionSource, UserHandle userHandle) {
+            Context context, AttributionSource source, UserHandle userHandle) {
         if (blockedByLocationOff(context, userHandle)) {
             Log.e(TAG, "Permission denial: Location is off.");
             return false;
@@ -867,10 +889,10 @@ public final class Utils {
 
         final AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(Objects.requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
             return false;
@@ -889,8 +911,8 @@ public final class Utils {
 
         Log.e(
                 TAG,
-                "Permission denial: Need ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION"
-                        + "permission to get scan results");
+                "Need ACCESS_COARSE_LOCATION or ACCESS_FINE_LOCATION permission for "
+                        + currentAttribution);
         return false;
     }
 
@@ -898,7 +920,7 @@ public final class Utils {
     // Suppressed since we're not actually enforcing here
     @SuppressLint("AndroidFrameworkRequiresPermission")
     public static boolean checkCallerHasFineLocation(
-            Context context, AttributionSource attributionSource, UserHandle userHandle) {
+            Context context, AttributionSource source, UserHandle userHandle) {
         if (blockedByLocationOff(context, userHandle)) {
             Log.e(TAG, "Permission denial: Location is off.");
             return false;
@@ -906,10 +928,10 @@ public final class Utils {
 
         AttributionSource currentAttribution =
                 new AttributionSource.Builder(context.getAttributionSource())
-                        .setNext(Objects.requireNonNull(attributionSource))
+                        .setNext(requireNonNull(source))
                         .build();
         // STOPSHIP(b/188391719): enable this security enforcement
-        // attributionSource.enforceCallingUid();
+        // source.enforceCallingUid();
         PermissionManager pm = context.getSystemService(PermissionManager.class);
         if (pm == null) {
             return false;
@@ -920,9 +942,7 @@ public final class Utils {
             return true;
         }
 
-        Log.e(
-                TAG,
-                "Permission denial: Need ACCESS_FINE_LOCATION " + "permission to get scan results");
+        Log.e(TAG, "Need ACCESS_FINE_LOCATION permission for " + currentAttribution);
         return false;
     }
 
@@ -1005,7 +1025,7 @@ public final class Utils {
         if (!sIsInstrumentationTestModeCacheSet) {
             try {
                 sInstrumentationTestModeCache =
-                        Class.forName("com.android.bluetooth.FileSystemWriteTest") != null;
+                        Class.forName("com.android.bluetooth.TestUtils") != null;
             } catch (ClassNotFoundException exception) {
                 sInstrumentationTestModeCache = false;
             }
@@ -1163,13 +1183,15 @@ public final class Utils {
             return "NO SUBSCRIPTION";
         }
 
-        if (BigInteger.valueOf(cccValue).testBit(0) && BigInteger.valueOf(cccValue).testBit(1)) {
+        final boolean isBit0Set = BigInteger.valueOf(cccValue).testBit(0);
+        final boolean isBit1Set = BigInteger.valueOf(cccValue).testBit(1);
+        if (isBit0Set && isBit1Set) {
             return "NOTIFICATION|INDICATION";
         }
-        if (BigInteger.valueOf(cccValue).testBit(0)) {
+        if (isBit0Set) {
             return "NOTIFICATION";
         }
-        if (BigInteger.valueOf(cccValue).testBit(1)) {
+        if (isBit1Set) {
             return "INDICATION";
         }
         return "";
@@ -1217,20 +1239,16 @@ public final class Utils {
                 || pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
-    /** A {@link Consumer} that automatically ignores any {@link RemoteException}s. */
-    @FunctionalInterface
-    @SuppressWarnings("FunctionalInterfaceMethodChanged")
-    public interface RemoteExceptionIgnoringConsumer<T> extends Consumer<T> {
-        /** Called by {@code accept}. */
-        void acceptOrThrow(T t) throws RemoteException;
-
-        @Override
-        default void accept(T t) {
-            try {
-                acceptOrThrow(t);
-            } catch (RemoteException ex) {
-                // Ignore RemoteException
-            }
+    /**
+     * Reverses the elements of {@code array}. This is equivalent to {@code
+     * Collections.reverse(Bytes.asList(array))}, but is likely to be more efficient.
+     */
+    public static void reverse(byte[] array) {
+        requireNonNull(array);
+        for (int i = 0, j = array.length - 1; i < j; i++, j--) {
+            byte tmp = array[i];
+            array[i] = array[j];
+            array[j] = tmp;
         }
     }
 
@@ -1290,12 +1308,40 @@ public final class Utils {
         long elapsedRealtime();
     }
 
-    public static final TimeProvider sSystemClock = new SystemClockTimeProvider();
+    private static final TimeProvider sSystemClock = new SystemClockTimeProvider();
+
+    public static TimeProvider getSystemClock() {
+        return sSystemClock;
+    }
 
     private static final class SystemClockTimeProvider implements TimeProvider {
         @Override
         public long elapsedRealtime() {
             return android.os.SystemClock.elapsedRealtime();
+        }
+    }
+
+    /** Execute a remote callback without propagating the RemoteException of a dead app */
+    public static void callbackToApp(RemoteExceptionIgnoringRunnable callback) {
+        callback.run();
+    }
+
+    /** Invokes {@code toJoin.}{@link Thread#join() join()} uninterruptibly. */
+    public static void joinUninterruptibly(Thread toJoin) {
+        boolean interrupted = false;
+        try {
+            while (true) {
+                try {
+                    toJoin.join();
+                    return;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 }

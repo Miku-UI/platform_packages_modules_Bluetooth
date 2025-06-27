@@ -25,7 +25,6 @@
 #include "main/shim/entry.h"
 #include "main/shim/shim.h"
 #include "main/shim/stack.h"
-#include "shim/dumpsys.h"
 
 namespace {
 
@@ -46,7 +45,7 @@ void bluetooth::shim::UnregisterDumpsysFunction(const void* token) {
   dumpsys_functions_.erase(token);
 }
 
-void bluetooth::shim::Dump(int fd, const char** args) {
+void bluetooth::shim::Dump(int fd) {
   if (dumpsys_functions_.empty()) {
     dprintf(fd, "%s No registered dumpsys shim legacy targets\n", kModuleName);
   } else {
@@ -57,13 +56,7 @@ void bluetooth::shim::Dump(int fd, const char** args) {
   }
   std::promise<void> promise;
   std::future future = promise.get_future();
-  if (bluetooth::shim::Stack::GetInstance()->CallOnModule<shim::Dumpsys>(
-              [&promise, fd, args](shim::Dumpsys* mod) {
-                mod->Dump(fd, args, std::move(promise));
-              })) {
-    log::assert_that(future.wait_for(std::chrono::seconds(1)) == std::future_status::ready,
-                     "Timed out waiting for dumpsys to complete");
-  } else {
-    dprintf(fd, "%s NOTE: gd dumpsys module not loaded or started\n", kModuleName);
-  }
+  bluetooth::shim::Stack::GetInstance()->Dump(fd, std::move(promise));
+  log::assert_that(future.wait_for(std::chrono::seconds(1)) == std::future_status::ready,
+                   "Timed out waiting for dumpsys to complete");
 }

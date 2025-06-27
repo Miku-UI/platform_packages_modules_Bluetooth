@@ -34,7 +34,10 @@
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/btm/btm_sco.h"
+#include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_status.h"
@@ -50,14 +53,6 @@
 using namespace bluetooth;
 
 extern tBTM_CB btm_cb;
-
-bool BTM_ReadPowerMode(const RawAddress& remote_bda, tBTM_PM_MODE* p_mode);
-tBTM_STATUS btm_sec_disconnect(uint16_t handle, tHCI_STATUS reason, std::string);
-void btm_acl_created(const RawAddress& bda, uint16_t hci_handle, uint8_t link_role,
-                     tBT_TRANSPORT transport);
-void btm_acl_removed(uint16_t handle);
-void btm_ble_decrement_link_topology_mask(uint8_t link_role);
-void btm_sco_acl_removed(const RawAddress* bda);
 
 static void l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf, tL2C_TX_COMPLETE_CB_INFO* p_cbi);
 static BT_HDR* l2cu_get_next_buffer_to_send(tL2C_LCB* p_lcb, tL2C_TX_COMPLETE_CB_INFO* p_cbi);
@@ -215,60 +210,34 @@ void l2c_link_sec_comp(RawAddress p_bda, tBT_TRANSPORT transport, void* p_ref_da
     return;
   }
 
-  if (com::android::bluetooth::flags::l2cap_p_ccb_check_rewrite()) {
-    if (!p_ref_data) {
-      log::warn("Argument p_ref_data is NULL");
+  if (!p_ref_data) {
+    log::warn("Argument p_ref_data is NULL");
+    return;
+  }
+
+  /* Match p_ccb with p_ref_data returned by sec manager */
+  p_ccb = (tL2C_CCB*)p_ref_data;
+
+  if (p_lcb != p_ccb->p_lcb) {
+    log::warn("p_ref_data doesn't match with sec manager record");
+    return;
+  }
+
+  switch (btm_status) {
+    case tBTM_STATUS::BTM_SUCCESS:
+      l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
+      break;
+
+    case tBTM_STATUS::BTM_DELAY_CHECK:
+      /* start a timer - encryption change not received before L2CAP connect
+       * req */
+      alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
+                         l2c_ccb_timer_timeout, p_ccb);
       return;
-    }
 
-    /* Match p_ccb with p_ref_data returned by sec manager */
-    p_ccb = (tL2C_CCB*)p_ref_data;
-
-    if (p_lcb != p_ccb->p_lcb) {
-      log::warn("p_ref_data doesn't match with sec manager record");
-      return;
-    }
-
-    switch (btm_status) {
-      case tBTM_STATUS::BTM_SUCCESS:
-        l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
-        break;
-
-      case tBTM_STATUS::BTM_DELAY_CHECK:
-        /* start a timer - encryption change not received before L2CAP connect
-         * req */
-        alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
-                           l2c_ccb_timer_timeout, p_ccb);
-        return;
-
-      default:
-        l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
-        break;
-    }
-  } else {
-    /* Match p_ccb with p_ref_data returned by sec manager */
-    for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_next_ccb) {
-      p_next_ccb = p_ccb->p_next_ccb;
-
-      if (p_ccb == p_ref_data) {
-        switch (btm_status) {
-          case tBTM_STATUS::BTM_SUCCESS:
-            l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP, &ci);
-            break;
-
-          case tBTM_STATUS::BTM_DELAY_CHECK:
-            /* start a timer - encryption change not received before L2CAP
-             * connect req */
-            alarm_set_on_mloop(p_ccb->l2c_ccb_timer, L2CAP_DELAY_CHECK_SM4_TIMEOUT_MS,
-                               l2c_ccb_timer_timeout, p_ccb);
-            return;
-
-          default:
-            l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
-            break;
-        }
-      }
-    }
+    default:
+      l2c_csm_execute(p_ccb, L2CEVT_SEC_COMP_NEG, &ci);
+      break;
   }
 }
 
@@ -315,110 +284,109 @@ static void l2c_link_iot_store_disc_reason(RawAddress& bda, uint8_t reason) {
  *
  ******************************************************************************/
 bool l2c_link_hci_disc_comp(uint16_t handle, tHCI_REASON reason) {
-  tL2C_CCB* p_ccb;
-  bool status = true;
-  bool lcb_is_free = true;
-
-  /* If we don't have one, maybe an SCO link. Send to MM */
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_handle(handle);
-  if (!p_lcb) {
-    status = false;
-  } else {
-    l2c_link_iot_store_disc_reason(p_lcb->remote_bd_addr, reason);
+  if (p_lcb == nullptr) {
+    log::error("No LCB found for handle:0x{:04x}", handle);
 
-    p_lcb->SetDisconnectReason(reason);
-
-    /* Just in case app decides to try again in the callback context */
-    p_lcb->link_state = LST_DISCONNECTING;
-
-    /* Check for BLE and handle that differently */
-    if (p_lcb->transport == BT_TRANSPORT_LE) {
-      btm_ble_decrement_link_topology_mask(p_lcb->LinkRole());
+    p_lcb = l2cu_find_lcb_by_state(LST_CONNECT_HOLDING);
+    if (p_lcb != nullptr) {
+      log::info("Resuming pending ACL request {}", p_lcb->remote_bd_addr);
+      l2cu_create_conn_br_edr(p_lcb);
     }
-    /* Link is disconnected. For all channels, send the event through */
-    /* their FSMs. The CCBs should remove themselves from the LCB     */
-    for (p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb;) {
-      tL2C_CCB* pn = p_ccb->p_next_ccb;
+    return false;
+  }
 
-      /* Keep connect pending control block (if exists)
-       * Possible Race condition when a reconnect occurs
-       * on the channel during a disconnect of link. This
-       * ccb will be automatically retried after link disconnect
-       * arrives
-       */
-      if (p_ccb != p_lcb->p_pending_ccb) {
-        l2c_csm_execute(p_ccb, L2CEVT_LP_DISCONNECT_IND, &reason);
-      }
-      p_ccb = pn;
+  bool lcb_is_free = true;
+  l2c_link_iot_store_disc_reason(p_lcb->remote_bd_addr, reason);
+  p_lcb->SetDisconnectReason(reason);
+
+  /* Just in case app decides to try again in the callback context */
+  p_lcb->link_state = LST_DISCONNECTING;
+
+  /* Check for BLE and handle that differently */
+  if (p_lcb->transport == BT_TRANSPORT_LE) {
+    btm_ble_decrement_link_topology_mask(p_lcb->LinkRole());
+  }
+
+  /* Link is disconnected. For all channels, send the event through their FSMs. The CCBs should
+   * remove themselves from the LCB */
+  for (tL2C_CCB* p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb;) {
+    tL2C_CCB* pn = p_ccb->p_next_ccb;
+
+    /* Keep connect pending control block (if exists).
+     * Possible race condition when a reconnect occurs on the channel during a disconnect of link.
+     * This ccb will be automatically retried after link disconnect arrives */
+    if (p_ccb != p_lcb->p_pending_ccb) {
+      l2c_csm_execute(p_ccb, L2CEVT_LP_DISCONNECT_IND, &reason);
     }
+    p_ccb = pn;
+  }
 
-    if (p_lcb->transport == BT_TRANSPORT_BR_EDR) {
-      /* Tell SCO management to drop any SCOs on this ACL */
-      btm_sco_acl_removed(&p_lcb->remote_bd_addr);
+  if (p_lcb->transport == BT_TRANSPORT_BR_EDR) {
+    /* Tell SCO management to drop any SCOs on this ACL */
+    btm_sco_acl_removed(&p_lcb->remote_bd_addr);
+  }
+
+  /* If waiting for disconnect and reconnect is pending start the reconnect now race condition where
+   * layer above issued connect request on link that was disconnecting */
+  if (p_lcb->ccb_queue.p_first_ccb != nullptr || p_lcb->p_pending_ccb) {
+    log::debug("l2c_link_hci_disc_comp: Restarting pending ACL request");
+    /* Release any held buffers */
+    while (!list_is_empty(p_lcb->link_xmit_data_q)) {
+      BT_HDR* p_buf = static_cast<BT_HDR*>(list_front(p_lcb->link_xmit_data_q));
+      list_remove(p_lcb->link_xmit_data_q, p_buf);
+      osi_free(p_buf);
     }
-
-    /* If waiting for disconnect and reconnect is pending start the reconnect
-       now
-       race condition where layer above issued connect request on link that was
-       disconnecting
+    /* for LE link, always drop and re-open to ensure to get LE remote feature
      */
-    if (p_lcb->ccb_queue.p_first_ccb != NULL || p_lcb->p_pending_ccb) {
-      log::debug("l2c_link_hci_disc_comp: Restarting pending ACL request");
-      /* Release any held buffers */
-      while (!list_is_empty(p_lcb->link_xmit_data_q)) {
-        BT_HDR* p_buf = static_cast<BT_HDR*>(list_front(p_lcb->link_xmit_data_q));
-        list_remove(p_lcb->link_xmit_data_q, p_buf);
-        osi_free(p_buf);
-      }
-      /* for LE link, always drop and re-open to ensure to get LE remote feature
-       */
-      if (p_lcb->transport == BT_TRANSPORT_LE) {
-        btm_acl_removed(handle);
-      } else {
-        /* If we are going to re-use the LCB without dropping it, release all
-        fixed channels
-        here */
-        int xx;
-        for (xx = 0; xx < L2CAP_NUM_FIXED_CHNLS; xx++) {
-          if (p_lcb->p_fixed_ccbs[xx] && p_lcb->p_fixed_ccbs[xx] != p_lcb->p_pending_ccb) {
-            l2cu_release_ccb(p_lcb->p_fixed_ccbs[xx]);
-
-            p_lcb->p_fixed_ccbs[xx] = NULL;
-            (*l2cb.fixed_reg[xx].pL2CA_FixedConn_Cb)(xx + L2CAP_FIRST_FIXED_CHNL,
-                                                     p_lcb->remote_bd_addr, false,
-                                                     p_lcb->DisconnectReason(), p_lcb->transport);
-          }
-        }
-        /* Cleanup connection state to avoid race conditions because
-         * l2cu_release_lcb won't be invoked to cleanup */
-        btm_acl_removed(p_lcb->Handle());
+    if (p_lcb->transport == BT_TRANSPORT_LE) {
+      btm_acl_removed(handle);
+      if (com::android::bluetooth::flags::invalidate_hci_handle_on_acl_removal()) {
         p_lcb->InvalidateHandle();
       }
-      if (p_lcb->transport == BT_TRANSPORT_LE) {
-        if (l2cu_create_conn_le(p_lcb)) {
-          lcb_is_free = false; /* still using this lcb */
+    } else {
+      /* If we are going to re-use the LCB without dropping it, release all
+      fixed channels
+      here */
+      int xx;
+      for (xx = 0; xx < L2CAP_NUM_FIXED_CHNLS; xx++) {
+        if (p_lcb->p_fixed_ccbs[xx] && p_lcb->p_fixed_ccbs[xx] != p_lcb->p_pending_ccb) {
+          l2cu_release_ccb(p_lcb->p_fixed_ccbs[xx]);
+          p_lcb->p_fixed_ccbs[xx] = nullptr;
+          (*l2cb.fixed_reg[xx].pL2CA_FixedConn_Cb)(xx + L2CAP_FIRST_FIXED_CHNL,
+                                                   p_lcb->remote_bd_addr, false,
+                                                   p_lcb->DisconnectReason(), p_lcb->transport);
         }
-      } else {
-        l2cu_create_conn_br_edr(p_lcb);
+      }
+      /* Cleanup connection state to avoid race conditions because
+       * l2cu_release_lcb won't be invoked to cleanup */
+      btm_acl_removed(p_lcb->Handle());
+      p_lcb->InvalidateHandle();
+    }
+    if (p_lcb->transport == BT_TRANSPORT_LE) {
+      if (l2cu_create_conn_le(p_lcb)) {
         lcb_is_free = false; /* still using this lcb */
       }
+    } else {
+      l2cu_create_conn_br_edr(p_lcb);
+      lcb_is_free = false; /* still using this lcb */
     }
+  }
+  p_lcb->p_pending_ccb = nullptr;
 
-    p_lcb->p_pending_ccb = NULL;
+  /* Release the LCB */
+  if (lcb_is_free) {
+    l2cu_release_lcb(p_lcb);
 
-    /* Release the LCB */
-    if (lcb_is_free) {
-      l2cu_release_lcb(p_lcb);
+    /* Now that we have a free acl connection, see if any lcbs are pending */
+    p_lcb = l2cu_find_lcb_by_state(LST_CONNECT_HOLDING);
+    if (p_lcb != nullptr) {
+      log::info("Resuming pending ACL request {}", p_lcb->remote_bd_addr);
+      l2cu_create_conn_br_edr(p_lcb);
     }
   }
 
-  /* Now that we have a free acl connection, see if any lcbs are pending */
-  if (lcb_is_free && ((p_lcb = l2cu_find_lcb_by_state(LST_CONNECT_HOLDING)) != NULL)) {
-    /* we found one-- create a connection */
-    l2cu_create_conn_br_edr(p_lcb);
-  }
-
-  return status;
+  return true;
 }
 
 /*******************************************************************************
@@ -782,56 +750,6 @@ void l2c_pin_code_request(const RawAddress& bd_addr) {
 
 /*******************************************************************************
  *
- * Function         l2c_link_check_power_mode
- *
- * Description      This function is called to check power mode.
- *
- * Returns          true if link is going to be active from park
- *                  false if nothing to send or not in park mode
- *
- ******************************************************************************/
-static bool l2c_link_check_power_mode(tL2C_LCB* p_lcb) {
-  if (com::android::bluetooth::flags::transmit_smp_packets_before_release()) {
-    // TODO: Remove this function when flag transmit_smp_packets_before_release is released
-    return false;
-  }
-
-  bool need_to_active = false;
-
-  // Return false as LM modes are applicable for BREDR transport
-  if (p_lcb->is_transport_ble()) {
-    return false;
-  }
-  /*
-   * We only switch park to active only if we have unsent packets
-   */
-  if (list_is_empty(p_lcb->link_xmit_data_q)) {
-    for (tL2C_CCB* p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb) {
-      if (!fixed_queue_is_empty(p_ccb->xmit_hold_q)) {
-        need_to_active = true;
-        break;
-      }
-    }
-  } else {
-    need_to_active = true;
-  }
-
-  /* if we have packets to send */
-  if (need_to_active) {
-    /* check power mode */
-    tBTM_PM_MODE mode;
-    if (BTM_ReadPowerMode(p_lcb->remote_bd_addr, &mode)) {
-      if (mode == BTM_PM_STS_PENDING) {
-        log::debug("LCB(0x{:x}) is in PM pending state", p_lcb->Handle());
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-/*******************************************************************************
- *
  * Function         l2c_link_check_send_pkts
  *
  * Description      This function is called to check if it can send packets
@@ -905,8 +823,7 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf
         continue;
       }
 
-      if ((!p_lcb->in_use) || (p_lcb->link_state != LST_CONNECTED) ||
-          (p_lcb->link_xmit_quota != 0) || (l2c_link_check_power_mode(p_lcb))) {
+      if (!p_lcb->in_use || p_lcb->link_state != LST_CONNECTED || p_lcb->link_xmit_quota != 0) {
         log::debug("Skipping lcb {} due to quota", xx);
         continue;
       }
@@ -947,7 +864,7 @@ void l2c_link_check_send_pkts(tL2C_LCB* p_lcb, uint16_t local_cid, BT_HDR* p_buf
   } else /* if this is not round-robin service */
   {
     /* link_state or power mode not ready, can't send anything else */
-    if ((p_lcb->link_state != LST_CONNECTED) || (l2c_link_check_power_mode(p_lcb))) {
+    if (p_lcb->link_state != LST_CONNECTED) {
       log::warn("Can't send, link state: {} not LST_CONNECTED or power mode BTM_PM_STS_PENDING",
                 p_lcb->link_state);
       return;
@@ -1060,8 +977,7 @@ static void l2c_link_send_to_lower(tL2C_LCB* p_lcb, BT_HDR* p_buf,
     l2cu_tx_complete(p_cbi);
   }
 
-  if (!com::android::bluetooth::flags::transmit_smp_packets_before_release() ||
-      p_lcb->suspended.empty()) {
+  if (p_lcb->suspended.empty()) {
     return;
   }
 

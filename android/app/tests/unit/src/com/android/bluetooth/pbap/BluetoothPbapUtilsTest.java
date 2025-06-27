@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package com.android.bluetooth.pbap;
 import static android.provider.ContactsContract.Data.CONTACT_ID;
 import static android.provider.ContactsContract.Data.DATA1;
 import static android.provider.ContactsContract.Data.MIMETYPE;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -53,18 +55,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
+/** Test cases for {@link BluetoothPbapUtils}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapUtilsTest {
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Context mContext;
 

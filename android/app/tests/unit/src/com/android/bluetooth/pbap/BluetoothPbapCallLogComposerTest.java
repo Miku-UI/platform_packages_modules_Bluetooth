@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.android.bluetooth.pbap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.pbap.BluetoothPbapCallLogComposer.FAILURE_REASON_FAILED_TO_GET_DATABASE_INFO;
 import static com.android.bluetooth.pbap.BluetoothPbapCallLogComposer.FAILURE_REASON_NOT_INITIALIZED;
 import static com.android.bluetooth.pbap.BluetoothPbapCallLogComposer.FAILURE_REASON_NO_ENTRY;
@@ -34,8 +35,8 @@ import android.net.Uri;
 import android.provider.CallLog;
 import android.provider.ContactsContract;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -47,9 +48,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link BluetoothPbapCallLogComposer}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapCallLogComposerTest {
@@ -66,7 +66,7 @@ public class BluetoothPbapCallLogComposerTest {
 
     @Spy BluetoothMethodProxy mPbapCallProxy = BluetoothMethodProxy.getInstance();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mMockCursor;
 
@@ -81,7 +81,9 @@ public class BluetoothPbapCallLogComposerTest {
         when(mMockCursor.getCount()).thenReturn(validRowCount);
         when(mMockCursor.moveToFirst()).thenReturn(true);
 
-        mComposer = new BluetoothPbapCallLogComposer(InstrumentationRegistry.getTargetContext());
+        mComposer =
+                new BluetoothPbapCallLogComposer(
+                        InstrumentationRegistry.getInstrumentation().getTargetContext());
     }
 
     @After

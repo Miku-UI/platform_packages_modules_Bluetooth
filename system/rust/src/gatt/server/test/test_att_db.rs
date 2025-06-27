@@ -1,14 +1,12 @@
-use crate::{
-    gatt::{
-        ids::AttHandle,
-        server::att_database::{AttAttribute, AttDatabase, StableAttDatabase},
-    },
-    packets::att::AttErrorCode,
-};
+use crate::gatt::ids::AttHandle;
+use crate::gatt::server::att_database::{AttAttribute, AttDatabase, StableAttDatabase};
+use crate::packets::att::AttErrorCode;
 
 use async_trait::async_trait;
 use log::{info, warn};
-use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub struct TestAttDatabase {

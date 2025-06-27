@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@
 #include <base/strings/pattern.h>
 #include <base/strings/string_number_conversions.h>
 #include <base/strings/string_util.h>
-#include <base/strings/stringprintf.h>
 
 #include <map>
 #include <utility>
@@ -42,8 +41,8 @@ namespace {
 // these consts path below are for getting the chipset info
 constexpr char kChipsetInfoWlanDirPath[] = "/sys/class/net/wlan0/device";
 constexpr char kChipsetInfoMlanDirPath[] = "/sys/class/net/mlan0/device";
-constexpr char kChipsetInfoModaliasPath[] = "/sys/class/bluetooth/hci%d/device/modalias";
-constexpr char kChipInfoModuleDirPath[] = "/sys/class/bluetooth/hci%d/device/driver/module";
+constexpr char kChipsetInfoModaliasPath[] = "/sys/class/bluetooth/hci{}/device/modalias";
+constexpr char kChipInfoModuleDirPath[] = "/sys/class/bluetooth/hci{}/device/driver/module";
 }  // namespace
 
 // topshim::btif::BtBondState is a copy of hardware/bluetooth.h:bt_bond_state_t
@@ -242,6 +241,14 @@ AdapterState ToAdapterState(uint32_t state) {
 
 SuspendIdState ToSuspendIdState(uint32_t state) {
   return state == 1 ? SuspendIdState::Recorded : SuspendIdState::NoRecord;
+}
+
+LLPrivacyState ToLLPrivacyState(uint32_t state) {
+  return state == 1 ? LLPrivacyState::Enabled : LLPrivacyState::Disabled;
+}
+
+AddressPrivacyState ToAddressPrivacyState(uint32_t state) {
+  return state == 1 ? AddressPrivacyState::Enabled : AddressPrivacyState::Disabled;
 }
 
 ConnectionType ToPairingDeviceType(std::string addr, uint32_t device_type) {
@@ -676,7 +683,7 @@ static int64_t GetChipsetInfoId(const char* path, const char* file) {
 static std::string GetChipsetInfoModuleName() {
   std::string module;
   int adapter_index = GetAdapterIndex();
-  std::string path = base::StringPrintf(kChipsetInfoModaliasPath, adapter_index);
+  std::string path = std::format(kChipsetInfoModaliasPath, adapter_index);
 
   if (base::ReadFileToString(base::FilePath(path), &module)) {
     return base::CollapseWhitespaceASCII(module, false);
@@ -689,7 +696,7 @@ static MetricTransportType GetChipsetInfoTransport(void) {
   base::FilePath module_realpath;
   std::string module_name;
   int adapter_index = GetAdapterIndex();
-  std::string path = base::StringPrintf(kChipInfoModuleDirPath, adapter_index);
+  std::string path = std::format(kChipInfoModuleDirPath, adapter_index);
 
   // examples of module_realpath: /sys/module/btusb and /sys/module/hci_uart
   module_realpath = base::MakeAbsoluteFilePath(base::FilePath(path));

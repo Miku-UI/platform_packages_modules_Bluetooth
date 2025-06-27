@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,8 +43,17 @@ struct LeCocCapabilities {
   uint16_t mtu;
 };
 
+struct RfcommCapabilities {
+  // Maximum number of RFCOMM sockets supported. If not supported, the value must be zero.
+  int number_of_supported_sockets;
+
+  // Maximum frame size in octets negotiated during DLCI establishment.
+  uint16_t max_frame_size;
+};
+
 struct SocketCapabilities {
   LeCocCapabilities le_coc_capabilities;
+  RfcommCapabilities rfcomm_capabilities;
 };
 
 struct LeCocChannelInfo {
@@ -78,6 +87,35 @@ struct LeCocChannelInfo {
   uint16_t initial_tx_credits;
 };
 
+struct RfcommChannelInfo {
+  // L2cap local channel ID for RFCOMM.
+  int local_cid;
+
+  // L2cap remote channel ID for RFCOMM.
+  int remote_cid;
+
+  // Local Maximum Transmission Unit Size in bytes that the local L2CAP layer can receive.
+  int local_mtu;
+
+  // Remote Maximum Transmission Unit Size in bytes that the remote L2CAP layer can receive.
+  int remote_mtu;
+
+  // Protocol initial credits at Rx path.
+  int initial_rx_credits;
+
+  // Protocol initial credits at Tx path.
+  int initial_tx_credits;
+
+  // Data Link Connection Identifier (DLCI).
+  int dlci;
+
+  // Maximum frame size negotiated during DLCI establishment.
+  int max_frame_size;
+
+  // Flag of whether the Android stack initiated the RFCOMM multiplexer control channel.
+  bool mux_initiator;
+};
+
 struct SocketContext {
   // Identifier assigned to the socket by the host stack when the socket is connected.
   uint64_t socket_id;
@@ -89,7 +127,7 @@ struct SocketContext {
   uint16_t acl_connection_handle;
 
   // Channel information of different protocol used for the socket.
-  std::variant<LeCocChannelInfo> channel_info;
+  std::variant<LeCocChannelInfo, RfcommChannelInfo> channel_info;
 
   // Endpoint information.
   EndpointInfo endpoint_info;

@@ -18,7 +18,6 @@
 #ifndef BTA_HH_API_H
 #define BTA_HH_API_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -249,7 +248,7 @@ typedef struct {
   uint8_t hid_handle;
 
   std::string ToString() const {
-    return base::StringPrintf("%04x::%04x::%04x", vendor_id, product_id, version);
+    return std::format("{:04x}::{:04x}::{:04x}", vendor_id, product_id, version);
   }
 } tBTA_HH_DEV_DSCP_INFO;
 
@@ -392,7 +391,7 @@ void BTA_HhDisable(void);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhOpen(const tAclLinkSpec& link_spec);
+void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct);
 
 /*******************************************************************************
  *

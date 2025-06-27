@@ -1,15 +1,13 @@
-use crate::{
-    core::uuid::Uuid,
-    gatt::server::att_database::StableAttDatabase,
-    packets::att::{self, AttErrorCode},
-};
+use crate::core::uuid::Uuid;
+use crate::gatt::server::att_database::StableAttDatabase;
+use crate::packets::att::{self, AttErrorCode};
 use pdl_runtime::EncodeError;
 
-use super::helpers::{
-    att_filter_by_size_type::{filter_read_attributes_by_size_type, AttributeWithValue},
-    att_range_filter::filter_to_range,
-    payload_accumulator::PayloadAccumulator,
+use super::helpers::att_filter_by_size_type::{
+    filter_read_attributes_by_size_type, AttributeWithValue,
 };
+use super::helpers::att_range_filter::filter_to_range;
+use super::helpers::payload_accumulator::PayloadAccumulator;
 
 pub async fn handle_read_by_type_request(
     request: att::AttReadByTypeRequest,
@@ -74,17 +72,12 @@ pub async fn handle_read_by_type_request(
 mod test {
     use super::*;
 
-    use crate::{
-        core::uuid::Uuid,
-        gatt::{
-            ids::AttHandle,
-            server::{
-                att_database::AttAttribute, gatt_database::AttPermissions,
-                test::test_att_db::TestAttDatabase,
-            },
-        },
-        packets::att,
-    };
+    use crate::core::uuid::Uuid;
+    use crate::gatt::ids::AttHandle;
+    use crate::gatt::server::att_database::AttAttribute;
+    use crate::gatt::server::gatt_database::AttPermissions;
+    use crate::gatt::server::test::test_att_db::TestAttDatabase;
+    use crate::packets::att;
 
     const UUID: Uuid = Uuid::new(1234);
     const ANOTHER_UUID: Uuid = Uuid::new(2345);

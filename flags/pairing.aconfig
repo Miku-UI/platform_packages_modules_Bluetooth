@@ -1,61 +1,11 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "clear_auth_collision_state_on_pairing_complete"
     namespace: "bluetooth"
     description: "Clear authentication collision state on pairing conclusion"
     bug: "358116527"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "pairing_on_unknown_transport"
-    namespace: "bluetooth"
-    description: "Allow pairing on transport not known to be supported by the remote device"
-    bug: "335239971"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "cancel_pairing_only_on_disconnected_transport"
-    namespace: "bluetooth"
-    description: "Cancel pairing due to unexpected disconnection only if the transport matches"
-    bug: "338152239"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "temporary_pairing_device_properties"
-    namespace: "bluetooth"
-    description: "Do not remove the device properties immediately after insecure pairing"
-    bug: "342202557"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "use_local_oob_extended_command"
-    namespace: "bluetooth"
-    description: "Use HCI Read Local OOB Extended Data command to generate local OOB when Secure Connections is supported by the controller"
-    bug: "342250775"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "pairing_name_discovery_addresss_mismatch"
-    namespace: "bluetooth"
-    description: "Do not abort pairing if name discovery for a another device fails"
-    bug: "349144497"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -76,36 +26,6 @@ flag {
     namespace: "bluetooth"
     description: "Avoid sending duplicate pairing response when device is in peripheral role & OOB pairing mode chosen"
     bug: "351948689"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "wait_for_disconnect_before_unbond"
-    namespace: "bluetooth"
-    description: "Disconnect all links before removing the bond"
-    bug: "345299969"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "name_discovery_for_le_pairing"
-    namespace: "bluetooth"
-    description: "Perform LE name discovery for pairing if device name is not known"
-    bug: "355095011"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "transmit_smp_packets_before_release"
-    namespace: "bluetooth"
-    description: "Ensure that SMP packets are transmitted before SMP channel is released"
-    bug: "357106628"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -182,16 +102,6 @@ flag {
 }
 
 flag {
-    name: "smp_state_machine_stuck_after_disconnection_fix"
-    namespace: "bluetooth"
-    description: "Fix state machine stuck after pairing device disconnection"
-    bug: "376306092"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "prevent_service_connections_on_remove_bond"
     namespace: "bluetooth"
     description: "Disable service connections on remove bond"
@@ -232,10 +142,140 @@ flag {
 }
 
 flag {
-    name: "identity_retention_on_restart"
+    name: "bonded_device_smp_failure_handling"
     namespace: "bluetooth"
-    description: "Retain identity address on BT restart"
-    bug: "383879096"
+    description: "Don't remove bond on SMP failure for bonded devices in peripheral role"
+    bug: "385181815"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "peripheral_auth_req"
+    namespace: "bluetooth"
+    description: "Use appropriate authentication requirements for SMP security request in peripheral role"
+    bug: "385202199"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_appearance_after_ctkd"
+    namespace: "bluetooth"
+    description: "Allow read of LE appearance after CTKD if class of device is unknown"
+    bug: "386835787"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "create_metadata_after_bonding"
+    namespace: "bluetooth"
+    description: "Don't create metadata before the device is bonded"
+    bug: "387523991"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_encryption_refresh_failure_handling"
+    namespace: "bluetooth"
+    description: "Don't remove bond on LE encryption refresh failure"
+    bug: "393396710"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_mandate_auth_along_with_encryption"
+    namespace: "bluetooth"
+    description: "Don't mandate authentication along with encryption"
+    bug: "395476774"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "temporary_pairing_tracking"
+    namespace: "bluetooth"
+    description: "Correctly track temporary pairing status"
+    bug: "397705157"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "auto_transport_pairing"
+    namespace: "bluetooth"
+    description: "Fix transport selection for auto transport pairing"
+    bug: "398329326"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "reset_security_flags_on_pairing_failure"
+    namespace: "bluetooth"
+    description: "Reset security flags on pairing failure"
+    bug: "400586238"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "smp_connection_status_handling_when_no_acl"
+    namespace: "bluetooth"
+    description: "Fix SMP connection status sent from L2CAP when LE ACL is not connected"
+    bug: "401073843"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "non_zero_local_irk"
+    namespace: "bluetooth"
+    description: "Ensure that the local IRK is not zero before sending it to the controller"
+    bug: "401126556"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_peripheral_enc_failure"
+    namespace: "bluetooth"
+    description: "Don't remove bond on LE encryption failure in peripheral role with bonded device, instead just disconnect the link"
+    bug: "403313352"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "immediate_encryption_after_pairing"
+    namespace: "bluetooth"
+    description: "Encrypt BR/EDR link immediately after pairing"
+    bug: "402510244"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unrelated_device_smp_cancellation"
+    namespace: "bluetooth"
+    description: "Don't cancel SMP pairing if encryption fails for unrelated device"
+    bug: "404658828"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

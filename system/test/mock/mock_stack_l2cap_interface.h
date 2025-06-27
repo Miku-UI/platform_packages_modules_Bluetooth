@@ -64,9 +64,6 @@ public:
   MOCK_METHOD(bool, L2CA_GetPeerFeatures,
               (const RawAddress& bd_addr, uint32_t* p_ext_feat, uint8_t* p_chnl_mask));
   MOCK_METHOD(bool, L2CA_SetAclPriority, (const RawAddress& bd_addr, tL2CAP_PRIORITY priority));
-  MOCK_METHOD(void, L2CA_SetDefaultSubrate,
-              (uint16_t subrate_min, uint16_t subrate_max, uint16_t max_latency, uint16_t cont_num,
-               uint16_t timeout));
   MOCK_METHOD(void, L2CA_AdjustConnectionIntervals,
               (uint16_t* min_interval, uint16_t* max_interval, uint16_t floor_interval));
   MOCK_METHOD(void, L2CA_SetEcosystemBaseInterval, (uint32_t base_interval));
@@ -99,6 +96,7 @@ public:
   MOCK_METHOD(void, L2CA_LockBleConnParamsForProfileConnection,
               (const RawAddress& bd_addr, bool lock));
   MOCK_METHOD(tHCI_ROLE, L2CA_GetBleConnRole, (const RawAddress& bd_addr));
+  MOCK_METHOD(uint16_t, L2CA_GetBleConnInterval, (const RawAddress& bd_addr));
   MOCK_METHOD(bool, L2CA_SetLeGattTimeout, (const RawAddress& bd_addr, uint16_t idle_tout));
   MOCK_METHOD(bool, L2CA_MarkLeLinkAsActive, (const RawAddress& bd_addr));
   MOCK_METHOD(bool, L2CA_GetPeerLECocConfig, (uint16_t lcid, tL2CAP_LE_CFG_INFO* peer_cfg));
@@ -107,6 +105,7 @@ public:
 
   MOCK_METHOD(void, L2CA_Consolidate, (const RawAddress& identity_addr, const RawAddress& rpa));
   MOCK_METHOD(bool, L2CA_GetAclHandle, (uint16_t lcid, uint16_t* acl_handle));
+  MOCK_METHOD(bool, L2CA_GetLocalMtu, (uint16_t lcid, uint16_t* local_mtu));
 
   // Disconnect methods an active connection for both BR/EDR and BLE
   MOCK_METHOD(bool, L2CA_DisconnectReq, (uint16_t cid));

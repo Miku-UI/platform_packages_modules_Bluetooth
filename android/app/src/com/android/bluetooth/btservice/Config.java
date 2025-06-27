@@ -30,7 +30,6 @@ import com.android.bluetooth.avrcpcontroller.AvrcpControllerService;
 import com.android.bluetooth.bas.BatteryService;
 import com.android.bluetooth.bass_client.BassClientService;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.gatt.GattService;
 import com.android.bluetooth.hap.HapClientService;
 import com.android.bluetooth.hearingaid.HearingAidService;
@@ -49,12 +48,12 @@ import com.android.bluetooth.pbapclient.PbapClientService;
 import com.android.bluetooth.sap.SapService;
 import com.android.bluetooth.tbs.TbsService;
 import com.android.bluetooth.vc.VolumeControlService;
-import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Arrays;
 
 public class Config {
-    private static final String TAG = "AdapterServiceConfig";
+    private static final String TAG =
+            AdapterService.class.getSimpleName() + Config.class.getSimpleName();
 
     private static final String LE_AUDIO_DYNAMIC_SWITCH_PROPERTY =
             "ro.bluetooth.leaudio_switcher.supported";
@@ -68,7 +67,7 @@ public class Config {
 
     private static class ProfileConfig {
         boolean mSupported;
-        int mProfileId;
+        final int mProfileId;
 
         ProfileConfig(boolean supported, int profileId) {
             mSupported = supported;
@@ -86,109 +85,51 @@ public class Config {
     };
 
     /** List of profile services with the profile-supported resource flag and bit mask. */
-    private static final ProfileConfig[] PROFILE_SERVICES_AND_FLAGS;
+    private static final ProfileConfig[] PROFILE_SERVICES_AND_FLAGS =
+            new ProfileConfig[] {
+                // Prioritize GattService startup by making it the first Profile to
+                // boot. This resolves dependency issues for some Profiles.
+                new ProfileConfig(GattService.isEnabled(), BluetoothProfile.GATT),
+                new ProfileConfig(A2dpService.isEnabled(), BluetoothProfile.A2DP),
+                new ProfileConfig(A2dpSinkService.isEnabled(), BluetoothProfile.A2DP_SINK),
+                new ProfileConfig(AvrcpTargetService.isEnabled(), BluetoothProfile.AVRCP),
+                new ProfileConfig(
+                        AvrcpControllerService.isEnabled(), BluetoothProfile.AVRCP_CONTROLLER),
+                new ProfileConfig(
+                        BassClientService.isEnabled(),
+                        BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT),
+                new ProfileConfig(BatteryService.isEnabled(), BluetoothProfile.BATTERY),
+                new ProfileConfig(
+                        CsipSetCoordinatorService.isEnabled(),
+                        BluetoothProfile.CSIP_SET_COORDINATOR),
+                new ProfileConfig(HapClientService.isEnabled(), BluetoothProfile.HAP_CLIENT),
+                new ProfileConfig(HeadsetService.isEnabled(), BluetoothProfile.HEADSET),
+                new ProfileConfig(
+                        HeadsetClientService.isEnabled(), BluetoothProfile.HEADSET_CLIENT),
+                new ProfileConfig(HearingAidService.isEnabled(), BluetoothProfile.HEARING_AID),
+                new ProfileConfig(HidDeviceService.isEnabled(), BluetoothProfile.HID_DEVICE),
+                new ProfileConfig(HidHostService.isEnabled(), BluetoothProfile.HID_HOST),
+                new ProfileConfig(TbsService.isEnabled(), BluetoothProfile.LE_CALL_CONTROL),
+                new ProfileConfig(BluetoothMapService.isEnabled(), BluetoothProfile.MAP),
+                new ProfileConfig(MapClientService.isEnabled(), BluetoothProfile.MAP_CLIENT),
+                new ProfileConfig(McpService.isEnabled(), BluetoothProfile.MCP_SERVER),
+                new ProfileConfig(BluetoothOppService.isEnabled(), BluetoothProfile.OPP),
+                new ProfileConfig(PanService.isEnabled(), BluetoothProfile.PAN),
+                new ProfileConfig(BluetoothPbapService.isEnabled(), BluetoothProfile.PBAP),
+                new ProfileConfig(PbapClientService.isEnabled(), BluetoothProfile.PBAP_CLIENT),
+                new ProfileConfig(SapService.isEnabled(), BluetoothProfile.SAP),
+                new ProfileConfig(
+                        VolumeControlService.isEnabled(), BluetoothProfile.VOLUME_CONTROL),
+                new ProfileConfig(LeAudioService.isEnabled(), BluetoothProfile.LE_AUDIO),
+                new ProfileConfig(
+                        LeAudioService.isBroadcastEnabled(), BluetoothProfile.LE_AUDIO_BROADCAST),
+            };
 
-    static {
-        if (Flags.leaudioSynchronizeStart()) {
-            PROFILE_SERVICES_AND_FLAGS =
-                    new ProfileConfig[] {
-                        // Prioritize GattService startup by making it the first Profile to
-                        // boot. This resolves dependency issues for some Profiles.
-                        new ProfileConfig(GattService.isEnabled(), BluetoothProfile.GATT),
-                        new ProfileConfig(A2dpService.isEnabled(), BluetoothProfile.A2DP),
-                        new ProfileConfig(A2dpSinkService.isEnabled(), BluetoothProfile.A2DP_SINK),
-                        new ProfileConfig(AvrcpTargetService.isEnabled(), BluetoothProfile.AVRCP),
-                        new ProfileConfig(
-                                AvrcpControllerService.isEnabled(),
-                                BluetoothProfile.AVRCP_CONTROLLER),
-                        new ProfileConfig(
-                                BassClientService.isEnabled(),
-                                BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT),
-                        new ProfileConfig(BatteryService.isEnabled(), BluetoothProfile.BATTERY),
-                        new ProfileConfig(
-                                CsipSetCoordinatorService.isEnabled(),
-                                BluetoothProfile.CSIP_SET_COORDINATOR),
-                        new ProfileConfig(
-                                HapClientService.isEnabled(), BluetoothProfile.HAP_CLIENT),
-                        new ProfileConfig(HeadsetService.isEnabled(), BluetoothProfile.HEADSET),
-                        new ProfileConfig(
-                                HeadsetClientService.isEnabled(), BluetoothProfile.HEADSET_CLIENT),
-                        new ProfileConfig(
-                                HearingAidService.isEnabled(), BluetoothProfile.HEARING_AID),
-                        new ProfileConfig(
-                                HidDeviceService.isEnabled(), BluetoothProfile.HID_DEVICE),
-                        new ProfileConfig(HidHostService.isEnabled(), BluetoothProfile.HID_HOST),
-                        new ProfileConfig(TbsService.isEnabled(), BluetoothProfile.LE_CALL_CONTROL),
-                        new ProfileConfig(BluetoothMapService.isEnabled(), BluetoothProfile.MAP),
-                        new ProfileConfig(
-                                MapClientService.isEnabled(), BluetoothProfile.MAP_CLIENT),
-                        new ProfileConfig(McpService.isEnabled(), BluetoothProfile.MCP_SERVER),
-                        new ProfileConfig(BluetoothOppService.isEnabled(), BluetoothProfile.OPP),
-                        new ProfileConfig(PanService.isEnabled(), BluetoothProfile.PAN),
-                        new ProfileConfig(BluetoothPbapService.isEnabled(), BluetoothProfile.PBAP),
-                        new ProfileConfig(
-                                PbapClientService.isEnabled(), BluetoothProfile.PBAP_CLIENT),
-                        new ProfileConfig(SapService.isEnabled(), BluetoothProfile.SAP),
-                        new ProfileConfig(
-                                VolumeControlService.isEnabled(), BluetoothProfile.VOLUME_CONTROL),
-                        new ProfileConfig(LeAudioService.isEnabled(), BluetoothProfile.LE_AUDIO),
-                        new ProfileConfig(
-                                LeAudioService.isBroadcastEnabled(),
-                                BluetoothProfile.LE_AUDIO_BROADCAST),
-                    };
-        } else {
-            PROFILE_SERVICES_AND_FLAGS =
-                    new ProfileConfig[] {
-                        // Prioritize GattService startup by making it the first Profile to
-                        // boot. This resolves dependency issues for some Profiles.
-                        new ProfileConfig(GattService.isEnabled(), BluetoothProfile.GATT),
-                        new ProfileConfig(A2dpService.isEnabled(), BluetoothProfile.A2DP),
-                        new ProfileConfig(A2dpSinkService.isEnabled(), BluetoothProfile.A2DP_SINK),
-                        new ProfileConfig(AvrcpTargetService.isEnabled(), BluetoothProfile.AVRCP),
-                        new ProfileConfig(
-                                AvrcpControllerService.isEnabled(),
-                                BluetoothProfile.AVRCP_CONTROLLER),
-                        new ProfileConfig(
-                                BassClientService.isEnabled(),
-                                BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT),
-                        new ProfileConfig(BatteryService.isEnabled(), BluetoothProfile.BATTERY),
-                        new ProfileConfig(
-                                CsipSetCoordinatorService.isEnabled(),
-                                BluetoothProfile.CSIP_SET_COORDINATOR),
-                        new ProfileConfig(
-                                HapClientService.isEnabled(), BluetoothProfile.HAP_CLIENT),
-                        new ProfileConfig(HeadsetService.isEnabled(), BluetoothProfile.HEADSET),
-                        new ProfileConfig(
-                                HeadsetClientService.isEnabled(), BluetoothProfile.HEADSET_CLIENT),
-                        new ProfileConfig(
-                                HearingAidService.isEnabled(), BluetoothProfile.HEARING_AID),
-                        new ProfileConfig(
-                                HidDeviceService.isEnabled(), BluetoothProfile.HID_DEVICE),
-                        new ProfileConfig(HidHostService.isEnabled(), BluetoothProfile.HID_HOST),
-                        new ProfileConfig(LeAudioService.isEnabled(), BluetoothProfile.LE_AUDIO),
-                        new ProfileConfig(
-                                LeAudioService.isBroadcastEnabled(),
-                                BluetoothProfile.LE_AUDIO_BROADCAST),
-                        new ProfileConfig(TbsService.isEnabled(), BluetoothProfile.LE_CALL_CONTROL),
-                        new ProfileConfig(BluetoothMapService.isEnabled(), BluetoothProfile.MAP),
-                        new ProfileConfig(
-                                MapClientService.isEnabled(), BluetoothProfile.MAP_CLIENT),
-                        new ProfileConfig(McpService.isEnabled(), BluetoothProfile.MCP_SERVER),
-                        new ProfileConfig(BluetoothOppService.isEnabled(), BluetoothProfile.OPP),
-                        new ProfileConfig(PanService.isEnabled(), BluetoothProfile.PAN),
-                        new ProfileConfig(BluetoothPbapService.isEnabled(), BluetoothProfile.PBAP),
-                        new ProfileConfig(
-                                PbapClientService.isEnabled(), BluetoothProfile.PBAP_CLIENT),
-                        new ProfileConfig(SapService.isEnabled(), BluetoothProfile.SAP),
-                        new ProfileConfig(
-                                VolumeControlService.isEnabled(), BluetoothProfile.VOLUME_CONTROL),
-                    };
-        }
-    }
-
-    /** A test function to allow for dynamic enabled */
-    @VisibleForTesting
-    public static void setProfileEnabled(int profileId, boolean enabled) {
+    /**
+     * A test function to allow for dynamic enabled TODO: b/402559309 Remove non test usages
+     * (LeAudio)
+     */
+    static void setProfileEnabled(int profileId, boolean enabled) {
         for (ProfileConfig profile : PROFILE_SERVICES_AND_FLAGS) {
             if (profileId == profile.mProfileId) {
                 profile.mSupported = enabled;

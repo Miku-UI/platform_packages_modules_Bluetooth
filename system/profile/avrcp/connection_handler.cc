@@ -38,9 +38,6 @@
 #include "stack/include/sdp_status.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 extern bool btif_av_peer_is_connected_sink(const RawAddress& peer_address);
 extern bool btif_av_peer_is_connected_source(const RawAddress& peer_address);
 extern bool btif_av_both_enable(void);
@@ -63,7 +60,7 @@ ConnectionHandler* ConnectionHandler::Get() {
   return instance_;
 }
 
-bool IsAbsoluteVolumeEnabled(const RawAddress* bdaddr) {
+static bool IsAbsoluteVolumeEnabled(const RawAddress* bdaddr) {
   char volume_disabled[PROPERTY_VALUE_MAX] = {0};
   osi_property_get("persist.bluetooth.disableabsvol", volume_disabled, "false");
   if (strncmp(volume_disabled, "true", 4) == 0) {
@@ -249,7 +246,7 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
   DCHECK(!connection_cb_.is_null());
 
   log::info("handle=0x{:x} result=0x{:x} addr={}", handle, result,
-            peer_addr ? ADDRESS_TO_LOGGABLE_STR(*peer_addr) : "none");
+            peer_addr ? peer_addr->ToRedactedStringForLogging() : "none");
 
   switch (event) {
     case AVRC_OPEN_IND_EVT: {
@@ -339,7 +336,7 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
   DCHECK(!connection_cb_.is_null());
 
   log::info("handle=0x{:x} result=0x{:x} addr={}", handle, result,
-            peer_addr ? ADDRESS_TO_LOGGABLE_STR(*peer_addr) : "none");
+            peer_addr ? peer_addr->ToRedactedStringForLogging() : "none");
 
   switch (event) {
     case AVRC_OPEN_IND_EVT: {
@@ -406,10 +403,8 @@ void ConnectionHandler::AcceptorControlCb(uint8_t handle, uint8_t event, uint16_
       // as this one which will be closed when the device is disconnected.
       AvrcpConnect(false, RawAddress::kAny);
 
-      if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
-        // Check peer audio role: src or sink and connect A2DP after 3 seconds
-        SdpLookupAudioRole(handle);
-      }
+      // Check peer audio role: src or sink and connect A2DP after 3 seconds
+      SdpLookupAudioRole(handle);
     } break;
 
     case AVRC_CLOSE_IND_EVT: {
@@ -645,7 +640,7 @@ bool ConnectionHandler::SdpLookupAudioRole(uint16_t handle) {
   log::info(
           "Performing SDP for AUDIO_SINK on connected device: address={}, "
           "handle={}",
-          ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle);
+          device->GetAddress(), handle);
 
   return device->find_sink_service(base::Bind(&ConnectionHandler::SdpLookupAudioRoleCb,
                                               weak_ptr_factory_.GetWeakPtr(), handle));
@@ -660,8 +655,8 @@ void ConnectionHandler::SdpLookupAudioRoleCb(uint16_t handle, bool found,
   }
   auto device = device_map_[handle];
 
-  log::debug("SDP callback for address={}, handle={}, AUDIO_SINK {}",
-             ADDRESS_TO_LOGGABLE_STR(device->GetAddress()), handle, found ? "found" : "not found");
+  log::debug("SDP callback for address={}, handle={}, AUDIO_SINK {}", device->GetAddress(), handle,
+             found ? "found" : "not found");
 
   if (found) {
     device->connect_a2dp_sink_delayed(handle);

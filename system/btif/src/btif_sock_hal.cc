@@ -19,6 +19,7 @@
 #include "btif/include/btif_sock_hal.h"
 
 #include "btif/include/btif_sock_l2cap.h"
+#include "btif/include/btif_sock_rfc.h"
 #include "lpp/lpp_offload_interface.h"
 #include "main/shim/entry.h"
 #include "stack/include/main_thread.h"
@@ -29,13 +30,26 @@ class BtifSocketHalCallback : public hal::SocketHalCallback {
 public:
   void SocketOpenedComplete(uint64_t socket_id, hal::SocketStatus status) const override {
     log::info("socket_id: {}, status: {}", socket_id, static_cast<int>(status));
-    do_in_main_thread(base::BindOnce(on_btsocket_l2cap_opened_complete, socket_id,
-                                     (status == hal::SocketStatus::SUCCESS)));
+    if (btsock_l2cap_in_use(socket_id)) {
+      do_in_main_thread(base::BindOnce(on_btsocket_l2cap_opened_complete, socket_id,
+                                       (status == hal::SocketStatus::SUCCESS)));
+    } else if (btsock_rfc_in_use(socket_id)) {
+      do_in_main_thread(base::BindOnce(on_btsocket_rfc_opened_complete, socket_id,
+                                       (status == hal::SocketStatus::SUCCESS)));
+    } else {
+      log::error("Unable to find socket with socket_id:{}", socket_id);
+    }
   }
 
   void SocketClose(uint64_t socket_id) const override {
     log::info("socket_id: {}", socket_id);
-    do_in_main_thread(base::BindOnce(on_btsocket_l2cap_close, socket_id));
+    if (btsock_l2cap_in_use(socket_id)) {
+      do_in_main_thread(base::BindOnce(on_btsocket_l2cap_close, socket_id));
+    } else if (btsock_rfc_in_use(socket_id)) {
+      do_in_main_thread(base::BindOnce(on_btsocket_rfc_close, socket_id));
+    } else {
+      log::error("Unable to find socket with socket_id:{}", socket_id);
+    }
   }
 };
 

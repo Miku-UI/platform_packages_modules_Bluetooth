@@ -172,7 +172,7 @@ TEST_F(StackHciTest, hci_error_code_text) {
   for (const auto& error : errors) {
     ASSERT_STREQ(error.second.c_str(), hci_error_code_text(error.first).c_str());
   }
-  auto unknown = base::StringPrintf("UNKNOWN[0x%02hx]", std::numeric_limits<std::uint8_t>::max());
+  auto unknown = std::format("UNKNOWN[0x{:02x}]", std::numeric_limits<std::uint8_t>::max());
   ASSERT_STREQ(unknown.c_str(),
                hci_error_code_text(
                        static_cast<tHCI_ERROR_CODE>(std::numeric_limits<std::uint8_t>::max()))

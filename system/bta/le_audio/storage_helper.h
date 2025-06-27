@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "devices.h"
+#include "le_audio/gmap_client.h"
 
 namespace bluetooth::le_audio {
 bool SerializeSinkPacs(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out);
@@ -31,4 +32,7 @@ bool SerializeAses(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out
 bool DeserializeAses(LeAudioDevice* leAudioDevice, const std::vector<uint8_t>& in);
 bool SerializeHandles(const LeAudioDevice* leAudioDevice, std::vector<uint8_t>& out);
 bool DeserializeHandles(LeAudioDevice* leAudioDevice, const std::vector<uint8_t>& in);
+bool SerializeGmap(const GmapClient* gmap_server, std::vector<uint8_t>& out);
+bool DeserializeGmap(GmapClient* gmap_server, const std::vector<uint8_t>& in);
+bool DeserializeGmapV1(GmapClient* gmapClient, const std::vector<uint8_t>& in);
 }  // namespace bluetooth::le_audio

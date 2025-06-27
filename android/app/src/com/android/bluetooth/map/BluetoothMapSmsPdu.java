@@ -39,12 +39,13 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 10
 public class BluetoothMapSmsPdu {
+    private static final String TAG = BluetoothMapSmsPdu.class.getSimpleName();
 
-    private static final String TAG = "BluetoothMapSmsPdu";
     private static final int INVALID_VALUE = -1;
     public static final int SMS_TYPE_GSM = 1;
     public static final int SMS_TYPE_CDMA = 2;
@@ -68,13 +69,13 @@ public class BluetoothMapSmsPdu {
      */
     public static class SmsPdu {
         private byte[] mData;
-        private byte[] mScAddress = {0};
+        private final byte[] mScAddress = {0};
         // At the moment we do not use the scAddress, hence set the length to 0.
         private int mUserDataMsgOffset = 0;
         private int mEncoding;
         private int mLanguageTable;
         private int mLanguageShiftTable;
-        private int mType;
+        private final int mType;
 
         /* Members used for pdu decoding */
         private int mUserDataSeptetPadding = INVALID_VALUE;
@@ -381,8 +382,8 @@ public class BluetoothMapSmsPdu {
         }
 
         @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
-        private void gsmWriteDate(ByteArrayOutputStream header, long time) {
-            SimpleDateFormat format = new SimpleDateFormat("yyMMddHHmmss");
+        private static void gsmWriteDate(ByteArrayOutputStream header, long time) {
+            SimpleDateFormat format = new SimpleDateFormat("yyMMddHHmmss", Locale.ROOT);
             Date date = new Date(time);
             String timeStr = format.format(date); // Format to YYMMDDTHHMMSS UTC time
             Log.v(TAG, "Generated time string: " + timeStr);
@@ -400,11 +401,11 @@ public class BluetoothMapSmsPdu {
                             / (15 * 60 * 1000); /* offset in quarters of an hour */
             String offsetString;
             if (offset < 0) {
-                offsetString = String.format("%1$02d", -(offset));
+                offsetString = String.format(Locale.ROOT, "%1$02d", -(offset));
                 char[] offsetChars = offsetString.toCharArray();
                 header.write((offsetChars[1] - 0x30) << 4 | 0x40 | (offsetChars[0] - 0x30));
             } else {
-                offsetString = String.format("%1$02d", offset);
+                offsetString = String.format(Locale.ROOT, "%1$02d", offset);
                 char[] offsetChars = offsetString.toCharArray();
                 header.write((offsetChars[1] - 0x30) << 4 | (offsetChars[0] - 0x30));
             }
@@ -647,7 +648,7 @@ public class BluetoothMapSmsPdu {
         // We could verify that the address-length is no longer than 11 bytes
         if (addressLength >= data.length) {
             throw new IllegalArgumentException(
-                    "Length of address exeeds the length of the PDU data.");
+                    "Length of address exceeds the length of the PDU data.");
         }
         int pduLength = data.length - (1 + addressLength);
         byte[] newData = new byte[pduLength];
@@ -847,14 +848,14 @@ public class BluetoothMapSmsPdu {
     }
 
     private static class SmsConstants {
-        /** User data text encoding code unit size */
+        // User data text encoding code unit size
         public static final int ENCODING_UNKNOWN = 0;
 
         public static final int ENCODING_7BIT = 1;
         public static final int ENCODING_8BIT = 2;
         public static final int ENCODING_16BIT = 3;
 
-        /** This value is not defined in global standard. Only in Korea, this is used. */
+        // This value is not defined in global standard. Only in Korea, this is used.
         public static final int ENCODING_KSC5601 = 4;
     }
 }

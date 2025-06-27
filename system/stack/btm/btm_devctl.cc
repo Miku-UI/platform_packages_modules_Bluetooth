@@ -38,6 +38,7 @@
 #include "main/shim/entry.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
@@ -45,19 +46,17 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_inq.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/dev_hci_link_interface.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace ::bluetooth;
 
 extern tBTM_CB btm_cb;
 
-void btm_inq_db_reset(void);
 /******************************************************************************/
 /*               L O C A L    D A T A    D E F I N I T I O N S                */
 /******************************************************************************/
@@ -78,34 +77,6 @@ void btm_inq_db_reset(void);
 /******************************************************************************/
 
 static void decode_controller_support();
-
-/*******************************************************************************
- *
- * Function         btm_dev_init
- *
- * Description      This function is on the BTM startup
- *
- * Returns          void
- *
- ******************************************************************************/
-void btm_dev_init() {
-  /* Initialize nonzero defaults */
-  memset(btm_sec_cb.cfg.bd_name, 0, sizeof(BD_NAME));
-
-  btm_cb.devcb.read_rssi_timer = alarm_new("btm.read_rssi_timer");
-  btm_cb.devcb.read_failed_contact_counter_timer =
-          alarm_new("btm.read_failed_contact_counter_timer");
-  btm_cb.devcb.read_automatic_flush_timeout_timer =
-          alarm_new("btm.read_automatic_flush_timeout_timer");
-  btm_cb.devcb.read_tx_power_timer = alarm_new("btm.read_tx_power_timer");
-}
-
-void btm_dev_free() {
-  alarm_free(btm_cb.devcb.read_rssi_timer);
-  alarm_free(btm_cb.devcb.read_failed_contact_counter_timer);
-  alarm_free(btm_cb.devcb.read_automatic_flush_timeout_timer);
-  alarm_free(btm_cb.devcb.read_tx_power_timer);
-}
 
 /*******************************************************************************
  *

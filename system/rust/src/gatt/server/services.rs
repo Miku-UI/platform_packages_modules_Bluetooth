@@ -6,7 +6,8 @@ pub mod gatt;
 
 use anyhow::Result;
 
-use self::{gap::register_gap_service, gatt::register_gatt_service};
+use self::gap::register_gap_service;
+use self::gatt::register_gatt_service;
 
 use super::gatt_database::GattDatabase;
 

@@ -26,6 +26,7 @@
 #define LOG_TAG "rfcomm"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <unordered_map>
@@ -149,7 +150,14 @@ void RFCOMM_ParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t 
   /* Set convergence layer and number of credits (k) */
   if (flow == PORT_FC_CREDIT) {
     cl = RFCOMM_PN_CONV_LAYER_CBFC_I;
-    k = (p_port->credit_rx_max < RFCOMM_K_MAX) ? p_port->credit_rx_max : RFCOMM_K_MAX;
+
+    if (com::android::bluetooth::flags::socket_settings_api()) {
+      k = (p_port->rfc_cfg_info.init_credit_present) ? p_port->rfc_cfg_info.init_credit
+          : (p_port->credit_rx_max < RFCOMM_K_MAX)   ? p_port->credit_rx_max
+                                                     : RFCOMM_K_MAX;
+    } else {
+      k = (p_port->credit_rx_max < RFCOMM_K_MAX) ? p_port->credit_rx_max : RFCOMM_K_MAX;
+    }
     p_port->credit_rx = k;
   } else {
     cl = RFCOMM_PN_CONV_LAYER_TYPE_1;
@@ -249,7 +257,8 @@ void RFCOMM_ControlReq(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars) {
     return;
   }
 
-  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) || (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return;
   }
 
@@ -277,7 +286,8 @@ void RFCOMM_FlowReq(tRFC_MCB* p_mcb, uint8_t dlci, bool enable) {
     return;
   }
 
-  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) || (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return;
   }
 
@@ -304,7 +314,8 @@ void RFCOMM_LineStatusReq(tRFC_MCB* p_mcb, uint8_t dlci, uint8_t status) {
     return;
   }
 
-  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) || (p_port->rfc.state != RFC_STATE_OPENED)) {
+  if ((p_port->state != PORT_CONNECTION_STATE_OPENED) ||
+      (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
     return;
   }
 
@@ -322,7 +333,12 @@ void RFCOMM_LineStatusReq(tRFC_MCB* p_mcb, uint8_t dlci, uint8_t status) {
  *
  ******************************************************************************/
 void RFCOMM_DlcReleaseReq(tRFC_MCB* p_mcb, uint8_t dlci) {
-  rfc_port_sm_execute(port_find_mcb_dlci_port(p_mcb, dlci), RFC_PORT_EVENT_CLOSE, nullptr);
+  tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
+  if (p_port == nullptr) {
+    log::warn("Unable to find DLCI port dlci:{}", dlci);
+    return;
+  }
+  rfc_port_sm_execute(p_port, RFC_PORT_EVENT_CLOSE, nullptr);
 }
 
 /*******************************************************************************

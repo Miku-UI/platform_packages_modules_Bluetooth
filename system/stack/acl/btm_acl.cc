@@ -38,9 +38,9 @@
 
 #include <cstdint>
 
+#include "bta/gatt/bta_gattc_int.h"
 #include "bta/include/bta_dm_acl.h"
 #include "bta/sys/bta_sys.h"
-#include "common/metrics.h"
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
 #include "hci/controller_interface.h"
@@ -50,6 +50,7 @@
 #include "main/shim/dumpsys.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
+#include "os/metrics.h"
 #include "os/parameter_provider.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
@@ -61,6 +62,7 @@
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sco.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
@@ -69,6 +71,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_iot_config.h"
 #include "stack/include/btm_iso_api.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
@@ -92,14 +95,7 @@
 using namespace bluetooth;
 using bluetooth::legacy::hci::GetInterface;
 
-void BTM_update_version_info(const RawAddress& bd_addr,
-                             const remote_version_info& remote_version_info);
-
-void BTM_db_reset(void);
-
 extern tBTM_CB btm_cb;
-void btm_iot_save_remote_properties(tACL_CONN* p_acl_cb);
-void btm_iot_save_remote_versions(tACL_CONN* p_acl_cb);
 
 struct StackAclBtmAcl {
   tACL_CONN* acl_allocate_connection();
@@ -157,8 +153,8 @@ static void btm_read_failed_contact_counter_timeout(void* data);
 static void btm_read_remote_ext_features(uint16_t handle, uint8_t page_number);
 static void btm_read_rssi_timeout(void* data);
 static void btm_read_tx_power_timeout(void* data);
+static void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy);
 static void check_link_policy(tLINK_POLICY* settings);
-void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy);
 
 namespace {
 void NotifyAclLinkUp(tACL_CONN& p_acl) {
@@ -669,7 +665,7 @@ static void check_link_policy(tLINK_POLICY* settings) {
   }
 }
 
-void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy) {
+static void btm_set_link_policy(tACL_CONN* conn, tLINK_POLICY policy) {
   conn->link_policy = policy;
   check_link_policy(&conn->link_policy);
   if ((conn->link_policy & HCI_ENABLE_CENTRAL_PERIPHERAL_SWITCH) &&
@@ -742,8 +738,6 @@ void BTM_default_unblock_role_switch() {
                                         HCI_ENABLE_CENTRAL_PERIPHERAL_SWITCH);
 }
 
-extern void bta_gattc_continue_discovery_if_needed(const RawAddress& bd_addr, uint16_t acl_handle);
-
 static void maybe_chain_more_commands_after_read_remote_version_complete(uint8_t /* status */,
                                                                          uint16_t handle) {
   tACL_CONN* p_acl_cb = internal_.acl_get_connection_from_handle(handle);
@@ -791,10 +785,10 @@ static void btm_process_remote_version_complete(uint8_t status, uint16_t handle,
     p_acl_cb->remote_version_info.valid = true;
     BTM_update_version_info(p_acl_cb->RemoteAddress(), p_acl_cb->remote_version_info);
 
-    bluetooth::common::LogRemoteVersionInfo(handle, status, lmp_version, manufacturer,
-                                            lmp_subversion);
+    bluetooth::os::LogMetricRemoteVersionInfo(handle, status, lmp_version, manufacturer,
+                                              lmp_subversion);
   } else {
-    bluetooth::common::LogRemoteVersionInfo(handle, status, 0, 0, 0);
+    bluetooth::os::LogMetricRemoteVersionInfo(handle, status, 0, 0, 0);
   }
 }
 

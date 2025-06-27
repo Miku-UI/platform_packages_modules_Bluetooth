@@ -127,7 +127,7 @@ void BTA_HhClose(uint8_t dev_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhOpen(const tAclLinkSpec& link_spec) {
+void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct) {
   tBTA_HH_API_CONN* p_buf = (tBTA_HH_API_CONN*)osi_calloc(sizeof(tBTA_HH_API_CONN));
   tBTA_HH_PROTO_MODE mode = BTA_HH_PROTO_RPT_MODE;
 
@@ -135,6 +135,7 @@ void BTA_HhOpen(const tAclLinkSpec& link_spec) {
   p_buf->hdr.layer_specific = BTA_HH_INVALID_HANDLE;
   p_buf->mode = mode;
   p_buf->link_spec = link_spec;
+  p_buf->direct = direct;
 
   bta_sys_sendmsg((void*)p_buf);
 }

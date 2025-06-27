@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.junit.runner.RunWith;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
+/** Test cases for {@link BluetoothMapConvoListing}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothMapConvoListingTest {
     private static final long TEST_LAST_ACTIVITY_EARLIEST = 0;
@@ -74,19 +75,19 @@ public class BluetoothMapConvoListingTest {
     @Test
     public void segment_whenCountIsLessThanOne_returnsOffsetToEnd() {
         mListing.segment(0, 1);
-        assertThat(mListing.getList().size()).isEqualTo(2);
+        assertThat(mListing.getList()).hasSize(2);
     }
 
     @Test
     public void segment_whenOffsetIsBiggerThanSize_returnsEmptyList() {
         mListing.segment(1, 4);
-        assertThat(mListing.getList().size()).isEqualTo(0);
+        assertThat(mListing.getList()).isEmpty();
     }
 
     @Test
     public void segment_whenOffsetCountCombinationIsValid_returnsCorrectly() {
         mListing.segment(1, 1);
-        assertThat(mListing.getList().size()).isEqualTo(1);
+        assertThat(mListing.getList()).hasSize(1);
     }
 
     @Test
@@ -173,7 +174,7 @@ public class BluetoothMapConvoListingTest {
 
         BluetoothMapConvoListing listing = new BluetoothMapConvoListing();
         listing.appendFromXml(listingStream);
-        assertThat(listing.getList().size()).isEqualTo(2);
+        assertThat(listing.getList()).hasSize(2);
         assertThat(listing.getList().get(0).getConvoId())
                 .isEqualTo(signedLongLongIdOne.toHexString());
         assertThat(listing.getList().get(1).getConvoId())

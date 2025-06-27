@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,14 @@
 
 package com.android.bluetooth.opp;
 
-import static androidx.test.espresso.intent.Intents.intended;
-import static androidx.test.espresso.intent.Intents.intending;
-import static androidx.test.espresso.intent.matcher.IntentMatchers.anyIntent;
-import static androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent;
-import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -32,17 +31,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-import android.app.Activity;
-import android.app.Instrumentation;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothDevicePicker;
-import android.bluetooth.BluetoothManager;
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
-import android.platform.test.flag.junit.SetFlagsRule;
+import android.os.Looper;
 import android.sysprop.BluetoothProperties;
 
 import androidx.test.espresso.intent.Intents;
@@ -51,7 +47,6 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.flags.Flags;
 
 import com.google.common.base.Objects;
 
@@ -62,30 +57,36 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/** Test cases for {@link BluetoothOppReceiver}. */
 @RunWith(AndroidJUnit4.class)
 public class BluetoothOppReceiverTest {
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Mock private BluetoothMethodProxy mBluetoothMethodProxy;
+    @Mock private Context mContext;
 
-    Context mContext;
+    private static final String TEST_PREF = "BluetoothOppReceiverTest";
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private SharedPreferences mPrefs;
 
-    @Mock BluetoothMethodProxy mBluetoothMethodProxy;
     BluetoothOppReceiver mReceiver;
 
     @Before
     public void setUp() throws Exception {
-        mContext =
-                spy(
-                        new ContextWrapper(
-                                InstrumentationRegistry.getInstrumentation().getTargetContext()));
+        doReturn(mTargetContext.getContentResolver()).when(mContext).getContentResolver();
+        doReturn(mTargetContext.getResources()).when(mContext).getResources();
+        doReturn("").when(mContext).getString(anyInt(), any());
+
+        mTargetContext.deleteSharedPreferences(TEST_PREF);
+        mPrefs = mTargetContext.getSharedPreferences(TEST_PREF, Context.MODE_PRIVATE);
+        mPrefs.edit().clear().apply();
+        doReturn(mPrefs).when(mContext).getSharedPreferences(anyString(), anyInt());
 
         // mock instance so query/insert/update/etc. will not be executed
         BluetoothMethodProxy.setInstanceForTesting(mBluetoothMethodProxy);
@@ -102,51 +103,29 @@ public class BluetoothOppReceiverTest {
         BluetoothMethodProxy.setInstanceForTesting(null);
 
         Intents.release();
+        mPrefs.edit().clear().apply();
+        mTargetContext.deleteSharedPreferences(TEST_PREF);
     }
 
     @Test
     public void onReceive_withActionDeviceSelected_callsStartTransfer() {
         Assume.assumeTrue(BluetoothProperties.isProfileOppEnabled().orElse(false));
 
+        if (Looper.myLooper() == null) {
+            Looper.prepare();
+        }
+
         BluetoothOppManager bluetoothOppManager = spy(BluetoothOppManager.getInstance(mContext));
         BluetoothOppManager.setInstance(bluetoothOppManager);
-        String address = "AA:BB:CC:DD:EE:FF";
-        BluetoothDevice device =
-                mContext.getSystemService(BluetoothManager.class)
-                        .getAdapter()
-                        .getRemoteDevice(address);
+        BluetoothDevice device = getTestDevice(43);
         Intent intent = new Intent();
         intent.setAction(BluetoothDevicePicker.ACTION_DEVICE_SELECTED);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
 
-        try {
-            doNothing().when(bluetoothOppManager).startTransfer(eq(device));
-            InstrumentationRegistry.getInstrumentation()
-                    .runOnMainSync(() -> mReceiver.onReceive(mContext, intent));
-            verify(bluetoothOppManager).startTransfer(eq(device));
-            BluetoothOppManager.setInstance(null);
-        } finally {
-            BluetoothOppTestUtils.enableActivity(
-                    BluetoothOppBtEnableActivity.class, false, mContext);
-        }
-    }
-
-    @Test
-    public void onReceive_withActionIncomingFileConfirm_startsIncomingFileConfirmActivity() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_OPP_START_ACTIVITY_DIRECTLY_FROM_NOTIFICATION);
-        try {
-            BluetoothOppTestUtils.enableActivity(
-                    BluetoothOppIncomingFileConfirmActivity.class, true, mContext);
-
-            Intent intent = new Intent();
-            intent.setAction(Constants.ACTION_INCOMING_FILE_CONFIRM);
-            intent.setData(Uri.parse("content:///not/important"));
-            mReceiver.onReceive(mContext, intent);
-            intended(hasComponent(BluetoothOppIncomingFileConfirmActivity.class.getName()));
-        } finally {
-            BluetoothOppTestUtils.enableActivity(
-                    BluetoothOppIncomingFileConfirmActivity.class, false, mContext);
-        }
+        doNothing().when(bluetoothOppManager).startTransfer(eq(device));
+        mReceiver.onReceive(mContext, intent);
+        verify(bluetoothOppManager).startTransfer(eq(device));
+        BluetoothOppManager.setInstance(null);
     }
 
     @Test
@@ -190,49 +169,6 @@ public class BluetoothOppReceiverTest {
     }
 
     @Test
-    public void onReceive_withActionOutboundTransfer_startsTransferHistoryActivity() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_OPP_START_ACTIVITY_DIRECTLY_FROM_NOTIFICATION);
-        try {
-            BluetoothOppTestUtils.enableActivity(BluetoothOppTransferHistory.class, true, mContext);
-
-            Intent intent = new Intent();
-            intent.setAction(Constants.ACTION_OPEN_OUTBOUND_TRANSFER);
-            intent.setData(Uri.parse("content:///not/important"));
-            intending(anyIntent())
-                    .respondWith(
-                            new Instrumentation.ActivityResult(Activity.RESULT_OK, new Intent()));
-
-            mReceiver.onReceive(mContext, intent);
-            intended(hasComponent(BluetoothOppTransferHistory.class.getName()));
-            intended(hasExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_OUTBOUND));
-        } finally {
-            BluetoothOppTestUtils.enableActivity(
-                    BluetoothOppTransferHistory.class, false, mContext);
-        }
-    }
-
-    @Test
-    public void onReceive_withActionInboundTransfer_startsTransferHistoryActivity() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_OPP_START_ACTIVITY_DIRECTLY_FROM_NOTIFICATION);
-        try {
-            BluetoothOppTestUtils.enableActivity(BluetoothOppTransferHistory.class, true, mContext);
-
-            Intent intent = new Intent();
-            intent.setAction(Constants.ACTION_OPEN_INBOUND_TRANSFER);
-            intent.setData(Uri.parse("content:///not/important"));
-            intending(anyIntent())
-                    .respondWith(
-                            new Instrumentation.ActivityResult(Activity.RESULT_OK, new Intent()));
-            mReceiver.onReceive(mContext, intent);
-            intended(hasComponent(BluetoothOppTransferHistory.class.getName()));
-            intended(hasExtra(Constants.EXTRA_DIRECTION, BluetoothShare.DIRECTION_INBOUND));
-        } finally {
-            BluetoothOppTestUtils.enableActivity(
-                    BluetoothOppTransferHistory.class, false, mContext);
-        }
-    }
-
-    @Test
     public void onReceive_withActionHide_contentUpdate() {
         List<BluetoothOppTestUtils.CursorMockData> cursorMockDataList;
         Cursor cursor = mock(Cursor.class);
@@ -273,27 +209,7 @@ public class BluetoothOppReceiverTest {
     }
 
     @Test
-    public void onReceive_withActionCompleteHide_makeAllVisibilityHidden() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_OPP_FIX_MULTIPLE_NOTIFICATIONS_ISSUES);
-        Intent intent = new Intent();
-        intent.setAction(Constants.ACTION_COMPLETE_HIDE);
-        mReceiver.onReceive(mContext, intent);
-        verify(mBluetoothMethodProxy)
-                .contentResolverUpdate(
-                        any(),
-                        eq(BluetoothShare.CONTENT_URI),
-                        argThat(
-                                arg ->
-                                        Objects.equal(
-                                                BluetoothShare.VISIBILITY_HIDDEN,
-                                                arg.get(BluetoothShare.VISIBILITY))),
-                        any(),
-                        any());
-    }
-
-    @Test
     public void onReceive_withActionHideCompletedInboundTransfer_makesInboundVisibilityHidden() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_OPP_FIX_MULTIPLE_NOTIFICATIONS_ISSUES);
         Intent intent = new Intent();
         intent.setAction(Constants.ACTION_HIDE_COMPLETED_INBOUND_TRANSFER);
         mReceiver.onReceive(mContext, intent);
@@ -312,7 +228,6 @@ public class BluetoothOppReceiverTest {
 
     @Test
     public void onReceive_withActionHideCompletedOutboundTransfer_makesOutboundVisibilityHidden() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_OPP_FIX_MULTIPLE_NOTIFICATIONS_ISSUES);
         Intent intent = new Intent();
         intent.setAction(Constants.ACTION_HIDE_COMPLETED_OUTBOUND_TRANSFER);
         mReceiver.onReceive(mContext, intent);

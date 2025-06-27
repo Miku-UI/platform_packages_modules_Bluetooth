@@ -51,13 +51,17 @@ cc_library_shared {
         "libhidlbase",
     ],
     visibility: [
-        "//device/generic/goldfish/audio",
+        "//device/generic/goldfish/hals/audio",
     ],
 }
 
 cc_test {
     name: "audio_bluetooth_hw_test",
-    defaults: ["audio_bluetooth_hw_defaults"],
+    test_suites: ["general-tests"],
+    defaults: [
+        "audio_bluetooth_hw_defaults",
+        "mts_defaults",
+    ],
     srcs: [
         "utils.cc",
         "utils_unittest.cc",

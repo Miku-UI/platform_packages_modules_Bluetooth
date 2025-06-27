@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,6 +49,10 @@ void LogSDPComplete(const RawAddress& raw_address, tBTA_STATUS status);
 void LogLePairingFail(const RawAddress& raw_address, uint8_t failure_reason, bool is_outgoing);
 
 android::bluetooth::State MapErrorCodeToState(hci::ErrorCode reason);
+
+android::bluetooth::State MapHfpVersionToState(uint16_t version);
+
+android::bluetooth::State MapScoCodecToState(uint16_t codec);
 
 }  // namespace metrics
 }  // namespace bluetooth

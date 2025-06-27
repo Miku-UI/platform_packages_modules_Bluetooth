@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ import static android.content.pm.PackageManager.FEATURE_WATCH;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.AT_OK;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.ENTER_PRIVATE_MODE;
 import static com.android.bluetooth.hfpclient.HeadsetClientStateMachine.EXPLICIT_CALL_TRANSFER;
@@ -44,10 +46,8 @@ import android.bluetooth.BluetoothAssignedNumbers;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadsetClient;
 import android.bluetooth.BluetoothHeadsetClientCall;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSinkAudioPolicy;
 import android.bluetooth.BluetoothStatusCodes;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
@@ -55,17 +55,15 @@ import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
-import android.os.test.TestLooper;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Pair;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.R;
-import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.RemoteDevices;
 import com.android.bluetooth.flags.Flags;
@@ -82,25 +80,21 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.List;
 import java.util.Set;
 
+/** Test cases for {@link HeadsetClientStateMachine}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class HeadsetClientStateMachineTest {
-    private final Context mTargetContext = InstrumentationRegistry.getTargetContext();
-    private final BluetoothAdapter mAdapter =
-            mTargetContext.getSystemService(BluetoothManager.class).getAdapter();
-    private final BluetoothDevice mTestDevice = TestUtils.getTestDevice(mAdapter, 42);
+    private final BluetoothDevice mTestDevice = getTestDevice(42);
 
     private TestHeadsetClientStateMachine mHeadsetClientStateMachine;
     private InOrder mInOrder;
     private TestLooper mTestLooper;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
@@ -133,7 +127,7 @@ public class HeadsetClientStateMachineTest {
                 .getInteger(eq(R.integer.hfp_clcc_poll_interval_during_call));
 
         doReturn(mRemoteDevices).when(mAdapterService).getRemoteDevices();
-        doReturn(true).when(mNativeInterface).sendAndroidAt(anyObject(), anyString());
+        doReturn(true).when(mNativeInterface).sendAndroidAt(any(), anyString());
 
         doReturn(true).when(mNativeInterface).disconnect(any(BluetoothDevice.class));
 
@@ -249,7 +243,7 @@ public class HeadsetClientStateMachineTest {
     public void testProcessAndroidSlcCommand() {
         initToConnectedState();
 
-        // True on correct AT command and BluetothDevice
+        // True on correct AT command and BluetoothDevice
         assertThat(processAndroidSlcCommand("+ANDROID: (SINKAUDIOPOLICY)")).isTrue();
         assertThat(processAndroidSlcCommand("+ANDROID: ()")).isTrue();
         assertThat(processAndroidSlcCommand("+ANDROID: (,,,)")).isTrue();
@@ -269,8 +263,7 @@ public class HeadsetClientStateMachineTest {
         // False on incorrect BluetoothDevice
         assertThat(
                         mHeadsetClientStateMachine.processAndroidSlcCommand(
-                                "+ANDROID: (SINKAUDIOPOLICY)",
-                                mAdapter.getRemoteDevice("05:04:01:02:03:00")))
+                                "+ANDROID: (SINKAUDIOPOLICY)", getTestDevice(123)))
                 .isFalse();
     }
 
@@ -382,7 +375,7 @@ public class HeadsetClientStateMachineTest {
         doReturn(true).when(mPackageManager).hasSystemFeature(FEATURE_WATCH);
 
         // Skip over the Android AT commands to test this code path
-        doReturn(false).when(mNativeInterface).sendAndroidAt(anyObject(), anyString());
+        doReturn(false).when(mNativeInterface).sendAndroidAt(any(), anyString());
 
         // Send an incoming connection event
         StackEvent event = new StackEvent(StackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
@@ -954,7 +947,7 @@ public class HeadsetClientStateMachineTest {
         assertThat(currentCalls.get(0)).isEqualTo(call);
     }
 
-    private void assertName(int message, String message_name) {
+    private static void assertName(int message, String message_name) {
         assertThat(HeadsetClientStateMachine.getMessageName(message)).isEqualTo(message_name);
     }
 
@@ -1029,11 +1022,11 @@ public class HeadsetClientStateMachineTest {
         mHeadsetClientStateMachine.setAudioPolicyRemoteSupported(true);
         mHeadsetClientStateMachine.setAudioPolicy(dummyAudioPolicy);
         verify(mNativeInterface).sendAndroidAt(mTestDevice, "+ANDROID=SINKAUDIOPOLICY,1,2,1");
-        assertThat(mHeadsetClientStateMachine.mQueuedActions.size()).isEqualTo(1);
+        assertThat(mHeadsetClientStateMachine.mQueuedActions).hasSize(1);
         mHeadsetClientStateMachine.mQueuedActions.clear();
 
         // Test if fail to sendAndroidAt
-        doReturn(false).when(mNativeInterface).sendAndroidAt(anyObject(), anyString());
+        doReturn(false).when(mNativeInterface).sendAndroidAt(any(), anyString());
         mHeadsetClientStateMachine.setAudioPolicy(dummyAudioPolicy);
         assertThat(mHeadsetClientStateMachine.mQueuedActions).isEmpty();
     }

@@ -83,9 +83,15 @@ void bta_dm_ci_rmt_oob_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB> msg);
 void bta_dm_confirm(const RawAddress& bd_addr, bool accept);
 void bta_dm_consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
 void bta_dm_enable(tBTA_DM_SEC_CBACK* p_sec_cback);
-void bta_dm_encrypt_cback(const RawAddress* bd_addr, tBT_TRANSPORT transport,
-                          void* /* p_ref_data */, tBTM_STATUS result);
+void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport, void* /* p_ref_data */,
+                          tBTM_STATUS result);
+void bta_dm_on_encryption_change(bt_encryption_change_evt encryption_change);
 void bta_dm_pin_reply(std::unique_ptr<tBTA_DM_API_PIN_REPLY> msg);
 void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
                            tBTA_DM_ENCRYPT_CBACK* p_callback, tBTM_BLE_SEC_ACT sec_act);
 void btm_dm_sec_init();
+void bta_dm_remote_key_missing(const RawAddress bd_addr);
+
+namespace bluetooth::legacy::testing {
+tBTM_STATUS bta_dm_sp_cback(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
+}  // namespace bluetooth::legacy::testing

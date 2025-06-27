@@ -121,9 +121,7 @@ PresentationPosition::TimeSpec BluetoothAudioPortImpl::timespec_convert_to_hal(c
 // of the AIDL session / AudioFlinger writer thread.
 ndk::SpAIBinder BluetoothAudioPortImpl::createBinder() {
   auto binder = BnBluetoothAudioPort::createBinder();
-  if (com::android::bluetooth::flags::audio_port_binder_inherit_rt()) {
-    AIBinder_setInheritRt(binder.get(), true);
-  }
+  AIBinder_setInheritRt(binder.get(), true);
   return binder;
 }
 

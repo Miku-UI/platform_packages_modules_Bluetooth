@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doReturn;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAssignedNumbers;
 import android.bluetooth.BluetoothDevice;
 
@@ -36,30 +38,27 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link VendorCommandResponseProcessor}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class VendorCommandResponseProcessorTest {
-    private static int TEST_VENDOR_ID = BluetoothAssignedNumbers.APPLE;
-
-    private BluetoothAdapter mAdapter;
-    private BluetoothDevice mTestDevice;
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private NativeInterface mNativeInterface;
-    private VendorCommandResponseProcessor mProcessor;
-
     @Mock private AdapterService mAdapterService;
     @Mock private HeadsetClientService mHeadsetClientService;
+
+    private static final int TEST_VENDOR_ID = BluetoothAssignedNumbers.APPLE;
+
+    private final BluetoothDevice mDevice = getTestDevice(65);
+
+    private VendorCommandResponseProcessor mProcessor;
 
     @Before
     public void setUp() throws Exception {
         TestUtils.setAdapterService(mAdapterService);
 
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = mAdapter.getRemoteDevice("00:01:02:03:04:05");
         mProcessor = new VendorCommandResponseProcessor(mHeadsetClientService, mNativeInterface);
     }
 
@@ -72,7 +71,7 @@ public class VendorCommandResponseProcessorTest {
     public void sendCommand_withSemicolon() {
         String atCommand = "command;";
 
-        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mTestDevice)).isFalse();
+        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mDevice)).isFalse();
     }
 
     @Test
@@ -86,7 +85,7 @@ public class VendorCommandResponseProcessorTest {
     public void sendCommand_withInvalidCommand() {
         String invalidCommand = "invalidCommand";
 
-        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, invalidCommand, mTestDevice)).isFalse();
+        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, invalidCommand, mDevice)).isFalse();
     }
 
     @Test
@@ -95,13 +94,13 @@ public class VendorCommandResponseProcessorTest {
         doReturn(true)
                 .when(mNativeInterface)
                 .sendATCmd(
-                        mTestDevice,
+                        mDevice,
                         HeadsetClientHalConstants.HANDSFREECLIENT_AT_CMD_VENDOR_SPECIFIC_CMD,
                         0,
                         0,
                         atCommand);
 
-        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mTestDevice)).isTrue();
+        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mDevice)).isTrue();
     }
 
     @Test
@@ -110,13 +109,13 @@ public class VendorCommandResponseProcessorTest {
         doReturn(true)
                 .when(mNativeInterface)
                 .sendATCmd(
-                        mTestDevice,
+                        mDevice,
                         HeadsetClientHalConstants.HANDSFREECLIENT_AT_CMD_VENDOR_SPECIFIC_CMD,
                         0,
                         0,
                         atCommand);
 
-        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mTestDevice)).isTrue();
+        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mDevice)).isTrue();
     }
 
     @Test
@@ -125,13 +124,13 @@ public class VendorCommandResponseProcessorTest {
         doReturn(false)
                 .when(mNativeInterface)
                 .sendATCmd(
-                        mTestDevice,
+                        mDevice,
                         HeadsetClientHalConstants.HANDSFREECLIENT_AT_CMD_VENDOR_SPECIFIC_CMD,
                         0,
                         0,
                         atCommand);
 
-        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mTestDevice)).isFalse();
+        assertThat(mProcessor.sendCommand(TEST_VENDOR_ID, atCommand, mDevice)).isFalse();
     }
 
     @Test
@@ -145,20 +144,20 @@ public class VendorCommandResponseProcessorTest {
     public void processEvent_withInvalidString() {
         String invalidString = "+APLSIRI?";
 
-        assertThat(mProcessor.processEvent(invalidString, mTestDevice)).isFalse();
+        assertThat(mProcessor.processEvent(invalidString, mDevice)).isFalse();
     }
 
     @Test
     public void processEvent_withEqualSign() {
         String atString = "+XAPL=";
 
-        assertThat(mProcessor.processEvent(atString, mTestDevice)).isTrue();
+        assertThat(mProcessor.processEvent(atString, mDevice)).isTrue();
     }
 
     @Test
     public void processEvent_withColonSign() {
         String atString = "+APLSIRI:";
 
-        assertThat(mProcessor.processEvent(atString, mTestDevice)).isTrue();
+        assertThat(mProcessor.processEvent(atString, mDevice)).isTrue();
     }
 }

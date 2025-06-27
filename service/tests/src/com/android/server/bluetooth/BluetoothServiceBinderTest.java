@@ -49,15 +49,11 @@ import android.content.ContextWrapper;
 import android.os.IBinder;
 import android.os.Process;
 import android.os.UserManager;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.bluetooth.flags.Flags;
 
 import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges;
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
@@ -96,7 +92,7 @@ public class BluetoothServiceBinderTest {
     @Mock private AppOpsManager mAppOpsManager;
     @Mock private DevicePolicyManager mDevicePolicyManager;
 
-    private Context mContext =
+    private final Context mContext =
             spy(
                     new ContextWrapper(
                             InstrumentationRegistry.getInstrumentation().getTargetContext()));
@@ -226,19 +222,6 @@ public class BluetoothServiceBinderTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER)
-    public void getState() {
-        // TODO(b/280518177): add more test from not System / ...
-        // TODO(b/280518177): add more test when caller is not in foreground
-
-        mBinder.getState();
-        verify(mManagerService).getState();
-        verify(mUserManager).getProfileParent(any());
-        verifyMock();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_GET_STATE_FROM_SYSTEM_SERVER)
     public void getStateFromSystemServer() {
         mBinder.getState();
         verify(mManagerService).getState();
@@ -383,7 +366,7 @@ public class BluetoothServiceBinderTest {
     // *********************************************************************************************
     // Utility method used in tests
 
-    private void verifyAndClearMock(Object o) {
+    private static void verifyAndClearMock(Object o) {
         assertThat(mockingDetails(o).isMock() || mockingDetails(o).isSpy()).isTrue();
         verifyNoMoreInteractions(o);
         clearInvocations(o);

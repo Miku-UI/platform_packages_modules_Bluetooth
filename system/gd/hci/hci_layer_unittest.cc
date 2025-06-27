@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,6 @@
 #include "os/system_properties.h"
 #include "os/thread.h"
 #include "packet/raw_builder.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace std::chrono_literals;
 
@@ -72,14 +69,6 @@ using packet::kLittleEndian;
 using packet::PacketView;
 using packet::RawBuilder;
 
-std::vector<uint8_t> GetPacketBytes(std::unique_ptr<packet::BasePacketBuilder> packet) {
-  std::vector<uint8_t> bytes;
-  BitInserter i(bytes);
-  bytes.reserve(packet->size());
-  packet->Serialize(i);
-  return bytes;
-}
-
 static std::chrono::milliseconds getHciTimeoutMs() {
   static auto sHciTimeoutMs = std::chrono::milliseconds(bluetooth::os::GetSystemPropertyUint32Base(
           "bluetooth.hci.timeout_milliseconds", HciLayer::kHciTimeoutMs.count()));
@@ -98,7 +87,8 @@ protected:
   void SetUp() override {
     hal_ = new hal::TestHciHal();
     fake_registry_.InjectTestModule(&hal::HciHal::Factory, hal_);
-    fake_registry_.Start<HciLayer>(&fake_registry_.GetTestThread());
+    fake_registry_.Start<HciLayer>(&fake_registry_.GetTestThread(),
+                                   fake_registry_.GetTestHandler());
     hci_ = static_cast<HciLayer*>(fake_registry_.GetModuleUnderTest(&HciLayer::Factory));
     hci_handler_ = fake_registry_.GetTestModuleHandler(&HciLayer::Factory);
     ASSERT_TRUE(fake_registry_.IsStarted<HciLayer>());

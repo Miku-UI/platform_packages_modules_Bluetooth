@@ -37,9 +37,6 @@ typedef struct {
 
   /** GATT Server callbacks */
   const btgatt_server_callbacks_t* server;
-
-  /** LE scanner callbacks */
-  const btgatt_scanner_callbacks_t* scanner;
 } btgatt_callbacks_t;
 
 /** Represents the standard Bluetooth GATT interface. */

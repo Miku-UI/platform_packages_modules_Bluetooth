@@ -11,11 +11,9 @@ use log::warn;
 
 use crate::packets::att::AttErrorCode;
 
-use super::{
-    ffi::AttributeBackingType,
-    ids::{AttHandle, ConnectionId, TransactionId, TransportIndex},
-    server::IndicationError,
-};
+use super::ffi::AttributeBackingType;
+use super::ids::{AttHandle, ConnectionId, TransactionId, TransportIndex};
+use super::server::IndicationError;
 
 /// These callbacks are expected to be made available to the GattModule from
 /// JNI.
@@ -209,12 +207,11 @@ impl<T: GattDatastore + ?Sized> RawGattDatastore for T {
 
 #[cfg(test)]
 mod test {
-    use tokio::{sync::mpsc::error::TryRecvError, task::spawn_local};
+    use tokio::sync::mpsc::error::TryRecvError;
+    use tokio::task::spawn_local;
 
-    use crate::{
-        gatt::mocks::mock_datastore::{MockDatastore, MockDatastoreEvents},
-        utils::task::block_on_locally,
-    };
+    use crate::gatt::mocks::mock_datastore::{MockDatastore, MockDatastoreEvents};
+    use crate::utils::task::block_on_locally;
 
     use super::*;
 

@@ -57,8 +57,20 @@ impl BatteryProviderManager {
     }
 
     /// Get the best battery info available for a given device.
-    pub fn get_battery_info(&self, remote_address: RawAddress) -> Option<BatterySet> {
-        self.battery_info.get(&remote_address)?.pick_best()
+    pub fn get_battery_info(&mut self, remote_address: RawAddress) -> Option<BatterySet> {
+        if let Some(info) = self.battery_info.get(&remote_address) {
+            return info.pick_best();
+        }
+
+        // If no battery info found, refresh and retry
+        self.refresh_battery_info();
+        match self.battery_info.get(&remote_address) {
+            None => {
+                debug!("No battery info found for [{}]", DisplayAddress(&remote_address));
+                return None;
+            }
+            Some(info) => return info.pick_best(),
+        }
     }
 
     /// Removes a battery provider callback.

@@ -24,7 +24,6 @@
 
 #define LOG_TAG "l2c_ble"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -34,6 +33,7 @@
 
 #include "btif/include/core_callbacks.h"
 #include "btif/include/stack_manager_t.h"
+#include "common/le_conn_params.h"
 #include "hci/controller_interface.h"
 #include "hci/hci_interface.h"
 #include "internal_include/bt_target.h"
@@ -89,6 +89,15 @@ hci_role_t L2CA_GetBleConnRole(const RawAddress& bd_addr) {
   return p_lcb->LinkRole();
 }
 
+uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) {
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_LE);
+  if (p_lcb == nullptr) {
+    log::error("lcb for {} is not available", bd_addr);
+    return 0;
+  }
+  return p_lcb->ConnInterval();
+}
+
 /*******************************************************************************
  *
  * Function l2cble_notify_le_connection
@@ -108,10 +117,10 @@ void l2cble_notify_le_connection(const RawAddress& bda) {
   if (get_btm_client_interface().peer.BTM_IsAclConnectionUp(bda, BT_TRANSPORT_LE) &&
       p_lcb->link_state != LST_CONNECTED) {
     /* update link status */
+    p_lcb->link_state = LST_CONNECTED;
     // TODO Move this back into acl layer
     btm_establish_continue_from_address(bda, BT_TRANSPORT_LE);
-    /* update l2cap link status and send callback */
-    p_lcb->link_state = LST_CONNECTED;
+    /* send callback */
     l2cu_process_fixed_chnl_resp(p_lcb);
   }
 
@@ -174,9 +183,26 @@ bool l2cble_conn_comp(uint16_t handle, tHCI_ROLE role, const RawAddress& bda,
   /* update link parameter, set peripheral link as non-spec default upon link up
    */
   p_lcb->min_interval = p_lcb->max_interval = conn_interval;
+  p_lcb->SetConnInterval(conn_interval);
   p_lcb->timeout = conn_timeout;
   p_lcb->latency = conn_latency;
   p_lcb->conn_update_mask = L2C_BLE_NOT_DEFAULT_PARAM;
+  if (com::android::bluetooth::flags::initial_conn_params_p1()) {
+    uint16_t min_conn_interval_aggressive = LeConnectionParameters::GetMinConnIntervalAggressive();
+    uint16_t max_conn_interval_aggressive = LeConnectionParameters::GetMaxConnIntervalAggressive();
+
+    stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(
+            &min_conn_interval_aggressive, &max_conn_interval_aggressive, BTM_BLE_CONN_INT_MIN);
+
+    bool is_aggressive_initial_param = conn_interval <= max_conn_interval_aggressive;
+    log::info("conn_interval={}, max_conn_interval_aggressive={}, is_aggressive_initial_param={}",
+              conn_interval, max_conn_interval_aggressive, is_aggressive_initial_param);
+
+    if (is_aggressive_initial_param) {
+      p_lcb->conn_update_mask |= L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
+    }
+  }
+
   p_lcb->conn_update_blocked_by_profile_connection = false;
   p_lcb->conn_update_blocked_by_service_discovery = false;
 
@@ -328,6 +354,9 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           p_lcb->latency = latency;
           p_lcb->timeout = timeout;
           p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
+          if (com::android::bluetooth::flags::initial_conn_params_p1()) {
+            p_lcb->conn_update_mask &= ~L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
+          }
 
           l2cble_start_conn_update(p_lcb);
         }
@@ -935,7 +964,7 @@ void l2cble_process_sig_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 /** This function is to initiate a direct connection. Returns true if connection
  * initiated, false otherwise. */
 bool l2cble_create_conn(tL2C_LCB* p_lcb) {
-  if (!connection_manager::create_le_connection(CONN_MGR_ID_L2CAP, p_lcb->remote_bd_addr)) {
+  if (!connection_manager::direct_connect_add(CONN_MGR_ID_L2CAP, p_lcb->remote_bd_addr)) {
     return false;
   }
 
@@ -1159,7 +1188,7 @@ void l2cble_process_data_length_change_event(uint16_t handle, uint16_t tx_data_l
               "{}",
               p_lcb->remote_bd_addr, p_lcb->tx_data_len, tx_data_len);
       BTM_LogHistory(kBtmLogTag, p_lcb->remote_bd_addr, "LE Data length change",
-                     base::StringPrintf("tx_octets:%hu => %hu", p_lcb->tx_data_len, tx_data_len));
+                     std::format("tx_octets:{} => {}", p_lcb->tx_data_len, tx_data_len));
       p_lcb->tx_data_len = tx_data_len;
     } else {
       log::debug(
@@ -1414,7 +1443,7 @@ tL2CAP_LE_RESULT_CODE l2ble_sec_access_req(const RawAddress& bd_addr, uint16_t p
  * constraints. For example, when there is at least one Hearing Aid device
  * bonded, the minimum interval is raised. On return, min_interval and
  * max_interval are updated. */
-void L2CA_AdjustConnectionIntervals(uint16_t* min_interval, uint16_t* max_interval,
+void L2CA_AdjustConnectionIntervals(uint16_t* /* min_interval */, uint16_t* max_interval,
                                     uint16_t floor_interval) {
   // Allow for customization by systemprops for mainline
   uint16_t phone_min_interval = floor_interval;
@@ -1433,13 +1462,6 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval, uint16_t* max_interv
     log::verbose("Have Hearing Aids. Min. interval is set to {}", phone_min_interval);
   }
 
-  if (!com::android::bluetooth::flags::l2cap_le_do_not_adjust_min_interval() &&
-      *min_interval < phone_min_interval) {
-    log::verbose("requested min_interval={} too small. Set to {}", *min_interval,
-                 phone_min_interval);
-    *min_interval = phone_min_interval;
-  }
-
   // While this could result in connection parameters that fall
   // outside fo the range requested, this will allow the connection
   // to remain established.
@@ -1452,10 +1474,6 @@ void L2CA_AdjustConnectionIntervals(uint16_t* min_interval, uint16_t* max_interv
 }
 
 void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
-  if (!com::android::bluetooth::flags::le_audio_base_ecosystem_interval()) {
-    return;
-  }
-
   log::info("base_interval: {}ms", base_interval);
   bluetooth::shim::GetHciLayer()->EnqueueCommand(
           bluetooth::hci::SetEcosystemBaseIntervalBuilder::Create(base_interval),
@@ -1472,18 +1490,19 @@ void L2CA_SetEcosystemBaseInterval(uint32_t base_interval) {
             }
           }));
 
-  if (com::android::bluetooth::flags::l2cap_update_existing_conn_interval_with_base_interval() &&
-      base_interval != 0) {
-    tL2C_LCB* p_lcb = &l2cb.lcb_pool[0];
+  if (base_interval == 0) {
+    return;
+  }
 
-    for (int i = 0; i < MAX_L2CAP_LINKS; i++, p_lcb++) {
-      if ((p_lcb->in_use) && p_lcb->transport == BT_TRANSPORT_LE) {
-        bool ret = L2CA_UpdateBleConnParams(p_lcb->remote_bd_addr, p_lcb->min_interval,
-                                            p_lcb->max_interval, p_lcb->latency, p_lcb->timeout,
-                                            p_lcb->min_ce_len, p_lcb->max_ce_len);
-        if (!ret) {
-          log::warn("Unable to update BLE connection parameters peer:{}", p_lcb->remote_bd_addr);
-        }
+  tL2C_LCB* p_lcb = &l2cb.lcb_pool[0];
+
+  for (int i = 0; i < MAX_L2CAP_LINKS; i++, p_lcb++) {
+    if ((p_lcb->in_use) && p_lcb->transport == BT_TRANSPORT_LE) {
+      bool ret = L2CA_UpdateBleConnParams(p_lcb->remote_bd_addr, p_lcb->min_interval,
+                                          p_lcb->max_interval, p_lcb->latency, p_lcb->timeout,
+                                          p_lcb->min_ce_len, p_lcb->max_ce_len);
+      if (!ret) {
+        log::warn("Unable to update BLE connection parameters peer:{}", p_lcb->remote_bd_addr);
       }
     }
   }

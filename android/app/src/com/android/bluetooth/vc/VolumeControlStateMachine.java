@@ -158,7 +158,7 @@ class VolumeControlStateMachine extends StateMachine {
                             processConnectionEvent(event.valueInt1);
                         }
                         default -> {
-                            Log.e(TAG, "Disconnected: forwarding stack event: " + event);
+                            Log.d(TAG, "Disconnected: forwarding stack event: " + event);
                             mService.handleStackEvent(event);
                         }
                     }
@@ -270,7 +270,7 @@ class VolumeControlStateMachine extends StateMachine {
                             deferMessage(message);
                         }
                         default -> {
-                            Log.e(TAG, "Connecting: forwarding stack event: " + event);
+                            Log.d(TAG, "Connecting: forwarding stack event: " + event);
                             mService.handleStackEvent(event);
                         }
                     }
@@ -366,7 +366,7 @@ class VolumeControlStateMachine extends StateMachine {
                             processConnectionEvent(event.valueInt1);
                         }
                         default -> {
-                            Log.e(TAG, "Disconnecting: forwarding stack event: " + event);
+                            Log.d(TAG, "Disconnecting: forwarding stack event: " + event);
                             mService.handleStackEvent(event);
                         }
                     }
@@ -465,7 +465,7 @@ class VolumeControlStateMachine extends StateMachine {
                             processConnectionEvent(event.valueInt1);
                         }
                         default -> {
-                            Log.e(TAG, "Connected: forwarding stack event: " + event);
+                            Log.d(TAG, "Connected: forwarding stack event: " + event);
                             mService.handleStackEvent(event);
                         }
                     }

@@ -122,7 +122,7 @@ pub fn extract_service_data(bytes: &[u8]) -> HashMap<String, Vec<u8>> {
 pub fn extract_manufacturer_data(bytes: &[u8]) -> HashMap<u16, Vec<u8>> {
     iterate_adv_data(bytes, MANUFACTURER_SPECIFIC_DATA)
         .filter_map(|slice| {
-            slice.get(0..2)?.try_into().ok().map(|be| (u16::from_be_bytes(be), slice[2..].to_vec()))
+            slice.get(0..2)?.try_into().ok().map(|le| (u16::from_le_bytes(le), slice[2..].to_vec()))
         })
         .collect()
 }
@@ -375,7 +375,7 @@ mod tests {
             vec![4, MANUFACTURER_SPECIFIC_DATA, 0, 1, 2, 3, MANUFACTURER_SPECIFIC_DATA, 1, 2];
         let manufacturer_data = extract_manufacturer_data(payload.as_slice());
         assert_eq!(manufacturer_data.len(), 2);
-        assert_eq!(manufacturer_data.get(&1), Some(&vec![2]));
-        assert_eq!(manufacturer_data.get(&258), Some(&vec![]));
+        assert_eq!(manufacturer_data.get(&256), Some(&vec![2]));
+        assert_eq!(manufacturer_data.get(&513), Some(&vec![]));
     }
 }

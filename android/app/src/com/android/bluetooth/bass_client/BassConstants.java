@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ public class BassConstants {
             ParcelUuid.fromString("00001856-0000-1000-8000-00805F9B34FB");
 
     public static final int INVALID_SYNC_HANDLE = -1;
+    public static final int PENDING_SYNC_HANDLE = -2;
     public static final int INVALID_ADV_SID = -1;
     public static final int INVALID_ADV_ADDRESS_TYPE = -1;
     public static final int INVALID_ADV_INTERVAL = -1;
@@ -62,11 +63,12 @@ public class BassConstants {
     public static final int BCAST_RCVR_STATE_BADCODE_START_IDX = 14;
     public static final int BCAST_RCVR_STATE_BADCODE_SIZE = 16;
     public static final int BCAST_RCVR_STATE_BIS_SYNC_SIZE = 4;
+    // BIS_Sync State value
+    public static final long BCAST_RCVR_STATE_BIS_SYNC_NOT_SYNC_TO_BIS = 0x00000000L;
+    public static final long BCAST_RCVR_STATE_BIS_SYNC_FAILED_SYNC_TO_BIG = 0xFFFFFFFFL;
     // 30 secs time out for all gatt writes
     public static final int GATT_TXN_TIMEOUT_MS = 30000;
     public static final int SOURCE_OPERATION_TIMEOUT_MS = 3000;
-    // 3 min time out for keeping PSYNC active
-    public static final int PSYNC_ACTIVE_TIMEOUT_MS = 3 * 60000;
     // 2 secs time out achieving psync
     public static final int PSYNC_TIMEOUT = 200;
     public static final int PIN_CODE_CMD_LEN = 18;
@@ -75,11 +77,11 @@ public class BassConstants {
     public static final int BCAST_NAME_AD_TYPE = 0x30;
     public static final int BCAST_NAME_LEN_MIN = 4;
     public static final int BCAST_NAME_LEN_MAX = 32;
-    // PA_Sync parameter value
+    // PA_Sync parameter value in BASS operations
     public static final int PA_SYNC_DO_NOT_SYNC = 0x00;
     public static final int PA_SYNC_PAST_AVAILABLE = 0x01;
     public static final int PA_SYNC_PAST_NOT_AVAILABLE = 0x02;
-    // BIS_Sync parameter value
-    public static final long BIS_SYNC_NOT_SYNC_TO_BIS = 0x00000000L;
-    public static final long BIS_SYNC_FAILED_SYNC_TO_BIG = 0xFFFFFFFFL;
+    // BIS_Sync parameter value in BASS operations
+    public static final long BIS_SYNC_DO_NOT_SYNC_TO_BIS = 0x00000000L;
+    public static final long BIS_SYNC_NO_PREFERENCE = 0xFFFFFFFFL;
 }

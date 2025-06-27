@@ -25,12 +25,11 @@ import android.util.Log;
 
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.Utils;
-import com.android.bluetooth.flags.Flags;
 
 import java.util.ArrayList;
 
 public class BluetoothOppHandoverReceiver extends BroadcastReceiver {
-    public static final String TAG = "BluetoothOppHandoverReceiver";
+    private static final String TAG = BluetoothOppHandoverReceiver.class.getSimpleName();
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -60,22 +59,18 @@ public class BluetoothOppHandoverReceiver extends BroadcastReceiver {
             if (mimeType != null && uris != null && !uris.isEmpty()) {
                 final Context finalContext = context;
                 final ArrayList<Uri> finalUris = uris;
-                Thread t =
-                        new Thread(
-                                new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        BluetoothOppManager.getInstance(finalContext)
-                                                .saveSendingFileInfo(
-                                                        mimeType,
-                                                        finalUris,
-                                                        true /* isHandover */,
-                                                        true /* fromExternal */);
-                                        BluetoothOppManager.getInstance(finalContext)
-                                                .startTransfer(device);
-                                    }
-                                });
-                t.start();
+                new Thread(
+                                () -> {
+                                    BluetoothOppManager.getInstance(finalContext)
+                                            .saveSendingFileInfo(
+                                                    mimeType,
+                                                    finalUris,
+                                                    true /* isHandover */,
+                                                    true /* fromExternal */);
+                                    BluetoothOppManager.getInstance(finalContext)
+                                            .startTransfer(device);
+                                })
+                        .start();
             } else {
                 Log.d(TAG, "No mimeType or stream attached to handover request");
                 return;
@@ -86,10 +81,7 @@ public class BluetoothOppHandoverReceiver extends BroadcastReceiver {
             if (device == null) {
                 return;
             }
-            String brEdrAddress =
-                    Flags.identityAddressNullIfNotKnown()
-                            ? Utils.getBrEdrAddress(device)
-                            : device.getIdentityAddress();
+            String brEdrAddress = Utils.getBrEdrAddress(device);
             Log.d(TAG, "Adding " + brEdrAddress + " to acceptlist");
             BluetoothOppManager.getInstance(context).addToAcceptlist(brEdrAddress);
         } else if (action.equals(Constants.ACTION_STOP_HANDOVER)) {

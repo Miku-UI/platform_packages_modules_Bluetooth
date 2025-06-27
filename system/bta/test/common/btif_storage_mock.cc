@@ -19,8 +19,9 @@
 
 #include <bluetooth/log.h>
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#include "bta_hearing_aid_api.h"
+#include "btif/include/btif_profile_storage.h"
+#include "btif/include/btif_storage.h"
 
 using namespace bluetooth;
 
@@ -41,6 +42,12 @@ void btif_storage_leaudio_update_pacs_bin(const RawAddress& addr) {
   btif_storage_interface->LeAudioUpdatePacs(addr);
 }
 
+/** Store GMAP information */
+void btif_storage_leaudio_update_gmap_bin(const RawAddress& addr) {
+  log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
+  btif_storage_interface->LeAudioUpdateGmap(addr);
+}
+
 void btif_storage_leaudio_update_ase_bin(const RawAddress& addr) {
   log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
   btif_storage_interface->LeAudioUpdateAses(addr);
@@ -51,10 +58,15 @@ void btif_storage_leaudio_update_handles_bin(const RawAddress& addr) {
   btif_storage_interface->LeAudioUpdateHandles(addr);
 }
 
-void btif_storage_set_leaudio_audio_location(const RawAddress& addr, uint32_t sink_location,
-                                             uint32_t source_location) {
+void btif_storage_set_leaudio_sink_audio_location(const RawAddress& addr, uint32_t sink_location) {
   log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
-  btif_storage_interface->SetLeAudioLocations(addr, sink_location, source_location);
+  btif_storage_interface->SetLeAudioSinkLocations(addr, sink_location);
+}
+
+void btif_storage_set_leaudio_source_audio_location(const RawAddress& addr,
+                                                    uint32_t source_location) {
+  log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
+  btif_storage_interface->SetLeAudioSourceLocations(addr, source_location);
 }
 
 void btif_storage_set_leaudio_supported_context_types(const RawAddress& addr,
@@ -122,4 +134,18 @@ bt_status_t btif_storage_get_remote_device_property(const RawAddress* address,
                                                     bt_property_t* property) {
   log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
   return btif_storage_interface->GetRemoteDeviceProperty(address, property);
+}
+
+/** Get the hearing aid device properties. */
+bool btif_storage_get_hearing_aid_prop(const RawAddress& address, uint8_t* capabilities,
+                                       uint64_t* hi_sync_id, uint16_t* render_delay,
+                                       uint16_t* preparation_delay, uint16_t* codecs) {
+  log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
+  return btif_storage_interface->GetHearingAidProp(address, capabilities, hi_sync_id, render_delay,
+                                                   preparation_delay, codecs);
+}
+
+void btif_storage_add_hearing_aid(const HearingDevice& dev_info) {
+  log::assert_that(btif_storage_interface != nullptr, "Mock storage module not set!");
+  return btif_storage_interface->AddHearingAid(&dev_info);
 }

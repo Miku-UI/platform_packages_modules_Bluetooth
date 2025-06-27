@@ -69,3 +69,8 @@ void SMP_ClearLocScOobData() { inc_func_call_count(__func__); }
 void SMP_SirkConfirmDeviceReply(const RawAddress& /* bd_addr */, uint8_t /* res */) {
   inc_func_call_count(__func__);
 }
+
+uint16_t SMP_GetPendingPairingKeySize() {
+  inc_func_call_count(__func__);
+  return 0;
+}

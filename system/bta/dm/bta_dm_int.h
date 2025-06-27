@@ -21,10 +21,9 @@
  *  This is the private interface file for the BTA device manager.
  *
  ******************************************************************************/
-#ifndef BTA_DM_INT_H
-#define BTA_DM_INT_H
 
-#include <base/strings/stringprintf.h>
+#pragma once
+
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -47,21 +46,6 @@
 
 #define BTA_DM_NUM_PEER_DEVICE 7
 
-// TODO: Remove when flag wait_for_disconnect_before_unbond is shipped
-enum class tBTA_DM_CONN_STATE : uint8_t {
-  BTA_DM_CONNECTED = 0,
-  BTA_DM_UNPAIRING = 1,
-};
-
-// TODO: Remove when flag wait_for_disconnect_before_unbond is shipped
-inline std::string bta_conn_state_text(tBTA_DM_CONN_STATE state) {
-  switch (state) {
-    CASE_RETURN_STRING(tBTA_DM_CONN_STATE::BTA_DM_CONNECTED);
-    CASE_RETURN_STRING(tBTA_DM_CONN_STATE::BTA_DM_UNPAIRING);
-  }
-  RETURN_UNKNOWN_TYPE_STRING(tBTA_DM_CONN_STATE, state);
-}
-
 typedef enum : uint8_t {
   BTA_DM_DI_NONE = 0x00,      /* nothing special */
   BTA_DM_DI_SET_SNIFF = 0x01, /* set this bit if call BTM_SetPowerMode(sniff) */
@@ -79,7 +63,7 @@ inline std::string device_info_text(tBTA_DM_DEV_INFO info) {
           ":set_sniff", ":int_sniff", ":acp_sniff", ":unused", ":use_ssr", ":av_active",
   };
 
-  std::string s = base::StringPrintf("0x%02x", info);
+  std::string s = std::format("0x{:02x}", info);
   if (info == BTA_DM_DI_NONE) {
     return s + std::string(":none");
   }
@@ -97,7 +81,7 @@ inline std::string device_info_text(tBTA_DM_DEV_INFO info) {
 #define BTA_DM_PM_EXECUTE 3
 typedef uint8_t tBTA_DM_PM_REQ;
 
-struct tBTA_DM_REMOVE_PENDNIG {
+struct tBTA_DM_REMOVE_PENDING {
   RawAddress pseudo_addr;
   RawAddress identity_addr;
   bool le_connected;
@@ -108,10 +92,6 @@ bool bta_dm_removal_pending(const RawAddress& bd_addr);
 
 struct tBTA_DM_PEER_DEVICE {
   RawAddress peer_bdaddr;
-
-  // TODO: Remove when flag wait_for_disconnect_before_unbond is shipped
-  tBTA_DM_CONN_STATE conn_state{tBTA_DM_CONN_STATE::BTA_DM_CONNECTED};
-
   tBTA_PREF_ROLES pref_role;
   bool in_use;
 
@@ -150,11 +130,7 @@ public:
 
   bool is_connected() const {
     // Devices getting removed should be treated as disconnected
-    if (com::android::bluetooth::flags::wait_for_disconnect_before_unbond() &&
-        bta_dm_removal_pending(peer_bdaddr)) {
-      return false;
-    }
-    return (conn_state == tBTA_DM_CONN_STATE::BTA_DM_CONNECTED);
+    return !bta_dm_removal_pending(peer_bdaddr);
   }
 
   tBTA_DM_ENCRYPT_CBACK* p_encrypt_cback;
@@ -181,10 +157,8 @@ typedef struct {
   bool new_request;
 
   std::string ToString() const {
-    return base::StringPrintf("peer:%s sys_name:%s app_id:%hhu state:%s new_request:%s",
-                              ADDRESS_TO_LOGGABLE_CSTR(peer_bdaddr), BtaIdSysText(id).c_str(),
-                              app_id, bta_sys_conn_status_text(state).c_str(),
-                              new_request ? "true" : "false");
+    return std::format("peer:{} sys_name:{} app_id:{} state:{} new_request:{}", peer_bdaddr,
+                       BtaIdSysText(id), app_id, bta_sys_conn_status_text(state), new_request);
   }
 } tBTA_DM_SRVCS;
 
@@ -241,7 +215,7 @@ typedef struct {
 #endif
   alarm_t* switch_delay_timer;
 
-  std::list<tBTA_DM_REMOVE_PENDNIG> pending_removals;
+  std::list<tBTA_DM_REMOVE_PENDING> pending_removals;
 } tBTA_DM_CB;
 
 /* DI control block */
@@ -326,6 +300,9 @@ extern tBTA_DM_ACL_CB bta_dm_acl_cb;
 /* DI control block */
 extern tBTA_DM_DI_CB bta_dm_di_cb;
 
+void BTA_dm_on_hw_on();
+void BTA_dm_on_hw_off();
+
 void bta_dm_enable(tBTA_DM_SEC_CBACK*, tBTA_DM_ACL_CBACK*);
 void bta_dm_disable();
 void bta_dm_set_dev_name(const std::vector<uint8_t>&);
@@ -364,10 +341,14 @@ void bta_dm_eir_update_cust_uuid(const tBTA_CUSTOM_UUID& curr, bool adding);
 void bta_dm_ble_subrate_request(const RawAddress& bd_addr, uint16_t subrate_min,
                                 uint16_t subrate_max, uint16_t max_latency, uint16_t cont_num,
                                 uint16_t timeout);
+tBTM_CONTRL_STATE bta_dm_pm_obtain_controller_state(void);
 
-namespace std {
-template <>
-struct formatter<tBTA_DM_CONN_STATE> : enum_formatter<tBTA_DM_CONN_STATE> {};
-}  // namespace std
+namespace bluetooth::legacy::testing {
 
-#endif /* BTA_DM_INT_H */
+tBTA_DM_PEER_DEVICE* allocate_device_for(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle);
+void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+void bta_dm_init_cb();
+void bta_dm_deinit_cb();
+
+}  // namespace bluetooth::legacy::testing

@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <string>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,7 @@ public:
   MOCK_METHOD(void, CreateLeConnection, (AddressWithType address_with_type, bool is_direct),
               (override));
   MOCK_METHOD(void, CancelConnect, (Address address), (override));
+  MOCK_METHOD(void, CancelLeConnect, (AddressWithType address_with_type), (override));
   MOCK_METHOD(void, SetPrivacyPolicyForInitiatorAddress,
               (LeAddressManager::AddressPolicy address_policy, AddressWithType fixed_address,
                std::chrono::milliseconds minimum_rotation_time,

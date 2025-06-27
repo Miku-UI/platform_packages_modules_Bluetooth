@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -26,7 +25,6 @@
 
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_name.h"
 #include "stack/include/bt_octets.h"
@@ -223,11 +221,10 @@ struct tBTM_SEC_REC {
   LinkKey link_key;      /* Device link key */
   uint8_t link_key_type; /* Type of key used in pairing */
   uint8_t enc_key_size;  /* current link encryption key size */
+  tBTM_BOND_TYPE bond_type; /* Whether the BR/EDR pairing was persistent or temporary */
 
   // LE Link Key Info
   tBTM_SEC_BLE_KEYS ble_keys;
-
-  tBTM_BOND_TYPE bond_type; /* bond type */
 
 public:
   bool is_device_authenticated() const { return sec_flags & BTM_SEC_AUTHENTICATED; }
@@ -292,18 +289,13 @@ public:
   void increment_sign_counter(bool local);
 
   std::string ToString() const {
-    return base::StringPrintf(
-            "bredr_linkkey_known:%c,le_linkkey_known:%c,"
-            "bond_type:%s,"
-            "bredr_linkkey_type:%s,"
-            "ble_enc_key_size:%d,"
-            "bredr_authenticated:%c,le_authenticated:%c,"
-            "16_digit_key_authenticated:%c,"
-            "bredr_encrypted:%c,le_encrypted:%c",
+    return std::format(
+            "bredr_linkkey_known:{:c},le_linkkey_known:{:c},bond_type:{},bredr_linkkey_type:{},ble_"
+            "enc_key_size:{},bredr_authenticated:{:c},le_authenticated:{:c},16_digit_key_"
+            "authenticated:{:c},bredr_encrypted:{:c},le_encrypted:{:c}",
             is_link_key_known() ? 'T' : 'F', is_le_link_key_known() ? 'T' : 'F',
-            bond_type_text(bond_type).c_str(), linkkey_type_text(link_key_type).c_str(),
-            enc_key_size, is_device_authenticated() ? 'T' : 'F',
-            is_le_device_authenticated() ? 'T' : 'F',
+            bond_type_text(bond_type), linkkey_type_text(link_key_type), enc_key_size,
+            is_device_authenticated() ? 'T' : 'F', is_le_device_authenticated() ? 'T' : 'F',
             is_le_link_16_digit_key_authenticated() ? 'T' : 'F', is_device_encrypted() ? 'T' : 'F',
             is_le_device_encrypted() ? 'T' : 'F');
   }
@@ -331,13 +323,12 @@ public:
   bool SupportsSecureConnections() const { return remote_supports_secure_connections; }
 
   std::string ToString() const {
-    return base::StringPrintf(
-            "%s %6s cod:%s remote_info:%-14s sm4:0x%02x SecureConn:%c name:\"%s\""
-            "sec_prop:%s",
-            ADDRESS_TO_LOGGABLE_CSTR(bd_addr), DeviceTypeText(device_type).c_str(),
-            dev_class_text(dev_class).c_str(), remote_version_info.ToString().c_str(), sm4,
-            (remote_supports_secure_connections) ? 'T' : 'F',
-            PRIVATE_NAME(reinterpret_cast<char const*>(sec_bd_name)), sec_rec.ToString().c_str());
+    return std::format(
+            "{} {:6s} cod:{} remote_info:{:<14s} sm4:0x{:02x} SecureConn:{:c} "
+            "name:\"{}\" sec_prop:{}",
+            bd_addr, DeviceTypeText(device_type), dev_class_text(dev_class),
+            remote_version_info.ToString(), sm4, remote_supports_secure_connections ? 'T' : 'F',
+            reinterpret_cast<char const*>(sec_bd_name), sec_rec.ToString());
   }
 
 public:

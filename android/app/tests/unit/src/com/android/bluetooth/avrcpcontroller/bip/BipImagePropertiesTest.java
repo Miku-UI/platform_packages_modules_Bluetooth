@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import androidx.test.runner.AndroidJUnit4;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -26,7 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-/** A test suite for the BipImageProperties class */
+/** Test cases for {@link BipImageProperties}. */
 @RunWith(AndroidJUnit4.class)
 public class BipImagePropertiesTest {
     private static final String IMAGE_HANDLE = "123456789";
@@ -107,7 +108,7 @@ public class BipImagePropertiesTest {
 
     private static final String IMAGE_PROPERTIES_END = "</image-properties>";
 
-    private InputStream toUtf8Stream(String s) {
+    private static InputStream toUtf8Stream(String s) {
         return new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -129,11 +130,11 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(null, properties.getFriendlyName());
-        Assert.assertTrue(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isNull();
+        assertThat(properties.isValid()).isTrue();
+        assertThat(properties.toString()).isEqualTo(xmlString);
     }
 
     /**
@@ -164,11 +165,11 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertTrue(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isTrue();
+        assertThat(properties.toString()).isEqualTo(xmlString);
     }
 
     /**
@@ -190,12 +191,12 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(null, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
-        Assert.assertEquals(null, properties.serialize());
+        assertThat(properties.getImageHandle()).isNull();
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isFalse();
+        assertThat(properties.toString()).isEqualTo(xmlString);
+        assertThat(properties.serialize()).isNull();
     }
 
     /**
@@ -217,12 +218,12 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(null, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
-        Assert.assertEquals(null, properties.serialize());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isNull();
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isFalse();
+        assertThat(properties.toString()).isEqualTo(xmlString);
+        assertThat(properties.serialize()).isNull();
     }
 
     /**
@@ -243,11 +244,11 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(null, properties.getFriendlyName());
-        Assert.assertTrue(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isNull();
+        assertThat(properties.isValid()).isTrue();
+        assertThat(properties.toString()).isEqualTo(xmlString);
     }
 
     /**
@@ -266,11 +267,11 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertTrue(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isTrue();
+        assertThat(properties.toString()).isEqualTo(xmlString);
     }
 
     /**
@@ -289,11 +290,11 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertTrue(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isTrue();
+        assertThat(properties.toString()).isEqualTo(xmlString);
     }
 
     /**
@@ -312,11 +313,11 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertTrue(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isTrue();
+        assertThat(properties.toString()).isEqualTo(xmlString);
     }
 
     /**
@@ -340,12 +341,12 @@ public class BipImagePropertiesTest {
                         + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
-        Assert.assertEquals(null, properties.serialize());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isFalse();
+        assertThat(properties.toString()).isEqualTo(xmlString);
+        assertThat(properties.serialize()).isNull();
     }
 
     /**
@@ -359,11 +360,11 @@ public class BipImagePropertiesTest {
         String xmlString = XML_DOC_DECL + IMAGE_PROPERTIES + IMAGE_PROPERTIES_END;
         InputStream stream = toUtf8Stream(xmlString);
         BipImageProperties properties = new BipImageProperties(stream);
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertFalse(properties.isValid());
-        Assert.assertEquals(null, properties.serialize());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isFalse();
+        assertThat(properties.serialize()).isNull();
     }
 
     /** Test parsing an image-properties with no open tag */
@@ -445,10 +446,10 @@ public class BipImagePropertiesTest {
                 new BipAttachmentFormat("audio/basic", null, "ABCD1234.wav", 102400, null, null));
 
         BipImageProperties properties = builder.build();
-        Assert.assertEquals(IMAGE_HANDLE, properties.getImageHandle());
-        Assert.assertEquals(VERSION, properties.getVersion());
-        Assert.assertEquals(FRIENDLY_NAME, properties.getFriendlyName());
-        Assert.assertTrue(properties.isValid());
-        Assert.assertEquals(xmlString, properties.toString());
+        assertThat(properties.getImageHandle()).isEqualTo(IMAGE_HANDLE);
+        assertThat(properties.getVersion()).isEqualTo(VERSION);
+        assertThat(properties.getFriendlyName()).isEqualTo(FRIENDLY_NAME);
+        assertThat(properties.isValid()).isTrue();
+        assertThat(properties.toString()).isEqualTo(xmlString);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include "module.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 using ::bluetooth::os::Handler;
 using ::bluetooth::os::Thread;
@@ -46,6 +47,11 @@ Module* Module::GetDependency(const ModuleFactory* module) const {
 }
 
 Module* ModuleRegistry::Get(const ModuleFactory* module) const {
+  std::unique_lock<std::mutex> lock(started_modules_guard_, std::defer_lock);
+  if (com::android::bluetooth::flags::fix_started_module_race()) {
+    lock.lock();
+  }
+
   auto instance = started_modules_.find(module);
   log::assert_that(instance != started_modules_.end(),
                    "Request for module not started up, maybe not in Start(ModuleList)?");
@@ -53,40 +59,64 @@ Module* ModuleRegistry::Get(const ModuleFactory* module) const {
 }
 
 bool ModuleRegistry::IsStarted(const ModuleFactory* module) const {
+  std::unique_lock<std::mutex> lock(started_modules_guard_, std::defer_lock);
+  if (com::android::bluetooth::flags::fix_started_module_race()) {
+    lock.lock();
+  }
   return started_modules_.find(module) != started_modules_.end();
 }
 
-void ModuleRegistry::Start(ModuleList* modules, Thread* thread) {
+void ModuleRegistry::Start(ModuleList* modules, Thread* thread, Handler* handler) {
   for (auto it = modules->list_.begin(); it != modules->list_.end(); it++) {
-    Start(*it, thread);
+    Start(*it, thread, handler);
   }
 }
 
-void ModuleRegistry::set_registry_and_handler(Module* instance, Thread* thread) const {
+void ModuleRegistry::set_registry_and_handler(Module* instance, Thread* thread,
+                                              Handler* handler) const {
   instance->registry_ = this;
-  instance->handler_ = new Handler(thread);
+
+  if (com::android::bluetooth::flags::same_handler_for_all_modules()) {
+    // Use same handler for all modules initialization.
+    // TODO: remove the dependency on the `thread` when the flag is removed.
+    instance->handler_ = handler;
+  } else {
+    instance->handler_ = new Handler(thread);
+  }
 }
 
-Module* ModuleRegistry::Start(const ModuleFactory* module, Thread* thread) {
-  auto started_instance = started_modules_.find(module);
-  if (started_instance != started_modules_.end()) {
-    return started_instance->second;
+Module* ModuleRegistry::Start(const ModuleFactory* module, Thread* thread, Handler* handler) {
+  {
+    std::unique_lock<std::mutex> lock(started_modules_guard_, std::defer_lock);
+    if (com::android::bluetooth::flags::fix_started_module_race()) {
+      lock.lock();
+    }
+    auto started_instance = started_modules_.find(module);
+    if (started_instance != started_modules_.end()) {
+      return started_instance->second;
+    }
   }
 
   log::info("Constructing next module");
   Module* instance = module->ctor_();
-  set_registry_and_handler(instance, thread);
+  set_registry_and_handler(instance, thread, handler);
 
   log::info("Starting dependencies of {}", instance->ToString());
   instance->ListDependencies(&instance->dependencies_);
-  Start(&instance->dependencies_, thread);
+  Start(&instance->dependencies_, thread, handler);
 
   log::info("Finished starting dependencies and calling Start() of {}", instance->ToString());
 
   last_instance_ = "starting " + instance->ToString();
   instance->Start();
   start_order_.push_back(module);
-  started_modules_[module] = instance;
+  {
+    std::unique_lock<std::mutex> lock(started_modules_guard_, std::defer_lock);
+    if (com::android::bluetooth::flags::fix_started_module_race()) {
+      lock.lock();
+    }
+    started_modules_[module] = instance;
+  }
   log::info("Started {}", instance->ToString());
   return instance;
 }
@@ -95,23 +125,36 @@ void ModuleRegistry::StopAll() {
   // Since modules were brought up in dependency order, it is safe to tear down by going in reverse
   // order.
   for (auto it = start_order_.rbegin(); it != start_order_.rend(); it++) {
-    auto instance = started_modules_.find(*it);
-    log::assert_that(instance != started_modules_.end(),
-                     "assert failed: instance != started_modules_.end()");
-    last_instance_ = "stopping " + instance->second->ToString();
+    auto module = Get(*it);
+    last_instance_ = "stopping " + module->ToString();
 
-    // Clear the handler before stopping the module to allow it to shut down gracefully.
-    log::info("Stopping Handler of Module {}", instance->second->ToString());
-    instance->second->handler_->Clear();
-    instance->second->handler_->WaitUntilStopped(kModuleStopTimeout);
-    log::info("Stopping Module {}", instance->second->ToString());
-    instance->second->Stop();
+    /*
+     * b/393449774 since we have now shifted to a single handler for all modules, we don't need
+     * to clear the handler here, it will be done in the respective teardown.
+     * Since we have a single handler, we need to make sure that the handler instance is deleted
+     * only once, otherwise we will see a crash as a handler can only be cleared once.
+     */
+    if (!com::android::bluetooth::flags::same_handler_for_all_modules()) {
+      // Clear the handler before stopping the module to allow it to shut down gracefully.
+      log::info("Stopping Handler of Module {}", module->ToString());
+      module->handler_->Clear();
+      module->handler_->WaitUntilStopped(kModuleStopTimeout);
+    }
+    log::info("Stopping Module {}", module->ToString());
+    module->Stop();
+  }
+
+  std::unique_lock<std::mutex> lock(started_modules_guard_, std::defer_lock);
+  if (com::android::bluetooth::flags::fix_started_module_race()) {
+    lock.lock();
   }
   for (auto it = start_order_.rbegin(); it != start_order_.rend(); it++) {
     auto instance = started_modules_.find(*it);
     log::assert_that(instance != started_modules_.end(),
                      "assert failed: instance != started_modules_.end()");
-    delete instance->second->handler_;
+    if (!com::android::bluetooth::flags::same_handler_for_all_modules()) {
+      delete instance->second->handler_;
+    }
     delete instance->second;
     started_modules_.erase(instance);
   }
@@ -121,6 +164,10 @@ void ModuleRegistry::StopAll() {
 }
 
 os::Handler* ModuleRegistry::GetModuleHandler(const ModuleFactory* module) const {
+  std::unique_lock<std::mutex> lock(started_modules_guard_, std::defer_lock);
+  if (com::android::bluetooth::flags::fix_started_module_race()) {
+    lock.lock();
+  }
   auto started_instance = started_modules_.find(module);
   if (started_instance != started_modules_.end()) {
     return started_instance->second->GetHandler();
@@ -128,4 +175,15 @@ os::Handler* ModuleRegistry::GetModuleHandler(const ModuleFactory* module) const
   return nullptr;
 }
 
+// Override the StopAll method to use the test thread and handler.
+// This function will take care of releasing the handler instances.
+void TestModuleRegistry::StopAll() {
+  os::Handler* handler = GetTestHandler();
+  handler->Clear();
+  if (com::android::bluetooth::flags::same_handler_for_all_modules()) {
+    handler->WaitUntilStopped(kHandlerStopTimeout);
+  }
+  ModuleRegistry::StopAll();  // call the base class StopAll
+  delete handler;
+}
 }  // namespace bluetooth

@@ -23,14 +23,12 @@
  ******************************************************************************/
 #define LOG_TAG "bta_gattc_main"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include "bta/gatt/bta_gattc_int.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
 
-using base::StringPrintf;
 using namespace bluetooth;
 
 /*****************************************************************************

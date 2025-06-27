@@ -1743,6 +1743,40 @@ ControllerProperties::ControllerProperties(rootcanal::configuration::Controller 
         le_supported_states = 0x3ffffffffff;
         break;
 
+      case ControllerPreset::INTEL_BE200:
+        // Configuration extracted with the helper script controller_info.py
+        supports_csr_vendor_command = true;
+        br_supported = true;
+        le_supported = true;
+        hci_version = bluetooth::hci::HciVersion::V_5_4;
+        hci_subversion = 0x4363;
+        lmp_version = bluetooth::hci::LmpVersion::V_5_4;
+        lmp_subversion = 0x4363;
+        company_identifier = 0x2;
+        supported_commands = std::array<uint8_t, 64>{
+                0xbf, 0xff, 0xfb, 0x03, 0xcc, 0xff, 0x0f, 0xff, 0xbf, 0xff, 0xfc, 0x1f, 0xf2,
+                0x0f, 0xe8, 0xfe, 0x3f, 0xf7, 0x8f, 0xff, 0x1c, 0x00, 0x04, 0x00, 0x61, 0xf7,
+                0xff, 0xff, 0x7f, 0x38, 0x00, 0x00, 0xfe, 0xf0, 0xff, 0xff, 0xff, 0xe3, 0x80,
+                0x07, 0x00, 0xe8, 0x1f, 0xfc, 0xff, 0xff, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        };
+        lmp_features = std::array<uint64_t, 3>{0x877bffdbfe0ffebf, 0x0, 0x300};
+        acl_data_packet_length = 1021;
+        total_num_acl_data_packets = 4;
+        sco_data_packet_length = 96;
+        total_num_sco_data_packets = 6;
+        num_supported_iac = 2;
+        le_features = 0x80059ff;
+        le_acl_data_packet_length = 251;
+        total_num_le_acl_data_packets = 3;
+        le_filter_accept_list_size = 25;
+        le_resolving_list_size = 25;
+        le_supported_states = 0x3ffffffffff;
+        le_max_advertising_data_length = 160;
+        le_num_supported_advertising_sets = 12;
+        le_periodic_advertiser_list_size = 12;
+        break;
+
       default:
         break;
     }

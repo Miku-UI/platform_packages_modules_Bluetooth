@@ -18,6 +18,7 @@
 
 #include <android/hardware/bluetooth/1.1/IBluetoothHci.h>
 #include <hidl/MQDescriptor.h>
+#include <log/log.h>
 
 #include "hci_packetizer.h"
 #include "model/controller/dual_mode_controller.h"
@@ -43,6 +44,25 @@ using android::net::ConnectCallback;
 
 using rootcanal::Device;
 using rootcanal::Phy;
+
+class BluetoothDeathRecipient : public hidl_death_recipient {
+public:
+  BluetoothDeathRecipient(const sp<IBluetoothHci> hci) : mHci(hci) {}
+
+  void serviceDied(uint64_t /* cookie */,
+                   const wp<::android::hidl::base::V1_0::IBase>& /* who */) override {
+    ALOGE("BluetoothDeathRecipient::serviceDied - Bluetooth service died");
+    has_died_ = true;
+    mHci->close();
+  }
+
+  sp<IBluetoothHci> mHci;
+  bool getHasDied() const { return has_died_; }
+  void setHasDied(bool has_died) { has_died_ = has_died; }
+
+private:
+  bool has_died_{false};
+};
 
 class BluetoothHci : public IBluetoothHci {
 public:

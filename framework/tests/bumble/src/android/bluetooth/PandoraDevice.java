@@ -39,6 +39,7 @@ import pandora.HostProto;
 import pandora.HostProto.AdvertiseRequest;
 import pandora.HostProto.OwnAddressType;
 import pandora.OOBGrpc;
+import pandora.OppGrpc;
 import pandora.RFCOMMGrpc;
 import pandora.SecurityGrpc;
 import pandora.l2cap.L2CAPGrpc;
@@ -48,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 
 public final class PandoraDevice extends ExternalResource {
     private static final String TAG = PandoraDevice.class.getSimpleName();
+
     private final String mNetworkAddress;
     private String mPublicBluetoothAddress;
     private final int mPort;
@@ -69,7 +71,8 @@ public final class PandoraDevice extends ExternalResource {
         // restarted that cannot be reused
         ManagedChannel channel =
                 OkHttpChannelBuilder.forAddress(mNetworkAddress, mPort).usePlaintext().build();
-        HostGrpc.HostBlockingStub stub = HostGrpc.newBlockingStub(channel);
+        HostGrpc.HostBlockingStub stub =
+                HostGrpc.newBlockingStub(channel).withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
         try {
             stub.factoryReset(Empty.getDefaultInstance());
         } catch (StatusRuntimeException e) {
@@ -243,5 +246,15 @@ public final class PandoraDevice extends ExternalResource {
     /** Get Pandora L2CAP blocking service */
     public L2CAPGrpc.L2CAPBlockingStub l2capBlocking() {
         return L2CAPGrpc.newBlockingStub(mChannel);
+    }
+
+    /** Get Pandora OPP service */
+    public OppGrpc.OppStub opp() {
+        return OppGrpc.newStub(mChannel);
+    }
+
+    /** Get Pandora OPP blocking service */
+    public OppGrpc.OppBlockingStub oppBlocking() {
+        return OppGrpc.newBlockingStub(mChannel);
     }
 }

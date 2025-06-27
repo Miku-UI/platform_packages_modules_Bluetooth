@@ -32,9 +32,9 @@
 #include "bta/ag/bta_ag_at.h"
 #include "bta/include/bta_ag_api.h"
 #include "bta/include/bta_api.h"
+#include "bta/include/bta_jv_api.h"
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/sdp_status.h"
@@ -135,6 +135,24 @@ typedef enum : uint8_t {
   BTA_AG_SCO_SHUTTING_ST    /* sco shutting down */
 } tBTA_AG_SCO;
 
+inline std::string bta_ag_sco_state_text(const tBTA_AG_SCO& state) {
+  switch (state) {
+    CASE_RETURN_TEXT(BTA_AG_SCO_SHUTDOWN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_LISTEN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CODEC_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPENING_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_CL_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_XFER_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_OPEN_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSING_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSE_OP_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_CLOSE_XFER_ST);
+    CASE_RETURN_TEXT(BTA_AG_SCO_SHUTTING_ST);
+    default:
+      return std::string("unknown_bta_ag_sco_state: ") +
+             std::to_string(static_cast<uint8_t>(state));
+  }
+}
 /*****************************************************************************
  *  Data types
  ****************************************************************************/
@@ -161,9 +179,7 @@ typedef struct {
 typedef struct {
   tBTA_AG_RES result;
   tBTA_AG_RES_DATA data;
-  std::string ToString() const {
-    return base::StringPrintf("result:%s", bta_ag_result_text(result).c_str());
-  }
+  std::string ToString() const { return std::format("result:{}", bta_ag_result_text(result)); }
 } tBTA_AG_API_RESULT;
 
 /* data type for BTA_AG_API_SETCODEC_EVT */
@@ -216,6 +232,14 @@ typedef struct {
   uint8_t scn;
 } tBTA_AG_PROFILE;
 
+/* type for sdp rfc metrics */
+typedef struct {
+  tBTA_JV_STATUS status;
+  uint64_t sdp_start_ms;
+  uint64_t sdp_end_ms;
+  bool sdp_initiated;
+} tBTA_AG_SDP_METRICS_CB;
+
 typedef enum {
   BTA_AG_SCO_CVSD_SETTINGS_S4 = 0, /* preferred/default when codec is CVSD */
   BTA_AG_SCO_CVSD_SETTINGS_S3,
@@ -240,6 +264,17 @@ typedef enum {
   BTA_AG_SCO_APTX_SWB_SETTINGS_UNKNOWN = 0xFFFF,
 } tBTA_AG_SCO_APTX_SWB_SETTINGS;
 
+namespace std {
+template <>
+struct formatter<tBTA_AG_SCO_MSBC_SETTINGS> : enum_formatter<tBTA_AG_SCO_MSBC_SETTINGS> {};
+template <>
+struct formatter<tBTA_AG_SCO_LC3_SETTINGS> : enum_formatter<tBTA_AG_SCO_LC3_SETTINGS> {};
+template <>
+struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
+template <>
+struct formatter<tBTA_AG_SCO> : string_formatter<tBTA_AG_SCO, &bta_ag_sco_state_text> {};
+}  // namespace std
+
 /* state machine states */
 typedef enum { BTA_AG_INIT_ST, BTA_AG_OPENING_ST, BTA_AG_OPEN_ST, BTA_AG_CLOSING_ST } tBTA_AG_STATE;
 
@@ -250,6 +285,7 @@ struct tBTA_AG_SCB {
   tBTA_AG_AT_CB at_cb;                  /* AT command interpreter */
   RawAddress peer_addr;                 /* peer bd address */
   tSDP_DISCOVERY_DB* p_disc_db;         /* pointer to discovery database */
+  tBTA_AG_SDP_METRICS_CB sdp_metrics;   /* SDP information for metrics */
   tBTA_SERVICE_MASK reg_services;       /* services specified in register API */
   tBTA_SERVICE_MASK open_services;      /* services specified in open API */
   uint16_t conn_handle;                 /* RFCOMM handle of connected service */
@@ -296,8 +332,6 @@ struct tBTA_AG_SCB {
   bool codec_fallback;                   /* If sco nego fails for mSBC, fallback to CVSD */
   bool trying_cvsd_safe_settings;        /* set to true whenever we are trying CVSD
                                             safe settings */
-  uint8_t retransmission_effort_retries; /* Retry eSCO
-                                          with retransmission_effort value*/
   tBTA_AG_SCO_MSBC_SETTINGS codec_msbc_settings;     /* settings to be used for the
                                                         impending eSCO on WB */
   tBTA_AG_SCO_LC3_SETTINGS codec_lc3_settings;       /* settings to be used for the
@@ -314,12 +348,11 @@ struct tBTA_AG_SCB {
                                                                HF indicators */
 
   std::string ToString() const {
-    return base::StringPrintf(
-            "codec_updated=%d, codec_fallback=%d, nrec=%d"
-            "sco_codec=%d, peer_codec=%d, msbc_settings=%d, lc3_settings=%d, "
-            "device=%s",
+    return std::format(
+            "codec_updated={}, codec_fallback={}, nrec={}sco_codec={}, peer_codec={}, "
+            "msbc_settings={}, lc3_settings={}, device={}",
             codec_updated, codec_fallback, nrec_enabled, sco_codec, peer_codecs,
-            codec_msbc_settings, codec_lc3_settings, ADDRESS_TO_LOGGABLE_CSTR(peer_addr));
+            codec_msbc_settings, codec_lc3_settings, peer_addr);
   }
 };
 
@@ -475,12 +508,5 @@ bool bta_ag_is_sco_managed_by_audio();
  * Respond to Audio HAL's SuspendStream request when SCO is disconnected
  */
 void bta_ag_stream_suspended();
-
-namespace std {
-template <>
-struct formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> : enum_formatter<tBTA_AG_SCO_APTX_SWB_SETTINGS> {};
-template <>
-struct formatter<tBTA_AG_SCO> : enum_formatter<tBTA_AG_SCO> {};
-}  // namespace std
 
 #endif /* BTA_AG_INT_H */

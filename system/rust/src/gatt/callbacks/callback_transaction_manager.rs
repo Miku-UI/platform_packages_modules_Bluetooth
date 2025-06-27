@@ -1,16 +1,16 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc, time::Duration};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use log::{trace, warn};
-use tokio::{sync::oneshot, time::timeout};
+use tokio::sync::oneshot;
+use tokio::time::timeout;
 
-use crate::{
-    gatt::{
-        ids::{AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex},
-        GattCallbacks,
-    },
-    packets::att::AttErrorCode,
-};
+use crate::gatt::ids::{AttHandle, ConnectionId, ServerId, TransactionId, TransportIndex};
+use crate::gatt::GattCallbacks;
+use crate::packets::att::AttErrorCode;
 
 use super::{
     AttributeBackingType, GattWriteRequestType, GattWriteType, RawGattDatastore,

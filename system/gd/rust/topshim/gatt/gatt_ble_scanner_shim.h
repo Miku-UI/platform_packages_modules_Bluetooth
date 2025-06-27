@@ -103,8 +103,10 @@ public:
 
   // Sets the LE scan interval and window in units of N * 0.625 msec. The result
   // of this action is returned via |OnStatusCallback|.
-  void SetScanParameters(uint8_t scanner_id, uint8_t scan_type, uint16_t scan_interval,
-                         uint16_t scan_window, uint8_t scan_phy);
+  void SetScanParameters(uint8_t scan_type, uint8_t scanner_id_1m, uint16_t scan_interval_1m,
+                         uint16_t scan_window_1m, uint8_t scanner_id_coded,
+                         uint16_t scan_interval_coded, uint16_t scan_window_coded,
+                         uint8_t scan_phy);
 
   // Configure the batchscan storage and get a response via |OnStatusCallback|.
   void BatchscanConfigStorage(uint8_t scanner_id, int32_t batch_scan_full_max,

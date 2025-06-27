@@ -27,7 +27,6 @@
 #include "stack/l2cap/l2c_api.h"
 
 #include <base/location.h>
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -1212,8 +1211,15 @@ bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
     // Restore the fixed channel if it was suspended
     l2cu_fixed_channel_restore(p_lcb, fixed_cid);
 
-    (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedConn_Cb)(
-            fixed_cid, p_lcb->remote_bd_addr, true, 0, p_lcb->transport);
+    if (!com::android::bluetooth::flags::smp_connection_status_handling_when_no_acl()) {
+      (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedConn_Cb)(
+              fixed_cid, p_lcb->remote_bd_addr, true, 0, p_lcb->transport);
+      return true;
+    }
+    if (p_lcb->link_state == LST_CONNECTED) {
+      (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedConn_Cb)(
+              fixed_cid, p_lcb->remote_bd_addr, true, 0, p_lcb->transport);
+    }
     return true;
   }
 
@@ -1383,8 +1389,7 @@ bool L2CA_RemoveFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
    * exist */
   tL2C_CCB* p_ccb = p_lcb->p_fixed_ccbs[fixed_cid - L2CAP_FIRST_FIXED_CHNL];
 
-  if (com::android::bluetooth::flags::transmit_smp_packets_before_release() && p_ccb->in_use &&
-      !fixed_queue_is_empty(p_ccb->xmit_hold_q)) {
+  if (p_ccb->in_use && !fixed_queue_is_empty(p_ccb->xmit_hold_q)) {
     if (l2cu_fixed_channel_suspended(p_lcb, fixed_cid)) {
       log::warn("Removal of BDA: {} CID: 0x{:04x} already pending", rem_bda, fixed_cid);
     } else {
@@ -1760,6 +1765,33 @@ bool L2CA_GetAclHandle(uint16_t lcid, uint16_t* acl_handle) {
     return false;
   }
   *acl_handle = handle;
+  return true;
+}
+
+/*******************************************************************************
+ **
+ ** Function         L2CA_GetLocalMtu
+ **
+ ** Description      Given a local channel identifier, |lcid|, this function
+ **                  returns the L2CAP local mtu, |local_mtu|. If
+ **                  |lcid| is not known or is invalid, this function returns false and does not
+ **                  modify the value pointed at by |local_mtu|.
+ **
+ ** Parameters:      lcid: Local CID
+ **                  local_mtu: Pointer to L2CAP local mtu must NOT be nullptr
+ **
+ ** Returns          true if local_mtu lookup was successful
+ **
+ ******************************************************************************/
+bool L2CA_GetLocalMtu(uint16_t lcid, uint16_t* local_mtu) {
+  log::assert_that(local_mtu != nullptr, "assert failed: local_mtu != nullptr");
+
+  tL2C_CCB* p_ccb = l2cu_find_ccb_by_cid(nullptr, lcid);
+  if (p_ccb == nullptr) {
+    log::error("No CCB for CID:0x{:04x}", lcid);
+    return false;
+  }
+  *local_mtu = p_ccb->p_rcb->my_mtu;
   return true;
 }
 

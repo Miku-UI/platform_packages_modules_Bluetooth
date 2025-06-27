@@ -25,16 +25,16 @@
 #include <cstdint>
 #include <optional>
 
+#include "stack/btm/btm_ble_int.h"
 #include "stack/include/btm_api_types.h"
+#include "stack/include/btm_ble_api.h"
+#include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
 
 // Original usings
 
 // Mocked internal structures, if any
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace test {
 namespace mock {
@@ -70,10 +70,6 @@ struct btm_ble_ltk_request_reply btm_ble_ltk_request_reply;
 struct btm_ble_read_sec_key_size btm_ble_read_sec_key_size;
 struct btm_ble_reset_id btm_ble_reset_id;
 struct btm_ble_set_encryption btm_ble_set_encryption;
-struct btm_ble_set_keep_rfu_in_auth_req btm_ble_set_keep_rfu_in_auth_req;
-struct btm_ble_set_no_disc_if_pair_fail btm_ble_set_no_disc_if_pair_fail;
-struct btm_ble_set_test_local_sign_cntr_value btm_ble_set_test_local_sign_cntr_value;
-struct btm_ble_set_test_mac_value btm_ble_set_test_mac_value;
 struct btm_ble_start_encrypt btm_ble_start_encrypt;
 struct btm_ble_start_sec_check btm_ble_start_sec_check;
 struct btm_ble_test_command_complete btm_ble_test_command_complete;
@@ -81,8 +77,6 @@ struct btm_ble_update_sec_key_size btm_ble_update_sec_key_size;
 struct btm_get_local_div btm_get_local_div;
 struct btm_proc_smp_cback btm_proc_smp_cback;
 struct btm_sec_save_le_key btm_sec_save_le_key;
-struct doNothing doNothing;
-struct read_phy_cb read_phy_cb;
 
 }  // namespace stack_btm_ble
 }  // namespace mock
@@ -245,22 +239,6 @@ tBTM_STATUS btm_ble_set_encryption(const RawAddress& bd_addr, tBTM_BLE_SEC_ACT s
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_ble_set_encryption(bd_addr, sec_act, link_role);
 }
-void btm_ble_set_keep_rfu_in_auth_req(bool keep_rfu) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::btm_ble_set_keep_rfu_in_auth_req(keep_rfu);
-}
-void btm_ble_set_no_disc_if_pair_fail(bool disable_disc) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::btm_ble_set_no_disc_if_pair_fail(disable_disc);
-}
-void btm_ble_set_test_local_sign_cntr_value(bool enable, uint32_t test_local_sign_cntr) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::btm_ble_set_test_local_sign_cntr_value(enable, test_local_sign_cntr);
-}
-void btm_ble_set_test_mac_value(bool enable, uint8_t* p_test_mac_val) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::btm_ble_set_test_mac_value(enable, p_test_mac_val);
-}
 tBTM_STATUS btm_ble_start_encrypt(const RawAddress& bda, bool use_stk, Octet16* p_stk) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_ble::btm_ble_start_encrypt(bda, use_stk, p_stk);
@@ -291,15 +269,6 @@ void btm_sec_save_le_key(const RawAddress& bd_addr, tBTM_LE_KEY_TYPE key_type,
                          tBTM_LE_KEY_VALUE* p_keys, bool pass_to_application) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_ble::btm_sec_save_le_key(bd_addr, key_type, p_keys, pass_to_application);
-}
-void doNothing(uint8_t* data, uint16_t len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::doNothing(data, len);
-}
-void read_phy_cb(base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb,
-                 uint8_t* data, uint16_t len) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_ble::read_phy_cb(cb, data, len);
 }
 // Mocked functions complete
 // END mockcify generation

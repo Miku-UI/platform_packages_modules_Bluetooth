@@ -1,7 +1,9 @@
 //! The motivation for SharedMutex is to guard a resource without having to
 //! extend its lifetime using an Rc<> (and potentially create reference cycles)
 
-use std::{future::Future, rc::Rc, sync::Arc};
+use std::future::Future;
+use std::rc::Rc;
+use std::sync::Arc;
 
 use tokio::sync::{Mutex, OwnedMutexGuard, Semaphore, TryLockError};
 

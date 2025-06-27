@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcp;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.avrcp.AvrcpVolumeManager.AVRCP_MAX_VOL;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -28,7 +30,6 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.media.AudioManager;
@@ -45,24 +46,22 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link AvrcpVolumeManager}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AvrcpVolumeManagerTest {
-    private static final String REMOTE_DEVICE_ADDRESS = "00:01:02:03:04:05";
-    private static final int TEST_DEVICE_MAX_VOLUME = 25;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
     @Rule public TestName testName = new TestName();
 
     @Mock private AvrcpNativeInterface mNativeInterface;
     @Mock private AdapterService mAdapterService;
-
     @Mock AudioManager mAudioManager;
 
-    BluetoothDevice mRemoteDevice;
+    private static final int TEST_DEVICE_MAX_VOLUME = 25;
+
+    private final BluetoothDevice mDevice = getTestDevice(40);
+
     AvrcpVolumeManager mAvrcpVolumeManager;
 
     @Before
@@ -76,7 +75,6 @@ public class AvrcpVolumeManagerTest {
                                 testName.getMethodName() + "TmpPref", Context.MODE_PRIVATE))
                 .when(mAdapterService)
                 .getSharedPreferences(anyString(), anyInt());
-        mRemoteDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(REMOTE_DEVICE_ADDRESS);
         mAvrcpVolumeManager =
                 new AvrcpVolumeManager(mAdapterService, mAudioManager, mNativeInterface);
     }
@@ -102,14 +100,14 @@ public class AvrcpVolumeManagerTest {
 
     @Test
     public void sendVolumeChanged() {
-        mAvrcpVolumeManager.sendVolumeChanged(mRemoteDevice, TEST_DEVICE_MAX_VOLUME);
+        mAvrcpVolumeManager.sendVolumeChanged(mDevice, TEST_DEVICE_MAX_VOLUME);
 
-        verify(mNativeInterface).sendVolumeChanged(mRemoteDevice, AVRCP_MAX_VOL);
+        verify(mNativeInterface).sendVolumeChanged(mDevice, AVRCP_MAX_VOL);
     }
 
     @Test
     public void setVolume() {
-        mAvrcpVolumeManager.setVolume(mRemoteDevice, AVRCP_MAX_VOL);
+        mAvrcpVolumeManager.setVolume(mDevice, AVRCP_MAX_VOL);
 
         verify(mAudioManager)
                 .setStreamVolume(
@@ -118,8 +116,8 @@ public class AvrcpVolumeManagerTest {
 
     @Test
     public void switchVolumeDevice() throws InterruptedException {
-        mAvrcpVolumeManager.volumeDeviceSwitched(mRemoteDevice);
-        mAvrcpVolumeManager.deviceConnected(mRemoteDevice, true);
+        mAvrcpVolumeManager.volumeDeviceSwitched(mDevice);
+        mAvrcpVolumeManager.deviceConnected(mDevice, true);
 
         // verify whether switchVolumeDevice is called by checking
         // mAudioManager.setDeviceVolumeBehavior().
@@ -129,8 +127,8 @@ public class AvrcpVolumeManagerTest {
 
     @Test
     public void switchVolumeDevice_reverseEventOrder() throws InterruptedException {
-        mAvrcpVolumeManager.deviceConnected(mRemoteDevice, true);
-        mAvrcpVolumeManager.volumeDeviceSwitched(mRemoteDevice);
+        mAvrcpVolumeManager.deviceConnected(mDevice, true);
+        mAvrcpVolumeManager.volumeDeviceSwitched(mDevice);
 
         // verify whether switchVolumeDevice is called by checking
         // mAudioManager.setDeviceVolumeBehavior().

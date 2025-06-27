@@ -33,12 +33,7 @@
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 using namespace bluetooth;
-
-void DumpsysL2cap(int /* fd */) { inc_func_call_count(__func__); }
 
 void DumpsysAcl(int /* fd */) { inc_func_call_count(__func__); }
 
@@ -47,7 +42,7 @@ void DumpsysNeighbor(int /* fd */) { inc_func_call_count(__func__); }
 void shim::Acl::Dump(int /* fd */) const { inc_func_call_count(__func__); }
 
 shim::Acl::Acl(os::Handler* /* handler */, const acl_interface_t& acl_interface,
-               uint8_t /* max_acceptlist_size */, uint8_t /* max_address_resolution_size */)
+               uint8_t /* max_address_resolution_size */)
     : acl_interface_(acl_interface) {
   inc_func_call_count(__func__);
 }
@@ -71,15 +66,6 @@ void shim::Acl::CreateClassicConnection(const hci::Address& /* address */) {
 }
 
 void shim::Acl::CancelClassicConnection(const hci::Address& /* address */) {
-  inc_func_call_count(__func__);
-}
-
-void shim::Acl::AcceptLeConnectionFrom(const hci::AddressWithType& /* address_with_type */,
-                                       bool /* is_direct */, std::promise<bool> /* promise */) {
-  inc_func_call_count(__func__);
-}
-
-void shim::Acl::IgnoreLeConnectionFrom(const hci::AddressWithType& /* address_with_type */) {
   inc_func_call_count(__func__);
 }
 
@@ -140,12 +126,6 @@ void shim::Acl::DisconnectClassic(uint16_t /* handle */, tHCI_STATUS /* reason *
 
 void shim::Acl::DisconnectLe(uint16_t /* handle */, tHCI_STATUS /* reason */,
                              std::string /* comment */) {
-  inc_func_call_count(__func__);
-}
-
-void shim::Acl::LeSetDefaultSubrate(uint16_t /* subrate_min */, uint16_t /* subrate_max */,
-                                    uint16_t /* max_latency */, uint16_t /* cont_num */,
-                                    uint16_t /* sup_tout */) {
   inc_func_call_count(__func__);
 }
 

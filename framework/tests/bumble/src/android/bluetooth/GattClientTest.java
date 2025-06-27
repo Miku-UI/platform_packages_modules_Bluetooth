@@ -18,9 +18,12 @@ package android.bluetooth;
 
 import static android.bluetooth.BluetoothGatt.GATT_SUCCESS;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.hamcrest.Matchers.greaterThan;
+import static org.junit.Assume.assumeThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.eq;
@@ -33,6 +36,7 @@ import static org.mockito.Mockito.verify;
 
 import android.bluetooth.test_utils.EnableBluetoothRule;
 import android.content.Context;
+import android.os.SystemProperties;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
@@ -79,7 +83,8 @@ import java.util.UUID;
 
 @RunWith(TestParameterInjector.class)
 public class GattClientTest {
-    private static final String TAG = "GattClientTest";
+    private static final String TAG = GattClientTest.class.getSimpleName();
+
     private static final int ANDROID_MTU = 517;
     private static final int MTU_REQUESTED = 23;
     private static final int ANOTHER_MTU_REQUESTED = 42;
@@ -92,6 +97,11 @@ public class GattClientTest {
             UUID.fromString("00000000-0000-0000-0000-00000000000");
     private static final UUID TEST_CHARACTERISTIC_UUID =
             UUID.fromString("00010001-0000-0000-0000-000000000000");
+
+    private static final int MIN_CONN_INTERVAL_RELAXED =
+            SystemProperties.getInt("bluetooth.core.le.min_connection_interval_relaxed", 0x0018);
+    private static final int MAX_CONN_INTERVAL_RELAXED =
+            SystemProperties.getInt("bluetooth.core.le.max_connection_interval_relaxed", 0x0028);
 
     @Rule(order = 0)
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -131,6 +141,7 @@ public class GattClientTest {
         if (bondedDevices.contains(mRemoteLeDevice)) {
             mRemoteLeDevice.removeBond();
         }
+        mHost.close();
     }
 
     @Test
@@ -172,6 +183,36 @@ public class GattClientTest {
         disconnectAndWaitDisconnection(gatt, gattCallback);
     }
 
+    @RequiresFlagsEnabled(Flags.FLAG_INITIAL_CONN_PARAMS_P1)
+    @Test
+    public void onConnectionUpdatedIsCalledOnlyOnceForRelaxingConnectionParameters_noGattCache() {
+        int aggressiveConnectionThreshold =
+                SystemProperties.getInt("bluetooth.core.le.aggressive_connection_threshold", 2);
+        // This test is for the case where aggressive initial parameters are used.
+        assumeThat(aggressiveConnectionThreshold, greaterThan(0));
+
+        BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
+        ArgumentCaptor<Integer> connectionIntervalCaptor = ArgumentCaptor.forClass(Integer.class);
+
+        BluetoothGatt gatt = connectGattAndWaitConnection(gattCallback, false);
+
+        // Wait until service discovery is done and parameters are relaxed.
+        verify(gattCallback, timeout(10_000).times(1))
+                .onConnectionUpdated(
+                        any(), connectionIntervalCaptor.capture(), anyInt(), anyInt(), anyInt());
+
+        List<Integer> capturedConnectionIntervals = connectionIntervalCaptor.getAllValues();
+        assertThat(capturedConnectionIntervals).hasSize(1);
+
+        // Since aggressive parameters are used in the initial connection,
+        // there should be only one connection parameters update event for relaxing them.
+        int relaxedConnIntervalAfterServiceDiscovery = capturedConnectionIntervals.get(0);
+        assertThat(relaxedConnIntervalAfterServiceDiscovery).isAtLeast(MIN_CONN_INTERVAL_RELAXED);
+        assertThat(relaxedConnIntervalAfterServiceDiscovery).isAtMost(MAX_CONN_INTERVAL_RELAXED);
+
+        disconnectAndWaitDisconnection(gatt, gattCallback);
+    }
+
     @Test
     public void reconnectExistingClient() throws Exception {
         advertiseWithBumble();
@@ -185,7 +226,7 @@ public class GattClientTest {
 
         gatt.disconnect();
         inOrder.verify(gattCallback, timeout(1000))
-                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_DISCONNECTED));
+                .onConnectionStateChange(any(), anyInt(), eq(STATE_DISCONNECTED));
 
         gatt.connect();
         inOrder.verify(gattCallback, timeout(1000))
@@ -195,7 +236,7 @@ public class GattClientTest {
         //  be necessary.
         gatt.disconnect();
         inOrder.verify(gattCallback, timeout(1000))
-                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_DISCONNECTED));
+                .onConnectionStateChange(any(), anyInt(), eq(STATE_DISCONNECTED));
         gatt.close();
     }
 
@@ -322,9 +363,7 @@ public class GattClientTest {
 
         verify(gattCallback, timeout(35000))
                 .onConnectionStateChange(
-                        any(),
-                        eq(BluetoothGatt.GATT_CONNECTION_TIMEOUT),
-                        eq(BluetoothProfile.STATE_DISCONNECTED));
+                        any(), eq(BluetoothGatt.GATT_CONNECTION_TIMEOUT), eq(STATE_DISCONNECTED));
     }
 
     @Test
@@ -383,7 +422,6 @@ public class GattClientTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_GATT_FIX_MULTIPLE_DIRECT_CONNECT)
     public void connectMultiple_closeOne_shouldSuccess() {
         BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
         BluetoothGattCallback gattCallback2 = mock(BluetoothGattCallback.class);
@@ -396,11 +434,11 @@ public class GattClientTest {
         BluetoothGatt gatt2 = device.connectGatt(mContext, false, gattCallback2);
 
         try {
-            gatt.disconnect();
-            gatt.close();
-
             verify(gattCallback2, timeout(1000))
                     .onConnectionStateChange(eq(gatt2), eq(GATT_SUCCESS), eq(STATE_CONNECTED));
+
+            gatt.disconnect();
+            gatt.close();
         } finally {
             gatt2.disconnect();
             gatt2.close();
@@ -471,6 +509,51 @@ public class GattClientTest {
         assertThat(resp.getStatus()).isEqualTo(AttStatusCode.SUCCESS);
     }
 
+    @Test
+    public void multipleGattClientsSeparateInteractions() throws Exception {
+        advertiseWithBumble();
+
+        BluetoothDevice device =
+                mAdapter.getRemoteLeDevice(
+                        Utils.BUMBLE_RANDOM_ADDRESS, BluetoothDevice.ADDRESS_TYPE_RANDOM);
+
+        BluetoothGattCallback gattCallbackA = mock(BluetoothGattCallback.class);
+        BluetoothGattCallback gattCallbackB = mock(BluetoothGattCallback.class);
+        InOrder inOrder = inOrder(gattCallbackA, gattCallbackB);
+
+        BluetoothGatt gattA = device.connectGatt(mContext, false, gattCallbackA);
+        inOrder.verify(gattCallbackA, timeout(1000))
+                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+
+        BluetoothGatt gattB = device.connectGatt(mContext, false, gattCallbackB);
+        inOrder.verify(gattCallbackB, timeout(1000))
+                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+
+        gattA.disconnect();
+        inOrder.verify(gattCallbackA, timeout(1000))
+                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_DISCONNECTED));
+
+        gattA.connect();
+        inOrder.verify(gattCallbackA, timeout(1000))
+                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+
+        gattB.disconnect();
+        inOrder.verify(gattCallbackB, timeout(1000))
+                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_DISCONNECTED));
+
+        gattB.close();
+
+        gattA.disconnect();
+        inOrder.verify(gattCallbackA, timeout(1000))
+                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_DISCONNECTED));
+
+        gattA.connect();
+        inOrder.verify(gattCallbackA, timeout(1000))
+                .onConnectionStateChange(any(), anyInt(), eq(BluetoothProfile.STATE_CONNECTED));
+
+        gattA.close();
+    }
+
     private void advertiseWithBumble() {
         AdvertiseRequest request =
                 AdvertiseRequest.newBuilder()
@@ -522,7 +605,7 @@ public class GattClientTest {
 
     private void disconnectAndWaitDisconnection(
             BluetoothGatt gatt, BluetoothGattCallback callback) {
-        final int state = BluetoothProfile.STATE_DISCONNECTED;
+        final int state = STATE_DISCONNECTED;
         gatt.disconnect();
         verify(callback, timeout(1000)).onConnectionStateChange(eq(gatt), anyInt(), eq(state));
 
@@ -612,7 +695,6 @@ public class GattClientTest {
 
     // Check if we can have 100 simultaneous clients
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_GATT_CLIENT_DYNAMIC_ALLOCATION)
     public void connectGatt_multipleClients() {
         registerGattService();
 
@@ -679,6 +761,42 @@ public class GattClientTest {
         } finally {
             // it's okay to close twice.
             gatt.close();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_UNREGISTER_GATT_CLIENT_DISCONNECTED)
+    public void connectAndDisconnectManyClientsWithoutClose() throws Exception {
+        advertiseWithBumble();
+
+        List<BluetoothGatt> gatts = new ArrayList<>();
+        try {
+            for (int i = 0; i < 100; i++) {
+                BluetoothGattCallback gattCallback = mock(BluetoothGattCallback.class);
+                InOrder inOrder = inOrder(gattCallback);
+
+                BluetoothGatt gatt = mRemoteLeDevice.connectGatt(mContext, false, gattCallback);
+                gatts.add(gatt);
+
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
+
+                gatt.disconnect();
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(any(), anyInt(), eq(STATE_DISCONNECTED));
+
+                gatt.connect();
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(any(), anyInt(), eq(STATE_CONNECTED));
+
+                gatt.disconnect();
+                inOrder.verify(gattCallback, timeout(1000))
+                        .onConnectionStateChange(any(), anyInt(), eq(STATE_DISCONNECTED));
+            }
+        } finally {
+            for (BluetoothGatt gatt : gatts) {
+                gatt.close();
+            }
         }
     }
 

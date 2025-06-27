@@ -22,7 +22,7 @@ java_library {
         "bluetooth/constants/aics/GainMode.aidl",
         "bluetooth/constants/aics/Mute.aidl",
     ],
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "Tiramisu",
     sdk_version: "module_current",
     visibility: ["//packages/modules/Bluetooth:__subpackages__"],

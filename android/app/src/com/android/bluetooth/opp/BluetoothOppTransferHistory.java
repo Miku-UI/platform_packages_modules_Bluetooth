@@ -71,7 +71,7 @@ import com.android.bluetooth.flags.Flags;
 // Next tag value for ContentProfileErrorReportUtils.report(): 2
 public class BluetoothOppTransferHistory extends Activity
         implements View.OnCreateContextMenuListener, OnItemClickListener {
-    private static final String TAG = "BluetoothOppTransferHistory";
+    private static final String TAG = BluetoothOppTransferHistory.class.getSimpleName();
 
     private ListView mListView;
 
@@ -113,18 +113,10 @@ public class BluetoothOppTransferHistory extends Activity
         mListView = (ListView) findViewById(R.id.list);
         mListView.setEmptyView(findViewById(R.id.empty));
 
+        boolean isOutbound =
+                Constants.ACTION_OPEN_OUTBOUND_TRANSFER.equals(getIntent().getAction());
+
         String direction;
-
-        boolean isOutbound = false;
-
-        if (Flags.oppStartActivityDirectlyFromNotification()) {
-            String action = getIntent().getAction();
-            isOutbound = Constants.ACTION_OPEN_OUTBOUND_TRANSFER.equals(action);
-        } else {
-            int dir = getIntent().getIntExtra(Constants.EXTRA_DIRECTION, 0);
-            isOutbound = (dir == BluetoothShare.DIRECTION_OUTBOUND);
-        }
-
         if (isOutbound) {
             setTitle(getText(R.string.outbound_history_title));
             direction =
@@ -211,10 +203,9 @@ public class BluetoothOppTransferHistory extends Activity
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.transfer_menu_clear_all:
-                promptClearList();
-                return true;
+        if (item.getItemId() == R.id.transfer_menu_clear_all) {
+            promptClearList();
+            return true;
         }
         return false;
     }
@@ -226,18 +217,18 @@ public class BluetoothOppTransferHistory extends Activity
             return true;
         }
         mTransferCursor.moveToPosition(mContextMenuPosition);
-        switch (item.getItemId()) {
-            case R.id.transfer_menu_open:
-                openCompleteTransfer();
-                updateNotificationWhenBtDisabled();
-                return true;
+        if (item.getItemId() == R.id.transfer_menu_open) {
+            openCompleteTransfer();
+            updateNotificationWhenBtDisabled();
+            return true;
+        }
 
-            case R.id.transfer_menu_clear:
-                int sessionId = mTransferCursor.getInt(mIdColumnId);
-                Uri contentUri = Uri.parse(BluetoothShare.CONTENT_URI + "/" + sessionId);
-                BluetoothOppUtility.updateVisibilityToHidden(this, contentUri);
-                updateNotificationWhenBtDisabled();
-                return true;
+        if (item.getItemId() == R.id.transfer_menu_clear) {
+            int sessionId = mTransferCursor.getInt(mIdColumnId);
+            Uri contentUri = Uri.parse(BluetoothShare.CONTENT_URI + "/" + sessionId);
+            BluetoothOppUtility.updateVisibilityToHidden(this, contentUri);
+            updateNotificationWhenBtDisabled();
+            return true;
         }
         return false;
     }
@@ -375,7 +366,7 @@ public class BluetoothOppTransferHistory extends Activity
         } else {
             Intent in = new Intent(this, BluetoothOppTransferActivity.class);
             in.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            in.setDataAndNormalize(contentUri);
+            in.setData(contentUri.normalizeScheme());
             this.startActivity(in);
         }
     }

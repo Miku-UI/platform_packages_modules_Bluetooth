@@ -25,7 +25,6 @@
 
 #define LOG_TAG "pan"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <string.h>  // memset
 

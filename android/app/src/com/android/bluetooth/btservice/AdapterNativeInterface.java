@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -179,10 +179,6 @@ public class AdapterNativeInterface {
         dumpNative(fd, arguments);
     }
 
-    byte[] dumpMetrics() {
-        return dumpMetricsNative();
-    }
-
     byte[] obfuscateAddress(byte[] address) {
         return obfuscateAddressNative(address);
     }
@@ -316,6 +312,14 @@ public class AdapterNativeInterface {
         return disconnectAllAclsNative();
     }
 
+    boolean disconnectAllAcls(BluetoothDevice device) {
+        return disconnectAcl(device, BluetoothDevice.TRANSPORT_AUTO);
+    }
+
+    boolean disconnectAcl(BluetoothDevice device, int transport) {
+        return disconnectAclNative(Utils.getBytesFromAddress(device.getAddress()), transport);
+    }
+
     boolean allowWakeByHid() {
         return allowWakeByHidNative();
     }
@@ -393,8 +397,6 @@ public class AdapterNativeInterface {
 
     private native void dumpNative(FileDescriptor fd, String[] arguments);
 
-    private native byte[] dumpMetricsNative();
-
     private native byte[] obfuscateAddressNative(byte[] address);
 
     private native boolean setBufferLengthMillisNative(int codec, int value);
@@ -462,6 +464,8 @@ public class AdapterNativeInterface {
     private native boolean clearFilterAcceptListNative();
 
     private native boolean disconnectAllAclsNative();
+
+    private native boolean disconnectAclNative(byte[] address, int transport);
 
     private native boolean allowWakeByHidNative();
 

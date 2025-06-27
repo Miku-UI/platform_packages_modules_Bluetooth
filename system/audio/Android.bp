@@ -41,9 +41,7 @@ cc_library_static {
     ],
     host_supported: true,
     min_sdk_version: "33",
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
 }
 
 cc_library_host_shared {

@@ -18,7 +18,6 @@
 #ifndef GATT_API_H
 #define GATT_API_H
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -137,7 +136,7 @@ inline std::string gatt_status_text(const tGATT_STATUS& status) {
     CASE_RETURN_TEXT(GATT_PRC_IN_PROGRESS);
     CASE_RETURN_TEXT(GATT_OUT_OF_RANGE);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", status);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(status));
   }
 }
 
@@ -293,7 +292,7 @@ inline std::string gatt_disconnection_reason_text(const tGATT_DISCONN_REASON& re
     CASE_RETURN_TEXT(BTA_GATT_CONN_NONE);
     CASE_RETURN_TEXT(GATT_CONN_TERMINATED_POWER_OFF);
     default:
-      return base::StringPrintf("UNKNOWN[%hu]", reason);
+      return std::format("UNKNOWN[{}]", static_cast<uint16_t>(reason));
   }
 }
 

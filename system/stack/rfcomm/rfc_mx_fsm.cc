@@ -346,7 +346,7 @@ void rfc_mx_sm_sabme_wait_ua(tRFC_MCB* p_mcb, tRFC_MX_EVENT event, void* /* p_da
 
     case RFC_MX_EVENT_DM:
       rfc_timer_stop(p_mcb);
-      FALLTHROUGH_INTENDED; /* FALLTHROUGH */
+      [[fallthrough]];
 
     case RFC_MX_EVENT_CONF_IND: /* workaround: we don't support reconfig */
     case RFC_MX_EVENT_CONF_CNF: /* workaround: we don't support reconfig */

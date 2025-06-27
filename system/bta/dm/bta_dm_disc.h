@@ -43,9 +43,6 @@ void bta_dm_ble_csis_observe(bool observe, tBTA_DM_SEARCH_CBACK* p_cback);
 // Checks if there is a device discovery request queued
 bool bta_dm_is_search_request_queued();
 
-// Proceed to execute service discovery on next device in queue
-void bta_dm_disc_discover_next_device();
-
 // GATT service discovery
 void bta_dm_disc_gattc_register();
 void bta_dm_disc_gatt_cancel_open(const RawAddress& bd_addr);

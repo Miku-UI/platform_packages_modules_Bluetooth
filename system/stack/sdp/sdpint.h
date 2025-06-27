@@ -25,7 +25,6 @@
 #pragma once
 
 #include <base/functional/callback.h>
-#include <base/strings/stringprintf.h>
 
 #include <cstdint>
 #include <string>
@@ -220,7 +219,7 @@ inline std::string sdp_disc_wait_text(const tSDP_DISC_WAIT& state) {
     CASE_RETURN_TEXT(SDP_DISC_WAIT_SEARCH_ATTR);
     CASE_RETURN_TEXT(SDP_DISC_WAIT_CANCEL);
     default:
-      return base::StringPrintf("UNKNOWN[%d]", state);
+      return std::format("UNKNOWN[{}]", state);
   }
 }
 

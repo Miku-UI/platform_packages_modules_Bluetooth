@@ -32,9 +32,9 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.util.List;
 
 final class DataMigration {
-    private DataMigration() {}
+    private static final String TAG = DataMigration.class.getSimpleName();
 
-    private static final String TAG = "DataMigration";
+    private DataMigration() {}
 
     @VisibleForTesting static final String AUTHORITY = "bluetooth_legacy.provider";
 
@@ -46,13 +46,13 @@ final class DataMigration {
 
     // AvrcpVolumeManager.VOLUME_MAP
     private static final String VOLUME_MAP_PREFERENCE_FILE = "bluetooth_volume_map";
-    // com.android.blueotooth.opp.Constants.BLUETOOTHOPP_CHANNEL_PREFERENCE
+    // com.android.bluetooth.opp.Constants.BLUETOOTHOPP_CHANNEL_PREFERENCE
     private static final String BLUETOOTHOPP_CHANNEL_PREFERENCE = "btopp_channels";
 
-    // com.android.blueotooth.opp.Constants.BLUETOOTHOPP_NAME_PREFERENCE
+    // com.android.bluetooth.opp.Constants.BLUETOOTHOPP_NAME_PREFERENCE
     private static final String BLUETOOTHOPP_NAME_PREFERENCE = "btopp_names";
 
-    // com.android.blueotooth.opp.OPP_PREFERENCE_FILE
+    // com.android.bluetooth.opp.OPP_PREFERENCE_FILE
     private static final String OPP_PREFERENCE_FILE = "OPPMGR";
 
     @VisibleForTesting
@@ -97,7 +97,7 @@ final class DataMigration {
             markMigrationStatus(ctx, MIGRATION_STATUS_MISSING_APK);
             return MIGRATION_STATUS_MISSING_APK;
         }
-        if (!incrementeMigrationAttempt(ctx)) {
+        if (!incrementMigrationAttempt(ctx)) {
             Log.d(TAG, "Legacy migration skipped: still failing after too many attempt");
             markMigrationStatus(ctx, MIGRATION_STATUS_MAX_ATTEMPT);
             return MIGRATION_STATUS_MAX_ATTEMPT;
@@ -238,7 +238,7 @@ final class DataMigration {
     }
 
     @VisibleForTesting
-    static boolean incrementeMigrationAttempt(Context ctx) {
+    static boolean incrementMigrationAttempt(Context ctx) {
         SharedPreferences pref = ctx.getSharedPreferences(BLUETOOTH_CONFIG, Context.MODE_PRIVATE);
         int currentAttempt = Math.min(pref.getInt(MIGRATION_ATTEMPT_PROPERTY, 0), MAX_ATTEMPT);
         pref.edit().putInt(MIGRATION_ATTEMPT_PROPERTY, currentAttempt + 1).apply();

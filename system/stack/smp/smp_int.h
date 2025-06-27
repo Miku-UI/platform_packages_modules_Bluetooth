@@ -105,7 +105,7 @@ inline std::string smp_opcode_text(const tSMP_OPCODE opcode) {
     CASE_RETURN_TEXT(SMP_OPCODE_PAIR_KEYPR_NOTIF);
     CASE_RETURN_TEXT(SMP_OPCODE_PAIR_COMMITM);
     default:
-      return base::StringPrintf("UNKNOWN[%hhu]", opcode);
+      return std::format("UNKNOWN[{}]", static_cast<uint8_t>(opcode));
   }
 }
 

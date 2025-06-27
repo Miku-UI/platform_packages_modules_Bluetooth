@@ -22,6 +22,7 @@
 
 #include "bta/hf_client/bta_hf_client_at.h"
 #include "bta/include/bta_hf_client_api.h"
+#include "bta/include/bta_jv_api.h"
 #include "bta/sys/bta_sys.h"
 #include "osi/include/alarm.h"
 #include "stack/include/bt_hdr.h"
@@ -142,6 +143,14 @@ typedef struct {
   char str[BTA_HF_CLIENT_NUMBER_LEN + 1];
 } tBTA_HF_CLIENT_DATA_VAL;
 
+/* data type for saving SDP metrics information */
+typedef struct {
+  tBTA_JV_STATUS status;
+  uint64_t sdp_start_ms;
+  uint64_t sdp_end_ms;
+  bool sdp_initiated;
+} tBTA_HF_CLIENT_SDP_METRICS_CB;
+
 /* union of all event datatypes */
 typedef union {
   BT_HDR_RIGID hdr;
@@ -173,6 +182,7 @@ typedef struct {
                                                  used by upper layer */
   RawAddress peer_addr;                       /* peer bd address */
   tSDP_DISCOVERY_DB* p_disc_db;               /* pointer to discovery database */
+  tBTA_HF_CLIENT_SDP_METRICS_CB sdp_metrics;  /* Service discovery information for metrics */
   uint16_t conn_handle;                       /* RFCOMM handle of connected service */
   tBTA_HF_CLIENT_PEER_FEAT peer_features;     /* peer device features */
   tBTA_HF_CLIENT_CHLD_FEAT chld_features;     /* call handling features */

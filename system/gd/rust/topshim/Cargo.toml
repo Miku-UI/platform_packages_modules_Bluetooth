@@ -21,7 +21,6 @@ build = "build.rs"
 
 [dependencies]
 # BT dependencies
-bt_common = { path = "../common" }
 topshim_macros = { path = "macros" }
 
 cxx = "1.0"

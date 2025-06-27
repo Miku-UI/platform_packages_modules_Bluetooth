@@ -29,9 +29,9 @@
 #include <cstdint>
 
 #include "bta/ag/bta_ag_int.h"
+#include "bta/include/bta_rfcomm_metrics.h"
 #include "bta/include/bta_sec_api.h"
 #include "bta_api.h"
-#include "os/logging/log_adapter.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/port_api.h"
 #include "types/raw_address.h"
@@ -215,11 +215,10 @@ static void bta_ag_port_cback_6(uint32_t code, uint16_t port_handle) {
 static void bta_ag_setup_port(tBTA_AG_SCB* p_scb, uint16_t handle) {
   int port_callback_index = bta_ag_scb_to_idx(p_scb) - 1;
   log::assert_that(port_callback_index >= 0, "invalid callback index, handle={}, bd_addr={}",
-                   handle, ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+                   handle, p_scb->peer_addr);
   log::assert_that(port_callback_index < static_cast<int>(sizeof(bta_ag_port_cback_tbl) /
                                                           sizeof(bta_ag_port_cback_tbl[0])),
-                   "callback index out of bound, handle={}, bd_addr={}", handle,
-                   ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+                   "callback index out of bound, handle={}, bd_addr={}", handle, p_scb->peer_addr);
   if (PORT_SetEventMaskAndCallback(handle, BTA_AG_PORT_EV_MASK,
                                    bta_ag_port_cback_tbl[port_callback_index]) != PORT_SUCCESS) {
     log::warn("Unable to set RFCOMM event and callback mask peer:{} handle:{}", p_scb->peer_addr,
@@ -245,20 +244,23 @@ void bta_ag_start_servers(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK services) {
       int management_callback_index = bta_ag_scb_to_idx(p_scb) - 1;
       log::assert_that(management_callback_index >= 0,
                        "invalid callback index, services=0x{:x}, bd_addr={}", services,
-                       ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+                       p_scb->peer_addr);
       log::assert_that(
               management_callback_index < static_cast<int>(sizeof(bta_ag_mgmt_cback_tbl) /
                                                            sizeof(bta_ag_mgmt_cback_tbl[0])),
               "callback index out of bound, services=0x{:x}, bd_addr={}", services,
-              ADDRESS_TO_LOGGABLE_STR(p_scb->peer_addr));
+              p_scb->peer_addr);
       int status = RFCOMM_CreateConnectionWithSecurity(
               bta_ag_uuid[i], bta_ag_cb.profile[i].scn, true, BTA_AG_MTU, RawAddress::kAny,
               &(p_scb->serv_handle[i]), bta_ag_mgmt_cback_tbl[management_callback_index],
-              BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+              BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT, RfcommCfgInfo{});
       if (status == PORT_SUCCESS) {
         bta_ag_setup_port(p_scb, p_scb->serv_handle[i]);
       } else {
         /* TODO: CR#137125 to handle to error properly */
+        bta_collect_rfc_metrics_after_port_fail(static_cast<tPORT_RESULT>(status), false,
+                                                tBTA_JV_STATUS::SUCCESS, p_scb->peer_addr, 0,
+                                                BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT, true, 0);
         log::error(
                 "RFCOMM_CreateConnectionWithSecurity ERROR {}, p_scb={}, "
                 "services=0x{:x}, mgmt_cback_index={}",
@@ -331,13 +333,17 @@ void bta_ag_rfc_do_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   int status = RFCOMM_CreateConnectionWithSecurity(
           bta_ag_uuid[p_scb->conn_service], p_scb->peer_scn, false, BTA_AG_MTU, p_scb->peer_addr,
           &(p_scb->conn_handle), bta_ag_mgmt_cback_tbl[management_callback_index],
-          BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT);
+          BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT, RfcommCfgInfo{});
   log::verbose("p_scb=0x{}, conn_handle={}, mgmt_cback_index={}, status={}", std::format_ptr(p_scb),
                p_scb->conn_handle, management_callback_index, status);
   if (status == PORT_SUCCESS) {
     bta_ag_setup_port(p_scb, p_scb->conn_handle);
   } else {
     /* RFCOMM create connection failed; send ourselves RFCOMM close event */
+    bta_collect_rfc_metrics_after_port_fail(
+            static_cast<tPORT_RESULT>(status), p_scb->sdp_metrics.sdp_initiated,
+            p_scb->sdp_metrics.status, p_scb->peer_addr, 0, BTA_SEC_AUTHENTICATE | BTA_SEC_ENCRYPT,
+            true, p_scb->sdp_metrics.sdp_start_ms - p_scb->sdp_metrics.sdp_end_ms);
     log::error("RFCOMM_CreateConnection ERROR {} for {}", status, p_scb->peer_addr);
     bta_ag_sm_execute(p_scb, BTA_AG_RFC_CLOSE_EVT, data);
   }

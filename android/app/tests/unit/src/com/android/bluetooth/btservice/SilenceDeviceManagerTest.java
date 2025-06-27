@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,17 @@
 package com.android.bluetooth.btservice;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.HandlerThread;
@@ -37,32 +42,30 @@ import com.android.bluetooth.a2dp.A2dpService;
 import com.android.bluetooth.hfp.HeadsetService;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link SilenceDeviceManager}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class SilenceDeviceManagerTest {
-    private BluetoothDevice mTestDevice;
-    private SilenceDeviceManager mSilenceDeviceManager;
-    private HandlerThread mHandlerThread;
-    private Looper mLooper;
-    private static final String TEST_BT_ADDR = "11:22:33:44:55:66";
-    private int mVerifyCount = 0;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private ServiceFactory mServiceFactory;
     @Mock private A2dpService mA2dpService;
     @Mock private HeadsetService mHeadsetService;
+
+    private final BluetoothDevice mDevice = getTestDevice(28);
+
+    private SilenceDeviceManager mSilenceDeviceManager;
+    private HandlerThread mHandlerThread;
+    private Looper mLooper;
+    private int mVerifyCount = 0;
 
     @Before
     public void setUp() throws Exception {
@@ -70,14 +73,10 @@ public class SilenceDeviceManagerTest {
         when(mServiceFactory.getA2dpService()).thenReturn(mA2dpService);
         when(mServiceFactory.getHeadsetService()).thenReturn(mHeadsetService);
 
-        // Get devices for testing
-        mTestDevice = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(TEST_BT_ADDR);
-
         mHandlerThread = new HandlerThread("SilenceManagerTestHandlerThread");
         mHandlerThread.start();
         mLooper = mHandlerThread.getLooper();
         mSilenceDeviceManager = new SilenceDeviceManager(mAdapterService, mServiceFactory, mLooper);
-        mSilenceDeviceManager.start();
     }
 
     @After
@@ -100,16 +99,16 @@ public class SilenceDeviceManagerTest {
 
     void testSetGetDeviceSilenceConnectedCase(boolean wasSilenced, boolean enableSilence) {
         ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
-        doReturn(true).when(mA2dpService).setSilenceMode(mTestDevice, enableSilence);
-        doReturn(true).when(mHeadsetService).setSilenceMode(mTestDevice, enableSilence);
+        doReturn(true).when(mA2dpService).setSilenceMode(mDevice, enableSilence);
+        doReturn(true).when(mHeadsetService).setSilenceMode(mDevice, enableSilence);
 
         // Send A2DP/HFP connected intent
-        a2dpConnected(mTestDevice);
-        headsetConnected(mTestDevice);
+        a2dpConnected(mDevice);
+        headsetConnected(mDevice);
 
         // Set pre-state for mSilenceDeviceManager
         if (wasSilenced) {
-            Assert.assertTrue(mSilenceDeviceManager.setSilenceMode(mTestDevice, true));
+            assertThat(mSilenceDeviceManager.setSilenceMode(mDevice, true)).isTrue();
             TestUtils.waitForLooperToFinishScheduledTask(mLooper);
             verify(mAdapterService, times(++mVerifyCount))
                     .sendBroadcastAsUser(
@@ -118,9 +117,9 @@ public class SilenceDeviceManagerTest {
         }
 
         // Set silence state and check whether state changed successfully
-        Assert.assertTrue(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence));
+        assertThat(mSilenceDeviceManager.setSilenceMode(mDevice, enableSilence)).isTrue();
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
-        Assert.assertEquals(enableSilence, mSilenceDeviceManager.getSilenceMode(mTestDevice));
+        assertThat(mSilenceDeviceManager.getSilenceMode(mDevice)).isEqualTo(enableSilence);
 
         // Check for silence state changed intent
         if (wasSilenced != enableSilence) {
@@ -132,10 +131,10 @@ public class SilenceDeviceManagerTest {
         }
 
         // Remove test devices
-        a2dpDisconnected(mTestDevice);
-        headsetDisconnected(mTestDevice);
+        a2dpDisconnected(mDevice);
+        headsetDisconnected(mDevice);
 
-        Assert.assertFalse(mSilenceDeviceManager.getSilenceMode(mTestDevice));
+        assertThat(mSilenceDeviceManager.getSilenceMode(mDevice)).isFalse();
         if (enableSilence) {
             // If the silence mode is enabled, it should be automatically disabled
             // after device is disconnected.
@@ -149,9 +148,9 @@ public class SilenceDeviceManagerTest {
     void testSetGetDeviceSilenceDisconnectedCase(boolean enableSilence) {
         ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
         // Set silence mode and it should stay disabled
-        Assert.assertTrue(mSilenceDeviceManager.setSilenceMode(mTestDevice, enableSilence));
+        assertThat(mSilenceDeviceManager.setSilenceMode(mDevice, enableSilence)).isTrue();
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
-        Assert.assertFalse(mSilenceDeviceManager.getSilenceMode(mTestDevice));
+        assertThat(mSilenceDeviceManager.getSilenceMode(mDevice)).isFalse();
 
         // Should be no intent been broadcasted
         verify(mAdapterService, times(mVerifyCount))
@@ -161,35 +160,36 @@ public class SilenceDeviceManagerTest {
     }
 
     void verifySilenceStateIntent(Intent intent) {
-        Assert.assertEquals(BluetoothDevice.ACTION_SILENCE_MODE_CHANGED, intent.getAction());
-        Assert.assertEquals(mTestDevice, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
+        assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_SILENCE_MODE_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(mDevice);
     }
 
     /** Helper to indicate A2dp connected for a device. */
     private void a2dpConnected(BluetoothDevice device) {
         mSilenceDeviceManager.a2dpConnectionStateChanged(
-                device, BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_CONNECTED);
+                device, STATE_DISCONNECTED, STATE_CONNECTED);
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
     }
 
     /** Helper to indicate A2dp disconnected for a device. */
     private void a2dpDisconnected(BluetoothDevice device) {
         mSilenceDeviceManager.a2dpConnectionStateChanged(
-                device, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+                device, STATE_CONNECTED, STATE_DISCONNECTED);
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
     }
 
     /** Helper to indicate Headset connected for a device. */
     private void headsetConnected(BluetoothDevice device) {
         mSilenceDeviceManager.hfpConnectionStateChanged(
-                device, BluetoothProfile.STATE_DISCONNECTED, BluetoothProfile.STATE_CONNECTED);
+                device, STATE_DISCONNECTED, STATE_CONNECTED);
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
     }
 
     /** Helper to indicate Headset disconnected for a device. */
     private void headsetDisconnected(BluetoothDevice device) {
         mSilenceDeviceManager.hfpConnectionStateChanged(
-                device, BluetoothProfile.STATE_CONNECTED, BluetoothProfile.STATE_DISCONNECTED);
+                device, STATE_CONNECTED, STATE_DISCONNECTED);
         TestUtils.waitForLooperToFinishScheduledTask(mLooper);
     }
 }

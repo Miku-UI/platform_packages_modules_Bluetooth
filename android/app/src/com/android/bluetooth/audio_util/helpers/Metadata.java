@@ -23,8 +23,6 @@ import android.media.browse.MediaBrowser.MediaItem;
 import android.media.session.MediaSession;
 import android.os.Bundle;
 
-import com.android.bluetooth.R;
-
 import java.util.Objects;
 
 public class Metadata implements Cloneable {
@@ -153,10 +151,10 @@ public class Metadata implements Cloneable {
 
     /** A Builder object to populate a Metadata from various different Media Framework objects */
     public static class Builder {
-        private Metadata mMetadata = new Metadata();
+        private final Metadata mMetadata = new Metadata();
         private Context mContext = null;
 
-        /** Set the Media ID fot the Metadata Object */
+        /** Set the Media ID for the Metadata Object */
         public Builder setMediaId(String id) {
             mMetadata.mediaId = id;
             return this;
@@ -201,7 +199,7 @@ public class Metadata implements Cloneable {
                 mMetadata.duration = "" + data.getLong(MediaMetadata.METADATA_KEY_DURATION);
             }
             if ((mContext != null
-                            && Util.areUriImagesSupported(mContext)
+                            && Util.areUriImagesSupported()
                             && (data.containsKey(MediaMetadata.METADATA_KEY_ART_URI)
                                     || data.containsKey(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
                                     || data.containsKey(
@@ -233,7 +231,7 @@ public class Metadata implements Cloneable {
             if (desc.getIconBitmap() != null) {
                 mMetadata.image = new Image(mContext, desc.getIconBitmap());
             } else if (mContext != null
-                    && Util.areUriImagesSupported(mContext)
+                    && Util.areUriImagesSupported()
                     && desc.getIconUri() != null) {
                 mMetadata.image = new Image(mContext, desc.getIconUri());
             }
@@ -281,7 +279,7 @@ public class Metadata implements Cloneable {
                 mMetadata.duration = "" + bundle.getLong(MediaMetadata.METADATA_KEY_DURATION);
             }
             if ((mContext != null
-                            && Util.areUriImagesSupported(mContext)
+                            && Util.areUriImagesSupported()
                             && (bundle.containsKey(MediaMetadata.METADATA_KEY_ART_URI)
                                     || bundle.containsKey(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
                                     || bundle.containsKey(
@@ -296,13 +294,8 @@ public class Metadata implements Cloneable {
 
         /** Elect to use default values in the Metadata in place of any missing values */
         public Builder useDefaults() {
-            if (mMetadata.mediaId == null) {
-                mMetadata.mediaId = EMPTY_MEDIA_ID;
-            }
-            if (mMetadata.title == null) {
-                mMetadata.title =
-                        mContext != null ? mContext.getString(R.string.not_provided) : EMPTY_TITLE;
-            }
+            if (mMetadata.mediaId == null) mMetadata.mediaId = EMPTY_MEDIA_ID;
+            if (mMetadata.title == null) mMetadata.title = EMPTY_TITLE;
             if (mMetadata.artist == null) mMetadata.artist = EMPTY_ARTIST;
             if (mMetadata.album == null) mMetadata.album = EMPTY_ALBUM;
             if (mMetadata.trackNum == null) mMetadata.trackNum = EMPTY_TRACK_NUM;

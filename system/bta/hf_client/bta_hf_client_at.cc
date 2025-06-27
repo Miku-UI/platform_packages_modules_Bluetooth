@@ -32,7 +32,6 @@
 #include "bta_hfp_api.h"
 #include "bta_sys.h"
 #include "btm_api_types.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/compat.h"
@@ -40,6 +39,11 @@
 #include "power_mode.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/port_api.h"
+
+#define PRIVATE_CELL(number)                                        \
+  (number.replace(0, (number.size() > 2) ? number.size() - 2 : 0,   \
+                  (number.size() > 2) ? number.size() - 2 : 0, '*') \
+           .c_str())
 
 /* Uncomment to enable AT traffic dumping */
 /* #define BTA_HF_CLIENT_AT_DUMP 1 */
@@ -52,9 +56,6 @@
 
 /* timeout (in milliseconds) for AT hold timer */
 #define BTA_HF_CLIENT_AT_HOLD_TIMEOUT 41
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 
@@ -116,8 +117,8 @@ static const tBTA_HF_CLIENT_INDICATOR
 #define BTA_HF_CLIENT_VGM_MIN 0
 #define BTA_HF_CLIENT_VGM_MAX 15
 
-uint32_t service_index = 0;
-bool service_availability = true;
+static uint32_t service_index = 0;
+static bool service_availability = true;
 /* helper functions for handling AT commands queueing */
 
 static void bta_hf_client_handle_ok(tBTA_HF_CLIENT_CB* client_cb);
@@ -788,7 +789,7 @@ void bta_hf_client_cnum(tBTA_HF_CLIENT_CB* client_cb, char* number, uint16_t ser
   bta_hf_client_app_callback(BTA_HF_CLIENT_CNUM_EVT, &evt);
 }
 
-void bta_hf_client_unknown_response(tBTA_HF_CLIENT_CB* client_cb, const char* evt_buffer) {
+static void bta_hf_client_unknown_response(tBTA_HF_CLIENT_CB* client_cb, const char* evt_buffer) {
   tBTA_HF_CLIENT evt = {};
 
   osi_strlcpy(evt.unknown.event_string, evt_buffer, BTA_HF_CLIENT_UNKNOWN_EVENT_LEN + 1);
@@ -2160,7 +2161,8 @@ void bta_hf_client_send_at_bia(tBTA_HF_CLIENT_CB* client_cb) {
   bta_hf_client_send_at(client_cb, BTA_HF_CLIENT_AT_BIA, buf, at_len);
 }
 
-void bta_hf_client_send_at_vendor_specific_cmd(tBTA_HF_CLIENT_CB* client_cb, const char* str) {
+static void bta_hf_client_send_at_vendor_specific_cmd(tBTA_HF_CLIENT_CB* client_cb,
+                                                      const char* str) {
   char buf[BTA_HF_CLIENT_AT_MAX_LEN];
 
   log::verbose("");
@@ -2177,7 +2179,7 @@ void bta_hf_client_send_at_vendor_specific_cmd(tBTA_HF_CLIENT_CB* client_cb, con
   bta_hf_client_send_at(client_cb, BTA_HF_CLIENT_AT_VENDOR_SPECIFIC, buf, at_len);
 }
 
-void bta_hf_client_send_at_android(tBTA_HF_CLIENT_CB* client_cb, const char* str) {
+static void bta_hf_client_send_at_android(tBTA_HF_CLIENT_CB* client_cb, const char* str) {
   char buf[BTA_HF_CLIENT_AT_MAX_LEN];
   int at_len;
 

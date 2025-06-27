@@ -5,7 +5,8 @@
 //! set. If the MTU is pending, ATT notifications/indications may not be sent.
 //! Refer to Core Spec 5.3 Vol 3F 3.4.2 MTU exchange for full details.
 
-use std::{cell::Cell, future::Future};
+use std::cell::Cell;
+use std::future::Future;
 
 use anyhow::{bail, Result};
 use log::info;

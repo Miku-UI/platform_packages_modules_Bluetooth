@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@
 
 #include <bluetooth/log.h>
 
-#include "address.h"
+#include "bta/include/bta_ras_api.h"
 #include "hal/ranging_hal.h"
+#include "hci/address.h"
 #include "hci/hci_packets.h"
 #include "module.h"
 
@@ -42,11 +43,15 @@ enum DistanceMeasurementErrorCode {
   REASON_INTERNAL_ERROR,
 };
 
-struct DistanceMeasurementResult {
-  Address address;
-  uint32_t centimeter;
-  uint32_t error_centimeter;
-  DistanceMeasurementMethod method;
+enum DistanceMeasurementDetectedAttackLevel {
+  NADM_ATTACK_IS_EXTREMELY_UNLIKELY = 0,
+  NADM_ATTACK_IS_VERY_UNLIKELY = 1,
+  NADM_ATTACK_IS_UNLIKELY = 2,
+  NADM_ATTACK_IS_POSSIBLE = 3,
+  NADM_ATTACK_IS_LIKELY = 4,
+  NADM_ATTACK_IS_VERY_LIKELY = 5,
+  NADM_ATTACK_IS_EXTREMELY_LIKELY = 6,
+  NADM_ATTACK_UNKNOWN = 0xFF,
 };
 
 class DistanceMeasurementCallbacks {
@@ -55,12 +60,12 @@ public:
   virtual void OnDistanceMeasurementStarted(Address address, DistanceMeasurementMethod method) = 0;
   virtual void OnDistanceMeasurementStopped(Address address, DistanceMeasurementErrorCode reason,
                                             DistanceMeasurementMethod method) = 0;
-  virtual void OnDistanceMeasurementResult(Address address, uint32_t centimeter,
-                                           uint32_t error_centimeter, int azimuth_angle,
-                                           int error_azimuth_angle, int altitude_angle,
-                                           int error_altitude_angle, uint64_t elapsedRealtimeNanos,
-                                           int8_t confidence_level,
-                                           DistanceMeasurementMethod method) = 0;
+  virtual void OnDistanceMeasurementResult(
+          Address address, uint32_t centimeter, uint32_t error_centimeter, int azimuth_angle,
+          int error_azimuth_angle, int altitude_angle, int error_altitude_angle,
+          uint64_t elapsed_realtime_nanos, int8_t confidence_level, double delayed_spread_meters,
+          DistanceMeasurementDetectedAttackLevel detected_attack_level,
+          double velocity_meters_per_second, DistanceMeasurementMethod method) = 0;
   virtual void OnRasFragmentReady(Address address, uint16_t procedure_counter, bool is_last,
                                   std::vector<uint8_t> raw_data) = 0;
   virtual void OnVendorSpecificCharacteristics(
@@ -88,12 +93,14 @@ public:
           const Address& address, uint16_t connection_handle, uint16_t att_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data,
           uint16_t conn_interval);
-  void HandleRasClientDisconnectedEvent(const Address& address);
+  void HandleRasClientDisconnectedEvent(const Address& address,
+                                        const ras::RasDisconnectReason& ras_disconnect_reason);
   void HandleVendorSpecificReply(
           const Address& address, uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply);
   void HandleRasServerConnected(const Address& identity_address, uint16_t connection_handle,
                                 hci::Role local_hci_role);
+  void HandleMtuChanged(uint16_t connection_handle, uint16_t mtu);
   void HandleRasServerDisconnected(const Address& identity_address, uint16_t connection_handle);
   void HandleVendorSpecificReplyComplete(const Address& address, uint16_t connection_handle,
                                          bool success);

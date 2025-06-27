@@ -40,6 +40,7 @@ void on_l2cap_psm_assigned(int id, int psm);
 bt_status_t btsock_l2cap_disconnect(const RawAddress* bd_addr);
 bt_status_t btsock_l2cap_get_l2cap_local_cid(bluetooth::Uuid& conn_uuid, uint16_t* cid);
 bt_status_t btsock_l2cap_get_l2cap_remote_cid(bluetooth::Uuid& conn_uuid, uint16_t* cid);
+bool btsock_l2cap_in_use(uint64_t socket_id);
 void on_btsocket_l2cap_opened_complete(uint64_t socket_id, bool success);
 void on_btsocket_l2cap_close(uint64_t socket_id);
 

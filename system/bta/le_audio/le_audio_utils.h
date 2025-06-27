@@ -40,16 +40,18 @@ types::AudioContexts GetAudioContextsFromSinkMetadata(
         const std::vector<struct record_track_metadata_v7>& sink_metadata);
 inline uint8_t GetTargetLatencyForAudioContext(types::LeAudioContextType ctx) {
   switch (ctx) {
-    case types::LeAudioContextType::GAME:
-      FALLTHROUGH_INTENDED;
-    case types::LeAudioContextType::VOICEASSISTANTS:
-      FALLTHROUGH_INTENDED;
+    case types::LeAudioContextType::MEDIA:
+      return types::kTargetLatencyHigherReliability;
+
     case types::LeAudioContextType::LIVE:
       FALLTHROUGH_INTENDED;
-    case types::LeAudioContextType::CONVERSATIONAL:
-      FALLTHROUGH_INTENDED;
-    case types::LeAudioContextType::RINGTONE:
+    case types::LeAudioContextType::GAME:
       return types::kTargetLatencyLower;
+
+    case types::LeAudioContextType::RINGTONE:
+      FALLTHROUGH_INTENDED;
+    case types::LeAudioContextType::CONVERSATIONAL:
+      return types::kTargetLatencyBalancedLatencyReliability;
 
     default:
       return types::kTargetLatencyUndefined;
@@ -71,24 +73,23 @@ bluetooth::le_audio::btle_audio_channel_count_index_t translateToBtLeAudioCodecC
 bluetooth::le_audio::btle_audio_frame_duration_index_t translateToBtLeAudioCodecConfigFrameDuration(
         int frame_duration);
 void fillStreamParamsToBtLeAudioCodecConfig(
-        const std::vector<struct set_configurations::AseConfiguration>& confs,
+        const std::vector<struct types::AseConfiguration>& confs,
         bluetooth::le_audio::btle_audio_codec_config_t& out_config);
 
 std::vector<bluetooth::le_audio::btle_audio_codec_config_t> GetRemoteBtLeAudioCodecConfigFromPac(
         const types::PublishedAudioCapabilities& group_pacs);
 bool IsCodecUsingLtvFormat(const types::LeAudioCodecId& codec_id);
 types::LeAudioConfigurationStrategy GetStrategyForAseConfig(
-        const std::vector<le_audio::set_configurations::AseConfiguration>& cfgs,
-        uint8_t device_cnt);
+        const std::vector<le_audio::types::AseConfiguration>& cfgs, uint8_t device_cnt);
 ::bluetooth::le_audio::LeAudioCodecConfiguration
 GetAudioSessionCodecConfigFromAudioSetConfiguration(
-        const ::bluetooth::le_audio::set_configurations::AudioSetConfiguration& audio_set_conf,
+        const ::bluetooth::le_audio::types::AudioSetConfiguration& audio_set_conf,
         uint8_t remote_direction);
 const struct types::acs_ac_record* GetConfigurationSupportedPac(
         const ::bluetooth::le_audio::types::PublishedAudioCapabilities& pacs,
-        const ::bluetooth::le_audio::set_configurations::CodecConfigSetting& codec_config_setting);
+        const ::bluetooth::le_audio::types::CodecConfigSetting& codec_config_setting);
 bool IsAseConfigMatchedWithPreferredRequirements(
-        const std::vector<struct set_configurations::AseConfiguration>& ase_confs,
+        const std::vector<struct types::AseConfiguration>& ase_confs,
         const std::vector<
                 CodecManager::UnicastConfigurationRequirements::DeviceDirectionRequirements>& reqs,
         uint8_t channel_cnt_per_ase);

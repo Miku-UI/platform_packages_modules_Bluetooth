@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+
+import static java.util.Objects.requireNonNull;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.IntDef;
@@ -41,7 +43,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
@@ -55,11 +56,12 @@ import java.util.concurrent.Executor;
  */
 @SystemApi
 public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfile {
-    private static final String TAG = "BluetoothLeBroadcast";
+    private static final String TAG = BluetoothLeBroadcast.class.getSimpleName();
+
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 
-    private CloseGuard mCloseGuard;
+    private final CloseGuard mCloseGuard;
 
     private final BluetoothAdapter mAdapter;
     private final AttributionSource mAttributionSource;
@@ -361,8 +363,8 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void registerCallback(
             @NonNull @CallbackExecutor Executor executor, @NonNull Callback callback) {
-        Objects.requireNonNull(executor, "executor cannot be null");
-        Objects.requireNonNull(callback, "callback cannot be null");
+        requireNonNull(executor);
+        requireNonNull(callback);
 
         if (DBG) log("registerCallback");
 
@@ -411,7 +413,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void unregisterCallback(@NonNull Callback callback) {
-        Objects.requireNonNull(callback, "callback cannot be null");
+        requireNonNull(callback);
 
         if (DBG) log("unregisterCallback");
 
@@ -457,7 +459,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
      * Callback#onBroadcastStartFailed(int)} will be invoked with reason code.
      *
      * <p>In particular, when the number of Broadcast Sources reaches {@link
-     * #getMaximumNumberOfBroadcast()}, this method will fail with {@link
+     * #getMaximumNumberOfBroadcasts()}, this method will fail with {@link
      * BluetoothStatusCodes#ERROR_LOCAL_NOT_ENOUGH_RESOURCES}
      *
      * <p>After broadcast is started, {@link Callback#onBroadcastMetadataChanged(int,
@@ -479,7 +481,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
     public void startBroadcast(
             @NonNull BluetoothLeAudioContentMetadata contentMetadata,
             @Nullable byte[] broadcastCode) {
-        Objects.requireNonNull(contentMetadata, "contentMetadata cannot be null");
+        requireNonNull(contentMetadata);
         if (mCallbackExecutorMap.isEmpty()) {
             throw new IllegalStateException("No callback was ever registered");
         }
@@ -512,7 +514,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void startBroadcast(@NonNull BluetoothLeBroadcastSettings broadcastSettings) {
-        Objects.requireNonNull(broadcastSettings, "broadcastSettings cannot be null");
+        requireNonNull(broadcastSettings);
         if (mCallbackExecutorMap.isEmpty()) {
             throw new IllegalStateException("No callback was ever registered");
         }
@@ -549,7 +551,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void updateBroadcast(
             int broadcastId, @NonNull BluetoothLeAudioContentMetadata contentMetadata) {
-        Objects.requireNonNull(contentMetadata, "contentMetadata cannot be null");
+        requireNonNull(contentMetadata);
         if (mCallbackExecutorMap.isEmpty()) {
             throw new IllegalStateException("No callback was ever registered");
         }
@@ -589,7 +591,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public void updateBroadcast(
             int broadcastId, @NonNull BluetoothLeBroadcastSettings broadcastSettings) {
-        Objects.requireNonNull(broadcastSettings, "broadcastSettings cannot be null");
+        requireNonNull(broadcastSettings);
         if (mCallbackExecutorMap.isEmpty()) {
             throw new IllegalStateException("No callback was ever registered");
         }
@@ -776,7 +778,7 @@ public final class BluetoothLeBroadcast implements AutoCloseable, BluetoothProfi
         mAdapter.closeProfileProxy(this);
     }
 
-    private BluetoothLeBroadcastSettings buildBroadcastSettingsFromMetadata(
+    private static BluetoothLeBroadcastSettings buildBroadcastSettingsFromMetadata(
             BluetoothLeAudioContentMetadata contentMetadata, @Nullable byte[] broadcastCode) {
         BluetoothLeBroadcastSubgroupSettings.Builder subgroupBuilder =
                 new BluetoothLeBroadcastSubgroupSettings.Builder()

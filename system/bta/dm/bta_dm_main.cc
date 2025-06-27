@@ -21,7 +21,6 @@
  *  This is the main implementation file for the BTA device manager.
  *
  ******************************************************************************/
-#include <base/strings/stringprintf.h>
 #include <stddef.h>
 
 #include "bta/dm/bta_dm_device_search.h"

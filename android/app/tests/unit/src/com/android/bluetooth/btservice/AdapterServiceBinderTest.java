@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,49 +16,57 @@
 
 package com.android.bluetooth.btservice;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.IBluetoothOobDataCallback;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
 
+import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.FileDescriptor;
 
+/** Test cases for {@link AdapterServiceBinder}. */
+@SmallTest
+@RunWith(AndroidJUnit4.class)
 public class AdapterServiceBinderTest {
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mService;
     @Mock private AdapterProperties mAdapterProperties;
 
-    private AdapterService.AdapterServiceBinder mBinder;
+    private AdapterServiceBinder mBinder;
     private AttributionSource mAttributionSource;
 
     @Before
     public void setUp() {
-        mService.mAdapterProperties = mAdapterProperties;
+        when(mService.getAdapterProperties()).thenReturn(mAdapterProperties);
         doReturn(true).when(mService).isAvailable();
         doNothing().when(mService).enforceCallingOrSelfPermission(any(), any());
-        mBinder = new AdapterService.AdapterServiceBinder(mService);
+        mBinder = new AdapterServiceBinder(mService);
         mAttributionSource = new AttributionSource.Builder(0).build();
     }
 
     @Test
     public void getAddress() {
         mBinder.getAddress(mAttributionSource);
-        verify(mService.mAdapterProperties).getAddress();
+        verify(mAdapterProperties).getAddress();
     }
 
     @Test
@@ -116,7 +124,7 @@ public class AdapterServiceBinderTest {
     @Test
     public void isActivityAndEnergyReportingSupported() {
         mBinder.isActivityAndEnergyReportingSupported();
-        verify(mService.mAdapterProperties).isActivityAndEnergyReportingSupported();
+        verify(mAdapterProperties).isActivityAndEnergyReportingSupported();
     }
 
     @Test

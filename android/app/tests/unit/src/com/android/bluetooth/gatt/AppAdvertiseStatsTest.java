@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@
 
 package com.android.bluetooth.gatt;
 
+import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE;
+
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.eq;
@@ -30,8 +34,8 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Log;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothStatsLog;
@@ -47,8 +51,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -61,7 +63,7 @@ public class AppAdvertiseStatsTest {
 
     private CountDownLatch mLatch;
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
@@ -70,7 +72,7 @@ public class AppAdvertiseStatsTest {
     @Captor ArgumentCaptor<Long> mAdvDurationCaptor;
 
     private final AttributionSource mAttributionSource =
-            InstrumentationRegistry.getTargetContext().getAttributionSource();
+            InstrumentationRegistry.getInstrumentation().getTargetContext().getAttributionSource();
 
     @Before
     public void setUp() throws Exception {
@@ -102,7 +104,7 @@ public class AppAdvertiseStatsTest {
         AppAdvertiseStats appAdvertiseStats =
                 new AppAdvertiseStats(appUid, id, name, mAttributionSource);
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).isEmpty();
 
         int duration = 1;
         int maxExtAdvEvents = 2;
@@ -129,7 +131,7 @@ public class AppAdvertiseStatsTest {
 
         int numOfExpectedRecords = 2;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(numOfExpectedRecords);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).hasSize(numOfExpectedRecords);
     }
 
     @Test
@@ -145,7 +147,7 @@ public class AppAdvertiseStatsTest {
         int maxExtAdvEvents = 2;
         int instanceCount = 3;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).isEmpty();
 
         appAdvertiseStats.recordAdvertiseStart(duration, maxExtAdvEvents, instanceCount);
 
@@ -170,7 +172,7 @@ public class AppAdvertiseStatsTest {
 
         int numOfExpectedRecords = 2;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(numOfExpectedRecords);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).hasSize(numOfExpectedRecords);
     }
 
     @Test
@@ -186,14 +188,14 @@ public class AppAdvertiseStatsTest {
         int maxExtAdvEvents = 2;
         int instanceCount = 3;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(0);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).isEmpty();
 
         appAdvertiseStats.enableAdvertisingSet(true, duration, maxExtAdvEvents, instanceCount);
         appAdvertiseStats.enableAdvertisingSet(false, duration, maxExtAdvEvents, instanceCount);
 
         int numOfExpectedRecords = 1;
 
-        assertThat(appAdvertiseStats.mAdvertiserRecords.size()).isEqualTo(numOfExpectedRecords);
+        assertThat(appAdvertiseStats.mAdvertiserRecords).hasSize(numOfExpectedRecords);
     }
 
     @Test
@@ -303,7 +305,6 @@ public class AppAdvertiseStatsTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_BLE_SCAN_ADV_METRICS_REDESIGN)
     public void testAdvertiseCounterMetrics() {
         int appUid = 0;
         int id = 1;
@@ -311,6 +312,8 @@ public class AppAdvertiseStatsTest {
 
         AppAdvertiseStats appAdvertiseStats =
                 new AppAdvertiseStats(appUid, id, name, mAttributionSource);
+        // Set app importance as Foreground Service for the stats
+        appAdvertiseStats.setAppImportance(IMPORTANCE_FOREGROUND_SERVICE);
 
         AdvertisingSetParameters parameters =
                 new AdvertisingSetParameters.Builder().setConnectable(true).build();
@@ -351,7 +354,9 @@ public class AppAdvertiseStatsTest {
                         false,
                         true,
                         instanceCount,
-                        0);
+                        0,
+                        IMPORTANCE_FOREGROUND_SERVICE,
+                        "");
         Mockito.clearInvocations(mMetricsLogger);
 
         // Wait for adv test duration
@@ -384,7 +389,9 @@ public class AppAdvertiseStatsTest {
                         eq(false),
                         eq(true),
                         eq(instanceCount),
-                        mAdvDurationCaptor.capture());
+                        mAdvDurationCaptor.capture(),
+                        eq(IMPORTANCE_FOREGROUND_SERVICE),
+                        eq(""));
         long capturedAppScanDuration = mAdvDurationCaptor.getValue();
         Log.d(TAG, "capturedDuration: " + capturedAppScanDuration);
         assertThat(capturedAppScanDuration).isAtLeast(advTestDuration);

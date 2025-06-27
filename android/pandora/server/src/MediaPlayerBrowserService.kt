@@ -17,6 +17,7 @@
 package com.android.pandora
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.support.v4.media.*
@@ -43,6 +44,7 @@ class MediaPlayerBrowserService : MediaBrowserServiceCompat() {
     private var metadataItems = mutableMapOf<String, MediaMetadataCompat>()
     private var queue = mutableListOf<MediaSessionCompat.QueueItem>()
     private var currentTrack = -1
+    private val testIcon = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
 
     override fun onCreate() {
         super.onCreate()
@@ -114,6 +116,12 @@ class MediaPlayerBrowserService : MediaBrowserServiceCompat() {
         mediaSession.setMetadata(metadataItems.get("" + currentTrack))
     }
 
+    fun playUpdated() {
+        currentTrack = NEW_QUEUE_ITEM_INDEX
+        setPlaybackState(PlaybackStateCompat.STATE_PLAYING)
+        mediaSession.setMetadata(metadataItems.get("" + currentTrack))
+    }
+
     fun stop() {
         setPlaybackState(PlaybackStateCompat.STATE_STOPPED)
         mediaSession.setMetadata(null)
@@ -170,10 +178,21 @@ class MediaPlayerBrowserService : MediaBrowserServiceCompat() {
                 .putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, NEW_QUEUE_ITEM_INDEX.toLong())
                 .build()
         val mediaItem = MediaItem(metaData.description, MediaItem.FLAG_PLAYABLE)
+        metadataItems.put("" + NEW_QUEUE_ITEM_INDEX, metaData)
         queue.add(
             MediaSessionCompat.QueueItem(mediaItem.description, NEW_QUEUE_ITEM_INDEX.toLong())
         )
         mediaSession.setQueue(queue)
+    }
+
+    fun resetQueue() {
+        if (metadataItems.contains("" + NEW_QUEUE_ITEM_INDEX)) {
+            metadataItems.remove("" + NEW_QUEUE_ITEM_INDEX)
+            queue.removeLast()
+            mediaSession.setQueue(queue)
+            stop()
+            currentTrack = QUEUE_START_INDEX
+        }
     }
 
     fun getShuffleMode(): Int {
@@ -261,6 +280,7 @@ class MediaPlayerBrowserService : MediaBrowserServiceCompat() {
                     )
                     .putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, item.toLong())
                     .putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, QUEUE_SIZE.toLong())
+                    .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, testIcon)
                     .build()
             val mediaItem = MediaItem(metaData.description, MediaItem.FLAG_PLAYABLE)
             mediaItems.add(mediaItem)

@@ -18,6 +18,10 @@ package android.bluetooth;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
+import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothUtils.isValidDevice;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -56,7 +60,8 @@ import java.util.List;
  * with its appropriate permission.
  */
 public final class BluetoothA2dp implements BluetoothProfile {
-    private static final String TAG = "BluetoothA2dp";
+    private static final String TAG = BluetoothA2dp.class.getSimpleName();
+
     private static final boolean DBG = true;
     private static final boolean VDBG = false;
 
@@ -445,7 +450,7 @@ public final class BluetoothA2dp implements BluetoothProfile {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-        return BluetoothProfile.STATE_DISCONNECTED;
+        return STATE_DISCONNECTED;
     }
 
     /**
@@ -561,8 +566,8 @@ public final class BluetoothA2dp implements BluetoothProfile {
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (isEnabled()
                 && isValidDevice(device)
-                && (connectionPolicy == BluetoothProfile.CONNECTION_POLICY_FORBIDDEN
-                        || connectionPolicy == BluetoothProfile.CONNECTION_POLICY_ALLOWED)) {
+                && (connectionPolicy == CONNECTION_POLICY_FORBIDDEN
+                        || connectionPolicy == CONNECTION_POLICY_ALLOWED)) {
             try {
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
@@ -617,7 +622,7 @@ public final class BluetoothA2dp implements BluetoothProfile {
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }
-        return BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
+        return CONNECTION_POLICY_FORBIDDEN;
     }
 
     /**
@@ -724,20 +729,23 @@ public final class BluetoothA2dp implements BluetoothProfile {
     /**
      * Gets the current codec status (configuration and capability).
      *
+     * <p>This method requires the calling app to have the {@link
+     * android.Manifest.permission#BLUETOOTH_CONNECT} permission. Additionally, an app must either
+     * have the {@link android.Manifest.permission#BLUETOOTH_PRIVILEGED} or be associated with the
+     * Companion Device manager (see {@link android.companion.CompanionDeviceManager#associate(
+     * AssociationRequest, android.companion.CompanionDeviceManager.Callback, Handler)})
+     *
      * @param device the remote Bluetooth device.
      * @return the current codec status
      * @hide
      */
     @SystemApi
-    @Nullable
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
-            allOf = {
-                BLUETOOTH_CONNECT,
-                BLUETOOTH_PRIVILEGED,
-            })
-    public BluetoothCodecStatus getCodecStatus(@NonNull BluetoothDevice device) {
+            allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
+            conditional = true)
+    public @Nullable BluetoothCodecStatus getCodecStatus(@NonNull BluetoothDevice device) {
         if (DBG) Log.d(TAG, "getCodecStatus(" + device + ")");
         verifyDeviceNotNull(device, "getCodecStatus");
         final IBluetoothA2dp service = getService();
@@ -1089,50 +1097,16 @@ public final class BluetoothA2dp implements BluetoothProfile {
         return false;
     }
 
-    /**
-     * Helper for converting a state to a string.
-     *
-     * <p>For debug use only - strings are not internationalized.
-     *
-     * @hide
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
-    public static String stateToString(int state) {
-        switch (state) {
-            case STATE_DISCONNECTED:
-                return "disconnected";
-            case STATE_CONNECTING:
-                return "connecting";
-            case STATE_CONNECTED:
-                return "connected";
-            case STATE_DISCONNECTING:
-                return "disconnecting";
-            case STATE_PLAYING:
-                return "playing";
-            case STATE_NOT_PLAYING:
-                return "not playing";
-            default:
-                return "<unknown state " + state + ">";
-        }
-    }
-
     private boolean isEnabled() {
         if (mAdapter.getState() == BluetoothAdapter.STATE_ON) return true;
         return false;
     }
 
-    private void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
+    private static void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
         if (device == null) {
             Log.e(TAG, methodName + ": device param is null");
             throw new IllegalArgumentException("Device cannot be null");
         }
-    }
-
-    private boolean isValidDevice(BluetoothDevice device) {
-        if (device == null) return false;
-
-        if (BluetoothAdapter.checkBluetoothAddress(device.getAddress())) return true;
-        return false;
     }
 
     private static void log(String msg) {

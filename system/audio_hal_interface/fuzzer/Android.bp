@@ -59,7 +59,6 @@ cc_defaults {
         "bluetooth_flags_c_lib",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-protos",
         "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
@@ -67,7 +66,6 @@ cc_defaults {
         "libbluetooth_log",
         "libbt-audio-hal-interface",
         "libbt-bta",
-        "libbt-bta-core",
         "libbt-btu-main-thread",
         "libbt-common",
         "libbt-hci",
@@ -75,12 +73,10 @@ cc_defaults {
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbt-stack",
-        "libbt-stack-core",
         "libbtcore",
         "libbtdevice",
         "libbte",
         "libbtif",
-        "libbtif-core",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libcutils",
@@ -120,6 +116,13 @@ cc_defaults {
         service_privilege: "privileged",
         users: "multi_user",
         fuzzed_code_usage: "shipped",
+    },
+    target: {
+        android: {
+            static_libs: [
+                "libperfetto_client_experimental",
+            ],
+        },
     },
 }
 

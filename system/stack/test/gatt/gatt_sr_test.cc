@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <com_android_bluetooth_flags.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -53,16 +52,6 @@ struct TestMutables {
 TestMutables test_state_;
 }  // namespace
 
-namespace connection_manager {
-bool background_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/) { return false; }
-bool direct_connect_remove(uint8_t /*app_id*/, const RawAddress& /*address*/,
-                           bool /*connection_timeout*/) {
-  return false;
-}
-bool is_background_connection(const RawAddress& /*address*/) { return false; }
-
-}  // namespace connection_manager
-
 BT_HDR* attp_build_sr_msg(tGATT_TCB& /*tcb*/, uint8_t op_code, tGATT_SR_MSG* /*p_msg*/,
                           uint16_t /*payload_size*/) {
   test_state_.attp_build_sr_msg.op_code_ = op_code;
@@ -81,7 +70,6 @@ tGATT_STATUS attp_send_sr_msg(tGATT_TCB& /*tcb*/, uint16_t /*cid*/, BT_HDR* /*p_
 
 void gatt_act_discovery(tGATT_CLCB* /*p_clcb*/) {}
 bool gatt_disconnect(tGATT_TCB* /*p_tcb*/) { return false; }
-void gatt_cancel_connect(const RawAddress& /*bd_addr*/, tBT_TRANSPORT /*transport*/) {}
 tGATT_CH_STATE gatt_get_ch_state(tGATT_TCB* /*p_tcb*/) { return GATT_CH_CLOSE; }
 tGATT_STATUS gatts_db_read_attr_value_by_type(tGATT_TCB& /*tcb*/, uint16_t /*cid*/,
                                               tGATT_SVC_DB* /*p_db*/, uint8_t /*op_code*/,
@@ -152,25 +140,16 @@ protected:
     tcb_.att_lcid = L2CAP_ATT_CID;
     el_.gatt_if = 1;
 
-    if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-      gatt_cb.cl_rcb_map.emplace(el_.gatt_if, std::make_unique<tGATT_REG>());
-      tGATT_REG* p_reg = gatt_cb.cl_rcb_map[el_.gatt_if].get();
-      p_reg->in_use = true;
-      p_reg->gatt_if = el_.gatt_if;
-      p_reg->app_cb.p_req_cb = ApplicationRequestCallback;
-    } else {
-      gatt_cb.cl_rcb[el_.gatt_if - 1].in_use = true;
-      gatt_cb.cl_rcb[el_.gatt_if - 1].app_cb.p_req_cb = ApplicationRequestCallback;
-    }
+    gatt_cb.cl_rcb_map.emplace(el_.gatt_if, std::make_unique<tGATT_REG>());
+    tGATT_REG* p_reg = gatt_cb.cl_rcb_map[el_.gatt_if].get();
+    p_reg->in_use = true;
+    p_reg->gatt_if = el_.gatt_if;
+    p_reg->app_cb.p_req_cb = ApplicationRequestCallback;
 
     test_state_ = TestMutables();
   }
 
-  void TearDown() override {
-    if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-      gatt_cb.cl_rcb_map.erase(el_.gatt_if);
-    }
-  }
+  void TearDown() override { gatt_cb.cl_rcb_map.erase(el_.gatt_if); }
 
   tGATT_TCB tcb_;
   tGATT_SRV_LIST_ELEM el_;

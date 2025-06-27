@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package com.android.bluetooth.le_scan;
 
-import static com.android.bluetooth.Utils.sSystemClock;
+import static com.android.bluetooth.Utils.getSystemClock;
 
 import android.os.Looper;
 import android.util.Log;
@@ -28,6 +28,7 @@ import com.android.bluetooth.btservice.BluetoothAdapterProxy;
 /** Factory class for object initialization to help with unit testing */
 public class ScanObjectsFactory {
     private static final String TAG = ScanObjectsFactory.class.getSimpleName();
+
     private static ScanObjectsFactory sInstance;
     private static final Object INSTANCE_LOCK = new Object();
 
@@ -68,21 +69,21 @@ public class ScanObjectsFactory {
      * Create an instance of ScanManager
      *
      * @param adapterService an AdapterService instance
-     * @param scanHelper a TransitionalScanHelper instance
+     * @param scanController a ScanController instance
      * @param bluetoothAdapterProxy a bluetoothAdapterProxy instance
      * @param looper the looper to be used for processing messages
      * @return the created ScanManager instance
      */
     public ScanManager createScanManager(
             AdapterService adapterService,
-            TransitionalScanHelper scanHelper,
+            ScanController scanController,
             BluetoothAdapterProxy bluetoothAdapterProxy,
             Looper looper) {
         return new ScanManager(
-                adapterService, scanHelper, bluetoothAdapterProxy, looper, sSystemClock);
+                adapterService, scanController, bluetoothAdapterProxy, looper, getSystemClock());
     }
 
-    public PeriodicScanManager createPeriodicScanManager(AdapterService adapterService) {
-        return new PeriodicScanManager(adapterService);
+    public PeriodicScanManager createPeriodicScanManager() {
+        return new PeriodicScanManager();
     }
 }

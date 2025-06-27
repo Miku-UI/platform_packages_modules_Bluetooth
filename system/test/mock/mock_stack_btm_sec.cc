@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <string>
 
+#include "stack/btm/btm_sec.h"
+#include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
 #include "test/common/mock_functions.h"
@@ -33,9 +35,6 @@
 // Original usings
 
 // Mocked internal structures, if any
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 namespace test {
 namespace mock {
@@ -47,7 +46,7 @@ struct BTM_ConfirmReqReply BTM_ConfirmReqReply;
 struct BTM_IsAuthenticated BTM_IsAuthenticated;
 struct BTM_IsEncrypted BTM_IsEncrypted;
 struct BTM_IsLinkKeyAuthed BTM_IsLinkKeyAuthed;
-struct BTM_IsLinkKeyKnown BTM_IsLinkKeyKnown;
+struct BTM_IsBonded BTM_IsBonded;
 struct BTM_PINCodeReply BTM_PINCodeReply;
 struct BTM_PasskeyReqReply BTM_PasskeyReqReply;
 struct BTM_PeerSupportsSecureConnections BTM_PeerSupportsSecureConnections;
@@ -58,13 +57,12 @@ struct BTM_SecBondCancel BTM_SecBondCancel;
 struct BTM_SecClrService BTM_SecClrService;
 struct BTM_SecClrServiceByPsm BTM_SecClrServiceByPsm;
 struct BTM_SecGetDeviceLinkKeyType BTM_SecGetDeviceLinkKeyType;
-struct BTM_SecIsSecurityPending BTM_SecIsSecurityPending;
+struct BTM_SecIsLeSecurityPending BTM_SecIsLeSecurityPending;
 struct BTM_SecRegister BTM_SecRegister;
 struct BTM_SetEncryption BTM_SetEncryption;
 struct BTM_SetPinType BTM_SetPinType;
 struct BTM_SetSecurityLevel BTM_SetSecurityLevel;
 struct BTM_update_version_info BTM_update_version_info;
-struct NotifyBondingCanceled NotifyBondingCanceled;
 struct btm_create_conn_cancel_complete btm_create_conn_cancel_complete;
 struct btm_get_dev_class btm_get_dev_class;
 struct btm_io_capabilities_req btm_io_capabilities_req;
@@ -75,7 +73,6 @@ struct btm_rem_oob_req btm_rem_oob_req;
 struct btm_sec_abort_access_req btm_sec_abort_access_req;
 struct btm_sec_auth_complete btm_sec_auth_complete;
 struct btm_sec_bond_by_transport btm_sec_bond_by_transport;
-struct btm_sec_check_pending_reqs btm_sec_check_pending_reqs;
 struct btm_sec_clear_ble_keys btm_sec_clear_ble_keys;
 struct btm_sec_conn_req btm_sec_conn_req;
 struct btm_sec_connected btm_sec_connected;
@@ -114,18 +111,18 @@ bool BTM_CanReadDiscoverableCharacteristics::return_value = false;
 bool BTM_IsAuthenticated::return_value = false;
 bool BTM_IsEncrypted::return_value = false;
 bool BTM_IsLinkKeyAuthed::return_value = false;
-bool BTM_IsLinkKeyKnown::return_value = false;
+bool BTM_IsBonded::return_value = false;
 bool BTM_PeerSupportsSecureConnections::return_value = false;
 tBTM_STATUS BTM_SecBond::return_value = tBTM_STATUS::BTM_SUCCESS;
 tBTM_STATUS BTM_SecBondCancel::return_value = tBTM_STATUS::BTM_SUCCESS;
 uint8_t BTM_SecClrService::return_value = 0;
 uint8_t BTM_SecClrServiceByPsm::return_value = 0;
 tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType::return_value = 0;
-bool BTM_SecIsSecurityPending::return_value = false;
+bool BTM_SecIsLeSecurityPending::return_value = false;
 bool BTM_SecRegister::return_value = false;
 tBTM_STATUS BTM_SetEncryption::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool BTM_SetSecurityLevel::return_value = false;
-const DEV_CLASS btm_get_dev_class::return_value = kDevClassEmpty;
+DEV_CLASS btm_get_dev_class::return_value = kDevClassEmpty;
 tBTM_STATUS btm_sec_bond_by_transport::return_value = tBTM_STATUS::BTM_SUCCESS;
 tBTM_STATUS btm_sec_disconnect::return_value = tBTM_STATUS::BTM_SUCCESS;
 bool btm_sec_is_a_bonded_dev::return_value = false;
@@ -158,9 +155,9 @@ bool BTM_IsLinkKeyAuthed(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::BTM_IsLinkKeyAuthed(bd_addr, transport);
 }
-bool BTM_IsLinkKeyKnown(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+bool BTM_IsBonded(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_IsLinkKeyKnown(bd_addr, transport);
+  return test::mock::stack_btm_sec::BTM_IsBonded(bd_addr, transport);
 }
 void BTM_PINCodeReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t pin_len, uint8_t* p_pin) {
   inc_func_call_count(__func__);
@@ -204,9 +201,9 @@ tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::BTM_SecGetDeviceLinkKeyType(bd_addr);
 }
-bool BTM_SecIsSecurityPending(const RawAddress& bd_addr) {
+bool BTM_SecIsLeSecurityPending(const RawAddress& bd_addr) {
   inc_func_call_count(__func__);
-  return test::mock::stack_btm_sec::BTM_SecIsSecurityPending(bd_addr);
+  return test::mock::stack_btm_sec::BTM_SecIsLeSecurityPending(bd_addr);
 }
 bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info) {
   inc_func_call_count(__func__);
@@ -235,15 +232,11 @@ void BTM_update_version_info(const RawAddress& bd_addr,
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::BTM_update_version_info(bd_addr, remote_version_info);
 }
-void NotifyBondingCanceled(tBTM_STATUS btm_status) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::NotifyBondingCanceled(btm_status);
-}
 void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::btm_create_conn_cancel_complete(status, bd_addr);
 }
-const DEV_CLASS btm_get_dev_class(const RawAddress& bda) {
+DEV_CLASS btm_get_dev_class(const RawAddress& bda) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::btm_get_dev_class(bda);
 }
@@ -279,10 +272,6 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr, tBLE_ADDR_TYPE 
                                       tBT_TRANSPORT transport) {
   inc_func_call_count(__func__);
   return test::mock::stack_btm_sec::btm_sec_bond_by_transport(bd_addr, addr_type, transport);
-}
-void btm_sec_check_pending_reqs(void) {
-  inc_func_call_count(__func__);
-  test::mock::stack_btm_sec::btm_sec_check_pending_reqs();
 }
 void btm_sec_clear_ble_keys(tBTM_SEC_DEV_REC* p_dev_rec) {
   inc_func_call_count(__func__);
@@ -400,10 +389,6 @@ void btm_sec_update_clock_offset(uint16_t handle, uint16_t clock_offset) {
 void btm_simple_pair_complete(const RawAddress bd_addr, uint8_t status) {
   inc_func_call_count(__func__);
   test::mock::stack_btm_sec::btm_simple_pair_complete(bd_addr, status);
-}
-bool BTM_BleIsLinkKeyKnown(const RawAddress /* address */) {
-  inc_func_call_count(__func__);
-  return false;
 }
 // Mocked functions complete
 // END mockcify generation

@@ -507,7 +507,7 @@ void bta_hh_connect(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
 
   // Initiate HID host connection
   if (p_cb->link_spec.transport == BT_TRANSPORT_LE) {
-    bta_hh_le_open_conn(p_cb);
+    bta_hh_le_open_conn(p_cb, p_data->api_conn.direct);
   } else {
     bta_hh_bredr_conn(p_cb);
   }
@@ -578,9 +578,8 @@ void bta_hh_open_cmpl_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   conn.app_id = p_cb->app_id;
 
   BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Opened",
-                 base::StringPrintf("%s initiator:%s",
-                                    bt_transport_text(p_cb->link_spec.transport).c_str(),
-                                    (p_cb->incoming_conn) ? "remote" : "local"));
+                 std::format("{} initiator:{}", bt_transport_text(p_cb->link_spec.transport),
+                             (p_cb->incoming_conn) ? "remote" : "local"));
 
   if (p_cb->link_spec.transport != BT_TRANSPORT_LE) {
     /* inform role manager */
@@ -843,14 +842,12 @@ void bta_hh_close_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
   disc_dat.handle = p_cb->hid_handle;
   disc_dat.status = to_bta_hh_status(p_data->hid_cback.data);
 
-  std::string overlay_fail = base::StringPrintf(
-          "%s %s %s", (l2cap_conn_fail) ? "l2cap_conn_fail" : "",
-          (l2cap_req_fail) ? "l2cap_req_fail" : "", (l2cap_cfg_fail) ? "l2cap_cfg_fail" : "");
-  BTM_LogHistory(
-          kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
-          base::StringPrintf("%s reason %s %s",
+  BTM_LogHistory(kBtmLogTag, p_cb->link_spec.addrt.bda, "Closed",
+                 std::format("{} reason {} {} {} {}",
                              (p_cb->link_spec.transport == BT_TRANSPORT_LE) ? "le" : "classic",
-                             hid_status_text(hid_status).c_str(), overlay_fail.c_str()));
+                             hid_status_text(hid_status), l2cap_conn_fail ? "l2cap_conn_fail" : "",
+                             l2cap_req_fail ? "l2cap_req_fail" : "",
+                             l2cap_cfg_fail ? "l2cap_cfg_fail" : ""));
 
   /* inform role manager */
   bta_sys_conn_close(BTA_ID_HH, p_cb->app_id, p_cb->link_spec.addrt.bda);
@@ -929,12 +926,6 @@ void bta_hh_maint_dev_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data) {
       /* initialize callback data */
       if (p_cb->hid_handle == BTA_HH_INVALID_HANDLE) {
         tBT_TRANSPORT transport = p_data->api_maintdev.link_spec.transport;
-        if (!com::android::bluetooth::flags::allow_switching_hid_and_hogp()) {
-          transport = get_btm_client_interface().ble.BTM_UseLeLink(
-                              p_data->api_maintdev.link_spec.addrt.bda)
-                              ? BT_TRANSPORT_LE
-                              : BT_TRANSPORT_BR_EDR;
-        }
         if (transport == BT_TRANSPORT_LE) {
           p_cb->link_spec.transport = BT_TRANSPORT_LE;
           dev_info.handle = bta_hh_le_add_device(p_cb, p_dev_info);

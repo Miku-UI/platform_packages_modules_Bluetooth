@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <base/strings/stringprintf.h>
-
 #include <cstdint>
 #include <string>
 
@@ -29,8 +27,7 @@ struct tREMOTE_VERSION_INFO {
   uint16_t manufacturer{0};
   bool valid{false};
   std::string ToString() const {
-    return (valid) ? base::StringPrintf("%02hhu-%05hu-%05hu", lmp_version, lmp_subversion,
-                                        manufacturer)
+    return (valid) ? std::format("{:02}-{:05}-{:05}", lmp_version, lmp_subversion, manufacturer)
                    : std::string("UNKNOWN");
   }
 };

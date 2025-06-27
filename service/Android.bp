@@ -72,7 +72,6 @@ java_library {
     static_libs: [
         "androidx.annotation_annotation",
         "androidx.appcompat_appcompat",
-        "bluetooth-manager-service-proto-java-gen",
         "bluetooth-nano-protos",
         "bluetooth-proto-enums-java-gen",
         "bluetooth_flags_java_lib",
@@ -83,12 +82,14 @@ java_library {
     optimize: {
         enabled: true,
         shrink: true,
+        proguard_compatibility: true,
+        ignore_warnings: false,
         proguard_flags_files: ["proguard.flags"],
     },
 
     sdk_version: "system_server_current",
     min_sdk_version: "Tiramisu",
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     visibility: [":__subpackages__"],
 }
 
@@ -103,6 +104,8 @@ java_library {
     optimize: {
         enabled: true,
         shrink: true,
+        proguard_compatibility: true,
+        ignore_warnings: false,
         proguard_flags_files: ["proguard.flags"],
     },
 
@@ -112,23 +115,8 @@ java_library {
 
     sdk_version: "system_server_current",
     min_sdk_version: "Tiramisu",
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
     visibility: ["//packages/modules/Bluetooth/apex"],
-}
-
-java_library {
-    name: "bluetooth-manager-service-proto-java-gen",
-    srcs: [":srcs_bluetooth_manager_service_proto"],
-    installable: false,
-
-    proto: {
-        type: "stream",
-        include_dirs: ["external/protobuf/src"],
-    },
-
-    sdk_version: "system_server_current",
-    min_sdk_version: "Tiramisu",
-    apex_available: ["com.android.btservices"],
 }
 
 java_library {
@@ -147,7 +135,7 @@ java_library {
 
     sdk_version: "system_current",
     min_sdk_version: "Tiramisu",
-    apex_available: ["com.android.btservices"],
+    apex_available: ["com.android.bt"],
 }
 
 android_robolectric_test {
@@ -179,7 +167,6 @@ android_robolectric_test {
     static_libs: [
         "androidx.test.core",
         "androidx.test.ext.truth",
-        "bluetooth-manager-service-proto-java-gen",
         "bluetooth-nano-protos",
         "bluetooth-proto-enums-java-gen",
         "bluetooth_flags_java_lib",
@@ -201,7 +188,6 @@ android_robolectric_test {
     ],
 
     sdk_version: "test_current",
-    upstream: true,
     test_suites: ["general-tests"],
     strict_mode: false,
 }

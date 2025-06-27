@@ -27,7 +27,6 @@
 
 #include "stack/include/pan_api.h"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -37,7 +36,6 @@
 #include "bta/sys/bta_sys.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bnep_api.h"
 #include "stack/include/bt_hdr.h"
@@ -231,8 +229,7 @@ tPAN_RESULT PAN_SetRole(uint8_t role, std::string p_user_name, std::string p_nap
   pan_cb.role = role;
   log::verbose("PAN role set to: {}", role);
 
-  BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Role change",
-                 base::StringPrintf("role:0x%x", role));
+  BTM_LogHistory(kBtmLogTag, RawAddress::kEmpty, "Role change", std::format("role:0x{:x}", role));
   return PAN_SUCCESS;
 }
 
@@ -687,7 +684,7 @@ void PAN_Dumpsys(int fd) {
     if (pcb->con_state == PAN_STATE_IDLE) {
       continue;
     }
-    LOG_DUMPSYS(fd, "  Id:%d peer:%s", i, ADDRESS_TO_LOGGABLE_CSTR(pcb->rem_bda));
+    LOG_DUMPSYS(fd, "  Id:%d peer:%s", i, pcb->rem_bda.ToRedactedStringForLogging().c_str());
     LOG_DUMPSYS(fd, "    rx_packets:%-5lu rx_octets:%-8lu rx_errors:%-5lu rx_drops:%-5lu",
                 (unsigned long)pcb->read.packets, (unsigned long)pcb->read.octets,
                 (unsigned long)pcb->read.errors, (unsigned long)pcb->read.drops);

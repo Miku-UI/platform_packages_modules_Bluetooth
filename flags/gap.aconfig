@@ -1,5 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
+container: "com.android.bt"
 
 flag {
     name: "encrypted_advertising_data"
@@ -9,16 +9,9 @@ flag {
 }
 
 flag {
-    name: "fix_nonconnectable_scannable_advertisement"
+    name: "only_start_scan_during_ble_on"
     namespace: "bluetooth"
-    description: "Fix adv_scan_ind being reported as connectable"
-    bug: "316013235"
-}
-
-flag {
-    name: "scan_manager_refactor"
-    namespace: "bluetooth"
-    description: "Refactor scan manager as described in go/scan-manager-refactor"
+    description: "Instead of starting scan and gatt in ble_on, only start scan"
     bug: "313335632"
 }
 
@@ -37,53 +30,6 @@ flag {
 }
 
 flag {
-    name: "ble_scan_adv_metrics_redesign"
-    namespace: "bluetooth"
-    description: "Reimplement BLE scan and advertisement metrics logging."
-    bug: "328303508"
-}
-
-flag {
-    name: "ble_context_map_remove_fix"
-    namespace: "bluetooth"
-    description: "Fix connection removal logic in ContextMap class"
-    bug: "329154715"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "ble_check_data_length_on_legacy_advertising"
-    namespace: "bluetooth"
-    description: "Add data length checks for legacy advertising"
-    bug: "329011868"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "ble_gatt_server_use_address_type_in_connection"
-    namespace: "bluetooth"
-    description: "Use address type when initiating connection from BluetoothGattServer"
-    bug: "331147673"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "scan_record_manufacturer_data_merge"
-    namespace: "bluetooth"
-    description: "If a scan record has multiple datas under same manufacturer id, merge the values"
-    bug: "331723396"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "msft_addr_tracking_quirk"
     namespace: "bluetooth"
     description: "Scanning with MSFT paddress tracking for Realtek BT controllers"
@@ -94,67 +40,10 @@ flag {
 }
 
 flag {
-    name: "gatt_rediscover_on_canceled"
-    namespace: "bluetooth"
-    description: "Re-initiate discovery if the previous discovery is canceled for multiple GATT clients"
-    bug: "335082571"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_scan_use_uid_for_importance"
-    namespace: "bluetooth"
-    description: "Use uid instead of the first package name for fetching the importance of clients"
-    bug: "336965663"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "sec_dont_clear_keys_on_encryption_err"
     namespace: "bluetooth"
     description: "Do not clear security record on encryption error"
     bug: "342521414"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_scan_use_address_type"
-    namespace: "bluetooth"
-    description: "Fix an issue that le scanner omits address type for MATCH_FIRST scan"
-    bug: "342127181"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "gatt_client_dynamic_allocation"
-    namespace: "bluetooth"
-    description: "Allocate GATT clients in heap to unlimit the number of clients"
-    bug: "348559823"
-}
-
-flag {
-    name: "gatt_fix_multiple_direct_connect"
-    namespace: "bluetooth"
-    description: "Do not remove device when multiple clients attempt to connect"
-    bug: "349232327"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "pan_use_identity_address"
-    namespace: "bluetooth"
-    description: "Use identity address when communicate with native interface"
-    bug: "351961492"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -175,43 +64,6 @@ flag {
     namespace: "bluetooth"
     description: "Invoke callbacks on early failure from the native stack"
     bug: "356550596"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_inquiry_duration"
-    namespace: "bluetooth"
-    description: "Use the same duration for LE inquiry scan that classic discovery uses"
-    bug: "357894405"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "non_wake_alarm_for_rpa_rotation"
-    namespace: "bluetooth"
-    description: "Use non-wake alarm for LE RPA rotation. go/non-wake-alarm-for-rpa-rotation"
-    bug: "360743527"
-}
-
-flag {
-    name: "gatt_disconnect_fix"
-    namespace: "bluetooth"
-    description: "Fix GATT disconnect handling"
-    bug: "361538527"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "gatt_server_requests_fix"
-    namespace: "bluetooth"
-    description: "Fix GATT server handling"
-    bug: "361331170"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -293,10 +145,137 @@ flag {
 }
 
 flag {
-    name: "drop_acl_fragment_on_disconnect"
+    name: "configure_scan_on_resume"
     namespace: "bluetooth"
-    description: "Drop pending ACL packet fragments for disconnected connection"
-    bug: "376379859"
+    description: "Configure scan paramters when start scanning from onResume"
+    bug: "383436218"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "unregister_gatt_client_disconnected"
+    namespace: "bluetooth"
+    description: "Unregister gatt client when disconneted to prevent client leaks"
+    bug: "380388092"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_execute_write_no_pending"
+    namespace: "bluetooth"
+    description: "Send ATT_EXECUTE_WRITE_RSP when no pending write requests"
+    bug: "385118069"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "change_default_trackable_adv_number"
+    namespace: "bluetooth"
+    description: "Change the default value for number of trackable advertisements for onFound"
+    bug: "389568695"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_unusable_adv_slot_due_to_map_access"
+    namespace: "bluetooth"
+    description: "Fixes the advertising slot becoming unusable due to incorrect map access via [] operator."
+    bug: "388615378"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_bluetooth_gatt_getting_duplicate_services"
+    namespace: "bluetooth"
+    description: "Fixes BluetoothGatt getting duplicate GATT services"
+    bug: "391773937"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "batch_scan_optimization"
+    namespace: "bluetooth"
+    description: "Optimized batch scan for less wakeups"
+    bug: "392132489"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "prevent_concurrent_conn_param_updates"
+    namespace: "bluetooth"
+    description: "Makes only one connection parameter update can be processed at a time per device."
+    bug: "397316770"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "distance_measurement_thread"
+    namespace: "bluetooth"
+    description: "Makes distance measurement operations run on one thread."
+    bug: "397809459"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "scan_controller_thread"
+    namespace: "bluetooth"
+    description: "Makes scan controller operations run on one thread."
+    bug: "397863857"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "start_discover_service_changed"
+    namespace: "bluetooth"
+    description: "Start discovery again when service change indication arrives."
+    bug: "400828637"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_disconnect_notification_handling"
+    namespace: "bluetooth"
+    description: "Fix LE link disconnection notification to stack's upper layers"
+    bug: "403433488"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "rssi_scan_filter"
+    namespace: "bluetooth"
+    description: "Add RSSI ScanFilter"
+    bug: "404986559"
+}
+
+flag {
+    name: "fix_private_gatt_advertising_not_working"
+    namespace: "bluetooth"
+    description: "Fix that private GATT advertising is handled as a normal GATT"
+    bug: "405315235"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

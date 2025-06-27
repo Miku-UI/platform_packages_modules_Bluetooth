@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,12 @@
 #include "hci/controller_mock.h"
 #include "hci/hci_layer.h"
 #include "hci/hci_layer_fake.h"
+#include "main/shim/entry.h"
 #include "os/fake_timer/fake_timerfd.h"
 #include "os/thread.h"
 #include "packet/raw_builder.h"
+#include "storage/storage_module.h"
+#include "test/mock/mock_main_shim_entry.h"
 
 using bluetooth::common::BidiQueue;
 using bluetooth::common::BidiQueueEnd;
@@ -114,7 +117,9 @@ protected:
     fake_registry_.InjectTestModule(&Controller::Factory, test_controller_);
     client_handler_ = fake_registry_.GetTestModuleHandler(&HciLayer::Factory);
     ASSERT_NE(client_handler_, nullptr);
-    fake_registry_.Start<AclManager>(&thread_);
+    bluetooth::hci::testing::mock_storage_ = new storage::StorageModule(new os::Handler(&thread_));
+    bluetooth::hci::testing::mock_storage_->Start();
+    fake_registry_.Start<AclManager>(&thread_, handler_);
     acl_manager_ =
             static_cast<AclManager*>(fake_registry_.GetModuleUnderTest(&AclManager::Factory));
     Address::FromString("A1:A2:A3:A4:A5:A6", remote);
@@ -151,6 +156,8 @@ protected:
     // Invalid mutex exception is raised if the connections
     // are cleared after the AclConnectionInterface is deleted
     // through fake_registry_.
+    delete bluetooth::hci::testing::mock_storage_;
+    bluetooth::hci::testing::mock_storage_ = nullptr;
     connections_.clear();
     le_connections_.clear();
     fake_registry_.SynchronizeModuleHandler(&AclManager::Factory, std::chrono::milliseconds(20));
@@ -166,6 +173,7 @@ protected:
   HciLayerFake* test_hci_layer_ = nullptr;
   TestController* test_controller_ = nullptr;
   os::Thread& thread_ = fake_registry_.GetTestThread();
+  os::Handler* handler_ = fake_registry_.GetTestHandler();
   AclManager* acl_manager_ = nullptr;
   os::Handler* client_handler_ = nullptr;
   Address remote;
@@ -1137,7 +1145,9 @@ protected:
     fake_registry_.InjectTestModule(&Controller::Factory, test_controller_);
     client_handler_ = fake_registry_.GetTestModuleHandler(&HciLayer::Factory);
     ASSERT_NE(client_handler_, nullptr);
-    fake_registry_.Start<AclManager>(&thread_);
+    bluetooth::hci::testing::mock_storage_ = new storage::StorageModule(new os::Handler(&thread_));
+    bluetooth::hci::testing::mock_storage_->Start();
+    fake_registry_.Start<AclManager>(&thread_, handler_);
     acl_manager_ =
             static_cast<AclManager*>(fake_registry_.GetModuleUnderTest(&AclManager::Factory));
     Address::FromString("A1:A2:A3:A4:A5:A6", remote);

@@ -26,11 +26,13 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Objects;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 1
 public class BluetoothMapConvoContactElement
         implements Comparable<BluetoothMapConvoContactElement> {
+    private static final String TAG = BluetoothMapConvoContactElement.class.getSimpleName();
 
     public static final long CONTACT_ID_TYPE_SMS_MMS = 1;
     public static final long CONTACT_ID_TYPE_EMAIL = 2;
@@ -46,7 +48,6 @@ public class BluetoothMapConvoContactElement
     private static final String XML_ATT_DISPLAY_NAME = "display_name";
     private static final String XML_ATT_UCI = "x_bt_uci";
     protected static final String XML_TAG_CONVOCONTACT = "convocontact";
-    private static final String TAG = "BluetoothMapConvoContactElement";
 
     private String mUci = null;
     private String mName = null;
@@ -63,8 +64,8 @@ public class BluetoothMapConvoContactElement
         BluetoothMapConvoContactElement newElement = new BluetoothMapConvoContactElement();
         newElement.mUci = address;
         // TODO: For now we use the ID as BT-UID
-        newElement.mBtUid = new SignedLongLong(contact.getId(), 0);
-        newElement.mDisplayName = contact.getName();
+        newElement.mBtUid = new SignedLongLong(contact.id(), 0);
+        newElement.mDisplayName = contact.name();
         return newElement;
     }
 
@@ -158,7 +159,7 @@ public class BluetoothMapConvoContactElement
 
     @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public String getLastActivityString() {
-        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.ROOT);
         Date date = new Date(mLastActivity);
         return format.format(date); // Format to YYYYMMDDTHHMMSS local time
     }
@@ -169,7 +170,7 @@ public class BluetoothMapConvoContactElement
 
     @SuppressWarnings("JavaUtilDate") // TODO: b/365629730 -- prefer Instant or LocalDate
     public void setLastActivity(String lastActivity) throws ParseException {
-        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss");
+        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.ROOT);
         Date date = format.parse(lastActivity);
         this.mLastActivity = date.getTime();
     }
@@ -195,7 +196,7 @@ public class BluetoothMapConvoContactElement
 
     /* Encode the MapConvoContactElement into the StringBuilder reference.
      * Here we have taken the choice not to report empty attributes, to reduce the
-     * amount of data to be transfered over BT. */
+     * amount of data to be transferred over BT. */
     public void encode(XmlSerializer xmlConvoElement)
             throws IllegalArgumentException, IllegalStateException, IOException {
         // construct the XML tag for a single contact in the convolisting element.

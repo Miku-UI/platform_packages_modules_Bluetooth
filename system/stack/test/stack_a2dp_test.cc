@@ -244,20 +244,6 @@ const uint8_t codec_info_non_a2dp_fake[AVDT_CODEC_SIZE] = {
         10              // Unused
 };
 
-static const char* APTX_ENCODER_LIB_NAME = "libaptX_encoder.so";
-static const char* APTX_HD_ENCODER_LIB_NAME = "libaptXHD_encoder.so";
-static const char* LDAC_ENCODER_LIB_NAME = "libldacBT_enc.so";
-static const char* LDAC_DECODER_LIB_NAME = "libldacBT_dec.so";
-
-static bool has_shared_library(const char* name) {
-  void* lib_handle = dlopen(name, RTLD_NOW);
-  if (lib_handle != nullptr) {
-    dlclose(lib_handle);
-    return true;
-  }
-  return false;
-}
-
 }  // namespace
 
 class StackA2dpTest : public ::testing::Test {
@@ -270,46 +256,22 @@ protected:
       bool supported = false;
       switch (codec_index) {
         case BTAV_A2DP_CODEC_INDEX_SOURCE_SBC:
-          supported = true;
-          break;
         case BTAV_A2DP_CODEC_INDEX_SOURCE_AAC:
-          supported = true;
-          break;
         case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX:
-          // Codec aptX is supported only if the device has the corresponding
-          // shared library installed.
-          supported = has_shared_library(APTX_ENCODER_LIB_NAME);
-          break;
         case BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD:
-          // Codec aptX-HD is supported only if the device has the corresponding
-          // shared library installed.
-          supported = has_shared_library(APTX_HD_ENCODER_LIB_NAME);
-          break;
         case BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC:
-          // Codec LDAC is supported only if the device has the corresponding
-          // shared library installed.
-          supported = has_shared_library(LDAC_ENCODER_LIB_NAME);
+        case BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS:
+          supported = true;
           break;
         case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
-          supported = true;
-          break;
         case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
-          supported = true;
-          break;
-        case BTAV_A2DP_CODEC_INDEX_SINK_LDAC:
-          // Codec LDAC is supported only if the device has the corresponding
-          // shared library installed.
-          supported = has_shared_library(LDAC_DECODER_LIB_NAME);
-          break;
-        case BTAV_A2DP_CODEC_INDEX_SOURCE_LC3:
-          break;
-        case BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS:
         case BTAV_A2DP_CODEC_INDEX_SINK_OPUS:
           supported = true;
           break;
         case BTAV_A2DP_CODEC_INDEX_MAX:
         case BTAV_A2DP_CODEC_INDEX_SOURCE_MAX:
         case BTAV_A2DP_CODEC_INDEX_SINK_MAX:
+        case BTAV_A2DP_CODEC_INDEX_SOURCE_LC3:
           // Needed to avoid using "default:" case so we can capture when
           // a new codec is added, and it can be included here.
           break;

@@ -244,7 +244,8 @@ public:
             base::Bind(&MediaInterface::GetAddressedPlayer, base::Unretained(wrapped_), bound_cb));
   }
 
-  void SetBrowsedPlayer(uint16_t player_id, SetBrowsedPlayerCallback browse_cb) override {
+  void SetBrowsedPlayer(uint16_t player_id, std::string current_path,
+                        SetBrowsedPlayerCallback browse_cb) override {
     auto cb_lambda = [](SetBrowsedPlayerCallback cb, bool success, std::string root_id,
                         uint32_t num_items) {
       do_in_main_thread(base::BindOnce(cb, success, root_id, num_items));
@@ -253,7 +254,7 @@ public:
     auto bound_cb = base::Bind(cb_lambda, browse_cb);
 
     do_in_jni_thread(base::Bind(&MediaInterface::SetBrowsedPlayer, base::Unretained(wrapped_),
-                                player_id, bound_cb));
+                                player_id, current_path, bound_cb));
   }
 
   void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback addressed_cb) override {
@@ -396,40 +397,25 @@ void AvrcpService::Init(MediaInterface* media_interface, VolumeInterface* volume
   profile_version = avrcp_interface_.GetAvrcpVersion();
 
   uint16_t supported_features = GetSupportedFeatures(profile_version);
-  if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-    const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-    AvrcpSdpRecord target_add_record_request = {UUID_SERVCLASS_AV_REM_CTRL_TARGET,
-                                                "AV Remote Control Target",
-                                                "",
-                                                supported_features,
-                                                true,
-                                                profile_version,
-                                                0};
-    avrcp_sdp_service->AddRecord(target_add_record_request, target_sdp_request_id_);
-    log::verbose("Target request id {}", target_sdp_request_id_);
-    AvrcpSdpRecord control_add_record_request = {UUID_SERVCLASS_AV_REMOTE_CONTROL,
-                                                 "AV Remote Control",
-                                                 "",
-                                                 AVRCP_SUPF_TG_CT,
-                                                 false,
-                                                 avrcp_interface_.GetAvrcpControlVersion(),
-                                                 0};
-    avrcp_sdp_service->AddRecord(control_add_record_request, control_sdp_request_id_);
-    log::verbose("Control request id {}", control_sdp_request_id_);
-  } else {
-    sdp_record_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-
-    avrcp_interface_.AddRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-                               supported_features, sdp_record_handle, true, profile_version, 0);
-    bta_sys_add_uuid(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
-
-    ct_sdp_record_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-
-    avrcp_interface_.AddRecord(UUID_SERVCLASS_AV_REMOTE_CONTROL, "AV Remote Control", NULL,
-                               AVRCP_SUPF_TG_CT, ct_sdp_record_handle, false,
-                               avrcp_interface_.GetAvrcpControlVersion(), 0);
-    bta_sys_add_uuid(UUID_SERVCLASS_AV_REMOTE_CONTROL);
-  }
+  const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
+  AvrcpSdpRecord target_add_record_request = {UUID_SERVCLASS_AV_REM_CTRL_TARGET,
+                                              "AV Remote Control Target",
+                                              "",
+                                              supported_features,
+                                              true,
+                                              profile_version,
+                                              0};
+  avrcp_sdp_service->AddRecord(target_add_record_request, target_sdp_request_id_);
+  log::verbose("Target request id {}", target_sdp_request_id_);
+  AvrcpSdpRecord control_add_record_request = {UUID_SERVCLASS_AV_REMOTE_CONTROL,
+                                               "AV Remote Control",
+                                               "",
+                                               AVRCP_SUPF_TG_CT,
+                                               false,
+                                               avrcp_interface_.GetAvrcpControlVersion(),
+                                               0};
+  avrcp_sdp_service->AddRecord(control_add_record_request, control_sdp_request_id_);
+  log::verbose("Control request id {}", control_sdp_request_id_);
 
   media_interface_ = new MediaInterfaceWrapper(media_interface);
   media_interface->RegisterUpdateCallback(instance_);
@@ -471,20 +457,13 @@ uint16_t AvrcpService::GetSupportedFeatures(uint16_t profile_version) {
 
 void AvrcpService::Cleanup() {
   log::info("AVRCP Target Service stopped");
-  if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-    const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-    avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET, target_sdp_request_id_);
-    target_sdp_request_id_ = UNASSIGNED_REQUEST_ID;
-    avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REMOTE_CONTROL, control_sdp_request_id_);
-    control_sdp_request_id_ = UNASSIGNED_REQUEST_ID;
-  } else {
-    avrcp_interface_.RemoveRecord(sdp_record_handle);
-    bta_sys_remove_uuid(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
-    sdp_record_handle = -1;
-    avrcp_interface_.RemoveRecord(ct_sdp_record_handle);
-    bta_sys_remove_uuid(UUID_SERVCLASS_AV_REMOTE_CONTROL);
-    ct_sdp_record_handle = -1;
-  }
+
+  const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
+  avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET, target_sdp_request_id_);
+  target_sdp_request_id_ = UNASSIGNED_REQUEST_ID;
+  avrcp_sdp_service->RemoveRecord(UUID_SERVCLASS_AV_REMOTE_CONTROL, control_sdp_request_id_);
+  control_sdp_request_id_ = UNASSIGNED_REQUEST_ID;
+
   connection_handler_->CleanUp();
   connection_handler_ = nullptr;
   if (player_settings_interface_ != nullptr) {
@@ -498,32 +477,17 @@ void AvrcpService::Cleanup() {
 
 void AvrcpService::RegisterBipServer(int psm) {
   log::info("AVRCP Target Service has registered a BIP OBEX server, psm={}", psm);
-  if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-    const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-    avrcp_sdp_service->EnableCovertArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, psm,
-                                       target_sdp_request_id_);
-  } else {
-    avrcp_interface_.RemoveRecord(sdp_record_handle);
-    uint16_t supported_features =
-            GetSupportedFeatures(profile_version) | AVRC_SUPF_TG_PLAYER_COVER_ART;
-    sdp_record_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-    avrcp_interface_.AddRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-                               supported_features, sdp_record_handle, true, profile_version, psm);
-  }
+
+  const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
+  avrcp_sdp_service->EnableCovertArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, psm,
+                                     target_sdp_request_id_);
 }
 
 void AvrcpService::UnregisterBipServer() {
   log::info("AVRCP Target Service has unregistered a BIP OBEX server");
-  if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-    const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-    avrcp_sdp_service->DisableCovertArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, target_sdp_request_id_);
-  } else {
-    avrcp_interface_.RemoveRecord(sdp_record_handle);
-    uint16_t supported_features = GetSupportedFeatures(profile_version);
-    sdp_record_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-    avrcp_interface_.AddRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-                               supported_features, sdp_record_handle, true, profile_version, 0);
-  }
+
+  const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
+  avrcp_sdp_service->DisableCovertArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, target_sdp_request_id_);
   avrcp_interface_.RemoveRecord(sdp_record_handle);
   uint16_t supported_features = GetSupportedFeatures(profile_version);
   sdp_record_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();

@@ -30,6 +30,7 @@
 #include <functional>
 
 #include "btif/include/btif_uid.h"
+#include "hardware/bt_sock.h"
 #include "stack/include/bt_hdr.h"
 #include "types/bluetooth/uuid.h"
 #include "types/raw_address.h"
@@ -91,14 +92,21 @@ extern struct btsock_rfc_cleanup btsock_rfc_cleanup;
 // int* sock_fd, int flags, int app_uid Return: bt_status_t
 struct btsock_rfc_connect {
   static bt_status_t return_value;
-  std::function<bt_status_t(const RawAddress* bd_addr, const Uuid* service_uuid, int channel,
-                            int* sock_fd, int flags, int app_uid)>
-          body{[](const RawAddress* /* bd_addr */, const Uuid* /* service_uuid */,
-                  int /* channel */, int* /* sock_fd */, int /* flags */,
-                  int /* app_uid */) { return return_value; }};
-  bt_status_t operator()(const RawAddress* bd_addr, const Uuid* service_uuid, int channel,
-                         int* sock_fd, int flags, int app_uid) {
-    return body(bd_addr, service_uuid, channel, sock_fd, flags, app_uid);
+  std::function<bt_status_t(const RawAddress* bd_addr, const bluetooth::Uuid* uuid, int channel,
+                            int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
+                            const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
+                            int max_rx_packet_size)>
+          body{[](const RawAddress* /*bd_addr*/, const bluetooth::Uuid* /*uuid*/, int /*channel*/,
+                  int* /*sock_fd*/, int /*flags*/, int /*app_uid*/,
+                  btsock_data_path_t /*data_path*/, const char* /*socket_name*/,
+                  uint64_t /*hub_id*/, uint64_t /*endpoint_id*/,
+                  int /*max_rx_packet_size*/) { return return_value; }};
+  bt_status_t operator()(const RawAddress* bd_addr, const bluetooth::Uuid* uuid, int channel,
+                         int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
+                         const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
+                         int max_rx_packet_size) {
+    return body(bd_addr, uuid, channel, sock_fd, flags, app_uid, data_path, socket_name, hub_id,
+                endpoint_id, max_rx_packet_size);
   }
 };
 extern struct btsock_rfc_connect btsock_rfc_connect;
@@ -153,12 +161,20 @@ extern struct btsock_rfc_init btsock_rfc_init;
 struct btsock_rfc_listen {
   static bt_status_t return_value;
   std::function<bt_status_t(const char* service_name, const Uuid* service_uuid, int channel,
-                            int* sock_fd, int flags, int app_uid)>
+                            int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
+                            const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
+                            int max_rx_packet_size)>
           body{[](const char* /* service_name */, const Uuid* /* service_uuid */, int /* channel */,
-                  int* /* sock_fd */, int /* flags */, int /* app_uid */) { return return_value; }};
+                  int* /* sock_fd */, int /* flags */, int /* app_uid */,
+                  btsock_data_path_t /*data_path*/, const char* /*socket_name*/,
+                  uint64_t /*hub_id*/, uint64_t /*endpoint_id*/,
+                  int /*max_rx_packet_size*/) { return return_value; }};
   bt_status_t operator()(const char* service_name, const Uuid* service_uuid, int channel,
-                         int* sock_fd, int flags, int app_uid) {
-    return body(service_name, service_uuid, channel, sock_fd, flags, app_uid);
+                         int* sock_fd, int flags, int app_uid, btsock_data_path_t data_path,
+                         const char* socket_name, uint64_t hub_id, uint64_t endpoint_id,
+                         int max_rx_packet_size) {
+    return body(service_name, service_uuid, channel, sock_fd, flags, app_uid, data_path,
+                socket_name, hub_id, endpoint_id, max_rx_packet_size);
   }
 };
 extern struct btsock_rfc_listen btsock_rfc_listen;
@@ -172,6 +188,25 @@ struct btsock_rfc_signaled {
   void operator()(int fd, int flags, uint32_t id) { body(fd, flags, id); }
 };
 extern struct btsock_rfc_signaled btsock_rfc_signaled;
+
+// Name: on_btsocket_rfc_close
+// Params: uint64_t socket_id
+// Return: void
+struct on_btsocket_rfc_close {
+  std::function<void(uint64_t socket_id)> body{[](uint64_t /* socket_id */) {}};
+  void operator()(uint64_t socket_id) { body(socket_id); }
+};
+extern struct on_btsocket_rfc_close on_btsocket_rfc_close;
+
+// Name: on_btsocket_rfc_opened_complete
+// Params: uint64_t socket_id, bool success
+// Return: void
+struct on_btsocket_rfc_opened_complete {
+  std::function<void(uint64_t socket_id, bool success)> body{
+          [](uint64_t /* socket_id */, bool /* success */) {}};
+  void operator()(uint64_t socket_id, bool success) { body(socket_id, success); }
+};
+extern struct on_btsocket_rfc_opened_complete on_btsocket_rfc_opened_complete;
 
 }  // namespace btif_sock_rfc
 }  // namespace mock

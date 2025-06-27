@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.gatt;
 
+import static android.bluetooth.le.DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO;
+import static android.bluetooth.le.DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING;
+import static android.bluetooth.le.DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI;
 import static android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE_CHANNEL_SOUNDING;
 
 import android.bluetooth.BluetoothDevice;
@@ -26,50 +29,82 @@ import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
 import android.bluetooth.le.DistanceMeasurementResult;
 import android.bluetooth.le.IDistanceMeasurementCallback;
+import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /** Manages distance measurement operations and interacts with Gabeldorsche stack. */
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 public class DistanceMeasurementManager {
     private static final String TAG = DistanceMeasurementManager.class.getSimpleName();
 
+    private static final long RUN_SYNC_WAIT_TIME_MS = 2000L;
+
     private static final int RSSI_LOW_FREQUENCY_INTERVAL_MS = 3000;
     private static final int RSSI_MEDIUM_FREQUENCY_INTERVAL_MS = 1000;
     private static final int RSSI_HIGH_FREQUENCY_INTERVAL_MS = 500;
     private static final int CS_LOW_FREQUENCY_INTERVAL_MS = 5000;
-    private static final int CS_MEDIUM_FREQUENCY_INTERVAL_MS = 3000;
-    private static final int CS_HIGH_FREQUENCY_INTERVAL_MS = 200;
+    private static final int CS_MEDIUM_FREQUENCY_INTERVAL_MS = 200;
+    private static final int CS_HIGH_FREQUENCY_INTERVAL_MS = 100;
+    private static final int THREAD_WAIT_TIMEOUT_MS = 2000;
+
+    // sync with system/gd/hic/DistanceMeasurementManager
+    private static final int INVALID_AZIMUTH_ANGLE_DEGREE = -1;
+    private static final int INVALID_ALTITUDE_ANGLE_DEGREE = -91;
 
     private final AdapterService mAdapterService;
     private final HandlerThread mHandlerThread;
-    DistanceMeasurementNativeInterface mDistanceMeasurementNativeInterface;
+    private final Handler mHandler;
+    private final DistanceMeasurementNativeInterface mDistanceMeasurementNativeInterface;
+    private final DistanceMeasurementBinder mDistanceMeasurementBinder;
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<DistanceMeasurementTracker>>
             mRssiTrackers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<DistanceMeasurementTracker>>
             mCsTrackers = new ConcurrentHashMap<>();
     private final boolean mHasChannelSoundingFeature;
 
+    private volatile boolean mIsTurnedOff = false;
+
     /** Constructor of {@link DistanceMeasurementManager}. */
-    DistanceMeasurementManager(AdapterService adapterService) {
+    DistanceMeasurementManager(AdapterService adapterService, Looper looper) {
         mAdapterService = adapterService;
 
-        // Start a HandlerThread that handles distance measurement operations
-        mHandlerThread = new HandlerThread("DistanceMeasurementManager");
-        mHandlerThread.start();
+        if (Flags.distanceMeasurementThread()) {
+            // TODO(b/391508617): When removing this flag, remove all 'synchronized' and replace
+            // java.util.concurrent data structures with the basic ones.
+            // Also, remove mHandlerThread variable.
+            mHandler = new Handler(looper);
+
+            mHandlerThread = null;
+        } else {
+            // Start a HandlerThread that handles distance measurement operations
+            mHandlerThread = new HandlerThread("DistanceMeasurementManager");
+            mHandlerThread.start();
+
+            mHandler = new Handler(mHandlerThread.getLooper());
+        }
+
         mDistanceMeasurementNativeInterface = DistanceMeasurementNativeInterface.getInstance();
         mDistanceMeasurementNativeInterface.init(this);
+        mDistanceMeasurementBinder = new DistanceMeasurementBinder(adapterService, this);
         if (Flags.channelSounding25q2Apis()) {
             mHasChannelSoundingFeature =
                     adapterService
@@ -81,32 +116,66 @@ public class DistanceMeasurementManager {
     }
 
     void cleanup() {
-        mDistanceMeasurementNativeInterface.cleanup();
+        forceRunSyncOnDistanceMeasurementThread(
+                () -> {
+                    mIsTurnedOff = true;
+                    mHandler.removeCallbacksAndMessages(null);
+                    mDistanceMeasurementBinder.cleanup();
+                    mDistanceMeasurementNativeInterface.cleanup();
+                    Log.d(TAG, "stop all sessions as BT is off");
+                    for (String addressForCs : mCsTrackers.keySet()) {
+                        onDistanceMeasurementStopped(
+                                addressForCs,
+                                BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                                DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
+                    }
+                    for (String addressForRssi : mRssiTrackers.keySet()) {
+                        onDistanceMeasurementStopped(
+                                addressForRssi,
+                                BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED,
+                                DISTANCE_MEASUREMENT_METHOD_RSSI);
+                    }
+                });
     }
 
-    DistanceMeasurementMethod[] getSupportedDistanceMeasurementMethods() {
-        ArrayList<DistanceMeasurementMethod> methods = new ArrayList<DistanceMeasurementMethod>();
+    DistanceMeasurementBinder getBinder() {
+        return mDistanceMeasurementBinder;
+    }
+
+    List<DistanceMeasurementMethod> getSupportedDistanceMeasurementMethods() {
+        List<DistanceMeasurementMethod> methods = new ArrayList<>();
         methods.add(
-                new DistanceMeasurementMethod.Builder(
-                                DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI)
-                        .build());
+                new DistanceMeasurementMethod.Builder(DISTANCE_MEASUREMENT_METHOD_RSSI).build());
         if (mHasChannelSoundingFeature && mAdapterService.isLeChannelSoundingSupported()) {
             methods.add(
                     new DistanceMeasurementMethod.Builder(
-                                    DistanceMeasurementMethod
-                                            .DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING)
+                                    DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING)
                             .build());
         }
-        return methods.toArray(new DistanceMeasurementMethod[0]);
+        return methods;
     }
 
     void startDistanceMeasurement(
             UUID uuid, DistanceMeasurementParams params, IDistanceMeasurementCallback callback) {
+        checkThread();
+
+        if (mIsTurnedOff) {
+            Log.d(TAG, "BT is turned off, no new request is allowed.");
+            invokeStartFail(
+                    callback, params.getDevice(), BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED);
+            return;
+        }
         Log.i(
                 TAG,
                 "startDistanceMeasurement:"
                         + (" device=" + params.getDevice())
                         + (" method=" + params.getMethodId()));
+        if (!mAdapterService.isConnected(params.getDevice())) {
+            Log.e(TAG, "Device " + params.getDevice() + " is not connected");
+            invokeStartFail(
+                    callback, params.getDevice(), BluetoothStatusCodes.ERROR_NO_LE_CONNECTION);
+            return;
+        }
         String address = mAdapterService.getIdentityAddress(params.getDevice().getAddress());
         if (address == null) {
             address = params.getDevice().getAddress();
@@ -128,11 +197,11 @@ public class DistanceMeasurementManager {
                 new DistanceMeasurementTracker(this, params, address, uuid, interval, callback);
 
         switch (params.getMethodId()) {
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO:
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
+            case DISTANCE_MEASUREMENT_METHOD_AUTO:
+            case DISTANCE_MEASUREMENT_METHOD_RSSI:
                 startRssiTracker(tracker);
                 break;
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
+            case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
                 if (!mHasChannelSoundingFeature
                         || !mAdapterService.isLeChannelSoundingSupported()) {
                     Log.e(TAG, "Channel Sounding is not supported.");
@@ -142,12 +211,13 @@ public class DistanceMeasurementManager {
                             BluetoothStatusCodes.FEATURE_NOT_SUPPORTED);
                     return;
                 }
-                if (!mAdapterService.isConnected(params.getDevice())) {
-                    Log.e(TAG, "Device " + params.getDevice() + " is not connected");
+                if (mAdapterService.getBondState(params.getDevice())
+                        != BluetoothDevice.BOND_BONDED) {
+                    Log.e(TAG, "StartDistanceMeasurement: the target device is not bonded.");
                     invokeStartFail(
                             callback,
                             params.getDevice(),
-                            BluetoothStatusCodes.ERROR_NO_LE_CONNECTION);
+                            BluetoothStatusCodes.ERROR_DEVICE_NOT_BONDED);
                     return;
                 }
                 startCsTracker(tracker);
@@ -167,9 +237,7 @@ public class DistanceMeasurementManager {
             return;
         }
         mDistanceMeasurementNativeInterface.startDistanceMeasurement(
-                tracker.mIdentityAddress,
-                tracker.mInterval,
-                DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
+                tracker.mIdentityAddress, tracker.mInterval, DISTANCE_MEASUREMENT_METHOD_RSSI);
     }
 
     private synchronized void startCsTracker(DistanceMeasurementTracker tracker) {
@@ -183,10 +251,12 @@ public class DistanceMeasurementManager {
         mDistanceMeasurementNativeInterface.startDistanceMeasurement(
                 tracker.mIdentityAddress,
                 tracker.mInterval,
-                DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
+                DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
     }
 
     int stopDistanceMeasurement(UUID uuid, BluetoothDevice device, int method, boolean timeout) {
+        checkThread();
+
         Log.i(
                 TAG,
                 "stopDistanceMeasurement device:"
@@ -204,10 +274,10 @@ public class DistanceMeasurementManager {
                         + BluetoothUtils.toAnonymizedAddress(address));
 
         switch (method) {
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO:
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
+            case DISTANCE_MEASUREMENT_METHOD_AUTO:
+            case DISTANCE_MEASUREMENT_METHOD_RSSI:
                 return stopRssiTracker(uuid, address, timeout);
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
+            case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
                 return stopCsTracker(uuid, address, timeout);
             default:
                 Log.w(TAG, "stopDistanceMeasurement with invalid method:" + method);
@@ -216,6 +286,8 @@ public class DistanceMeasurementManager {
     }
 
     int getChannelSoundingMaxSupportedSecurityLevel(BluetoothDevice remoteDevice) {
+        checkThread();
+
         if (mHasChannelSoundingFeature && mAdapterService.isLeChannelSoundingSupported()) {
             return ChannelSoundingParams.CS_SECURITY_LEVEL_ONE;
         }
@@ -223,6 +295,8 @@ public class DistanceMeasurementManager {
     }
 
     int getLocalChannelSoundingMaxSupportedSecurityLevel() {
+        checkThread();
+
         if (mHasChannelSoundingFeature && mAdapterService.isLeChannelSoundingSupported()) {
             return ChannelSoundingParams.CS_SECURITY_LEVEL_ONE;
         }
@@ -230,6 +304,8 @@ public class DistanceMeasurementManager {
     }
 
     Set<Integer> getChannelSoundingSupportedSecurityLevels() {
+        checkThread();
+
         // TODO(b/378685103): get it from the HAL when level 4 is supported and HAL v2 is available.
         if (mHasChannelSoundingFeature && mAdapterService.isLeChannelSoundingSupported()) {
             return Set.of(ChannelSoundingParams.CS_SECURITY_LEVEL_ONE);
@@ -261,7 +337,7 @@ public class DistanceMeasurementManager {
             logd("no rssi tracker");
             mRssiTrackers.remove(identityAddress);
             mDistanceMeasurementNativeInterface.stopDistanceMeasurement(
-                    identityAddress, DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI);
+                    identityAddress, DISTANCE_MEASUREMENT_METHOD_RSSI);
         }
         return BluetoothStatusCodes.SUCCESS;
     }
@@ -290,13 +366,12 @@ public class DistanceMeasurementManager {
             logd("No CS tracker exists; stop CS");
             mCsTrackers.remove(identityAddress);
             mDistanceMeasurementNativeInterface.stopDistanceMeasurement(
-                    identityAddress,
-                    DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
+                    identityAddress, DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING);
         }
         return BluetoothStatusCodes.SUCCESS;
     }
 
-    private void invokeStartFail(
+    private static void invokeStartFail(
             IDistanceMeasurementCallback callback, BluetoothDevice device, int reason) {
         try {
             callback.onStartFail(device, reason);
@@ -305,7 +380,7 @@ public class DistanceMeasurementManager {
         }
     }
 
-    private void invokeOnStopped(
+    private static void invokeOnStopped(
             IDistanceMeasurementCallback callback, BluetoothDevice device, int reason) {
         try {
             callback.onStopped(device, reason);
@@ -315,10 +390,10 @@ public class DistanceMeasurementManager {
     }
 
     /** Convert frequency into interval in ms */
-    private int getIntervalValue(int frequency, int method) {
+    private static int getIntervalValue(int frequency, int method) {
         switch (method) {
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO:
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
+            case DISTANCE_MEASUREMENT_METHOD_AUTO:
+            case DISTANCE_MEASUREMENT_METHOD_RSSI:
                 switch (frequency) {
                     case DistanceMeasurementParams.REPORT_FREQUENCY_LOW:
                         return RSSI_LOW_FREQUENCY_INTERVAL_MS;
@@ -328,7 +403,7 @@ public class DistanceMeasurementManager {
                         return RSSI_HIGH_FREQUENCY_INTERVAL_MS;
                 }
                 break;
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
+            case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
                 switch (frequency) {
                     case DistanceMeasurementParams.REPORT_FREQUENCY_LOW:
                         return CS_LOW_FREQUENCY_INTERVAL_MS;
@@ -345,16 +420,18 @@ public class DistanceMeasurementManager {
     }
 
     void onDistanceMeasurementStarted(String address, int method) {
+        checkThread();
+
         logd(
                 "onDistanceMeasurementStarted address:"
                         + BluetoothUtils.toAnonymizedAddress(address)
                         + ", method:"
                         + method);
         switch (method) {
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
+            case DISTANCE_MEASUREMENT_METHOD_RSSI:
                 handleRssiStarted(address);
                 break;
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
+            case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
                 handleCsStarted(address);
                 break;
             default:
@@ -362,7 +439,7 @@ public class DistanceMeasurementManager {
         }
     }
 
-    void handleRssiStarted(String address) {
+    private void handleRssiStarted(String address) {
         CopyOnWriteArraySet<DistanceMeasurementTracker> set = mRssiTrackers.get(address);
         if (set == null) {
             Log.w(TAG, "Can't find rssi tracker");
@@ -373,7 +450,7 @@ public class DistanceMeasurementManager {
                 if (!tracker.mStarted) {
                     tracker.mStarted = true;
                     tracker.mCallback.onStarted(tracker.mDevice);
-                    tracker.startTimer(mHandlerThread.getLooper());
+                    tracker.startTimer(mHandler.getLooper());
                 }
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception: " + e);
@@ -381,7 +458,7 @@ public class DistanceMeasurementManager {
         }
     }
 
-    void handleCsStarted(String address) {
+    private void handleCsStarted(String address) {
         CopyOnWriteArraySet<DistanceMeasurementTracker> set = mCsTrackers.get(address);
         if (set == null) {
             Log.w(TAG, "Can't find CS tracker");
@@ -392,7 +469,7 @@ public class DistanceMeasurementManager {
                 if (!tracker.mStarted) {
                     tracker.mStarted = true;
                     tracker.mCallback.onStarted(tracker.mDevice);
-                    tracker.startTimer(mHandlerThread.getLooper());
+                    tracker.startTimer(mHandler.getLooper());
                 }
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception: " + e);
@@ -401,6 +478,7 @@ public class DistanceMeasurementManager {
     }
 
     void onDistanceMeasurementStopped(String address, int reason, int method) {
+        checkThread();
         logd(
                 "onDistanceMeasurementStopped address:"
                         + BluetoothUtils.toAnonymizedAddress(address)
@@ -409,10 +487,10 @@ public class DistanceMeasurementManager {
                         + ", method:"
                         + method);
         switch (method) {
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
+            case DISTANCE_MEASUREMENT_METHOD_RSSI:
                 handleRssiStopped(address, reason);
                 break;
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
+            case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
                 handleCsStopped(address, reason);
                 break;
             default:
@@ -420,7 +498,7 @@ public class DistanceMeasurementManager {
         }
     }
 
-    void handleRssiStopped(String address, int reason) {
+    private void handleRssiStopped(String address, int reason) {
         CopyOnWriteArraySet<DistanceMeasurementTracker> set = mRssiTrackers.get(address);
         if (set == null) {
             Log.w(TAG, "Can't find rssi tracker");
@@ -437,7 +515,7 @@ public class DistanceMeasurementManager {
         mRssiTrackers.remove(address);
     }
 
-    void handleCsStopped(String address, int reason) {
+    private void handleCsStopped(String address, int reason) {
         CopyOnWriteArraySet<DistanceMeasurementTracker> set = mCsTrackers.get(address);
         if (set == null) {
             Log.w(TAG, "Can't find CS tracker");
@@ -464,7 +542,11 @@ public class DistanceMeasurementManager {
             int errorAltitudeAngle,
             long elapsedRealtimeNanos,
             int confidenceLevel,
+            double delaySpreadMeters,
+            int detectedAttackLevel,
+            double velocityMetersPerSecond,
             int method) {
+        checkThread();
         logd(
                 "onDistanceMeasurementResult "
                         + BluetoothUtils.toAnonymizedAddress(address)
@@ -475,23 +557,38 @@ public class DistanceMeasurementManager {
         DistanceMeasurementResult.Builder builder =
                 new DistanceMeasurementResult.Builder(centimeter / 100.0, errorCentimeter / 100.0)
                         .setMeasurementTimestampNanos(elapsedRealtimeNanos);
-        if (confidenceLevel != -1) {
-            builder.setConfidenceLevel(confidenceLevel / 100.0);
-        }
-        DistanceMeasurementResult result = builder.build();
+
         switch (method) {
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
-                handleRssiResult(address, result);
+            case DISTANCE_MEASUREMENT_METHOD_RSSI:
+                handleRssiResult(address, builder.build());
                 break;
-            case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
-                handleCsResult(address, result);
+            case DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
+                if (azimuthAngle != INVALID_AZIMUTH_ANGLE_DEGREE) {
+                    builder.setAzimuthAngle(azimuthAngle);
+                    builder.setErrorAzimuthAngle(errorAzimuthAngle);
+                }
+                if (altitudeAngle != INVALID_ALTITUDE_ANGLE_DEGREE) {
+                    builder.setAltitudeAngle(altitudeAngle);
+                    builder.setErrorAltitudeAngle(errorAltitudeAngle);
+                }
+                if (confidenceLevel != -1) {
+                    builder.setConfidenceLevel(confidenceLevel / 100.0);
+                }
+                if (delaySpreadMeters >= 0) {
+                    builder.setDelaySpreadMeters(delaySpreadMeters);
+                }
+                if (velocityMetersPerSecond >= 0) {
+                    builder.setVelocityMetersPerSecond(velocityMetersPerSecond);
+                }
+                builder.setDetectedAttackLevel(detectedAttackLevel);
+                handleCsResult(address, builder.build());
                 break;
             default:
                 Log.w(TAG, "onDistanceMeasurementResult: invalid method " + method);
         }
     }
 
-    void handleRssiResult(String address, DistanceMeasurementResult result) {
+    private void handleRssiResult(String address, DistanceMeasurementResult result) {
         CopyOnWriteArraySet<DistanceMeasurementTracker> set = mRssiTrackers.get(address);
         if (set == null) {
             Log.w(TAG, "Can't find rssi tracker");
@@ -509,7 +606,7 @@ public class DistanceMeasurementManager {
         }
     }
 
-    void handleCsResult(String address, DistanceMeasurementResult result) {
+    private void handleCsResult(String address, DistanceMeasurementResult result) {
         CopyOnWriteArraySet<DistanceMeasurementTracker> set = mCsTrackers.get(address);
         if (set == null) {
             Log.w(TAG, "Can't find cs tracker");
@@ -524,6 +621,71 @@ public class DistanceMeasurementManager {
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception: " + e);
             }
+        }
+    }
+
+    interface GetResultTask<T> {
+        T getResult();
+    }
+
+    void postOnDistanceMeasurementThread(Runnable r) {
+        if (Flags.distanceMeasurementThread()) {
+            mHandler.post(r);
+        } else {
+            r.run();
+        }
+    }
+
+    <T> T runOnDistanceMeasurementThreadAndWaitForResult(GetResultTask<T> task) throws Throwable {
+        if (Flags.distanceMeasurementThread() && !mHandler.getLooper().isCurrentThread()) {
+            CompletableFuture<T> result = new CompletableFuture<>();
+            mHandler.post(
+                    () -> {
+                        try {
+                            result.complete(task.getResult());
+                        } catch (Exception e) {
+                            result.completeExceptionally(e);
+                        }
+                    });
+
+            try {
+                return result.get(THREAD_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | TimeoutException e) {
+                Log.w(TAG, "Exception happened", e);
+            } catch (ExecutionException e) {
+                // Propagate exception to the caller
+                throw e.getCause();
+            }
+            return null;
+        } else {
+            return task.getResult();
+        }
+    }
+
+    private void forceRunSyncOnDistanceMeasurementThread(Runnable r) {
+        if (!Flags.distanceMeasurementThread()) {
+            r.run();
+            return;
+        }
+
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        mHandler.postAtFrontOfQueue(
+                () -> {
+                    r.run();
+                    future.complete(null);
+                });
+        try {
+            future.get(RUN_SYNC_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | TimeoutException | ExecutionException e) {
+            Log.w(TAG, "Unable to complete sync task: " + e);
+        }
+    }
+
+    private void checkThread() {
+        if (Flags.distanceMeasurementThread()
+                && !mHandler.getLooper().isCurrentThread()
+                && !Utils.isInstrumentationTestMode()) {
+            throw new IllegalStateException("Not on distance measurement thread");
         }
     }
 

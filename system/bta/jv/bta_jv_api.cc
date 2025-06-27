@@ -415,7 +415,8 @@ tBTA_JV_STATUS BTA_JvL2capWrite(uint32_t handle, uint32_t req_id, BT_HDR* msg, u
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC sec_mask, uint8_t remote_scn,
                                    const RawAddress& peer_bd_addr, tBTA_JV_RFCOMM_CBACK* p_cback,
-                                   uint32_t rfcomm_slot_id) {
+                                   uint32_t rfcomm_slot_id, RfcommCfgInfo cfg, uint32_t app_uid,
+                                   uint64_t sdp_duration_ms) {
   log::verbose("remote_scn:{}, peer_bd_addr:{}, rfcomm_slot_id:{}", remote_scn, peer_bd_addr,
                rfcomm_slot_id);
 
@@ -424,7 +425,7 @@ tBTA_JV_STATUS BTA_JvRfcommConnect(tBTA_SEC sec_mask, uint8_t remote_scn,
   }
 
   do_in_main_thread(Bind(&bta_jv_rfcomm_connect, sec_mask, remote_scn, peer_bd_addr, p_cback,
-                         rfcomm_slot_id));
+                         rfcomm_slot_id, cfg, app_uid, sdp_duration_ms));
   return tBTA_JV_STATUS::SUCCESS;
 }
 
@@ -469,7 +470,8 @@ tBTA_JV_STATUS BTA_JvRfcommClose(uint32_t handle, uint32_t rfcomm_slot_id) {
  *
  ******************************************************************************/
 tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC sec_mask, uint8_t local_scn, uint8_t max_session,
-                                       tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id) {
+                                       tBTA_JV_RFCOMM_CBACK* p_cback, uint32_t rfcomm_slot_id,
+                                       RfcommCfgInfo cfg, uint32_t app_uid) {
   log::verbose("local_scn:{}, rfcomm_slot_id:{}", local_scn, rfcomm_slot_id);
 
   if (p_cback == NULL) {
@@ -485,7 +487,7 @@ tBTA_JV_STATUS BTA_JvRfcommStartServer(tBTA_SEC sec_mask, uint8_t local_scn, uin
   }
 
   do_in_main_thread(Bind(&bta_jv_rfcomm_start_server, sec_mask, local_scn, max_session, p_cback,
-                         rfcomm_slot_id));
+                         rfcomm_slot_id, cfg, app_uid));
   return tBTA_JV_STATUS::SUCCESS;
 }
 

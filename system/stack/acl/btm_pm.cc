@@ -31,7 +31,6 @@
 #include "main/shim/entry.h"
 #define LOG_TAG "bt_btm_pm"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 
 #include <cstdint>
@@ -103,9 +102,9 @@ static void send_sniff_subrating(uint16_t handle, const RawAddress& addr, uint16
 
   btsnd_hcic_sniff_sub_rate(handle, max_lat, min_rmt_to, min_loc_to);
   BTM_LogHistory(kBtmLogTag, addr, "Sniff subrating",
-                 base::StringPrintf("max_latency:%.2f peer_timeout:%.2f local_timeout:%.2f",
-                                    ticks_to_seconds(max_lat), ticks_to_seconds(min_rmt_to),
-                                    ticks_to_seconds(min_loc_to)));
+                 std::format("max_latency:{:.2f} peer_timeout:{:.2f} local_timeout:{:.2f}",
+                             ticks_to_seconds(max_lat), ticks_to_seconds(min_rmt_to),
+                             ticks_to_seconds(min_loc_to)));
 }
 
 static tBTM_STATUS btm_pm_snd_md_req(uint16_t handle, uint8_t pm_id, int link_ind,
@@ -555,9 +554,8 @@ static tBTM_STATUS btm_pm_snd_md_req(uint16_t handle, uint8_t pm_id, int link_in
   log::info("Switching from {}[0x{:02x}] to {}[0x{:02x}]", power_mode_state_text(p_cb->state),
             p_cb->state, power_mode_state_text(md_res.mode), md_res.mode);
   BTM_LogHistory(kBtmLogTag, p_cb->bda_, "Power mode change",
-                 base::StringPrintf("%s[0x%02x] ==> %s[0x%02x]",
-                                    power_mode_state_text(p_cb->state).c_str(), p_cb->state,
-                                    power_mode_state_text(md_res.mode).c_str(), md_res.mode));
+                 std::format("{}[0x{:02x}] ==> {}[0x{:02x}]", power_mode_state_text(p_cb->state),
+                             p_cb->state, power_mode_state_text(md_res.mode), md_res.mode));
 
   switch (md_res.mode) {
     case BTM_PM_MD_ACTIVE:
@@ -910,10 +908,21 @@ uint32_t BTM_PM_ReadBleScanDutyCycle(void) {
   if (!btm_cb.ble_ctr_cb.is_ble_scan_active()) {
     return 0;
   }
-  uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window;
-  uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval;
-  log::debug("LE scan_window:{} scan interval:{}", scan_window, scan_interval);
-  return (scan_window * 100) / scan_interval;
+  uint32_t duty_cycle_1m = 0;
+  uint32_t duty_cycle_coded = 0;
+  if (btm_cb.ble_ctr_cb.inq_var.is_1m_phy_configured()) {
+    uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window_1m;
+    uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval_1m;
+    log::debug("LE 1m scan_window:{} scan interval:{}", scan_window, scan_interval);
+    duty_cycle_1m = (scan_window * 100) / scan_interval;
+  }
+  if (btm_cb.ble_ctr_cb.inq_var.is_coded_phy_configured()) {
+    uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window_coded;
+    uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval_coded;
+    log::debug("LE coded scan_window:{} scan interval:{}", scan_window, scan_interval);
+    duty_cycle_coded = (scan_window * 100) / scan_interval;
+  }
+  return std::max(duty_cycle_1m, duty_cycle_coded);
 }
 
 void btm_pm_on_mode_change(tHCI_STATUS status, uint16_t handle, tHCI_MODE current_mode,

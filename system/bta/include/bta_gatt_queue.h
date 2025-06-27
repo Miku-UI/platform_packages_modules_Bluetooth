@@ -44,11 +44,12 @@ public:
   static void WriteDescriptor(tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
                               tGATT_WRITE_TYPE write_type, GATT_WRITE_OP_CB cb, void* cb_data);
   static void ConfigureMtu(tCONN_ID conn_id, uint16_t mtu);
-  /* This method uses "Read Multiple Variable Length Characteristic Values".
-   * If EATT is not enabled on remote, it would send multiple regular Characteristic Reads, and
-   * concatenate their values into Length Value Tuple List
+  /* This method queues "Read Multiple Variable Length Characteristic Values".
+   * Remote must support this method when it supports EATT.
+   * Returns true when remote supports EATT and operation was successfully queued.
+   * Returns false when remote doesn't support EATT and operation was not scheduled.
    */
-  static void ReadMultiCharacteristic(tCONN_ID conn_id, tBTA_GATTC_MULTI& p_read_multi,
+  static bool ReadMultiCharacteristic(tCONN_ID conn_id, tBTA_GATTC_MULTI& p_read_multi,
                                       GATT_READ_MULTI_OP_CB cb, void* cb_data);
 
   /* Holds pending GATT operations */
@@ -80,8 +81,6 @@ private:
   static void gatt_read_multi_op_finished(tCONN_ID conn_id, tGATT_STATUS status,
                                           tBTA_GATTC_MULTI& handle, uint16_t len, uint8_t* value,
                                           void* data);
-  static void gatt_read_multi_op_simulate(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle,
-                                          uint16_t len, uint8_t* value, void* data_read);
   // maps connection id to operations waiting for execution
   static std::unordered_map<tCONN_ID, std::list<gatt_operation>> gatt_op_queue;
   // contain connection ids that currently execute operations

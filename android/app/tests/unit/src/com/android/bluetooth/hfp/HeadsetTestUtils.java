@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 package com.android.bluetooth.hfp;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.mockito.Mockito.*;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
-
-import org.junit.Assert;
 
 /** Helper functions for HFP related tests */
 public class HeadsetTestUtils {
@@ -38,12 +38,13 @@ public class HeadsetTestUtils {
      */
     public static void verifyAudioStateBroadcast(
             BluetoothDevice device, int toState, int fromState, Intent intent) {
-        Assert.assertNotNull(intent);
-        Assert.assertEquals(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED, intent.getAction());
-        Assert.assertEquals(device, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
-        Assert.assertEquals(toState, intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
-        Assert.assertEquals(
-                fromState, intent.getIntExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, -1));
+        assertThat(intent).isNotNull();
+        assertThat(intent.getAction()).isEqualTo(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(device);
+        assertThat(intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)).isEqualTo(toState);
+        assertThat(intent.getIntExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, -1))
+                .isEqualTo(fromState);
     }
 
     /**
@@ -58,15 +59,16 @@ public class HeadsetTestUtils {
      */
     public static void verifyConnectionStateBroadcast(
             BluetoothDevice device, int toState, int fromState, Intent intent, boolean checkFlag) {
-        Assert.assertNotNull(intent);
-        Assert.assertEquals(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED, intent.getAction());
+        assertThat(intent).isNotNull();
+        assertThat(intent.getAction()).isEqualTo(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
         if (checkFlag) {
-            Assert.assertEquals(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND, intent.getFlags());
+            assertThat(intent.getFlags()).isEqualTo(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
         }
-        Assert.assertEquals(device, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
-        Assert.assertEquals(toState, intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1));
-        Assert.assertEquals(
-                fromState, intent.getIntExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, -1));
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(device);
+        assertThat(intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)).isEqualTo(toState);
+        assertThat(intent.getIntExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, -1))
+                .isEqualTo(fromState);
     }
 
     /**
@@ -94,14 +96,15 @@ public class HeadsetTestUtils {
      */
     public static void verifyActiveDeviceChangedBroadcast(
             BluetoothDevice device, Intent intent, boolean checkFlag) {
-        Assert.assertNotNull(intent);
-        Assert.assertEquals(BluetoothHeadset.ACTION_ACTIVE_DEVICE_CHANGED, intent.getAction());
-        Assert.assertEquals(device, intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
+        assertThat(intent).isNotNull();
+        assertThat(intent.getAction()).isEqualTo(BluetoothHeadset.ACTION_ACTIVE_DEVICE_CHANGED);
+        assertThat(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class))
+                .isEqualTo(device);
         if (checkFlag) {
-            Assert.assertEquals(
-                    Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
-                            | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND,
-                    intent.getFlags());
+            assertThat(intent.getFlags())
+                    .isEqualTo(
+                            Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT
+                                    | Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
         }
     }
 

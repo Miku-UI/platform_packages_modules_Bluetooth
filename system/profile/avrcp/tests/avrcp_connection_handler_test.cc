@@ -23,13 +23,11 @@
 
 #include "avrcp_internal.h"
 #include "avrcp_test_helper.h"
+#include "btif/include/btif_av.h"
 #include "connection_handler.h"
 #include "sdpdefs.h"
 #include "stack/include/sdp_status.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using ::testing::_;
 using ::testing::DoAll;
@@ -208,10 +206,8 @@ TEST_F(AvrcpConnectionHandlerTest, remoteDeviceConnectionTest) {
   // device connects.
   EXPECT_CALL(mock_avrcp_, OpenBrowse(1, AVCT_ROLE_ACCEPTOR)).Times(1);
 
-  if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
-    // Set an expectation that SDP for audio will be performed
-    EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
-  }
+  // Set an expectation that SDP for audio will be performed
+  EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
 
   // Call the callback with a message saying that a remote device has connected
   conn_cb.ctrl_cback.Run(1, AVRC_OPEN_IND_EVT, 0, &RawAddress::kAny);
@@ -248,10 +244,8 @@ TEST_F(AvrcpConnectionHandlerTest, noAbsoluteVolumeTest) {
   tAVRC_FIND_CBACK sdp_cb;
   SetUpSdp(&sdp_cb, false, false);
 
-  if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
-    // Set an expectation that SDP for audio will be performed
-    EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
-  }
+  // Set an expectation that SDP for audio will be performed
+  EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
 
   EXPECT_CALL(mock_volume_, DeviceConnected(RawAddress::kAny)).Times(1);
 
@@ -292,10 +286,8 @@ TEST_F(AvrcpConnectionHandlerTest, absoluteVolumeTest) {
   tAVRC_FIND_CBACK sdp_cb;
   SetUpSdp(&sdp_cb, false, true);
 
-  if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
-    // Set an expectation that SDP for audio will be performed
-    EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
-  }
+  // Set an expectation that SDP for audio will be performed
+  EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
 
   // Call the callback with a message saying that a remote device has connected
   conn_cb.ctrl_cback.Run(1, AVRC_OPEN_IND_EVT, 0, &RawAddress::kAny);
@@ -324,10 +316,8 @@ TEST_F(AvrcpConnectionHandlerTest, disconnectTest) {
                                             &mock_volume_));
   connection_handler_ = ConnectionHandler::Get();
 
-  if (com::android::bluetooth::flags::avrcp_connect_a2dp_with_delay()) {
-    // Set an expectation that SDP for audio will be performed
-    EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
-  }
+  // Set an expectation that SDP for audio will be performed
+  EXPECT_CALL(mock_a2dp_, find_audio_sink_service(_, _)).Times(1);
 
   // Call the callback with a message saying that a remote device has connected
   conn_cb.ctrl_cback.Run(1, AVRC_OPEN_IND_EVT, 0, &RawAddress::kAny);

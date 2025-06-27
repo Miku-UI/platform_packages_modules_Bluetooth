@@ -2,32 +2,40 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-java_defaults {
-    name: "BluetoothInstrumentationTestsDefaults",
+android_test {
+    name: "BluetoothJavaUnitTests",
     defaults: [
         "bluetooth_errorprone_rules",
-        "framework-bluetooth-tests-defaults",
     ],
 
+    sdk_version: "module_current",
     min_sdk_version: "Tiramisu",
     target_sdk_version: "current",
     libs: [
         "android.test.base.stubs",
         "android.test.mock.stubs",
         "android.test.runner.stubs",
+        "framework-annotations-lib",
+        "framework-configinfrastructure.stubs.module_lib",
+        "framework-connectivity.stubs.module_lib",
+        "framework-location.stubs.module_lib",
+        "framework-mediaprovider.stubs.module_lib",
+        "framework-tethering.stubs.module_lib",
         "javax.obex.stubs",
         "libprotobuf-java-micro",
-        "telephony-common",
     ],
 
     static_libs: [
+        "BluetoothLib",
         "PlatformProperties",
+        "TestParameterInjector",
         "android.media.audio-aconfig-exported-java",
         "androidx.media_media",
         "androidx.room_room-migration",
         "androidx.room_room-runtime",
         "androidx.room_room-testing",
         "androidx.test.espresso.intents",
+        "androidx.test.ext.junit",
         "androidx.test.ext.truth",
         "androidx.test.rules",
         "androidx.test.uiautomator_uiautomator",
@@ -35,42 +43,47 @@ java_defaults {
         "com.android.sysprop.bluetooth",
         "flag-junit",
         "framework-bluetooth-pre-jarjar",
-        "frameworks-base-testutils",
         "gson",
-        "mockito-target",
+        "guava-android-testlib",
+        "mmslib",
+        "mockito-kotlin2",
+        "mockito-target-extended",
+        "modules-utils-handlerexecutor",
         "platform-parametric-runner-lib",
         "platform-test-annotations",
         "truth",
     ],
 
+    // these are needed for Extended Mockito
+    jni_libs: [
+        "libdexmakerjvmtiagent",
+        "libstaticjvmtiagent",
+    ],
+
     jarjar_rules: ":bluetooth-jarjar-rules",
     asset_dirs: ["src/com/android/bluetooth/btservice/storage/schemas"],
 
-    // Include all test java files.
-    srcs: ["src/**/*.java"],
+    // Include all test java and kotlin files.
+    srcs: [
+        "src/**/*.java",
+        "src/**/*.kt",
+    ],
     jacoco: {
-        include_filter: ["android.bluetooth.*"],
+        include_filter: ["com.android.bluetooth.*"],
         exclude_filter: [],
     },
-    platform_apis: true,
 
     test_suites: [
-        "automotive-tests",
+        "automotive-general-tests",
         "general-tests",
         "mts-bluetooth",
+        "mts-bt",
     ],
-
-    instrumentation_for: "Bluetooth",
 }
 
-android_test {
-    name: "BluetoothInstrumentationTests",
-    defaults: ["BluetoothInstrumentationTestsDefaults"],
-}
-
-android_test {
-    name: "GoogleBluetoothInstrumentationTests",
-    defaults: ["BluetoothInstrumentationTestsDefaults"],
-    test_config: "GoogleAndroidTest.xml",
-    instrumentation_target_package: "com.google.android.bluetooth",
+// TODO delete this filegroup to replace by a shadow looper
+filegroup {
+    name: "bluetooth_test_looper",
+    srcs: ["src/com/android/bluetooth/TestLooper.java"],
+    visibility: ["//packages/modules/Bluetooth/android/app/tests:__subpackages__"],
 }

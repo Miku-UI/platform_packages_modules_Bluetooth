@@ -27,8 +27,8 @@ namespace gatt {
 
 class BtaGattInterface {
 public:
-  virtual void AppRegister(tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
-                           bool eatt_support) = 0;
+  virtual void AppRegister(const std::string& name, tBTA_GATTC_CBACK* p_client_cb,
+                           BtaAppRegisterCallback cb, bool eatt_support) = 0;
   virtual void AppDeregister(tGATT_IF client_if) = 0;
   virtual void Open(tGATT_IF client_if, const RawAddress& remote_bda,
                     tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
@@ -42,17 +42,27 @@ public:
   virtual const std::list<Service>* GetServices(uint16_t conn_id) = 0;
   virtual const Characteristic* GetCharacteristic(uint16_t conn_id, uint16_t handle) = 0;
   virtual const Service* GetOwningService(uint16_t conn_id, uint16_t handle) = 0;
+  virtual void ReadCharacteristic(tCONN_ID conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req,
+                                  GATT_READ_OP_CB callback, void* cb_data) = 0;
+  virtual void WriteCharValue(tCONN_ID conn_id, uint16_t handle, tGATT_WRITE_TYPE write_type,
+                              std::vector<uint8_t> value, tGATT_AUTH_REQ auth_req,
+                              GATT_WRITE_OP_CB callback, void* cb_data) = 0;
+  virtual void WriteCharDescr(tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
+                              tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback,
+                              void* cb_data) = 0;
   virtual tGATT_STATUS RegisterForNotifications(tGATT_IF client_if, const RawAddress& remote_bda,
                                                 uint16_t handle) = 0;
   virtual tGATT_STATUS DeregisterForNotifications(tGATT_IF client_if, const RawAddress& remote_bda,
                                                   uint16_t handle) = 0;
+  virtual void ConfigureMTU(tCONN_ID conn_id, uint16_t mtu) = 0;
   virtual ~BtaGattInterface() = default;
 };
 
 class MockBtaGattInterface : public BtaGattInterface {
 public:
   MOCK_METHOD((void), AppRegister,
-              (tBTA_GATTC_CBACK * p_client_cb, BtaAppRegisterCallback cb, bool eatt_support),
+              (const std::string& name, tBTA_GATTC_CBACK* p_client_cb, BtaAppRegisterCallback cb,
+               bool eatt_support),
               (override));
   MOCK_METHOD((void), AppDeregister, (tGATT_IF client_if), (override));
   MOCK_METHOD((void), Open,
@@ -70,10 +80,21 @@ public:
   MOCK_METHOD((std::list<Service>*), GetServices, (uint16_t conn_id));
   MOCK_METHOD((const Characteristic*), GetCharacteristic, (uint16_t conn_id, uint16_t handle));
   MOCK_METHOD((const Service*), GetOwningService, (uint16_t conn_id, uint16_t handle));
+  MOCK_METHOD((void), ReadCharacteristic,
+              (tCONN_ID conn_id, uint16_t handle, tGATT_AUTH_REQ auth_req, GATT_READ_OP_CB callback,
+               void* cb_data));
+  MOCK_METHOD((void), WriteCharValue,
+              (tCONN_ID conn_id, uint16_t handle, tGATT_WRITE_TYPE write_type,
+               std::vector<uint8_t> value, tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback,
+               void* cb_data));
+  MOCK_METHOD((void), WriteCharDescr,
+              (tCONN_ID conn_id, uint16_t handle, std::vector<uint8_t> value,
+               tGATT_AUTH_REQ auth_req, GATT_WRITE_OP_CB callback, void* cb_data));
   MOCK_METHOD((tGATT_STATUS), RegisterForNotifications,
               (tGATT_IF client_if, const RawAddress& remote_bda, uint16_t handle));
   MOCK_METHOD((tGATT_STATUS), DeregisterForNotifications,
               (tGATT_IF client_if, const RawAddress& remote_bda, uint16_t handle));
+  MOCK_METHOD((void), ConfigureMTU, (tCONN_ID conn_id, uint16_t mtu));
 };
 
 /**

@@ -725,30 +725,34 @@ static void CategorizeBqrEvent(uint8_t length, const uint8_t* p_bqr_event) {
       break;
 
     case QUALITY_REPORT_ID_ENERGY_MONITOR:
-      if (length < kEnergyMonitorParamTotalLen) {
-        log::fatal(
-                "Parameter total length: {} is abnormal. It shall be not shorter "
-                "than: {}",
-                length, kEnergyMonitorParamTotalLen);
-        return;
-      }
-
       if (com::android::bluetooth::flags::support_bluetooth_quality_report_v6()) {
-        AddEnergyMonitorEventToQueue(length, p_bqr_event);
+        if (vendor_cap_supported_version >= kBqrVersion6_0) {
+          if (length < kEnergyMonitorParamTotalLen) {
+            log::fatal(
+                    "Event {} Parameter total length: {} is abnormal. It shall be not shorter "
+                    "than: {}",
+                    quality_report_id, length, kEnergyMonitorParamTotalLen);
+            return;
+          }
+
+          AddEnergyMonitorEventToQueue(length, p_bqr_event);
+        }
       }
       break;
 
     case QUALITY_REPORT_ID_RF_STATS:
-      if (length < kRFStatsParamTotalLen) {
-        log::fatal(
-                "Parameter total length: {} is abnormal. It shall be not shorter "
-                "than: {}",
-                length, kRFStatsParamTotalLen);
-        return;
-      }
-
       if (com::android::bluetooth::flags::support_bluetooth_quality_report_v6()) {
-        AddRFStatsEventToQueue(length, p_bqr_event);
+        if (vendor_cap_supported_version >= kBqrVersion6_0) {
+          if (length < kRFStatsParamTotalLen) {
+            log::fatal(
+                    "Event {} Parameter total length: {} is abnormal. It shall be not shorter "
+                    "than: {}",
+                    quality_report_id, length, kEnergyMonitorParamTotalLen);
+            return;
+          }
+
+          AddRFStatsEventToQueue(length, p_bqr_event);
+        }
       }
       break;
 
@@ -1065,6 +1069,19 @@ static void vendor_specific_event_callback(
 
   // The stream currently points to the BQR sub-event parameters
   switch (quality_report_id) {
+    case QUALITY_REPORT_ID_MONITOR_MODE:
+    case QUALITY_REPORT_ID_APPROACH_LSTO:
+    case QUALITY_REPORT_ID_A2DP_AUDIO_CHOPPY:
+    case QUALITY_REPORT_ID_SCO_VOICE_CHOPPY:
+    case QUALITY_REPORT_ID_LE_AUDIO_CHOPPY:
+    case QUALITY_REPORT_ID_CONNECT_FAIL:
+    case QUALITY_REPORT_ID_ENERGY_MONITOR:
+    case QUALITY_REPORT_ID_RF_STATS:
+      if (com::android::bluetooth::flags::fix_unhandled_bqr_subevent()) {
+        CategorizeBqrEvent(bytes.size(), bytes.data());
+      }
+      break;
+
     case bluetooth::bqr::QUALITY_REPORT_ID_LMP_LL_MESSAGE_TRACE: {
       auto lmp_view = hci::BqrLogDumpEventView::Create(*bqr);
     }
@@ -1088,7 +1105,9 @@ static void vendor_specific_event_callback(
       log::info("Unhandled BQR subevent 0x{:02x}", quality_report_id);
   }
 
-  CategorizeBqrEvent(bytes.size(), bytes.data());
+  if (!com::android::bluetooth::flags::fix_unhandled_bqr_subevent()) {
+    CategorizeBqrEvent(bytes.size(), bytes.data());
+  }
 }
 
 void register_vse() {

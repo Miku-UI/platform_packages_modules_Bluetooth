@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ public class BluetoothKeystoreService {
     private static final String TAG = BluetoothKeystoreService.class.getSimpleName();
 
     private static BluetoothKeystoreService sBluetoothKeystoreService;
-    private boolean mIsCommonCriteriaMode;
+    private final boolean mIsCommonCriteriaMode;
 
     private static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
     private static final int GCM_TAG_LENGTH = 128;
@@ -92,10 +92,10 @@ public class BluetoothKeystoreService {
 
     private ComputeDataThread mEncryptDataThread;
     private ComputeDataThread mDecryptDataThread;
-    private Map<String, String> mNameEncryptKey = new HashMap<>();
-    private Map<String, String> mNameDecryptKey = new HashMap<>();
-    private BlockingQueue<String> mPendingDecryptKey = new LinkedBlockingQueue<>();
-    private BlockingQueue<String> mPendingEncryptKey = new LinkedBlockingQueue<>();
+    private final Map<String, String> mNameEncryptKey = new HashMap<>();
+    private final Map<String, String> mNameDecryptKey = new HashMap<>();
+    private final BlockingQueue<String> mPendingDecryptKey = new LinkedBlockingQueue<>();
+    private final BlockingQueue<String> mPendingEncryptKey = new LinkedBlockingQueue<>();
     private final List<String> mEncryptKeyNameList =
             List.of(
                     "LinkKey",
@@ -106,8 +106,8 @@ public class BluetoothKeystoreService {
                     "LE_KEY_LENC",
                     "LE_KEY_LCSRK");
 
-    private Base64.Decoder mDecoder = Base64.getDecoder();
-    private Base64.Encoder mEncoder = Base64.getEncoder();
+    private final Base64.Decoder mDecoder = Base64.getDecoder();
+    private final Base64.Encoder mEncoder = Base64.getEncoder();
 
     public BluetoothKeystoreService(
             BluetoothKeystoreNativeInterface nativeInterface, boolean isCommonCriteriaMode) {
@@ -246,7 +246,7 @@ public class BluetoothKeystoreService {
         }
     }
 
-    private boolean isFactoryReset() {
+    private static boolean isFactoryReset() {
         return SystemProperties.getBoolean("persist.bluetooth.factoryreset", false);
     }
 
@@ -310,7 +310,7 @@ public class BluetoothKeystoreService {
         cleanupMemory();
     }
 
-    private void cleanupFile() throws IOException {
+    private static void cleanupFile() throws IOException {
         Files.deleteIfExists(Paths.get(CONFIG_CHECKSUM_ENCRYPTION_PATH));
         Files.deleteIfExists(Paths.get(CONFIG_FILE_ENCRYPTION_PATH));
     }
@@ -676,7 +676,7 @@ public class BluetoothKeystoreService {
         return output;
     }
 
-    private KeyStore getKeyStore() {
+    private static KeyStore getKeyStore() {
         KeyStore keyStore = null;
         int counter = 0;
 
@@ -766,10 +766,10 @@ public class BluetoothKeystoreService {
 
     /** A thread that decrypt data if the queue has new decrypt task. */
     private class ComputeDataThread extends Thread {
-        private Map<String, String> mSourceDataMap;
-        private Map<String, String> mTargetDataMap;
-        private BlockingQueue<String> mSourceQueue;
-        private boolean mDoEncrypt;
+        private final Map<String, String> mSourceDataMap;
+        private final Map<String, String> mTargetDataMap;
+        private final BlockingQueue<String> mSourceQueue;
+        private final boolean mDoEncrypt;
 
         private boolean mWaitQueueEmptyForStop;
 

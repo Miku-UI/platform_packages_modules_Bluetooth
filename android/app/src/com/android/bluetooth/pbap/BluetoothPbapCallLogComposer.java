@@ -39,11 +39,12 @@ import com.android.vcard.VCardUtils;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Locale;
 
 /** VCard composer especially for Call Log used in Bluetooth. */
 // Next tag value for ContentProfileErrorReportUtils.report(): 3
 public class BluetoothPbapCallLogComposer implements AutoCloseable {
-    private static final String TAG = "PbapCallLogComposer";
+    private static final String TAG = BluetoothPbapCallLogComposer.class.getSimpleName();
 
     @VisibleForTesting
     static final String FAILURE_REASON_FAILED_TO_GET_DATABASE_INFO =
@@ -89,12 +90,11 @@ public class BluetoothPbapCallLogComposer implements AutoCloseable {
     private static final String VCARD_PROPERTY_CALLTYPE_OUTGOING = "DIALED";
     private static final String VCARD_PROPERTY_CALLTYPE_MISSED = "MISSED";
 
+
     private final Context mContext;
     private Cursor mCursor;
 
     private String mErrorReason = NO_ERROR;
-
-    private final String RFC_2455_FORMAT = "yyyyMMdd'T'HHmmss";
 
     public BluetoothPbapCallLogComposer(final Context context) {
         mContext = context;
@@ -197,7 +197,7 @@ public class BluetoothPbapCallLogComposer implements AutoCloseable {
 
     /** This static function is to compose vCard for phone own number */
     public static String composeVCardForPhoneOwnNumber(
-            int phonetype, String phoneName, String phoneNumber, boolean vcardVer21) {
+            int phoneType, String phoneName, String phoneNumber, boolean vcardVer21) {
         final int vcardType =
                 (vcardVer21
                                 ? VCardConfig.VCARD_TYPE_V21_GENERIC
@@ -212,28 +212,29 @@ public class BluetoothPbapCallLogComposer implements AutoCloseable {
         builder.appendLine(VCardConstants.PROPERTY_N, phoneName, needCharset, false);
 
         if (!TextUtils.isEmpty(phoneNumber)) {
-            String label = Integer.toString(phonetype);
-            builder.appendTelLine(phonetype, label, phoneNumber, false);
+            String label = Integer.toString(phoneType);
+            builder.appendTelLine(phoneType, label, phoneNumber, false);
         }
 
         return builder.toString();
     }
 
     /** Format according to RFC 2445 DATETIME type. The format is: ("%Y%m%dT%H%M%S"). */
-    private String toRfc2455Format(final long millSecs) {
+    private static String toRfc2455Format(final long millSecs) {
+        String rfc2455Format = "yyyyMMdd'T'HHmmss";
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(millSecs);
-        SimpleDateFormat df = new SimpleDateFormat(RFC_2455_FORMAT);
+        SimpleDateFormat df = new SimpleDateFormat(rfc2455Format, Locale.ROOT);
         return df.format(cal.getTime());
     }
 
     /**
      * Try to append the property line for a call history time stamp field if possible. Do nothing
-     * if the call log type gotton from the database is invalid.
+     * if the call log type gotten from the database is invalid.
      */
     private void tryAppendCallHistoryTimeStampField(final VCardBuilder builder) {
         // Extension for call history as defined in
-        // in the Specification for Ic Mobile Communcation - ver 1.1,
+        // in the Specification for Ic Mobile Communication - ver 1.1,
         // Oct 2000. This is used to send the details of the call
         // history - missed, incoming, outgoing along with date and time
         // to the requesting device (For example, transferring phone book

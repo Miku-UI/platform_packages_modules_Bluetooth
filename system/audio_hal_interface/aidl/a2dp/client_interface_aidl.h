@@ -72,6 +72,8 @@ inline BluetoothAudioStatus StatusToHalStatus(Status ack) {
       return BluetoothAudioStatus::SUCCESS;
     case Status::UNSUPPORTED_CODEC_CONFIGURATION:
       return BluetoothAudioStatus::UNSUPPORTED_CODEC_CONFIGURATION;
+    case Status::RECONFIGURATION:
+      return BluetoothAudioStatus::RECONFIGURATION;
     case Status::PENDING:
     case Status::FAILURE:
     default:

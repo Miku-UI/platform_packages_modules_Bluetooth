@@ -1,15 +1,5 @@
 package: "com.android.bluetooth.flags"
-container: "com.android.btservices"
-
-flag {
-    name: "bond_transport_after_bond_cancel_fix"
-    namespace: "bluetooth"
-    description: "Fix bad transport used for bonding, when the bonding process is restarted"
-    bug: "344574871"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
+container: "com.android.bt"
 
 flag {
     name: "ignore_unrelated_cancel_bond"

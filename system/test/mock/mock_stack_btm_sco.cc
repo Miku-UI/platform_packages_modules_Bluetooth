@@ -24,19 +24,14 @@
 #include "device/include/esco_parameters.h"
 #include "hci/class_of_device.h"
 #include "stack/btm/btm_sco.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
+#include "stack/include/sco_hci_link_interface.h"
 #include "test/common/mock_functions.h"
 #include "types/raw_address.h"
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
-bool btm_sco_removed(uint16_t /* hci_handle */, tHCI_REASON /* reason */) {
-  inc_func_call_count(__func__);
-  return false;
-}
 const RawAddress* BTM_ReadScoBdAddr(uint16_t /* sco_inx */) {
   inc_func_call_count(__func__);
   return nullptr;
@@ -89,9 +84,6 @@ void btm_sco_on_esco_connect_request(const RawAddress& /* bda */,
 }
 void btm_sco_on_sco_connect_request(const RawAddress& /* bda */,
                                     const bluetooth::hci::ClassOfDevice& /* cod */) {
-  inc_func_call_count(__func__);
-}
-void btm_sco_on_disconnected(uint16_t /* hci_handle */, tHCI_REASON /* reason */) {
   inc_func_call_count(__func__);
 }
 bool btm_peer_supports_esco_2m_phy(RawAddress /* bd_addr */) {

@@ -227,12 +227,7 @@ public final class BluetoothLeAudioCodecConfigMetadata implements Parcelable {
     @Override
     public void writeToParcel(Parcel out, int flags) {
         out.writeLong(mAudioLocation);
-        if (mRawMetadata != null) {
-            out.writeInt(mRawMetadata.length);
-            out.writeByteArray(mRawMetadata);
-        } else {
-            out.writeInt(-1);
-        }
+        out.writeByteArray(mRawMetadata);
         out.writeInt(mSampleRate);
         out.writeInt(mFrameDuration);
         out.writeInt(mOctetsPerFrame);
@@ -250,12 +245,8 @@ public final class BluetoothLeAudioCodecConfigMetadata implements Parcelable {
                 public @NonNull BluetoothLeAudioCodecConfigMetadata createFromParcel(
                         @NonNull Parcel in) {
                     long audioLocation = in.readLong();
-                    int rawMetadataLen = in.readInt();
-                    byte[] rawMetadata;
-                    if (rawMetadataLen != -1) {
-                        rawMetadata = new byte[rawMetadataLen];
-                        in.readByteArray(rawMetadata);
-                    } else {
+                    byte[] rawMetadata = in.createByteArray();
+                    if (rawMetadata == null) {
                         rawMetadata = new byte[0];
                     }
                     int sampleRate = in.readInt();

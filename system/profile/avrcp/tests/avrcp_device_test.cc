@@ -24,14 +24,12 @@
 
 #include "avrcp_packet.h"
 #include "avrcp_test_helper.h"
+#include "btif/include/btif_av.h"
 #include "device.h"
 #include "internal_include/stack_config.h"
 #include "tests/avrcp/avrcp_test_packets.h"
 #include "tests/packet_test_helper.h"
 #include "types/raw_address.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 bool btif_av_src_sink_coexist_enabled(void) { return true; }
 
@@ -52,7 +50,7 @@ using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
 
-bool get_pts_avrcp_test(void) { return false; }
+static bool get_pts_avrcp_test(void) { return false; }
 
 const stack_config_t interface = {get_pts_avrcp_test,
                                   nullptr,
@@ -1130,11 +1128,11 @@ TEST_F(AvrcpDeviceTest, setBrowsedPlayerTest) {
 
   test_device->RegisterInterfaces(&interface, &a2dp_interface, nullptr, nullptr);
 
-  EXPECT_CALL(interface, SetBrowsedPlayer(_, _))
+  EXPECT_CALL(interface, SetBrowsedPlayer(_, "", _))
           .Times(3)
-          .WillOnce(InvokeCb<1>(true, "", 0))
-          .WillOnce(InvokeCb<1>(false, "", 0))
-          .WillOnce(InvokeCb<1>(true, "", 2));
+          .WillOnce(InvokeCb<2>(true, "", 0))
+          .WillOnce(InvokeCb<2>(false, "", 0))
+          .WillOnce(InvokeCb<2>(true, "", 2));
 
   auto not_browsable_rsp = SetBrowsedPlayerResponseBuilder::MakeBuilder(
           Status::PLAYER_NOT_BROWSABLE, 0x0000, 0, 0, "");

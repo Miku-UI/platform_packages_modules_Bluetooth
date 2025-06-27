@@ -34,8 +34,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>For incoming messages
  */
 public class SapMessage {
+    private static final String TAG = SapMessage.class.getSimpleName();
 
-    public static final String TAG = "SapMessage";
     public static final boolean TEST = false;
 
     /* Message IDs - SAP specification */
@@ -135,7 +135,7 @@ public class SapMessage {
     public static final int CON_STATUS_OK_ONGOING_CALL = 0x04;
 
     /* Disconnection type */
-    public static final int DISC_GRACEFULL = 0x00;
+    public static final int DISC_GRACEFUL = 0x00;
     public static final int DISC_IMMEDIATE = 0x01;
     public static final int DISC_FORCED = 0x100; // Used internal only
     public static final int DISC_RFCOMM = 0x101; // Used internal only

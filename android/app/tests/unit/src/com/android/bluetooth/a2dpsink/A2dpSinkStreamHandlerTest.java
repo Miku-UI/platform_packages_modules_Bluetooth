@@ -16,6 +16,9 @@
 
 package com.android.bluetooth.a2dpsink;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.*;
@@ -28,8 +31,8 @@ import android.media.AudioManager;
 import android.os.HandlerThread;
 import android.os.Looper;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -45,47 +48,54 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
+/** Test cases for {@link A2dpSinkStreamHandler}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class A2dpSinkStreamHandlerTest {
-    private static final int DUCK_PERCENT = 75;
-    private HandlerThread mHandlerThread;
-    private AvrcpControllerService mService;
-    private A2dpSinkStreamHandler mStreamHandler;
-    private Context mTargetContext;
-
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-
-    @Mock private A2dpSinkService mMockA2dpSink;
-
-    @Mock private A2dpSinkNativeInterface mMockNativeInterface;
-    @Mock private AvrcpControllerNativeInterface mMockAvrcpControllerNativeInterface;
-
-    @Mock private AudioManager mMockAudioManager;
-
-    @Mock private Resources mMockResources;
-
-    @Mock private PackageManager mMockPackageManager;
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Rule
     public final ServiceTestRule mBluetoothBrowserMediaServiceTestRule = new ServiceTestRule();
 
+    @Mock private A2dpSinkNativeInterface mMockNativeInterface;
+    @Mock private AvrcpControllerNativeInterface mMockAvrcpControllerNativeInterface;
+    @Mock private AudioManager mAudioManager;
+    @Mock private Resources mResources;
+    @Mock private PackageManager mPackageManager;
     @Mock private AdapterService mAdapterService;
+
+    private static final int DUCK_PERCENT = 75;
+
+    private final Context mTargetContext =
+            InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    private HandlerThread mHandlerThread;
+    private AvrcpControllerService mService;
+    private A2dpSinkStreamHandler mStreamHandler;
 
     @Before
     public void setUp() throws Exception {
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        doReturn(DUCK_PERCENT).when(mResources).getInteger(anyInt());
+
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+                .when(mAudioManager)
+                .requestAudioFocus(any());
+        doReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+                .when(mAudioManager)
+                .abandonAudioFocus(any());
+
+        doReturn(mTargetContext.getPackageName()).when(mAdapterService).getPackageName();
+        doReturn(mPackageManager).when(mAdapterService).getPackageManager();
+        doReturn(mResources).when(mAdapterService).getResources();
+        mockGetSystemService(
+                mAdapterService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
+
         // Mock the looper
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
-        TestUtils.setAdapterService(mAdapterService);
-        AvrcpControllerNativeInterface.setInstance(mMockAvrcpControllerNativeInterface);
-        mService = new AvrcpControllerService(mTargetContext, mMockAvrcpControllerNativeInterface);
-        mService.start();
+        mService = new AvrcpControllerService(mAdapterService, mMockAvrcpControllerNativeInterface);
         final Intent bluetoothBrowserMediaServiceStartIntent =
                 TestUtils.prepareIntentToStartBluetoothBrowserMediaService();
         mBluetoothBrowserMediaServiceTestRule.startService(bluetoothBrowserMediaServiceStartIntent);
@@ -93,28 +103,14 @@ public class A2dpSinkStreamHandlerTest {
         mHandlerThread = new HandlerThread("A2dpSinkStreamHandlerTest");
         mHandlerThread.start();
 
-        when(mMockA2dpSink.getSystemService(Context.AUDIO_SERVICE)).thenReturn(mMockAudioManager);
-        when(mMockA2dpSink.getSystemServiceName(AudioManager.class))
-                .thenReturn(Context.AUDIO_SERVICE);
-        when(mMockA2dpSink.getResources()).thenReturn(mMockResources);
-        when(mMockResources.getInteger(anyInt())).thenReturn(DUCK_PERCENT);
-        when(mMockAudioManager.requestAudioFocus(any()))
-                .thenReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
-        when(mMockAudioManager.abandonAudioFocus(any()))
-                .thenReturn(AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
-        when(mMockAudioManager.generateAudioSessionId()).thenReturn(0);
-        when(mMockA2dpSink.getMainLooper()).thenReturn(mHandlerThread.getLooper());
-        when(mMockA2dpSink.getPackageManager()).thenReturn(mMockPackageManager);
-        when(mMockPackageManager.hasSystemFeature(any())).thenReturn(false);
+        doReturn(mHandlerThread.getLooper()).when(mAdapterService).getMainLooper();
 
-        mStreamHandler = spy(new A2dpSinkStreamHandler(mMockA2dpSink, mMockNativeInterface));
+        mStreamHandler = spy(new A2dpSinkStreamHandler(mAdapterService, mMockNativeInterface));
     }
 
     @After
     public void tearDown() throws Exception {
-        mService.stop();
-        AvrcpControllerNativeInterface.setInstance(null);
-        TestUtils.clearAdapterService(mAdapterService);
+        mService.cleanup();
     }
 
     @Test
@@ -122,9 +118,9 @@ public class A2dpSinkStreamHandlerTest {
         // Stream started without local play, expect no change in streaming.
         mStreamHandler.handleMessage(
                 mStreamHandler.obtainMessage(A2dpSinkStreamHandler.SRC_STR_START));
-        verify(mMockAudioManager, times(0)).requestAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(1);
-        verify(mMockNativeInterface, times(0)).informAudioTrackGain(1.0f);
+        verify(mAudioManager, never()).requestAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(1);
+        verify(mMockNativeInterface, never()).informAudioTrackGain(1.0f);
         assertThat(mStreamHandler.isPlaying()).isFalse();
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
     }
@@ -134,9 +130,9 @@ public class A2dpSinkStreamHandlerTest {
         // Stream stopped without local play, expect no change in streaming.
         mStreamHandler.handleMessage(
                 mStreamHandler.obtainMessage(A2dpSinkStreamHandler.SRC_STR_STOP));
-        verify(mMockAudioManager, times(0)).requestAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(1);
-        verify(mMockNativeInterface, times(0)).informAudioTrackGain(1.0f);
+        verify(mAudioManager, never()).requestAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(1);
+        verify(mMockNativeInterface, never()).informAudioTrackGain(1.0f);
         assertThat(mStreamHandler.isPlaying()).isFalse();
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
     }
@@ -145,7 +141,7 @@ public class A2dpSinkStreamHandlerTest {
     public void testSnkPlay() {
         // Play was pressed locally, expect streaming to start soon.
         mStreamHandler.handleMessage(mStreamHandler.obtainMessage(A2dpSinkStreamHandler.SNK_PLAY));
-        verify(mMockAudioManager).requestAudioFocus(any());
+        verify(mAudioManager).requestAudioFocus(any());
         assertThat(mStreamHandler.isPlaying()).isFalse();
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
     }
@@ -154,9 +150,9 @@ public class A2dpSinkStreamHandlerTest {
     public void testSnkPause() {
         // Pause was pressed locally, expect streaming to stop.
         mStreamHandler.handleMessage(mStreamHandler.obtainMessage(A2dpSinkStreamHandler.SNK_PAUSE));
-        verify(mMockAudioManager, times(0)).requestAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(1);
-        verify(mMockNativeInterface, times(0)).informAudioTrackGain(1.0f);
+        verify(mAudioManager, never()).requestAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(1);
+        verify(mMockNativeInterface, never()).informAudioTrackGain(1.0f);
         assertThat(mStreamHandler.isPlaying()).isFalse();
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
     }
@@ -167,8 +163,8 @@ public class A2dpSinkStreamHandlerTest {
         testSnkPlay();
         mStreamHandler.handleMessage(
                 mStreamHandler.obtainMessage(A2dpSinkStreamHandler.DISCONNECT));
-        verify(mMockAudioManager, times(0)).abandonAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(0);
+        verify(mAudioManager, never()).abandonAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(0);
         assertThat(mStreamHandler.isPlaying()).isFalse();
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
     }
@@ -177,9 +173,9 @@ public class A2dpSinkStreamHandlerTest {
     public void testSrcPlay() {
         // Play was pressed remotely, expect no streaming due to lack of audio focus.
         mStreamHandler.handleMessage(mStreamHandler.obtainMessage(A2dpSinkStreamHandler.SRC_PLAY));
-        verify(mMockAudioManager, times(0)).requestAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(1);
-        verify(mMockNativeInterface, times(0)).informAudioTrackGain(1.0f);
+        verify(mAudioManager, never()).requestAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(1);
+        verify(mMockNativeInterface, never()).informAudioTrackGain(1.0f);
         assertThat(mStreamHandler.isPlaying()).isFalse();
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
     }
@@ -187,9 +183,9 @@ public class A2dpSinkStreamHandlerTest {
     @Test
     public void testSrcPlayIot() {
         // Play was pressed remotely for an iot device, expect streaming to start.
-        when(mMockPackageManager.hasSystemFeature(any())).thenReturn(true);
+        doReturn(true).when(mPackageManager).hasSystemFeature(any());
         mStreamHandler.handleMessage(mStreamHandler.obtainMessage(A2dpSinkStreamHandler.SRC_PLAY));
-        verify(mMockAudioManager).requestAudioFocus(any());
+        verify(mAudioManager).requestAudioFocus(any());
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
         assertThat(mStreamHandler.isPlaying()).isTrue();
     }
@@ -198,9 +194,9 @@ public class A2dpSinkStreamHandlerTest {
     public void testSrcPause() {
         // Play was pressed locally, expect streaming to start.
         mStreamHandler.handleMessage(mStreamHandler.obtainMessage(A2dpSinkStreamHandler.SRC_PLAY));
-        verify(mMockAudioManager, times(0)).requestAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(1);
-        verify(mMockNativeInterface, times(0)).informAudioTrackGain(1.0f);
+        verify(mAudioManager, never()).requestAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(1);
+        verify(mMockNativeInterface, never()).informAudioTrackGain(1.0f);
         assertThat(mStreamHandler.isPlaying()).isFalse();
     }
 
@@ -211,7 +207,7 @@ public class A2dpSinkStreamHandlerTest {
         mStreamHandler.handleMessage(
                 mStreamHandler.obtainMessage(
                         A2dpSinkStreamHandler.AUDIO_FOCUS_CHANGE, AudioManager.AUDIOFOCUS_GAIN));
-        verify(mMockAudioManager).requestAudioFocus(any());
+        verify(mAudioManager).requestAudioFocus(any());
         verify(mMockNativeInterface).informAudioFocusState(1);
         verify(mMockNativeInterface).informAudioTrackGain(1.0f);
 
@@ -244,8 +240,8 @@ public class A2dpSinkStreamHandlerTest {
                 mStreamHandler.obtainMessage(
                         A2dpSinkStreamHandler.AUDIO_FOCUS_CHANGE,
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT));
-        verify(mMockAudioManager, times(0)).abandonAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(0);
+        verify(mAudioManager, never()).abandonAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(0);
         verify(mMockNativeInterface).informAudioTrackGain(0);
 
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
@@ -262,12 +258,12 @@ public class A2dpSinkStreamHandlerTest {
                 mStreamHandler.obtainMessage(
                         A2dpSinkStreamHandler.AUDIO_FOCUS_CHANGE,
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT));
-        verify(mMockAudioManager, times(0)).abandonAudioFocus(any());
-        verify(mMockNativeInterface, times(0)).informAudioFocusState(0);
+        verify(mAudioManager, never()).abandonAudioFocus(any());
+        verify(mMockNativeInterface, never()).informAudioFocusState(0);
         verify(mMockNativeInterface).informAudioTrackGain(0);
         mStreamHandler.handleMessage(
                 mStreamHandler.obtainMessage(A2dpSinkStreamHandler.REQUEST_FOCUS, true));
-        verify(mMockAudioManager, times(2)).requestAudioFocus(any());
+        verify(mAudioManager, times(2)).requestAudioFocus(any());
         assertThat(BluetoothMediaBrowserService.isActive()).isFalse();
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
     }
@@ -280,7 +276,7 @@ public class A2dpSinkStreamHandlerTest {
         mStreamHandler.handleMessage(
                 mStreamHandler.obtainMessage(
                         A2dpSinkStreamHandler.AUDIO_FOCUS_CHANGE, AudioManager.AUDIOFOCUS_GAIN));
-        verify(mMockAudioManager, times(0)).abandonAudioFocus(any());
+        verify(mAudioManager, never()).abandonAudioFocus(any());
         verify(mMockNativeInterface).informAudioTrackGain(1.0f);
 
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());
@@ -295,7 +291,7 @@ public class A2dpSinkStreamHandlerTest {
         mStreamHandler.handleMessage(
                 mStreamHandler.obtainMessage(
                         A2dpSinkStreamHandler.AUDIO_FOCUS_CHANGE, AudioManager.AUDIOFOCUS_LOSS));
-        verify(mMockAudioManager).abandonAudioFocus(any());
+        verify(mAudioManager).abandonAudioFocus(any());
         verify(mMockNativeInterface).informAudioFocusState(0);
 
         TestUtils.waitForLooperToFinishScheduledTask(mHandlerThread.getLooper());

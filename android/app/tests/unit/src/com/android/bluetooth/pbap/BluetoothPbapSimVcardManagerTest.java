@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.pbap;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
@@ -31,8 +33,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
@@ -45,8 +47,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Spy;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 import org.mockito.stubbing.Answer;
 
 import java.io.OutputStream;
@@ -56,13 +56,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/** Test cases for {@link BluetoothPbapSimVcardManager}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BluetoothPbapSimVcardManagerTest {
-
     private static final String TAG = BluetoothPbapSimVcardManagerTest.class.getSimpleName();
 
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Spy BluetoothMethodProxy mPbapMethodProxy = BluetoothMethodProxy.getInstance();
 
@@ -74,7 +74,7 @@ public class BluetoothPbapSimVcardManagerTest {
     @Before
     public void setUp() {
         BluetoothMethodProxy.setInstanceForTesting(mPbapMethodProxy);
-        mContext = InstrumentationRegistry.getTargetContext();
+        mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mManager = new BluetoothPbapSimVcardManager(mContext);
     }
 
@@ -424,7 +424,7 @@ public class BluetoothPbapSimVcardManagerTest {
     }
 
     @Test
-    public void testComposeAndSendSIMPhonebookVcards_whenEndPointIsLessThanStartpoint() {
+    public void testComposeAndSendSIMPhonebookVcards_whenEndPointIsLessThanStartPoint() {
         Operation operation = mock(Operation.class);
         final int startPoint = 1;
         final int endPoint = 0; // Should be equal or greater than startPoint

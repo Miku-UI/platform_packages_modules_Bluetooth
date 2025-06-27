@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,6 @@ namespace bluetooth {
 namespace metrics {
 
 const int COUNTER_METRICS_PERDIOD_MINUTES = 360;  // Drain counters every 6 hours
-
-const ModuleFactory CounterMetrics::Factory = ModuleFactory([]() { return new CounterMetrics(); });
 
 void CounterMetrics::ListDependencies(ModuleList* /* list */) const {}
 

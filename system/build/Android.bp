@@ -20,7 +20,7 @@ cc_defaults {
     ],
     target: {
         android: {
-            test_config_template: ":BluetoothTestConfigTemplate",
+            test_config_template: ":BluetoothGTestConfigTemplate",
             sanitize: {
                 misc_undefined: ["bounds"],
             },

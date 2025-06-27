@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,9 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.any;
@@ -41,7 +44,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHearingAid;
 import android.bluetooth.BluetoothProfile;
@@ -52,12 +54,12 @@ import android.media.AudioManager;
 import android.media.BluetoothProfileConnectionInfo;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
-import android.os.test.TestLooper;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
@@ -75,16 +77,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.util.List;
 
+/** Test cases for {@link HearingAidService}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class HearingAidServiceTest {
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private ActiveDeviceManager mActiveDeviceManager;
@@ -92,13 +93,12 @@ public class HearingAidServiceTest {
     @Mock private HearingAidNativeInterface mNativeInterface;
     @Mock private AudioManager mAudioManager;
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
-    private final BluetoothDevice mLeftDevice = TestUtils.getTestDevice(mAdapter, 43);
-    private final BluetoothDevice mRightDevice = TestUtils.getTestDevice(mAdapter, 23);
-    private final BluetoothDevice mSingleDevice = TestUtils.getTestDevice(mAdapter, 13);
+    private final BluetoothDevice mLeftDevice = getTestDevice(43);
+    private final BluetoothDevice mRightDevice = getTestDevice(23);
+    private final BluetoothDevice mSingleDevice = getTestDevice(13);
 
     private HearingAidService mService;
-    private HearingAidService.BluetoothHearingAidBinder mBinder;
+    private HearingAidServiceBinder mBinder;
     private InOrder mInOrder;
     private TestLooper mLooper;
 
@@ -125,12 +125,12 @@ public class HearingAidServiceTest {
 
         mService = new HearingAidService(mAdapterService, mLooper.getLooper(), mNativeInterface);
         mService.setAvailable(true);
-        mBinder = (HearingAidService.BluetoothHearingAidBinder) mService.initBinder();
+        mBinder = (HearingAidServiceBinder) mService.initBinder();
     }
 
     @After
     public void tearDown() {
-        mService.stop();
+        mService.cleanup();
         assertThat(HearingAidService.getHearingAidService()).isNull();
     }
 
@@ -184,23 +184,19 @@ public class HearingAidServiceTest {
     }
 
     @Test
-    public void okToConnect_whenNotBonded_returnFalse() {
+    public void okToConnect_whenInvalidBonded_returnFalse() {
         int badPolicyValue = 1024;
         int badBondState = 42;
-        for (int bondState : List.of(badBondState)) {
-            doReturn(bondState).when(mAdapterService).getBondState(any());
-            for (int policy :
-                    List.of(
-                            CONNECTION_POLICY_FORBIDDEN,
-                            badPolicyValue)) {
-                doReturn(policy).when(mDatabaseManager).getProfileConnectionPolicy(any(), anyInt());
-                assertThat(mService.okToConnect(mSingleDevice)).isEqualTo(false);
-            }
+        doReturn(badBondState).when(mAdapterService).getBondState(any());
+        for (int policy : List.of(CONNECTION_POLICY_FORBIDDEN, badPolicyValue)) {
+            doReturn(policy).when(mDatabaseManager).getProfileConnectionPolicy(any(), anyInt());
+            assertThat(mService.okToConnect(mSingleDevice)).isEqualTo(false);
         }
     }
 
     @Test
     public void okToConnect_whenNotBonded_returnTrue() {
+        // allow connect Due to desync between BondStateMachine and AdapterProperties
         for (int bondState : List.of(BOND_NONE, BOND_BONDING)) {
             doReturn(bondState).when(mAdapterService).getBondState(any());
             for (int policy : List.of(CONNECTION_POLICY_UNKNOWN, CONNECTION_POLICY_ALLOWED)) {

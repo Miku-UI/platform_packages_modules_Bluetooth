@@ -96,7 +96,8 @@ class BtPermissionUtils {
             return true;
         }
 
-        final String msg = "Need " + permission + " permission for " + source + ": " + message;
+        final String msg =
+                "Need " + permission + " permission for " + currentSource + ": " + message;
         if (result == PERMISSION_HARD_DENIED) {
             throw new SecurityException(msg);
         }

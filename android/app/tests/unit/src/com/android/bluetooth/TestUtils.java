@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,16 @@
  */
 package com.android.bluetooth;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
-import android.bluetooth.BluetoothAdapter;
+import android.annotation.IntRange;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -30,7 +33,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.MessageQueue;
-import android.os.test.TestLooper;
 import android.service.media.MediaBrowserService;
 import android.util.Log;
 
@@ -40,51 +42,23 @@ import androidx.test.uiautomator.UiDevice;
 import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService;
 import com.android.bluetooth.btservice.AdapterService;
 
-import org.junit.Assert;
+import org.junit.rules.MethodRule;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
+import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.Statement;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnit;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /** A set of methods useful in Bluetooth instrumentation tests */
 public class TestUtils {
+    private static final String TAG = Utils.TAG_PREFIX_BLUETOOTH + TestUtils.class.getSimpleName();
+
     private static String sSystemScreenOffTimeout = "10000";
-
-    private static final String TAG = "BluetoothTestUtils";
-
-    /**
-     * Utility method to replace obj.fieldName with newValue where obj is of type c
-     *
-     * @param c type of obj
-     * @param fieldName field name to be replaced
-     * @param obj instance of type c whose fieldName is to be replaced, null for static fields
-     * @param newValue object used to replace fieldName
-     * @return the old value of fieldName that got replaced, caller is responsible for restoring it
-     *     back to obj
-     * @throws NoSuchFieldException when fieldName is not found in type c
-     * @throws IllegalAccessException when fieldName cannot be accessed in type c
-     */
-    public static Object replaceField(
-            final Class c, final String fieldName, final Object obj, final Object newValue)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field field = c.getDeclaredField(fieldName);
-        field.setAccessible(true);
-
-        Object oldValue = field.get(obj);
-        field.set(obj, newValue);
-        return oldValue;
-    }
 
     /**
      * Set the return value of {@link AdapterService#getAdapterService()} to a test specified value
@@ -93,11 +67,12 @@ public class TestUtils {
      *     mocked or spied
      */
     public static void setAdapterService(AdapterService adapterService) {
-        Assert.assertNull(
-                "AdapterService.getAdapterService() must be null before setting another"
-                        + " AdapterService",
-                AdapterService.getAdapterService());
-        Assert.assertNotNull("Adapter service should not be null", adapterService);
+        assertWithMessage(
+                        "AdapterService.getAdapterService() must be null before setting another"
+                                + " AdapterService")
+                .that(AdapterService.getAdapterService())
+                .isNull();
+        assertThat(adapterService).isNotNull();
         // We cannot mock AdapterService.getAdapterService() with Mockito.
         // Hence we need to set AdapterService.sAdapterService field.
         AdapterService.setAdapterService(adapterService);
@@ -110,20 +85,21 @@ public class TestUtils {
      *     TestUtils#setAdapterService(AdapterService)}
      */
     public static void clearAdapterService(AdapterService adapterService) {
-        Assert.assertSame(
-                "AdapterService.getAdapterService() must return the same object as the"
-                        + " supplied adapterService in this method",
-                adapterService,
-                AdapterService.getAdapterService());
-        Assert.assertNotNull("Adapter service should not be null", adapterService);
+        assertWithMessage(
+                        "AdapterService.getAdapterService() must return the same object as the"
+                                + " supplied adapterService in this method")
+                .that(adapterService)
+                .isSameInstanceAs(AdapterService.getAdapterService());
+        assertThat(adapterService).isNotNull();
         AdapterService.clearAdapterService(adapterService);
     }
 
     /** Helper function to mock getSystemService calls */
     public static <T> void mockGetSystemService(
             Context ctx, String serviceName, Class<T> serviceClass, T mockService) {
-        when(ctx.getSystemService(eq(serviceName))).thenReturn(mockService);
-        when(ctx.getSystemServiceName(eq(serviceClass))).thenReturn(serviceName);
+        doReturn(mockService).when(ctx).getSystemService(eq(serviceClass));
+        doReturn(mockService).when(ctx).getSystemService(eq(serviceName));
+        doReturn(serviceName).when(ctx).getSystemServiceName(eq(serviceClass));
     }
 
     /** Helper function to mock getSystemService calls */
@@ -137,16 +113,18 @@ public class TestUtils {
     /**
      * Create a test device.
      *
-     * @param bluetoothAdapter the Bluetooth adapter to use
      * @param id the test device ID. It must be an integer in the interval [0, 0xFF].
      * @return {@link BluetoothDevice} test device for the device ID
      */
-    public static BluetoothDevice getTestDevice(BluetoothAdapter bluetoothAdapter, int id) {
-        Assert.assertTrue(id <= 0xFF);
-        Assert.assertNotNull(bluetoothAdapter);
+    public static BluetoothDevice getTestDevice(@IntRange(from = 0x00, to = 0xFF) int id) {
+        assertThat(id).isAtMost(0xFF);
         BluetoothDevice testDevice =
-                bluetoothAdapter.getRemoteDevice(String.format("00:01:02:03:04:%02X", id));
-        Assert.assertNotNull(testDevice);
+                InstrumentationRegistry.getInstrumentation()
+                        .getTargetContext()
+                        .getSystemService(BluetoothManager.class)
+                        .getAdapter()
+                        .getRemoteDevice(String.format("00:01:02:03:04:%02X", id));
+        assertThat(testDevice).isNotNull();
         return testDevice;
     }
 
@@ -155,49 +133,11 @@ public class TestUtils {
             return context.getPackageManager()
                     .getResourcesForApplication("com.android.bluetooth.tests");
         } catch (PackageManager.NameNotFoundException e) {
-            assertWithMessage(
-                            "Setup Failure: Unable to get test application resources"
-                                    + e.toString())
-                    .fail();
+            assertWithMessage("Unable to get test application resources: " + e.toString()).fail();
             return null;
         }
     }
 
-    /**
-     * Wait and verify that an intent has been received.
-     *
-     * @param timeoutMs the time (in milliseconds) to wait for the intent
-     * @param queue the queue for the intent
-     * @return the received intent
-     */
-    public static Intent waitForIntent(int timeoutMs, BlockingQueue<Intent> queue) {
-        try {
-            Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            Assert.assertNotNull(intent);
-            return intent;
-        } catch (InterruptedException e) {
-            Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * Wait and verify that no intent has been received.
-     *
-     * @param timeoutMs the time (in milliseconds) to wait and verify no intent has been received
-     * @param queue the queue for the intent
-     * @return the received intent. Should be null under normal circumstances
-     */
-    public static Intent waitForNoIntent(int timeoutMs, BlockingQueue<Intent> queue) {
-        try {
-            Intent intent = queue.poll(timeoutMs, TimeUnit.MILLISECONDS);
-            Assert.assertNull(intent);
-            return intent;
-        } catch (InterruptedException e) {
-            Assert.fail("Cannot obtain an Intent from the queue: " + e.getMessage());
-        }
-        return null;
-    }
 
     /**
      * Wait for looper to finish its current task and all tasks schedule before this
@@ -213,7 +153,7 @@ public class TestUtils {
     }
 
     /**
-     * Dispatch all the message on the Loopper and check that the `what` is expected
+     * Dispatch all the message on the Looper and check that the `what` is expected
      *
      * @param looper looper to execute the message from
      * @param what list of Messages.what that are expected to be run by the handler
@@ -279,7 +219,7 @@ public class TestUtils {
      * <pre>{@code
      * TestUtils.runOnMainSync(new Runnable() {
      *       public void run() {
-     *           Assert.assertTrue(mA2dpService.stop());
+     *           assertThat(mA2dpService.stop()).isTrue();
      *       }
      *   });
      * }</pre>
@@ -287,7 +227,7 @@ public class TestUtils {
      * @param looper the looper used to run the action
      * @param action the action to run
      */
-    public static void runOnLooperSync(Looper looper, Runnable action) {
+    private static void runOnLooperSync(Looper looper, Runnable action) {
         if (Looper.myLooper() == looper) {
             // requested thread is the same as the current thread. call directly.
             action.run();
@@ -297,45 +237,6 @@ public class TestUtils {
             handler.post(sr);
             sr.waitForComplete();
         }
-    }
-
-    /**
-     * Read Bluetooth adapter configuration from the filesystem
-     *
-     * @return A {@link HashMap} of Bluetooth configs in the format: section -> key1 -> value1 ->
-     *     key2 -> value2 Assume no empty section name, no duplicate keys in the same section
-     */
-    public static Map<String, Map<String, String>> readAdapterConfig() {
-        Map<String, Map<String, String>> adapterConfig = new HashMap<>();
-        try (BufferedReader reader =
-                new BufferedReader(new FileReader("/data/misc/bluedroid/bt_config.conf"))) {
-            String section = "";
-            for (String line; (line = reader.readLine()) != null; ) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
-                }
-                if (line.startsWith("[")) {
-                    if (line.charAt(line.length() - 1) != ']') {
-                        Log.e(TAG, "readAdapterConfig: config line is not correct: " + line);
-                        return null;
-                    }
-                    section = line.substring(1, line.length() - 1);
-                    adapterConfig.put(section, new HashMap<>());
-                } else {
-                    String[] keyValue = line.split("=");
-                    adapterConfig
-                            .get(section)
-                            .put(
-                                    keyValue[0].trim(),
-                                    keyValue.length == 1 ? "" : keyValue[1].trim());
-                }
-            }
-        } catch (IOException e) {
-            Log.e(TAG, "readAdapterConfig: Exception while reading the config" + e);
-            return null;
-        }
-        return adapterConfig;
     }
 
     /**
@@ -423,6 +324,26 @@ public class TestUtils {
                                     + retryCount
                                     + " failures");
                     throw caughtThrowable;
+                }
+            };
+        }
+    }
+
+    /** Wrapper around MockitoJUnit.rule() to clear the inline mock at the end of the test. */
+    public static class MockitoRule implements MethodRule {
+        private final org.mockito.junit.MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+        public Statement apply(Statement base, FrameworkMethod method, Object target) {
+            Statement nestedStatement = mMockitoRule.apply(base, method, target);
+
+            return new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                    nestedStatement.evaluate();
+
+                    // Prevent OutOfMemory errors due to mock maker leaks.
+                    // See https://github.com/mockito/mockito/issues/1614, b/259280359, b/396177821
+                    Mockito.framework().clearInlineMocks();
                 }
             };
         }

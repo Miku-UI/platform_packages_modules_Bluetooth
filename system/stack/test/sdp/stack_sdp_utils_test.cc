@@ -22,6 +22,7 @@
 #include "btif/include/btif_storage.h"
 #include "btif/include/stack_manager_t.h"
 #include "device/include/interop.h"
+#include "device/include/interop_config.h"
 #include "mock_btif_config.h"
 #include "osi/include/allocator.h"
 #include "profile/avrcp/avrcp_config.h"
@@ -49,9 +50,6 @@
 #define HFP_PROFILE_MINOR_VERSION_6 0x06
 #define HFP_PROFILE_MINOR_VERSION_7 0x07
 
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
-
 static int L2CA_ConnectReqWithSecurity_cid = 0x42;
 static RawAddress addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
 static tSDP_DISCOVERY_DB* sdp_db = nullptr;
@@ -63,9 +61,6 @@ using ::testing::Return;
 using ::testing::ReturnArg;
 using ::testing::SaveArg;
 using ::testing::SetArrayArgument;
-
-void sdp_callback(const RawAddress& bd_addr, tSDP_RESULT result);
-tCONN_CB* find_ccb(uint16_t cid, uint8_t state);
 
 namespace {
 // convenience mock
@@ -178,32 +173,32 @@ tSDP_ATTRIBUTE hfp_attr = {
         .type = 0,
 };
 
-void set_hfp_attr(uint32_t len, uint16_t id, uint16_t uuid) {
+static void set_hfp_attr(uint32_t len, uint16_t id, uint16_t uuid) {
   hfp_attr.value_ptr[4] = uuid;
   hfp_attr.len = len;
   hfp_attr.id = id;
 }
 
-void set_avrcp_feat_attr(uint32_t len, uint16_t id, uint16_t feature) {
+static void set_avrcp_feat_attr(uint32_t len, uint16_t id, uint16_t feature) {
   UINT16_TO_BE_FIELD(avrc_feat_value, feature);
   avrcp_feat_attr.len = len;
   avrcp_feat_attr.id = id;
 }
 
-void set_avrcp_attr(uint32_t len, uint16_t id, uint16_t uuid, uint16_t version) {
+static void set_avrcp_attr(uint32_t len, uint16_t id, uint16_t uuid, uint16_t version) {
   UINT16_TO_BE_FIELD(avrc_value + 3, uuid);
   UINT16_TO_BE_FIELD(avrc_value + 6, version);
   avrcp_attr.len = len;
   avrcp_attr.id = id;
 }
 
-uint16_t get_avrc_target_version(tSDP_ATTRIBUTE* p_attr) {
+static uint16_t get_avrc_target_version(tSDP_ATTRIBUTE* p_attr) {
   uint8_t* p_version = p_attr->value_ptr + 6;
   uint16_t version = (((uint16_t)(*(p_version))) << 8) + ((uint16_t)(*((p_version) + 1)));
   return version;
 }
 
-uint16_t get_avrc_target_feature(tSDP_ATTRIBUTE* p_attr) {
+static uint16_t get_avrc_target_feature(tSDP_ATTRIBUTE* p_attr) {
   uint8_t* p_feature = p_attr->value_ptr;
   uint16_t feature = (((uint16_t)(*(p_feature))) << 8) + ((uint16_t)(*((p_feature) + 1)));
   return feature;

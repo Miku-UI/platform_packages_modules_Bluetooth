@@ -124,7 +124,6 @@ TEST_F(StackGattTest, lifecycle_tGATT_REG) {
     memset(reg0.get(), 0, sizeof(tGATT_REG));
     // Restore the complex structure after memset
     memset(&reg1.name, 0, sizeof(std::string));
-    memset(&reg1.direct_connect_request, 0, sizeof(std::set<RawAddress>));
     memset(&reg1.mtu_prefs, 0, sizeof(std::map<RawAddress, uint16_t>));
     reg1 = {};
     ASSERT_EQ(0, memcmp(reg0.get(), &reg1, actual_sizeof_tGATT_REG()));
@@ -217,7 +216,7 @@ TEST_F(StackGattTest, gatt_status_text) {
     ASSERT_STREQ(status.second.c_str(), gatt_status_text(status.first).c_str());
   }
   // Typical max value is already classified so use arbitrary unused one.
-  auto unknown = base::StringPrintf("UNKNOWN[%hhu]", 0xfc);
+  auto unknown = std::format("UNKNOWN[{}]", 0xfc);
   ASSERT_STREQ(unknown.c_str(), gatt_status_text(static_cast<tGATT_STATUS>(0xfc)).c_str());
 }
 

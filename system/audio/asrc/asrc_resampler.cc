@@ -16,7 +16,6 @@
 
 #include "asrc_resampler.h"
 
-#include <base/strings/stringprintf.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 
@@ -171,7 +170,7 @@ public:
       : state_{.id = StateId::RESET}, reference_timing_{0, 0, 0} {
     if (com::android::bluetooth::flags::run_clock_recovery_in_worker_thread()) {
       read_clock_timer_.SchedulePeriodic(
-              thread->GetWeakPtr(), FROM_HERE,
+              thread->GetWeakPtr(),
               base::BindRepeating(
                       [](void*) {
                         bluetooth::shim::GetHciLayer()->EnqueueCommand(
@@ -184,7 +183,7 @@ public:
               std::chrono::milliseconds(100));
     } else {
       read_clock_timer_.SchedulePeriodic(
-              get_main_thread()->GetWeakPtr(), FROM_HERE,
+              get_main_thread()->GetWeakPtr(),
               base::BindRepeating(
                       [](void*) {
                         bluetooth::shim::GetHciLayer()->EnqueueCommand(

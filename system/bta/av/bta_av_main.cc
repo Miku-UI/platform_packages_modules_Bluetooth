@@ -53,7 +53,6 @@
 #include "btif/include/btif_config.h"
 #include "hardware/bt_av.h"
 #include "internal_include/bt_target.h"
-#include "os/logging/log_adapter.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
@@ -513,38 +512,14 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
          */
         bta_ar_reg_avct();
 
-        if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-          // Add target record for
-          // a) A2DP sink profile. or
-          // b) A2DP source profile only if new avrcp service is disabled.
-          if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK ||
-              (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled())) {
-            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", "",
-                            p_bta_av_cfg->avrc_tg_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                            avrcp_version);
-          }
-        } else {
-          /* For the Audio Sink role we support additional TG to support
-           * absolute volume.
-           */
-          if (is_new_avrcp_enabled()) {
-            log::verbose(
-                    "newavrcp is the owner of the AVRCP Target SDP record. Don't "
-                    "create the SDP record");
-          } else {
-            log::verbose("newavrcp is not enabled. Create SDP record");
-
-            if (btif_av_src_sink_coexist_enabled()) {
-              bta_ar_reg_avrc_for_src_sink_coexist(
-                      UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-                      p_bta_av_cfg->avrc_tg_cat, static_cast<tBTA_SYS_ID>(BTA_ID_AV + local_role),
-                      (bta_av_cb.features & BTA_AV_FEAT_BROWSE), avrcp_version);
-            } else {
-              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-                              p_bta_av_cfg->avrc_tg_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                              avrcp_version);
-            }
-          }
+        // Add target record for
+        // a) A2DP sink profile. or
+        // b) A2DP source profile only if new avrcp service is disabled.
+        if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK ||
+            (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled())) {
+          bta_ar_reg_avrc(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", "",
+                          p_bta_av_cfg->avrc_tg_cat, bta_av_cb.features & BTA_AV_FEAT_BROWSE,
+                          avrcp_version);
         }
       }
 
@@ -620,7 +595,6 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
     for (int i = codec_index_min; i < codec_index_max; i++) {
       btav_a2dp_codec_index_t codec_index = static_cast<btav_a2dp_codec_index_t>(i);
       if (!bta_av_co_is_supported_codec(codec_index)) {
-        log::warn("Skipping the codec index for codec index {}", i);
         continue;
       }
       if (!(*bta_av_a2dp_cos.init)(codec_index, &avdtp_stream_config.cfg)) {
@@ -674,56 +648,25 @@ static void bta_av_api_register(tBTA_AV_DATA* p_data) {
           bta_ar_reg_avct();
           bta_av_rc_create(&bta_av_cb, AVCT_ROLE_ACCEPTOR, 0, BTA_AV_NUM_LINKS + 1);
         }
-        if (com::android::bluetooth::flags::avrcp_sdp_records()) {
-          // Add control record for sink profile.
-          // Also adds control record for source profile when new avrcp service is not enabled.
-          if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK ||
-              (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled())) {
-            uint16_t control_version = AVRC_GetControlProfileVersion();
-            /* Create an SDP record as AVRC CT. We create 1.3 for SOURCE
-             * because we rely on feature bits being scanned by external
-             * devices more than the profile version itself.
-             */
-            if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled()) {
-              control_version = AVRC_REV_1_3;
-            }
-            if (!btif_av_src_sink_coexist_enabled() &&
-                profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
-              control_version = AVRC_REV_1_6;
-            }
-            bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, "AV Remote Control", "",
-                            p_bta_av_cfg->avrc_ct_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                            control_version);
-          }
-        } else {
-          /* create an SDP record as AVRC CT. We create 1.3 for SOURCE
+        // Add control record for sink profile.
+        // Also adds control record for source profile when new avrcp service is not enabled.
+        if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK ||
+            (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled())) {
+          uint16_t control_version = AVRC_GetControlProfileVersion();
+          /* Create an SDP record as AVRC CT. We create 1.3 for SOURCE
            * because we rely on feature bits being scanned by external
            * devices more than the profile version itself.
-           *
-           * We create 1.4 for SINK since we support browsing.
            */
-          if (btif_av_src_sink_coexist_enabled()) {
-            if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE) {
-              bta_ar_reg_avrc_for_src_sink_coexist(
-                      UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL, p_bta_av_cfg->avrc_ct_cat,
-                      BTA_ID_AV, (bta_av_cb.features & BTA_AV_FEAT_BROWSE), AVRC_REV_1_5);
-            } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
-              bta_ar_reg_avrc_for_src_sink_coexist(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                                                   p_bta_av_cfg->avrc_ct_cat, BTA_ID_AVK,
-                                                   (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                                                   AVRC_GetControlProfileVersion());
-            }
-          } else {
-            if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled()) {
-              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                              p_bta_av_cfg->avrc_ct_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                              AVRC_REV_1_3);
-            } else if (profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
-              bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL, NULL,
-                              p_bta_av_cfg->avrc_ct_cat, (bta_av_cb.features & BTA_AV_FEAT_BROWSE),
-                              AVRC_REV_1_6);
-            }
+          if (profile_initialized == UUID_SERVCLASS_AUDIO_SOURCE && !is_new_avrcp_enabled()) {
+            control_version = AVRC_REV_1_3;
           }
+          if (!btif_av_src_sink_coexist_enabled() &&
+              profile_initialized == UUID_SERVCLASS_AUDIO_SINK) {
+            control_version = AVRC_REV_1_6;
+          }
+          bta_ar_reg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL, "AV Remote Control", "",
+                          p_bta_av_cfg->avrc_ct_cat, bta_av_cb.features & BTA_AV_FEAT_BROWSE,
+                          control_version);
         }
       }
     }
@@ -1472,7 +1415,8 @@ void bta_debug_av_dump(int fd) {
     if (lcb.addr.IsEmpty()) {
       continue;
     }
-    dprintf(fd, "\n  Link control block: %zu peer: %s\n", i, ADDRESS_TO_LOGGABLE_CSTR(lcb.addr));
+    dprintf(fd, "\n  Link control block: %zu peer: %s\n", i,
+            lcb.addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "    Connected stream handle mask: 0x%x\n", lcb.conn_msk);
     dprintf(fd, "    Index(+1) to LCB: %d\n", lcb.lidx);
   }
@@ -1484,7 +1428,8 @@ void bta_debug_av_dump(int fd) {
     if (p_scb->PeerAddress().IsEmpty()) {
       continue;
     }
-    dprintf(fd, "\n  BTA ID: %zu peer: %s\n", i, ADDRESS_TO_LOGGABLE_CSTR(p_scb->PeerAddress()));
+    dprintf(fd, "\n  BTA ID: %zu peer: %s\n", i,
+            p_scb->PeerAddress().ToRedactedStringForLogging().c_str());
     dprintf(fd, "    SDP discovery started: %s\n", p_scb->sdp_discovery_started ? "true" : "false");
     for (size_t j = 0; j < BTAV_A2DP_CODEC_INDEX_MAX; j++) {
       const tBTA_AV_SEP& sep = p_scb->seps[j];
@@ -1497,11 +1442,13 @@ void bta_debug_av_dump(int fd) {
       dprintf(fd, "      Codec: %s\n", A2DP_CodecName(sep.codec_info));
     }
     dprintf(fd, "    BTA info tag: %d\n", p_scb->q_tag);
-    dprintf(fd, "    API Open peer: %s\n", ADDRESS_TO_LOGGABLE_CSTR(p_scb->q_info.open.bd_addr));
+    dprintf(fd, "    API Open peer: %s\n",
+            p_scb->q_info.open.bd_addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "      Use AVRCP: %s\n", p_scb->q_info.open.use_rc ? "true" : "false");
     dprintf(fd, "      Switch result: %d\n", p_scb->q_info.open.switch_res);
     dprintf(fd, "      Initiator UUID: 0x%x\n", p_scb->q_info.open.uuid);
-    dprintf(fd, "    Saved API Open peer: %s\n", ADDRESS_TO_LOGGABLE_CSTR(p_scb->open_api.bd_addr));
+    dprintf(fd, "    Saved API Open peer: %s\n",
+            p_scb->open_api.bd_addr.ToRedactedStringForLogging().c_str());
     dprintf(fd, "      Use AVRCP: %s\n", p_scb->open_api.use_rc ? "true" : "false");
     dprintf(fd, "      Switch result: %d\n", p_scb->open_api.switch_res);
     dprintf(fd, "      Initiator UUID: 0x%x\n", p_scb->open_api.uuid);
@@ -1509,6 +1456,8 @@ void bta_debug_av_dump(int fd) {
             alarm_is_scheduled(p_scb->link_signalling_timer) ? "Scheduled" : "Not scheduled");
     dprintf(fd, "  Accept signalling timer: %s\n",
             alarm_is_scheduled(p_scb->accept_signalling_timer) ? "Scheduled" : "Not scheduled");
+    dprintf(fd, "  Accept open timer: %s\n",
+            alarm_is_scheduled(p_scb->accept_open_timer) ? "Scheduled" : "Not scheduled");
     // TODO: Print p_scb->sep_info[], cfg, avrc_ct_timer, current_codec ?
     dprintf(fd, "    L2CAP Channel ID: %d\n", p_scb->l2c_cid);
     dprintf(fd, "    Stream MTU: %d\n", p_scb->stream_mtu);

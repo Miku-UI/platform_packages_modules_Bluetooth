@@ -15,9 +15,7 @@ cc_library_headers {
         "BluetoothGeneratedPacketsL2cap_h",
     ],
     host_supported: true,
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "33",
 }
 
@@ -30,8 +28,6 @@ cc_library_static {
         "libbluetooth_l2cap_pdl_header",
     ],
     host_supported: true,
-    apex_available: [
-        "com.android.btservices",
-    ],
+    apex_available: ["com.android.bt"],
     min_sdk_version: "33",
 }

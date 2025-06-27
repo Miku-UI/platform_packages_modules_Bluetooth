@@ -17,6 +17,7 @@
 #include "mock_codec_manager.h"
 
 #include "le_audio/codec_manager.h"
+#include "le_audio/le_audio_types.h"
 
 MockCodecManager* mock_codec_manager_pimpl_;
 MockCodecManager* MockCodecManager::GetInstance() {
@@ -39,6 +40,13 @@ types::CodecLocation CodecManager::GetCodecLocation() const {
     return types::CodecLocation::HOST;
   }
   return pimpl_->GetCodecLocation();
+}
+
+std::optional<ProviderInfo> CodecManager::GetCodecConfigProviderInfo(void) const {
+  if (!pimpl_) {
+    return std::nullopt;
+  }
+  return pimpl_->GetCodecConfigProviderInfo();
 }
 
 bool CodecManager::IsDualBiDirSwbSupported(void) const {
@@ -69,15 +77,15 @@ bool CodecManager::UpdateActiveBroadcastAudioHalClient(
 
 void CodecManager::UpdateActiveAudioConfig(
         const types::BidirectionalPair<stream_parameters>& stream_params,
-        types::BidirectionalPair<uint16_t> delays_ms,
-        std::function<void(const ::bluetooth::le_audio::offload_config& config, uint8_t direction)>
-                update_receiver) {
+        std::function<void(const ::bluetooth::le_audio::stream_config& config, uint8_t direction)>
+                update_receiver,
+        uint8_t directions_to_update) {
   if (pimpl_) {
-    return pimpl_->UpdateActiveAudioConfig(stream_params, delays_ms, update_receiver);
+    return pimpl_->UpdateActiveAudioConfig(stream_params, update_receiver, directions_to_update);
   }
 }
 
-std::unique_ptr<set_configurations::AudioSetConfiguration> CodecManager::GetCodecConfig(
+std::unique_ptr<types::AudioSetConfiguration> CodecManager::GetCodecConfig(
         const CodecManager::UnicastConfigurationRequirements& requirements,
         CodecManager::UnicastConfigurationProvider verifier) {
   if (!pimpl_) {
@@ -97,7 +105,7 @@ CodecManager::GetBroadcastConfig(
 }
 
 bool CodecManager::CheckCodecConfigIsBiDirSwb(
-        const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) const {
+        const bluetooth::le_audio::types::AudioSetConfiguration& config) const {
   if (!pimpl_) {
     return false;
   }
@@ -105,7 +113,7 @@ bool CodecManager::CheckCodecConfigIsBiDirSwb(
 }
 
 bool CodecManager::CheckCodecConfigIsDualBiDirSwb(
-        const bluetooth::le_audio::set_configurations::AudioSetConfiguration& config) const {
+        const bluetooth::le_audio::types::AudioSetConfiguration& config) const {
   if (!pimpl_) {
     return false;
   }

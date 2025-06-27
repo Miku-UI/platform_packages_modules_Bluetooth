@@ -23,7 +23,6 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
-#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "gatt_api.h"
@@ -216,17 +215,9 @@ void gatt_notify_enc_cmpl(const RawAddress& bd_addr) {
     return;
   }
 
-  if (com::android::bluetooth::flags::gatt_client_dynamic_allocation()) {
-    for (auto& [i, p_rcb] : gatt_cb.cl_rcb_map) {
-      if (p_rcb->app_cb.p_enc_cmpl_cb) {
-        (*p_rcb->app_cb.p_enc_cmpl_cb)(p_rcb->gatt_if, bd_addr);
-      }
-    }
-  } else {
-    for (uint8_t i = 0; i < GATT_MAX_APPS; i++) {
-      if (gatt_cb.cl_rcb[i].in_use && gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb) {
-        (*gatt_cb.cl_rcb[i].app_cb.p_enc_cmpl_cb)(gatt_cb.cl_rcb[i].gatt_if, bd_addr);
-      }
+  for (auto& [i, p_rcb] : gatt_cb.cl_rcb_map) {
+    if (p_rcb->app_cb.p_enc_cmpl_cb) {
+      (*p_rcb->app_cb.p_enc_cmpl_cb)(p_rcb->gatt_if, bd_addr);
     }
   }
 
@@ -299,7 +290,7 @@ static tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB* p_clcb) {
     return GATT_SEC_ENC_PENDING;
   }
 
-  is_link_key_known = BTM_IsLinkKeyKnown(p_tcb->peer_bda, p_clcb->p_tcb->transport);
+  is_link_key_known = BTM_IsBonded(p_tcb->peer_bda, p_clcb->p_tcb->transport);
   is_link_encrypted = BTM_IsEncrypted(p_tcb->peer_bda, p_clcb->p_tcb->transport);
   is_key_mitm = BTM_IsLinkKeyAuthed(p_tcb->peer_bda, p_clcb->p_tcb->transport);
 
@@ -363,7 +354,7 @@ tGATT_STATUS gatt_get_link_encrypt_status(tGATT_TCB& tcb) {
   tGATT_STATUS encrypt_status = GATT_NOT_ENCRYPTED;
 
   bool encrypted = BTM_IsEncrypted(tcb.peer_bda, tcb.transport);
-  bool link_key_known = BTM_IsLinkKeyKnown(tcb.peer_bda, tcb.transport);
+  bool link_key_known = BTM_IsBonded(tcb.peer_bda, tcb.transport);
   bool link_key_authed = BTM_IsLinkKeyAuthed(tcb.peer_bda, tcb.transport);
 
   if (encrypted && link_key_known) {

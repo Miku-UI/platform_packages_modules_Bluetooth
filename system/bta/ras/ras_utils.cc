@@ -75,6 +75,7 @@ bool ParseControlPointCommand(ControlPointCommand* command, const uint8_t* value
       break;
     default:
       log::warn("unknown opcode 0x{:02x}", value[0]);
+      command->isValid_ = true;
       return false;
   }
   std::memcpy(command->parameter_, value + 1, len - 1);

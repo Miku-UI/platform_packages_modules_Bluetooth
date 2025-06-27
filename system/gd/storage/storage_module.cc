@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,11 +63,20 @@ const std::string StorageModule::kTimeCreatedFormat = "%Y-%m-%d %H:%M:%S";
 
 const std::string StorageModule::kAdapterSection = BTIF_STORAGE_SECTION_ADAPTER;
 
-StorageModule::StorageModule(std::string config_file_path,
+StorageModule::StorageModule()
+    : StorageModule(nullptr, os::ParameterProvider::ConfigFilePath(), kDefaultConfigSaveDelay,
+                    kDefaultTempDeviceCapacity, false, false) {}
+
+StorageModule::StorageModule(os::Handler* handler)
+    : StorageModule(handler, os::ParameterProvider::ConfigFilePath(), kDefaultConfigSaveDelay,
+                    kDefaultTempDeviceCapacity, false, false) {}
+
+StorageModule::StorageModule(os::Handler* handler, std::string config_file_path,
                              std::chrono::milliseconds config_save_delay,
                              size_t temp_devices_capacity, bool is_restricted_mode,
                              bool is_single_user_mode)
-    : config_file_path_(std::move(config_file_path)),
+    : Module(handler),
+      config_file_path_(std::move(config_file_path)),
       config_save_delay_(config_save_delay),
       temp_devices_capacity_(temp_devices_capacity),
       is_restricted_mode_(is_restricted_mode),
@@ -81,13 +90,15 @@ StorageModule::StorageModule(std::string config_file_path,
 
 StorageModule::~StorageModule() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+  if (!com::android::bluetooth::flags::same_handler_for_all_modules()) {
+    GetHandler()->Clear();
+    GetHandler()->WaitUntilStopped(std::chrono::milliseconds(2000));
+    delete GetHandler();
+  }
+
   pimpl_.reset();
 }
-
-const ModuleFactory StorageModule::Factory = ModuleFactory([]() {
-  return new StorageModule(os::ParameterProvider::ConfigFilePath(), kDefaultConfigSaveDelay,
-                           kDefaultTempDeviceCapacity, false, false);
-});
 
 struct StorageModule::impl {
   explicit impl(Handler* handler, ConfigCache cache, size_t in_memory_cache_size_limit)
@@ -144,9 +155,7 @@ void StorageModule::Clear() {
   pimpl_->cache_.Clear();
 }
 
-void StorageModule::ListDependencies(ModuleList* list) const {
-  list->add<metrics::CounterMetrics>();
-}
+void StorageModule::ListDependencies(ModuleList* /*list*/) const {}
 
 void StorageModule::Start() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -194,6 +203,7 @@ void StorageModule::Start() {
 
 void StorageModule::Stop() {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
+  log::assert_that(pimpl_ != nullptr, "StorageModule is not started");
   if (pimpl_->has_pending_config_save_) {
     // Save pending changes before stopping the module.
     SaveImmediately();

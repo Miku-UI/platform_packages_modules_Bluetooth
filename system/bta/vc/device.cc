@@ -36,6 +36,7 @@
 #include "gatt/database.h"
 #include "gattdefs.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/gatt_api.h"
 #include "types/bluetooth/uuid.h"
@@ -421,48 +422,67 @@ void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF /*gatt_if*/,
                                                    GATT_READ_OP_CB chrc_read_cb,
                                                    GATT_READ_MULTI_OP_CB chrc_multi_read_cb,
                                                    GATT_WRITE_OP_CB /*cccd_write_cb*/) {
-  std::vector<uint16_t> handles_to_read;
+  const auto is_eatt_supported = gatt_profile_get_eatt_support_by_conn_id(connection_id);
 
-  for (auto const& input : audio_inputs.volume_audio_inputs) {
-    handles_to_read.push_back(input.state_handle);
-    handles_to_read.push_back(input.gain_setting_handle);
-    handles_to_read.push_back(input.type_handle);
-    handles_to_read.push_back(input.status_handle);
-    handles_to_read.push_back(input.description_handle);
-  }
+  /* List of handles to the attributes having known and fixed-size values to read using the
+   * ATT_READ_MULTIPLE_REQ. The `.second` component contains 1 octet for the length + the actual
+   * attribute value length, exactly as in the received HCI packet for ATT_READ_MULTIPLE_RSP.
+   * We use this to make sure the request response will fit the current MTU size.
+   */
+  std::list<std::pair<uint16_t, size_t>> handles_to_read;
+
+  /* Variable-length attributes - always read using the regular read requests to automatically
+   * handle truncation in the  GATT layer if MTU is to small to fit even a single complete value.
+   */
+  std::vector<uint16_t> handles_to_read_variable_length;
 
   for (auto const& offset : audio_offsets.volume_offsets) {
-    handles_to_read.push_back(offset.state_handle);
-    handles_to_read.push_back(offset.audio_location_handle);
-    handles_to_read.push_back(offset.audio_descr_handle);
+    handles_to_read.push_back(std::make_pair(offset.state_handle, 4));
+    handles_to_read.push_back(std::make_pair(offset.audio_location_handle, 5));
+    handles_to_read_variable_length.push_back(offset.audio_descr_handle);
   }
 
-  log::debug("{}, number of handles={}", address, handles_to_read.size());
+  for (auto const& input : audio_inputs.volume_audio_inputs) {
+    handles_to_read.push_back(std::make_pair(input.state_handle, 5));
+    handles_to_read.push_back(std::make_pair(input.gain_setting_handle, 4));
+    handles_to_read.push_back(std::make_pair(input.type_handle, 2));
+    handles_to_read.push_back(std::make_pair(input.status_handle, 2));
+    handles_to_read_variable_length.push_back(input.description_handle);
+  }
 
-  if (!com::android::bluetooth::flags::le_ase_read_multiple_variable()) {
-    for (auto const& handle : handles_to_read) {
+  log::debug("{}, number of fixed-size attribute handles={}", address, handles_to_read.size());
+  log::debug("{}, number of variable-size attribute handles={}", address,
+             handles_to_read_variable_length.size());
+
+  if (com::android::bluetooth::flags::le_ase_read_multiple_variable() && is_eatt_supported) {
+    const size_t payload_limit = this->mtu_ - 1;
+
+    auto pair_it = handles_to_read.begin();
+    while (pair_it != handles_to_read.end()) {
+      tBTA_GATTC_MULTI multi_read{.num_attr = 0};
+      size_t size_limit = 0;
+
+      // Send at once just enough attributes to stay below the MTU size limit for the response
+      while ((pair_it != handles_to_read.end()) && (size_limit + pair_it->second < payload_limit) &&
+             (multi_read.num_attr < GATT_MAX_READ_MULTI_HANDLES)) {
+        multi_read.handles[multi_read.num_attr] = pair_it->first;
+        size_limit += pair_it->second;
+        ++multi_read.num_attr;
+        ++pair_it;
+      }
+
+      log::debug{"{}, calling multi-read with {} attributes, {} left", address, multi_read.num_attr,
+                 std::distance(pair_it, handles_to_read.end())};
+      BtaGattQueue::ReadMultiCharacteristic(connection_id, multi_read, chrc_multi_read_cb, nullptr);
+    }
+  } else {
+    for (auto const& [handle, _] : handles_to_read) {
       BtaGattQueue::ReadCharacteristic(connection_id, handle, chrc_read_cb, nullptr);
     }
-    return;
   }
 
-  size_t sent_cnt = 0;
-
-  while (sent_cnt < handles_to_read.size()) {
-    tBTA_GATTC_MULTI multi_read{};
-    size_t remain_cnt = (handles_to_read.size() - sent_cnt);
-
-    multi_read.num_attr =
-            remain_cnt > GATT_MAX_READ_MULTI_HANDLES ? GATT_MAX_READ_MULTI_HANDLES : remain_cnt;
-
-    auto handles_begin = handles_to_read.begin() + sent_cnt;
-    std::copy(handles_begin, handles_begin + multi_read.num_attr, multi_read.handles);
-
-    sent_cnt += multi_read.num_attr;
-    log::debug{"{}, calling multi with {} attributes, sent_cnt {} ", address, multi_read.num_attr,
-               sent_cnt};
-
-    BtaGattQueue::ReadMultiCharacteristic(connection_id, multi_read, chrc_multi_read_cb, nullptr);
+  for (auto const& handle : handles_to_read_variable_length) {
+    BtaGattQueue::ReadCharacteristic(connection_id, handle, chrc_read_cb, nullptr);
   }
 }
 

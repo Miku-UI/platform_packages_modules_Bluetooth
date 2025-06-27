@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.junit.runner.RunWith;
 
 import java.util.Calendar;
 
+/** Test cases for {@link MessagesFilter}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class MessagesFilterTest {
@@ -39,10 +40,10 @@ public class MessagesFilterTest {
         assertThat(filter.originator).isEqualTo(originator);
 
         filter.setOriginator("");
-        assertThat(filter.originator).isEqualTo(null); // Empty string is stored as null
+        assertThat(filter.originator).isNull(); // Empty string is stored as null
 
         filter.setOriginator(null);
-        assertThat(filter.originator).isEqualTo(null);
+        assertThat(filter.originator).isNull();
     }
 
     @Test
@@ -74,10 +75,10 @@ public class MessagesFilterTest {
         assertThat(filter.recipient).isEqualTo(recipient);
 
         filter.setRecipient("");
-        assertThat(filter.recipient).isEqualTo(null); // Empty string is stored as null
+        assertThat(filter.recipient).isNull(); // Empty string is stored as null
 
         filter.setRecipient(null);
-        assertThat(filter.recipient).isEqualTo(null);
+        assertThat(filter.recipient).isNull();
     }
 
     /** Test Builder creates and sets everything correctly. */

@@ -199,23 +199,12 @@ void bta_ag_start_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   p_scb->open_services = p_scb->reg_services;
 
   /* Check if RFCOMM has any incoming connection to avoid collision. */
-  if (com::android::bluetooth::flags::rfcomm_prevent_unnecessary_collisions()) {
-    if (PORT_IsCollisionDetected(p_scb->peer_addr)) {
-      /* Let the incoming connection go through.                           */
-      /* Issue collision for this scb for now.                             */
-      /* We will decide what to do when we find incoming connection later. */
-      bta_ag_collision_cback(BTA_SYS_CONN_OPEN, BTA_ID_AG, 0, p_scb->peer_addr);
-      return;
-    }
-  } else {
-    RawAddress pending_bd_addr = RawAddress::kEmpty;
-    if (PORT_IsOpening(&pending_bd_addr)) {
-      /* Let the incoming connection go through.                           */
-      /* Issue collision for this scb for now.                             */
-      /* We will decide what to do when we find incoming connection later. */
-      bta_ag_collision_cback(BTA_SYS_CONN_OPEN, BTA_ID_AG, 0, p_scb->peer_addr);
-      return;
-    }
+  if (PORT_IsCollisionDetected(p_scb->peer_addr)) {
+    /* Let the incoming connection go through.                           */
+    /* Issue collision for this scb for now.                             */
+    /* We will decide what to do when we find incoming connection later. */
+    bta_ag_collision_cback(BTA_SYS_CONN_OPEN, BTA_ID_AG, 0, p_scb->peer_addr);
+    return;
   }
 
   /* close servers */
@@ -365,9 +354,7 @@ void bta_ag_rfc_fail(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   log::info("reset p_scb with index={}", bta_ag_scb_to_idx(p_scb));
   RawAddress peer_addr = p_scb->peer_addr;
   /* reinitialize stuff */
-  if (com::android::bluetooth::flags::reset_ag_state_on_collision()) {
-    p_scb->state = BTA_AG_INIT_ST;
-  }
+  p_scb->state = BTA_AG_INIT_ST;
   p_scb->conn_handle = 0;
   p_scb->conn_service = 0;
   p_scb->peer_features = 0;
@@ -403,6 +390,7 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   int i, num_active_conn = 0;
 
   /* reinitialize stuff */
+  p_scb->clip[0] = 0;
   p_scb->conn_service = 0;
   p_scb->peer_features = 0;
   p_scb->masked_features = p_scb->features;
@@ -412,7 +400,6 @@ void bta_ag_rfc_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
   p_scb->codec_updated = false;
   p_scb->codec_fallback = false;
   p_scb->trying_cvsd_safe_settings = false;
-  p_scb->retransmission_effort_retries = 0;
   p_scb->codec_msbc_settings = BTA_AG_SCO_MSBC_SETTINGS_T2;
   p_scb->codec_cvsd_settings = BTA_AG_SCO_CVSD_SETTINGS_S4;
   p_scb->codec_aptx_settings = BTA_AG_SCO_APTX_SWB_SETTINGS_Q0;

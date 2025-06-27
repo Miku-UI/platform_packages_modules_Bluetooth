@@ -57,7 +57,6 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
 import com.android.bluetooth.map.BluetoothMapbMessageMime.MimePart;
 import com.android.bluetooth.mapapi.BluetoothMapContract;
@@ -66,7 +65,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.ResponseCodes;
 
 import com.google.android.mms.pdu.PduHeaders;
-import com.google.common.base.Ascii;
 
 import org.xmlpull.v1.XmlSerializer;
 
@@ -84,6 +82,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -91,7 +90,7 @@ import java.util.concurrent.TimeUnit;
 
 // Next tag value for ContentProfileErrorReportUtils.report(): 41
 public class BluetoothMapContentObserver {
-    private static final String TAG = "BluetoothMapContentObserver";
+    private static final String TAG = BluetoothMapContentObserver.class.getSimpleName();
 
     // A message older than this will be ignored when notifying a new message.
     @VisibleForTesting
@@ -101,7 +100,7 @@ public class BluetoothMapContentObserver {
     @VisibleForTesting static final String EVENT_TYPE_DELETE = "MessageDeleted";
     @VisibleForTesting static final String EVENT_TYPE_REMOVED = "MessageRemoved";
     @VisibleForTesting static final String EVENT_TYPE_SHIFT = "MessageShift";
-    @VisibleForTesting static final String EVENT_TYPE_DELEVERY_SUCCESS = "DeliverySuccess";
+    @VisibleForTesting static final String EVENT_TYPE_DELIVERY_SUCCESS = "DeliverySuccess";
     @VisibleForTesting static final String EVENT_TYPE_SENDING_SUCCESS = "SendingSuccess";
     @VisibleForTesting static final String EVENT_TYPE_SENDING_FAILURE = "SendingFailure";
     @VisibleForTesting static final String EVENT_TYPE_DELIVERY_FAILURE = "DeliveryFailure";
@@ -130,12 +129,12 @@ public class BluetoothMapContentObserver {
     //       cases.
     private static final long PROVIDER_ANR_TIMEOUT = 20 * DateUtils.SECOND_IN_MILLIS;
 
-    private Context mContext;
-    private ContentResolver mResolver;
+    private final Context mContext;
+    private final ContentResolver mResolver;
     @VisibleForTesting ContentProviderClient mProviderClient = null;
-    private BluetoothMnsObexClient mMnsClient;
+    private final BluetoothMnsObexClient mMnsClient;
     private BluetoothMapMasInstance mMasInstance = null;
-    private int mMasId;
+    private final int mMasId;
     private boolean mEnableSmsMms = false;
     @VisibleForTesting boolean mObserverRegistered = false;
     @VisibleForTesting BluetoothMapAccountItem mAccount;
@@ -169,7 +168,7 @@ public class BluetoothMapContentObserver {
     // Text only MMS converted to SMS if sms parts less than or equal to defined count
     private static final int CONVERT_MMS_TO_SMS_PART_COUNT = 10;
 
-    private TYPE mSmsType;
+    private final TYPE mSmsType;
 
     private static final String ACTION_MESSAGE_DELIVERY =
             "com.android.bluetooth.BluetoothMapContentObserver.action.MESSAGE_DELIVERY";
@@ -184,8 +183,8 @@ public class BluetoothMapContentObserver {
     public static final String EXTRA_MESSAGE_SENT_TRANSPARENT = "transparent";
     public static final String EXTRA_MESSAGE_SENT_TIMESTAMP = "timestamp";
 
-    private SmsBroadcastReceiver mSmsBroadcastReceiver = new SmsBroadcastReceiver();
-    private CeBroadcastReceiver mCeBroadcastReceiver = new CeBroadcastReceiver();
+    private final SmsBroadcastReceiver mSmsBroadcastReceiver = new SmsBroadcastReceiver();
+    private final CeBroadcastReceiver mCeBroadcastReceiver = new CeBroadcastReceiver();
 
     private boolean mStorageUnlocked = false;
     private boolean mInitialized = false;
@@ -347,9 +346,9 @@ public class BluetoothMapContentObserver {
             // Warning according to page 46/123 of MAP 1.3 spec
             Log.w(
                     TAG,
-                    "setObserverRemoteFeatureMask: Extended Event Reports 1.2 is not set eventhough"
-                        + " PARTICIPANT_PRESENCE_CHANGE_BIT or PARTICIPANT_CHAT_STATE_CHANGE_BIT"
-                        + " were set, mMapSupportedFeatures="
+                    "setObserverRemoteFeatureMask: Extended Event Reports 1.2 is not set even"
+                            + " though PARTICIPANT_PRESENCE_CHANGE_BIT or"
+                            + " PARTICIPANT_CHAT_STATE_CHANGE_BIT were set, mMapSupportedFeatures="
                             + mMapSupportedFeatures);
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.MAP,
@@ -519,7 +518,7 @@ public class BluetoothMapContentObserver {
                                     + Thread.currentThread().getId()
                                     + " Uri: "
                                     + uri.toString()
-                                    + " selfchange: "
+                                    + " selfChange: "
                                     + selfChange);
 
                     if (uri.toString().contains(BluetoothMapContract.TABLE_CONVOCONTACT)) {
@@ -605,7 +604,7 @@ public class BluetoothMapContentObserver {
         public int mContactColPriority = -1;
         public int mContactColLastOnline = -1;
 
-        public void setConvoColunms(Cursor c) {
+        public void setConvoColumns(Cursor c) {
             //            mConvoColConvoId         = c.getColumnIndex(
             //                    BluetoothMapContract.ConversationColumns.THREAD_ID);
             //            mConvoColLastActivity    = c.getColumnIndex(
@@ -1263,7 +1262,7 @@ public class BluetoothMapContentObserver {
                 Log.d(TAG, "Skip sending event of type: " + evt.eventType);
                 return;
             }
-        } else if (Objects.equals(evt.eventType, EVENT_TYPE_DELEVERY_SUCCESS)) {
+        } else if (Objects.equals(evt.eventType, EVENT_TYPE_DELIVERY_SUCCESS)) {
             if (!sendEventDeliverySuccess(eventFilter)) {
                 Log.d(TAG, "Skip sending event of type: " + evt.eventType);
                 return;
@@ -1452,7 +1451,7 @@ public class BluetoothMapContentObserver {
         try {
             if (c != null && c.moveToFirst()) {
                 ConvoContactInfo cInfo = new ConvoContactInfo();
-                cInfo.setConvoColunms(c);
+                cInfo.setConvoColumns(c);
                 do {
                     long convoId = c.getLong(cInfo.mContactColConvoId);
                     if (convoId == 0) {
@@ -1558,19 +1557,12 @@ public class BluetoothMapContentObserver {
                                             > BluetoothMapUtils.MAP_EVENT_REPORT_V10) {
                                 long timestamp = c.getLong(c.getColumnIndex(Sms.DATE));
                                 String date = BluetoothMapUtils.getDateTimeString(timestamp);
-                                if (Flags.mapLimitNotification()) {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanDuration(
-                                            timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
-                                        msgListSms.remove(id);
-                                        continue;
-                                    }
-                                } else {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanOneYear(timestamp)) {
-                                        // Skip sending message events older than one year
-                                        msgListSms.remove(id);
-                                        continue;
-                                    }
+                                if (BluetoothMapUtils.isDateTimeOlderThanDuration(
+                                        timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
+                                    msgListSms.remove(id);
+                                    continue;
                                 }
+
                                 String subject = c.getString(c.getColumnIndex(Sms.BODY));
                                 if (subject == null) {
                                     subject = "";
@@ -1781,7 +1773,7 @@ public class BluetoothMapContentObserver {
                         }
                         long id = c.getLong(idIndex);
                         int type = c.getInt(c.getColumnIndex(Mms.MESSAGE_BOX));
-                        int mtype = c.getInt(c.getColumnIndex(Mms.MESSAGE_TYPE));
+                        int mType = c.getInt(c.getColumnIndex(Mms.MESSAGE_TYPE));
                         int threadId = c.getInt(c.getColumnIndex(Mms.THREAD_ID));
                         // TODO: Go through code to see if we have an issue with mismatch in types
                         //       for threadId. Seems to be a long in DB??
@@ -1798,7 +1790,7 @@ public class BluetoothMapContentObserver {
                             if (getMmsFolderName(type)
                                             .equalsIgnoreCase(
                                                     BluetoothMapContract.FOLDER_NAME_INBOX)
-                                    && mtype != MESSAGE_TYPE_RETRIEVE_CONF) {
+                                    && mType != MESSAGE_TYPE_RETRIEVE_CONF) {
                                 continue;
                             }
                             msg = new Msg(id, type, threadId, read);
@@ -1813,18 +1805,10 @@ public class BluetoothMapContentObserver {
                                         TimeUnit.SECONDS.toMillis(
                                                 c.getLong(c.getColumnIndex(Mms.DATE)));
                                 String date = BluetoothMapUtils.getDateTimeString(timestamp);
-                                if (Flags.mapLimitNotification()) {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanDuration(
-                                            timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
-                                        msgListMms.remove(id);
-                                        continue;
-                                    }
-                                } else {
-                                    if (BluetoothMapUtils.isDateTimeOlderThanOneYear(timestamp)) {
-                                        // Skip sending new message events older than one year
-                                        msgListMms.remove(id);
-                                        continue;
-                                    }
+                                if (BluetoothMapUtils.isDateTimeOlderThanDuration(
+                                        timestamp, NEW_MESSAGE_DURATION_FOR_NOTIFICATION)) {
+                                    msgListMms.remove(id);
+                                    continue;
                                 }
 
                                 String subject = c.getString(c.getColumnIndex(Mms.SUBJECT));
@@ -2281,7 +2265,7 @@ public class BluetoothMapContentObserver {
                         TAG,
                         "Problems contacting the ContentProvider in mas Instance "
                                 + mMasId
-                                + " restaring ObexServerSession");
+                                + " restarting ObexServerSession");
             }
         }
         // TODO: check to see if there could be problem with IM and SMS in one instance
@@ -2311,7 +2295,7 @@ public class BluetoothMapContentObserver {
                                         null,
                                         null,
                                         null);
-                        cInfo.setConvoColunms(c);
+                        cInfo.setConvoColumns(c);
                     } else {
                         Log.v(
                                 TAG,
@@ -2552,7 +2536,7 @@ public class BluetoothMapContentObserver {
                         TAG,
                         "Problems contacting the ContentProvider in mas Instance "
                                 + mMasId
-                                + " restaring ObexServerSession");
+                                + " restarting ObexServerSession");
             }
         }
         // TODO: conversation contact updates if IM and SMS(MMS in one instance
@@ -3020,7 +3004,7 @@ public class BluetoothMapContentObserver {
         ;
     }
 
-    private Map<Long, PushMsgInfo> mPushMsgList =
+    private final Map<Long, PushMsgInfo> mPushMsgList =
             Collections.synchronizedMap(new HashMap<Long, PushMsgInfo>());
 
     /**
@@ -3390,7 +3374,6 @@ public class BluetoothMapContentObserver {
                 sentIntent.putExtra(EXTRA_MESSAGE_SENT_HANDLE, handle); // needed for notification
                 sentIntent.putExtra(EXTRA_MESSAGE_SENT_TRANSPARENT, transparent);
                 sentIntent.putExtra(EXTRA_MESSAGE_SENT_RETRY, retry);
-                // sentIntent.setDataAndNormalize(btMmsUri);
                 PendingIntent pendingSendIntent =
                         PendingIntent.getBroadcast(
                                 mContext, 0, sentIntent, PendingIntent.FLAG_IMMUTABLE);
@@ -3497,7 +3480,7 @@ public class BluetoothMapContentObserver {
 
             if (uri == null) {
                 // unable to insert MMS
-                Log.e(TAG, "Unabled to insert MMS " + values + "Uri: " + uri);
+                Log.e(TAG, "Unable to insert MMS " + values + "Uri: " + uri);
                 ContentProfileErrorReportUtils.report(
                         BluetoothProfile.MAP,
                         BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
@@ -3551,7 +3534,7 @@ public class BluetoothMapContentObserver {
                     count++;
                     values.clear();
                     if (part.mContentType != null
-                            && Ascii.toUpperCase(part.mContentType).contains("TEXT")) {
+                            && part.mContentType.toUpperCase(Locale.ROOT).contains("TEXT")) {
                         values.put(Mms.Part.CONTENT_TYPE, "text/plain");
                         values.put(Mms.Part.CHARSET, 106);
                         if (part.mPartName != null) {
@@ -3591,7 +3574,7 @@ public class BluetoothMapContentObserver {
                         Log.v(TAG, "Added TEXT part");
 
                     } else if (part.mContentType != null
-                            && Ascii.toUpperCase(part.mContentType).contains("SMIL")) {
+                            && part.mContentType.toUpperCase(Locale.ROOT).contains("SMIL")) {
                         values.put(Mms.Part.SEQ, -1);
                         values.put(Mms.Part.CONTENT_TYPE, "application/smil");
                         if (part.mContentId != null) {
@@ -4242,7 +4225,7 @@ public class BluetoothMapContentObserver {
         }
     }
 
-    private PhoneStateListener mPhoneListener =
+    private final PhoneStateListener mPhoneListener =
             new PhoneStateListener() {
                 @Override
                 public void onServiceStateChanged(ServiceState serviceState) {

@@ -30,9 +30,11 @@ android_test {
         "junit",
         "mockito-target",
         "modules-utils-bytesmatcher",
+        "platform-compat-test-rules",
     ],
     test_suites: [
         "general-tests",
         "mts-bluetooth",
+        "mts-bt",
     ],
 }

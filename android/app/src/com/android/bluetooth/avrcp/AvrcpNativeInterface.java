@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package com.android.bluetooth.avrcp;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
@@ -26,12 +28,10 @@ import com.android.bluetooth.audio_util.PlayStatus;
 import com.android.bluetooth.audio_util.PlayerInfo;
 import com.android.bluetooth.audio_util.PlayerSettingsManager.PlayerSettingsValues;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Native Interface to communicate with the JNI layer. This class should never be passed null data.
@@ -45,13 +45,10 @@ public class AvrcpNativeInterface {
     private static final Object INSTANCE_LOCK = new Object();
 
     private AvrcpTargetService mAvrcpService;
-    private AdapterService mAdapterService;
+    private final AdapterService mAdapterService;
 
     private AvrcpNativeInterface() {
-        mAdapterService =
-                Objects.requireNonNull(
-                        AdapterService.getAdapterService(),
-                        "AdapterService cannot be null when AvrcpNativeInterface init");
+        mAdapterService = requireNonNull(AdapterService.getAdapterService());
     }
 
     static AvrcpNativeInterface getInstance() {
@@ -95,10 +92,7 @@ public class AvrcpNativeInterface {
     }
 
     void setBipClientStatus(BluetoothDevice device, boolean connected) {
-        String identityAddress =
-                Flags.identityAddressNullIfNotKnown()
-                        ? Utils.getBrEdrAddress(device)
-                        : mAdapterService.getIdentityAddress(device.getAddress());
+        String identityAddress = Utils.getBrEdrAddress(device);
         setBipClientStatusNative(identityAddress, connected);
     }
 
@@ -172,24 +166,23 @@ public class AvrcpNativeInterface {
         return mAvrcpService.getMediaPlayerList();
     }
 
-    // TODO(apanicke): This shouldn't be named setBrowsedPlayer as it doesn't actually connect
-    // anything internally. It just returns the number of items in the root folder.
-    void setBrowsedPlayer(int playerId) {
-        d("setBrowsedPlayer: playerId=" + playerId);
-        mAvrcpService.getPlayerRoot(playerId, (a, b, c, d) -> setBrowsedPlayerResponse(a, b, c, d));
+    void setBrowsedPlayer(int playerId, String currentPath) {
+        d("setBrowsedPlayer: playerId=" + playerId + ", currentPath= " + currentPath);
+        mAvrcpService.setBrowsedPlayer(
+                playerId, currentPath, (a, b, c, d) -> setBrowsedPlayerResponse(a, b, c, d));
     }
 
-    void setBrowsedPlayerResponse(int playerId, boolean success, String rootId, int numItems) {
+    void setBrowsedPlayerResponse(int playerId, boolean success, String currentPath, int numItems) {
         d(
                 "setBrowsedPlayerResponse: playerId="
                         + playerId
                         + " success="
                         + success
-                        + " rootId="
-                        + rootId
+                        + " currentPath="
+                        + currentPath
                         + " numItems="
                         + numItems);
-        setBrowsedPlayerResponseNative(playerId, success, rootId, numItems);
+        setBrowsedPlayerResponseNative(playerId, success, currentPath, numItems);
     }
 
     int setAddressedPlayer(int playerId) {
@@ -240,10 +233,7 @@ public class AvrcpNativeInterface {
     }
 
     boolean disconnectDevice(BluetoothDevice device) {
-        String identityAddress =
-                Flags.identityAddressNullIfNotKnown()
-                        ? Utils.getBrEdrAddress(device)
-                        : mAdapterService.getIdentityAddress(device.getAddress());
+        String identityAddress = Utils.getBrEdrAddress(device);
         d("disconnectDevice: identityAddress=" + identityAddress);
         return disconnectDeviceNative(identityAddress);
     }
@@ -281,10 +271,7 @@ public class AvrcpNativeInterface {
 
     void sendVolumeChanged(BluetoothDevice device, int volume) {
         d("sendVolumeChanged: volume=" + volume);
-        String identityAddress =
-                Flags.identityAddressNullIfNotKnown()
-                        ? Utils.getBrEdrAddress(device)
-                        : mAdapterService.getIdentityAddress(device.getAddress());
+        String identityAddress = Utils.getBrEdrAddress(device);
         sendVolumeChangedNative(identityAddress, volume);
     }
 

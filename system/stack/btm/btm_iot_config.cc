@@ -18,6 +18,8 @@
 
 #define LOG_TAG "btm_iot"
 
+#include "stack/include/btm_iot_config.h"
+
 #include <bluetooth/log.h>
 
 #include "btif/include/btif_storage.h"
@@ -25,9 +27,6 @@
 #include "device/include/device_iot_config.h"
 #include "stack/acl/acl.h"
 #include "stack/include/btm_client_interface.h"
-
-// TODO(b/369381361) Enfore -Wmissing-prototypes
-#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
 using namespace bluetooth;
 

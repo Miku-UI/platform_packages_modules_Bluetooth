@@ -18,6 +18,10 @@ android_test_helper_app {
         "libprotobuf-java-micro",
     ],
 
+    jarjar_rules: ":bluetooth-jarjar-rules",
+
+    kotlincflags: ["-java-parameters"],
+
     static_libs: [
         "TestParameterInjector",
         "androidx.core_core",
@@ -25,6 +29,7 @@ android_test_helper_app {
         "androidx.test.ext.junit",
         "androidx.test.ext.truth",
         "androidx.test.rules",
+        "androidx.test.uiautomator_uiautomator",
         "bluetooth-test-util-lib",
         "bluetooth_flags_java_lib",
         "compatibility-device-util-axt",
@@ -56,6 +61,7 @@ java_test_host {
 
     device_common_data: [
         ":BumbleBluetoothTestsApp",
+        ":BumbleBluetoothTestsHelperApp",
         "bumble_config.json",
     ],
     data_native_bins: [
@@ -66,6 +72,7 @@ java_test_host {
 
     test_suites: [
         "general-tests",
+        "mts-bt",
     ],
 }
 
@@ -84,6 +91,7 @@ java_test_host {
     ],
     device_common_data: [
         ":BumbleBluetoothTestsApp",
+        ":BumbleBluetoothTestsHelperApp",
     ],
     data_native_bins: [
         "bumble_pandora_server",
@@ -102,11 +110,7 @@ python_binary_host {
     srcs: [
         "src/bumble_server.py",
     ],
-    version: {
-        py3: {
-            embedded_launcher: false,
-        },
-    },
+    embedded_launcher: false,
     libs: [
         "bumble-pandora",
         "bumble_services_experimental-python",

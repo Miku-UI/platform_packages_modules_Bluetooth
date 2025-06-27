@@ -57,9 +57,6 @@ protected:
     encoder_iface_ = const_cast<tA2DP_ENCODER_INTERFACE*>(
             A2DP_VendorGetEncoderInterfaceLdac(kCodecInfoLdacCapability));
     ASSERT_NE(encoder_iface_, nullptr);
-    decoder_iface_ = const_cast<tA2DP_DECODER_INTERFACE*>(
-            A2DP_VendorGetDecoderInterfaceLdac(kCodecInfoLdacCapability));
-    ASSERT_NE(decoder_iface_, nullptr);
   }
 
   void TearDown() override {
@@ -69,22 +66,15 @@ protected:
     if (encoder_iface_ != nullptr) {
       encoder_iface_->encoder_cleanup();
     }
-    if (decoder_iface_ != nullptr) {
-      decoder_iface_->decoder_cleanup();
-    }
   }
 
   // NOTE: Make a super func for all codecs
   void SetCodecConfig() {
     uint8_t source_codec_info_result[AVDT_CODEC_SIZE];
-    btav_a2dp_codec_index_t peer_codec_index;
     a2dp_codecs_ = new A2dpCodecs(std::vector<btav_a2dp_codec_config_t>());
 
     ASSERT_TRUE(a2dp_codecs_->init());
 
-    peer_codec_index = A2DP_SinkCodecIndex(kCodecInfoLdacCapability);
-    ASSERT_NE(peer_codec_index, BTAV_A2DP_CODEC_INDEX_MAX);
-    ASSERT_EQ(peer_codec_index, BTAV_A2DP_CODEC_INDEX_SINK_LDAC);
     source_codec_config_ = a2dp_codecs_->findSourceCodecConfig(kCodecInfoLdacCapability);
     ASSERT_NE(source_codec_config_, nullptr);
     ASSERT_TRUE(a2dp_codecs_->setCodecConfig(kCodecInfoLdacCapability, true,
@@ -103,7 +93,6 @@ protected:
     encoder_iface_->encoder_init(&peer_params, source_codec_config_, read_cb, enqueue_cb);
   }
 
-  void InitializeDecoder(decoded_data_callback_t data_cb) { decoder_iface_->decoder_init(data_cb); }
   BT_HDR* AllocateL2capPacket(const std::vector<uint8_t> data) const {
     auto packet = AllocatePacket(data.size());
     std::copy(data.cbegin(), data.cend(), Data(packet));
@@ -118,7 +107,6 @@ protected:
   A2dpCodecConfig* source_codec_config_;
   A2dpCodecs* a2dp_codecs_;
   tA2DP_ENCODER_INTERFACE* encoder_iface_;
-  tA2DP_DECODER_INTERFACE* decoder_iface_;
 };
 
 TEST_F(A2dpLdacTest, a2dp_source_read_underflow) {

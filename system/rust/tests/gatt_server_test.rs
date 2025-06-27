@@ -1,42 +1,28 @@
 use pdl_runtime::Packet;
-use std::{
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
-use bluetooth_core::{
-    core::uuid::Uuid,
-    gatt::{
-        self,
-        ffi::AttributeBackingType,
-        ids::{AdvertiserId, AttHandle, ServerId, TransportIndex},
-        mocks::{
-            mock_datastore::{MockDatastore, MockDatastoreEvents},
-            mock_transport::MockAttTransport,
-        },
-        server::{
-            gatt_database::{
-                AttPermissions, GattCharacteristicWithHandle, GattDescriptorWithHandle,
-                GattServiceWithHandle, CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID,
-            },
-            isolation_manager::IsolationManager,
-            services::{
-                gap::DEVICE_NAME_UUID,
-                gatt::{
-                    CLIENT_CHARACTERISTIC_CONFIGURATION_UUID, GATT_SERVICE_UUID,
-                    SERVICE_CHANGE_UUID,
-                },
-            },
-            GattModule, IndicationError,
-        },
-    },
-    packets::att::{self, AttErrorCode},
+use bluetooth_core::core::uuid::Uuid;
+use bluetooth_core::gatt::ffi::AttributeBackingType;
+use bluetooth_core::gatt::ids::{AdvertiserId, AttHandle, ServerId, TransportIndex};
+use bluetooth_core::gatt::mocks::mock_datastore::{MockDatastore, MockDatastoreEvents};
+use bluetooth_core::gatt::mocks::mock_transport::MockAttTransport;
+use bluetooth_core::gatt::server::gatt_database::{
+    AttPermissions, GattCharacteristicWithHandle, GattDescriptorWithHandle, GattServiceWithHandle,
+    CHARACTERISTIC_UUID, PRIMARY_SERVICE_DECLARATION_UUID,
 };
+use bluetooth_core::gatt::server::isolation_manager::IsolationManager;
+use bluetooth_core::gatt::server::services::gap::DEVICE_NAME_UUID;
+use bluetooth_core::gatt::server::services::gatt::{
+    CLIENT_CHARACTERISTIC_CONFIGURATION_UUID, GATT_SERVICE_UUID, SERVICE_CHANGE_UUID,
+};
+use bluetooth_core::gatt::server::{GattModule, IndicationError};
+use bluetooth_core::gatt::{self};
+use bluetooth_core::packets::att::{self, AttErrorCode};
 
-use tokio::{
-    sync::mpsc::{error::TryRecvError, UnboundedReceiver},
-    task::spawn_local,
-};
+use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::task::spawn_local;
 use utils::start_test;
 
 mod utils;

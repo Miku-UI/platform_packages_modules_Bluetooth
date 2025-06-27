@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.junit.runners.JUnit4;
 
 import java.util.Random;
 
+/** Test cases for {@link PublicBroadcastData}. */
 @RunWith(JUnit4.class)
 public class PublicBroadcastDataTest {
 
@@ -53,13 +54,13 @@ public class PublicBroadcastDataTest {
 
         byte[] serviceDataInvalid =
                 new byte[] {
-                    (byte) 0x02, // features, non-encrypted, standard quality prsent
+                    (byte) 0x02, // features, non-encrypted, standard quality preset
                 };
         assertThat(PublicBroadcastData.parsePublicBroadcastData(serviceDataInvalid)).isNull();
 
         byte[] serviceDataInvalid2 =
                 new byte[] {
-                    (byte) 0x02, // features, non-encrypted, standard quality prsent
+                    (byte) 0x02, // features, non-encrypted, standard quality preset
                     (byte) 0x03, // metaDataLength
                     (byte) 0x06,
                     (byte) 0x07, // invalid metaData
@@ -82,7 +83,7 @@ public class PublicBroadcastDataTest {
 
         byte[] serviceDataNoMetaData =
                 new byte[] {
-                    (byte) 0x02, // features, non-encrypted, standard quality prsent
+                    (byte) 0x02, // features, non-encrypted, standard quality preset
                     (byte) 0x00, // metaDataLength
                 };
         PublicBroadcastData dataNoMetaData =
@@ -100,13 +101,13 @@ public class PublicBroadcastDataTest {
         int metaDataLength = 142;
         byte[] serviceDataInvalid =
                 new byte[] {
-                    (byte) 0x02, // features, non-encrypted, standard quality prsent
+                    (byte) 0x02, // features, non-encrypted, standard quality preset
                 };
         assertThat(PublicBroadcastData.parsePublicBroadcastData(serviceDataInvalid)).isNull();
 
         byte[] serviceDataInvalid2 =
                 new byte[] {
-                    (byte) 0x02, // features, non-encrypted, standard quality prsent
+                    (byte) 0x02, // features, non-encrypted, standard quality preset
                     (byte) 0x03, // metaDataLength
                     (byte) 0x06,
                     (byte) 0x07, // invalid metaData
@@ -138,7 +139,7 @@ public class PublicBroadcastDataTest {
 
         byte[] serviceDataNoMetaData =
                 new byte[] {
-                    (byte) 0x02, // features, non-encrypted, standard quality prsent
+                    (byte) 0x02, // features, non-encrypted, standard quality preset
                     (byte) 0x00, // metaDataLength
                 };
         PublicBroadcastData dataNoMetaData =

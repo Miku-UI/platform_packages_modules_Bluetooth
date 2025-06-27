@@ -36,12 +36,12 @@ import java.util.function.Supplier;
 
 /** @hide */
 public final class BluetoothUtils {
-    private static final String TAG = "BluetoothUtils";
+    private static final String TAG = BluetoothUtils.class.getSimpleName();
 
     /** This utility class cannot be instantiated */
     private BluetoothUtils() {}
 
-    /** Match with UserHandl.NULL but accessible inside bluetooth package */
+    /** Match with UserHandle.NULL but accessible inside bluetooth package */
     public static final UserHandle USER_HANDLE_NULL = UserHandle.of(-10000);
 
     /** Class for Length-Value-Entry array parsing */
@@ -65,8 +65,8 @@ public final class BluetoothUtils {
         }
     }
 
-    // Helper method to extract bytes from byte array.
-    private static byte[] extractBytes(byte[] rawBytes, int start, int length) {
+    /** Helper method to extract bytes from byte array. */
+    public static byte[] extractBytes(byte[] rawBytes, int start, int length) {
         int remainingLength = rawBytes.length - start;
         if (remainingLength < length) {
             Log.w(
@@ -290,7 +290,7 @@ public final class BluetoothUtils {
                             repl = Integer.toHexString(Byte.toUnsignedInt((byte) arg));
                         } else {
                             throw new IllegalArgumentException(
-                                    "Unsupported hex type " + arg.getClass());
+                                    "Unsupported hex type " + arg.getClass().getSimpleName());
                         }
                     }
                     case '%' -> {
@@ -343,6 +343,22 @@ public final class BluetoothUtils {
             executor.execute(() -> callback.run());
         } finally {
             Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /** A {@link Runnable} that automatically logs {@link RemoteException} @hide */
+    @FunctionalInterface
+    public interface RemoteExceptionIgnoringRunnable {
+        /** Called by {@code accept}. */
+        void runOrThrow() throws RemoteException;
+
+        @RequiresNoPermission
+        default void run() {
+            try {
+                runOrThrow();
+            } catch (RemoteException ex) {
+                logRemoteException(TAG, ex);
+            }
         }
     }
 
@@ -428,5 +444,9 @@ public final class BluetoothUtils {
     /** Gracefully print a RemoteException as a one line warning @hide */
     public static void logRemoteException(String tag, RemoteException ex) {
         Log.w(tag, ex.toString() + ": " + inlineStackTrace());
+    }
+
+    static boolean isValidDevice(BluetoothDevice device) {
+        return device != null && BluetoothAdapter.checkBluetoothAddress(device.getAddress());
     }
 }

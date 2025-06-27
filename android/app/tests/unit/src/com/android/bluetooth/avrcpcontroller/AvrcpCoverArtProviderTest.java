@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright (C) 2022 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,64 +16,45 @@
 
 package com.android.bluetooth.avrcpcontroller;
 
+import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.when;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 
 import androidx.test.filters.SmallTest;
-import androidx.test.rule.ServiceTestRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.btservice.AdapterService;
-
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnit;
-import org.mockito.junit.MockitoRule;
 
 import java.io.FileNotFoundException;
 
+/** Test cases for {@link AvrcpCoverArtProvider}. */
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class AvrcpCoverArtProviderTest {
-    private static final String TEST_MODE = "test_mode";
-
-    private final byte[] mTestAddress = new byte[] {01, 01, 01, 01, 01, 01};
-
-    private BluetoothAdapter mAdapter;
-    private BluetoothDevice mTestDevice = null;
-    private AvrcpCoverArtProvider mArtProvider;
-
-    @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
-    @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private Uri mUri;
-    @Mock private AdapterService mAdapterService;
-    @Mock private AvrcpControllerNativeInterface mNativeInterface;
+
+    private static final String TEST_MODE = "test_mode";
+
+    private final BluetoothDevice mTestDevice = getTestDevice(48);
+
+    private AvrcpCoverArtProvider mArtProvider;
 
     @Before
     public void setUp() throws Exception {
-        TestUtils.setAdapterService(mAdapterService);
-        AvrcpControllerNativeInterface.setInstance(mNativeInterface);
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mTestDevice = mAdapter.getRemoteDevice(mTestAddress);
         mArtProvider = new AvrcpCoverArtProvider();
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        AvrcpControllerNativeInterface.setInstance(null);
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     @Test

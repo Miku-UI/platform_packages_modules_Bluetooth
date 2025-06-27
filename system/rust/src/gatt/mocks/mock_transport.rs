@@ -1,11 +1,9 @@
 //! Mocked implementation of AttTransport for use in test
 
-use crate::{
-    gatt::{channel::AttTransport, ids::TransportIndex},
-    packets::att,
-};
-use pdl_runtime::EncodeError;
-use pdl_runtime::Packet;
+use crate::gatt::channel::AttTransport;
+use crate::gatt::ids::TransportIndex;
+use crate::packets::att;
+use pdl_runtime::{EncodeError, Packet};
 use tokio::sync::mpsc::{self, unbounded_channel, UnboundedReceiver};
 
 /// Routes calls to AttTransport into a channel containing AttBuilders
