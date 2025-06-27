@@ -288,7 +288,7 @@ android_library {
 // Bluetooth APK
 android_app {
     name: "Bluetooth",
-    certificate: ":com.android.bluetooth.certificate",
+    certificate: "bluetooth",
     static_libs: ["BluetoothLib"],
 
     apex_available: ["com.android.bt"],
